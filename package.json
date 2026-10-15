@@ -1,0 +1,46 @@
+{
+  "name": "ledgerboard",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:fake": "vite --mode fake",
+    "build": "vue-tsc -b && vite build && node scripts/assert-no-fake-bytes.mjs",
+    "build:fake": "vite build --mode fake --outDir dist-fake",
+    "preview": "vite preview",
+    "preview:fake": "vite preview --outDir dist-fake",
+    "test": "vitest run",
+    "typecheck": "vue-tsc -b --noEmit",
+    "check": "npm run typecheck && npm test",
+    "check:visual": "node scripts/visual-check.mjs"
+  },
+  "description": "Dashboard over the shadow-accounting Google Sheet, computed in the browser",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@nuxt/ui": "^4.12.0",
+    "dexie": "^4.4.6",
+    "echarts": "^6.1.0",
+    "tailwindcss": "^4.3.3",
+    "vue": "^3.5.44",
+    "vue-echarts": "^8.3.2",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/google.accounts": "^0.0.18",
+    "@types/google.picker": "^0.0.52",
+    "@types/node": "^24.19.2",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vue/tsconfig": "^0.9.1",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^29.1.1",
+    "puppeteer-core": "^25.14.0",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4",
+    "vitest": "^4.1.11",
+    "vue-tsc": "^3.3.13"
+  }
+}

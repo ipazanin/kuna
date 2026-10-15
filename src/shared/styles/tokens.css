@@ -1,0 +1,23 @@
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+}
+
+/* Deeper than Nuxt UI's default dark, so cards read as raised above the page. */
+.dark {
+  --ui-bg: var(--ui-color-neutral-950);
+  --ui-bg-muted: var(--ui-color-neutral-900);
+  --ui-bg-elevated: var(--ui-color-neutral-900);
+  --ui-border: var(--ui-color-neutral-800);
+}
+
+body {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  font-family: var(--font-sans);
+}
+
+/* Every money figure lines up in columns. */
+.figure {
+  font-variant-numeric: tabular-nums;
+}

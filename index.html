@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' https://sheets.googleapis.com https://www.googleapis.com; frame-src https://docs.google.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+    />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="Dashboard over the shadow-accounting Google Sheet, computed in the browser." />
+    <title>Ledgerboard</title>
+  </head>
+  <body>
+    <div id="app" class="isolate"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
