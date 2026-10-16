@@ -119,7 +119,7 @@ const review = computed(() => {
           <p v-if="review.currentPartial || review.priorPartial" class="w-full text-xs text-muted">{{ review.coverage }}</p>
         </div>
 
-        <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
           <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
             <header class="px-4 pt-4 sm:px-5">
               <h2 class="text-sm font-medium text-highlighted">Profit and loss</h2>

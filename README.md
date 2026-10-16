@@ -44,8 +44,9 @@ install, and uses the same offline copy in a normal tab.
 
 ## Phone layout
 
-Below Tailwind's `sm` breakpoint (640 px) the app switches to a phone layout: a bottom bar with the
-menu and the sync or export control, filters in a bottom sheet behind a button that counts them,
+Below Tailwind's `sm` breakpoint (640 px) the app switches to a phone layout: a top app bar with the
+menu button, the screen's title and the sync or export control, a navigation drawer that slides in
+from the left, filters in a bottom sheet behind a button that counts them,
 transactions as cards, and charts with fewer axis labels. A tap on a chart shows its tooltip and a
 "View rows" action, and a second tap on the same mark drills. Every control there is at least 44 px
 square, and the installed app keeps clear of the system bars through the safe-area insets. From
@@ -128,7 +129,7 @@ npm run build          # production build into dist/, then checks no dev-only co
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
 npm run check:visual   # every screen, dark and light, at four widths in local Chrome, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: menu, drills, filter sheet, import, 44 px targets, in visual-check/touch/
+npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```

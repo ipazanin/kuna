@@ -143,7 +143,7 @@ function onDataZoom(): void {
       </div>
     </header>
 
-    <div class="chart-body px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px` }">
+    <div class="chart-body grow px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px` }">
       <UEmpty
         v-if="empty && !loading"
         icon="i-lucide-chart-no-axes-column"

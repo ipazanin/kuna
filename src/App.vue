@@ -9,7 +9,6 @@ import { bindFiltersToRouter } from './features/filters/application/filterStore'
 import { startAutoSync } from './features/workbook/application/autoSync'
 import { useWorkbook } from './features/workbook/application/workbookStore'
 import { syncStateOf } from './features/workbook/presentation/syncState'
-import { usePhoneLayout } from './shared/layout/viewport'
 import { SCREENS } from './shared/routing/screens'
 import AppShell from './shared/ui/AppShell.vue'
 import SyncStatus from './shared/ui/SyncStatus.vue'
@@ -41,9 +40,8 @@ const syncState = computed(() => syncStateOf(state))
 const firstRun = computed(() => state.status !== 'opening' && state.choice === null && state.workbook === null)
 const companyName = computed(() => state.workbook?.settings.companyName || null)
 
-// The phone's bottom bar holds the controls, so its toasts drop in from the top instead.
-const phone = usePhoneLayout()
-const toaster = computed(() => (phone.value ? { position: 'top-center' as const } : {}))
+/** Toasts rise from the bottom, clear of the gesture bar in the installed app. */
+const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))]' } }
 </script>
 
 <template>

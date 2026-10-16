@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
@@ -9,7 +9,7 @@ import AppBrand from './AppBrand.vue'
 import ScreenNavigation from './ScreenNavigation.vue'
 import type { NavigationEntry } from './ScreenNavigation.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     navigation: readonly NavigationEntry[]
     title?: string
@@ -35,6 +35,8 @@ watch(
     menuOpen.value = false
   },
 )
+
+const screenTitle = computed(() => props.navigation.find((entry) => entry.to === route.path)?.label ?? props.title)
 </script>
 
 <template>
@@ -49,35 +51,24 @@ watch(
       </div>
     </aside>
 
-    <template v-else-if="phone">
-      <header class="phone-header px-4 pb-1">
-        <AppBrand :title="title" :subtitle="subtitle" />
-      </header>
-
-      <nav class="phone-bar" aria-label="Application">
-        <USlideover v-model:open="menuOpen" side="bottom" :title="title" :ui="{ content: 'phone-sheet' }">
-          <UButton icon="i-lucide-menu" label="Menu" color="neutral" variant="ghost" aria-label="Open navigation" data-testid="open-navigation" />
-          <template #body>
-            <ScreenNavigation :navigation="navigation" grid />
-          </template>
-        </USlideover>
-        <div v-if="$slots.sync" class="ms-auto min-w-0">
-          <slot name="sync" :compact="true" />
-        </div>
-      </nav>
-    </template>
-
     <header
       v-else
-      class="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4"
+      class="top-bar sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4"
     >
-      <USlideover v-model:open="menuOpen" side="left" :title="title" :ui="{ content: 'max-w-72' }">
-        <UButton icon="i-lucide-menu" color="neutral" variant="ghost" aria-label="Open navigation" />
+      <USlideover
+        v-model:open="menuOpen"
+        side="left"
+        :title="title"
+        v-bind="phone && subtitle ? { description: subtitle } : {}"
+        :ui="{ content: phone ? 'phone-drawer' : 'max-w-72' }"
+      >
+        <UButton icon="i-lucide-menu" color="neutral" variant="ghost" aria-label="Open navigation" data-testid="open-navigation" />
         <template #body>
           <ScreenNavigation :navigation="navigation" />
         </template>
       </USlideover>
-      <span class="truncate text-[0.9375rem] font-semibold tracking-tight text-highlighted">{{ title }}</span>
+      <AppBrand v-if="phone" :title="screenTitle" :subtitle="null" class="min-w-0" data-testid="top-bar-title" />
+      <span v-else class="truncate text-[0.9375rem] font-semibold tracking-tight text-highlighted">{{ title }}</span>
       <div v-if="$slots.sync" class="ms-auto min-w-0">
         <slot name="sync" :compact="true" />
       </div>
@@ -92,31 +83,18 @@ watch(
 </template>
 
 <style scoped>
-/* The installed app draws under the status bar and the gesture bar, so the phone chrome clears them. */
-.phone-header {
-  padding-top: max(1rem, env(safe-area-inset-top));
-}
-
-.phone-bar {
-  position: fixed;
-  z-index: 20;
-  inset-inline: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: var(--phone-bar-height);
-  padding: 0.375rem max(0.75rem, env(safe-area-inset-right)) calc(0.375rem + env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
-  border-top: 1px solid var(--border-default);
-  background: color-mix(in srgb, var(--surface-page) 88%, transparent);
-  backdrop-filter: blur(12px);
-}
-
+/* The installed app draws under the status bar and the gesture bar, so the phone layout clears them. */
 @media (max-width: 639px) {
+  .top-bar {
+    height: calc(3.5rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+    padding-inline: max(0.25rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right));
+  }
+
   .app-main {
     padding-top: 1rem;
     padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
-    padding-bottom: calc(var(--phone-bar-height) + env(safe-area-inset-bottom) + 2rem);
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 }
 </style>

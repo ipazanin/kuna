@@ -1,6 +1,6 @@
 /**
- * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the menu, a
- * KPI tile's drill, a chart's tap-then-drill, the filter sheet, the Excel import, and every screen.
+ * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
+ * and its navigation drawer, a KPI tile's drill, a chart's tap-then-drill, the filter sheet, the Excel import, and every screen.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
  *
@@ -96,15 +96,49 @@ async function checkWidth(width) {
     await shoot('overview')
   })
 
-  await step('menu', async () => {
-    await page.tap('[data-testid="open-navigation"]')
+  await step('top-bar', async () => {
+    await expect(topBarTitle(page), (title) => title === 'Overview', 'the top bar does not name the screen')
+    await expect(
+      page.evaluate(() => {
+        const bar = document.querySelector('header')
+        const menu = bar?.querySelector('[data-testid="open-navigation"]')?.getBoundingClientRect()
+        const sync = bar?.querySelector('[data-testid="sync-status"] button')?.getBoundingClientRect()
+        const syncedAt = bar?.querySelector('[data-testid="sync-status"] time')?.textContent?.trim() ?? ''
+        return { menuAtLeft: menu !== undefined && menu.left < 24, syncAtRight: sync !== undefined && sync.right > window.innerWidth - 24, syncedAt }
+      }),
+      (bar) => bar.menuAtLeft && bar.syncAtRight && bar.syncedAt !== '',
+      'the top bar does not hold the menu at the left and Sync with its time at the right',
+    )
+  })
+
+  await step('drawer', async () => {
+    await openDrawer(page)
+    await expect(
+      page.evaluate(() => document.querySelector('[role="dialog"] a[aria-current="page"]')?.textContent?.trim() ?? null),
+      (current) => current === 'Overview',
+      'the drawer does not mark the current screen',
+    )
+    await inspect(page, `${width}px drawer open`)
+    await shoot('drawer-open')
+    for (let press = 0; press < 12; press += 1) await page.keyboard.press('Tab')
+    await expect(
+      page.evaluate(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement) ?? false),
+      (inside) => inside,
+      'Tab moved focus out of the open drawer',
+    )
+    await page.keyboard.press('Escape')
+    await drawerClosed(page)
+
+    await openDrawer(page)
+    await page.touchscreen.tap(width - 16, 400)
+    await drawerClosed(page)
+
+    await openDrawer(page)
     const link = await waitForText(page, '[role="dialog"] a', 'Transactions')
-    await delay(300)
-    await inspect(page, `${width}px menu open`)
-    await shoot('menu')
     await link.tap()
     await waitForTitle(page, 'Transactions')
-    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+    await drawerClosed(page)
+    await expect(topBarTitle(page), (title) => title === 'Transactions', 'the top bar kept the previous screen title')
   })
 
   await step('kpi-drill', async () => {
@@ -165,6 +199,7 @@ async function checkWidth(width) {
     await step(screen.title.toLowerCase().replace(' ', '-'), async () => {
       await open(page, screen.hash, screen.title)
       await page.waitForSelector(screen.ready)
+      await expect(topBarTitle(page), (title) => title === screen.title, 'the top bar does not name the screen')
       if (screen.title === 'Settings') await shoot('settings')
     })
   }
@@ -187,7 +222,7 @@ async function checkWidth(width) {
     const importButton = await waitForText(page, '[role="dialog"] button', 'Import')
     await importButton.tap()
     await waitForTitle(page, 'Overview')
-    await waitForText(page, '[data-testid="local-status"] button', 'Export')
+    await waitForText(page, 'header [data-testid="local-status"] button', 'Export')
   })
 
   if (errors.length) failures.push(`[${width}px] console errors: ${errors.slice(0, 3).join(' | ')}`)
@@ -206,6 +241,21 @@ async function waitForTitle(page, title) {
     { timeout: 10_000 },
     title,
   )
+}
+
+async function openDrawer(page) {
+  await page.tap('[data-testid="open-navigation"]')
+  await waitForText(page, '[role="dialog"] a', 'Transactions')
+  // The drawer slides in. A tap or a screenshot should meet it in place.
+  await delay(300)
+}
+
+function drawerClosed(page) {
+  return page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
+}
+
+function topBarTitle(page) {
+  return page.evaluate(() => document.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null)
 }
 
 async function waitForText(page, selector, text) {

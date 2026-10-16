@@ -110,7 +110,7 @@ const darkTheme = computed({
       "
     />
 
-    <div class="grid items-start gap-4 lg:grid-cols-2">
+    <div class="grid gap-4 lg:grid-cols-2">
       <section class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5" data-testid="data-source-card">
         <h2 class="text-sm font-medium text-highlighted">Data source</h2>
         <template v-if="source === 'excel'">

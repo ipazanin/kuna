@@ -3,7 +3,8 @@
  * light theme, and asserts what a screenshot cannot: no horizontal overflow, no console errors (CSP
  * violations included), no request to another origin, that each screen rendered its title, and
  * that it drew as many charts as it has from the fake workbook. Every chart on the gallery must
- * draw and every icon must come from the bundle.
+ * draw and every icon must come from the bundle. At tablet and desktop widths, cards whose tops
+ * line up in a row must end at the same height.
  *
  * Beyond the screens of the fake Google workbook, it renders the first-run welcome screen
  * (`?fake=empty`), Settings for a workbook kept in this browser (`?fake=excel`), and the import
@@ -32,9 +33,12 @@ const BASE = process.argv[2] ?? 'http://localhost:4173/ledgerboard/'
 const VIEWPORTS = [
   { name: 'phone', width: 360, height: 780 },
   { name: 'phone-large', width: 430, height: 932 },
-  { name: 'tablet', width: 834, height: 1112 },
-  { name: 'desktop', width: 1440, height: 900 },
+  { name: 'tablet', width: 834, height: 1112, alignedCards: true },
+  { name: 'desktop', width: 1440, height: 900, alignedCards: true },
 ]
+
+/** A card is a raised surface. One nested inside another card is part of that card. */
+const CARD_SELECTOR = '.rounded-card, .gallery-frame'
 
 /**
  * `charts` is how many charts the screen draws from the fake workbook. `shows` is text that only
@@ -104,7 +108,7 @@ function watchForForeignRequests(page) {
 }
 
 function readPage(page) {
-  return page.evaluate(() => {
+  return page.evaluate((cardSelector) => {
     const doc = document.documentElement
     const name = (element) => `${element.tagName.toLowerCase()}.${element.className?.toString().split(' ')[0] ?? ''}`
     const overflowing = [...document.querySelectorAll('*')]
@@ -120,8 +124,27 @@ function readPage(page) {
       unrenderedIcons: [...document.querySelectorAll('.iconify')].filter((icon) => icon.tagName.toLowerCase() !== 'svg').length,
       themeClass: doc.classList.contains('light') ? 'light' : doc.classList.contains('dark') ? 'dark' : 'none',
       text: document.body.innerText,
+      raggedRows: raggedCardRows(cardSelector),
     }
-  })
+
+    /** Pairs of side-by-side cards whose tops line up but whose bottoms are more than 1 px apart. */
+    function raggedCardRows(selector) {
+      const cards = [...document.querySelectorAll(selector)]
+        .filter((card) => !card.parentElement?.closest(selector) && card.getClientRects().length > 0)
+        .map((card) => ({ card, box: card.getBoundingClientRect() }))
+      const label = (card) => (card.querySelector('h2, h3, p, dt, span')?.textContent ?? card.textContent ?? '').trim().slice(0, 32)
+      const ragged = []
+      for (const [index, left] of cards.entries()) {
+        for (const right of cards.slice(index + 1)) {
+          const sideBySide = left.box.right <= right.box.left + 1 || right.box.right <= left.box.left + 1
+          if (!sideBySide || Math.abs(left.box.top - right.box.top) > 1) continue
+          const gap = Math.abs(left.box.bottom - right.box.bottom)
+          if (gap > 1) ragged.push(`"${label(left.card)}" and "${label(right.card)}" end ${Math.round(gap)} px apart`)
+        }
+      }
+      return ragged
+    }
+  }, CARD_SELECTOR)
 }
 
 mkdirSync(SCREENSHOT_DIR, { recursive: true })
@@ -192,6 +215,7 @@ for (const viewport of VIEWPORTS) {
     const collapsed = report.chartHeights.filter((height) => height < 100)
     if (collapsed.length) fail(scope, `${collapsed.length} chart(s) drew under 100px tall: ${collapsed.join(', ')}`)
     if (visit.gallery && report.iconCount < 10) fail(scope, `only ${report.iconCount} icons rendered as SVG`)
+    if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
     if (report.unrenderedIcons) fail(scope, `${report.unrenderedIcons} icon(s) did not render`)
     if (report.scrollWidth > report.clientWidth + 1) {
       fail(scope, `horizontal overflow: scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)

@@ -11,19 +11,14 @@ export interface NavigationEntry {
 import { RouterLink } from 'vue-router'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-withDefaults(
-  defineProps<{
-    navigation: readonly NavigationEntry[]
-    /** Two columns, as in the phone's menu sheet. */
-    grid?: boolean
-  }>(),
-  { grid: false },
-)
+defineProps<{
+  navigation: readonly NavigationEntry[]
+}>()
 </script>
 
 <template>
   <nav aria-label="Screens">
-    <ul :class="grid ? 'grid grid-cols-2 gap-1' : 'flex flex-col gap-0.5'">
+    <ul class="flex flex-col gap-0.5">
       <li v-for="entry in navigation" :key="entry.to">
         <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
           <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />

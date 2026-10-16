@@ -82,15 +82,7 @@ body {
  * The phone layout. Every control a thumb can reach is at least 44 by 44 px. The rule is unlayered,
  * so it wins over the Tailwind sizes of Nuxt UI's small buttons, but only below the phone breakpoint.
  */
-:root {
-  --phone-bar-height: 0px;
-}
-
 @media (max-width: 639px) {
-  :root {
-    --phone-bar-height: 3.5rem;
-  }
-
   :where(button:not([role='switch'], [role='checkbox']), a[href], select, textarea, [role='button'], [role='combobox'], [role='tab']),
   :where(input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='file'])) {
     min-height: 44px;
@@ -120,4 +112,14 @@ body {
   border-start-start-radius: 14px;
   border-start-end-radius: 14px;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* The navigation drawer that slides in from the left of a phone, clear of the status and gesture bars. */
+.phone-drawer {
+  max-width: min(20rem, calc(100vw - 3.5rem));
+  border-start-end-radius: 14px;
+  border-end-end-radius: 14px;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-inline-start: env(safe-area-inset-left);
 }

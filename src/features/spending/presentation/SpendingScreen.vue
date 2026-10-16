@@ -88,7 +88,7 @@ const spending = computed(() => {
       <template v-if="ledger && spending">
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
 
-        <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <div class="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <DrillChartCard
             :chart="spending.chart"
             title="Cost by category"

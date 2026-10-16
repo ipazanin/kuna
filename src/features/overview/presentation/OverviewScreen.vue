@@ -168,7 +168,7 @@ const overview = computed(() => {
           </div>
         </section>
 
-        <div class="grid items-start gap-4 xl:grid-cols-2">
+        <div class="grid gap-4 xl:grid-cols-2">
           <DrillChartCard
             :chart="overview.monthly"
             class="xl:col-span-2"

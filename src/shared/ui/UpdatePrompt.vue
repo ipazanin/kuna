@@ -20,7 +20,7 @@ const { updateReady, applyUpdate } = useAppUpdate()
   position: fixed;
   z-index: 40;
   inset-inline-end: max(1rem, env(safe-area-inset-right));
-  bottom: calc(1rem + env(safe-area-inset-bottom) + var(--phone-bar-height, 0px));
+  bottom: calc(1rem + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   gap: 0.75rem;

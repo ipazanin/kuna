@@ -1,7 +1,7 @@
 import { onScopeDispose, readonly, ref } from 'vue'
 import type { Ref } from 'vue'
 
-/** Below Tailwind's `sm` breakpoint: the phone layout, with its bottom bar, sheets and cards. */
+/** Below Tailwind's `sm` breakpoint: the phone layout, with its top app bar, drawer, sheets and cards. */
 export const PHONE_QUERY = '(max-width: 639px)'
 
 /** Whether a media query matches, kept current until the calling component or scope goes away. */
