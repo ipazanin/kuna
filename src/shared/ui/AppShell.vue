@@ -1,25 +1,22 @@
-<script lang="ts">
-export interface NavigationEntry {
-  readonly to: string
-  readonly label: string
-  /** A Lucide icon name such as `i-lucide-wallet`. */
-  readonly icon: string
-}
-</script>
-
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
+
+import { useMediaQuery, usePhoneLayout } from '../layout/viewport'
+import AppBrand from './AppBrand.vue'
+import ScreenNavigation from './ScreenNavigation.vue'
+import type { NavigationEntry } from './ScreenNavigation.vue'
 
 withDefaults(
   defineProps<{
     navigation: readonly NavigationEntry[]
     title?: string
+    /** A second line under the title, such as the company the workbook belongs to. */
+    subtitle?: string | null
   }>(),
-  { title: 'Ledgerboard' },
+  { title: 'Ledgerboard', subtitle: null },
 )
 
 defineSlots<{
@@ -27,13 +24,8 @@ defineSlots<{
   sync(props: { compact: boolean }): unknown
 }>()
 
-const wideQuery = window.matchMedia('(min-width: 1024px)')
-const wide = ref(wideQuery.matches)
-const followWidth = (change: MediaQueryListEvent): void => {
-  wide.value = change.matches
-}
-wideQuery.addEventListener('change', followWidth)
-onBeforeUnmount(() => wideQuery.removeEventListener('change', followWidth))
+const wide = useMediaQuery('(min-width: 1024px)')
+const phone = usePhoneLayout()
 
 const menuOpen = ref(false)
 const route = useRoute()
@@ -49,28 +41,31 @@ watch(
   <div class="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
     <aside v-if="wide" class="border-e border-default bg-raised/60" aria-label="Application">
       <div class="sticky top-0 flex h-dvh flex-col">
-        <div class="flex items-center gap-2.5 px-5 pt-6 pb-5">
-          <svg viewBox="0 0 32 32" class="size-6 shrink-0" aria-hidden="true">
-            <rect width="32" height="32" rx="7" fill="var(--accent)" />
-            <path d="M8 22h16M10 18v-6M16 18V9M22 18v-4" stroke="var(--accent-ink)" stroke-width="2.5" stroke-linecap="round" />
-          </svg>
-          <span class="text-[0.9375rem] font-semibold tracking-tight text-highlighted">{{ title }}</span>
-        </div>
-        <nav aria-label="Screens" class="flex-1 overflow-y-auto px-3">
-          <ul class="flex flex-col gap-0.5">
-            <li v-for="entry in navigation" :key="entry.to">
-              <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
-                <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
-                <span>{{ entry.label }}</span>
-              </RouterLink>
-            </li>
-          </ul>
-        </nav>
+        <AppBrand :title="title" :subtitle="subtitle" class="px-5 pt-6 pb-5" />
+        <ScreenNavigation :navigation="navigation" class="flex-1 overflow-y-auto px-3" />
         <div v-if="$slots.sync" class="border-t border-default px-4 py-4">
           <slot name="sync" :compact="false" />
         </div>
       </div>
     </aside>
+
+    <template v-else-if="phone">
+      <header class="phone-header px-4 pb-1">
+        <AppBrand :title="title" :subtitle="subtitle" />
+      </header>
+
+      <nav class="phone-bar" aria-label="Application">
+        <USlideover v-model:open="menuOpen" side="bottom" :title="title" :ui="{ content: 'phone-sheet' }">
+          <UButton icon="i-lucide-menu" label="Menu" color="neutral" variant="ghost" aria-label="Open navigation" data-testid="open-navigation" />
+          <template #body>
+            <ScreenNavigation :navigation="navigation" grid />
+          </template>
+        </USlideover>
+        <div v-if="$slots.sync" class="ms-auto min-w-0">
+          <slot name="sync" :compact="true" />
+        </div>
+      </nav>
+    </template>
 
     <header
       v-else
@@ -79,16 +74,7 @@ watch(
       <USlideover v-model:open="menuOpen" side="left" :title="title" :ui="{ content: 'max-w-72' }">
         <UButton icon="i-lucide-menu" color="neutral" variant="ghost" aria-label="Open navigation" />
         <template #body>
-          <nav aria-label="Screens">
-            <ul class="flex flex-col gap-0.5">
-              <li v-for="entry in navigation" :key="entry.to">
-                <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
-                  <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
-                  <span>{{ entry.label }}</span>
-                </RouterLink>
-              </li>
-            </ul>
-          </nav>
+          <ScreenNavigation :navigation="navigation" />
         </template>
       </USlideover>
       <span class="truncate text-[0.9375rem] font-semibold tracking-tight text-highlighted">{{ title }}</span>
@@ -97,7 +83,7 @@ watch(
       </div>
     </header>
 
-    <main class="min-w-0 px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-9">
+    <main class="app-main min-w-0 px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-9">
       <div class="mx-auto max-w-[90rem]">
         <slot />
       </div>
@@ -106,42 +92,31 @@ watch(
 </template>
 
 <style scoped>
-.nav-link {
-  position: relative;
+/* The installed app draws under the status bar and the gesture bar, so the phone chrome clears them. */
+.phone-header {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.phone-bar {
+  position: fixed;
+  z-index: 20;
+  inset-inline: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.4375rem 0.75rem;
-  border-radius: var(--radius-control);
-  font-size: 0.875rem;
-  color: var(--ink-muted);
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
+  gap: 0.5rem;
+  min-height: var(--phone-bar-height);
+  padding: 0.375rem max(0.75rem, env(safe-area-inset-right)) calc(0.375rem + env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  border-top: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-page) 88%, transparent);
+  backdrop-filter: blur(12px);
 }
 
-.nav-link:hover {
-  color: var(--ink-strong);
-  background: var(--surface-elevated);
-}
-
-.nav-link.is-active {
-  color: var(--ink-strong);
-  background: var(--accent-wash);
-  font-weight: 500;
-}
-
-.nav-link.is-active::before {
-  content: '';
-  position: absolute;
-  inset-block: 0.4375rem;
-  inset-inline-start: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--accent);
-}
-
-.nav-link.is-active :deep(svg) {
-  color: var(--accent);
+@media (max-width: 639px) {
+  .app-main {
+    padding-top: 1rem;
+    padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+    padding-bottom: calc(var(--phone-bar-height) + env(safe-area-inset-bottom) + 2rem);
+  }
 }
 </style>

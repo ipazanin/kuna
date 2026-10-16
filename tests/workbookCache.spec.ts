@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
@@ -17,12 +18,13 @@ function ledgerRow(sheetRow: number, amount: number): SheetRow {
   return { sheetRow, cells: { date: 46300, account: 'operating', amount } }
 }
 
-function snapshotOf(spreadsheetId: string, ledger: SheetRow[], syncedAt = '2026-10-15T08:00:00.000Z'): WorkbookSnapshot {
+function snapshotOf(workbookId: string, ledger: SheetRow[], syncedAt = '2026-10-15T08:00:00.000Z'): WorkbookSnapshot {
   return {
-    meta: { spreadsheetId, title: 'Test workbook', syncedAt, ledgerSheetId: 7 },
+    meta: { id: workbookId, source: 'google', title: 'Test workbook', syncedAt, ledgerSheetId: 7, lastExportedAt: null, unexportedSince: null },
     ledger,
     categories: [{ sheetRow: 2, cells: { category: 'revenue', bucket: 'income' } }],
     accounts: [{ sheetRow: 2, cells: { account: 'operating', currency: 'EUR' } }],
+    settings: [{ sheetRow: 2, cells: { key: 'currency', value: 'EUR' } }],
   }
 }
 
@@ -43,10 +45,19 @@ describe('workbook cache', () => {
 
     const read = await cache.read()
 
-    expect(read?.meta).toEqual({ spreadsheetId: 'sheet-a', title: 'Test workbook', syncedAt: '2026-10-15T08:00:00.000Z', ledgerSheetId: 7 })
+    expect(read?.meta).toEqual({
+      id: 'sheet-a',
+      source: 'google',
+      title: 'Test workbook',
+      syncedAt: '2026-10-15T08:00:00.000Z',
+      ledgerSheetId: 7,
+      lastExportedAt: null,
+      unexportedSince: null,
+    })
     expect(read?.ledger.map((row) => row.sheetRow)).toEqual([2, 3])
     expect(read?.categories).toHaveLength(1)
     expect(read?.accounts[0]?.cells.currency).toBe('EUR')
+    expect(read?.settings[0]?.cells).toEqual({ key: 'currency', value: 'EUR' })
   })
 
   it('replaces the whole copy, so rows gone from the Sheet are gone from the cache', async () => {
@@ -74,6 +85,29 @@ describe('workbook cache', () => {
 
     await expect(cache.replace(snapshotOf('sheet-other', []))).rejects.toThrow(/sheet-other/)
     expect((await cache.read())?.ledger).toHaveLength(1)
+  })
+
+  it('opens a copy cached before the settings tab and Excel mode existed', async () => {
+    const name = 'ledgerboard-workbook-sheet-old'
+    const legacy = new Dexie(name)
+    legacy.version(1).stores({ meta: 'key', ledger: 'sheetRow', categories: 'sheetRow', accounts: 'sheetRow' })
+    await legacy.table('meta').put({ key: 'workbook', spreadsheetId: 'sheet-old', title: 'Old', syncedAt: '2026-10-01T06:00:00.000Z' })
+    await legacy.table('ledger').put(ledgerRow(2, 5))
+    legacy.close()
+
+    const read = await cacheFor('sheet-old').read()
+
+    expect(read?.meta).toEqual({
+      id: 'sheet-old',
+      source: 'google',
+      title: 'Old',
+      syncedAt: '2026-10-01T06:00:00.000Z',
+      ledgerSheetId: null,
+      lastExportedAt: null,
+      unexportedSince: null,
+    })
+    expect(read?.ledger).toEqual([ledgerRow(2, 5)])
+    expect(read?.settings).toEqual([])
   })
 
   it('reads nothing after the copy is deleted', async () => {

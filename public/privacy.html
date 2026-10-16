@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="What Ledgerboard reads, where it keeps your data, and how to revoke its access." />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <title>Ledgerboard privacy</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #eef1f4;
+        --raised: #ffffff;
+        --border: #dbe0e6;
+        --ink-strong: #0c1622;
+        --ink: #182433;
+        --ink-muted: #5d6a7d;
+        --accent: #8a6421;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --page: #0d1219;
+          --raised: #131a23;
+          --border: #222c3a;
+          --ink-strong: #f4f7fa;
+          --ink: #e3e9f0;
+          --ink-muted: #7d8a9c;
+          --accent: #d4ab63;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: var(--page);
+      }
+
+      body {
+        color: var(--ink);
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        background-image:
+          linear-gradient(to bottom, transparent 0, var(--page) 36rem),
+          repeating-linear-gradient(to bottom, transparent 0 31px, var(--border) 31px 32px);
+      }
+
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 3.5rem 16px 4rem;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+
+      h1 {
+        margin: 0;
+        color: var(--ink-strong);
+        font-size: 1.625rem;
+        line-height: 2rem;
+        letter-spacing: -0.015em;
+        font-weight: 600;
+      }
+
+      .lead {
+        margin: 0 0 2rem;
+        color: var(--ink-muted);
+      }
+
+      article {
+        padding: 0.25rem 1.25rem;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--raised);
+      }
+
+      section + section {
+        border-top: 1px solid var(--border);
+      }
+
+      section {
+        padding: 1rem 0;
+      }
+
+      h2 {
+        margin: 0 0 0.25rem;
+        color: var(--ink-strong);
+        font-size: 0.9375rem;
+        font-weight: 600;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      p + p {
+        margin-top: 0.5rem;
+      }
+
+      a {
+        color: var(--ink-strong);
+        text-decoration: underline;
+        text-decoration-color: var(--accent);
+        text-underline-offset: 3px;
+        overflow-wrap: anywhere;
+      }
+
+      a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      footer {
+        margin-top: 1.5rem;
+        color: var(--ink-muted);
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="var(--accent)" />
+          <path d="M8 22h16M10 18v-6M16 18V9M22 18v-4" stroke="var(--page)" stroke-width="2.5" stroke-linecap="round" />
+        </svg>
+        <h1>Privacy</h1>
+      </header>
+      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 16 October 2026.</p>
+
+      <article>
+        <section>
+          <h2>What the app reads</h2>
+          <p>
+            Only files you choose. With Google, it asks for the <code>drive.file</code> permission, which covers only the Sheet you pick in
+            Google's file picker. It reads that Sheet's ledger, categories, accounts and settings tabs and never writes to it. It cannot see
+            the rest of your Drive.
+          </p>
+          <p>
+            It also asks for <code>openid email</code>, which tells it the email address of the Google account you signed in with. That is
+            all it reads about your account.
+          </p>
+          <p>In Excel mode it reads only the .xlsx file you open or drop on the page.</p>
+        </section>
+        <section>
+          <h2>Where your data goes</h2>
+          <p>
+            There is no server. The page talks only to Google's own APIs, and only to read a Sheet you picked. No analytics, no tracking, no
+            third-party scripts beyond Google's sign-in and file picker.
+          </p>
+        </section>
+        <section>
+          <h2>Where your data is kept</h2>
+          <p>
+            With a Google Sheet, the Sheet stays the original. The app keeps a copy in this browser's storage so the figures show at once.
+          </p>
+          <p>
+            Google's access token is kept in this browser until it expires, about an hour after you sign in, so a reload or a new tab can
+            sync without asking again. Your email address is stored only to skip Google's account chooser the next time you sign in. Sign out
+            of Google in Settings removes both and revokes the token.
+          </p>
+          <p>
+            In Excel mode, the workbook lives in this browser's storage and in the files you export. Clearing this site's data in the browser
+            deletes it, so export to keep a copy.
+          </p>
+        </section>
+        <section>
+          <h2>How to revoke access</h2>
+          <p>
+            Remove Ledgerboard at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. To remove the copy in
+            this browser, clear the site data for this page in your browser's settings.
+          </p>
+        </section>
+        <section>
+          <h2>Contact</h2>
+          <p><a href="mailto:ivan.pazanin1996@gmail.com">ivan.pazanin1996@gmail.com</a></p>
+        </section>
+      </article>
+
+      <footer><a href="./">Back to Ledgerboard</a></footer>
+    </main>
+  </body>
+</html>

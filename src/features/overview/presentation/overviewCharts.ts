@@ -3,8 +3,11 @@ import { bucketTone } from '../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../shared/charts/chartTooltip'
 import type { BarSeries } from '../../../shared/charts/echarts'
-import { formatCompactEuros, formatPercent, formatWholeEuros } from '../../../shared/money/euroFormat'
+import { currencyUnitName, formatCompactMoney, formatPercent, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import type { LegendEntry } from '../../../shared/ui/ChartLegend.vue'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
+import { inSentence, lineShown } from '../../settings/domain/profitAndLossLabels'
+import type { Settings } from '../../settings/domain/settings'
 import type { CategoryTotal } from '../../spending/domain/categoryTotals'
 import type { EuroSplit, EuroSplitPart } from '../domain/euroSplit'
 
@@ -13,12 +16,26 @@ export interface LabelledSplit {
   readonly split: EuroSplit
 }
 
-const SPLIT_PARTS: readonly { readonly part: EuroSplitPart; readonly name: string; readonly tone: 'income' | 'operating' | 'taxes' | 'owner-pay' }[] = [
-  { part: 'kept', name: 'Kept', tone: 'income' },
-  { part: 'operating', name: 'Operating', tone: 'operating' },
-  { part: 'taxes', name: 'Taxes', tone: 'taxes' },
-  { part: 'ownerPay', name: 'Owner pay', tone: 'owner-pay' },
-]
+export interface SplitPart {
+  readonly part: EuroSplitPart
+  readonly name: string
+  readonly tone: 'income' | 'operating' | 'taxes' | 'owner-pay'
+}
+
+/** What is kept, then each cost on screen, named by the settings. */
+export function splitParts(settings: Settings): SplitPart[] {
+  const parts: SplitPart[] = [
+    { part: 'kept', name: 'Kept', tone: 'income' },
+    { part: 'operating', name: settings.bucketLabels.operating, tone: 'operating' },
+    { part: 'taxes', name: settings.bucketLabels.taxes, tone: 'taxes' },
+    { part: 'ownerPay', name: settings.bucketLabels['owner-pay'], tone: 'owner-pay' },
+  ]
+  return parts.filter((part) => part.part !== 'ownerPay' || lineShown(settings, 'ownerPay'))
+}
+
+export function splitLegend(parts: readonly SplitPart[]): LegendEntry[] {
+  return parts.map((part) => ({ label: part.name, colour: `var(--bucket-${part.tone})` }))
+}
 
 /** A segment label only where it fits inside the segment. */
 const SMALLEST_LABELLED_SHARE = 0.2
@@ -27,10 +44,11 @@ const SMALLEST_LABELLED_SHARE = 0.2
  * One 100% bar per window, each segment a share of what came in. A window in a loss has no kept
  * segment: its bar splits what went out, and the description says so.
  */
-export function euroSplitChart(windows: readonly LabelledSplit[], tokens: ChartTokens): DrillChart {
+export function euroSplitChart(windows: readonly LabelledSplit[], parts: readonly SplitPart[], tokens: ChartTokens): DrillChart {
   const rows = [...windows].reverse()
-  const lastPart = SPLIT_PARTS[SPLIT_PARTS.length - 1]
-  const series: BarSeries[] = SPLIT_PARTS.map(({ part, name, tone }) => ({
+  const unit = currencyUnitName()
+  const lastPart = parts[parts.length - 1]
+  const series: BarSeries[] = parts.map(({ part, name, tone }) => ({
     type: 'bar',
     name,
     stack: 'euro',
@@ -65,14 +83,17 @@ export function euroSplitChart(windows: readonly LabelledSplit[], tokens: ChartT
     },
     description: windows
       .map(({ label, split }) => {
-        const shares = split.slices.map((slice) => `${partName(slice.part)} ${formatPercent(slice.share)}`).join(', ')
+        const shares = split.slices
+          .filter((slice) => parts.some((part) => part.part === slice.part))
+          .map((slice) => `${inSentence(parts.find((part) => part.part === slice.part)?.name ?? slice.part)} ${formatPercent(slice.share)}`)
+          .join(', ')
         return split.basis === 'income'
-          ? `${label}: of every euro earned, ${shares}.`
-          : `${label}: costs exceeded income by ${formatWholeEuros(split.shortfall?.perMonth ?? 0)} a month, so the bar splits every euro spent: ${shares}.`
+          ? `${label}: of every ${unit} earned, ${shares}.`
+          : `${label}: costs exceeded income by ${formatWholeMoney(split.shortfall?.perMonth ?? 0)} a month, so the bar splits every ${unit} spent: ${shares}.`
       })
       .join(' '),
     drillAt: ({ seriesName, dataIndex }) => {
-      const part = SPLIT_PARTS.find((candidate) => candidate.name === seriesName)?.part
+      const part = parts.find((candidate) => candidate.name === seriesName)?.part
       return rows[dataIndex]?.split.slices.find((slice) => slice.part === part)?.drill ?? null
     },
   }
@@ -84,7 +105,7 @@ export function categoryBarsChart(categories: readonly CategoryTotal[], tokens: 
   return {
     option: {
       grid: { top: 4, right: 64 },
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatWholeEuros(amount) }) },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatWholeMoney(amount) }) },
       xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: {
         type: 'category',
@@ -104,7 +125,7 @@ export function categoryBarsChart(categories: readonly CategoryTotal[], tokens: 
             distance: 8,
             color: tokens.inkSecondary,
             fontSize: 11,
-            formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactEuros(value) : ''),
+            formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactMoney(value) : ''),
           },
           data: rows.map((total) => ({ value: total.amount.amount, itemStyle: { color: tokens.buckets[bucketTone(total.bucket)] } })),
         },
@@ -112,15 +133,11 @@ export function categoryBarsChart(categories: readonly CategoryTotal[], tokens: 
     },
     description:
       categories.length === 0
-        ? `No ${subject.toLowerCase()} in this period.`
+        ? `No ${inSentence(subject)} in this period.`
         : `${subject} by category. ${categories
             .slice(0, 5)
-            .map((total) => `${total.category} ${formatWholeEuros(total.amount.amount)}`)
+            .map((total) => `${total.category} ${formatWholeMoney(total.amount.amount)}`)
             .join(', ')}${categories.length > 5 ? `, and ${categories.length - 5} more` : ''}.`,
     drillAt: ({ dataIndex }) => rows[dataIndex]?.amount.drill ?? null,
   }
-}
-
-function partName(part: EuroSplitPart): string {
-  return SPLIT_PARTS.find((candidate) => candidate.part === part)?.name.toLowerCase() ?? part
 }

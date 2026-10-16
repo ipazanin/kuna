@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 import { devContentSecurityPolicy } from './scripts/devContentSecurityPolicy.ts'
+import { offlineApp } from './scripts/pwa.ts'
 
 // Project site: https://ipazanin.github.io/ledgerboard/
 // The leading and trailing slashes are both required, or every asset 404s once deployed.
@@ -36,5 +37,6 @@ export default defineConfig({
       },
     }),
     devContentSecurityPolicy(),
+    offlineApp(),
   ],
 })

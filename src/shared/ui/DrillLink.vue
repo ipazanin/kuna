@@ -40,4 +40,13 @@ defineProps<{
   outline-offset: 2px;
   text-decoration-color: var(--accent);
 }
+
+/* On a phone the figure is a tap target, so the link takes the 44 px height app.css sets. */
+@media (max-width: 639px) {
+  .drill-link {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+  }
+}
 </style>

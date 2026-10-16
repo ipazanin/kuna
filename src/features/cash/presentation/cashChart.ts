@@ -3,7 +3,7 @@ import { incompleteBand, moneyAxisLabel } from '../../../shared/charts/chartThem
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../shared/charts/chartTooltip'
 import type { LineSeries } from '../../../shared/charts/echarts'
-import { formatWholeEuros } from '../../../shared/money/euroFormat'
+import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import type { BalanceMonth } from '../domain/balances'
 
@@ -51,7 +51,7 @@ export function balanceChart(
           tokens,
           incompleteCategories: categories.filter((_, index) => incomplete[index]),
           categoryLabel: monthAxisLabel('long'),
-          formatAmount: (amount) => formatWholeEuros(amount),
+          formatAmount: (amount) => formatWholeMoney(amount),
         }),
       },
       xAxis: {
@@ -70,7 +70,7 @@ export function balanceChart(
       last === undefined
         ? 'No months to show.'
         : `Month-end balance of ${accounts.join(', ')} from ${monthLabel(months[0]!.month)} to ${monthLabel(last.month)}, stacked, with the total as a line. ` +
-          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the total was ${formatWholeEuros(last.total.amount)}.`,
+          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the total was ${formatWholeMoney(last.total.amount)}.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {

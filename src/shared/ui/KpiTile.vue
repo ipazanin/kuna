@@ -99,4 +99,13 @@ const deltaPresentation = computed(() => {
 .kpi-link:focus-visible {
   outline: none;
 }
+
+/* The tile is the target, but the label is the element, so it takes the tap height without moving the text. */
+@media (max-width: 639px) {
+  .kpi-link {
+    display: flex;
+    align-items: center;
+    margin-block: -0.75rem;
+  }
+}
 </style>

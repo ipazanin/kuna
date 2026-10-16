@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
 
+import { useExport } from '../../excel/presentation/useExport'
 import { useWorkbook } from '../application/workbookStore'
 import { syncStateOf } from './syncState'
 
 /** Shows its slot once a workbook with transactions is on screen, and says what is missing until then. */
 const { state, sync } = useWorkbook()
+const router = useRouter()
+const { exportNow } = useExport()
+
+const inBrowser = computed(() => state.choice?.source === 'excel')
 
 const gate = computed(() => {
   if (state.workbook !== null && state.workbook.transactions.length > 0) {
@@ -25,29 +31,32 @@ const gate = computed(() => {
 <template>
   <slot v-if="gate === 'open'" />
   <UEmpty
-    v-else-if="gate === 'first-run'"
-    icon="i-lucide-file-spreadsheet"
-    title="Choose the Google Sheet that holds your ledger"
-    description="Ledgerboard reads its ledger, categories and accounts tabs and keeps a copy in this browser. Nothing is written back."
-    :actions="[{ label: 'Choose your Sheet', icon: 'i-lucide-file-spreadsheet', onClick: () => sync() }]"
-    variant="outline"
-    class="rounded-card border-dashed bg-raised/40"
-  />
-  <UEmpty
     v-else-if="gate === 'error'"
     icon="i-lucide-triangle-alert"
-    title="The Sheet could not be read"
+    :title="inBrowser ? 'The workbook in this browser could not be read' : 'The Sheet could not be read'"
     :description="state.error ?? ''"
-    :actions="[{ label: 'Try again', color: 'neutral', variant: 'outline', onClick: () => sync() }]"
+    :actions="inBrowser ? [] : [{ label: 'Try again', color: 'neutral', variant: 'outline', onClick: () => sync() }]"
     variant="outline"
     class="rounded-card border-error/40 bg-raised"
     :ui="{ avatar: 'text-error' }"
   />
   <UEmpty
+    v-else-if="gate === 'empty-ledger' && inBrowser"
+    icon="i-lucide-file-spreadsheet"
+    title="The ledger has no transactions yet"
+    description="Export the workbook, add your bank rows to its ledger tab in Excel, and import the file again. Categories and settings can be set up here first."
+    :actions="[
+      { label: 'Export to Excel', icon: 'i-lucide-download', onClick: exportNow },
+      { label: 'Open Settings', icon: 'i-lucide-settings', color: 'neutral', variant: 'outline', onClick: () => router.push('/settings') },
+    ]"
+    variant="outline"
+    class="rounded-card border-dashed bg-raised/40"
+  />
+  <UEmpty
     v-else-if="gate === 'empty-ledger'"
     icon="i-lucide-sheet"
     title="The ledger tab has no transactions yet"
-    description="Once the morning import adds rows, sync again."
+    description="Once rows reach the Sheet's ledger tab, sync again."
     variant="outline"
     class="rounded-card border-dashed bg-raised/40"
   />
@@ -61,7 +70,7 @@ const gate = computed(() => {
   <UEmpty
     v-else-if="gate === 'ready'"
     icon="i-lucide-refresh-cw"
-    :title="`Sync to read ${state.sheet?.name ?? 'the Sheet'}`"
+    :title="`Sync to read ${state.choice?.name ?? 'the Sheet'}`"
     description="This browser has no copy of it yet."
     :actions="[{ label: 'Sync', icon: 'i-lucide-refresh-cw', onClick: () => sync() }]"
     variant="outline"

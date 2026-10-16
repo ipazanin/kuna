@@ -1,5 +1,5 @@
 import type { ChartTokens } from './chartTokens'
-import { formatEuros } from '../money/euroFormat'
+import { formatMoney } from '../money/moneyFormat'
 
 interface AxisTooltipPoint {
   readonly seriesName?: string
@@ -27,7 +27,7 @@ export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) =>
   const {
     tokens,
     incompleteCategories = [],
-    formatAmount = (amount: number) => formatEuros(amount),
+    formatAmount = (amount: number) => formatMoney(amount),
     categoryLabel = (category: string) => category,
   } = settings
   return (points: unknown) => {

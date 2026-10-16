@@ -1,4 +1,5 @@
-import type { CachedTab, CellValue, WorkbookSnapshot } from '../workbookSnapshot'
+import type { WorkbookSource } from '../../domain/workbook'
+import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../workbookSnapshot'
 import { sheetRowsFromValues } from '../workbookSnapshot'
 
 /**
@@ -121,19 +122,33 @@ const MONTHS = [
 /** The month with no client payment and a large purchase, so its net is negative. */
 const LOSS_MONTH = '2025-11'
 
-export function fakeWorkbookSnapshot(syncedAt: string): WorkbookSnapshot {
-  const values = fakeWorkbookValues()
+/**
+ * As a Google Sheet it has no `settings` tab, like the owner's Sheet, so every default applies. As a
+ * workbook kept in this browser it names its company, the way a template user would.
+ */
+export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 'google'): WorkbookSnapshot {
+  const values = fakeWorkbookValues(source)
   return {
-    meta: { spreadsheetId: FAKE_SPREADSHEET_ID, title: FAKE_WORKBOOK_TITLE, syncedAt, ledgerSheetId: 0 },
+    meta: {
+      id: FAKE_SPREADSHEET_ID,
+      source,
+      title: FAKE_WORKBOOK_TITLE,
+      syncedAt,
+      ledgerSheetId: source === 'google' ? 0 : null,
+      lastExportedAt: null,
+      unexportedSince: null,
+    },
     ledger: sheetRowsFromValues(values.ledger),
     categories: sheetRowsFromValues(values.categories),
     accounts: sheetRowsFromValues(values.accounts),
+    settings: sheetRowsFromValues(values.settings),
   }
 }
 
-/** The three tabs as the Sheets API returns them: header row first, dates as serial numbers. */
-export function fakeWorkbookValues(): Record<CachedTab, CellValue[][]> {
+/** The tabs as the Sheets API returns them: header row first, dates as serial numbers. */
+export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<WorkbookTab, CellValue[][]> {
   return {
+    settings: source === 'google' ? [] : [['key', 'value'], ['template_version', 1], ['company_name', 'Example Studio'], ['currency', 'EUR']],
     ledger: ledgerValues(bookings()),
     categories: [
       ['category', 'family', 'bucket', 'colour'],

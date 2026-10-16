@@ -4,6 +4,7 @@ import type { ComputedRef } from 'vue'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { useFilters } from '../../filters/application/filterStore'
 import type { FilterState } from '../../filters/domain/filterState'
+import { presentedTransactions } from '../../settings/domain/profitAndLossLabels'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { ledgerWindowOf } from '../../workbook/domain/workbook'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
@@ -11,6 +12,7 @@ import { filterTransactions, scopeTransactions } from '../domain/filterTransacti
 
 /** The workbook on screen with the shared filters applied, in the cuts the screens compute from. */
 export interface FilteredLedger {
+  /** The workbook on screen, its rows as the screens count them under the settings. */
   readonly workbook: Workbook
   /** The whole ledger's window, so rolling periods end at the same month on every screen. */
   readonly window: LedgerWindow
@@ -28,11 +30,12 @@ export function useFilteredLedger(): ComputedRef<FilteredLedger | null> {
   const { state } = useWorkbook()
   const { filters } = useFilters()
   return computed(() => {
-    const workbook = state.workbook
-    const window = workbook === null ? null : ledgerWindowOf(workbook.transactions)
-    if (workbook === null || window === null) {
+    const shown = state.workbook
+    const window = shown === null ? null : ledgerWindowOf(shown.transactions)
+    if (shown === null || window === null) {
       return null
     }
+    const workbook = { ...shown, transactions: presentedTransactions(shown.transactions, shown.settings) }
     const current = filters.value as FilterState
     const accounts = current.accounts
     return {

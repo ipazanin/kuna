@@ -1,4 +1,4 @@
-import { formatEuros } from '../../../shared/money/euroFormat'
+import { formatMoney } from '../../../shared/money/moneyFormat'
 import { DEFAULT_FILTERS } from './filterState'
 import type { FilterState } from './filterState'
 
@@ -17,15 +17,18 @@ const LIST_FIELDS = [
 
 type ListField = (typeof LIST_FIELDS)[number]['field']
 
-/**
- * A chip for every filter beyond the period and the accounts, which the period bar shows in its
- * own controls. Counterparties are stored as keys, so their label comes from the rows.
- */
-export function filterChips(filters: FilterState, counterpartyLabel: (key: string) => string): FilterChip[] {
+/** How a chip names what it narrows to: counterparties are stored as keys and buckets as identifiers. */
+export interface ChipLabels {
+  readonly counterparty: (key: string) => string
+  readonly bucket: (bucket: string) => string
+}
+
+/** A chip for every filter beyond the period and the accounts, which the period bar shows in its own controls. */
+export function filterChips(filters: FilterState, labels: ChipLabels): FilterChip[] {
   const chips: FilterChip[] = LIST_FIELDS.flatMap(({ field, name }) =>
     filters[field].map((selected) => ({
       id: `${field}:${selected}`,
-      label: `${name}: ${field === 'counterparties' ? counterpartyLabel(selected) : selected}`,
+      label: `${name}: ${field === 'counterparties' ? labels.counterparty(selected) : field === 'buckets' ? labels.bucket(selected) : selected}`,
     })),
   )
   if (filters.text !== '') {
@@ -34,7 +37,7 @@ export function filterChips(filters: FilterState, counterpartyLabel: (key: strin
   const { min, max } = filters.amount
   if (min !== null || max !== null) {
     const bounds =
-      min === null ? `at most ${formatEuros(max ?? 0)}` : max === null ? `at least ${formatEuros(min)}` : `${formatEuros(min)} to ${formatEuros(max)}`
+      min === null ? `at most ${formatMoney(max ?? 0)}` : max === null ? `at least ${formatMoney(min)}` : `${formatMoney(min)} to ${formatMoney(max)}`
     chips.push({ id: 'amount', label: `Amount: ${bounds}` })
   }
   if (filters.needsReview) {

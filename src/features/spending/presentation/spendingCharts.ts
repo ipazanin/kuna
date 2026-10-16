@@ -2,7 +2,7 @@ import { BAR_END_RIGHT, moneyAxisLabel } from '../../../shared/charts/chartTheme
 import { bucketTone } from '../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../shared/charts/chartTooltip'
-import { formatCompactEuros, formatWholeEuros } from '../../../shared/money/euroFormat'
+import { formatCompactMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { Figure } from '../../filters/domain/drillTarget'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 
@@ -46,7 +46,7 @@ export function categoryComparisonChart(categories: readonly ComparedCategory[],
   return {
     option: {
       grid: { top: 4, right: 64 },
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatWholeEuros(amount) }) },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatWholeMoney(amount) }) },
       xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: [categoryAxis(true), categoryAxis(false)],
       series: [
@@ -62,7 +62,7 @@ export function categoryComparisonChart(categories: readonly ComparedCategory[],
             distance: 8,
             color: tokens.inkSecondary,
             fontSize: 11,
-            formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactEuros(value) : ''),
+            formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactMoney(value) : ''),
           },
           data: rows.map((row) => ({ value: row.current?.amount ?? 0, itemStyle: { color: tokens.buckets[bucketTone(row.bucket)] } })),
           z: 2,
@@ -77,8 +77,8 @@ export function categoryComparisonChart(categories: readonly ComparedCategory[],
             .slice(0, 5)
             .map(
               (row) =>
-                `${row.category} ${formatWholeEuros(row.current?.amount ?? 0)}` +
-                (priorLabel === null ? '' : `, before ${formatWholeEuros(row.prior?.amount ?? 0)}`),
+                `${row.category} ${formatWholeMoney(row.current?.amount ?? 0)}` +
+                (priorLabel === null ? '' : `, before ${formatWholeMoney(row.prior?.amount ?? 0)}`),
             )
             .join('. ') +
           '.',

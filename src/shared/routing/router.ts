@@ -1,27 +1,19 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import type { Component } from 'vue'
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteComponent, RouteRecordRaw } from 'vue-router'
 
-import CashScreen from '../../features/cash/presentation/CashScreen.vue'
-import OverviewScreen from '../../features/overview/presentation/OverviewScreen.vue'
-import PeriodReviewScreen from '../../features/period-review/presentation/PeriodReviewScreen.vue'
-import ReviewScreen from '../../features/review/presentation/ReviewScreen.vue'
-import SettingsScreen from '../../features/settings/presentation/SettingsScreen.vue'
-import SpendingScreen from '../../features/spending/presentation/SpendingScreen.vue'
-import TransactionsScreen from '../../features/transactions/presentation/TransactionsScreen.vue'
-import TrendsScreen from '../../features/trends/presentation/TrendsScreen.vue'
 import { SCREENS } from './screens'
 import type { ScreenPath } from './screens'
 
-const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, Component>> = {
-  '/': OverviewScreen,
-  '/transactions': TransactionsScreen,
-  '/trends': TrendsScreen,
-  '/spending': SpendingScreen,
-  '/period-review': PeriodReviewScreen,
-  '/cash': CashScreen,
-  '/review': ReviewScreen,
-  '/settings': SettingsScreen,
+/** Each screen is its own chunk, so ECharts and the table load only with the screens that draw them. */
+const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, () => Promise<RouteComponent>>> = {
+  '/': () => import('../../features/overview/presentation/OverviewScreen.vue'),
+  '/transactions': () => import('../../features/transactions/presentation/TransactionsScreen.vue'),
+  '/trends': () => import('../../features/trends/presentation/TrendsScreen.vue'),
+  '/spending': () => import('../../features/spending/presentation/SpendingScreen.vue'),
+  '/period-review': () => import('../../features/period-review/presentation/PeriodReviewScreen.vue'),
+  '/cash': () => import('../../features/cash/presentation/CashScreen.vue'),
+  '/review': () => import('../../features/review/presentation/ReviewScreen.vue'),
+  '/settings': () => import('../../features/settings/presentation/SettingsScreen.vue'),
 }
 
 const routes: RouteRecordRaw[] = SCREENS.map((screen) => ({ path: screen.path, component: SCREEN_COMPONENTS[screen.path] }))

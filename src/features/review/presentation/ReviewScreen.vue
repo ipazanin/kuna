@@ -19,6 +19,8 @@ const ledger = useFilteredLedger()
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 /** The queue has no period: a row waits until someone settles it, however old it is. */
+const inSheet = computed(() => ledger.value?.workbook.source === 'google')
+
 const queue = computed(() => {
   const current = ledger.value
   if (current === null) {
@@ -35,7 +37,7 @@ const queue = computed(() => {
     category: transaction.category,
     reason: transaction.bucket === UNCLASSIFIED ? 'Unclassified' : 'AI guess',
     sheetRow: transaction.sheetRow,
-    link: sheetRowLink(workbook.spreadsheetId, workbook.ledgerSheetId, transaction.sheetRow),
+    link: sheetRowLink(workbook.id, workbook.ledgerSheetId, transaction.sheetRow),
   }))
 })
 </script>
@@ -52,7 +54,11 @@ const queue = computed(() => {
           color="neutral"
           variant="subtle"
           title="Read only for now"
-          description="Confirming or changing a category from here comes later. Until then, open the row in the Sheet, fix it there, and sync."
+          :description="
+            inSheet
+              ? 'Confirming or changing a category from here comes later. Until then, open the row in the Sheet, fix it there, and sync.'
+              : 'Confirming or changing a category from here comes later. Until then, export the workbook, fix the row in Excel, and import the file again.'
+          "
         />
 
         <UEmpty
@@ -77,7 +83,7 @@ const queue = computed(() => {
                   <th scope="col" class="text-start">Category now</th>
                   <th scope="col" class="text-start">Why</th>
                   <th scope="col" class="text-end">Amount</th>
-                  <th scope="col" class="text-end">In the Sheet</th>
+                  <th v-if="inSheet" scope="col" class="text-end">In the Sheet</th>
                 </tr>
               </thead>
               <tbody>
@@ -95,7 +101,7 @@ const queue = computed(() => {
                     <UBadge :label="row.reason" :color="row.reason === 'Unclassified' ? 'warning' : 'info'" variant="subtle" size="sm" />
                   </td>
                   <td class="text-end"><MoneyText :cents="row.amount" toned /></td>
-                  <td class="text-end">
+                  <td v-if="inSheet" class="text-end">
                     <a
                       v-if="row.link"
                       :href="row.link"

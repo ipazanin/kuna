@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 import type { EntityTable } from 'dexie'
 
-import { CACHED_TABS } from './workbookSnapshot'
+import { WORKBOOK_TABS } from './workbookSnapshot'
 import type { SheetRow, WorkbookMeta, WorkbookSnapshot } from './workbookSnapshot'
 
 const META_KEY = 'workbook'
@@ -15,24 +15,29 @@ type WorkbookDatabase = Dexie & {
   ledger: EntityTable<SheetRow, 'sheetRow'>
   categories: EntityTable<SheetRow, 'sheetRow'>
   accounts: EntityTable<SheetRow, 'sheetRow'>
+  settings: EntityTable<SheetRow, 'sheetRow'>
 }
 
-function workbookDatabaseName(spreadsheetId: string): string {
-  return `ledgerboard-workbook-${spreadsheetId}`
+function workbookDatabaseName(workbookId: string): string {
+  return `ledgerboard-workbook-${workbookId}`
 }
 
-function openDatabase(spreadsheetId: string): WorkbookDatabase {
-  const database = new Dexie(workbookDatabaseName(spreadsheetId)) as WorkbookDatabase
+function openDatabase(workbookId: string): WorkbookDatabase {
+  const database = new Dexie(workbookDatabaseName(workbookId)) as WorkbookDatabase
   database.version(1).stores({
     meta: 'key',
     ledger: 'sheetRow',
     categories: 'sheetRow',
     accounts: 'sheetRow',
   })
+  database.version(2).stores({ settings: 'sheetRow' })
   return database
 }
 
-/** The local copy of one spreadsheet. Every sync replaces it whole, since the workbook is small. */
+/**
+ * One workbook in this browser: a copy of a Google Sheet, or in Excel mode the workbook itself.
+ * Every write replaces it whole, since the workbook is small.
+ */
 export interface WorkbookCache {
   replace(snapshot: WorkbookSnapshot): Promise<void>
   read(): Promise<WorkbookSnapshot | null>
@@ -40,20 +45,18 @@ export interface WorkbookCache {
   close(): void
 }
 
-export function openWorkbookCache(spreadsheetId: string): WorkbookCache {
-  const database = openDatabase(spreadsheetId)
-  const tables = [database.meta, database.ledger, database.categories, database.accounts]
+export function openWorkbookCache(workbookId: string): WorkbookCache {
+  const database = openDatabase(workbookId)
+  const tables = [database.meta, database.ledger, database.categories, database.accounts, database.settings]
 
   return {
     async replace(snapshot) {
-      if (snapshot.meta.spreadsheetId !== spreadsheetId) {
-        throw new Error(
-          `Refusing to cache spreadsheet ${snapshot.meta.spreadsheetId} in the database for ${spreadsheetId}.`,
-        )
+      if (snapshot.meta.id !== workbookId) {
+        throw new Error(`Refusing to keep workbook ${snapshot.meta.id} in the database for ${workbookId}.`)
       }
       await database.transaction('rw', tables, async () => {
         await Promise.all(tables.map((table) => table.clear()))
-        await Promise.all(CACHED_TABS.map((tab) => database[tab].bulkAdd([...snapshot[tab]])))
+        await Promise.all(WORKBOOK_TABS.map((tab) => database[tab].bulkAdd([...snapshot[tab]])))
         await database.meta.put({ key: META_KEY, ...snapshot.meta })
       })
     },
@@ -64,15 +67,9 @@ export function openWorkbookCache(spreadsheetId: string): WorkbookCache {
         if (stored === undefined) {
           return null
         }
-        const { key: _key, ...storedMeta } = stored
-        // A copy cached before the ledger's tab id was kept lacks the field.
-        const meta = { ...storedMeta, ledgerSheetId: storedMeta.ledgerSheetId ?? null }
-        const [ledger, categories, accounts] = await Promise.all([
-          database.ledger.toArray(),
-          database.categories.toArray(),
-          database.accounts.toArray(),
-        ])
-        return { meta, ledger, categories, accounts }
+        const meta = metaOf(stored)
+        const [ledger, categories, accounts, settings] = await Promise.all(WORKBOOK_TABS.map((tab) => database[tab].toArray()))
+        return { meta, ledger: ledger ?? [], categories: categories ?? [], accounts: accounts ?? [], settings: settings ?? [] }
       })
     },
 
@@ -83,5 +80,19 @@ export function openWorkbookCache(spreadsheetId: string): WorkbookCache {
     close() {
       database.close()
     },
+  }
+}
+
+/** A copy cached by an earlier version lacks the newer fields, and was always a Google Sheet. */
+function metaOf(stored: StoredMeta): WorkbookMeta {
+  const legacy = stored as Partial<StoredMeta> & { readonly spreadsheetId?: string }
+  return {
+    id: legacy.id ?? legacy.spreadsheetId ?? '',
+    source: legacy.source ?? 'google',
+    title: stored.title,
+    syncedAt: stored.syncedAt,
+    ledgerSheetId: legacy.ledgerSheetId ?? null,
+    lastExportedAt: legacy.lastExportedAt ?? null,
+    unexportedSince: legacy.unexportedSince ?? null,
   }
 }

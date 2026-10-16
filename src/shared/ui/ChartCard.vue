@@ -19,9 +19,11 @@ import VChart from 'vue-echarts'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import '../charts/echarts'
 import type { ChartOption } from '../charts/echarts'
 import { buildChartTheme } from '../charts/chartTheme'
 import { chartTokens } from '../charts/chartTokens'
+import { usePhoneLayout } from '../layout/viewport'
 import InfoPopover from './InfoPopover.vue'
 
 const props = withDefaults(
@@ -38,6 +40,8 @@ const props = withDefaults(
     emptyDescription?: string
     /** Height of the plot including its axis labels, in pixels. */
     height?: number
+    /** The height below the phone breakpoint, when the desktop one is too tall for a phone. */
+    phoneHeight?: number
   }>(),
   {
     loading: false,
@@ -56,14 +60,51 @@ const emit = defineEmits<{
 const theme = computed(() => buildChartTheme(chartTokens()))
 const chart = useTemplateRef('chart')
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const phone = usePhoneLayout()
 
 const renderedOption = computed<ChartOption>(() => ({
   aria: { enabled: true, label: { description: props.description } },
   animation: !reducedMotion,
   animationDuration: 450,
   animationDurationUpdate: 300,
-  ...props.option,
+  ...(phone.value ? forPhone(props.option) : props.option),
 }))
+
+const plotHeight = computed(() => (phone.value ? (props.phoneHeight ?? props.height) : props.height))
+
+type AxisOption = Record<string, unknown>
+
+/**
+ * A phone has a third of the width, so a month axis labels about four months, a value axis three
+ * steps, and the tooltip stays inside the chart instead of widening the page.
+ */
+function forPhone(option: ChartOption): ChartOption {
+  const tooltip = option.tooltip
+  return {
+    ...option,
+    ...(tooltip === undefined || Array.isArray(tooltip) ? {} : { tooltip: { ...tooltip, confine: true, className: 'chart-tooltip' } }),
+    xAxis: thinned(option.xAxis, true),
+    yAxis: thinned(option.yAxis, false),
+  } as ChartOption
+}
+
+function thinned(axis: unknown, horizontal: boolean): unknown {
+  if (Array.isArray(axis)) {
+    return axis.map((single) => thinned(single, horizontal))
+  }
+  if (typeof axis !== 'object' || axis === null) {
+    return axis
+  }
+  const shown = axis as AxisOption
+  if (shown.type === 'value') {
+    return { ...shown, splitNumber: 3 }
+  }
+  // A category axis down the side names every bar, so only one along the bottom is thinned.
+  if (shown.type === 'category' && horizontal && Array.isArray(shown.data) && shown.data.length > 6) {
+    return { ...shown, axisLabel: { ...(shown.axisLabel as AxisOption | undefined), interval: Math.ceil(shown.data.length / 4) - 1 } }
+  }
+  return shown
+}
 
 function onChartClick(event: { seriesName?: string; name?: string; dataIndex?: number }): void {
   emit('select', {
@@ -102,7 +143,7 @@ function onDataZoom(): void {
       </div>
     </header>
 
-    <div class="chart-body px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${height}px` }">
+    <div class="chart-body px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px` }">
       <UEmpty
         v-if="empty && !loading"
         icon="i-lucide-chart-no-axes-column"
@@ -124,5 +165,6 @@ function onDataZoom(): void {
         @datazoom="onDataZoom"
       />
     </div>
+    <slot name="footer" />
   </section>
 </template>

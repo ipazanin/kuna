@@ -1,7 +1,7 @@
 /**
  * Compares every figure the app computes with the figure the Sheet's purple tabs show for it, both
- * taken from one xlsx export of the workbook. The app side reads the export's `ledger`,
- * `categories` and `accounts` tabs through the same reader the app uses. The Sheet side is found
+ * taken from one xlsx export of the workbook. The app side reads the export's workbook tabs through
+ * the same file reader and workbook reader an Excel import uses. The Sheet side is found
  * by label text. Nothing is written anywhere.
  *
  *   npm run parity:figures -- --workbook <path to export.xlsx>
@@ -24,7 +24,7 @@ import { firstDayOf, lastDayOf, monthCountBetween, monthOf } from '../src/shared
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals.ts'
 import { ledgerWindowOf } from '../src/features/workbook/domain/workbook.ts'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
-import { CACHED_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot.ts'
+import { readWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile.ts'
 import { balanceSeries, latestBalances } from '../src/features/cash/domain/balances.ts'
 import { euroSplit } from '../src/features/overview/domain/euroSplit.ts'
 import { runway } from '../src/features/overview/domain/runway.ts'
@@ -40,23 +40,22 @@ if (options.workbook === undefined) {
   process.exit(2)
 }
 
-const exported = XLSX.read(readFileSync(options.workbook), { type: 'buffer' })
+const bytes = readFileSync(options.workbook)
+const exported = XLSX.read(bytes, { type: 'buffer' })
 
-/**
- * A tab as rows of raw values, row 1 first. An analysis tab gets null in its blank cells. A data tab
- * gets nothing there, which is what the Sheets API sends for a blank cell.
- */
-function gridOf(tab, { blankCell = null } = {}) {
+/** An analysis tab as rows of raw values, row 1 first, with null in its blank cells. */
+function gridOf(tab) {
   const sheet = exported.Sheets[tab]
   if (sheet === undefined) {
     throw new Error(`The export has no "${tab}" tab.`)
   }
-  return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, blankrows: true, ...(blankCell === null ? { defval: null } : {}) })
+  return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, blankrows: true, defval: null })
 }
 
+const { tabs } = await readWorkbookFile(bytes)
 const workbook = readWorkbook({
-  meta: { spreadsheetId: 'export', title: options.workbook, syncedAt: new Date().toISOString(), ledgerSheetId: null },
-  ...Object.fromEntries(CACHED_TABS.map((tab) => [tab, sheetRowsFromValues(gridOf(tab, { blankCell: 'absent' }))])),
+  meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null },
+  ...tabs,
 })
 const window = ledgerWindowOf(workbook.transactions)
 if (window === null) {

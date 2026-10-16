@@ -1,0 +1,84 @@
+import { BUCKETS } from '../../workbook/domain/bucket'
+
+/** One row of the categories editor, as text, the way the tab holds it. */
+export interface CategoryDraft {
+  /** The row number this draft was read from, or null for a row added in the editor. */
+  readonly sheetRow: number | null
+  /** The name the row had when the editor opened, which ledger rows may use. */
+  readonly savedName: string
+  readonly category: string
+  readonly family: string
+  readonly bucket: string
+  readonly colour: string
+  readonly roles: string
+}
+
+export type CategoryField = 'category' | 'family' | 'bucket'
+
+export type CategoryDraftErrors = ReadonlyMap<number, Partial<Record<CategoryField, string>>>
+
+/**
+ * The rules of the Sheet's categories tab: every row names a category once, and fills category,
+ * family and a bucket from the six. A category the ledger uses keeps its name, or those rows would
+ * lose their category. Errors are keyed by the draft's position.
+ */
+export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>): CategoryDraftErrors {
+  const errors = new Map<number, Partial<Record<CategoryField, string>>>()
+  const firstAt = new Map<string, number>()
+  drafts.forEach((draft, index) => {
+    const found: Partial<Record<CategoryField, string>> = {}
+    const name = draft.category.trim().toLowerCase()
+    if (name === '') {
+      found.category = 'Required'
+    } else if (firstAt.has(name)) {
+      found.category = `Already on row ${(firstAt.get(name) ?? 0) + 1}`
+    } else if (renamesUsed(draft, drafts, usedNames)) {
+      found.category = `Ledger rows use ${draft.savedName}, so it keeps its name`
+    }
+    if (name !== '' && !firstAt.has(name)) {
+      firstAt.set(name, index)
+    }
+    if (draft.family.trim() === '') {
+      found.family = 'Required'
+    }
+    if (!(BUCKETS as readonly string[]).includes(draft.bucket.trim().toLowerCase())) {
+      found.bucket = draft.bucket.trim() === '' ? 'Required' : 'Not one of the six buckets'
+    }
+    if (Object.keys(found).length > 0) {
+      errors.set(index, found)
+    }
+  })
+  return errors
+}
+
+/**
+ * Whether this row is the one the ledger's rows resolve to. Only the first row with a name defines
+ * it, so a later duplicate of a used name may still be renamed.
+ */
+export function keepsItsName(draft: CategoryDraft, drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>): boolean {
+  const saved = draft.savedName.trim().toLowerCase()
+  return saved !== '' && usedNames.has(saved) && drafts.find((candidate) => candidate.savedName.trim().toLowerCase() === saved) === draft
+}
+
+function renamesUsed(draft: CategoryDraft, drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>): boolean {
+  return keepsItsName(draft, drafts, usedNames) && draft.category.trim().toLowerCase() !== draft.savedName.trim().toLowerCase()
+}
+
+/** The tab's cells for the drafts. Cells of other columns on a saved row are kept. */
+export function categoryCellsOf(
+  drafts: readonly CategoryDraft[],
+  savedCells: ReadonlyMap<number, Readonly<Record<string, string | number | boolean>>>,
+): Record<string, string | number | boolean>[] {
+  return drafts.map((draft) => ({
+    ...(draft.sheetRow === null ? {} : (savedCells.get(draft.sheetRow) ?? {})),
+    category: draft.category.trim().toLowerCase(),
+    family: draft.family.trim().toLowerCase(),
+    bucket: draft.bucket.trim().toLowerCase(),
+    colour: draft.colour.trim(),
+    roles: draft.roles
+      .split(',')
+      .map((role) => role.trim().toLowerCase())
+      .filter((role) => role !== '')
+      .join(', '),
+  }))
+}

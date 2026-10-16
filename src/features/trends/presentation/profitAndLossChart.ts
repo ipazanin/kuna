@@ -3,17 +3,29 @@ import { BAR_END_DOWN, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } fr
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../shared/charts/echarts'
-import { formatWholeEuros } from '../../../shared/money/euroFormat'
+import { formatWholeMoney } from '../../../shared/money/moneyFormat'
+import type { LegendEntry } from '../../../shared/ui/ChartLegend.vue'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
+import { shownBucketLines } from '../../settings/domain/profitAndLossLabels'
+import type { Settings } from '../../settings/domain/settings'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import type { MonthOfProfitAndLoss } from '../domain/monthlyProfitAndLoss'
 
-const PROFIT_AND_LOSS_SERIES: readonly { readonly name: string; readonly line: ProfitAndLossLine; readonly tone: 'income' | 'operating' | 'taxes' | 'owner-pay' }[] = [
-  { name: 'Income', line: 'income', tone: 'income' },
-  { name: 'Operating', line: 'operating', tone: 'operating' },
-  { name: 'Taxes', line: 'taxes', tone: 'taxes' },
-  { name: 'Owner pay', line: 'ownerPay', tone: 'owner-pay' },
-]
+export interface ProfitAndLossSeries {
+  readonly name: string
+  readonly line: ProfitAndLossLine
+  readonly tone: 'income' | 'operating' | 'taxes' | 'owner-pay'
+}
+
+/** Income and each cost line on screen, named by the settings. */
+export function profitAndLossSeries(settings: Settings): ProfitAndLossSeries[] {
+  return shownBucketLines(settings).map(({ line, bucket }) => ({ name: settings.bucketLabels[bucket], line, tone: bucket }))
+}
+
+/** The legend entries of those series, in the bucket colours. */
+export function profitAndLossLegend(series: readonly ProfitAndLossSeries[]): LegendEntry[] {
+  return series.map((entry) => ({ label: entry.name, colour: `var(--bucket-${entry.tone})` }))
+}
 
 export interface NetLine {
   readonly name: string
@@ -25,6 +37,7 @@ export const MONTHLY_NET: NetLine = { name: 'Net', amountOf: (month) => month.li
 export const ROLLING_3_NET: NetLine = { name: 'Net, 3-month average', amountOf: (month) => month.rolling3?.net ?? null }
 
 export interface ProfitAndLossChartSettings {
+  readonly series: readonly ProfitAndLossSeries[]
   readonly netLine: NetLine
   /** Series names the legend has switched off. */
   readonly hidden?: readonly string[]
@@ -33,7 +46,7 @@ export interface ProfitAndLossChartSettings {
 }
 
 /**
- * Income above zero and the three cost buckets stacked below it, one slot per month, with a net
+ * Income above zero and the cost buckets stacked below it, one slot per month, with a net
  * line across. Months still filling up, or opening part-way, are hatched.
  */
 export function profitAndLossChart(
@@ -43,7 +56,7 @@ export function profitAndLossChart(
 ): DrillChart {
   const hidden = settings.hidden ?? []
   const incomplete = months.map((month) => !month.complete)
-  const visible = PROFIT_AND_LOSS_SERIES.filter((series) => !hidden.includes(series.name))
+  const visible = settings.series.filter((series) => !hidden.includes(series.name))
   const lowestCost = [...visible].reverse().find((series) => series.line !== 'income')
   const bars: BarSeries[] = visible.map((series) => {
     const isIncome = series.line === 'income'
@@ -83,7 +96,7 @@ export function profitAndLossChart(
         incompleteCategories: months.filter((month) => !month.complete).map((month) => month.month),
         categoryLabel: monthAxisLabel('long'),
         formatAmount: (amount, seriesName) =>
-          formatWholeEuros(amount, PROFIT_AND_LOSS_SERIES.some((series) => series.name === seriesName) ? 'magnitude' : 'negative'),
+          formatWholeMoney(amount, settings.series.some((series) => series.name === seriesName) ? 'magnitude' : 'negative'),
       }),
     },
     xAxis: {
@@ -128,7 +141,7 @@ export function profitAndLossChart(
       if (month === undefined) {
         return null
       }
-      const series = PROFIT_AND_LOSS_SERIES.find((candidate) => candidate.name === seriesName)
+      const series = settings.series.find((candidate) => candidate.name === seriesName)
       return month.lines[series?.line ?? 'net'].drill
     },
   }
@@ -144,8 +157,8 @@ function describe(months: readonly MonthOfProfitAndLoss[], netLine: NetLine): st
   const worst = months.reduce((low, month) => (month.lines.net.amount < low.lines.net.amount ? month : low), first)
   const parts = [
     `Income and costs by month from ${monthLabel(first.month)} to ${monthLabel(last.month)}, with ${netLine.name.toLowerCase()} as a line.`,
-    `Best month ${monthLabel(best.month)} with a net of ${formatWholeEuros(best.lines.net.amount)}.`,
-    `Weakest month ${monthLabel(worst.month)} with a net of ${formatWholeEuros(worst.lines.net.amount)}.`,
+    `Best month ${monthLabel(best.month)} with a net of ${formatWholeMoney(best.lines.net.amount)}.`,
+    `Weakest month ${monthLabel(worst.month)} with a net of ${formatWholeMoney(worst.lines.net.amount)}.`,
   ]
   if (!last.complete) {
     parts.push(`${monthLabel(last.month)} is still running and is not counted in any average.`)

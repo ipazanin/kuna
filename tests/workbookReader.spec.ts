@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
@@ -13,15 +14,16 @@ const CATEGORIES: CellValue[][] = [
   ['revenue', 'neutral', 'neutral'],
 ]
 
-function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGORIES): WorkbookSnapshot {
+function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGORIES, settings: CellValue[][] = []): WorkbookSnapshot {
   return {
-    meta: { spreadsheetId: 'sheet', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0 },
+    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null },
     ledger: sheetRowsFromValues(ledger),
     categories: sheetRowsFromValues(categories),
     accounts: sheetRowsFromValues([
       ['iban', 'account'],
       ['hr12 3456 7890 1234 5678 9', 'Main'],
     ]),
+    settings: sheetRowsFromValues(settings),
   }
 }
 
@@ -48,7 +50,7 @@ describe('readWorkbook', () => {
         sheetRow: 2,
       }),
     ])
-    expect(workbook.accounts).toEqual([{ slug: 'main', iban: 'HR1234567890123456789' }])
+    expect(workbook.accounts).toEqual([{ slug: 'main', iban: 'HR1234567890123456789', currency: '' }])
   })
 
   it('reads a numeric reference as text, since the column mixes both', () => {
@@ -147,6 +149,50 @@ describe('readWorkbook', () => {
       [4, 'no account'],
       [5, 'no balance'],
       [6, 'no date'],
+    ])
+  })
+
+  it('reads the settings tab, and uses the defaults without one', () => {
+    const configured = readWorkbook(
+      snapshotWith([['date']], CATEGORIES, [
+        ['key', 'value'],
+        ['currency', 'usd'],
+        ['owner_pay_module', false],
+        ['label_operating', 'Running costs'],
+      ]),
+    )
+    const unconfigured = readWorkbook(snapshotWith([['date']]))
+
+    expect(configured.settings).toMatchObject({
+      currency: 'USD',
+      ownerPayModule: false,
+      bucketLabels: expect.objectContaining({ operating: 'Running costs', income: 'Income' }),
+    })
+    expect(unconfigured.settings).toEqual(DEFAULT_SETTINGS)
+    expect(unconfigured.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
+  })
+
+  it('reports a setting it cannot use on the settings tab, with its row', () => {
+    const workbook = readWorkbook(snapshotWith([['date']], CATEGORIES, [['key', 'value'], ['currency', 'EURO'], ['colour_scheme', 'blue']]))
+
+    expect(workbook.settings.currency).toBe('EUR')
+    expect(workbook.problems.filter((problem) => problem.tab === 'settings').map((problem) => problem.sheetRow)).toEqual([2, 3])
+  })
+
+  it('reads roles as a list and an account currency, reporting one the workbook does not count in', () => {
+    const workbook = readWorkbook({
+      ...snapshotWith([['date']], [['category', 'family', 'bucket', 'roles'], ['revenue', 'income', 'income', 'Revenue, watched']]),
+      accounts: sheetRowsFromValues([
+        ['account', 'iban', 'currency'],
+        ['main', '', 'eur'],
+        ['travel', '', 'GBP'],
+      ]),
+    })
+
+    expect(workbook.categories[0]?.roles).toEqual(['revenue', 'watched'])
+    expect(workbook.accounts.map((account) => account.currency)).toEqual(['EUR', 'GBP'])
+    expect(workbook.problems).toEqual([
+      { tab: 'accounts', sheetRow: 3, reason: 'travel is in GBP but the workbook counts in EUR, so its amounts read as EUR' },
     ])
   })
 })

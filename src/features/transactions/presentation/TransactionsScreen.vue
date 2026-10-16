@@ -11,7 +11,9 @@ import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
 import { monthOf } from '../../../shared/calendar/monthKey'
+import { downloadFile } from '../../../shared/files/downloadFile'
 import { monthLabel } from '../../../shared/calendar/monthLabel'
+import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { sumMoney } from '../../../shared/money/money'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
@@ -26,6 +28,7 @@ import type { Transaction } from '../../workbook/domain/workbook'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { transactionsCsv } from '../application/transactionsCsv'
 import { useFilteredLedger } from '../application/useFilteredLedger'
+import TransactionCards from './TransactionCards.vue'
 
 const ledger = useFilteredLedger()
 const { filters, setFilters, drillLocation } = useFilters()
@@ -74,6 +77,28 @@ const rows = computed<Transaction[]>(() => [...(ledger.value?.selected ?? [])])
 const labels = computed(() => counterpartyLabels(ledger.value?.workbook.transactions ?? []))
 const total = computed(() => sumMoney(rows.value.map((transaction) => transaction.amount)))
 
+const phone = usePhoneLayout()
+
+/** The cards follow the table's sort, which only the table's headers change. */
+const sortedRows = computed<Transaction[]>(() => {
+  const [rule] = sorting.value
+  const direction = rule?.desc === false ? 1 : -1
+  return [...rows.value].sort((left, right) =>
+    rule?.id === 'amount'
+      ? direction * (left.amount - right.amount)
+      : direction * (left.date.localeCompare(right.date) || left.sequence - right.sequence),
+  )
+})
+
+/** What each grouping groups by, for the table's grouped rows and the cards' headings alike. */
+const GROUP_KEYS: Readonly<Record<Exclude<Grouping, 'none'>, (transaction: Transaction) => string>> = {
+  month: (transaction) => monthLabel(monthOf(transaction.date)),
+  category: (transaction) => transaction.category || 'no category',
+  payee: (transaction) => labels.value.get(counterpartyIdentity(transaction).key) ?? '',
+}
+
+const groupOf = computed(() => (groupBy.value === 'none' ? null : GROUP_KEYS[groupBy.value]))
+
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 function sortableHeader(label: string, alignEnd = false) {
@@ -97,8 +122,8 @@ function narrowTo(narrowing: Parameters<typeof drillToTransactions>[0]) {
 }
 
 const columns: TableColumn<Transaction>[] = [
-  { id: 'month', accessorFn: (transaction) => monthLabel(monthOf(transaction.date)), header: 'Month' },
-  { id: 'payee', accessorFn: (transaction) => labels.value.get(counterpartyIdentity(transaction).key) ?? '', header: 'Counterparty' },
+  { id: 'month', accessorFn: GROUP_KEYS.month, header: 'Month' },
+  { id: 'payee', accessorFn: GROUP_KEYS.payee, header: 'Counterparty' },
   {
     id: 'date',
     accessorFn: (transaction) => transaction.date,
@@ -128,7 +153,7 @@ const columns: TableColumn<Transaction>[] = [
   },
   {
     id: 'category',
-    accessorFn: (transaction) => transaction.category || 'no category',
+    accessorFn: GROUP_KEYS.category,
     header: 'Category',
     cell: ({ row }) => {
       if (row.getIsGrouped()) return ''
@@ -178,11 +203,7 @@ const columns: TableColumn<Transaction>[] = [
 ]
 
 function exportCsv(): void {
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(new Blob([transactionsCsv(rows.value)], { type: 'text/csv;charset=utf-8' }))
-  link.download = `ledgerboard-transactions-${new Date().toISOString().slice(0, 10)}.csv`
-  link.click()
-  URL.revokeObjectURL(link.href)
+  downloadFile(transactionsCsv(rows.value), `ledgerboard-transactions-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8')
 }
 </script>
 
@@ -224,6 +245,7 @@ function exportCsv(): void {
           variant="outline"
           class="rounded-card bg-raised"
         />
+        <TransactionCards v-else-if="phone" :rows="sortedRows" :group-of="groupOf" :total="total" />
         <div v-else class="overflow-hidden rounded-card border border-default bg-raised shadow-raised">
           <UTable
             v-model:sorting="sorting"

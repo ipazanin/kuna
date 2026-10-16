@@ -34,9 +34,12 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
           VITE_GOOGLE_API_KEY: ${{ vars.VITE_GOOGLE_API_KEY }}
           VITE_GOOGLE_PROJECT_NUMBER: ${{ vars.VITE_GOOGLE_PROJECT_NUMBER }}
+      # Serves dist/ itself and sends every other origin to a dead proxy, so it calls no Google API.
+      - name: Offline and update check
+        run: npm run check:pwa
       # ubuntu-latest ships Chrome at /usr/bin/google-chrome, which the visual check probes for.
       # It runs against the fake build, so every screen has data and no Google call is made.
-      - name: Visual check
+      - name: Visual and touch checks
         run: |
           npm run build:fake
           # Redirected, or the backgrounded server holds the step's stdout open and the job hangs
@@ -47,6 +50,7 @@ jobs:
             sleep 1
           done
           npm run check:visual || { cat preview.log; exit 1; }
+          npm run check:touch || { cat preview.log; exit 1; }
 
   deploy:
     needs: verify

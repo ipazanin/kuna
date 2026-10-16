@@ -3,7 +3,6 @@ import { computed } from 'vue'
 
 import { monthLabel } from '../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../shared/charts/chartTokens'
-import ChartCard from '../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
@@ -13,8 +12,11 @@ import { useFilters } from '../../filters/application/filterStore'
 import { periodRange } from '../../filters/domain/filterState'
 import type { Period } from '../../filters/domain/filterState'
 import { priorEqualPeriod } from '../../filters/domain/periodComparison'
-import { useChartDrill } from '../../filters/presentation/chartDrill'
+import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
+import { useSettings } from '../../settings/application/useSettings'
+import { costLabelsInSentence } from '../../settings/domain/profitAndLossLabels'
+import { profitAndLossLegend, profitAndLossSeries } from '../../trends/presentation/profitAndLossChart'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { monthOf } from '../../../shared/calendar/monthKey'
@@ -25,8 +27,8 @@ import { PRIOR_SERIES, categoryComparisonChart } from './spendingCharts'
 import type { ComparedCategory } from './spendingCharts'
 
 const ledger = useFilteredLedger()
+const settings = useSettings()
 const { drillLocation } = useFilters()
-const openChartDrill = useChartDrill()
 
 function describePeriod(period: Period, window: LedgerWindow): string {
   const range = periodRange(period, window)
@@ -56,7 +58,13 @@ const spending = computed(() => {
   ]
   const priorLabel = prior === null ? null : describePeriod(prior, window)
   const payees = topCounterparties(scoped, filters.period, window)
+  const costLabels = costLabelsInSentence(settings.value)
   return {
+    definition: `${costLabels.charAt(0).toUpperCase()}${costLabels.slice(1)} by category. A refund in a cost category lowers its bar. Transfers and reimbursements are not costs, so they are left out.`,
+    legend: [
+      ...profitAndLossLegend(profitAndLossSeries(settings.value).filter((series) => series.line !== 'income')),
+      ...(priorLabel === null ? [] : [{ label: PRIOR_SERIES, colour: 'var(--chart-ghost)', mark: 'ghost' as const }]),
+    ],
     chart: categoryComparisonChart(compared, chartTokens(), priorLabel),
     count: compared.length,
     periodLabel: describePeriod(filters.period, window),
@@ -81,27 +89,16 @@ const spending = computed(() => {
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
 
         <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <ChartCard
+          <DrillChartCard
+            :chart="spending.chart"
             title="Cost by category"
             :subtitle="spending.priorLabel === null ? `${spending.periodLabel}. All time has no period before it.` : `${spending.periodLabel}, against ${spending.priorLabel}`"
-            definition="Operating cost, taxes and owner pay by category. A refund in a cost category lowers its bar. Transfers and reimbursements are not costs, so they are left out."
-            :description="spending.chart.description"
-            :option="spending.chart.option"
+            :definition="spending.definition"
             :empty="spending.count === 0"
             :height="Math.max(200, spending.count * 30 + 40)"
-            @select="openChartDrill(spending.chart, $event)"
           >
-            <template #legend>
-              <ChartLegend
-                :entries="[
-                  { label: 'Operating', colour: 'var(--bucket-operating)' },
-                  { label: 'Taxes', colour: 'var(--bucket-taxes)' },
-                  { label: 'Owner pay', colour: 'var(--bucket-owner-pay)' },
-                  ...(spending.priorLabel === null ? [] : [{ label: PRIOR_SERIES, colour: 'var(--chart-ghost)', mark: 'ghost' as const }]),
-                ]"
-              />
-            </template>
-          </ChartCard>
+            <template #legend><ChartLegend :entries="spending.legend" /></template>
+          </DrillChartCard>
 
           <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
             <header class="px-4 pt-4 sm:px-5">

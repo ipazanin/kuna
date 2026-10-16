@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' https://sheets.googleapis.com https://www.googleapis.com; frame-src https://docs.google.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' https://sheets.googleapis.com https://www.googleapis.com https://openidconnect.googleapis.com https://oauth2.googleapis.com; manifest-src 'self'; worker-src 'self'; frame-src https://docs.google.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" href="%BASE_URL%icons/ledgerboard-180.png" />
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+    <meta name="theme-color" content="#0d1219" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="description" content="Dashboard over the shadow-accounting Google Sheet, computed in the browser." />
+    <meta name="description" content="Company finance dashboards over a Google Sheet or an Excel workbook, computed in the browser." />
     <title>Ledgerboard</title>
   </head>
   <body>

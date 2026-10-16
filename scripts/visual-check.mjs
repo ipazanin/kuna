@@ -5,51 +5,29 @@
  * that it drew as many charts as it has from the fake workbook. Every chart on the gallery must
  * draw and every icon must come from the bundle.
  *
+ * Beyond the screens of the fake Google workbook, it renders the first-run welcome screen
+ * (`?fake=empty`), Settings for a workbook kept in this browser (`?fake=excel`), and the import
+ * summary for an xlsx file it writes from the fake workbook with two problems added.
+ *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
- *   node scripts/visual-check.mjs http://localhost:4173/ledgerboard/
+ *   npm run check:visual -- http://localhost:4173/ledgerboard/
  *
  * Screenshots go to visual-check/ (gitignored), or to VISUAL_OUTPUT_DIR.
  */
 
-import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
+import * as XLSX from 'xlsx'
+
+import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
+import { chromePath } from './support/browsers.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
 const BASE = process.argv[2] ?? 'http://localhost:4173/ledgerboard/'
-
-// puppeteer-core ships no browser, so the executable path must be explicit.
-// Well-known install locations per platform. The first that exists wins.
-const CHROME_CANDIDATES = {
-  darwin: [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-  ],
-  linux: [
-    '/usr/bin/google-chrome',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/microsoft-edge',
-  ],
-  win32: [
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  ],
-}
-
-function resolveChrome() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH
-  const found = (CHROME_CANDIDATES[process.platform] ?? []).find((path) => existsSync(path))
-  if (found) return found
-  console.error('Could not find Chrome. Set CHROME_PATH to your Chrome, Chromium or Edge executable and re-run.')
-  process.exit(1)
-}
 
 const VIEWPORTS = [
   { name: 'phone', width: 360, height: 780 },
@@ -76,10 +54,18 @@ const SCREENS = [
 /** The gallery's chart cards that draw a chart. The loading card counts, the empty one does not. */
 const GALLERY_CHARTS = 6
 
+/** Screens outside the fake Google workbook. `query` picks the fake variant, `upload` drops the import file on the page. */
+const SOURCE_SCREENS = [
+  { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'Where is your ledger?' },
+  { name: 'settings-excel', query: 'fake=excel', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
+  { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'rows the app could not use', upload: true },
+]
+
 const THEMES = ['dark', 'light']
 
 const VISITS = [
   ...THEMES.flatMap((theme) => SCREENS.map((screen) => ({ ...screen, theme, file: `${screen.name}-${theme}` }))),
+  ...THEMES.flatMap((theme) => SOURCE_SCREENS.map((screen) => ({ ...screen, theme, file: `${screen.name}-${theme}` }))),
   ...THEMES.map((theme) => ({
     name: `gallery-${theme}`,
     hash: '#/gallery',
@@ -144,7 +130,23 @@ for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => file.endsWith('
   rmSync(join(SCREENSHOT_DIR, stale))
 }
 
-const browser = await launch({ executablePath: resolveChrome(), headless: true, args: ['--hide-scrollbars'] })
+/** The fake workbook as an xlsx file, with a ledger row that has no amount and a setting the app does not know. */
+function writeImportFile() {
+  const values = fakeWorkbookValues('excel')
+  const book = XLSX.utils.book_new()
+  const ledger = [...values.ledger, [values.ledger[1][0], 'main', 'stray row without an amount']]
+  const settings = [...values.settings, ['colour_scheme', 'teal']]
+  for (const [tab, grid] of Object.entries({ ...values, ledger, settings })) {
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(grid), tab)
+  }
+  const path = join(SCREENSHOT_DIR, 'example-books.xlsx')
+  writeFileSync(path, XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }))
+  return path
+}
+
+const IMPORT_FILE = writeImportFile()
+
+const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars'] })
 
 for (const viewport of VIEWPORTS) {
   for (const visit of VISITS) {
@@ -157,14 +159,25 @@ for (const viewport of VIEWPORTS) {
     await page.setViewport({ width: viewport.width, height: viewport.height })
     // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
-    await page.goto(`${BASE}?theme=${visit.theme}${visit.hash}`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${visit.hash}`, { waitUntil: 'networkidle0' })
 
     const drawsCharts = visit.gallery || visit.charts > 0
     const ready = drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]'
-    const rendered = await page
+    let rendered = await page
       .waitForSelector(ready, { timeout: 10_000 })
       .then(() => true)
       .catch(() => false)
+
+    if (visit.upload && rendered) {
+      const input = await page.$('[data-testid="data-source-choices"] input[type="file"]')
+      await input?.uploadFile(IMPORT_FILE)
+      rendered = await page
+        .waitForSelector('[data-testid="import-summary"] dl', { timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false)
+      // The dialog fades in.
+      await new Promise((resolve) => setTimeout(resolve, 600))
+    }
 
     // ECharts animates bars in. The screenshot should show where they land.
     if (drawsCharts && rendered) await new Promise((resolve) => setTimeout(resolve, 1500))

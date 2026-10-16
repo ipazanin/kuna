@@ -1,7 +1,18 @@
 <script lang="ts">
+import type { PeriodPreset } from '../domain/periodPresets'
+
 export interface AccountOption {
   readonly value: string
   readonly label: string
+}
+
+export const PRESET_LABELS: Readonly<Record<PeriodPreset, string>> = {
+  l3: 'Last 3 months',
+  l12: 'Last 12 months',
+  year: 'Year',
+  quarter: 'Quarter',
+  custom: 'Custom',
+  all: 'All time',
 }
 </script>
 
@@ -17,7 +28,6 @@ import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import type { FilterChip } from '../domain/filterChips'
 import type { Period, Quarter } from '../domain/filterState'
 import { ledgerYears, periodWithPreset } from '../domain/periodPresets'
-import type { PeriodPreset } from '../domain/periodPresets'
 
 const period = defineModel<Period>('period', { required: true })
 /** Account slugs from `accounts`. Empty means every account. */
@@ -32,23 +42,16 @@ const props = withDefaults(
     /** False on a screen whose figures have no period, which then shows only the accounts. */
     showPeriod?: boolean
     chips?: readonly FilterChip[]
+    /** One control per row, the presets wrapping instead of scrolling, as in the phone's filter sheet. */
+    stacked?: boolean
   }>(),
-  { presets: () => ['l3', 'l12', 'year', 'quarter', 'custom', 'all'], showPeriod: true, chips: () => [] },
+  { presets: () => ['l3', 'l12', 'year', 'quarter', 'custom', 'all'], showPeriod: true, chips: () => [], stacked: false },
 )
 
 const emit = defineEmits<{
   removeChip: [id: string]
   clearChips: []
 }>()
-
-const PRESET_LABELS: Readonly<Record<PeriodPreset, string>> = {
-  l3: 'Last 3 months',
-  l12: 'Last 12 months',
-  year: 'Year',
-  quarter: 'Quarter',
-  custom: 'Custom',
-  all: 'All time',
-}
 
 const QUARTERS = [
   { label: 'Q1', value: 1 },
@@ -113,7 +116,8 @@ function choosePreset(preset: PeriodPreset): void {
         v-if="showPeriod"
         role="group"
         aria-label="Period"
-        class="presets flex max-w-full overflow-x-auto rounded-control border border-default bg-raised p-0.5"
+        class="presets flex max-w-full rounded-control border border-default bg-raised p-0.5"
+        :class="stacked ? 'presets-stacked w-full' : 'overflow-x-auto'"
       >
         <button
           v-for="preset in presets"
@@ -169,7 +173,8 @@ function choosePreset(preset: PeriodPreset): void {
         icon="i-lucide-landmark"
         size="sm"
         aria-label="Accounts"
-        class="w-full min-w-44 sm:ms-auto sm:w-auto"
+        class="w-full min-w-44"
+        :class="{ 'sm:ms-auto sm:w-auto': !stacked }"
       />
     </div>
 
@@ -198,6 +203,12 @@ function choosePreset(preset: PeriodPreset): void {
 <style scoped>
 .presets {
   scrollbar-width: none;
+}
+
+.presets-stacked {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.125rem;
 }
 
 .preset {

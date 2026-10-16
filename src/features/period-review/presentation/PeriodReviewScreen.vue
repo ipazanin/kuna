@@ -5,38 +5,29 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import { completeRange } from '../../../shared/calendar/ledgerWindow'
 import { monthsOfRange } from '../../../shared/calendar/dateRange'
 import { chartTokens } from '../../../shared/charts/chartTokens'
-import ChartCard from '../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
-import { formatPercent } from '../../../shared/money/euroFormat'
+import { formatPercent } from '../../../shared/money/moneyFormat'
 import { useFilters } from '../../filters/application/filterStore'
 import type { Figure } from '../../filters/domain/drillTarget'
-import { useChartDrill } from '../../filters/presentation/chartDrill'
+import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
+import { useSettings } from '../../settings/application/useSettings'
+import { lineLabel, lineShown } from '../../settings/domain/profitAndLossLabels'
 import { categoryTotals, outsideProfitAndLossTotals } from '../../spending/domain/categoryTotals'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { monthlyProfitAndLoss } from '../../trends/domain/monthlyProfitAndLoss'
-import { MONTHLY_NET, profitAndLossChart } from '../../trends/presentation/profitAndLossChart'
+import { MONTHLY_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSeries } from '../../trends/presentation/profitAndLossChart'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { periodReview, reviewPeriodOf } from '../domain/periodReview'
 import type { ReviewPeriod } from '../domain/periodReview'
 
 const ledger = useFilteredLedger()
+const settings = useSettings()
 const { drillLocation } = useFilters()
-const openChartDrill = useChartDrill()
-
-const LINE_LABELS: Readonly<Record<ProfitAndLossLine, string>> = {
-  income: 'Income',
-  operating: 'Operating cost',
-  taxes: 'Taxes',
-  ownerPay: 'Owner pay',
-  cost: 'All costs',
-  net: 'Net',
-  ownerEarns: 'Owner earns',
-}
 
 /** Costs read positive, so a fall in one of them is the good direction. */
 const COST_LINES: readonly ProfitAndLossLine[] = ['operating', 'taxes', 'ownerPay', 'cost']
@@ -65,6 +56,8 @@ const review = computed(() => {
   const covered = completeRange(window)
   const months = new Set(monthsOfRange(result.current.range))
   const totals = categoryTotals(scoped, period, window)
+  const shown = settings.value
+  const series = profitAndLossSeries(shown)
   const rowOf = (total: { readonly category: string; readonly family: string; readonly amount: Figure }, share: number | null) => ({
     category: total.category,
     family: total.family,
@@ -79,9 +72,9 @@ const review = computed(() => {
     currentPartial: result.current.partial,
     priorPartial: result.prior?.partial ?? false,
     coverage: `The ledger covers complete months from ${dayFormat.format(new Date(covered.from))} to ${dayFormat.format(new Date(covered.to))}.`,
-    lines: result.lines.map((line) => ({
+    lines: result.lines.filter((line) => lineShown(shown, line.line)).map((line) => ({
       line: line.line,
-      label: LINE_LABELS[line.line],
+      label: lineLabel(shown, line.line),
       emphasised: line.line === 'net' || line.line === 'ownerEarns',
       current: line.current.amount,
       currentTo: drillLocation(line.current.drill),
@@ -93,12 +86,14 @@ const review = computed(() => {
     byMonth: profitAndLossChart(
       monthlyProfitAndLoss(scoped, window).filter((month) => months.has(month.month)),
       chartTokens(),
-      { netLine: MONTHLY_NET },
+      { series, netLine: MONTHLY_NET },
     ),
+    legend: [...profitAndLossLegend(series), { label: MONTHLY_NET.name, colour: 'var(--chart-ink)', mark: 'line' as const }],
     sections: [
-      { title: 'Income', note: 'Share of all income', rows: totals.filter((total) => total.direction === 'income').map((total) => rowOf(total, total.share)) },
-      { title: 'Costs', note: 'Share of all costs', rows: totals.filter((total) => total.direction === 'cost').map((total) => rowOf(total, total.share)) },
+      { key: 'income', title: shown.bucketLabels.income, note: 'Share of all income', rows: totals.filter((total) => total.direction === 'income').map((total) => rowOf(total, total.share)) },
+      { key: 'cost', title: 'Costs', note: 'Share of all costs', rows: totals.filter((total) => total.direction === 'cost').map((total) => rowOf(total, total.share)) },
       {
+        key: 'outside',
         title: 'Outside profit and loss',
         note: 'Reimbursements and other financing settle costs counted above, so they have no share of either',
         rows: outsideProfitAndLossTotals(scoped, period, window).map((total) => rowOf(total, null)),
@@ -169,26 +164,17 @@ const review = computed(() => {
             </div>
           </section>
 
-          <ChartCard
+          <DrillChartCard
+            :chart="review.byMonth"
             title="By month"
             :subtitle="review.currentLabel"
-            :description="review.byMonth.description"
-            :option="review.byMonth.option"
             :height="300"
-            @select="openChartDrill(review.byMonth, $event)"
+            :phone-height="260"
           >
             <template #legend>
-              <ChartLegend
-                :entries="[
-                  { label: 'Income', colour: 'var(--bucket-income)' },
-                  { label: 'Operating', colour: 'var(--bucket-operating)' },
-                  { label: 'Taxes', colour: 'var(--bucket-taxes)' },
-                  { label: 'Owner pay', colour: 'var(--bucket-owner-pay)' },
-                  { label: 'Net', colour: 'var(--chart-ink)', mark: 'line' },
-                ]"
-              />
+              <ChartLegend :entries="review.legend" />
             </template>
-          </ChartCard>
+          </DrillChartCard>
         </div>
 
         <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
@@ -199,7 +185,7 @@ const review = computed(() => {
           <p v-if="review.sections.length === 0" class="px-5 py-8 text-sm text-muted">No categorised rows in this period.</p>
           <div v-else class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
             <table class="data-table w-full text-sm">
-              <template v-for="section in review.sections" :key="section.title">
+              <template v-for="section in review.sections" :key="section.key">
                 <thead>
                   <tr>
                     <th scope="colgroup" class="section-heading text-start">{{ section.title }}</th>
@@ -224,7 +210,7 @@ const review = computed(() => {
               </template>
             </table>
           </div>
-          <p v-if="review.sections.some((section) => section.title === 'Outside profit and loss')" class="px-4 pb-4 text-xs text-muted sm:px-5">
+          <p v-if="review.sections.some((section) => section.key === 'outside')" class="px-4 pb-4 text-xs text-muted sm:px-5">
             Outside profit and loss: reimbursements and other financing settle costs counted above, so they are listed here and have no share of
             either direction.
           </p>

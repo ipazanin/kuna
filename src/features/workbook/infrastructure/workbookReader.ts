@@ -2,28 +2,42 @@ import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
+import { currencyProblem, parseSettings } from '../../settings/domain/settings'
+import type { Settings } from '../../settings/domain/settings'
 import { UNCLASSIFIED, isDefinedBucket } from '../domain/bucket'
 import type { Account, Category, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
 import type { CellValue, SheetRow, WorkbookSnapshot } from './workbookSnapshot'
 
 /**
- * Turns the cached tabs into the domain workbook. Every column is found by its header name. The
- * ledger's `family`, `bucket` and `month` columns are the Sheet's own formulas and are not read:
- * family and bucket come from `categories`, the way those formulas derive them.
+ * Turns the tabs into the domain workbook, whether they came from a Google Sheet or an xlsx file.
+ * Every column is found by its header name. The ledger's `family`, `bucket` and `month` columns
+ * are the Sheet's own formulas and are not read: family and bucket come from `categories`, the way
+ * those formulas derive them. A missing tab or column reads as empty, and settings default.
  */
 export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
   const problems: WorkbookProblem[] = []
+  const settings = readSettings(snapshot.settings, problems)
   const categories = readCategories(snapshot.categories, problems)
   return {
-    spreadsheetId: snapshot.meta.spreadsheetId,
+    id: snapshot.meta.id,
+    source: snapshot.meta.source,
     title: snapshot.meta.title,
     ledgerSheetId: snapshot.meta.ledgerSheetId,
     syncedAt: snapshot.meta.syncedAt,
     transactions: readLedger(snapshot.ledger, categories, problems),
     categories,
-    accounts: readAccounts(snapshot.accounts, problems),
+    accounts: readAccounts(snapshot.accounts, settings, problems),
+    settings,
     problems,
   }
+}
+
+function readSettings(rows: readonly SheetRow[], problems: WorkbookProblem[]): Settings {
+  const parsed = parseSettings(
+    rows.map((row) => ({ key: textOf(row.cells.key), value: row.cells.value, sheetRow: row.sheetRow })),
+  )
+  problems.push(...parsed.problems.map((problem) => ({ tab: 'settings' as const, ...problem })))
+  return parsed.settings
 }
 
 /**
@@ -49,12 +63,13 @@ function readCategories(rows: readonly SheetRow[], problems: WorkbookProblem[]):
       problems.push({ tab: 'categories', sheetRow: row.sheetRow, reason: `"${slug}" is already defined above` })
       continue
     }
-    bySlug.set(slug, { slug, family, bucket, colour: textOf(row.cells.colour) })
+    bySlug.set(slug, { slug, family, bucket, colour: textOf(row.cells.colour), roles: rolesOf(row.cells.roles) })
   }
   return [...bySlug.values()]
 }
 
-function readAccounts(rows: readonly SheetRow[], problems: WorkbookProblem[]): Account[] {
+/** One currency per workbook: an account in another one is still read, and its amounts shown as the workbook's. */
+function readAccounts(rows: readonly SheetRow[], settings: Settings, problems: WorkbookProblem[]): Account[] {
   const accounts: Account[] = []
   for (const row of rows) {
     const slug = slugOf(row.cells.account)
@@ -62,7 +77,16 @@ function readAccounts(rows: readonly SheetRow[], problems: WorkbookProblem[]): A
       problems.push({ tab: 'accounts', sheetRow: row.sheetRow, reason: 'no account name' })
       continue
     }
-    accounts.push({ slug, iban: normaliseIban(textOf(row.cells.iban)) })
+    const currency = textOf(row.cells.currency).toUpperCase()
+    if (currency !== '' && currency !== settings.currency) {
+      const invalid = currencyProblem(currency)
+      problems.push({
+        tab: 'accounts',
+        sheetRow: row.sheetRow,
+        reason: invalid ?? `${slug} is in ${currency} but the workbook counts in ${settings.currency}, so its amounts read as ${settings.currency}`,
+      })
+    }
+    accounts.push({ slug, iban: normaliseIban(textOf(row.cells.iban)), currency })
   }
   return accounts
 }
@@ -132,6 +156,14 @@ function readLedgerRow(
 
 function textOf(cell: CellValue | undefined): string {
   return cell === undefined ? '' : String(cell).trim()
+}
+
+/** A comma-separated list, such as `revenue, watched`. */
+function rolesOf(cell: CellValue | undefined): string[] {
+  return textOf(cell)
+    .split(',')
+    .map((role) => role.trim().toLowerCase())
+    .filter((role) => role !== '')
 }
 
 function slugOf(cell: CellValue | undefined): string {

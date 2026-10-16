@@ -2,7 +2,7 @@ import type { BarSeries, ChartOption, LineSeries } from '../../charts/echarts'
 import { BAR_END_DOWN, BAR_END_RIGHT, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } from '../../charts/chartTheme'
 import type { ChartTokens } from '../../charts/chartTokens'
 import { axisTooltip } from '../../charts/chartTooltip'
-import { formatCompactEuros, formatEuros, formatPercent } from '../../money/euroFormat'
+import { formatCompactMoney, formatMoney, formatPercent } from '../../money/moneyFormat'
 
 /** Made-up figures in cents for a small one-person company. None of it comes from a real ledger. */
 export const SAMPLE_MONTHS = [
@@ -88,7 +88,7 @@ export function incomeAgainstCosts(tokens: ChartTokens): ChartOption {
         tokens,
         incompleteCategories: INCOMPLETE_MONTHS,
         // Costs read positive. Only the net keeps its sign.
-        formatAmount: (amount, seriesName) => formatEuros(amount, seriesName === 'Net' ? 'negative' : 'magnitude'),
+        formatAmount: (amount, seriesName) => formatMoney(amount, seriesName === 'Net' ? 'negative' : 'magnitude'),
       }),
     },
     xAxis: { ...monthAxis(tokens), axisLine: { onZero: true, lineStyle: { color: tokens.axis } } },
@@ -132,7 +132,7 @@ export function cashAtMonthEnd(tokens: ChartTokens): ChartOption {
           show: true,
           color: tokens.ink,
           fontWeight: 600,
-          formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactEuros(value) : ''),
+          formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactMoney(value) : ''),
         },
       },
     ],
@@ -180,7 +180,7 @@ export function costsByCategory(tokens: ChartTokens): ChartOption {
           distance: 8,
           color: tokens.inkSecondary,
           fontSize: 11,
-          formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactEuros(value) : ''),
+          formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactMoney(value) : ''),
         },
         data: [...CATEGORY_NOW].reverse(),
         z: 2,

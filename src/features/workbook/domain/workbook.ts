@@ -2,6 +2,7 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { anchorWindow } from '../../../shared/calendar/ledgerWindow'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import type { Money } from '../../../shared/money/money'
+import type { Settings } from '../../settings/domain/settings'
 import type { Bucket, DefinedBucket } from './bucket'
 
 export interface Category {
@@ -9,12 +10,19 @@ export interface Category {
   readonly family: string
   readonly bucket: DefinedBucket
   readonly colour: string
+  /** What code may select the category for, such as `revenue` or `watched`. Lower case. */
+  readonly roles: readonly string[]
 }
 
 export interface Account {
   readonly slug: string
   readonly iban: string
+  /** Blank when the tab does not say, which means the workbook's currency. */
+  readonly currency: string
 }
+
+/** Where the workbook lives: a Google Sheet, or this browser with xlsx files as its copies. */
+export type WorkbookSource = 'google' | 'excel'
 
 /** One booked bank entry from the `ledger` tab. Credits are positive. */
 export interface Transaction {
@@ -45,22 +53,25 @@ export interface Transaction {
 
 /** A row the reader could not turn into a fact, kept so the screen can say what was left out. */
 export interface WorkbookProblem {
-  readonly tab: 'ledger' | 'categories' | 'accounts'
+  readonly tab: 'ledger' | 'categories' | 'accounts' | 'settings'
   readonly sheetRow: number
   readonly reason: string
 }
 
 export interface Workbook {
-  readonly spreadsheetId: string
+  /** The Google spreadsheet id, or the id of the workbook kept in this browser. */
+  readonly id: string
+  readonly source: WorkbookSource
   readonly title: string
   /** The `ledger` tab's numeric id, for links to its rows. Null for a copy cached without it. */
   readonly ledgerSheetId: number | null
-  /** ISO timestamp of the read this copy came from. */
+  /** ISO timestamp of the read this copy came from, or of the last change kept in this browser. */
   readonly syncedAt: string
   /** Newest first, as the tab holds them. */
   readonly transactions: readonly Transaction[]
   readonly categories: readonly Category[]
   readonly accounts: readonly Account[]
+  readonly settings: Settings
   readonly problems: readonly WorkbookProblem[]
 }
 

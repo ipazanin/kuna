@@ -10,6 +10,9 @@ export type Theme = 'dark' | 'light'
 
 const STORED_THEME_KEY = 'ledgerboard.theme'
 
+/** The `--surface-page` of each theme, for the browser bar of the installed app. */
+const PAGE_COLOURS: Readonly<Record<Theme, string>> = { dark: '#0d1219', light: '#eef1f4' }
+
 const active = shallowRef<Theme>('dark')
 
 /** The theme on screen. Charts read it, so they redraw in the new colours when it changes. */
@@ -65,5 +68,6 @@ function paint(theme: Theme): void {
   root.classList.toggle('dark', theme === 'dark')
   root.classList.toggle('light', theme === 'light')
   root.style.colorScheme = theme
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', PAGE_COLOURS[theme])
   active.value = theme
 }

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { formatCompactEuros, formatEuros, formatWholeEuros } from '../money/euroFormat'
-import type { SignDisplay } from '../money/euroFormat'
+import { formatCompactMoney, formatMoney, formatWholeMoney } from '../money/moneyFormat'
+import type { SignDisplay } from '../money/moneyFormat'
 
 const props = withDefaults(
   defineProps<{
@@ -17,9 +17,9 @@ const props = withDefaults(
 )
 
 const formatted = computed(() => {
-  if (props.precision === 'whole') return formatWholeEuros(props.cents, props.sign)
-  if (props.precision === 'compact') return formatCompactEuros(props.cents, props.sign)
-  return formatEuros(props.cents, props.sign)
+  if (props.precision === 'whole') return formatWholeMoney(props.cents, props.sign)
+  if (props.precision === 'compact') return formatCompactMoney(props.cents, props.sign)
+  return formatMoney(props.cents, props.sign)
 })
 
 const tone = computed(() => {

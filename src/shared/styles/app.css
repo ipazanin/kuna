@@ -77,3 +77,47 @@ body {
   font-weight: 500;
   color: var(--ink-strong);
 }
+
+/*
+ * The phone layout. Every control a thumb can reach is at least 44 by 44 px. The rule is unlayered,
+ * so it wins over the Tailwind sizes of Nuxt UI's small buttons, but only below the phone breakpoint.
+ */
+:root {
+  --phone-bar-height: 0px;
+}
+
+@media (max-width: 639px) {
+  :root {
+    --phone-bar-height: 3.5rem;
+  }
+
+  :where(button:not([role='switch'], [role='checkbox']), a[href], select, textarea, [role='button'], [role='combobox'], [role='tab']),
+  :where(input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='file'])) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* A switch stays switch-sized. Its label, which toggles it too, carries the height. */
+  [data-slot='root']:has(> [data-slot='container'] > [role='switch']) > [data-slot='container'],
+  [data-slot='root']:has(> [data-slot='container'] > [role='switch']) [data-slot='label'] {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* A link at the end of a sentence moves to its own line, where it can have the same height. */
+  .inline-target {
+    display: flex;
+    width: fit-content;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+/* A sheet that rises from the bottom of a phone, clear of the gesture bar. */
+.phone-sheet {
+  max-height: 85dvh;
+  border-start-start-radius: 14px;
+  border-start-end-radius: 14px;
+  padding-bottom: env(safe-area-inset-bottom);
+}

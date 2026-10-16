@@ -17,12 +17,15 @@ const narrowed: FilterState = {
   needsReview: true,
 }
 
-const labelOf = (key: string): string => (key === 'iban:XX00FAKE0010' ? 'NORTHWIND ANALYTICS LTD' : key)
+const labels = {
+  counterparty: (key: string): string => (key === 'iban:XX00FAKE0010' ? 'NORTHWIND ANALYTICS LTD' : key),
+  bucket: (bucket: string): string => (bucket === 'operating' ? 'Operating cost' : bucket),
+}
 
 describe('filterChips', () => {
   it('names every narrowing beyond the period and the accounts', () => {
-    expect(filterChips(narrowed, labelOf).map((chip) => chip.label)).toEqual([
-      'Bucket: operating',
+    expect(filterChips(narrowed, labels).map((chip) => chip.label)).toEqual([
+      'Bucket: Operating cost',
       'Category: travel',
       'Category: ai-services',
       'Counterparty: NORTHWIND ANALYTICS LTD',
@@ -33,7 +36,7 @@ describe('filterChips', () => {
   })
 
   it('shows nothing for the default filters', () => {
-    expect(filterChips(DEFAULT_FILTERS, labelOf)).toEqual([])
+    expect(filterChips(DEFAULT_FILTERS, labels)).toEqual([])
   })
 })
 

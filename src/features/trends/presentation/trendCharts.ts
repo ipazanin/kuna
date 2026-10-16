@@ -3,7 +3,7 @@ import { incompleteBand, moneyAxisLabel } from '../../../shared/charts/chartThem
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../shared/charts/chartTooltip'
 import type { ChartOption, LineSeries } from '../../../shared/charts/echarts'
-import { formatWholeEuros } from '../../../shared/money/euroFormat'
+import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import type { MonthOfProfitAndLoss } from '../domain/monthlyProfitAndLoss'
 
@@ -21,7 +21,7 @@ export function cumulativeNetChart(months: readonly MonthOfProfitAndLoss[], toke
     description:
       last === undefined
         ? 'No months to show.'
-        : `Cumulative net since the ledger began, ${formatWholeEuros(last.cumulativeNet)} by ${monthLabel(last.month)}.`,
+        : `Cumulative net since the ledger began, ${formatWholeMoney(last.cumulativeNet)} by ${monthLabel(last.month)}.`,
   })
 }
 
@@ -39,8 +39,8 @@ export function rollingNetChart(months: readonly MonthOfProfitAndLoss[], tokens:
       description:
         latest === undefined
           ? 'Not enough complete months for a rolling average yet.'
-          : `Average net per month. In ${monthLabel(latest.month)} the 3-month average was ${formatWholeEuros(latest.rolling3?.net ?? 0)}` +
-            (latest.rolling12 === null ? '.' : ` and the 12-month average ${formatWholeEuros(latest.rolling12.net)}.`),
+          : `Average net per month. In ${monthLabel(latest.month)} the 3-month average was ${formatWholeMoney(latest.rolling3?.net ?? 0)}` +
+            (latest.rolling12 === null ? '.' : ` and the 12-month average ${formatWholeMoney(latest.rolling12.net)}.`),
     },
   )
 }
@@ -71,7 +71,7 @@ function trendChart(
         tokens,
         incompleteCategories: categories.filter((_, index) => incomplete[index]),
         categoryLabel: monthAxisLabel('long'),
-        formatAmount: (amount) => formatWholeEuros(amount),
+        formatAmount: (amount) => formatWholeMoney(amount),
       }),
     },
     xAxis: {

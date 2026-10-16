@@ -3,15 +3,14 @@ import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import { chartTokens } from '../../../shared/charts/chartTokens'
-import { formatEuros, formatWholeEuros } from '../../../shared/money/euroFormat'
-import ChartCard from '../../../shared/ui/ChartCard.vue'
+import { formatDecimal, formatMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { chartedMonths } from '../../filters/domain/periodPresets'
-import { useChartDrill } from '../../filters/presentation/chartDrill'
+import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { runway } from '../../overview/domain/runway'
 import { windowAverages } from '../../overview/domain/windowAverages'
@@ -22,12 +21,11 @@ import { TOTAL_SERIES, accountColours, balanceChart } from './cashChart'
 
 const ledger = useFilteredLedger()
 const { drillLocation } = useFilters()
-const openChartDrill = useChartDrill()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 function runwayText(months: number | null): string {
-  return months === null ? 'No costs' : `${months.toFixed(1)} months`
+  return months === null ? 'No costs' : `${formatDecimal(months)} months`
 }
 
 const cash = computed(() => {
@@ -60,7 +58,7 @@ const cash = computed(() => {
       label,
       value: runwayText(estimate.months),
       to: drillLocation(estimate.monthlyCost.drill),
-      caption: `Cash on hand over ${formatWholeEuros(estimate.monthlyCost.amount)} a month`,
+      caption: `Cash on hand over ${formatWholeMoney(estimate.monthlyCost.amount)} a month`,
     })),
     accounts: balances.accounts.map((account) => ({
       account: account.account,
@@ -86,7 +84,7 @@ const cash = computed(() => {
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <KpiTile
             label="Cash on hand"
-            :value="formatWholeEuros(cash.cashOnHand.amount)"
+            :value="formatWholeMoney(cash.cashOnHand.amount)"
             :to="cash.cashOnHand.to"
             caption="Every account in view at its latest balance"
           />
@@ -98,17 +96,16 @@ const cash = computed(() => {
           />
         </div>
 
-        <ChartCard
+        <DrillChartCard
+          :chart="cash.chart"
           title="Balance at month end"
           subtitle="Each account stacked, with the total on top"
-          :description="cash.chart.description"
-          :option="cash.chart.option"
           :empty="cash.empty"
           :height="320"
-          @select="openChartDrill(cash.chart, $event)"
+          :phone-height="260"
         >
           <template #legend><ChartLegend :entries="cash.legend" /></template>
-        </ChartCard>
+        </DrillChartCard>
 
         <ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <li
@@ -125,7 +122,7 @@ const cash = computed(() => {
               <UBadge v-if="account.closed" label="Closed" color="neutral" variant="subtle" size="sm" />
             </div>
             <DrillLink :to="account.to" :label="`${account.account}, every row`" class="self-start">
-              <span class="text-figure-lg font-semibold whitespace-nowrap text-highlighted">{{ formatEuros(account.balance) }}</span>
+              <span class="text-figure-lg font-semibold whitespace-nowrap text-highlighted">{{ formatMoney(account.balance) }}</span>
             </DrillLink>
             <p class="text-xs text-muted">As of {{ account.asOf }}. {{ account.count }} rows since {{ account.firstSeen }}.</p>
           </li>
