@@ -2,7 +2,7 @@ import type { Plugin } from 'vite'
 
 /**
  * The dev server talks to the page over a WebSocket for hot reload, which the production policy in
- * index.html does not allow. This widens the policy for `vite` only, so the spike still runs
+ * index.html does not allow. This widens the policy for `vite` only, so the dev server still runs
  * against the production script, style, frame and connect sources.
  */
 const DEV_ONLY_SOURCES: Readonly<Record<string, readonly string[]>> = {

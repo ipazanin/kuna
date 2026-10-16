@@ -23,6 +23,15 @@ export function saveSelectedWorkbook(workbook: SelectedWorkbook): void {
   }
 }
 
+/** Drops the remembered choice, so the next sync opens the Picker. The cached copy is kept. */
+export function forgetSelectedWorkbook(): void {
+  try {
+    localStorage.removeItem(SELECTED_WORKBOOK_KEY)
+  } catch {
+    // Storage denied means nothing was remembered either.
+  }
+}
+
 function isSelectedWorkbook(candidate: unknown): candidate is SelectedWorkbook {
   if (typeof candidate !== 'object' || candidate === null) {
     return false

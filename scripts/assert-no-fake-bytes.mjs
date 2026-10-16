@@ -1,8 +1,9 @@
 /**
- * Fails the build if the fake workbook or the spike screen reached the production bundle.
+ * Fails the build if the fake workbook or the component gallery reached the production bundle.
  *
  * Both are dropped only because their guards are written inline (`import.meta.env.VITE_FAKE_WORKBOOK
- * === 'true'` in main.ts, `import.meta.env.DEV` in the router), which the build folds to false.
+ * === 'true'` in main.ts and the router, `import.meta.env.DEV` in the router), which the build folds
+ * to false.
  * Moving a guard into a shared constant can stop that folding without any visible change in the
  * source, so the proof is taken from the output.
  *
@@ -15,7 +16,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { FAKE_WORKBOOK_MARKER, SPIKE_LOG_PREFIX } from './support/devOnlyMarkers.mjs'
+import { FAKE_WORKBOOK_MARKER, GALLERY_MARKER } from './support/devOnlyMarkers.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const BUNDLE = join(ROOT, 'dist')
@@ -33,7 +34,7 @@ function* filesUnder(directory) {
 const bundledFiles = [...filesUnder(BUNDLE)].map((path) => ({ path, text: readFileSync(path, 'utf8') }))
 
 let failed = false
-for (const marker of [FAKE_WORKBOOK_MARKER, SPIKE_LOG_PREFIX]) {
+for (const marker of [FAKE_WORKBOOK_MARKER, GALLERY_MARKER]) {
   const contaminated = bundledFiles.filter((file) => file.text.includes(marker))
   if (contaminated.length === 0) continue
   failed = true

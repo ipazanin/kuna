@@ -19,7 +19,7 @@ function ledgerRow(sheetRow: number, amount: number): SheetRow {
 
 function snapshotOf(spreadsheetId: string, ledger: SheetRow[], syncedAt = '2026-10-15T08:00:00.000Z'): WorkbookSnapshot {
   return {
-    meta: { spreadsheetId, title: 'Test workbook', syncedAt },
+    meta: { spreadsheetId, title: 'Test workbook', syncedAt, ledgerSheetId: 7 },
     ledger,
     categories: [{ sheetRow: 2, cells: { category: 'revenue', bucket: 'income' } }],
     accounts: [{ sheetRow: 2, cells: { account: 'operating', currency: 'EUR' } }],
@@ -43,7 +43,7 @@ describe('workbook cache', () => {
 
     const read = await cache.read()
 
-    expect(read?.meta).toEqual({ spreadsheetId: 'sheet-a', title: 'Test workbook', syncedAt: '2026-10-15T08:00:00.000Z' })
+    expect(read?.meta).toEqual({ spreadsheetId: 'sheet-a', title: 'Test workbook', syncedAt: '2026-10-15T08:00:00.000Z', ledgerSheetId: 7 })
     expect(read?.ledger.map((row) => row.sheetRow)).toEqual([2, 3])
     expect(read?.categories).toHaveLength(1)
     expect(read?.accounts[0]?.cells.currency).toBe('EUR')

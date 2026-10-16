@@ -8,11 +8,6 @@ export interface ValueRange {
   readonly values: CellValue[][]
 }
 
-export interface SpreadsheetSummary {
-  readonly title: string
-  readonly sheetTitles: string[]
-}
-
 /**
  * Reads several ranges in one call. Numbers stay numbers and dates arrive as serial days, so no
  * locale formatting ever reaches the parser.
@@ -64,15 +59,15 @@ export async function batchUpdateValues(
   return { totalUpdatedCells: body.totalUpdatedCells ?? 0 }
 }
 
-export async function getSpreadsheetSummary(accessToken: string, spreadsheetId: string): Promise<SpreadsheetSummary> {
-  const query = new URLSearchParams({ fields: 'properties.title,sheets.properties.title' })
+/** Each tab's numeric id by its title, which a link to a row on that tab needs as its `gid`. */
+export async function getSheetIds(accessToken: string, spreadsheetId: string): Promise<ReadonlyMap<string, number>> {
+  const query = new URLSearchParams({ fields: 'sheets.properties(title,sheetId)' })
   const response = await googleFetch(`${SHEETS_API}/${encodeURIComponent(spreadsheetId)}?${query}`, accessToken)
-  const body = (await response.json()) as {
-    properties?: { title?: string }
-    sheets?: { properties?: { title?: string } }[]
-  }
-  return {
-    title: body.properties?.title ?? '',
-    sheetTitles: (body.sheets ?? []).map((sheet) => sheet.properties?.title ?? ''),
-  }
+  const body = (await response.json()) as { sheets?: { properties?: { title?: string; sheetId?: number } }[] }
+  return new Map(
+    (body.sheets ?? []).flatMap((sheet) => {
+      const { title, sheetId } = sheet.properties ?? {}
+      return title === undefined || sheetId === undefined ? [] : [[title, sheetId] as const]
+    }),
+  )
 }

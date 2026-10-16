@@ -1,17 +1,19 @@
+export type ScreenPath = '/' | '/transactions' | '/trends' | '/spending' | '/period-review' | '/cash' | '/review' | '/settings'
+
 export interface Screen {
-  readonly path: string
+  readonly path: ScreenPath
   readonly title: string
+  readonly icon: string
 }
 
 /** The screens in navigation order. Each one gets a route and a nav link. */
 export const SCREENS: readonly Screen[] = [
-  { path: '/', title: 'Overview' },
-  { path: '/transactions', title: 'Transactions' },
-  { path: '/trends', title: 'Trends' },
-  { path: '/spending', title: 'Spending' },
-  { path: '/period-review', title: 'Period review' },
-  { path: '/cash', title: 'Cash' },
-  { path: '/obligations', title: 'Obligations' },
-  { path: '/review', title: 'Review' },
-  { path: '/settings', title: 'Settings' },
+  { path: '/', title: 'Overview', icon: 'i-lucide-layout-dashboard' },
+  { path: '/transactions', title: 'Transactions', icon: 'i-lucide-list' },
+  { path: '/trends', title: 'Trends', icon: 'i-lucide-trending-up' },
+  { path: '/spending', title: 'Spending', icon: 'i-lucide-chart-bar' },
+  { path: '/period-review', title: 'Period review', icon: 'i-lucide-calendar-range' },
+  { path: '/cash', title: 'Cash', icon: 'i-lucide-wallet' },
+  { path: '/review', title: 'Review', icon: 'i-lucide-inbox' },
+  { path: '/settings', title: 'Settings', icon: 'i-lucide-settings' },
 ]

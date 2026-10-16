@@ -64,7 +64,9 @@ export function openWorkbookCache(spreadsheetId: string): WorkbookCache {
         if (stored === undefined) {
           return null
         }
-        const { key: _key, ...meta } = stored
+        const { key: _key, ...storedMeta } = stored
+        // A copy cached before the ledger's tab id was kept lacks the field.
+        const meta = { ...storedMeta, ledgerSheetId: storedMeta.ledgerSheetId ?? null }
         const [ledger, categories, accounts] = await Promise.all([
           database.ledger.toArray(),
           database.categories.toArray(),

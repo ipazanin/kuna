@@ -1,0 +1,102 @@
+<script lang="ts">
+export interface LegendEntry {
+  readonly label: string
+  /** Any CSS colour, usually a series or bucket token such as `var(--bucket-taxes)`. */
+  readonly colour: string
+  /** Mirrors the mark: a block for bars and areas, a stroke for lines. */
+  readonly mark?: 'bar' | 'line' | 'hatched' | 'ghost'
+}
+</script>
+
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    entries: readonly LegendEntry[]
+    /** Entries become buttons that show or hide their series. */
+    toggleable?: boolean
+    /** Labels of the entries whose series are hidden. */
+    hidden?: readonly string[]
+  }>(),
+  { toggleable: false, hidden: () => [] },
+)
+
+const emit = defineEmits<{
+  toggle: [label: string]
+}>()
+</script>
+
+<template>
+  <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-toned">
+    <li v-for="entry in entries" :key="entry.label" class="inline-flex items-center">
+      <button
+        v-if="toggleable"
+        type="button"
+        class="legend-toggle inline-flex items-center gap-1.5"
+        :aria-pressed="!hidden.includes(entry.label)"
+        @click="emit('toggle', entry.label)"
+      >
+        <span class="swatch" :class="`swatch-${entry.mark ?? 'bar'}`" :style="{ '--swatch': entry.colour }" aria-hidden="true" />
+        <span>{{ entry.label }}</span>
+      </button>
+      <span v-else class="inline-flex items-center gap-1.5">
+        <span class="swatch" :class="`swatch-${entry.mark ?? 'bar'}`" :style="{ '--swatch': entry.colour }" aria-hidden="true" />
+        <span>{{ entry.label }}</span>
+      </span>
+    </li>
+  </ul>
+</template>
+
+<style scoped>
+.legend-toggle {
+  margin: -0.25rem -0.375rem;
+  padding: 0.25rem 0.375rem;
+  border-radius: 4px;
+  transition: opacity 120ms ease;
+}
+
+.legend-toggle:hover {
+  color: var(--ink-strong);
+}
+
+.legend-toggle[aria-pressed='false'] {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.legend-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.swatch {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.swatch-bar,
+.swatch-hatched,
+.swatch-ghost {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--swatch);
+}
+
+.swatch-hatched {
+  background:
+    repeating-linear-gradient(45deg, var(--chart-hatch) 0 1.5px, transparent 1.5px 4px),
+    var(--swatch);
+}
+
+.swatch-ghost {
+  background: var(--chart-ghost);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.swatch-line {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--swatch);
+}
+</style>

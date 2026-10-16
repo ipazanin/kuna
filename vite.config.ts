@@ -16,10 +16,22 @@ export default defineConfig({
       autoImport: false,
       // The theme is resolved by src/shared/theme before mount, which also honours ?theme=.
       colorMode: false,
+      // Every i-lucide-* name in src is bundled from @iconify-json/lucide. Iconify would otherwise
+      // fetch a missing icon from api.iconify.design, which the Content Security Policy blocks.
+      icon: { clientBundle: { scan: { globInclude: ['src/**/*.{vue,ts}'] } } },
       ui: {
+        // The colours themselves come from src/shared/styles/tokens.css, which overrides these.
         colors: {
-          primary: 'teal',
-          neutral: 'zinc',
+          primary: 'amber',
+          neutral: 'slate',
+        },
+        table: {
+          slots: {
+            th: 'px-3 py-2.5 text-xs font-medium text-muted',
+            // Grouped tables render an empty row under each expanded row. Without padding it collapses.
+            td: 'px-3 py-2 text-sm text-default empty:p-0',
+            tbody: '[&>tr]:transition-colors [&>tr]:hover:bg-elevated/60',
+          },
         },
       },
     }),

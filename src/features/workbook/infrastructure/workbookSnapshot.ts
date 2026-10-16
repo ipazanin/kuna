@@ -16,6 +16,8 @@ export interface WorkbookMeta {
   readonly title: string
   /** ISO timestamp of the read that produced this copy. */
   readonly syncedAt: string
+  /** The `ledger` tab's numeric id, for links to its rows. Null when Google did not say. */
+  readonly ledgerSheetId: number | null
 }
 
 export type WorkbookSnapshot = { readonly meta: WorkbookMeta } & {

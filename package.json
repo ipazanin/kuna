@@ -12,7 +12,8 @@
     "test": "vitest run",
     "typecheck": "vue-tsc -b --noEmit",
     "check": "npm run typecheck && npm test",
-    "check:visual": "node scripts/visual-check.mjs"
+    "check:visual": "node scripts/visual-check.mjs",
+    "parity:figures": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-figures.mjs"
   },
   "description": "Dashboard over the shadow-accounting Google Sheet, computed in the browser",
   "license": "MIT",
@@ -20,7 +21,9 @@
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
+    "@iconify-json/lucide": "^1.2.144",
     "@nuxt/ui": "^4.12.0",
+    "@tanstack/vue-table": "^8.21.3",
     "dexie": "^4.4.6",
     "echarts": "^6.1.0",
     "tailwindcss": "^4.3.3",
@@ -41,6 +44,7 @@
     "typescript": "~6.0.3",
     "vite": "^8.3.4",
     "vitest": "^4.1.11",
-    "vue-tsc": "^3.3.13"
+    "vue-tsc": "^3.3.13",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

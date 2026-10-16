@@ -2,17 +2,17 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import fakeWorkbook from '../src/features/workbook/infrastructure/fake/fakeWorkbook.json'
-import { FAKE_WORKBOOK_MARKER, SPIKE_LOG_PREFIX } from '../scripts/support/devOnlyMarkers.mjs'
+import { FAKE_SPREADSHEET_ID } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { FAKE_WORKBOOK_MARKER, GALLERY_MARKER } from '../scripts/support/devOnlyMarkers.mjs'
 
 describe('dev-only markers', () => {
   it('uses the fake marker as the fake workbook spreadsheet id, which every use of the fixture carries', () => {
-    expect(fakeWorkbook.spreadsheetId).toBe(FAKE_WORKBOOK_MARKER)
+    expect(FAKE_SPREADSHEET_ID).toBe(FAKE_WORKBOOK_MARKER)
   })
 
-  it('logs every spike line with the prefix the build looks for', () => {
-    const spike = readFileSync(join(import.meta.dirname, '../src/features/workbook/presentation/SpikeScreen.vue'), 'utf8')
+  it('stamps the gallery root with the marker the build looks for', () => {
+    const gallery = readFileSync(join(import.meta.dirname, '../src/shared/ui/gallery/GalleryScreen.vue'), 'utf8')
 
-    expect(spike).toContain(`console.log('${SPIKE_LOG_PREFIX}'`)
+    expect(gallery).toContain(`data-dev-only="${GALLERY_MARKER}"`)
   })
 })

@@ -1,0 +1,26 @@
+<script setup lang="ts">
+import UButton from '@nuxt/ui/components/Button.vue'
+import UPopover from '@nuxt/ui/components/Popover.vue'
+
+defineProps<{
+  /** What the definition is about, read out as "About {subject}". */
+  subject: string
+  definition: string
+}>()
+</script>
+
+<template>
+  <UPopover :content="{ side: 'top', align: 'end', collisionPadding: 12 }">
+    <UButton
+      icon="i-lucide-info"
+      color="neutral"
+      variant="ghost"
+      size="xs"
+      :aria-label="`About ${subject}`"
+      class="text-dimmed hover:text-highlighted"
+    />
+    <template #content>
+      <p class="max-w-72 p-3 text-sm leading-relaxed text-toned">{{ definition }}</p>
+    </template>
+  </UPopover>
+</template>
