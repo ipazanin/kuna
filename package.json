@@ -14,9 +14,11 @@
     "check": "npm run typecheck && npm test",
     "check:visual": "node --import ./scripts/support/typescriptResolve.mjs scripts/visual-check.mjs",
     "parity:figures": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-figures.mjs",
+    "parity:rules": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-rules.mjs",
     "check:round-trip": "node --import ./scripts/support/typescriptResolve.mjs scripts/round-trip-workbook.mjs",
     "check:touch": "node --import ./scripts/support/typescriptResolve.mjs scripts/touch-check.mjs",
-    "check:pwa": "node --import ./scripts/support/typescriptResolve.mjs scripts/check-pwa.mjs"
+    "check:pwa": "node --import ./scripts/support/typescriptResolve.mjs scripts/check-pwa.mjs",
+    "check:import": "node scripts/check-foreign-import.mjs"
   },
   "description": "Company finance dashboards over a Google Sheet or an Excel workbook, computed in the browser",
   "license": "MIT",

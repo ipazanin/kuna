@@ -12,11 +12,14 @@ import { useFilteredLedger } from '../../transactions/application/useFilteredLed
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { sheetRowLink } from '../../workbook/infrastructure/sheetRowLink'
+import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 
 const ledger = useFilteredLedger()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+const names = useDisplayNames()
 
 /** The queue has no period: a row waits until someone settles it, however old it is. */
 const inSheet = computed(() => ledger.value?.workbook.source === 'google')
@@ -30,11 +33,11 @@ const queue = computed(() => {
   return current.scoped.filter(needsReview).map((transaction) => ({
     key: transaction.sheetRow,
     date: dayFormat.format(new Date(transaction.date)),
-    account: transaction.account,
+    account: names.value.account(transaction.account),
     counterparty: transaction.counterparty || 'No counterparty',
     description: transaction.description,
     amount: transaction.amount,
-    category: transaction.category,
+    category: transaction.category === '' ? '' : names.value.category(transaction.category),
     reason: transaction.bucket === UNCLASSIFIED ? 'Unclassified' : 'AI guess',
     sheetRow: transaction.sheetRow,
     link: sheetRowLink(workbook.id, workbook.ledgerSheetId, transaction.sheetRow),
@@ -53,11 +56,11 @@ const queue = computed(() => {
           icon="i-lucide-pencil-off"
           color="neutral"
           variant="subtle"
-          title="Read only for now"
+          title="Fix a row where the workbook lives"
           :description="
             inSheet
-              ? 'Confirming or changing a category from here comes later. Until then, open the row in the Sheet, fix it there, and sync.'
-              : 'Confirming or changing a category from here comes later. Until then, export the workbook, fix the row in Excel, and import the file again.'
+              ? 'Open the row in the Sheet, set or confirm its category, then sync to see it here.'
+              : 'Export the workbook, set or confirm the category in Excel, then import the file again.'
           "
         />
 
@@ -100,7 +103,7 @@ const queue = computed(() => {
                   <td>
                     <UBadge :label="row.reason" :color="row.reason === 'Unclassified' ? 'warning' : 'info'" variant="subtle" size="sm" />
                   </td>
-                  <td class="text-end"><MoneyText :cents="row.amount" toned /></td>
+                  <td class="text-end"><MoneyText :cents="row.amount" tone="flow" /></td>
                   <td v-if="inSheet" class="text-end">
                     <a
                       v-if="row.link"

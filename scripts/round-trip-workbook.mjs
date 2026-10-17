@@ -22,8 +22,8 @@ if (options.workbook === undefined) {
 const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt: '2026-01-01T00:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null }
 
 function contentOf(tabs) {
-  const { transactions, categories, accounts, settings, problems } = readWorkbook({ meta: META, ...tabs })
-  return { transactions, categories, accounts, settings, problems }
+  const { transactions, categories, accounts, rules, settings, problems } = readWorkbook({ meta: META, ...tabs })
+  return { transactions, categories, accounts, rules, settings, problems }
 }
 
 const imported = await readWorkbookFile(readFileSync(options.workbook))
@@ -32,7 +32,7 @@ const exported = await writeWorkbookFile(imported.tabs, readWorkbook({ meta: MET
 const reimported = await readWorkbookFile(exported)
 const second = contentOf(reimported.tabs)
 
-const sections = ['transactions', 'categories', 'accounts', 'problems']
+const sections = ['transactions', 'categories', 'accounts', 'rules', 'problems']
 for (const section of sections) {
   const same = isDeepStrictEqual(first[section], second[section])
   console.log(`${section.padEnd(13)} ${String(first[section].length).padStart(5)} -> ${String(second[section].length).padStart(5)}  ${same ? 'same' : 'DIFFERENT'}`)

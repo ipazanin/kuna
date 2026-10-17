@@ -1,4 +1,5 @@
 import { formatMoney } from '../../../shared/money/moneyFormat'
+import { isBucket } from '../../workbook/domain/bucket'
 import { DEFAULT_FILTERS } from './filterState'
 import type { FilterState } from './filterState'
 
@@ -17,10 +18,11 @@ const LIST_FIELDS = [
 
 type ListField = (typeof LIST_FIELDS)[number]['field']
 
-/** How a chip names what it narrows to: counterparties are stored as keys and buckets as identifiers. */
+/** How a chip names what it narrows to: counterparties are stored as keys, buckets and categories as identifiers. */
 export interface ChipLabels {
   readonly counterparty: (key: string) => string
   readonly bucket: (bucket: string) => string
+  readonly category: (slug: string) => string
 }
 
 /** A chip for every filter beyond the period and the accounts, which the period bar shows in its own controls. */
@@ -28,7 +30,7 @@ export function filterChips(filters: FilterState, labels: ChipLabels): FilterChi
   const chips: FilterChip[] = LIST_FIELDS.flatMap(({ field, name }) =>
     filters[field].map((selected) => ({
       id: `${field}:${selected}`,
-      label: `${name}: ${field === 'counterparties' ? labels.counterparty(selected) : field === 'buckets' ? labels.bucket(selected) : selected}`,
+      label: `${name}: ${chipValue(field, selected, labels)}`,
     })),
   )
   if (filters.text !== '') {
@@ -44,6 +46,19 @@ export function filterChips(filters: FilterState, labels: ChipLabels): FilterChi
     chips.push({ id: 'needsReview', label: 'Needs review' })
   }
   return chips
+}
+
+function chipValue(field: ListField, selected: string, labels: ChipLabels): string {
+  switch (field) {
+    case 'counterparties':
+      return labels.counterparty(selected)
+    case 'buckets':
+      return labels.bucket(selected)
+    case 'categories':
+      return labels.category(selected)
+    default:
+      return selected
+  }
 }
 
 /** The filters with one chip's narrowing taken off. An unknown id changes nothing. */
@@ -63,6 +78,21 @@ export function withoutChip(filters: FilterState, chipId: string): FilterState {
     return filters
   }
   return { ...filters, [field]: filters[field].filter((selected) => selected !== removed) }
+}
+
+/** The fields the Add filter menu narrows, each choice named by its chip id. */
+const ADDABLE_FIELDS = ['buckets', 'categories', 'counterparties'] as const satisfies readonly ListField[]
+
+/** The chip ids of the active choices the Add filter menu offers. */
+export function addedChoices(filters: FilterState): string[] {
+  return ADDABLE_FIELDS.flatMap((field) => filters[field].map((selected) => `${field}:${selected}`))
+}
+
+/** The filters with exactly these Add filter choices. Every other narrowing stays as it is. */
+export function withAddedChoices(filters: FilterState, chipIds: readonly string[]): FilterState {
+  const chosen = (field: ListField): string[] =>
+    chipIds.filter((chipId) => chipId.startsWith(`${field}:`)).map((chipId) => chipId.slice(field.length + 1))
+  return { ...filters, buckets: chosen('buckets').filter(isBucket), categories: chosen('categories'), counterparties: chosen('counterparties') }
 }
 
 /** Every chip removed at once. The period and the accounts stay, since they are not chips. */

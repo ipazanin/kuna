@@ -7,7 +7,7 @@
  * line up in a row must end at the same height.
  *
  * Beyond the screens of the fake Google workbook, it renders the first-run welcome screen
- * (`?fake=empty`), Settings for a workbook kept in this browser (`?fake=excel`), and the import
+ * (`?fake=empty`), Settings and each Workbook tab for a workbook kept in this browser (`?fake=excel`), and the import
  * summary for an xlsx file it writes from the fake workbook with two problems added.
  *
  * Run against a preview of the fake build:
@@ -48,10 +48,11 @@ const SCREENS = [
   { name: 'overview', hash: '#/', title: 'Overview', charts: 3, shows: 'A typical month' },
   { name: 'transactions', hash: '#/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics' },
   { name: 'trends', hash: '#/trends', title: 'Trends', charts: 3, shows: 'Cumulative net' },
-  { name: 'spending', hash: '#/spending', title: 'Spending', charts: 1, shows: 'NORTHWIND' },
-  { name: 'period-review', hash: '#/period-review', title: 'Period review', charts: 1, shows: 'Outside profit and loss' },
-  { name: 'cash', hash: '#/cash', title: 'Cash', charts: 1, shows: 'legacy' },
+  { name: 'spending', hash: '#/spending', title: 'Spending', charts: 0, shows: 'Northwind' },
+  { name: 'period-review', hash: '#/period-review', title: 'Period review', charts: 1, shows: 'Revenue' },
+  { name: 'cash', hash: '#/cash', title: 'Cash', charts: 1, shows: 'Legacy' },
   { name: 'review', hash: '#/review', title: 'Review', charts: 0, shows: 'GADGET CORNER' },
+  { name: 'workbook', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Bucket labels' },
   { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Fake workbook' },
 ]
 
@@ -61,7 +62,10 @@ const GALLERY_CHARTS = 6
 /** Screens outside the fake Google workbook. `query` picks the fake variant, `upload` drops the import file on the page. */
 const SOURCE_SCREENS = [
   { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'Where is your ledger?' },
-  { name: 'settings-excel', query: 'fake=excel', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
+  { name: 'settings-excel', query: 'fake=excel', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Import a file' },
+  { name: 'workbook-excel', query: 'fake=excel', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Save settings' },
+  { name: 'workbook-categories-excel', query: 'fake=excel', hash: '#/workbook?tab=categories', title: 'Workbook', charts: 0, shows: 'Save categories' },
+  { name: 'workbook-accounts-excel', query: 'fake=excel', hash: '#/workbook?tab=accounts', title: 'Workbook', charts: 0, shows: 'Save accounts' },
   { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'rows the app could not use', upload: true },
 ]
 

@@ -3,9 +3,12 @@ export type SyncState = 'first-run' | 'ready' | 'syncing' | 'error'
 </script>
 
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, onBeforeUnmount, ref, useId } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
+
+import { syncAge } from '../calendar/syncAge'
+import { usePhoneLayout } from '../layout/viewport'
 
 const props = withDefaults(
   defineProps<{
@@ -13,7 +16,7 @@ const props = withDefaults(
     /** ISO timestamp of the last successful sync. */
     syncedAt?: string | null
     errorMessage?: string
-    /** The narrow top-bar form: shorter wording, the error detail moves into the button's description. */
+    /** The narrow top-bar form: how long ago in words, the error detail moved into the button's description. */
     compact?: boolean
   }>(),
   { syncedAt: null, errorMessage: '', compact: false },
@@ -30,11 +33,21 @@ const fullStamp = new Intl.DateTimeFormat('en-GB', { dateStyle: 'full', timeStyl
 
 const syncedAtDate = computed(() => (props.syncedAt ? new Date(props.syncedAt) : null))
 
+/** The clock the "5 min ago" wording reads, moved on every minute. */
+const now = ref(new Date())
+const ticking = setInterval(() => {
+  now.value = new Date()
+}, 60_000)
+onBeforeUnmount(() => clearInterval(ticking))
+
+const phone = usePhoneLayout()
+const syncLabel = computed(() => (props.state === 'syncing' ? 'Syncing' : props.state === 'error' ? 'Try again' : 'Sync'))
+
 const asOfText = computed(() => {
   const synced = syncedAtDate.value
   if (synced === null) return 'Not synced yet'
-  const sameDay = synced.toDateString() === new Date().toDateString()
-  if (props.compact) return sameDay ? timeOnly.format(synced) : dayAndTime.format(synced)
+  if (props.compact) return syncAge(synced, now.value)
+  const sameDay = synced.toDateString() === now.value.toDateString()
   return `As of ${sameDay ? `today, ${timeOnly.format(synced)}` : dayAndTime.format(synced)}`
 })
 
@@ -62,6 +75,13 @@ const errorDetailId = useId()
         <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" aria-hidden="true" />
         <span>Sync failed</span>
       </p>
+      <p v-else-if="compact" class="min-w-0 text-end text-xs leading-tight text-muted" role="status">
+        <span class="block">{{ syncedAtDate ? 'Synced' : '' }}</span>
+        <time v-if="syncedAtDate" :datetime="syncedAt ?? undefined" :title="fullStamp.format(syncedAtDate)" class="block whitespace-nowrap">
+          {{ asOfText }}
+        </time>
+        <span v-else class="block">{{ asOfText }}</span>
+      </p>
       <p v-else class="min-w-0 truncate text-xs text-muted" role="status">
         <time v-if="syncedAtDate" :datetime="syncedAt ?? undefined" :title="fullStamp.format(syncedAtDate)" class="figure">
           {{ asOfText }}
@@ -71,7 +91,7 @@ const errorDetailId = useId()
 
       <UButton
         icon="i-lucide-refresh-cw"
-        :label="state === 'syncing' ? 'Syncing' : state === 'error' ? 'Try again' : 'Sync'"
+        v-bind="compact && phone ? { 'aria-label': syncLabel } : { label: syncLabel }"
         :loading="state === 'syncing'"
         :disabled="state === 'syncing'"
         :aria-describedby="state === 'error' && errorMessage ? errorDetailId : undefined"

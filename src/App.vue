@@ -9,8 +9,10 @@ import { bindFiltersToRouter } from './features/filters/application/filterStore'
 import { startAutoSync } from './features/workbook/application/autoSync'
 import { useWorkbook } from './features/workbook/application/workbookStore'
 import { syncStateOf } from './features/workbook/presentation/syncState'
+import { screenLoading } from './shared/routing/router'
 import { SCREENS } from './shared/routing/screens'
 import AppShell from './shared/ui/AppShell.vue'
+import ScreenSkeleton from './shared/ui/ScreenSkeleton.vue'
 import SyncStatus from './shared/ui/SyncStatus.vue'
 import UpdatePrompt from './shared/ui/UpdatePrompt.vue'
 
@@ -48,7 +50,10 @@ const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))
   <UApp :toaster="toaster">
     <WelcomeScreen v-if="firstRun" />
     <AppShell v-else :navigation="navigation" :subtitle="companyName">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <ScreenSkeleton v-if="screenLoading || !Component" />
+        <component :is="Component" v-else />
+      </RouterView>
       <template #sync="{ compact }">
         <LocalWorkbookStatus v-if="state.choice?.source === 'excel'" :compact="compact" />
         <SyncStatus

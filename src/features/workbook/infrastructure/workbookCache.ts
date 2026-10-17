@@ -16,6 +16,7 @@ type WorkbookDatabase = Dexie & {
   categories: EntityTable<SheetRow, 'sheetRow'>
   accounts: EntityTable<SheetRow, 'sheetRow'>
   settings: EntityTable<SheetRow, 'sheetRow'>
+  rules: EntityTable<SheetRow, 'sheetRow'>
 }
 
 function workbookDatabaseName(workbookId: string): string {
@@ -31,6 +32,7 @@ function openDatabase(workbookId: string): WorkbookDatabase {
     accounts: 'sheetRow',
   })
   database.version(2).stores({ settings: 'sheetRow' })
+  database.version(3).stores({ rules: 'sheetRow' })
   return database
 }
 
@@ -47,7 +49,7 @@ export interface WorkbookCache {
 
 export function openWorkbookCache(workbookId: string): WorkbookCache {
   const database = openDatabase(workbookId)
-  const tables = [database.meta, database.ledger, database.categories, database.accounts, database.settings]
+  const tables = [database.meta, database.ledger, database.categories, database.accounts, database.settings, database.rules]
 
   return {
     async replace(snapshot) {
@@ -68,8 +70,8 @@ export function openWorkbookCache(workbookId: string): WorkbookCache {
           return null
         }
         const meta = metaOf(stored)
-        const [ledger, categories, accounts, settings] = await Promise.all(WORKBOOK_TABS.map((tab) => database[tab].toArray()))
-        return { meta, ledger: ledger ?? [], categories: categories ?? [], accounts: accounts ?? [], settings: settings ?? [] }
+        const [ledger, categories, accounts, settings, rules] = await Promise.all(WORKBOOK_TABS.map((tab) => database[tab].toArray()))
+        return { meta, ledger: ledger ?? [], categories: categories ?? [], accounts: accounts ?? [], settings: settings ?? [], rules: rules ?? [] }
       })
     },
 

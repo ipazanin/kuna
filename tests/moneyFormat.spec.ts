@@ -37,6 +37,11 @@ describe('money formatting with the default settings', () => {
     expect(formatCompactMoney(-120000)).toBe('−€1.2k')
   })
 
+  it('keeps whole units under a thousand in compact form, so no decimal stands beside a k', () => {
+    expect(formatCompactMoney(90750)).toBe('€908')
+    expect(formatCompactMoney(-4510)).toBe('−€45')
+  })
+
   it('formats shares as percentages with the same sign rules', () => {
     expect(formatPercent(0.124, 'always')).toBe('+12.4%')
     expect(formatPercent(-0.05)).toBe('−5%')

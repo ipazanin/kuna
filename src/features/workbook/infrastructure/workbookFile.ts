@@ -36,7 +36,7 @@ async function sheetJs(): Promise<typeof import('xlsx')> {
   return import('xlsx')
 }
 
-/** Reads the four workbook tabs of an xlsx file, by tab name in any letter case. Other tabs are ignored. */
+/** Reads the workbook tabs of an xlsx file, by tab name in any letter case. Other tabs are ignored. */
 export async function readWorkbookFile(bytes: ArrayBuffer | Uint8Array): Promise<WorkbookFileContents> {
   const XLSX = await sheetJs()
   const book = XLSX.read(bytes, { type: 'array', cellText: false })
@@ -111,6 +111,7 @@ function attachNote(cell: CellObject | undefined, text: string): void {
 
 function columnWidth(tab: WorkbookTab, name: string): number {
   if (tab === 'settings') return name === 'key' ? 22 : 28
+  if (tab === 'rules') return name === 'note' ? 60 : name === 'rule' ? 28 : 14
   return ['description', 'counterparty', 'statement'].includes(name) ? 32 : name.endsWith('iban') || name === 'reference' ? 26 : 14
 }
 
@@ -129,6 +130,7 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
     categories: gridFor('categories', tabs.categories),
     accounts: gridFor('accounts', tabs.accounts),
     settings: gridFor('settings', tabs.settings.length === 0 ? settingsTabRows(workbook.settings) : tabs.settings),
+    rules: gridFor('rules', tabs.rules),
   }
 }
 

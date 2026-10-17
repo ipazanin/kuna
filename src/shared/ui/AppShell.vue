@@ -29,12 +29,22 @@ const phone = usePhoneLayout()
 
 const menuOpen = ref(false)
 const route = useRoute()
+/** Set when a link in the drawer closed it, so focus stays on the new screen's heading instead of returning to the menu button. */
+let closedByNavigation = false
 watch(
   () => route.fullPath,
   () => {
+    closedByNavigation = menuOpen.value
     menuOpen.value = false
   },
 )
+
+function keepFocusAfterNavigation(event: Event): void {
+  if (closedByNavigation) {
+    event.preventDefault()
+    closedByNavigation = false
+  }
+}
 
 const screenTitle = computed(() => props.navigation.find((entry) => entry.to === route.path)?.label ?? props.title)
 </script>
@@ -61,6 +71,7 @@ const screenTitle = computed(() => props.navigation.find((entry) => entry.to ===
         :title="title"
         v-bind="phone && subtitle ? { description: subtitle } : {}"
         :ui="{ content: phone ? 'phone-drawer' : 'max-w-72' }"
+        :content="{ onCloseAutoFocus: keepFocusAfterNavigation }"
       >
         <UButton icon="i-lucide-menu" color="neutral" variant="ghost" aria-label="Open navigation" data-testid="open-navigation" />
         <template #body>

@@ -17,22 +17,25 @@ const rows = ledger([
 const window = windowOf('2025-06-12', '2026-10-02')
 
 describe('periodReview', () => {
-  it('flags a year the ledger covers only in part, and shows no prior when the ledger holds none', () => {
+  it('compares only the complete months of a year the ledger covers in part, and shows no prior when the ledger holds none', () => {
     const review = periodReview(rows, { preset: 'year', year: 2025 }, window)
 
-    expect(review.current).toMatchObject({ partial: true, range: { from: '2025-01-01', to: '2025-12-31' } })
+    expect(review.partOfPeriod).toBe(true)
+    expect(review.current).toMatchObject({ partial: false, range: { from: '2025-07-01', to: '2025-12-31' }, coveredMonths: { from: '2025-07', to: '2025-12' } })
     expect(review.prior).toBeNull()
     expect(review.lines.find((line) => line.line === 'income')).toMatchObject({ current: { amount: euros(6000) }, prior: null, change: null })
     expect(review.months.map((month) => month.month)).toHaveLength(12)
   })
 
-  it('shows the prior period but no change against it when the prior is partial', () => {
+  it('sets a partial year against the same months a year earlier, with no change when the ledger lacks some of them', () => {
     const review = periodReview(rows, { preset: 'year', year: 2026 }, window)
     const net = review.lines.find((line) => line.line === 'net')
 
-    expect(review.current.partial).toBe(true)
-    expect(review.prior?.partial).toBe(true)
-    expect(net).toMatchObject({ current: { amount: euros(23300) }, prior: { amount: euros(5000) }, change: null })
+    // January to September 2026 are complete. The same months of 2025 hold only July onwards.
+    expect(review.current).toMatchObject({ range: { from: '2026-01-01', to: '2026-09-30' }, partial: false })
+    expect(review.prior).toMatchObject({ range: { from: '2025-01-01', to: '2025-09-30' }, partial: true, coveredMonths: { from: '2025-07', to: '2025-09' } })
+    expect(net).toMatchObject({ current: { amount: euros(14300) }, prior: { amount: euros(6000) }, change: null })
+    expect(net?.current.drill.filters.period).toEqual({ preset: 'custom', range: { from: '2026-01-01', to: '2026-09-30' } })
   })
 
   it('compares a quarter with the one before when both are complete', () => {
@@ -40,7 +43,7 @@ describe('periodReview', () => {
     const income = review.lines.find((line) => line.line === 'income')
 
     expect(review.prior?.period).toEqual({ preset: 'quarter', year: 2026, quarter: 1 })
-    expect([review.current.partial, review.prior?.partial]).toEqual([false, false])
+    expect([review.partOfPeriod, review.current.partial, review.prior?.partial]).toEqual([false, false, false])
     expect(income).toMatchObject({ current: { amount: euros(5000) }, prior: { amount: euros(7000) }, change: euros(-2000) })
     expect(income?.current.drill).toEqual({
       route: 'transactions',
@@ -66,8 +69,9 @@ describe('reviewPeriodOf', () => {
     expect(reviewPeriodOf({ preset: 'quarter', year: 2026, quarter: 2 }, window)).toEqual({ preset: 'quarter', year: 2026, quarter: 2 })
   })
 
-  it('reviews the year of the last complete month when the shared period is a rolling window', () => {
-    expect(reviewPeriodOf({ preset: 'l12' }, window)).toEqual({ preset: 'year', year: 2026 })
-    expect(reviewPeriodOf({ preset: 'all' }, windowOf('2025-06-12', '2026-01-05'))).toEqual({ preset: 'year', year: 2025 })
+  it('opens on the last complete quarter when the shared period is a rolling window', () => {
+    expect(reviewPeriodOf({ preset: 'l12' }, window)).toEqual({ preset: 'quarter', year: 2026, quarter: 3 })
+    expect(reviewPeriodOf({ preset: 'all' }, windowOf('2025-06-12', '2026-01-05'))).toEqual({ preset: 'quarter', year: 2025, quarter: 4 })
+    expect(reviewPeriodOf({ preset: 'l3' }, windowOf('2025-06-12', '2026-05-05'))).toEqual({ preset: 'quarter', year: 2026, quarter: 1 })
   })
 })

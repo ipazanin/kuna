@@ -5,7 +5,7 @@ import type { LedgerWindow } from '../../src/shared/calendar/ledgerWindow'
 import { moneyFromAmount, moneyFromCents } from '../../src/shared/money/money'
 import type { Money } from '../../src/shared/money/money'
 import type { Bucket } from '../../src/features/workbook/domain/bucket'
-import type { Transaction } from '../../src/features/workbook/domain/workbook'
+import type { Transaction, TransactionSignals } from '../../src/features/workbook/domain/workbook'
 
 /** Buckets and families of the categories the specs use, as the Sheet's seed defines them. */
 const SEED: Readonly<Record<string, { readonly family: string; readonly bucket: Bucket }>> = {
@@ -27,6 +27,15 @@ const SEED: Readonly<Record<string, { readonly family: string; readonly bucket: 
   'share-capital': { family: 'neutral', bucket: 'neutral' },
 }
 
+export const NO_SIGNALS: TransactionSignals = {
+  purpose: '',
+  txDomain: '',
+  txFamily: '',
+  txSubFamily: '',
+  creditorReference: '',
+  instructedCurrency: '',
+}
+
 export interface RowSpec {
   readonly date: string
   /** Euros, credits positive. */
@@ -39,6 +48,7 @@ export interface RowSpec {
   /** Euros. Defaults to the account's running balance. */
   readonly balance?: number
   readonly flaggedBy?: string
+  readonly reviewReasons?: readonly string[]
 }
 
 /**
@@ -71,6 +81,8 @@ export function ledger(rows: readonly RowSpec[]): Transaction[] {
         bucket: seeded?.bucket ?? 'unclassified',
         flaggedBy: row.flaggedBy ?? 'rule',
         reference: `REF-${position + 1}`,
+        signals: NO_SIGNALS,
+        reviewReasons: row.reviewReasons ?? [],
         sheetRow: rows.length - position + 1,
       }
     })

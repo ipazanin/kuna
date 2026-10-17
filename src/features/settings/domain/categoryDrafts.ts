@@ -7,6 +7,8 @@ export interface CategoryDraft {
   /** The name the row had when the editor opened, which ledger rows may use. */
   readonly savedName: string
   readonly category: string
+  /** What the screens call it. Blank shows the category itself. */
+  readonly label: string
   readonly family: string
   readonly bucket: string
   readonly colour: string
@@ -72,6 +74,7 @@ export function categoryCellsOf(
   return drafts.map((draft) => ({
     ...(draft.sheetRow === null ? {} : (savedCells.get(draft.sheetRow) ?? {})),
     category: draft.category.trim().toLowerCase(),
+    label: draft.label.trim(),
     family: draft.family.trim().toLowerCase(),
     bucket: draft.bucket.trim().toLowerCase(),
     colour: draft.colour.trim(),

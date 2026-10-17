@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { euroSplit } from '../src/features/overview/domain/euroSplit'
 import { runway } from '../src/features/overview/domain/runway'
-import { windowAverages } from '../src/features/overview/domain/windowAverages'
+import { recentChange, windowAverages } from '../src/features/overview/domain/windowAverages'
 import { ZERO } from '../src/shared/money/money'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
@@ -110,5 +110,16 @@ describe('runway', () => {
 
   it('has no runway when nothing is being spent', () => {
     expect(runway(cashOnHand, windowAverages([], window).last3).months).toBeNull()
+  })
+})
+
+describe('recentChange', () => {
+  it('measures the recent figure against the size of the longer one, so a smaller loss reads as a rise', () => {
+    expect(recentChange(euros(1100), euros(1000))).toBeCloseTo(0.1)
+    expect(recentChange(euros(-500), euros(-1000))).toBeCloseTo(0.5)
+  })
+
+  it('has no change against zero', () => {
+    expect(recentChange(euros(100), euros(0))).toBeNull()
   })
 })

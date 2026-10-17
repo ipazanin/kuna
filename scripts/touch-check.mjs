@@ -1,6 +1,9 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
- * and its navigation drawer, a KPI tile's drill, a chart's tap-then-drill, the filter sheet, the Excel import, and every screen.
+ * and its navigation drawer, the review notice's drill, a chart's tap-then-drill, the filter sheet with a
+ * filter added and removed,
+ * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
+ * and every screen.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
  *
@@ -28,10 +31,11 @@ const SMALLEST_TARGET = 44
 /** `ready` appears once the screen drew the fake workbook. `p=all` resets the filters the drills left behind. */
 const SCREENS = [
   { hash: '#/trends?p=all', title: 'Trends', ready: '.chart-body canvas' },
-  { hash: '#/spending?p=all', title: 'Spending', ready: '.chart-body canvas' },
+  { hash: '#/spending?p=all', title: 'Spending', ready: '[data-testid="cost-line"]' },
   { hash: '#/period-review?p=all', title: 'Period review', ready: '.chart-body canvas' },
   { hash: '#/cash?p=all', title: 'Cash', ready: '.chart-body canvas' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
+  { hash: '#/workbook', title: 'Workbook', ready: '[data-testid="workbook-tabs"]' },
   { hash: '#/settings', title: 'Settings', ready: '[data-testid="data-source-card"]' },
 ]
 
@@ -133,18 +137,24 @@ async function checkWidth(width) {
     await page.touchscreen.tap(width - 16, 400)
     await drawerClosed(page)
 
+    await page.evaluate(() => window.scrollTo(0, 600))
     await openDrawer(page)
     const link = await waitForText(page, '[role="dialog"] a', 'Transactions')
     await link.tap()
     await waitForTitle(page, 'Transactions')
     await drawerClosed(page)
     await expect(topBarTitle(page), (title) => title === 'Transactions', 'the top bar kept the previous screen title')
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="screen-title"]').getBoundingClientRect().top - document.querySelector('header').getBoundingClientRect().bottom),
+      (gap) => gap >= 0,
+      'the new screen opened with its heading under the top bar',
+    )
   })
 
-  await step('kpi-drill', async () => {
+  await step('review-drill', async () => {
     await open(page, '#/', 'Overview')
-    const tile = await waitForText(page, 'a.kpi-link', 'Needs review')
-    await tile.tap()
+    const reviewLink = await waitForText(page, '[data-testid="review-notice"] a', 'Review them')
+    await reviewLink.tap()
     await waitForTitle(page, 'Transactions')
     await expect(hashOf(page), (hash) => hash.includes('review=1'), 'the drill did not carry the needs-review filter')
     await expect(filterCount(page), (count) => count === '1', 'the filter button does not count one active filter')
@@ -162,7 +172,7 @@ async function checkWidth(width) {
     const lastThree = await waitForText(page, '[role="dialog"] button[aria-pressed]', 'Last 3 months')
     await lastThree.tap()
     await page.waitForFunction(() => window.location.hash.includes('p=l3'))
-    const clearAll = await waitForText(page, '[role="dialog"] button', 'Clear all')
+    const clearAll = await waitForText(page, '[role="dialog"] button', 'Clear')
     await clearAll.tap()
     await page.waitForFunction(() => !window.location.hash.includes('review=1'))
     await page.waitForFunction(() => !document.querySelector('[role="dialog"] [aria-label="Active filters"]'))
@@ -171,6 +181,81 @@ async function checkWidth(width) {
     await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
     await expect(filterCount(page), (count) => count === null, 'the filter button still counts a filter after Clear all')
     await expect(totalOf(page), (after) => after !== before, 'the total did not change with the period and the chips')
+  })
+
+  await step('add-filter', async () => {
+    await open(page, '#/transactions?p=l12', 'Transactions')
+    await page.tap('[data-testid="open-filters"]')
+    await page.waitForSelector('[role="dialog"] [data-testid="add-filter"]')
+    await delay(300)
+    await page.tap('[role="dialog"] [data-testid="add-filter"]')
+    await page.waitForSelector('[role="listbox"] [role="option"]')
+    await page.keyboard.type('travel')
+    const travel = await waitForText(page, '[role="option"]', 'Travel')
+    await travel.tap()
+    await page.waitForFunction(() => window.location.hash.includes('travel'))
+    await page.keyboard.press('Escape')
+    const chip = await waitForText(page, '[role="dialog"] [data-testid="filter-chip"]', 'Category: Travel')
+    await expect(filterCount(page), (count) => count === '1', 'the filter button does not count the added filter')
+    await delay(300)
+    await inspect(page, `${width}px filter added`)
+    await shoot('filter-added')
+    const remove = await chip.$('button')
+    await remove.tap()
+    await page.waitForFunction(() => !window.location.hash.includes('travel'))
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"] [data-testid="filter-chip"]'))
+    await expect(filterCount(page), (count) => count === null, 'the filter button still counts the removed filter')
+    const done = await waitForText(page, '[role="dialog"] button', 'Show results')
+    await done.tap()
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+  })
+
+  await step('grouping', async () => {
+    await open(page, '#/transactions?p=all', 'Transactions')
+    await page.tap('[aria-label="Group rows"]')
+    const byCategory = await waitForText(page, '[role="option"]', 'By category')
+    await byCategory.tap()
+    await page.waitForSelector('[data-testid="transaction-group"]')
+    // The option list fades out. A tap before it is gone lands on it.
+    await delay(400)
+    const firstCategory = await page.evaluate(() => document.querySelector('[data-testid="transaction-group"] .category-chip')?.textContent?.trim() ?? '')
+    await page.tap('[data-testid="transaction-group"] [data-testid="group-toggle"]')
+    await expect(groupState(page, firstCategory), (state) => state?.expanded === false && state.cards === 0, `tapping "${firstCategory}" did not collapse it`)
+    await inspect(page, `${width}px grouped, one collapsed`)
+    await delay(200)
+    await shoot('grouped-collapsed')
+
+    await page.tap('[data-testid="collapse-all"]')
+    await expect(cardCount(page), (count) => count === 0, 'Collapse all left cards showing')
+    await page.tap('[data-testid="expand-all"]')
+    await expect(groupState(page, firstCategory), (state) => state?.expanded === true && state.cards > 0, 'Expand all did not open the groups')
+
+    await page.tap('[data-testid="transaction-group"] [data-testid="group-toggle"]')
+    await page.evaluate(() => {
+      window.location.hash = '#/transactions?p=l12'
+    })
+    await page.waitForFunction(() => window.location.hash.includes('p=l12'))
+    await delay(300)
+    await expect(groupState(page, firstCategory), (state) => state?.expanded === false, `"${firstCategory}" opened again when the period changed`)
+    await page.tap('[data-testid="expand-all"]')
+  })
+
+  await step('payee-breakdown', async () => {
+    await open(page, '#/spending?p=l12', 'Spending')
+    const several = await page.waitForFunction(
+      () => [...document.querySelectorAll('[data-testid="payee-categories"]')].find((trigger) => trigger.textContent?.includes('+')) ?? null,
+      { timeout: 10_000 },
+    )
+    await several.asElement().evaluate((trigger) => trigger.scrollIntoView({ block: 'center' }))
+    await several.asElement().tap()
+    await page.waitForSelector('[data-testid="payee-breakdown"] a')
+    await delay(300)
+    await inspect(page, `${width}px payee breakdown open`)
+    await shoot('payee-breakdown')
+    const firstLine = await page.$('[data-testid="payee-breakdown"] a')
+    await firstLine.tap()
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 2, 'the breakdown line did not narrow to its counterparty and category')
   })
 
   await step('chart-drill', async () => {
@@ -207,6 +292,24 @@ async function checkWidth(width) {
   await step('settings-excel', async () => {
     await page.goto(`${BASE}?theme=dark&fake=excel#/settings`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
+  })
+
+  await step('workbook-tabs', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=excel#/workbook`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Workbook')
+    await waitForText(page, 'button', 'Save settings')
+    await shoot('workbook')
+    for (const [label, query, ready] of [
+      ['Categories', 'tab=categories', 'Save categories'],
+      ['Accounts', 'tab=accounts', 'Save accounts'],
+    ]) {
+      const tab = await waitForText(page, '[role="tab"]', label)
+      await tab.tap()
+      await page.waitForFunction((wanted) => window.location.hash.includes(wanted), {}, query)
+      await waitForText(page, 'button', ready)
+      await inspect(page, `${width}px workbook ${label.toLowerCase()}`)
+    }
+    await shoot('workbook-accounts')
   })
 
   await step('excel-import', async () => {
@@ -295,6 +398,24 @@ async function tapChart(page, { row, column }) {
   await page.touchscreen.tap(box.x + box.width * column, box.y + box.height * row)
 }
 
+/** Whether the group of one category is expanded, and how many cards it shows. */
+function groupState(page, category) {
+  return page.evaluate((wanted) => {
+    const group = [...document.querySelectorAll('[data-testid="transaction-group"]')].find(
+      (section) => section.querySelector('.category-chip')?.textContent?.trim() === wanted,
+    )
+    if (!group) return null
+    return {
+      expanded: group.querySelector('[data-testid="group-toggle"]')?.getAttribute('aria-expanded') === 'true',
+      cards: group.querySelectorAll('[data-testid="transaction-card"]').length,
+    }
+  }, category)
+}
+
+function cardCount(page) {
+  return page.evaluate(() => document.querySelectorAll('[data-testid="transaction-card"]').length)
+}
+
 function hashOf(page) {
   return page.evaluate(() => window.location.hash)
 }
@@ -331,6 +452,8 @@ async function inspect(page, scope) {
         right = Math.max(right, labelBox.right)
         bottom = Math.max(bottom, labelBox.bottom)
       }
+      // A link in running text keeps the line height and reaches 44 px through an invisible margin, measured where a finger lands.
+      if (element.dataset.hitArea === 'extended' && extendedHitHeight(element) >= smallest - 0.5 && right - left >= smallest - 0.5) continue
       if (right - left < smallest - 0.5 || bottom - top < smallest - 0.5) {
         const name = (element.getAttribute('aria-label') || element.textContent || element.getAttribute('placeholder') || '').trim().slice(0, 30)
         tooSmall.push(`${element.tagName.toLowerCase()} "${name}" ${Math.round(right - left)}x${Math.round(bottom - top)}`)
@@ -338,6 +461,21 @@ async function inspect(page, scope) {
     }
     const root = document.documentElement
     return { tooSmall: [...new Set(tooSmall)], scrollWidth: root.scrollWidth, clientWidth: root.clientWidth }
+
+    /** How tall the strip is, through the middle of the link, where a tap reaches the link. The page scrolls back after. */
+    function extendedHitHeight(element) {
+      const scrolledTo = window.scrollY
+      element.scrollIntoView({ block: 'center' })
+      const box = element.getBoundingClientRect()
+      const x = box.left + Math.min(box.width / 2, 8)
+      const reaches = (y) => element.contains(document.elementFromPoint(x, y))
+      let top = box.top + box.height / 2
+      while (reaches(top - 1)) top -= 1
+      let bottom = box.top + box.height / 2
+      while (reaches(bottom + 1)) bottom += 1
+      window.scrollTo(0, scrolledTo)
+      return bottom - top + 1
+    }
   }, SMALLEST_TARGET)
   if (report.tooSmall.length) throw new Error(`${report.tooSmall.length} control(s) under 44 px: ${report.tooSmall.slice(0, 6).join(', ')}`)
   if (report.scrollWidth > report.clientWidth + 1) throw new Error(`page scrolls sideways: ${report.scrollWidth} > ${report.clientWidth}`)

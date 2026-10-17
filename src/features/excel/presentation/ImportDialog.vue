@@ -29,6 +29,8 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
 // Shallow, so the tabs stay plain objects. IndexedDB cannot store a reactive proxy.
 const preview = shallowRef<ImportPreview | null>(null)
 const failure = ref<string | null>(null)
+// The underlying error of a file that could not be read, shown under the message. Empty shows nothing.
+const failureDetail = ref('')
 const importing = ref(false)
 
 watch(
@@ -36,12 +38,16 @@ watch(
   async (chosen) => {
     preview.value = null
     failure.value = null
+    failureDetail.value = ''
     if (chosen === null) return
     try {
       const read = await previewImport(chosen)
       if (file.value === chosen) preview.value = read
     } catch (problem) {
-      if (file.value === chosen) failure.value = problem instanceof Error ? problem.message : String(problem)
+      if (file.value !== chosen) return
+      failure.value = problem instanceof Error ? problem.message : String(problem)
+      const cause = problem instanceof Error ? problem.cause : undefined
+      failureDetail.value = cause instanceof Error ? `${cause.name}: ${cause.message}` : cause === undefined ? '' : String(cause)
     }
   },
   { immediate: true },
@@ -99,7 +105,16 @@ async function confirmImport(): Promise<void> {
           Reading the file
         </p>
 
-        <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="failure" />
+        <UAlert
+          v-if="failure"
+          data-testid="import-failure"
+          icon="i-lucide-triangle-alert"
+          color="error"
+          variant="subtle"
+          :title="failure"
+          :description="failureDetail"
+          :ui="{ description: 'figure break-words text-xs' }"
+        />
 
         <template v-if="preview">
           <UAlert

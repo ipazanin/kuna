@@ -6,10 +6,9 @@ import type { Figure } from '../../filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../filters/domain/filterState'
 import type { Period } from '../../filters/domain/filterState'
 import { bucketTotals } from '../../workbook/domain/bucketTotals'
-import type { Bucket } from '../../workbook/domain/bucket'
+import { directionOf } from '../../workbook/domain/bucket'
+import type { Bucket, Direction } from '../../workbook/domain/bucket'
 import type { Transaction } from '../../workbook/domain/workbook'
-
-export type Direction = 'income' | 'cost'
 
 export interface CategoryTotal {
   readonly category: string
@@ -96,17 +95,4 @@ export function outsideProfitAndLossTotals(
       (left, right) =>
         Math.abs(right.amount.amount) - Math.abs(left.amount.amount) || left.category.localeCompare(right.category),
     )
-}
-
-function directionOf(bucket: Bucket): Direction | null {
-  switch (bucket) {
-    case 'income':
-      return 'income'
-    case 'operating':
-    case 'taxes':
-    case 'owner-pay':
-      return 'cost'
-    default:
-      return null
-  }
 }

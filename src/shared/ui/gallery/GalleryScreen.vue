@@ -18,6 +18,8 @@ import MoneyText from '../MoneyText.vue'
 import PageHeader from '../PageHeader.vue'
 import { civilDate } from '../../calendar/civilDate'
 import { anchorWindow } from '../../calendar/ledgerWindow'
+import AccountPicker from '../../../features/filters/presentation/AccountPicker.vue'
+import FilterChipRow from '../../../features/filters/presentation/FilterChipRow.vue'
 import PeriodBar from '../../../features/filters/presentation/PeriodBar.vue'
 import type { FilterChip } from '../../../features/filters/domain/filterChips'
 import type { Period } from '../../../features/filters/domain/filterState'
@@ -179,7 +181,7 @@ const columns: TableColumn<SampleTransaction>[] = [
     cell: ({ row }) =>
       h(MoneyText, {
         cents: Number(row.getValue('amountCents')),
-        toned: !row.getIsGrouped(),
+        ...(row.getIsGrouped() ? {} : { tone: 'flow' as const }),
         class: row.getIsGrouped() ? 'font-medium text-highlighted' : '',
       }),
     footer: () => h(MoneyText, { cents: tableTotal, class: 'font-semibold text-highlighted' }),
@@ -229,15 +231,9 @@ const columns: TableColumn<SampleTransaction>[] = [
 
     <section class="gallery-section">
       <h2 class="gallery-heading">Period and filters</h2>
-      <PeriodBar
-        v-model:period="period"
-        v-model:accounts="accounts"
-        :account-options="ACCOUNTS"
-        :window="sampleWindow"
-        :chips="chips"
-        @remove-chip="removeChip"
-        @clear-chips="chips = []"
-      />
+      <PeriodBar v-model:period="period" :window="sampleWindow" />
+      <AccountPicker v-model="accounts" :options="ACCOUNTS" class="w-fit" />
+      <FilterChipRow :chips="chips" one-line @remove="removeChip" @clear="chips = []" />
       <p class="figure text-xs text-muted" aria-live="polite">
         Selected: {{ JSON.stringify(period) }}, {{ accounts.length ? accounts.join(' and ') : 'all accounts' }}
       </p>
@@ -387,8 +383,9 @@ const columns: TableColumn<SampleTransaction>[] = [
       <div class="grid gap-x-8 gap-y-2 rounded-card border border-default bg-raised p-5 text-sm sm:grid-cols-2">
         <p class="flex justify-between gap-4"><span class="text-muted">Plain</span><MoneyText :cents="1234567" /></p>
         <p class="flex justify-between gap-4"><span class="text-muted">Negative</span><MoneyText :cents="-98765" /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">Toned by sign</span><MoneyText :cents="-98765" toned /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">Change, sign always</span><MoneyText :cents="31000" sign="always" toned /></p>
+        <p class="flex justify-between gap-4"><span class="text-muted">Money out, as a flow</span><MoneyText :cents="-98765" tone="flow" /></p>
+        <p class="flex justify-between gap-4"><span class="text-muted">Change, sign always</span><MoneyText :cents="31000" sign="always" tone="flow" /></p>
+        <p class="flex justify-between gap-4"><span class="text-muted">A loss, as an outcome</span><MoneyText :cents="-31000" tone="outcome" /></p>
         <p class="flex justify-between gap-4"><span class="text-muted">Cost as magnitude</span><MoneyText :cents="-412050" sign="magnitude" /></p>
         <p class="flex justify-between gap-4"><span class="text-muted">Whole euros</span><MoneyText :cents="4821049" precision="whole" /></p>
         <p class="flex justify-between gap-4"><span class="text-muted">Compact</span><MoneyText :cents="4821049" precision="compact" /></p>

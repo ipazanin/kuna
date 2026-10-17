@@ -2,11 +2,14 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { anchorWindow } from '../../../shared/calendar/ledgerWindow'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import type { Money } from '../../../shared/money/money'
+import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
 import type { Bucket, DefinedBucket } from './bucket'
 
 export interface Category {
   readonly slug: string
+  /** What the screens call it, when the tab gives a name. The slug stays the identity. */
+  readonly label?: string
   readonly family: string
   readonly bucket: DefinedBucket
   readonly colour: string
@@ -16,6 +19,8 @@ export interface Category {
 
 export interface Account {
   readonly slug: string
+  /** What the screens call it, when the tab gives a name. The slug stays the identity. */
+  readonly label?: string
   readonly iban: string
   /** Blank when the tab does not say, which means the workbook's currency. */
   readonly currency: string
@@ -23,6 +28,19 @@ export interface Account {
 
 /** Where the workbook lives: a Google Sheet, or this browser with xlsx files as its copies. */
 export type WorkbookSource = 'google' | 'excel'
+
+/**
+ * What a camt statement said about an entry beyond its money, from ledger columns O to T. Every
+ * field is blank on a row from a statement PDF or typed by hand.
+ */
+export interface TransactionSignals {
+  readonly purpose: string
+  readonly txDomain: string
+  readonly txFamily: string
+  readonly txSubFamily: string
+  readonly creditorReference: string
+  readonly instructedCurrency: string
+}
 
 /** One booked bank entry from the `ledger` tab. Credits are positive. */
 export interface Transaction {
@@ -47,13 +65,16 @@ export interface Transaction {
   readonly bucket: Bucket
   readonly flaggedBy: string
   readonly reference: string
+  readonly signals: TransactionSignals
+  /** Why the statement parser wants a person to look at the row, such as `reversal`. Column U. */
+  readonly reviewReasons: readonly string[]
   /** The 1-based row on the tab when it was read. */
   readonly sheetRow: number
 }
 
 /** A row the reader could not turn into a fact, kept so the screen can say what was left out. */
 export interface WorkbookProblem {
-  readonly tab: 'ledger' | 'categories' | 'accounts' | 'settings'
+  readonly tab: 'ledger' | 'categories' | 'accounts' | 'settings' | 'rules'
   readonly sheetRow: number
   readonly reason: string
 }
@@ -71,6 +92,8 @@ export interface Workbook {
   readonly transactions: readonly Transaction[]
   readonly categories: readonly Category[]
   readonly accounts: readonly Account[]
+  /** Every rule the `rules` tab could read, disabled ones included, in the order they are tried. */
+  readonly rules: readonly Rule[]
   readonly settings: Settings
   readonly problems: readonly WorkbookProblem[]
 }

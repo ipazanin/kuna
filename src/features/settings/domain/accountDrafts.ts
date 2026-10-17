@@ -8,6 +8,8 @@ export interface AccountDraft {
   /** The name the row had when the editor opened, which ledger rows may use. */
   readonly savedName: string
   readonly account: string
+  /** What the screens call it. Blank shows the account name. */
+  readonly label: string
   readonly iban: string
   readonly currency: string
 }
@@ -53,6 +55,7 @@ export function accountCellsOf(
   return drafts.map((draft) => ({
     ...(draft.sheetRow === null ? {} : (savedCells.get(draft.sheetRow) ?? {})),
     account: draft.account.trim().toLowerCase(),
+    label: draft.label.trim(),
     iban: normaliseIban(draft.iban),
     currency: draft.currency.trim().toUpperCase(),
   }))

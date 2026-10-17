@@ -13,6 +13,7 @@ describe('counterpartyIdentity', () => {
     expect(counterpartyIdentity({ counterparty: 'Café Šime · lunch with a client', counterpartyIban: '' })).toEqual({
       key: 'name:CAFE SIME',
       foldedName: 'CAFE SIME',
+      writtenName: 'Café Šime',
     })
   })
 })
@@ -48,21 +49,51 @@ describe('topCounterparties', () => {
 
   it('ranks debits by counterparty, leaving out neutral and financing but not unclassified rows', () => {
     expect(top.map((payee) => [payee.label, payee.total.amount, payee.transactionCount])).toEqual([
-      ['ALEX EXAMPLE', euros(1500), 1],
+      ['Alex Example', euros(1500), 1],
       ['ZUTA TISKARA', euros(300), 2],
-      ['MODEL API', euros(125.49), 2],
+      ['Model API', euros(125.49), 2],
     ])
   })
 
-  it('labels a group by its alphabetically first spelling, so the label does not move as rows arrive', () => {
+  it('labels a group by the spelling its rows use most, as written, and of equals the alphabetically first', () => {
     expect(top.find((payee) => payee.key === 'iban:XX00FAKE0001')?.label).toBe('ZUTA TISKARA')
+    const often = ledger([
+      { date: '2026-07-03', amount: -10, counterparty: 'Pixel Studio d.o.o.', iban: 'XX00FAKE0002' },
+      { date: '2026-08-03', amount: -10, counterparty: 'Pixel Studio', iban: 'XX00FAKE0002' },
+      { date: '2026-09-03', amount: -10, counterparty: '  Pixel   Studio · design work', iban: 'XX00FAKE0002' },
+    ])
+    expect(topCounterparties(often, { preset: 'l3' }, window)[0]?.label).toBe('Pixel Studio')
   })
 
-  it('gives a value for every month of the period, for the sparkline', () => {
-    expect(top.find((payee) => payee.key === 'iban:XX00FAKE0001')?.monthly).toEqual([
+  it('draws the 12 months up to the end of the period, whatever its length', () => {
+    const strip = top.find((payee) => payee.key === 'iban:XX00FAKE0001')?.strip ?? []
+    expect(strip).toHaveLength(12)
+    expect(strip.slice(-3)).toEqual([
       { month: '2026-07', amount: euros(100) },
       { month: '2026-08', amount: euros(200) },
       { month: '2026-09', amount: 0 },
+    ])
+    expect(strip[0]?.month).toBe('2025-10')
+  })
+
+  it('tags a payee paid in most months as monthly and one paid once as one-off', () => {
+    const rows = ledger([
+      { date: '2026-01-05', amount: -50, counterparty: 'Rent', iban: 'XX00FAKE0030' },
+      { date: '2026-02-05', amount: -50, counterparty: 'Rent', iban: 'XX00FAKE0030' },
+      { date: '2026-03-05', amount: -50, counterparty: 'Rent', iban: 'XX00FAKE0030' },
+      { date: '2026-04-05', amount: -50, counterparty: 'Rent', iban: 'XX00FAKE0030' },
+      { date: '2026-04-09', amount: -900, counterparty: 'Laptop Store', iban: 'XX00FAKE0031' },
+      { date: '2026-04-10', amount: -20, counterparty: 'Cafe', iban: 'XX00FAKE0032' },
+      { date: '2026-02-10', amount: -20, counterparty: 'Cafe', iban: 'XX00FAKE0032' },
+      { date: '2026-05-01', amount: 1, counterparty: 'Bank' },
+    ])
+    // The ledger covers January to April in full: four strip months, paid in all four by Rent.
+    const rhythms = topCounterparties(rows, { preset: 'all' }, windowOf('2026-01-01', '2026-05-01')).map((payee) => [payee.label, payee.rhythm])
+
+    expect(rhythms).toEqual([
+      ['Laptop Store', 'one-off'],
+      ['Rent', 'monthly'],
+      ['Cafe', null],
     ])
   })
 
@@ -71,6 +102,28 @@ describe('topCounterparties', () => {
       period: { preset: 'l3' },
       counterparties: ['iban:XX00FAKE0020'],
       buckets: ['income', 'operating', 'taxes', 'owner-pay', 'unclassified'],
+      amount: { min: null, max: -1 },
+    })
+  })
+
+  it('splits each payee by category, largest first, each part drilling to its own debits', () => {
+    const owner = ledger([
+      { date: '2026-08-05', amount: -1500, counterparty: 'Alex Example', iban: 'XX00FAKE0020', category: 'salary-net' },
+      { date: '2026-08-06', amount: -700, counterparty: 'Alex Example', iban: 'XX00FAKE0020', category: 'owner-loan-out' },
+      { date: '2026-09-05', amount: -1500, counterparty: 'Alex Example', iban: 'XX00FAKE0020', category: 'salary-net' },
+      { date: '2026-09-07', amount: -40, counterparty: 'Alex Example', iban: 'XX00FAKE0020', category: 'zzz-test' },
+    ])
+    const [alex] = topCounterparties(owner, { preset: 'l3' }, window)
+
+    expect(alex?.categories.map((part) => [part.category, part.bucket, part.amount.amount, part.transactionCount])).toEqual([
+      ['salary-net', 'owner-pay', euros(3000), 2],
+      ['owner-loan-out', 'owner-pay', euros(700), 1],
+      ['zzz-test', 'unclassified', euros(40), 1],
+    ])
+    expect(alex?.categories[1]?.amount.drill.filters).toEqual({
+      period: { preset: 'l3' },
+      counterparties: ['iban:XX00FAKE0020'],
+      categories: ['owner-loan-out'],
       amount: { min: null, max: -1 },
     })
   })

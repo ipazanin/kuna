@@ -1,0 +1,173 @@
+import { describe, expect, it } from 'vitest'
+
+import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
+import { needsReview } from '../src/features/workbook/domain/needsReview'
+import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+
+const HEADER = [...RULE_COLUMNS] as string[]
+
+/** A rules tab row from the cells it fills. */
+function ruleRow(cells: Partial<Record<(typeof RULE_COLUMNS)[number], CellValue>>): CellValue[] {
+  return HEADER.map((column) => cells[column as keyof typeof cells] ?? '')
+}
+
+function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'account', 'amount', 'balance']]): WorkbookSnapshot {
+  return {
+    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null },
+    ledger: sheetRowsFromValues(ledger),
+    categories: sheetRowsFromValues([
+      ['category', 'family', 'bucket'],
+      ['travel', 'operating', 'operating'],
+      ['bank-fees', 'operating', 'operating'],
+    ]),
+    accounts: [],
+    settings: [],
+    rules: sheetRowsFromValues(rules),
+  }
+}
+
+describe('reading the rules tab', () => {
+  it('reads every condition kind into its folded or normalised form, in trying order', () => {
+    const workbook = readWorkbook(
+      snapshotWith([
+        HEADER,
+        ruleRow({ rule: 'b', order: 200, enabled: 'TRUE', description_starts_with: 'naknad', tx_sub_family: 'chrg', category: 'bank-fees', confidence: 'rule' }),
+        ruleRow({
+          rule: 'a',
+          order: 100,
+          enabled: true,
+          direction: 'Debit',
+          counterparty_iban: 'xx00 fake 0001',
+          has_counterparty_iban: false,
+          counterparty_is_own: true,
+          counterparty_contains: 'Café',
+          description_contains: 'plaća za',
+          tx_domain: 'pmnt',
+          tx_family: 'ccrd',
+          purpose: 'loan',
+          revenue_code: '1651',
+          is_card: 'TRUE',
+          foreign_currency: true,
+          category: 'Travel',
+          confidence: 'Rule',
+          note: 'Why.',
+        }),
+      ]),
+    )
+
+    expect(workbook.problems).toEqual([])
+    expect(workbook.rules.map((rule) => rule.id)).toEqual(['a', 'b'])
+    expect(workbook.rules[0]).toEqual({
+      id: 'a',
+      order: 100,
+      enabled: true,
+      conditions: [
+        { column: 'direction', direction: 'debit' },
+        { column: 'counterparty_iban', iban: 'XX00FAKE0001' },
+        { column: 'has_counterparty_iban', present: false },
+        { column: 'counterparty_is_own' },
+        { column: 'counterparty_contains', fragment: 'CAFE' },
+        { column: 'description_contains', fragment: 'PLACA ZA' },
+        { column: 'tx_domain', code: 'PMNT' },
+        { column: 'tx_family', code: 'CCRD' },
+        { column: 'purpose', code: 'LOAN' },
+        { column: 'revenue_code', code: '1651' },
+        { column: 'is_card' },
+        { column: 'foreign_currency' },
+      ],
+      category: 'travel',
+      confidence: 'rule',
+      note: 'Why.',
+      sheetRow: 3,
+    })
+  })
+
+  it('reports each refusal on its row instead of failing the workbook', () => {
+    const workbook = readWorkbook(
+      snapshotWith([
+        [...HEADER, 'colour'],
+        [...ruleRow({ rule: 'odd', order: 1, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }), 'red'],
+        ruleRow({ order: 2, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'same', order: 3, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'SAME', order: 4, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'first', order: 'first', enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'maybe', order: 6, enabled: 'yes', is_card: true, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'sure', order: 7, enabled: true, is_card: true, category: 'travel', confidence: 'certain' }),
+        ruleRow({ rule: 'nope', order: 8, enabled: true, is_card: true, category: 'nope', confidence: 'rule' }),
+        ruleRow({ rule: 'bare', order: 9, enabled: true, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'client', order: 10, enabled: true, counterparty_is_client: true, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'code', order: 11, enabled: true, revenue_code: 651, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'side', order: 12, enabled: true, direction: 'out', is_card: 'FALSE', category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'kept', order: 13, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
+      ]),
+    )
+
+    expect(workbook.rules.map((rule) => rule.id)).toEqual(['same', 'kept'])
+    expect(workbook.problems.map((problem) => [problem.tab, problem.sheetRow, problem.reason])).toEqual([
+      ['rules', 2, '"colour" is not a column a rule can test'],
+      ['rules', 3, 'no rule id'],
+      ['rules', 5, 'the id "SAME" is already used on row 4'],
+      ['rules', 6, 'first has the order "first", which is not a number'],
+      ['rules', 7, 'maybe has the enabled cell "yes", and it is TRUE or FALSE'],
+      ['rules', 8, 'sure has the confidence "certain", and it is rule or review'],
+      ['rules', 9, 'nope files rows as "nope" at rule confidence, and the categories tab does not define it'],
+      ['rules', 10, 'bare has no condition, so it would match every row'],
+      ['rules', 11, 'client: counterparty_is_client needs a clients tab, which this workbook does not have yet. Name the client by counterparty_iban instead'],
+      ['rules', 12, 'code: revenue_code is "651", and it is four digits'],
+      ['rules', 13, 'side: direction is "out", and it is credit, debit or blank'],
+      ['rules', 13, 'side: is_card is "FALSE", and it is TRUE or blank'],
+    ])
+  })
+
+  it('keeps a disabled rule after checking its id and order only, and lets a review rule name any category or none', () => {
+    const workbook = readWorkbook(
+      snapshotWith([
+        HEADER,
+        ruleRow({ rule: 'parked', order: 5, enabled: false, revenue_code: 'x', category: 'nope', confidence: 'rule' }),
+        ruleRow({ rule: 'card-review', order: 1, enabled: true, is_card: true, category: 'card-purchase-unknown', confidence: 'review' }),
+        ruleRow({ rule: 'guard', order: 2, enabled: true, counterparty_iban: 'XX00FAKE0002', confidence: 'review' }),
+      ]),
+    )
+
+    expect(workbook.problems).toEqual([])
+    expect(workbook.rules.map((rule) => [rule.id, rule.enabled, rule.category, rule.confidence, rule.conditions.length])).toEqual([
+      ['card-review', true, 'card-purchase-unknown', 'review', 1],
+      ['guard', true, '', 'review', 1],
+      ['parked', false, 'nope', 'rule', 0],
+    ])
+  })
+
+  it('reads no rules from a workbook without the tab', () => {
+    expect(readWorkbook(snapshotWith([])).rules).toEqual([])
+  })
+})
+
+describe('the ledger signal columns', () => {
+  const workbook = readWorkbook(
+    snapshotWith(
+      [],
+      [
+        ['date', 'account', 'amount', 'balance', 'category', 'flagged_by', 'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency', 'review_reasons'],
+        [46300, 'main', -10, 90, 'travel', 'rule', ' GOVT ', 'PMNT', 'ICDT', 'NTAV', 'HR68 1651-FAKE', 'EUR', 'reversal | value date used'],
+        [46299, 'main', 100, 100, 'travel', 'rule'],
+      ],
+    ),
+  )
+
+  it('carries O to T into the signals and U into the review reasons', () => {
+    expect(workbook.transactions[0]).toMatchObject({
+      signals: { purpose: 'GOVT', txDomain: 'PMNT', txFamily: 'ICDT', txSubFamily: 'NTAV', creditorReference: 'HR68 1651-FAKE', instructedCurrency: 'EUR' },
+      reviewReasons: ['reversal', 'value date used'],
+    })
+    expect(workbook.transactions[1]).toMatchObject({
+      signals: { purpose: '', txDomain: '', txFamily: '', txSubFamily: '', creditorReference: '', instructedCurrency: '' },
+      reviewReasons: [],
+    })
+  })
+
+  it('sends a rule-settled row with review reasons to review', () => {
+    expect(workbook.transactions.map(needsReview)).toEqual([true, false])
+  })
+})

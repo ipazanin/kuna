@@ -10,10 +10,13 @@ const props = withDefaults(
     /** `magnitude` drops the sign, for costs that read positive. `always` adds a plus, for changes. */
     sign?: SignDisplay
     precision?: 'cents' | 'whole' | 'compact'
-    /** Colours the figure by its sign: income and gains green, losses red. */
-    toned?: boolean
+    /**
+     * `flow` colours money coming in and leaves money going out in the normal ink, since a cost is
+     * not bad news. `outcome` is for a result such as a net, where a negative one is a loss.
+     */
+    tone?: 'flow' | 'outcome'
   }>(),
-  { sign: 'negative', precision: 'cents', toned: false },
+  { sign: 'negative', precision: 'cents' },
 )
 
 const formatted = computed(() => {
@@ -23,8 +26,9 @@ const formatted = computed(() => {
 })
 
 const tone = computed(() => {
-  if (!props.toned || props.cents === 0) return ''
-  return props.cents > 0 ? 'text-positive' : 'text-negative'
+  if (props.tone === undefined || props.cents === 0) return ''
+  if (props.cents > 0) return 'text-positive'
+  return props.tone === 'outcome' ? 'text-negative' : ''
 })
 </script>
 

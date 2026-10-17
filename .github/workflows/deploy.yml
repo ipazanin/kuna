@@ -37,6 +37,8 @@ jobs:
       # Serves dist/ itself and sends every other origin to a dead proxy, so it calls no Google API.
       - name: Offline and update check
         run: npm run check:pwa
+      - name: Import of files another program wrote
+        run: npm run check:import
       # ubuntu-latest ships Chrome at /usr/bin/google-chrome, which the visual check probes for.
       # It runs against the fake build, so every screen has data and no Google call is made.
       - name: Visual and touch checks

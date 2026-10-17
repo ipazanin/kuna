@@ -2,6 +2,8 @@ import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
+import { readRules } from '../../rules/domain/readRules'
+import type { Rule } from '../../rules/domain/rule'
 import { currencyProblem, parseSettings } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
 import { UNCLASSIFIED, isDefinedBucket } from '../domain/bucket'
@@ -13,6 +15,7 @@ import type { CellValue, SheetRow, WorkbookSnapshot } from './workbookSnapshot'
  * Every column is found by its header name. The ledger's `family`, `bucket` and `month` columns
  * are the Sheet's own formulas and are not read: family and bucket come from `categories`, the way
  * those formulas derive them. A missing tab or column reads as empty, and settings default.
+ * A `rules` tab is read the way `Rules.gs` reads it, against the categories read here.
  */
 export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
   const problems: WorkbookProblem[] = []
@@ -27,6 +30,7 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     transactions: readLedger(snapshot.ledger, categories, problems),
     categories,
     accounts: readAccounts(snapshot.accounts, settings, problems),
+    rules: readRulesTab(snapshot.rules, categories, problems),
     settings,
     problems,
   }
@@ -63,7 +67,7 @@ function readCategories(rows: readonly SheetRow[], problems: WorkbookProblem[]):
       problems.push({ tab: 'categories', sheetRow: row.sheetRow, reason: `"${slug}" is already defined above` })
       continue
     }
-    bySlug.set(slug, { slug, family, bucket, colour: textOf(row.cells.colour), roles: rolesOf(row.cells.roles) })
+    bySlug.set(slug, { slug, label: textOf(row.cells.label), family, bucket, colour: textOf(row.cells.colour), roles: rolesOf(row.cells.roles) })
   }
   return [...bySlug.values()]
 }
@@ -86,9 +90,15 @@ function readAccounts(rows: readonly SheetRow[], settings: Settings, problems: W
         reason: invalid ?? `${slug} is in ${currency} but the workbook counts in ${settings.currency}, so its amounts read as ${settings.currency}`,
       })
     }
-    accounts.push({ slug, iban: normaliseIban(textOf(row.cells.iban)), currency })
+    accounts.push({ slug, label: textOf(row.cells.label), iban: normaliseIban(textOf(row.cells.iban)), currency })
   }
   return accounts
+}
+
+function readRulesTab(rows: readonly SheetRow[], categories: readonly Category[], problems: WorkbookProblem[]): readonly Rule[] {
+  const read = readRules(rows, new Set(categories.map((category) => category.slug)))
+  problems.push(...read.problems.map((problem) => ({ tab: 'rules' as const, ...problem })))
+  return read.rules
 }
 
 function readLedger(
@@ -150,8 +160,25 @@ function readLedgerRow(
     flaggedBy: slugOf(cells.flagged_by),
     // The column holds numbers on some rows and text on others, so it is always read as text.
     reference: textOf(cells.reference),
+    signals: {
+      purpose: textOf(cells.purpose),
+      txDomain: textOf(cells.tx_domain),
+      txFamily: textOf(cells.tx_family),
+      txSubFamily: textOf(cells.tx_sub_family),
+      creditorReference: textOf(cells.creditor_reference),
+      instructedCurrency: textOf(cells.instructed_currency),
+    },
+    reviewReasons: reviewReasonsOf(cells.review_reasons),
     sheetRow: row.sheetRow,
   }
+}
+
+/** The statement parser's reasons, joined with `|` in one cell. */
+function reviewReasonsOf(cell: CellValue | undefined): string[] {
+  return textOf(cell)
+    .split('|')
+    .map((reason) => reason.trim())
+    .filter((reason) => reason !== '')
 }
 
 function textOf(cell: CellValue | undefined): string {

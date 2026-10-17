@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { filterChips, withoutChip, withoutChips } from '../src/features/filters/domain/filterChips'
+import { addedChoices, filterChips, withAddedChoices, withoutChip, withoutChips } from '../src/features/filters/domain/filterChips'
 import { DEFAULT_FILTERS } from '../src/features/filters/domain/filterState'
 import type { FilterState } from '../src/features/filters/domain/filterState'
 import { euros } from './fixtures/ledger'
@@ -20,6 +20,7 @@ const narrowed: FilterState = {
 const labels = {
   counterparty: (key: string): string => (key === 'iban:XX00FAKE0010' ? 'NORTHWIND ANALYTICS LTD' : key),
   bucket: (bucket: string): string => (bucket === 'operating' ? 'Operating cost' : bucket),
+  category: (slug: string): string => (slug === 'ai-services' ? 'AI services' : slug),
 }
 
 describe('filterChips', () => {
@@ -27,7 +28,7 @@ describe('filterChips', () => {
     expect(filterChips(narrowed, labels).map((chip) => chip.label)).toEqual([
       'Bucket: Operating cost',
       'Category: travel',
-      'Category: ai-services',
+      'Category: AI services',
       'Counterparty: NORTHWIND ANALYTICS LTD',
       'Text: “kava”',
       'Amount: at most −€0.01',
@@ -60,5 +61,17 @@ describe('withoutChip', () => {
 describe('withoutChips', () => {
   it('clears every chip and keeps the period and accounts', () => {
     expect(withoutChips(narrowed)).toEqual({ ...DEFAULT_FILTERS, period: { preset: 'l3' }, accounts: ['main'] })
+  })
+})
+
+describe('Add filter choices', () => {
+  it('names each bucket, category and counterparty choice by its chip id', () => {
+    expect(addedChoices(narrowed)).toEqual(['buckets:operating', 'categories:travel', 'categories:ai-services', 'counterparties:iban:XX00FAKE0010'])
+  })
+
+  it('sets exactly the chosen ones and keeps every other narrowing', () => {
+    const chosen = withAddedChoices(narrowed, ['categories:travel', 'counterparties:iban:XX00FAKE0020', 'buckets:taxes'])
+
+    expect(chosen).toEqual({ ...narrowed, buckets: ['taxes'], categories: ['travel'], counterparties: ['iban:XX00FAKE0020'] })
   })
 })

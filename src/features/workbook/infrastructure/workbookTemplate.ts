@@ -1,3 +1,4 @@
+import { RULE_COLUMNS } from '../../rules/domain/rule'
 import { DEFAULT_SETTINGS, settingsTabEntries } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
 import type { DefinedBucket } from '../domain/bucket'
@@ -9,9 +10,33 @@ export interface TemplateColumn {
   readonly note: string
 }
 
+const RULE_COLUMN_NOTES: Readonly<Record<(typeof RULE_COLUMNS)[number], string>> = {
+  rule: 'A short id, used once, such as merchant-telecom. Required.',
+  order: 'A number. Rules are tried from the lowest, and the first enabled one whose conditions all hold decides the row. Required.',
+  enabled: 'TRUE or FALSE. A FALSE rule is kept but never tried. Required.',
+  direction: 'Condition: credit for money in, debit for money out, or blank.',
+  counterparty_iban: 'Condition: the counterparty IBAN, spaces and case ignored.',
+  has_counterparty_iban: 'Condition: TRUE when the row must carry a counterparty IBAN, FALSE when it must not, or blank.',
+  counterparty_is_own: 'Condition: TRUE when the counterparty is one of the accounts in the accounts tab, or blank.',
+  counterparty_is_client: 'Condition: needs a clients tab, which the workbook does not have yet. Leave it blank.',
+  counterparty_contains: 'Condition: text the counterparty contains, accents and case ignored.',
+  description_contains: 'Condition: text the description contains, accents and case ignored.',
+  description_starts_with: 'Condition: text the description starts with, accents and case ignored.',
+  tx_domain: 'Condition: the ISO bank transaction domain code, such as PMNT.',
+  tx_family: 'Condition: the ISO bank transaction family code, such as CCRD.',
+  tx_sub_family: 'Condition: the ISO bank transaction sub-family code, such as CHRG.',
+  purpose: 'Condition: the ISO purpose code, such as LOAN.',
+  revenue_code: 'Condition: a four-digit revenue code, from the creditor reference or the head of the description. Enter it as text.',
+  is_card: 'Condition: TRUE for a card purchase, or blank.',
+  foreign_currency: "Condition: TRUE for a payment in a currency other than the account's, or blank.",
+  category: 'What the rule files the row as, from the categories tab. A review rule may leave it blank.',
+  confidence: 'rule files the row as settled. review files it as ai, so it waits for review.',
+  note: 'Why the rule exists and why it sits where it does. Optional.',
+}
+
 /**
  * The columns of each tab, in the order the template and an export write them. The ledger keeps
- * the Google Sheet's own order, A to N, so an export lines up with the Sheet column for column.
+ * the Google Sheet's own order, A to U, so an export lines up with the Sheet column for column.
  * The reader finds every column by name, so a file may order them as it likes and add its own.
  */
 export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateColumn[]>> = {
@@ -30,6 +55,13 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'month', note: 'Filled in from the date on export, and ignored on import.' },
     { name: 'flagged_by', note: 'Who set the category: rule, ai for a guess that waits for review, or a person.' },
     { name: 'reference', note: "The bank's own reference for the entry. Optional." },
+    { name: 'purpose', note: 'The ISO purpose code a camt statement gave the entry, such as SALA. Optional.' },
+    { name: 'tx_domain', note: 'The ISO bank transaction domain code from a camt statement, such as PMNT. Optional.' },
+    { name: 'tx_family', note: 'The ISO bank transaction family code from a camt statement, such as ICDT. Optional.' },
+    { name: 'tx_sub_family', note: 'The ISO bank transaction sub-family code from a camt statement, such as CHRG. Optional.' },
+    { name: 'creditor_reference', note: 'The structured creditor reference from a camt statement. Optional.' },
+    { name: 'instructed_currency', note: 'The currency the payment was instructed in, from a camt statement. Optional.' },
+    { name: 'review_reasons', note: 'Why the statement wants a person to look at the row, such as reversal, separated by |. Such a row waits for review.' },
   ],
   categories: [
     { name: 'category', note: 'A short name in lower case, such as software. Each category once. Required.' },
@@ -43,12 +75,15 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     },
     { name: 'colour', note: 'Your own note of a colour, such as #dce9f9. The app does not use it.' },
     { name: 'roles', note: 'Optional, comma separated, such as revenue or watched, for features that pick categories by role.' },
+    { name: 'label', note: 'What the screens call the category, such as Software. Optional. Blank shows the category with spaces for hyphens.' },
   ],
   accounts: [
     { name: 'account', note: 'A short name for one of your bank accounts, such as main. Required.' },
     { name: 'iban', note: "The account's IBAN. Optional." },
     { name: 'currency', note: 'Optional. The app counts in the currency from the settings tab and reports an account in another one.' },
+    { name: 'label', note: 'What the screens call the account, such as Main account. Optional. Blank shows the account name.' },
   ],
+  rules: RULE_COLUMNS.map((name) => ({ name, note: RULE_COLUMN_NOTES[name] })),
   settings: [
     { name: 'key', note: 'A setting name. The note on each key says what it does. Unknown keys are kept and reported.' },
     { name: 'value', note: 'Its value. A blank value means the default.' },
@@ -140,6 +175,7 @@ export function emptyWorkbookTabs(): WorkbookTabs {
     ),
     accounts: [],
     settings: settingsTabRows(DEFAULT_SETTINGS),
+    rules: [],
   }
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { monthAxisLabel } from '../../../shared/calendar/monthLabel'
@@ -28,7 +29,7 @@ const emit = defineEmits<{
   zoom: [window: ChartZoomWindow]
 }>()
 
-const { openDrill } = useFilters()
+const { openDrill, drillLocation } = useFilters()
 const phone = usePhoneLayout()
 const chosen = shallowRef<ChartPointSelection | null>(null)
 
@@ -44,6 +45,11 @@ const chosenLabel = computed(() => {
   const selection = chosen.value
   return selection === null ? '' : [selection.seriesName, readableCategory(selection.category)].filter((part) => part !== '').join(', ')
 })
+
+function linkAt(selection: ChartPointSelection): RouteLocationRaw | null {
+  const target = props.chart.drillAt(selection)
+  return target === null ? null : drillLocation(target)
+}
 
 function drill(selection: ChartPointSelection): void {
   const target = props.chart.drillAt(selection)
@@ -71,7 +77,9 @@ function select(selection: ChartPointSelection): void {
     :title="title"
     :option="chart.option"
     :description="chart.description"
+    :link-at="linkAt"
     v-bind="{
+      ...(chart.formatValue === undefined ? {} : { formatValue: chart.formatValue }),
       ...(subtitle === undefined ? {} : { subtitle }),
       ...(definition === undefined ? {} : { definition }),
       ...(empty === undefined ? {} : { empty }),

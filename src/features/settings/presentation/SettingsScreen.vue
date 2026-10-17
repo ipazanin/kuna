@@ -10,18 +10,10 @@ import PageHeader from '../../../shared/ui/PageHeader.vue'
 import SwitchSourceDialog from '../../data-source/presentation/SwitchSourceDialog.vue'
 import { exportReminderDue } from '../../excel/domain/exportReminder'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
-import ProblemList from '../../excel/presentation/ProblemList.vue'
 import { useExport } from '../../excel/presentation/useExport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { EditableTabs } from '../../workbook/application/workbookStore'
+import { spreadsheetLink } from '../../workbook/infrastructure/sheetRowLink'
 import { XLSX_MIME_TYPE } from '../../workbook/infrastructure/workbookFile'
-import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { rowsFrom, settingsTabRows } from '../../workbook/infrastructure/workbookTemplate'
-import { DEFAULT_SETTINGS, isKnownSetting } from '../domain/settings'
-import type { Settings } from '../domain/settings'
-import AccountsEditor from './AccountsEditor.vue'
-import CategoriesEditor from './CategoriesEditor.vue'
-import GeneralSettingsForm from './GeneralSettingsForm.vue'
 
 const store = useWorkbook()
 const { state } = store
@@ -33,20 +25,13 @@ const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', y
 const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
 
 const source = computed(() => state.choice?.source ?? state.workbook?.source ?? null)
-const editable = computed(() => source.value === 'excel')
 const meta = computed(() => state.snapshot?.meta ?? null)
-const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
 
 const workbookName = computed(() => state.choice?.name ?? state.workbook?.title ?? null)
 const changedAt = computed(() => (state.syncedAt === null ? null : stamp.format(new Date(state.syncedAt))))
 const exportedAt = computed(() => (meta.value?.lastExportedAt ? day.format(new Date(meta.value.lastExportedAt)) : null))
 const reminderDue = computed(() => exportReminderDue(meta.value?.unexportedSince ?? null, new Date()))
-const sheetLink = computed(() =>
-  source.value === 'google' && state.workbook !== null ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(state.workbook.id)}/edit` : null,
-)
-
-const usedCategories = computed(() => new Set(state.workbook?.transactions.map((transaction) => transaction.category) ?? []))
-const usedAccounts = computed(() => new Set(state.workbook?.transactions.map((transaction) => transaction.account) ?? []))
+const sheetLink = computed(() => (source.value === 'google' && state.workbook !== null ? spreadsheetLink(state.workbook.id) : null))
 
 const switching = ref(false)
 
@@ -67,32 +52,6 @@ function takeFile(event: Event): void {
   input.value = ''
 }
 
-const savingSection = ref<'settings' | 'categories' | 'accounts' | null>(null)
-
-async function saveSection(section: 'settings' | 'categories' | 'accounts', edits: EditableTabs, saved: string): Promise<void> {
-  savingSection.value = section
-  await store.saveLocalEdits(edits)
-  savingSection.value = null
-  if (state.status === 'error') {
-    toast.add({ title: 'Not saved', description: state.error ?? '', icon: 'i-lucide-triangle-alert', color: 'error' })
-  } else {
-    toast.add({ title: saved, icon: 'i-lucide-check', color: 'success' })
-  }
-}
-
-function saveSettings(next: Settings): void {
-  const unknownRows = (state.snapshot?.settings ?? []).filter((row: SheetRow) => !isKnownSetting(String(row.cells.key ?? '')))
-  void saveSection('settings', { settings: settingsTabRows(next, unknownRows) }, 'Settings saved')
-}
-
-function saveCategories(cells: SheetRow['cells'][]): void {
-  void saveSection('categories', { categories: rowsFrom(cells) }, 'Categories saved')
-}
-
-function saveAccounts(cells: SheetRow['cells'][]): void {
-  void saveSection('accounts', { accounts: rowsFrom(cells) }, 'Accounts saved')
-}
-
 const darkTheme = computed({
   get: () => activeTheme.value === 'dark',
   set: (dark: boolean) => chooseTheme(dark ? 'dark' : 'light'),
@@ -101,14 +60,7 @@ const darkTheme = computed({
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader
-      title="Settings"
-      :description="
-        editable
-          ? 'How this workbook is set up. Changes are kept in this browser, and an export writes them into the file.'
-          : 'What the app reads from your Sheet. Edit these in the Sheet itself.'
-      "
-    />
+    <PageHeader title="Settings" description="Where the ledger comes from, and how the app behaves on this device." />
 
     <div class="grid gap-4 lg:grid-cols-2">
       <section class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5" data-testid="data-source-card">
@@ -190,64 +142,6 @@ const darkTheme = computed({
         </p>
       </section>
     </div>
-
-    <UAlert
-      v-if="source === 'google'"
-      icon="i-lucide-sheet"
-      color="neutral"
-      variant="subtle"
-      title="These live in the Sheet's settings, categories and accounts tabs"
-      description="Change them in the Sheet and sync. A missing settings tab means the defaults below."
-      :actions="sheetLink ? [{ label: 'Open the Sheet', icon: 'i-lucide-external-link', color: 'neutral', variant: 'outline', to: sheetLink, target: '_blank' }] : []"
-    />
-
-    <section v-if="state.workbook" class="rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5">
-      <header class="mb-4">
-        <h2 class="text-sm font-medium text-highlighted">Workbook settings</h2>
-        <p class="mt-0.5 text-xs text-muted">From the settings tab. Theme is the only choice kept per device.</p>
-      </header>
-      <GeneralSettingsForm :settings="settings" :editable="editable" :saving="savingSection === 'settings'" @save="saveSettings" />
-    </section>
-
-    <section v-if="state.workbook" class="rounded-card border border-default bg-raised shadow-raised">
-      <header class="px-4 pt-4 sm:px-5">
-        <h2 class="text-sm font-medium text-highlighted">Categories</h2>
-        <p class="mt-0.5 text-xs text-muted">
-          The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category ledger rows use keeps its
-          name.
-        </p>
-      </header>
-      <CategoriesEditor
-        :rows="state.snapshot?.categories ?? []"
-        :used-names="usedCategories"
-        :editable="editable"
-        :saving="savingSection === 'categories'"
-        @save="saveCategories"
-      />
-    </section>
-
-    <section v-if="state.workbook" class="rounded-card border border-default bg-raised shadow-raised">
-      <header class="px-4 pt-4 sm:px-5">
-        <h2 class="text-sm font-medium text-highlighted">Accounts</h2>
-        <p class="mt-0.5 text-xs text-muted">Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}.</p>
-      </header>
-      <AccountsEditor
-        :rows="state.snapshot?.accounts ?? []"
-        :used-names="usedAccounts"
-        :currency="settings.currency"
-        :editable="editable"
-        :saving="savingSection === 'accounts'"
-        @save="saveAccounts"
-      />
-    </section>
-
-    <section v-if="state.workbook?.problems.length" class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5">
-      <header>
-        <h2 class="text-sm font-medium text-highlighted">Rows the app could not use as written</h2>
-        <p class="mt-0.5 text-xs text-muted">Each is left out, or read with its default, until it is fixed in the workbook.</p>
-      </header>
-      <ProblemList :problems="state.workbook.problems" />
-    </section>
 
     <SwitchSourceDialog v-model:open="switching" />
     <ImportDialog v-model:file="pickedFile" />

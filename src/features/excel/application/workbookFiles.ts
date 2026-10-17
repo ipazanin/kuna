@@ -19,13 +19,17 @@ export interface ImportPreview {
   readonly summary: ImportSummary
 }
 
-/** The workbook a file holds, read by the same reader as a Google Sheet. Nothing is stored yet. */
+/**
+ * The workbook a file holds, read by the same reader as a Google Sheet. Nothing is stored yet.
+ * A file that cannot be read throws a message for the user, with the underlying error as its cause.
+ */
 export async function previewImport(file: File): Promise<ImportPreview> {
   let contents
   try {
     contents = await readWorkbookFile(await file.arrayBuffer())
-  } catch {
-    throw new Error(`${file.name} could not be read as an Excel workbook. Save it as .xlsx and try again.`)
+  } catch (readFailure) {
+    console.error(`Reading ${file.name} failed`, readFailure)
+    throw new Error(`${file.name} could not be read as an Excel workbook. Save it as .xlsx and try again.`, { cause: readFailure })
   }
   const workbook = workbookOf(contents.tabs, file.name)
   return {

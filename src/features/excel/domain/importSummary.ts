@@ -1,7 +1,7 @@
 import type { DateRange } from '../../../shared/calendar/dateRange'
 import type { Workbook, WorkbookProblem } from '../../workbook/domain/workbook'
 
-export type WorkbookTabName = 'ledger' | 'categories' | 'accounts' | 'settings'
+export type WorkbookTabName = 'ledger' | 'categories' | 'accounts' | 'settings' | 'rules'
 
 /** What an import would bring in, shown before anything is replaced. */
 export interface ImportSummary {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' https://sheets.googleapis.com https://www.googleapis.com https://openidconnect.googleapis.com https://oauth2.googleapis.com; manifest-src 'self'; worker-src 'self'; frame-src https://docs.google.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' 'sha256-apkkH4N23sgwjg/PyNklwihjcEHsCU6gudkiIvlyQvU=' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' https://sheets.googleapis.com https://www.googleapis.com https://openidconnect.googleapis.com https://oauth2.googleapis.com; manifest-src 'self'; worker-src 'self'; frame-src https://docs.google.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <link rel="apple-touch-icon" href="%BASE_URL%icons/ledgerboard-180.png" />
@@ -14,9 +14,45 @@
     <meta name="color-scheme" content="dark light" />
     <meta name="description" content="Company finance dashboards over a Google Sheet or an Excel workbook, computed in the browser." />
     <title>Ledgerboard</title>
+    <!-- Picks the theme before the first paint, the way the app does once it runs. The CSP allows this script by its hash, so a change to it needs a new hash. -->
+    <script>(function(){var theme='dark';try{var pinned=new URLSearchParams(location.search).get('theme');var stored=localStorage.getItem('ledgerboard.theme');theme=pinned==='light'||pinned==='dark'?pinned:stored==='light'||stored==='dark'?stored:matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}catch(error){}document.documentElement.className=theme})()</script>
+    <style>
+      .boot-splash {
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        background: #0d1219;
+      }
+      .light .boot-splash {
+        background: #eef1f4;
+      }
+      .boot-mark {
+        width: 56px;
+        height: 56px;
+      }
+      .boot-mark rect {
+        fill: #d4ab63;
+      }
+      .boot-mark path {
+        stroke: #1a1406;
+      }
+      .light .boot-mark rect {
+        fill: #8a6421;
+      }
+      .light .boot-mark path {
+        stroke: #ffffff;
+      }
+    </style>
   </head>
   <body>
-    <div id="app" class="isolate"></div>
+    <div id="app" class="isolate">
+      <div class="boot-splash" role="status" aria-label="Opening Ledgerboard">
+        <svg class="boot-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" />
+          <path d="M8 22h16M10 18v-6M16 18V9M22 18v-4" stroke-width="2.5" stroke-linecap="round" fill="none" />
+        </svg>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

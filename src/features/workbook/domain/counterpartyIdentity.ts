@@ -9,6 +9,8 @@ export interface CounterpartyIdentity {
   readonly key: string
   /** The folded payee name. A group's label is the alphabetically first of these. */
   readonly foldedName: string
+  /** The payee name as the row writes it, without the description and the outer spaces. */
+  readonly writtenName: string
 }
 
 /**
@@ -17,9 +19,10 @@ export interface CounterpartyIdentity {
  */
 export function counterpartyIdentity(transaction: Pick<Transaction, 'counterparty' | 'counterpartyIban'>): CounterpartyIdentity {
   const markAt = transaction.counterparty.indexOf(DESCRIPTION_MARK)
-  const foldedName = fold(markAt === -1 ? transaction.counterparty : transaction.counterparty.slice(0, markAt))
+  const writtenName = (markAt === -1 ? transaction.counterparty : transaction.counterparty.slice(0, markAt)).trim().replace(/\s+/g, ' ')
+  const foldedName = fold(writtenName)
   const key = transaction.counterpartyIban === '' ? `name:${foldedName}` : `iban:${transaction.counterpartyIban}`
-  return { key, foldedName }
+  return { key, foldedName, writtenName }
 }
 
 /**

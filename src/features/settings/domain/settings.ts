@@ -1,3 +1,4 @@
+import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 
@@ -23,6 +24,8 @@ export interface Settings {
   readonly ownerPayModule: boolean
   /** The `flagged_by` value a person's confirmation will write. */
   readonly reviewLabel: string
+  /** The bank accounts a card purchase settles against, normalised. The rules read such a row as a card purchase. */
+  readonly cardSettlementIbans: readonly string[]
 }
 
 export const DEFAULT_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = {
@@ -42,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   bucketLabels: DEFAULT_BUCKET_LABELS,
   ownerPayModule: true,
   reviewLabel: 'human',
+  cardSettlementIbans: [],
 }
 
 /** `flagged_by` values the categoriser writes, which a person's label must not reuse. */
@@ -51,6 +55,9 @@ const MACHINE_FLAGS = ['rule', 'ai'] as const
 const RESERVED_LABELS = ['net', 'all costs', 'owner earns', 'kept']
 
 const LABEL_MAX_LENGTH = 40
+
+/** Two letters, two check digits and up to thirty letters or digits, after the grouping spaces go. */
+const IBAN_SHAPE = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/
 
 export type SettingCell = string | number | boolean
 
@@ -154,6 +161,16 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
       return problem ?? { ...settings, reviewLabel: label }
     },
   },
+  {
+    key: 'card_settlement_ibans',
+    note: 'The bank accounts a card purchase settles against, comma separated. A row with one of them as counterparty reads as a card purchase. Optional.',
+    valueOf: (settings) => settings.cardSettlementIbans.join(', '),
+    apply: (settings, cell) => {
+      const ibans = ibanListOf(String(cell))
+      const problem = ibanListProblem(ibans)
+      return problem ?? { ...settings, cardSettlementIbans: ibans }
+    },
+  },
 ]
 
 const DEFINITION_BY_KEY = new Map(SETTING_DEFINITIONS.map((definition) => [definition.key, definition]))
@@ -215,7 +232,7 @@ export function settingNote(key: string): string | null {
   return DEFINITION_BY_KEY.get(key)?.note ?? null
 }
 
-export type SettingsField = 'companyName' | 'currency' | 'numberLocale' | 'reviewLabel' | DefinedBucket
+export type SettingsField = 'companyName' | 'currency' | 'numberLocale' | 'reviewLabel' | 'cardSettlementIbans' | DefinedBucket
 
 /**
  * What is wrong with settings typed in the app, by field. The same rules as reading the tab, so a
@@ -229,6 +246,8 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (locale !== null) errors.numberLocale = locale
   const review = reviewLabelProblem(settings.reviewLabel)
   if (review !== null) errors.reviewLabel = review
+  const cardAccounts = ibanListProblem(settings.cardSettlementIbans)
+  if (cardAccounts !== null) errors.cardSettlementIbans = cardAccounts
   const seen = new Map<string, DefinedBucket>()
   for (const bucket of BUCKETS) {
     const label = settings.bucketLabels[bucket]
@@ -285,6 +304,19 @@ function localeProblem(locale: string): string | null {
   } catch {
     return `"${locale}" is not a locale tag such as en-GB`
   }
+}
+
+/** A comma-separated list of IBANs, each normalised, blanks left out. */
+export function ibanListOf(text: string): string[] {
+  return text
+    .split(',')
+    .map(normaliseIban)
+    .filter((iban) => iban !== '')
+}
+
+function ibanListProblem(ibans: readonly string[]): string | null {
+  const malformed = ibans.filter((iban) => !IBAN_SHAPE.test(iban))
+  return malformed.length === 0 ? null : `${malformed.map((iban) => `"${iban}"`).join(', ')} ${malformed.length === 1 ? 'is not an IBAN' : 'are not IBANs'}`
 }
 
 function reviewLabelProblem(label: string): string | null {

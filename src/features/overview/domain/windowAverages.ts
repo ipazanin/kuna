@@ -61,3 +61,11 @@ function windowColumn(transactions: readonly Transaction[], span: MonthSpan, per
     })),
   }
 }
+
+/**
+ * How far a recent monthly figure sits from a longer one, as a fraction of the longer one's size.
+ * Null when the longer one is zero, where no fraction means anything.
+ */
+export function recentChange(recent: Money, longer: Money): number | null {
+  return longer === 0 ? null : (recent - longer) / Math.abs(longer)
+}

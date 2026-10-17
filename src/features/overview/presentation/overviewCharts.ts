@@ -92,6 +92,7 @@ export function euroSplitChart(windows: readonly LabelledSplit[], parts: readonl
           : `${label}: costs exceeded income by ${formatWholeMoney(split.shortfall?.perMonth ?? 0)} a month, so the bar splits every ${unit} spent: ${shares}.`
       })
       .join(' '),
+    formatValue: (share) => formatPercent(share),
     drillAt: ({ seriesName, dataIndex }) => {
       const part = parts.find((candidate) => candidate.name === seriesName)?.part
       return rows[dataIndex]?.split.slices.find((slice) => slice.part === part)?.drill ?? null
@@ -100,7 +101,12 @@ export function euroSplitChart(windows: readonly LabelledSplit[], parts: readonl
 }
 
 /** Horizontal bars, largest on top, each in its bucket's colour, with the amount at the bar end. */
-export function categoryBarsChart(categories: readonly CategoryTotal[], tokens: ChartTokens, subject: string): DrillChart {
+export function categoryBarsChart(
+  categories: readonly CategoryTotal[],
+  tokens: ChartTokens,
+  subject: string,
+  categoryName: (slug: string) => string,
+): DrillChart {
   const rows = [...categories].reverse()
   return {
     option: {
@@ -109,7 +115,7 @@ export function categoryBarsChart(categories: readonly CategoryTotal[], tokens: 
       xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: {
         type: 'category',
-        data: rows.map((total) => total.category),
+        data: rows.map((total) => categoryName(total.category)),
         axisLine: { show: false },
         axisLabel: { color: tokens.inkSecondary, fontSize: 12 },
       },
@@ -136,7 +142,7 @@ export function categoryBarsChart(categories: readonly CategoryTotal[], tokens: 
         ? `No ${inSentence(subject)} in this period.`
         : `${subject} by category. ${categories
             .slice(0, 5)
-            .map((total) => `${total.category} ${formatWholeMoney(total.amount.amount)}`)
+            .map((total) => `${categoryName(total.category)} ${formatWholeMoney(total.amount.amount)}`)
             .join(', ')}${categories.length > 5 ? `, and ${categories.length - 5} more` : ''}.`,
     drillAt: ({ dataIndex }) => rows[dataIndex]?.amount.drill ?? null,
   }

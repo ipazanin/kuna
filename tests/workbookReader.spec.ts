@@ -24,6 +24,7 @@ function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGOR
       ['hr12 3456 7890 1234 5678 9', 'Main'],
     ]),
     settings: sheetRowsFromValues(settings),
+    rules: [],
   }
 }
 
@@ -50,7 +51,21 @@ describe('readWorkbook', () => {
         sheetRow: 2,
       }),
     ])
-    expect(workbook.accounts).toEqual([{ slug: 'main', iban: 'HR1234567890123456789', currency: '' }])
+    expect(workbook.accounts).toEqual([{ slug: 'main', label: '', iban: 'HR1234567890123456789', currency: '' }])
+  })
+
+  it('reads the optional label of a category, keeping its slug as the identity', () => {
+    const workbook = readWorkbook(
+      snapshotWith(
+        [['date', 'account', 'amount', 'balance']],
+        [
+          ['category', 'label', 'family', 'bucket'],
+          ['ai-services', ' AI tools ', 'operating', 'operating'],
+        ],
+      ),
+    )
+
+    expect(workbook.categories).toEqual([expect.objectContaining({ slug: 'ai-services', label: 'AI tools' })])
   })
 
   it('reads a numeric reference as text, since the column mixes both', () => {

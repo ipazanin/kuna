@@ -24,14 +24,17 @@ export function balanceChart(
   accounts: readonly string[],
   colours: ReadonlyMap<string, string>,
   tokens: ChartTokens,
+  accountName: (account: string) => string,
 ): DrillChart {
+  // A series is named for the reader, so a click finds its account back by that name.
+  const accountBySeries = new Map(accounts.map((account) => [accountName(account), account]))
   const categories: string[] = months.map((month) => month.month)
   const incomplete = months.map((month) => !month.complete)
   const areas: LineSeries[] = accounts.map((account, index) => {
     const colour = colours.get(account) ?? tokens.ink
     return {
       type: 'line',
-      name: account,
+      name: accountName(account),
       stack: 'balance',
       color: colour,
       showSymbol: false,
@@ -69,14 +72,15 @@ export function balanceChart(
     description:
       last === undefined
         ? 'No months to show.'
-        : `Month-end balance of ${accounts.join(', ')} from ${monthLabel(months[0]!.month)} to ${monthLabel(last.month)}, stacked, with the total as a line. ` +
+        : `Month-end balance of ${accounts.map(accountName).join(', ')} from ${monthLabel(months[0]!.month)} to ${monthLabel(last.month)}, stacked, with the total as a line. ` +
           `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the total was ${formatWholeMoney(last.total.amount)}.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {
         return null
       }
-      return seriesName === TOTAL_SERIES ? month.total.drill : (month.byAccount[seriesName]?.drill ?? null)
+      const account = accountBySeries.get(seriesName)
+      return account === undefined ? month.total.drill : (month.byAccount[account]?.drill ?? null)
     },
   }
 }

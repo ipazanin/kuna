@@ -8,6 +8,8 @@ export interface WindowRow {
   readonly label: string
   /** One cell per column, in the columns' order. */
   readonly cells: readonly WindowCell[]
+  /** The last 3 months against the last 12, as a fraction. Null when the 12-month figure is zero. */
+  readonly recentChange: number | null
   /** Net and owner earns read better against the costs above them when set apart. */
   readonly emphasised?: boolean
 }
@@ -16,6 +18,7 @@ export interface WindowRow {
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 
+import { formatPercent } from '../../../shared/money/moneyFormat'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 
@@ -24,19 +27,12 @@ defineProps<{
   rows: readonly WindowRow[]
 }>()
 
-const STRIP_WIDTH = 132
-const STRIP_INSET = 6
-/** Last 3 months, last 12 months, all time: from the most recent to the longest view. */
-const MARKS = ['strip-recent', 'strip-year', 'strip-all'] as const
+/** Every row's bar shares one scale, so equal changes look equal. Beyond it a bar stops at the end. */
+const SCALE = 0.5
 
-/** Each row on its own scale, so the gap between the windows shows whatever the line's size. */
-function stripPositions(cells: readonly WindowCell[]): number[] {
-  const amounts = cells.map((cell) => cell.perMonth)
-  const lowest = Math.min(...amounts)
-  const span = Math.max(...amounts) - lowest
-  return amounts.map((amount) =>
-    span === 0 ? STRIP_WIDTH / 2 : STRIP_INSET + ((amount - lowest) / span) * (STRIP_WIDTH - STRIP_INSET * 2),
-  )
+function barStyle(change: number): Record<string, string> {
+  const reach = (Math.min(Math.abs(change), SCALE) / SCALE) * 50
+  return change >= 0 ? { left: '50%', width: `${reach}%` } : { right: '50%', width: `${reach}%` }
 }
 </script>
 
@@ -46,13 +42,9 @@ function stripPositions(cells: readonly WindowCell[]): number[] {
       <thead>
         <tr>
           <th scope="col" class="text-start">Per month</th>
-          <th v-for="(column, index) in columns" :key="column" scope="col" class="text-end">
-            <span class="inline-flex items-center justify-end gap-1.5">
-              <span class="strip-key" :class="MARKS[index]" aria-hidden="true" />
-              {{ column }}
-            </span>
-          </th>
-          <th scope="col" class="hidden w-40 sm:table-cell"><span class="sr-only">Spread between the windows</span></th>
+          <th v-for="column in columns" :key="column" scope="col" class="text-end">{{ column }}</th>
+          <th scope="col" class="text-end">Last 3 vs 12 months</th>
+          <th scope="col" class="hidden w-32 sm:table-cell"><span class="sr-only">The change on a scale of minus to plus 50%</span></th>
         </tr>
       </thead>
       <tbody>
@@ -63,18 +55,13 @@ function stripPositions(cells: readonly WindowCell[]): number[] {
               <MoneyText :cents="cell.perMonth" precision="whole" :class="row.emphasised ? 'font-medium text-highlighted' : ''" />
             </DrillLink>
           </td>
+          <td class="figure text-end text-toned">
+            {{ row.recentChange === null ? '–' : formatPercent(row.recentChange, 'always') }}
+          </td>
           <td class="hidden sm:table-cell">
-            <svg :width="STRIP_WIDTH" height="16" :viewBox="`0 0 ${STRIP_WIDTH} 16`" class="block" aria-hidden="true">
-              <line :x1="STRIP_INSET" :x2="STRIP_WIDTH - STRIP_INSET" y1="8" y2="8" stroke="var(--chart-grid)" stroke-width="2" stroke-linecap="round" />
-              <circle
-                v-for="(position, index) in stripPositions(row.cells)"
-                :key="index"
-                :cx="position"
-                cy="8"
-                r="4"
-                :class="MARKS[index]"
-              />
-            </svg>
+            <span class="change-scale" aria-hidden="true">
+              <span v-if="row.recentChange !== null" class="change-bar" :style="barStyle(row.recentChange)" />
+            </span>
           </td>
         </tr>
       </tbody>
@@ -83,7 +70,7 @@ function stripPositions(cells: readonly WindowCell[]): number[] {
 </template>
 
 <style scoped>
-/* Column headings may wrap, so the three figures fit a phone without scrolling. */
+/* Column headings may wrap, so the figures fit a phone without scrolling. */
 .window-table thead th {
   white-space: normal;
   vertical-align: bottom;
@@ -106,31 +93,29 @@ function stripPositions(cells: readonly WindowCell[]): number[] {
   font-weight: 500;
 }
 
-.strip-key {
-  display: inline-block;
-  width: 8px;
+/* A track centred on no change, with a tick at zero. */
+.change-scale {
+  position: relative;
+  display: block;
+  width: 8rem;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 4px;
+  background: var(--chart-grid);
 }
 
-circle.strip-recent,
-.strip-key.strip-recent {
-  fill: var(--accent);
-  background: var(--accent);
+.change-scale::after {
+  content: '';
+  position: absolute;
+  inset-block: -3px;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: var(--chart-axis);
 }
 
-circle.strip-year,
-.strip-key.strip-year {
-  fill: var(--surface-raised);
-  stroke: var(--chart-ink);
-  stroke-width: 1.5;
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--chart-ink);
-}
-
-circle.strip-all,
-.strip-key.strip-all {
-  fill: var(--chart-deemphasis);
-  background: var(--chart-deemphasis);
+.change-bar {
+  position: absolute;
+  inset-block: 0;
+  border-radius: 4px;
+  background: var(--chart-ink-muted);
 }
 </style>

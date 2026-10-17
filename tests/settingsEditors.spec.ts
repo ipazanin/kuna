@@ -7,11 +7,11 @@ import { categoryCellsOf, categoryDraftErrors } from '../src/features/settings/d
 import type { CategoryDraft } from '../src/features/settings/domain/categoryDrafts'
 
 function category(name: string, overrides: Partial<CategoryDraft> = {}): CategoryDraft {
-  return { sheetRow: 2, savedName: name, category: name, family: 'operating', bucket: 'operating', colour: '', roles: '', ...overrides }
+  return { sheetRow: 2, savedName: name, category: name, label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', ...overrides }
 }
 
 function account(name: string, overrides: Partial<AccountDraft> = {}): AccountDraft {
-  return { sheetRow: 2, savedName: name, account: name, iban: '', currency: '', ...overrides }
+  return { sheetRow: 2, savedName: name, account: name, label: '', iban: '', currency: '', ...overrides }
 }
 
 describe('the categories editor', () => {
@@ -41,7 +41,7 @@ describe('the categories editor', () => {
   it('writes the cells in lower case and keeps other columns of a saved row', () => {
     const cells = categoryCellsOf([category(' Software ', { roles: 'Revenue,  watched ,' })], new Map([[2, { category: 'software', note: 'mine' }]]))
 
-    expect(cells).toEqual([{ category: 'software', family: 'operating', bucket: 'operating', colour: '', roles: 'revenue, watched', note: 'mine' }])
+    expect(cells).toEqual([{ category: 'software', label: '', family: 'operating', bucket: 'operating', colour: '', roles: 'revenue, watched', note: 'mine' }])
   })
 })
 
@@ -60,7 +60,7 @@ describe('the accounts editor', () => {
 
   it('writes a normalised IBAN and an upper-case currency', () => {
     expect(accountCellsOf([account('Main', { iban: 'xx00 fake 0001', currency: 'eur' })], new Map())).toEqual([
-      { account: 'main', iban: 'XX00FAKE0001', currency: 'EUR' },
+      { account: 'main', label: '', iban: 'XX00FAKE0001', currency: 'EUR' },
     ])
   })
 })

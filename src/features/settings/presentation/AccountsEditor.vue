@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
+import { displayName } from '../../workbook/domain/displayName'
 import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
 import { accountCellsOf, accountDraftErrors } from '../domain/accountDrafts'
 import type { AccountDraft } from '../domain/accountDrafts'
@@ -28,7 +29,7 @@ function draftsOf(rows: readonly SheetRow[]): AccountDraft[] {
     .sort((upper, lower) => upper.sheetRow - lower.sheetRow)
     .map((row) => {
       const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
-      return { sheetRow: row.sheetRow, savedName: text('account'), account: text('account'), iban: text('iban'), currency: text('currency') }
+      return { sheetRow: row.sheetRow, savedName: text('account'), account: text('account'), label: text('label'), iban: text('iban'), currency: text('currency') }
     })
 }
 
@@ -43,7 +44,7 @@ watch(
 const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(draftsOf(props.rows)))
 const errors = computed(() => accountDraftErrors(drafts.value, props.usedNames))
 
-function update(index: number, field: 'account' | 'iban' | 'currency', text: string): void {
+function update(index: number, field: 'account' | 'label' | 'iban' | 'currency', text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
 }
 
@@ -52,7 +53,7 @@ function locked(draft: AccountDraft): boolean {
 }
 
 function addAccount(): void {
-  drafts.value = [...drafts.value, { sheetRow: null, savedName: '', account: '', iban: '', currency: '' }]
+  drafts.value = [...drafts.value, { sheetRow: null, savedName: '', account: '', label: '', iban: '', currency: '' }]
 }
 
 function removeNew(index: number): void {
@@ -71,6 +72,7 @@ function save(): void {
       <thead>
         <tr>
           <th scope="col" class="text-start">Account</th>
+          <th scope="col" class="text-start">Shown as</th>
           <th scope="col" class="text-start">IBAN</th>
           <th scope="col" class="text-start">Currency</th>
           <th v-if="editable" scope="col"><span class="sr-only">Remove</span></th>
@@ -78,14 +80,15 @@ function save(): void {
       </thead>
       <tbody v-if="!editable">
         <tr v-for="draft in drafts" :key="draft.sheetRow ?? draft.account">
-          <th scope="row" class="text-start font-normal text-highlighted">{{ draft.account }}</th>
+          <th scope="row" class="identifier text-start font-normal text-highlighted">{{ draft.account }}</th>
+          <td class="text-toned">{{ displayName(draft.account, draft.label) }}</td>
           <td class="identifier text-toned">{{ draft.iban || '–' }}</td>
           <td class="text-muted">{{ draft.currency || currency }}</td>
         </tr>
       </tbody>
       <tbody v-else>
         <tr v-if="drafts.length === 0">
-          <td colspan="4" class="text-muted">No accounts yet. Add the accounts your ledger rows name.</td>
+          <td colspan="5" class="text-muted">No accounts yet. Add the accounts your ledger rows name.</td>
         </tr>
         <tr v-for="(draft, index) in drafts" :key="draft.sheetRow ?? `new-${index}`">
           <td>
@@ -101,6 +104,16 @@ function save(): void {
               @update:model-value="update(index, 'account', String($event))"
             />
             <p v-if="errors.get(index)?.account" class="field-error">{{ errors.get(index)?.account }}</p>
+          </td>
+          <td>
+            <UInput
+              :model-value="draft.label"
+              :placeholder="displayName(draft.account)"
+              aria-label="Shown as"
+              size="sm"
+              class="w-40"
+              @update:model-value="update(index, 'label', String($event))"
+            />
           </td>
           <td>
             <UInput :model-value="draft.iban" aria-label="IBAN" size="sm" class="identifier w-64" @update:model-value="update(index, 'iban', String($event))" />

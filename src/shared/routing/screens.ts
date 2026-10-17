@@ -1,4 +1,4 @@
-export type ScreenPath = '/' | '/transactions' | '/trends' | '/spending' | '/period-review' | '/cash' | '/review' | '/settings'
+export type ScreenPath = '/' | '/transactions' | '/trends' | '/spending' | '/period-review' | '/cash' | '/review' | '/workbook' | '/settings'
 
 export interface Screen {
   readonly path: ScreenPath
@@ -15,5 +15,6 @@ export const SCREENS: readonly Screen[] = [
   { path: '/period-review', title: 'Period review', icon: 'i-lucide-calendar-range' },
   { path: '/cash', title: 'Cash', icon: 'i-lucide-wallet' },
   { path: '/review', title: 'Review', icon: 'i-lucide-inbox' },
+  { path: '/workbook', title: 'Workbook', icon: 'i-lucide-book-open' },
   { path: '/settings', title: 'Settings', icon: 'i-lucide-settings' },
 ]

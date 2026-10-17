@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import { chartTokens } from '../../../shared/charts/chartTokens'
-import { formatDecimal, formatMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import { formatDecimal, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
@@ -15,12 +15,14 @@ import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { runway } from '../../overview/domain/runway'
 import { windowAverages } from '../../overview/domain/windowAverages'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
+import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { balanceSeries, latestBalances } from '../domain/balances'
 import { TOTAL_SERIES, accountColours, balanceChart } from './cashChart'
 
 const ledger = useFilteredLedger()
 const { drillLocation } = useFilters()
+const names = useDisplayNames()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
@@ -46,10 +48,10 @@ const cash = computed(() => {
     { label: "Runway at the last 12 months' cost", runway: runway(balances.cashOnHand, averages.last12) },
   ]
   return {
-    chart: balanceChart(series.months.filter((month) => charted.has(month.month)), series.accounts, colours, tokens),
+    chart: balanceChart(series.months.filter((month) => charted.has(month.month)), series.accounts, colours, tokens, names.value.account),
     empty: !series.months.some((month) => charted.has(month.month)),
     legend: [
-      ...series.accounts.map((account) => ({ label: account, colour: colours.get(account) ?? 'var(--chart-ink)' })),
+      ...series.accounts.map((account) => ({ label: names.value.account(account), colour: colours.get(account) ?? 'var(--chart-ink)' })),
       { label: TOTAL_SERIES, colour: 'var(--chart-ink)', mark: 'line' as const },
       { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
     ],
@@ -62,6 +64,7 @@ const cash = computed(() => {
     })),
     accounts: balances.accounts.map((account) => ({
       account: account.account,
+      name: names.value.account(account.account),
       colour: colours.get(account.account) ?? 'var(--chart-ink)',
       balance: account.balance.amount,
       to: drillLocation(account.balance.drill),
@@ -117,12 +120,12 @@ const cash = computed(() => {
             <div class="flex items-center justify-between gap-2">
               <p class="flex items-center gap-2 text-sm text-toned">
                 <span class="size-2.5 rounded-[2px]" :style="{ background: account.colour }" aria-hidden="true" />
-                {{ account.account }}
+                {{ account.name }}
               </p>
               <UBadge v-if="account.closed" label="Closed" color="neutral" variant="subtle" size="sm" />
             </div>
-            <DrillLink :to="account.to" :label="`${account.account}, every row`" class="self-start">
-              <span class="text-figure-lg font-semibold whitespace-nowrap text-highlighted">{{ formatMoney(account.balance) }}</span>
+            <DrillLink :to="account.to" :label="`${account.name}, every row`" class="self-start">
+              <span class="text-figure-lg font-semibold whitespace-nowrap text-highlighted">{{ formatWholeMoney(account.balance) }}</span>
             </DrillLink>
             <p class="text-xs text-muted">As of {{ account.asOf }}. {{ account.count }} rows since {{ account.firstSeen }}.</p>
           </li>

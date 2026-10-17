@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 
 import { monthRange } from '../../../shared/calendar/dateRange'
-import { monthLabel } from '../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import type { ChartZoomWindow } from '../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
@@ -43,14 +42,11 @@ const trends = computed(() => {
   const shown = months.filter((month) => charted.has(month.month))
   const startIndex = Math.max(0, months.findIndex((month) => charted.has(month.month)))
   const endIndex = months.length - 1 - Math.max(0, [...months].reverse().findIndex((month) => charted.has(month.month)))
-  const first = shown[0]
-  const last = shown[shown.length - 1]
   return {
     months,
     income: settings.value.bucketLabels.income,
     costs: costLabelsInSentence(settings.value),
     zoom: { startIndex, endIndex },
-    range: first === undefined || last === undefined ? 'No months in this period' : `${monthLabel(first.month)} to ${monthLabel(last.month)}`,
     empty: shown.length === 0,
     byMonth: profitAndLossChart(months, tokens, { series: series.value, netLine: MONTHLY_NET, hidden: hidden.value, zoom: { startIndex, endIndex } }),
     cumulative: cumulativeNetChart(shown, tokens),
@@ -83,7 +79,7 @@ function rescope({ startIndex, endIndex }: ChartZoomWindow): void {
         <DrillChartCard
           :chart="trends.byMonth"
           title="Income and costs by month"
-          :subtitle="`Every month of the ledger. The slider marks the period: ${trends.range}.`"
+          subtitle="Every month of the ledger. The slider marks the period."
           :definition="`${trends.income} above zero, ${trends.costs} below it. Click a legend entry to hide or show it, and a bar to open its rows.`"
           :height="380"
           :phone-height="300"
@@ -101,7 +97,7 @@ function rescope({ startIndex, endIndex }: ChartZoomWindow): void {
           <DrillChartCard
             :chart="trends.cumulative"
             title="Cumulative net"
-            :subtitle="`Running total since the ledger began, shown for ${trends.range}`"
+            subtitle="Running total since the ledger began"
             :empty="trends.empty"
           >
             <template #legend>

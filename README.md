@@ -61,18 +61,24 @@ take their defaults.
 
 | Tab | Columns |
 |---|---|
-| `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `family`, `bucket`, `month`, `flagged_by`, `reference`. `family`, `bucket` and `month` are filled in on export and ignored on import. |
-| `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour`, and an optional comma-separated `roles` |
-| `accounts` | `account`, `iban`, and an optional `currency` |
+| `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `family`, `bucket`, `month`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`. `family`, `bucket` and `month` are filled in on export and ignored on import. |
+| `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour`, an optional comma-separated `roles`, and an optional `label` |
+| `accounts` | `account`, `iban`, an optional `currency`, and an optional `label` |
 | `settings` | `key`, `value`, one row per setting |
+| `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out. |
+
+A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
+and a capital first letter, so `ai-services` reads "AI services". Links and filters keep the name.
 
 `flagged_by` values `rule` and `ai` belong to the categoriser: `ai` marks a guess that waits for
-review. Any other value means a person set the category.
+review. Any other value means a person set the category. A row with `review_reasons`, such as a
+reversal, also waits for review.
 
 ### Settings keys
 
 A blank value means the default. An unknown key is kept and reported. A value that does not hold
-falls back to the default and is reported with its row, in the import summary and on Settings. The
+falls back to the default and is reported with its row, in the import summary and on the Workbook
+screen. The
 defaults are how the app behaved before settings existed, so a Sheet without a `settings` tab reads
 as before.
 
@@ -90,6 +96,7 @@ as before.
 | `label_neutral` | `Neutral` | Same for `neutral`. |
 | `owner_pay_module` | `TRUE` | `FALSE` hides owner pay and owner earns. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
+| `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. An entry that is not an IBAN is reported and the list stays blank. |
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
 Owner earns, Kept). Theme is a per-device choice and not a workbook setting.
@@ -100,7 +107,7 @@ The workbook lives in IndexedDB, under its own id, as the store of record. The a
 to keep it (`navigator.storage.persist()`, which Firefox shows as a prompt). Clearing the site's data
 deletes it, so the exported files are its only other copies.
 
-- **Template.** "Download the empty template" writes a blank xlsx in the browser: the four tabs
+- **Template.** "Download the empty template" writes a blank xlsx in the browser: the five tabs
   with their headers, a note on every header and every settings key, a default category set for a
   freelancer or a small company, and the default settings.
 - **Import.** Open or drop an xlsx file. It goes through the same workbook reader as a Google Sheet,
@@ -109,10 +116,12 @@ deletes it, so the exported files are its only other copies.
 - **Export.** From either mode, "Export to Excel" writes the workbook in the template format as
   `ledgerboard-<company or sheet name>-<yyyy-mm-dd>.xlsx`. Importing an export gives the same
   workbook. When changes have gone a week or more without an export, the sidebar says so.
-- **Editing.** In Excel mode Settings edits the settings, categories and accounts, with the Sheet's
-  rules: each category once, category, family and bucket filled, and a category or account that
-  ledger rows use keeps its name. Ledger rows are changed in Excel and imported again. With a Google
-  Sheet these are read-only on Settings and edited in the Sheet.
+- **Editing.** In Excel mode the Workbook screen edits the settings, categories and accounts, one
+  tab each (`#/workbook?tab=categories` links straight to one), with the Sheet's rules: each
+  category once, category, family and bucket filled, and a category or account that ledger rows use
+  keeps its name. Ledger rows are changed in Excel and imported again. With a Google Sheet these are
+  read-only there and edited in the Sheet. Settings keeps what belongs to this device: the data
+  source, Google sign-out, the theme and the privacy notes.
 
 Switching from Excel mode to another source deletes the workbook kept in the browser, once the new
 one has been read. SheetJS loads only on the first import, export or template download, as its own
@@ -158,6 +167,22 @@ prints each figure as a match, a correction the app makes on purpose (with the r
 MISMATCH, and exits non-zero on any mismatch. The export holds real bank data. Run it locally, keep
 the file outside the repository, and never commit an export or any figure from its output.
 
+## Rules parity
+
+`npm run parity:rules -- --workbook <export.xlsx>` loads the shadow-accounting Apps Script files
+(`--scripts <folder>`, by default `~/gdrive/work/dss/dss-finance/shadow-accounting/scripts`) into
+`node:vm` and runs their categoriser and the app's rules engine over every ledger row, with the
+export's `rules` tab. An export without one is refused, since the Apps Script no longer seeds the tab. It prints
+counts and every row where the two differ in category, `flagged_by` or deciding rule, by sheet row
+and rule id only, and exits non-zero on any. `--statements <folder>` fills the signal columns of
+rows that have none from archived camt files, matched by account and bank reference, for an export
+taken before those columns existed.
+
+Each side reads `card_settlement_ibans` from the export's `settings` tab with its own reader, and
+the script fails when the two lists differ or the Apps Script refuses the tab. An export without a
+`settings` tab gives both sides the `CARD_SETTLEMENT_IBAN` constant of an older `Categorise.gs`, or
+none, and says which.
+
 In development and fake builds, `#/gallery` shows every shared component and chart style with
 made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist
 in a production build.
@@ -186,8 +211,10 @@ with an error that names it.
 ## Content Security Policy
 
 GitHub Pages cannot set headers, so the policy is a `<meta>` tag in `index.html`. Scripts may load
-only from this origin and from Google's two script hosts, frames only from Google's Picker and
-sign-in hosts, and requests go only to the Sheets and Drive APIs, the userinfo endpoint and the
+only from this origin and from Google's two script hosts, plus one inline script allowed by its
+SHA-256 hash, which picks the theme before the first paint so the loading screen is not the wrong
+colour. Editing that script means replacing its hash in the policy. Frames load only from Google's
+Picker and sign-in hosts, and requests go only to the Sheets and Drive APIs, the userinfo endpoint and the
 token revocation endpoint (`oauth2.googleapis.com`, where `google.accounts.oauth2.revoke` posts).
 The manifest and the service worker come from this origin only. Styles allow `'unsafe-inline'`
 because Nuxt UI writes its colour variables into an inline `<style>`, and the Google Picker and

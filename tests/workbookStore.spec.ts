@@ -18,6 +18,7 @@ function tabsOf(amounts: number[]): WorkbookTabs {
     categories: [{ sheetRow: 2, cells: { category: 'revenue', family: 'income', bucket: 'income' } }],
     accounts: [{ sheetRow: 2, cells: { account: 'main', iban: 'XX00FAKE0001' } }],
     settings: [],
+    rules: [],
   }
 }
 

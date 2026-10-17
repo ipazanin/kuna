@@ -25,6 +25,7 @@ import { bucketTotals } from '../src/features/workbook/domain/bucketTotals.ts'
 import { ledgerWindowOf } from '../src/features/workbook/domain/workbook.ts'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
 import { readWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile.ts'
+import { fold } from '../src/shared/text/fold.ts'
 import { balanceSeries, latestBalances } from '../src/features/cash/domain/balances.ts'
 import { euroSplit } from '../src/features/overview/domain/euroSplit.ts'
 import { runway } from '../src/features/overview/domain/runway.ts'
@@ -319,11 +320,13 @@ for (const category of union(everyCategory?.rows.map((row) => row[0]) ?? [], all
 
 const payees = topCounterparties(transactions, { preset: 'all' }, window, 15)
 const topTable = findTable(spend, ['Payee', 'Total out', 'Txns'])
-for (const label of union(topTable?.rows.map((row) => row[0]) ?? [], payees.map((payee) => payee.label))) {
-  const row = rowLabelled(topTable, label)
-  const payee = payees.find((candidate) => candidate.label === label)
-  check(`spend · top payee · ${label} · total out`, 'money', row?.[1], payee?.total.amount ?? null)
-  check(`spend · top payee · ${label} · txns`, 'count', row?.[2], payee?.transactionCount ?? null)
+// The Sheet prints each payee in folded capitals and the app in its most common spelling, so the two
+// sides meet on the folded name.
+for (const foldedLabel of union(topTable?.rows.map((row) => fold(String(row[0]))) ?? [], payees.map((payee) => fold(payee.label)))) {
+  const row = topTable?.rows.find((candidate) => fold(String(candidate[0])) === foldedLabel)
+  const payee = payees.find((candidate) => fold(candidate.label) === foldedLabel)
+  check(`spend · top payee · ${foldedLabel} · total out`, 'money', row?.[1], payee?.total.amount ?? null)
+  check(`spend · top payee · ${foldedLabel} · txns`, 'count', row?.[2], payee?.transactionCount ?? null)
 }
 
 // cash --------------------------------------------------------------------------------------------

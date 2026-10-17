@@ -77,7 +77,7 @@ const deltaPresentation = computed(() => {
           <span>{{ delta.comparison }}</span>
         </p>
       </div>
-      <SparkLine v-if="trend" :points="trend" class="mb-0.5" />
+      <SparkLine v-if="trend" :points="trend" class="kpi-trend mb-0.5" />
     </div>
   </article>
 </template>
@@ -106,6 +106,25 @@ const deltaPresentation = computed(() => {
     display: flex;
     align-items: center;
     margin-block: -0.75rem;
+  }
+
+  /* Two tiles share a phone's row, so they drop the sparkline and set the figure smaller. */
+  .kpi-tile {
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .kpi-tile .text-figure-lg {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .kpi-trend {
+    display: none;
+  }
+
+  .kpi-link .truncate {
+    white-space: normal;
   }
 }
 </style>

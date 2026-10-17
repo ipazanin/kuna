@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import type { MonthKey } from '../../../shared/calendar/monthKey'
+import { monthLabel } from '../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { currencyUnitName, formatDecimal, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
+import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
+import MoneyText from '../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import { balanceSeries, latestBalances } from '../../cash/domain/balances'
 import { useFilters } from '../../filters/application/filterStore'
@@ -19,10 +24,12 @@ import { monthlyProfitAndLoss } from '../../trends/domain/monthlyProfitAndLoss'
 import { ROLLING_3_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSeries } from '../../trends/presentation/profitAndLossChart'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { needsReview } from '../../workbook/domain/needsReview'
+import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { euroSplit } from '../domain/euroSplit'
+import { headline } from '../domain/headline'
 import { runway } from '../domain/runway'
-import { windowAverages } from '../domain/windowAverages'
+import { recentChange, windowAverages } from '../domain/windowAverages'
 import { categoryBarsChart, euroSplitChart, splitLegend, splitParts } from './overviewCharts'
 import WindowComparison from './WindowComparison.vue'
 import type { WindowRow } from './WindowComparison.vue'
@@ -30,8 +37,18 @@ import type { WindowRow } from './WindowComparison.vue'
 const ledger = useFilteredLedger()
 const settings = useSettings()
 const { drillLocation } = useFilters()
+const names = useDisplayNames()
 
 const EMPHASISED_LINES: readonly ProfitAndLossLine[] = ['net', 'ownerEarns']
+
+const LONG_MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
+const LONG_MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+
+/** "September" this year, "December 2025" before it. */
+function monthName(month: MonthKey): string {
+  const date = new Date(`${month}-01`)
+  return (date.getUTCFullYear() === new Date().getFullYear() ? LONG_MONTH : LONG_MONTH_AND_YEAR).format(date)
+}
 
 const overview = computed(() => {
   const current = ledger.value
@@ -51,6 +68,8 @@ const overview = computed(() => {
   const lastTwelve = months.filter((month) => month.complete).slice(-12)
   const lastTwelveAndMonthSoFar = months.slice(-13)
   const cashMonths = balanceSeries(accountRows, window).months.slice(-12)
+  const lastMonthEnd = [...cashMonths].reverse().find((month) => month.complete) ?? null
+  const cashChange = lastMonthEnd === null ? null : balances.cashOnHand.amount - lastMonthEnd.total.amount
   const reviewCount = scoped.filter(needsReview).length
   const sinceLabel = averages.allTime === null ? null : `All time, since ${averages.allTime.span.from}`
 
@@ -63,18 +82,33 @@ const overview = computed(() => {
       label: lineLabel(shown, line),
       emphasised: EMPHASISED_LINES.includes(line),
       cells: columns.map((column) => ({ perMonth: column.lines[line].perMonth, to: drillLocation(column.lines[line].drill) })),
+      recentChange: recentChange(averages.last3.lines[line].perMonth, averages.last12.lines[line].perMonth),
     }))
 
   const operating = categoryTotals(scoped, { preset: 'l12' }, window).filter((total) => total.bucket === 'operating')
   const costChange = averages.last3.lines.cost.perMonth - averages.last12.lines.cost.perMonth
 
+  const said = headline(months, recentRunway.months)
   return {
+    headline:
+      said === null
+        ? null
+        : {
+            month: monthName(said.month),
+            cameIn: { amount: said.cameIn.amount, to: drillLocation(said.cameIn.drill) },
+            wentOut: { amount: said.wentOut.amount, to: drillLocation(said.wentOut.drill) },
+            loss: said.loss,
+            cashLasts: said.cashLasts,
+          },
     tiles: [
       {
         label: 'Cash on hand',
         value: formatWholeMoney(balances.cashOnHand.amount),
         to: drillLocation(balances.cashOnHand.drill),
         trend: cashMonths.map((month) => month.total.amount),
+        ...(cashChange === null || lastMonthEnd === null
+          ? {}
+          : { delta: { change: cashChange, text: formatWholeMoney(cashChange, 'always'), comparison: `since the end of ${monthLabel(lastMonthEnd.month)}` } }),
         definition: 'The closing balance of every account in view on its newest booking day, added together.',
       },
       {
@@ -101,14 +135,11 @@ const overview = computed(() => {
         caption: "At the last 3 months' cost",
         definition: 'Cash on hand divided by the monthly costs: how long the company runs if no more income arrives.',
       },
-      {
-        label: 'Needs review',
-        value: `${reviewCount} ${reviewCount === 1 ? 'row' : 'rows'}`,
-        to: drillLocation(drillToTransactions({ period: { preset: 'all' }, needsReview: true })),
-        caption: 'Guessed by AI or not classified',
-        definition: 'Rows whose category the AI guessed, and rows whose category is missing from the categories tab.',
-      },
     ],
+    review: {
+      count: reviewCount,
+      to: drillLocation(drillToTransactions({ period: { preset: 'all' }, needsReview: true })),
+    },
     comparison,
     columnLabels,
     unit: currencyUnitName(),
@@ -132,7 +163,7 @@ const overview = computed(() => {
       tokens,
     ),
     monthly: profitAndLossChart(lastTwelveAndMonthSoFar, tokens, { series, netLine: ROLLING_3_NET }),
-    operating: categoryBarsChart(operating, tokens, shown.bucketLabels.operating),
+    operating: categoryBarsChart(operating, tokens, shown.bucketLabels.operating, names.value.category),
     operatingCount: operating.length,
   }
 })
@@ -145,13 +176,26 @@ const overview = computed(() => {
       <template v-if="ledger && overview">
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
 
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <KpiTile
-            v-for="(tile, index) in overview.tiles"
-            :key="tile.label"
-            v-bind="tile"
-            :class="index < 3 ? 'lg:col-span-2' : 'lg:col-span-3'"
-          />
+        <p v-if="overview.headline" class="headline" data-testid="headline">
+          {{ overview.headline.month }}:
+          <DrillLink :to="overview.headline.cameIn.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.cameIn.amount" precision="whole" /></DrillLink>
+          came in and
+          <DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" precision="whole" /></DrillLink>
+          went out<template v-if="overview.headline.loss !== null">, a loss of
+            <MoneyText :cents="overview.headline.loss" precision="whole" class="text-negative" /></template>.
+          <template v-if="overview.headline.cashLasts">At this pace the cash lasts {{ overview.headline.cashLasts }}.</template>
+        </p>
+
+        <p v-if="overview.review.count > 0" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="review-notice">
+          <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+          <span>
+            {{ overview.review.count }} {{ overview.review.count === 1 ? 'row waits' : 'rows wait' }} for a category check.
+            <DrillLink :to="overview.review.to" in-prose class="text-highlighted">Review them</DrillLink>
+          </span>
+        </p>
+
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <KpiTile v-for="tile in overview.tiles" :key="tile.label" v-bind="tile" />
         </div>
 
         <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
@@ -173,7 +217,7 @@ const overview = computed(() => {
             :chart="overview.monthly"
             class="xl:col-span-2"
             title="Income and costs by month"
-            subtitle="Last 12 complete months and the month so far. Income above zero, costs below it. Click a bar for its rows."
+            subtitle="Last 12 complete months and the month so far. Income above zero, costs below it. Click a month or a bar for its rows."
             :definition="`Costs are ${overview.costs}. The line is the average net of the three months up to each one, so it starts once three complete months exist.`"
             :height="320"
             :phone-height="260"
@@ -203,3 +247,23 @@ const overview = computed(() => {
     </LedgerGate>
   </section>
 </template>
+
+<style scoped>
+.headline {
+  max-width: 60ch;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}
+
+.headline-figure {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+@media (max-width: 639px) {
+  .headline {
+    font-size: 1rem;
+  }
+}
+</style>

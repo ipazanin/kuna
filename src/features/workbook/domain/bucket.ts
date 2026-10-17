@@ -22,3 +22,19 @@ export function isDefinedBucket(candidate: string): candidate is DefinedBucket {
 export function isBucket(candidate: string): candidate is Bucket {
   return candidate === UNCLASSIFIED || isDefinedBucket(candidate)
 }
+
+/** Which side of the profit and loss a bucket counts on. Financing, neutral and unclassified rows count on neither. */
+export type Direction = 'income' | 'cost'
+
+export function directionOf(bucket: Bucket): Direction | null {
+  switch (bucket) {
+    case 'income':
+      return 'income'
+    case 'operating':
+    case 'taxes':
+    case 'owner-pay':
+      return 'cost'
+    default:
+      return null
+  }
+}

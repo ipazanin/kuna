@@ -1,6 +1,5 @@
-import { monthsOfRange } from '../../../shared/calendar/dateRange'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
-import { monthOf, monthsFrom } from '../../../shared/calendar/monthKey'
+import { addMonths, monthOf, monthsFrom } from '../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { ZERO, moneyFromCents, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
@@ -12,15 +11,34 @@ import type { Bucket } from '../../workbook/domain/bucket'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import type { Transaction } from '../../workbook/domain/workbook'
 
+/** What one counterparty was paid under one category. */
+export interface CounterpartyCategory {
+  /** Empty for rows with no category. */
+  readonly category: string
+  readonly bucket: Bucket
+  /** What left the company under this category, read positive. */
+  readonly amount: Figure
+  readonly transactionCount: number
+}
+
+/** How a payee is paid: in most months, or a single time in the period. Anything else has no tag. */
+export type PaymentRhythm = 'monthly' | 'one-off' | null
+
 export interface CounterpartyTotal {
   readonly key: string
-  /** The alphabetically first folded spelling the group's rows carry, so it stays put as rows arrive. */
+  /** The spelling the rows use most, as written, so a payee reads as the bank wrote it. */
   readonly label: string
-  /** What left the company, read positive. */
+  /** What left the company in the period, read positive. */
   readonly total: Figure
   readonly transactionCount: number
-  /** One amount per month of the period, for a sparkline. */
-  readonly monthly: readonly { readonly month: MonthKey; readonly amount: Money }[]
+  /**
+   * What left the company in each of the 12 months up to the period's last month, whatever the
+   * period's length, so every payee is drawn over the same months.
+   */
+  readonly strip: readonly { readonly month: MonthKey; readonly amount: Money }[]
+  readonly rhythm: PaymentRhythm
+  /** Every category the payments came under, largest first. Together they make up the total. */
+  readonly categories: readonly CounterpartyCategory[]
 }
 
 /**
@@ -33,6 +51,11 @@ const PAYING_BUCKETS: readonly Bucket[] = ['income', 'operating', 'taxes', 'owne
 /** A debit of one cent, the bound a drill uses to say "debits only". */
 const LARGEST_DEBIT = moneyFromCents(-1)
 
+const STRIP_MONTHS = 12
+
+/** A payee paid in at least this share of the strip months the ledger covers, and in at least three, is paid monthly. */
+const MONTHLY_SHARE = 0.75
+
 /** Who the company paid most over a period, grouped by counterparty identity. */
 export function topCounterparties(
   transactions: readonly Transaction[],
@@ -41,32 +64,83 @@ export function topCounterparties(
   limit = 15,
 ): CounterpartyTotal[] {
   const range = periodRange(period, window)
-  const months = range === null ? monthsFrom(window.firstMonth, window.partMonth) : monthsOfRange(range)
-  const groups = new Map<string, { readonly names: Set<string>; total: Money; count: number; readonly byMonth: Map<MonthKey, Money> }>()
+  const lastMonth = range === null || monthOf(range.to) > window.partMonth ? window.partMonth : monthOf(range.to)
+  const stripMonths = monthsFrom(addMonths(lastMonth, 1 - STRIP_MONTHS), lastMonth)
+  const coveredStripMonths = stripMonths.filter((month) => month >= window.firstMonth).length
+  const paidByMonth = paymentsByMonth(transactions)
+  const groups = new Map<
+    string,
+    {
+      readonly spellings: Map<string, number>
+      total: Money
+      count: number
+      readonly byCategory: Map<string, { readonly bucket: Bucket; paid: Money; count: number }>
+    }
+  >()
   for (const transaction of transactionsInPeriod(transactions, period, window)) {
-    if (transaction.amount >= 0 || !PAYING_BUCKETS.includes(transaction.bucket)) {
+    if (!isPayment(transaction)) {
       continue
     }
     const identity = counterpartyIdentity(transaction)
-    const group = groups.get(identity.key) ?? { names: new Set<string>(), total: ZERO, count: 0, byMonth: new Map() }
-    const month = monthOf(transaction.date)
-    group.names.add(identity.foldedName)
+    const group = groups.get(identity.key) ?? { spellings: new Map<string, number>(), total: ZERO, count: 0, byCategory: new Map() }
+    group.spellings.set(identity.writtenName, (group.spellings.get(identity.writtenName) ?? 0) + 1)
     group.total = subtractMoney(group.total, transaction.amount)
     group.count += 1
-    group.byMonth.set(month, subtractMoney(group.byMonth.get(month) ?? ZERO, transaction.amount))
+    const underCategory = group.byCategory.get(transaction.category) ?? { bucket: transaction.bucket, paid: ZERO, count: 0 }
+    underCategory.paid = subtractMoney(underCategory.paid, transaction.amount)
+    underCategory.count += 1
+    group.byCategory.set(transaction.category, underCategory)
     groups.set(identity.key, group)
   }
   return [...groups]
-    .map(([key, group]): CounterpartyTotal => ({
-      key,
-      label: [...group.names].sort()[0] ?? '',
-      total: {
-        amount: group.total,
-        drill: drillToTransactions({ period, counterparties: [key], buckets: PAYING_BUCKETS, amount: { min: null, max: LARGEST_DEBIT } }),
-      },
-      transactionCount: group.count,
-      monthly: months.map((month) => ({ month, amount: group.byMonth.get(month) ?? ZERO })),
-    }))
+    .map(([key, group]): CounterpartyTotal => {
+      const strip = stripMonths.map((month) => ({ month, amount: paidByMonth.get(`${key}|${month}`) ?? ZERO }))
+      const paidMonths = strip.filter((cell) => cell.amount > 0).length
+      return {
+        key,
+        label: mostUsed(group.spellings),
+        total: {
+          amount: group.total,
+          drill: drillToTransactions({ period, counterparties: [key], buckets: PAYING_BUCKETS, amount: { min: null, max: LARGEST_DEBIT } }),
+        },
+        transactionCount: group.count,
+        strip,
+        rhythm:
+          paidMonths >= 3 && paidMonths >= coveredStripMonths * MONTHLY_SHARE ? 'monthly' : group.count === 1 ? 'one-off' : null,
+        categories: [...group.byCategory]
+          .map(([category, paid]): CounterpartyCategory => ({
+            category,
+            bucket: paid.bucket,
+            amount: {
+              amount: paid.paid,
+              drill: drillToTransactions({ period, counterparties: [key], categories: [category], amount: { min: null, max: LARGEST_DEBIT } }),
+            },
+            transactionCount: paid.count,
+          }))
+          .sort((left, right) => right.amount.amount - left.amount.amount || left.category.localeCompare(right.category)),
+      }
+    })
     .sort((left, right) => right.total.amount - left.total.amount || left.label.localeCompare(right.label))
     .slice(0, limit)
+}
+
+function isPayment(transaction: Transaction): boolean {
+  return transaction.amount < 0 && PAYING_BUCKETS.includes(transaction.bucket)
+}
+
+/** What left the company per counterparty and month, over every row given, keyed "counterparty|month". */
+function paymentsByMonth(transactions: readonly Transaction[]): Map<string, Money> {
+  const paid = new Map<string, Money>()
+  for (const transaction of transactions) {
+    if (isPayment(transaction)) {
+      const key = `${counterpartyIdentity(transaction).key}|${monthOf(transaction.date)}`
+      paid.set(key, subtractMoney(paid.get(key) ?? ZERO, transaction.amount))
+    }
+  }
+  return paid
+}
+
+/** The spelling used most, and of equals the alphabetically first, so the label does not flicker. */
+function mostUsed(spellings: ReadonlyMap<string, number>): string {
+  return [...spellings].sort(([leftName, leftCount], [rightName, rightCount]) => rightCount - leftCount || leftName.localeCompare(rightName))[0]?.[0] ?? ''
 }

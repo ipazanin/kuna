@@ -86,9 +86,10 @@ export function formatWholeMoney(cents: number, sign: SignDisplay = 'negative'):
   return withSign(cents, formatters().whole.format(Math.round(Math.abs(cents) / 100)), sign)
 }
 
-/** €12.4K style, for axis ticks and tight labels. */
+/** €12.4K style, for axis ticks and tight labels. Under a thousand it is whole units, so €907 sits beside €5.6K. */
 export function formatCompactMoney(cents: number, sign: SignDisplay = 'negative'): string {
-  return withSign(cents, formatters().compact.format(Math.abs(cents) / 100), sign)
+  const units = Math.abs(cents) / 100
+  return withSign(cents, units < 1000 ? formatters().whole.format(Math.round(units)) : formatters().compact.format(units), sign)
 }
 
 export function formatPercent(fraction: number, sign: SignDisplay = 'negative'): string {

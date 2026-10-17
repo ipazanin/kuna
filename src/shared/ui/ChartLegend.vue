@@ -4,7 +4,7 @@ export interface LegendEntry {
   /** Any CSS colour, usually a series or bucket token such as `var(--bucket-taxes)`. */
   readonly colour: string
   /** Mirrors the mark: a block for bars and areas, a stroke for lines. */
-  readonly mark?: 'bar' | 'line' | 'hatched' | 'ghost'
+  readonly mark?: 'bar' | 'line' | 'hatched' | 'ghost' | 'outline'
 }
 </script>
 
@@ -91,6 +91,13 @@ const emit = defineEmits<{
 .swatch-ghost {
   background: var(--chart-ghost);
   box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.swatch-outline {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1.5px var(--swatch);
 }
 
 .swatch-line {

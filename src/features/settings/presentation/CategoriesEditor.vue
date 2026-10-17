@@ -5,6 +5,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { BUCKETS } from '../../workbook/domain/bucket'
+import { displayName } from '../../workbook/domain/displayName'
 import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
 import { categoryCellsOf, categoryDraftErrors, keepsItsName } from '../domain/categoryDrafts'
 import type { CategoryDraft } from '../domain/categoryDrafts'
@@ -29,7 +30,7 @@ function draftsOf(rows: readonly SheetRow[]): CategoryDraft[] {
     .sort((upper, lower) => upper.sheetRow - lower.sheetRow)
     .map((row) => {
       const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
-      return { sheetRow: row.sheetRow, savedName: text('category'), category: text('category'), family: text('family'), bucket: text('bucket').toLowerCase(), colour: text('colour'), roles: text('roles') }
+      return { sheetRow: row.sheetRow, savedName: text('category'), category: text('category'), label: text('label'), family: text('family'), bucket: text('bucket').toLowerCase(), colour: text('colour'), roles: text('roles') }
     })
 }
 
@@ -56,7 +57,7 @@ function locked(draft: CategoryDraft): boolean {
 }
 
 function addCategory(): void {
-  drafts.value = [...drafts.value, { sheetRow: null, savedName: '', category: '', family: '', bucket: 'operating', colour: '', roles: '' }]
+  drafts.value = [...drafts.value, { sheetRow: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '' }]
 }
 
 function removeNew(index: number): void {
@@ -75,6 +76,7 @@ function save(): void {
       <thead>
         <tr>
           <th scope="col" class="text-start">Category</th>
+          <th scope="col" class="text-start">Shown as</th>
           <th scope="col" class="text-start">Family</th>
           <th scope="col" class="text-start">Bucket</th>
           <th scope="col" class="text-start">Colour</th>
@@ -84,7 +86,8 @@ function save(): void {
       </thead>
       <tbody v-if="!editable">
         <tr v-for="draft in drafts" :key="draft.sheetRow ?? draft.category">
-          <th scope="row" class="text-start font-normal text-highlighted">{{ draft.category }}</th>
+          <th scope="row" class="identifier text-start font-normal text-highlighted">{{ draft.category }}</th>
+          <td class="text-toned">{{ displayName(draft.category, draft.label) }}</td>
           <td class="text-toned">{{ draft.family }}</td>
           <td>
             <span class="inline-flex items-center gap-1.5 text-toned">
@@ -116,6 +119,16 @@ function save(): void {
               @update:model-value="update(index, 'category', String($event))"
             />
             <p v-if="errors.get(index)?.category" class="field-error">{{ errors.get(index)?.category }}</p>
+          </td>
+          <td>
+            <UInput
+              :model-value="draft.label"
+              :placeholder="displayName(draft.category)"
+              aria-label="Shown as"
+              size="sm"
+              class="w-44"
+              @update:model-value="update(index, 'label', String($event))"
+            />
           </td>
           <td>
             <UInput

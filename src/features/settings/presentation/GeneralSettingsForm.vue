@@ -8,7 +8,7 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
-import { currencyProblem, settingsErrors } from '../domain/settings'
+import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
 import type { Settings } from '../domain/settings'
 
 const props = defineProps<{
@@ -50,6 +50,22 @@ function update<Field extends keyof Settings>(field: Field, value: Settings[Fiel
   draft.value = { ...draft.value, [field]: value }
 }
 
+/** The IBANs as typed, so a trailing comma survives until the next IBAN is written. */
+const cardIbansText = ref(props.settings.cardSettlementIbans.join(', '))
+watch(
+  () => draft.value.cardSettlementIbans,
+  (ibans) => {
+    if (JSON.stringify(ibanListOf(cardIbansText.value)) !== JSON.stringify(ibans)) {
+      cardIbansText.value = ibans.join(', ')
+    }
+  },
+)
+
+function updateCardIbans(text: string): void {
+  cardIbansText.value = text
+  update('cardSettlementIbans', ibanListOf(text))
+}
+
 function updateLabel(bucket: DefinedBucket, label: string): void {
   draft.value = { ...draft.value, bucketLabels: { ...draft.value.bucketLabels, [bucket]: label } }
 }
@@ -60,6 +76,7 @@ const readOnlyFacts = computed(() => [
   { label: 'Number locale', value: props.settings.numberLocale },
   { label: 'Owner-pay module', value: props.settings.ownerPayModule ? 'On' : 'Off' },
   { label: 'Review label', value: props.settings.reviewLabel },
+  { label: 'Card settlement IBANs', value: props.settings.cardSettlementIbans.join(', ') || 'None' },
 ])
 </script>
 
@@ -112,6 +129,14 @@ const readOnlyFacts = computed(() => [
         help="What flagged_by will say on a row a person confirms in the app. rule and ai are the categoriser's."
       >
         <UInput :model-value="draft.reviewLabel" class="w-full" @update:model-value="update('reviewLabel', String($event).trim().toLowerCase())" />
+      </UFormField>
+      <UFormField
+        label="Card settlement IBANs"
+        :error="errors.cardSettlementIbans ?? false"
+        help="The bank's card settlement accounts, comma separated. A row paid to one of them reads as a card purchase."
+        class="sm:col-span-2"
+      >
+        <UInput :model-value="cardIbansText" placeholder="None" class="identifier w-full" @update:model-value="updateCardIbans(String($event))" />
       </UFormField>
     </div>
 

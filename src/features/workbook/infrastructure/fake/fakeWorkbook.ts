@@ -142,6 +142,7 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
     categories: sheetRowsFromValues(values.categories),
     accounts: sheetRowsFromValues(values.accounts),
     settings: sheetRowsFromValues(values.settings),
+    rules: sheetRowsFromValues(values.rules),
   }
 }
 
@@ -155,6 +156,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       ...CATEGORY_SEED.flatMap((group) => group.categories.map(([category, bucket]) => [category, group.family, bucket, group.colour])),
     ],
     accounts: [['account', 'iban'], ...Object.entries(ACCOUNTS).map(([account, iban]) => [account, iban])],
+    rules: [],
   }
 }
 

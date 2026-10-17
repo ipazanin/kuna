@@ -70,7 +70,7 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
     bottom: 0;
     left: -1.5rem;
     width: 1px;
-    background: linear-gradient(to bottom, var(--accent) 0%, transparent 85%);
+    background: var(--accent);
     opacity: 0.6;
   }
 }

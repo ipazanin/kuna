@@ -41,7 +41,7 @@ const geometry = computed(() => {
     <polyline
       :points="geometry.path"
       fill="none"
-      stroke="var(--chart-deemphasis)"
+      stroke="var(--chart-ink-muted)"
       stroke-width="1.5"
       stroke-linecap="round"
       stroke-linejoin="round"
