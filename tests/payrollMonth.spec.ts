@@ -8,7 +8,7 @@ import { parseMonthKey } from '../src/shared/calendar/monthKey'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
-import { ZAGREB_RESIDENT, zagrebRules } from './fixtures/zagrebResident'
+import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
 
 function month(text: string): MonthKey {
   const key = parseMonthKey(text)
@@ -37,7 +37,7 @@ function salary(spec: Salary, facts: EmployeeFacts = ZAGREB_RESIDENT): PayrollMo
     nontaxablePayments: spec.nontaxable ?? [],
     basis: 'plan',
   }
-  return payrollMonth(input, facts, zagrebRules)
+  return payrollMonth(input, facts)
 }
 
 function lines(payroll: PayrollMonth) {
@@ -375,12 +375,12 @@ describe('payroll month of an employed director in Zagreb', () => {
       basis: 'plan',
     }
 
-    expect(() => payrollMonth(input, ZAGREB_RESIDENT)).toThrow('no income tax rates for Zagreb')
-    expect(() => payrollMonth({ ...input, nontaxablePayments: [{ payment: 'gym', amount: euros(30) }] }, ZAGREB_RESIDENT, zagrebRules)).toThrow(
+    expect(() => payrollMonth(input, { ...ZAGREB_RESIDENT, residenceCity: 'Atlantis' })).toThrow('"Atlantis" is not a Croatian city or municipality')
+    expect(() => payrollMonth({ ...input, nontaxablePayments: [{ payment: 'gym', amount: euros(30) }] }, ZAGREB_RESIDENT)).toThrow(
       'gym is not a non-taxable payment',
     )
-    expect(() => payrollMonth({ ...input, paidOn: civil('2026-02-27') }, ZAGREB_RESIDENT, zagrebRules)).toThrow('cannot be paid on')
-    expect(() => payrollMonth({ ...input, daysWorked: 23 }, ZAGREB_RESIDENT, zagrebRules)).toThrow('not a share of a month')
-    expect(() => payrollMonth(input, { ...ZAGREB_RESIDENT, dependants: 6 }, zagrebRules)).toThrow('outside the 5 positions')
+    expect(() => payrollMonth({ ...input, paidOn: civil('2026-02-27') }, ZAGREB_RESIDENT)).toThrow('cannot be paid on')
+    expect(() => payrollMonth({ ...input, daysWorked: 23 }, ZAGREB_RESIDENT)).toThrow('not a share of a month')
+    expect(() => payrollMonth(input, { ...ZAGREB_RESIDENT, dependants: 6 })).toThrow('outside the 5 positions')
   })
 })

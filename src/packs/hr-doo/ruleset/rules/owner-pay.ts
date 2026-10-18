@@ -13,6 +13,18 @@ import type {
   TableTerm,
   TextTerm,
 } from '../schema'
+import { LOCAL_RATE_TABLES } from './generatedLocalRates'
+
+/** One city or municipality: its official name, its rates, its type as the statutory ranges name it and its county. */
+type LocalRatesRow = {
+  readonly unit: TextTerm
+  readonly lowerRate: RateTerm
+  readonly higherRate: RateTerm
+  readonly unitType: TextTerm
+  readonly county: TextTerm
+  readonly decisionNn: TextTerm
+  readonly appliesFrom: TextTerm
+}
 
 export interface OwnerPayValues {
   'hr.contrib.average-wage': {
@@ -87,7 +99,7 @@ export interface OwnerPayValues {
     }>
   }
   'hr.pit.local-rates': {
-    readonly cityRates: TableTerm<{ readonly city: TextTerm; readonly lowerRate: RateTerm; readonly higherRate: RateTerm }>
+    readonly citiesAndMunicipalities: TableTerm<LocalRatesRow>
   }
   'hr.pit.monthly-advance': {
     readonly baseDeductsPensionContributions: FlagTerm
@@ -214,7 +226,7 @@ const nontaxableCapSources: readonly LegalSource[] = [
   { act: 'PravPDoh', nn: ['16/25'], article: '2', ofAmendingAct: true, url: NN_16_25_PRAVILNIK_URL, loadedOn: LOADED_ON },
 ]
 
-const splitDecisionTransitionalSource: LegalSource = {
+const localRatesTransitionalSource: LegalSource = {
   act: 'ZPDoh',
   nn: ['152/24'],
   article: '14',
@@ -223,14 +235,71 @@ const splitDecisionTransitionalSource: LegalSource = {
   loadedOn: LOADED_ON,
 }
 
-const splitDecision2025Source: LegalSource = {
-  act: 'OdlukaSplit',
-  nn: ['35/25'],
-  article: '1',
-  ofAmendingAct: true,
-  url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2025_02_35_434.html',
-  loadedOn: LOADED_ON,
+const localRatesRangeSource: LegalSource = { act: 'ZPDoh', nn: ['152/24'], article: '19.a(2), 19.a(3), 19.a(5)', url: ZPDOH_URL, loadedOn: LOADED_ON }
+
+const LOCAL_RATE_TABLE_FOLDER = 'https://porezna-uprava.gov.hr/UserDocsImages'
+
+/** The Porezna uprava table behind each version, by the day it takes effect. */
+const LOCAL_RATE_TABLE_PAGES = new Map([
+  ['2025-01-01', { title: 'of 2025 rates as at 1 January 2025', url: `${LOCAL_RATE_TABLE_FOLDER}/Arhiva/Dokumenti%20vijesti/Stope%20poreza%20na%20dohodak%202025.xlsx` }],
+  [
+    '2025-03-01',
+    {
+      title: 'of 2025 rates as at 1 March 2025',
+      url: `${LOCAL_RATE_TABLE_FOLDER}/Portal_porezne_konkurentnosti/Odluke_JLS/Porezne%20stope%20godi%C5%A1njeg%20poreza%20na%20dohodak/Tablica%20poreznih%20stopa%20godi%C5%A1njeg%20poreza%20na%20dohodak%20za%202025.%20godinu%20(stanje%201.%20o%C5%BEujka%202025.).xlsx`,
+    },
+  ],
+  [
+    '2026-01-01',
+    {
+      title: 'of 2026 rates',
+      url: `${LOCAL_RATE_TABLE_FOLDER}/Portal_porezne_konkurentnosti/Odluke_JLS/Porezne%20stope%20godi%C5%A1njeg%20poreza%20na%20dohodak/Tablica%20poreznih%20stopa%20godi%C5%A1njeg%20poreza%20na%20dohodak%20za%202026%20godinu.xlsx`,
+    },
+  ],
+])
+
+interface LocalRatesVersionData {
+  readonly validFrom: string
+  readonly validTo: string
+  readonly citiesAndMunicipalities: TableTerm<LocalRatesRow>
+  readonly source: LegalSource
 }
+
+function localRatesVersionData(validFrom: string): LocalRatesVersionData {
+  const generated = LOCAL_RATE_TABLES.find((candidate) => candidate.validFrom === validFrom)
+  const page = LOCAL_RATE_TABLE_PAGES.get(validFrom)
+  if (generated === undefined || page === undefined) {
+    throw new RangeError(`No Porezna uprava table of local rates starts on ${validFrom}.`)
+  }
+  return {
+    validFrom: generated.validFrom,
+    validTo: generated.validTo,
+    citiesAndMunicipalities: table(
+      generated.rows.map((row) => ({
+        unit: text(row.unit),
+        lowerRate: basisPoints(row.lowerRate),
+        higherRate: basisPoints(row.higherRate),
+        unitType: text(row.unitType),
+        county: text(row.county),
+        decisionNn: text(row.decision),
+        appliesFrom: text(row.appliesFrom),
+      })),
+    ),
+    source: {
+      act: 'OdlukeJLS',
+      nn: generated.decisionIssues,
+      article: `Porezna uprava table ${page.title}`,
+      url: page.url,
+      loadedOn: LOADED_ON,
+    },
+  }
+}
+
+const localRatesEarly2025 = localRatesVersionData('2025-01-01')
+const localRates2025 = localRatesVersionData('2025-03-01')
+const localRates2026 = localRatesVersionData('2026-01-01')
+
+const NO_DECISION_NOTE = 'A unit listed with NN 114/23 alone, the amendment of the income tax act, adopted no decision and has 20% and 30%.'
 
 const minimumWageActSources: readonly LegalSource[] = [
   { act: 'ZMP', nn: ['120/21'], article: '4(2)', url: ZMP_URL, loadedOn: LOADED_ON },
@@ -619,10 +688,7 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
             { unitType: text('zagreb'), lowerRateFrom: basisPoints(1500), lowerRateTo: basisPoints(2300), higherRateFrom: basisPoints(2500), higherRateTo: basisPoints(3300) },
           ]),
         },
-        sources: [
-          { act: 'ZPDoh', nn: ['152/24'], article: '19.a(2), 19.a(3), 19.a(5)', url: ZPDOH_URL, loadedOn: LOADED_ON },
-          { act: 'ZPDoh', nn: ['152/24'], article: '4', ofAmendingAct: true, url: NN_152_24_URL, loadedOn: LOADED_ON },
-        ],
+        sources: [localRatesRangeSource, { act: 'ZPDoh', nn: ['152/24'], article: '4', ofAmendingAct: true, url: NN_152_24_URL, loadedOn: LOADED_ON }],
         confidence: 'confirmed-nn',
         note: 'Each local unit adopts its own rates by the end of November, and they apply from 1 January of the next year. The unit of the taxpayer\'s residence decides. A unit that adopts nothing uses 20% and 30%. 2027 is assumed, with no enacted change found through NN 109/26.',
       },
@@ -631,41 +697,40 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
   {
     id: 'hr.pit.local-rates',
     area: 'owner-pay',
-    title: 'Local income tax rates of Split',
+    title: 'Local income tax rates by city and municipality',
     appliesBy: 'payment-date',
     versions: [
       {
-        validFrom: day('2025-01-01'),
-        validTo: day('2025-02-28'),
-        value: {
-          cityRates: table([{ city: text('Split'), lowerRate: basisPoints(2150), higherRate: basisPoints(3225) }]),
-        },
-        sources: [
-          { act: 'OdlukaSplit', nn: ['150/23'], article: '2', url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2023_12_150_2185.html', loadedOn: LOADED_ON },
-          splitDecisionTransitionalSource,
-        ],
-        confidence: 'confirmed-nn',
-        note: 'These rates apply to monthly advances until 28 February 2025. The annual settlement of 2025 uses the rates from 1 March 2025 for the whole year, so look it up on 31 December.',
+        validFrom: day(localRatesEarly2025.validFrom),
+        validTo: day(localRatesEarly2025.validTo),
+        value: { citiesAndMunicipalities: localRatesEarly2025.citiesAndMunicipalities },
+        sources: [localRatesEarly2025.source, localRatesRangeSource, localRatesTransitionalSource],
+        confidence: 'confirmed-table',
+        note: `The rates monthly advances use until 28 February 2025. A unit whose rates fell outside the new ranges had until then to adopt new ones. The annual settlement of 2025 uses the rates from 1 March 2025 for the whole year, so look it up on 31 December. ${NO_DECISION_NOTE}`,
       },
       {
-        validFrom: day('2025-03-01'),
-        validTo: day('2026-12-31'),
-        value: {
-          cityRates: table([{ city: text('Split'), lowerRate: basisPoints(2150), higherRate: basisPoints(3200) }]),
-        },
-        sources: [splitDecision2025Source, splitDecisionTransitionalSource],
-        confidence: 'confirmed-nn',
-        note: 'The Porezna uprava table of local rates for 2026 lists Split with the same two decisions, so 2026 is unchanged. The new higher rate applies to advances from 1 March 2025 and to the whole 2025 annual tax.',
+        validFrom: day(localRates2025.validFrom),
+        validTo: day(localRates2025.validTo),
+        value: { citiesAndMunicipalities: localRates2025.citiesAndMunicipalities },
+        sources: [localRates2025.source, localRatesRangeSource, localRatesTransitionalSource],
+        confidence: 'confirmed-table',
+        note: `The rates monthly advances use from 1 March 2025, and the rates of the whole 2025 annual settlement. ${NO_DECISION_NOTE}`,
+      },
+      {
+        validFrom: day(localRates2026.validFrom),
+        validTo: day(localRates2026.validTo),
+        value: { citiesAndMunicipalities: localRates2026.citiesAndMunicipalities },
+        sources: [localRates2026.source, localRatesRangeSource],
+        confidence: 'confirmed-table',
+        note: NO_DECISION_NOTE,
       },
       {
         validFrom: day('2027-01-01'),
         validTo: null,
-        value: {
-          cityRates: table([{ city: text('Split'), lowerRate: basisPoints(2150), higherRate: basisPoints(3200) }]),
-        },
-        sources: [splitDecision2025Source],
+        value: { citiesAndMunicipalities: localRates2026.citiesAndMunicipalities },
+        sources: [localRates2026.source, localRatesRangeSource],
         confidence: 'unconfirmed',
-        note: 'Assumed unchanged. Split can adopt a new decision by 30 November 2026, published in the Narodne novine in December 2026. Recheck then.',
+        note: 'A copy of 2026. Each unit can adopt new rates by 30 November 2026, published in the Narodne novine and in force from 1 January 2027. Replace it with the Porezna uprava table for 2027.',
       },
     ],
   },

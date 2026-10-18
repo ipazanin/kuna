@@ -7,7 +7,7 @@ import { payrollMonth } from '../src/packs/hr-doo/domain/payroll/payrollMonth'
 import type { PayrollMonth } from '../src/packs/hr-doo/domain/payroll/payrollMonth'
 import { lastDayOf, monthKey } from '../src/shared/calendar/monthKey'
 import { civil, euros } from './fixtures/ledger'
-import { ZAGREB_RESIDENT, zagrebRules } from './fixtures/zagrebResident'
+import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
 
 /** Twelve months of the year at an agreed gross, each paid on the last day of the month worked. */
 function yearOfSalary(year: number, agreed: number): readonly PayrollMonth[] {
@@ -24,14 +24,13 @@ function yearOfSalary(year: number, agreed: number): readonly PayrollMonth[] {
         basis: 'plan',
       },
       ZAGREB_RESIDENT,
-      zagrebRules,
     )
   })
 }
 
 function settle(taxYear: number, months: readonly PayrollMonth[], birthYear: number | null): AnnualSettlement {
   const facts: EmployeeFacts = { ...ZAGREB_RESIDENT, birthYear }
-  return annualSettlement({ taxYear, months, basis: 'plan' }, facts, zagrebRules)
+  return annualSettlement({ taxYear, months, basis: 'plan' }, facts)
 }
 
 function outcome(settlement: AnnualSettlement) {
@@ -128,7 +127,6 @@ describe('annual settlement of salary', () => {
           basis: 'plan',
         },
         ZAGREB_RESIDENT,
-        zagrebRules,
       )
     })
     const settlement = settle(2026, partYear, 1990)

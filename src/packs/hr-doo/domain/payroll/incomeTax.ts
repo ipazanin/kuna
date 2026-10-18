@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { findLocalUnit } from '../../ruleset/localUnits'
 import type { Rate, RuleCitation } from '../../ruleset/schema'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 import { atRate, percentText, tracedFigure } from './payrollArithmetic'
@@ -8,7 +9,7 @@ import type { RuleSource } from './payrollArithmetic'
 
 /** The employee's own facts, which are workbook settings and never part of the ruleset. */
 export interface EmployeeFacts {
-  /** The city of residence, which sets the income tax rates. It must be a city the ruleset lists. */
+  /** The city or municipality of residence, which sets the income tax rates, as `findLocalUnit` reads a name. */
   readonly residenceCity: string
   readonly pensionPillarTwo: boolean
   /** Dependent family members and children on the tax card, each adding a multiple of the allowance. */
@@ -24,12 +25,16 @@ export interface LocalRates {
 }
 
 export function localRates(city: string, on: CivilDate, rules: RuleSource): LocalRates {
-  const lookup = rules('hr.pit.local-rates', on)
-  const cityRow = lookup.value.cityRates.rows.find((row) => row.city.text === city)
-  if (cityRow === undefined) {
-    throw new RangeError(`The ruleset has no income tax rates for ${city} on ${on}.`)
+  const { unit, problem } = findLocalUnit(city)
+  if (unit === null) {
+    throw new RangeError(`No local income tax rates on ${on}: ${problem}.`)
   }
-  return { lowerRate: cityRow.lowerRate.basisPoints, higherRate: cityRow.higherRate.basisPoints, citation: lookup.citation }
+  const lookup = rules('hr.pit.local-rates', on)
+  const unitRow = lookup.value.citiesAndMunicipalities.rows.find((row) => row.unit.text === unit.unit && row.county.text === unit.county)
+  if (unitRow === undefined) {
+    throw new RangeError(`The ruleset has no income tax rates for ${unit.label} on ${on}.`)
+  }
+  return { lowerRate: unitRow.lowerRate.basisPoints, higherRate: unitRow.higherRate.basisPoints, citation: lookup.citation }
 }
 
 /** The basic allowance plus one multiple of it for each dependant, by position on the tax card. */

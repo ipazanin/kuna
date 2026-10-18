@@ -8,12 +8,14 @@ import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { fold } from '../../../../shared/text/fold'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import { useSettings } from '../../../../features/settings/application/useSettings'
+import { findLocalUnit } from '../localUnits'
 import { RULES, RULESET_CHECKED_ON, watchItems } from '../ruleset'
 import type { GeneralRule, RuleArea } from '../schema'
 import ConfidenceBadge from './ConfidenceBadge.vue'
 import RuleCard from './RuleCard.vue'
 import WatchList from './WatchList.vue'
 import { AREA_WORDING, CONFIDENCE_ORDER, CONFIDENCE_WORDING, dayLabel, openItemView, ruleView, termFormat, watchedVersionView } from './ruleWording'
+import type { TableFocus } from './ruleWording'
 
 type AreaChoice = RuleArea | 'all'
 
@@ -29,6 +31,18 @@ const rules = computed(() => {
   const format = termFormat(settings.value.numberLocale)
   return generalRules.map((rule) => ruleView(rule, format))
 })
+
+/** The local rates open on the unit the owner lives in, found by its name and its county. */
+const localRatesFocus = computed((): TableFocus => {
+  const { unit } = findLocalUnit(settings.value.companyFacts.residenceCity)
+  return unit === null
+    ? { cells: null, hint: 'Search for a city or municipality, or show them all. Set where the owner lives in Settings to open on that one.' }
+    : { cells: [unit.unit, unit.county], hint: '' }
+})
+
+function tableFocusOf(ruleId: string): TableFocus | null {
+  return ruleId === 'hr.pit.local-rates' ? localRatesFocus.value : null
+}
 
 const watched = watchItems().map((watchItem) => (watchItem.kind === 'version' ? watchedVersionView(watchItem.rule, watchItem.version) : openItemView(watchItem.item)))
 
@@ -143,7 +157,14 @@ watch(
         </h2>
         <p class="mt-0.5 text-xs text-muted">{{ section.description }}</p>
       </header>
-      <RuleCard v-for="rule in section.rules" :key="rule.id" :rule="rule" :phone="phone" :linked="rule.id === linkedRule" />
+      <RuleCard
+        v-for="rule in section.rules"
+        :key="rule.id"
+        :rule="rule"
+        :phone="phone"
+        :linked="rule.id === linkedRule"
+        :table-focus="tableFocusOf(rule.id)"
+      />
     </section>
 
     <section class="rounded-card border border-default bg-raised shadow-raised" aria-labelledby="marks-title">

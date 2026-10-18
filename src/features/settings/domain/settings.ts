@@ -157,7 +157,7 @@ function withFacts(settings: Settings, facts: Partial<CompanyFacts>): Settings {
 const COMPANY_FACT_DEFINITIONS: readonly SettingDefinition[] = [
   {
     key: 'hr_residence_city',
-    note: 'The city or municipality the owner lives in, such as Zagreb. It sets the local income tax rates. Blank uses the default rates.',
+    note: 'The city or municipality the owner lives in, such as Zagreb. It sets the local income tax rates, so payroll figures stay empty while it is blank.',
     valueOf: (settings) => settings.companyFacts.residenceCity,
     apply: (settings, cell) => {
       const city = String(cell).trim()

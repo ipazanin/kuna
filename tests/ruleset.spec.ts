@@ -539,28 +539,51 @@ describe('the values derived from other values', () => {
     expect(problems).toEqual([])
   })
 
-  it('keeps the Split rates inside the range for a county seat once the transitional rule has run', () => {
+  it('lists the same 556 units in every version of the local rates, each named once in its county', () => {
+    const localRates = rules.find((rule) => rule.id === 'hr.pit.local-rates')
+    const problems: string[] = []
+    const unitsOf = (version: RuleVersion<RuleTerms>): string[] =>
+      ruleValue('hr.pit.local-rates', version.validFrom).value.citiesAndMunicipalities.rows.map((row) => `${row.unit.text} (${row.county.text})`)
+    const firstUnits = unitsOf(localRates?.versions[0] as RuleVersion<RuleTerms>)
+    for (const version of localRates?.versions ?? []) {
+      const units = unitsOf(version)
+      if (units.length !== 556 || new Set(units).size !== units.length) {
+        problems.push(`${version.validFrom}: ${units.length} rows, ${new Set(units).size} distinct units`)
+      }
+      if (JSON.stringify(units) !== JSON.stringify(firstUnits)) {
+        problems.push(`${version.validFrom}: not the units of the first version`)
+      }
+    }
+    expect(problems).toEqual([])
+  })
+
+  it('keeps every unit inside the range for its type from 1 March 2025, and at the default rates when it adopted no decision', () => {
     const localRates = rules.find((rule) => rule.id === 'hr.pit.local-rates')
     const problems: string[] = []
     for (const version of localRates?.versions ?? []) {
       if (version.validFrom < day('2025-03-01')) {
         continue
       }
-      const split = ruleValue('hr.pit.local-rates', version.validFrom).value.cityRates.rows.find((row) => row.city.text === 'Split')
-      const range = ruleValue('hr.pit.local-rate-ranges', version.validFrom).value.ranges.rows.find(
-        (row) => row.unitType.text === 'large-town-or-county-seat',
-      )
-      if (split === undefined || range === undefined) {
-        problems.push(`${version.validFrom}: no Split row or no county seat range`)
-        continue
-      }
-      const lower = split.lowerRate.basisPoints
-      const higher = split.higherRate.basisPoints
-      if (lower < range.lowerRateFrom.basisPoints || lower > range.lowerRateTo.basisPoints) {
-        problems.push(`${version.validFrom}: lower rate ${lower} is outside the range`)
-      }
-      if (higher < range.higherRateFrom.basisPoints || higher > range.higherRateTo.basisPoints) {
-        problems.push(`${version.validFrom}: higher rate ${higher} is outside the range`)
+      const ranges = ruleValue('hr.pit.local-rate-ranges', version.validFrom).value
+      for (const row of ruleValue('hr.pit.local-rates', version.validFrom).value.citiesAndMunicipalities.rows) {
+        const where = `${version.validFrom} ${row.unit.text} (${row.county.text})`
+        const range = ranges.ranges.rows.find((candidate) => candidate.unitType.text === row.unitType.text)
+        if (range === undefined) {
+          problems.push(`${where}: no statutory range for a ${row.unitType.text}`)
+          continue
+        }
+        const lower = row.lowerRate.basisPoints
+        const higher = row.higherRate.basisPoints
+        if (lower < range.lowerRateFrom.basisPoints || lower > range.lowerRateTo.basisPoints) {
+          problems.push(`${where}: lower rate ${lower} is outside the range for a ${row.unitType.text}`)
+        }
+        if (higher < range.higherRateFrom.basisPoints || higher > range.higherRateTo.basisPoints) {
+          problems.push(`${where}: higher rate ${higher} is outside the range for a ${row.unitType.text}`)
+        }
+        const noDecision = row.decisionNn.text === '114/23'
+        if (noDecision && (lower !== ranges.defaultLowerRate.basisPoints || higher !== ranges.defaultHigherRate.basisPoints)) {
+          problems.push(`${where}: no decision, but not the default rates`)
+        }
       }
     }
     expect(localRates?.versions.length).toBeGreaterThan(1)

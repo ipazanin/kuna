@@ -1,3 +1,5 @@
+import { LOCAL_RATE_DECISION_ISSUES } from './rules/generatedLocalRates'
+
 export type ActId =
   | 'ZPD'
   | 'PravPD'
@@ -11,7 +13,7 @@ export type ActId =
   | 'UredbaMP2025'
   | 'UredbaMP2026'
   | 'ZOMO'
-  | 'OdlukaSplit'
+  | 'OdlukeJLS'
   | 'ZPDV'
   | 'PravPDV'
   | 'ZoR'
@@ -128,12 +130,12 @@ export const ACTS: Readonly<Record<ActId, Act>> = {
     nnComplete: false,
     textUrl: 'https://www.zakon.hr/z/91/Zakon-o-mirovinskom-osiguranju',
   },
-  OdlukaSplit: {
-    id: 'OdlukaSplit',
-    title: 'Odluka o visini poreznih stopa godišnjeg poreza na dohodak na području Grada Splita',
-    nn: ['150/23', '35/25'],
+  OdlukeJLS: {
+    id: 'OdlukeJLS',
+    title: 'Odluke jedinica lokalne samouprave o visini poreznih stopa godišnjeg poreza na dohodak',
+    nn: LOCAL_RATE_DECISION_ISSUES,
     nnComplete: true,
-    textUrl: null,
+    textUrl: 'https://porezna-uprava.gov.hr/hr/porezne-stope-godisnjeg-poreza-na-dohodak/4764',
   },
   ZPDV: {
     id: 'ZPDV',

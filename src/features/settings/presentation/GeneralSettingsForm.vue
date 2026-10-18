@@ -7,7 +7,9 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
+import { LOCAL_UNITS, findLocalUnit } from '../../../packs/hr-doo/ruleset/localUnits'
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
+import { fold } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
@@ -31,7 +33,15 @@ watch(
 )
 
 const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(props.settings))
-const errors = computed(() => settingsErrors(draft.value))
+/** The workbook keeps the city as text, so a name typed there can be one the lookup refuses. Blank stays allowed. */
+const residenceCityError = computed(() => {
+  const city = draft.value.companyFacts.residenceCity.trim()
+  return draft.value.ownerPayModule && city !== '' ? findLocalUnit(city).problem : null
+})
+const errors = computed(() => {
+  const found = settingsErrors(draft.value)
+  return residenceCityError.value === null ? found : { ...found, residenceCity: residenceCityError.value }
+})
 const valid = computed(() => Object.keys(errors.value).length === 0)
 
 /** Every currency the browser knows that counts in at most hundredths, by name. */
@@ -39,6 +49,13 @@ const currencyNames = new Intl.DisplayNames('en', { type: 'currency' })
 const currencies = Intl.supportedValuesOf('currency')
   .filter((code) => currencyProblem(code) === null)
   .map((code) => ({ value: code, label: `${currencyNames.of(code) ?? code} (${code})` }))
+
+const unitItems = LOCAL_UNITS.map((unit) => ({ value: unit.label, label: unit.label, description: unit.county, searchText: fold(`${unit.label} ${unit.county}`) }))
+const unitSearch = ref('')
+const unitsFound = computed(() => {
+  const words = fold(unitSearch.value).split(' ').filter((word) => word !== '')
+  return unitItems.filter((item) => words.every((word) => item.searchText.includes(word)))
+})
 
 const preview = computed(() => {
   if (errors.value.currency !== undefined || errors.value.numberLocale !== undefined) return null
@@ -173,7 +190,20 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
       <p class="-mt-1 text-xs text-muted">What the tax and payroll figures need to know beyond the law. They stay in this workbook.</p>
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Owner lives in" :error="errors.residenceCity ?? false" help="The city or municipality, which sets the local income tax rates.">
-          <UInput :model-value="draft.companyFacts.residenceCity" placeholder="Not set" class="w-full" @update:model-value="updateFact('residenceCity', String($event))" />
+          <USelectMenu
+            v-model:search-term="unitSearch"
+            :model-value="draft.companyFacts.residenceCity"
+            :items="unitsFound"
+            value-key="value"
+            ignore-filter
+            :search-input="{ placeholder: 'Search cities and municipalities' }"
+            placeholder="Not set"
+            clear
+            virtualize
+            class="w-full"
+            data-testid="residence-city"
+            @update:model-value="updateFact('residenceCity', String($event ?? ''))"
+          />
         </UFormField>
         <UFormField label="Owner's year of birth" :error="errors.birthYear ?? false" help="For the youth income tax relief. Blank assumes none.">
           <UInput

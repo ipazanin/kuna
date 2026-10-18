@@ -43,6 +43,13 @@ export const CONFIDENCE_WORDING: Readonly<Record<Confidence, ConfidenceWording>>
     variant: 'outline',
     icon: 'i-lucide-badge-check',
   },
+  'confirmed-table': {
+    label: 'Confirmed, official table',
+    meaning: 'Read in a table the tax administration compiles from the decisions published in Narodne novine.',
+    color: 'neutral',
+    variant: 'outline',
+    icon: 'i-lucide-badge-check',
+  },
   reading: {
     label: 'Our reading',
     meaning: 'The text was read. How it applies to the company is an interpretation to discuss with the accountant.',
@@ -80,7 +87,7 @@ export const CONFIDENCE_WORDING: Readonly<Record<Confidence, ConfidenceWording>>
   },
 }
 
-export const CONFIDENCE_ORDER: readonly Confidence[] = ['confirmed-nn', 'confirmed-consolidated', 'reading', 'practice', 'estimate', 'pending', 'unconfirmed']
+export const CONFIDENCE_ORDER: readonly Confidence[] = ['confirmed-nn', 'confirmed-consolidated', 'confirmed-table', 'reading', 'practice', 'estimate', 'pending', 'unconfirmed']
 
 const APPLIES_BY_WORDING: Readonly<Record<AppliesBy, string>> = {
   'tax-period': "The tax period's first day picks the version",
@@ -123,6 +130,7 @@ const ACRONYMS: Readonly<Record<string, string>> = {
   b2b: 'B2B',
   pd: 'PD',
   hnb: 'HNB',
+  nn: 'NN',
   ecb: 'ECB',
 }
 
@@ -159,7 +167,7 @@ export function termFormat(locale: string): TermFormat {
   }
 }
 
-/** A key the law names, such as `last-day-of-following-month`, reads as words. A code or a name such as `PD-IPO` or `Split` stays as written. */
+/** A key the law names, such as `last-day-of-following-month`, reads as words. A code or a name such as `PD-IPO` or `Grad Zagreb` stays as written. */
 function textWording(wording: string): string {
   return /^[a-z0-9-]+$/.test(wording) && /[a-z]/.test(wording) ? wording.replace(/-/g, ' ') : wording
 }
@@ -198,11 +206,15 @@ export interface ValueRow {
 
 export interface TableRowView {
   readonly key: string
+  /** The period of the version the row belongs to. */
+  readonly group: string
   /** The version's period on the first row of its group, null on the rows after it and when every version holds the same table. */
   readonly period: string | null
   /** How many rows the period spans. */
   readonly periodSpan: number
   readonly cells: readonly ValueCell[]
+  /** Folded text a search inside the table matches against. */
+  readonly searchText: string
 }
 
 /** A table term. When versions differ, their rows are stacked in one table, each group led by its period. */
@@ -210,10 +222,18 @@ export interface TableView {
   readonly key: string
   readonly label: string
   readonly byPeriod: boolean
+  /** Too many rows to show at once, so the table opens on a search instead. */
+  readonly long: boolean
   readonly headers: readonly string[]
   /** Columns holding text, which may wrap. The rest are figures. */
   readonly textColumns: readonly boolean[]
   readonly rows: readonly TableRowView[]
+}
+
+/** Where a long table opens: the rows whose cells hold all these words, or a hint when there are none. */
+export interface TableFocus {
+  readonly cells: readonly string[] | null
+  readonly hint: string
 }
 
 export interface PeriodNote {
@@ -288,6 +308,9 @@ function sameAcrossVersions<Shown>(versions: readonly RuleVersion<RuleTerms>[], 
   return versions.every((version) => JSON.stringify(pick(version)) === first)
 }
 
+/** A version's table above this many rows opens on a search. Every other table in the ruleset is far shorter. */
+const LONG_TABLE_ROWS = 60
+
 function tableView(key: string, versions: readonly RuleVersion<RuleTerms>[], periods: readonly string[], format: TermFormat): TableView {
   const tables = versions.flatMap((version, index) => {
     const term = version.value[key]
@@ -309,6 +332,7 @@ function tableView(key: string, versions: readonly RuleVersion<RuleTerms>[], per
     key,
     label: termLabel(key),
     byPeriod,
+    long: tables.some((entry) => entry.table.rows.length > LONG_TABLE_ROWS),
     headers: columnKeys.map(termLabel),
     textColumns: columnKeys.map((columnKey) => rowsOfAll.find((row) => row[columnKey] !== undefined)?.[columnKey]?.kind === 'text'),
     rows: shown.flatMap((entry, tableIndex) => {
@@ -317,12 +341,14 @@ function tableView(key: string, versions: readonly RuleVersion<RuleTerms>[], per
       const wordings = wordingsOf(entry.table)
       return wordings.map((rowWordings, rowIndex) => ({
         key: `${entry.period}|${rowIndex}`,
+        group: entry.period,
         period: byPeriod && rowIndex === 0 ? entry.period : null,
         periodSpan: wordings.length,
         cells: rowWordings.map((wording, columnIndex) => ({
           wording,
           changed: before !== null && before[rowIndex]?.[columnIndex] !== wording,
         })),
+        searchText: fold(rowWordings.join(' ')),
       }))
     }),
   }

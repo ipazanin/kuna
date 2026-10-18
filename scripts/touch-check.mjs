@@ -6,8 +6,8 @@
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar and a
  * repayment on the Owner loan list, both kinds of the Add advance form, a rule made from a row and applied to
- * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search and a
- * watch list link that opens its rule, and every screen. The
+ * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
+ * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
@@ -396,6 +396,33 @@ async function checkWidth(width) {
         throw new Error(`the watch list link did not bring ${ruleId} into view below the search bar, marked and focused`)
       })
     await shoot('ruleset-linked')
+  })
+
+  await step('ruleset-local-rates', async () => {
+    await open(page, '#/ruleset?rule=hr.pit.local-rates', 'Ruleset')
+    const card = '[id="rule-hr.pit.local-rates"]'
+    const tableCount = () => page.$eval(`${card} [data-testid="table-count"]`, (element) => element.textContent.trim())
+    const rowsShown = (text) => Number(text.split(' ')[0])
+    await page.waitForSelector(`${card} [data-testid="table-count"]`)
+    // The deep link scrolls to the card and focuses it a frame or two after the screen renders.
+    await page.waitForFunction(() => document.activeElement?.id === 'rule-hr.pit.local-rates', { timeout: 5_000 })
+    await expect(tableCount(), (text) => rowsShown(text) <= 8, "the local rates opened on more than the owner's unit")
+    await inspect(page, `${width}px local rates, folded`)
+    await shoot('ruleset-local-rates')
+    const search = await page.$(`${card} input[data-testid="table-search"]`)
+    await search.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await search.tap()
+    await page.keyboard.type('rijeka')
+    await expect(tableCount(), (text) => rowsShown(text) >= 4 && !text.startsWith('All'), 'the table search did not find Rijeka')
+    await inspect(page, `${width}px local rates search`)
+    await shoot('ruleset-local-rates-search')
+    await page.tap(`${card} button[aria-label="Clear the table search"]`)
+    await page.tap(`${card} [data-testid="table-show-all"]`)
+    await expect(tableCount(), (text) => text.startsWith('All'), 'Show all did not show every row')
+    await inspect(page, `${width}px local rates, all rows`)
+    await page.tap(`${card} [data-testid="table-show-all"]`)
+    await expect(tableCount(), (text) => !text.startsWith('All'), 'Show fewer did not fold the table back')
   })
 
   await step('settings-excel', async () => {

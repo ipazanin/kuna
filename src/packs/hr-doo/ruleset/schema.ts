@@ -99,6 +99,8 @@ export type Confidence =
   | 'confirmed-nn'
   /** Read in the zakon.hr consolidated text, with the amendment list checked. */
   | 'confirmed-consolidated'
+  /** Read in a table the tax administration compiles from the texts in the Narodne novine. */
+  | 'confirmed-table'
   /** The text was loaded, and its application to the company is an interpretation. */
   | 'reading'
   /** The accountant's own figures apply it and match to the cent. */

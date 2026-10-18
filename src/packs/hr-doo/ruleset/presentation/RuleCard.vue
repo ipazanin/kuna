@@ -2,15 +2,20 @@
 import ConfidenceBadge from './ConfidenceBadge.vue'
 import RuleSources from './RuleSources.vue'
 import RuleTable from './RuleTable.vue'
-import type { RuleView } from './ruleWording'
+import type { RuleView, TableFocus } from './ruleWording'
 
 /** One rule: its value per version, side by side on a wide screen and one version under another on a phone. */
-defineProps<{
-  rule: RuleView
-  phone: boolean
-  /** The rule a deep link points at. */
-  linked: boolean
-}>()
+withDefaults(
+  defineProps<{
+    rule: RuleView
+    phone: boolean
+    /** The rule a deep link points at. */
+    linked: boolean
+    /** Where a long table of the rule opens. */
+    tableFocus?: TableFocus | null
+  }>(),
+  { tableFocus: null },
+)
 </script>
 
 <template>
@@ -79,7 +84,7 @@ defineProps<{
           </table>
         </div>
 
-        <RuleTable v-for="table in rule.tables" :key="table.key" :table="table" :phone="phone" />
+        <RuleTable v-for="table in rule.tables" :key="table.key" :table="table" :phone="phone" :focus="tableFocus" />
 
         <div v-if="rule.notes.length > 0" class="flex flex-col gap-1.5">
           <p v-for="note in rule.notes" :key="note.period ?? 'all'" class="max-w-[75ch] text-xs leading-relaxed text-toned">

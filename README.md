@@ -108,7 +108,7 @@ as before.
 | `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Taxes and Owner screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
 | `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. An entry that is not an IBAN is reported and the list stays blank. |
-| `hr_residence_city` | blank | The city or municipality the owner lives in, which sets the local income tax rates. Blank uses the default rates. |
+| `hr_residence_city` | blank | The city or municipality the owner lives in, such as `Grad Zagreb`, which sets the local income tax rates. Settings offers every unit to pick from. A name typed in the workbook is read regardless of case, diacritics and a leading `Grad` or `Općina`, and a name two units share takes the county in brackets, such as `Općina Privlaka (Zadarska)`. Payroll figures need it, so they stay empty while it is blank. |
 | `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
 | `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
 | `hr_dependants` | `0` | Dependants who raise the personal allowance, 0 to 20. |
@@ -460,6 +460,34 @@ in a new tab, with the act, the article, the NN issues and the day it was checke
 
 The search box matches every word typed against the rule id, title, values, notes, act names,
 articles and NN issues. The area buttons narrow the list further.
+
+A table term with more than 60 rows in a version opens on a search of its own and a Show all
+button instead of every row. Today that is only the local income tax rates, which open on the unit
+`hr_residence_city` names.
+
+### Local income tax rates
+
+`hr.pit.local-rates` holds the lower and higher rate of every one of the 556 cities and
+municipalities, with the NN issue of its decision and the day it applies from. A unit listed with NN
+114/23 alone adopted no decision and has 20% and 30%. The data is
+`src/packs/hr-doo/ruleset/rules/generatedLocalRates.ts`, which is never edited by hand:
+
+```sh
+npm run import:local-rates -- --table 2025-01-01=<xlsx> --table 2025-03-01=<xlsx> --table 2026-01-01=<xlsx> --census <xlsx>
+```
+
+Each `--table` is a Porezna uprava "Tablica poreznih stopa godišnjeg poreza na dohodak", from
+<https://porezna-uprava.gov.hr/hr/porezne-stope-godisnjeg-poreza-na-dohodak/4764>, with the day it
+takes effect. A table holds until the next one starts, and the last one until the end of its year.
+`--census` is the statistics office workbook of the 2021 census by town and municipality, which
+gives each unit its county and population. The unit type follows the statutory ranges: Grad Zagreb,
+a county seat (Zakon o područjima županija, gradova i općina, NN 86/06, Art. 3) or a town of more
+than 35,000 inhabitants, another town, or a municipality. The script refuses tables whose units or
+rates do not line up.
+
+2027 is a copy of 2026 marked unconfirmed until units adopt their 2027 rates by 30 November 2026.
+Once Porezna uprava publishes the 2027 table, rerun the script with it and give the 2027 version in
+`rules/owner-pay.ts` its rows.
 
 `#/ruleset?rule=<id>` opens the screen with that rule marked, scrolled just below the search bar
 and focused, and clears any search. `ruleLink(id)` in `ruleset/presentation/ruleWording.ts` builds
