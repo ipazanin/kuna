@@ -21,6 +21,17 @@ export interface AdvanceLine {
   readonly repaidOn: string | null
   readonly repayments: readonly AdvanceRepaymentLine[]
 }
+
+export interface PrivateShareLine {
+  readonly key: string
+  readonly paidOn: string
+  readonly description: string
+  readonly category: string
+  /** Read positive. */
+  readonly share: number
+  /** The share on Transactions. */
+  readonly to: RouteLocationRaw | null
+}
 </script>
 
 <script setup lang="ts">
@@ -29,15 +40,16 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 
-/** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it. */
+/** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it, and the owner's private shares of company payments apart. */
 defineProps<{
   advances: readonly AdvanceLine[]
+  privateShares: readonly PrivateShareLine[]
 }>()
 </script>
 
 <template>
-  <p v-if="advances.length === 0" class="py-6 text-sm text-muted">No advance is on the owner-advances tab yet.</p>
-  <ul v-else class="flex flex-col" data-testid="advance-list">
+  <p v-if="advances.length === 0 && privateShares.length === 0" class="py-6 text-sm text-muted">No advance is on the owner-advances tab yet.</p>
+  <ul v-if="advances.length > 0" class="flex flex-col" data-testid="advance-list">
     <li v-for="advance in advances" :key="advance.key" class="advance-row">
       <div class="advance-head">
         <div class="min-w-0">
@@ -63,6 +75,21 @@ defineProps<{
       </ol>
     </li>
   </ul>
+  <section v-if="privateShares.length > 0" class="border-t border-default pt-3 pb-1" aria-labelledby="private-shares-heading">
+    <h3 id="private-shares-heading" class="text-xs font-medium text-muted">Private shares of company payments</h3>
+    <p class="mt-0.5 max-w-[65ch] text-xs text-muted">Each takes its amount off the cost on the day the company paid. It counts as lent to the owner, and payments from the owner on a reimbursement category repay it.</p>
+    <ul class="flex flex-col" data-testid="private-share-list">
+      <li v-for="privateShare in privateShares" :key="privateShare.key" class="advance-row advance-head">
+        <div class="min-w-0">
+          <p class="truncate text-sm text-highlighted">{{ privateShare.description || privateShare.category }}</p>
+          <p class="truncate text-xs text-muted">{{ privateShare.paidOn }}, {{ privateShare.category }}</p>
+        </div>
+        <DrillLink :to="privateShare.to" :label="`Private share of ${privateShare.paidOn}, open the row`" class="text-end">
+          <MoneyText :cents="privateShare.share" precision="whole" class="text-sm font-medium text-highlighted" />
+        </DrillLink>
+      </li>
+    </ul>
+  </section>
 </template>
 
 <style scoped>

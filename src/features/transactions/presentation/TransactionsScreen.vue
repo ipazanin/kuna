@@ -185,7 +185,7 @@ const columns: TableColumn<TableEntry>[] = [
       const name =
         listed.kind === 'bank'
           ? h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(listed).key] }), class: 'text-highlighted' }, () => listed.counterparty || 'No counterparty')
-          : h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [listed.counterparty, h(UBadge, { label: 'Owner advance', color: 'neutral', variant: 'subtle', size: 'sm' })])
+          : h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [listed.counterparty, h(UBadge, { label: listed.label, color: 'neutral', variant: 'subtle', size: 'sm' })])
       return h('div', { class: 'min-w-48 max-w-96' }, [name, listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description)])
     },
   },

@@ -166,7 +166,7 @@ describe('exporting', () => {
     expect(contentOf(workbookOf(imported.tabs))).toEqual(contentOf(workbook))
     expect(workbook.invoices.length).toBeGreaterThan(10)
     expect(workbook.clients).toHaveLength(2)
-    expect(workbook.ownerAdvances).toHaveLength(3)
+    expect(workbook.ownerAdvances).toHaveLength(4)
     expect(imported.tabs.invoices.every((row) => typeof row.cells.number === 'string')).toBe(true)
     expect(imported.tabs.ledger[3]?.cells.receipt).toBe('R-17')
     expect(reimported.tabs).toEqual(imported.tabs)

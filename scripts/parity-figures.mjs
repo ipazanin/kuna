@@ -412,6 +412,7 @@ const takeAllTime = ownerTake(bookings, packCategories, allTimePeriod, window)
 const takeLast12 = ownerTake(bookings, packCategories, last12Period, window)
 const costLast12 = ownerCost(bookings, packCategories, last12Period, window)
 const loanBook = ownerLoans(transactions, packCategories)
+const advanceBook = ownerAdvances(workbook.ownerAdvances, transactions, packCategories)
 
 check('owner · Total taken out (all time)', 'money', tileValue(ownerTab, 'Total taken out (all time)'), takeAllTime.total.amount)
 check('owner · Taken out, last 12 months', 'money', tileValue(ownerTab, 'Taken out, last 12 months'), takeLast12.total.amount)
@@ -424,10 +425,10 @@ check(
   'owner · Net owed between owner and company',
   'money',
   tileValue(ownerTab, 'Net owed between owner and company'),
-  netOwed(loanBook, ownerAdvances(workbook.ownerAdvances, transactions, packCategories), transactions, packCategories).amount,
+  netOwed(loanBook, advanceBook, transactions, packCategories).amount,
   {
     rule: '#7',
-    why: `one signed balance: the loan balance, less what the owner paid back on a reimbursement category, less the ${workbook.ownerAdvances.length} advance(s) not yet reimbursed, where the Sheet adds every reimbursement signed`,
+    why: `one signed balance: the loan balance, plus the ${advanceBook.privateShares.length} private share(s) of company payments, less what the owner paid back on a reimbursement category, less the ${advanceBook.advances.length} cost(s) the owner paid not yet reimbursed, where the Sheet adds every reimbursement signed`,
     sheetDefinition: loanBook.outstanding.amount + signedReimbursements,
   },
 )

@@ -252,13 +252,15 @@ describe('readWorkbook', () => {
     expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.sheetRow === 5)?.reason).toMatch(/east is not on the clients tab/)
   })
 
-  it('reads an advance as a cost in its category, and leaves out one outside the operating and taxes buckets', () => {
+  it('reads an advance as a cost the owner paid or as a private share, and leaves out a zero, a text amount and a category outside the operating and taxes buckets', () => {
     const workbook = readWorkbook({
       ...snapshotWith([['date']]),
       'owner-advances': sheetRowsFromValues([
         ['date', 'amount', 'description', 'category'],
         [46300, 89, 'Design tool', 'Software'],
-        [46301, -5, 'Refund', 'software'],
+        [46301, -5, 'Private share of a software order', 'software'],
+        [46301, 0, 'Nothing', 'software'],
+        [46301, 'twelve', 'Typed in words', 'software'],
         [46302, 20, 'Sold a chair', 'revenue'],
         [46303, 15, 'Lunch', 'snacks'],
       ]),
@@ -266,9 +268,11 @@ describe('readWorkbook', () => {
 
     expect(workbook.ownerAdvances).toEqual([
       { date: '2026-10-05', amount: 8900, description: 'Design tool', category: 'software', family: 'operating', bucket: 'operating', sheetRow: 2 },
+      { date: '2026-10-06', amount: -500, description: 'Private share of a software order', category: 'software', family: 'operating', bucket: 'operating', sheetRow: 3 },
     ])
     expect(workbook.problems.filter((problem) => problem.tab === 'owner-advances').map((problem) => problem.reason)).toEqual([
-      'the amount "-5" is not a positive number',
+      'the amount is zero',
+      'the amount "twelve" is not a number',
       '"revenue" is in the income bucket, and an advance counts as an operating cost or a tax',
       '"snacks" is not on the categories tab',
     ])

@@ -115,7 +115,7 @@ function iconOf(write: SessionWrite): string {
   return isUndo(write) ? 'i-lucide-undo-2' : ICONS[write.kind]
 }
 
-/** An advance as its receipt wrote it: the date as a serial number and the amount as a positive decimal. */
+/** An advance as its receipt wrote it: the date as a serial number and the amount as a decimal, negative for a private share. */
 function advanceOf(receipt: OwnerAdvanceReceipt): { readonly date: CivilDate; readonly cost: Money; readonly category: string; readonly description: string } {
   return {
     date: civilDateFromSerial(Number(receipt.cells.date)),
@@ -201,7 +201,7 @@ function quoted(cell: string | number | boolean | null): string {
           <ul v-else-if="write.kind === 'owner-advance-added' || write.kind === 'owner-advance-removed'" class="detail-list">
             <li class="flex flex-col gap-1">
               <span class="flex min-w-0 items-baseline justify-between gap-3 text-xs">
-                <span class="min-w-0 truncate text-toned">{{ advanceOf(write.receipt).description || 'Paid by the owner' }}</span>
+                <span class="min-w-0 truncate text-toned">{{ advanceOf(write.receipt).description || (advanceOf(write.receipt).cost > 0 ? 'Private share of a company payment' : 'Paid by the owner') }}</span>
                 <span class="figure shrink-0 text-muted">{{ dayFormat.format(new Date(advanceOf(write.receipt).date)) }}, <MoneyText :cents="advanceOf(write.receipt).cost" tone="flow" /></span>
               </span>
               <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">

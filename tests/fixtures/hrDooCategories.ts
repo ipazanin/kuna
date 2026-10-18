@@ -23,6 +23,7 @@ export const PACK_CATEGORIES: readonly Category[] = [
   category('reimbursement-from-owner', 'financing', ['reimbursement']),
   category('accounting', 'operating', ['watched']),
   category('travel', 'operating'),
+  category('office-supplies', 'operating'),
 ]
 
 /** The rows with family and bucket from these categories, as the workbook reader would give them. */

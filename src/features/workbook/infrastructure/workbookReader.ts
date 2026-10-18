@@ -221,7 +221,10 @@ function readOwnerAdvances(rows: readonly SheetRow[], categories: readonly Categ
   return advances
 }
 
-/** An advance is a cost, so a category outside the operating and taxes buckets leaves the row out. */
+/**
+ * A positive amount is a cost the owner paid, a negative one the owner's private share of a company
+ * payment. Either moves a cost, so a category outside the operating and taxes buckets leaves the row out.
+ */
 function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, Category>): OwnerAdvance | string {
   const { cells } = row
   const date = dateOf(cells.date)
@@ -229,8 +232,11 @@ function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, 
     return cells.date === undefined ? 'no date' : `the date "${textOf(cells.date)}" is not a date cell`
   }
   const amount = moneyOf(cells.amount)
-  if (amount === null || amount <= 0) {
-    return cells.amount === undefined ? 'no amount' : `the amount "${textOf(cells.amount)}" is not a positive number`
+  if (amount === null) {
+    return cells.amount === undefined ? 'no amount' : `the amount "${textOf(cells.amount)}" is not a number`
+  }
+  if (amount === 0) {
+    return 'the amount is zero'
   }
   const slug = slugOf(cells.category)
   const category = categoryBySlug.get(slug)

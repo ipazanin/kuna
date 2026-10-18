@@ -5,7 +5,7 @@
  * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar and a
- * repayment on the Owner loan list, a rule made from a row and applied to
+ * repayment on the Owner loan list, both kinds of the Add advance form, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, and every screen. The
  * writes go to the fake workbook kept in this browser.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
@@ -333,6 +333,12 @@ async function checkWidth(width) {
     await page.keyboard.type('travel')
     await (await waitForText(page, '[role="option"]', 'Travel')).tap()
     await delay(200)
+    await (await waitForText(page, '[data-testid="advance-kind"] button', 'Part of a company payment was mine')).tap()
+    await waitForText(page, '[data-testid="add-advance"] label', 'Private part')
+    await inspect(page, `${width}px add advance form, private share`)
+    await shoot('owner-add-private-share')
+    await (await waitForText(page, '[data-testid="advance-kind"] button', 'I paid a company cost')).tap()
+    await waitForText(page, '[data-testid="add-advance"] label', 'Amount')
     await inspect(page, `${width}px add advance form`)
     await shoot('owner-add-advance')
     await page.tap('button[form="add-advance"]')

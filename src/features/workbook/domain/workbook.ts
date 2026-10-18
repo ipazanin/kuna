@@ -100,10 +100,10 @@ export interface Client {
   readonly ibans: readonly string[]
 }
 
-/** A cost the owner paid privately for the company, from the `owner-advances` tab. */
+/** A row of the `owner-advances` tab: a cost the owner paid privately for the company, or the owner's private share of a company payment. */
 export interface OwnerAdvance {
   readonly date: CivilDate
-  /** What the owner paid, positive. */
+  /** Never zero. Positive is what the owner paid for the company. Negative is the private share of a payment the company made, which the bank row cannot split off. */
   readonly amount: Money
   readonly description: string
   /** A category in the operating or taxes bucket. */
@@ -116,7 +116,13 @@ export interface OwnerAdvance {
 /** The buckets a cost the owner paid privately may count in. */
 export const ADVANCE_BUCKETS = ['operating', 'taxes'] as const satisfies readonly DefinedBucket[]
 
-/** An advance as profit and loss counts it: a cost on its date, in its category. */
+export type OwnerAdvanceKind = 'paid-by-owner' | 'private-share'
+
+export function advanceKindOf(advance: OwnerAdvance): OwnerAdvanceKind {
+  return advance.amount > 0 ? 'paid-by-owner' : 'private-share'
+}
+
+/** An advance as profit and loss counts it: a cost on its date, in its category. A private share takes its amount off that cost. */
 export function bookingOfAdvance(advance: OwnerAdvance): Booking {
   return { date: advance.date, amount: negateMoney(advance.amount), category: advance.category, family: advance.family, bucket: advance.bucket }
 }

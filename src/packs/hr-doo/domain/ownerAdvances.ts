@@ -5,6 +5,7 @@ import { drillToTransactions } from '../../../features/filters/domain/drillTarge
 import type { DrillTarget, Figure } from '../../../features/filters/domain/drillTarget'
 import { EVERY_OWNER_ADVANCE } from '../../../features/filters/domain/filterState'
 import type { AmountRange } from '../../../features/filters/domain/filterState'
+import { advanceKindOf } from '../../../features/workbook/domain/workbook'
 import type { Category, OwnerAdvance, Transaction } from '../../../features/workbook/domain/workbook'
 import type { OwnerLoanBook } from './ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
@@ -28,11 +29,24 @@ export interface OwnerAdvanceLine {
   readonly repayments: readonly AdvanceRepaymentShare[]
 }
 
+/** The owner's private share of one company payment. No reimbursement is matched to it. */
+export interface PrivateShareLine {
+  readonly advance: OwnerAdvance
+  /** Read positive. */
+  readonly share: Money
+  /** The share on Transactions, found by its day and its exact amount. */
+  readonly drill: DrillTarget
+}
+
 export interface OwnerAdvanceBook {
-  /** Oldest first. */
+  /** The costs the owner paid, oldest first. */
   readonly advances: readonly OwnerAdvanceLine[]
+  /** Oldest first. */
+  readonly privateShares: readonly PrivateShareLine[]
   /** Every cost the owner paid privately. */
   readonly advanced: Figure
+  /** Every private share of a company payment, read positive. Net owed counts it as lent to the owner. */
+  readonly privateShareTotal: Figure
   /** Every payment to the owner on a reimbursement category, read positive, including any beyond the advances. */
   readonly reimbursed: Figure
   /** Advanced less reimbursed, signed. Positive means the company still owes the owner. */
@@ -43,21 +57,24 @@ export interface OwnerAdvanceBook {
 /**
  * One signed balance across both directions. Positive means the owner owes the company.
  *
- * Company to owner: lent less repaid on the loan categories, less what the owner paid back on a
- * reimbursement category for a private cost the company paid for them. Owner to company: the
- * advances not yet reimbursed.
+ * Company to owner: lent less repaid on the loan categories, plus the owner's private shares of
+ * company payments, less what the owner paid back on a reimbursement category. Owner to company:
+ * the costs the owner paid, less what the company reimbursed.
  */
 export interface NetOwed {
   readonly amount: Money
   /** Lent to the owner less repaid. */
   readonly loanBalance: Money
+  /** The owner's private shares of company payments, read positive, lent to the owner. */
+  readonly privateShares: Money
   /**
-   * Every payment from the owner on a reimbursement category, read positive. The company's
-   * payments it repays are counted as lent only when filed in a category with the owner-loan-out
-   * role. Filed as a cost, they count in costs instead and not here.
+   * Every payment from the owner on a reimbursement category, read positive. It repays the private
+   * shares, and the private costs the company paid in full that are filed in a category with the
+   * owner-loan-out role. A private cost filed as a company cost with no private share counts in
+   * costs and not here.
    */
   readonly privateCostsRepaid: Figure
-  /** Advanced by the owner less reimbursed. */
+  /** Paid by the owner less reimbursed. */
   readonly advancesOutstanding: Money
   /** The loan and reimbursement rows and every advance. */
   readonly drill: DrillTarget
@@ -67,9 +84,10 @@ const DEBITS: AmountRange = { min: null, max: moneyFromCents(-1) }
 const CREDITS: AmountRange = { min: moneyFromCents(1), max: null }
 
 /**
- * The owner's advances matched to the reimbursements paid to the owner, first in, first out, with
- * no date cap, as loans are matched to repayments. The balance comes from the rows themselves, so
- * it states a reimbursement no advance accounts for.
+ * The costs the owner paid matched to the reimbursements paid to the owner, first in, first out,
+ * with no date cap, as loans are matched to repayments. The private shares are listed apart and
+ * matched to nothing. The balance comes from the rows themselves, so it states a reimbursement no
+ * advance accounts for.
  */
 export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): OwnerAdvanceBook {
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
@@ -77,10 +95,14 @@ export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: r
     .filter((transaction) => reimbursement.includes(transaction.category) && transaction.amount < 0)
     .sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
   const ordered = [...advances].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)
+  const paidByOwner = ordered.filter((advance) => advanceKindOf(advance) === 'paid-by-owner')
+  const privateShares = ordered
+    .filter((advance) => advanceKindOf(advance) === 'private-share')
+    .map((advance): PrivateShareLine => ({ advance, share: negateMoney(advance.amount), drill: advanceDrill(advance) }))
 
   let repaymentIndex = 0
   let leftInRepayment = repaymentRows[0] === undefined ? ZERO : negateMoney(repaymentRows[0].amount)
-  const lines = ordered.map((advance): OwnerAdvanceLine => {
+  const lines = paidByOwner.map((advance): OwnerAdvanceLine => {
     let remaining = advance.amount
     const repayments: AdvanceRepaymentShare[] = []
     while (remaining > 0 && repaymentIndex < repaymentRows.length) {
@@ -105,13 +127,17 @@ export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: r
     }
   })
 
-  const advanced = ordered.reduce((total, advance) => addMoney(total, advance.amount), ZERO)
+  const advanced = paidByOwner.reduce((total, advance) => addMoney(total, advance.amount), ZERO)
+  const privateShareTotal = privateShares.reduce((total, line) => addMoney(total, line.share), ZERO)
   const reimbursed = repaymentRows.reduce((total, row) => subtractMoney(total, row.amount), ZERO)
+  // Transactions lists a cost the owner paid as a debit and a private share as a credit, so the amount bound tells them apart.
   return {
     advances: lines,
-    advanced: { amount: advanced, drill: drillToTransactions({ period: { preset: 'all' }, categories: [EVERY_OWNER_ADVANCE] }) },
+    privateShares,
+    advanced: { amount: advanced, drill: drillToTransactions({ period: { preset: 'all' }, categories: [EVERY_OWNER_ADVANCE], amount: DEBITS }) },
+    privateShareTotal: { amount: privateShareTotal, drill: drillToTransactions({ period: { preset: 'all' }, categories: [EVERY_OWNER_ADVANCE], amount: CREDITS }) },
     reimbursed: { amount: reimbursed, drill: drillToTransactions({ period: { preset: 'all' }, categories: reimbursement, amount: DEBITS }) },
-    // The debit bound leaves out the reimbursements from the owner. An advance reads as a debit, so it stays in.
+    // The debit bound leaves out the reimbursements from the owner and the private shares.
     outstanding: {
       amount: subtractMoney(advanced, reimbursed),
       drill: drillToTransactions({ period: { preset: 'all' }, categories: [...reimbursement, EVERY_OWNER_ADVANCE], amount: DEBITS }),
@@ -121,17 +147,19 @@ export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: r
 }
 
 /**
- * What the owner owes the company on loans, less what the owner paid back for private costs the
- * company paid, less what the company owes the owner for advances.
+ * What the owner owes the company on loans and private shares, less what the owner paid back on a
+ * reimbursement category, less what the company owes the owner for the costs the owner paid.
  */
 export function netOwed(loans: OwnerLoanBook, advances: OwnerAdvanceBook, transactions: readonly Transaction[], categories: readonly Category[]): NetOwed {
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
   const privateCostsRepaid = transactions
     .filter((transaction) => reimbursement.includes(transaction.category) && transaction.amount > 0)
     .reduce((total, transaction) => addMoney(total, transaction.amount), ZERO)
+  const companyToOwner = subtractMoney(addMoney(loans.outstanding.amount, advances.privateShareTotal.amount), privateCostsRepaid)
   return {
-    amount: subtractMoney(subtractMoney(loans.outstanding.amount, privateCostsRepaid), advances.outstanding.amount),
+    amount: subtractMoney(companyToOwner, advances.outstanding.amount),
     loanBalance: loans.outstanding.amount,
+    privateShares: advances.privateShareTotal.amount,
     privateCostsRepaid: {
       amount: privateCostsRepaid,
       drill: drillToTransactions({ period: { preset: 'all' }, categories: reimbursement, amount: CREDITS }),
@@ -149,7 +177,7 @@ export function netOwed(loans: OwnerLoanBook, advances: OwnerAdvanceBook, transa
   }
 }
 
-/** The one advance, found again by its day and its exact cost. */
+/** The one advance, found again by its day and the exact amount it books. */
 function advanceDrill(advance: OwnerAdvance): DrillTarget {
   const cost = negateMoney(advance.amount)
   return drillToTransactions({

@@ -28,7 +28,7 @@ import type { OwnerTakeLine } from '../domain/ownerTake'
 import { PACK_ROLES, categoriesInBucket, categoriesWithRole } from '../domain/packRoles'
 import AddAdvanceDialog from './AddAdvanceDialog.vue'
 import AdvanceList from './AdvanceList.vue'
-import type { AdvanceLine } from './AdvanceList.vue'
+import type { AdvanceLine, PrivateShareLine } from './AdvanceList.vue'
 import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import MissingRoles from './MissingRoles.vue'
@@ -131,9 +131,10 @@ const owner = computed(() => {
         caption: owed.amount > 0 ? 'The owner owes the company' : owed.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way',
         definition:
           `All time, one balance across both directions. The owner owes the company what was lent less what was repaid (${formatWholeMoney(owed.loanBalance)}), ` +
-          `less what the owner paid back on a reimbursement category for private costs the company paid for them (${formatWholeMoney(owed.privateCostsRepaid.amount)}). ` +
+          `plus the owner's private shares of company payments (${formatWholeMoney(owed.privateShares)}), ` +
+          `less what the owner paid back on a reimbursement category (${formatWholeMoney(owed.privateCostsRepaid.amount)}). ` +
           `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(owed.advancesOutstanding)}). ` +
-          'Positive means the owner owes the company. A private cost the company paid counts as lent only when its row is in a category with the owner-loan-out role.',
+          'Positive means the owner owes the company. A private cost the company paid in full counts as lent only when its row is in a category with the owner-loan-out role.',
       },
     ],
     draws: ownerDrawsChart(takeMonths, series, tokens),
@@ -176,6 +177,16 @@ const owner = computed(() => {
           applied: share.applied,
           to: drillLocation(share.drill),
         })),
+      }),
+    ),
+    privateShares: [...advances.privateShares].reverse().map(
+      (line): PrivateShareLine => ({
+        key: `${line.advance.sheetRow}`,
+        paidOn: day(line.advance.date),
+        description: line.advance.description,
+        category: categoryName(line.advance.category),
+        share: line.share,
+        to: drillLocation(line.drill),
       }),
     ),
     newestBooking: workbook.transactions.reduce((newest, transaction) => (transaction.date > newest ? transaction.date : newest), workbook.transactions[0]!.date),
@@ -335,7 +346,7 @@ const owner = computed(() => {
             </dl>
           </header>
           <div class="px-4 pt-1 pb-2 sm:px-5">
-            <AdvanceList :advances="owner.advances" />
+            <AdvanceList :advances="owner.advances" :private-shares="owner.privateShares" />
           </div>
         </section>
         <AddAdvanceDialog

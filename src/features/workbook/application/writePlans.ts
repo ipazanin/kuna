@@ -231,10 +231,10 @@ export function verifySettingsChange(after: FreshTabs, changes: readonly Setting
   }
 }
 
-/** A cost the owner paid privately, as the Add advance form gives it. */
+/** A cost the owner paid privately, or the owner's private share of a company payment, as the Add advance form gives it. */
 export interface OwnerAdvanceDraft {
   readonly date: CivilDate
-  /** Positive. */
+  /** Positive for a cost the owner paid, negative for a private share. */
   readonly amount: Money
   readonly description: string
   readonly category: string
@@ -257,8 +257,8 @@ export interface OwnerAdvancePlan {
 }
 
 /**
- * Appends one advance. Refused unless the tab has the four columns, the amount is a positive
- * figure in cents, and the category is on the categories tab as it is now, in the operating or
+ * Appends one advance. Refused unless the tab has the four columns, the amount is a whole number
+ * of cents other than zero, and the category is on the categories tab as it is now, in the operating or
  * taxes bucket. The date is a serial number, so the cell is a date cell like one typed in the Sheet.
  */
 export function planOwnerAdvanceAppend(fresh: FreshTabs, draft: OwnerAdvanceDraft): OwnerAdvancePlan {
@@ -267,8 +267,8 @@ export function planOwnerAdvanceAppend(fresh: FreshTabs, draft: OwnerAdvanceDraf
   if (missing.length > 0) {
     throw new WorkbookWriteRefused(`The owner-advances tab has no ${missing.map((column) => `"${column}"`).join(', ')} column, so nothing was written.`)
   }
-  if (!Number.isInteger(draft.amount) || draft.amount <= 0) {
-    throw new WorkbookWriteRefused('An advance is a positive amount, so nothing was written.')
+  if (!Number.isInteger(draft.amount) || draft.amount === 0) {
+    throw new WorkbookWriteRefused('An advance is an amount other than zero, so nothing was written.')
   }
   const slug = comparable(draft.category)
   const category = definedCategories(requireTab(fresh, 'categories').rows).find((candidate) => candidate.slug === slug)

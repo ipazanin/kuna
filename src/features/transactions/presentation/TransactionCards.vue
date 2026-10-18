@@ -60,7 +60,7 @@ function toggleRow(key: string): void {
 }
 
 function badgeOf(row: ListedRow): { label: string; color: 'warning' | 'info' | 'neutral' } | null {
-  if (row.kind === 'owner-advance') return { label: 'Owner advance', color: 'neutral' }
+  if (row.kind === 'owner-advance') return { label: row.label, color: 'neutral' }
   if (row.bucket === UNCLASSIFIED) return { label: 'Unclassified', color: 'warning' }
   if (row.flaggedBy === 'ai') return { label: 'AI guess', color: 'info' }
   return null

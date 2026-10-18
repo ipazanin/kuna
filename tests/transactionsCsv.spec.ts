@@ -24,6 +24,18 @@ describe('transactionsCsv', () => {
     expect(row).toBe('2026-08-10,,Owner,,Train ticket,-45.00,,travel,operating,,,owner-advances')
   })
 
+  it('lists a private share of a company payment as the credit it books, badged apart from an advance the owner paid', () => {
+    const paid = { date: civil('2025-07-01'), amount: euros(100), description: 'Train ticket', category: 'travel', family: 'operating', bucket: 'operating' as const, sheetRow: 2 }
+    const share = { ...paid, date: civil('2025-08-08'), amount: euros(-9.71), description: 'Private share of the online order', category: 'office-supplies', sheetRow: 3 }
+    const listed = listedRows([], [paid, share])
+
+    expect(listed.map((row) => (row.kind === 'owner-advance' ? [row.label, row.amount] : null))).toEqual([
+      ['Owner advance', euros(-100)],
+      ['Private share', euros(9.71)],
+    ])
+    expect(transactionsCsv(listed).split('\r\n')[2]).toBe('2025-08-08,,Owner,,Private share of the online order,9.71,,office-supplies,operating,,,owner-advances')
+  })
+
   it('quotes commas, quotes and line breaks', () => {
     const csv = transactionsCsv(rows([{ date: '2026-08-09', amount: -1, counterparty: 'Ink, "Paper" & Co', description: 'two\nlines' }]))
 

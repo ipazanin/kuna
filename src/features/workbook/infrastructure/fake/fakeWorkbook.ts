@@ -210,6 +210,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       [serialOf('2026-02-03'), 212.5, 'Train tickets to the client, paid privately', 'travel'],
       [serialOf('2026-08-21'), 89, 'Design tool, annual plan on the owner’s card', 'software-subscriptions'],
       [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies'],
+      [serialOf('2025-10-02'), -9.71, 'Private share of the paper and ink order', 'office-supplies'],
     ],
   }
 }

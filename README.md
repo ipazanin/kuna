@@ -71,7 +71,7 @@ take their defaults.
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out. |
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. |
 | `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. |
-| `owner-advances` | `date`, `amount` (positive), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. |
+| `owner-advances` | `date`, `amount` (not zero), `description` and `category`: costs the owner paid privately for the company as positive amounts, and the owner's private shares of company payments as negative ones. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. |
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
 and a capital first letter, so `ai-services` reads "AI services". Links and filters keep the name.
@@ -140,12 +140,22 @@ Transactions then says how many advances in the period it does not list. "Every 
 choice among the categories in Add filter, selects all of them and no bank row. Payments to the
 owner on a `reimbursement` category repay them oldest first and stay financing.
 
-Net owed, on Owner and Overview, is one signed balance. The owner owes the company the loan balance,
-less every payment from the owner on a `reimbursement` category, which repays a private cost the
-company paid for the owner. The company owes the owner the advances not yet reimbursed. Positive
-means the owner owes the company. The company's payment of such a private cost counts as lent only
-when its row is in a category with the `owner-loan-out` role. Filed as an ordinary cost, it counts
-in costs and not in net owed.
+The tab holds two kinds of row, told apart by the sign of the amount. A positive amount is a cost
+the owner paid privately for the company, as above. A negative amount is the owner's private share
+of a payment the company made, which the bank row cannot split off since the ledger holds the bank
+data as booked. For an order of 45.12 filed as office supplies with 9.71 of it private, the row is
+the order's date, -9.71 and office supplies. It takes 9.71 off that cost on that date, and net owed
+counts it as lent to the owner until payments from the owner on a `reimbursement` category repay it.
+No reimbursement is matched to a private share, so Owner lists the shares in their own group without
+a repayment status, and Transactions badges them "Private share".
+
+Net owed, on Owner and Overview, is one signed balance. The owner owes the company the loan balance
+plus the private shares, less every payment from the owner on a `reimbursement` category, which
+repays a private share or a private cost the company paid for the owner. The company owes the owner
+the costs the owner paid, less what it reimbursed. Positive means the owner owes the company. A
+private cost the company paid in full counts as lent only when its row is in a category with the
+`owner-loan-out` role. Filed as an ordinary cost with no private share, it counts in costs and not
+in net owed.
 
 ## Receivables
 
@@ -258,8 +268,9 @@ side in `googleWorkbookWriter.ts`.
   the tab lacks it. A key on two rows, a value that changed since the read, or a value the settings
   reader would not use is refused.
 - **Owner advances.** "Add advance" appends one `date`, `amount`, `description`, `category` row,
-  the date as a serial number so the cell is a date. It is refused unless the tab has those four
-  columns, the amount is positive, and the category is on the categories tab, as it is now, in the
+  the date as a serial number so the cell is a date. "I paid a company cost" writes a positive
+  amount and "Part of a company payment was mine" a negative one. It is refused unless the tab has
+  those four columns, the amount is not zero, and the category is on the categories tab, as it is now, in the
   operating or taxes bucket. Undo clears the row again, only while one row still holds exactly what
   was written.
 - **Loan bucket.** The switch finds each category with the `owner-loan-out` or `owner-loan-repaid`

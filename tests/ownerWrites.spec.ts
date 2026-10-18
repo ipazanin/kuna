@@ -56,12 +56,21 @@ describe.each([
     await expect(store.removeOwnerAdvance(receipt)).rejects.toThrow('no longer on the owner-advances tab')
   })
 
+  it('appends a private share of a company payment as a negative amount, which reads back as one', async () => {
+    const { store } = await harnessOf(used, gridsWithOwnerTabs())
+
+    const receipt = await store.addOwnerAdvance({ ...DESK, amount: euros(-9.71), description: 'Private share of the online order' })
+
+    expect(receipt.cells.amount).toBe(-9.71)
+    expect(store.state.workbook?.ownerAdvances.map((advance) => advance.amount)).toEqual([euros(40), euros(-9.71)])
+  })
+
   it('refuses an advance in a category outside the operating and taxes buckets, and one the tab does not define', async () => {
     const { store } = await harnessOf(used, gridsWithOwnerTabs())
 
     await expect(store.addOwnerAdvance({ ...DESK, category: 'revenue' })).rejects.toThrow('an advance counts as an operating cost or a tax')
     await expect(store.addOwnerAdvance({ ...DESK, category: 'snacks' })).rejects.toThrow(WorkbookWriteRefused)
-    await expect(store.addOwnerAdvance({ ...DESK, amount: euros(0) })).rejects.toThrow('positive amount')
+    await expect(store.addOwnerAdvance({ ...DESK, amount: euros(0) })).rejects.toThrow('other than zero')
     expect(store.state.workbook?.ownerAdvances).toHaveLength(1)
   })
 

@@ -1,5 +1,6 @@
 import { negateMoney } from '../../../shared/money/money'
-import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
+import { advanceKindOf } from '../../workbook/domain/workbook'
+import type { OwnerAdvance, OwnerAdvanceKind, Transaction } from '../../workbook/domain/workbook'
 import { OWNER_COUNTERPARTY } from './filterTransactions'
 
 /** A booked bank entry as Transactions lists it. */
@@ -9,11 +10,18 @@ export interface ListedBankRow extends Transaction {
   readonly key: string
 }
 
-/** A cost the owner paid privately, listed as the cost it books: no bank account, the owner as counterparty. */
+/** A row of the owner-advances tab, listed as what it books: no bank account, the owner as counterparty. */
 export interface ListedAdvanceRow extends Pick<Transaction, 'date' | 'amount' | 'category' | 'family' | 'bucket' | 'counterparty' | 'counterpartyIban' | 'description'> {
   readonly kind: 'owner-advance'
   readonly key: string
   readonly advance: OwnerAdvance
+  /** What the row is badged as, by its kind. */
+  readonly label: string
+}
+
+const ADVANCE_LABELS: Readonly<Record<OwnerAdvanceKind, string>> = {
+  'paid-by-owner': 'Owner advance',
+  'private-share': 'Private share',
 }
 
 export type ListedRow = ListedBankRow | ListedAdvanceRow
@@ -27,6 +35,7 @@ export function listedRows(transactions: readonly Transaction[], advances: reado
         kind: 'owner-advance',
         key: `owner-advances:${advance.sheetRow}`,
         advance,
+        label: ADVANCE_LABELS[advanceKindOf(advance)],
         date: advance.date,
         amount: negateMoney(advance.amount),
         category: advance.category,
