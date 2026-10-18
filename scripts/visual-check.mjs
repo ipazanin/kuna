@@ -51,6 +51,8 @@ const SCREENS = [
   { name: 'spending', hash: '#/spending', title: 'Spending', charts: 0, shows: 'Northwind' },
   { name: 'period-review', hash: '#/period-review', title: 'Period review', charts: 1, shows: 'Revenue' },
   { name: 'cash', hash: '#/cash', title: 'Cash', charts: 1, shows: 'Legacy' },
+  { name: 'taxes', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'Payroll cadence' },
+  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: 'Every loan' },
   { name: 'review', hash: '#/review', title: 'Review', charts: 0, shows: 'GADGET CORNER' },
   { name: 'workbook', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Bucket labels' },
   { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Fake workbook' },

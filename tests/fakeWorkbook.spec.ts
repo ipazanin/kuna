@@ -6,6 +6,9 @@ import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfi
 import { ledgerWindowOf } from '../src/features/workbook/domain/workbook'
 import { fakeWorkbookSnapshot, fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { categorise } from '../src/features/rules/domain/categorise'
+import { ruleCoverageGaps } from '../src/features/rules/domain/ruleCoverage'
+import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 
 const workbook = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
 const window = ledgerWindowOf(workbook.transactions)
@@ -63,5 +66,14 @@ describe('fake workbook', () => {
     const ibans = new Set(workbook.transactions.map((transaction) => transaction.counterpartyIban).filter((iban) => iban !== ''))
 
     expect([...ibans].every((iban) => iban.startsWith('XX00FAKE'))).toBe(true)
+  })
+
+  it('has a rules tab that reproduces every row flagged rule, and confirmed rows no rule covers yet', () => {
+    const context = categorisationContextOf(workbook)
+    const byRule = workbook.transactions.filter((transaction) => transaction.flaggedBy === 'rule')
+
+    expect(workbook.rules.length).toBeGreaterThan(10)
+    expect(byRule.filter((transaction) => categorise(transaction, workbook.rules, context).category !== transaction.category)).toEqual([])
+    expect(ruleCoverageGaps(workbook.transactions, workbook.rules, context).length).toBeGreaterThan(3)
   })
 })

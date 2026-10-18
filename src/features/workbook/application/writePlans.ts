@@ -1,0 +1,269 @@
+import { cellText } from '../../../shared/text/cellText'
+import type { LedgerVerdictChange, VerdictReceipt } from '../../review/domain/verdictChanges'
+import { rulesTabAfter, sameCells } from '../../rules/domain/rulesTabChange'
+import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
+import { rulesTabRefusals } from '../../rules/domain/rulesTabRefusals'
+import { parseSettings } from '../../settings/domain/settings'
+import { isSameLedgerRow } from '../domain/ledgerRowKey'
+import type { LedgerRowKey } from '../domain/ledgerRowKey'
+import { definedCategorySlugs, ledgerRowKeyOfRow } from '../infrastructure/workbookReader'
+import type { CellValue, SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
+import { WorkbookWriteRefused } from './workbookWriter'
+import type { CellEdit, FreshTabs, RowAppend, TabEdits, TabRead } from './workbookWriter'
+
+/** A ledger write planned on a read taken just before it, the same way for a Google Sheet and for the workbook kept in this browser. */
+export interface VerdictPlan {
+  readonly edits: TabEdits
+  /** What the rows held before, exactly, for Undo. */
+  readonly receipt: VerdictReceipt
+  /** The row each change was written to, in the order of the changes. */
+  readonly sheetRows: readonly number[]
+}
+
+/**
+ * Finds each row again by its key, refuses on no match, several matches, a row that changed since
+ * the app read it, or a category the categories tab does not define, and sets only `category` and
+ * `flagged_by`, each only where it changes.
+ */
+export function planVerdicts(fresh: FreshTabs, changes: readonly LedgerVerdictChange[]): VerdictPlan {
+  const ledger = requireTab(fresh, 'ledger')
+  const definedCategories = definedCategorySlugs(requireTab(fresh, 'categories').rows)
+  for (const column of ['category', 'flagged_by']) {
+    if (!ledger.header.some((name) => name.trim() === column)) {
+      throw new WorkbookWriteRefused(`The ledger tab has no "${column}" column, so nothing was written.`)
+    }
+  }
+  const keyed = keyedLedgerRows(ledger.rows)
+  const refusals: string[] = []
+  const cells: CellEdit[] = []
+  const receiptChanges: LedgerVerdictChange[] = []
+  const sheetRows: number[] = []
+  for (const change of changes) {
+    const located = locate(keyed, change.key)
+    if (typeof located === 'string') {
+      refusals.push(located)
+      continue
+    }
+    if (sheetRows.includes(located.sheetRow)) {
+      refusals.push(`Row ${located.sheetRow} is asked to change twice in one write.`)
+      continue
+    }
+    const current = { category: cellText(located.cells.category), flaggedBy: cellText(located.cells.flagged_by) }
+    if (comparable(current.category) !== comparable(change.from.category) || comparable(current.flaggedBy) !== comparable(change.from.flaggedBy)) {
+      refusals.push(
+        `Row ${located.sheetRow} changed since the app read it: it now says ${current.category || 'no category'}, flagged by ${current.flaggedBy || 'nobody'}.`,
+      )
+      continue
+    }
+    if (!change.undoes && !definedCategories.has(comparable(change.to.category))) {
+      refusals.push(`"${change.to.category}" is not a category on the categories tab.`)
+      continue
+    }
+    if (comparable(current.category) !== comparable(change.to.category)) {
+      cells.push({ tab: 'ledger', sheetRow: located.sheetRow, column: 'category', value: change.to.category })
+    }
+    if (comparable(current.flaggedBy) !== comparable(change.to.flaggedBy)) {
+      cells.push({ tab: 'ledger', sheetRow: located.sheetRow, column: 'flagged_by', value: change.to.flaggedBy })
+    }
+    receiptChanges.push({ ...change, from: current })
+    sheetRows.push(located.sheetRow)
+  }
+  refuseOn(refusals)
+  return { edits: { cells, appends: [] }, receipt: { changes: receiptChanges }, sheetRows }
+}
+
+/** After the write: every changed row is where it was written and reads as written. */
+export function verifyVerdicts(after: FreshTabs, plan: VerdictPlan): void {
+  const keyed = keyedLedgerRows(requireTab(after, 'ledger').rows)
+  plan.receipt.changes.forEach((change, index) => {
+    const written = plan.sheetRows[index]
+    const located = locate(keyed, change.key)
+    const holds =
+      typeof located !== 'string' &&
+      located.sheetRow === written &&
+      comparable(cellText(located.cells.category)) === comparable(change.to.category) &&
+      comparable(cellText(located.cells.flagged_by)) === comparable(change.to.flaggedBy)
+    if (!holds) {
+      throw new Error(
+        `The write reached the workbook, but row ${written} does not read back as written. Rows may have moved while it was sent. Check row ${written} and the version history.`,
+      )
+    }
+  })
+}
+
+/**
+ * The rules tab with the change made must pass every check the Apps Script's `parseRules` makes,
+ * against the categories tab as it is now, or nothing is written. Edited rows change only the
+ * cells that differ.
+ */
+export function planRulesChange(fresh: FreshTabs, change: RulesTabChange): TabEdits {
+  const rules = requireTab(fresh, 'rules')
+  const header = rules.header.map((name) => name.trim())
+  const after = rulesTabAfter(rules.rows, change, rules.lastRow)
+  refuseOn(after.refusals.map(sentence))
+  const missing = [change.appended, ...change.edited.map((edit) => edit.cells)]
+    .flatMap((cells) => (cells === null ? [] : Object.keys(cells)))
+    .filter((column, index, columns) => !header.includes(column) && columns.indexOf(column) === index)
+  if (missing.length > 0) {
+    throw new WorkbookWriteRefused(`The rules tab has no ${missing.map((column) => `"${column}"`).join(', ')} column, which this rule needs.`)
+  }
+  const refusals = rulesTabRefusals(rules.header, after.rows, definedCategorySlugs(requireTab(fresh, 'categories').rows))
+  if (refusals.length > 0) {
+    throw new WorkbookWriteRefused(`The rules tab would not pass the Apps Script's check, so nothing was written: ${refusals.join('. ')}.`)
+  }
+  const cells: CellEdit[] = []
+  for (const edit of change.edited) {
+    const row = rules.rows.find((candidate) => cellText(candidate.cells.rule).toLowerCase() === edit.id.trim().toLowerCase())
+    if (row === undefined) {
+      continue
+    }
+    for (const column of header.filter((name) => name !== '')) {
+      if (cellText(row.cells[column]) !== cellText(edit.cells[column])) {
+        cells.push({ tab: 'rules', sheetRow: row.sheetRow, column, value: edit.cells[column] ?? '' })
+      }
+    }
+  }
+  const appends: RowAppend[] = change.appended === null ? [] : [{ tab: 'rules', cells: change.appended }]
+  return { cells, appends }
+}
+
+/** After the write: the new row and every edited row read back as written, each id once. */
+export function verifyRulesChange(after: FreshTabs, change: RulesTabChange): void {
+  const rows = requireTab(after, 'rules').rows
+  for (const cells of [change.appended, ...change.edited.map((edit) => edit.cells)]) {
+    if (cells === null) {
+      continue
+    }
+    const id = cellText(cells.rule)
+    const matches = rows.filter((row) => cellText(row.cells.rule).toLowerCase() === id.toLowerCase())
+    if (matches.length !== 1 || !sameCells(matches[0]!.cells, cells)) {
+      throw new Error(`The write reached the workbook, but rule "${id}" does not read back as written. Check the rules tab and its version history.`)
+    }
+  }
+}
+
+/** One setting written: `expected` is the value the app read, or null when the tab had no row for the key. */
+export interface SettingChange {
+  readonly key: string
+  readonly expected: CellValue | null
+  readonly value: CellValue
+}
+
+/**
+ * Sets each key's value in place, or adds a row for a key the tab lacks. Refused on a key written
+ * twice, a value that changed since the app read it, or a value the settings reader would not use.
+ */
+export function planSettingsChange(fresh: FreshTabs, changes: readonly SettingChange[]): TabEdits {
+  const settings = requireTab(fresh, 'settings')
+  const header = settings.header.map((name) => name.trim().toLowerCase())
+  if (!header.includes('key') || !header.includes('value')) {
+    throw new WorkbookWriteRefused('The settings tab needs a "key" and a "value" column, as the Apps Script reads it, so nothing was written.')
+  }
+  const refusals: string[] = []
+  const cells: CellEdit[] = []
+  const appends: RowAppend[] = []
+  const values = new Map<number, CellValue>()
+  const added: SheetRow[] = []
+  for (const change of changes) {
+    const key = change.key.trim().toLowerCase()
+    const matches = settings.rows.filter((row) => cellText(row.cells.key).toLowerCase() === key)
+    if (matches.length > 1) {
+      refusals.push(`The settings tab sets "${key}" on ${matches.length} rows. Keep one of them in the Sheet first.`)
+      continue
+    }
+    const [row] = matches
+    if (row === undefined) {
+      if (change.expected !== null) {
+        refusals.push(`The "${key}" row left the settings tab since the app read it.`)
+      } else if (cellText(change.value) !== '') {
+        appends.push({ tab: 'settings', cells: { key, value: change.value } })
+        added.push({ sheetRow: settings.lastRow + 1 + added.length, cells: { key, value: change.value } })
+      }
+      continue
+    }
+    if (cellText(row.cells.value) !== cellText(change.expected)) {
+      refusals.push(`"${key}" changed since the app read it: it now says "${cellText(row.cells.value)}".`)
+      continue
+    }
+    if (cellText(row.cells.value) !== cellText(change.value)) {
+      cells.push({ tab: 'settings', sheetRow: row.sheetRow, column: 'value', value: change.value })
+      values.set(row.sheetRow, change.value)
+    }
+  }
+  refuseOn(refusals)
+  const before = new Set(settingProblems(settings.rows))
+  const afterRows = [
+    ...settings.rows.map((row) => {
+      const value = values.get(row.sheetRow)
+      return value === undefined ? row : { sheetRow: row.sheetRow, cells: { ...row.cells, value } }
+    }),
+    ...added,
+  ]
+  const introduced = settingProblems(afterRows).filter((problem) => !before.has(problem))
+  if (introduced.length > 0) {
+    throw new WorkbookWriteRefused(`The settings would not read cleanly, so nothing was written: ${introduced.join('. ')}.`)
+  }
+  return { cells, appends }
+}
+
+/** After the write: each key is on one row and reads as written. */
+export function verifySettingsChange(after: FreshTabs, changes: readonly SettingChange[]): void {
+  const rows = requireTab(after, 'settings').rows
+  for (const change of changes) {
+    const key = change.key.trim().toLowerCase()
+    const matches = rows.filter((row) => cellText(row.cells.key).toLowerCase() === key)
+    const reads = matches.length === 0 ? '' : cellText(matches[0]!.cells.value)
+    if (matches.length > 1 || reads !== cellText(change.value)) {
+      throw new Error(`The write reached the workbook, but "${key}" does not read back as written. Check the settings tab.`)
+    }
+  }
+}
+
+function settingProblems(rows: readonly SheetRow[]): string[] {
+  return parseSettings(rows.map((row) => ({ key: cellText(row.cells.key), value: row.cells.value, sheetRow: row.sheetRow }))).problems.map(
+    (problem) => problem.reason,
+  )
+}
+
+interface KeyedLedgerRow extends SheetRow {
+  readonly key: LedgerRowKey | null
+}
+
+function keyedLedgerRows(rows: readonly SheetRow[]): KeyedLedgerRow[] {
+  return rows.map((row) => ({ ...row, key: ledgerRowKeyOfRow(row) }))
+}
+
+/** The one row the key names, or why there is not exactly one. */
+function locate(rows: readonly KeyedLedgerRow[], key: LedgerRowKey): KeyedLedgerRow | string {
+  const matches = rows.filter((row) => row.key !== null && isSameLedgerRow(key, row.key))
+  const described = key.reference === '' ? `the ${key.account} row of ${key.date} without a reference` : `the ${key.account} row with reference ${key.reference}`
+  if (matches.length === 0) {
+    return `No ledger row matches ${described} any more. Sync and look again.`
+  }
+  if (matches.length > 1) {
+    return `${matches.length} ledger rows match ${described} (rows ${matches.map((row) => row.sheetRow).join(', ')}), so the app cannot tell which to change. Set it in the Sheet.`
+  }
+  return matches[0]!
+}
+
+function requireTab(fresh: FreshTabs, tab: WorkbookTab): TabRead {
+  const read = fresh[tab]
+  if (read === undefined) {
+    throw new WorkbookWriteRefused(`The workbook has no ${tab} tab, so nothing was written.`)
+  }
+  return read
+}
+
+function refuseOn(refusals: readonly string[]): void {
+  if (refusals.length > 0) {
+    throw new WorkbookWriteRefused(`Nothing was written. ${refusals.join(' ')}`)
+  }
+}
+
+function comparable(text: string): string {
+  return text.trim().toLowerCase()
+}
+
+function sentence(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`
+}

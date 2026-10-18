@@ -3,7 +3,10 @@
  * and its navigation drawer, the review notice's drill, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
- * and every screen.
+ * confirming and recategorising a row on Review with Undo, a paid month on the Taxes calendar and a
+ * repayment on the Owner loan list, a rule made from a row and applied to
+ * the rows still waiting, a rule edited and switched off on the Rules tab, and every screen. The
+ * writes go to the fake workbook kept in this browser.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
  *
@@ -34,6 +37,8 @@ const SCREENS = [
   { hash: '#/spending?p=all', title: 'Spending', ready: '[data-testid="cost-line"]' },
   { hash: '#/period-review?p=all', title: 'Period review', ready: '.chart-body canvas' },
   { hash: '#/cash?p=all', title: 'Cash', ready: '.chart-body canvas' },
+  { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
+  { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
   { hash: '#/workbook', title: 'Workbook', ready: '[data-testid="workbook-tabs"]' },
   { hash: '#/settings', title: 'Settings', ready: '[data-testid="data-source-card"]' },
@@ -280,6 +285,26 @@ async function checkWidth(width) {
     await waitForTitle(page, 'Transactions')
   })
 
+  await step('taxes-cadence-drill', async () => {
+    await open(page, '#/taxes?p=all', 'Taxes')
+    await settleCharts(page)
+    await page.waitForSelector('[data-testid="cadence-paid"]')
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-taxes.png`), fullPage: true })
+    await page.tap('[data-testid="cadence-paid"]')
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 1, 'the cadence cell opened Transactions without its filters')
+  })
+
+  await step('owner-loan-drill', async () => {
+    await open(page, '#/owner?p=all', 'Owner')
+    await settleCharts(page)
+    await page.waitForSelector('[data-testid="loan-list"]')
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-owner.png`), fullPage: true })
+    await page.tap('[data-testid="loan-list"] ol a')
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 1, 'the repayment opened Transactions without its filters')
+  })
+
   for (const screen of SCREENS) {
     await step(screen.title.toLowerCase().replace(' ', '-'), async () => {
       await open(page, screen.hash, screen.title)
@@ -312,6 +337,108 @@ async function checkWidth(width) {
     await shoot('workbook-accounts')
   })
 
+  await step('review-confirm-undo', async () => {
+    await openFreshExcel(page, '#/review', 'Review')
+    await expect(reviewCount(page), (count) => count === 2, 'the queue does not hold the two fake rows')
+    await (await reviewRow(page, 'GADGET CORNER')).tap()
+    await page.waitForSelector('[data-testid="review-details"]')
+    await delay(200)
+    await inspect(page, `${width}px review row open`)
+    await shoot('review-expanded')
+    await (await waitForText(page, '[data-testid="review-details"] button', 'Confirm')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Confirmed')
+    await expect(reviewCount(page), (count) => count === 1, 'the confirmed row is still waiting')
+    // The toast rises into place. A tap before it settles lands where it was.
+    await delay(700)
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Undone')
+    await expect(reviewCount(page), (count) => count === 2, 'Undo did not bring the row back')
+  })
+
+  await step('review-recategorise-undo', async () => {
+    await openFreshExcel(page, '#/review', 'Review')
+    await (await reviewRow(page, 'SNACK KIOSK')).tap()
+    await page.waitForSelector('[data-testid="recategorise-row"]')
+    await page.tap('[data-testid="review-details"] [data-testid="recategorise-row"]')
+    await page.waitForSelector('[role="listbox"] [role="option"]')
+    await page.keyboard.type('travel')
+    await (await waitForText(page, '[role="option"]', 'Travel')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Filed as Travel')
+    await expect(reviewCount(page), (count) => count === 1, 'the recategorised row is still waiting')
+    await delay(300)
+    await inspect(page, `${width}px toast with Undo`)
+    await shoot('review-recategorised-toast')
+    // The toast rises into place. A tap before it settles lands where it was.
+    await delay(700)
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Undone')
+    await expect(reviewCount(page), (count) => count === 2, 'Undo did not bring the row back')
+  })
+
+  await step('make-rule-apply', async () => {
+    await openFreshExcel(page, '#/review', 'Review')
+    await (await reviewRow(page, 'GADGET CORNER')).tap()
+    await page.tap('[data-testid="review-details"] [data-testid="make-rule"]')
+    await page.waitForSelector('[data-testid="rule-backtest"]')
+    await delay(400)
+    await inspect(page, `${width}px rule form`)
+    await shoot('rule-form')
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="backtest-settled"]')?.textContent ?? ''),
+      (text) => text.includes('GADGET CORNER'),
+      'the back-test does not list the row the rule settles',
+    )
+    await page.evaluate(() => document.querySelector('[data-testid="backtest-conflicts"]').scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await shoot('rule-backtest')
+    await page.tap('[data-testid="save-rule"]')
+    const apply = await waitForText(page, '[data-testid="apply-rule"]', 'Apply to the 1 row still waiting')
+    await delay(300)
+    await inspect(page, `${width}px rule saved`)
+    await apply.tap()
+    await waitForText(page, '[data-slot="title"]', 'Filed 1 row by')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"] [data-testid="rule-saved"]'))
+    await expect(reviewCount(page), (count) => count === 1, 'the row the new rule settles is still waiting')
+  })
+
+  await step('rules-tab-edit', async () => {
+    await openFreshExcel(page, '#/workbook?tab=rules', 'Workbook')
+    await page.waitForSelector('[data-testid="rule-row"]')
+    await inspect(page, `${width}px rules tab`)
+    await shoot('rules-tab')
+    await page.tap('[data-testid="rule-row"] [data-testid="edit-rule"]')
+    await page.waitForSelector('[data-testid="rule-form"] textarea')
+    await page.tap('[data-testid="rule-form"] textarea')
+    await page.keyboard.type(' Checked on the phone.')
+    await delay(300)
+    await inspect(page, `${width}px rule edit`)
+    await page.tap('[data-testid="save-rule"]')
+    await waitForText(page, '[role="dialog"] [data-slot="title"]', 'Saved own-account')
+    await (await waitForText(page, '[role="dialog"] button', 'Done')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="rule-row"]')?.textContent ?? ''),
+      (text) => text.includes('Checked on the phone.'),
+      'the edited note did not reach the rules tab',
+    )
+    await page.tap('[data-testid="rule-row"] [role="switch"]')
+    // Switching off own-account hands the two transfer legs to review, so the change needs an explicit yes.
+    const accept = await page.waitForSelector('[data-testid="accept-backtest"][role="checkbox"], [data-testid="accept-backtest"] [role="checkbox"]')
+    await accept.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect(page, `${width}px rule switch-off back-test`)
+    await shoot('rule-switch-off')
+    await accept.tap()
+    await (await waitForText(page, '[data-testid="save-rules-change"]', 'Switch off')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Switched off own-account')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+    await expect(
+      page.evaluate(() => [...document.querySelectorAll('[data-testid="rule-row"] [role="switch"]')].some((toggle) => toggle.getAttribute('aria-checked') === 'false')),
+      (off) => off,
+      'the rule did not switch off',
+    )
+  })
+
   await step('excel-import', async () => {
     await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Ledgerboard')
@@ -335,6 +462,16 @@ async function checkWidth(width) {
 
 async function open(page, hash, title) {
   await page.goto(`${BASE}?theme=dark${hash}`, { waitUntil: 'networkidle0' })
+  await waitForTitle(page, title)
+}
+
+/**
+ * Loads the fake workbook kept in this browser anew, its seed replacing what earlier steps wrote and
+ * no toast left over. The query changes on every load, since a URL that differs only after the #
+ * would not load the page again.
+ */
+async function openFreshExcel(page, hash, title) {
+  await page.goto(`${BASE}?theme=dark&fake=excel&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
   await waitForTitle(page, title)
 }
 
@@ -362,12 +499,16 @@ function topBarTitle(page) {
 }
 
 async function waitForText(page, selector, text) {
-  const handle = await page.waitForFunction(
-    (css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null,
-    { timeout: 10_000 },
-    selector,
-    text,
-  )
+  const handle = await page
+    .waitForFunction(
+      (css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null,
+      { timeout: 10_000 },
+      selector,
+      text,
+    )
+    .catch((error) => {
+      throw new Error(`no ${selector} reading "${text}" within 10 s (${error.message})`)
+    })
   return handle.asElement()
 }
 
@@ -410,6 +551,18 @@ function groupState(page, category) {
       cards: group.querySelectorAll('[data-testid="transaction-card"]').length,
     }
   }, category)
+}
+
+function reviewCount(page) {
+  return page.evaluate(() => document.querySelectorAll('[data-testid="review-row"]').length)
+}
+
+/** A queue row's summary, scrolled to the middle and settled, so the tap meets it where it stands. */
+async function reviewRow(page, counterparty) {
+  const row = await waitForText(page, '[data-testid="review-row"] > button', counterparty)
+  await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(300)
+  return row
 }
 
 function cardCount(page) {

@@ -1,0 +1,171 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import UAlert from '@nuxt/ui/components/Alert.vue'
+import UButton from '@nuxt/ui/components/Button.vue'
+import UModal from '@nuxt/ui/components/Modal.vue'
+
+import { usePhoneLayout } from '../../../shared/layout/viewport'
+import { useLedgerWrites } from '../../review/application/useLedgerWrites'
+import { waitingRowsSettledBy } from '../../review/domain/verdictChanges'
+import { useWorkbook } from '../../workbook/application/workbookStore'
+import { useRulesChangePreview, useRulesWrites } from '../application/useRulesChange'
+import { draftChange } from '../domain/ruleDraft'
+import type { EditedRule, RuleDraft } from '../domain/ruleDraft'
+import { categorisationContextOf } from '../domain/transactionFacts'
+import RuleChangeReview from './RuleChangeReview.vue'
+import RuleForm from './RuleForm.vue'
+
+export interface RuleEditorSource {
+  readonly title: string
+  readonly draft: RuleDraft
+  /** The rule on the tab this edits, or null for a new one. */
+  readonly edited: EditedRule | null
+}
+
+/**
+ * Adds or edits one rule with its back-test beside the form, live. Once saved it offers to file the
+ * rows still waiting for review that the rule settles.
+ */
+const props = defineProps<{
+  source: RuleEditorSource | null
+}>()
+
+const open = defineModel<boolean>('open', { required: true })
+
+const store = useWorkbook()
+const { state } = store
+const phone = usePhoneLayout()
+const rulesWrites = useRulesWrites()
+const ledgerWrites = useLedgerWrites()
+
+const draft = ref<RuleDraft | null>(props.source?.draft ?? null)
+const accepted = ref(false)
+const savedId = ref<string | null>(null)
+
+watch(
+  () => props.source,
+  (source) => {
+    draft.value = source?.draft ?? null
+    accepted.value = false
+    savedId.value = null
+  },
+)
+
+const change = computed(() => {
+  const workbook = state.workbook
+  const rows = state.snapshot?.rules
+  if (draft.value === null || workbook === null || rows === undefined) return null
+  return draftChange(draft.value, workbook.rules, rows, props.source?.edited ?? null)
+})
+
+const preview = useRulesChangePreview(() => (open.value && savedId.value === null ? change.value : null))
+
+watch(change, () => {
+  accepted.value = false
+})
+
+const needsAcceptance = computed(() => (preview.value?.backtest.brokenAgreements.length ?? 0) + (preview.value?.backtest.humanConflicts.length ?? 0) > 0)
+const canSave = computed(
+  () =>
+    preview.value !== null &&
+    preview.value.refusals.length === 0 &&
+    (!needsAcceptance.value || accepted.value) &&
+    !rulesWrites.saving.value &&
+    !state.writing,
+)
+
+async function save(): Promise<void> {
+  if (change.value === null || draft.value === null || !canSave.value) return
+  const id = draft.value.id.trim()
+  // The dialog itself turns to say it is saved, and a toast would cover its buttons on a phone.
+  if (await rulesWrites.save(change.value, null)) {
+    savedId.value = id
+  }
+}
+
+const waiting = computed(() => {
+  const workbook = state.workbook
+  if (savedId.value === null || workbook === null) return []
+  return waitingRowsSettledBy(savedId.value, workbook.transactions, workbook.rules, categorisationContextOf(workbook))
+})
+
+const inSheet = computed(() => state.workbook?.source === 'google')
+
+async function applyToWaiting(): Promise<void> {
+  const count = waiting.value.length
+  const written = await ledgerWrites.write(waiting.value, {
+    title: `Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`,
+    description: 'Only rows that were waiting for review. Confirmed rows kept their category.',
+  })
+  if (written) open.value = false
+}
+</script>
+
+<template>
+  <UModal
+    v-model:open="open"
+    :title="savedId ? `Saved ${savedId}` : (source?.title ?? 'Rule')"
+    v-bind="savedId ? {} : { description: 'The back-test below follows every change to the form.' }"
+    :fullscreen="phone"
+    :ui="{ content: 'sm:max-w-3xl', header: 'pe-16 sm:pe-6', footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]' }"
+  >
+    <template #body>
+      <div v-if="savedId === null && draft" class="flex flex-col gap-6" data-testid="rule-editor">
+        <RuleForm v-model="draft" :rules="state.workbook?.rules ?? []" :categories="state.workbook?.categories ?? []" :editing-id="source?.edited?.id ?? null" />
+        <section class="flex flex-col gap-3 border-t border-default pt-5">
+          <header>
+            <h2 class="text-sm font-medium text-highlighted">Back-test over the whole ledger</h2>
+            <p class="mt-0.5 text-xs text-muted">Every row, filed by the rules as they are and as they would be.</p>
+          </header>
+          <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
+        </section>
+      </div>
+      <div v-else class="flex flex-col gap-4" data-testid="rule-saved">
+        <p class="text-sm text-toned">
+          {{
+            inSheet
+              ? 'It is on the rules tab now, and the morning ingest files new rows by it.'
+              : 'It is in the workbook kept in this browser, and an export writes it into the file.'
+          }}
+        </p>
+        <UAlert
+          v-if="waiting.length"
+          icon="i-lucide-inbox"
+          color="info"
+          variant="subtle"
+          :title="`${waiting.length} ${waiting.length === 1 ? 'row waits' : 'rows wait'} for review that this rule settles`"
+          description="Applying files them as the rule says, with flagged_by rule. Rows a person confirmed are left alone."
+        />
+        <p v-else class="text-sm text-muted">No row waiting for review is settled by it.</p>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full flex-wrap justify-end gap-2">
+        <template v-if="savedId === null">
+          <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
+          <UButton
+            :label="source?.edited ? 'Save rule' : 'Add rule'"
+            icon="i-lucide-save"
+            :loading="rulesWrites.saving.value"
+            :disabled="!canSave"
+            data-testid="save-rule"
+            @click="save"
+          />
+        </template>
+        <template v-else>
+          <UButton label="Done" color="neutral" :variant="waiting.length ? 'ghost' : 'solid'" @click="open = false" />
+          <UButton
+            v-if="waiting.length"
+            :label="`Apply to the ${waiting.length} ${waiting.length === 1 ? 'row' : 'rows'} still waiting`"
+            icon="i-lucide-check-check"
+            :loading="ledgerWrites.busy.value"
+            :disabled="ledgerWrites.busy.value || state.writing"
+            data-testid="apply-rule"
+            @click="applyToWaiting"
+          />
+        </template>
+      </div>
+    </template>
+  </UModal>
+</template>

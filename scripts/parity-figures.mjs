@@ -34,6 +34,12 @@ import { periodReview } from '../src/features/period-review/domain/periodReview.
 import { categoryTotals, outsideProfitAndLossTotals } from '../src/features/spending/domain/categoryTotals.ts'
 import { topCounterparties } from '../src/features/spending/domain/topCounterparties.ts'
 import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfitAndLoss.ts'
+import { effectiveTaxRate } from '../src/packs/hr-doo/domain/effectiveTaxRate.ts'
+import { ownerCost } from '../src/packs/hr-doo/domain/ownerCost.ts'
+import { ownerLoans } from '../src/packs/hr-doo/domain/ownerLoans.ts'
+import { ownerTake } from '../src/packs/hr-doo/domain/ownerTake.ts'
+import { payrollCadence } from '../src/packs/hr-doo/domain/payrollCadence.ts'
+import { taxByType, typicalMonthlyAmount } from '../src/packs/hr-doo/domain/taxByType.ts'
 
 const { values: options } = parseArgs({ options: { workbook: { type: 'string' } } })
 if (options.workbook === undefined) {
@@ -89,9 +95,17 @@ function check(metric, kind, sheet, app, correction) {
   checks.push({ metric, kind, sheet: sheetValue, app: appValue, status })
 }
 
+/** A figure the app deliberately does not show, listed so the report accounts for every Sheet figure. */
+function notShown(metric, kind, sheet, why) {
+  checks.push({ metric, kind, sheet: sheetSide(kind, sheet), app: null, status: `not shown (${why})` })
+}
+
 function sheetSide(kind, cell) {
   if (isBlank(cell) || cell === '–') {
     return null
+  }
+  if (kind === 'percent') {
+    return typeof cell === 'number' ? cell : Number(String(cell).replace('%', '')) / 100
   }
   if (kind === 'date') {
     return typeof cell === 'number' ? civilDateFromSerial(cell) : String(cell)
@@ -120,6 +134,9 @@ function agrees(kind, sheet, app) {
       return Math.abs(sheet - app) <= Math.max(1e-9, Math.abs(sheet) * 1e-6)
     case 'count':
       return sheet === app
+    case 'percent':
+      // The Sheet writes the rate as text to one decimal place.
+      return Math.abs(sheet - app) <= 0.0005 + 1e-9
     default:
       return sheet === app
   }
@@ -356,6 +373,131 @@ for (const entry of balanceMonths.months) {
   }
 }
 
+// The d.o.o. pack: owner, owner-loans and taxes ----------------------------------------------------
+
+/**
+ * The pack selects categories by role. An export from before the `roles` column existed gets the
+ * lists the Sheet's Code.gs hard-codes, which is what the column was seeded from.
+ */
+const SHEET_ROLES = {
+  revenue: ['revenue'],
+  'payroll-contributions': ['watched', 'owner-pay-tax'],
+  'payroll-tax': ['owner-pay-tax'],
+  'dividend-tax': ['owner-pay-tax'],
+  'owner-loan-out': ['owner-loan-out'],
+  'owner-loan-repaid': ['owner-loan-repaid'],
+  'reimbursement-to-owner': ['reimbursement'],
+  'reimbursement-from-owner': ['reimbursement'],
+}
+const exportHasRoles = workbook.categories.some((category) => category.roles.length > 0)
+const packCategories = exportHasRoles ? workbook.categories : workbook.categories.map((category) => ({ ...category, roles: SHEET_ROLES[category.slug] ?? [] }))
+const allTimePeriod = { preset: 'all' }
+const last12Period = { preset: 'l12' }
+
+const ownerTab = gridOf('owner')
+const takeAllTime = ownerTake(transactions, packCategories, allTimePeriod, window)
+const takeLast12 = ownerTake(transactions, packCategories, last12Period, window)
+const costLast12 = ownerCost(transactions, packCategories, last12Period, window)
+const loanBook = ownerLoans(transactions, packCategories)
+
+check('owner · Total taken out (all time)', 'money', tileValue(ownerTab, 'Total taken out (all time)'), takeAllTime.total.amount)
+check('owner · Taken out, last 12 months', 'money', tileValue(ownerTab, 'Taken out, last 12 months'), takeLast12.total.amount)
+check('owner · Owner loan outstanding', 'money', tileValue(ownerTab, 'Owner loan outstanding'), loanBook.outstanding.amount)
+check('owner · Gross cost of the owner, last 12 months', 'money', tileValue(ownerTab, 'Gross cost of the owner, last 12 months'), costLast12.gross.amount)
+check('owner · Cost per euro received, last 12 months', 'ratio', tileValue(ownerTab, 'Cost per euro received, last 12 months'), costLast12.costPerEuroReceived)
+notShown(
+  'owner · Net owed between owner and company',
+  'money',
+  tileValue(ownerTab, 'Net owed between owner and company'),
+  '#7: decided as the loan balance plus fronted costs not yet reimbursed, which the ledger does not record',
+)
+
+const takeTable = findTable(ownerTab, ['Category', 'All time', 'Last 12 months'])
+const takeLineOf = (take, category) => [...take.byCategory, ...take.reimbursements].find((line) => line.category === category)?.amount.amount ?? null
+const takeCategories = [...takeAllTime.byCategory, ...takeAllTime.reimbursements].map((line) => line.category)
+for (const category of union(takeTable?.rows.map((row) => row[0]) ?? [], takeCategories)) {
+  const row = rowLabelled(takeTable, category)
+  // A category with no rows is listed at zero on the Sheet and left out by the app.
+  check(`owner · took out · ${category} · all time`, 'money', row?.[1], takeLineOf(takeAllTime, category) ?? (row === null ? null : 0))
+  check(`owner · took out · ${category} · last 12`, 'money', row?.[2], takeLineOf(takeLast12, category) ?? (row === null ? null : 0))
+}
+
+const ownerLoansBox = findTable(ownerTab, ['Metric', 'Value'])
+check('owner · Total lent to the owner', 'money', rowLabelled(ownerLoansBox, 'Total lent to the owner')?.[1], loanBook.lent.amount)
+check('owner · Total repaid', 'money', rowLabelled(ownerLoansBox, 'Total repaid')?.[1], loanBook.repaid.amount)
+check('owner · Outstanding', 'money', rowLabelled(ownerLoansBox, 'Outstanding')?.[1], loanBook.outstanding.amount)
+check('owner · Open loans', 'count', rowLabelled(ownerLoansBox, 'Open loans')?.[1], loanBook.openCount)
+check('owner · Oldest open loan', 'text', rowLabelled(ownerLoansBox, 'Oldest open loan')?.[1], loanBook.oldestOpen)
+
+const loansTab = gridOf('owner-loans')
+const loanList = findTable(loansTab, ['Lent', 'Amount', 'Repaid', 'Status'])
+const loanCount = Math.max(loanList?.rows.length ?? 0, loanBook.loans.length)
+for (let index = 0; index < loanCount; index += 1) {
+  const row = loanList?.rows[index]
+  const loan = loanBook.loans[index]
+  const metric = `owner-loans · loan ${index + 1}`
+  check(`${metric} · lent`, 'date', row?.[0], loan?.lentOn ?? null)
+  check(`${metric} · amount`, 'money', row?.[1], loan?.amount ?? null)
+  check(`${metric} · repaid`, 'date', row?.[2], loan?.repaidOn ?? null)
+  check(`${metric} · status`, 'text', row?.[3], loan?.status ?? null)
+}
+const loanSums = findTable(loansTab, ['Sums', null])
+check('owner-loans · Total lent', 'money', rowLabelled(loanSums, 'Total lent')?.[1], loanBook.lent.amount)
+check('owner-loans · Total repaid', 'money', rowLabelled(loanSums, 'Total repaid')?.[1], loanBook.repaid.amount)
+check('owner-loans · Outstanding', 'money', rowLabelled(loanSums, 'Outstanding')?.[1], loanBook.outstanding.amount)
+
+const taxesTab = gridOf('taxes')
+const cadenceBox = findTable(taxesTab, ['Metric', 'Value'])
+const contributions = payrollCadence(transactions, packCategories, window).find((cadence) => cadence.category === 'payroll-contributions')
+const partMonthPaid = contributions?.months.some((month) => month.month === window.partMonth && month.state === 'paid') ? 1 : 0
+const notYetDue = { rule: '#2', why: `${window.partMonth} is still running, so it is not due yet and not counted` }
+check('taxes · Months with a contributions payment', 'count', rowLabelled(cadenceBox, 'Months with a contributions payment')?.[1], contributions?.monthsPaid ?? null, contributions === undefined
+  ? undefined
+  : { ...notYetDue, sheetDefinition: contributions.monthsPaid + partMonthPaid })
+check('taxes · Months elapsed since the first', 'count', rowLabelled(cadenceBox, 'Months elapsed since the first')?.[1], contributions?.monthsElapsed ?? null, contributions === undefined
+  ? undefined
+  : { ...notYetDue, sheetDefinition: contributions.monthsElapsed + 1 })
+check('taxes · Months with no payment', 'count', rowLabelled(cadenceBox, 'Months with no payment')?.[1], contributions?.monthsMissed ?? null, contributions === undefined
+  ? undefined
+  : { ...notYetDue, sheetDefinition: contributions.monthsElapsed + 1 - contributions.monthsPaid - partMonthPaid })
+
+const taxesAllTime = taxByType(transactions, packCategories, allTimePeriod, window)
+/** The Sheet's typical month takes every ledger month, the part-months at either end included. */
+const sheetTypical = (category) => typicalMonthlyAmount(taxesAllTime.months.map((month) => month.byCategory[category]?.amount ?? 0))
+const typicalRule = { rule: '#2 and #4', why: 'part-months are never averaged' }
+check('taxes · Typical monthly contributions', 'money', rowLabelled(cadenceBox, 'Typical monthly contributions')?.[1], contributions?.typicalMonth ?? null, {
+  ...typicalRule,
+  sheetDefinition: sheetTypical('payroll-contributions'),
+})
+const payrollTax = taxesAllTime.types.find((type) => type.category === 'payroll-tax')
+check('taxes · Typical monthly payroll tax', 'money', rowLabelled(cadenceBox, 'Typical monthly payroll tax')?.[1], payrollTax?.typicalMonth ?? null, {
+  ...typicalRule,
+  sheetDefinition: sheetTypical('payroll-tax'),
+})
+const rateLast12 = effectiveTaxRate(transactions, packCategories, last12Period, window)
+check('taxes · Effective rate, last 12 months', 'percent', rowLabelled(cadenceBox, 'Effective rate, last 12 months')?.[1], rateLast12.rate)
+check('dashboard · Tax on every euro earned', 'ratio', tileValue(dashboard, 'Tax on every euro earned'), rateLast12.rate, {
+  rule: '#1',
+  why: 'net taxes over client revenue, not over all income',
+  sheetDefinition: averages.last12.totals.income === 0 ? null : averages.last12.totals.taxes / averages.last12.totals.income,
+})
+
+const TAX_COLUMNS = [
+  ['Payroll contributions', 'payroll-contributions'],
+  ['Payroll tax', 'payroll-tax'],
+  ['Corporate income tax', 'corporate-income-tax'],
+  ['Dividend tax', 'dividend-tax'],
+]
+const taxMonthly = findTable(taxesTab, ['Month', ...TAX_COLUMNS.map(([label]) => label), 'Total'])
+for (const month of union(taxMonthly?.rows.map((row) => row[0]) ?? [], taxesAllTime.months.map((entry) => entry.month))) {
+  const row = rowLabelled(taxMonthly, month)
+  const entry = taxesAllTime.months.find((candidate) => candidate.month === month)
+  TAX_COLUMNS.forEach(([label, category], offset) => {
+    check(`taxes · ${month} · ${label}`, 'money', row?.[offset + 1], entry === undefined ? null : (entry.byCategory[category]?.amount ?? 0))
+  })
+  check(`taxes · ${month} · total`, 'money', row?.[TAX_COLUMNS.length + 1], entry?.total.amount ?? null)
+}
+
 // Category helpers --------------------------------------------------------------------------------
 
 function checkCategory(metric, sheetAmount, sheetShare, total, sheetShareDefinition) {
@@ -389,7 +531,7 @@ function shown(kind, value) {
   if (kind === 'money') {
     return value.toFixed(2)
   }
-  if (kind === 'ratio') {
+  if (kind === 'ratio' || kind === 'percent') {
     return value.toFixed(6)
   }
   return String(value)
@@ -414,7 +556,11 @@ for (const line of lines) {
 }
 const mismatches = checks.filter((entry) => entry.status === 'MISMATCH').length
 const corrected = checks.filter((entry) => entry.status.startsWith('corrected')).length
-console.log(`\n${checks.length} figures: ${checks.length - mismatches - corrected} match, ${corrected} corrected, ${mismatches} MISMATCH.`)
+const unshown = checks.filter((entry) => entry.status.startsWith('not shown')).length
+console.log(`\n${checks.length} figures: ${checks.length - mismatches - corrected - unshown} match, ${corrected} corrected, ${unshown} not shown, ${mismatches} MISMATCH.`)
+if (!exportHasRoles) {
+  console.log('The export has no roles column, so the pack read the category lists of Code.gs.')
+}
 if (workbook.problems.length > 0) {
   console.log(`The reader left out ${workbook.problems.length} row(s):`)
   for (const problem of workbook.problems) {

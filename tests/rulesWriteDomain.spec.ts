@@ -1,0 +1,200 @@
+import { describe, expect, it } from 'vitest'
+
+import { confirmation, recategorisation, undoOf } from '../src/features/review/domain/verdictChanges'
+import { readRules } from '../src/features/rules/domain/readRules'
+import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
+import type { Rule, RuleCondition } from '../src/features/rules/domain/rule'
+import { ruleCoverageGaps } from '../src/features/rules/domain/ruleCoverage'
+import { placeBefore, swapWithNeighbour } from '../src/features/rules/domain/rulePlacement'
+import { ruleTabCells, rulesTabAfter } from '../src/features/rules/domain/rulesTabChange'
+import { rulesTabRefusals } from '../src/features/rules/domain/rulesTabRefusals'
+import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
+import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
+import { isSameLedgerRow, ledgerRowKeyOf } from '../src/features/workbook/domain/ledgerRowKey'
+import { needsReview } from '../src/features/workbook/domain/needsReview'
+import { columnLetter } from '../src/shared/text/columnLetter'
+import { ledger } from './fixtures/ledger'
+
+const CATEGORIES = new Set(['equipment', 'travel', 'ai-services', 'revenue'])
+
+function rule(id: string, order: number, conditions: RuleCondition[], category = 'equipment', sheetRow: number | null = null): Rule {
+  return { id, order, enabled: true, conditions, category, confidence: 'rule', note: '', sheetRow }
+}
+
+const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], settings: DEFAULT_SETTINGS })
+
+describe('rulesTabRefusals, the mirror of parseRules in Rules.gs', () => {
+  const header = [...RULE_COLUMNS]
+  const good = { sheetRow: 2, cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
+
+  it('passes a tab the Apps Script reads', () => {
+    expect(rulesTabRefusals(header, [good], CATEGORIES)).toEqual([])
+  })
+
+  it('refuses a header no rule can test and a missing outcome column, before any row', () => {
+    expect(rulesTabRefusals([...header.filter((column) => column !== 'confidence'), 'Owner'], [good], CATEGORIES)).toEqual([
+      'column U is headed "owner", which no rule can test',
+      'there is no "confidence" column',
+    ])
+  })
+
+  it('refuses each row the Apps Script refuses, and leaves a disabled half-written rule alone', () => {
+    const rows = [
+      good,
+      { sheetRow: 3, cells: { rule: 'A', order: 200, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
+      { sheetRow: 4, cells: { rule: 'b', order: 'x', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
+      { sheetRow: 5, cells: { rule: 'c', order: 300, enabled: 'maybe', is_card: true, category: 'equipment', confidence: 'rule' } },
+      { sheetRow: 6, cells: { rule: 'd', order: 400, enabled: true, category: 'equipment', confidence: 'rule' } },
+      { sheetRow: 7, cells: { rule: 'e', order: 500, enabled: true, is_card: true, category: 'snacks', confidence: 'rule' } },
+      { sheetRow: 8, cells: { rule: 'f', order: 600, enabled: true, revenue_code: '123', category: 'equipment', confidence: 'rule' } },
+      { sheetRow: 9, cells: { rule: 'g', order: 700, enabled: true, counterparty_is_client: true, category: 'equipment', confidence: 'rule' } },
+      { sheetRow: 10, cells: { rule: 'h', order: 800, enabled: true, is_card: false, category: 'equipment', confidence: 'rule' } },
+      { sheetRow: 11, cells: { rule: 'i', order: 900, enabled: true, is_card: true, category: 'equipment', confidence: 'sure' } },
+      { sheetRow: 12, cells: { order: 1000, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
+      { sheetRow: 13, cells: { rule: 'parked', order: 1100, enabled: false, revenue_code: '1', category: 'snacks' } },
+      { sheetRow: 14, cells: { rule: 'guard', order: 1200, enabled: true, is_card: true, confidence: 'review' } },
+    ]
+
+    expect(rulesTabRefusals(header, rows, CATEGORIES).map((refusal) => refusal.split(':')[0])).toEqual([
+      'row 3',
+      'row 4',
+      'row 5',
+      'row 6',
+      'row 7',
+      'row 8',
+      'row 9',
+      'row 10',
+      'row 11',
+      'row 12',
+    ])
+  })
+})
+
+describe('rule cells', () => {
+  it('reads back as the rule they were written from', () => {
+    const written = rule('every-condition', 150, [
+      { column: 'direction', direction: 'debit' },
+      { column: 'counterparty_iban', iban: 'XX00FAKE0000000013' },
+      { column: 'has_counterparty_iban', present: true },
+      { column: 'counterparty_is_own' },
+      { column: 'counterparty_contains', fragment: 'DESK' },
+      { column: 'description_contains', fragment: 'CHAIR' },
+      { column: 'description_starts_with', fragment: 'ORDER' },
+      { column: 'tx_domain', code: 'PMNT' },
+      { column: 'tx_family', code: 'ICDT' },
+      { column: 'tx_sub_family', code: 'ESCT' },
+      { column: 'purpose', code: 'GDSV' },
+      { column: 'revenue_code', code: '0123' },
+      { column: 'is_card' },
+      { column: 'foreign_currency' },
+    ])
+
+    const [read] = readRules([{ sheetRow: 7, cells: ruleTabCells(written) }], CATEGORIES).rules
+
+    expect(read).toEqual({ ...written, sheetRow: 7 })
+  })
+
+  it('applies an edit to the row with that id only when the row still holds what was read', () => {
+    const rows = [{ sheetRow: 2, cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }]
+    const expected = rows[0]!.cells
+
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'A', expected, cells: { ...expected, enabled: false } }] }, 2).rows).toEqual([
+      { sheetRow: 2, cells: { ...expected, enabled: false } },
+    ])
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: '100 ' }, cells: expected }] }, 2).refusals).toEqual([])
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: 200 }, cells: expected }] }, 2).refusals).toHaveLength(1)
+    expect(rulesTabAfter(rows, { appended: { rule: 'b', note: '' }, edited: [] }, 9).rows[1]).toEqual({ sheetRow: 10, cells: { rule: 'b' } })
+  })
+})
+
+describe('rule placement', () => {
+  const rules = [rule('a', 100, [], 'equipment', 2), rule('b', 200, [], 'equipment', 3), rule('c', 300, [], 'equipment', 4)]
+
+  it('goes halfway between its new neighbours, or a step past either end', () => {
+    expect(placeBefore(rules, null, 'b')).toEqual({ order: 150, renumbered: new Map() })
+    expect(placeBefore(rules, null, 'a').order).toBe(0)
+    expect(placeBefore(rules, null, null).order).toBe(400)
+    expect(placeBefore(rules, 'c', 'a').order).toBe(0)
+  })
+
+  it('renumbers in steps of 100 when two neighbours share an order', () => {
+    const tied = [rule('a', 100, [], 'equipment', 2), rule('b', 100, [], 'equipment', 3)]
+
+    expect(placeBefore(tied, null, 'b')).toEqual({ order: 200, renumbered: new Map([['b', 300]]) })
+  })
+
+  it('swaps orders with a neighbour, so every order stays on its step', () => {
+    expect(swapWithNeighbour(rules, 'b', 'earlier')).toEqual(new Map([['b', 100], ['a', 200]]))
+    expect(swapWithNeighbour(rules, 'b', 'later')).toEqual(new Map([['b', 300], ['c', 200]]))
+    expect(swapWithNeighbour(rules, 'a', 'earlier')).toBeNull()
+    const tied = [rule('a', 100, [], 'equipment', 2), rule('b', 100, [], 'equipment', 3)]
+    expect(swapWithNeighbour(tied, 'b', 'earlier')).toEqual(new Map([['a', 200]]))
+  })
+})
+
+describe('rule coverage', () => {
+  it('groups the confirmed rows no rule reproduces by IBAN, else by name, largest first', () => {
+    const rows = ledger([
+      { date: '2026-09-01', amount: -10, counterparty: 'Desk Co', iban: 'XX00FAKE0000000013', category: 'equipment', flaggedBy: 'ivan' },
+      { date: '2026-09-02', amount: -12, counterparty: 'DESK CO LTD', iban: 'XX00FAKE0000000013', category: 'travel', flaggedBy: 'ivan' },
+      { date: '2026-09-03', amount: -5, counterparty: 'Corner Shop · snacks', category: 'equipment', flaggedBy: 'ivan' },
+      { date: '2026-09-04', amount: -6, counterparty: 'AIRLINE CO', category: 'travel', flaggedBy: 'ivan' },
+      { date: '2026-09-05', amount: -7, counterparty: 'Unknown Ltd', category: 'nope', flaggedBy: 'ivan' },
+      { date: '2026-09-06', amount: -8, counterparty: 'Corner Shop', category: 'equipment', flaggedBy: 'ai' },
+    ])
+    const rules = [rule('airline', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'travel', 2)]
+
+    const gaps = ruleCoverageGaps(rows, rules, context)
+
+    expect(gaps.map((gap) => [gap.key, gap.name, gap.rows.length, gap.categories])).toEqual([
+      ['iban:XX00FAKE0000000013', 'DESK CO LTD', 2, [{ category: 'equipment', count: 1 }, { category: 'travel', count: 1 }]],
+      ['name:CORNER SHOP', 'Corner Shop', 1, [{ category: 'equipment', count: 1 }]],
+    ])
+  })
+})
+
+describe('verdict changes', () => {
+  const [unclassified, guessed] = ledger([
+    { date: '2026-09-01', amount: -10, category: 'nope', flaggedBy: 'ai' },
+    { date: '2026-09-02', amount: -20, category: 'equipment', flaggedBy: 'ai', reviewReasons: ['reversal'] },
+  ]).reverse()
+
+  it('confirms only a row whose category is defined, under the review label', () => {
+    expect(confirmation(unclassified!, DEFAULT_SETTINGS)).toBeNull()
+    expect(confirmation(guessed!, DEFAULT_SETTINGS)).toMatchObject({ from: { category: 'equipment', flaggedBy: 'ai' }, to: { category: 'equipment', flaggedBy: 'human' }, undoes: false })
+  })
+
+  it('undoes by swapping what was written with what was there, which may be undefined', () => {
+    const change = recategorisation(unclassified!, 'equipment', { reviewLabel: 'ivan' })
+
+    expect(undoOf({ changes: [{ ...change, from: { category: 'Nope', flaggedBy: 'ai' } }] })).toEqual([
+      { key: change.key, from: { category: 'equipment', flaggedBy: 'ivan' }, to: { category: 'Nope', flaggedBy: 'ai' }, undoes: true },
+    ])
+  })
+
+  it('takes a confirmed row with review reasons out of the queue', () => {
+    expect(needsReview({ ...guessed!, flaggedBy: 'rule' })).toBe(true)
+    expect(needsReview({ ...guessed!, flaggedBy: 'ivan' })).toBe(false)
+  })
+})
+
+describe('ledger row key', () => {
+  const [first, second] = ledger([
+    { date: '2026-09-01', amount: -10, description: 'Desk' },
+    { date: '2026-09-01', amount: -10, description: 'Desk', balance: 50 },
+  ])
+
+  it('matches by reference when there is one, else by the booking', () => {
+    const blank = ledgerRowKeyOf({ ...first!, reference: '' })
+    expect(isSameLedgerRow(blank, ledgerRowKeyOf({ ...second!, reference: '' }))).toBe(false)
+    expect(isSameLedgerRow(blank, ledgerRowKeyOf({ ...first!, reference: 'R1' }))).toBe(true)
+    expect(isSameLedgerRow(ledgerRowKeyOf({ ...first!, reference: 'R1' }), ledgerRowKeyOf({ ...second!, reference: 'R1' }))).toBe(true)
+    expect(isSameLedgerRow(ledgerRowKeyOf({ ...first!, reference: 'R1' }), ledgerRowKeyOf({ ...first!, reference: 'R2' }))).toBe(false)
+  })
+})
+
+describe('columnLetter', () => {
+  it('counts A to Z, then AA', () => {
+    expect([1, 9, 13, 21, 26, 27, 52, 703].map(columnLetter)).toEqual(['A', 'I', 'M', 'U', 'Z', 'AA', 'AZ', 'AAA'])
+  })
+})

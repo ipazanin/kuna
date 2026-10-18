@@ -6,6 +6,7 @@ import UApp from '@nuxt/ui/components/App.vue'
 import WelcomeScreen from './features/data-source/presentation/WelcomeScreen.vue'
 import LocalWorkbookStatus from './features/excel/presentation/LocalWorkbookStatus.vue'
 import { bindFiltersToRouter } from './features/filters/application/filterStore'
+import { useSettings } from './features/settings/application/useSettings'
 import { startAutoSync } from './features/workbook/application/autoSync'
 import { useWorkbook } from './features/workbook/application/workbookStore'
 import { syncStateOf } from './features/workbook/presentation/syncState'
@@ -16,7 +17,14 @@ import ScreenSkeleton from './shared/ui/ScreenSkeleton.vue'
 import SyncStatus from './shared/ui/SyncStatus.vue'
 import UpdatePrompt from './shared/ui/UpdatePrompt.vue'
 
-const navigation = SCREENS.map((screen) => ({ to: screen.path, label: screen.title, icon: screen.icon }))
+const settings = useSettings()
+const navigation = computed(() =>
+  SCREENS.filter((screen) => settings.value.ownerPayModule || screen.ownerPayPack !== true).map((screen) => ({
+    to: screen.path,
+    label: screen.title,
+    icon: screen.icon,
+  })),
+)
 
 bindFiltersToRouter(useRouter())
 

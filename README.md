@@ -7,7 +7,9 @@ browser (Excel mode). There is no backend. It deploys to GitHub Pages at
 
 With a Google Sheet, the app asks Google for `drive.file`, which covers files the user picks in the
 Google Picker or that the app creates, and for `openid email`, which tells it which account signed
-in. The app reads the Sheet and keeps a copy in IndexedDB. It writes nothing back.
+in. The app reads the Sheet and keeps a copy in IndexedDB. It writes only what the user saves, and
+only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, rows
+on the `rules` tab, and rows on the `settings` tab. See *Write-back* below.
 
 On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
 start from the empty template. Settings has "Switch data source" for the same three choices.
@@ -72,7 +74,7 @@ and a capital first letter, so `ai-services` reads "AI services". Links and filt
 
 `flagged_by` values `rule` and `ai` belong to the categoriser: `ai` marks a guess that waits for
 review. Any other value means a person set the category. A row with `review_reasons`, such as a
-reversal, also waits for review.
+reversal, also waits for review until a person confirms it.
 
 ### Settings keys
 
@@ -94,12 +96,30 @@ as before.
 | `label_owner_pay` | `Owner pay` | Same for `owner-pay`. |
 | `label_financing` | `Financing` | Same for `financing`. |
 | `label_neutral` | `Neutral` | Same for `neutral`. |
-| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay and owner earns. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
+| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Taxes and Owner screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
 | `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. An entry that is not an IBAN is reported and the list stays blank. |
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
 Owner earns, Kept). Theme is a per-device choice and not a workbook setting.
+
+## Taxes and Owner
+
+Two screens for a Croatian d.o.o., shown while `owner_pay_module` is on. They pick categories by
+the `roles` column, never by name:
+
+| Role | What it selects |
+|---|---|
+| `revenue` | Client revenue, the base of the effective tax rate |
+| `owner-loan-out`, `owner-loan-repaid` | Loans to the owner and their repayments |
+| `owner-pay-tax` | Taxes owed because the owner was paid, added to the owner's gross cost |
+| `watched` | In the taxes bucket, a tax with a monthly payment calendar |
+| `reimbursement` | Reimbursements between owner and company, listed beside owner pay |
+
+The effective tax rate is the taxes bucket, paid less refunded, over client revenue. A tax refund
+belongs in the taxes bucket. Loans count as owner pay everywhere. Repayments are matched to loans
+first in, first out, and the loan balance is lent less repaid over the whole ledger, signed. A
+screen says which role no category carries, and what it leaves out because of that.
 
 ## Excel mode
 
@@ -119,9 +139,10 @@ deletes it, so the exported files are its only other copies.
 - **Editing.** In Excel mode the Workbook screen edits the settings, categories and accounts, one
   tab each (`#/workbook?tab=categories` links straight to one), with the Sheet's rules: each
   category once, category, family and bucket filled, and a category or account that ledger rows use
-  keeps its name. Ledger rows are changed in Excel and imported again. With a Google Sheet these are
-  read-only there and edited in the Sheet. Settings keeps what belongs to this device: the data
-  source, Google sign-out, the theme and the privacy notes.
+  keeps its name. With a Google Sheet, categories and accounts are read-only there and edited in
+  the Sheet, because the Apps Script reads and checks those tabs. Settings and rules are editable in
+  both modes, and Review sets a ledger row's category in both. Settings keeps what belongs to this
+  device: the data source, Google sign-out, the theme and the privacy notes.
 
 Switching from Excel mode to another source deletes the workbook kept in the browser, once the new
 one has been read. SheetJS loads only on the first import, export or template download, as its own
@@ -144,7 +165,9 @@ npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import
 ```
 
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
-other, a part-month at each end, one loss month, a reimbursement and two rows waiting for review.
+other, a part-month at each end, one loss month, a reimbursement, two rows waiting for review, a
+rules tab that reproduces every row flagged `rule`, and rows a person confirmed that no rule covers
+yet. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads.
 Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
 changes nine days past their last export, and `?fake=empty` starts with nothing, which is the first
 run. The visual check covers both, and the import summary of an xlsx it writes from the fake
@@ -158,6 +181,63 @@ npm run check:touch
 
 `check:pwa` serves the production build itself and sends every other origin to a dead proxy, so it
 needs no preview and makes no call to Google.
+
+## Write-back
+
+Review and the Workbook screen write through one path in both modes. Each write reads the tabs it
+touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
+what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
+In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
+write is complete. The plans live in `src/features/workbook/application/writePlans.ts`, the Google
+side in `googleWorkbookWriter.ts`.
+
+- **Ledger rows.** A row is found again by (account, reference), or for a blank reference by
+  (account, date, amount, balance, description), so rows the ingest inserted since the last sync do
+  not matter. The write is refused when no row or several rows match, when the row's category or
+  `flagged_by` changed since the app read it, or when the category is not on the categories tab.
+  Only `category` and `flagged_by` are written, each found by its header (I and M in the
+  shadow-accounting Sheet), and only where the value changes. J to L are never written.
+  Confirm writes the `review_label` setting to `flagged_by`. Recategorise writes the category and the
+  label. Applying a new rule writes its category and `rule`, only to rows flagged `ai` or
+  unclassified. Undo writes the exact previous values back through the same checks.
+- **Rules.** The tab after the change must pass every check of `parseRules` in the Apps Script's
+  `Rules.gs` (mirrored in `rulesTabRefusals.ts`), against the categories tab as it is now, so a save
+  is refused while the tab has any problem. A new rule is appended. An edited, switched or moved rule
+  is found by its id, must still hold what the app read, and only its changed cells are written.
+  Moving a rule swaps its order with its neighbour's, so orders stay in steps of 100, and renumbers
+  every rule in steps of 100 only when the two share an order.
+- **Settings.** Each changed key is set in its `value` cell, or appended as a `key`, `value` row when
+  the tab lacks it. A key on two rows, a value that changed since the read, or a value the settings
+  reader would not use is refused. Categories and accounts are never written in Google mode.
+
+The requests each Google use case sends, in order. Every write is `valueInputOption=RAW`.
+
+| Use case | Requests |
+|---|---|
+| Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids), `values.batchGet` of `ledger` and `categories`, `values.batchUpdate` of single cells such as `ledger!I57` and `ledger!M57`, then the same get and batchGet again |
+| Add a rule | get, `values.batchGet` of `rules` and `categories`, `values.append` to `rules!A:U` with `insertDataOption=INSERT_ROWS` (plus a `values.batchUpdate` of `order` cells when rules are renumbered), get and batchGet again |
+| Edit, switch on or off, move a rule | get, batchGet of `rules` and `categories`, `values.batchUpdate` of the changed cells such as `rules!C12`, get and batchGet again |
+| Save settings | get, batchGet of `settings`, `values.batchUpdate` of `value` cells such as `settings!B4`, `values.append` to `settings!A:B` for a new key, get and batchGet again |
+
+### Manual test, against a copy of the Sheet first
+
+Run this on a copy (File, Make a copy in Google Sheets, then pick the copy in "Switch data source").
+Never run it first on the original.
+
+1. Pick the copy and sync. Note the row number of one `ai` row on Review.
+2. Open the row and Confirm it. In the copy, only M on that row changed to your review label. I and
+   J to L are as before. Press Undo in the toast and check M is back.
+3. Recategorise the same row. I and M change, nothing else. Undo, and both are back.
+4. In the copy, insert an empty row at row 2 of `ledger`. Recategorise another row from the app
+   without syncing first. The write lands on the shifted row. Delete the empty row again.
+5. Make a rule from a row. Check the back-test lists, save, and check the new row at the bottom of
+   `rules`. Press "Apply to the rows still waiting" and check only `ai` or unclassified rows changed.
+6. On Workbook, Rules, switch the new rule off and move it. Check `enabled` and `order` changed and no
+   other cell did.
+7. On Workbook, General, change the company name. Check the `settings` tab.
+8. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
+   reads the rules and settings tabs the way the morning ingest does, so it must finish without an
+   error. Then repeat steps 2, 3 and 5 on the original, and check the next 06:00 run in Executions.
 
 ## Figure parity
 

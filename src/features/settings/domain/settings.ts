@@ -224,10 +224,6 @@ export function settingsTabEntries(settings: Settings): { readonly key: string; 
   return SETTING_DEFINITIONS.map((definition) => ({ key: definition.key, value: definition.valueOf(settings) }))
 }
 
-export function isKnownSetting(key: string): boolean {
-  return DEFINITION_BY_KEY.has(key.trim().toLowerCase())
-}
-
 export function settingNote(key: string): string | null {
   return DEFINITION_BY_KEY.get(key)?.note ?? null
 }
@@ -335,4 +331,10 @@ function booleanOf(cell: SettingCell): boolean | null {
   if (['true', 'yes', 'on', '1'].includes(text)) return true
   if (['false', 'no', 'off', '0'].includes(text)) return false
   return null
+}
+
+/** The keys whose value differs between two settings, with the new value, in template order. */
+export function changedSettings(current: Settings, next: Settings): { readonly key: string; readonly value: SettingCell }[] {
+  const before = new Map(settingsTabEntries(current).map((entry) => [entry.key, entry.value]))
+  return settingsTabEntries(next).filter((entry) => String(before.get(entry.key)) !== String(entry.value))
 }

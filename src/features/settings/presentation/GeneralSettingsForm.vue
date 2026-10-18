@@ -13,8 +13,6 @@ import type { Settings } from '../domain/settings'
 
 const props = defineProps<{
   settings: Settings
-  /** False for a Google Sheet, whose settings are edited in the Sheet. */
-  editable: boolean
   saving: boolean
 }>()
 
@@ -70,37 +68,10 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
   draft.value = { ...draft.value, bucketLabels: { ...draft.value.bucketLabels, [bucket]: label } }
 }
 
-const readOnlyFacts = computed(() => [
-  { label: 'Company name', value: props.settings.companyName || 'Not set' },
-  { label: 'Currency', value: props.settings.currency },
-  { label: 'Number locale', value: props.settings.numberLocale },
-  { label: 'Owner-pay module', value: props.settings.ownerPayModule ? 'On' : 'Off' },
-  { label: 'Review label', value: props.settings.reviewLabel },
-  { label: 'Card settlement IBANs', value: props.settings.cardSettlementIbans.join(', ') || 'None' },
-])
 </script>
 
 <template>
-  <div v-if="!editable" class="flex flex-col gap-5">
-    <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-      <div v-for="fact in readOnlyFacts" :key="fact.label">
-        <dt class="text-xs text-muted">{{ fact.label }}</dt>
-        <dd class="mt-0.5 text-sm text-highlighted">{{ fact.value }}</dd>
-      </div>
-    </dl>
-    <div>
-      <h3 class="text-xs font-medium text-muted">Bucket labels</h3>
-      <ul class="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-        <li v-for="bucket in BUCKETS" :key="bucket" class="inline-flex items-center gap-1.5 text-toned">
-          <span class="size-2 rounded-[2px]" :style="{ background: `var(--bucket-${bucket})` }" aria-hidden="true" />
-          {{ settings.bucketLabels[bucket] }}
-          <span class="identifier text-xs text-dimmed">{{ bucket }}</span>
-        </li>
-      </ul>
-    </div>
-  </div>
-
-  <form v-else class="flex flex-col gap-6" @submit.prevent="valid && dirty && emit('save', draft)">
+  <form class="flex flex-col gap-6" @submit.prevent="valid && dirty && emit('save', draft)">
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField label="Company name" help="Shown under the app name and used in the name of an exported file.">
         <UInput :model-value="draft.companyName" placeholder="Not set" class="w-full" @update:model-value="update('companyName', String($event))" />

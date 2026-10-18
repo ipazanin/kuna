@@ -7,12 +7,13 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import ProblemList from '../../excel/presentation/ProblemList.vue'
+import RulesTab from '../../rules/presentation/RulesTab.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { EditableTabs } from '../../workbook/application/workbookStore'
 import { spreadsheetLink } from '../../workbook/infrastructure/sheetRowLink'
 import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { rowsFrom, settingsTabRows } from '../../workbook/infrastructure/workbookTemplate'
-import { DEFAULT_SETTINGS, isKnownSetting } from '../domain/settings'
+import { rowsFrom } from '../../workbook/infrastructure/workbookTemplate'
+import { DEFAULT_SETTINGS, changedSettings } from '../domain/settings'
 import type { Settings } from '../domain/settings'
 import AccountsEditor from './AccountsEditor.vue'
 import CategoriesEditor from './CategoriesEditor.vue'
@@ -20,6 +21,7 @@ import GeneralSettingsForm from './GeneralSettingsForm.vue'
 
 const TABS = [
   { label: 'General', value: 'general', icon: 'i-lucide-sliders-horizontal', slot: 'general' as const },
+  { label: 'Rules', value: 'rules', icon: 'i-lucide-list-ordered', slot: 'rules' as const },
   { label: 'Categories', value: 'categories', icon: 'i-lucide-tags', slot: 'categories' as const },
   { label: 'Accounts', value: 'accounts', icon: 'i-lucide-landmark', slot: 'accounts' as const },
 ]
@@ -51,7 +53,7 @@ const usedAccounts = computed(() => new Set(state.workbook?.transactions.map((tr
 
 const savingSection = ref<'settings' | 'categories' | 'accounts' | null>(null)
 
-async function saveSection(section: 'settings' | 'categories' | 'accounts', edits: EditableTabs, saved: string): Promise<void> {
+async function saveSection(section: 'categories' | 'accounts', edits: EditableTabs, saved: string): Promise<void> {
   savingSection.value = section
   await store.saveLocalEdits(edits)
   savingSection.value = null
@@ -62,9 +64,22 @@ async function saveSection(section: 'settings' | 'categories' | 'accounts', edit
   }
 }
 
-function saveSettings(next: Settings): void {
-  const unknownRows = (state.snapshot?.settings ?? []).filter((row: SheetRow) => !isKnownSetting(String(row.cells.key ?? '')))
-  void saveSection('settings', { settings: settingsTabRows(next, unknownRows) }, 'Settings saved')
+/** Only the keys that changed are written, each checked against the value the app read for it. */
+async function saveSettings(next: Settings): Promise<void> {
+  const rows = state.snapshot?.settings ?? []
+  const changes = changedSettings(settings.value, next).map(({ key, value }) => {
+    const row = rows.find((candidate: SheetRow) => String(candidate.cells.key ?? '').trim().toLowerCase() === key)
+    return { key, value, expected: row === undefined ? null : (row.cells.value ?? '') }
+  })
+  savingSection.value = 'settings'
+  try {
+    await store.changeSettings(changes)
+    toast.add({ title: 'Settings saved', ...(source.value === 'google' ? { description: 'Written to the settings tab of the Sheet.' } : {}), icon: 'i-lucide-check', color: 'success' })
+  } catch (failure) {
+    toast.add({ title: 'Not saved', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+  } finally {
+    savingSection.value = null
+  }
 }
 
 function saveCategories(cells: SheetRow['cells'][]): void {
@@ -83,7 +98,7 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
       :description="
         editable
           ? 'How this workbook is set up. Changes are kept in this browser, and an export writes them into the file.'
-          : 'What the app reads from your Sheet. Edit these in the Sheet itself.'
+          : 'How your Sheet is set up. Settings and rules saved here are written to the Sheet. Categories and accounts are edited in the Sheet itself.'
       "
     />
 
@@ -92,8 +107,8 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
       icon="i-lucide-sheet"
       color="neutral"
       variant="subtle"
-      title="These live in the Sheet's settings, categories and accounts tabs"
-      description="Change them in the Sheet and sync. A missing settings tab means the defaults below."
+      title="Categories and accounts are edited in the Sheet"
+      description="The Apps Script reads and checks those two tabs every morning, so change them in the Sheet and sync. Settings and rules can be saved from here."
       :actions="sheetLink ? [{ label: 'Open the Sheet', icon: 'i-lucide-external-link', color: 'neutral', variant: 'outline', to: sheetLink, target: '_blank' }] : []"
     />
 
@@ -113,7 +128,7 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
               <h2 class="text-sm font-medium text-highlighted">Workbook settings</h2>
               <p class="mt-0.5 text-xs text-muted">From the settings tab. Theme is kept per device, on Settings.</p>
             </header>
-            <GeneralSettingsForm :settings="settings" :editable="editable" :saving="savingSection === 'settings'" @save="saveSettings" />
+            <GeneralSettingsForm :settings="settings" :saving="savingSection === 'settings' || state.writing" @save="saveSettings" />
           </section>
           <section v-if="state.workbook.problems.length" class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5">
             <header>
@@ -123,6 +138,10 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
             <ProblemList :problems="state.workbook.problems" />
           </section>
         </div>
+      </template>
+
+      <template #rules>
+        <RulesTab />
       </template>
 
       <template #categories>

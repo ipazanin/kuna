@@ -1,17 +1,25 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
 import { setMoneyFormat } from '../../../shared/money/moneyFormat'
+import type { LedgerVerdictChange, VerdictReceipt } from '../../review/domain/verdictChanges'
+import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import type { Workbook } from '../domain/workbook'
-import { googleWorkbookPorts } from '../infrastructure/googleWorkbookPorts'
+import { googleWorkbookPorts, readSnapshotFrom, sheetsValuesForWriting } from '../infrastructure/googleWorkbookPorts'
+import { googleWorkbookWriter } from '../infrastructure/googleWorkbookWriter'
+import { localWorkbookWriter } from '../infrastructure/localWorkbookWriter'
 import { currentAccessToken, forgetGoogleSignIn, prepareGoogleIdentity, signOutOfGoogle } from '../infrastructure/googleAuth'
 import { loadWorkbookChoice, saveWorkbookChoice } from '../infrastructure/workbookChoice'
 import type { WorkbookChoice } from '../infrastructure/workbookChoice'
 import { openWorkbookCache } from '../infrastructure/workbookCache'
 import type { WorkbookCache } from '../infrastructure/workbookCache'
 import { readWorkbook } from '../infrastructure/workbookReader'
-import type { WorkbookSnapshot, WorkbookTabs } from '../infrastructure/workbookSnapshot'
+import type { WorkbookSnapshot, WorkbookTab, WorkbookTabs } from '../infrastructure/workbookSnapshot'
 import { readFromGoogle } from './readFromGoogle'
 import type { GoogleSheet } from './readFromGoogle'
+import { WorkbookWriteRefused } from './workbookWriter'
+import type { FreshTabs, TabEdits, WorkbookWriter } from './workbookWriter'
+import { planRulesChange, planSettingsChange, planVerdicts, verifyRulesChange, verifySettingsChange, verifyVerdicts } from './writePlans'
+import type { SettingChange } from './writePlans'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
 
@@ -26,10 +34,12 @@ export interface WorkbookState {
   readonly choice: WorkbookChoice | null
   readonly status: WorkbookStatus
   readonly error: string | null
+  /** True while a change is being written, during which no sync starts and no other change is taken. */
+  readonly writing: boolean
 }
 
-/** The tabs Excel mode lets the app edit. The ledger only ever arrives whole, from a file. */
-export type EditableTabs = Partial<Pick<WorkbookTabs, 'categories' | 'accounts' | 'settings'>>
+/** The tabs Excel mode edits whole. The ledger only ever arrives whole, from a file, and settings change row by row. */
+export type EditableTabs = Partial<Pick<WorkbookTabs, 'categories' | 'accounts'>>
 
 export interface WorkbookStorePorts {
   loadChoice(): WorkbookChoice | null
@@ -50,6 +60,8 @@ export interface WorkbookStorePorts {
   now(): string
   /** Asks the browser not to evict the data. Firefox shows a prompt for it. */
   requestPersistentStorage(): void
+  /** Writes to the given Sheet. Asks for a token first when none is kept, so call it before anything else awaits. */
+  googleWriter(spreadsheetId: string): Promise<WorkbookWriter>
 }
 
 export interface WorkbookStore {
@@ -79,6 +91,16 @@ export interface WorkbookStore {
   saveLocalEdits(edits: EditableTabs): Promise<void>
   /** Notes that the workbook on screen was just written to a file. */
   recordExport(): Promise<void>
+  /**
+   * Sets `category` and `flagged_by` on ledger rows, each found again by its key on a fresh read,
+   * then reads the tabs back into the copy on screen. Returns what Undo puts back. Throws
+   * `WorkbookWriteRefused` with the reason when it writes nothing.
+   */
+  setVerdicts(changes: readonly LedgerVerdictChange[]): Promise<VerdictReceipt>
+  /** Adds or edits rules rows, refused unless the whole tab then passes the Apps Script's check. */
+  changeRules(change: RulesTabChange): Promise<void>
+  /** Sets settings rows by key, adding a row for a key the tab lacks. */
+  changeSettings(changes: readonly SettingChange[]): Promise<void>
 }
 
 /** Cache first: the copy this browser holds is on screen at once, and a sync or an import replaces it. */
@@ -90,6 +112,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     choice: null,
     status: 'opening',
     error: null,
+    writing: false,
   })
 
   function show(snapshot: WorkbookSnapshot): void {
@@ -155,7 +178,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
   }
 
   async function readGoogle(sheet: GoogleSheet | null): Promise<void> {
-    if (state.status === 'syncing') {
+    if (state.status === 'syncing' || state.writing) {
       return
     }
     const previous = state.choice
@@ -183,6 +206,71 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       state.status = 'ready'
     } catch (failure) {
       fail(failure)
+    }
+  }
+
+  /** The copy on screen with the tabs just read back from the workbook written to. */
+  function withTabsReadBack(snapshot: WorkbookSnapshot, after: FreshTabs): WorkbookSnapshot {
+    const tabs = Object.fromEntries(Object.entries(after).map(([tab, read]) => [tab, read.rows]))
+    if (snapshot.meta.source !== 'excel') {
+      return { ...snapshot, ...tabs }
+    }
+    const now = ports.now()
+    return { ...snapshot, ...tabs, meta: { ...snapshot.meta, syncedAt: now, unexportedSince: snapshot.meta.unexportedSince ?? now } }
+  }
+
+  /**
+   * Every write the same way: read the tabs fresh, plan on that read, write, read back, keep what
+   * was read, then check it holds what was written. In Excel mode the reads and writes go to a
+   * working copy, which only replaces the stored workbook once it is complete.
+   */
+  async function writeThrough<Plan extends { readonly edits: TabEdits }>(
+    tabs: readonly WorkbookTab[],
+    plan: (fresh: FreshTabs) => Plan,
+    verify: (after: FreshTabs, planned: Plan) => void,
+  ): Promise<Plan> {
+    const current = state.snapshot
+    if (current === null || state.choice === null || state.choice.id !== current.meta.id) {
+      throw new WorkbookWriteRefused('There is no workbook on screen to change.')
+    }
+    if (state.writing || state.status === 'syncing') {
+      throw new WorkbookWriteRefused('Another change or a sync is still running. Try again when it finishes.')
+    }
+    state.writing = true
+    let sent = false
+    try {
+      const writer = current.meta.source === 'excel' ? localWorkbookWriter(current) : await ports.googleWriter(current.meta.id)
+      const fresh = await writer.read(tabs)
+      const planned = plan(fresh)
+      if (planned.edits.cells.length === 0 && planned.edits.appends.length === 0) {
+        return planned
+      }
+      sent = true
+      await writer.write(planned.edits, fresh)
+      const after = await writer.read(tabs)
+      await keep(withTabsReadBack(state.snapshot ?? current, after))
+      verify(after, planned)
+      return planned
+    } catch (failure) {
+      if (sent && current.meta.source === 'google') {
+        await refreshAfterFailedWrite(current.meta.id, tabs)
+      }
+      throw failure
+    } finally {
+      state.writing = false
+    }
+  }
+
+  /** A write that failed part way may still have changed the Sheet, so the copy on screen is read again where possible. */
+  async function refreshAfterFailedWrite(spreadsheetId: string, tabs: readonly WorkbookTab[]): Promise<void> {
+    try {
+      const after = await (await ports.googleWriter(spreadsheetId)).read(tabs)
+      const snapshot = state.snapshot
+      if (snapshot !== null) {
+        await keep(withTabsReadBack(snapshot, after))
+      }
+    } catch {
+      // The next sync reads the Sheet whole.
     }
   }
 
@@ -245,6 +333,19 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
         }
       })
     },
+
+    async setVerdicts(changes) {
+      const planned = await writeThrough(['ledger', 'categories'], (fresh) => planVerdicts(fresh, changes), verifyVerdicts)
+      return planned.receipt
+    },
+
+    async changeRules(change) {
+      await writeThrough(['rules', 'categories'], (fresh) => ({ edits: planRulesChange(fresh, change) }), (after) => verifyRulesChange(after, change))
+    },
+
+    async changeSettings(changes) {
+      await writeThrough(['settings'], (fresh) => ({ edits: planSettingsChange(fresh, changes) }), (after) => verifySettingsChange(after, changes))
+    },
   }
 }
 
@@ -255,8 +356,8 @@ const workbookStore = createWorkbookStore({
   async fetchFromGoogle(sheet) {
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-      const { fakeWorkbookSnapshot } = await import('../infrastructure/fake/fakeWorkbook')
-      return fakeWorkbookSnapshot(new Date().toISOString())
+      const { fakeGoogleSheet, fakeSheetsSession } = await import('../infrastructure/fake/fakeSheets')
+      return readSnapshotFrom(fakeSheetsSession(), fakeGoogleSheet)
     }
     return readFromGoogle(googleWorkbookPorts, sheet)
   },
@@ -276,6 +377,14 @@ const workbookStore = createWorkbookStore({
     navigator.storage?.persist?.().catch(() => {
       // Refused or unsupported: the data stays, but the browser may evict it under pressure.
     })
+  },
+  async googleWriter(spreadsheetId) {
+    // Inline, as above: the fake build writes to a Sheet held in memory for the session.
+    if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
+      const { fakeSheetsSession } = await import('../infrastructure/fake/fakeSheets')
+      return googleWorkbookWriter(fakeSheetsSession())
+    }
+    return googleWorkbookWriter(await sheetsValuesForWriting(spreadsheetId))
   },
 })
 

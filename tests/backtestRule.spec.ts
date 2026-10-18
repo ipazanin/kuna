@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { backtestRule, isHumanConfirmed } from '../src/features/rules/domain/backtestRule'
+import { backtestRuleChange } from '../src/features/rules/domain/backtestRule'
 import { categorise } from '../src/features/rules/domain/categorise'
 import { proposeRule } from '../src/features/rules/domain/proposeRule'
 import type { Rule, RuleCondition } from '../src/features/rules/domain/rule'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import type { Category } from '../src/features/workbook/domain/workbook'
+import { isHumanConfirmed } from '../src/features/workbook/domain/needsReview'
 import { ledger } from './fixtures/ledger'
 
 const SHOP_IBAN = 'XX00FAKE0000000011'
@@ -31,7 +32,7 @@ const CATEGORIES: readonly Category[] = [
   { slug: 'revenue', family: 'income', bucket: 'income', colour: '', roles: ['revenue'] },
 ]
 
-describe('backtestRule', () => {
+describe('backtestRuleChange', () => {
   const rows = ledger([
     { date: '2026-09-01', amount: -20, counterparty: 'MODEL API INC', description: '411111XXXXXX1111, MODEL API', category: 'card-purchase-unknown', flaggedBy: 'ai' },
     { date: '2026-09-02', amount: -30, counterparty: 'MODEL API INC', description: '411111XXXXXX1111, MODEL API', category: 'ai-services', flaggedBy: 'ivan' },
@@ -43,7 +44,7 @@ describe('backtestRule', () => {
   it('sorts every changed verdict into settled, broken agreements and human conflicts', () => {
     const candidate = rule('merchant-model-api', 150, [{ column: 'counterparty_contains', fragment: 'MODEL API' }], 'ai-services')
 
-    const result = backtestRule(candidate, RULES, rows, context)
+    const result = backtestRuleChange(RULES, [...RULES, candidate], rows, context)
 
     expect(result.settled.map((change) => [change.transaction.amount, change.before.category, change.after.category])).toEqual([
       [-2000, 'card-purchase-unknown', 'ai-services'],
@@ -59,7 +60,7 @@ describe('backtestRule', () => {
   it('leaves a row out when a rule above the candidate still decides it', () => {
     const candidate = rule('merchant-model-api', 150, [{ column: 'counterparty_contains', fragment: 'MODEL API' }], 'ai-services')
 
-    const changed = Object.values(backtestRule(candidate, RULES, rows, context)).flat()
+    const changed = Object.values(backtestRuleChange(RULES, [...RULES, candidate], rows, context)).flat()
 
     expect(changed.map((change) => change.transaction.amount)).not.toContain(-6000)
   })
@@ -67,13 +68,13 @@ describe('backtestRule', () => {
   it('places a candidate after an existing rule of the same order, as an appended row lands', () => {
     const sameOrder = { ...rule('also-travel', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'equipment'), sheetRow: null }
 
-    expect(Object.values(backtestRule(sameOrder, RULES, rows, context)).flat()).toEqual([])
+    expect(Object.values(backtestRuleChange(RULES, [...RULES, sameOrder], rows, context)).flat()).toEqual([])
   })
 
   it('settles nothing with a review rule', () => {
     const candidate = rule('model-review', 50, [{ column: 'counterparty_contains', fragment: 'MODEL API' }], '', 'review')
 
-    expect(backtestRule(candidate, RULES, rows, context).settled).toEqual([])
+    expect(backtestRuleChange(RULES, [...RULES, candidate], rows, context).settled).toEqual([])
   })
 
   it('counts any flagged_by but rule, ai and blank as a person', () => {

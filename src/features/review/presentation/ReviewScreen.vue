@@ -1,68 +1,103 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import UAlert from '@nuxt/ui/components/Alert.vue'
-import UBadge from '@nuxt/ui/components/Badge.vue'
+import { computed, ref } from 'vue'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import MoneyText from '../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
+import { categorise } from '../../rules/domain/categorise'
+import type { CoverageGap } from '../../rules/domain/ruleCoverage'
+import { ruleCoverageGaps } from '../../rules/domain/ruleCoverage'
+import { draftForRow } from '../../rules/domain/ruleDraft'
+import { categorisationContextOf } from '../../rules/domain/transactionFacts'
+import RuleEditor from '../../rules/presentation/RuleEditor.vue'
+import type { RuleEditorSource } from '../../rules/presentation/RuleEditor.vue'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
-import { UNCLASSIFIED } from '../../workbook/domain/bucket'
-import { needsReview } from '../../workbook/domain/needsReview'
-import { sheetRowLink } from '../../workbook/infrastructure/sheetRowLink'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useWorkbook } from '../../workbook/application/workbookStore'
+import { needsReview } from '../../workbook/domain/needsReview'
+import type { Transaction } from '../../workbook/domain/workbook'
+import { sheetRowLink } from '../../workbook/infrastructure/sheetRowLink'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
+import { useLedgerWrites } from '../application/useLedgerWrites'
+import { confirmation, recategorisation } from '../domain/verdictChanges'
+import ReviewQueueItem from './ReviewQueueItem.vue'
+import RuleCoverage from './RuleCoverage.vue'
 
 const ledger = useFilteredLedger()
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
+const { state } = useWorkbook()
 const names = useDisplayNames()
+const writes = useLedgerWrites()
+
+const context = computed(() => (ledger.value === null ? null : categorisationContextOf(ledger.value.workbook)))
+const busy = computed(() => writes.busy.value || state.writing)
 
 /** The queue has no period: a row waits until someone settles it, however old it is. */
-const inSheet = computed(() => ledger.value?.workbook.source === 'google')
-
 const queue = computed(() => {
   const current = ledger.value
-  if (current === null) {
+  if (current === null || context.value === null) {
     return []
   }
   const { workbook } = current
   return current.scoped.filter(needsReview).map((transaction) => ({
-    key: transaction.sheetRow,
-    date: dayFormat.format(new Date(transaction.date)),
-    account: names.value.account(transaction.account),
-    counterparty: transaction.counterparty || 'No counterparty',
-    description: transaction.description,
-    amount: transaction.amount,
-    category: transaction.category === '' ? '' : names.value.category(transaction.category),
-    reason: transaction.bucket === UNCLASSIFIED ? 'Unclassified' : 'AI guess',
-    sheetRow: transaction.sheetRow,
+    transaction,
+    verdict: categorise(transaction, workbook.rules, context.value!),
     link: sheetRowLink(workbook.id, workbook.ledgerSheetId, transaction.sheetRow),
   }))
 })
+
+const gaps = computed(() => (ledger.value === null || context.value === null ? [] : ruleCoverageGaps(ledger.value.scoped, ledger.value.workbook.rules, context.value)))
+
+const expandedRow = ref<number | null>(null)
+
+function toggle(sheetRow: number): void {
+  expandedRow.value = expandedRow.value === sheetRow ? null : sheetRow
+}
+
+const description = computed(() =>
+  ledger.value?.workbook.source === 'google'
+    ? 'Rows that wait for a person. Confirm or recategorise one here and the app writes its category and flagged_by to the Sheet.'
+    : 'Rows that wait for a person. Confirm or recategorise one here and the app keeps its category and flagged_by in this browser.',
+)
+
+async function confirm(transaction: Transaction): Promise<void> {
+  const workbook = ledger.value?.workbook
+  const change = workbook === undefined ? null : confirmation(transaction, workbook.settings)
+  if (change === null) return
+  await writes.write([change], { title: `Confirmed ${names.value.category(transaction.category)}`, description: transaction.counterparty || 'A row with no counterparty' })
+}
+
+async function recategorise(transaction: Transaction, category: string): Promise<void> {
+  const workbook = ledger.value?.workbook
+  if (workbook === undefined) return
+  await writes.write([recategorisation(transaction, category, workbook.settings)], {
+    title: `Filed as ${names.value.category(category)}`,
+    description: transaction.counterparty || 'A row with no counterparty',
+    follow: { label: 'Make a rule', icon: 'i-lucide-list-plus', run: () => makeRule({ ...transaction, category }) },
+  })
+}
+
+const editorOpen = ref(false)
+const editorSource = ref<RuleEditorSource | null>(null)
+
+function makeRule(transaction: Transaction, title = 'Make a rule from this row'): void {
+  const workbook = state.workbook
+  if (workbook === null) return
+  editorSource.value = { title, draft: draftForRow(transaction, workbook, categorisationContextOf(workbook)), edited: null }
+  editorOpen.value = true
+}
+
+function makeRuleForGap(gap: CoverageGap<Transaction>): void {
+  const [newest] = gap.rows
+  if (newest !== undefined) makeRule(newest, `Make a rule for ${gap.name || 'these rows'}`)
+}
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Review" description="Rows that wait for a human: categories the AI guessed, and rows no defined category covers." />
+    <PageHeader title="Review" :description="description" />
     <LedgerGate>
       <template v-if="ledger">
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
-
-        <UAlert
-          icon="i-lucide-pencil-off"
-          color="neutral"
-          variant="subtle"
-          title="Fix a row where the workbook lives"
-          :description="
-            inSheet
-              ? 'Open the row in the Sheet, set or confirm its category, then sync to see it here.'
-              : 'Export the workbook, set or confirm the category in Excel, then import the file again.'
-          "
-        />
 
         <UEmpty
           v-if="queue.length === 0"
@@ -72,73 +107,32 @@ const queue = computed(() => {
           variant="outline"
           class="rounded-card bg-raised"
         />
-        <section v-else class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
+        <section v-else class="min-w-0 overflow-clip rounded-card border border-default bg-raised shadow-raised" data-testid="review-queue">
+          <header class="px-4 pt-4 pb-3 sm:px-5">
             <h2 class="text-sm font-medium text-highlighted">{{ queue.length }} {{ queue.length === 1 ? 'row' : 'rows' }} to review</h2>
-            <p class="mt-0.5 text-xs text-muted">Newest first, from every month of the ledger.</p>
+            <p class="mt-0.5 text-xs text-muted">Newest first, from every month of the ledger. Open a row to see what the rules say about it.</p>
           </header>
-          <div class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-            <table class="data-table w-full text-sm">
-              <thead>
-                <tr>
-                  <th scope="col" class="text-start">Date</th>
-                  <th scope="col" class="text-start">Counterparty</th>
-                  <th scope="col" class="text-start">Category now</th>
-                  <th scope="col" class="text-start">Why</th>
-                  <th scope="col" class="text-end">Amount</th>
-                  <th v-if="inSheet" scope="col" class="text-end">In the Sheet</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in queue" :key="row.key">
-                  <td class="figure text-muted">{{ row.date }}</td>
-                  <th scope="row" class="text-start font-normal">
-                    <span class="block text-highlighted">{{ row.counterparty }}</span>
-                    <span v-if="row.description" class="block max-w-72 truncate text-xs text-muted">{{ row.description }}</span>
-                  </th>
-                  <td class="text-toned">
-                    <span v-if="row.category">{{ row.category }}</span>
-                    <span v-else class="text-dimmed">none</span>
-                  </td>
-                  <td>
-                    <UBadge :label="row.reason" :color="row.reason === 'Unclassified' ? 'warning' : 'info'" variant="subtle" size="sm" />
-                  </td>
-                  <td class="text-end"><MoneyText :cents="row.amount" tone="flow" /></td>
-                  <td v-if="inSheet" class="text-end">
-                    <a
-                      v-if="row.link"
-                      :href="row.link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="sheet-link inline-flex items-center gap-1 text-toned"
-                    >
-                      Row {{ row.sheetRow }}
-                      <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
-                      <span class="sr-only">(opens the Google Sheet in a new tab)</span>
-                    </a>
-                    <span v-else class="text-xs text-dimmed" title="Sync once so the app learns which tab is the ledger.">Row {{ row.sheetRow }}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <ul class="border-t border-default">
+            <ReviewQueueItem
+              v-for="entry in queue"
+              :key="entry.transaction.sheetRow"
+              :transaction="entry.transaction"
+              :verdict="entry.verdict"
+              :categories="ledger.workbook.categories"
+              :expanded="expandedRow === entry.transaction.sheetRow"
+              :link="entry.link"
+              :busy="busy"
+              @toggle="toggle(entry.transaction.sheetRow)"
+              @confirm="confirm(entry.transaction)"
+              @recategorise="recategorise(entry.transaction, $event)"
+              @make-rule="makeRule(entry.transaction)"
+            />
+          </ul>
         </section>
+
+        <RuleCoverage :gaps="gaps" :categories="ledger.workbook.categories" :busy="busy" @make-rule="makeRuleForGap" />
+        <RuleEditor v-model:open="editorOpen" :source="editorSource" />
       </template>
     </LedgerGate>
   </section>
 </template>
-
-<style scoped>
-.sheet-link {
-  border-radius: 3px;
-  text-decoration-line: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 3px;
-  transition: text-decoration-color 120ms ease;
-}
-
-.sheet-link:hover {
-  color: var(--ink-strong);
-  text-decoration-color: var(--accent);
-}
-</style>

@@ -66,8 +66,9 @@ async function getTemplate(): Promise<void> {
       <div class="choice-body">
         <h3 class="text-sm font-medium text-highlighted">{{ current === 'google' ? 'Choose another Google Sheet' : 'Connect a Google Sheet' }}</h3>
         <p class="mt-1 text-sm text-muted">
-          Sign in with Google and pick the Sheet. The app reads its ledger, categories, accounts and settings tabs, keeps a copy in this browser,
-          and writes nothing back.
+          Sign in with Google and pick the Sheet. The app reads its ledger, categories, accounts, settings and rules tabs and keeps a copy in
+          this browser. It writes only what you save: category and flagged_by on ledger rows you act on, rows on the rules tab, and rows on the
+          settings tab, and only in the Sheet you pick.
         </p>
       </div>
       <UButton

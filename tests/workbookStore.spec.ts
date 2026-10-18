@@ -65,6 +65,9 @@ function harness(initial: WorkbookChoice | null, fetchFromGoogle: WorkbookStoreP
       newLocalId: () => `local-${(nextLocal += 1)}`,
       now: () => now,
       requestPersistentStorage: () => {},
+      googleWriter: async () => {
+        throw new Error('This spec never writes to Google.')
+      },
     },
   }
 }
@@ -252,14 +255,14 @@ describe('workbook store in Excel mode', () => {
     const store = createWorkbookStore(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
-    const settings: SheetRow[] = [{ sheetRow: 2, cells: { key: 'currency', value: 'USD' } }]
+    const categories: SheetRow[] = [{ sheetRow: 2, cells: { category: 'revenue', family: 'income', bucket: 'income', label: 'Sales' } }]
 
     setNow('2026-10-17T09:00:00.000Z')
-    await store.saveLocalEdits({ settings })
+    await store.saveLocalEdits({ categories })
     setNow('2026-10-18T09:00:00.000Z')
     await store.saveLocalEdits({ accounts: [] })
 
-    expect(store.state.workbook?.settings.currency).toBe('USD')
+    expect(store.state.workbook?.categories[0]?.label).toBe('Sales')
     expect(store.state.snapshot?.meta).toMatchObject({ syncedAt: '2026-10-18T09:00:00.000Z', unexportedSince: '2026-10-17T09:00:00.000Z' })
 
     setNow('2026-10-19T09:00:00.000Z')

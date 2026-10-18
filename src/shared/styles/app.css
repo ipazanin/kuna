@@ -89,9 +89,9 @@ body {
     min-width: 44px;
   }
 
-  /* A switch stays switch-sized. Its label, which toggles it too, carries the height. */
-  [data-slot='root']:has(> [data-slot='container'] > [role='switch']) > [data-slot='container'],
-  [data-slot='root']:has(> [data-slot='container'] > [role='switch']) [data-slot='label'] {
+  /* A switch or a checkbox stays its own size. Its label, which toggles it too, carries the height. */
+  [data-slot='root']:has(> [data-slot='container'] > :is([role='switch'], [role='checkbox'])) > [data-slot='container'],
+  [data-slot='root']:has(> [data-slot='container'] > :is([role='switch'], [role='checkbox'])) [data-slot='label'] {
     display: flex;
     align-items: center;
     min-height: 44px;

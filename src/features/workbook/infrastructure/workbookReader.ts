@@ -7,6 +7,8 @@ import type { Rule } from '../../rules/domain/rule'
 import { currencyProblem, parseSettings } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
 import { UNCLASSIFIED, isDefinedBucket } from '../domain/bucket'
+import { ledgerRowKeyOf } from '../domain/ledgerRowKey'
+import type { LedgerRowKey } from '../domain/ledgerRowKey'
 import type { Account, Category, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
 import type { CellValue, SheetRow, WorkbookSnapshot } from './workbookSnapshot'
 
@@ -34,6 +36,17 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     settings,
     problems,
   }
+}
+
+/** The key that finds a ledger row again, read as the ledger reader reads it, or null for a row it leaves out. */
+export function ledgerRowKeyOfRow(row: SheetRow): LedgerRowKey | null {
+  const transaction = readLedgerRow(row, 0, new Map())
+  return typeof transaction === 'string' ? null : ledgerRowKeyOf(transaction)
+}
+
+/** The categories a `categories` tab defines, by the same rule the reader applies. */
+export function definedCategorySlugs(rows: readonly SheetRow[]): ReadonlySet<string> {
+  return new Set(readCategories(rows, []).map((category) => category.slug))
 }
 
 function readSettings(rows: readonly SheetRow[], problems: WorkbookProblem[]): Settings {

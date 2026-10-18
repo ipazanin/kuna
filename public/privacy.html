@@ -140,15 +140,15 @@
         </svg>
         <h1>Privacy</h1>
       </header>
-      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 16 October 2026.</p>
+      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 17 October 2026.</p>
 
       <article>
         <section>
           <h2>What the app reads</h2>
           <p>
             Only files you choose. With Google, it asks for the <code>drive.file</code> permission, which covers only the Sheet you pick in
-            Google's file picker. It reads that Sheet's ledger, categories, accounts and settings tabs and never writes to it. It cannot see
-            the rest of your Drive.
+            Google's file picker. It reads that Sheet's ledger, categories, accounts, settings and rules tabs. It cannot see the rest of your
+            Drive.
           </p>
           <p>
             It also asks for <code>openid email</code>, which tells it the email address of the Google account you signed in with. That is
@@ -157,9 +157,18 @@
           <p>In Excel mode it reads only the .xlsx file you open or drop on the page.</p>
         </section>
         <section>
+          <h2>What the app writes</h2>
+          <p>
+            Only what you save, and only in the Sheet you picked: the <code>category</code> and <code>flagged_by</code> cells of a ledger row
+            you confirm or recategorise, rows on the <code>rules</code> tab you add or change, and rows on the <code>settings</code> tab you
+            change. Before each write it reads the tab again, and it refuses when the row it means cannot be found exactly once. It never
+            writes any other cell, and it never deletes a row.
+          </p>
+        </section>
+        <section>
           <h2>Where your data goes</h2>
           <p>
-            There is no server. The page talks only to Google's own APIs, and only to read a Sheet you picked. No analytics, no tracking, no
+            There is no server. The page talks only to Google's own APIs, and only to read and write the Sheet you picked. No analytics, no tracking, no
             third-party scripts beyond Google's sign-in and file picker.
           </p>
         </section>
