@@ -7,6 +7,7 @@ import { EVERY_OWNER_ADVANCE } from '../../../features/filters/domain/filterStat
 import type { AmountRange } from '../../../features/filters/domain/filterState'
 import { advanceKindOf } from '../../../features/workbook/domain/workbook'
 import type { Category, OwnerAdvance, Transaction } from '../../../features/workbook/domain/workbook'
+import { rowDrill } from './ownerLoans'
 import type { OwnerLoanBook } from './ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
 
@@ -184,14 +185,5 @@ function advanceDrill(advance: OwnerAdvance): DrillTarget {
     period: { preset: 'custom', range: { from: advance.date, to: advance.date } },
     categories: [EVERY_OWNER_ADVANCE],
     amount: { min: cost, max: cost },
-  })
-}
-
-/** The one row, found again by its day, category and exact amount. */
-function rowDrill(row: Transaction): DrillTarget {
-  return drillToTransactions({
-    period: { preset: 'custom', range: { from: row.date, to: row.date } },
-    categories: [row.category],
-    amount: { min: row.amount, max: row.amount },
   })
 }

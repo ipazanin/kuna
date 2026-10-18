@@ -7,7 +7,7 @@ import { categorisationContextOf } from '../src/features/rules/domain/transactio
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
-import { excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
+import { LEDGER_ROWS, excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -170,17 +170,17 @@ describe.each([
 })
 
 describe('writing to a Google Sheet', () => {
-  it('confirms with one RAW write to flagged_by, column M, after reading the ledger and categories', async () => {
+  it('confirms with one RAW write to flagged_by, column J, after reading the ledger and categories', async () => {
     const { store, sheets } = await googleHarness(used)
 
     await store.setVerdicts([confirmation(row(store, 'MODEL API INC'), settings(store))!])
 
     expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'batchUpdate', 'sheetIds', 'batchGet'])
     expect(sheets.requests[1]).toEqual({ kind: 'batchGet', ranges: ['ledger', 'categories'] })
-    expect(sheets.requests[2]).toEqual({ kind: 'batchUpdate', request: { valueInputOption: 'RAW', data: [{ range: 'ledger!M3', values: [['ivan']] }] } })
+    expect(sheets.requests[2]).toEqual({ kind: 'batchUpdate', request: { valueInputOption: 'RAW', data: [{ range: 'ledger!J3', values: [['ivan']] }] } })
   })
 
-  it('recategorises with RAW writes to I and M of that row only', async () => {
+  it('recategorises with RAW writes to I and J of that row only', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used)
 
     await store.setVerdicts([recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
@@ -191,24 +191,23 @@ describe('writing to a Google Sheet', () => {
         valueInputOption: 'RAW',
         data: [
           { range: 'ledger!I2', values: [['equipment']] },
-          { range: 'ledger!M2', values: [['ivan']] },
+          { range: 'ledger!J2', values: [['ivan']] },
         ],
       },
     })
-    expect(writtenRanges()).toEqual(['ledger!I2', 'ledger!M2'])
-    // J to L keep what the Sheet's formulas put there: the app never writes them.
-    expect(sheets.grids.ledger![1]!.slice(9, 12)).toEqual(['unclassified', 'unclassified', '2026-10'])
+    expect(writtenRanges()).toEqual(['ledger!I2', 'ledger!J2'])
+    expect(sheets.grids.ledger![1]).toEqual([...LEDGER_ROWS[0]!.slice(0, 8), 'equipment', 'ivan', ...LEDGER_ROWS[0]!.slice(10)])
   })
 
   it('finds the row again after the ingest inserted rows above it since the last sync', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used)
     const target = row(store, 'MODEL API INC')
-    sheets.grids.ledger!.splice(1, 0, [46301, 'main', 's-003', 'NEW ROW', '', 'x', -1, 999, 'unknown', '', '', '', 'ai', 'REF-5'], [46301, 'main', 's-003', 'NEWER ROW', '', 'y', -1, 998, 'unknown', '', '', '', 'ai', 'REF-6'])
+    sheets.grids.ledger!.splice(1, 0, [46301, 'main', 's-003', 'NEW ROW', '', 'x', -1, 999, 'unknown', 'ai', 'REF-5'], [46301, 'main', 's-003', 'NEWER ROW', '', 'y', -1, 998, 'unknown', 'ai', 'REF-6'])
 
     await store.setVerdicts([recategorisation(target, 'equipment', settings(store))])
 
     expect(target.sheetRow).toBe(3)
-    expect(writtenRanges()).toEqual(['ledger!I5', 'ledger!M5'])
+    expect(writtenRanges()).toEqual(['ledger!I5', 'ledger!J5'])
     expect(row(store, 'MODEL API INC')).toMatchObject({ sheetRow: 5, category: 'equipment' })
   })
 
@@ -216,7 +215,7 @@ describe('writing to a Google Sheet', () => {
     const { store, sheets } = await googleHarness(used)
     const write = sheets.batchUpdate.bind(sheets)
     sheets.batchUpdate = async (request) => {
-      sheets.grids.ledger!.splice(1, 0, [46301, 'main', 's-003', 'ARRIVED MEANWHILE', '', 'x', -1, 999, 'unknown', '', '', '', 'ai', 'REF-9'])
+      sheets.grids.ledger!.splice(1, 0, [46301, 'main', 's-003', 'ARRIVED MEANWHILE', '', 'x', -1, 999, 'unknown', 'ai', 'REF-9'])
       await write(request)
     }
 
@@ -232,7 +231,7 @@ describe('writing to a Google Sheet', () => {
 
     await store.setVerdicts([recategorisation(row(store, 'Cash deposit'), 'equipment', settings(store))])
 
-    expect(writtenRanges()).toEqual(['ledger!I5', 'ledger!M5'])
+    expect(writtenRanges()).toEqual(['ledger!I5', 'ledger!J5'])
   })
 
   it('refuses without writing when no row matches, or several do', async () => {
@@ -252,7 +251,7 @@ describe('writing to a Google Sheet', () => {
   it('refuses a row someone changed in the Sheet since the last sync', async () => {
     const { store, sheets } = await googleHarness(used)
     const target = row(store, 'GADGET CORNER')
-    sheets.grids.ledger![1]![12] = 'ivan'
+    sheets.grids.ledger![1]![9] = 'ivan'
 
     await expect(store.setVerdicts([recategorisation(target, 'equipment', settings(store))])).rejects.toThrow('Row 2 changed since the app read it')
     expect(sheets.requests.some((request) => request.kind === 'batchUpdate')).toBe(false)
@@ -260,13 +259,13 @@ describe('writing to a Google Sheet', () => {
 
   it('finds category and flagged_by by header, wherever they sit', async () => {
     const grids = workbookGrids()
-    const moved = (cells: readonly (string | number | boolean | null)[]): (string | number | boolean)[] => [...cells.slice(0, 8), cells[12]!, ...cells.slice(9, 12), cells[8]!, cells[13]!] as (string | number | boolean)[]
+    const moved = (cells: readonly (string | number | boolean | null)[]): (string | number | boolean)[] => [...cells.slice(0, 8), cells[9]!, cells[8]!, ...cells.slice(10)] as (string | number | boolean)[]
     grids.ledger = grids.ledger!.map(moved)
     const { store, writtenRanges } = await googleHarness(used, grids)
 
     await store.setVerdicts([recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
 
-    expect(writtenRanges()).toEqual(['ledger!M2', 'ledger!I2'])
+    expect(writtenRanges()).toEqual(['ledger!J2', 'ledger!I2'])
     expect(row(store, 'GADGET CORNER').category).toBe('equipment')
   })
 
@@ -380,7 +379,7 @@ describe('writing to a workbook kept in this browser', () => {
     expect(store.state.snapshot!.ledger.find((ledgerRow) => ledgerRow.cells.counterparty === 'GADGET CORNER')!.cells).toMatchObject({
       category: 'equipment',
       flagged_by: 'ivan',
-      family: 'unclassified',
+      reference: 'REF-4',
     })
     expect(sheets.requests).toEqual([])
   })

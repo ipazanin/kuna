@@ -232,19 +232,45 @@ describe('exporting', () => {
     expect(contentOf(workbookOf(imported.tabs))).toEqual(contentOf(workbook))
   })
 
-  it('keeps the Sheet’s column order, fills family, bucket and month in, and writes dates as dates', () => {
+  it('keeps the Sheet’s column order, A to R, and writes dates as dates', () => {
     const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')
     const grids = workbookGrids(snapshot, readWorkbook(snapshot))
     const header = grids.ledger.header
 
-    expect(header.slice(0, 21)).toEqual([
+    expect(header).toEqual([
       'date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance',
-      'category', 'family', 'bucket', 'month', 'flagged_by', 'reference',
+      'category', 'flagged_by', 'reference',
       'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency', 'review_reasons',
     ])
-    const first = grids.ledger.rows[0] ?? []
-    expect(typeof first[header.indexOf('date')]).toBe('number')
-    expect(first[header.indexOf('month')]).toBe('2026-10')
+    expect(typeof grids.ledger.rows[0]?.[header.indexOf('date')]).toBe('number')
+  })
+
+  it('reads an older file that still has family, bucket and month, and exports them as it found them, after R', async () => {
+    const older = xlsxOf({
+      ledger: [
+        ['date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance', 'category', 'family', 'bucket', 'month', 'flagged_by', 'reference'],
+        [46300, 'main', 's-1', 'Client', '', 'Invoice 1', 500, 500, 'revenue', 'operating', 'neutral', '1999-01', 'rule', 'REF-1'],
+      ],
+      categories: [
+        ['category', 'family', 'bucket'],
+        ['revenue', 'income', 'income'],
+      ],
+      accounts: [
+        ['account', 'iban'],
+        ['main', 'XX00FAKE0000000001'],
+      ],
+    })
+
+    const imported = await readWorkbookFile(older)
+    const workbook = workbookOf(imported.tabs)
+    const grids = workbookGrids(imported.tabs, workbook)
+    const reimported = await readWorkbookFile(await writeWorkbookFile(imported.tabs, workbook))
+
+    expect(workbook.problems).toEqual([])
+    expect(workbook.transactions[0]).toMatchObject({ category: 'revenue', flaggedBy: 'rule', reference: 'REF-1', family: 'income', bucket: 'income' })
+    expect(grids.ledger.header.slice(18)).toEqual(['family', 'bucket', 'month'])
+    expect(grids.ledger.rows[0]?.slice(18)).toEqual(['operating', 'neutral', '1999-01'])
+    expect(contentOf(workbookOf(reimported.tabs))).toEqual(contentOf(workbook))
   })
 
   it('writes the year-end amount as a date, a rate or an amount by its line, and the planning dates as dates', async () => {

@@ -41,7 +41,7 @@ const RULE_COLUMN_NOTES: Readonly<Record<(typeof RULE_COLUMNS)[number], string>>
 
 /**
  * The columns of each tab, in the order the template and an export write them. The ledger keeps
- * the Google Sheet's own order, A to U, so an export lines up with the Sheet column for column.
+ * the Google Sheet's own order, A to R, so an export lines up with the Sheet column for column.
  * The reader finds every column by name, so a file may order them as it likes and add its own.
  */
 export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateColumn[]>> = {
@@ -55,9 +55,6 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'amount', note: 'The amount as a number, money in positive and money out negative. Required.' },
     { name: 'balance', note: "The account's balance after this row, as a number. Required." },
     { name: 'category', note: 'A category from the categories tab. A blank or unknown one waits for review.' },
-    { name: 'family', note: 'Filled in from categories on export, and ignored on import.' },
-    { name: 'bucket', note: 'Filled in from categories on export, and ignored on import.' },
-    { name: 'month', note: 'Filled in from the date on export, and ignored on import.' },
     { name: 'flagged_by', note: 'Who set the category: rule, ai for a guess that waits for review, or a person.' },
     { name: 'reference', note: "The bank's own reference for the entry. Optional." },
     { name: 'purpose', note: 'The ISO purpose code a camt statement gave the entry, such as SALA. Optional.' },

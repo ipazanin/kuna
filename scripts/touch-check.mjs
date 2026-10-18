@@ -4,8 +4,8 @@
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
- * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar and a
- * repayment on the Owner loan list, both kinds of the Add advance form, a rule made from a row and applied to
+ * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar, the
+ * doubled rates, a year's build-up and a payment on Assets, a repayment on the Owner loan list, both kinds of the Add advance form, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser.
@@ -41,6 +41,7 @@ const SCREENS = [
   { hash: '#/cash?p=all', title: 'Cash', ready: '.chart-body canvas' },
   { hash: '#/receivables?p=all', title: 'Receivables', ready: '[data-testid="invoice-list"]' },
   { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
+  { hash: '#/assets?p=all', title: 'Assets', ready: '[data-testid="asset-register"]' },
   { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { hash: '#/ruleset', title: 'Ruleset', ready: '[data-testid="rule-card"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
@@ -297,6 +298,29 @@ async function checkWidth(width) {
     await page.tap('[data-testid="cadence-paid"]')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the cadence cell opened Transactions without its filters')
+  })
+
+  await step('assets-doubled-and-drill', async () => {
+    await open(page, '#/assets?p=all', 'Assets')
+    await settleCharts(page)
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-assets.png`), fullPage: true })
+    await page.tap('[role="switch"][data-testid="doubled-rates-switch"]')
+    await page.waitForSelector('[data-testid="doubled-rates-changes"]')
+    await expect(hashOf(page), (hash) => hash.includes('rates=doubled'), 'the switch did not put the doubled rates in the address')
+    await inspect(page, `${width}px assets at doubled rates`)
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-assets-doubled.png`), fullPage: true })
+    const year = await page.waitForSelector('[data-testid="depreciation-year-toggle"][aria-expanded="false"]')
+    await year.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await year.tap()
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="depreciation-year-toggle"][aria-expanded="true"]').length >= 2)
+    await inspect(page, `${width}px assets, a year opened`)
+    const payment = await page.waitForSelector('[data-testid="asset-register"] a[aria-label$="open the payment"]')
+    await payment.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await payment.tap()
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 1, 'the asset opened Transactions without its filters')
   })
 
   await step('owner-loan-drill', async () => {

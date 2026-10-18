@@ -156,19 +156,19 @@ describe('the grants tab', () => {
 
   it('reads the terms, a blank release as fixed-then-assets, and whole or an amount as the clawback', () => {
     const workbook = workbookWith({
-      grants: [header, ['Startup', DAY['2025-06-01'], 14515.97, 2500, 12015.97, DAY['2025-06-01'], DAY['2027-06-30'], '', 'Whole', 12015.97, DAY['2027-06-30'], 'Agency grant']],
+      grants: [header, ['Startup', DAY['2025-06-01'], 12000, 2500, 9500, DAY['2025-06-01'], DAY['2027-06-30'], '', 'Whole', 9500, DAY['2027-06-30'], 'Agency grant']],
     })
 
     expect(workbook.grants).toEqual([
       {
         slug: 'startup',
         received: '2025-06-01',
-        amount: 1451597,
-        parts: { fixed: 250000, variable: 1201597 },
+        amount: 1200000,
+        parts: { fixed: 250000, variable: 950000 },
         period: { from: '2025-06-01', to: '2027-06-30' },
         release: 'fixed-then-assets',
         clawbackFirstYear: 'whole',
-        clawbackSecondYear: 1201597,
+        clawbackSecondYear: 950000,
         employmentRequiredUntil: '2027-06-30',
         note: 'Agency grant',
         sheetRow: 2,

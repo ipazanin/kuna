@@ -543,7 +543,6 @@ interface LedgerRow extends Booking {
 
 /** Books every entry in date order, runs each account's balance, then writes the tab newest first. */
 function ledgerValues(entries: readonly Booking[]): CellValue[][] {
-  const familyOf = new Map(CATEGORY_SEED.flatMap((group) => group.categories.map(([category, bucket]) => [category, { family: group.family, bucket }])))
   const ordered = entries
     .map((entry, order) => ({ ...entry, account: entry.account ?? accountOn(entry.date), order }))
     .sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.order - later.order)
@@ -575,26 +574,20 @@ function ledgerValues(entries: readonly Booking[]): CellValue[][] {
   })
   const newestFirst = [...rows].reverse()
   return [
-    ['date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance', 'category', 'family', 'bucket', 'month', 'flagged_by', 'reference'],
-    ...newestFirst.map((row) => {
-      const defined = familyOf.get(row.category)
-      return [
-        serialOf(row.date),
-        row.account,
-        row.statement,
-        row.counterparty,
-        row.iban,
-        row.description,
-        row.amount,
-        row.balance,
-        row.category,
-        defined?.family ?? 'unclassified',
-        defined?.bucket ?? 'unclassified',
-        row.date.slice(0, 7),
-        row.flaggedBy,
-        row.reference,
-      ]
-    }),
+    ['date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance', 'category', 'flagged_by', 'reference'],
+    ...newestFirst.map((row) => [
+      serialOf(row.date),
+      row.account,
+      row.statement,
+      row.counterparty,
+      row.iban,
+      row.description,
+      row.amount,
+      row.balance,
+      row.category,
+      row.flaggedBy,
+      row.reference,
+    ]),
   ]
 }
 

@@ -98,9 +98,8 @@ function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet): (CellValue | und
 
 /**
  * Writes the tabs in the template format: known columns in template order, then any other columns
- * the tabs carry, every row at its own row number, a note on each header. The ledger's family,
- * bucket and month are filled in from the workbook, which is what they mean in the Sheet too. A
- * workbook without a settings tab gets one with the settings it was read with.
+ * the tabs carry, every row at its own row number, a note on each header. A workbook without a
+ * settings tab gets one with the settings it was read with.
  */
 export async function writeWorkbookFile(tabs: WorkbookTabs, workbook: Workbook): Promise<Uint8Array<ArrayBuffer>> {
   const XLSX = await sheetJs()
@@ -148,16 +147,8 @@ function columnWidth(tab: WorkbookTab, name: string): number {
 
 /** The grid of every tab, without SheetJS, so the layout can be tested on its own. */
 export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<WorkbookTab, TabGrid> {
-  const transactionsByRow = new Map(workbook.transactions.map((transaction) => [transaction.sheetRow, transaction]))
-  const ledgerRows = tabs.ledger.map((row): SheetRow => {
-    const transaction = transactionsByRow.get(row.sheetRow)
-    if (transaction === undefined) {
-      return row
-    }
-    return { ...row, cells: { ...row.cells, family: transaction.family, bucket: transaction.bucket, month: transaction.date.slice(0, 7) } }
-  })
   return {
-    ledger: gridFor('ledger', ledgerRows),
+    ledger: gridFor('ledger', tabs.ledger),
     categories: gridFor('categories', tabs.categories),
     accounts: gridFor('accounts', tabs.accounts),
     settings: gridFor('settings', tabs.settings.length === 0 ? settingsTabRows(workbook.settings) : tabs.settings),

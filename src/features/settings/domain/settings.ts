@@ -193,11 +193,11 @@ const COMPANY_FACT_DEFINITIONS: readonly SettingDefinition[] = [
   },
   {
     key: 'hr_company_registered',
-    note: 'The day the company was registered, as a date or as text such as 2025-06-05. It starts the first tax period.',
+    note: 'The day the company was registered, as a date or as text such as 2025-05-12. It starts the first tax period.',
     valueOf: (settings) => settings.companyFacts.companyRegistered ?? '',
     apply: (settings, cell) => {
       const registered = typeof cell === 'number' && Number.isFinite(cell) ? civilDateFromSerial(cell) : parseCivilDate(String(cell).trim())
-      return registered === null ? `"${String(cell)}" is not a date such as 2025-06-05` : withFacts(settings, { companyRegistered: registered })
+      return registered === null ? `"${String(cell)}" is not a date such as 2025-05-12` : withFacts(settings, { companyRegistered: registered })
     },
   },
   {

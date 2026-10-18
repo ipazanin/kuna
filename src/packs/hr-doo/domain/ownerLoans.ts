@@ -160,7 +160,7 @@ function oldestFirst(rows: readonly Transaction[]): Transaction[] {
 }
 
 /** The one row, found again by its day, category and exact amount. */
-function rowDrill(row: Transaction): DrillTarget {
+export function rowDrill(row: Transaction): DrillTarget {
   return drillToTransactions({
     period: { preset: 'custom', range: { from: row.date, to: row.date } },
     categories: [row.category],

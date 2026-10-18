@@ -64,7 +64,7 @@ take their defaults.
 
 | Tab | Columns |
 |---|---|
-| `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `family`, `bucket`, `month`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`. `family`, `bucket` and `month` are filled in on export and ignored on import. |
+| `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`, in that order from A to R. An older file's `family`, `bucket` and `month` are columns the app does not know. |
 | `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour`, an optional comma-separated `roles`, an optional `label`, and an optional `vat`: how a purchase in the category splits into cost and VAT, one of `none`, `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `representation` and `car-50`. A blank `vat` is `none`, and an unknown one is reported and read as `none`. |
 | `accounts` | `account`, `iban`, an optional `currency`, and an optional `label` |
 | `settings` | `key`, `value`, one row per setting |
@@ -112,7 +112,7 @@ as before.
 | `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
 | `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
 | `hr_dependants` | `0` | Dependants who raise the personal allowance, 0 to 20. |
-| `hr_company_registered` | blank | The day the company was registered, as a date cell or text such as `2025-06-05`. It starts the first tax period. |
+| `hr_company_registered` | blank | The day the company was registered, as a date cell or text such as `2025-05-12`. It starts the first tax period. |
 | `hr_cit_return` | `pd` | `pd` for the corporate tax return on the accrual profit, `pd-nn` for the one on cash. |
 | `hr_vat_principle` | `invoice` | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment. |
 | `hr_depreciation_doubled` | `FALSE` | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it. |
@@ -147,8 +147,8 @@ the `roles` column, never by name:
 | `prepaid-annual` | Paid once for a year ahead, such as an annual insurance policy |
 | `non-deductible` | Costs the corporate tax never allows, such as fines or private costs |
 
-No screen reads the roles from `arrears` down yet. They mark the categories the year-end and
-forecast figures will treat apart from cash.
+Assets reads `capital-purchase` and `grant`. No screen reads the other roles from `arrears` down
+yet. They mark the categories the year-end and forecast figures will treat apart from cash.
 
 The effective tax rate is the taxes bucket, paid less refunded, over client revenue. A tax refund
 belongs in the taxes bucket. Whether loans count as owner pay is the bucket of the two loan
@@ -185,6 +185,29 @@ the costs the owner paid, less what it reimbursed. Positive means the owner owes
 private cost the company paid in full counts as lent only when its row is in a category with the
 `owner-loan-out` role. Filed as an ordinary cost with no private share, it counts in costs and not
 in net owed.
+
+## Assets
+
+A pack screen, shown while `owner_pay_module` is on, over the `assets` and `grants` tabs. The
+register lists each asset with its yearly rate from `hr.cit.depreciation-rates`, this year's
+charge, the depreciation so far and the book value today. An asset's name opens the ledger debit
+that paid for it: its `ledger_reference` found in a row's reference or description, or else a debit
+on a `capital-purchase` category of its net cost, with or without VAT at the standard rate. Assets
+with no payment, and capital purchases on no asset row, are listed under the register. An item at
+or below `hr.cit.asset-threshold` is small inventory, written off when put in use.
+
+Depreciation is straight-line from the month after an asset is put in use, each year rounded to the
+cent. A chart draws each asset's book value by month until it reaches zero, and a list gives the
+depreciation of every year with each asset's charge behind it. Beside it, each grant shows what it
+releases per year, what stays deferred, the day its employment condition ends, and what the
+clawback terms would take back if employment ended today. When the `year-end` tab has the
+accountant's `grant` lines for a year, the residual against them is shown.
+
+"Show doubled rates" puts `rates=doubled` in the address and recomputes the screen at twice the
+group rates, which the law allows. Nothing is saved. A table then gives, per year, the change in
+depreciation, in the grant released with it, in profit before tax, and in profit tax at that year's
+`hr.cit.rate`. A grant released with the depreciation of the assets it paid for rises by the same
+amount, so those assets change profit only once the grant's variable part runs out.
 
 ## Receivables
 
@@ -283,8 +306,8 @@ side in `googleWorkbookWriter.ts`.
   (account, date, amount, balance, description), so rows the ingest inserted since the last sync do
   not matter. The write is refused when no row or several rows match, when the row's category or
   `flagged_by` changed since the app read it, or when the category is not on the categories tab.
-  Only `category` and `flagged_by` are written, each found by its header (I and M in the
-  shadow-accounting Sheet), and only where the value changes. J to L are never written.
+  Only `category` and `flagged_by` are written, each found by its header (I and J in the
+  shadow-accounting Sheet), and only where the value changes.
   Confirm writes the `review_label` setting to `flagged_by`. Recategorise writes the category and the
   label. Applying a new rule writes its category and `rule`, only to rows flagged `ai` or
   unclassified. Undo writes the exact previous values back through the same checks. Review lists
@@ -317,7 +340,7 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 
 | Use case | Requests |
 |---|---|
-| Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids), `values.batchGet` of `ledger` and `categories`, `values.batchUpdate` of single cells such as `ledger!I57` and `ledger!M57`, then the same get and batchGet again |
+| Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids), `values.batchGet` of `ledger` and `categories`, `values.batchUpdate` of single cells such as `ledger!I57` and `ledger!J57`, then the same get and batchGet again |
 | Add a rule | get, `values.batchGet` of `rules`, `categories` and `clients` (when the Sheet has it), `values.append` to `rules!A:U` with `insertDataOption=INSERT_ROWS` (plus a `values.batchUpdate` of `order` cells when rules are renumbered), get and batchGet again |
 | Edit, switch on or off, move a rule | get, batchGet of `rules`, `categories` and `clients` (when the Sheet has it), `values.batchUpdate` of the changed cells such as `rules!C12`, get and batchGet again |
 | Save settings | get, batchGet of `settings`, `values.batchUpdate` of `value` cells such as `settings!B4`, `values.append` to `settings!A:B` for a new key, get and batchGet again |
@@ -330,9 +353,9 @@ Run this on a copy (File, Make a copy in Google Sheets, then pick the copy in "S
 Never run it first on the original.
 
 1. Pick the copy and sync. Note the row number of one `ai` row on Review.
-2. Open the row and Confirm it. In the copy, only M on that row changed to your review label. I and
-   J to L are as before. Press Undo in the toast and check M is back.
-3. Recategorise the same row. I and M change, nothing else. Wait for the toast to close, open
+2. Open the row and Confirm it. In the copy, only J on that row changed to your review label. I is
+   as before. Press Undo in the toast and check J is back.
+3. Recategorise the same row. I and J change, nothing else. Wait for the toast to close, open
    "Changes in this session" and press Undo there. Both are back.
 4. In the copy, insert an empty row at row 2 of `ledger`. Recategorise another row from the app
    without syncing first. The write lands on the shifted row. Delete the empty row again.

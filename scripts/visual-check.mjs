@@ -54,6 +54,8 @@ const SCREENS = [
   { name: 'cash', hash: '#/cash', title: 'Cash', charts: 1, shows: 'Legacy' },
   { name: 'receivables', hash: '#/receivables', title: 'Receivables', charts: 1, shows: 'Every invoice' },
   { name: 'taxes', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'Payroll cadence' },
+  { name: 'assets', hash: '#/assets', title: 'Assets', charts: 1, shows: 'Workstation' },
+  { name: 'assets-doubled', hash: '#/assets?rates=doubled', title: 'Assets', charts: 1, shows: 'What doubled rates would change' },
   { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: 'Costs the owner paid privately' },
   { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
   {

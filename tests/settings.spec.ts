@@ -185,7 +185,7 @@ describe('company facts', () => {
     expect(problems).toEqual([
       { sheetRow: 2, reason: 'hr_birth_year: use a year of birth such as 1990, so the default is used' },
       { sheetRow: 3, reason: 'hr_dependants: use a whole number from 0 to 20, so the default is used' },
-      { sheetRow: 4, reason: 'hr_company_registered: "12.05.2025." is not a date such as 2025-06-05, so the default is used' },
+      { sheetRow: 4, reason: 'hr_company_registered: "12.05.2025." is not a date such as 2025-05-12, so the default is used' },
       { sheetRow: 5, reason: 'hr_cit_return: "cash" is neither pd nor pd-nn, so the default is used' },
       { sheetRow: 6, reason: 'hr_vat_principle: "monthly" is neither invoice nor cash, so the default is used' },
       { sheetRow: 7, reason: 'hr_pension_pillar_2: "perhaps" is neither TRUE nor FALSE, so the default is used' },

@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { moneyFromCents } from '../../../../shared/money/money'
+import { moneyFromCents, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { RuleId, RuleLookup, RuleValues } from '../../ruleset/ruleset'
 import type { Rate, RuleCitation } from '../../ruleset/schema'
@@ -11,7 +11,7 @@ export type RuleSource = <Id extends RuleId>(id: Id, on: CivilDate) => RuleLooku
 const BASIS_POINTS_PER_WHOLE = 10_000
 
 /** The whole-number quotient rounded half away from zero, done in integers so no half cent drifts. */
-function dividedRounded(numerator: number, denominator: number): number {
+export function dividedRounded(numerator: number, denominator: number): number {
   const magnitude = Math.floor((2 * Math.abs(numerator) + denominator) / (2 * denominator))
   return Math.sign(numerator) * magnitude + 0
 }
@@ -55,6 +55,11 @@ export function rulesOf(steps: readonly TracedFigure[]): readonly RuleCitation[]
       seen.add(key)
       return fresh
     })
+}
+
+/** A total that only adds up its steps, citing their rules. */
+export function summed(label: string, steps: readonly TracedFigure[], basis: FigureBasis): TracedFigure {
+  return tracedFigure(label, sumMoney(steps.map((step) => step.amount)), basis, rulesOf(steps), steps)
 }
 
 /** The same figure as a step that is taken away, so a build-up's steps add up to its total. */

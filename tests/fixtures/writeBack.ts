@@ -20,21 +20,25 @@ export const LEDGER_HEADER = [
   'amount',
   'balance',
   'category',
-  'family',
-  'bucket',
-  'month',
   'flagged_by',
   'reference',
+  'purpose',
+  'tx_domain',
+  'tx_family',
+  'tx_sub_family',
+  'creditor_reference',
+  'instructed_currency',
+  'review_reasons',
 ]
 
 export const DESK_IBAN = 'XX00FAKE0000000013'
 
-/** Ledger rows newest first, as the live tab holds them. J to L carry what the Sheet's formulas would show. */
+/** Ledger rows newest first, as the live tab holds them, A to R. */
 export const LEDGER_ROWS: CellValue[][] = [
-  [46300, 'main', 's-002', 'GADGET CORNER', '', 'Card purchase', -38.9, 1000, 'unknown', 'unclassified', 'unclassified', '2026-10', 'ai', 'REF-4'],
-  [46299, 'main', 's-002', 'MODEL API INC', '', 'Card purchase', -20, 1038.9, 'ai-services', 'operating', 'operating', '2026-10', 'ai', 'REF-3'],
-  [46298, 'main', 's-001', 'Desk Co', DESK_IBAN, 'Desk', -100, 1058.9, 'equipment', 'operating', 'operating', '2026-10', 'human', 'REF-2'],
-  [46297, 'main', 's-001', 'Cash deposit', '', 'Deposit', 500, 1158.9, 'revenue', 'income', 'income', '2026-10', 'rule', ''],
+  [46300, 'main', 's-002', 'GADGET CORNER', '', 'Card purchase', -38.9, 1000, 'unknown', 'ai', 'REF-4', '', '', '', '', '', '', ''],
+  [46299, 'main', 's-002', 'MODEL API INC', '', 'Card purchase', -20, 1038.9, 'ai-services', 'ai', 'REF-3', '', '', '', '', '', '', ''],
+  [46298, 'main', 's-001', 'Desk Co', DESK_IBAN, 'Desk', -100, 1058.9, 'equipment', 'human', 'REF-2', '', '', '', '', '', '', ''],
+  [46297, 'main', 's-001', 'Cash deposit', '', 'Deposit', 500, 1158.9, 'revenue', 'rule', '', '', '', '', '', '', '', ''],
 ]
 
 export function ruleRow(cells: Partial<Record<(typeof RULE_COLUMNS)[number], CellValue>>): CellValue[] {
