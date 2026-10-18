@@ -98,18 +98,18 @@ describe('the assets, grants and year-end editors', () => {
     expect(amountOf('rate')).toBe('10')
     expect(amountOf('filed-on')).toBe('2026-04-27')
     expect(amountOf('months-of-operation')).toBe('8')
-    expect(amountOf('sales')).toBe('46800')
+    expect(amountOf('sales')).toBe('57147.33')
   })
 
   it('check a draft with the tab reader, so a row the workbook would leave out cannot be saved', () => {
     const drafts = [
-      { sheetRow: null, fields: { asset: 'Laptop', bought: '2026-01-09', cost_net: '823.99', group: 'computers' } },
+      { sheetRow: null, fields: { asset: 'Laptop', bought: '2026-01-09', cost_net: '749.50', group: 'computers' } },
       { sheetRow: null, fields: { asset: 'Lamp', bought: '2026-01-09', cost_net: '-1', group: 'other' } },
     ]
     const columns = assetColumns([])
     const reading = readAssets(rowsFrom(cellsOfDrafts(drafts, columns, new Map())), new Set())
 
-    expect(reading.facts.map((asset) => [asset.name, asset.inUse, asset.costNet])).toEqual([['Laptop', '2026-01-09', 82399]])
+    expect(reading.facts.map((asset) => [asset.name, asset.inUse, asset.costNet])).toEqual([['Laptop', '2026-01-09', 74950]])
     expect(reading.problems).toEqual([{ sheetRow: 3, reason: 'cost_net must be more than zero' }])
     expect(readGrants(rowsFrom(cellsOfDrafts([{ sheetRow: null, fields: { grant: 'Startup', received: '2026-01-09', amount: '100', release: 'fixed-then-assets' } }], GRANT_COLUMNS, new Map()))).problems).toEqual([
       { sheetRow: 2, reason: 'a fixed-then-assets release needs fixed_part and variable_part' },

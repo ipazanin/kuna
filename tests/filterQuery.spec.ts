@@ -11,7 +11,7 @@ const EVERY_FIELD: FilterState = {
   buckets: ['operating', 'unclassified'],
   families: ['owner'],
   categories: ['travel', 'ai-services'],
-  counterparties: ['iban:XX00FAKE0001', 'name:SATIS-MG, VL. EXAMPLE'],
+  counterparties: ['iban:XX00FAKE0001', 'name:STUDIO-MG, VL. EXAMPLE'],
   text: 'čaj & kava',
   amount: { min: euros(-1999.99), max: euros(-0.01) },
   needsReview: true,
@@ -49,7 +49,7 @@ describe('filter query', () => {
   })
 
   it('repeats a key for a list, so a comma inside a value survives', () => {
-    expect(encodeFilters(EVERY_FIELD).cp).toEqual(['iban:XX00FAKE0001', 'name:SATIS-MG, VL. EXAMPLE'])
+    expect(encodeFilters(EVERY_FIELD).cp).toEqual(['iban:XX00FAKE0001', 'name:STUDIO-MG, VL. EXAMPLE'])
   })
 
   it('falls back to the default for values that do not parse', () => {

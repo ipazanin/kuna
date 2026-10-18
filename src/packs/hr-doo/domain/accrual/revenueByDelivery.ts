@@ -2,6 +2,7 @@ import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { lastDayOf, monthKey, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { Invoice } from '../../../../features/workbook/domain/workbook'
@@ -94,7 +95,7 @@ export function revenueByDelivery(invoices: readonly Invoice[], year: number, ru
 
   const months = monthsFrom(monthKey(year, 1), monthKey(year, 12)).map((month): MonthRevenue => {
     const parts = inYear.flatMap((invoice) => invoice.parts.filter((part) => part.month === month))
-    return { month, revenue: figureOf(`Revenue delivered in ${month}`, parts, accrual) }
+    return { month, revenue: figureOf(`Revenue delivered in ${monthLabel(month)}`, parts, accrual) }
   })
   const monthsWithRevenue = months.filter((entry) => entry.revenue.steps.length > 0)
 

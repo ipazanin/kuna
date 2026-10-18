@@ -147,8 +147,8 @@ the `roles` column, never by name:
 | `prepaid-annual` | Paid once for a year ahead, such as an annual insurance policy |
 | `non-deductible` | Costs the corporate tax never allows, such as fines or private costs |
 
-Assets reads `capital-purchase` and `grant`. No screen reads the other roles from `arrears` down
-yet. They mark the categories the year-end and forecast figures will treat apart from cash.
+Assets reads `capital-purchase` and `grant`. The accrual engine reads every role from `arrears`
+down, as *Accrual year* describes, and the Year end screen shows its figures.
 
 The effective tax rate is the taxes bucket, paid less refunded, over client revenue. A tax refund
 belongs in the taxes bucket. Whether loans count as owner pay is the bucket of the two loan
@@ -208,6 +208,99 @@ group rates, which the law allows. Nothing is saved. A table then gives, per yea
 depreciation, in the grant released with it, in profit before tax, and in profit tax at that year's
 `hr.cit.rate`. A grant released with the depreciation of the assets it paid for rises by the same
 amount, so those assets change profit only once the grant's variable part runs out.
+
+## Accrual year
+
+`accrualYear(workbook, year, inputs, rules)` in `src/packs/hr-doo/domain/accrual/` turns the cash
+ledger into the accrual view of one year: the profit and loss, the balance sheet at 31 December and
+the PD build-up, each line keyed by the `year-end` tab's line ids and each figure traced to its rows
+and rules. It also returns the adjustments that lead from the cash view to the accrual view, and the
+bridge from the cash net to profit before and after tax.
+
+The bridge starts from net as the screens count it, the bank rows and the owner's advances of the
+year. Each step is one adjustment:
+
+- Client payments leave, and revenue by delivery period from the `invoices` tab comes in. A month
+  no invoice delivers in, while a later invoice exists, is listed and never filled in.
+- Loans to the owner and their repayments leave whatever their bucket, since they are a receivable.
+- A grant receipt leaves and its release under the `grants` tab's policy comes in.
+- A capital purchase that an asset row claims leaves at its cost without deductible VAT.
+  Depreciation and small inventory written off when put in use come in from the `assets` tab. A
+  purchase above the asset threshold that no asset row claims stays a cost and is listed.
+- Deductible input VAT leaves the cost, by the category's `vat` column, for advances too. VAT paid
+  or refunded on a `vat-settlement` category leaves, since it settles the VAT position.
+- A cost on an `arrears` category moves to the month before it was paid, so last December's pay
+  leaves this year and this December's comes in. A `prepaid-annual` cost is spread by days over the
+  twelve months from its payment.
+- Corporate tax paid leaves and the year's own tax comes in after profit before tax. Dividends and
+  their tax leave.
+
+The cost lines take each category from the `konto` rows of the latest year-end at or before the
+year that name it, by the konto's class: 40 and 41 are material costs, 42 personnel, 43
+depreciation, 46 other costs, 47 financial expenses, and 44, 45 and 48 the impairment line. A
+category on several konto rows goes to the one with the largest amount. A category no konto row
+names counts by its bucket. Income other than revenue and grants counts as other operating income,
+since no role marks financial income.
+
+The balance sheet holds the assets' book values, revenue delivered and not yet paid, what the owner
+owes on loans, private shares and advances (net owed at the year end), the VAT position, cash, costs
+paid ahead and work delivered on invoices issued later. Costs paid in arrears after the year are
+owed to suppliers, to the owner and employees, or as taxes, by their bucket. Corporate tax owed is
+every year's liability less what the ledger paid on it, with earlier years from their `year-end`
+liability lines. The grant not yet released is deferred income. Share capital is what the balance
+sheet leaves once every other line is in, so it equals the capital paid in only while every other
+line is right.
+
+`taxBase` and `citLiability` in `src/packs/hr-doo/domain/cit/` lay the PD out by form line: revenue,
+expenses and profit (lines 1 to 3), half of representation with its VAT (6), half of personal
+transport (7), fines and private costs on a `non-deductible` category (9, 11 and 24), depreciation
+above the allowed rates and caps (18), related-party interest only while the company has a tax
+loss (16 and 25), decreases (35), losses brought forward oldest first for five years (37), the base
+(38), the rate by the revenue test (43) and the liability (53). An add-back rounds the deductible
+part and adds back the rest, the way the accountant splits representation over two konto lines. A
+first tax period starts on `hr_company_registered` and has no advances. The next period's monthly
+advance is the liability over the months the period touched (59). Advances paid in a later year
+come from `inputs.citAdvancesPaid`, which the payment matching will give. Until then lines 56 to 58
+are left out of such a year.
+
+Each adjustment is `matched` when it agrees with the accountant's own line for it, `explained` when
+it follows from the workbook and the rules with nothing to hold it against, `judgement` when it
+takes the accountant's figure for a choice the ledger cannot show, and `open` for the gap to the
+accountant's profit that nothing explains. For a year whose `year-end` tab holds the figure, the
+accountant's choice takes precedence and the difference to ours is the judgement:
+
+- The grant's `released-in-year` line replaces our release, and the deferred balance carries the
+  difference into later years.
+- Where konto rows whose categories all carry `arrears` hold less than our figure, the fewest
+  bookings moved back from the next year whose costs make up the difference exactly stay in the
+  month they were paid. The next year keeps them too.
+- Konto rows whose categories all carry `representation` set the add-back, since a card payment
+  abroad is booked at the day's rate with the rest as an exchange loss.
+- Where the cost lines, the receivables or the liabilities add up to the accountant's total, the
+  accountant's split over them is taken, and profit does not change. A group whose total differs is
+  left as it is, so its lines show what is unexplained.
+
+Output VAT on domestic sales, loans to the company and provisions are not modelled. An invoice
+counts as revenue as it stands.
+
+## Year end
+
+A pack screen at `/year-end?year=2025`, shown while `owner_pay_module` is on, for the years the
+`year-end` tab holds. It sets the accountant's profit and loss, balance sheet and PD lines beside
+ours on the accrual view and on the cash view. The cash view puts each booking of the year on the
+line its category counts on, so its profit and loss lines add up to the cash net, and its balance
+sheet holds only cash. A line is `matched` when ours agrees with no adjustment between the two
+views, `explained` when it agrees once the adjustments are made, `judgement` when it agrees because
+it takes the accountant's figure for a choice the ledger cannot show, and `open` otherwise. Each line
+opens on how ours is built, every step drilling to its rows, with the rules behind it.
+
+A waterfall leads from the cash net to profit before and after tax, one bar per adjustment, with
+what nothing explains last. Konto lines that share a category are compared as one group beside our
+figure for those categories. The tax payment date is checked against a ledger payment of our
+balance due, and the distribution decision against our profit after tax. Open items list the
+accountant's choices, any gap to the accountant's profit, months no invoice delivers in, purchases
+with no asset row, and what loans to the owner and early asset purchases call for, each with what
+would settle it. The figures are for planning with the accountant, never filing advice.
 
 ## Receivables
 
@@ -433,6 +526,23 @@ month worked, so a December salary paid in January keeps December's director flo
 follows the payment date. The low-pay relief reduces only the pillar I base, which is practice and
 not statute. A part month keeps the whole personal allowance. Youth relief is never applied in a
 month, only in the annual settlement.
+
+## Year-end parity
+
+`npm run parity:year-end -- --workbook <export.xlsx> --year 2025` runs the accrual engine over an
+xlsx export of the Sheet and compares every line of that year's `year-end` rows with ours. It
+prints the bridge's steps with their kinds, then a verdict per line. `pass` means ours equals the
+accountant's to the cent with no judgement behind it. `judgement` means it equals because the
+engine took the accountant's figure, and names each judgement with the difference it carries.
+`recorded` is a decision or a date the ledger cannot give, checked where it can be: `paid-on` needs
+a corporate tax payment of our balance due on that day, and the distribution lines must share out
+our profit after tax. The verdicts come from the same comparison the Year end screen shows. `FAIL` gives the residual. Konto rows are listed by the categories they share,
+with their differences and no verdict, since one category can sit on several of them.
+
+The exit code is non-zero unless the bridge's steps add up from the cash net to our profit before
+tax, our profit before and after tax equal the accountant's to the cent, and no line fails. The export holds real company figures, so the script prints only verdicts and
+differences. Keep the export outside the repository and never copy a figure from the output into
+it.
 
 ## Google configuration
 

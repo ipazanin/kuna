@@ -179,7 +179,7 @@ export function netOwed(loans: OwnerLoanBook, advances: OwnerAdvanceBook, transa
 }
 
 /** The one advance, found again by its day and the exact amount it books. */
-function advanceDrill(advance: OwnerAdvance): DrillTarget {
+export function advanceDrill(advance: OwnerAdvance): DrillTarget {
   const cost = negateMoney(advance.amount)
   return drillToTransactions({
     period: { preset: 'custom', range: { from: advance.date, to: advance.date } },

@@ -280,7 +280,7 @@ describe('exporting', () => {
 
     expect(yearEnd.find((row) => row.line === 'rate')?.amount).toBe('10.00%')
     expect(yearEnd.find((row) => row.line === 'filed-on')?.amount).toBe('2026-04-27')
-    expect(yearEnd.find((row) => row.line === 'sales')?.amount).toBe('46,800.00')
+    expect(yearEnd.find((row) => row.line === 'sales')?.amount).toBe('57,147.33')
     expect(yearEnd.find((row) => row.line === 'months-of-operation')?.amount).toBe('8')
     expect(XLSX.utils.sheet_to_json<Record<string, CellValue>>(book.Sheets.assets!, { raw: false })[0]?.in_use).toBe('2025-06-01')
     expect(XLSX.utils.sheet_to_json<Record<string, CellValue>>(book.Sheets.invoices!, { raw: false })[0]?.period_from).toBe('2025-05-01')

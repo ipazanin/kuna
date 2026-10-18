@@ -56,6 +56,7 @@ const SCREENS = [
   { name: 'taxes', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'Payroll cadence' },
   { name: 'assets', hash: '#/assets', title: 'Assets', charts: 1, shows: 'Workstation' },
   { name: 'assets-doubled', hash: '#/assets?rates=doubled', title: 'Assets', charts: 1, shows: 'What doubled rates would change' },
+  { name: 'year-end', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'From the cash net to profit, 2025' },
   { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: 'Costs the owner paid privately' },
   { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
   {
@@ -85,6 +86,7 @@ const SOURCE_SCREENS = [
   { name: 'workbook-assets-excel', query: 'fake=excel', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
   { name: 'workbook-grants-excel', query: 'fake=excel', hash: '#/workbook?tab=grants', title: 'Workbook', charts: 0, shows: 'Save grants' },
   { name: 'workbook-year-end-excel', query: 'fake=excel', hash: '#/workbook?tab=year-end', title: 'Workbook', charts: 0, shows: 'Save year-end lines' },
+  { name: 'year-end-excel', query: 'fake=excel', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'Balance paid on' },
   { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'rows the app could not use', upload: true },
 ]
 
