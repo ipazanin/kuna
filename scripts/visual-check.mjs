@@ -4,7 +4,8 @@
  * violations included), no request to another origin, that each screen rendered its title, and
  * that it drew as many charts as it has from the fake workbook. Every chart on the gallery must
  * draw and every icon must come from the bundle. At tablet and desktop widths, cards whose tops
- * line up in a row must end at the same height.
+ * line up in a row must end at the same height. A deep link to a rule on Ruleset must bring that rule
+ * into view below the search bar, marked and focused.
  *
  * Beyond the screens of the fake Google workbook, it renders the first-run welcome screen
  * (`?fake=empty`), Settings and each Workbook tab for a workbook kept in this browser (`?fake=excel`), and the import
@@ -42,7 +43,7 @@ const CARD_SELECTOR = '.rounded-card, .gallery-frame'
 
 /**
  * `charts` is how many charts the screen draws from the fake workbook. `shows` is text that only
- * appears once the fake workbook's rows reached the screen.
+ * appears once the fake workbook's rows reached the screen. `linkedRule` is the rule a deep link names.
  */
 const SCREENS = [
   { name: 'overview', hash: '#/', title: 'Overview', charts: 3, shows: 'A typical month' },
@@ -54,8 +55,18 @@ const SCREENS = [
   { name: 'receivables', hash: '#/receivables', title: 'Receivables', charts: 1, shows: 'Every invoice' },
   { name: 'taxes', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'Payroll cadence' },
   { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: 'Costs the owner paid privately' },
+  { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
+  {
+    name: 'ruleset-linked',
+    hash: '#/ruleset?rule=hr.contrib.director-floor',
+    title: 'Ruleset',
+    charts: 0,
+    shows: 'hr.contrib.director-floor',
+    linkedRule: 'hr.contrib.director-floor',
+  },
   { name: 'review', hash: '#/review', title: 'Review', charts: 0, shows: 'GADGET CORNER' },
   { name: 'workbook', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Bucket labels' },
+  { name: 'workbook-assets', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Laptop 14 inch' },
   { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Fake workbook' },
 ]
 
@@ -69,6 +80,9 @@ const SOURCE_SCREENS = [
   { name: 'workbook-excel', query: 'fake=excel', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Save settings' },
   { name: 'workbook-categories-excel', query: 'fake=excel', hash: '#/workbook?tab=categories', title: 'Workbook', charts: 0, shows: 'Save categories' },
   { name: 'workbook-accounts-excel', query: 'fake=excel', hash: '#/workbook?tab=accounts', title: 'Workbook', charts: 0, shows: 'Save accounts' },
+  { name: 'workbook-assets-excel', query: 'fake=excel', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
+  { name: 'workbook-grants-excel', query: 'fake=excel', hash: '#/workbook?tab=grants', title: 'Workbook', charts: 0, shows: 'Save grants' },
+  { name: 'workbook-year-end-excel', query: 'fake=excel', hash: '#/workbook?tab=year-end', title: 'Workbook', charts: 0, shows: 'Save year-end lines' },
   { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'rows the app could not use', upload: true },
 ]
 
@@ -154,6 +168,15 @@ function readPage(page) {
   }, CARD_SELECTOR)
 }
 
+/** Runs in the page: the linked rule card is marked, has focus, and starts below the sticky search bar in the upper half of the window. */
+function linkedRuleInView(ruleId) {
+  const card = document.getElementById(`rule-${ruleId}`)
+  const bar = document.querySelector('[data-testid="ruleset-bar"]')
+  if (card === null || bar === null || card.dataset.linked !== 'true' || document.activeElement !== card) return false
+  const top = card.getBoundingClientRect().top
+  return top >= bar.getBoundingClientRect().bottom - 1 && top < window.innerHeight / 2
+}
+
 mkdirSync(SCREENSHOT_DIR, { recursive: true })
 // Screenshots of a screen that no longer exists would otherwise survive and mislead a review.
 for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => file.endsWith('.png'))) {
@@ -207,6 +230,14 @@ for (const viewport of VIEWPORTS) {
         .catch(() => false)
       // The dialog fades in.
       await new Promise((resolve) => setTimeout(resolve, 600))
+    }
+
+    if (visit.linkedRule && rendered) {
+      const shown = await page
+        .waitForFunction(linkedRuleInView, { timeout: 5_000 }, visit.linkedRule)
+        .then(() => true)
+        .catch(() => false)
+      if (!shown) fail(scope, `the deep link did not bring ${visit.linkedRule} into view below the search bar, marked and focused`)
     }
 
     // ECharts animates bars in. The screenshot should show where they land.

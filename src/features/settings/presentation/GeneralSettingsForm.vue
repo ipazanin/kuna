@@ -3,13 +3,15 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
+import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
-import type { Settings } from '../domain/settings'
+import type { CitReturn, CompanyFacts, Settings, VatPrinciple } from '../domain/settings'
 
 const props = defineProps<{
   settings: Settings
@@ -68,6 +70,54 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
   draft.value = { ...draft.value, bucketLabels: { ...draft.value.bucketLabels, [bucket]: label } }
 }
 
+function updateFact<Fact extends keyof CompanyFacts>(fact: Fact, value: CompanyFacts[Fact]): void {
+  draft.value = { ...draft.value, companyFacts: { ...draft.value.companyFacts, [fact]: value } }
+}
+
+/** The two number fields as typed. Text that is not a number goes into the draft as NaN, so the field shows its error. */
+const birthYearText = ref(textOfBirthYear(props.settings.companyFacts.birthYear))
+const dependantsText = ref(String(props.settings.companyFacts.dependants))
+watch(
+  () => draft.value.companyFacts,
+  (facts) => {
+    if (!Object.is(numberOfBirthYear(birthYearText.value), facts.birthYear)) birthYearText.value = textOfBirthYear(facts.birthYear)
+    if (!Object.is(numberOfDependants(dependantsText.value), facts.dependants)) dependantsText.value = String(facts.dependants)
+  },
+)
+
+function textOfBirthYear(year: number | null): string {
+  return year === null ? '' : String(year)
+}
+
+/** A blank field is no birth year. */
+function numberOfBirthYear(text: string): number | null {
+  return text.trim() === '' ? null : Number(text.trim())
+}
+
+function numberOfDependants(text: string): number {
+  return text.trim() === '' ? 0 : Number(text.trim())
+}
+
+function updateBirthYear(text: string): void {
+  birthYearText.value = text
+  updateFact('birthYear', numberOfBirthYear(text))
+}
+
+function updateDependants(text: string): void {
+  dependantsText.value = text
+  updateFact('dependants', numberOfDependants(text))
+}
+
+const citReturnItems: { value: CitReturn; label: string }[] = [
+  { value: 'pd', label: 'PD, on the accrual profit' },
+  { value: 'pd-nn', label: 'PD-NN, on cash received and paid' },
+]
+
+const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
+  { value: 'invoice', label: 'On the invoice date' },
+  { value: 'cash', label: 'When it is paid' },
+]
+
 </script>
 
 <template>
@@ -117,6 +167,54 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
       description="Shows owner pay and owner earns. Off hides them, and rows in the owner-pay bucket then count as operating cost, so every total stays the same."
       @update:model-value="update('ownerPayModule', $event)"
     />
+
+    <fieldset v-if="draft.ownerPayModule" class="flex flex-col gap-3" data-testid="company-facts">
+      <legend class="text-sm font-medium text-highlighted">Company and owner facts</legend>
+      <p class="-mt-1 text-xs text-muted">What the tax and payroll figures need to know beyond the law. They stay in this workbook.</p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField label="Owner lives in" :error="errors.residenceCity ?? false" help="The city or municipality, which sets the local income tax rates.">
+          <UInput :model-value="draft.companyFacts.residenceCity" placeholder="Not set" class="w-full" @update:model-value="updateFact('residenceCity', String($event))" />
+        </UFormField>
+        <UFormField label="Owner's year of birth" :error="errors.birthYear ?? false" help="For the youth income tax relief. Blank assumes none.">
+          <UInput
+            :model-value="birthYearText"
+            inputmode="numeric"
+            placeholder="Not set"
+            class="w-full"
+            @update:model-value="updateBirthYear(String($event))"
+          />
+        </UFormField>
+        <UFormField label="Dependants" :error="errors.dependants ?? false" help="How many dependants raise the personal allowance.">
+          <UInput :model-value="dependantsText" inputmode="numeric" class="w-full" @update:model-value="updateDependants(String($event))" />
+        </UFormField>
+        <UFormField label="Company registered on" help="Starts the first tax period.">
+          <UInput
+            :model-value="draft.companyFacts.companyRegistered ?? ''"
+            type="date"
+            class="w-full"
+            @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))"
+          />
+        </UFormField>
+        <UFormField label="Corporate tax return">
+          <USelect :model-value="draft.companyFacts.citReturn" :items="citReturnItems" class="w-full" @update:model-value="updateFact('citReturn', $event as CitReturn)" />
+        </UFormField>
+        <UFormField label="VAT falls due">
+          <USelect :model-value="draft.companyFacts.vatPrinciple" :items="vatPrincipleItems" class="w-full" @update:model-value="updateFact('vatPrinciple', $event as VatPrinciple)" />
+        </UFormField>
+      </div>
+      <USwitch
+        :model-value="draft.companyFacts.pensionPillarTwo"
+        label="Owner pays into the second pension pillar"
+        description="Off sends the whole pension contribution to the first pillar."
+        @update:model-value="updateFact('pensionPillarTwo', $event)"
+      />
+      <USwitch
+        :model-value="draft.companyFacts.depreciationDoubled"
+        label="Depreciation rates are doubled"
+        description="The default for assets. An asset row can still say otherwise."
+        @update:model-value="updateFact('depreciationDoubled', $event)"
+      />
+    </fieldset>
 
     <fieldset class="flex flex-col gap-3">
       <legend class="text-sm font-medium text-highlighted">Bucket labels</legend>

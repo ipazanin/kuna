@@ -6,7 +6,8 @@
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar and a
  * repayment on the Owner loan list, both kinds of the Add advance form, a rule made from a row and applied to
- * the rows still waiting, a rule edited and switched off on the Rules tab, and every screen. The
+ * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search and a
+ * watch list link that opens its rule, and every screen. The
  * writes go to the fake workbook kept in this browser.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
@@ -41,6 +42,7 @@ const SCREENS = [
   { hash: '#/receivables?p=all', title: 'Receivables', ready: '[data-testid="invoice-list"]' },
   { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
   { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
+  { hash: '#/ruleset', title: 'Ruleset', ready: '[data-testid="rule-card"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
   { hash: '#/workbook', title: 'Workbook', ready: '[data-testid="workbook-tabs"]' },
   { hash: '#/settings', title: 'Settings', ready: '[data-testid="data-source-card"]' },
@@ -359,6 +361,43 @@ async function checkWidth(width) {
     })
   }
 
+  await step('ruleset-deep-link', async () => {
+    await open(page, '#/ruleset', 'Ruleset')
+    await page.waitForSelector('[data-testid="rule-card"]')
+    const ruleCards = () => page.evaluate(() => document.querySelectorAll('[data-testid="rule-card"]').length)
+    const everyRule = await ruleCards()
+    await page.tap('input[data-testid="ruleset-search"]')
+    await page.keyboard.type('director floor')
+    await expect(ruleCards(), (shown) => shown >= 1 && shown < everyRule, 'the search did not narrow the rules')
+    await inspect(page, `${width}px ruleset search`)
+    await shoot('ruleset-search')
+    await page.tap('[data-testid="ruleset-bar"] button[aria-label="Clear the search"]')
+    await expect(ruleCards(), (shown) => shown === everyRule, 'clearing the search did not bring every rule back')
+
+    const link = await page.waitForSelector('[data-testid="watch-rule-link"]')
+    const ruleId = await link.evaluate((element) => new URLSearchParams(element.getAttribute('href').split('?')[1]).get('rule'))
+    await link.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await link.tap()
+    await page.waitForFunction((wanted) => window.location.hash.includes(`rule=${wanted}`), { timeout: 5_000 }, ruleId)
+    await page
+      .waitForFunction(
+        (wanted) => {
+          const card = document.getElementById(`rule-${wanted}`)
+          const bar = document.querySelector('[data-testid="ruleset-bar"]')
+          if (card === null || bar === null || card.dataset.linked !== 'true' || document.activeElement !== card) return false
+          const top = card.getBoundingClientRect().top
+          return top >= bar.getBoundingClientRect().bottom - 1 && top < window.innerHeight / 2
+        },
+        { timeout: 5_000 },
+        ruleId,
+      )
+      .catch(() => {
+        throw new Error(`the watch list link did not bring ${ruleId} into view below the search bar, marked and focused`)
+      })
+    await shoot('ruleset-linked')
+  })
+
   await step('settings-excel', async () => {
     await page.goto(`${BASE}?theme=dark&fake=excel#/settings`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
@@ -372,12 +411,16 @@ async function checkWidth(width) {
     for (const [label, query, ready] of [
       ['Categories', 'tab=categories', 'Save categories'],
       ['Accounts', 'tab=accounts', 'Save accounts'],
+      ['Assets', 'tab=assets', 'Save assets'],
+      ['Grants', 'tab=grants', 'Save grants'],
+      ['Year end', 'tab=year-end', 'Save year-end lines'],
     ]) {
       const tab = await waitForText(page, '[role="tab"]', label)
       await tab.tap()
       await page.waitForFunction((wanted) => window.location.hash.includes(wanted), {}, query)
       await waitForText(page, 'button', ready)
       await inspect(page, `${width}px workbook ${label.toLowerCase()}`)
+      if (label === 'Assets' || label === 'Year end') await shoot(`workbook-${query.slice(4)}`)
     }
     await shoot('workbook-accounts')
   })

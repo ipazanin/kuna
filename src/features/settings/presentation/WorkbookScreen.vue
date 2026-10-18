@@ -11,13 +11,18 @@ import ProblemList from '../../excel/presentation/ProblemList.vue'
 import RulesTab from '../../rules/presentation/RulesTab.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { EditableTabs } from '../../workbook/application/workbookStore'
+import { readAssets } from '../../workbook/infrastructure/assetsTabReader'
+import { readGrants } from '../../workbook/infrastructure/grantsTabReader'
 import { spreadsheetLink } from '../../workbook/infrastructure/sheetRowLink'
-import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { rowsFrom } from '../../workbook/infrastructure/workbookTemplate'
+import type { SheetRow, WorkbookTab as WorkbookFileTab } from '../../workbook/infrastructure/workbookSnapshot'
+import { TEMPLATE_COLUMNS, rowsFrom } from '../../workbook/infrastructure/workbookTemplate'
+import { readYearEnd } from '../../workbook/infrastructure/yearEndTabReader'
 import { DEFAULT_SETTINGS, changedSettings } from '../domain/settings'
 import type { Settings } from '../domain/settings'
 import AccountsEditor from './AccountsEditor.vue'
 import CategoriesEditor from './CategoriesEditor.vue'
+import FactTabEditor from './FactTabEditor.vue'
+import { GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from './factTabColumns'
 import GeneralSettingsForm from './GeneralSettingsForm.vue'
 
 const TABS = [
@@ -25,7 +30,34 @@ const TABS = [
   { label: 'Rules', value: 'rules', icon: 'i-lucide-list-ordered', slot: 'rules' as const },
   { label: 'Categories', value: 'categories', icon: 'i-lucide-tags', slot: 'categories' as const },
   { label: 'Accounts', value: 'accounts', icon: 'i-lucide-landmark', slot: 'accounts' as const },
+  { label: 'Assets', value: 'assets', icon: 'i-lucide-laptop', slot: 'assets' as const },
+  { label: 'Grants', value: 'grants', icon: 'i-lucide-hand-coins', slot: 'grants' as const },
+  { label: 'Year end', value: 'year-end', icon: 'i-lucide-book-check', slot: 'year-end' as const },
 ]
+
+/** The tabs the Workbook screen edits in Excel mode and shows read-only for a Google Sheet, each with its section text. */
+const FACT_TABS = {
+  assets: {
+    title: 'Assets',
+    description: 'Purchases kept as fixed assets and depreciated, each once. The cost is without the VAT that was reclaimed.',
+    rowNoun: 'asset',
+    tabNoun: 'assets',
+  },
+  grants: {
+    title: 'Grants',
+    description: 'The terms of each grant. The fixed and variable parts add up to the amount.',
+    rowNoun: 'grant',
+    tabNoun: 'grants',
+  },
+  'year-end': {
+    title: 'Year end',
+    description: "The accountant's figures, one row per year, statement and line. A konto row names the categories it matches.",
+    rowNoun: 'line',
+    tabNoun: 'year-end lines',
+  },
+} as const
+
+type FactTab = keyof typeof FACT_TABS
 
 type WorkbookTab = (typeof TABS)[number]['value']
 
@@ -52,9 +84,36 @@ const sheetLink = computed(() => (source.value === 'google' && state.workbook !=
 const usedCategories = computed(() => new Set(state.workbook?.transactions.map((transaction) => transaction.category) ?? []))
 const usedAccounts = computed(() => new Set(state.workbook?.transactions.map((transaction) => transaction.account) ?? []))
 
-const savingSection = ref<'settings' | 'categories' | 'accounts' | null>(null)
+const savingSection = ref<'settings' | 'categories' | 'accounts' | FactTab | null>(null)
 
-async function saveSection(section: 'categories' | 'accounts', edits: EditableTabs, saved: string): Promise<void> {
+const grantSlugs = computed(() => state.workbook?.grants.map((grant) => grant.slug) ?? [])
+const categorySlugs = computed(() => new Set(state.workbook?.categories.map((category) => category.slug) ?? []))
+
+const factTabEditors = computed(() => ({
+  assets: { columns: assetColumns(grantSlugs.value), read: (rows: readonly SheetRow[]) => readAssets(rows, new Set(grantSlugs.value)), newRow: () => ({}) },
+  grants: { columns: GRANT_COLUMNS, read: readGrants, newRow: () => ({ release: 'fixed-then-assets' }) },
+  'year-end': { columns: YEAR_END_COLUMNS, read: (rows: readonly SheetRow[]) => readYearEnd(rows, categorySlugs.value), newRow: newYearEndLine },
+}))
+
+/** A new line starts in the latest year the tab holds, or last year, on the profit and loss. */
+function newYearEndLine(): Record<string, string> {
+  const years = state.workbook?.yearEndLines.map((line) => line.year) ?? []
+  return { year: String(years.length > 0 ? Math.max(...years) : new Date().getFullYear() - 1), statement: 'pl' }
+}
+
+function sheetLacks(tab: WorkbookFileTab): boolean {
+  return source.value === 'google' && (state.snapshot?.meta.missingTabs.includes(tab) ?? false)
+}
+
+function columnsOf(tab: WorkbookFileTab): string {
+  return TEMPLATE_COLUMNS[tab].map((column) => column.name).join(', ')
+}
+
+function saveFactTab(tab: FactTab, cells: SheetRow['cells'][]): void {
+  void saveSection(tab, { [tab]: rowsFrom(cells) }, `${FACT_TABS[tab].title} saved`)
+}
+
+async function saveSection(section: 'categories' | 'accounts' | FactTab, edits: EditableTabs, saved: string): Promise<void> {
   savingSection.value = section
   await store.saveLocalEdits(edits)
   savingSection.value = null
@@ -99,7 +158,7 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
       :description="
         editable
           ? 'How this workbook is set up. Changes are kept in this browser, and an export writes them into the file.'
-          : 'How your Sheet is set up. Settings and rules saved here are written to the Sheet. Categories and accounts are edited in the Sheet itself.'
+          : 'How your Sheet is set up. Settings and rules saved here are written to the Sheet. Categories, accounts, assets, grants and year-end figures are edited in the Sheet itself.'
       "
     />
 
@@ -108,8 +167,8 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
       icon="i-lucide-sheet"
       color="neutral"
       variant="subtle"
-      title="Categories and accounts are edited in the Sheet"
-      description="The Apps Script reads and checks those two tabs every morning, so change them in the Sheet and sync. Settings, rules and the bucket of the loan categories can be saved from here."
+      title="Categories, accounts, assets, grants and year end are edited in the Sheet"
+      description="The Apps Script reads and checks categories and accounts every morning, and the other three hold figures you copy from your own records and the accountant's package. Change them in the Sheet and sync. Settings, rules and the bucket of the loan categories can be saved from here."
       :actions="sheetLink ? [{ label: 'Open the Sheet', icon: 'i-lucide-external-link', color: 'neutral', variant: 'outline', to: sheetLink, target: '_blank' }] : []"
     />
 
@@ -178,6 +237,30 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
             :editable="editable"
             :saving="savingSection === 'accounts'"
             @save="saveAccounts"
+          />
+        </section>
+      </template>
+
+      <template v-for="(fact, tab) in FACT_TABS" :key="tab" #[tab]>
+        <section class="rounded-card border border-default bg-raised shadow-raised">
+          <header class="px-4 pt-4 sm:px-5">
+            <h2 class="text-sm font-medium text-highlighted">{{ fact.title }}</h2>
+            <p class="mt-0.5 text-xs text-muted">{{ fact.description }}</p>
+            <p v-if="sheetLacks(tab)" class="mt-2 text-xs text-toned">
+              The Sheet has no {{ tab }} tab yet. Add one named {{ tab }} with these headers in row 1, then sync:
+              <span class="identifier">{{ columnsOf(tab) }}</span>.
+            </p>
+          </header>
+          <FactTabEditor
+            :rows="state.snapshot?.[tab] ?? []"
+            :columns="factTabEditors[tab].columns"
+            :read="factTabEditors[tab].read"
+            :new-row="factTabEditors[tab].newRow"
+            :row-noun="fact.rowNoun"
+            :tab-noun="fact.tabNoun"
+            :editable="editable"
+            :saving="savingSection === tab"
+            @save="saveFactTab(tab, $event)"
           />
         </section>
       </template>

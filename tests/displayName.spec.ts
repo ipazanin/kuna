@@ -26,7 +26,7 @@ describe('displayName', () => {
 describe('displayNamesOf', () => {
   it('names the categories and accounts of a workbook, and any slug the tabs do not define', () => {
     const names = displayNamesOf({
-      categories: [{ slug: 'rent-owner', label: 'Office rent', family: 'owner', bucket: 'owner-pay', colour: '', roles: [] }],
+      categories: [{ slug: 'rent-owner', label: 'Office rent', family: 'owner', bucket: 'owner-pay', colour: '', roles: [], vat: 'none' }],
       accounts: [{ slug: 'main', label: '', iban: '', currency: '' }],
     })
 

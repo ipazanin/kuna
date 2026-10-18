@@ -65,13 +65,18 @@ take their defaults.
 | Tab | Columns |
 |---|---|
 | `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `family`, `bucket`, `month`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`. `family`, `bucket` and `month` are filled in on export and ignored on import. |
-| `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour`, an optional comma-separated `roles`, and an optional `label` |
+| `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour`, an optional comma-separated `roles`, an optional `label`, and an optional `vat`: how a purchase in the category splits into cost and VAT, one of `none`, `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `representation` and `car-50`. A blank `vat` is `none`, and an unknown one is reported and read as `none`. |
 | `accounts` | `account`, `iban`, an optional `currency`, and an optional `label` |
 | `settings` | `key`, `value`, one row per setting |
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out. |
-| `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. |
+| `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional), and the optional delivery period `period_from` and `period_to` (date cells, both or neither). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. A period that cannot be read is reported, and the issue date stands for it. |
 | `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. |
 | `owner-advances` | `date`, `amount` (not zero), `description` and `category`: costs the owner paid privately for the company as positive amounts, and the owner's private shares of company payments as negative ones. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. |
+| `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
+| `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once. |
+| `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the Workbook editor, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
+| `plan` | `year`, `month` (1 to 12, blank for every month), `item` (`revenue`, a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount` and `note`. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount`. Each year, month and item once. |
+| `scenarios` | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (an amount or `floor`), `salary_months` (0 to 12), `nontaxable:<item>` such as `nontaxable:gifts`, `rent_monthly`, `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. |
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
 and a capital first letter, so `ai-services` reads "AI services". Links and filters keep the name.
@@ -103,6 +108,17 @@ as before.
 | `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Taxes and Owner screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
 | `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. An entry that is not an IBAN is reported and the list stays blank. |
+| `hr_residence_city` | blank | The city or municipality the owner lives in, which sets the local income tax rates. Blank uses the default rates. |
+| `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
+| `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
+| `hr_dependants` | `0` | Dependants who raise the personal allowance, 0 to 20. |
+| `hr_company_registered` | blank | The day the company was registered, as a date cell or text such as `2025-06-05`. It starts the first tax period. |
+| `hr_cit_return` | `pd` | `pd` for the corporate tax return on the accrual profit, `pd-nn` for the one on cash. |
+| `hr_vat_principle` | `invoice` | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment. |
+| `hr_depreciation_doubled` | `FALSE` | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it. |
+
+The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack. Workbook,
+General shows them while `owner_pay_module` is on. They belong in the workbook and never in the app.
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
 Owner earns, Kept). Theme is a per-device choice and not a workbook setting.
@@ -120,6 +136,19 @@ the `roles` column, never by name:
 | `watched` | In the taxes bucket, a tax with a monthly payment calendar |
 | `reimbursement` | Reimbursements between owner and company, listed beside owner pay. A payment to the owner on one repays the owner's advances. A payment from the owner on one repays a private cost the company paid for the owner |
 | `client-refund` | Money paid back to a client, such as an overpayment, on Receivables |
+| `arrears` | Paid in the month after the work, such as salary, its taxes and rent |
+| `representation` | Representation, such as a client lunch |
+| `personal-transport` | Personal transport costs |
+| `capital-purchase` | Purchases kept as assets on the `assets` tab |
+| `grant` | Grant receipts, whose terms are on the `grants` tab |
+| `profit-distribution` | Dividends and the dividend tax |
+| `corporate-income-tax` | Corporate income tax, the annual balance and the monthly advances alike |
+| `vat-settlement` | VAT paid to the state or refunded by it |
+| `prepaid-annual` | Paid once for a year ahead, such as an annual insurance policy |
+| `non-deductible` | Costs the corporate tax never allows, such as fines or private costs |
+
+No screen reads the roles from `arrears` down yet. They mark the categories the year-end and
+forecast figures will treat apart from cash.
 
 The effective tax rate is the taxes bucket, paid less refunded, over client revenue. A tax refund
 belongs in the taxes bucket. Whether loans count as owner pay is the bucket of the two loan
@@ -179,20 +208,24 @@ The workbook lives in IndexedDB, under its own id, as the store of record. The a
 to keep it (`navigator.storage.persist()`, which Firefox shows as a prompt). Clearing the site's data
 deletes it, so the exported files are its only other copies.
 
-- **Template.** "Download the empty template" writes a blank xlsx in the browser: the eight tabs
+- **Template.** "Download the empty template" writes a blank xlsx in the browser: the thirteen tabs
   with their headers, a note on every header and every settings key, a default category set for a
-  freelancer or a small company, and the default settings.
+  freelancer or a small company, and the default settings. VAT refunds have their own `vat-refund`
+  category in the operating bucket, and `tax-refund` in the taxes bucket is for income tax refunds.
 - **Import.** Open or drop an xlsx file. It goes through the same workbook reader as a Google Sheet,
   and a summary (transactions, dates, accounts, categories, every problem) shows before anything is
   replaced. A file without a `ledger` tab is refused.
 - **Export.** From either mode, "Export to Excel" writes the workbook in the template format as
   `ledgerboard-<company or sheet name>-<yyyy-mm-dd>.xlsx`. Importing an export gives the same
   workbook. When changes have gone a week or more without an export, the sidebar says so.
-- **Editing.** In Excel mode the Workbook screen edits the settings, categories and accounts, one
-  tab each (`#/workbook?tab=categories` links straight to one), with the Sheet's rules: each
-  category once, category, family and bucket filled, and a category or account that ledger rows use
-  keeps its name. With a Google Sheet, categories and accounts are read-only there and edited in
-  the Sheet, because the Apps Script reads and checks those tabs. The one exception is the loan
+- **Editing.** In Excel mode the Workbook screen edits the settings, categories, accounts, assets,
+  grants and year-end figures, one tab each (`#/workbook?tab=categories` links straight to one),
+  with the Sheet's rules: each category once, category, family and bucket filled, and a category or
+  account that ledger rows use keeps its name. Assets, grants and year-end rows are checked by the
+  same reader as an import, and a row it would leave out cannot be saved. With a Google Sheet,
+  categories and accounts are read-only there and edited in the Sheet, because the Apps Script reads
+  and checks those tabs. Assets, grants and year-end are read-only there too, and the screen names
+  the headers to add when the Sheet lacks one of those tabs. The one exception is the loan
   switch on General, which sets two `bucket` cells. Settings, rules and owner advances are editable
   in both modes, and Review sets a ledger row's category in both. Settings keeps what belongs to this
   device: the data source, Google sign-out, the theme and the privacy notes.
@@ -220,7 +253,9 @@ npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
 other, a part-month at each end, one loss month, a reimbursement, two rows waiting for review, a
 rules tab that reproduces every row flagged `rule`, and rows a person confirmed that no rule covers
-yet. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads.
+yet. Its `assets`, `grants`, `year-end`, `plan` and `scenarios` tabs hold the two computers it
+bought, its start-up grant, made-up 2025 accountant figures that add up, a plan and two owner pay
+scenarios. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads.
 Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
 changes nine days past their last export, and `?fake=empty` starts with nothing, which is the first
 run. The visual check covers both, and the import summary of an xlsx it writes from the fake
@@ -349,6 +384,33 @@ In development and fake builds, `#/gallery` shows every shared component and cha
 made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist
 in a production build.
 
+## Payroll parity
+
+`npm run parity:payroll -- --worked 2025-06=<days>` runs the payroll engine in
+`src/packs/hr-doo/domain/payroll/` against the accountant's monthly salary workbooks and compares
+every line to the cent. By default it reads 2025-06, 2026-01 and 2026-06 under
+`~/gdrive/work/dss/dss-finance/payroll` (`--payroll <folder>`, `--months <list>`). Only the mailed
+`.xlsx` of a month can be read. A month converted to a Google Sheet is a stub on disk, and the
+script lists it as not read.
+
+The worked month and the payment date come from the workbook's title, the city from the note on
+the tax line, and pillar II from its own line. A salary noted as the director's minimum base runs
+as an agreed gross below the floor, so the engine finds the floor itself. A part month needs its
+days worked as `--worked YYYY-MM=<days>`, counted against Monday to Friday of that month with
+public holidays included, as the monthly fund of hours counts them. `--dependants` sets the
+dependants on the tax card, 0 by default. Rent and refunds of costs listed beside the salary are
+not payroll, so they count only in the total cost and in what the employee is paid.
+
+Each line prints as pass, FAIL, or corrected with the reason, and any FAIL makes the exit code
+non-zero. The workbooks hold real pay, so the script prints no figure. Never copy a figure from a
+workbook into the repository.
+
+Where the law leaves room, the engine follows the accountant: contribution bases come from the
+month worked, so a December salary paid in January keeps December's director floor. Income tax
+follows the payment date. The low-pay relief reduces only the pillar I base, which is practice and
+not statute. A part month keeps the whole personal allowance. Youth relief is never applied in a
+month, only in the annual settlement.
+
 ## Google configuration
 
 Three variables, read at build time:
@@ -382,6 +444,27 @@ The manifest and the service worker come from this origin only. Styles allow `'u
 because Nuxt UI writes its colour variables into an inline `<style>`, and the Google Picker and
 Identity Services libraries inject their own. Without it the Picker dialog loses its layout. The
 dev server adds `ws://localhost:*` for hot reload.
+
+## Ruleset
+
+The Ruleset screen shows the Croatian law the d.o.o. pack computes with, as `src/packs/hr-doo/ruleset/`
+holds it. It reads no workbook, so it stays in the navigation while `owner_pay_module` is off. Rules
+are grouped by area: profit tax, owner pay, accounting, VAT and company law. Each rule shows its
+value for every version, side by side on a wide screen and one under another on a phone. Rates read
+as percentages with up to two decimals, coefficients as factors such as 0.65, money in the app's
+money format, flags as yes or no, and table terms as tables (cards on a phone). A value that differs
+from the version before is set in bold with a brass mark. Every version carries its confidence mark.
+Estimate, pending and unconfirmed versions are coloured, and the Watch list at the top gathers them
+with the matters the ruleset has no value for yet. Each source links to the page that was loaded,
+in a new tab, with the act, the article, the NN issues and the day it was checked.
+
+The search box matches every word typed against the rule id, title, values, notes, act names,
+articles and NN issues. The area buttons narrow the list further.
+
+`#/ruleset?rule=<id>` opens the screen with that rule marked, scrolled just below the search bar
+and focused, and clears any search. `ruleLink(id)` in `ruleset/presentation/ruleWording.ts` builds
+the link, so a screen can send a figure to the rule it rests on. A link to an id the ruleset does
+not have says so above the list.
 
 ## Licence
 

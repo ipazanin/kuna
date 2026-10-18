@@ -29,6 +29,7 @@ function openDatabase(workbookId: string): WorkbookDatabase {
   database.version(2).stores({ settings: 'sheetRow' })
   database.version(3).stores({ rules: 'sheetRow' })
   database.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
+  database.version(5).stores({ assets: 'sheetRow', grants: 'sheetRow', 'year-end': 'sheetRow', plan: 'sheetRow', scenarios: 'sheetRow' })
   return database
 }
 

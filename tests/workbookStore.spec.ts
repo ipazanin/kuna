@@ -22,6 +22,11 @@ function tabsOf(amounts: number[]): WorkbookTabs {
     invoices: [],
     clients: [],
     'owner-advances': [],
+    assets: [],
+    grants: [],
+    'year-end': [],
+    plan: [],
+    scenarios: [],
   }
 }
 
@@ -272,6 +277,25 @@ describe('workbook store in Excel mode', () => {
     await store.recordExport()
 
     expect((await storedCopy('local-1'))?.meta).toMatchObject({ lastExportedAt: '2026-10-19T09:00:00.000Z', unexportedSince: null })
+  })
+
+  it('saves the assets, grants and year-end tabs whole in Excel mode, and keeps them in this browser', async () => {
+    const { ports } = harness(null)
+    const store = createWorkbookStore(ports)
+    await store.open()
+    await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
+
+    await store.saveLocalEdits({
+      grants: [{ sheetRow: 2, cells: { grant: 'startup', received: 45809, amount: 5000, fixed_part: 2000, variable_part: 3000 } }],
+      assets: [{ sheetRow: 2, cells: { asset: 'Laptop', bought: 45809, cost_net: 1519.2, group: 'computers', funded_by: 'startup' } }],
+      'year-end': [{ sheetRow: 2, cells: { year: 2025, statement: 'pl', line: 'sales', amount: 46800 } }],
+    })
+
+    expect(store.state.workbook?.assets.map((asset) => asset.fundedBy)).toEqual(['startup'])
+    expect(store.state.workbook?.grants).toHaveLength(1)
+    expect(store.state.workbook?.yearEndLines).toHaveLength(1)
+    expect(store.state.workbook?.problems).toEqual([])
+    expect((await storedCopy('local-1'))?.assets).toHaveLength(1)
   })
 
   it('refuses to edit a Google Sheet from the app', async () => {

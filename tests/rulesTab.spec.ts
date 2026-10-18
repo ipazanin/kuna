@@ -28,6 +28,11 @@ function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'a
     invoices: [],
     clients: [],
     'owner-advances': [],
+    assets: [],
+    grants: [],
+    'year-end': [],
+    plan: [],
+    scenarios: [],
   }
 }
 

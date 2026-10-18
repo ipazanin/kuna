@@ -21,9 +21,11 @@ if (options.workbook === undefined) {
 
 const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt: '2026-01-01T00:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] }
 
+const SECTIONS = ['transactions', 'categories', 'accounts', 'rules', 'invoices', 'clients', 'ownerAdvances', 'assets', 'grants', 'yearEndLines', 'planLines', 'payScenarios', 'problems']
+
 function contentOf(tabs) {
-  const { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, settings, problems } = readWorkbook({ meta: META, ...tabs })
-  return { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, settings, problems }
+  const workbook = readWorkbook({ meta: META, ...tabs })
+  return Object.fromEntries([...SECTIONS, 'settings'].map((section) => [section, workbook[section]]))
 }
 
 const imported = await readWorkbookFile(readFileSync(options.workbook))
@@ -32,8 +34,7 @@ const exported = await writeWorkbookFile(imported.tabs, readWorkbook({ meta: MET
 const reimported = await readWorkbookFile(exported)
 const second = contentOf(reimported.tabs)
 
-const sections = ['transactions', 'categories', 'accounts', 'rules', 'invoices', 'clients', 'ownerAdvances', 'problems']
-for (const section of sections) {
+for (const section of SECTIONS) {
   const same = isDeepStrictEqual(first[section], second[section])
   console.log(`${section.padEnd(13)} ${String(first[section].length).padStart(5)} -> ${String(second[section].length).padStart(5)}  ${same ? 'same' : 'DIFFERENT'}`)
 }
@@ -41,6 +42,6 @@ const sameSettings = isDeepStrictEqual(first.settings, second.settings)
 console.log(`${'settings'.padEnd(13)} ${sameSettings ? 'same' : 'DIFFERENT'}`)
 console.log(`missing tabs on import: ${imported.missingTabs.join(', ') || 'none'}; after export: ${reimported.missingTabs.join(', ') || 'none'}`)
 
-const allSame = sameSettings && sections.every((section) => isDeepStrictEqual(first[section], second[section]))
+const allSame = sameSettings && SECTIONS.every((section) => isDeepStrictEqual(first[section], second[section]))
 console.log(allSame ? '\nround trip: same workbook' : '\nround trip: DIFFERENT')
 process.exitCode = allSame ? 0 : 1

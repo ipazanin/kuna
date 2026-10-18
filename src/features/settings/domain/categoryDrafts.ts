@@ -1,4 +1,5 @@
 import { BUCKETS } from '../../workbook/domain/bucket'
+import { isVatTreatment } from '../../workbook/domain/vatTreatment'
 
 /** One row of the categories editor, as text, the way the tab holds it. */
 export interface CategoryDraft {
@@ -13,16 +14,19 @@ export interface CategoryDraft {
   readonly bucket: string
   readonly colour: string
   readonly roles: string
+  /** Blank means none. */
+  readonly vat: string
 }
 
-export type CategoryField = 'category' | 'family' | 'bucket'
+export type CategoryField = 'category' | 'family' | 'bucket' | 'vat'
 
 export type CategoryDraftErrors = ReadonlyMap<number, Partial<Record<CategoryField, string>>>
 
 /**
  * The rules of the Sheet's categories tab: every row names a category once, and fills category,
  * family and a bucket from the six. A category the ledger uses keeps its name, or those rows would
- * lose their category. Errors are keyed by the draft's position.
+ * lose their category. A VAT treatment, if given, is one the app knows. Errors are keyed by the
+ * draft's position.
  */
 export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>): CategoryDraftErrors {
   const errors = new Map<number, Partial<Record<CategoryField, string>>>()
@@ -45,6 +49,10 @@ export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames:
     }
     if (!(BUCKETS as readonly string[]).includes(draft.bucket.trim().toLowerCase())) {
       found.bucket = draft.bucket.trim() === '' ? 'Required' : 'Not one of the six buckets'
+    }
+    const vat = draft.vat.trim().toLowerCase()
+    if (vat !== '' && !isVatTreatment(vat)) {
+      found.vat = 'Not a VAT treatment the app knows'
     }
     if (Object.keys(found).length > 0) {
       errors.set(index, found)
@@ -83,5 +91,6 @@ export function categoryCellsOf(
       .map((role) => role.trim().toLowerCase())
       .filter((role) => role !== '')
       .join(', '),
+    vat: draft.vat.trim().toLowerCase(),
   }))
 }

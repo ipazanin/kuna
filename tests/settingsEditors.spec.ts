@@ -5,9 +5,16 @@ import { accountCellsOf, accountDraftErrors } from '../src/features/settings/dom
 import type { AccountDraft } from '../src/features/settings/domain/accountDrafts'
 import { categoryCellsOf, categoryDraftErrors } from '../src/features/settings/domain/categoryDrafts'
 import type { CategoryDraft } from '../src/features/settings/domain/categoryDrafts'
+import { cellOfDraftText, cellsOfDrafts, draftTextOf, draftsOfRows } from '../src/features/settings/domain/tabRowDrafts'
+import { GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from '../src/features/settings/presentation/factTabColumns'
+import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { readAssets } from '../src/features/workbook/infrastructure/assetsTabReader'
+import { readGrants } from '../src/features/workbook/infrastructure/grantsTabReader'
+import { rowsFrom } from '../src/features/workbook/infrastructure/workbookTemplate'
+import { readYearEnd } from '../src/features/workbook/infrastructure/yearEndTabReader'
 
 function category(name: string, overrides: Partial<CategoryDraft> = {}): CategoryDraft {
-  return { sheetRow: 2, savedName: name, category: name, label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', ...overrides }
+  return { sheetRow: 2, savedName: name, category: name, label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', vat: '', ...overrides }
 }
 
 function account(name: string, overrides: Partial<AccountDraft> = {}): AccountDraft {
@@ -41,7 +48,76 @@ describe('the categories editor', () => {
   it('writes the cells in lower case and keeps other columns of a saved row', () => {
     const cells = categoryCellsOf([category(' Software ', { roles: 'Revenue,  watched ,' })], new Map([[2, { category: 'software', note: 'mine' }]]))
 
-    expect(cells).toEqual([{ category: 'software', label: '', family: 'operating', bucket: 'operating', colour: '', roles: 'revenue, watched', note: 'mine' }])
+    expect(cells).toEqual([{ category: 'software', label: '', family: 'operating', bucket: 'operating', colour: '', roles: 'revenue, watched', vat: '', note: 'mine' }])
+  })
+})
+
+describe('the categories editor and VAT', () => {
+  it('writes a VAT treatment in lower case and refuses one the app does not know', () => {
+    expect(categoryCellsOf([category('software', { vat: ' Reverse-Charge ' })], new Map())[0]?.vat).toBe('reverse-charge')
+    expect(categoryDraftErrors([category('software', { vat: 'half' })], new Set()).get(0)).toEqual({ vat: 'Not a VAT treatment the app knows' })
+    expect(categoryDraftErrors([category('software', { vat: '' })], new Set()).size).toBe(0)
+  })
+})
+
+describe('the assets, grants and year-end editors', () => {
+  it('turn field text into the cells the tab holds: dates as date cells, a percent as a fraction, a flag as TRUE', () => {
+    expect(cellOfDraftText('2025-06-01', 'date')).toBe(45809)
+    expect(cellOfDraftText('1.6.2025', 'date')).toBe('1.6.2025')
+    expect(cellOfDraftText('10', 'percent')).toBe(0.1)
+    expect(cellOfDraftText(' 1519.20 ', 'amount')).toBe(1519.2)
+    expect(cellOfDraftText('lots', 'amount')).toBe('lots')
+    expect(cellOfDraftText('TRUE', 'flag')).toBe(true)
+    expect(cellOfDraftText('Whole', 'amount-or-word')).toBe('whole')
+    expect(cellOfDraftText('2500', 'amount-or-word')).toBe(2500)
+    expect(cellOfDraftText(' Computers ', 'word')).toBe('computers')
+    expect(cellOfDraftText('   ', 'text')).toBe('')
+    expect(draftTextOf(45809, 'date')).toBe('2025-06-01')
+    expect(draftTextOf(0.1, 'percent')).toBe('10')
+    expect(draftTextOf(0.125, 'percent')).toBe('12.5')
+    expect(draftTextOf(true, 'flag')).toBe('TRUE')
+  })
+
+  it('read the fake workbook into fields and write the same cells back, so an unchanged tab saves as it was', () => {
+    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
+    for (const [rows, columns] of [
+      [snapshot.assets, assetColumns(['startup-grant'])],
+      [snapshot.grants, GRANT_COLUMNS],
+      [snapshot['year-end'], YEAR_END_COLUMNS],
+    ] as const) {
+      const saved = new Map(rows.map((row) => [row.sheetRow, row.cells]))
+      expect(rowsFrom(cellsOfDrafts(draftsOfRows(rows, columns), columns, saved))).toEqual(rows)
+    }
+  })
+
+  it('give each year-end amount the field its line needs', () => {
+    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
+    const drafts = draftsOfRows(snapshot['year-end'], YEAR_END_COLUMNS)
+    const amountOf = (line: string): string | undefined => drafts.find((draft) => draft.fields.line === line)?.fields.amount
+
+    expect(amountOf('rate')).toBe('10')
+    expect(amountOf('filed-on')).toBe('2026-04-27')
+    expect(amountOf('months-of-operation')).toBe('8')
+    expect(amountOf('sales')).toBe('46800')
+  })
+
+  it('check a draft with the tab reader, so a row the workbook would leave out cannot be saved', () => {
+    const drafts = [
+      { sheetRow: null, fields: { asset: 'Laptop', bought: '2026-01-09', cost_net: '823.99', group: 'computers' } },
+      { sheetRow: null, fields: { asset: 'Lamp', bought: '2026-01-09', cost_net: '-1', group: 'other' } },
+    ]
+    const columns = assetColumns([])
+    const reading = readAssets(rowsFrom(cellsOfDrafts(drafts, columns, new Map())), new Set())
+
+    expect(reading.facts.map((asset) => [asset.name, asset.inUse, asset.costNet])).toEqual([['Laptop', '2026-01-09', 82399]])
+    expect(reading.problems).toEqual([{ sheetRow: 3, reason: 'cost_net must be more than zero' }])
+    expect(readGrants(rowsFrom(cellsOfDrafts([{ sheetRow: null, fields: { grant: 'Startup', received: '2026-01-09', amount: '100', release: 'fixed-then-assets' } }], GRANT_COLUMNS, new Map()))).problems).toEqual([
+      { sheetRow: 2, reason: 'a fixed-then-assets release needs fixed_part and variable_part' },
+    ])
+    expect(readYearEnd(rowsFrom(cellsOfDrafts([{ sheetRow: null, fields: { year: '2025', statement: 'tax', line: 'rate', amount: '10' } }], YEAR_END_COLUMNS, new Map())), new Set()).facts[0]?.figure).toEqual({
+      kind: 'rate',
+      basisPoints: 1000,
+    })
   })
 })
 

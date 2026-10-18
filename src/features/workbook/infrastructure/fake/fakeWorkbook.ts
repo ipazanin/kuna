@@ -14,19 +14,40 @@ export const FAKE_SPREADSHEET_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP'
 
 export const FAKE_WORKBOOK_TITLE = 'Fake workbook'
 
-/** The `roles` column as the shadow-accounting Sheet seeds it. */
+/** The `roles` column as the shadow-accounting Sheet seeds it. Salary and rent are paid in the month after the work, hence `arrears`. */
 const CATEGORY_ROLES: Readonly<Record<string, string>> = {
   revenue: 'revenue',
+  'grant-income': 'grant',
   'client-refund': 'client-refund',
-  'payroll-contributions': 'watched, owner-pay-tax',
-  'payroll-tax': 'owner-pay-tax',
-  'dividend-tax': 'owner-pay-tax',
-  'rent-owner': 'watched',
+  'payroll-contributions': 'watched, owner-pay-tax, arrears',
+  'payroll-tax': 'owner-pay-tax, arrears',
+  'corporate-income-tax': 'corporate-income-tax',
+  'dividend-tax': 'owner-pay-tax, profit-distribution',
+  'salary-net': 'arrears',
+  dividend: 'profit-distribution',
+  'rent-owner': 'watched, arrears',
   accounting: 'watched',
+  equipment: 'capital-purchase',
+  representation: 'representation',
+  'health-insurance': 'prepaid-annual',
+  'vat-refund': 'vat-settlement',
   'owner-loan-out': 'owner-loan-out',
   'owner-loan-repaid': 'owner-loan-repaid',
   'reimbursement-to-owner': 'reimbursement',
   'reimbursement-from-owner': 'reimbursement',
+}
+
+/** The `vat` column. Foreign tools invoice without VAT under the reverse charge. Blank is none. */
+const CATEGORY_VAT: Readonly<Record<string, string>> = {
+  equipment: 'deductible-25',
+  'external-contractors': 'deductible-25',
+  consulting: 'deductible-25',
+  accounting: 'deductible-25',
+  'ai-services': 'reverse-charge',
+  'software-subscriptions': 'reverse-charge',
+  'office-supplies': 'deductible-25',
+  representation: 'representation',
+  telecom: 'deductible-25',
 }
 
 /** The categories seed of the shadow-accounting Sheet, as its `categories` tab starts out. */
@@ -82,6 +103,7 @@ const CATEGORY_SEED: readonly { readonly family: string; readonly colour: string
       ['telecom', 'operating'],
       ['bank-fees', 'operating'],
       ['health-insurance', 'operating'],
+      ['vat-refund', 'operating'],
     ],
   },
   {
@@ -129,6 +151,8 @@ interface FakeInvoice {
   readonly issued: string
   /** Blank on an invoice that gave no due date. */
   readonly due: string
+  /** The month the work was done, `YYYY-MM`, or blank when the invoice leaves its delivery period out. */
+  readonly workedIn: string
 }
 
 interface Booking {
@@ -176,6 +200,11 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
     invoices: sheetRowsFromValues(values.invoices),
     clients: sheetRowsFromValues(values.clients),
     'owner-advances': sheetRowsFromValues(values['owner-advances']),
+    assets: sheetRowsFromValues(values.assets),
+    grants: sheetRowsFromValues(values.grants),
+    'year-end': sheetRowsFromValues(values['year-end']),
+    plan: sheetRowsFromValues(values.plan),
+    scenarios: sheetRowsFromValues(values.scenarios),
   }
 }
 
@@ -186,19 +215,37 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
     settings:
       source === 'google'
         ? [['key', 'value'], ['card_settlement_ibans', '']]
-        : [['key', 'value'], ['template_version', 1], ['company_name', 'Example Studio'], ['currency', 'EUR']],
+        : [
+            ['key', 'value'],
+            ['template_version', 1],
+            ['company_name', 'Example Studio'],
+            ['currency', 'EUR'],
+            ['hr_residence_city', 'Zagreb'],
+            ['hr_birth_year', 1990],
+            ['hr_pension_pillar_2', true],
+            ['hr_company_registered', '2025-05-12'],
+          ],
     ledger: ledgerValues(bookings),
     categories: [
-      ['category', 'family', 'bucket', 'colour', 'roles'],
+      ['category', 'family', 'bucket', 'colour', 'roles', 'vat'],
       ...CATEGORY_SEED.flatMap((group) =>
-        group.categories.map(([category, bucket]) => [category, group.family, bucket, group.colour, CATEGORY_ROLES[category] ?? '']),
+        group.categories.map(([category, bucket]) => [category, group.family, bucket, group.colour, CATEGORY_ROLES[category] ?? '', CATEGORY_VAT[category] ?? '']),
       ),
     ],
     accounts: [['account', 'iban'], ...Object.entries(ACCOUNTS).map(([account, iban]) => [account, iban])],
     rules: rulesValues(),
     invoices: [
-      ['number', 'client', 'item', 'amount', 'issued', 'due'],
-      ...invoices.map((invoice) => [invoice.number, invoice.client, invoice.item, invoice.amount, serialOf(invoice.issued), invoice.due === '' ? '' : serialOf(invoice.due)]),
+      ['number', 'client', 'item', 'amount', 'issued', 'due', 'period_from', 'period_to'],
+      ...invoices.map((invoice) => [
+        invoice.number,
+        invoice.client,
+        invoice.item,
+        invoice.amount,
+        serialOf(invoice.issued),
+        invoice.due === '' ? '' : serialOf(invoice.due),
+        invoice.workedIn === '' ? '' : serialOf(`${invoice.workedIn}-01`),
+        invoice.workedIn === '' ? '' : serialOf(lastDayOf(invoice.workedIn)),
+      ]),
     ],
     clients: [
       ['client', 'name', 'iban'],
@@ -211,6 +258,131 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       [serialOf('2026-08-21'), 89, 'Design tool, annual plan on the owner’s card', 'software-subscriptions'],
       [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies'],
       [serialOf('2025-10-02'), -9.71, 'Private share of the paper and ink order', 'office-supplies'],
+    ],
+    ...planningValues(),
+  }
+}
+
+/**
+ * The tabs the year-end and planning screens read, for "Example Studio d.o.o.": the two computers
+ * the ledger bought, the start-up grant it received, the accountant's 2025 figures, a plan and two
+ * owner pay scenarios. The 2025 figures add up within themselves and are made up, like the rest.
+ */
+function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | 'grants' | 'year-end' | 'plan' | 'scenarios'> {
+  const yearEnd = (statement: string, line: string, label: string, amount: number, categories = ''): CellValue[] => [
+    2025,
+    statement,
+    line,
+    label,
+    amount,
+    categories,
+    '',
+    'example-studio-2025-package.pdf',
+    '',
+  ]
+  return {
+    assets: [
+      ['asset', 'bought', 'in_use', 'cost_net', 'group', 'doubled', 'disposed', 'funded_by', 'ledger_reference', 'note'],
+      ['Laptop 14 inch', serialOf('2025-05-28'), serialOf('2025-06-01'), 1519.2, 'computers', '', '', '', 'Card purchase, laptop', ''],
+      ['Workstation', serialOf('2025-11-21'), serialOf('2025-11-24'), 2720, 'computers', '', '', 'startup-grant', 'Card purchase, workstation', 'Paid from the grant'],
+    ],
+    grants: [
+      [
+        'grant',
+        'received',
+        'amount',
+        'fixed_part',
+        'variable_part',
+        'period_from',
+        'period_to',
+        'release',
+        'clawback_year1',
+        'clawback_year2',
+        'employment_required_until',
+        'note',
+      ],
+      [
+        'startup-grant',
+        serialOf('2025-09-15'),
+        5000,
+        2000,
+        3000,
+        serialOf('2025-09-15'),
+        serialOf('2027-09-14'),
+        'fixed-then-assets',
+        'whole',
+        2500,
+        serialOf('2027-09-14'),
+        'Regional start-up grant',
+      ],
+    ],
+    'year-end': [
+      ['year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note'],
+      yearEnd('pl', 'sales', 'Prihodi od prodaje', 46800),
+      yearEnd('pl', 'other-operating-income', 'Ostali poslovni prihodi', 2113.33),
+      yearEnd('pl', 'financial-income', 'Financijski prihodi', 0.04),
+      yearEnd('pl', 'material-costs', 'Materijalni troškovi', 5960),
+      yearEnd('pl', 'personnel-costs', 'Troškovi osoblja', 24120),
+      yearEnd('pl', 'depreciation', 'Amortizacija', 493.13),
+      yearEnd('pl', 'other-costs', 'Ostali troškovi', 1862.84),
+      yearEnd('pl', 'financial-expenses', 'Financijski rashodi', 12.4),
+      yearEnd('pl', 'profit-before-tax', 'Dobit prije oporezivanja', 16465),
+      yearEnd('pl', 'corporate-income-tax', 'Porez na dobit', 1650),
+      yearEnd('pl', 'profit-after-tax', 'Dobit razdoblja', 14815),
+      yearEnd('balance', 'tangible-assets', 'Dugotrajna materijalna imovina', 3746.07),
+      yearEnd('balance', 'receivables-trade', 'Potraživanja od kupaca', 14400),
+      yearEnd('balance', 'receivables-members-employees', 'Potraživanja od zaposlenika i članova poduzetnika', 3000),
+      yearEnd('balance', 'cash', 'Novac u banci i blagajni', 2292.3),
+      yearEnd('balance', 'prepaid-accrued-income', 'Plaćeni troškovi budućeg razdoblja', 217.5),
+      yearEnd('balance', 'total-assets', 'Ukupno aktiva', 23655.87),
+      yearEnd('balance', 'share-capital', 'Temeljni kapital', 2500),
+      yearEnd('balance', 'profit-of-year', 'Dobit poslovne godine', 14815),
+      yearEnd('balance', 'payables-suppliers', 'Obveze prema dobavljačima', 150),
+      yearEnd('balance', 'payables-employees', 'Obveze prema zaposlenicima', 1100),
+      yearEnd('balance', 'payables-taxes', 'Obveze za poreze i doprinose', 2204.2),
+      yearEnd('balance', 'accruals-deferred-income', 'Prihod budućeg razdoblja', 2886.67),
+      yearEnd('tax', 'revenue', 'Prihodi', 48913.37),
+      yearEnd('tax', 'expenses', 'Rashodi', 32448.37),
+      yearEnd('tax', 'increases', 'Povećanja', 35),
+      yearEnd('tax', 'tax-base', 'Porezna osnovica', 16500),
+      yearEnd('tax', 'rate', 'Porezna stopa', 0.1),
+      yearEnd('tax', 'liability', 'Porezna obveza', 1650),
+      yearEnd('tax', 'advances-paid', 'Plaćeni predujmovi', 0),
+      yearEnd('tax', 'balance-due', 'Razlika za uplatu', 1650),
+      yearEnd('tax', 'monthly-advance', 'Mjesečni predujam', 206.25),
+      yearEnd('tax', 'months-of-operation', 'Broj mjeseci', 8),
+      yearEnd('tax', 'filed-on', 'Predano', serialOf('2026-04-27')),
+      yearEnd('tax', 'paid-on', 'Plaćeno', serialOf('2026-04-28')),
+      yearEnd('distribution', 'retained', 'Zadržana dobit', 10415),
+      yearEnd('distribution', 'dividend', 'Isplata dobiti', 4400),
+      yearEnd('distribution', 'decided-on', 'Odluka o raspodjeli dobiti', serialOf('2026-05-15')),
+      yearEnd('grant', 'released-in-year', 'Prihod od potpore', 2113.33),
+      yearEnd('grant', 'deferred-at-year-end', 'Odgođeni prihod od potpore', 2886.67),
+      yearEnd('konto', '41200', 'Usluge telefona', 98.4, 'telecom'),
+      yearEnd('konto', '41810', 'Računovodstvene usluge', 1500, 'accounting'),
+      yearEnd('konto', '41850', 'Softver i pretplate', 560.3, 'ai-services, software-subscriptions'),
+      yearEnd('konto', '46500', 'Reprezentacija', 70, 'representation'),
+    ],
+    plan: [
+      ['year', 'month', 'item', 'amount', 'note'],
+      [2026, 11, 'revenue', 7200, 'The usual month'],
+      [2026, 12, 'revenue', 7200, ''],
+      [2027, '', 'revenue', 7400, 'A small rate rise'],
+      [2027, '', 'software-subscriptions', 10, ''],
+      [2027, '', 'owner_pay_scenario', 'floor-salary', ''],
+      [2027, 3, 'purchase', 1600, 'Replacement laptop'],
+      [2027, 6, 'dividend', 8000, 'After the 2026 statements are adopted'],
+    ],
+    scenarios: [
+      ['scenario', 'label', 'year', 'component', 'amount', 'from', 'to'],
+      ['floor-salary', 'Floor salary all year', 2027, 'salary_gross', 'floor', '', ''],
+      ['floor-salary', '', 2027, 'director_basis', 'employee', '', ''],
+      ['floor-salary', '', 2027, 'dividend', 'max', '', ''],
+      ['floor-then-board', 'Floor salary, then board member only', 2027, 'salary_gross', 'floor', '', serialOf('2027-09-14')],
+      ['floor-then-board', '', 2027, 'director_basis', 'employee', '', serialOf('2027-09-14')],
+      ['floor-then-board', '', 2027, 'director_basis', 'board-only', serialOf('2027-09-15'), ''],
+      ['floor-then-board', '', 2027, 'nontaxable:gifts', 700, '', ''],
+      ['floor-then-board', '', 2027, 'dividend', 'max', '', ''],
     ],
   }
 }
@@ -261,11 +433,11 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
   const random = seededRandom(20251)
   const vary = (base: number, spread: number): number => roundToCent(base + (random() - 0.5) * 2 * spread)
   const invoices: FakeInvoice[] = []
-  const invoice = (client: string, item: string, amount: number, issued: string, due = addOneMonth(issued)): void => {
+  const invoice = (client: string, item: string, amount: number, issued: string, due = addOneMonth(issued), workedIn = ''): void => {
     const year = issued.slice(2, 4)
     const sequence = invoices.filter((earlier) => earlier.client === client && earlier.issued.slice(2, 4) === year).length + 1
     const number = client === 'northwind' ? `${sequence}-1-${year}` : `LL-${String(invoices.filter((earlier) => earlier.client === client).length + 1).padStart(3, '0')}`
-    invoices.push({ number, client, item, amount, issued, due })
+    invoices.push({ number, client, item, amount, issued, due, workedIn })
   }
   const all: Booking[] = [
     booking('2025-05-14', 'Alex Example', PAYEES.owner.iban, 'Share capital paid in', 2500, 'share-capital', undefined, 'human'),
@@ -280,7 +452,7 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
 
     const billed = vary(7200, 400)
     const invoiced = previous === '2026-05' ? roundToCent(billed - 120) : previous === '2026-08' ? roundToCent(billed + 500) : billed
-    invoice('northwind', `Analytics work, ${previous}`, invoiced, lastDayOf(previous))
+    invoice('northwind', `Analytics work, ${previous}`, invoiced, lastDayOf(previous), addOneMonth(lastDayOf(previous)), previous)
     if (month !== LOSS_MONTH) {
       all.push(booking(day(4), PAYEES.client.name, PAYEES.client.iban, `Invoice ${previous}`, billed, 'revenue'))
     }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
-import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
 const CATEGORIES: CellValue[][] = [
@@ -17,6 +17,7 @@ const CATEGORIES: CellValue[][] = [
 function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGORIES, settings: CellValue[][] = []): WorkbookSnapshot {
   return {
     meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    ...EMPTY_TABS,
     ledger: sheetRowsFromValues(ledger),
     categories: sheetRowsFromValues(categories),
     accounts: sheetRowsFromValues([
@@ -24,10 +25,6 @@ function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGOR
       ['hr12 3456 7890 1234 5678 9', 'Main'],
     ]),
     settings: sheetRowsFromValues(settings),
-    rules: [],
-    invoices: [],
-    clients: [],
-    'owner-advances': [],
   }
 }
 

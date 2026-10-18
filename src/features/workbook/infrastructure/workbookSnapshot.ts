@@ -10,7 +10,21 @@ export interface SheetRow {
 }
 
 /** The tabs of the workbook format. Only `ledger` is required. A missing tab reads as empty. */
-export const WORKBOOK_TABS = ['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'owner-advances'] as const
+export const WORKBOOK_TABS = [
+  'ledger',
+  'categories',
+  'accounts',
+  'settings',
+  'rules',
+  'invoices',
+  'clients',
+  'owner-advances',
+  'assets',
+  'grants',
+  'year-end',
+  'plan',
+  'scenarios',
+] as const
 
 export type WorkbookTab = (typeof WORKBOOK_TABS)[number]
 
@@ -44,6 +58,11 @@ export const EMPTY_TABS: WorkbookTabs = {
   invoices: [],
   clients: [],
   'owner-advances': [],
+  assets: [],
+  grants: [],
+  'year-end': [],
+  plan: [],
+  scenarios: [],
 }
 
 /**

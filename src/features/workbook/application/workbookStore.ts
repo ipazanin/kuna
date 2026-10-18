@@ -118,7 +118,7 @@ export interface WorkbookState {
 }
 
 /** The tabs Excel mode edits whole. The ledger only ever arrives whole, from a file, and settings change row by row. */
-export type EditableTabs = Partial<Pick<WorkbookTabs, 'categories' | 'accounts'>>
+export type EditableTabs = Partial<Pick<WorkbookTabs, 'categories' | 'accounts' | 'assets' | 'grants' | 'year-end'>>
 
 export interface WorkbookStorePorts {
   loadChoice(): WorkbookChoice | null
@@ -166,7 +166,7 @@ export interface WorkbookStore {
    * switches to Excel mode. A workbook already kept here is replaced, and a Google sign-in is forgotten.
    */
   replaceLocalWorkbook(tabs: WorkbookTabs, title: string): Promise<void>
-  /** Saves edits to categories, accounts or settings in Excel mode. */
+  /** Saves whole tabs edited on the Workbook screen in Excel mode. */
   saveLocalEdits(edits: EditableTabs): Promise<void>
   /** Notes that the workbook on screen was just written to a file. */
   recordExport(): Promise<void>

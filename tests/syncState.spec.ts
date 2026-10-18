@@ -13,6 +13,11 @@ const workbook = readWorkbook({
   invoices: [],
   clients: [],
   'owner-advances': [],
+  assets: [],
+  grants: [],
+  'year-end': [],
+  plan: [],
+  scenarios: [],
 })
 const choice = { source: 'google' as const, id: 'sheet', name: 'Books' }
 

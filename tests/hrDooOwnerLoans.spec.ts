@@ -76,9 +76,9 @@ describe('owner loans', () => {
 
   it('finds loans by role, whatever the categories are called', () => {
     const categories: Category[] = [
-      { slug: 'shareholder-loan', family: 'owner', bucket: 'owner-pay', colour: '', roles: ['owner-loan-out'] },
-      { slug: 'shareholder-loan-back', family: 'owner', bucket: 'owner-pay', colour: '', roles: ['owner-loan-repaid'] },
-      { slug: 'owner-loan-out', family: 'owner', bucket: 'owner-pay', colour: '', roles: [] },
+      { slug: 'shareholder-loan', family: 'owner', bucket: 'owner-pay', colour: '', roles: ['owner-loan-out'], vat: 'none' },
+      { slug: 'shareholder-loan-back', family: 'owner', bucket: 'owner-pay', colour: '', roles: ['owner-loan-repaid'], vat: 'none' },
+      { slug: 'owner-loan-out', family: 'owner', bucket: 'owner-pay', colour: '', roles: [], vat: 'none' },
     ]
     const loans = book(
       [

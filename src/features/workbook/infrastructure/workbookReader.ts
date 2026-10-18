@@ -1,7 +1,4 @@
 import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../shared/calendar/civilDate'
-import { moneyFromAmount } from '../../../shared/money/money'
-import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
 import { readRules } from '../../rules/domain/readRules'
 import type { Rule } from '../../rules/domain/rule'
@@ -10,9 +7,17 @@ import type { Settings } from '../../settings/domain/settings'
 import { UNCLASSIFIED, isDefinedBucket } from '../domain/bucket'
 import { ledgerRowKeyOf } from '../domain/ledgerRowKey'
 import type { LedgerRowKey } from '../domain/ledgerRowKey'
+import { isVatTreatment } from '../domain/vatTreatment'
 import { ADVANCE_BUCKETS } from '../domain/workbook'
 import type { Account, Category, Client, Invoice, OwnerAdvance, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
+import { readAssets } from './assetsTabReader'
+import { dateOf, inTabOrder, isUnreadable, moneyOf, optionalPeriod, readRow, slugListOf, slugOf, textOf } from './cellReading'
+import type { RowProblem } from './cellReading'
+import { readGrants } from './grantsTabReader'
+import { readPlan } from './planTabReader'
+import { readScenarios } from './scenariosTabReader'
 import type { CellValue, SheetRow, WorkbookSnapshot } from './workbookSnapshot'
+import { readYearEnd } from './yearEndTabReader'
 
 /**
  * Turns the tabs into the domain workbook, whether they came from a Google Sheet or an xlsx file.
@@ -27,6 +32,10 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
   const categories = readCategories(snapshot.categories, problems)
   const clients = readClients(snapshot.clients, problems)
   const hasClientsTab = !snapshot.meta.missingTabs.includes('clients')
+  const categorySlugs = new Set(categories.map((category) => category.slug))
+  const grants = keep('grants', readGrants(snapshot.grants), problems)
+  const scenarios = readScenarios(snapshot.scenarios)
+  problems.push(...tabProblems('scenarios', scenarios.problems))
   return {
     id: snapshot.meta.id,
     source: snapshot.meta.source,
@@ -41,9 +50,28 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     clients,
     hasClientsTab,
     ownerAdvances: readOwnerAdvances(snapshot['owner-advances'], categories, problems),
+    assets: keep('assets', readAssets(snapshot.assets, new Set(grants.map((grant) => grant.slug))), problems),
+    grants,
+    yearEndLines: keep('year-end', readYearEnd(snapshot['year-end'], categorySlugs), problems),
+    planLines: keep('plan', readPlan(snapshot.plan, categorySlugs, new Set(scenarios.scenarios.map((scenario) => scenario.slug))), problems),
+    payScenarios: scenarios.scenarios,
     settings,
     problems,
   }
+}
+
+/** The facts of one tab reader, its problems added to the workbook's under the tab's name. */
+function keep<Fact extends { readonly sheetRow: number }>(
+  tab: WorkbookProblem['tab'],
+  reading: { readonly facts: readonly Fact[]; readonly problems: readonly RowProblem[] },
+  problems: WorkbookProblem[],
+): readonly Fact[] {
+  problems.push(...tabProblems(tab, reading.problems))
+  return reading.facts
+}
+
+function tabProblems(tab: WorkbookProblem['tab'], rowProblems: readonly RowProblem[]): WorkbookProblem[] {
+  return rowProblems.map((problem) => ({ tab, ...problem }))
 }
 
 /** The key that finds a ledger row again, read as the ledger reader reads it, or null for a row it leaves out. */
@@ -72,7 +100,8 @@ function readSettings(rows: readonly SheetRow[], problems: WorkbookProblem[]): S
 /**
  * Sheets matches a category case-insensitively and takes the first row that defines it, so this
  * does too. A row is a definition only when category, family and bucket are all filled, and the
- * bucket is one the analysis knows. Anything else leaves its ledger rows unclassified.
+ * bucket is one the analysis knows. Anything else leaves its ledger rows unclassified. A VAT
+ * treatment the app does not know is reported and read as none, so the category still counts.
  */
 function readCategories(rows: readonly SheetRow[], problems: WorkbookProblem[]): Category[] {
   const bySlug = new Map<string, Category>()
@@ -92,7 +121,19 @@ function readCategories(rows: readonly SheetRow[], problems: WorkbookProblem[]):
       problems.push({ tab: 'categories', sheetRow: row.sheetRow, reason: `"${slug}" is already defined above` })
       continue
     }
-    bySlug.set(slug, { slug, label: textOf(row.cells.label), family, bucket, colour: textOf(row.cells.colour), roles: rolesOf(row.cells.roles) })
+    const vat = slugOf(row.cells.vat)
+    if (vat !== '' && !isVatTreatment(vat)) {
+      problems.push({ tab: 'categories', sheetRow: row.sheetRow, reason: `vat "${vat}" is not a VAT treatment, so ${slug} reads as none` })
+    }
+    bySlug.set(slug, {
+      slug,
+      label: textOf(row.cells.label),
+      family,
+      bucket,
+      colour: textOf(row.cells.colour),
+      roles: slugListOf(row.cells.roles),
+      vat: isVatTreatment(vat) ? vat : 'none',
+    })
   }
   return [...bySlug.values()]
 }
@@ -156,7 +197,11 @@ function readClients(rows: readonly SheetRow[], problems: WorkbookProblem[]): Cl
   return [...bySlug].map(([slug, client]) => ({ slug, name: client.name, ibans: client.ibans }))
 }
 
-/** A number used twice for one client is left out the second time, since the matching would count the invoice twice. */
+/**
+ * A number used twice for one client is left out the second time, since the matching would count
+ * the invoice twice. A delivery period that cannot be read is reported, and the invoice kept with
+ * its issue date standing for the period.
+ */
 function readInvoices(rows: readonly SheetRow[], clients: readonly Client[], problems: WorkbookProblem[]): Invoice[] {
   const known = new Set(clients.map((client) => client.slug))
   const seen = new Set<string>()
@@ -176,13 +221,17 @@ function readInvoices(rows: readonly SheetRow[], clients: readonly Client[], pro
         reason: `${invoice.client} is not on the clients tab, so no payment can be matched to invoice ${invoice.number}`,
       })
     }
+    const deliveryPeriod = readRow(() => optionalPeriod(row.cells, 'period_from', 'period_to'))
+    if (isUnreadable(deliveryPeriod)) {
+      problems.push({ tab: 'invoices', sheetRow: row.sheetRow, reason: `${deliveryPeriod.unreadable}, so the issue date stands for the delivery period` })
+    }
     seen.add(key)
-    invoices.push(invoice)
+    invoices.push({ ...invoice, deliveryPeriod: isUnreadable(deliveryPeriod) ? null : deliveryPeriod })
   }
   return invoices
 }
 
-function readInvoiceRow(row: SheetRow): Invoice | string {
+function readInvoiceRow(row: SheetRow): Omit<Invoice, 'deliveryPeriod'> | string {
   const { cells } = row
   const number = textOf(cells.number)
   if (number === '') {
@@ -247,10 +296,6 @@ function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, 
     return `"${slug}" is in the ${category.bucket} bucket, and an advance counts as an operating cost or a tax`
   }
   return { date, amount, description: textOf(cells.description), category: slug, family: category.family, bucket: category.bucket, sheetRow: row.sheetRow }
-}
-
-function inTabOrder(rows: readonly SheetRow[]): SheetRow[] {
-  return [...rows].sort((upper, lower) => upper.sheetRow - lower.sheetRow)
 }
 
 function readLedger(
@@ -331,28 +376,4 @@ function reviewReasonsOf(cell: CellValue | undefined): string[] {
     .split('|')
     .map((reason) => reason.trim())
     .filter((reason) => reason !== '')
-}
-
-function textOf(cell: CellValue | undefined): string {
-  return cell === undefined ? '' : String(cell).trim()
-}
-
-/** A comma-separated list, such as `revenue, watched`. */
-function rolesOf(cell: CellValue | undefined): string[] {
-  return textOf(cell)
-    .split(',')
-    .map((role) => role.trim().toLowerCase())
-    .filter((role) => role !== '')
-}
-
-function slugOf(cell: CellValue | undefined): string {
-  return textOf(cell).toLowerCase()
-}
-
-function dateOf(cell: CellValue | undefined): CivilDate | null {
-  return typeof cell === 'number' && Number.isFinite(cell) ? civilDateFromSerial(cell) : null
-}
-
-function moneyOf(cell: CellValue | undefined): Money | null {
-  return typeof cell === 'number' && Number.isFinite(cell) ? moneyFromAmount(cell) : null
 }

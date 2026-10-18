@@ -33,7 +33,9 @@ describe('fake workbook', () => {
   })
 
   it('carries the Sheet’s category list and two accounts, one of them closed at zero', () => {
-    expect(workbook.categories).toHaveLength(31)
+    expect(workbook.categories).toHaveLength(32)
+    expect(workbook.categories.find((category) => category.slug === 'vat-refund')).toMatchObject({ bucket: 'operating', roles: ['vat-settlement'] })
+    expect(workbook.categories.find((category) => category.slug === 'tax-refund')?.bucket).toBe('taxes')
     expect(workbook.accounts.map((account) => account.slug)).toEqual(['legacy', 'main'])
     const legacy = latestBalances(workbook.transactions).accounts.find((account) => account.account === 'legacy')
     expect(legacy?.balance.amount).toBe(0)
@@ -60,6 +62,26 @@ describe('fake workbook', () => {
 
   it('holds rows for review: a guess and an unclassified category', () => {
     expect(workbook.transactions.some((transaction) => transaction.flaggedBy === 'ai' && transaction.bucket === 'unclassified')).toBe(true)
+  })
+
+  it('holds the planning tabs of a small company: two assets, a grant that funds one, a year of accountant figures, a plan and two scenarios', () => {
+    expect(workbook.assets.map((asset) => [asset.name, asset.fundedBy])).toEqual([
+      ['Laptop 14 inch', ''],
+      ['Workstation', 'startup-grant'],
+    ])
+    expect(workbook.grants.map((grant) => grant.slug)).toEqual(['startup-grant'])
+    expect(new Set(workbook.yearEndLines.map((line) => line.statement))).toEqual(new Set(['pl', 'balance', 'tax', 'distribution', 'grant', 'konto']))
+    expect(workbook.planLines.some((line) => line.kind === 'owner-pay-scenario')).toBe(true)
+    expect(workbook.payScenarios.map((scenario) => scenario.slug)).toEqual(['floor-salary', 'floor-then-board'])
+    expect(workbook.invoices.filter((invoice) => invoice.deliveryPeriod !== null).length).toBeGreaterThan(10)
+  })
+
+  it('names a Zagreb resident in the company facts of its Excel variant, and leaves the Google one on the defaults', () => {
+    const excel = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel'))
+
+    expect(excel.problems).toEqual([])
+    expect(excel.settings.companyFacts).toMatchObject({ residenceCity: 'Zagreb', companyRegistered: '2025-05-12' })
+    expect(workbook.settings.companyFacts.residenceCity).toBe('')
   })
 
   it('uses no real IBAN, only the fake ones', () => {

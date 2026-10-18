@@ -5,6 +5,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { BUCKETS } from '../../workbook/domain/bucket'
+import { VAT_TREATMENTS } from '../../workbook/domain/vatTreatment'
 import { displayName } from '../../workbook/domain/displayName'
 import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
 import { categoryCellsOf, categoryDraftErrors, keepsItsName } from '../domain/categoryDrafts'
@@ -30,7 +31,7 @@ function draftsOf(rows: readonly SheetRow[]): CategoryDraft[] {
     .sort((upper, lower) => upper.sheetRow - lower.sheetRow)
     .map((row) => {
       const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
-      return { sheetRow: row.sheetRow, savedName: text('category'), category: text('category'), label: text('label'), family: text('family'), bucket: text('bucket').toLowerCase(), colour: text('colour'), roles: text('roles') }
+      return { sheetRow: row.sheetRow, savedName: text('category'), category: text('category'), label: text('label'), family: text('family'), bucket: text('bucket').toLowerCase(), colour: text('colour'), roles: text('roles'), vat: text('vat').toLowerCase() }
     })
 }
 
@@ -47,6 +48,7 @@ const dirty = computed(() => JSON.stringify(drafts.value) !== saved.value)
 const errors = computed(() => categoryDraftErrors(drafts.value, props.usedNames))
 
 const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: bucket }))
+const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: treatment }))
 
 function update(index: number, field: keyof Omit<CategoryDraft, 'sheetRow' | 'savedName'>, text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
@@ -57,7 +59,7 @@ function locked(draft: CategoryDraft): boolean {
 }
 
 function addCategory(): void {
-  drafts.value = [...drafts.value, { sheetRow: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '' }]
+  drafts.value = [...drafts.value, { sheetRow: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '', vat: '' }]
 }
 
 function removeNew(index: number): void {
@@ -81,6 +83,7 @@ function save(): void {
           <th scope="col" class="text-start">Bucket</th>
           <th scope="col" class="text-start">Colour</th>
           <th scope="col" class="text-start">Roles</th>
+          <th scope="col" class="text-start">VAT</th>
           <th v-if="editable" scope="col"><span class="sr-only">Remove</span></th>
         </tr>
       </thead>
@@ -102,6 +105,7 @@ function save(): void {
             </span>
           </td>
           <td class="text-muted">{{ draft.roles }}</td>
+          <td class="text-muted">{{ draft.vat }}</td>
         </tr>
       </tbody>
       <tbody v-else>
@@ -165,6 +169,19 @@ function save(): void {
           </td>
           <td>
             <UInput :model-value="draft.roles" aria-label="Roles, comma separated" size="sm" class="w-40" @update:model-value="update(index, 'roles', String($event))" />
+          </td>
+          <td>
+            <USelect
+              :model-value="draft.vat || 'none'"
+              :items="vatItems"
+              :color="errors.get(index)?.vat ? 'error' : 'neutral'"
+              :highlight="Boolean(errors.get(index)?.vat)"
+              aria-label="VAT"
+              size="sm"
+              class="w-44"
+              @update:model-value="update(index, 'vat', String($event))"
+            />
+            <p v-if="errors.get(index)?.vat" class="field-error">{{ errors.get(index)?.vat }}</p>
           </td>
           <td>
             <UButton

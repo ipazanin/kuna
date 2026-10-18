@@ -20,16 +20,16 @@ const CLIENTS: readonly Client[] = [
 
 /** Revenue is picked by its role, so the category here is named something else on purpose. */
 const CATEGORIES: readonly Category[] = [
-  { slug: 'fees', family: 'income', bucket: 'income', colour: '', roles: ['revenue'] },
-  { slug: 'revenue', family: 'income', bucket: 'income', colour: '', roles: [] },
-  { slug: 'money-back', family: 'income', bucket: 'income', colour: '', roles: ['client-refund'] },
+  { slug: 'fees', family: 'income', bucket: 'income', colour: '', roles: ['revenue'], vat: 'none' },
+  { slug: 'revenue', family: 'income', bucket: 'income', colour: '', roles: [], vat: 'none' },
+  { slug: 'money-back', family: 'income', bucket: 'income', colour: '', roles: ['client-refund'], vat: 'none' },
 ]
 
 let nextRow = 2
 
 function invoice(number: string, amount: number, issued: string, due: string | null = null, client = 'north'): Invoice {
   nextRow += 1
-  return { number, client, item: '', amount: euros(amount), issued: civil(issued), due: due === null ? null : civil(due), sheetRow: nextRow }
+  return { number, client, item: '', amount: euros(amount), issued: civil(issued), due: due === null ? null : civil(due), deliveryPeriod: null, sheetRow: nextRow }
 }
 
 function paid(date: string, amount: number, iban = NORTH): RowSpec {

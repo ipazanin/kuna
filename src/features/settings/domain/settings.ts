@@ -1,3 +1,5 @@
+import { civilDateFromSerial, parseCivilDate } from '../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
@@ -26,6 +28,38 @@ export interface Settings {
   readonly reviewLabel: string
   /** The bank accounts a card purchase settles against, normalised. The rules read such a row as a card purchase. */
   readonly cardSettlementIbans: readonly string[]
+  readonly companyFacts: CompanyFacts
+}
+
+/** Which corporate tax return the company files: `pd` on the accrual profit, `pd-nn` on cash received and paid. */
+export const CIT_RETURNS = ['pd', 'pd-nn'] as const
+
+export type CitReturn = (typeof CIT_RETURNS)[number]
+
+/** When VAT falls due: on the invoice, or when it is paid. */
+export const VAT_PRINCIPLES = ['invoice', 'cash'] as const
+
+export type VatPrinciple = (typeof VAT_PRINCIPLES)[number]
+
+/**
+ * What the owner-pay pack needs to know about this company and its owner that the law does not
+ * say. These are the owner's own facts, so they live in the workbook and never in the app.
+ */
+export interface CompanyFacts {
+  /** Where the owner lives, which sets the local income tax rates. Blank when not given. */
+  readonly residenceCity: string
+  /** For the youth income tax relief. Null when not given. */
+  readonly birthYear: number | null
+  /** Whether the owner pays into the second pension pillar, which splits the pension contribution. */
+  readonly pensionPillarTwo: boolean
+  /** Dependants who raise the personal allowance. */
+  readonly dependants: number
+  /** The day the company was registered, which starts its first tax period. Null when not given. */
+  readonly companyRegistered: CivilDate | null
+  readonly citReturn: CitReturn
+  readonly vatPrinciple: VatPrinciple
+  /** The default for assets: whether the accountant doubles depreciation rates. */
+  readonly depreciationDoubled: boolean
 }
 
 export const DEFAULT_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = {
@@ -46,6 +80,16 @@ export const DEFAULT_SETTINGS: Settings = {
   ownerPayModule: true,
   reviewLabel: 'human',
   cardSettlementIbans: [],
+  companyFacts: {
+    residenceCity: '',
+    birthYear: null,
+    pensionPillarTwo: true,
+    dependants: 0,
+    companyRegistered: null,
+    citReturn: 'pd',
+    vatPrinciple: 'invoice',
+    depreciationDoubled: false,
+  },
 }
 
 /** `flagged_by` values the categoriser writes, which a person's label must not reuse. */
@@ -55,6 +99,13 @@ const MACHINE_FLAGS = ['rule', 'ai'] as const
 const RESERVED_LABELS = ['net', 'all costs', 'owner earns', 'kept']
 
 const LABEL_MAX_LENGTH = 40
+
+const CITY_MAX_LENGTH = 60
+
+const EARLIEST_BIRTH_YEAR = 1900
+const LATEST_BIRTH_YEAR = 2100
+
+const MOST_DEPENDANTS = 20
 
 /** Two letters, two check digits and up to thirty letters or digits, after the grouping spaces go. */
 const IBAN_SHAPE = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/
@@ -97,6 +148,86 @@ const BUCKET_LABEL_DEFINITIONS: readonly SettingDefinition[] = BUCKETS.map((buck
     return problem ?? { ...settings, bucketLabels: { ...settings.bucketLabels, [bucket]: label } }
   },
 }))
+
+function withFacts(settings: Settings, facts: Partial<CompanyFacts>): Settings {
+  return { ...settings, companyFacts: { ...settings.companyFacts, ...facts } }
+}
+
+/** The pack's keys, read only while the owner-pay module is on, but kept and checked whatever it is. */
+const COMPANY_FACT_DEFINITIONS: readonly SettingDefinition[] = [
+  {
+    key: 'hr_residence_city',
+    note: 'The city or municipality the owner lives in, such as Zagreb. It sets the local income tax rates. Blank uses the default rates.',
+    valueOf: (settings) => settings.companyFacts.residenceCity,
+    apply: (settings, cell) => {
+      const city = String(cell).trim()
+      return residenceCityProblem(city) ?? withFacts(settings, { residenceCity: city })
+    },
+  },
+  {
+    key: 'hr_birth_year',
+    note: "The owner's year of birth, such as 1990, for the youth income tax relief. Blank means no relief is assumed.",
+    valueOf: (settings) => settings.companyFacts.birthYear ?? '',
+    apply: (settings, cell) => {
+      const year = typeof cell === 'number' ? cell : Number(String(cell).trim())
+      return birthYearProblem(year) ?? withFacts(settings, { birthYear: year })
+    },
+  },
+  {
+    key: 'hr_pension_pillar_2',
+    note: 'TRUE when the owner pays into the second pension pillar, FALSE when the whole pension contribution goes to the first.',
+    valueOf: (settings) => settings.companyFacts.pensionPillarTwo,
+    apply: (settings, cell) => {
+      const pillarTwo = booleanOf(cell)
+      return pillarTwo === null ? `"${String(cell)}" is neither TRUE nor FALSE` : withFacts(settings, { pensionPillarTwo: pillarTwo })
+    },
+  },
+  {
+    key: 'hr_dependants',
+    note: 'How many dependants raise the personal allowance, as a whole number. Blank means 0.',
+    valueOf: (settings) => settings.companyFacts.dependants,
+    apply: (settings, cell) => {
+      const dependants = typeof cell === 'number' ? cell : Number(String(cell).trim())
+      return dependantsProblem(dependants) ?? withFacts(settings, { dependants })
+    },
+  },
+  {
+    key: 'hr_company_registered',
+    note: 'The day the company was registered, as a date or as text such as 2025-06-05. It starts the first tax period.',
+    valueOf: (settings) => settings.companyFacts.companyRegistered ?? '',
+    apply: (settings, cell) => {
+      const registered = typeof cell === 'number' && Number.isFinite(cell) ? civilDateFromSerial(cell) : parseCivilDate(String(cell).trim())
+      return registered === null ? `"${String(cell)}" is not a date such as 2025-06-05` : withFacts(settings, { companyRegistered: registered })
+    },
+  },
+  {
+    key: 'hr_cit_return',
+    note: 'pd for the corporate tax return on the accrual profit, pd-nn for the return on cash received and paid.',
+    valueOf: (settings) => settings.companyFacts.citReturn,
+    apply: (settings, cell) => {
+      const citReturn = String(cell).trim().toLowerCase()
+      return isOneOf(citReturn, CIT_RETURNS) ? withFacts(settings, { citReturn }) : `"${citReturn}" is neither ${CIT_RETURNS.join(' nor ')}`
+    },
+  },
+  {
+    key: 'hr_vat_principle',
+    note: 'invoice when VAT falls due on the invoice date, cash when it falls due on payment.',
+    valueOf: (settings) => settings.companyFacts.vatPrinciple,
+    apply: (settings, cell) => {
+      const vatPrinciple = String(cell).trim().toLowerCase()
+      return isOneOf(vatPrinciple, VAT_PRINCIPLES) ? withFacts(settings, { vatPrinciple }) : `"${vatPrinciple}" is neither ${VAT_PRINCIPLES.join(' nor ')}`
+    },
+  },
+  {
+    key: 'hr_depreciation_doubled',
+    note: 'TRUE when the accountant doubles the depreciation rates by default. An asset row can still say otherwise.',
+    valueOf: (settings) => settings.companyFacts.depreciationDoubled,
+    apply: (settings, cell) => {
+      const doubled = booleanOf(cell)
+      return doubled === null ? `"${String(cell)}" is neither TRUE nor FALSE` : withFacts(settings, { depreciationDoubled: doubled })
+    },
+  },
+]
 
 /** Every key the app reads, in the order the template lists them. */
 export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
@@ -171,6 +302,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
       return problem ?? { ...settings, cardSettlementIbans: ibans }
     },
   },
+  ...COMPANY_FACT_DEFINITIONS,
 ]
 
 const DEFINITION_BY_KEY = new Map(SETTING_DEFINITIONS.map((definition) => [definition.key, definition]))
@@ -228,7 +360,16 @@ export function settingNote(key: string): string | null {
   return DEFINITION_BY_KEY.get(key)?.note ?? null
 }
 
-export type SettingsField = 'companyName' | 'currency' | 'numberLocale' | 'reviewLabel' | 'cardSettlementIbans' | DefinedBucket
+export type SettingsField =
+  | 'companyName'
+  | 'currency'
+  | 'numberLocale'
+  | 'reviewLabel'
+  | 'cardSettlementIbans'
+  | 'residenceCity'
+  | 'birthYear'
+  | 'dependants'
+  | DefinedBucket
 
 /**
  * What is wrong with settings typed in the app, by field. The same rules as reading the tab, so a
@@ -244,6 +385,13 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (review !== null) errors.reviewLabel = review
   const cardAccounts = ibanListProblem(settings.cardSettlementIbans)
   if (cardAccounts !== null) errors.cardSettlementIbans = cardAccounts
+  const { residenceCity, birthYear, dependants } = settings.companyFacts
+  const city = residenceCityProblem(residenceCity)
+  if (city !== null) errors.residenceCity = city
+  const born = birthYear === null ? null : birthYearProblem(birthYear)
+  if (born !== null) errors.birthYear = born
+  const dependantCount = dependantsProblem(dependants)
+  if (dependantCount !== null) errors.dependants = dependantCount
   const seen = new Map<string, DefinedBucket>()
   for (const bucket of BUCKETS) {
     const label = settings.bucketLabels[bucket]
@@ -313,6 +461,22 @@ export function ibanListOf(text: string): string[] {
 function ibanListProblem(ibans: readonly string[]): string | null {
   const malformed = ibans.filter((iban) => !IBAN_SHAPE.test(iban))
   return malformed.length === 0 ? null : `${malformed.map((iban) => `"${iban}"`).join(', ')} ${malformed.length === 1 ? 'is not an IBAN' : 'are not IBANs'}`
+}
+
+function residenceCityProblem(city: string): string | null {
+  return city.length > CITY_MAX_LENGTH ? `a city name can be at most ${CITY_MAX_LENGTH} characters` : null
+}
+
+function birthYearProblem(year: number): string | null {
+  return Number.isInteger(year) && year >= EARLIEST_BIRTH_YEAR && year <= LATEST_BIRTH_YEAR ? null : 'use a year of birth such as 1990'
+}
+
+function dependantsProblem(dependants: number): string | null {
+  return Number.isInteger(dependants) && dependants >= 0 && dependants <= MOST_DEPENDANTS ? null : `use a whole number from 0 to ${MOST_DEPENDANTS}`
+}
+
+function isOneOf<Word extends string>(text: string, words: readonly Word[]): text is Word {
+  return (words as readonly string[]).includes(text)
 }
 
 function reviewLabelProblem(label: string): string | null {

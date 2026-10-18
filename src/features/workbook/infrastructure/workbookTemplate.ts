@@ -1,7 +1,12 @@
 import { RULE_COLUMNS } from '../../rules/domain/rule'
 import { DEFAULT_SETTINGS, settingsTabEntries } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
+import { ASSET_GROUPS } from '../domain/assets'
 import type { DefinedBucket } from '../domain/bucket'
+import { GRANT_RELEASES } from '../domain/grants'
+import { DIRECTOR_BASES } from '../domain/ownerPayScenarios'
+import { VAT_TREATMENTS } from '../domain/vatTreatment'
+import { YEAR_END_STATEMENTS } from '../domain/yearEnd'
 import type { CellValue, SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
 
 export interface TemplateColumn {
@@ -76,6 +81,12 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'colour', note: 'Your own note of a colour, such as #dce9f9. The app does not use it.' },
     { name: 'roles', note: 'Optional, comma separated, such as revenue or watched, for features that pick categories by role.' },
     { name: 'label', note: 'What the screens call the category, such as Software. Optional. Blank shows the category with spaces for hyphens.' },
+    {
+      name: 'vat',
+      note:
+        `How a purchase in the category splits into cost and VAT: ${VAT_TREATMENTS.join(', ')}. Optional. Blank means none. ` +
+        'deductible-25 means the bank amount holds 25% VAT that is reclaimed, so it is not a cost.',
+    },
   ],
   accounts: [
     { name: 'account', note: 'A short name for one of your bank accounts, such as main. Required.' },
@@ -95,6 +106,8 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'amount', note: 'The invoice total as a number. Required.' },
     { name: 'issued', note: 'The issue date, as a date cell. Required.' },
     { name: 'due', note: 'The due date, as a date cell. Optional. Ageing counts from it, or from the issue date when it is blank.' },
+    { name: 'period_from', note: 'The first day of the work the invoice is for, as a date cell. Optional, with period_to. Blank means the issue date.' },
+    { name: 'period_to', note: 'The last day of the work the invoice is for, as a date cell. Optional, with period_from.' },
   ],
   clients: [
     { name: 'client', note: 'A short name in lower case, such as northwind. One row per IBAN, so a client paying from two accounts has two rows. Required.' },
@@ -106,6 +119,78 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'amount', note: 'What the owner paid for the company, as a positive number. Required.' },
     { name: 'description', note: 'What it was for. Optional.' },
     { name: 'category', note: 'A category from the categories tab in the operating or taxes bucket. The cost counts there on its date. Required.' },
+  ],
+  assets: [
+    { name: 'asset', note: 'What was bought, such as Laptop 14 inch. Each asset once. Required.' },
+    { name: 'bought', note: 'The purchase date, as a date cell. Required.' },
+    { name: 'in_use', note: 'The day it was put in use, as a date cell. Depreciation starts the month after. Blank means the day it was bought.' },
+    { name: 'cost_net', note: 'The cost without the VAT that was reclaimed, as a number above zero. Required.' },
+    { name: 'group', note: `The depreciation group: ${ASSET_GROUPS.join(', ')}. Required.` },
+    { name: 'doubled', note: 'TRUE when the depreciation rate is doubled for this asset. Blank or FALSE uses the single rate.' },
+    { name: 'disposed', note: 'The day it was sold or written off, as a date cell. Blank while you still have it.' },
+    { name: 'funded_by', note: 'The grant that paid for it, by the name in the grants tab. Optional.' },
+    { name: 'ledger_reference', note: 'Text that finds the purchase on the ledger, such as its bank reference. Optional.' },
+    { name: 'note', note: 'Anything worth keeping with it. Optional.' },
+  ],
+  grants: [
+    { name: 'grant', note: 'A short name in lower case, such as startup-grant. Each grant once. Required.' },
+    { name: 'received', note: 'The day the money arrived, as a date cell. Required.' },
+    { name: 'amount', note: 'The whole grant, as a number above zero. Required.' },
+    { name: 'fixed_part', note: 'The part that is income when received, as a number. Fill it with variable_part, and the two add up to amount.' },
+    { name: 'variable_part', note: 'The part that pays for assets and counts as income with their depreciation, as a number.' },
+    { name: 'period_from', note: 'The first day the grant covers, as a date cell. Optional, with period_to.' },
+    { name: 'period_to', note: 'The last day the grant covers, as a date cell. Optional, with period_from.' },
+    {
+      name: 'release',
+      note:
+        `How the grant counts as income: ${GRANT_RELEASES.join(' or ')}. Blank means fixed-then-assets, which needs both parts. ` +
+        'straight-line spreads the amount over the period and needs both period dates.',
+    },
+    { name: 'clawback_year1', note: 'What the grantor can claim back in the first year: whole, or an amount. Optional.' },
+    { name: 'clawback_year2', note: 'What the grantor can claim back in the second year: whole, or an amount. Optional.' },
+    { name: 'employment_required_until', note: 'The day until which the grant requires your employment, as a date cell. Optional.' },
+    { name: 'note', note: 'Anything worth keeping with it. Optional.' },
+  ],
+  'year-end': [
+    { name: 'year', note: 'The financial year, such as 2025. Required.' },
+    { name: 'statement', note: `Where the figure comes from: ${YEAR_END_STATEMENTS.join(', ')}. Required.` },
+    {
+      name: 'line',
+      note: 'The line id, such as sales, total-assets or liability. On a konto row, the account number, such as 41110. Each year, statement and line once. Required.',
+    },
+    { name: 'label', note: 'The line as the accountant printed it. Optional.' },
+    {
+      name: 'amount',
+      note:
+        'The figure as printed, costs as positive numbers. A date line such as filed-on takes a date cell, rate a percentage cell such as 10%, and months-of-operation a whole number. Required.',
+    },
+    { name: 'categories', note: 'On a konto row, the app categories the account matches, comma separated. Optional, and ignored on other rows.' },
+    { name: 'aop', note: 'The AOP code of the line on the official form, when the package has one. Optional.' },
+    { name: 'source', note: 'The file the figure was read from. Optional.' },
+    { name: 'note', note: 'Anything worth keeping with it. Optional.' },
+  ],
+  plan: [
+    { name: 'year', note: 'The year planned, such as 2027. Required.' },
+    { name: 'month', note: 'The month from 1 to 12. Blank means every month of the year.' },
+    { name: 'item', note: 'revenue, a category from the categories tab, owner_pay_scenario, dividend or purchase. Each year, month and item once. Required.' },
+    { name: 'amount', note: 'The amount planned, as a number. On an owner_pay_scenario row, the name of a scenario from the scenarios tab. Required.' },
+    { name: 'note', note: 'Why you expect it. Optional.' },
+  ],
+  scenarios: [
+    { name: 'scenario', note: 'A short name in lower case. The rows that share it make one owner pay scenario. Required.' },
+    { name: 'label', note: 'What the screens call the scenario. Optional, read from its first row that has one.' },
+    { name: 'year', note: 'The year the scenario is for. Every row of a scenario has the same year. Required.' },
+    {
+      name: 'component',
+      note: 'salary_gross, salary_months, nontaxable:<item> such as nontaxable:gifts, rent_monthly, dividend or director_basis. Required.',
+    },
+    {
+      name: 'amount',
+      note:
+        `A number above zero. salary_gross also takes floor, dividend also takes max, salary_months takes 0 to 12, and director_basis takes ${DIRECTOR_BASES.join(', ')}. Required.`,
+    },
+    { name: 'from', note: 'The first day it holds, as a date cell in the scenario year. Blank means the start of the year.' },
+    { name: 'to', note: 'The last day it holds, as a date cell in the scenario year. Blank means the end of the year.' },
   ],
 }
 
@@ -143,13 +228,14 @@ const DEFAULT_CATEGORIES: readonly CategorySeed[] = [
       ['training'],
       ['bank-fees'],
       ['other-costs'],
+      ['vat-refund', 'vat-settlement'],
     ],
   },
   {
     family: 'taxes',
     bucket: 'taxes',
     colour: '#f9dcdc',
-    categories: [['income-tax'], ['vat'], ['payroll-tax'], ['social-contributions', 'watched'], ['tax-refund']],
+    categories: [['income-tax'], ['vat', 'vat-settlement'], ['payroll-tax'], ['social-contributions', 'watched'], ['tax-refund']],
   },
   {
     family: 'owner',
@@ -198,6 +284,11 @@ export function emptyWorkbookTabs(): WorkbookTabs {
     invoices: [],
     clients: [],
     'owner-advances': [],
+    assets: [],
+    grants: [],
+    'year-end': [],
+    plan: [],
+    scenarios: [],
   }
 }
 

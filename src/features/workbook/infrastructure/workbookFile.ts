@@ -2,6 +2,8 @@ import type { CellObject, WorkSheet } from 'xlsx'
 
 import { settingNote } from '../../settings/domain/settings'
 import type { Workbook } from '../domain/workbook'
+import { YEAR_END_STATEMENTS, yearEndLineDefinition } from '../domain/yearEnd'
+import type { YearEndFigureKind, YearEndStatement } from '../domain/yearEnd'
 import { TEMPLATE_COLUMNS, settingsTabRows } from './workbookTemplate'
 import { EMPTY_TABS, WORKBOOK_TABS, sheetRowsFromValues } from './workbookSnapshot'
 import type { CellValue, SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
@@ -12,11 +14,36 @@ const NOTE_AUTHOR = 'Ledgerboard'
 
 const DATE_FORMAT = 'yyyy-mm-dd'
 const AMOUNT_FORMAT = '#,##0.00'
+const RATE_FORMAT = '0.00%'
 
 const COLUMN_FORMATS: Readonly<Partial<Record<WorkbookTab, Readonly<Record<string, string>>>>> = {
   ledger: { date: DATE_FORMAT, amount: AMOUNT_FORMAT, balance: AMOUNT_FORMAT },
-  invoices: { amount: AMOUNT_FORMAT, issued: DATE_FORMAT, due: DATE_FORMAT },
+  invoices: { amount: AMOUNT_FORMAT, issued: DATE_FORMAT, due: DATE_FORMAT, period_from: DATE_FORMAT, period_to: DATE_FORMAT },
   'owner-advances': { date: DATE_FORMAT, amount: AMOUNT_FORMAT },
+  assets: { bought: DATE_FORMAT, in_use: DATE_FORMAT, cost_net: AMOUNT_FORMAT, disposed: DATE_FORMAT },
+  grants: {
+    received: DATE_FORMAT,
+    amount: AMOUNT_FORMAT,
+    fixed_part: AMOUNT_FORMAT,
+    variable_part: AMOUNT_FORMAT,
+    period_from: DATE_FORMAT,
+    period_to: DATE_FORMAT,
+    clawback_year1: AMOUNT_FORMAT,
+    clawback_year2: AMOUNT_FORMAT,
+    employment_required_until: DATE_FORMAT,
+  },
+  plan: { amount: AMOUNT_FORMAT },
+  scenarios: { amount: AMOUNT_FORMAT, from: DATE_FORMAT, to: DATE_FORMAT },
+}
+
+const FIGURE_FORMATS: Readonly<Record<YearEndFigureKind, string>> = { money: AMOUNT_FORMAT, date: DATE_FORMAT, rate: RATE_FORMAT, count: '0' }
+
+/** The `year-end` amount cell holds a date, a rate or a count on some lines, so its format follows the line. */
+function yearEndAmountFormat(grid: TabGrid, row: number): string {
+  const cellOf = (column: string): string => String(grid.rows[row - 1]?.[grid.header.indexOf(column)] ?? '').trim().toLowerCase()
+  const statement = cellOf('statement')
+  const definition = (YEAR_END_STATEMENTS as readonly string[]).includes(statement) ? yearEndLineDefinition(statement as YearEndStatement, cellOf('line')) : null
+  return FIGURE_FORMATS[definition?.kind ?? 'money']
 }
 
 /** A tab as rows of cells, header first, each data row at its own row number. */
@@ -88,10 +115,10 @@ export async function writeWorkbookFile(tabs: WorkbookTabs, workbook: Workbook):
       if (note !== undefined) {
         attachNote(sheet[XLSX.utils.encode_cell({ r: 0, c: column })], note)
       }
-      const format = COLUMN_FORMATS[tab]?.[name]
       for (let row = 1; row <= grid.rows.length; row += 1) {
         const cell: CellObject | undefined = sheet[XLSX.utils.encode_cell({ r: row, c: column })]
         if (cell === undefined) continue
+        const format = tab === 'year-end' && name === 'amount' ? yearEndAmountFormat(grid, row) : COLUMN_FORMATS[tab]?.[name]
         if (format !== undefined && cell.t === 'n') cell.z = format
         if (tab === 'settings' && name === 'key') {
           const keyNote = settingNote(String(cell.v))
@@ -115,7 +142,8 @@ function attachNote(cell: CellObject | undefined, text: string): void {
 function columnWidth(tab: WorkbookTab, name: string): number {
   if (tab === 'settings') return name === 'key' ? 22 : 28
   if (tab === 'rules') return name === 'note' ? 60 : name === 'rule' ? 28 : 14
-  return ['description', 'counterparty', 'statement', 'item'].includes(name) ? 32 : name.endsWith('iban') || name === 'reference' ? 26 : 14
+  if (['description', 'counterparty', 'item', 'asset', 'note'].includes(name) || (tab === 'ledger' && name === 'statement')) return 32
+  return name.endsWith('iban') || name.endsWith('reference') || name.endsWith('_until') ? 26 : 14
 }
 
 /** The grid of every tab, without SheetJS, so the layout can be tested on its own. */
@@ -137,6 +165,11 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
     invoices: gridFor('invoices', tabs.invoices),
     clients: gridFor('clients', tabs.clients),
     'owner-advances': gridFor('owner-advances', tabs['owner-advances']),
+    assets: gridFor('assets', tabs.assets),
+    grants: gridFor('grants', tabs.grants),
+    'year-end': gridFor('year-end', tabs['year-end']),
+    plan: gridFor('plan', tabs.plan),
+    scenarios: gridFor('scenarios', tabs.scenarios),
   }
 }
 

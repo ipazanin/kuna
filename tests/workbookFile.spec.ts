@@ -20,8 +20,9 @@ function workbookOf(tabs: WorkbookTabs): Workbook {
 
 /** What two reads of the same tabs must agree on. The meta differs by design. */
 function contentOf(workbook: Workbook) {
-  const { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, settings, problems } = workbook
-  return { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, settings, problems }
+  const { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, settings, problems } =
+    workbook
+  return { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, settings, problems }
 }
 
 function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
@@ -33,11 +34,23 @@ function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
 }
 
 describe('the template', () => {
-  it('has the eight tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
+  it('has the thirteen tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
     const tabs = emptyWorkbookTabs()
     const book = XLSX.read(await writeWorkbookFile(tabs, workbookOf(tabs)), { type: 'array' })
 
-    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'owner-advances'])
+    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios'])
+    for (const name of book.SheetNames) {
+      const sheet = book.Sheets[name]!
+      const header = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })[0] ?? []
+      expect(header.length, name).toBeGreaterThan(0)
+      header.forEach((_, column) => expect(sheet[XLSX.utils.encode_cell({ r: 0, c: column })]?.c?.[0]?.t, `${name} column ${column + 1}`).toBeTruthy())
+    }
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.assets!, { header: 1 })[0]).toEqual([
+      'asset', 'bought', 'in_use', 'cost_net', 'group', 'doubled', 'disposed', 'funded_by', 'ledger_reference', 'note',
+    ])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['year-end']!, { header: 1 })[0]).toEqual([
+      'year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note',
+    ])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category'])
     expect(book.Sheets.invoices?.A1?.c?.[0]?.t).toMatch(/as text/)
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.rules!, { header: 1 })[0]).toEqual([...RULE_COLUMNS])
@@ -55,6 +68,8 @@ describe('the template', () => {
     expect(new Set(workbook.categories.map((category) => category.bucket))).toEqual(
       new Set(['income', 'operating', 'taxes', 'owner-pay', 'financing', 'neutral']),
     )
+    expect(workbook.categories.find((category) => category.slug === 'vat-refund')).toMatchObject({ bucket: 'operating', roles: ['vat-settlement'] })
+    expect(workbook.categories.find((category) => category.slug === 'tax-refund')).toMatchObject({ bucket: 'taxes', roles: [] })
   })
 
   it('reads back as the same empty workbook', async () => {
@@ -80,7 +95,7 @@ describe('reading an xlsx file', () => {
       }),
     )
 
-    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'owner-advances'])
+    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios'])
     expect(contents.tabs.ledger.map((row) => row.sheetRow)).toEqual([2, 4])
     expect(contents.tabs.ledger[0]?.cells.note).toBe('kept')
   })
@@ -110,7 +125,7 @@ describe('reading an xlsx file', () => {
       accounts: ['main', 'side'],
       dateRange: { from: '2026-10-04', to: '2026-10-05' },
       categoryCount: 0,
-      defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'owner-advances'],
+      defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios'],
       refusal: null,
     })
     expect(preview.summary.problems.map((problem) => [problem.tab, problem.sheetRow])).toEqual([
@@ -167,6 +182,9 @@ describe('exporting', () => {
     expect(workbook.invoices.length).toBeGreaterThan(10)
     expect(workbook.clients).toHaveLength(2)
     expect(workbook.ownerAdvances).toHaveLength(4)
+    expect(workbook.assets).toHaveLength(2)
+    expect(workbook.yearEndLines.length).toBeGreaterThan(40)
+    expect(workbook.payScenarios).toHaveLength(2)
     expect(imported.tabs.invoices.every((row) => typeof row.cells.number === 'string')).toBe(true)
     expect(imported.tabs.ledger[3]?.cells.receipt).toBe('R-17')
     expect(reimported.tabs).toEqual(imported.tabs)
@@ -227,6 +245,19 @@ describe('exporting', () => {
     const first = grids.ledger.rows[0] ?? []
     expect(typeof first[header.indexOf('date')]).toBe('number')
     expect(first[header.indexOf('month')]).toBe('2026-10')
+  })
+
+  it('writes the year-end amount as a date, a rate or an amount by its line, and the planning dates as dates', async () => {
+    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
+    const book = XLSX.read(await writeWorkbookFile(snapshot, readWorkbook(snapshot)), { type: 'array' })
+    const yearEnd = XLSX.utils.sheet_to_json<Record<string, CellValue>>(book.Sheets['year-end']!, { raw: false })
+
+    expect(yearEnd.find((row) => row.line === 'rate')?.amount).toBe('10.00%')
+    expect(yearEnd.find((row) => row.line === 'filed-on')?.amount).toBe('2026-04-27')
+    expect(yearEnd.find((row) => row.line === 'sales')?.amount).toBe('46,800.00')
+    expect(yearEnd.find((row) => row.line === 'months-of-operation')?.amount).toBe('8')
+    expect(XLSX.utils.sheet_to_json<Record<string, CellValue>>(book.Sheets.assets!, { raw: false })[0]?.in_use).toBe('2025-06-01')
+    expect(XLSX.utils.sheet_to_json<Record<string, CellValue>>(book.Sheets.invoices!, { raw: false })[0]?.period_from).toBe('2025-05-01')
   })
 
   it('names the file after the company, or else the workbook, and the day', () => {

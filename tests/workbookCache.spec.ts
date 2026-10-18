@@ -29,6 +29,11 @@ function snapshotOf(workbookId: string, ledger: SheetRow[], syncedAt = '2026-10-
     invoices: [],
     clients: [],
     'owner-advances': [],
+    assets: [{ sheetRow: 2, cells: { asset: 'Laptop', bought: 45809, cost_net: 1519.2, group: 'computers' } }],
+    grants: [{ sheetRow: 2, cells: { grant: 'startup', received: 45809, amount: 5000 } }],
+    'year-end': [{ sheetRow: 2, cells: { year: 2025, statement: 'tax', line: 'rate', amount: 0.1 } }],
+    plan: [{ sheetRow: 2, cells: { year: 2027, item: 'revenue', amount: 7400 } }],
+    scenarios: [{ sheetRow: 2, cells: { scenario: 'floor', year: 2027, component: 'salary_gross', amount: 'floor' } }],
   }
 }
 
@@ -63,6 +68,28 @@ describe('workbook cache', () => {
     expect(read?.categories).toHaveLength(1)
     expect(read?.accounts[0]?.cells.currency).toBe('EUR')
     expect(read?.settings[0]?.cells).toEqual({ key: 'currency', value: 'EUR' })
+    expect(read?.assets[0]?.cells.asset).toBe('Laptop')
+    expect(read?.grants[0]?.cells.grant).toBe('startup')
+    expect(read?.['year-end'][0]?.cells.amount).toBe(0.1)
+    expect(read?.plan[0]?.cells.item).toBe('revenue')
+    expect(read?.scenarios[0]?.cells.component).toBe('salary_gross')
+  })
+
+  it('opens a copy cached before the planning tabs existed, with those tabs empty', async () => {
+    const name = 'ledgerboard-workbook-sheet-before-planning'
+    const earlier = new Dexie(name)
+    earlier.version(1).stores({ meta: 'key', ledger: 'sheetRow', categories: 'sheetRow', accounts: 'sheetRow' })
+    earlier.version(2).stores({ settings: 'sheetRow' })
+    earlier.version(3).stores({ rules: 'sheetRow' })
+    earlier.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
+    await earlier.table('meta').put({ key: 'workbook', id: 'sheet-before-planning', source: 'excel', title: 'Before', syncedAt: '2026-10-01T06:00:00.000Z' })
+    await earlier.table('ledger').put(ledgerRow(2, 5))
+    earlier.close()
+
+    const read = await cacheFor('sheet-before-planning').read()
+
+    expect(read?.ledger).toEqual([ledgerRow(2, 5)])
+    expect([read?.assets, read?.grants, read?.['year-end'], read?.plan, read?.scenarios]).toEqual([[], [], [], [], []])
   })
 
   it('replaces the whole copy, so rows gone from the Sheet are gone from the cache', async () => {

@@ -1,11 +1,18 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
+import type { DateRange } from '../../../shared/calendar/dateRange'
 import { anchorWindow } from '../../../shared/calendar/ledgerWindow'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
+import type { Asset } from './assets'
 import type { Bucket, DefinedBucket } from './bucket'
+import type { Grant } from './grants'
+import type { OwnerPayScenario } from './ownerPayScenarios'
+import type { PlanLine } from './plan'
+import type { VatTreatment } from './vatTreatment'
+import type { YearEndLine } from './yearEnd'
 
 export interface Category {
   readonly slug: string
@@ -16,6 +23,8 @@ export interface Category {
   readonly colour: string
   /** What code may select the category for, such as `revenue` or `watched`. Lower case. */
   readonly roles: readonly string[]
+  /** How a purchase in it splits into cost and VAT. */
+  readonly vat: VatTreatment
 }
 
 export interface Account {
@@ -87,6 +96,8 @@ export interface Invoice {
   readonly issued: CivilDate
   /** Null when the tab leaves it blank. */
   readonly due: CivilDate | null
+  /** The period the work was delivered in, or null when the tab leaves it blank and the issue date stands for it. */
+  readonly deliveryPeriod: DateRange | null
   /** The 1-based row on the tab, which is also the order the invoices were written in. */
   readonly sheetRow: number
 }
@@ -129,7 +140,20 @@ export function bookingOfAdvance(advance: OwnerAdvance): Booking {
 
 /** A row the reader could not turn into a fact, kept so the screen can say what was left out. */
 export interface WorkbookProblem {
-  readonly tab: 'ledger' | 'categories' | 'accounts' | 'settings' | 'rules' | 'invoices' | 'clients' | 'owner-advances'
+  readonly tab:
+    | 'ledger'
+    | 'categories'
+    | 'accounts'
+    | 'settings'
+    | 'rules'
+    | 'invoices'
+    | 'clients'
+    | 'owner-advances'
+    | 'assets'
+    | 'grants'
+    | 'year-end'
+    | 'plan'
+    | 'scenarios'
   readonly sheetRow: number
   readonly reason: string
 }
@@ -156,6 +180,16 @@ export interface Workbook {
   readonly hasClientsTab: boolean
   /** In the order the tab holds them. */
   readonly ownerAdvances: readonly OwnerAdvance[]
+  /** In the order the tab holds them. */
+  readonly assets: readonly Asset[]
+  /** In the order the tab holds them. */
+  readonly grants: readonly Grant[]
+  /** The accountant's figures, in the order the tab holds them. */
+  readonly yearEndLines: readonly YearEndLine[]
+  /** In the order the tab holds them. */
+  readonly planLines: readonly PlanLine[]
+  /** In the order their first rows appear on the tab. */
+  readonly payScenarios: readonly OwnerPayScenario[]
   readonly settings: Settings
   readonly problems: readonly WorkbookProblem[]
 }

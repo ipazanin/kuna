@@ -126,6 +126,86 @@ describe('card_settlement_ibans', () => {
   })
 })
 
+describe('company facts', () => {
+  it('default to no city, no birth year, the second pillar, no dependants, the accrual return and the invoice principle', () => {
+    expect(DEFAULT_SETTINGS.companyFacts).toEqual({
+      residenceCity: '',
+      birthYear: null,
+      pensionPillarTwo: true,
+      dependants: 0,
+      companyRegistered: null,
+      citReturn: 'pd',
+      vatPrinciple: 'invoice',
+      depreciationDoubled: false,
+    })
+  })
+
+  it('read every key, a registration day from a date cell or from text, and write them back the same way', () => {
+    const { settings, problems } = parseSettings(
+      rows(
+        ['hr_residence_city', ' Zagreb '],
+        ['hr_birth_year', '1990'],
+        ['hr_pension_pillar_2', false],
+        ['hr_dependants', 2],
+        ['hr_company_registered', 45789],
+        ['hr_cit_return', 'PD-NN'],
+        ['hr_vat_principle', 'cash'],
+        ['hr_depreciation_doubled', 'TRUE'],
+      ),
+    )
+
+    expect(problems).toEqual([])
+    expect(settings.companyFacts).toEqual({
+      residenceCity: 'Zagreb',
+      birthYear: 1990,
+      pensionPillarTwo: false,
+      dependants: 2,
+      companyRegistered: '2025-05-12',
+      citReturn: 'pd-nn',
+      vatPrinciple: 'cash',
+      depreciationDoubled: true,
+    })
+    expect(parseSettings(rows(['hr_company_registered', '2025-05-12'])).settings.companyFacts.companyRegistered).toBe('2025-05-12')
+    expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+  })
+
+  it('fall back to the default for a value that does not hold, and say which row', () => {
+    const { settings, problems } = parseSettings(
+      rows(
+        ['hr_birth_year', 'nineteen ninety'],
+        ['hr_dependants', -1],
+        ['hr_company_registered', '12.05.2025.'],
+        ['hr_cit_return', 'cash'],
+        ['hr_vat_principle', 'monthly'],
+        ['hr_pension_pillar_2', 'perhaps'],
+      ),
+    )
+
+    expect(settings.companyFacts).toEqual(DEFAULT_SETTINGS.companyFacts)
+    expect(problems).toEqual([
+      { sheetRow: 2, reason: 'hr_birth_year: use a year of birth such as 1990, so the default is used' },
+      { sheetRow: 3, reason: 'hr_dependants: use a whole number from 0 to 20, so the default is used' },
+      { sheetRow: 4, reason: 'hr_company_registered: "12.05.2025." is not a date such as 2025-06-05, so the default is used' },
+      { sheetRow: 5, reason: 'hr_cit_return: "cash" is neither pd nor pd-nn, so the default is used' },
+      { sheetRow: 6, reason: 'hr_vat_principle: "monthly" is neither invoice nor cash, so the default is used' },
+      { sheetRow: 7, reason: 'hr_pension_pillar_2: "perhaps" is neither TRUE nor FALSE, so the default is used' },
+    ])
+  })
+
+  it('are listed in the template with their defaults, a blank birth year and registration day among them', () => {
+    expect(settingsTabEntries(DEFAULT_SETTINGS).filter((entry) => entry.key.startsWith('hr_'))).toEqual([
+      { key: 'hr_residence_city', value: '' },
+      { key: 'hr_birth_year', value: '' },
+      { key: 'hr_pension_pillar_2', value: true },
+      { key: 'hr_dependants', value: 0 },
+      { key: 'hr_company_registered', value: '' },
+      { key: 'hr_cit_return', value: 'pd' },
+      { key: 'hr_vat_principle', value: 'invoice' },
+      { key: 'hr_depreciation_doubled', value: false },
+    ])
+  })
+})
+
 describe('settingsErrors', () => {
   it('finds nothing wrong with the defaults', () => {
     expect(settingsErrors(DEFAULT_SETTINGS)).toEqual({})
@@ -141,6 +221,19 @@ describe('settingsErrors', () => {
     })
 
     expect(Object.keys(errors).sort()).toEqual(['currency', 'financing', 'neutral', 'numberLocale', 'reviewLabel', 'taxes'])
+  })
+
+  it('names the company facts the editor must not save', () => {
+    const errors = settingsErrors({
+      ...DEFAULT_SETTINGS,
+      companyFacts: { ...DEFAULT_SETTINGS.companyFacts, residenceCity: 'x'.repeat(61), birthYear: Number.NaN, dependants: 1.5 },
+    })
+
+    expect(errors).toEqual({
+      residenceCity: 'a city name can be at most 60 characters',
+      birthYear: 'use a year of birth such as 1990',
+      dependants: 'use a whole number from 0 to 20',
+    })
   })
 })
 

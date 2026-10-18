@@ -26,10 +26,10 @@ const RULES: readonly Rule[] = [
 ]
 
 const CATEGORIES: readonly Category[] = [
-  { slug: 'travel', family: 'operating', bucket: 'operating', colour: '', roles: [] },
-  { slug: 'equipment', family: 'operating', bucket: 'operating', colour: '', roles: [] },
-  { slug: 'ai-services', family: 'operating', bucket: 'operating', colour: '', roles: [] },
-  { slug: 'revenue', family: 'income', bucket: 'income', colour: '', roles: ['revenue'] },
+  { slug: 'travel', family: 'operating', bucket: 'operating', colour: '', roles: [], vat: 'none' },
+  { slug: 'equipment', family: 'operating', bucket: 'operating', colour: '', roles: [], vat: 'none' },
+  { slug: 'ai-services', family: 'operating', bucket: 'operating', colour: '', roles: [], vat: 'none' },
+  { slug: 'revenue', family: 'income', bucket: 'income', colour: '', roles: ['revenue'], vat: 'none' },
 ]
 
 describe('backtestRuleChange', () => {
