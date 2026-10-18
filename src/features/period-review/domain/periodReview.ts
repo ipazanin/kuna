@@ -21,7 +21,7 @@ import {
   monthlyBucketTotals,
 } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLoss, ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
-import type { Transaction } from '../../workbook/domain/workbook'
+import type { Booking } from '../../workbook/domain/workbook'
 
 export type ReviewPeriod = CalendarPeriod
 
@@ -69,18 +69,18 @@ export interface PeriodReview {
  * A year, quarter or custom range against the equal period just before it. Where the ledger covers
  * the period only in part, its complete months are compared with the same months a period earlier.
  */
-export function periodReview(transactions: readonly Transaction[], period: ReviewPeriod, window: LedgerWindow): PeriodReview {
+export function periodReview(bookings: readonly Booking[], period: ReviewPeriod, window: LedgerWindow): PeriodReview {
   const whole = periodRange(period, window)
   const compared = coveredPart(whole, window) ?? whole
-  const current = sideOf(transactions, period, compared, window)
+  const current = sideOf(bookings, period, compared, window)
   const priorRange = earlier(compared, period)
-  const prior = priorRange.to < firstDayOf(window.firstMonth) ? null : sideOf(transactions, priorPeriod(period), priorRange, window)
+  const prior = priorRange.to < firstDayOf(window.firstMonth) ? null : sideOf(bookings, priorPeriod(period), priorRange, window)
   const showsChange = prior !== null && !prior.partial
   const lineFigure = (side: ReviewSide, line: ProfitAndLossLine): Figure => ({
     amount: side.totals[line],
     drill: drillToTransactions({ period: drillPeriodOf(side, window), buckets: LINE_BUCKETS[line] }),
   })
-  const inRange = transactions.filter((transaction) => rangeContains(whole, transaction.date))
+  const inRange = bookings.filter((booking) => rangeContains(whole, booking.date))
   const months = monthsOfRange(whole)
   const totalsByMonth = monthlyBucketTotals(inRange, months)
   return {
@@ -132,14 +132,14 @@ export function lastCompleteQuarter(window: LedgerWindow): ReviewPeriod {
   return { preset: 'quarter', year: yearOfMonth(endOfQuarter), quarter: Math.ceil(monthNumber(endOfQuarter) / 3) as Quarter }
 }
 
-function sideOf(transactions: readonly Transaction[], period: ReviewPeriod, range: DateRange, window: LedgerWindow): ReviewSide {
+function sideOf(bookings: readonly Booking[], period: ReviewPeriod, range: DateRange, window: LedgerWindow): ReviewSide {
   const covered = coveredPart(range, window)
   return {
     period,
     range,
     partial: covered === null || covered.from !== range.from || covered.to !== range.to,
     coveredMonths: covered === null ? null : { from: monthOf(covered.from), to: monthOf(covered.to) },
-    totals: bucketTotals(transactions.filter((transaction) => rangeContains(range, transaction.date))),
+    totals: bucketTotals(bookings.filter((booking) => rangeContains(range, booking.date))),
   }
 }
 

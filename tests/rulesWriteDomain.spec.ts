@@ -4,10 +4,11 @@ import { confirmation, recategorisation, undoOf } from '../src/features/review/d
 import { readRules } from '../src/features/rules/domain/readRules'
 import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
 import type { Rule, RuleCondition } from '../src/features/rules/domain/rule'
-import { ruleCoverageGaps } from '../src/features/rules/domain/ruleCoverage'
+import { ruleCoverage } from '../src/features/rules/domain/ruleCoverage'
 import { placeBefore, swapWithNeighbour } from '../src/features/rules/domain/rulePlacement'
 import { ruleTabCells, rulesTabAfter } from '../src/features/rules/domain/rulesTabChange'
 import { rulesTabRefusals } from '../src/features/rules/domain/rulesTabRefusals'
+import { rulesChangeInWords } from '../src/features/rules/domain/ruleSummary'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import { isSameLedgerRow, ledgerRowKeyOf } from '../src/features/workbook/domain/ledgerRowKey'
@@ -144,12 +145,69 @@ describe('rule coverage', () => {
     ])
     const rules = [rule('airline', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'travel', 2)]
 
-    const gaps = ruleCoverageGaps(rows, rules, context)
+    const { notCovered, exceptions } = ruleCoverage(rows, rules, context)
 
-    expect(gaps.map((gap) => [gap.key, gap.name, gap.rows.length, gap.categories])).toEqual([
+    expect(notCovered.map((group) => [group.key, group.name, group.rows.length, group.categories])).toEqual([
       ['iban:XX00FAKE0000000013', 'DESK CO LTD', 2, [{ category: 'equipment', count: 1 }, { category: 'travel', count: 1 }]],
       ['name:CORNER SHOP', 'Corner Shop', 1, [{ category: 'equipment', count: 1 }]],
     ])
+    expect(exceptions).toEqual([])
+  })
+
+  it('keeps a hand-filed payment apart as an exception when a rule files the same IBAN in another category', () => {
+    const accountant = 'XX00FAKE0000000014'
+    const rows = ledger([
+      ...Array.from({ length: 15 }, (_, month) => ({ date: `2025-${String((month % 12) + 1).padStart(2, '0')}-20`, amount: -150, counterparty: 'Ledger & Co', iban: accountant, category: 'accounting', flaggedBy: 'rule' })),
+      { date: '2026-09-21', amount: -900, counterparty: 'Ledger & Co', iban: accountant, description: 'Tax advice', category: 'consulting', flaggedBy: 'ivan' },
+      { date: '2026-09-22', amount: -40, counterparty: 'Desk Co', iban: 'XX00FAKE0000000013', category: 'equipment', flaggedBy: 'ivan' },
+    ])
+    const rules = [rule('accountant', 100, [{ column: 'counterparty_iban', iban: accountant }], 'accounting', 2)]
+
+    const { notCovered, exceptions } = ruleCoverage(rows, rules, context)
+
+    expect(notCovered.map((group) => group.key)).toEqual(['iban:XX00FAKE0000000013'])
+    expect(exceptions.map((group) => [group.key, group.rows.length, group.categories, group.ruleId, group.ruleCategory])).toEqual([
+      ['iban:XX00FAKE0000000014|accountant', 1, [{ category: 'consulting', count: 1 }], 'accountant', 'accounting'],
+    ])
+  })
+
+  it('counts a row a review rule sends to a person as not covered, since no rule settles it', () => {
+    const rows = ledger([{ date: '2026-09-01', amount: -30, counterparty: 'Laptop Store', description: 'CARD PURCHASE', category: 'equipment', flaggedBy: 'ivan' }])
+    const rules = [{ ...rule('card-review', 100, [{ column: 'description_starts_with', fragment: 'CARD PURCHASE' }], 'equipment', 2), confidence: 'review' as const }]
+
+    const { notCovered, exceptions } = ruleCoverage(rows, rules, context)
+
+    expect(notCovered.map((group) => group.name)).toEqual(['Laptop Store'])
+    expect(exceptions).toEqual([])
+  })
+
+  it('leaves out a confirmed row a rule already files the same way', () => {
+    const rows = ledger([{ date: '2026-09-01', amount: -20, counterparty: 'AIRLINE CO', category: 'travel', flaggedBy: 'ivan' }])
+    const rules = [rule('airline', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'travel', 2)]
+
+    expect(ruleCoverage(rows, rules, context)).toEqual({ notCovered: [], exceptions: [] })
+  })
+})
+
+describe('rulesChangeInWords', () => {
+  const cells = { rule: 'accountant', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000014', category: 'accounting', confidence: 'rule' }
+  const neighbour = { ...cells, rule: 'bank-fees', order: 100 }
+
+  it('names an added, a switched, a moved and an edited rule', () => {
+    expect(rulesChangeInWords({ appended: cells, edited: [] })).toBe('Added accountant')
+    expect(rulesChangeInWords({ appended: null, edited: [{ id: 'accountant', expected: cells, cells: { ...cells, enabled: false } }] })).toBe('Switched off accountant')
+    expect(
+      rulesChangeInWords({
+        appended: null,
+        edited: [
+          { id: 'accountant', expected: cells, cells: { ...cells, order: 100 } },
+          { id: 'bank-fees', expected: neighbour, cells: { ...neighbour, order: 200 } },
+        ],
+      }),
+    ).toBe('Moved accountant ahead of bank-fees')
+    expect(rulesChangeInWords({ appended: null, edited: [{ id: 'accountant', expected: cells, cells: { ...cells, note: 'Monthly', category: 'consulting' } }] })).toBe(
+      'Edited accountant: category, note',
+    )
   })
 })
 

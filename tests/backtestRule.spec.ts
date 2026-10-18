@@ -77,6 +77,28 @@ describe('backtestRuleChange', () => {
     expect(backtestRuleChange(RULES, [...RULES, candidate], rows, context).settled).toEqual([])
   })
 
+  it('sets each list against its own side: the stored category of a waiting or confirmed row, the current verdict of a broken agreement', () => {
+    const candidate = rule('merchant-model-api', 150, [{ column: 'counterparty_contains', fragment: 'MODEL API' }], 'ai-services')
+
+    const result = backtestRuleChange(RULES, [...RULES, candidate], rows, context)
+
+    expect(result.settled.map((change) => [change.from, change.after.category])).toEqual([['card-purchase-unknown', 'ai-services']])
+    expect(result.brokenAgreements.map((change) => [change.from, change.before.category, change.after.category])).toEqual([['equipment', 'equipment', 'ai-services']])
+    expect(result.humanConflicts.map((change) => [change.from, change.transaction.category, change.after.category])).toEqual([['travel', 'travel', 'ai-services']])
+  })
+
+  it('shows a broken agreement as what the rules decide now, not the stored category, when the two differ', () => {
+    const accountant = 'XX00FAKE0000000014'
+    const [filedEarlier] = ledger([{ date: '2026-09-20', amount: -150, counterparty: 'Ledger & Co', iban: accountant, category: 'accounting', flaggedBy: 'rule' }])
+    const current = [rule('advice', 100, [{ column: 'counterparty_iban', iban: accountant }], 'consulting')]
+    const proposed = [...current, rule('accountant', 50, [{ column: 'counterparty_iban', iban: accountant }], 'accounting')]
+
+    const [broken, ...others] = backtestRuleChange(current, proposed, [filedEarlier!], context).brokenAgreements
+
+    expect(others).toEqual([])
+    expect([broken!.from, broken!.after.category, broken!.transaction.category]).toEqual(['consulting', 'accounting', 'accounting'])
+  })
+
   it('counts any flagged_by but rule, ai and blank as a person', () => {
     expect(['ivan', 'human', 'rule', 'ai', ''].map((flaggedBy) => isHumanConfirmed({ flaggedBy }))).toEqual([true, true, false, false, false])
   })

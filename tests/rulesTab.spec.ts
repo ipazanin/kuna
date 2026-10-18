@@ -25,6 +25,9 @@ function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'a
     accounts: [],
     settings: [],
     rules: sheetRowsFromValues(rules),
+    invoices: [],
+    clients: [],
+    'owner-advances': [],
   }
 }
 

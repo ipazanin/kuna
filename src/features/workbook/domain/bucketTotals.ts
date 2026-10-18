@@ -3,7 +3,7 @@ import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { ZERO, addMoney, divideMoney, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { Bucket } from './bucket'
-import type { Transaction } from './workbook'
+import type { Booking } from './workbook'
 
 /**
  * The profit and loss over some set of transactions. Income is signed as booked. The three costs
@@ -54,24 +54,24 @@ export const LINE_BUCKETS: Readonly<Record<ProfitAndLossLine, readonly Bucket[]>
 export const EMPTY_PROFIT_AND_LOSS = profitAndLossFrom(ZERO, ZERO, ZERO, ZERO)
 
 /** Sums the four profit and loss buckets. Financing, neutral and unclassified rows are left out. */
-export function bucketTotals(transactions: Iterable<Transaction>): ProfitAndLoss {
+export function bucketTotals(bookings: Iterable<Pick<Booking, 'bucket' | 'amount'>>): ProfitAndLoss {
   let income = ZERO
   let operating = ZERO
   let taxes = ZERO
   let ownerPay = ZERO
-  for (const transaction of transactions) {
-    switch (transaction.bucket) {
+  for (const booking of bookings) {
+    switch (booking.bucket) {
       case 'income':
-        income = addMoney(income, transaction.amount)
+        income = addMoney(income, booking.amount)
         break
       case 'operating':
-        operating = subtractMoney(operating, transaction.amount)
+        operating = subtractMoney(operating, booking.amount)
         break
       case 'taxes':
-        taxes = subtractMoney(taxes, transaction.amount)
+        taxes = subtractMoney(taxes, booking.amount)
         break
       case 'owner-pay':
-        ownerPay = subtractMoney(ownerPay, transaction.amount)
+        ownerPay = subtractMoney(ownerPay, booking.amount)
         break
       default:
         break
@@ -82,12 +82,12 @@ export function bucketTotals(transactions: Iterable<Transaction>): ProfitAndLoss
 
 /** One profit and loss per month asked for. A month with no rows reads as zero. */
 export function monthlyBucketTotals(
-  transactions: Iterable<Transaction>,
+  bookings: Iterable<Booking>,
   months: readonly MonthKey[],
 ): ReadonlyMap<MonthKey, ProfitAndLoss> {
-  const rowsByMonth = new Map<MonthKey, Transaction[]>(months.map((month) => [month, []]))
-  for (const transaction of transactions) {
-    rowsByMonth.get(monthOf(transaction.date))?.push(transaction)
+  const rowsByMonth = new Map<MonthKey, Booking[]>(months.map((month) => [month, []]))
+  for (const booking of bookings) {
+    rowsByMonth.get(monthOf(booking.date))?.push(booking)
   }
   return new Map([...rowsByMonth].map(([month, rows]) => [month, bucketTotals(rows)]))
 }

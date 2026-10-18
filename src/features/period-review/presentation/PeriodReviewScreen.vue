@@ -75,9 +75,9 @@ const review = computed(() => {
   if (current === null) {
     return null
   }
-  const { scoped, window, filters } = current
+  const { profitAndLossRows, window, filters } = current
   const period = reviewPeriodOf(filters.period, window)
-  const result = periodReview(scoped, period, window)
+  const result = periodReview(profitAndLossRows, period, window)
   const months = new Set(result.months.map((month) => month.month))
   const shown = settings.value
   const series = profitAndLossSeries(shown)
@@ -113,12 +113,12 @@ const review = computed(() => {
       changeSign: line.change === null ? 0 : COST_LINES.includes(line.line) ? -line.change : line.change,
     })),
     byMonth: profitAndLossChart(
-      monthlyProfitAndLoss(scoped, window).filter((month) => months.has(month.month)),
+      monthlyProfitAndLoss(profitAndLossRows, window).filter((month) => months.has(month.month)),
       chartTokens(),
       { series, netLine: MONTHLY_NET },
     ),
     legend: [...profitAndLossLegend(series), { label: MONTHLY_NET.name, colour: 'var(--chart-ink)', mark: 'line' as const }],
-    sections: categoryChanges(scoped, result.current.range, result.prior, window).map((section) => ({
+    sections: categoryChanges(profitAndLossRows, result.current.range, result.prior, window).map((section) => ({
       key: section.key,
       title: sectionTitles[section.key],
       rows: section.rows.map((row) => rowOf(row, section.key)),

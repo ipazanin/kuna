@@ -3,6 +3,11 @@ import type { CellValue } from './workbookSnapshot'
 
 const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets'
 
+/** A tab's name as A1 notation takes it: quoted, unless it is letters, digits and underscores only, such as `ledger`. */
+export function sheetNameInRange(tab: string): string {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(tab) ? tab : `'${tab.replace(/'/g, "''")}'`
+}
+
 export interface ValueRange {
   readonly range: string
   readonly values: CellValue[][]

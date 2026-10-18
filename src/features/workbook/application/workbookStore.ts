@@ -1,6 +1,7 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
 import { setMoneyFormat } from '../../../shared/money/moneyFormat'
+import { undoOf } from '../../review/domain/verdictChanges'
 import type { LedgerVerdictChange, VerdictReceipt } from '../../review/domain/verdictChanges'
 import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import type { Workbook } from '../domain/workbook'
@@ -18,10 +19,46 @@ import { readFromGoogle } from './readFromGoogle'
 import type { GoogleSheet } from './readFromGoogle'
 import { WorkbookWriteRefused } from './workbookWriter'
 import type { FreshTabs, TabEdits, WorkbookWriter } from './workbookWriter'
-import { planRulesChange, planSettingsChange, planVerdicts, verifyRulesChange, verifySettingsChange, verifyVerdicts } from './writePlans'
-import type { SettingChange } from './writePlans'
+import {
+  planBucketChanges,
+  planOwnerAdvanceAppend,
+  planOwnerAdvanceRemoval,
+  planRulesChange,
+  planSettingsChange,
+  planVerdicts,
+  verifyBucketChanges,
+  verifyOwnerAdvanceAppend,
+  verifyOwnerAdvanceRemoval,
+  verifyRulesChange,
+  verifySettingsChange,
+  verifyVerdicts,
+} from './writePlans'
+import type { BucketChange, OwnerAdvanceDraft, OwnerAdvanceReceipt, SettingChange } from './writePlans'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
+
+interface WrittenAt {
+  /** Counts up from 1 for each write of the page. */
+  readonly id: number
+  /** ISO timestamp of when the write finished. */
+  readonly at: string
+  readonly workbookId: string
+}
+
+/** What one write changed. */
+export type WrittenChange =
+  | {
+      readonly kind: 'ledger'
+      /** What the rows held before, exactly, for Undo. */
+      readonly receipt: VerdictReceipt
+      /** The receipt of the write this one undid, or null. */
+      readonly undid: VerdictReceipt | null
+    }
+  | { readonly kind: 'rules'; readonly change: RulesTabChange }
+  | { readonly kind: 'settings'; readonly changes: readonly SettingChange[] }
+
+/** One write this page made to a workbook. Held in memory, so a reload forgets it. */
+export type SessionWrite = WrittenAt & WrittenChange
 
 export interface WorkbookState {
   /** Null until a cached copy, a sync or an import supplies one. */
@@ -36,6 +73,8 @@ export interface WorkbookState {
   readonly error: string | null
   /** True while a change is being written, during which no sync starts and no other change is taken. */
   readonly writing: boolean
+  /** Every write this page made, newest first. */
+  readonly writes: readonly SessionWrite[]
 }
 
 /** The tabs Excel mode edits whole. The ledger only ever arrives whole, from a file, and settings change row by row. */
@@ -97,10 +136,18 @@ export interface WorkbookStore {
    * `WorkbookWriteRefused` with the reason when it writes nothing.
    */
   setVerdicts(changes: readonly LedgerVerdictChange[]): Promise<VerdictReceipt>
+  /** Puts back what the receipt's write replaced, through the same checks, refused if anything changed the rows since. */
+  undoVerdicts(receipt: VerdictReceipt): Promise<VerdictReceipt>
   /** Adds or edits rules rows, refused unless the whole tab then passes the Apps Script's check. */
   changeRules(change: RulesTabChange): Promise<void>
   /** Sets settings rows by key, adding a row for a key the tab lacks. */
   changeSettings(changes: readonly SettingChange[]): Promise<void>
+  /** Appends a cost the owner paid privately to the owner-advances tab. Returns what Undo clears. */
+  addOwnerAdvance(draft: OwnerAdvanceDraft): Promise<OwnerAdvanceReceipt>
+  /** Clears an advance appended earlier, refused unless a row still holds exactly what was written. */
+  removeOwnerAdvance(receipt: OwnerAdvanceReceipt): Promise<void>
+  /** Sets the bucket of categories on their rows of the categories tab. */
+  changeBuckets(changes: readonly BucketChange[]): Promise<void>
 }
 
 /** Cache first: the copy this browser holds is on screen at once, and a sync or an import replaces it. */
@@ -113,7 +160,9 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     status: 'opening',
     error: null,
     writing: false,
+    writes: [],
   })
+
 
   function show(snapshot: WorkbookSnapshot): void {
     const workbook = readWorkbook(snapshot)
@@ -221,13 +270,15 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
 
   /**
    * Every write the same way: read the tabs fresh, plan on that read, write, read back, keep what
-   * was read, then check it holds what was written. In Excel mode the reads and writes go to a
-   * working copy, which only replaces the stored workbook once it is complete.
+   * was read, check it holds what was written, then add it to the session's writes. In Excel mode
+   * the reads and writes go to a working copy, which only replaces the stored workbook once it is
+   * complete.
    */
   async function writeThrough<Plan extends { readonly edits: TabEdits }>(
     tabs: readonly WorkbookTab[],
     plan: (fresh: FreshTabs) => Plan,
     verify: (after: FreshTabs, planned: Plan) => void,
+    written?: (planned: Plan) => WrittenChange,
   ): Promise<Plan> {
     const current = state.snapshot
     if (current === null || state.choice === null || state.choice.id !== current.meta.id) {
@@ -250,6 +301,9 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       const after = await writer.read(tabs)
       await keep(withTabsReadBack(state.snapshot ?? current, after))
       verify(after, planned)
+      if (written !== undefined) {
+        state.writes = [{ ...written(planned), id: state.writes.length + 1, at: ports.now(), workbookId: current.meta.id }, ...state.writes]
+      }
       return planned
     } catch (failure) {
       if (sent && current.meta.source === 'google') {
@@ -272,6 +326,11 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     } catch {
       // The next sync reads the Sheet whole.
     }
+  }
+
+  async function writeVerdicts(changes: readonly LedgerVerdictChange[], undid: VerdictReceipt | null): Promise<VerdictReceipt> {
+    const planned = await writeThrough(['ledger', 'categories'], (fresh) => planVerdicts(fresh, changes), verifyVerdicts, ({ receipt }) => ({ kind: 'ledger', receipt, undid }))
+    return planned.receipt
   }
 
   let opened: Promise<void> | null = null
@@ -334,17 +393,61 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       })
     },
 
-    async setVerdicts(changes) {
-      const planned = await writeThrough(['ledger', 'categories'], (fresh) => planVerdicts(fresh, changes), verifyVerdicts)
-      return planned.receipt
+    setVerdicts(changes) {
+      return writeVerdicts(changes, null)
+    },
+
+    undoVerdicts(receipt) {
+      return writeVerdicts(undoOf(receipt), receipt)
     },
 
     async changeRules(change) {
-      await writeThrough(['rules', 'categories'], (fresh) => ({ edits: planRulesChange(fresh, change) }), (after) => verifyRulesChange(after, change))
+      await writeThrough(
+        ['rules', 'categories'],
+        (fresh) => ({ edits: planRulesChange(fresh, change) }),
+        (after) => verifyRulesChange(after, change),
+        () => ({ kind: 'rules', change }),
+      )
     },
 
     async changeSettings(changes) {
-      await writeThrough(['settings'], (fresh) => ({ edits: planSettingsChange(fresh, changes) }), (after) => verifySettingsChange(after, changes))
+      await writeThrough(
+        ['settings'],
+        (fresh) => ({ edits: planSettingsChange(fresh, changes) }),
+        (after) => verifySettingsChange(after, changes),
+        () => ({ kind: 'settings', changes }),
+      )
+    },
+
+    async addOwnerAdvance(draft) {
+      let receipt = null as OwnerAdvanceReceipt | null
+      await writeThrough(
+        ['owner-advances', 'categories'],
+        (fresh) => planOwnerAdvanceAppend(fresh, draft),
+        (after, planned) => {
+          receipt = verifyOwnerAdvanceAppend(after, planned)
+        },
+      )
+      if (receipt === null) {
+        throw new Error('The advance was not written.')
+      }
+      return receipt
+    },
+
+    async removeOwnerAdvance(receipt) {
+      await writeThrough(
+        ['owner-advances'],
+        (fresh) => ({ edits: planOwnerAdvanceRemoval(fresh, receipt) }),
+        (after, planned) => verifyOwnerAdvanceRemoval(after, planned.edits),
+      )
+    },
+
+    async changeBuckets(changes) {
+      await writeThrough(
+        ['categories'],
+        (fresh) => ({ edits: planBucketChanges(fresh, changes) }),
+        (after) => verifyBucketChanges(after, changes),
+      )
     },
   }
 }

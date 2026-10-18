@@ -26,6 +26,9 @@ function snapshotOf(workbookId: string, ledger: SheetRow[], syncedAt = '2026-10-
     accounts: [{ sheetRow: 2, cells: { account: 'operating', currency: 'EUR' } }],
     settings: [{ sheetRow: 2, cells: { key: 'currency', value: 'EUR' } }],
     rules: [{ sheetRow: 2, cells: { rule: 'own-account', order: 100, enabled: true, counterparty_is_own: true } }],
+    invoices: [],
+    clients: [],
+    'owner-advances': [],
   }
 }
 

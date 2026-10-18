@@ -26,6 +26,8 @@ import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
+import { netOwed, ownerAdvances } from '../../../packs/hr-doo/domain/ownerAdvances'
+import { ownerLoans } from '../../../packs/hr-doo/domain/ownerLoans'
 import { euroSplit } from '../domain/euroSplit'
 import { headline } from '../domain/headline'
 import { runway } from '../domain/runway'
@@ -55,16 +57,16 @@ const overview = computed(() => {
   if (current === null) {
     return null
   }
-  const { scoped, accountRows, window } = current
+  const { workbook, scoped, scopedAdvances, profitAndLossRows, accountRows, window } = current
   const shown = settings.value
   const tokens = chartTokens()
   const series = profitAndLossSeries(shown)
   const parts = splitParts(shown)
   const costs = costLabelsInSentence(shown)
-  const averages = windowAverages(scoped, window)
+  const averages = windowAverages(profitAndLossRows, window)
   const balances = latestBalances(accountRows)
   const recentRunway = runway(balances.cashOnHand, averages.last3)
-  const months = monthlyProfitAndLoss(scoped, window)
+  const months = monthlyProfitAndLoss(profitAndLossRows, window)
   const lastTwelve = months.filter((month) => month.complete).slice(-12)
   const lastTwelveAndMonthSoFar = months.slice(-13)
   const cashMonths = balanceSeries(accountRows, window).months.slice(-12)
@@ -85,10 +87,12 @@ const overview = computed(() => {
       recentChange: recentChange(averages.last3.lines[line].perMonth, averages.last12.lines[line].perMonth),
     }))
 
-  const operating = categoryTotals(scoped, { preset: 'l12' }, window).filter((total) => total.bucket === 'operating')
+  const operating = categoryTotals(profitAndLossRows, { preset: 'l12' }, window).filter((total) => total.bucket === 'operating')
   const costChange = averages.last3.lines.cost.perMonth - averages.last12.lines.cost.perMonth
 
   const said = headline(months, recentRunway.months)
+  const owed = netOwed(ownerLoans(scoped, workbook.categories), ownerAdvances(scopedAdvances, scoped, workbook.categories), workbook.categories)
+  const ownerMoves = workbook.categories.some((category) => category.roles.includes('owner-loan-out')) || scopedAdvances.length > 0
   return {
     headline:
       said === null
@@ -136,6 +140,13 @@ const overview = computed(() => {
         definition: 'Cash on hand divided by the monthly costs: how long the company runs if no more income arrives.',
       },
     ],
+    owed:
+      !shown.ownerPayModule || !ownerMoves
+        ? null
+        : {
+            amount: Math.abs(owed.amount),
+            who: owed.amount > 0 ? 'The owner owes the company' : owed.amount < 0 ? 'The company owes the owner' : null,
+          },
     review: {
       count: reviewCount,
       to: drillLocation(drillToTransactions({ period: { preset: 'all' }, needsReview: true })),
@@ -197,6 +208,18 @@ const overview = computed(() => {
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiTile v-for="tile in overview.tiles" :key="tile.label" v-bind="tile" />
         </div>
+
+        <p v-if="overview.owed" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="net-owed">
+          <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+          <span>
+            <template v-if="overview.owed.who">
+              {{ overview.owed.who }} <MoneyText :cents="overview.owed.amount" precision="whole" class="font-medium text-highlighted" />, loans and private
+              payments together.
+            </template>
+            <template v-else>Nothing is owed either way between the owner and the company.</template>
+            <DrillLink to="/owner" in-prose class="ms-1 text-highlighted">See who owes what</DrillLink>
+          </span>
+        </p>
 
         <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
           <header class="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 sm:px-5">

@@ -17,14 +17,16 @@ export interface FakeSheets extends SheetsValues {
   readonly requests: RecordedSheetsRequest[]
 }
 
-const SINGLE_CELL = /^([a-z_-]+)!([A-Z]+)(\d+)$/
-const WHOLE_COLUMNS = /^([a-z_-]+)!A:([A-Z]+)$/
+const SINGLE_CELL = /^([a-z_]+|'[a-z_-]+')!([A-Z]+)(\d+)$/
+const WHOLE_COLUMNS = /^([a-z_]+|'[a-z_-]+')!A:([A-Z]+)$/
 
 export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonly CellValue[])[]>>): FakeSheets {
   const grids: Record<string, (CellValue | null)[][]> = Object.fromEntries(Object.entries(tabs).map(([tab, rows]) => [tab, rows.map((row) => [...row])]))
   const requests: RecordedSheetsRequest[] = []
 
-  function gridOf(tab: string): (CellValue | null)[][] {
+  /** A tab by its name in a range, where a name with a hyphen arrives quoted. */
+  function gridOf(rangeName: string): (CellValue | null)[][] {
+    const tab = rangeName.replace(/^'(.*)'$/, '$1')
     const grid = grids[tab]
     if (grid === undefined) {
       throw new Error(`400 from the fake Sheet: Unable to parse range: ${tab}`)

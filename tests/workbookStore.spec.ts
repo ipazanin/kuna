@@ -19,6 +19,9 @@ function tabsOf(amounts: number[]): WorkbookTabs {
     accounts: [{ sheetRow: 2, cells: { account: 'main', iban: 'XX00FAKE0001' } }],
     settings: [],
     rules: [],
+    invoices: [],
+    clients: [],
+    'owner-advances': [],
   }
 }
 

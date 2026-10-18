@@ -4,7 +4,7 @@ import { drillToTransactions } from '../../../features/filters/domain/drillTarge
 import type { Figure } from '../../../features/filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../../features/filters/domain/filterState'
 import type { Period } from '../../../features/filters/domain/filterState'
-import type { Category, Transaction } from '../../../features/workbook/domain/workbook'
+import type { Booking, Category } from '../../../features/workbook/domain/workbook'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
 import { paidOut } from './paidOut'
 
@@ -21,13 +21,13 @@ export interface EffectiveTaxRate {
  * The one tax rate: net taxes over client revenue. Other income, a grant or a refund, is left
  * out of the base, and a refund lowers the taxes because it sits in the taxes bucket.
  */
-export function effectiveTaxRate(transactions: readonly Transaction[], categories: readonly Category[], period: Period, window: LedgerWindow): EffectiveTaxRate {
-  const rows = transactionsInPeriod(transactions, period, window)
+export function effectiveTaxRate(bookings: readonly Booking[], categories: readonly Category[], period: Period, window: LedgerWindow): EffectiveTaxRate {
+  const rows = transactionsInPeriod(bookings, period, window)
   const revenueCategories = categoriesWithRole(categories, PACK_ROLES.revenue)
-  const netTaxes = paidOut(rows.filter((transaction) => transaction.bucket === 'taxes'))
+  const netTaxes = paidOut(rows.filter((booking) => booking.bucket === 'taxes'))
   const revenue = rows
-    .filter((transaction) => revenueCategories.includes(transaction.category))
-    .reduce((total, transaction) => addMoney(total, transaction.amount), ZERO)
+    .filter((booking) => revenueCategories.includes(booking.category))
+    .reduce((total, booking) => addMoney(total, booking.amount), ZERO)
   return {
     netTaxes: { amount: netTaxes, drill: drillToTransactions({ period, buckets: ['taxes'] }) },
     revenue: { amount: revenue, drill: drillToTransactions({ period, categories: revenueCategories }) },

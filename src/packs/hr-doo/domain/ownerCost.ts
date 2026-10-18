@@ -4,7 +4,7 @@ import { drillToTransactions } from '../../../features/filters/domain/drillTarge
 import type { Figure } from '../../../features/filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../../features/filters/domain/filterState'
 import type { Period } from '../../../features/filters/domain/filterState'
-import type { Category, Transaction } from '../../../features/workbook/domain/workbook'
+import type { Booking, Category } from '../../../features/workbook/domain/workbook'
 import { ownerTake } from './ownerTake'
 import { paidOut } from './paidOut'
 import { PACK_ROLES, categoriesInBucket, categoriesWithRole } from './packRoles'
@@ -24,11 +24,11 @@ export interface OwnerCost {
  * What paying the owner cost the company over a period. Corporate income tax is left out unless a
  * workbook gives it the role, since the company owes it on profit whether the owner is paid or not.
  */
-export function ownerCost(transactions: readonly Transaction[], categories: readonly Category[], period: Period, window: LedgerWindow): OwnerCost {
-  const take = ownerTake(transactions, categories, period, window).total
+export function ownerCost(bookings: readonly Booking[], categories: readonly Category[], period: Period, window: LedgerWindow): OwnerCost {
+  const take = ownerTake(bookings, categories, period, window).total
   const taxCategories = categoriesWithRole(categories, PACK_ROLES.ownerPayTax)
   const taxOnPay: Figure = {
-    amount: paidOut(transactionsInPeriod(transactions, period, window).filter((transaction) => taxCategories.includes(transaction.category))),
+    amount: paidOut(transactionsInPeriod(bookings, period, window).filter((booking) => taxCategories.includes(booking.category))),
     drill: drillToTransactions({ period, categories: taxCategories }),
   }
   const gross = addMoney(take.amount, taxOnPay.amount)

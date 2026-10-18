@@ -2,7 +2,8 @@ import { cellText } from '../../../shared/text/cellText'
 import { WRITABLE_COLUMNS } from '../application/workbookWriter'
 import type { TabRead, WorkbookWriter } from '../application/workbookWriter'
 import { TEMPLATE_COLUMNS } from './workbookTemplate'
-import type { SheetRow, WorkbookTabs } from './workbookSnapshot'
+import { WORKBOOK_TABS } from './workbookSnapshot'
+import type { SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
 
 /**
  * Writes to a working copy of the workbook kept in this browser. Its rows carry no header row, so
@@ -10,13 +11,7 @@ import type { SheetRow, WorkbookTabs } from './workbookSnapshot'
  * an export writes. The store saves the copy once the write reads back.
  */
 export function localWorkbookWriter(tabs: WorkbookTabs): WorkbookWriter {
-  const working: { -readonly [Tab in keyof WorkbookTabs]: SheetRow[] } = {
-    ledger: [...tabs.ledger],
-    categories: [...tabs.categories],
-    accounts: [...tabs.accounts],
-    settings: [...tabs.settings],
-    rules: [...tabs.rules],
-  }
+  const working = Object.fromEntries(WORKBOOK_TABS.map((tab) => [tab, [...tabs[tab]]])) as { -readonly [Tab in WorkbookTab]: SheetRow[] }
 
   return {
     async read(requested) {
@@ -32,12 +27,14 @@ export function localWorkbookWriter(tabs: WorkbookTabs): WorkbookWriter {
         }
       }
       for (const edit of edits.cells) {
-        working[edit.tab] = working[edit.tab].map((row) => {
+        working[edit.tab] = working[edit.tab].flatMap((row) => {
           if (row.sheetRow !== edit.sheetRow) {
-            return row
+            return [row]
           }
           const { [edit.column]: _replaced, ...others } = row.cells
-          return { sheetRow: row.sheetRow, cells: cellText(edit.value) === '' ? others : { ...others, [edit.column]: edit.value } }
+          const cells = cellText(edit.value) === '' ? others : { ...others, [edit.column]: edit.value }
+          // A Sheet read skips a row with nothing in it, and so does the copy kept here.
+          return Object.keys(cells).length === 0 ? [] : [{ sheetRow: row.sheetRow, cells }]
         })
       }
       for (const append of edits.appends) {

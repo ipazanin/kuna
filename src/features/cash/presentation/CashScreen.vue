@@ -35,14 +35,14 @@ const cash = computed(() => {
   if (current === null) {
     return null
   }
-  const { workbook, accountRows, scoped, window, filters } = current
+  const { workbook, accountRows, profitAndLossRows, window, filters } = current
   const tokens = chartTokens()
   const balances = latestBalances(accountRows)
   const series = balanceSeries(accountRows, window)
   const charted = new Set(chartedMonths(filters.period, window))
   const known = workbook.accounts.map((account) => account.slug)
   const colours = accountColours([...known, ...series.accounts.filter((account) => !known.includes(account))], tokens)
-  const averages = windowAverages(scoped, window)
+  const averages = windowAverages(profitAndLossRows, window)
   const runways = [
     { label: "Runway at the last 3 months' cost", runway: runway(balances.cashOnHand, averages.last3) },
     { label: "Runway at the last 12 months' cost", runway: runway(balances.cashOnHand, averages.last12) },

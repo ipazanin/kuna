@@ -4,7 +4,7 @@ import { ZERO, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { Figure } from '../../filters/domain/drillTarget'
 import { categoryTotals, outsideProfitAndLossTotals } from '../../spending/domain/categoryTotals'
-import type { Transaction } from '../../workbook/domain/workbook'
+import type { Booking } from '../../workbook/domain/workbook'
 
 export interface CategoryChange {
   readonly category: string
@@ -26,16 +26,16 @@ export interface CategoryChangeSection {
  * categories outside profit and loss apart. The biggest movers come first, either way.
  */
 export function categoryChanges(
-  transactions: readonly Transaction[],
+  bookings: readonly Booking[],
   current: DateRange,
   prior: { readonly range: DateRange; readonly partial: boolean } | null,
   window: LedgerWindow,
 ): CategoryChangeSection[] {
   const periodOf = (range: DateRange) => ({ preset: 'custom' as const, range })
-  const now = categoryTotals(transactions, periodOf(current), window)
-  const before = prior === null ? [] : categoryTotals(transactions, periodOf(prior.range), window)
-  const outsideNow = outsideProfitAndLossTotals(transactions, periodOf(current), window)
-  const outsideBefore = prior === null ? [] : outsideProfitAndLossTotals(transactions, periodOf(prior.range), window)
+  const now = categoryTotals(bookings, periodOf(current), window)
+  const before = prior === null ? [] : categoryTotals(bookings, periodOf(prior.range), window)
+  const outsideNow = outsideProfitAndLossTotals(bookings, periodOf(current), window)
+  const outsideBefore = prior === null ? [] : outsideProfitAndLossTotals(bookings, periodOf(prior.range), window)
   const compare = (
     currentRows: readonly { readonly category: string; readonly family: string; readonly amount: Figure }[],
     priorRows: readonly { readonly category: string; readonly family: string; readonly amount: Figure }[],

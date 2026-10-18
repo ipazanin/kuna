@@ -10,7 +10,7 @@ export interface SheetRow {
 }
 
 /** The tabs of the workbook format. Only `ledger` is required. A missing tab reads as empty. */
-export const WORKBOOK_TABS = ['ledger', 'categories', 'accounts', 'settings', 'rules'] as const
+export const WORKBOOK_TABS = ['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'owner-advances'] as const
 
 export type WorkbookTab = (typeof WORKBOOK_TABS)[number]
 
@@ -33,7 +33,16 @@ export interface WorkbookMeta {
 
 export type WorkbookSnapshot = { readonly meta: WorkbookMeta } & WorkbookTabs
 
-export const EMPTY_TABS: WorkbookTabs = { ledger: [], categories: [], accounts: [], settings: [], rules: [] }
+export const EMPTY_TABS: WorkbookTabs = {
+  ledger: [],
+  categories: [],
+  accounts: [],
+  settings: [],
+  rules: [],
+  invoices: [],
+  clients: [],
+  'owner-advances': [],
+}
 
 /**
  * Turns a tab's value grid (header row first) into rows keyed by header. The API drops trailing

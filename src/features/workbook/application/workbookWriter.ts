@@ -12,8 +12,11 @@ export interface TabRead {
 
 export type FreshTabs = Partial<Record<WorkbookTab, TabRead>>
 
-/** The tabs the app writes. `categories` and `accounts` are only read, because the Apps Script validates them. */
-export type WritableTab = 'ledger' | 'rules' | 'settings'
+/**
+ * The tabs the app writes. Of `categories` it writes only a bucket, which the Apps Script accepts
+ * from the tab's own dropdown, and `accounts` it never writes.
+ */
+export type WritableTab = 'ledger' | 'rules' | 'settings' | 'categories' | 'owner-advances'
 
 /** One cell set on an existing row, found by its header. An empty string clears the cell. */
 export interface CellEdit {
@@ -55,5 +58,7 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   ledger: new Set(['category', 'flagged_by']),
   rules: new Set(RULE_COLUMNS),
   settings: new Set(['key', 'value']),
+  categories: new Set(['bucket']),
+  'owner-advances': new Set(['date', 'amount', 'description', 'category']),
 }
 

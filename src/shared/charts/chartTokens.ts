@@ -29,6 +29,8 @@ export interface ChartTokens {
   /** The eight categorical slots in their validated order. Assign them in sequence, never cycled. */
   readonly series: readonly string[]
   readonly buckets: Readonly<Record<BucketTone, string>>
+  /** One hue from the first step to the fifth, for an ordered scale such as how late money owed is. */
+  readonly ageing: readonly string[]
 }
 
 const BUCKET_TONES: readonly BucketTone[] = ['income', 'operating', 'taxes', 'owner-pay', 'financing', 'neutral']
@@ -72,5 +74,6 @@ function readChartTokens(style: CSSStyleDeclaration): ChartTokens {
       BucketTone,
       string
     >,
+    ageing: [1, 2, 3, 4, 5].map((step) => read(`--ageing-${step}`)),
   }
 }

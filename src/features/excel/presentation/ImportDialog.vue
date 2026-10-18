@@ -26,6 +26,11 @@ const phone = usePhoneLayout()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
+/** "settings, rules or clients". */
+function inWords(tabs: readonly string[]): string {
+  return tabs.length <= 1 ? (tabs[0] ?? '') : `${tabs.slice(0, -1).join(', ')} or ${tabs[tabs.length - 1]}`
+}
+
 // Shallow, so the tabs stay plain objects. IndexedDB cannot store a reactive proxy.
 const preview = shallowRef<ImportPreview | null>(null)
 const failure = ref<string | null>(null)
@@ -134,7 +139,7 @@ async function confirmImport(): Promise<void> {
             </dl>
 
             <p v-if="preview.summary.defaultedTabs.length" class="text-sm text-muted">
-              No {{ preview.summary.defaultedTabs.join(' or ') }} tab, so {{ preview.summary.defaultedTabs.length === 1 ? 'it reads' : 'they read' }} as
+              No {{ inWords(preview.summary.defaultedTabs) }} tab, so {{ preview.summary.defaultedTabs.length === 1 ? 'it reads' : 'they read' }} as
               empty and the defaults apply.
             </p>
 

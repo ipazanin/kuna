@@ -53,6 +53,27 @@ describe.each([
     expect(row(store, 'GADGET CORNER')).toMatchObject({ category: 'unknown', flaggedBy: 'ai', bucket: 'unclassified' })
   })
 
+  it('lists every write of the session newest first, an undo beside the write it undid, and nothing for a refused one', async () => {
+    const { store } = await harnessOf(used)
+    const receipt = await store.setVerdicts([recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
+    await store.undoVerdicts(receipt)
+    const expected = rulesCells(store, 'merchant-model')
+    await store.changeRules({ appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false } }] })
+    await store.changeSettings([{ key: 'review_label', expected: 'ivan', value: 'anna' }])
+    await expect(store.setVerdicts([recategorisation(row(store, 'GADGET CORNER'), 'snacks', settings(store))])).rejects.toThrow(WorkbookWriteRefused)
+
+    expect(store.state.writes.map((write) => [write.id, write.kind])).toEqual([
+      [4, 'settings'],
+      [3, 'rules'],
+      [2, 'ledger'],
+      [1, 'ledger'],
+    ])
+    const [, , undoing, original] = store.state.writes
+    expect(original).toMatchObject({ kind: 'ledger', receipt, undid: null, workbookId: store.state.workbook!.id })
+    expect(undoing).toMatchObject({ kind: 'ledger', undid: receipt, receipt: { changes: [{ from: { category: 'equipment', flaggedBy: 'ivan' }, to: { category: 'unknown', flaggedBy: 'ai' } }] } })
+    expect(row(store, 'GADGET CORNER')).toMatchObject({ category: 'unknown', flaggedBy: 'ai' })
+  })
+
   it('refuses a category the categories tab does not define, and changes nothing', async () => {
     const { store } = await harnessOf(used)
 

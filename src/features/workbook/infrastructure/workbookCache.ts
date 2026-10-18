@@ -2,7 +2,7 @@ import Dexie from 'dexie'
 import type { EntityTable } from 'dexie'
 
 import { WORKBOOK_TABS } from './workbookSnapshot'
-import type { SheetRow, WorkbookMeta, WorkbookSnapshot } from './workbookSnapshot'
+import type { SheetRow, WorkbookMeta, WorkbookSnapshot, WorkbookTabs } from './workbookSnapshot'
 
 const META_KEY = 'workbook'
 
@@ -12,11 +12,6 @@ interface StoredMeta extends WorkbookMeta {
 
 type WorkbookDatabase = Dexie & {
   meta: EntityTable<StoredMeta, 'key'>
-  ledger: EntityTable<SheetRow, 'sheetRow'>
-  categories: EntityTable<SheetRow, 'sheetRow'>
-  accounts: EntityTable<SheetRow, 'sheetRow'>
-  settings: EntityTable<SheetRow, 'sheetRow'>
-  rules: EntityTable<SheetRow, 'sheetRow'>
 }
 
 function workbookDatabaseName(workbookId: string): string {
@@ -33,6 +28,7 @@ function openDatabase(workbookId: string): WorkbookDatabase {
   })
   database.version(2).stores({ settings: 'sheetRow' })
   database.version(3).stores({ rules: 'sheetRow' })
+  database.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
   return database
 }
 
@@ -49,7 +45,8 @@ export interface WorkbookCache {
 
 export function openWorkbookCache(workbookId: string): WorkbookCache {
   const database = openDatabase(workbookId)
-  const tables = [database.meta, database.ledger, database.categories, database.accounts, database.settings, database.rules]
+  const tabTables = WORKBOOK_TABS.map((tab) => database.table<SheetRow, number>(tab))
+  const tables = [database.meta, ...tabTables]
 
   return {
     async replace(snapshot) {
@@ -58,7 +55,7 @@ export function openWorkbookCache(workbookId: string): WorkbookCache {
       }
       await database.transaction('rw', tables, async () => {
         await Promise.all(tables.map((table) => table.clear()))
-        await Promise.all(WORKBOOK_TABS.map((tab) => database[tab].bulkAdd([...snapshot[tab]])))
+        await Promise.all(WORKBOOK_TABS.map((tab, index) => tabTables[index]!.bulkAdd([...snapshot[tab]])))
         await database.meta.put({ key: META_KEY, ...snapshot.meta })
       })
     },
@@ -70,8 +67,9 @@ export function openWorkbookCache(workbookId: string): WorkbookCache {
           return null
         }
         const meta = metaOf(stored)
-        const [ledger, categories, accounts, settings, rules] = await Promise.all(WORKBOOK_TABS.map((tab) => database[tab].toArray()))
-        return { meta, ledger: ledger ?? [], categories: categories ?? [], accounts: accounts ?? [], settings: settings ?? [], rules: rules ?? [] }
+        const rows = await Promise.all(tabTables.map((table) => table.toArray()))
+        const tabs = Object.fromEntries(WORKBOOK_TABS.map((tab, index) => [tab, rows[index] ?? []])) as unknown as WorkbookTabs
+        return { meta, ...tabs }
       })
     },
 

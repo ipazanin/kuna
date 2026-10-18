@@ -8,7 +8,7 @@ import { allCompleteMonths } from '../../filters/domain/filterState'
 import type { Period } from '../../filters/domain/filterState'
 import { LINE_BUCKETS, averagePerMonth, bucketTotals, forEachLine } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLoss, ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
-import type { Transaction } from '../../workbook/domain/workbook'
+import type { Booking } from '../../workbook/domain/workbook'
 
 /** One line of the profit and loss over a window: its total, its average month, and its rows. */
 export interface WindowFigure {
@@ -37,18 +37,18 @@ export interface WindowAverages {
  * and divides by its month count, so a month with no rows counts as zero. All time starts at the
  * ledger's first complete month, so an opening part-month never counts as a whole one.
  */
-export function windowAverages(transactions: readonly Transaction[], window: LedgerWindow): WindowAverages {
+export function windowAverages(bookings: readonly Booking[], window: LedgerWindow): WindowAverages {
   const everyCompleteMonth = allTime(window)
   return {
-    last3: windowColumn(transactions, lastMonths(window, 3), { preset: 'l3' }),
-    last12: windowColumn(transactions, lastMonths(window, 12), { preset: 'l12' }),
-    allTime: everyCompleteMonth === null ? null : windowColumn(transactions, everyCompleteMonth, allCompleteMonths(window)),
+    last3: windowColumn(bookings, lastMonths(window, 3), { preset: 'l3' }),
+    last12: windowColumn(bookings, lastMonths(window, 12), { preset: 'l12' }),
+    allTime: everyCompleteMonth === null ? null : windowColumn(bookings, everyCompleteMonth, allCompleteMonths(window)),
   }
 }
 
-function windowColumn(transactions: readonly Transaction[], span: MonthSpan, period: Period): WindowColumn {
+function windowColumn(bookings: readonly Booking[], span: MonthSpan, period: Period): WindowColumn {
   const range = spanRange(span)
-  const totals = bucketTotals(transactions.filter((transaction) => rangeContains(range, transaction.date)))
+  const totals = bucketTotals(bookings.filter((booking) => rangeContains(range, booking.date)))
   const perMonth = averagePerMonth(totals, span.monthCount)
   return {
     span,

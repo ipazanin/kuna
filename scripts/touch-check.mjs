@@ -3,7 +3,8 @@
  * and its navigation drawer, the review notice's drill, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
- * confirming and recategorising a row on Review with Undo, a paid month on the Taxes calendar and a
+ * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
+ * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar and a
  * repayment on the Owner loan list, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, and every screen. The
  * writes go to the fake workbook kept in this browser.
@@ -37,6 +38,7 @@ const SCREENS = [
   { hash: '#/spending?p=all', title: 'Spending', ready: '[data-testid="cost-line"]' },
   { hash: '#/period-review?p=all', title: 'Period review', ready: '.chart-body canvas' },
   { hash: '#/cash?p=all', title: 'Cash', ready: '.chart-body canvas' },
+  { hash: '#/receivables?p=all', title: 'Receivables', ready: '[data-testid="invoice-list"]' },
   { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
   { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
@@ -305,6 +307,43 @@ async function checkWidth(width) {
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the repayment opened Transactions without its filters')
   })
 
+  await step('receivables-payment-drill', async () => {
+    await open(page, '#/receivables?p=all', 'Receivables')
+    await settleCharts(page)
+    await page.waitForSelector('[data-testid="invoice-list"]')
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-receivables.png`), fullPage: true })
+    await page.tap('[data-testid="invoice-list"] ol a')
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 1, 'the payment opened Transactions without its filters')
+  })
+
+  await step('owner-advance-undo', async () => {
+    await openFreshExcel(page, '#/owner?p=all', 'Owner')
+    const advances = () => page.evaluate(() => document.querySelectorAll('[data-testid="advance-list"] > li').length)
+    const before = await advances()
+    const opener = await page.$('[data-testid="open-add-advance"]')
+    await opener.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await opener.tap()
+    await page.waitForSelector('[data-testid="add-advance"]')
+    await delay(300)
+    await page.type('[data-testid="add-advance"] input[inputmode="decimal"]', '48.50')
+    await page.tap('[data-testid="advance-category"]')
+    await page.waitForSelector('[role="listbox"] [role="option"]')
+    await page.keyboard.type('travel')
+    await (await waitForText(page, '[role="option"]', 'Travel')).tap()
+    await delay(200)
+    await inspect(page, `${width}px add advance form`)
+    await shoot('owner-add-advance')
+    await page.tap('button[form="add-advance"]')
+    await waitForText(page, '[data-slot="title"]', 'Advance added')
+    await expect(advances(), (count) => count === before + 1, 'the advance is not on the list')
+    await delay(700)
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Advance removed')
+    await expect(advances(), (count) => count === before, 'Undo did not take the advance off the list')
+  })
+
   for (const screen of SCREENS) {
     await step(screen.title.toLowerCase().replace(' ', '-'), async () => {
       await open(page, screen.hash, screen.title)
@@ -375,6 +414,45 @@ async function checkWidth(width) {
     await expect(reviewCount(page), (count) => count === 2, 'Undo did not bring the row back')
   })
 
+  await step('session-panel-undo', async () => {
+    await openFreshExcel(page, '#/review', 'Review')
+    await (await reviewRow(page, 'GADGET CORNER')).tap()
+    await (await waitForText(page, '[data-testid="review-details"] button', 'Confirm')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Confirmed')
+    await expect(reviewCount(page), (count) => count === 1, 'the confirmed row is still waiting')
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="session-count"]')?.textContent?.trim() ?? null),
+      (count) => count === '1',
+      'the session panel does not count the write',
+    )
+    const toggle = await page.$('[data-testid="session-toggle"]')
+    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await toggle.tap()
+    await page.waitForSelector('[data-testid="session-write"]')
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="session-write"]')?.textContent ?? ''),
+      (text) => text.includes('Confirmed a row') && text.includes('GADGET CORNER') && text.includes('human'),
+      'the session entry does not say what changed',
+    )
+    await page.evaluate(() => document.querySelector('[data-testid="session-changes"]').scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect(page, `${width}px session panel open`)
+    await shoot('session-panel')
+    await page.tap('[data-testid="session-undo"]')
+    await waitForText(page, '[data-slot="title"]', 'Undone')
+    await expect(reviewCount(page), (count) => count === 2, 'Undo from the session panel did not bring the row back')
+    await expect(
+      page.evaluate(() => ({
+        entries: [...document.querySelectorAll('[data-testid="session-write"]')].map((entry) => entry.textContent ?? ''),
+        undoOffered: document.querySelector('[data-testid="session-undo"]') !== null,
+      })),
+      ({ entries, undoOffered }) => entries.length === 2 && entries[0].includes('Undid a change') && entries[1].includes('Undone') && !undoOffered,
+      'the session panel does not show the undo beside the write it undid',
+    )
+    await inspect(page, `${width}px session panel after undo`)
+  })
+
   await step('make-rule-apply', async () => {
     await openFreshExcel(page, '#/review', 'Review')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
@@ -399,6 +477,63 @@ async function checkWidth(width) {
     await waitForText(page, '[data-slot="title"]', 'Filed 1 row by')
     await page.waitForFunction(() => !document.querySelector('[role="dialog"] [data-testid="rule-saved"]'))
     await expect(reviewCount(page), (count) => count === 1, 'the row the new rule settles is still waiting')
+  })
+
+  await step('coverage-split', async () => {
+    await openFreshExcel(page, '#/review', 'Review')
+    const split = await waitForText(page, '[data-testid="coverage-gap"]', 'STATE BUDGET')
+    await expect(
+      split.evaluate((group) => group.textContent ?? ''),
+      (text) => text.includes('2 categories'),
+      'a group filed in two categories does not say so',
+    )
+    await split.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await (await split.$('[data-testid="coverage-make-rule"]')).tap()
+    await page.waitForSelector('[data-testid="rule-split"]')
+    await delay(400)
+    await inspect(page, `${width}px rule form from a split group`)
+    await shoot('rule-split')
+    await (await waitForText(page, '[role="dialog"] button', 'Cancel')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+
+    // A rule by the fragment STORE files PAPER & INK STORE as equipment, against the person's office supplies, so that row turns into an exception.
+    const laptop = await waitForText(page, '[data-testid="coverage-gap"]', 'Laptop Store')
+    await laptop.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await (await laptop.$('[data-testid="coverage-make-rule"]')).tap()
+    const fragment = await page.waitForSelector('[data-testid="rule-condition"] input[aria-label="Counterparty contains"]')
+    await fragment.evaluate((input) => input.select())
+    await page.keyboard.type('STORE')
+    const accept = await page.waitForSelector('[data-testid="accept-backtest"][role="checkbox"], [data-testid="accept-backtest"] [role="checkbox"]')
+    await accept.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await accept.tap()
+    await page.tap('[data-testid="save-rule"]')
+    await (await waitForText(page, '[role="dialog"] button', 'Done')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+
+    const exception = await waitForText(page, '[data-testid="coverage-exception"]', 'PAPER & INK STORE')
+    await expect(
+      exception.evaluate((group) => group.textContent ?? ''),
+      (text) => text.includes('merchant-laptop-store files them as') && !text.includes('Make this a rule'),
+      'the exception does not name the rule that files it, or still offers a rule',
+    )
+    await page.evaluate(() => document.querySelector('[data-testid="coverage-exceptions"]').scrollIntoView({ block: 'end' }))
+    await delay(300)
+    await inspect(page, `${width}px coverage with exceptions`)
+    await shoot('coverage-split')
+    await (await exception.$('[data-testid="coverage-open-rule"]')).tap()
+    await waitForTitle(page, 'Workbook')
+    await page.waitForSelector('[data-testid="rule-row"][aria-current="true"]')
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="rule-row"][aria-current="true"]')?.textContent ?? ''),
+      (text) => text.includes('merchant-laptop-store'),
+      'Open the rule does not mark the rule on the Rules tab',
+    )
+    await delay(300)
+    await inspect(page, `${width}px rule highlighted`)
+    await shoot('rule-highlighted')
   })
 
   await step('rules-tab-edit', async () => {

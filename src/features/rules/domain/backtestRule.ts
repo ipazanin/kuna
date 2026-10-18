@@ -11,8 +11,15 @@ export type BacktestTransaction = CategorisableTransaction & Pick<Transaction, '
 /** One row whose verdict the change alters. */
 export interface VerdictChange<Row> {
   readonly transaction: Row
+  /** What the rules decide now. */
   readonly before: Verdict
+  /** What the rules would decide after the change. */
   readonly after: Verdict
+  /**
+   * The category the list sets against `after`: the stored one for a waiting or a confirmed row,
+   * and what the rules decide now for a broken agreement, whose stored category may differ.
+   */
+  readonly from: string
 }
 
 export interface RuleBacktest<Row> {
@@ -43,15 +50,14 @@ export function backtestRuleChange<Row extends BacktestTransaction>(
     if (before.category === after.category && before.flaggedBy === after.flaggedBy) {
       continue
     }
-    const change = { transaction, before, after }
     if (isHumanConfirmed(transaction)) {
       if (after.category !== transaction.category) {
-        humanConflicts.push(change)
+        humanConflicts.push({ transaction, before, after, from: transaction.category })
       }
     } else if (transaction.flaggedBy === 'rule' && transaction.bucket !== UNCLASSIFIED) {
-      brokenAgreements.push(change)
+      brokenAgreements.push({ transaction, before, after, from: before.category })
     } else if (after.flaggedBy === 'rule') {
-      settled.push(change)
+      settled.push({ transaction, before, after, from: transaction.category })
     }
   }
   return { settled, brokenAgreements, humanConflicts }

@@ -9,7 +9,7 @@ import type { Figure } from '../../../features/filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../../features/filters/domain/filterState'
 import type { Period } from '../../../features/filters/domain/filterState'
 import { chartedMonths } from '../../../features/filters/domain/periodPresets'
-import type { Category, Transaction } from '../../../features/workbook/domain/workbook'
+import type { Booking, Category } from '../../../features/workbook/domain/workbook'
 import { paidOut } from './paidOut'
 import { categoriesInBucket } from './packRoles'
 
@@ -41,16 +41,16 @@ export interface TaxByType {
  * that period draws. What counts as a tax is the bucket, so a refund booked in a taxes category
  * nets against the month it lands in.
  */
-export function taxByType(transactions: readonly Transaction[], categories: readonly Category[], period: Period, window: LedgerWindow): TaxByType {
+export function taxByType(bookings: readonly Booking[], categories: readonly Category[], period: Period, window: LedgerWindow): TaxByType {
   const taxCategories = categoriesInBucket(categories, 'taxes')
   const months = chartedMonths(period, window)
   const shown = new Set(months)
-  const taxRows = transactions.filter((transaction) => transaction.bucket === 'taxes')
+  const taxRows = bookings.filter((booking) => booking.bucket === 'taxes')
   const inPeriod = transactionsInPeriod(taxRows, period, window)
-  const rows = taxRows.filter((transaction) => shown.has(monthOf(transaction.date)))
-  const moved = taxCategories.filter((category) => rows.some((transaction) => transaction.category === category))
+  const rows = taxRows.filter((booking) => shown.has(monthOf(booking.date)))
+  const moved = taxCategories.filter((category) => rows.some((booking) => booking.category === category))
   const taxMonths = months.map((month): TaxMonth => {
-    const own = rows.filter((transaction) => monthOf(transaction.date) === month)
+    const own = rows.filter((booking) => monthOf(booking.date) === month)
     return {
       month,
       complete: isCompleteMonth(window, month),
@@ -58,7 +58,7 @@ export function taxByType(transactions: readonly Transaction[], categories: read
         moved.map((category) => [
           category,
           {
-            amount: paidOut(own.filter((transaction) => transaction.category === category)),
+            amount: paidOut(own.filter((booking) => booking.category === category)),
             drill: drillToTransactions({ period: monthPeriod(month), categories: [category] }),
           },
         ]),
@@ -70,7 +70,7 @@ export function taxByType(transactions: readonly Transaction[], categories: read
     types: moved.map((category) => ({
       category,
       total: {
-        amount: paidOut(inPeriod.filter((transaction) => transaction.category === category)),
+        amount: paidOut(inPeriod.filter((booking) => booking.category === category)),
         drill: drillToTransactions({ period, categories: [category] }),
       },
       typicalMonth: typicalMonthlyAmount(taxMonths.filter((month) => month.complete).map((month) => month.byCategory[category]!.amount)),

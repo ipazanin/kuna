@@ -35,9 +35,9 @@ const spending = computed(() => {
   if (current === null) {
     return null
   }
-  const { scoped, window, filters } = current
+  const { scoped, profitAndLossRows, window, filters } = current
   const prior = priorEqualPeriod(filters.period, window)
-  const groups = costGroups(categoryTotals(scoped, filters.period, window), prior === null ? null : categoryTotals(scoped, prior, window))
+  const groups = costGroups(categoryTotals(profitAndLossRows, filters.period, window), prior === null ? null : categoryTotals(profitAndLossRows, prior, window))
   const groupTitle = (key: CostGroup['key']): string =>
     key === 'money-back' ? 'Money back' : settings.value.bucketLabels[key]
   const priorLabel = prior === null ? null : periodInWords(prior, window)

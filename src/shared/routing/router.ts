@@ -13,6 +13,7 @@ const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, () => Promise<RouteComponen
   '/spending': () => import('../../features/spending/presentation/SpendingScreen.vue'),
   '/period-review': () => import('../../features/period-review/presentation/PeriodReviewScreen.vue'),
   '/cash': () => import('../../features/cash/presentation/CashScreen.vue'),
+  '/receivables': () => import('../../features/receivables/presentation/ReceivablesScreen.vue'),
   '/taxes': () => import('../../packs/hr-doo/presentation/TaxesScreen.vue'),
   '/owner': () => import('../../packs/hr-doo/presentation/OwnerScreen.vue'),
   '/review': () => import('../../features/review/presentation/ReviewScreen.vue'),

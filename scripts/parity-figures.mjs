@@ -4,7 +4,12 @@
  * the same file reader and workbook reader an Excel import uses. The Sheet side is found
  * by label text. Nothing is written anywhere.
  *
- *   npm run parity:figures -- --workbook <path to export.xlsx>
+ *   npm run parity:figures -- --workbook <path to export.xlsx> [--scripts <Apps Script folder>]
+ *
+ * The invoice figures read the export's `invoices` and `clients` tabs. An export from before those
+ * tabs reads the register from `outgoing!A3:D` as one client, `nlc`, whose IBANs come from the
+ * enabled `rules` rows filing credits as revenue, or else from `CLIENT_IBANS` in a `.gs` file of
+ * `--scripts` (by default the shadow-accounting project in the Drive).
  *
  * A row is a match within one cent. It is corrected when the app deliberately defines the figure
  * differently and recomputing the Sheet's own definition reproduces the Sheet's figure, which
@@ -13,7 +18,9 @@
  * repository and never copy a figure from this output into it.
  */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import * as XLSX from 'xlsx'
 
@@ -22,10 +29,12 @@ import { civilDateFromSerial } from '../src/shared/calendar/civilDate.ts'
 import { rangeContains } from '../src/shared/calendar/dateRange.ts'
 import { firstDayOf, lastDayOf, monthCountBetween, monthOf } from '../src/shared/calendar/monthKey.ts'
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals.ts'
-import { ledgerWindowOf } from '../src/features/workbook/domain/workbook.ts'
+import { bookingOfAdvance, ledgerWindowOf } from '../src/features/workbook/domain/workbook.ts'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
 import { readWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile.ts'
-import { fold } from '../src/shared/text/fold.ts'
+import { fold, normaliseIban } from '../src/shared/text/fold.ts'
+import { daysToPaid } from '../src/features/receivables/domain/daysToPaid.ts'
+import { receivablesOf } from '../src/features/receivables/domain/invoiceMatching.ts'
 import { balanceSeries, latestBalances } from '../src/features/cash/domain/balances.ts'
 import { euroSplit } from '../src/features/overview/domain/euroSplit.ts'
 import { runway } from '../src/features/overview/domain/runway.ts'
@@ -36,14 +45,20 @@ import { topCounterparties } from '../src/features/spending/domain/topCounterpar
 import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfitAndLoss.ts'
 import { effectiveTaxRate } from '../src/packs/hr-doo/domain/effectiveTaxRate.ts'
 import { ownerCost } from '../src/packs/hr-doo/domain/ownerCost.ts'
+import { netOwed, ownerAdvances } from '../src/packs/hr-doo/domain/ownerAdvances.ts'
 import { ownerLoans } from '../src/packs/hr-doo/domain/ownerLoans.ts'
 import { ownerTake } from '../src/packs/hr-doo/domain/ownerTake.ts'
 import { payrollCadence } from '../src/packs/hr-doo/domain/payrollCadence.ts'
 import { taxByType, typicalMonthlyAmount } from '../src/packs/hr-doo/domain/taxByType.ts'
 
-const { values: options } = parseArgs({ options: { workbook: { type: 'string' } } })
+const { values: options } = parseArgs({
+  options: {
+    workbook: { type: 'string' },
+    scripts: { type: 'string', default: join(homedir(), 'gdrive/work/dss/dss-finance/shadow-accounting/scripts') },
+  },
+})
 if (options.workbook === undefined) {
-  console.error('Usage: npm run parity:figures -- --workbook <path to export.xlsx>')
+  console.error('Usage: npm run parity:figures -- --workbook <path to export.xlsx> [--scripts <Apps Script folder>]')
   process.exit(2)
 }
 
@@ -70,6 +85,8 @@ if (window === null) {
   process.exit(2)
 }
 const transactions = workbook.transactions
+/** What profit and loss counts, the owner's advances included, as every screen counts it. */
+const bookings = [...transactions, ...workbook.ownerAdvances.map(bookingOfAdvance)]
 
 // Comparison --------------------------------------------------------------------------------------
 
@@ -93,11 +110,6 @@ function check(metric, kind, sheet, app, correction) {
         : 'MISMATCH'
   }
   checks.push({ metric, kind, sheet: sheetValue, app: appValue, status })
-}
-
-/** A figure the app deliberately does not show, listed so the report accounts for every Sheet figure. */
-function notShown(metric, kind, sheet, why) {
-  checks.push({ metric, kind, sheet: sheetSide(kind, sheet), app: null, status: `not shown (${why})` })
 }
 
 function sheetSide(kind, cell) {
@@ -145,7 +157,7 @@ function agrees(kind, sheet, app) {
 /** The Sheet's own all-time window starts at the ledger's first month, part-month or not. */
 function sheetAllTime(line) {
   const range = { from: firstDayOf(window.firstMonth), to: lastDayOf(window.lastCompleteMonth) }
-  const totals = bucketTotals(transactions.filter((transaction) => rangeContains(range, transaction.date)))
+  const totals = bucketTotals(bookings.filter((booking) => rangeContains(range, booking.date)))
   return totals[line] / monthCountBetween(window.firstMonth, window.lastCompleteMonth)
 }
 
@@ -175,7 +187,7 @@ const LINE_LABELS = [
 
 const dashboard = gridOf('dashboard')
 const balances = latestBalances(transactions)
-const averages = windowAverages(transactions, window)
+const averages = windowAverages(bookings, window)
 const split = euroSplit(averages.last12.totals, 12, averages.last12.period)
 
 check('dashboard · Cash on hand', 'money', tileValue(dashboard, 'Cash on hand'), balances.cashOnHand.amount)
@@ -207,7 +219,7 @@ check('dashboard · owner pay + kept · per month', 'money', ownerEarns?.[2], av
 check('dashboard · Runway (months)', 'ratio', tileValue(dashboard, 'Runway'), runway(balances.cashOnHand, averages.last3).months)
 check('dashboard · Kept per euro earned', 'ratio', tileValue(dashboard, 'Kept per euro earned'), split.keptPerEuroEarned)
 
-const operatingLast12 = categoryTotals(transactions, { preset: 'l12' }, window).filter((total) => total.bucket === 'operating')
+const operatingLast12 = categoryTotals(bookings, { preset: 'l12' }, window).filter((total) => total.bucket === 'operating')
 const costMix = findTable(dashboard, ['Category', 'Last 12 months', 'Per month'])
 for (const category of union(costMix?.rows.map((row) => row[0]) ?? [], operatingLast12.map((total) => total.category))) {
   const row = rowLabelled(costMix, category)
@@ -220,7 +232,7 @@ for (const category of union(costMix?.rows.map((row) => row[0]) ?? [], operating
 const year = gridOf('year')
 const selectedYear = Number(valueBeside(year, 'Year'))
 const yearPeriod = { preset: 'year', year: selectedYear }
-const review = periodReview(transactions, yearPeriod, window)
+const review = periodReview(bookings, yearPeriod, window)
 const yearPnl = findTable(year, ['Item', 'Selected year', 'Prior year', 'Change'])
 for (const [label, line] of [...LINE_LABELS, ['Retained', 'net'], ['Owner earns (pay + retained)', 'ownerEarns']]) {
   const row = rowLabelled(yearPnl, label)
@@ -256,10 +268,10 @@ for (const month of union(byMonth?.rows.map((row) => row[0]) ?? [], review.month
   }
 }
 
-const yearRows = transactions.filter((transaction) => rangeContains(review.current.range, transaction.date))
-const yearCategories = categoryTotals(transactions, yearPeriod, window)
+const yearRows = bookings.filter((booking) => rangeContains(review.current.range, booking.date))
+const yearCategories = categoryTotals(bookings, yearPeriod, window)
 const yearSheetShares = sheetCategoryShares(yearRows, (transaction) => transaction.bucket !== 'neutral' && transaction.family !== 'unclassified')
-const yearOutside = outsideProfitAndLossTotals(transactions, yearPeriod, window)
+const yearOutside = outsideProfitAndLossTotals(bookings, yearPeriod, window)
 const yearByCategory = findTable(year, ['Category', 'Family', 'Amount', '% of year'])
 const yearCategoryNames = [...yearCategories, ...yearOutside].map((total) => total.category)
 for (const category of union(yearByCategory?.rows.map((row) => row[0]) ?? [], yearCategoryNames)) {
@@ -283,7 +295,7 @@ for (const category of union(yearByCategory?.rows.map((row) => row[0]) ?? [], ye
 // monthly -----------------------------------------------------------------------------------------
 
 const monthly = gridOf('monthly')
-const series = monthlyProfitAndLoss(transactions, window)
+const series = monthlyProfitAndLoss(bookings, window)
 const averagesBox = findTable(monthly, ['Metric', 'Value'])
 const ledgerMonths = new Set(transactions.map((transaction) => monthOf(transaction.date)))
 const sheetCompleteMonths = [...ledgerMonths].filter((month) => month <= window.lastCompleteMonth)
@@ -318,11 +330,11 @@ for (const month of union(monthlyTable?.rows.map((row) => row[0]) ?? [], series.
 // spend -------------------------------------------------------------------------------------------
 
 const spend = gridOf('spend')
-const allTimeCategories = categoryTotals(transactions, { preset: 'all' }, window)
-const last12Categories = categoryTotals(transactions, { preset: 'l12' }, window)
+const allTimeCategories = categoryTotals(bookings, { preset: 'all' }, window)
+const last12Categories = categoryTotals(bookings, { preset: 'l12' }, window)
 const definedSlugs = new Set(workbook.categories.map((category) => category.slug))
 const spendSheetShares = sheetCategoryShares(
-  transactions,
+  bookings,
   (transaction) => definedSlugs.has(transaction.category) && transaction.bucket !== 'neutral' && transaction.bucket !== 'financing',
 )
 const everyCategory = findTable(spend, ['Category', 'Family', 'Total', '% of total', 'Last 12 months'])
@@ -388,6 +400,7 @@ const SHEET_ROLES = {
   'owner-loan-repaid': ['owner-loan-repaid'],
   'reimbursement-to-owner': ['reimbursement'],
   'reimbursement-from-owner': ['reimbursement'],
+  'client-refund': ['client-refund'],
 }
 const exportHasRoles = workbook.categories.some((category) => category.roles.length > 0)
 const packCategories = exportHasRoles ? workbook.categories : workbook.categories.map((category) => ({ ...category, roles: SHEET_ROLES[category.slug] ?? [] }))
@@ -395,9 +408,9 @@ const allTimePeriod = { preset: 'all' }
 const last12Period = { preset: 'l12' }
 
 const ownerTab = gridOf('owner')
-const takeAllTime = ownerTake(transactions, packCategories, allTimePeriod, window)
-const takeLast12 = ownerTake(transactions, packCategories, last12Period, window)
-const costLast12 = ownerCost(transactions, packCategories, last12Period, window)
+const takeAllTime = ownerTake(bookings, packCategories, allTimePeriod, window)
+const takeLast12 = ownerTake(bookings, packCategories, last12Period, window)
+const costLast12 = ownerCost(bookings, packCategories, last12Period, window)
 const loanBook = ownerLoans(transactions, packCategories)
 
 check('owner · Total taken out (all time)', 'money', tileValue(ownerTab, 'Total taken out (all time)'), takeAllTime.total.amount)
@@ -405,11 +418,18 @@ check('owner · Taken out, last 12 months', 'money', tileValue(ownerTab, 'Taken 
 check('owner · Owner loan outstanding', 'money', tileValue(ownerTab, 'Owner loan outstanding'), loanBook.outstanding.amount)
 check('owner · Gross cost of the owner, last 12 months', 'money', tileValue(ownerTab, 'Gross cost of the owner, last 12 months'), costLast12.gross.amount)
 check('owner · Cost per euro received, last 12 months', 'ratio', tileValue(ownerTab, 'Cost per euro received, last 12 months'), costLast12.costPerEuroReceived)
-notShown(
+const reimbursementRoleCategories = packCategories.filter((category) => category.roles.includes('reimbursement')).map((category) => category.slug)
+const signedReimbursements = transactions.filter((transaction) => reimbursementRoleCategories.includes(transaction.category)).reduce((total, transaction) => total + transaction.amount, 0)
+check(
   'owner · Net owed between owner and company',
   'money',
   tileValue(ownerTab, 'Net owed between owner and company'),
-  '#7: decided as the loan balance plus fronted costs not yet reimbursed, which the ledger does not record',
+  netOwed(loanBook, ownerAdvances(workbook.ownerAdvances, transactions, packCategories), packCategories).amount,
+  {
+    rule: '#7',
+    why: `one signed balance: the loan balance less the ${workbook.ownerAdvances.length} advance(s) not yet reimbursed, where the Sheet adds every reimbursement signed`,
+    sheetDefinition: loanBook.outstanding.amount + signedReimbursements,
+  },
 )
 
 const takeTable = findTable(ownerTab, ['Category', 'All time', 'Last 12 months'])
@@ -461,7 +481,7 @@ check('taxes · Months with no payment', 'count', rowLabelled(cadenceBox, 'Month
   ? undefined
   : { ...notYetDue, sheetDefinition: contributions.monthsElapsed + 1 - contributions.monthsPaid - partMonthPaid })
 
-const taxesAllTime = taxByType(transactions, packCategories, allTimePeriod, window)
+const taxesAllTime = taxByType(bookings, packCategories, allTimePeriod, window)
 /** The Sheet's typical month takes every ledger month, the part-months at either end included. */
 const sheetTypical = (category) => typicalMonthlyAmount(taxesAllTime.months.map((month) => month.byCategory[category]?.amount ?? 0))
 const typicalRule = { rule: '#2 and #4', why: 'part-months are never averaged' }
@@ -474,7 +494,7 @@ check('taxes · Typical monthly payroll tax', 'money', rowLabelled(cadenceBox, '
   ...typicalRule,
   sheetDefinition: sheetTypical('payroll-tax'),
 })
-const rateLast12 = effectiveTaxRate(transactions, packCategories, last12Period, window)
+const rateLast12 = effectiveTaxRate(bookings, packCategories, last12Period, window)
 check('taxes · Effective rate, last 12 months', 'percent', rowLabelled(cadenceBox, 'Effective rate, last 12 months')?.[1], rateLast12.rate)
 check('dashboard · Tax on every euro earned', 'ratio', tileValue(dashboard, 'Tax on every euro earned'), rateLast12.rate, {
   rule: '#1',
@@ -496,6 +516,116 @@ for (const month of union(taxMonthly?.rows.map((row) => row[0]) ?? [], taxesAllT
     check(`taxes · ${month} · ${label}`, 'money', row?.[offset + 1], entry === undefined ? null : (entry.byCategory[category]?.amount ?? 0))
   })
   check(`taxes · ${month} · total`, 'money', row?.[TAX_COLUMNS.length + 1], entry?.total.amount ?? null)
+}
+
+// outgoing: invoices against the revenue credits that paid them ---------------------------------
+
+const outgoing = gridOf('outgoing')
+const register = invoiceRegister()
+const clients = workbook.clients.length > 0 ? workbook.clients : [{ slug: 'nlc', name: '', ibans: sheetClientIbans() }]
+const receivables = receivablesOf(transactions, packCategories, register, clients)
+const credits = transactions.filter((transaction) => packCategories.some((category) => category.slug === transaction.category && category.roles.includes('revenue')) && transaction.amount > 0)
+/** The Sheet's own definition pools every revenue credit against the one register, whoever sent it. */
+const pooled = receivablesOf(transactions, packCategories, register.map((invoice) => ({ ...invoice, client: 'everyone' })), [
+  { slug: 'everyone', name: '', ibans: [...new Set(credits.map((credit) => credit.counterpartyIban))] },
+]).clients[0]
+const sumOver = (field) => receivables.clients.reduce((total, entry) => total + entry[field], 0)
+const unattributed = receivables.unattributedCredits.length > 0
+  ? { rule: 'Invoices and clients', why: `${receivables.unattributedCredits.length} revenue credit(s) from an IBAN no client names are unattributed, not pooled` }
+  : null
+const pooledCorrection = (figure) => (unattributed === null ? undefined : { ...unattributed, sheetDefinition: figure })
+
+const outgoingSums = findTable(outgoing, ['Sums', null])
+check('dashboard · Invoices outstanding', 'money', tileValue(dashboard, 'Invoices outstanding'), sumOver('outstanding'), pooledCorrection(pooled.outstanding))
+check('outgoing · Outstanding', 'money', rowLabelled(outgoingSums, 'Outstanding')?.[1], sumOver('outstanding'), pooledCorrection(pooled.outstanding))
+check('outgoing · Overpaid by client', 'money', rowLabelled(outgoingSums, 'Overpaid by client')?.[1], sumOver('overpaid'), pooledCorrection(pooled.overpaid))
+check(
+  'outgoing · Overpayments refunded by us',
+  'money',
+  rowLabelled(outgoingSums, 'Overpayments refunded by us')?.[1],
+  sumOver('refunded'),
+  receivables.unattributedRefunds.length === 0
+    ? undefined
+    : { rule: 'Invoices and clients', why: 'refunds to an IBAN no client names are not a client’s', sheetDefinition: sumOver('refunded') - receivables.unattributedRefunds.reduce((total, refund) => total + refund.transaction.amount, 0) },
+)
+check(
+  'outgoing · Credits with no filed invoice PDF',
+  'money',
+  rowLabelled(outgoingSums, 'Credits with no filed invoice PDF')?.[1],
+  sumOver('creditsWithNoInvoice'),
+  pooledCorrection(pooled.creditsWithNoInvoice),
+)
+
+const matchedByRow = new Map(receivables.clients.flatMap((entry) => entry.invoices.map((matched) => [matched.invoice.sheetRow, matched])))
+const registerList = findTable(outgoing, ['Number', 'Item', 'Amount', 'Invoiced', 'Received', 'Status', 'Note'])
+registerList?.rows.forEach((row, index) => {
+  const matched = workbook.invoices.length > 0
+    ? receivables.clients.flatMap((entry) => entry.invoices).find((candidate) => candidate.invoice.number === String(row[0]))
+    : matchedByRow.get(index + 3)
+  const metric = `outgoing · invoice ${row[0]}`
+  check(`${metric} · received`, 'date', row[4], matched?.received ?? null)
+  check(`${metric} · status`, 'text', row[5], matched?.status ?? null)
+  check(`${metric} · note`, 'text', row[6] === '' ? null : row[6], matched === undefined ? null : sheetNoteOf(matched))
+})
+for (const matched of receivables.clients.flatMap((entry) => entry.invoices)) {
+  if (!registerList?.rows.some((row) => String(row[0]) === matched.invoice.number)) {
+    check(`outgoing · invoice ${matched.invoice.number} · status`, 'text', null, matched.status)
+  }
+}
+
+const paidAllTime = daysToPaid(receivables.clients.flatMap((entry) => entry.invoices), null)
+check('dashboard · Days to get paid', 'ratio', tileValue(dashboard, 'Days to get paid'), paidAllTime.median, {
+  rule: '#5',
+  why: 'the median over the invoices paid in the period, with the mean in the tooltip',
+  sheetDefinition: paidAllTime.mean,
+})
+
+/** The note the Sheet writes beside an invoice: "partially paid", then each overpayment newest first. */
+function sheetNoteOf(matched) {
+  const overpaid = matched.overpayments.map((overpayment) => `overpaid +${(overpayment.amount / 100).toFixed(2)} on ${overpayment.payment.transaction.date}`)
+  const note = `${matched.status === 'partial' ? 'partially paid ' : ''}${overpaid.join('; ')}`.trim()
+  return note === '' ? null : note
+}
+
+/** The `invoices` tab, or for an export from before it, the register the refresh copies into `outgoing!A3:D`. */
+function invoiceRegister() {
+  if (workbook.invoices.length > 0) {
+    console.log(`invoices: ${workbook.invoices.length} rows from the invoices tab, ${workbook.clients.length} clients from the clients tab`)
+    return workbook.invoices
+  }
+  const rows = outgoing.slice(2).map((cells, index) => ({ cells, sheetRow: index + 3 })).filter(({ cells }) => !isBlank(cells[0]))
+  console.log(`invoices: no invoices tab, so ${rows.length} rows from outgoing!A3:D, all for one client, nlc`)
+  return rows.map(({ cells, sheetRow }) => ({
+    number: String(cells[0]),
+    client: 'nlc',
+    item: String(cells[1] ?? ''),
+    amount: Math.round(Number(cells[2]) * 100),
+    issued: civilDateFromSerial(Number(cells[3])),
+    due: null,
+    sheetRow,
+  }))
+}
+
+/** The client's IBANs for an export without a clients tab: the revenue rules' IBANs, or CLIENT_IBANS in the Apps Script. */
+function sheetClientIbans() {
+  const revenue = new Set(packCategories.filter((category) => category.roles.includes('revenue')).map((category) => category.slug))
+  const fromRules = workbook.rules.flatMap((rule) =>
+    rule.enabled && revenue.has(rule.category) ? rule.conditions.flatMap((condition) => (condition.column === 'counterparty_iban' ? [condition.iban] : [])) : [],
+  )
+  if (fromRules.length > 0) {
+    console.log(`clients: no clients tab, so nlc pays from the ${new Set(fromRules).size} IBAN(s) the revenue rules name`)
+    return [...new Set(fromRules)]
+  }
+  for (const name of readdirSync(options.scripts).filter((file) => file.endsWith('.gs')).sort()) {
+    const constant = /const CLIENT_IBANS = \[([^\]]*)\]/.exec(readFileSync(join(options.scripts, name), 'utf8'))
+    if (constant !== null) {
+      const ibans = [...constant[1].matchAll(/'([^']+)'/g)].map((match) => normaliseIban(match[1]))
+      console.log(`clients: no clients tab and no revenue rules, so nlc pays from the ${ibans.length} IBAN(s) of CLIENT_IBANS in ${name}`)
+      return ibans
+    }
+  }
+  console.error(`The export has no clients tab and no revenue rules, and no .gs file in ${options.scripts} defines CLIENT_IBANS. Pass --scripts with an older copy of the project.`)
+  process.exit(2)
 }
 
 // Category helpers --------------------------------------------------------------------------------
@@ -556,8 +686,7 @@ for (const line of lines) {
 }
 const mismatches = checks.filter((entry) => entry.status === 'MISMATCH').length
 const corrected = checks.filter((entry) => entry.status.startsWith('corrected')).length
-const unshown = checks.filter((entry) => entry.status.startsWith('not shown')).length
-console.log(`\n${checks.length} figures: ${checks.length - mismatches - corrected - unshown} match, ${corrected} corrected, ${unshown} not shown, ${mismatches} MISMATCH.`)
+console.log(`\n${checks.length} figures: ${checks.length - mismatches - corrected} match, ${corrected} corrected, ${mismatches} MISMATCH.`)
 if (!exportHasRoles) {
   console.log('The export has no roles column, so the pack read the category lists of Code.gs.')
 }

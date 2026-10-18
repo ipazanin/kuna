@@ -6,6 +6,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
+import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
@@ -27,6 +28,7 @@ const accepted = defineModel<boolean>('accepted', { required: true })
 const SHOWN_ROWS = 6
 
 const { state } = useWorkbook()
+const names = useDisplayNames()
 const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).map((category) => [category.slug, category.bucket])))
 
 function bucketOf(category: string): Bucket {
@@ -40,6 +42,7 @@ const lists = computed(() => [
     key: 'settled',
     title: 'Rows it settles',
     help: 'Waiting for review now, filed at rule confidence after.',
+    fromLabel: 'Waiting as',
     icon: 'i-lucide-check-check',
     tone: 'text-positive',
     changes: props.preview.backtest.settled,
@@ -47,7 +50,8 @@ const lists = computed(() => [
   {
     key: 'broken',
     title: 'Agreements it breaks',
-    help: 'Filed by a rule now, filed differently after.',
+    help: 'Rows a rule filed. The rules decide them one way now and another way after.',
+    fromLabel: 'Rules now',
     icon: 'i-lucide-split',
     tone: 'text-[var(--tone-warning)]',
     changes: props.preview.backtest.brokenAgreements,
@@ -56,6 +60,7 @@ const lists = computed(() => [
     key: 'conflicts',
     title: 'Confirmed rows it would file differently',
     help: 'A person set these. Their category stays, but the rules would file the next row like them differently.',
+    fromLabel: 'Person filed',
     icon: 'i-lucide-user-x',
     tone: 'text-negative',
     changes: props.preview.backtest.humanConflicts,
@@ -102,10 +107,17 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
           </span>
           <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
             <span class="figure">{{ dayFormat.format(new Date(change.transaction.date)) }}</span>
-            <CategoryChip :category="change.transaction.category" :bucket="change.transaction.bucket" />
-            <UIcon name="i-lucide-arrow-right" class="size-3.5" aria-label="becomes" />
-            <CategoryChip :category="change.after.category" :bucket="bucketOf(change.after.category)" />
-            <span v-if="change.after.flaggedBy === 'ai'" class="text-dimmed">waits for review</span>
+            <span class="verdict-pair">
+              <span>{{ list.fromLabel }}</span>
+              <CategoryChip :category="change.from" :bucket="bucketOf(change.from)" />
+              <UIcon name="i-lucide-arrow-right" class="size-3.5 shrink-0" aria-label="becomes" />
+              <span>after</span>
+              <CategoryChip :category="change.after.category" :bucket="bucketOf(change.after.category)" />
+              <span v-if="change.after.flaggedBy === 'ai'" class="text-dimmed">waits for review</span>
+            </span>
+          </span>
+          <span v-if="change.from !== change.transaction.category" class="text-xs text-dimmed" data-testid="backtest-stored">
+            Stored as {{ names.category(change.transaction.category) }}
           </span>
         </li>
         <li v-if="list.changes.length > SHOWN_ROWS" class="px-3 py-2 text-xs text-muted">and {{ list.changes.length - SHOWN_ROWS }} more</li>
@@ -129,6 +141,14 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.5rem 0.75rem;
+}
+
+.verdict-pair {
+  display: inline-flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
 }
 
 .backtest-row + .backtest-row,

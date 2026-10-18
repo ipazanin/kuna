@@ -37,7 +37,7 @@ const trends = computed(() => {
     return null
   }
   const tokens = chartTokens()
-  const months = monthlyProfitAndLoss(current.scoped, current.window)
+  const months = monthlyProfitAndLoss(current.profitAndLossRows, current.window)
   const charted = new Set(chartedMonths(current.filters.period, current.window))
   const shown = months.filter((month) => charted.has(month.month))
   const startIndex = Math.max(0, months.findIndex((month) => charted.has(month.month)))

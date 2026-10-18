@@ -6,6 +6,7 @@ import UTabs from '@nuxt/ui/components/Tabs.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import PageHeader from '../../../shared/ui/PageHeader.vue'
+import LoanBucketSwitch from '../../../packs/hr-doo/presentation/LoanBucketSwitch.vue'
 import ProblemList from '../../excel/presentation/ProblemList.vue'
 import RulesTab from '../../rules/presentation/RulesTab.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -108,7 +109,7 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
       color="neutral"
       variant="subtle"
       title="Categories and accounts are edited in the Sheet"
-      description="The Apps Script reads and checks those two tabs every morning, so change them in the Sheet and sync. Settings and rules can be saved from here."
+      description="The Apps Script reads and checks those two tabs every morning, so change them in the Sheet and sync. Settings, rules and the bucket of the loan categories can be saved from here."
       :actions="sheetLink ? [{ label: 'Open the Sheet', icon: 'i-lucide-external-link', color: 'neutral', variant: 'outline', to: sheetLink, target: '_blank' }] : []"
     />
 
@@ -130,6 +131,7 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
             </header>
             <GeneralSettingsForm :settings="settings" :saving="savingSection === 'settings' || state.writing" @save="saveSettings" />
           </section>
+          <LoanBucketSwitch v-if="settings.ownerPayModule" :categories="state.workbook.categories" />
           <section v-if="state.workbook.problems.length" class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5">
             <header>
               <h2 class="text-sm font-medium text-highlighted">Rows the app could not use as written</h2>

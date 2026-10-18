@@ -1,7 +1,7 @@
 import type { GoogleSheet, GoogleWorkbookPorts } from '../application/readFromGoogle'
 import { currentAccessToken, requestToken } from './googleAuth'
 import { pickFromDrive } from './picker'
-import { sheetsValuesFor } from './sheetsClient'
+import { sheetNameInRange, sheetsValuesFor } from './sheetsClient'
 import type { SheetsValues } from './sheetsClient'
 import { EMPTY_TABS, WORKBOOK_TABS, sheetRowsFromValues } from './workbookSnapshot'
 import type { WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
@@ -26,7 +26,7 @@ export async function readSnapshotFrom(sheets: SheetsValues, sheet: GoogleSheet)
     throw new Error(`${sheet.name} has no tab called "ledger", so it is not a Ledgerboard workbook.`)
   }
   const present: WorkbookTab[] = WORKBOOK_TABS.filter((tab) => sheetIds.has(tab))
-  const ranges = await sheets.batchGet(present)
+  const ranges = await sheets.batchGet(present.map(sheetNameInRange))
   const tabs = Object.fromEntries(present.map((tab, index) => [tab, sheetRowsFromValues(ranges[index]?.values ?? [])]))
   return {
     meta: {

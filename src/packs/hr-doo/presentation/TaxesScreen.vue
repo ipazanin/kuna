@@ -42,13 +42,13 @@ const taxes = computed(() => {
   if (current === null) {
     return null
   }
-  const { workbook, scoped, window, filters } = current
+  const { workbook, scoped, profitAndLossRows, window, filters } = current
   const { categories } = workbook
   const tokens = chartTokens()
   const categoryName = names.value.category
-  const byType = taxByType(scoped, categories, filters.period, window)
-  const rate = effectiveTaxRate(scoped, categories, filters.period, window)
-  const taxOnPay = ownerCost(scoped, categories, filters.period, window).taxOnPay
+  const byType = taxByType(profitAndLossRows, categories, filters.period, window)
+  const rate = effectiveTaxRate(profitAndLossRows, categories, filters.period, window)
+  const taxOnPay = ownerCost(profitAndLossRows, categories, filters.period, window).taxOnPay
   const series = categorySeries(
     byType.types.map((type) => type.category),
     tokens,

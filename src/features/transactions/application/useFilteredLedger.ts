@@ -7,8 +7,9 @@ import type { FilterState } from '../../filters/domain/filterState'
 import { presentedTransactions } from '../../settings/domain/profitAndLossLabels'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { ledgerWindowOf } from '../../workbook/domain/workbook'
-import type { Transaction, Workbook } from '../../workbook/domain/workbook'
-import { filterTransactions, scopeTransactions } from '../domain/filterTransactions'
+import { bookingOfAdvance } from '../../workbook/domain/workbook'
+import type { Booking, OwnerAdvance, Transaction, Workbook } from '../../workbook/domain/workbook'
+import { filterTransactions, scopeOwnerAdvances, scopeTransactions } from '../domain/filterTransactions'
 
 /** The workbook on screen with the shared filters applied, in the cuts the screens compute from. */
 export interface FilteredLedger {
@@ -21,6 +22,10 @@ export interface FilteredLedger {
   readonly scoped: readonly Transaction[]
   /** Rows every filter selects, period included. */
   readonly selected: readonly Transaction[]
+  /** The costs the owner paid privately that every filter but the period selects. */
+  readonly scopedAdvances: readonly OwnerAdvance[]
+  /** The scoped rows and the scoped advances: everything profit and loss counts. */
+  readonly profitAndLossRows: readonly Booking[]
   /** Every row of the accounts in view, which balances need whatever else is filtered. */
   readonly accountRows: readonly Transaction[]
 }
@@ -38,12 +43,16 @@ export function useFilteredLedger(): ComputedRef<FilteredLedger | null> {
     const workbook = { ...shown, transactions: presentedTransactions(shown.transactions, shown.settings) }
     const current = filters.value as FilterState
     const accounts = current.accounts
+    const scoped = scopeTransactions(workbook.transactions, current)
+    const scopedAdvances = scopeOwnerAdvances(workbook.ownerAdvances, current)
     return {
       workbook,
       window,
       filters: current,
-      scoped: scopeTransactions(workbook.transactions, current),
+      scoped,
       selected: filterTransactions(workbook.transactions, current, window),
+      scopedAdvances,
+      profitAndLossRows: [...scoped, ...scopedAdvances.map(bookingOfAdvance)],
       accountRows:
         accounts.length === 0
           ? workbook.transactions

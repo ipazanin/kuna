@@ -18,7 +18,7 @@ const RULE_COLUMN_NOTES: Readonly<Record<(typeof RULE_COLUMNS)[number], string>>
   counterparty_iban: 'Condition: the counterparty IBAN, spaces and case ignored.',
   has_counterparty_iban: 'Condition: TRUE when the row must carry a counterparty IBAN, FALSE when it must not, or blank.',
   counterparty_is_own: 'Condition: TRUE when the counterparty is one of the accounts in the accounts tab, or blank.',
-  counterparty_is_client: 'Condition: needs a clients tab, which the workbook does not have yet. Leave it blank.',
+  counterparty_is_client: 'Condition: the app does not test this one yet, so leave it blank and name the client by counterparty_iban.',
   counterparty_contains: 'Condition: text the counterparty contains, accents and case ignored.',
   description_contains: 'Condition: text the description contains, accents and case ignored.',
   description_starts_with: 'Condition: text the description starts with, accents and case ignored.',
@@ -87,6 +87,25 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
   settings: [
     { name: 'key', note: 'A setting name. The note on each key says what it does. Unknown keys are kept and reported.' },
     { name: 'value', note: 'Its value. A blank value means the default.' },
+  ],
+  invoices: [
+    { name: 'number', note: 'The invoice number, entered as text so a number such as 1-1-26 is not read as a date. Each number once. Required.' },
+    { name: 'client', note: 'Who the invoice is for, by the client name in the clients tab. Required.' },
+    { name: 'item', note: 'What was invoiced. Optional.' },
+    { name: 'amount', note: 'The invoice total as a number. Required.' },
+    { name: 'issued', note: 'The issue date, as a date cell. Required.' },
+    { name: 'due', note: 'The due date, as a date cell. Optional. Ageing counts from it, or from the issue date when it is blank.' },
+  ],
+  clients: [
+    { name: 'client', note: 'A short name in lower case, such as northwind. One row per IBAN, so a client paying from two accounts has two rows. Required.' },
+    { name: 'name', note: 'What the screens call the client. Optional.' },
+    { name: 'iban', note: 'An IBAN the client pays from. A payment from it counts against that client’s invoices. Required.' },
+  ],
+  'owner-advances': [
+    { name: 'date', note: 'When the owner paid, as a date cell. Required.' },
+    { name: 'amount', note: 'What the owner paid for the company, as a positive number. Required.' },
+    { name: 'description', note: 'What it was for. Optional.' },
+    { name: 'category', note: 'A category from the categories tab in the operating or taxes bucket. The cost counts there on its date. Required.' },
   ],
 }
 
@@ -176,6 +195,9 @@ export function emptyWorkbookTabs(): WorkbookTabs {
     accounts: [],
     settings: settingsTabRows(DEFAULT_SETTINGS),
     rules: [],
+    invoices: [],
+    clients: [],
+    'owner-advances': [],
   }
 }
 

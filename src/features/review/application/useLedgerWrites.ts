@@ -3,7 +3,6 @@ import type { Ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { undoOf } from '../domain/verdictChanges'
 import type { LedgerVerdictChange, VerdictReceipt } from '../domain/verdictChanges'
 
 /** How long a toast with Undo stays, so there is time to reach the button. */
@@ -21,6 +20,8 @@ export interface LedgerWrites {
   readonly busy: Readonly<Ref<boolean>>
   /** Writes the changes and offers Undo. Resolves to whether they were written. */
   write(changes: readonly LedgerVerdictChange[], done: LedgerWriteToast): Promise<boolean>
+  /** Puts back what the receipt's write replaced, and says in a toast whether it could. */
+  undo(receipt: VerdictReceipt): Promise<void>
 }
 
 /** Ledger writes with their toasts: what was written with Undo beside it, or why nothing was. */
@@ -36,7 +37,7 @@ export function useLedgerWrites(): LedgerWrites {
   async function undo(receipt: VerdictReceipt): Promise<void> {
     busy.value = true
     try {
-      await store.setVerdicts(undoOf(receipt))
+      await store.undoVerdicts(receipt)
       toast.add({ title: 'Undone', description: receipt.changes.length === 1 ? 'The row is back as it was.' : `${receipt.changes.length} rows are back as they were.`, icon: 'i-lucide-undo-2', color: 'neutral' })
     } catch (failure) {
       refused('Not undone', failure)
@@ -47,6 +48,7 @@ export function useLedgerWrites(): LedgerWrites {
 
   return {
     busy,
+    undo,
     async write(changes, done) {
       busy.value = true
       try {

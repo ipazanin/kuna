@@ -21,6 +21,7 @@ const SEED: Readonly<Record<string, { readonly family: string; readonly bucket: 
   'reimbursement-to-owner': { family: 'owner', bucket: 'financing' },
   equipment: { family: 'operating', bucket: 'operating' },
   accounting: { family: 'operating', bucket: 'operating' },
+  consulting: { family: 'operating', bucket: 'operating' },
   'ai-services': { family: 'operating', bucket: 'operating' },
   travel: { family: 'operating', bucket: 'operating' },
   'internal-transfer': { family: 'neutral', bucket: 'neutral' },

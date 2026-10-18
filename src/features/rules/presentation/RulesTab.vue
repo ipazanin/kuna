@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
@@ -42,6 +43,28 @@ const decided = computed(() => {
   }
   return counts
 })
+
+/** A link such as `?tab=rules&rule=accountant` marks that rule and scrolls to it. */
+const route = useRoute()
+const highlightedId = computed(() => (typeof route.query.rule === 'string' ? route.query.rule.toLowerCase() : null))
+const highlightedRow = ref<HTMLElement | null>(null)
+
+function isHighlighted(rule: Rule): boolean {
+  return rule.id.toLowerCase() === highlightedId.value
+}
+
+function holdIfHighlighted(rule: Rule, element: unknown): void {
+  if (isHighlighted(rule)) highlightedRow.value = element instanceof HTMLElement ? element : null
+}
+
+watch(
+  [highlightedId, () => ordered.value.length],
+  async () => {
+    await nextTick()
+    highlightedRow.value?.scrollIntoView({ block: 'center' })
+  },
+  { immediate: true },
+)
 
 const editorOpen = ref(false)
 const editorSource = ref<RuleEditorSource | null>(null)
@@ -121,7 +144,15 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
     </div>
 
     <ol v-if="ordered.length" class="mt-3 border-t border-default" data-testid="rules-list">
-      <li v-for="(rule, index) in ordered" :key="rule.id" class="rule-row" :class="{ disabled: !rule.enabled }" data-testid="rule-row">
+      <li
+        v-for="(rule, index) in ordered"
+        :key="rule.id"
+        :ref="(element) => holdIfHighlighted(rule, element)"
+        class="rule-row"
+        :class="{ disabled: !rule.enabled, highlighted: isHighlighted(rule) }"
+        :aria-current="isHighlighted(rule) ? 'true' : undefined"
+        data-testid="rule-row"
+      >
         <USwitch
           :model-value="rule.enabled"
           :label="rule.enabled ? 'On' : 'Off'"
@@ -179,6 +210,11 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
 
 .rule-row + .rule-row {
   border-top: 1px solid var(--border-default);
+}
+
+.rule-row.highlighted {
+  background: var(--surface-elevated);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .rule-row.disabled .rule-main,

@@ -25,6 +25,9 @@ function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGOR
     ]),
     settings: sheetRowsFromValues(settings),
     rules: [],
+    invoices: [],
+    clients: [],
+    'owner-advances': [],
   }
 }
 
@@ -208,6 +211,66 @@ describe('readWorkbook', () => {
     expect(workbook.accounts.map((account) => account.currency)).toEqual(['EUR', 'GBP'])
     expect(workbook.problems).toEqual([
       { tab: 'accounts', sheetRow: 3, reason: 'travel is in GBP but the workbook counts in EUR, so its amounts read as EUR' },
+    ])
+  })
+
+  it('reads invoices and clients, keeping a number as text and leaving out what the matching cannot use', () => {
+    const workbook = readWorkbook({
+      ...snapshotWith([['date']]),
+      clients: sheetRowsFromValues([
+        ['client', 'name', 'iban'],
+        ['North', 'North Ltd', 'xx00 fake 0101'],
+        ['north', '', 'XX00FAKE0102'],
+        ['south', 'South GmbH', 'XX00FAKE0101'],
+        ['', 'Nobody', 'XX00FAKE0999'],
+      ]),
+      invoices: sheetRowsFromValues([
+        ['number', 'client', 'item', 'amount', 'issued', 'due'],
+        ['1-1-26', 'north', 'Work', 1200.5, 46050, 46081],
+        ['2-1-26', 'north', '', 300, 46080, ''],
+        ['1-1-26', 'North', 'Again', 10, 46090],
+        ['3-1-26', 'east', '', 100, 46090],
+        ['4-1-26', 'north', '', 'lots', 46090],
+        ['5-1-26', 'north', '', 50, '2026-02-01'],
+      ]),
+    })
+
+    expect(workbook.clients).toEqual([{ slug: 'north', name: 'North Ltd', ibans: ['XX00FAKE0101', 'XX00FAKE0102'] }])
+    expect(workbook.invoices.map((invoice) => [invoice.number, invoice.client, invoice.amount, invoice.issued, invoice.due])).toEqual([
+      ['1-1-26', 'north', 120050, '2026-01-28', '2026-02-28'],
+      ['2-1-26', 'north', 30000, '2026-02-27', null],
+      ['3-1-26', 'east', 10000, '2026-03-09', null],
+    ])
+    expect(workbook.problems.filter((problem) => problem.tab !== 'categories').map((problem) => [problem.tab, problem.sheetRow])).toEqual([
+      ['clients', 4],
+      ['clients', 5],
+      ['invoices', 4],
+      ['invoices', 5],
+      ['invoices', 6],
+      ['invoices', 7],
+    ])
+    expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.sheetRow === 5)?.reason).toMatch(/east is not on the clients tab/)
+  })
+
+  it('reads an advance as a cost in its category, and leaves out one outside the operating and taxes buckets', () => {
+    const workbook = readWorkbook({
+      ...snapshotWith([['date']]),
+      'owner-advances': sheetRowsFromValues([
+        ['date', 'amount', 'description', 'category'],
+        [46300, 89, 'Design tool', 'Software'],
+        [46301, -5, 'Refund', 'software'],
+        [46302, 20, 'Sold a chair', 'revenue'],
+        [46303, 15, 'Lunch', 'snacks'],
+      ]),
+    })
+
+    expect(workbook.ownerAdvances).toEqual([
+      { date: '2026-10-05', amount: 8900, description: 'Design tool', category: 'software', family: 'operating', bucket: 'operating', sheetRow: 2 },
+    ])
+    expect(workbook.problems.filter((problem) => problem.tab === 'owner-advances').map((problem) => problem.reason)).toEqual([
+      'the amount "-5" is not a positive number',
+      '"revenue" is in the income bucket, and an advance counts as an operating cost or a tax',
+      '"snacks" is not on the categories tab',
     ])
   })
 })

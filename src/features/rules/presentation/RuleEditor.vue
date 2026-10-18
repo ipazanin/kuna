@@ -7,8 +7,12 @@ import UModal from '@nuxt/ui/components/Modal.vue'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { useLedgerWrites } from '../../review/application/useLedgerWrites'
 import { waitingRowsSettledBy } from '../../review/domain/verdictChanges'
+import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
+import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import { useRulesChangePreview, useRulesWrites } from '../application/useRulesChange'
+import type { CategoryCount } from '../domain/ruleCoverage'
 import { draftChange } from '../domain/ruleDraft'
 import type { EditedRule, RuleDraft } from '../domain/ruleDraft'
 import { categorisationContextOf } from '../domain/transactionFacts'
@@ -20,6 +24,8 @@ export interface RuleEditorSource {
   readonly draft: RuleDraft
   /** The rule on the tab this edits, or null for a new one. */
   readonly edited: EditedRule | null
+  /** How a person filed the rows the rule is made from, when they used more than one category. */
+  readonly split?: readonly CategoryCount[]
 }
 
 /**
@@ -35,6 +41,7 @@ const open = defineModel<boolean>('open', { required: true })
 const store = useWorkbook()
 const { state } = store
 const phone = usePhoneLayout()
+const names = useDisplayNames()
 const rulesWrites = useRulesWrites()
 const ledgerWrites = useLedgerWrites()
 
@@ -89,6 +96,10 @@ const waiting = computed(() => {
   return waitingRowsSettledBy(savedId.value, workbook.transactions, workbook.rules, categorisationContextOf(workbook))
 })
 
+const split = computed(() => (props.source?.split !== undefined && props.source.split.length > 1 ? props.source.split : null))
+const splitRows = computed(() => split.value?.reduce((total, entry) => total + entry.count, 0) ?? 0)
+const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).map((category) => [category.slug, category.bucket])))
+
 const inSheet = computed(() => state.workbook?.source === 'google')
 
 async function applyToWaiting(): Promise<void> {
@@ -111,6 +122,27 @@ async function applyToWaiting(): Promise<void> {
   >
     <template #body>
       <div v-if="savedId === null && draft" class="flex flex-col gap-6" data-testid="rule-editor">
+        <UAlert
+          v-if="split"
+          icon="i-lucide-split"
+          color="warning"
+          variant="subtle"
+          :title="`A person filed these ${splitRows} rows in ${split.length} categories`"
+          data-testid="rule-split"
+        >
+          <template #description>
+            <ul class="mt-1 flex flex-wrap gap-1.5">
+              <li v-for="entry in split" :key="entry.category" class="flex items-center gap-1">
+                <CategoryChip :category="entry.category" :bucket="bucketBySlug.get(entry.category) ?? UNCLASSIFIED" />
+                <span class="figure text-xs">{{ entry.count }}</span>
+              </li>
+            </ul>
+            <p class="mt-2">
+              The form starts on {{ names.category(split[0]!.category) }}, the most common. One rule files every next row the same way, so the
+              back-test lists the others as confirmed rows it would file differently.
+            </p>
+          </template>
+        </UAlert>
         <RuleForm v-model="draft" :rules="state.workbook?.rules ?? []" :categories="state.workbook?.categories ?? []" :editing-id="source?.edited?.id ?? null" />
         <section class="flex flex-col gap-3 border-t border-default pt-5">
           <header>

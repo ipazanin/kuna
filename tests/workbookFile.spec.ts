@@ -20,8 +20,8 @@ function workbookOf(tabs: WorkbookTabs): Workbook {
 
 /** What two reads of the same tabs must agree on. The meta differs by design. */
 function contentOf(workbook: Workbook) {
-  const { transactions, categories, accounts, rules, settings, problems } = workbook
-  return { transactions, categories, accounts, rules, settings, problems }
+  const { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, settings, problems } = workbook
+  return { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, settings, problems }
 }
 
 function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
@@ -33,11 +33,13 @@ function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
 }
 
 describe('the template', () => {
-  it('has the five tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
+  it('has the eight tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
     const tabs = emptyWorkbookTabs()
     const book = XLSX.read(await writeWorkbookFile(tabs, workbookOf(tabs)), { type: 'array' })
 
-    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules'])
+    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'owner-advances'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category'])
+    expect(book.Sheets.invoices?.A1?.c?.[0]?.t).toMatch(/as text/)
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.rules!, { header: 1 })[0]).toEqual([...RULE_COLUMNS])
     expect(book.Sheets.rules?.B1?.c?.[0]?.t).toMatch(/first enabled one/)
     const ledgerHeader = XLSX.utils.sheet_to_json<string[]>(book.Sheets.ledger!, { header: 1 })[0]
@@ -78,7 +80,7 @@ describe('reading an xlsx file', () => {
       }),
     )
 
-    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules'])
+    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'owner-advances'])
     expect(contents.tabs.ledger.map((row) => row.sheetRow)).toEqual([2, 4])
     expect(contents.tabs.ledger[0]?.cells.note).toBe('kept')
   })
@@ -108,7 +110,7 @@ describe('reading an xlsx file', () => {
       accounts: ['main', 'side'],
       dateRange: { from: '2026-10-04', to: '2026-10-05' },
       categoryCount: 0,
-      defaultedTabs: ['categories', 'accounts', 'rules'],
+      defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'owner-advances'],
       refusal: null,
     })
     expect(preview.summary.problems.map((problem) => [problem.tab, problem.sheetRow])).toEqual([
@@ -162,6 +164,10 @@ describe('exporting', () => {
     const reimported = await readWorkbookFile(await writeWorkbookFile(imported.tabs, workbookOf(imported.tabs)))
 
     expect(contentOf(workbookOf(imported.tabs))).toEqual(contentOf(workbook))
+    expect(workbook.invoices.length).toBeGreaterThan(10)
+    expect(workbook.clients).toHaveLength(2)
+    expect(workbook.ownerAdvances).toHaveLength(3)
+    expect(imported.tabs.invoices.every((row) => typeof row.cells.number === 'string')).toBe(true)
     expect(imported.tabs.ledger[3]?.cells.receipt).toBe('R-17')
     expect(reimported.tabs).toEqual(imported.tabs)
   })

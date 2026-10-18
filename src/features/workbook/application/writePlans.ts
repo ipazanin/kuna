@@ -1,12 +1,18 @@
+import { serialFromCivilDate } from '../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../shared/calendar/civilDate'
+import { amountOf } from '../../../shared/money/money'
+import type { Money } from '../../../shared/money/money'
 import { cellText } from '../../../shared/text/cellText'
 import type { LedgerVerdictChange, VerdictReceipt } from '../../review/domain/verdictChanges'
 import { rulesTabAfter, sameCells } from '../../rules/domain/rulesTabChange'
 import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import { rulesTabRefusals } from '../../rules/domain/rulesTabRefusals'
 import { parseSettings } from '../../settings/domain/settings'
+import type { DefinedBucket } from '../domain/bucket'
 import { isSameLedgerRow } from '../domain/ledgerRowKey'
+import { ADVANCE_BUCKETS } from '../domain/workbook'
 import type { LedgerRowKey } from '../domain/ledgerRowKey'
-import { definedCategorySlugs, ledgerRowKeyOfRow } from '../infrastructure/workbookReader'
+import { definedCategories, definedCategorySlugs, ledgerRowKeyOfRow } from '../infrastructure/workbookReader'
 import type { CellValue, SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
 import { WorkbookWriteRefused } from './workbookWriter'
 import type { CellEdit, FreshTabs, RowAppend, TabEdits, TabRead } from './workbookWriter'
@@ -215,6 +221,165 @@ export function verifySettingsChange(after: FreshTabs, changes: readonly Setting
     const reads = matches.length === 0 ? '' : cellText(matches[0]!.cells.value)
     if (matches.length > 1 || reads !== cellText(change.value)) {
       throw new Error(`The write reached the workbook, but "${key}" does not read back as written. Check the settings tab.`)
+    }
+  }
+}
+
+/** A cost the owner paid privately, as the Add advance form gives it. */
+export interface OwnerAdvanceDraft {
+  readonly date: CivilDate
+  /** Positive. */
+  readonly amount: Money
+  readonly description: string
+  readonly category: string
+}
+
+export const OWNER_ADVANCE_COLUMNS = ['date', 'amount', 'description', 'category'] as const
+
+/** An advance appended, which Undo clears again. */
+export interface OwnerAdvanceReceipt {
+  readonly cells: Readonly<Record<(typeof OWNER_ADVANCE_COLUMNS)[number], CellValue>>
+  /** The row it was written to. */
+  readonly sheetRow: number
+}
+
+export interface OwnerAdvancePlan {
+  readonly edits: TabEdits
+  readonly cells: OwnerAdvanceReceipt['cells']
+  /** Rows that already held exactly these cells, so the new one can be told apart after the write. */
+  readonly alreadyThere: readonly number[]
+}
+
+/**
+ * Appends one advance. Refused unless the tab has the four columns, the amount is a positive
+ * figure in cents, and the category is on the categories tab as it is now, in the operating or
+ * taxes bucket. The date is a serial number, so the cell is a date cell like one typed in the Sheet.
+ */
+export function planOwnerAdvanceAppend(fresh: FreshTabs, draft: OwnerAdvanceDraft): OwnerAdvancePlan {
+  const advances = requireTab(fresh, 'owner-advances')
+  const missing = OWNER_ADVANCE_COLUMNS.filter((column) => !advances.header.some((name) => name.trim() === column))
+  if (missing.length > 0) {
+    throw new WorkbookWriteRefused(`The owner-advances tab has no ${missing.map((column) => `"${column}"`).join(', ')} column, so nothing was written.`)
+  }
+  if (!Number.isInteger(draft.amount) || draft.amount <= 0) {
+    throw new WorkbookWriteRefused('An advance is a positive amount, so nothing was written.')
+  }
+  const slug = comparable(draft.category)
+  const category = definedCategories(requireTab(fresh, 'categories').rows).find((candidate) => candidate.slug === slug)
+  if (category === undefined) {
+    throw new WorkbookWriteRefused(`"${draft.category}" is not a category on the categories tab, so nothing was written.`)
+  }
+  if (!(ADVANCE_BUCKETS as readonly string[]).includes(category.bucket)) {
+    throw new WorkbookWriteRefused(`"${slug}" is in the ${category.bucket} bucket now, and an advance counts as an operating cost or a tax. Nothing was written.`)
+  }
+  const cells = { date: serialFromCivilDate(draft.date), amount: amountOf(draft.amount), description: draft.description.trim(), category: slug }
+  return {
+    edits: { cells: [], appends: [{ tab: 'owner-advances', cells }] },
+    cells,
+    alreadyThere: advances.rows.filter((row) => holdsAdvance(row, cells)).map((row) => row.sheetRow),
+  }
+}
+
+/** After the write: one more row holds the advance than before. Returns what Undo clears. */
+export function verifyOwnerAdvanceAppend(after: FreshTabs, plan: OwnerAdvancePlan): OwnerAdvanceReceipt {
+  const added = requireTab(after, 'owner-advances').rows.filter((row) => holdsAdvance(row, plan.cells) && !plan.alreadyThere.includes(row.sheetRow))
+  if (added.length !== 1) {
+    throw new Error('The write reached the workbook, but the advance does not read back as written. Check the owner-advances tab.')
+  }
+  return { cells: plan.cells, sheetRow: added[0]!.sheetRow }
+}
+
+/**
+ * Clears an appended advance again: its row if it still holds exactly what was written, else the
+ * one row that does. Refused when none or several do.
+ */
+export function planOwnerAdvanceRemoval(fresh: FreshTabs, receipt: OwnerAdvanceReceipt): TabEdits {
+  const rows = requireTab(fresh, 'owner-advances').rows
+  const holding = rows.filter((row) => holdsAdvance(row, receipt.cells))
+  const row = holding.find((candidate) => candidate.sheetRow === receipt.sheetRow) ?? (holding.length === 1 ? holding[0] : undefined)
+  if (row === undefined) {
+    throw new WorkbookWriteRefused(
+      holding.length === 0
+        ? 'The advance is no longer on the owner-advances tab as it was written, so nothing was cleared.'
+        : `${holding.length} rows of the owner-advances tab hold this advance, so the app cannot tell which to clear. Delete it in the Sheet.`,
+    )
+  }
+  return {
+    cells: Object.keys(row.cells)
+      .filter((column) => (OWNER_ADVANCE_COLUMNS as readonly string[]).includes(column))
+      .map((column): CellEdit => ({ tab: 'owner-advances', sheetRow: row.sheetRow, column, value: '' })),
+    appends: [],
+  }
+}
+
+/** After the write: the cleared row holds nothing of the advance. */
+export function verifyOwnerAdvanceRemoval(after: FreshTabs, edits: TabEdits): void {
+  const cleared = new Set(edits.cells.map((edit) => edit.sheetRow))
+  const leftOver = requireTab(after, 'owner-advances').rows.filter(
+    (row) => cleared.has(row.sheetRow) && OWNER_ADVANCE_COLUMNS.some((column) => cellText(row.cells[column]) !== ''),
+  )
+  if (leftOver.length > 0) {
+    throw new Error(`The write reached the workbook, but row ${leftOver[0]!.sheetRow} of the owner-advances tab still holds the advance. Check it in the Sheet.`)
+  }
+}
+
+function holdsAdvance(row: SheetRow, cells: OwnerAdvanceReceipt['cells']): boolean {
+  return OWNER_ADVANCE_COLUMNS.every((column) =>
+    column === 'category' ? comparable(cellText(row.cells[column])) === comparable(cellText(cells[column])) : cellText(row.cells[column]) === cellText(cells[column]),
+  )
+}
+
+/** A category's bucket as the app read it, and the bucket it is to have. */
+export interface BucketChange {
+  readonly category: string
+  readonly expected: DefinedBucket
+  readonly bucket: DefinedBucket
+}
+
+/**
+ * Sets the bucket of each category on its row of the categories tab. Refused when a category is on
+ * no row or on several, or its bucket changed since the app read it.
+ */
+export function planBucketChanges(fresh: FreshTabs, changes: readonly BucketChange[]): TabEdits {
+  const categories = requireTab(fresh, 'categories')
+  for (const column of ['category', 'bucket']) {
+    if (!categories.header.some((name) => name.trim() === column)) {
+      throw new WorkbookWriteRefused(`The categories tab has no "${column}" column, so nothing was written.`)
+    }
+  }
+  const refusals: string[] = []
+  const cells: CellEdit[] = []
+  for (const change of changes) {
+    const slug = comparable(change.category)
+    const rows = categories.rows.filter((row) => comparable(cellText(row.cells.category)) === slug)
+    if (rows.length !== 1) {
+      refusals.push(
+        rows.length === 0
+          ? `"${slug}" is no longer on the categories tab.`
+          : `"${slug}" is on ${rows.length} rows of the categories tab (rows ${rows.map((row) => row.sheetRow).join(', ')}), so the app cannot tell which to change.`,
+      )
+      continue
+    }
+    const row = rows[0]!
+    const current = comparable(cellText(row.cells.bucket))
+    if (current !== change.expected) {
+      refusals.push(`"${slug}" changed since the app read it: its bucket is now ${current || 'blank'}.`)
+      continue
+    }
+    if (current !== change.bucket) {
+      cells.push({ tab: 'categories', sheetRow: row.sheetRow, column: 'bucket', value: change.bucket })
+    }
+  }
+  refuseOn(refusals)
+  return { cells, appends: [] }
+}
+
+/** After the write: each category is defined once, with the bucket written. */
+export function verifyBucketChanges(after: FreshTabs, changes: readonly BucketChange[]): void {
+  const defined = definedCategories(requireTab(after, 'categories').rows)
+  for (const change of changes) {
+    if (defined.find((category) => category.slug === comparable(change.category))?.bucket !== change.bucket) {
+      throw new Error(`The write reached the workbook, but "${change.category}" does not read back in the ${change.bucket} bucket. Check the categories tab.`)
     }
   }
 }

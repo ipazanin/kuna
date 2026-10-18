@@ -4,7 +4,7 @@ import { transactionsInPeriod } from '../../filters/domain/filterState'
 import type { FilterState } from '../../filters/domain/filterState'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { needsReview } from '../../workbook/domain/needsReview'
-import type { Transaction } from '../../workbook/domain/workbook'
+import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
 
 /**
  * The rows a filter state selects, in the order given. The window is the whole ledger's, so the
@@ -36,6 +36,28 @@ export function scopeTransactions(transactions: readonly Transaction[], filters:
       (max === null || transaction.amount <= max) &&
       (!filters.needsReview || needsReview(transaction)) &&
       (text === '' || searchableText(transaction).includes(text)),
+  )
+}
+
+/**
+ * The owner's advances every filter but the period selects. An advance was paid from no account
+ * of the company's, to no counterparty in the ledger, and never waits for review, so a filter on
+ * any of those leaves every advance out. Its amount filters as the cost it books.
+ */
+export function scopeOwnerAdvances(advances: readonly OwnerAdvance[], filters: FilterState): OwnerAdvance[] {
+  if (filters.accounts.length > 0 || filters.counterparties.length > 0 || filters.needsReview) {
+    return []
+  }
+  const text = fold(filters.text)
+  const { min, max } = filters.amount
+  return advances.filter(
+    (advance) =>
+      includes(filters.buckets, advance.bucket) &&
+      includes(filters.families, advance.family) &&
+      includes(filters.categories, advance.category) &&
+      (min === null || -advance.amount >= min) &&
+      (max === null || -advance.amount <= max) &&
+      (text === '' || fold([advance.description, advance.category].join(' ')).includes(text)),
   )
 }
 

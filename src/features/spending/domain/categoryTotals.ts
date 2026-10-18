@@ -8,7 +8,7 @@ import type { Period } from '../../filters/domain/filterState'
 import { bucketTotals } from '../../workbook/domain/bucketTotals'
 import { directionOf } from '../../workbook/domain/bucket'
 import type { Bucket, Direction } from '../../workbook/domain/bucket'
-import type { Transaction } from '../../workbook/domain/workbook'
+import type { Booking } from '../../workbook/domain/workbook'
 
 export interface CategoryTotal {
   readonly category: string
@@ -26,18 +26,18 @@ export interface CategoryTotal {
  * before cost. Financing and neutral rows move money without either party being better off, and
  * unclassified rows have no bucket yet, so none of them are listed.
  */
-export function categoryTotals(transactions: readonly Transaction[], period: Period, window: LedgerWindow): CategoryTotal[] {
-  const inPeriod = transactionsInPeriod(transactions, period, window)
+export function categoryTotals(bookings: readonly Booking[], period: Period, window: LedgerWindow): CategoryTotal[] {
+  const inPeriod = transactionsInPeriod(bookings, period, window)
   const totals = bucketTotals(inPeriod)
   const sums = new Map<string, { readonly family: string; readonly bucket: Bucket; readonly direction: Direction; signed: Money }>()
-  for (const transaction of inPeriod) {
-    const direction = directionOf(transaction.bucket)
+  for (const booking of inPeriod) {
+    const direction = directionOf(booking.bucket)
     if (direction === null) {
       continue
     }
-    const sum = sums.get(transaction.category) ?? { family: transaction.family, bucket: transaction.bucket, direction, signed: ZERO }
-    sum.signed = addMoney(sum.signed, transaction.amount)
-    sums.set(transaction.category, sum)
+    const sum = sums.get(booking.category) ?? { family: booking.family, bucket: booking.bucket, direction, signed: ZERO }
+    sum.signed = addMoney(sum.signed, booking.amount)
+    sums.set(booking.category, sum)
   }
   return [...sums]
     .map(([category, sum]): CategoryTotal => {
@@ -72,18 +72,18 @@ export interface OutsideProfitAndLossTotal {
  * loss rather than in it, and have no share of either direction. Largest movement first.
  */
 export function outsideProfitAndLossTotals(
-  transactions: readonly Transaction[],
+  bookings: readonly Booking[],
   period: Period,
   window: LedgerWindow,
 ): OutsideProfitAndLossTotal[] {
   const sums = new Map<string, { readonly family: string; signed: Money }>()
-  for (const transaction of transactionsInPeriod(transactions, period, window)) {
-    if (transaction.bucket !== 'financing') {
+  for (const booking of transactionsInPeriod(bookings, period, window)) {
+    if (booking.bucket !== 'financing') {
       continue
     }
-    const sum = sums.get(transaction.category) ?? { family: transaction.family, signed: ZERO }
-    sum.signed = addMoney(sum.signed, transaction.amount)
-    sums.set(transaction.category, sum)
+    const sum = sums.get(booking.category) ?? { family: booking.family, signed: ZERO }
+    sum.signed = addMoney(sum.signed, booking.amount)
+    sums.set(booking.category, sum)
   }
   return [...sums]
     .map(([category, sum]): OutsideProfitAndLossTotal => ({

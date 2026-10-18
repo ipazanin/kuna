@@ -107,6 +107,8 @@ const LEGACY_CLOSES = '2026-03-02'
 
 const PAYEES = {
   client: { name: 'Northwind Analytics Ltd', iban: 'XX00FAKE0000000000000010' },
+  secondClient: { name: 'Lumen Labs GmbH', iban: 'XX00FAKE0000000000000012' },
+  unknownPayer: { name: 'J. Doe Consulting', iban: 'XX00FAKE0000000000000090' },
   owner: { name: 'Alex Example', iban: 'XX00FAKE0000000000000020' },
   pension: { name: 'PENSION FUND', iban: 'XX00FAKE0000000000000030' },
   health: { name: 'HEALTH INSURANCE FUND', iban: 'XX00FAKE0000000000000031' },
@@ -118,6 +120,16 @@ const PAYEES = {
   insurer: { name: 'Steady Health Plans', iban: 'XX00FAKE0000000000000070' },
   grantor: { name: 'Regional Development Agency', iban: 'XX00FAKE0000000000000080' },
 } as const
+
+interface FakeInvoice {
+  readonly number: string
+  readonly client: string
+  readonly item: string
+  readonly amount: number
+  readonly issued: string
+  /** Blank on an invoice that gave no due date. */
+  readonly due: string
+}
 
 interface Booking {
   readonly date: string
@@ -160,17 +172,21 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
     accounts: sheetRowsFromValues(values.accounts),
     settings: sheetRowsFromValues(values.settings),
     rules: sheetRowsFromValues(values.rules),
+    invoices: sheetRowsFromValues(values.invoices),
+    clients: sheetRowsFromValues(values.clients),
+    'owner-advances': sheetRowsFromValues(values['owner-advances']),
   }
 }
 
 /** The tabs as the Sheets API returns them: header row first, dates as serial numbers. */
 export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<WorkbookTab, CellValue[][]> {
+  const { bookings, invoices } = fakeBooks()
   return {
     settings:
       source === 'google'
         ? [['key', 'value'], ['card_settlement_ibans', '']]
         : [['key', 'value'], ['template_version', 1], ['company_name', 'Example Studio'], ['currency', 'EUR']],
-    ledger: ledgerValues(bookings()),
+    ledger: ledgerValues(bookings),
     categories: [
       ['category', 'family', 'bucket', 'colour', 'roles'],
       ...CATEGORY_SEED.flatMap((group) =>
@@ -179,6 +195,21 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
     ],
     accounts: [['account', 'iban'], ...Object.entries(ACCOUNTS).map(([account, iban]) => [account, iban])],
     rules: rulesValues(),
+    invoices: [
+      ['number', 'client', 'item', 'amount', 'issued', 'due'],
+      ...invoices.map((invoice) => [invoice.number, invoice.client, invoice.item, invoice.amount, serialOf(invoice.issued), invoice.due === '' ? '' : serialOf(invoice.due)]),
+    ],
+    clients: [
+      ['client', 'name', 'iban'],
+      ['northwind', 'Northwind Analytics', PAYEES.client.iban],
+      ['lumen', 'Lumen Labs', PAYEES.secondClient.iban],
+    ],
+    'owner-advances': [
+      ['date', 'amount', 'description', 'category'],
+      [serialOf('2026-02-03'), 212.5, 'Train tickets to the client, paid privately', 'travel'],
+      [serialOf('2026-08-21'), 89, 'Design tool, annual plan on the owner’s card', 'software-subscriptions'],
+      [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies'],
+    ],
   }
 }
 
@@ -189,6 +220,7 @@ const RULE_SEED: readonly RuleSeed[] = [
   { rule: 'own-account', counterparty_is_own: true, category: 'internal-transfer', note: 'A move between our own accounts.' },
   { rule: 'client-revenue', counterparty_iban: PAYEES.client.iban, direction: 'credit', category: 'revenue', note: 'The client pays invoices from this account.' },
   { rule: 'client-refund', counterparty_iban: PAYEES.client.iban, direction: 'debit', category: 'client-refund' },
+  { rule: 'second-client-revenue', counterparty_iban: PAYEES.secondClient.iban, direction: 'credit', category: 'revenue' },
   { rule: 'owner-salary', counterparty_iban: PAYEES.owner.iban, description_starts_with: 'SALARY FOR', category: 'salary-net' },
   { rule: 'owner-rent', counterparty_iban: PAYEES.owner.iban, description_starts_with: 'HOME OFFICE RENT', category: 'rent-owner' },
   { rule: 'owner-guard', counterparty_iban: PAYEES.owner.iban, confidence: 'review', note: 'The owner account carries many purposes, so the rest wait for a person.' },
@@ -217,9 +249,22 @@ function rulesValues(): CellValue[][] {
   ]
 }
 
-function bookings(): Booking[] {
+/**
+ * The bank rows and the invoices they pay. The client is billed at each month's end and pays early
+ * the next month, except in the loss month, whose invoice it pays late. One payment runs 120 over
+ * its invoice and is refunded, and one runs 500 short, so the newest invoice is part paid. A second
+ * client leaves two invoices open, and one credit comes from an IBAN no client names.
+ */
+function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInvoice[] } {
   const random = seededRandom(20251)
   const vary = (base: number, spread: number): number => roundToCent(base + (random() - 0.5) * 2 * spread)
+  const invoices: FakeInvoice[] = []
+  const invoice = (client: string, item: string, amount: number, issued: string, due = addOneMonth(issued)): void => {
+    const year = issued.slice(2, 4)
+    const sequence = invoices.filter((earlier) => earlier.client === client && earlier.issued.slice(2, 4) === year).length + 1
+    const number = client === 'northwind' ? `${sequence}-1-${year}` : `LL-${String(invoices.filter((earlier) => earlier.client === client).length + 1).padStart(3, '0')}`
+    invoices.push({ number, client, item, amount, issued, due })
+  }
   const all: Booking[] = [
     booking('2025-05-14', 'Alex Example', PAYEES.owner.iban, 'Share capital paid in', 2500, 'share-capital', undefined, 'human'),
     booking('2025-05-20', 'Brightdesk Accounting', PAYEES.accountant.iban, 'Company registration', -450, 'accounting'),
@@ -231,10 +276,18 @@ function bookings(): Booking[] {
     const previous = monthNumber === 1 ? `${year - 1}-12` : `${year}-${String(monthNumber - 1).padStart(2, '0')}`
     const day = (dayOfMonth: number): string => `${month}-${String(dayOfMonth).padStart(2, '0')}`
 
+    const billed = vary(7200, 400)
+    const invoiced = previous === '2026-05' ? roundToCent(billed - 120) : previous === '2026-08' ? roundToCent(billed + 500) : billed
+    invoice('northwind', `Analytics work, ${previous}`, invoiced, lastDayOf(previous))
     if (month !== LOSS_MONTH) {
-      all.push(booking(day(4), PAYEES.client.name, PAYEES.client.iban, `Invoice ${previous}`, vary(7200, 400), 'revenue'))
+      all.push(booking(day(4), PAYEES.client.name, PAYEES.client.iban, `Invoice ${previous}`, billed, 'revenue'))
+    }
+    if (month === '2026-01') {
+      const late = invoices.find((earlier) => earlier.issued === lastDayOf('2025-10'))!
+      all.push(booking(day(19), PAYEES.client.name, PAYEES.client.iban, 'Invoice 2025-10, paid late', late.amount, 'revenue'))
     }
     if (month === '2026-04') {
+      invoice('northwind', 'Extra sprint', 4800, '2026-03-25')
       all.push(booking(day(4), PAYEES.client.name, PAYEES.client.iban, 'Invoice, extra sprint', 4800, 'revenue'))
     }
     all.push(
@@ -281,11 +334,16 @@ function bookings(): Booking[] {
     booking('2026-05-18', PAYEES.taxOffice.name, PAYEES.taxOffice.iban, 'Dividend tax 2025', -400, 'dividend-tax', undefined, 'human'),
     booking('2026-05-19', PAYEES.owner.name, PAYEES.owner.iban, 'Loan repaid', 3000, 'owner-loan-repaid', undefined, 'human'),
     booking('2026-06-09', PAYEES.stateBudget.name, PAYEES.stateBudget.iban, 'Tax overpaid in 2025', 180.3, 'tax-refund', undefined, 'human'),
-    booking('2026-07-14', PAYEES.client.name, PAYEES.client.iban, 'Refund of a double payment', -120, 'client-refund'),
+    booking('2026-07-14', PAYEES.client.name, PAYEES.client.iban, 'Refund of an overpayment', -120, 'client-refund'),
+    booking('2026-05-22', PAYEES.unknownPayer.name, PAYEES.unknownPayer.iban, 'Payment, no reference', 650, 'revenue', undefined, 'human'),
+    booking('2026-07-10', PAYEES.secondClient.name, PAYEES.secondClient.iban, 'Invoice LL-001', 1500, 'revenue'),
     booking('2026-08-08', 'GADGET CORNER', '', 'Card purchase', -38.9, 'equipment', undefined, 'ai'),
     booking('2026-10-08', 'SNACK KIOSK', '', 'Card purchase', -6.4, 'card-purchase-unknown', undefined, 'ai'),
   )
-  return all
+  invoice('lumen', 'Workshop', 1500, '2026-05-12')
+  invoice('lumen', 'Data audit', 2400, '2026-06-15', '')
+  invoice('lumen', 'Follow-up review', 1800, '2026-08-14')
+  return { bookings: all, invoices }
 }
 
 function booking(
@@ -364,6 +422,18 @@ function ledgerValues(entries: readonly Booking[]): CellValue[][] {
       ]
     }),
   ]
+}
+
+function lastDayOf(month: string): string {
+  const [year, monthNumber] = month.split('-').map(Number) as [number, number]
+  return new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10)
+}
+
+/** The same day a month later, or that month's last day when it is shorter, as the invoice generator sets a due date. */
+function addOneMonth(date: string): string {
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number]
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(year, month, Math.min(day, lastDay))).toISOString().slice(0, 10)
 }
 
 function accountOn(date: string): AccountSlug {

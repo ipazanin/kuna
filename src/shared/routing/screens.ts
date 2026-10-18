@@ -5,6 +5,7 @@ export type ScreenPath =
   | '/spending'
   | '/period-review'
   | '/cash'
+  | '/receivables'
   | '/taxes'
   | '/owner'
   | '/review'
@@ -27,6 +28,7 @@ export const SCREENS: readonly Screen[] = [
   { path: '/spending', title: 'Spending', icon: 'i-lucide-chart-bar' },
   { path: '/period-review', title: 'Period review', icon: 'i-lucide-calendar-range' },
   { path: '/cash', title: 'Cash', icon: 'i-lucide-wallet' },
+  { path: '/receivables', title: 'Receivables', icon: 'i-lucide-receipt-text' },
   { path: '/taxes', title: 'Taxes', icon: 'i-lucide-landmark', ownerPayPack: true },
   { path: '/owner', title: 'Owner', icon: 'i-lucide-user-round', ownerPayPack: true },
   { path: '/review', title: 'Review', icon: 'i-lucide-inbox' },

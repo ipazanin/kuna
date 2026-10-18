@@ -10,10 +10,13 @@ export const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spr
 
 const NOTE_AUTHOR = 'Ledgerboard'
 
-const COLUMN_FORMATS: Readonly<Record<string, string>> = {
-  date: 'yyyy-mm-dd',
-  amount: '#,##0.00',
-  balance: '#,##0.00',
+const DATE_FORMAT = 'yyyy-mm-dd'
+const AMOUNT_FORMAT = '#,##0.00'
+
+const COLUMN_FORMATS: Readonly<Partial<Record<WorkbookTab, Readonly<Record<string, string>>>>> = {
+  ledger: { date: DATE_FORMAT, amount: AMOUNT_FORMAT, balance: AMOUNT_FORMAT },
+  invoices: { amount: AMOUNT_FORMAT, issued: DATE_FORMAT, due: DATE_FORMAT },
+  'owner-advances': { date: DATE_FORMAT, amount: AMOUNT_FORMAT },
 }
 
 /** A tab as rows of cells, header first, each data row at its own row number. */
@@ -85,7 +88,7 @@ export async function writeWorkbookFile(tabs: WorkbookTabs, workbook: Workbook):
       if (note !== undefined) {
         attachNote(sheet[XLSX.utils.encode_cell({ r: 0, c: column })], note)
       }
-      const format = tab === 'ledger' ? COLUMN_FORMATS[name] : undefined
+      const format = COLUMN_FORMATS[tab]?.[name]
       for (let row = 1; row <= grid.rows.length; row += 1) {
         const cell: CellObject | undefined = sheet[XLSX.utils.encode_cell({ r: row, c: column })]
         if (cell === undefined) continue
@@ -112,7 +115,7 @@ function attachNote(cell: CellObject | undefined, text: string): void {
 function columnWidth(tab: WorkbookTab, name: string): number {
   if (tab === 'settings') return name === 'key' ? 22 : 28
   if (tab === 'rules') return name === 'note' ? 60 : name === 'rule' ? 28 : 14
-  return ['description', 'counterparty', 'statement'].includes(name) ? 32 : name.endsWith('iban') || name === 'reference' ? 26 : 14
+  return ['description', 'counterparty', 'statement', 'item'].includes(name) ? 32 : name.endsWith('iban') || name === 'reference' ? 26 : 14
 }
 
 /** The grid of every tab, without SheetJS, so the layout can be tested on its own. */
@@ -131,6 +134,9 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
     accounts: gridFor('accounts', tabs.accounts),
     settings: gridFor('settings', tabs.settings.length === 0 ? settingsTabRows(workbook.settings) : tabs.settings),
     rules: gridFor('rules', tabs.rules),
+    invoices: gridFor('invoices', tabs.invoices),
+    clients: gridFor('clients', tabs.clients),
+    'owner-advances': gridFor('owner-advances', tabs['owner-advances']),
   }
 }
 

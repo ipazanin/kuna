@@ -8,7 +8,7 @@ import { drillToTransactions, monthPeriod } from '../../filters/domain/drillTarg
 import type { Figure } from '../../filters/domain/drillTarget'
 import { EMPTY_PROFIT_AND_LOSS, LINE_BUCKETS, forEachLine, monthlyBucketTotals } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLoss, ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
-import type { Transaction } from '../../workbook/domain/workbook'
+import type { Booking } from '../../workbook/domain/workbook'
 
 /** The average month over a run of months ending with this one. */
 export interface RollingAverage {
@@ -34,9 +34,9 @@ export interface MonthOfProfitAndLoss {
 }
 
 /** Every month from the ledger's first to its newest, ascending. A month with no rows reads as zero. */
-export function monthlyProfitAndLoss(transactions: readonly Transaction[], window: LedgerWindow): MonthOfProfitAndLoss[] {
+export function monthlyProfitAndLoss(bookings: readonly Booking[], window: LedgerWindow): MonthOfProfitAndLoss[] {
   const months = monthsFrom(window.firstMonth, window.partMonth)
-  const totalsByMonth = monthlyBucketTotals(transactions, months)
+  const totalsByMonth = monthlyBucketTotals(bookings, months)
   const series = months.map((month) => ({
     month,
     complete: isCompleteMonth(window, month),

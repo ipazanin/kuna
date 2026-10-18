@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { anchorWindow } from '../../../shared/calendar/ledgerWindow'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
+import { negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
@@ -72,9 +73,57 @@ export interface Transaction {
   readonly sheetRow: number
 }
 
+/** What profit and loss counts of a row: a bank transaction, or a cost the owner paid privately. */
+export type Booking = Pick<Transaction, 'date' | 'amount' | 'category' | 'family' | 'bucket'>
+
+/** One invoice on the `invoices` tab, which the invoice generator appends to. */
+export interface Invoice {
+  /** Text, such as `1-1-26`. */
+  readonly number: string
+  /** The client slug, as the `clients` tab names it. */
+  readonly client: string
+  readonly item: string
+  readonly amount: Money
+  readonly issued: CivilDate
+  /** Null when the tab leaves it blank. */
+  readonly due: CivilDate | null
+  /** The 1-based row on the tab, which is also the order the invoices were written in. */
+  readonly sheetRow: number
+}
+
+/** A client from the `clients` tab, which holds one row per IBAN. */
+export interface Client {
+  readonly slug: string
+  /** Blank when no row of the client names it. */
+  readonly name: string
+  /** Normalised. A payment from one of them is the client's. */
+  readonly ibans: readonly string[]
+}
+
+/** A cost the owner paid privately for the company, from the `owner-advances` tab. */
+export interface OwnerAdvance {
+  readonly date: CivilDate
+  /** What the owner paid, positive. */
+  readonly amount: Money
+  readonly description: string
+  /** A category in the operating or taxes bucket. */
+  readonly category: string
+  readonly family: string
+  readonly bucket: Bucket
+  readonly sheetRow: number
+}
+
+/** The buckets a cost the owner paid privately may count in. */
+export const ADVANCE_BUCKETS = ['operating', 'taxes'] as const satisfies readonly DefinedBucket[]
+
+/** An advance as profit and loss counts it: a cost on its date, in its category. */
+export function bookingOfAdvance(advance: OwnerAdvance): Booking {
+  return { date: advance.date, amount: negateMoney(advance.amount), category: advance.category, family: advance.family, bucket: advance.bucket }
+}
+
 /** A row the reader could not turn into a fact, kept so the screen can say what was left out. */
 export interface WorkbookProblem {
-  readonly tab: 'ledger' | 'categories' | 'accounts' | 'settings' | 'rules'
+  readonly tab: 'ledger' | 'categories' | 'accounts' | 'settings' | 'rules' | 'invoices' | 'clients' | 'owner-advances'
   readonly sheetRow: number
   readonly reason: string
 }
@@ -94,6 +143,11 @@ export interface Workbook {
   readonly accounts: readonly Account[]
   /** Every rule the `rules` tab could read, disabled ones included, in the order they are tried. */
   readonly rules: readonly Rule[]
+  /** In the order the tab holds them. */
+  readonly invoices: readonly Invoice[]
+  readonly clients: readonly Client[]
+  /** In the order the tab holds them. */
+  readonly ownerAdvances: readonly OwnerAdvance[]
   readonly settings: Settings
   readonly problems: readonly WorkbookProblem[]
 }

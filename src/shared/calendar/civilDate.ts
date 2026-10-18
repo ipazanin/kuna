@@ -25,6 +25,11 @@ export function civilDateFromSerial(serial: number): CivilDate {
   return fromUtc(SERIAL_EPOCH + Math.floor(serial) * MILLISECONDS_PER_DAY)
 }
 
+/** The serial number Sheets and Excel give this day as a date cell. */
+export function serialFromCivilDate(date: CivilDate): number {
+  return (toUtc(date) - SERIAL_EPOCH) / MILLISECONDS_PER_DAY
+}
+
 export function parseCivilDate(text: string): CivilDate | null {
   const match = CIVIL_DATE_PATTERN.exec(text)
   if (match === null) {

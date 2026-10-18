@@ -9,7 +9,8 @@ With a Google Sheet, the app asks Google for `drive.file`, which covers files th
 Google Picker or that the app creates, and for `openid email`, which tells it which account signed
 in. The app reads the Sheet and keeps a copy in IndexedDB. It writes only what the user saves, and
 only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, rows
-on the `rules` tab, and rows on the `settings` tab. See *Write-back* below.
+on the `rules`, `settings` and `owner-advances` tabs, and the `bucket` of the two loan categories.
+See *Write-back* below.
 
 On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
 start from the empty template. Settings has "Switch data source" for the same three choices.
@@ -68,6 +69,9 @@ take their defaults.
 | `accounts` | `account`, `iban`, an optional `currency`, and an optional `label` |
 | `settings` | `key`, `value`, one row per setting |
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out. |
+| `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. |
+| `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. |
+| `owner-advances` | `date`, `amount` (positive), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. |
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
 and a capital first letter, so `ai-services` reads "AI services". Links and filters keep the name.
@@ -114,12 +118,40 @@ the `roles` column, never by name:
 | `owner-loan-out`, `owner-loan-repaid` | Loans to the owner and their repayments |
 | `owner-pay-tax` | Taxes owed because the owner was paid, added to the owner's gross cost |
 | `watched` | In the taxes bucket, a tax with a monthly payment calendar |
-| `reimbursement` | Reimbursements between owner and company, listed beside owner pay |
+| `reimbursement` | Reimbursements between owner and company, listed beside owner pay. A payment to the owner on one repays the owner's advances |
+| `client-refund` | Money paid back to a client, such as an overpayment, on Receivables |
 
 The effective tax rate is the taxes bucket, paid less refunded, over client revenue. A tax refund
-belongs in the taxes bucket. Loans count as owner pay everywhere. Repayments are matched to loans
-first in, first out, and the loan balance is lent less repaid over the whole ledger, signed. A
-screen says which role no category carries, and what it leaves out because of that.
+belongs in the taxes bucket. Whether loans count as owner pay is the bucket of the two loan
+categories on the `categories` tab, which "Loans to the owner count as owner pay" on Workbook,
+General switches between `owner-pay` and `financing`. Repayments are matched to loans first in,
+first out, and the loan balance is lent less repaid over the whole ledger, signed. A screen says
+which role no category carries, and what it leaves out because of that.
+
+Costs the owner paid privately go on the `owner-advances` tab, from the Sheet or from "Add advance"
+on Owner. Each counts as a cost on its date and in its category on every profit and loss figure:
+bucket totals, the monthly series, the window averages and runway, category totals, period review,
+tax by type and the effective tax rate. They are not bank rows, so Transactions, balances, payees
+and Review never show them, and a filter on an account, a counterparty or review leaves them out.
+Payments to the owner on a `reimbursement` category repay them oldest first and stay financing.
+Net owed, on Owner and Overview, is one signed balance: the loan balance less the advances not yet
+reimbursed. Positive means the owner owes the company.
+
+## Receivables
+
+Receivables matches the `invoices` tab against the revenue credits, client by client, the way the
+Sheet's `outgoing` tab does for its one client. A credit belongs to the client whose `clients` row
+names its IBAN, and one from an IBAN no client names is listed apart and never pays anyone's
+invoice. Invoices fill oldest first, by issue date and then by the order they were written. A
+payment can fill only invoices already issued on its day, so a credit that arrives before its
+invoice is a payment with no invoice on file, and a payment past what is owed is an overpayment on
+the newest invoice it reached. Nothing owed is ever negative. Revenue and client refunds are the
+categories with the `revenue` and `client-refund` roles.
+
+Ageing counts days past the due date, or past the issue date when an invoice has none, on the day
+of the newest booking. Days to get paid is the median over the invoices settled in the period,
+with the mean beside it. The matching always runs over the whole ledger. The period picks which
+invoices are listed (issued in it, or still open) and which payments count for days to get paid.
 
 ## Excel mode
 
@@ -127,7 +159,7 @@ The workbook lives in IndexedDB, under its own id, as the store of record. The a
 to keep it (`navigator.storage.persist()`, which Firefox shows as a prompt). Clearing the site's data
 deletes it, so the exported files are its only other copies.
 
-- **Template.** "Download the empty template" writes a blank xlsx in the browser: the five tabs
+- **Template.** "Download the empty template" writes a blank xlsx in the browser: the eight tabs
   with their headers, a note on every header and every settings key, a default category set for a
   freelancer or a small company, and the default settings.
 - **Import.** Open or drop an xlsx file. It goes through the same workbook reader as a Google Sheet,
@@ -140,8 +172,9 @@ deletes it, so the exported files are its only other copies.
   tab each (`#/workbook?tab=categories` links straight to one), with the Sheet's rules: each
   category once, category, family and bucket filled, and a category or account that ledger rows use
   keeps its name. With a Google Sheet, categories and accounts are read-only there and edited in
-  the Sheet, because the Apps Script reads and checks those tabs. Settings and rules are editable in
-  both modes, and Review sets a ledger row's category in both. Settings keeps what belongs to this
+  the Sheet, because the Apps Script reads and checks those tabs. The one exception is the loan
+  switch on General, which sets two `bucket` cells. Settings, rules and owner advances are editable
+  in both modes, and Review sets a ledger row's category in both. Settings keeps what belongs to this
   device: the data source, Google sign-out, the theme and the privacy notes.
 
 Switching from Excel mode to another source deletes the workbook kept in the browser, once the new
@@ -184,7 +217,7 @@ needs no preview and makes no call to Google.
 
 ## Write-back
 
-Review and the Workbook screen write through one path in both modes. Each write reads the tabs it
+Review, Owner and the Workbook screen write through one path in both modes. Each write reads the tabs it
 touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
 what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
 In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
@@ -199,7 +232,9 @@ side in `googleWorkbookWriter.ts`.
   shadow-accounting Sheet), and only where the value changes. J to L are never written.
   Confirm writes the `review_label` setting to `flagged_by`. Recategorise writes the category and the
   label. Applying a new rule writes its category and `rule`, only to rows flagged `ai` or
-  unclassified. Undo writes the exact previous values back through the same checks.
+  unclassified. Undo writes the exact previous values back through the same checks. Review lists
+  every write of the page's session under "Changes in this session", newest first, with Undo on
+  each ledger write that has not been undone. The list is held in memory, so a reload clears it.
 - **Rules.** The tab after the change must pass every check of `parseRules` in the Apps Script's
   `Rules.gs` (mirrored in `rulesTabRefusals.ts`), against the categories tab as it is now, so a save
   is refused while the tab has any problem. A new rule is appended. An edited, switched or moved rule
@@ -208,7 +243,16 @@ side in `googleWorkbookWriter.ts`.
   every rule in steps of 100 only when the two share an order.
 - **Settings.** Each changed key is set in its `value` cell, or appended as a `key`, `value` row when
   the tab lacks it. A key on two rows, a value that changed since the read, or a value the settings
-  reader would not use is refused. Categories and accounts are never written in Google mode.
+  reader would not use is refused.
+- **Owner advances.** "Add advance" appends one `date`, `amount`, `description`, `category` row,
+  the date as a serial number so the cell is a date. It is refused unless the tab has those four
+  columns, the amount is positive, and the category is on the categories tab, as it is now, in the
+  operating or taxes bucket. Undo clears the row again, only while one row still holds exactly what
+  was written.
+- **Loan bucket.** The switch finds each category with the `owner-loan-out` or `owner-loan-repaid`
+  role by name on the categories tab and sets its `bucket` cell to `owner-pay` or `financing`. It is
+  refused when a category is on no row or several, or its bucket changed since the app read it.
+  No other cell of `categories`, and nothing of `accounts`, is ever written.
 
 The requests each Google use case sends, in order. Every write is `valueInputOption=RAW`.
 
@@ -218,6 +262,8 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 | Add a rule | get, `values.batchGet` of `rules` and `categories`, `values.append` to `rules!A:U` with `insertDataOption=INSERT_ROWS` (plus a `values.batchUpdate` of `order` cells when rules are renumbered), get and batchGet again |
 | Edit, switch on or off, move a rule | get, batchGet of `rules` and `categories`, `values.batchUpdate` of the changed cells such as `rules!C12`, get and batchGet again |
 | Save settings | get, batchGet of `settings`, `values.batchUpdate` of `value` cells such as `settings!B4`, `values.append` to `settings!A:B` for a new key, get and batchGet again |
+| Add an advance | get, batchGet of `'owner-advances'` and `categories`, `values.append` to `'owner-advances'!A:D`, get and batchGet again. Undo is a `values.batchUpdate` clearing that row's cells |
+| Switch the loan bucket | get, batchGet of `categories`, `values.batchUpdate` of `bucket` cells such as `categories!C16`, get and batchGet again |
 
 ### Manual test, against a copy of the Sheet first
 
@@ -227,7 +273,8 @@ Never run it first on the original.
 1. Pick the copy and sync. Note the row number of one `ai` row on Review.
 2. Open the row and Confirm it. In the copy, only M on that row changed to your review label. I and
    J to L are as before. Press Undo in the toast and check M is back.
-3. Recategorise the same row. I and M change, nothing else. Undo, and both are back.
+3. Recategorise the same row. I and M change, nothing else. Wait for the toast to close, open
+   "Changes in this session" and press Undo there. Both are back.
 4. In the copy, insert an empty row at row 2 of `ledger`. Recategorise another row from the app
    without syncing first. The write lands on the shifted row. Delete the empty row again.
 5. Make a rule from a row. Check the back-test lists, save, and check the new row at the bottom of
@@ -235,14 +282,21 @@ Never run it first on the original.
 6. On Workbook, Rules, switch the new rule off and move it. Check `enabled` and `order` changed and no
    other cell did.
 7. On Workbook, General, change the company name. Check the `settings` tab.
-8. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
+8. On Owner, add an advance. Check one new row at the foot of `owner-advances`, its date shown as a
+   date. Press Undo and check the row is empty again. On Workbook, General, switch "Loans to the
+   owner count as owner pay" off and on. Check only the two `bucket` cells of the loan categories
+   changed.
+9. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
    reads the rules and settings tabs the way the morning ingest does, so it must finish without an
    error. Then repeat steps 2, 3 and 5 on the original, and check the next 06:00 run in Executions.
 
 ## Figure parity
 
 `npm run parity:figures -- --workbook <export.xlsx>` computes every figure from an xlsx export of the
-Sheet and compares it with the figure the Sheet's own analysis tabs show in the same export. It
+Sheet and compares it with the figure the Sheet's own analysis tabs show in the same export. The
+invoice figures read the `invoices` and `clients` tabs. An export from before them reads the
+register from `outgoing!A3:D` as one client, `nlc`, paying from the IBANs the revenue rules name,
+or else from `CLIENT_IBANS` in a `.gs` file of `--scripts <folder>`. It
 prints each figure as a match, a correction the app makes on purpose (with the reason), or a
 MISMATCH, and exits non-zero on any mismatch. The export holds real bank data. Run it locally, keep
 the file outside the repository, and never commit an export or any figure from its output.

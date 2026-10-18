@@ -10,6 +10,9 @@ const workbook = readWorkbook({
   accounts: [],
   settings: [],
   rules: [],
+  invoices: [],
+  clients: [],
+  'owner-advances': [],
 })
 const choice = { source: 'google' as const, id: 'sheet', name: 'Books' }
 

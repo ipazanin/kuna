@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../shared/charts/chartTokens'
@@ -17,12 +18,17 @@ import FilterBar from '../../../features/filters/presentation/FilterBar.vue'
 import { useSettings } from '../../../features/settings/application/useSettings'
 import { useFilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
+import { useWorkbook } from '../../../features/workbook/application/workbookStore'
 import LedgerGate from '../../../features/workbook/presentation/LedgerGate.vue'
+import { netOwed, ownerAdvances } from '../domain/ownerAdvances'
 import { ownerCost } from '../domain/ownerCost'
 import { loanMonths, ownerLoans } from '../domain/ownerLoans'
 import { ownerTake, ownerTakeByMonth } from '../domain/ownerTake'
 import type { OwnerTakeLine } from '../domain/ownerTake'
 import { PACK_ROLES, categoriesInBucket, categoriesWithRole } from '../domain/packRoles'
+import AddAdvanceDialog from './AddAdvanceDialog.vue'
+import AdvanceList from './AdvanceList.vue'
+import type { AdvanceLine } from './AdvanceList.vue'
 import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import MissingRoles from './MissingRoles.vue'
@@ -33,6 +39,8 @@ const ledger = useFilteredLedger()
 const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
+const { state } = useWorkbook()
+const addingAdvance = ref(false)
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
@@ -45,16 +53,18 @@ const owner = computed(() => {
   if (current === null) {
     return null
   }
-  const { workbook, scoped, window, filters } = current
+  const { workbook, scoped, profitAndLossRows, window, filters } = current
   const { categories } = workbook
   const tokens = chartTokens()
   const categoryName = names.value.category
   const payLabel = settings.value.bucketLabels['owner-pay']
   const months = chartedMonths(filters.period, window)
-  const take = ownerTake(scoped, categories, filters.period, window)
-  const cost = ownerCost(scoped, categories, filters.period, window)
+  const take = ownerTake(profitAndLossRows, categories, filters.period, window)
+  const cost = ownerCost(profitAndLossRows, categories, filters.period, window)
   const loans = ownerLoans(scoped, categories)
-  const takeMonths = ownerTakeByMonth(scoped, categories, months, window)
+  const advances = ownerAdvances(current.scopedAdvances, scoped, categories)
+  const owed = netOwed(loans, advances, categories)
+  const takeMonths = ownerTakeByMonth(profitAndLossRows, categories, months, window)
   const series = categorySeries(
     categoriesInBucket(categories, 'owner-pay').filter((category) => takeMonths.some((month) => month.byCategory[category]?.amount !== 0)),
     tokens,
@@ -64,7 +74,10 @@ const owner = computed(() => {
   const loanOut = categoriesWithRole(categories, PACK_ROLES.ownerLoanOut)
   const loanRepaid = categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)
   const ownerPayTax = categoriesWithRole(categories, PACK_ROLES.ownerPayTax)
+  const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
   const hasLoanRoles = loanOut.length > 0 && loanRepaid.length > 0
+  const payBuckets = new Set(categoriesInBucket(categories, 'owner-pay'))
+  const loansArePay = hasLoanRoles && [...loanOut, ...loanRepaid].every((category) => payBuckets.has(category))
   const loanColours = {
     lent: colourOf.get(loanOut[0] ?? '') ?? tokens.buckets['owner-pay'],
     repaid: colourOf.get(loanRepaid[0] ?? '') ?? tokens.buckets.income,
@@ -85,14 +98,17 @@ const owner = computed(() => {
       ...(loanOut.length === 0 ? [{ role: PACK_ROLES.ownerLoanOut, leftOut: 'no loan to the owner is listed' }] : []),
       ...(loanRepaid.length === 0 ? [{ role: PACK_ROLES.ownerLoanRepaid, leftOut: 'no repayment is matched to a loan' }] : []),
       ...(ownerPayTax.length === 0 ? [{ role: PACK_ROLES.ownerPayTax, leftOut: 'gross cost is owner pay alone' }] : []),
+      ...(reimbursement.length === 0 ? [{ role: PACK_ROLES.reimbursement, leftOut: 'no reimbursement repays an advance' }] : []),
     ],
     tiles: [
       {
         label: 'Owner take',
         value: formatWholeMoney(take.total.amount),
         to: drillLocation(take.total.drill),
-        caption: 'Loans in, repayments out',
-        definition: `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. A loan to the owner is pay taken early and its repayment is pay handed back, so both count. Reimbursements settle costs and are left out.`,
+        caption: loansArePay ? 'Loans in, repayments out' : 'Loans left out, as financing',
+        definition: loansArePay
+          ? `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. A loan to the owner is pay taken early and its repayment is pay handed back, so both count. Reimbursements settle costs and are left out.`
+          : `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. Loans to the owner are in the financing bucket, so neither they nor their repayments count. Reimbursements settle costs and are left out.`,
       },
       {
         label: 'Gross cost of the owner',
@@ -106,15 +122,14 @@ const owner = computed(() => {
         value: cost.costPerEuroReceived === null ? '–' : `${times.format(cost.costPerEuroReceived)}×`,
         to: drillLocation(cost.gross.drill),
         caption: cost.costPerEuroReceived === null ? 'Nothing paid to the owner' : 'Gross cost over owner take',
-        definition: `What the company spends for each ${currencyUnitName()} the owner takes out. 1.00× would mean no tax on top. Loans count in the take, so a year with loans reads cheaper.`,
+        definition: `What the company spends for each ${currencyUnitName()} the owner takes out. 1.00× would mean no tax on top.${loansArePay ? ' Loans count in the take, so a year with loans reads cheaper.' : ''}`,
       },
       {
-        label: 'Owner loan balance',
-        value: formatWholeMoney(balance),
-        to: hasLoanRoles ? drillLocation(loans.outstanding.drill) : null,
-        caption: balance > 0 ? 'The owner owes the company' : balance < 0 ? 'More repaid than the ledger shows lent' : 'Nothing owed either way',
-        definition:
-          'All time: lent to the owner less repaid, from the ledger rows themselves. Negative means more came back than the ledger lent, such as a loan older than the ledger repaid inside it.',
+        label: 'Net owed',
+        value: formatWholeMoney(owed.amount),
+        to: drillLocation(owed.drill),
+        caption: owed.amount > 0 ? 'The owner owes the company' : owed.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way',
+        definition: `All time, one balance across both directions: lent to the owner less repaid (${formatWholeMoney(owed.loanBalance)}), less the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(owed.advancesOutstanding)}). Positive means the owner owes the company.`,
       },
     ],
     draws: ownerDrawsChart(takeMonths, series, tokens),
@@ -135,6 +150,30 @@ const owner = computed(() => {
       { label: 'Repaid', amount: loans.repaid.amount, to: drillLocation(loans.repaid.drill) },
       { label: 'Still owed', amount: balance, to: drillLocation(loans.outstanding.drill) },
     ],
+    advanceSummary: [
+      { label: 'Paid by the owner', amount: advances.advanced, to: null },
+      { label: 'Reimbursed', amount: advances.reimbursed.amount, to: drillLocation(advances.reimbursed.drill) },
+      { label: 'Owed to the owner', amount: advances.outstanding, to: null },
+    ],
+    advances: [...advances.advances].reverse().map(
+      (line): AdvanceLine => ({
+        key: `${line.advance.sheetRow}`,
+        paidOn: day(line.advance.date),
+        description: line.advance.description,
+        category: categoryName(line.advance.category),
+        amount: line.advance.amount,
+        remaining: line.remaining,
+        open: line.status === 'open',
+        repaidOn: line.repaidOn === null ? null : day(line.repaidOn),
+        repayments: line.repayments.map((share, shareIndex) => ({
+          key: `${share.repaidOn}-${shareIndex}`,
+          date: day(share.repaidOn),
+          applied: share.applied,
+          to: drillLocation(share.drill),
+        })),
+      }),
+    ),
+    newestBooking: workbook.transactions.reduce((newest, transaction) => (transaction.date > newest ? transaction.date : newest), workbook.transactions[0]!.date),
     openCount: loans.openCount,
     oldestOpen: loans.oldestOpen === null ? null : day(loans.oldestOpen),
     loans: [...loans.loans].reverse().map(
@@ -160,7 +199,7 @@ const owner = computed(() => {
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Owner" description="What the owner took out, what it cost, and what the owner still owes the company." />
+    <PageHeader title="Owner" description="What the owner took out, what it cost, and who owes whom between the owner and the company." />
     <OwnerPayOff v-if="!settings.ownerPayModule" />
     <LedgerGate v-else>
       <template v-if="ledger && owner">
@@ -268,6 +307,38 @@ const owner = computed(() => {
             </div>
           </section>
         </template>
+
+        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="owner-advances">
+          <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h2 class="text-sm font-medium text-highlighted">Costs the owner paid privately</h2>
+                <p class="mt-0.5 max-w-[65ch] text-xs text-muted">
+                  All time, from the owner-advances tab. Each counts as a cost on its date, in its category. Reimbursements to the owner repay the oldest first and
+                  stay outside profit and loss.
+                </p>
+              </div>
+              <UButton label="Add advance" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="open-add-advance" @click="addingAdvance = true" />
+            </div>
+            <dl class="grid grid-cols-3 gap-3">
+              <div v-for="figure in owner.advanceSummary" :key="figure.label" class="min-w-0">
+                <dt class="text-xs text-muted">{{ figure.label }}</dt>
+                <dd class="text-sm font-medium text-highlighted">
+                  <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" precision="whole" /></DrillLink>
+                </dd>
+              </div>
+            </dl>
+          </header>
+          <div class="px-4 pt-1 pb-2 sm:px-5">
+            <AdvanceList :advances="owner.advances" />
+          </div>
+        </section>
+        <AddAdvanceDialog
+          v-model:open="addingAdvance"
+          :categories="ledger.workbook.categories"
+          :default-date="owner.newestBooking"
+          :in-sheet="state.workbook?.source === 'google'"
+        />
       </template>
     </LedgerGate>
   </section>

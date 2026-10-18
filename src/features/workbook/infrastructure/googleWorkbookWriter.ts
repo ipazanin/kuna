@@ -1,6 +1,7 @@
 import { columnLetter } from '../../../shared/text/columnLetter'
 import { WRITABLE_COLUMNS, WorkbookWriteRefused } from '../application/workbookWriter'
 import type { FreshTabs, TabRead, WorkbookWriter, WritableTab } from '../application/workbookWriter'
+import { sheetNameInRange } from './sheetsClient'
 import type { SheetsValues, ValueRange } from './sheetsClient'
 import { sheetRowsFromValues } from './workbookSnapshot'
 import type { CellValue } from './workbookSnapshot'
@@ -18,13 +19,13 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
       if (missing.length > 0) {
         throw new WorkbookWriteRefused(`The Sheet has no ${missing.join(' or ')} tab, so nothing was written.`)
       }
-      const ranges = await sheets.batchGet(tabs)
+      const ranges = await sheets.batchGet(tabs.map(sheetNameInRange))
       return Object.fromEntries(tabs.map((tab, index) => [tab, tabReadOf(ranges[index]?.values ?? [])]))
     },
 
     async write(edits, before) {
       const data: ValueRange[] = edits.cells.map((edit) => ({
-        range: `${edit.tab}!${columnLetter(columnOf(before, edit.tab, edit.column))}${edit.sheetRow}`,
+        range: `${sheetNameInRange(edit.tab)}!${columnLetter(columnOf(before, edit.tab, edit.column))}${edit.sheetRow}`,
         values: [[edit.value]],
       }))
       const appends = edits.appends.map((append) => {
@@ -36,7 +37,7 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
           columnOf(before, append.tab, column)
         }
         return {
-          range: `${append.tab}!A:${columnLetter(header.length)}`,
+          range: `${sheetNameInRange(append.tab)}!A:${columnLetter(header.length)}`,
           values: [header.map((name): CellValue => append.cells[name.trim()] ?? '')],
         }
       })

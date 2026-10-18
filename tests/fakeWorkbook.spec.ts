@@ -7,7 +7,7 @@ import { ledgerWindowOf } from '../src/features/workbook/domain/workbook'
 import { fakeWorkbookSnapshot, fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { categorise } from '../src/features/rules/domain/categorise'
-import { ruleCoverageGaps } from '../src/features/rules/domain/ruleCoverage'
+import { ruleCoverage } from '../src/features/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 
 const workbook = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
@@ -74,6 +74,6 @@ describe('fake workbook', () => {
 
     expect(workbook.rules.length).toBeGreaterThan(10)
     expect(byRule.filter((transaction) => categorise(transaction, workbook.rules, context).category !== transaction.category)).toEqual([])
-    expect(ruleCoverageGaps(workbook.transactions, workbook.rules, context).length).toBeGreaterThan(3)
+    expect(ruleCoverage(workbook.transactions, workbook.rules, context).notCovered.length).toBeGreaterThan(3)
   })
 })

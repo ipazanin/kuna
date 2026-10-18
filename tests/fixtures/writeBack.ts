@@ -8,7 +8,7 @@ import { googleWorkbookWriter } from '../../src/features/workbook/infrastructure
 import { openWorkbookCache } from '../../src/features/workbook/infrastructure/workbookCache'
 import type { WorkbookChoice } from '../../src/features/workbook/infrastructure/workbookChoice'
 import type { CellValue, WorkbookSnapshot } from '../../src/features/workbook/infrastructure/workbookSnapshot'
-import { sheetRowsFromValues } from '../../src/features/workbook/infrastructure/workbookSnapshot'
+import { EMPTY_TABS, sheetRowsFromValues } from '../../src/features/workbook/infrastructure/workbookSnapshot'
 
 export const LEDGER_HEADER = [
   'date',
@@ -114,6 +114,7 @@ export async function excelHarness(used: Set<string>, grids = workbookGrids()): 
   const tabs = Object.fromEntries(Object.entries(grids).map(([tab, values]) => [tab, sheetRowsFromValues(values)]))
   const snapshot = {
     meta: { id, source: 'excel', title: 'Books', syncedAt: '2026-10-16T09:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null },
+    ...EMPTY_TABS,
     ...tabs,
   } as WorkbookSnapshot
   await keepInCache(snapshot, used)

@@ -5,8 +5,8 @@ import UEmpty from '@nuxt/ui/components/Empty.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { categorise } from '../../rules/domain/categorise'
-import type { CoverageGap } from '../../rules/domain/ruleCoverage'
-import { ruleCoverageGaps } from '../../rules/domain/ruleCoverage'
+import type { CoverageGroup } from '../../rules/domain/ruleCoverage'
+import { ruleCoverage } from '../../rules/domain/ruleCoverage'
 import { draftForRow } from '../../rules/domain/ruleDraft'
 import { categorisationContextOf } from '../../rules/domain/transactionFacts'
 import RuleEditor from '../../rules/presentation/RuleEditor.vue'
@@ -22,6 +22,7 @@ import { useLedgerWrites } from '../application/useLedgerWrites'
 import { confirmation, recategorisation } from '../domain/verdictChanges'
 import ReviewQueueItem from './ReviewQueueItem.vue'
 import RuleCoverage from './RuleCoverage.vue'
+import SessionChanges from './SessionChanges.vue'
 
 const ledger = useFilteredLedger()
 const { state } = useWorkbook()
@@ -45,7 +46,12 @@ const queue = computed(() => {
   }))
 })
 
-const gaps = computed(() => (ledger.value === null || context.value === null ? [] : ruleCoverageGaps(ledger.value.scoped, ledger.value.workbook.rules, context.value)))
+const coverage = computed(() =>
+  ledger.value === null || context.value === null ? { notCovered: [], exceptions: [] } : ruleCoverage(ledger.value.scoped, ledger.value.workbook.rules, context.value),
+)
+
+/** Writes to other workbooks this page showed earlier cannot be undone here, so they are left out. */
+const sessionWrites = computed(() => state.writes.filter((write) => write.workbookId === state.workbook?.id))
 
 const expandedRow = ref<number | null>(null)
 
@@ -79,16 +85,18 @@ async function recategorise(transaction: Transaction, category: string): Promise
 const editorOpen = ref(false)
 const editorSource = ref<RuleEditorSource | null>(null)
 
-function makeRule(transaction: Transaction, title = 'Make a rule from this row'): void {
+function makeRule(transaction: Transaction, title = 'Make a rule from this row', split: RuleEditorSource['split'] = []): void {
   const workbook = state.workbook
   if (workbook === null) return
-  editorSource.value = { title, draft: draftForRow(transaction, workbook, categorisationContextOf(workbook)), edited: null }
+  editorSource.value = { title, draft: draftForRow(transaction, workbook, categorisationContextOf(workbook)), edited: null, split }
   editorOpen.value = true
 }
 
-function makeRuleForGap(gap: CoverageGap<Transaction>): void {
-  const [newest] = gap.rows
-  if (newest !== undefined) makeRule(newest, `Make a rule for ${gap.name || 'these rows'}`)
+/** Drafted from the newest row in the group's most common category, so a split group starts where most of its rows are. */
+function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
+  const mostCommon = group.categories[0]?.category
+  const newest = group.rows.find((row) => row.category === mostCommon)
+  if (newest !== undefined) makeRule(newest, `Make a rule for ${group.name || 'these rows'}`, group.categories)
 }
 </script>
 
@@ -98,6 +106,14 @@ function makeRuleForGap(gap: CoverageGap<Transaction>): void {
     <LedgerGate>
       <template v-if="ledger">
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
+
+        <SessionChanges
+          :writes="sessionWrites"
+          :transactions="ledger.workbook.transactions"
+          :categories="ledger.workbook.categories"
+          :busy="busy"
+          @undo="writes.undo"
+        />
 
         <UEmpty
           v-if="queue.length === 0"
@@ -130,7 +146,7 @@ function makeRuleForGap(gap: CoverageGap<Transaction>): void {
           </ul>
         </section>
 
-        <RuleCoverage :gaps="gaps" :categories="ledger.workbook.categories" :busy="busy" @make-rule="makeRuleForGap" />
+        <RuleCoverage :coverage="coverage" :categories="ledger.workbook.categories" :busy="busy" @make-rule="makeRuleForGroup" />
         <RuleEditor v-model:open="editorOpen" :source="editorSource" />
       </template>
     </LedgerGate>
