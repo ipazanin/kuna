@@ -14,6 +14,7 @@ import type { WorkbookChoice } from '../infrastructure/workbookChoice'
 import { openWorkbookCache } from '../infrastructure/workbookCache'
 import type { WorkbookCache } from '../infrastructure/workbookCache'
 import { readWorkbook } from '../infrastructure/workbookReader'
+import { WORKBOOK_TABS } from '../infrastructure/workbookSnapshot'
 import type { WorkbookSnapshot, WorkbookTab, WorkbookTabs } from '../infrastructure/workbookSnapshot'
 import { readFromGoogle } from './readFromGoogle'
 import type { GoogleSheet } from './readFromGoogle'
@@ -56,9 +57,48 @@ export type WrittenChange =
     }
   | { readonly kind: 'rules'; readonly change: RulesTabChange }
   | { readonly kind: 'settings'; readonly changes: readonly SettingChange[] }
+  | { readonly kind: 'owner-advance-added'; readonly receipt: OwnerAdvanceReceipt }
+  /** An appended advance cleared again. `receipt` is the one its addition returned. */
+  | { readonly kind: 'owner-advance-removed'; readonly receipt: OwnerAdvanceReceipt }
+  | {
+      readonly kind: 'buckets'
+      readonly changes: readonly BucketChange[]
+      /** The changes of the write this one undid, or null. */
+      readonly undid: readonly BucketChange[] | null
+    }
 
 /** One write this page made to a workbook. Held in memory, so a reload forgets it. */
 export type SessionWrite = WrittenAt & WrittenChange
+
+/** Whether the write put back what an earlier one of the session changed. */
+export function isUndo(write: SessionWrite): boolean {
+  return write.kind === 'owner-advance-removed' || ((write.kind === 'ledger' || write.kind === 'buckets') && write.undid !== null)
+}
+
+/** Whether a later write of the session put back what this one changed. */
+export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]): boolean {
+  switch (write.kind) {
+    case 'ledger':
+      return writes.some((later) => later.kind === 'ledger' && later.undid === write.receipt)
+    case 'owner-advance-added':
+      return writes.some((later) => later.kind === 'owner-advance-removed' && later.receipt === write.receipt)
+    case 'buckets':
+      return writes.some((later) => later.kind === 'buckets' && later.undid === write.changes)
+    case 'owner-advance-removed':
+    case 'rules':
+    case 'settings':
+      return false
+  }
+}
+
+/**
+ * Whether Undo can put back what a write changed: a ledger write, an added advance or a bucket
+ * change, unless it is an undo itself or was undone since. Rules and settings have no undo.
+ */
+export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): boolean {
+  const undoable = write.kind === 'ledger' || write.kind === 'owner-advance-added' || write.kind === 'buckets'
+  return undoable && !isUndo(write) && !wasUndone(write, writes)
+}
 
 export interface WorkbookState {
   /** Null until a cached copy, a sync or an import supplies one. */
@@ -148,6 +188,8 @@ export interface WorkbookStore {
   removeOwnerAdvance(receipt: OwnerAdvanceReceipt): Promise<void>
   /** Sets the bucket of categories on their rows of the categories tab. */
   changeBuckets(changes: readonly BucketChange[]): Promise<void>
+  /** Puts back what a write of this session changed, through that write's own checks. Refused for a write `canUndo` rules out. */
+  undo(write: SessionWrite): Promise<void>
 }
 
 /** Cache first: the copy this browser holds is on screen at once, and a sync or an import replaces it. */
@@ -258,11 +300,12 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     }
   }
 
-  /** The copy on screen with the tabs just read back from the workbook written to. */
-  function withTabsReadBack(snapshot: WorkbookSnapshot, after: FreshTabs): WorkbookSnapshot {
+  /** The copy on screen with the tabs just read back from the workbook written to, and which of the requested ones it lacks. */
+  function withTabsReadBack(snapshot: WorkbookSnapshot, after: FreshTabs, requested: readonly WorkbookTab[]): WorkbookSnapshot {
     const tabs = Object.fromEntries(Object.entries(after).map(([tab, read]) => [tab, read.rows]))
     if (snapshot.meta.source !== 'excel') {
-      return { ...snapshot, ...tabs }
+      const missingTabs = WORKBOOK_TABS.filter((tab) => after[tab] === undefined && (requested.includes(tab) || snapshot.meta.missingTabs.includes(tab)))
+      return { ...snapshot, ...tabs, meta: { ...snapshot.meta, missingTabs } }
     }
     const now = ports.now()
     return { ...snapshot, ...tabs, meta: { ...snapshot.meta, syncedAt: now, unexportedSince: snapshot.meta.unexportedSince ?? now } }
@@ -299,7 +342,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       sent = true
       await writer.write(planned.edits, fresh)
       const after = await writer.read(tabs)
-      await keep(withTabsReadBack(state.snapshot ?? current, after))
+      await keep(withTabsReadBack(state.snapshot ?? current, after, tabs))
       verify(after, planned)
       if (written !== undefined) {
         state.writes = [{ ...written(planned), id: state.writes.length + 1, at: ports.now(), workbookId: current.meta.id }, ...state.writes]
@@ -321,7 +364,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       const after = await (await ports.googleWriter(spreadsheetId)).read(tabs)
       const snapshot = state.snapshot
       if (snapshot !== null) {
-        await keep(withTabsReadBack(snapshot, after))
+        await keep(withTabsReadBack(snapshot, after, tabs))
       }
     } catch {
       // The next sync reads the Sheet whole.
@@ -331,6 +374,24 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
   async function writeVerdicts(changes: readonly LedgerVerdictChange[], undid: VerdictReceipt | null): Promise<VerdictReceipt> {
     const planned = await writeThrough(['ledger', 'categories'], (fresh) => planVerdicts(fresh, changes), verifyVerdicts, ({ receipt }) => ({ kind: 'ledger', receipt, undid }))
     return planned.receipt
+  }
+
+  async function removeOwnerAdvance(receipt: OwnerAdvanceReceipt): Promise<void> {
+    await writeThrough(
+      ['owner-advances'],
+      (fresh) => ({ edits: planOwnerAdvanceRemoval(fresh, receipt) }),
+      (after, planned) => verifyOwnerAdvanceRemoval(after, planned.edits),
+      () => ({ kind: 'owner-advance-removed', receipt }),
+    )
+  }
+
+  async function writeBuckets(changes: readonly BucketChange[], undid: readonly BucketChange[] | null): Promise<void> {
+    await writeThrough(
+      ['categories'],
+      (fresh) => ({ edits: planBucketChanges(fresh, changes) }),
+      (after) => verifyBucketChanges(after, changes),
+      () => ({ kind: 'buckets', changes, undid }),
+    )
   }
 
   let opened: Promise<void> | null = null
@@ -365,7 +426,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     replaceLocalWorkbook(tabs, title) {
       return underLocalWork(async () => {
         const id = state.choice?.source === 'excel' ? state.choice.id : ports.newLocalId()
-        const meta = { id, source: 'excel' as const, title, syncedAt: ports.now(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null }
+        const meta = { id, source: 'excel' as const, title, syncedAt: ports.now(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] }
         await keep({ meta, ...tabs })
         choose({ source: 'excel', id, name: title })
         ports.forgetGoogleSignIn()
@@ -403,7 +464,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
 
     async changeRules(change) {
       await writeThrough(
-        ['rules', 'categories'],
+        ['rules', 'categories', 'clients'],
         (fresh) => ({ edits: planRulesChange(fresh, change) }),
         (after) => verifyRulesChange(after, change),
         () => ({ kind: 'rules', change }),
@@ -427,6 +488,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
         (after, planned) => {
           receipt = verifyOwnerAdvanceAppend(after, planned)
         },
+        () => ({ kind: 'owner-advance-added', receipt: receipt! }),
       )
       if (receipt === null) {
         throw new Error('The advance was not written.')
@@ -434,20 +496,30 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       return receipt
     },
 
-    async removeOwnerAdvance(receipt) {
-      await writeThrough(
-        ['owner-advances'],
-        (fresh) => ({ edits: planOwnerAdvanceRemoval(fresh, receipt) }),
-        (after, planned) => verifyOwnerAdvanceRemoval(after, planned.edits),
-      )
+    removeOwnerAdvance,
+
+    changeBuckets(changes) {
+      return writeBuckets(changes, null)
     },
 
-    async changeBuckets(changes) {
-      await writeThrough(
-        ['categories'],
-        (fresh) => ({ edits: planBucketChanges(fresh, changes) }),
-        (after) => verifyBucketChanges(after, changes),
-      )
+    async undo(write) {
+      if (!canUndo(write, state.writes)) {
+        throw new WorkbookWriteRefused('This change cannot be undone from here.')
+      }
+      switch (write.kind) {
+        case 'ledger':
+          await writeVerdicts(undoOf(write.receipt), write.receipt)
+          return
+        case 'owner-advance-added':
+          await removeOwnerAdvance(write.receipt)
+          return
+        case 'buckets':
+          await writeBuckets(
+            write.changes.map((change) => ({ category: change.category, expected: change.bucket, bucket: change.expected })),
+            write.changes,
+          )
+          return
+      }
     },
   }
 }

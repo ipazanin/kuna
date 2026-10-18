@@ -42,7 +42,7 @@ const taxes = computed(() => {
   if (current === null) {
     return null
   }
-  const { workbook, scoped, profitAndLossRows, window, filters } = current
+  const { workbook, profitAndLossRows, window, filters } = current
   const { categories } = workbook
   const tokens = chartTokens()
   const categoryName = names.value.category
@@ -101,7 +101,7 @@ const taxes = computed(() => {
       to: drillLocation(type.total.drill),
       typical: type.typicalMonth,
     })),
-    cadences: payrollCadence(scoped, categories, window).map((cadence) => {
+    cadences: payrollCadence(profitAndLossRows, categories, window).map((cadence) => {
       const first = cadence.months[0]?.month
       return {
         category: cadence.category,

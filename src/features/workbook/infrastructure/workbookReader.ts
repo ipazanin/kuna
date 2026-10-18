@@ -26,6 +26,7 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
   const settings = readSettings(snapshot.settings, problems)
   const categories = readCategories(snapshot.categories, problems)
   const clients = readClients(snapshot.clients, problems)
+  const hasClientsTab = !snapshot.meta.missingTabs.includes('clients')
   return {
     id: snapshot.meta.id,
     source: snapshot.meta.source,
@@ -35,9 +36,10 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     transactions: readLedger(snapshot.ledger, categories, problems),
     categories,
     accounts: readAccounts(snapshot.accounts, settings, problems),
-    rules: readRulesTab(snapshot.rules, categories, problems),
+    rules: readRulesTab(snapshot.rules, categories, hasClientsTab, problems),
     invoices: readInvoices(snapshot.invoices, clients, problems),
     clients,
+    hasClientsTab,
     ownerAdvances: readOwnerAdvances(snapshot['owner-advances'], categories, problems),
     settings,
     problems,
@@ -118,8 +120,8 @@ function readAccounts(rows: readonly SheetRow[], settings: Settings, problems: W
   return accounts
 }
 
-function readRulesTab(rows: readonly SheetRow[], categories: readonly Category[], problems: WorkbookProblem[]): readonly Rule[] {
-  const read = readRules(rows, new Set(categories.map((category) => category.slug)))
+function readRulesTab(rows: readonly SheetRow[], categories: readonly Category[], hasClientsTab: boolean, problems: WorkbookProblem[]): readonly Rule[] {
+  const read = readRules(rows, new Set(categories.map((category) => category.slug)), hasClientsTab)
   problems.push(...read.problems.map((problem) => ({ tab: 'rules' as const, ...problem })))
   return read.rules
 }

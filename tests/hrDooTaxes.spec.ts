@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { effectiveTaxRate } from '../src/packs/hr-doo/domain/effectiveTaxRate'
 import { payrollCadence } from '../src/packs/hr-doo/domain/payrollCadence'
+import { bookingOfAdvance } from '../src/features/workbook/domain/workbook'
 import { taxByType, typicalMonthlyAmount } from '../src/packs/hr-doo/domain/taxByType'
 import { withPackBuckets, PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import type { Period } from '../src/features/filters/domain/filterState'
@@ -83,6 +84,13 @@ describe('effective tax rate', () => {
 describe('payroll cadence', () => {
   it('follows the watched categories of the taxes bucket only', () => {
     expect(payrollCadence(transactions, PACK_CATEGORIES, window).map((cadence) => cadence.category)).toEqual(['payroll-contributions'])
+  })
+
+  it('counts a month paid when the owner paid the tax privately', () => {
+    const paidPrivately = bookingOfAdvance({ date: civil('2026-07-15'), amount: euros(90), description: 'Paid privately', category: 'payroll-contributions', family: 'taxes', bucket: 'taxes', sheetRow: 2 })
+    const [cadence] = payrollCadence([...transactions, paidPrivately], PACK_CATEGORIES, window)
+
+    expect(cadence?.months.find((month) => month.month === '2026-07')?.state).toBe('paid')
   })
 
   it('marks each month paid or missing, and the month still running as not yet due and uncounted', () => {

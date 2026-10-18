@@ -1,6 +1,6 @@
 import { normaliseIban } from '../../../shared/text/fold'
 import type { Settings } from '../../settings/domain/settings'
-import type { Account, Transaction, TransactionSignals } from '../../workbook/domain/workbook'
+import type { Account, Client, Transaction, TransactionSignals } from '../../workbook/domain/workbook'
 
 /**
  * Text folded the way `Categorise.gs` folds it: accents stripped, upper case, whitespace collapsed.
@@ -20,6 +20,8 @@ export function foldRuleText(text: string): string {
 export interface CategorisationContext {
   /** The workbook's own account IBANs, normalised. */
   readonly ownIbans: ReadonlySet<string>
+  /** Every IBAN the `clients` tab names, normalised. */
+  readonly clientIbans: ReadonlySet<string>
   /**
    * The bank accounts a card purchase settles against, normalised. A PDF-era card row names one of
    * these as its counterparty instead of the merchant.
@@ -30,13 +32,15 @@ export interface CategorisationContext {
   readonly workbookCurrency: string
 }
 
-/** The context a workbook gives the rules: its own IBANs and currencies, and the card settlement accounts from its settings. */
+/** The context a workbook gives the rules: its own IBANs and currencies, its clients' IBANs, and the card settlement accounts from its settings. */
 export function categorisationContextOf(workbook: {
   readonly accounts: readonly Account[]
+  readonly clients: readonly Client[]
   readonly settings: Pick<Settings, 'currency' | 'cardSettlementIbans'>
 }): CategorisationContext {
   return {
     ownIbans: new Set(workbook.accounts.map((account) => account.iban).filter((iban) => iban !== '')),
+    clientIbans: new Set(workbook.clients.flatMap((client) => client.ibans)),
     cardSettlementIbans: new Set(workbook.settings.cardSettlementIbans),
     accountCurrencies: new Map(
       workbook.accounts.filter((account) => account.currency !== '').map((account) => [account.slug, account.currency.toUpperCase()]),
@@ -53,6 +57,7 @@ export interface TransactionFacts {
   readonly counterpartyIban: string
   readonly hasCounterpartyIban: boolean
   readonly ownAccount: boolean
+  readonly clientAccount: boolean
   readonly counterparty: string
   readonly description: string
   readonly txDomain: string
@@ -74,6 +79,7 @@ export function transactionFacts(transaction: CategorisableTransaction, context:
     counterpartyIban,
     hasCounterpartyIban: counterpartyIban !== '',
     ownAccount: counterpartyIban !== '' && context.ownIbans.has(counterpartyIban),
+    clientAccount: counterpartyIban !== '' && context.clientIbans.has(counterpartyIban),
     counterparty: foldRuleText(transaction.counterparty),
     description,
     txDomain: foldRuleText(signals.txDomain),

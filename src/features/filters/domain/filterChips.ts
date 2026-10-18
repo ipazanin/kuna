@@ -1,6 +1,6 @@
 import { formatMoney } from '../../../shared/money/moneyFormat'
 import { isBucket } from '../../workbook/domain/bucket'
-import { DEFAULT_FILTERS } from './filterState'
+import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from './filterState'
 import type { FilterState } from './filterState'
 
 /** One active narrowing the user can see and remove, such as "Category: travel". */
@@ -18,6 +18,9 @@ const LIST_FIELDS = [
 
 type ListField = (typeof LIST_FIELDS)[number]['field']
 
+/** What the chip and the Add filter menu call the category choice that selects every owner advance. */
+export const EVERY_OWNER_ADVANCE_LABEL = 'Every owner advance'
+
 /** How a chip names what it narrows to: counterparties are stored as keys, buckets and categories as identifiers. */
 export interface ChipLabels {
   readonly counterparty: (key: string) => string
@@ -30,7 +33,7 @@ export function filterChips(filters: FilterState, labels: ChipLabels): FilterChi
   const chips: FilterChip[] = LIST_FIELDS.flatMap(({ field, name }) =>
     filters[field].map((selected) => ({
       id: `${field}:${selected}`,
-      label: `${name}: ${chipValue(field, selected, labels)}`,
+      label: field === 'categories' && selected === EVERY_OWNER_ADVANCE ? EVERY_OWNER_ADVANCE_LABEL : `${name}: ${chipValue(field, selected, labels)}`,
     })),
   )
   if (filters.text !== '') {

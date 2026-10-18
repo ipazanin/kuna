@@ -13,6 +13,8 @@ export function conditionInWords(condition: RuleCondition): string {
       return condition.present ? 'Has a counterparty IBAN' : 'Has no counterparty IBAN'
     case 'counterparty_is_own':
       return 'Counterparty is one of your accounts'
+    case 'counterparty_is_client':
+      return 'Counterparty is a client'
     case 'counterparty_contains':
       return `Counterparty contains "${condition.fragment}"`
     case 'description_contains':
@@ -37,11 +39,12 @@ export function conditionInWords(condition: RuleCondition): string {
 }
 
 /** What the form calls each condition column. */
-export const CONDITION_LABELS: Readonly<Record<Exclude<(typeof CONDITION_COLUMNS)[number], 'counterparty_is_client'>, string>> = {
+export const CONDITION_LABELS: Readonly<Record<(typeof CONDITION_COLUMNS)[number], string>> = {
   direction: 'Direction',
   counterparty_iban: 'Counterparty IBAN is',
   has_counterparty_iban: 'Counterparty IBAN',
   counterparty_is_own: 'Counterparty is one of your accounts',
+  counterparty_is_client: 'Counterparty is a client',
   counterparty_contains: 'Counterparty contains',
   description_contains: 'Description contains',
   description_starts_with: 'Description starts with',

@@ -16,7 +16,7 @@ const CATEGORIES: CellValue[][] = [
 
 function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGORIES, settings: CellValue[][] = []): WorkbookSnapshot {
   return {
-    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null },
+    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ledger: sheetRowsFromValues(ledger),
     categories: sheetRowsFromValues(categories),
     accounts: sheetRowsFromValues([

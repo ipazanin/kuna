@@ -99,8 +99,8 @@ export function verifyVerdicts(after: FreshTabs, plan: VerdictPlan): void {
 
 /**
  * The rules tab with the change made must pass every check the Apps Script's `parseRules` makes,
- * against the categories tab as it is now, or nothing is written. Edited rows change only the
- * cells that differ.
+ * against the categories and clients tabs as they are now, or nothing is written. Edited rows
+ * change only the cells that differ.
  */
 export function planRulesChange(fresh: FreshTabs, change: RulesTabChange): TabEdits {
   const rules = requireTab(fresh, 'rules')
@@ -113,7 +113,7 @@ export function planRulesChange(fresh: FreshTabs, change: RulesTabChange): TabEd
   if (missing.length > 0) {
     throw new WorkbookWriteRefused(`The rules tab has no ${missing.map((column) => `"${column}"`).join(', ')} column, which this rule needs.`)
   }
-  const refusals = rulesTabRefusals(rules.header, after.rows, definedCategorySlugs(requireTab(fresh, 'categories').rows))
+  const refusals = rulesTabRefusals(rules.header, after.rows, definedCategorySlugs(requireTab(fresh, 'categories').rows), clientsTabAnswers(fresh.clients))
   if (refusals.length > 0) {
     throw new WorkbookWriteRefused(`The rules tab would not pass the Apps Script's check, so nothing was written: ${refusals.join('. ')}.`)
   }
@@ -131,6 +131,12 @@ export function planRulesChange(fresh: FreshTabs, change: RulesTabChange): TabEd
   }
   const appends: RowAppend[] = change.appended === null ? [] : [{ tab: 'rules', cells: change.appended }]
   return { cells, appends }
+}
+
+/** Whether `requireClientIbans` in the Apps Script can read the tab: it exists, with a client and an iban column. */
+function clientsTabAnswers(clients: TabRead | undefined): boolean {
+  const header = clients?.header.map((name) => name.trim().toLowerCase()) ?? []
+  return clients !== undefined && header.includes('client') && header.includes('iban')
 }
 
 /** After the write: the new row and every edited row read back as written, each id once. */

@@ -63,7 +63,7 @@ const owner = computed(() => {
   const cost = ownerCost(profitAndLossRows, categories, filters.period, window)
   const loans = ownerLoans(scoped, categories)
   const advances = ownerAdvances(current.scopedAdvances, scoped, categories)
-  const owed = netOwed(loans, advances, categories)
+  const owed = netOwed(loans, advances, scoped, categories)
   const takeMonths = ownerTakeByMonth(profitAndLossRows, categories, months, window)
   const series = categorySeries(
     categoriesInBucket(categories, 'owner-pay').filter((category) => takeMonths.some((month) => month.byCategory[category]?.amount !== 0)),
@@ -129,7 +129,11 @@ const owner = computed(() => {
         value: formatWholeMoney(owed.amount),
         to: drillLocation(owed.drill),
         caption: owed.amount > 0 ? 'The owner owes the company' : owed.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way',
-        definition: `All time, one balance across both directions: lent to the owner less repaid (${formatWholeMoney(owed.loanBalance)}), less the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(owed.advancesOutstanding)}). Positive means the owner owes the company.`,
+        definition:
+          `All time, one balance across both directions. The owner owes the company what was lent less what was repaid (${formatWholeMoney(owed.loanBalance)}), ` +
+          `less what the owner paid back on a reimbursement category for private costs the company paid for them (${formatWholeMoney(owed.privateCostsRepaid.amount)}). ` +
+          `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(owed.advancesOutstanding)}). ` +
+          'Positive means the owner owes the company. A private cost the company paid counts as lent only when its row is in a category with the owner-loan-out role.',
       },
     ],
     draws: ownerDrawsChart(takeMonths, series, tokens),
@@ -151,9 +155,9 @@ const owner = computed(() => {
       { label: 'Still owed', amount: balance, to: drillLocation(loans.outstanding.drill) },
     ],
     advanceSummary: [
-      { label: 'Paid by the owner', amount: advances.advanced, to: null },
+      { label: 'Paid by the owner', amount: advances.advanced.amount, to: drillLocation(advances.advanced.drill) },
       { label: 'Reimbursed', amount: advances.reimbursed.amount, to: drillLocation(advances.reimbursed.drill) },
-      { label: 'Owed to the owner', amount: advances.outstanding, to: null },
+      { label: 'Owed to the owner', amount: advances.outstanding.amount, to: drillLocation(advances.outstanding.drill) },
     ],
     advances: [...advances.advances].reverse().map(
       (line): AdvanceLine => ({
@@ -162,6 +166,7 @@ const owner = computed(() => {
         description: line.advance.description,
         category: categoryName(line.advance.category),
         amount: line.advance.amount,
+        to: drillLocation(line.drill),
         remaining: line.remaining,
         open: line.status === 'open',
         repaidOn: line.repaidOn === null ? null : day(line.repaidOn),

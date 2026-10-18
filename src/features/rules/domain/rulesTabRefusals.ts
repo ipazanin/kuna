@@ -9,14 +9,15 @@ const RULE_OUTCOME_COLUMNS = ['rule', 'order', 'enabled', 'category', 'confidenc
 /**
  * Everything the shadow-accounting Apps Script would refuse about this rules tab, mirroring
  * `parseRules` in `Rules.gs`: first the header (a column no rule can test, a missing outcome
- * column), then every row as `readRules` checks it. The Apps Script refuses the whole tab on any of
+ * column), then every row as `readRules` checks it, which includes the clients tab that
+ * `categorisationContext` requires of a rule testing `counterparty_is_client`. The Apps Script refuses the whole tab on any of
  * these, which stops the morning ingest, so the app writes nothing to a tab that has one.
  *
  * Headers are compared in lower case, as `parseRules` does. A row's cells are keyed by the header
  * as written, so a header such as `Rule` passes the header check and is then refused as an unknown
  * column, which is stricter than the Apps Script and never looser.
  */
-export function rulesTabRefusals(header: readonly string[], rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>): string[] {
+export function rulesTabRefusals(header: readonly string[], rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>, hasClientsTab: boolean): string[] {
   const columns = header.map((name) => name.trim().toLowerCase())
   const refusals: string[] = []
   columns.forEach((column, index) => {
@@ -32,5 +33,5 @@ export function rulesTabRefusals(header: readonly string[], rows: readonly RuleT
   if (refusals.length > 0) {
     return refusals
   }
-  return readRules(rows, definedCategories).problems.map((problem) => `row ${problem.sheetRow}: ${problem.reason}`)
+  return readRules(rows, definedCategories, hasClientsTab).problems.map((problem) => `row ${problem.sheetRow}: ${problem.reason}`)
 }

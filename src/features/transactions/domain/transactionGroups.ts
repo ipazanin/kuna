@@ -8,7 +8,7 @@ import { directionOf } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
 import { bucketTotals } from '../../workbook/domain/bucketTotals'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
-import type { Transaction } from '../../workbook/domain/workbook'
+import type { ListedRow } from './listedRows'
 
 export type Grouping = 'none' | 'month' | 'category' | 'counterparty'
 
@@ -25,7 +25,7 @@ interface GroupMembers {
   /** Unique within one grouping, so a collapsed group is remembered by it. */
   readonly key: string
   /** In the order the rows were given. */
-  readonly rows: readonly Transaction[]
+  readonly rows: readonly ListedRow[]
   readonly total: Money
 }
 
@@ -70,7 +70,7 @@ export interface GroupingContext {
  * counterparties come largest first by the size of their total, whichever its sign.
  */
 export function groupTransactions(
-  rows: readonly Transaction[],
+  rows: readonly ListedRow[],
   grouping: Exclude<Grouping, 'none'>,
   context: GroupingContext,
 ): TransactionGroup[] {
@@ -84,7 +84,7 @@ export function groupTransactions(
   }
 }
 
-function monthGroups(rows: readonly Transaction[], window: LedgerWindow): MonthGroup[] {
+function monthGroups(rows: readonly ListedRow[], window: LedgerWindow): MonthGroup[] {
   return [...partition(rows, (transaction) => monthOf(transaction.date))]
     .map(([month, members]): MonthGroup => {
       const profitAndLoss = bucketTotals(members)
@@ -103,7 +103,7 @@ function monthGroups(rows: readonly Transaction[], window: LedgerWindow): MonthG
     .sort((left, right) => right.month.localeCompare(left.month))
 }
 
-function categoryGroups(rows: readonly Transaction[]): CategoryGroup[] {
+function categoryGroups(rows: readonly ListedRow[]): CategoryGroup[] {
   const profitAndLoss = bucketTotals(rows)
   return largestFirst(
     [...partition(rows, (transaction) => transaction.category)].map(([category, members]): CategoryGroup => {
@@ -126,7 +126,7 @@ function categoryGroups(rows: readonly Transaction[]): CategoryGroup[] {
   )
 }
 
-function counterpartyGroups(rows: readonly Transaction[], labels: ReadonlyMap<string, string>): CounterpartyGroup[] {
+function counterpartyGroups(rows: readonly ListedRow[], labels: ReadonlyMap<string, string>): CounterpartyGroup[] {
   const groups = [...partition(rows, (transaction) => counterpartyIdentity(transaction).key)].map(([key, members]) => ({
     key,
     members,
@@ -157,22 +157,22 @@ function counterpartyGroups(rows: readonly Transaction[], labels: ReadonlyMap<st
   )
 }
 
-function partition<Key>(rows: readonly Transaction[], keyOf: (transaction: Transaction) => Key): Map<Key, Transaction[]> {
-  const groups = new Map<Key, Transaction[]>()
-  for (const transaction of rows) {
-    const key = keyOf(transaction)
+function partition<Key>(rows: readonly ListedRow[], keyOf: (row: ListedRow) => Key): Map<Key, ListedRow[]> {
+  const groups = new Map<Key, ListedRow[]>()
+  for (const row of rows) {
+    const key = keyOf(row)
     const members = groups.get(key)
     if (members === undefined) {
-      groups.set(key, [transaction])
+      groups.set(key, [row])
     } else {
-      members.push(transaction)
+      members.push(row)
     }
   }
   return groups
 }
 
-function totalOf(rows: readonly Transaction[]): Money {
-  return sumMoney(rows.map((transaction) => transaction.amount))
+function totalOf(rows: readonly ListedRow[]): Money {
+  return sumMoney(rows.map((row) => row.amount))
 }
 
 function largestFirst<Group extends GroupMembers>(groups: Group[], labelOf: (group: Group) => string): Group[] {

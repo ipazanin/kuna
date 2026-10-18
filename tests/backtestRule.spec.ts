@@ -13,7 +13,7 @@ import { ledger } from './fixtures/ledger'
 const SHOP_IBAN = 'XX00FAKE0000000011'
 const CLIENT_IBAN = 'XX00FAKE0000000012'
 
-const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], settings: DEFAULT_SETTINGS })
+const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], clients: [], settings: DEFAULT_SETTINGS })
 
 function rule(id: string, order: number, conditions: RuleCondition[], category: string, confidence: Rule['confidence'] = 'rule'): Rule {
   return { id, order, enabled: true, conditions, category, confidence, note: '', sheetRow: order / 100 + 1 }

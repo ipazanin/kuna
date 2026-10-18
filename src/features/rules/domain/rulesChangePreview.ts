@@ -24,6 +24,7 @@ export function previewRulesChange<Row extends BacktestTransaction>(
   rows: readonly RuleTabRow[],
   change: RulesTabChange,
   definedCategories: ReadonlySet<string>,
+  hasClientsTab: boolean,
   current: readonly Rule[],
   transactions: readonly Row[],
   context: CategorisationContext,
@@ -31,7 +32,7 @@ export function previewRulesChange<Row extends BacktestTransaction>(
   const lastRow = rows.reduce((last, row) => Math.max(last, row.sheetRow), 1)
   const after = rulesTabAfter(rows, change, lastRow)
   const header = [...new Set([...RULE_COLUMNS, ...after.rows.flatMap((row) => Object.keys(row.cells))])]
-  const refusals = [...after.refusals, ...rulesTabRefusals(header, after.rows, definedCategories)]
-  const proposed = readRules(after.rows, definedCategories).rules
+  const refusals = [...after.refusals, ...rulesTabRefusals(header, after.rows, definedCategories, hasClientsTab)]
+  const proposed = readRules(after.rows, definedCategories, hasClientsTab).rules
   return { refusals, backtest: backtestRuleChange(current, proposed, transactions, context) }
 }

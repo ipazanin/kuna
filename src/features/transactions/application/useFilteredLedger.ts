@@ -3,6 +3,7 @@ import type { ComputedRef } from 'vue'
 
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { useFilters } from '../../filters/application/filterStore'
+import { transactionsInPeriod } from '../../filters/domain/filterState'
 import type { FilterState } from '../../filters/domain/filterState'
 import { presentedTransactions } from '../../settings/domain/profitAndLossLabels'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -24,6 +25,8 @@ export interface FilteredLedger {
   readonly selected: readonly Transaction[]
   /** The costs the owner paid privately that every filter but the period selects. */
   readonly scopedAdvances: readonly OwnerAdvance[]
+  /** The costs the owner paid privately that every filter selects, period included. */
+  readonly selectedAdvances: readonly OwnerAdvance[]
   /** The scoped rows and the scoped advances: everything profit and loss counts. */
   readonly profitAndLossRows: readonly Booking[]
   /** Every row of the accounts in view, which balances need whatever else is filtered. */
@@ -52,6 +55,7 @@ export function useFilteredLedger(): ComputedRef<FilteredLedger | null> {
       scoped,
       selected: filterTransactions(workbook.transactions, current, window),
       scopedAdvances,
+      selectedAdvances: transactionsInPeriod(scopedAdvances, current.period, window),
       profitAndLossRows: [...scoped, ...scopedAdvances.map(bookingOfAdvance)],
       accountRows:
         accounts.length === 0

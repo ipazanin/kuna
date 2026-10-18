@@ -1,6 +1,6 @@
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { fold } from '../../../shared/text/fold'
-import { transactionsInPeriod } from '../../filters/domain/filterState'
+import { EVERY_OWNER_ADVANCE, transactionsInPeriod } from '../../filters/domain/filterState'
 import type { FilterState } from '../../filters/domain/filterState'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { needsReview } from '../../workbook/domain/needsReview'
@@ -39,10 +39,14 @@ export function scopeTransactions(transactions: readonly Transaction[], filters:
   )
 }
 
+/** Who Transactions names as the counterparty of an owner advance, which is in no ledger row. */
+export const OWNER_COUNTERPARTY = 'Owner'
+
 /**
  * The owner's advances every filter but the period selects. An advance was paid from no account
  * of the company's, to no counterparty in the ledger, and never waits for review, so a filter on
- * any of those leaves every advance out. Its amount filters as the cost it books.
+ * any of those leaves every advance out. Its amount filters as the cost it books, and the
+ * `EVERY_OWNER_ADVANCE` category choice selects it whatever its category.
  */
 export function scopeOwnerAdvances(advances: readonly OwnerAdvance[], filters: FilterState): OwnerAdvance[] {
   if (filters.accounts.length > 0 || filters.counterparties.length > 0 || filters.needsReview) {
@@ -54,11 +58,23 @@ export function scopeOwnerAdvances(advances: readonly OwnerAdvance[], filters: F
     (advance) =>
       includes(filters.buckets, advance.bucket) &&
       includes(filters.families, advance.family) &&
-      includes(filters.categories, advance.category) &&
+      (includes(filters.categories, advance.category) || filters.categories.includes(EVERY_OWNER_ADVANCE)) &&
       (min === null || -advance.amount >= min) &&
       (max === null || -advance.amount <= max) &&
-      (text === '' || fold([advance.description, advance.category].join(' ')).includes(text)),
+      (text === '' || fold([OWNER_COUNTERPARTY, advance.description, advance.category].join(' ')).includes(text)),
   )
+}
+
+/**
+ * The advances in the period that the account, counterparty or review filter alone leaves out,
+ * so Transactions can say how many it does not list.
+ */
+export function advancesLeftOutByBankFilters(advances: readonly OwnerAdvance[], filters: FilterState, window: LedgerWindow): number {
+  if (filters.accounts.length === 0 && filters.counterparties.length === 0 && !filters.needsReview) {
+    return 0
+  }
+  const withoutBankFilters = { ...filters, accounts: [], counterparties: [], needsReview: false }
+  return transactionsInPeriod(scopeOwnerAdvances(advances, withoutBankFilters), filters.period, window).length
 }
 
 function includes<Value>(selection: readonly Value[], candidate: Value): boolean {

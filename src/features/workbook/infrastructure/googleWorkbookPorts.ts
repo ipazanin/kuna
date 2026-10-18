@@ -37,6 +37,7 @@ export async function readSnapshotFrom(sheets: SheetsValues, sheet: GoogleSheet)
       ledgerSheetId: sheetIds.get('ledger') ?? null,
       lastExportedAt: null,
       unexportedSince: null,
+      missingTabs: WORKBOOK_TABS.filter((tab) => !sheetIds.has(tab)),
     },
     ...EMPTY_TABS,
     ...tabs,

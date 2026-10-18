@@ -27,7 +27,7 @@ function tabsOf(amounts: number[]): WorkbookTabs {
 
 function snapshotOf(id: string, syncedAt: string, amounts: number[], title = 'Books'): WorkbookSnapshot {
   return {
-    meta: { id, source: 'google', title, syncedAt, ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null },
+    meta: { id, source: 'google', title, syncedAt, ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...tabsOf(amounts),
   }
 }
@@ -224,7 +224,7 @@ describe('workbook store in Excel mode', () => {
     const reopened = createWorkbookStore(harness(first.chosen()).ports)
     await reopened.open()
     expect(reopened.state.workbook?.transactions).toHaveLength(2)
-    expect(reopened.state.snapshot?.meta).toMatchObject({ source: 'excel', lastExportedAt: null, unexportedSince: null })
+    expect(reopened.state.snapshot?.meta).toMatchObject({ source: 'excel', lastExportedAt: null, unexportedSince: null, missingTabs: [] })
   })
 
   it('forgets the Google sign-in when a workbook kept in this browser replaces a Sheet', async () => {

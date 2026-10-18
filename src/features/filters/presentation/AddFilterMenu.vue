@@ -9,6 +9,8 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import type { Workbook } from '../../workbook/domain/workbook'
+import { EVERY_OWNER_ADVANCE_LABEL } from '../domain/filterChips'
+import { EVERY_OWNER_ADVANCE } from '../domain/filterState'
 
 /** A searchable menu that adds or removes a bucket, category or counterparty filter. Its values are chip ids. */
 const props = defineProps<{
@@ -38,6 +40,7 @@ const groups = computed<SelectMenuItem[][]>(() => {
     [
       { type: 'label' as const, label: 'Categories' },
       ...props.workbook.categories.map((category): Choice => ({ label: names.value.category(category.slug), value: `categories:${category.slug}`, bucket: category.bucket })),
+      ...(props.workbook.ownerAdvances.length === 0 ? [] : [{ label: EVERY_OWNER_ADVANCE_LABEL, value: `categories:${EVERY_OWNER_ADVANCE}` }]),
     ],
     [
       { type: 'label' as const, label: 'Counterparties' },

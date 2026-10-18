@@ -29,6 +29,8 @@ export interface WorkbookMeta {
   readonly lastExportedAt: string | null
   /** When the oldest change not yet in an exported file was made. Null when every change is exported. */
   readonly unexportedSince: string | null
+  /** The tabs a Google Sheet lacks. A workbook kept in this browser has every tab, since an export writes them all. */
+  readonly missingTabs: readonly WorkbookTab[]
 }
 
 export type WorkbookSnapshot = { readonly meta: WorkbookMeta } & WorkbookTabs

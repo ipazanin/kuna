@@ -18,12 +18,14 @@ import { NO_SIGNALS } from './fixtures/ledger'
 
 const OWN_IBAN = 'XX00FAKE0000000001'
 const CARD_SETTLEMENT_IBAN = 'XX00FAKE0000000099'
+const CLIENT_IBAN = 'XX00FAKE0000000042'
 
 const context = categorisationContextOf({
   accounts: [
     { slug: 'main', iban: OWN_IBAN, currency: '' },
     { slug: 'sterling', iban: 'XX00FAKE0000000002', currency: 'gbp' },
   ],
+  clients: [{ slug: 'acme', name: 'Acme', ibans: [CLIENT_IBAN] }],
   settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [CARD_SETTLEMENT_IBAN] },
 })
 
@@ -78,6 +80,12 @@ describe('each condition', () => {
   it('counterparty_is_own reads the accounts tab', () => {
     expect(matches({ column: 'counterparty_is_own' }, row({ counterpartyIban: OWN_IBAN }))).toBe(true)
     expect(matches({ column: 'counterparty_is_own' }, row({ counterpartyIban: 'XX00FAKE0000000005' }))).toBe(false)
+  })
+
+  it('counterparty_is_client reads the clients tab, and a blank IBAN is no client', () => {
+    expect(matches({ column: 'counterparty_is_client' }, row({ counterpartyIban: 'xx00 fake 0000 0000 42' }))).toBe(true)
+    expect(matches({ column: 'counterparty_is_client' }, row({ counterpartyIban: OWN_IBAN }))).toBe(false)
+    expect(matches({ column: 'counterparty_is_client' }, row())).toBe(false)
   })
 
   it('counterparty_contains folds the name, and a blank counterparty matches no fragment', () => {

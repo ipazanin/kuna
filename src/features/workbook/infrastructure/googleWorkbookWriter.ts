@@ -14,13 +14,11 @@ import type { CellValue } from './workbookSnapshot'
 export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
   return {
     async read(tabs) {
+      // A batchGet fails whole on a tab that does not exist, so it asks only for the tabs the Sheet has.
       const sheetIds = await sheets.sheetIds()
-      const missing = tabs.filter((tab) => !sheetIds.has(tab))
-      if (missing.length > 0) {
-        throw new WorkbookWriteRefused(`The Sheet has no ${missing.join(' or ')} tab, so nothing was written.`)
-      }
-      const ranges = await sheets.batchGet(tabs.map(sheetNameInRange))
-      return Object.fromEntries(tabs.map((tab, index) => [tab, tabReadOf(ranges[index]?.values ?? [])]))
+      const present = tabs.filter((tab) => sheetIds.has(tab))
+      const ranges = await sheets.batchGet(present.map(sheetNameInRange))
+      return Object.fromEntries(present.map((tab, index) => [tab, tabReadOf(ranges[index]?.values ?? [])]))
     },
 
     async write(edits, before) {

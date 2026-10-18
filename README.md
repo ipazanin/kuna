@@ -70,7 +70,7 @@ take their defaults.
 | `settings` | `key`, `value`, one row per setting |
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out. |
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. |
-| `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. |
+| `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. |
 | `owner-advances` | `date`, `amount` (positive), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. |
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
@@ -118,7 +118,7 @@ the `roles` column, never by name:
 | `owner-loan-out`, `owner-loan-repaid` | Loans to the owner and their repayments |
 | `owner-pay-tax` | Taxes owed because the owner was paid, added to the owner's gross cost |
 | `watched` | In the taxes bucket, a tax with a monthly payment calendar |
-| `reimbursement` | Reimbursements between owner and company, listed beside owner pay. A payment to the owner on one repays the owner's advances |
+| `reimbursement` | Reimbursements between owner and company, listed beside owner pay. A payment to the owner on one repays the owner's advances. A payment from the owner on one repays a private cost the company paid for the owner |
 | `client-refund` | Money paid back to a client, such as an overpayment, on Receivables |
 
 The effective tax rate is the taxes bucket, paid less refunded, over client revenue. A tax refund
@@ -131,11 +131,21 @@ which role no category carries, and what it leaves out because of that.
 Costs the owner paid privately go on the `owner-advances` tab, from the Sheet or from "Add advance"
 on Owner. Each counts as a cost on its date and in its category on every profit and loss figure:
 bucket totals, the monthly series, the window averages and runway, category totals, period review,
-tax by type and the effective tax rate. They are not bank rows, so Transactions, balances, payees
-and Review never show them, and a filter on an account, a counterparty or review leaves them out.
-Payments to the owner on a `reimbursement` category repay them oldest first and stay financing.
-Net owed, on Owner and Overview, is one signed balance: the loan balance less the advances not yet
-reimbursed. Positive means the owner owes the company.
+tax by type, the effective tax rate and the payroll cadence. Transactions lists each one as an
+"Owner advance" row with no bank account, the owner as counterparty, and its category and amount as
+a cost, so every drill from a figure that counts an advance shows it. They are not bank rows, so
+balances, payees, Cash and Review leave them out. An account, counterparty or review filter leaves
+them out too, since an advance has no bank account, no ledger counterparty and nothing to review.
+Transactions then says how many advances in the period it does not list. "Every owner advance", a
+choice among the categories in Add filter, selects all of them and no bank row. Payments to the
+owner on a `reimbursement` category repay them oldest first and stay financing.
+
+Net owed, on Owner and Overview, is one signed balance. The owner owes the company the loan balance,
+less every payment from the owner on a `reimbursement` category, which repays a private cost the
+company paid for the owner. The company owes the owner the advances not yet reimbursed. Positive
+means the owner owes the company. The company's payment of such a private cost counts as lent only
+when its row is in a category with the `owner-loan-out` role. Filed as an ordinary cost, it counts
+in costs and not in net owed.
 
 ## Receivables
 
@@ -233,11 +243,14 @@ side in `googleWorkbookWriter.ts`.
   Confirm writes the `review_label` setting to `flagged_by`. Recategorise writes the category and the
   label. Applying a new rule writes its category and `rule`, only to rows flagged `ai` or
   unclassified. Undo writes the exact previous values back through the same checks. Review lists
-  every write of the page's session under "Changes in this session", newest first, with Undo on
-  each ledger write that has not been undone. The list is held in memory, so a reload clears it.
+  every write of the page's session under "Changes in this session", newest first: ledger rows,
+  rules, settings, owner advances and the loan bucket. A ledger write, an added advance and a
+  bucket switch that have not been undone carry Undo there. Rules and settings are changed back on
+  Workbook. The list is held in memory, so a reload clears it.
 - **Rules.** The tab after the change must pass every check of `parseRules` in the Apps Script's
   `Rules.gs` (mirrored in `rulesTabRefusals.ts`), against the categories tab as it is now, so a save
-  is refused while the tab has any problem. A new rule is appended. An edited, switched or moved rule
+  is refused while the tab has any problem. An enabled rule that tests `counterparty_is_client`
+  also needs a `clients` tab with `client` and `iban` columns, which `categorisationContext` reads. A new rule is appended. An edited, switched or moved rule
   is found by its id, must still hold what the app read, and only its changed cells are written.
   Moving a rule swaps its order with its neighbour's, so orders stay in steps of 100, and renumbers
   every rule in steps of 100 only when the two share an order.
@@ -259,8 +272,8 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 | Use case | Requests |
 |---|---|
 | Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids), `values.batchGet` of `ledger` and `categories`, `values.batchUpdate` of single cells such as `ledger!I57` and `ledger!M57`, then the same get and batchGet again |
-| Add a rule | get, `values.batchGet` of `rules` and `categories`, `values.append` to `rules!A:U` with `insertDataOption=INSERT_ROWS` (plus a `values.batchUpdate` of `order` cells when rules are renumbered), get and batchGet again |
-| Edit, switch on or off, move a rule | get, batchGet of `rules` and `categories`, `values.batchUpdate` of the changed cells such as `rules!C12`, get and batchGet again |
+| Add a rule | get, `values.batchGet` of `rules`, `categories` and `clients` (when the Sheet has it), `values.append` to `rules!A:U` with `insertDataOption=INSERT_ROWS` (plus a `values.batchUpdate` of `order` cells when rules are renumbered), get and batchGet again |
+| Edit, switch on or off, move a rule | get, batchGet of `rules`, `categories` and `clients` (when the Sheet has it), `values.batchUpdate` of the changed cells such as `rules!C12`, get and batchGet again |
 | Save settings | get, batchGet of `settings`, `values.batchUpdate` of `value` cells such as `settings!B4`, `values.append` to `settings!A:B` for a new key, get and batchGet again |
 | Add an advance | get, batchGet of `'owner-advances'` and `categories`, `values.append` to `'owner-advances'!A:D`, get and batchGet again. Undo is a `values.batchUpdate` clearing that row's cells |
 | Switch the loan bucket | get, batchGet of `categories`, `values.batchUpdate` of `bucket` cells such as `categories!C16`, get and batchGet again |
@@ -315,7 +328,11 @@ taken before those columns existed.
 Each side reads `card_settlement_ibans` from the export's `settings` tab with its own reader, and
 the script fails when the two lists differ or the Apps Script refuses the tab. An export without a
 `settings` tab gives both sides the `CARD_SETTLEMENT_IBAN` constant of an older `Categorise.gs`, or
-none, and says which.
+none, and says which. The client IBANs come from the export's `clients` tab the same way, read by
+`requireClientIbans` when an enabled rule tests `counterparty_is_client`, and the two lists must
+agree. A synthetic case follows: one rule, tried first, that files credits from a client, over the
+export's clients or, for an export without the tab, two IBANs that sent the ledger money, held in
+memory. Both engines run it over every row, and both must refuse it without a `clients` tab.
 
 In development and fake builds, `#/gallery` shows every shared component and chart style with
 made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist

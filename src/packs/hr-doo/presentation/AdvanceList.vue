@@ -14,6 +14,8 @@ export interface AdvanceLine {
   readonly description: string
   readonly category: string
   readonly amount: number
+  /** The advance on Transactions. */
+  readonly to: RouteLocationRaw | null
   readonly remaining: number
   readonly open: boolean
   readonly repaidOn: string | null
@@ -42,7 +44,9 @@ defineProps<{
           <p class="truncate text-sm text-highlighted">{{ advance.description || advance.category }}</p>
           <p class="truncate text-xs text-muted">{{ advance.paidOn }}, {{ advance.category }}</p>
         </div>
-        <MoneyText :cents="advance.amount" precision="whole" class="text-end text-sm font-medium text-highlighted" />
+        <DrillLink :to="advance.to" :label="`Advance of ${advance.paidOn}, open the row`" class="text-end">
+          <MoneyText :cents="advance.amount" precision="whole" class="text-sm font-medium text-highlighted" />
+        </DrillLink>
         <UBadge :label="advance.open ? 'Owed to the owner' : 'Reimbursed'" :color="advance.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
         <p class="advance-remaining text-xs text-muted">
           <template v-if="advance.open"><MoneyText :cents="advance.remaining" precision="whole" class="text-toned" /> still owed</template>

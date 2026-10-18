@@ -22,18 +22,28 @@ function rule(id: string, order: number, conditions: RuleCondition[], category =
   return { id, order, enabled: true, conditions, category, confidence: 'rule', note: '', sheetRow }
 }
 
-const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], settings: DEFAULT_SETTINGS })
+const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], clients: [], settings: DEFAULT_SETTINGS })
 
 describe('rulesTabRefusals, the mirror of parseRules in Rules.gs', () => {
   const header = [...RULE_COLUMNS]
   const good = { sheetRow: 2, cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
 
   it('passes a tab the Apps Script reads', () => {
-    expect(rulesTabRefusals(header, [good], CATEGORIES)).toEqual([])
+    expect(rulesTabRefusals(header, [good], CATEGORIES, false)).toEqual([])
+  })
+
+  it('refuses an enabled rule that tests counterparty_is_client only while the clients tab is missing, as categorisationContext does', () => {
+    const asksForClients = { sheetRow: 3, cells: { rule: 'client-pays', order: 200, enabled: true, direction: 'credit', counterparty_is_client: true, category: 'equipment', confidence: 'rule' } }
+    const parked = { sheetRow: 4, cells: { ...asksForClients.cells, rule: 'parked', enabled: false } }
+
+    expect(rulesTabRefusals(header, [good, asksForClients, parked], CATEGORIES, true)).toEqual([])
+    expect(rulesTabRefusals(header, [good, asksForClients, parked], CATEGORIES, false)).toEqual([
+      'row 3: client-pays tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban',
+    ])
   })
 
   it('refuses a header no rule can test and a missing outcome column, before any row', () => {
-    expect(rulesTabRefusals([...header.filter((column) => column !== 'confidence'), 'Owner'], [good], CATEGORIES)).toEqual([
+    expect(rulesTabRefusals([...header.filter((column) => column !== 'confidence'), 'Owner'], [good], CATEGORIES, true)).toEqual([
       'column U is headed "owner", which no rule can test',
       'there is no "confidence" column',
     ])
@@ -56,7 +66,7 @@ describe('rulesTabRefusals, the mirror of parseRules in Rules.gs', () => {
       { sheetRow: 14, cells: { rule: 'guard', order: 1200, enabled: true, is_card: true, confidence: 'review' } },
     ]
 
-    expect(rulesTabRefusals(header, rows, CATEGORIES).map((refusal) => refusal.split(':')[0])).toEqual([
+    expect(rulesTabRefusals(header, rows, CATEGORIES, false).map((refusal) => refusal.split(':')[0])).toEqual([
       'row 3',
       'row 4',
       'row 5',
@@ -78,6 +88,7 @@ describe('rule cells', () => {
       { column: 'counterparty_iban', iban: 'XX00FAKE0000000013' },
       { column: 'has_counterparty_iban', present: true },
       { column: 'counterparty_is_own' },
+      { column: 'counterparty_is_client' },
       { column: 'counterparty_contains', fragment: 'DESK' },
       { column: 'description_contains', fragment: 'CHAIR' },
       { column: 'description_starts_with', fragment: 'ORDER' },
@@ -90,7 +101,7 @@ describe('rule cells', () => {
       { column: 'foreign_currency' },
     ])
 
-    const [read] = readRules([{ sheetRow: 7, cells: ruleTabCells(written) }], CATEGORIES).rules
+    const [read] = readRules([{ sheetRow: 7, cells: ruleTabCells(written) }], CATEGORIES, true).rules
 
     expect(read).toEqual({ ...written, sheetRow: 7 })
   })

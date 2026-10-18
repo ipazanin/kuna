@@ -4,7 +4,7 @@ import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
 import { needsReview } from '../src/features/workbook/domain/needsReview'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
 const HEADER = [...RULE_COLUMNS] as string[]
 
@@ -13,9 +13,9 @@ function ruleRow(cells: Partial<Record<(typeof RULE_COLUMNS)[number], CellValue>
   return HEADER.map((column) => cells[column as keyof typeof cells] ?? '')
 }
 
-function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'account', 'amount', 'balance']]): WorkbookSnapshot {
+function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'account', 'amount', 'balance']], missingTabs: WorkbookTab[] = []): WorkbookSnapshot {
   return {
-    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null },
+    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null, missingTabs },
     ledger: sheetRowsFromValues(ledger),
     categories: sheetRowsFromValues([
       ['category', 'family', 'bucket'],
@@ -104,7 +104,7 @@ describe('reading the rules tab', () => {
         ruleRow({ rule: 'code', order: 11, enabled: true, revenue_code: 651, category: 'travel', confidence: 'rule' }),
         ruleRow({ rule: 'side', order: 12, enabled: true, direction: 'out', is_card: 'FALSE', category: 'travel', confidence: 'rule' }),
         ruleRow({ rule: 'kept', order: 13, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
-      ]),
+      ], undefined, ['clients']),
     )
 
     expect(workbook.rules.map((rule) => rule.id)).toEqual(['same', 'kept'])
@@ -117,7 +117,7 @@ describe('reading the rules tab', () => {
       ['rules', 8, 'sure has the confidence "certain", and it is rule or review'],
       ['rules', 9, 'nope files rows as "nope" at rule confidence, and the categories tab does not define it'],
       ['rules', 10, 'bare has no condition, so it would match every row'],
-      ['rules', 11, 'client: counterparty_is_client needs a clients tab, which this workbook does not have yet. Name the client by counterparty_iban instead'],
+      ['rules', 11, 'client tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban'],
       ['rules', 12, 'code: revenue_code is "651", and it is four digits'],
       ['rules', 13, 'side: direction is "out", and it is credit, debit or blank'],
       ['rules', 13, 'side: is_card is "FALSE", and it is TRUE or blank'],

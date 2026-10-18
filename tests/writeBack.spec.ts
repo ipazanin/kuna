@@ -311,6 +311,36 @@ describe('writing to a Google Sheet', () => {
     expect(sheets.requests.some((request) => request.kind === 'append')).toBe(false)
   })
 
+  it('refuses a rule that tests counterparty_is_client until the Sheet has a clients tab with client and iban columns', async () => {
+    const asksForClients = ruleTabCells({
+      id: 'client-pays',
+      order: 1,
+      enabled: true,
+      conditions: [{ column: 'direction', direction: 'credit' }, { column: 'counterparty_is_client' }],
+      category: 'revenue',
+      confidence: 'rule',
+      note: '',
+      sheetRow: null,
+    })
+    const withoutClients = await googleHarness(used)
+    expect(withoutClients.store.state.workbook?.hasClientsTab).toBe(false)
+    await expect(withoutClients.store.changeRules({ appended: asksForClients, edited: [] })).rejects.toThrow(
+      'client-pays tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it',
+    )
+
+    const headerless = workbookGrids()
+    headerless.clients = [['client', 'name']]
+    await expect((await googleHarness(used, headerless)).store.changeRules({ appended: asksForClients, edited: [] })).rejects.toThrow('no clients tab with client and iban columns')
+
+    const withClients = workbookGrids()
+    withClients.clients = [['client', 'name', 'iban'], ['acme', 'Acme', 'XX00FAKE0000000042']]
+    const { store, sheets } = await googleHarness(used, withClients)
+    await store.changeRules({ appended: asksForClients, edited: [] })
+    expect(sheets.requests.filter((request) => request.kind === 'append')).toHaveLength(1)
+    expect(store.state.workbook?.rules.map((rule) => rule.id)).toContain('client-pays')
+    expect(store.state.workbook?.problems.filter((problem) => problem.tab === 'rules')).toEqual([])
+  })
+
   it('sets a setting in the value column and appends a missing key under key and value', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used)
 
@@ -331,7 +361,7 @@ describe('writing to a Google Sheet', () => {
     const withoutSettings = workbookGrids()
     delete withoutSettings.settings
     const bare = await googleHarness(used, withoutSettings)
-    await expect(bare.store.changeSettings([{ key: 'company_name', expected: null, value: 'X' }])).rejects.toThrow('The Sheet has no settings tab, so nothing was written.')
+    await expect(bare.store.changeSettings([{ key: 'company_name', expected: null, value: 'X' }])).rejects.toThrow('The workbook has no settings tab, so nothing was written.')
 
     const doubled = workbookGrids()
     doubled.settings!.push(['review_label', 'other'])

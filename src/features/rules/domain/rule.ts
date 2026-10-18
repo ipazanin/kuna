@@ -11,7 +11,7 @@ export type RuleCondition =
   | { readonly column: 'direction'; readonly direction: EntrySide }
   | { readonly column: 'counterparty_iban'; readonly iban: string }
   | { readonly column: 'has_counterparty_iban'; readonly present: boolean }
-  | { readonly column: 'counterparty_is_own' }
+  | { readonly column: 'counterparty_is_own' | 'counterparty_is_client' }
   | { readonly column: 'counterparty_contains' | 'description_contains' | 'description_starts_with'; readonly fragment: string }
   | { readonly column: 'tx_domain' | 'tx_family' | 'tx_sub_family' | 'purpose' | 'revenue_code'; readonly code: string }
   | { readonly column: 'is_card' | 'foreign_currency' }
@@ -31,10 +31,7 @@ export interface Rule {
   readonly sheetRow: number | null
 }
 
-/**
- * The tab's condition columns. `counterparty_is_client` is part of the tab's shape, but nothing can
- * answer it until a `clients` tab exists, so a rule using it is refused.
- */
+/** The tab's condition columns, in the tab's order. */
 export const CONDITION_COLUMNS = [
   'direction',
   'counterparty_iban',

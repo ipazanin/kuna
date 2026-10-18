@@ -166,6 +166,7 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
       ledgerSheetId: source === 'google' ? 0 : null,
       lastExportedAt: null,
       unexportedSince: null,
+      missingTabs: [],
     },
     ledger: sheetRowsFromValues(values.ledger),
     categories: sheetRowsFromValues(values.categories),

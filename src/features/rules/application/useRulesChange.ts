@@ -20,7 +20,7 @@ export function useRulesChangePreview(change: () => RulesTabChange | null): Comp
       return null
     }
     const definedCategories = new Set(workbook.categories.map((category) => category.slug))
-    return previewRulesChange(rows, pending, definedCategories, workbook.rules, workbook.transactions, categorisationContextOf(workbook))
+    return previewRulesChange(rows, pending, definedCategories, workbook.hasClientsTab, workbook.rules, workbook.transactions, categorisationContextOf(workbook))
   })
 }
 

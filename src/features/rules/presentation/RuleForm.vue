@@ -9,9 +9,9 @@ import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
 import CategoryPicker from '../../transactions/presentation/CategoryPicker.vue'
 import type { Category } from '../../workbook/domain/workbook'
-import { inTryingOrder } from '../domain/rule'
+import { CONDITION_COLUMNS, inTryingOrder } from '../domain/rule'
 import type { Rule, RuleConfidence } from '../domain/rule'
-import { DRAFT_CONDITION_COLUMNS, FLAG_COLUMNS } from '../domain/ruleDraft'
+import { FLAG_COLUMNS } from '../domain/ruleDraft'
 import type { ConditionColumn, DraftCondition, RuleDraft } from '../domain/ruleDraft'
 import { CONDITION_LABELS } from '../domain/ruleSummary'
 
@@ -32,12 +32,8 @@ function update<Field extends keyof RuleDraft>(field: Field, value: RuleDraft[Fi
   draft.value = { ...draft.value, [field]: value }
 }
 
-function labelOf(column: ConditionColumn): string {
-  return column === 'counterparty_is_client' ? 'Counterparty is a client' : CONDITION_LABELS[column]
-}
-
 const unusedColumns = computed(() =>
-  DRAFT_CONDITION_COLUMNS.filter((column) => !draft.value.conditions.some((condition) => condition.column === column)).map((column) => ({ value: column, label: labelOf(column) })),
+  CONDITION_COLUMNS.filter((column) => !draft.value.conditions.some((condition) => condition.column === column)).map((column) => ({ value: column, label: CONDITION_LABELS[column] })),
 )
 
 function addCondition(column: ConditionColumn): void {
@@ -109,13 +105,13 @@ function presenceOf(value: DraftCondition['value']): string {
       <p class="-mt-1 text-xs text-muted">Every condition must hold. Text is compared without accents or case.</p>
       <ul v-if="draft.conditions.length" class="flex flex-col gap-2">
         <li v-for="(condition, index) in draft.conditions" :key="condition.column" class="condition-row" data-testid="rule-condition">
-          <span class="text-sm text-toned">{{ labelOf(condition.column) }}</span>
+          <span class="text-sm text-toned">{{ CONDITION_LABELS[condition.column] }}</span>
           <USelect
             v-if="condition.column === 'direction'"
             :model-value="String(condition.value).toLowerCase()"
             :items="directionItems"
             class="w-full sm:w-48"
-            :aria-label="labelOf(condition.column)"
+            :aria-label="CONDITION_LABELS[condition.column]"
             @update:model-value="setCondition(index, String($event))"
           />
           <USelect
@@ -123,7 +119,7 @@ function presenceOf(value: DraftCondition['value']): string {
             :model-value="presenceOf(condition.value)"
             :items="presenceItems"
             class="w-full sm:w-48"
-            :aria-label="labelOf(condition.column)"
+            :aria-label="CONDITION_LABELS[condition.column]"
             @update:model-value="setCondition(index, $event === 'TRUE')"
           />
           <span v-else-if="FLAG_COLUMNS.has(condition.column)" class="text-xs text-muted">holds</span>
@@ -131,10 +127,10 @@ function presenceOf(value: DraftCondition['value']): string {
             v-else
             :model-value="String(condition.value)"
             class="identifier w-full sm:w-64"
-            :aria-label="labelOf(condition.column)"
+            :aria-label="CONDITION_LABELS[condition.column]"
             @update:model-value="setCondition(index, String($event))"
           />
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="`Remove ${labelOf(condition.column)}`" @click="removeCondition(index)" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="`Remove ${CONDITION_LABELS[condition.column]}`" @click="removeCondition(index)" />
         </li>
       </ul>
       <p v-else class="text-xs text-dimmed">No condition yet. An enabled rule needs at least one.</p>

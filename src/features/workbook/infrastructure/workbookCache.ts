@@ -94,5 +94,6 @@ function metaOf(stored: StoredMeta): WorkbookMeta {
     ledgerSheetId: legacy.ledgerSheetId ?? null,
     lastExportedAt: legacy.lastExportedAt ?? null,
     unexportedSince: legacy.unexportedSince ?? null,
+    missingTabs: legacy.missingTabs ?? [],
   }
 }

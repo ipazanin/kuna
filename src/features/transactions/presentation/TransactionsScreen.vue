@@ -4,6 +4,7 @@ import type { SortingState } from '@tanstack/vue-table'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import UTable from '@nuxt/ui/components/Table.vue'
@@ -24,11 +25,13 @@ import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { counterpartyIdentity, counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
-import type { Transaction } from '../../workbook/domain/workbook'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useCollapsedGroups } from '../application/collapsedGroups'
 import { transactionsCsv } from '../application/transactionsCsv'
 import { useFilteredLedger } from '../application/useFilteredLedger'
+import { advancesLeftOutByBankFilters } from '../domain/filterTransactions'
+import { inBookingOrder, listedRows } from '../domain/listedRows'
+import type { ListedRow } from '../domain/listedRows'
 import { groupTransactions } from '../domain/transactionGroups'
 import type { Grouping, TransactionGroup } from '../domain/transactionGroups'
 import TransactionCards from './TransactionCards.vue'
@@ -67,23 +70,32 @@ watch(
 )
 onBeforeUnmount(() => clearTimeout(pendingSearch))
 
-const rows = computed<Transaction[]>(() => [...(ledger.value?.selected ?? [])])
+const rows = computed<ListedRow[]>(() => listedRows(ledger.value?.selected ?? [], ledger.value?.selectedAdvances ?? []))
 const labels = computed(() => counterpartyLabels(ledger.value?.workbook.transactions ?? []))
-const total = computed(() => sumMoney(rows.value.map((transaction) => transaction.amount)))
-const severalAccounts = computed(() => new Set(rows.value.map((transaction) => transaction.account)).size > 1)
+const total = computed(() => sumMoney(rows.value.map((row) => row.amount)))
+const severalAccounts = computed(() => new Set(rows.value.flatMap((row) => (row.kind === 'bank' ? [row.account] : []))).size > 1)
+
+/** Advances in the period that only the account, counterparty or review filter keeps off the list, said in words. */
+const advancesLeftOut = computed(() => {
+  const shown = ledger.value
+  const count = shown === null ? 0 : advancesLeftOutByBankFilters(shown.workbook.ownerAdvances, shown.filters, shown.window)
+  if (shown === null || count === 0) {
+    return null
+  }
+  const { accounts, counterparties, needsReview } = shown.filters
+  const filters = [accounts.length > 0 ? 'account' : '', counterparties.length > 0 ? 'counterparty' : '', needsReview ? 'review' : ''].filter((name) => name !== '')
+  const named = filters.length === 1 ? `the ${filters[0]} filter` : `the ${filters.slice(0, -1).join(', ')} and ${filters[filters.length - 1]} filters`
+  return `${count} owner ${count === 1 ? 'advance' : 'advances'} in this period ${count === 1 ? 'is' : 'are'} not listed, because ${named} ${filters.length === 1 ? 'leaves' : 'leave'} ${count === 1 ? 'it' : 'them'} out. An advance was paid from the owner's own money, so it has no bank account, no counterparty in the ledger, and never waits for review.`
+})
 
 const phone = usePhoneLayout()
 const names = useDisplayNames()
 
 /** The table sorts manually, so groups keep their own order and the cards follow the same sort. */
-const sortedRows = computed<Transaction[]>(() => {
+const sortedRows = computed<ListedRow[]>(() => {
   const [rule] = sorting.value
   const direction = rule?.desc === false ? 1 : -1
-  return [...rows.value].sort((left, right) =>
-    rule?.id === 'amount'
-      ? direction * (left.amount - right.amount)
-      : direction * (left.date.localeCompare(right.date) || left.sequence - right.sequence),
-  )
+  return [...rows.value].sort((left, right) => direction * (rule?.id === 'amount' ? left.amount - right.amount : inBookingOrder(left, right)))
 })
 
 const groups = computed<TransactionGroup[] | null>(() => {
@@ -96,14 +108,14 @@ const groups = computed<TransactionGroup[] | null>(() => {
 const bucketLabels = computed(() => ledger.value?.workbook.settings.bucketLabels ?? DEFAULT_BUCKET_LABELS)
 
 /** The table's rows: each group's heading, then its rows unless it is collapsed. */
-type TableEntry = { readonly kind: 'group'; readonly group: TransactionGroup } | { readonly kind: 'row'; readonly transaction: Transaction }
+type TableEntry = { readonly kind: 'group'; readonly group: TransactionGroup } | { readonly kind: 'row'; readonly row: ListedRow }
 
 const tableEntries = computed<TableEntry[]>(() =>
   groups.value === null
-    ? sortedRows.value.map((transaction) => ({ kind: 'row', transaction }))
+    ? sortedRows.value.map((row) => ({ kind: 'row', row }))
     : groups.value.flatMap((group): TableEntry[] => [
         { kind: 'group', group },
-        ...(collapsed.isCollapsed(group.key) ? [] : group.rows.map((transaction): TableEntry => ({ kind: 'row', transaction }))),
+        ...(collapsed.isCollapsed(group.key) ? [] : group.rows.map((row): TableEntry => ({ kind: 'row', row }))),
       ]),
 )
 
@@ -141,7 +153,7 @@ function besideHeading(rowClass = ''): { class: { td: (cell: EntryCell) => strin
 const columns: TableColumn<TableEntry>[] = [
   {
     id: 'date',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.transaction.date : ''),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.date : ''),
     header: sortableHeader('Date'),
     meta: {
       colspan: { td: (cell: EntryCell) => (isHeading(cell) ? String(COLUMN_COUNT) : '1') },
@@ -157,38 +169,40 @@ const columns: TableColumn<TableEntry>[] = [
           onToggle: () => collapsed.toggle(entry.group.key),
         })
       }
-      return h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.transaction.date)))
+      return h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.row.date)))
     },
   },
   {
     id: 'counterparty',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.transaction.counterparty : ''),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.counterparty : ''),
     header: 'Counterparty',
     meta: besideHeading(),
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
-      const transaction = entry.transaction
-      return h('div', { class: 'min-w-48 max-w-96' }, [
-        h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(transaction).key] }), class: 'text-highlighted' }, () => transaction.counterparty || 'No counterparty'),
-        transaction.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, transaction.description),
-      ])
+      const listed = entry.row
+      // An advance has no counterparty in the ledger, so a counterparty filter would leave it out.
+      const name =
+        listed.kind === 'bank'
+          ? h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(listed).key] }), class: 'text-highlighted' }, () => listed.counterparty || 'No counterparty')
+          : h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [listed.counterparty, h(UBadge, { label: 'Owner advance', color: 'neutral', variant: 'subtle', size: 'sm' })])
+      return h('div', { class: 'min-w-48 max-w-96' }, [name, listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description)])
     },
   },
   {
     id: 'category',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.transaction.category : ''),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.category : ''),
     header: 'Category',
     meta: besideHeading(),
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
-      const transaction = entry.transaction
+      const listed = entry.row
       return h('span', { class: 'inline-flex items-center gap-1.5 whitespace-nowrap text-toned' }, [
-        h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: `var(--bucket-${bucketTone(transaction.bucket)})` }, 'aria-hidden': 'true' }),
-        transaction.category === ''
+        h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: `var(--bucket-${bucketTone(listed.bucket)})` }, 'aria-hidden': 'true' }),
+        listed.category === ''
           ? h('span', { class: 'text-muted' }, 'No category')
-          : h(DrillLink, { to: narrowTo({ categories: [transaction.category] }) }, () => names.value.category(transaction.category)),
+          : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
       ])
     },
   },
@@ -198,25 +212,31 @@ const columns: TableColumn<TableEntry>[] = [
     meta: besideHeading(),
     cell: ({ row }) => {
       const entry = row.original
-      if (entry.kind === 'group') return ''
-      if (entry.transaction.bucket === UNCLASSIFIED) return h(UBadge, { label: 'Unclassified', color: 'warning', variant: 'subtle', size: 'sm' })
-      if (entry.transaction.flaggedBy === 'ai') return h(UBadge, { label: 'AI guess', color: 'info', variant: 'subtle', size: 'sm' })
+      if (entry.kind === 'group' || entry.row.kind === 'owner-advance') return ''
+      if (entry.row.bucket === UNCLASSIFIED) return h(UBadge, { label: 'Unclassified', color: 'warning', variant: 'subtle', size: 'sm' })
+      if (entry.row.flaggedBy === 'ai') return h(UBadge, { label: 'AI guess', color: 'info', variant: 'subtle', size: 'sm' })
       return ''
     },
   },
   {
     id: 'account',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.transaction.account : ''),
+    accessorFn: (entry) => (entry.kind === 'row' && entry.row.kind === 'bank' ? entry.row.account : ''),
     header: 'Account',
     meta: besideHeading(),
-    cell: ({ row }) => (row.original.kind === 'group' ? '' : h('span', { class: 'text-muted' }, names.value.account(row.original.transaction.account))),
+    cell: ({ row }) => {
+      const entry = row.original
+      if (entry.kind === 'group') return ''
+      return entry.row.kind === 'bank'
+        ? h('span', { class: 'text-muted' }, names.value.account(entry.row.account))
+        : h('span', { class: 'text-muted' }, 'No bank account')
+    },
   },
   {
     id: 'amount',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.transaction.amount : entry.group.total),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.amount : entry.group.total),
     header: sortableHeader('Amount', true),
     meta: { class: { th: 'text-end', ...besideHeading('text-end').class } },
-    cell: ({ row }) => (row.original.kind === 'group' ? '' : h(MoneyText, { cents: row.original.transaction.amount, tone: 'flow' })),
+    cell: ({ row }) => (row.original.kind === 'group' ? '' : h(MoneyText, { cents: row.original.row.amount, tone: 'flow' })),
     footer: () =>
       h('span', { class: 'inline-flex items-baseline gap-2' }, [
         h('span', { class: 'text-xs font-normal text-muted' }, `${rows.value.length} ${rows.value.length === 1 ? 'row' : 'rows'}, total`),
@@ -283,6 +303,11 @@ function exportCsv(): void {
           />
         </div>
 
+        <p v-if="advancesLeftOut" class="flex items-start gap-2 text-xs text-muted" data-testid="advances-left-out">
+          <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          <span>{{ advancesLeftOut }}</span>
+        </p>
+
         <UEmpty
           v-if="rows.length === 0"
           icon="i-lucide-search-x"
@@ -309,7 +334,7 @@ function exportCsv(): void {
             :columns="columns"
             :sorting-options="{ manualSorting: true }"
             :meta="{ class: { tr: (row: EntryCell['row']) => (row.original.kind === 'group' ? 'bg-elevated' : '') } }"
-            :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : `${entry.transaction.sheetRow}`)"
+            :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : entry.row.key)"
             sticky
             class="max-h-[70dvh]"
           />

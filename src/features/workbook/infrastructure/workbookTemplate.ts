@@ -18,7 +18,7 @@ const RULE_COLUMN_NOTES: Readonly<Record<(typeof RULE_COLUMNS)[number], string>>
   counterparty_iban: 'Condition: the counterparty IBAN, spaces and case ignored.',
   has_counterparty_iban: 'Condition: TRUE when the row must carry a counterparty IBAN, FALSE when it must not, or blank.',
   counterparty_is_own: 'Condition: TRUE when the counterparty is one of the accounts in the accounts tab, or blank.',
-  counterparty_is_client: 'Condition: the app does not test this one yet, so leave it blank and name the client by counterparty_iban.',
+  counterparty_is_client: 'Condition: TRUE when the counterparty IBAN is on the clients tab, or blank.',
   counterparty_contains: 'Condition: text the counterparty contains, accents and case ignored.',
   description_contains: 'Condition: text the description contains, accents and case ignored.',
   description_starts_with: 'Condition: text the description starts with, accents and case ignored.',

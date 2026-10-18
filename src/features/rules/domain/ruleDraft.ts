@@ -12,11 +12,8 @@ import type { CategorisableTransaction, CategorisationContext } from './transact
 
 export type ConditionColumn = (typeof CONDITION_COLUMNS)[number]
 
-/** The condition columns the form offers. `counterparty_is_client` waits for a clients tab. */
-export const DRAFT_CONDITION_COLUMNS = CONDITION_COLUMNS.filter((column) => column !== 'counterparty_is_client')
-
 /** Columns that hold TRUE or nothing, so a condition on one has no value to type. */
-export const FLAG_COLUMNS: ReadonlySet<ConditionColumn> = new Set(['counterparty_is_own', 'is_card', 'foreign_currency'])
+export const FLAG_COLUMNS: ReadonlySet<ConditionColumn> = new Set(['counterparty_is_own', 'counterparty_is_client', 'is_card', 'foreign_currency'])
 
 export interface DraftCondition {
   readonly column: ConditionColumn

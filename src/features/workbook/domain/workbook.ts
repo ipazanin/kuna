@@ -146,6 +146,8 @@ export interface Workbook {
   /** In the order the tab holds them. */
   readonly invoices: readonly Invoice[]
   readonly clients: readonly Client[]
+  /** False for a Google Sheet without a `clients` tab, where the Apps Script refuses a rule that tests counterparty_is_client. */
+  readonly hasClientsTab: boolean
   /** In the order the tab holds them. */
   readonly ownerAdvances: readonly OwnerAdvance[]
   readonly settings: Settings

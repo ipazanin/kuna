@@ -19,7 +19,7 @@ if (options.workbook === undefined) {
   process.exit(2)
 }
 
-const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt: '2026-01-01T00:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null }
+const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt: '2026-01-01T00:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] }
 
 function contentOf(tabs) {
   const { transactions, categories, accounts, rules, invoices, clients, ownerAdvances, settings, problems } = readWorkbook({ meta: META, ...tabs })

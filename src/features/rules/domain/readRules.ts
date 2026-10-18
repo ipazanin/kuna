@@ -28,12 +28,13 @@ type ConditionColumnName = (typeof CONDITION_COLUMNS)[number]
  * Apps Script would refuse the whole tab where this reports a problem.
  *
  * Refused: an unknown column, no id or one used twice, an order that is not a number, an enabled
- * cell that is not TRUE or FALSE, an enabled rule with no condition or an unreadable one, and a
- * `rule` confidence rule whose category `definedCategories` lacks. A `review` rule may name any
- * category or none. A disabled rule is checked for its id and order only, and keeps the conditions
- * that read.
+ * cell that is not TRUE or FALSE, an enabled rule with no condition or an unreadable one, a `rule`
+ * confidence rule whose category `definedCategories` lacks, and an enabled rule that tests
+ * `counterparty_is_client` in a workbook without a clients tab, which stops the Apps Script's
+ * `categorisationContext` before a row is filed. A `review` rule may name any category or none. A
+ * disabled rule is checked for its id and order only, and keeps the conditions that read.
  */
-export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>): RulesRead {
+export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>, hasClientsTab: boolean): RulesRead {
   const problems: RuleTabProblem[] = []
   const rowById = new Map<string, number>()
   const rules: Rule[] = []
@@ -72,7 +73,7 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
     const category = textOf(row.cells.category).toLowerCase()
     const confidenceText = textOf(row.cells.confidence).toLowerCase()
     if (enabled) {
-      const reasons = enabledRuleRefusals(id, confidenceText, category, read, definedCategories)
+      const reasons = enabledRuleRefusals(id, confidenceText, category, read, definedCategories, hasClientsTab)
       if (reasons.length > 0) {
         reasons.forEach(refuse)
         continue
@@ -91,6 +92,7 @@ function enabledRuleRefusals(
   category: string,
   read: ReturnType<typeof conditionsOf>,
   definedCategories: ReadonlySet<string>,
+  hasClientsTab: boolean,
 ): string[] {
   if (confidence !== 'rule' && confidence !== 'review') {
     return [`${id} has the confidence "${confidence}", and it is rule or review`]
@@ -101,7 +103,13 @@ function enabledRuleRefusals(
   if (read.unreadable.length > 0) {
     return read.unreadable.map((reason) => `${id}: ${reason}`)
   }
-  return read.conditions.length === 0 ? [`${id} has no condition, so it would match every row`] : []
+  if (read.conditions.length === 0) {
+    return [`${id} has no condition, so it would match every row`]
+  }
+  if (!hasClientsTab && read.conditions.some((condition) => condition.column === 'counterparty_is_client')) {
+    return [`${id} tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban`]
+  }
+  return []
 }
 
 function conditionsOf(cells: RuleTabRow['cells']): { readonly conditions: RuleCondition[]; readonly unreadable: string[] } {
@@ -139,6 +147,7 @@ function conditionOf(column: ConditionColumnName, cell: string | number | boolea
       return present === null ? null : { column, present }
     }
     case 'counterparty_is_own':
+    case 'counterparty_is_client':
     case 'is_card':
     case 'foreign_currency': {
       const wanted = booleanCell(cell)
@@ -147,8 +156,6 @@ function conditionOf(column: ConditionColumnName, cell: string | number | boolea
       }
       return wanted === null ? null : { column }
     }
-    case 'counterparty_is_client':
-      return 'counterparty_is_client needs a clients tab, which this workbook does not have yet. Name the client by counterparty_iban instead'
     case 'counterparty_contains':
     case 'description_contains':
     case 'description_starts_with':

@@ -6,7 +6,7 @@ import type { MonthKey } from '../../../shared/calendar/monthKey'
 import type { Money } from '../../../shared/money/money'
 import { drillToTransactions, monthPeriod } from '../../../features/filters/domain/drillTarget'
 import type { Figure } from '../../../features/filters/domain/drillTarget'
-import type { Category, Transaction } from '../../../features/workbook/domain/workbook'
+import type { Booking, Category } from '../../../features/workbook/domain/workbook'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
 import { paidOut } from './paidOut'
 import { typicalMonthlyAmount } from './taxByType'
@@ -36,9 +36,10 @@ export interface PayrollCadence {
 /**
  * Whether a recurring tax landed every month, for each category with the `watched` role in the
  * taxes bucket, such as payroll contributions. A month counts as paid when the category has any
- * row in it, since contributions leave as several payments to different institutions.
+ * row in it, since contributions leave as several payments to different institutions. A tax the
+ * owner paid privately counts too, so pass the bookings with the advances.
  */
-export function payrollCadence(transactions: readonly Transaction[], categories: readonly Category[], window: LedgerWindow): PayrollCadence[] {
+export function payrollCadence(transactions: readonly Booking[], categories: readonly Category[], window: LedgerWindow): PayrollCadence[] {
   const watched = categoriesWithRole(categories, PACK_ROLES.watched).filter(
     (slug) => categories.find((category) => category.slug === slug)?.bucket === 'taxes',
   )

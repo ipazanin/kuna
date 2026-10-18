@@ -44,6 +44,13 @@ export interface FilterState {
   readonly needsReview: boolean
 }
 
+/**
+ * A `categories` choice that selects every owner advance and no bank row, so one drill can name
+ * the advances beside bank categories, as net owed does. Upper case, so no category slug, which is
+ * lower case, can equal it.
+ */
+export const EVERY_OWNER_ADVANCE = 'OWNER-ADVANCES'
+
 export const DEFAULT_FILTERS: FilterState = {
   period: { preset: 'l12' },
   accounts: [],

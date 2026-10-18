@@ -43,6 +43,8 @@ function conditionHolds(condition: RuleCondition, facts: TransactionFacts): bool
       return facts.hasCounterpartyIban === condition.present
     case 'counterparty_is_own':
       return facts.ownAccount
+    case 'counterparty_is_client':
+      return facts.clientAccount
     case 'counterparty_contains':
       return facts.counterparty !== '' && facts.counterparty.includes(condition.fragment)
     case 'description_contains':

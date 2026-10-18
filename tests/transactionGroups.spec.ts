@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
+import { listedRows } from '../src/features/transactions/domain/listedRows'
 import { groupTransactions } from '../src/features/transactions/domain/transactionGroups'
 import type { CategoryGroup, CounterpartyGroup, MonthGroup } from '../src/features/transactions/domain/transactionGroups'
 import { counterpartyLabels } from '../src/features/workbook/domain/counterpartyIdentity'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
-const rows = ledger([
+const transactions = ledger([
   { date: '2026-07-04', amount: 8000, category: 'revenue', counterparty: 'Northwind', iban: 'HR1210010051863000160' },
   { date: '2026-07-05', amount: 2000, category: 'revenue', counterparty: 'Contoso' },
   { date: '2026-07-06', amount: -100, category: 'client-refund', counterparty: 'Contoso' },
@@ -14,7 +15,8 @@ const rows = ledger([
   { date: '2026-08-20', amount: -400, category: 'reimbursement-to-owner', counterparty: 'Alex' },
   { date: '2026-09-02', amount: -50, category: 'zzz-test', counterparty: 'Brightdesk' },
 ])
-const context = { window: windowOf('2026-07-04', '2026-09-02'), counterpartyLabels: counterpartyLabels(rows) }
+const rows = listedRows(transactions, [])
+const context = { window: windowOf('2026-07-04', '2026-09-02'), counterpartyLabels: counterpartyLabels(transactions) }
 
 describe('groupTransactions by category', () => {
   const groups = groupTransactions(rows, 'category', context) as CategoryGroup[]

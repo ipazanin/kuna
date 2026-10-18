@@ -4,7 +4,7 @@ import { syncStateOf } from '../src/features/workbook/presentation/syncState'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 
 const workbook = readWorkbook({
-  meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T06:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null },
+  meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T06:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
   ledger: [],
   categories: [],
   accounts: [],

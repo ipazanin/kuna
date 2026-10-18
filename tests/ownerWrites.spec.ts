@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { canUndo, wasUndone } from '../src/features/workbook/application/workbookStore'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
 import { civil, euros } from './fixtures/ledger'
 import { excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
@@ -76,6 +77,34 @@ describe.each([
     ])
     await expect(store.changeBuckets(toFinancing)).rejects.toThrow('its bucket is now financing')
   })
+
+  it('lists an advance, its undo and the loan switch among the session writes, and undoes them from there', async () => {
+    const { store } = await harnessOf(used, gridsWithOwnerTabs())
+    const receipt = await store.addOwnerAdvance(DESK)
+    await store.changeBuckets(['owner-loan-out', 'owner-loan-repaid'].map((category) => ({ category, expected: 'owner-pay' as const, bucket: 'financing' as const })))
+    const [switched, added] = store.state.writes
+
+    expect(store.state.writes.map((write) => write.kind)).toEqual(['buckets', 'owner-advance-added'])
+    expect(added).toMatchObject({ kind: 'owner-advance-added', receipt })
+    expect(canUndo(switched!, store.state.writes)).toBe(true)
+
+    await store.undo(switched!)
+    await store.undo(added!)
+
+    expect(store.state.writes.map((write) => write.kind)).toEqual(['owner-advance-removed', 'buckets', 'buckets', 'owner-advance-added'])
+    expect(store.state.writes.map((write) => [canUndo(write, store.state.writes), wasUndone(write, store.state.writes)])).toEqual([
+      [false, false],
+      [false, false],
+      [false, true],
+      [false, true],
+    ])
+    expect(store.state.workbook?.categories.filter((category) => category.slug.startsWith('owner-loan')).map((category) => category.bucket)).toEqual([
+      'owner-pay',
+      'owner-pay',
+    ])
+    expect(store.state.workbook?.ownerAdvances).toHaveLength(1)
+    await expect(store.undo(added!)).rejects.toThrow(WorkbookWriteRefused)
+  })
 })
 
 describe('owner writes to a Google Sheet', () => {
@@ -98,7 +127,7 @@ describe('owner writes to a Google Sheet', () => {
     const { 'owner-advances': _advances, ...withoutAdvances } = grids
     const { store } = await googleHarness(used, { ...withoutAdvances, categories: [...grids.categories!, ['owner-loan-out', 'owner', 'owner-pay', '']] })
 
-    await expect(store.addOwnerAdvance(DESK)).rejects.toThrow('The Sheet has no owner-advances tab')
+    await expect(store.addOwnerAdvance(DESK)).rejects.toThrow('The workbook has no owner-advances tab')
     await expect(store.changeBuckets([{ category: 'owner-loan-out', expected: 'owner-pay', bucket: 'financing' }])).rejects.toThrow('is on 2 rows')
   })
 })

@@ -39,7 +39,7 @@ export interface TabEdits {
 
 /** Where a write goes: the picked Google Sheet, or the workbook kept in this browser. */
 export interface WorkbookWriter {
-  /** The tabs as they stand now. Refuses when one of them does not exist. */
+  /** The tabs as they stand now. A tab the workbook lacks is left out, and a plan that needs it refuses. */
   read(tabs: readonly WorkbookTab[]): Promise<FreshTabs>
   /** Writes the edits. `before` is the read the edits were planned on, whose headers place them. */
   write(edits: TabEdits, before: FreshTabs): Promise<void>

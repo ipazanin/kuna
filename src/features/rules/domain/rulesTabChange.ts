@@ -83,6 +83,7 @@ function conditionCell(condition: RuleCondition): string | boolean {
     case 'has_counterparty_iban':
       return condition.present
     case 'counterparty_is_own':
+    case 'counterparty_is_client':
     case 'is_card':
     case 'foreign_currency':
       return true

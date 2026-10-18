@@ -76,7 +76,7 @@ function gridOf(tab) {
 
 const { tabs } = await readWorkbookFile(bytes)
 const workbook = readWorkbook({
-  meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null },
+  meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
   ...tabs,
 })
 const window = ledgerWindowOf(workbook.transactions)
@@ -424,10 +424,10 @@ check(
   'owner · Net owed between owner and company',
   'money',
   tileValue(ownerTab, 'Net owed between owner and company'),
-  netOwed(loanBook, ownerAdvances(workbook.ownerAdvances, transactions, packCategories), packCategories).amount,
+  netOwed(loanBook, ownerAdvances(workbook.ownerAdvances, transactions, packCategories), transactions, packCategories).amount,
   {
     rule: '#7',
-    why: `one signed balance: the loan balance less the ${workbook.ownerAdvances.length} advance(s) not yet reimbursed, where the Sheet adds every reimbursement signed`,
+    why: `one signed balance: the loan balance, less what the owner paid back on a reimbursement category, less the ${workbook.ownerAdvances.length} advance(s) not yet reimbursed, where the Sheet adds every reimbursement signed`,
     sheetDefinition: loanBook.outstanding.amount + signedReimbursements,
   },
 )

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
+import { useToast } from '@nuxt/ui/composables/useToast'
 
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
@@ -14,6 +15,7 @@ import type { RuleEditorSource } from '../../rules/presentation/RuleEditor.vue'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import type { SessionWrite } from '../../workbook/application/workbookStore'
 import { needsReview } from '../../workbook/domain/needsReview'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { sheetRowLink } from '../../workbook/infrastructure/sheetRowLink'
@@ -25,7 +27,9 @@ import RuleCoverage from './RuleCoverage.vue'
 import SessionChanges from './SessionChanges.vue'
 
 const ledger = useFilteredLedger()
-const { state } = useWorkbook()
+const store = useWorkbook()
+const { state } = store
+const toast = useToast()
 const names = useDisplayNames()
 const writes = useLedgerWrites()
 
@@ -52,6 +56,15 @@ const coverage = computed(() =>
 
 /** Writes to other workbooks this page showed earlier cannot be undone here, so they are left out. */
 const sessionWrites = computed(() => state.writes.filter((write) => write.workbookId === state.workbook?.id))
+
+async function undoSessionWrite(write: SessionWrite): Promise<void> {
+  try {
+    await store.undo(write)
+    toast.add({ title: 'Undone', description: 'The workbook is back as it was before that change.', icon: 'i-lucide-undo-2', color: 'neutral' })
+  } catch (failure) {
+    toast.add({ title: 'Not undone', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+  }
+}
 
 const expandedRow = ref<number | null>(null)
 
@@ -111,8 +124,9 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
           :writes="sessionWrites"
           :transactions="ledger.workbook.transactions"
           :categories="ledger.workbook.categories"
+          :bucket-labels="ledger.workbook.settings.bucketLabels"
           :busy="busy"
-          @undo="writes.undo"
+          @undo="undoSessionWrite"
         />
 
         <UEmpty

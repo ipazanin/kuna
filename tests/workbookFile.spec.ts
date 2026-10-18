@@ -12,7 +12,7 @@ import { readWorkbook } from '../src/features/workbook/infrastructure/workbookRe
 import type { CellValue, WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { emptyWorkbookTabs } from '../src/features/workbook/infrastructure/workbookTemplate'
 
-const META = { id: 'file', source: 'excel', title: 'File', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null } as const
+const META = { id: 'file', source: 'excel', title: 'File', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] } as const
 
 function workbookOf(tabs: WorkbookTabs): Workbook {
   return readWorkbook({ meta: META, ...tabs })

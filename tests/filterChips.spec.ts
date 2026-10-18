@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { addedChoices, filterChips, withAddedChoices, withoutChip, withoutChips } from '../src/features/filters/domain/filterChips'
-import { DEFAULT_FILTERS } from '../src/features/filters/domain/filterState'
+import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from '../src/features/filters/domain/filterState'
 import type { FilterState } from '../src/features/filters/domain/filterState'
 import { euros } from './fixtures/ledger'
 
@@ -24,6 +24,14 @@ const labels = {
 }
 
 describe('filterChips', () => {
+  it('names the choice of every owner advance by what it selects, and removes it like a category', () => {
+    const drilled = { ...DEFAULT_FILTERS, categories: ['owner-loan-out', EVERY_OWNER_ADVANCE] }
+    const chips = filterChips(drilled, labels)
+
+    expect(chips.map((chip) => chip.label)).toEqual(['Category: owner-loan-out', 'Every owner advance'])
+    expect(withoutChip(drilled, chips[1]!.id).categories).toEqual(['owner-loan-out'])
+  })
+
   it('names every narrowing beyond the period and the accounts', () => {
     expect(filterChips(narrowed, labels).map((chip) => chip.label)).toEqual([
       'Bucket: Operating cost',
