@@ -4,24 +4,26 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { displayName } from '../../workbook/domain/displayName'
+import type { TabRowsChange } from '../../workbook/domain/rowChanges'
+import { listInWords } from '../../workbook/domain/slug'
+import type { SlugUses } from '../../workbook/domain/slug'
 import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
+import { ACCOUNT_ROWS } from '../application/workbookTabRows'
 import { accountCellsOf, accountDraftErrors } from '../domain/accountDrafts'
 import type { AccountDraft } from '../domain/accountDrafts'
-
-type Cells = SheetRow['cells']
+import { rowsChangeOf } from '../domain/tabRowDrafts'
 
 const props = defineProps<{
   rows: readonly SheetRow[]
-  /** Account names ledger rows use, which keep their name. */
-  usedNames: ReadonlySet<string>
+  /** What names each account outside the tab. An account in use keeps its name and its row. */
+  uses: SlugUses
   /** The workbook's currency, which a blank account currency means. */
   currency: string
-  editable: boolean
   saving: boolean
 }>()
 
 const emit = defineEmits<{
-  save: [cells: Cells[]]
+  save: [change: TabRowsChange]
 }>()
 
 function draftsOf(rows: readonly SheetRow[]): AccountDraft[] {
@@ -41,61 +43,69 @@ watch(
   },
 )
 
+const usedNames = computed(() => new Set(props.uses.keys()))
 const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(draftsOf(props.rows)))
-const errors = computed(() => accountDraftErrors(drafts.value, props.usedNames))
+const errors = computed(() => accountDraftErrors(drafts.value, usedNames.value))
 
 function update(index: number, field: 'account' | 'label' | 'iban' | 'currency', text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
 }
 
 function locked(draft: AccountDraft): boolean {
-  return draft.savedName !== '' && props.usedNames.has(draft.savedName.trim().toLowerCase())
+  return draft.savedName !== '' && usedNames.value.has(draft.savedName.trim().toLowerCase())
+}
+
+function inUse(draft: AccountDraft): string {
+  return `Used by ${listInWords(props.uses.get(draft.savedName.trim().toLowerCase()) ?? [])}, so it keeps its name and its row`
 }
 
 function addAccount(): void {
   drafts.value = [...drafts.value, { sheetRow: null, savedName: '', account: '', label: '', iban: '', currency: '' }]
 }
 
-function removeNew(index: number): void {
+function remove(index: number): void {
   drafts.value = drafts.value.filter((_, position) => position !== index)
 }
 
 function save(): void {
-  emit('save', accountCellsOf(drafts.value, new Map(props.rows.map((row) => [row.sheetRow, row.cells]))))
+  const savedCells = new Map(props.rows.map((row) => [row.sheetRow, row.cells]))
+  const opened = draftsOf(props.rows)
+  const openedCells = accountCellsOf(opened, savedCells)
+  const draftedCells = accountCellsOf(drafts.value, savedCells)
+  emit(
+    'save',
+    rowsChangeOf(
+      props.rows,
+      ACCOUNT_ROWS.columns,
+      drafts.value.map((draft, index) => ({ sheetRow: draft.sheetRow, cells: draftedCells[index]! })),
+      new Map(opened.map((draft, index) => [draft.sheetRow!, openedCells[index]!])),
+    ),
+  )
 }
 </script>
 
 <template>
-  <p v-if="!editable && drafts.length === 0" class="px-4 pb-4 text-sm text-muted sm:px-5">The accounts tab is empty.</p>
-  <div v-else class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-    <table class="data-table editor-table w-full text-sm">
+  <div class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+    <table class="data-table editor-table w-full text-sm" data-testid="accounts-editor">
       <thead>
         <tr>
           <th scope="col" class="text-start">Account</th>
           <th scope="col" class="text-start">Shown as</th>
           <th scope="col" class="text-start">IBAN</th>
           <th scope="col" class="text-start">Currency</th>
-          <th v-if="editable" scope="col"><span class="sr-only">Remove</span></th>
+          <th scope="col"><span class="sr-only">Delete</span></th>
         </tr>
       </thead>
-      <tbody v-if="!editable">
-        <tr v-for="draft in drafts" :key="draft.sheetRow ?? draft.account">
-          <th scope="row" class="identifier text-start font-normal text-highlighted">{{ draft.account }}</th>
-          <td class="text-toned">{{ displayName(draft.account, draft.label) }}</td>
-          <td class="identifier text-toned">{{ draft.iban || '–' }}</td>
-          <td class="text-muted">{{ draft.currency || currency }}</td>
-        </tr>
-      </tbody>
-      <tbody v-else>
+      <tbody>
         <tr v-if="drafts.length === 0">
           <td colspan="5" class="text-muted">No accounts yet. Add the accounts your ledger rows name.</td>
         </tr>
-        <tr v-for="(draft, index) in drafts" :key="draft.sheetRow ?? `new-${index}`">
+        <tr v-for="(draft, index) in drafts" :key="draft.sheetRow ?? `new-${index}`" data-testid="account-row">
           <td>
             <UInput
               :model-value="draft.account"
               :disabled="locked(draft)"
-              :title="locked(draft) ? 'Ledger rows use this account, so it keeps its name' : undefined"
+              :title="locked(draft) ? inUse(draft) : undefined"
               :color="errors.get(index)?.account ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.account)"
               aria-label="Account"
@@ -133,20 +143,21 @@ function save(): void {
           </td>
           <td>
             <UButton
-              v-if="draft.sheetRow === null"
-              icon="i-lucide-x"
+              icon="i-lucide-trash-2"
               color="neutral"
               variant="ghost"
               size="xs"
-              aria-label="Remove this new account"
-              @click="removeNew(index)"
+              :disabled="locked(draft)"
+              :title="locked(draft) ? inUse(draft) : undefined"
+              :aria-label="draft.sheetRow === null ? 'Remove this new account' : `Delete ${draft.savedName || 'this account'}`"
+              @click="remove(index)"
             />
           </td>
         </tr>
       </tbody>
     </table>
   </div>
-  <div v-if="editable" class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
+  <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton label="Add account" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="addAccount" />
     <span class="flex-1" />
     <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = draftsOf(rows)" />

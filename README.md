@@ -8,9 +8,10 @@ browser (Excel mode). There is no backend. It deploys to GitHub Pages at
 With a Google Sheet, the app asks Google for `drive.file`, which covers files the user picks in the
 Google Picker or that the app creates, and for `openid email`, which tells it which account signed
 in. The app reads the Sheet and keeps a copy in IndexedDB. It writes only what the user saves, and
-only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, rows
-on the `rules`, `settings`, `owner-advances` and `outgoing-plan` tabs, and the `bucket` of the two
-loan categories.
+only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, and
+rows of the tabs a person keeps by hand: `rules`, `settings`, `owner-advances`, `outgoing-plan`,
+`categories`, `accounts`, `clients`, `invoices`, `assets`, `grants` and `year-end`. It never writes a
+header, a formula a change leaves alone, or data validation.
 See *Write-back* below.
 
 On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
@@ -447,6 +448,12 @@ from its first row.
 
 ## Receivables
 
+"Add invoice" above the list, and the pencil on each invoice, add, edit and delete rows of the
+`invoices` tab in both modes, in the eight columns the invoice generator writes. The number is
+written as text, the amount as a number and each date as a date cell. A new invoice starts on the
+newest booking, due a month later, for the work of its month, as the generator sets them. With no
+invoices yet, the empty screen offers the first one, or the clients tab when no client is on it.
+
 Receivables matches the `invoices` tab against the revenue credits, client by client, the way the
 Sheet's `outgoing` tab does for its one client. A credit belongs to the client whose `clients` row
 names its IBAN, and one from an IBAN no client names is listed apart and never pays anyone's
@@ -477,21 +484,33 @@ deletes it, so the exported files are its only other copies.
 - **Export.** From either mode, "Export to Excel" writes the workbook in the template format as
   `ledgerboard-<company or sheet name>-<yyyy-mm-dd>.xlsx`. Importing an export gives the same
   workbook. When changes have gone a week or more without an export, the sidebar says so.
-- **Editing.** In Excel mode the Workbook screen edits the settings, categories, accounts, assets,
-  grants and year-end figures, one tab each (`#/workbook?tab=categories` links straight to one),
-  with the Sheet's rules: each category once, category, family and bucket filled, and a category or
-  account that ledger rows use keeps its name. Assets, grants and year-end rows are checked by the
-  same reader as an import, and a row it would leave out cannot be saved. With a Google Sheet,
-  categories and accounts are read-only there and edited in the Sheet, because the Apps Script reads
-  and checks those tabs. Assets, grants and year-end are read-only there too, and the screen names
-  the headers to add when the Sheet lacks one of those tabs. The one exception is the loan
-  switch on General, which sets two `bucket` cells. Settings, rules and owner advances are editable
-  in both modes, and Review sets a ledger row's category in both. Settings keeps what belongs to this
+- **Editing.** Every tab a person keeps by hand is edited the same way in both modes, as the
+  *Workbook screen* and *Write-back* describe. In Excel mode a change replaces the stored workbook
+  once it reads back, and counts towards the export reminder. Settings keeps what belongs to this
   device: the data source, Google sign-out, the theme and the privacy notes.
 
 Switching from Excel mode to another source deletes the workbook kept in the browser, once the new
 one has been read. SheetJS loads only on the first import, export or template download, as its own
 chunk.
+
+## Workbook screen
+
+The screen at `#/workbook` holds one tab per part of the workbook a person keeps by hand, and
+`?tab=categories` links straight to one: General (the settings, the loan switch and the rows the app
+could not use), Rules, Categories, Accounts, Clients, Assets, Grants and Year end. It works the same
+for a Google Sheet and in Excel mode. Each tab is a table of fields: add a row, change any field,
+delete a row with its bin, then "Save" writes the whole change as one write with Undo in the toast
+and under "Changes in this session" on Review. Only the cells that changed are written, so a formula
+left alone stays a formula, and a deleted row has its cells cleared. "Discard changes" goes back to
+what the tab holds.
+
+Each table checks its rows as the reader would before it lets a save go: a row the reader would
+leave out is marked and blocks the save. A category or account in use keeps its name, so its name
+field and its bin are locked, and the tooltip says what uses it. A client or grant in use is refused
+when the save renames or deletes it, with what uses it. Categories say that the
+ledger's dropdown in the Sheet lists the categories tab, so a category added here appears there. A
+field the Sheet has no column for, such as `label` on an older categories tab, is refused with the
+column to add. When the Sheet lacks a whole tab, the screen names the headers to add.
 
 ## Development
 
@@ -503,8 +522,8 @@ npm run check          # typecheck and unit tests
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen, dark and light, at four widths in local Chrome, and the wide screens at 1920 and 2560, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen, dark and light, at four widths in local Chrome, the wide screens at 1920 and 2560, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, the row editors in both modes, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -533,7 +552,7 @@ needs no preview and makes no call to Google.
 
 ## Write-back
 
-Review, Owner, Billing plan and the Workbook screen write through one path in both modes. Each write reads the tabs it
+Review, Owner, Billing plan, Receivables and the Workbook screen write through one path in both modes. Each write reads the tabs it
 touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
 what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
 In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
@@ -550,8 +569,8 @@ side in `googleWorkbookWriter.ts`.
   label. Applying a new rule writes its category and `rule`, only to rows flagged `ai` or
   unclassified. Undo writes the exact previous values back through the same checks. Review lists
   every write of the page's session under "Changes in this session", newest first: ledger rows,
-  rules, settings, owner advances, plan rows and the loan bucket. A ledger write, an added advance, a
-  plan row added, changed or deleted, and a bucket switch that have not been undone carry Undo there. Rules and settings are changed back on
+  rules, settings, owner advances and rows of the other tabs. A ledger write, an added advance and a
+  row change that have not been undone carry Undo there. Rules and settings are changed back on
   Workbook. The list is held in memory, so a reload clears it.
 - **Rules.** The tab after the change must pass every check of `parseRules` in the Apps Script's
   `Rules.gs` (mirrored in `rulesTabRefusals.ts`), against the categories tab as it is now, so a save
@@ -569,10 +588,30 @@ side in `googleWorkbookWriter.ts`.
   those four columns, the amount is not zero, and the category is on the categories tab, as it is now, in the
   operating or taxes bucket. Undo clears the row again, only while one row still holds exactly what
   was written.
-- **Loan bucket.** The switch finds each category with the `owner-loan-out` or `owner-loan-repaid`
-  role by name on the categories tab and sets its `bucket` cell to `owner-pay` or `financing`. It is
-  refused when a category is on no row or several, or its bucket changed since the app read it.
-  No other cell of `categories`, and nothing of `accounts`, is ever written.
+- **Rows of a tab.** `categories`, `accounts`, `clients`, `invoices`, `assets`, `grants`,
+  `year-end` and `outgoing-plan` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
+  with each tab's rules beside its feature. One write adds rows below the last one, changes rows in
+  place and deletes rows. A row to change or delete is found on its own row if that still holds what
+  the app read, else on the one row that does, and the write is refused when none or several do. A
+  change writes only the cells that differ, and a delete clears the tab's own columns and leaves any
+  cell beside them. Dates go in as serial numbers and amounts as numbers. Before anything is written,
+  the tab as the change would leave it is read by the tab's own reader: a row the change writes may
+  not be left out or gain a problem, and a row it leaves alone may not drop out. Then the tab's
+  checks run, each with its reason:
+
+  | Tab | Refused, with the reason given |
+  |---|---|
+  | `categories` | A name outside the slug format (lower-case letters and digits with single hyphens) or already on another row. Renaming or deleting a category that ledger rows, rules, owner advances, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. |
+  | `accounts` | A name outside the slug format or already on another row. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the ingest refuses a statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. Leaving the tab with no IBAN, which stops the Apps Script's morning run. The tab needs its `account` and `iban` headers, as the Apps Script does. |
+  | `clients` | A name outside the slug format. A second row of a client under another name. Renaming or deleting the last row of a client that invoices, plan rows or `billing_client` name. A new or changed IBAN that is not valid, is on another client row, or is one of your accounts. |
+  | `invoices` | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. One period date without the other. The tab needs all eight columns the generator writes, and the app never adds one. |
+  | `grants` | A name outside the slug format or already on another row. Renaming or deleting a grant an asset is funded by. |
+  | `assets`, `year-end`, `outgoing-plan` | What their readers refuse, such as an asset listed twice, a grant the grants tab lacks, or a konto row naming an unknown category. |
+
+  The loan switch on Workbook, General is a change to the `bucket` cells of the loan categories.
+  Undo writes the change back the other way through the same plan: added rows cleared, changed rows
+  put back, deleted rows added again at the foot. The ledger's category dropdown is never touched.
+  It takes its options from the categories tab's category column, a rule set up by hand in the Sheet.
 
 The requests each Google use case sends, in order. Every write is `valueInputOption=RAW`.
 
@@ -583,9 +622,13 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 | Edit, switch on or off, move a rule | get, batchGet of `rules`, `categories` and `clients` (when the Sheet has it), `values.batchUpdate` of the changed cells such as `rules!C12`, get and batchGet again |
 | Save settings | get, batchGet of `settings`, `values.batchUpdate` of `value` cells such as `settings!B4`, `values.append` to `settings!A:B` for a new key, get and batchGet again |
 | Add an advance | get, batchGet of `'owner-advances'` and `categories`, `values.append` to `'owner-advances'!A:D`, get and batchGet again. Undo is a `values.batchUpdate` clearing that row's cells |
-| Switch the loan bucket | get, batchGet of `categories`, `values.batchUpdate` of `bucket` cells such as `categories!C16`, get and batchGet again |
-| Add or fill plan rows | get, batchGet of `'outgoing-plan'` and `clients`, one `values.append` of every new row to `'outgoing-plan'!A:<last header>`, get and batchGet again. Undo clears the rows' five cells with a `values.batchUpdate` |
-| Edit or delete a plan row | get, batchGet of `'outgoing-plan'` (and `clients` for an edit), `values.batchUpdate` of the changed or cleared cells such as `'outgoing-plan'!C12`, get and batchGet again |
+| Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `'year-end'` and `plan` (each when the Sheet has it), `values.batchUpdate` of the changed or cleared cells such as `categories!C16`, one `values.append` of the new rows to `categories!A:<last header>`, get and batchGet again |
+| Save accounts | the same, reading `accounts`, `ledger` and `clients` |
+| Save clients | the same, reading `clients`, `accounts`, `invoices`, `'outgoing-plan'` and `settings` |
+| Add, edit or delete an invoice | the same, reading `invoices` and `clients`, appending to `invoices!A:H` |
+| Save assets, grants or year-end | the same, reading `assets` and `grants`, or `grants` and `assets`, or `'year-end'` and `categories` |
+| Add or fill plan rows, edit or delete one | the same, reading `'outgoing-plan'` and `clients`. A fill appends every new row in one request |
+| Undo any of these | the same requests, with the change turned around |
 
 ### Manual test, against a copy of the Sheet first
 
@@ -608,7 +651,12 @@ Never run it first on the original.
    date. Press Undo and check the row is empty again. On Workbook, General, switch "Loans to the
    owner count as owner pay" off and on. Check only the two `bucket` cells of the loan categories
    changed.
-9. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
+9. On Workbook, Categories, add a category and save. Check the new row at the foot of `categories`
+   and that the ledger's category dropdown offers it. Change its colour, check only that cell changed,
+   then delete it and press Undo. Try to rename a category the ledger uses and read the refusal. On
+   Receivables, add an invoice, check its row on `invoices` with the dates shown as dates and the
+   number as text, edit its amount, delete it and press Undo.
+10. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
    reads the rules and settings tabs the way the morning ingest does, so it must finish without an
    error. Then repeat steps 2, 3 and 5 on the original, and check the next 06:00 run in Executions.
 

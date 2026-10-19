@@ -8,7 +8,8 @@
  * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a line's build-up, a
  * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, both kinds of the Add advance form,
  * a bar of the billing plan's chart opening its month, the rest of the year filled from a preview, a plan row edited and
- * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a rule made from a row and applied to
+ * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a category, an asset and an
+ * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser.
@@ -28,6 +29,7 @@ import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
+import { assetFlow, categoryFlow, invoiceFlow } from './support/editorFlows.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -555,6 +557,30 @@ async function checkWidth(width) {
     await delay(300)
   })
 
+  for (const [mode, query] of [
+    ['google', ''],
+    ['excel', '&fake=excel'],
+  ]) {
+    for (const [name, hash, title, run] of [
+      ['categories', '#/workbook?tab=categories', 'Workbook', categoryFlow],
+      ['assets', '#/workbook?tab=assets', 'Workbook', assetFlow],
+      ['invoices', '#/receivables?p=all', 'Receivables', invoiceFlow],
+    ]) {
+      await step(`${name}-${mode}`, async () => {
+        await page.goto(`${BASE}?theme=dark${query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+        await waitForTitle(page, title)
+        await run(page, {
+          press: (handle) => handle.tap(),
+          shoot: async (shot) => {
+            await inspect(page, `${width}px ${mode} ${shot}`)
+            await page.screenshot({ path: join(OUTPUT_DIR, `${width}-${mode}-${shot}.png`), fullPage: false })
+          },
+          inspect: (when) => inspect(page, `${width}px ${mode} ${when}`),
+        })
+      })
+    }
+  }
+
   for (const screen of SCREENS) {
     await step(screen.title.toLowerCase().replace(' ', '-'), async () => {
       await open(page, screen.hash, screen.title)
@@ -641,6 +667,7 @@ async function checkWidth(width) {
     for (const [label, query, ready] of [
       ['Categories', 'tab=categories', 'Save categories'],
       ['Accounts', 'tab=accounts', 'Save accounts'],
+      ['Clients', 'tab=clients', 'Save clients'],
       ['Assets', 'tab=assets', 'Save assets'],
       ['Grants', 'tab=grants', 'Save grants'],
       ['Year end', 'tab=year-end', 'Save year-end lines'],

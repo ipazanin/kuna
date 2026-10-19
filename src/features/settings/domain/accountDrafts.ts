@@ -1,4 +1,5 @@
 import { normaliseIban } from '../../../shared/text/fold'
+import { slugProblem } from '../../workbook/domain/slug'
 import { currencyProblem } from './settings'
 
 /** One row of the accounts editor, as text. */
@@ -18,7 +19,7 @@ export type AccountField = 'account' | 'currency'
 
 export type AccountDraftErrors = ReadonlyMap<number, Partial<Record<AccountField, string>>>
 
-/** Each account once, by name. An account the ledger uses keeps its name. A currency, if given, is a real one. */
+/** Each account once, by name, a new name in the slug format. An account in use keeps its name. A currency, if given, is a real one. */
 export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: ReadonlySet<string>): AccountDraftErrors {
   const errors = new Map<number, Partial<Record<AccountField, string>>>()
   const firstAt = new Map<string, number>()
@@ -31,7 +32,9 @@ export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: R
     } else if (firstAt.has(name)) {
       found.account = `Already on row ${(firstAt.get(name) ?? 0) + 1}`
     } else if (saved !== '' && saved !== name && usedNames.has(saved)) {
-      found.account = `Ledger rows use ${draft.savedName}, so it keeps its name`
+      found.account = `${draft.savedName} is in use, so it keeps its name`
+    } else if (name !== saved && slugProblem(name, 'account') !== null) {
+      found.account = 'Lower-case letters, digits and single hyphens'
     }
     if (name !== '' && !firstAt.has(name)) {
       firstAt.set(name, index)

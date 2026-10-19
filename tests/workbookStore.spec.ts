@@ -1,11 +1,13 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { ACCOUNT_ROWS, ASSET_ROWS, CATEGORY_ROWS, GRANT_ROWS, YEAR_END_ROWS } from '../src/features/settings/application/workbookTabRows'
+import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
 import { createWorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { WorkbookStorePorts } from '../src/features/workbook/application/workbookStore'
 import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
 import type { WorkbookChoice } from '../src/features/workbook/infrastructure/workbookChoice'
-import type { SheetRow, WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import type { WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
 const used = new Set<string>()
 
@@ -259,19 +261,20 @@ describe('workbook store in Excel mode', () => {
     expect((await storedCopy('local-1'))?.ledger).toHaveLength(1)
   })
 
-  it('saves edits, marks them unexported from the first one, and clears that on export', async () => {
+  it('saves row changes, marks them unexported from the first one, and clears that on export', async () => {
     const { ports, setNow } = harness(null)
     const store = createWorkbookStore(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
-    const categories: SheetRow[] = [{ sheetRow: 2, cells: { category: 'revenue', family: 'income', bucket: 'income', label: 'Sales' } }]
+    const revenue = rowCellsOf(store.state.snapshot!.categories[0]!, CATEGORY_ROWS.columns)
 
     setNow('2026-10-17T09:00:00.000Z')
-    await store.saveLocalEdits({ categories })
+    await store.changeRows(CATEGORY_ROWS, { added: [], changed: [{ sheetRow: 2, before: revenue, after: { ...revenue, label: 'Sales' } }], removed: [] })
     setNow('2026-10-18T09:00:00.000Z')
-    await store.saveLocalEdits({ accounts: [] })
+    await store.changeRows(ACCOUNT_ROWS, { added: [{ account: 'savings', iban: '' }], changed: [], removed: [] })
 
     expect(store.state.workbook?.categories[0]?.label).toBe('Sales')
+    expect(store.state.workbook?.accounts.map((account) => account.slug)).toEqual(['main', 'savings'])
     expect(store.state.snapshot?.meta).toMatchObject({ syncedAt: '2026-10-18T09:00:00.000Z', unexportedSince: '2026-10-17T09:00:00.000Z' })
 
     setNow('2026-10-19T09:00:00.000Z')
@@ -280,34 +283,21 @@ describe('workbook store in Excel mode', () => {
     expect((await storedCopy('local-1'))?.meta).toMatchObject({ lastExportedAt: '2026-10-19T09:00:00.000Z', unexportedSince: null })
   })
 
-  it('saves the assets, grants and year-end tabs whole in Excel mode, and keeps them in this browser', async () => {
+  it('adds grants, assets and year-end lines in Excel mode, and keeps them in this browser', async () => {
     const { ports } = harness(null)
     const store = createWorkbookStore(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
 
-    await store.saveLocalEdits({
-      grants: [{ sheetRow: 2, cells: { grant: 'startup', received: 45809, amount: 5000, fixed_part: 2000, variable_part: 3000 } }],
-      assets: [{ sheetRow: 2, cells: { asset: 'Laptop', bought: 45809, cost_net: 1519.2, group: 'computers', funded_by: 'startup' } }],
-      'year-end': [{ sheetRow: 2, cells: { year: 2025, statement: 'pl', line: 'sales', amount: 46800 } }],
-    })
+    await store.changeRows(GRANT_ROWS, { added: [{ grant: 'startup', received: 45809, amount: 5000, fixed_part: 2000, variable_part: 3000 }], changed: [], removed: [] })
+    await store.changeRows(ASSET_ROWS, { added: [{ asset: 'Laptop', bought: 45809, cost_net: 1519.2, group: 'computers', funded_by: 'startup' }], changed: [], removed: [] })
+    await store.changeRows(YEAR_END_ROWS, { added: [{ year: 2025, statement: 'pl', line: 'sales', amount: 46800 }], changed: [], removed: [] })
 
     expect(store.state.workbook?.assets.map((asset) => asset.fundedBy)).toEqual(['startup'])
     expect(store.state.workbook?.grants).toHaveLength(1)
     expect(store.state.workbook?.yearEndLines).toHaveLength(1)
     expect(store.state.workbook?.problems).toEqual([])
     expect((await storedCopy('local-1'))?.assets).toHaveLength(1)
-  })
-
-  it('refuses to edit a Google Sheet from the app', async () => {
-    await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [5]))
-    const store = createWorkbookStore(harness(BOOKS).ports)
-    await store.open()
-
-    await store.saveLocalEdits({ accounts: [] })
-
-    expect(store.state.status).toBe('error')
-    expect(store.state.workbook?.accounts).toHaveLength(1)
   })
 
   it('never syncs a workbook kept in this browser with Google', async () => {

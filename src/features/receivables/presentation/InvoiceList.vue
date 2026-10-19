@@ -12,6 +12,8 @@ export interface InvoicePaymentLine {
 
 export interface InvoiceLine {
   readonly key: string
+  /** The invoice's row on the invoices tab. */
+  readonly sheetRow: number
   readonly number: string
   readonly client: string
   readonly item: string
@@ -30,6 +32,7 @@ export interface InvoiceLine {
 
 <script setup lang="ts">
 import UBadge from '@nuxt/ui/components/Badge.vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
@@ -39,6 +42,12 @@ defineProps<{
   invoices: readonly InvoiceLine[]
   /** Shows each invoice's client, when more than one is in view. */
   showClient: boolean
+  /** Off while another write runs. */
+  editable: boolean
+}>()
+
+const emit = defineEmits<{
+  edit: [sheetRow: number]
 }>()
 
 const STATUS = {
@@ -69,6 +78,17 @@ const STATUS = {
           <template v-else-if="invoice.status === 'paid'">Nothing to pay</template>
           <template v-else><MoneyText :cents="invoice.remaining" precision="whole" class="text-toned" /> still owed</template>
         </p>
+        <UButton
+          icon="i-lucide-square-pen"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          class="invoice-edit"
+          :disabled="!editable"
+          :aria-label="`Edit invoice ${invoice.number}`"
+          data-testid="invoice-edit"
+          @click="emit('edit', invoice.sheetRow)"
+        />
       </div>
       <ol
         v-if="invoice.payments.length > 0 || invoice.overpayments.length > 0"
@@ -106,8 +126,8 @@ const STATUS = {
 
 .invoice-head {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) 5.5rem 5.5rem minmax(0, 1fr);
-  grid-template-areas: 'id timing amount status outcome';
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) 5.5rem 5.5rem minmax(0, 1fr) auto;
+  grid-template-areas: 'id timing amount status outcome edit';
   align-items: center;
   column-gap: 0.75rem;
 }
@@ -131,6 +151,11 @@ const STATUS = {
 .invoice-outcome {
   grid-area: outcome;
   text-align: end;
+}
+
+.invoice-edit {
+  grid-area: edit;
+  justify-self: end;
 }
 
 .invoice-trail {
@@ -160,7 +185,7 @@ const STATUS = {
     grid-template-areas:
       'id amount'
       'timing status'
-      'outcome outcome';
+      'outcome edit';
     row-gap: 0.25rem;
   }
 

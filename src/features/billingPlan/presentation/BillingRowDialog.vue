@@ -11,11 +11,12 @@ import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { amountOf, moneyFromAmount } from '../../../shared/money/money'
+import { rowCellsOf } from '../../workbook/application/tabRowWrites'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { billingCellsOf, billingCellsOfRow } from '../infrastructure/billingPlanWrites'
-import type { BillingCells } from '../infrastructure/billingPlanWrites'
+import type { RowCells } from '../../workbook/domain/rowChanges'
+import { useRowWrites } from '../../workbook/presentation/useRowWrites'
+import { BILLING_PLAN_ROWS, billingCellsOf } from '../application/billingPlanRows'
 import type { BillingRowLine } from './billingView'
-import { useBillingRowWrites } from './useBillingRowWrites'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -31,7 +32,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useBillingRowWrites()
+const writes = useRowWrites(BILLING_PLAN_ROWS)
 const phone = usePhoneLayout()
 
 const item = ref('')
@@ -83,9 +84,9 @@ const errors = computed(() => ({
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
 /** The row's cells as the app read them, raw, so a formula amount left alone is never rewritten. */
-function readCells(sheetRow: number): BillingCells | null {
+function readCells(sheetRow: number): RowCells | null {
   const read = store.state.snapshot?.['outgoing-plan'].find((candidate) => candidate.sheetRow === sheetRow)
-  return read === undefined ? null : billingCellsOfRow(read)
+  return read === undefined ? null : rowCellsOf(read, BILLING_PLAN_ROWS.columns)
 }
 
 async function save(): Promise<void> {
@@ -97,26 +98,37 @@ async function save(): Promise<void> {
   const typed = billingCellsOf({ item: item.value, date: day, amount: parsedAmount.value, client: client.value, description: description.value })
   const row = props.row
   if (row === null) {
-    if (await writes.add([typed])) open.value = false
+    if (await writes.write({ added: [typed], changed: [], removed: [] }, { title: 'Plan row added' }, 'Not added')) open.value = false
     return
   }
   const before = readCells(row.sheetRow)
   if (before === null) return
-  const after: BillingCells = {
-    item: typed.item === row.item ? before.item : typed.item,
-    date: day === row.date ? before.date : typed.date,
-    amount: parsedAmount.value === row.amount ? before.amount : typed.amount,
-    client: typed.client === row.client ? before.client : typed.client,
-    description: typed.description === row.description ? before.description : typed.description,
+  const unchanged: Readonly<Record<string, boolean>> = {
+    item: typed.item === row.item,
+    date: day === row.date,
+    amount: parsedAmount.value === row.amount,
+    client: typed.client === row.client,
+    description: typed.description === row.description,
   }
-  if (await writes.change({ sheetRow: row.sheetRow, before, after })) open.value = false
+  const after: RowCells = Object.fromEntries(BILLING_PLAN_ROWS.columns.map((column) => [column, (unchanged[column] ? before[column] : typed[column]) ?? '']))
+  const saved = await writes.write(
+    { added: [], changed: [{ sheetRow: row.sheetRow, before, after }], removed: [] },
+    { title: 'Plan row saved', description: `Written to row ${row.sheetRow} of ${writes.where()}.` },
+    'Not saved',
+  )
+  if (saved) open.value = false
 }
 
 async function remove(): Promise<void> {
   const row = props.row
   const cells = row === null ? null : readCells(row.sheetRow)
   if (row === null || cells === null) return
-  if (await writes.remove({ sheetRow: row.sheetRow, cells })) open.value = false
+  const deleted = await writes.write(
+    { added: [], changed: [], removed: [{ sheetRow: row.sheetRow, cells }] },
+    { title: 'Plan row deleted', description: `Row ${row.sheetRow} of ${writes.where()} is cleared.` },
+    'Not deleted',
+  )
+  if (deleted) open.value = false
 }
 </script>
 

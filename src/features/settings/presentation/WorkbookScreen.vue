@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import UAlert from '@nuxt/ui/components/Alert.vue'
 import UTabs from '@nuxt/ui/components/Tabs.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
@@ -10,19 +9,23 @@ import LoanBucketSwitch from '../../../packs/hr-doo/presentation/LoanBucketSwitc
 import ProblemList from '../../excel/presentation/ProblemList.vue'
 import RulesTab from '../../rules/presentation/RulesTab.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { EditableTabs } from '../../workbook/application/workbookStore'
+import type { RowTab } from '../../workbook/application/workbookWriter'
+import type { TabRowsChange } from '../../workbook/domain/rowChanges'
 import { readAssets } from '../../workbook/infrastructure/assetsTabReader'
 import { readGrants } from '../../workbook/infrastructure/grantsTabReader'
-import { spreadsheetLink } from '../../workbook/infrastructure/sheetRowLink'
-import type { SheetRow, WorkbookTab as WorkbookFileTab } from '../../workbook/infrastructure/workbookSnapshot'
-import { TEMPLATE_COLUMNS, rowsFrom } from '../../workbook/infrastructure/workbookTemplate'
+import { readClientRows } from '../../workbook/infrastructure/workbookReader'
+import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
+import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
 import { readYearEnd } from '../../workbook/infrastructure/yearEndTabReader'
+import { useRowWrites } from '../../workbook/presentation/useRowWrites'
+import { ACCOUNT_ROWS, ASSET_ROWS, CATEGORY_ROWS, CLIENT_ROWS, GRANT_ROWS, YEAR_END_ROWS, accountUses, categoryUses } from '../application/workbookTabRows'
+import type { RowsOf } from '../application/workbookTabRows'
 import { DEFAULT_SETTINGS, changedSettings } from '../domain/settings'
 import type { Settings } from '../domain/settings'
 import AccountsEditor from './AccountsEditor.vue'
 import CategoriesEditor from './CategoriesEditor.vue'
 import FactTabEditor from './FactTabEditor.vue'
-import { GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from './factTabColumns'
+import { CLIENT_COLUMNS, GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from './factTabColumns'
 import GeneralSettingsForm from './GeneralSettingsForm.vue'
 
 const TABS = [
@@ -30,13 +33,20 @@ const TABS = [
   { label: 'Rules', value: 'rules', icon: 'i-lucide-list-ordered', slot: 'rules' as const },
   { label: 'Categories', value: 'categories', icon: 'i-lucide-tags', slot: 'categories' as const },
   { label: 'Accounts', value: 'accounts', icon: 'i-lucide-landmark', slot: 'accounts' as const },
+  { label: 'Clients', value: 'clients', icon: 'i-lucide-users', slot: 'clients' as const },
   { label: 'Assets', value: 'assets', icon: 'i-lucide-laptop', slot: 'assets' as const },
   { label: 'Grants', value: 'grants', icon: 'i-lucide-hand-coins', slot: 'grants' as const },
   { label: 'Year end', value: 'year-end', icon: 'i-lucide-book-check', slot: 'year-end' as const },
 ]
 
-/** The tabs the Workbook screen edits in Excel mode and shows read-only for a Google Sheet, each with its section text. */
+/** The tabs edited as a table of fields, each with its section text. */
 const FACT_TABS = {
+  clients: {
+    title: 'Clients',
+    description: 'Who pays your invoices, one row per IBAN they pay from, so a client paying from two accounts has two rows under one name.',
+    rowNoun: 'client row',
+    tabNoun: 'clients',
+  },
   assets: {
     title: 'Assets',
     description: 'Purchases kept as fixed assets and depreciated, each once. The cost is without the VAT that was reclaimed.',
@@ -57,8 +67,6 @@ const FACT_TABS = {
   },
 } as const
 
-type FactTab = keyof typeof FACT_TABS
-
 type WorkbookTab = (typeof TABS)[number]['value']
 
 const store = useWorkbook()
@@ -77,24 +85,44 @@ const activeTab = computed<WorkbookTab>({
 })
 
 const source = computed(() => state.choice?.source ?? state.workbook?.source ?? null)
-const editable = computed(() => source.value === 'excel')
 const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
-const sheetLink = computed(() => (source.value === 'google' && state.workbook !== null ? spreadsheetLink(state.workbook.id) : null))
 
-const usedCategories = computed(() => new Set(state.workbook?.transactions.map((transaction) => transaction.category) ?? []))
+const rowsOfSnapshot: RowsOf = (tab) => state.snapshot?.[tab] ?? []
+const categoriesInUse = computed(() => categoryUses(rowsOfSnapshot))
+const accountsInUse = computed(() => accountUses(rowsOfSnapshot))
 const billingItems = computed(() => [...new Set(state.workbook?.billingPlan.map((row) => row.item) ?? [])])
-const usedAccounts = computed(() => new Set(state.workbook?.transactions.map((transaction) => transaction.account) ?? []))
 
-const savingSection = ref<'settings' | 'categories' | 'accounts' | FactTab | null>(null)
+const savingSettings = ref(false)
 
 const grantSlugs = computed(() => state.workbook?.grants.map((grant) => grant.slug) ?? [])
 const categorySlugs = computed(() => new Set(state.workbook?.categories.map((category) => category.slug) ?? []))
 
 const factTabEditors = computed(() => ({
+  clients: { columns: CLIENT_COLUMNS, read: readClientRows, newRow: () => ({}) },
   assets: { columns: assetColumns(grantSlugs.value), read: (rows: readonly SheetRow[]) => readAssets(rows, new Set(grantSlugs.value)), newRow: () => ({}) },
   grants: { columns: GRANT_COLUMNS, read: readGrants, newRow: () => ({ release: 'fixed-then-assets' }) },
   'year-end': { columns: YEAR_END_COLUMNS, read: (rows: readonly SheetRow[]) => readYearEnd(rows, categorySlugs.value), newRow: newYearEndLine },
 }))
+
+const rowWrites = {
+  categories: useRowWrites(CATEGORY_ROWS),
+  accounts: useRowWrites(ACCOUNT_ROWS),
+  clients: useRowWrites(CLIENT_ROWS),
+  assets: useRowWrites(ASSET_ROWS),
+  grants: useRowWrites(GRANT_ROWS),
+  'year-end': useRowWrites(YEAR_END_ROWS),
+}
+
+type RowSection = keyof typeof rowWrites
+
+const TITLES: Readonly<Record<RowSection, string>> = {
+  categories: 'Categories',
+  accounts: 'Accounts',
+  clients: 'Clients',
+  assets: 'Assets',
+  grants: 'Grants',
+  'year-end': 'Year end',
+}
 
 /** A new line starts in the latest year the tab holds, or last year, on the profit and loss. */
 function newYearEndLine(): Record<string, string> {
@@ -102,27 +130,20 @@ function newYearEndLine(): Record<string, string> {
   return { year: String(years.length > 0 ? Math.max(...years) : new Date().getFullYear() - 1), statement: 'pl' }
 }
 
-function sheetLacks(tab: WorkbookFileTab): boolean {
+function sheetLacks(tab: RowTab): boolean {
   return source.value === 'google' && (state.snapshot?.meta.missingTabs.includes(tab) ?? false)
 }
 
-function columnsOf(tab: WorkbookFileTab): string {
+function columnsOf(tab: RowTab): string {
   return TEMPLATE_COLUMNS[tab].map((column) => column.name).join(', ')
 }
 
-function saveFactTab(tab: FactTab, cells: SheetRow['cells'][]): void {
-  void saveSection(tab, { [tab]: rowsFrom(cells) }, `${FACT_TABS[tab].title} saved`)
+function saving(tab: RowSection): boolean {
+  return rowWrites[tab].busy.value || state.writing
 }
 
-async function saveSection(section: 'categories' | 'accounts' | FactTab, edits: EditableTabs, saved: string): Promise<void> {
-  savingSection.value = section
-  await store.saveLocalEdits(edits)
-  savingSection.value = null
-  if (state.status === 'error') {
-    toast.add({ title: 'Not saved', description: state.error ?? '', icon: 'i-lucide-triangle-alert', color: 'error' })
-  } else {
-    toast.add({ title: saved, icon: 'i-lucide-check', color: 'success' })
-  }
+function saveRows(tab: RowSection, change: TabRowsChange): void {
+  void rowWrites[tab].write(change, { title: `${TITLES[tab]} saved` }, 'Not saved')
 }
 
 /** Only the keys that changed are written, each checked against the value the app read for it. */
@@ -132,23 +153,15 @@ async function saveSettings(next: Settings): Promise<void> {
     const row = rows.find((candidate: SheetRow) => String(candidate.cells.key ?? '').trim().toLowerCase() === key)
     return { key, value, expected: row === undefined ? null : (row.cells.value ?? '') }
   })
-  savingSection.value = 'settings'
+  savingSettings.value = true
   try {
     await store.changeSettings(changes)
     toast.add({ title: 'Settings saved', ...(source.value === 'google' ? { description: 'Written to the settings tab of the Sheet.' } : {}), icon: 'i-lucide-check', color: 'success' })
   } catch (failure) {
     toast.add({ title: 'Not saved', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
   } finally {
-    savingSection.value = null
+    savingSettings.value = false
   }
-}
-
-function saveCategories(cells: SheetRow['cells'][]): void {
-  void saveSection('categories', { categories: rowsFrom(cells) }, 'Categories saved')
-}
-
-function saveAccounts(cells: SheetRow['cells'][]): void {
-  void saveSection('accounts', { accounts: rowsFrom(cells) }, 'Accounts saved')
 }
 </script>
 
@@ -157,20 +170,10 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
     <PageHeader
       title="Workbook"
       :description="
-        editable
+        source === 'excel'
           ? 'How this workbook is set up. Changes are kept in this browser, and an export writes them into the file.'
-          : 'How your Sheet is set up. Settings and rules saved here are written to the Sheet. Categories, accounts, assets, grants and year-end figures are edited in the Sheet itself.'
+          : 'How your Sheet is set up. A save here writes only the cells you changed to the Sheet, checks they read back, and offers Undo.'
       "
-    />
-
-    <UAlert
-      v-if="source === 'google'"
-      icon="i-lucide-sheet"
-      color="neutral"
-      variant="subtle"
-      title="Categories, accounts, assets, grants and year end are edited in the Sheet"
-      description="The Apps Script reads and checks categories and accounts every morning, and the other three hold figures you copy from your own records and the accountant's package. Change them in the Sheet and sync. Settings, rules and the bucket of the loan categories can be saved from here."
-      :actions="sheetLink ? [{ label: 'Open the Sheet', icon: 'i-lucide-external-link', color: 'neutral', variant: 'outline', to: sheetLink, target: '_blank' }] : []"
     />
 
     <UTabs
@@ -191,7 +194,7 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
             </header>
             <GeneralSettingsForm
               :settings="settings"
-              :saving="savingSection === 'settings' || state.writing"
+              :saving="savingSettings || state.writing"
               :clients="state.workbook.clients"
               :billing-items="billingItems"
               @save="saveSettings"
@@ -217,17 +220,16 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
           <header class="px-4 pt-4 sm:px-5">
             <h2 class="text-sm font-medium text-highlighted">Categories</h2>
             <p class="mt-0.5 text-xs text-muted">
-              The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category ledger rows use keeps
-              its name.
+              The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name
+              and its row.
+            </p>
+            <p v-if="source === 'google'" class="mt-1 text-xs text-muted" data-testid="dropdown-note">The ledger's category dropdown in the Sheet lists this tab's categories.</p>
+            <p v-if="sheetLacks('categories')" class="mt-2 text-xs text-toned">
+              The Sheet has no categories tab yet. Add one named categories with these headers in row 1, then sync:
+              <span class="identifier">{{ columnsOf('categories') }}</span>.
             </p>
           </header>
-          <CategoriesEditor
-            :rows="state.snapshot?.categories ?? []"
-            :used-names="usedCategories"
-            :editable="editable"
-            :saving="savingSection === 'categories'"
-            @save="saveCategories"
-          />
+          <CategoriesEditor :rows="state.snapshot?.categories ?? []" :uses="categoriesInUse" :saving="saving('categories')" @save="saveRows('categories', $event)" />
         </section>
       </template>
 
@@ -236,14 +238,17 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
           <header class="px-4 pt-4 sm:px-5">
             <h2 class="text-sm font-medium text-highlighted">Accounts</h2>
             <p class="mt-0.5 text-xs text-muted">Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}.</p>
+            <p v-if="sheetLacks('accounts')" class="mt-2 text-xs text-toned">
+              The Sheet has no accounts tab yet. Add one named accounts with these headers in row 1, then sync:
+              <span class="identifier">{{ columnsOf('accounts') }}</span>.
+            </p>
           </header>
           <AccountsEditor
             :rows="state.snapshot?.accounts ?? []"
-            :used-names="usedAccounts"
+            :uses="accountsInUse"
             :currency="settings.currency"
-            :editable="editable"
-            :saving="savingSection === 'accounts'"
-            @save="saveAccounts"
+            :saving="saving('accounts')"
+            @save="saveRows('accounts', $event)"
           />
         </section>
       </template>
@@ -265,9 +270,8 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
             :new-row="factTabEditors[tab].newRow"
             :row-noun="fact.rowNoun"
             :tab-noun="fact.tabNoun"
-            :editable="editable"
-            :saving="savingSection === tab"
-            @save="saveFactTab(tab, $event)"
+            :saving="saving(tab)"
+            @save="saveRows(tab, $event)"
           />
         </section>
       </template>

@@ -1,14 +1,17 @@
 import { civilDateFromSerial, parseCivilDate, serialFromCivilDate } from '../../../shared/calendar/civilDate'
+import { cellText } from '../../../shared/text/cellText'
+import { normaliseIban } from '../../../shared/text/fold'
+import type { RowCells, TabRowsChange } from '../../workbook/domain/rowChanges'
 
 type Cell = string | number | boolean
 type Cells = Readonly<Record<string, Cell>>
 
 /**
  * What an editor field holds and how its text becomes a cell. A word is stored in lower case, a
- * date as a date cell, a percent typed as 10 as 0.1, a flag as TRUE or blank, and `amount-or-word`
- * takes a number or a keyword such as whole.
+ * date as a date cell, a percent typed as 10 as 0.1, a flag as TRUE or blank, an IBAN without its
+ * grouping spaces, and `amount-or-word` takes a number or a keyword such as whole.
  */
-export type DraftCellKind = 'text' | 'word' | 'date' | 'amount' | 'whole-number' | 'percent' | 'flag' | 'amount-or-word'
+export type DraftCellKind = 'text' | 'word' | 'date' | 'amount' | 'whole-number' | 'percent' | 'flag' | 'amount-or-word' | 'iban'
 
 /** Reads another field of the same row as lower-case text, so a field's kind can follow it. */
 export type FieldReader = (column: string) => string
@@ -91,7 +94,37 @@ export function cellOfDraftText(text: string, kind: DraftCellKind): Cell {
       return Number.isFinite(number) ? number : trimmed.toLowerCase()
     case 'word':
       return trimmed.toLowerCase()
+    case 'iban':
+      return normaliseIban(trimmed)
     case 'text':
       return trimmed
+  }
+}
+
+/**
+ * The change an editor's drafts make to the tab's rows. A field left as it was keeps the cell the
+ * tab holds, so a formula is never written over with its own value. A draft without a row is added
+ * at the foot, and a row no draft holds any more is deleted. `opened` is the cells each row's draft
+ * gave when the editor opened, by row.
+ */
+export function rowsChangeOf(
+  rows: readonly { readonly sheetRow: number; readonly cells: Cells }[],
+  columns: readonly string[],
+  drafted: readonly { readonly sheetRow: number | null; readonly cells: Cells }[],
+  opened: ReadonlyMap<number, Cells>,
+): TabRowsChange {
+  const inColumns = (cells: Cells): RowCells => Object.fromEntries(columns.map((column) => [column, cells[column] ?? '']))
+  const kept = new Set(drafted.flatMap((draft) => (draft.sheetRow === null ? [] : [draft.sheetRow])))
+  return {
+    added: drafted.filter((draft) => draft.sheetRow === null).map((draft) => inColumns(draft.cells)),
+    changed: drafted.flatMap((draft) => {
+      const row = draft.sheetRow === null ? undefined : rows.find((candidate) => candidate.sheetRow === draft.sheetRow)
+      if (row === undefined) return []
+      const before = inColumns(row.cells)
+      const original = opened.get(row.sheetRow) ?? {}
+      const after = Object.fromEntries(columns.map((column) => [column, cellText(draft.cells[column]) === cellText(original[column]) ? before[column]! : (draft.cells[column] ?? '')]))
+      return columns.some((column) => cellText(after[column]) !== cellText(before[column])) ? [{ sheetRow: row.sheetRow, before, after }] : []
+    }),
+    removed: rows.filter((row) => !kept.has(row.sheetRow)).map((row) => ({ sheetRow: row.sheetRow, cells: inColumns(row.cells) })),
   }
 }

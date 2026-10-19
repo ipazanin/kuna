@@ -28,6 +28,12 @@ import type { SheetRow } from './workbookSnapshot'
  * package itself can be wrong.
  */
 export function readYearEnd(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>): TabReading<YearEndLine> {
+  const lines = readYearEndLines(rows, categorySlugs)
+  return { facts: lines.facts, problems: [...lines.problems, ...tieProblems(lines.facts)] }
+}
+
+/** The lines and what is wrong with each row on its own, without the checks of the totals, which a package being typed in fails until its last line. */
+export function readYearEndLines(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>): TabReading<YearEndLine> {
   const facts: YearEndLine[] = []
   const problems: RowProblem[] = []
   const seen = new Set<string>()
@@ -52,7 +58,7 @@ export function readYearEnd(rows: readonly SheetRow[], categorySlugs: ReadonlySe
     seen.add(key)
     facts.push(line)
   }
-  return { facts, problems: [...problems, ...tieProblems(facts)] }
+  return { facts, problems }
 }
 
 function readYearEndRow(row: SheetRow): YearEndLine {

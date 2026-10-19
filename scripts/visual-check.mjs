@@ -12,6 +12,9 @@
  * (`?fake=empty`), Settings and each Workbook tab for a workbook kept in this browser (`?fake=excel`), and the import
  * summary for an xlsx file it writes from the fake workbook with two problems added.
  *
+ * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
+ * category, an asset and an invoice, and screenshots the editors and the invoice dialog on the way.
+ *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
  *   npm run check:visual -- http://localhost:4173/ledgerboard/
@@ -27,6 +30,7 @@ import * as XLSX from 'xlsx'
 
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
+import { assetFlow, categoryFlow, invoiceFlow } from './support/editorFlows.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
@@ -85,7 +89,9 @@ const SCREENS = [
   },
   { name: 'review', hash: '#/review', title: 'Review', charts: 0, shows: 'GADGET CORNER' },
   { name: 'workbook', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Bucket labels' },
-  { name: 'workbook-assets', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Laptop 14 inch' },
+  { name: 'workbook-categories', hash: '#/workbook?tab=categories', title: 'Workbook', charts: 0, shows: "The ledger's category dropdown in the Sheet lists" },
+  { name: 'workbook-clients', hash: '#/workbook?tab=clients', title: 'Workbook', charts: 0, shows: 'Add client row' },
+  { name: 'workbook-assets', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
   { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Fake workbook' },
 ]
 
@@ -99,6 +105,7 @@ const SOURCE_SCREENS = [
   { name: 'workbook-excel', query: 'fake=excel', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Save settings' },
   { name: 'workbook-categories-excel', query: 'fake=excel', hash: '#/workbook?tab=categories', title: 'Workbook', charts: 0, shows: 'Save categories' },
   { name: 'workbook-accounts-excel', query: 'fake=excel', hash: '#/workbook?tab=accounts', title: 'Workbook', charts: 0, shows: 'Save accounts' },
+  { name: 'workbook-clients-excel', query: 'fake=excel', hash: '#/workbook?tab=clients', title: 'Workbook', charts: 0, shows: 'Save clients' },
   { name: 'workbook-assets-excel', query: 'fake=excel', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
   { name: 'workbook-grants-excel', query: 'fake=excel', hash: '#/workbook?tab=grants', title: 'Workbook', charts: 0, shows: 'Save grants' },
   { name: 'workbook-year-end-excel', query: 'fake=excel', hash: '#/workbook?tab=year-end', title: 'Workbook', charts: 0, shows: 'Save year-end lines' },
@@ -327,6 +334,58 @@ for (const viewport of VIEWPORTS) {
     )
 
     await context.close()
+  }
+}
+
+/** The editors' flows, each on a fresh load, so the fake Sheet and the workbook kept in this browser start from their seed. */
+const FLOWS = [
+  { name: 'categories', hash: '#/workbook?tab=categories', title: 'Workbook', run: categoryFlow },
+  { name: 'assets', hash: '#/workbook?tab=assets', title: 'Workbook', run: assetFlow },
+  { name: 'invoices', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceFlow },
+]
+const MODES = [
+  { name: 'google', query: '' },
+  { name: 'excel', query: '&fake=excel' },
+]
+
+for (const viewport of VIEWPORTS.filter((candidate) => candidate.name === 'phone' || candidate.name === 'desktop')) {
+  for (const mode of MODES) {
+    for (const theme of THEMES) {
+      for (const flow of FLOWS) {
+        const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
+        const context = await browser.createBrowserContext()
+        const page = await context.newPage()
+        const errors = watchForErrors(page)
+        const foreignRequests = watchForForeignRequests(page)
+        await page.setViewport({ width: viewport.width, height: viewport.height })
+        await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
+        const file = (name) => join(SCREENSHOT_DIR, `${viewport.name}-${mode.name}-${name}-${theme}.png`)
+        const overflowCheck = async (when) => {
+          const report = await readPage(page)
+          if (report.scrollWidth > report.clientWidth + 1) fail(scope, `${when}: horizontal overflow, scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
+        }
+        try {
+          await page.goto(`${BASE}?theme=${theme}${mode.query}${flow.hash}`, { waitUntil: 'networkidle0' })
+          await page.waitForFunction((title) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === title, { timeout: 10_000 }, flow.title)
+          await flow.run(page, {
+            press: (handle) => handle.click(),
+            shoot: async (name) => {
+              await overflowCheck(name)
+              await page.screenshot({ path: file(name) })
+            },
+            inspect: overflowCheck,
+          })
+          await overflowCheck('after the flow')
+        } catch (error) {
+          fail(scope, error.message)
+          await page.screenshot({ path: file(`${flow.name}-failed`) }).catch(() => {})
+        }
+        if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
+        if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
+        console.log(`${scope.padEnd(44)} ${String(viewport.width).padStart(4)}px  errors=${errors.length}  foreign=${foreignRequests.length}`)
+        await context.close()
+      }
+    }
   }
 }
 

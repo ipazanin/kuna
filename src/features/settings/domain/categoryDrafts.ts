@@ -1,4 +1,5 @@
 import { BUCKETS } from '../../workbook/domain/bucket'
+import { slugProblem } from '../../workbook/domain/slug'
 import { isVatTreatment } from '../../workbook/domain/vatTreatment'
 
 /** One row of the categories editor, as text, the way the tab holds it. */
@@ -24,9 +25,9 @@ export type CategoryDraftErrors = ReadonlyMap<number, Partial<Record<CategoryFie
 
 /**
  * The rules of the Sheet's categories tab: every row names a category once, and fills category,
- * family and a bucket from the six. A category the ledger uses keeps its name, or those rows would
- * lose their category. A VAT treatment, if given, is one the app knows. Errors are keyed by the
- * draft's position.
+ * family and a bucket from the six. A new name keeps to the slug format. A category in use keeps
+ * its name, or the rows that name it would lose their category. A VAT treatment, if given, is one
+ * the app knows. Errors are keyed by the draft's position.
  */
 export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>): CategoryDraftErrors {
   const errors = new Map<number, Partial<Record<CategoryField, string>>>()
@@ -39,7 +40,9 @@ export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames:
     } else if (firstAt.has(name)) {
       found.category = `Already on row ${(firstAt.get(name) ?? 0) + 1}`
     } else if (renamesUsed(draft, drafts, usedNames)) {
-      found.category = `Ledger rows use ${draft.savedName}, so it keeps its name`
+      found.category = `${draft.savedName} is in use, so it keeps its name`
+    } else if (name !== draft.savedName.trim().toLowerCase() && slugProblem(name, 'category') !== null) {
+      found.category = 'Lower-case letters, digits and single hyphens'
     }
     if (name !== '' && !firstAt.has(name)) {
       firstAt.set(name, index)

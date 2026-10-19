@@ -105,18 +105,18 @@ describe('parseSettings', () => {
 
 describe('card_settlement_ibans', () => {
   it('reads a comma-separated list of IBANs, normalised, and writes it back the same way', () => {
-    const { settings, problems } = parseSettings(rows(['card_settlement_ibans', 'xx00 fake 0000 0000 99, , XX00FAKE0000000098']))
+    const { settings, problems } = parseSettings(rows(['card_settlement_ibans', 'xx66 fake 0000 0000 99, , XX93FAKE0000000098']))
 
     expect(problems).toEqual([])
-    expect(settings.cardSettlementIbans).toEqual(['XX00FAKE0000000099', 'XX00FAKE0000000098'])
+    expect(settings.cardSettlementIbans).toEqual(['XX66FAKE0000000099', 'XX93FAKE0000000098'])
     expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
   })
 
-  it('reports an entry that is not an IBAN and keeps the default', () => {
-    const { settings, problems } = parseSettings(rows(['card_settlement_ibans', 'XX00FAKE0000000099, card account']))
+  it('reports an entry that is not an IBAN, or whose check digits do not hold, and keeps the default', () => {
+    const { settings, problems } = parseSettings(rows(['card_settlement_ibans', 'XX66FAKE0000000099, card account, XX00FAKE0000000098']))
 
     expect(settings.cardSettlementIbans).toEqual([])
-    expect(problems).toEqual([{ sheetRow: 2, reason: 'card_settlement_ibans: "CARDACCOUNT" is not an IBAN, so the default is used' }])
+    expect(problems).toEqual([{ sheetRow: 2, reason: 'card_settlement_ibans: "CARDACCOUNT", "XX00FAKE0000000098" are not IBANs, so the default is used' }])
     expect(settingsErrors({ ...DEFAULT_SETTINGS, cardSettlementIbans: ['NOPE'] }).cardSettlementIbans).toBe('"NOPE" is not an IBAN')
   })
 

@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
-import { useToast } from '@nuxt/ui/composables/useToast'
 
+import { CATEGORY_ROWS } from '../../../features/settings/application/workbookTabRows'
+import { rowCellsOf } from '../../../features/workbook/application/tabRowWrites'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../features/workbook/application/workbookStore'
+import type { RowChange } from '../../../features/workbook/domain/rowChanges'
 import type { Category } from '../../../features/workbook/domain/workbook'
+import { readCategoryRows } from '../../../features/workbook/infrastructure/workbookReader'
+import { useRowWrites } from '../../../features/workbook/presentation/useRowWrites'
 import { PACK_ROLES } from '../domain/packRoles'
 
 /**
@@ -18,9 +22,8 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const toast = useToast()
 const names = useDisplayNames()
-const saving = ref(false)
+const writes = useRowWrites(CATEGORY_ROWS)
 
 const loanCategories = computed(() =>
   props.categories.filter((category) => category.roles.includes(PACK_ROLES.ownerLoanOut) || category.roles.includes(PACK_ROLES.ownerLoanRepaid)),
@@ -29,22 +32,25 @@ const countsAsPay = computed(() => loanCategories.value.length > 0 && loanCatego
 const mixed = computed(() => !countsAsPay.value && !loanCategories.value.every((category) => category.bucket === 'financing'))
 const listed = computed(() => loanCategories.value.map((category) => `${names.value.category(category.slug)} (${category.bucket})`).join(' and '))
 
+/** Writes the bucket of each loan category on the row that defines it, the one the reader takes. */
 async function choose(asPay: boolean): Promise<void> {
   const bucket = asPay ? 'owner-pay' : 'financing'
-  saving.value = true
-  try {
-    await store.changeBuckets(loanCategories.value.map((category) => ({ category: category.slug, expected: category.bucket, bucket })))
-    toast.add({
+  const rows = store.state.snapshot?.categories ?? []
+  const defining = new Map(readCategoryRows(rows).facts.map((category) => [category.slug, category.sheetRow]))
+  const changed = loanCategories.value.flatMap((category): RowChange[] => {
+    const row = rows.find((candidate) => candidate.sheetRow === defining.get(category.slug))
+    if (row === undefined) return []
+    const before = rowCellsOf(row, CATEGORY_ROWS.columns)
+    return [{ sheetRow: row.sheetRow, before, after: { ...before, bucket } }]
+  })
+  await writes.write(
+    { added: [], changed, removed: [] },
+    {
       title: asPay ? 'Loans count as owner pay' : 'Loans count as financing',
       description: `The categories tab now puts ${loanCategories.value.map((category) => category.slug).join(' and ')} in the ${bucket} bucket.`,
-      icon: 'i-lucide-check',
-      color: 'success',
-    })
-  } catch (failure) {
-    toast.add({ title: 'Not changed', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
-  } finally {
-    saving.value = false
-  }
+    },
+    'Not changed',
+  )
 }
 </script>
 
@@ -58,8 +64,8 @@ async function choose(asPay: boolean): Promise<void> {
     <template v-else>
       <USwitch
         :model-value="countsAsPay"
-        :loading="saving || store.state.writing"
-        :disabled="saving || store.state.writing"
+        :loading="writes.busy.value || store.state.writing"
+        :disabled="writes.busy.value || store.state.writing"
         label="Loans to the owner count as owner pay"
         :description="
           countsAsPay

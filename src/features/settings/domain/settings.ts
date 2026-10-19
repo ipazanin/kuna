@@ -5,6 +5,7 @@ import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
+import { isIban } from '../../workbook/domain/iban'
 
 /** The workbook format this app writes. A higher number comes from a newer app. */
 export const TEMPLATE_VERSION = 1
@@ -138,9 +139,6 @@ const EARLIEST_BIRTH_YEAR = 1900
 const LATEST_BIRTH_YEAR = 2100
 
 const MOST_DEPENDANTS = 20
-
-/** Two letters, two check digits and up to thirty letters or digits, after the grouping spaces go. */
-const IBAN_SHAPE = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/
 
 export type SettingCell = string | number | boolean
 
@@ -546,7 +544,7 @@ export function ibanListOf(text: string): string[] {
 }
 
 function ibanListProblem(ibans: readonly string[]): string | null {
-  const malformed = ibans.filter((iban) => !IBAN_SHAPE.test(iban))
+  const malformed = ibans.filter((iban) => !isIban(iban))
   return malformed.length === 0 ? null : `${malformed.map((iban) => `"${iban}"`).join(', ')} ${malformed.length === 1 ? 'is not an IBAN' : 'are not IBANs'}`
 }
 

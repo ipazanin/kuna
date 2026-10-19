@@ -42,6 +42,13 @@ export function assetColumns(grantSlugs: readonly string[]): readonly EditorColu
   ]
 }
 
+/** The clients tab, one row per IBAN a client pays from. */
+export const CLIENT_COLUMNS: readonly EditorColumn[] = [
+  { name: 'client', label: 'Client', kind: 'word', width: 'w-36' },
+  { name: 'name', label: 'Name', kind: 'text', width: 'w-48' },
+  { name: 'iban', label: 'IBAN', kind: 'iban', width: 'w-64' },
+]
+
 export const GRANT_COLUMNS: readonly EditorColumn[] = [
   { name: 'grant', label: 'Grant', kind: 'word', width: 'w-40' },
   { name: 'received', label: 'Received', kind: 'date', width: 'w-40' },

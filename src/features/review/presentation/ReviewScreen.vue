@@ -124,7 +124,6 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
           :writes="sessionWrites"
           :transactions="ledger.workbook.transactions"
           :categories="ledger.workbook.categories"
-          :bucket-labels="ledger.workbook.settings.bucketLabels"
           :busy="busy"
           @undo="undoSessionWrite"
         />

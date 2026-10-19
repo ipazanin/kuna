@@ -1,6 +1,7 @@
 import { RULE_COLUMNS } from '../../rules/domain/rule'
 import { BILLING_PLAN_COLUMNS } from '../infrastructure/billingPlanTabReader'
 import type { CellValue, SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
+import { TEMPLATE_COLUMNS } from '../infrastructure/workbookTemplate'
 
 /** One tab as it stands right before or right after a write. */
 export interface TabRead {
@@ -13,11 +14,11 @@ export interface TabRead {
 
 export type FreshTabs = Partial<Record<WorkbookTab, TabRead>>
 
-/**
- * The tabs the app writes. Of `categories` it writes only a bucket, which the Apps Script accepts
- * from the tab's own dropdown, and `accounts` it never writes.
- */
-export type WritableTab = 'ledger' | 'rules' | 'settings' | 'categories' | 'owner-advances' | 'outgoing-plan'
+/** The tabs whose rows the Workbook, Receivables and Billing plan screens add, change and delete. */
+export type RowTab = 'categories' | 'accounts' | 'clients' | 'invoices' | 'outgoing-plan' | 'assets' | 'grants' | 'year-end'
+
+/** The tabs the app writes. Of the ledger it writes only the verdict of a row. */
+export type WritableTab = 'ledger' | 'rules' | 'settings' | 'owner-advances' | RowTab
 
 /** One cell set on an existing row, found by its header. An empty string clears the cell. */
 export interface CellEdit {
@@ -54,13 +55,26 @@ export class WorkbookWriteRefused extends Error {
   }
 }
 
-/** The columns each tab lets the app write. Anything else is a bug and fails before a request is sent. */
+function templateColumns(tab: WorkbookTab): ReadonlySet<string> {
+  return new Set(TEMPLATE_COLUMNS[tab].map((column) => column.name))
+}
+
+/**
+ * The columns each tab lets the app write: the template's own columns, never a column the Sheet
+ * keeps beside them. Anything else is a bug and fails before a request is sent.
+ */
 export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>> = {
   ledger: new Set(['category', 'flagged_by']),
   rules: new Set(RULE_COLUMNS),
   settings: new Set(['key', 'value']),
-  categories: new Set(['bucket']),
   'owner-advances': new Set(['date', 'amount', 'description', 'category']),
   'outgoing-plan': new Set(BILLING_PLAN_COLUMNS),
+  categories: templateColumns('categories'),
+  accounts: templateColumns('accounts'),
+  clients: templateColumns('clients'),
+  invoices: templateColumns('invoices'),
+  assets: templateColumns('assets'),
+  grants: templateColumns('grants'),
+  'year-end': templateColumns('year-end'),
 }
 

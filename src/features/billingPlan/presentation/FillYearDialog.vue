@@ -7,9 +7,9 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { sumMoney } from '../../../shared/money/money'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
+import { useRowWrites } from '../../workbook/presentation/useRowWrites'
+import { BILLING_PLAN_ROWS, billingCellsOf } from '../application/billingPlanRows'
 import type { RestOfYearFill } from '../domain/fillRestOfYear'
-import { billingCellsOf } from '../infrastructure/billingPlanWrites'
-import { useBillingRowWrites } from './useBillingRowWrites'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -20,7 +20,7 @@ const props = defineProps<{
   colours: ReadonlyMap<string, string>
 }>()
 
-const writes = useBillingRowWrites()
+const writes = useRowWrites(BILLING_PLAN_ROWS)
 const phone = usePhoneLayout()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -29,7 +29,9 @@ const rows = computed(() => (props.fill.kind === 'rows' ? props.fill.rows : []))
 const total = computed(() => sumMoney(rows.value.map((row) => row.amount)))
 
 async function write(): Promise<void> {
-  if (await writes.add(rows.value.map(billingCellsOf))) open.value = false
+  const count = rows.value.length
+  const added = await writes.write({ added: rows.value.map(billingCellsOf), changed: [], removed: [] }, { title: count === 1 ? 'Plan row added' : `${count} plan rows added` }, 'Not added')
+  if (added) open.value = false
 }
 </script>
 

@@ -5,25 +5,27 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { BUCKETS } from '../../workbook/domain/bucket'
+import type { TabRowsChange } from '../../workbook/domain/rowChanges'
+import { listInWords } from '../../workbook/domain/slug'
+import type { SlugUses } from '../../workbook/domain/slug'
 import { VAT_TREATMENTS } from '../../workbook/domain/vatTreatment'
 import { displayName } from '../../workbook/domain/displayName'
 import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
+import { CATEGORY_ROWS } from '../application/workbookTabRows'
 import { categoryCellsOf, categoryDraftErrors, keepsItsName } from '../domain/categoryDrafts'
 import type { CategoryDraft } from '../domain/categoryDrafts'
-
-type Cells = SheetRow['cells']
+import { rowsChangeOf } from '../domain/tabRowDrafts'
 
 const props = defineProps<{
   /** The categories tab as stored, broken rows included, so they can be fixed here. */
   rows: readonly SheetRow[]
-  /** Category names ledger rows use, which keep their name. */
-  usedNames: ReadonlySet<string>
-  editable: boolean
+  /** What names each category outside the tab. A category in use keeps its name and its row. */
+  uses: SlugUses
   saving: boolean
 }>()
 
 const emit = defineEmits<{
-  save: [cells: Cells[]]
+  save: [change: TabRowsChange]
 }>()
 
 function draftsOf(rows: readonly SheetRow[]): CategoryDraft[] {
@@ -43,9 +45,9 @@ watch(
   },
 )
 
-const saved = computed(() => JSON.stringify(draftsOf(props.rows)))
-const dirty = computed(() => JSON.stringify(drafts.value) !== saved.value)
-const errors = computed(() => categoryDraftErrors(drafts.value, props.usedNames))
+const usedNames = computed(() => new Set(props.uses.keys()))
+const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(draftsOf(props.rows)))
+const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value))
 
 const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: bucket }))
 const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: treatment }))
@@ -55,26 +57,41 @@ function update(index: number, field: keyof Omit<CategoryDraft, 'sheetRow' | 'sa
 }
 
 function locked(draft: CategoryDraft): boolean {
-  return keepsItsName(draft, drafts.value, props.usedNames)
+  return keepsItsName(draft, drafts.value, usedNames.value)
+}
+
+function inUse(draft: CategoryDraft): string {
+  return `Used by ${listInWords(props.uses.get(draft.savedName.trim().toLowerCase()) ?? [])}, so it keeps its name and its row`
 }
 
 function addCategory(): void {
   drafts.value = [...drafts.value, { sheetRow: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '', vat: '' }]
 }
 
-function removeNew(index: number): void {
+function remove(index: number): void {
   drafts.value = drafts.value.filter((_, position) => position !== index)
 }
 
 function save(): void {
   const savedCells = new Map(props.rows.map((row) => [row.sheetRow, row.cells]))
-  emit('save', categoryCellsOf(drafts.value, savedCells))
+  const opened = draftsOf(props.rows)
+  const openedCells = categoryCellsOf(opened, savedCells)
+  const draftedCells = categoryCellsOf(drafts.value, savedCells)
+  emit(
+    'save',
+    rowsChangeOf(
+      props.rows,
+      CATEGORY_ROWS.columns,
+      drafts.value.map((draft, index) => ({ sheetRow: draft.sheetRow, cells: draftedCells[index]! })),
+      new Map(opened.map((draft, index) => [draft.sheetRow!, openedCells[index]!])),
+    ),
+  )
 }
 </script>
 
 <template>
   <div class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-    <table class="data-table editor-table w-full text-sm">
+    <table class="data-table editor-table w-full text-sm" data-testid="categories-editor">
       <thead>
         <tr>
           <th scope="col" class="text-start">Category</th>
@@ -84,37 +101,16 @@ function save(): void {
           <th scope="col" class="text-start">Colour</th>
           <th scope="col" class="text-start">Roles</th>
           <th scope="col" class="text-start">VAT</th>
-          <th v-if="editable" scope="col"><span class="sr-only">Remove</span></th>
+          <th scope="col"><span class="sr-only">Delete</span></th>
         </tr>
       </thead>
-      <tbody v-if="!editable">
-        <tr v-for="draft in drafts" :key="draft.sheetRow ?? draft.category">
-          <th scope="row" class="identifier text-start font-normal text-highlighted">{{ draft.category }}</th>
-          <td class="text-toned">{{ displayName(draft.category, draft.label) }}</td>
-          <td class="text-toned">{{ draft.family }}</td>
-          <td>
-            <span class="inline-flex items-center gap-1.5 text-toned">
-              <span class="size-2 rounded-[2px]" :style="{ background: `var(--bucket-${draft.bucket})` }" aria-hidden="true" />
-              {{ draft.bucket }}
-            </span>
-          </td>
-          <td>
-            <span v-if="draft.colour" class="identifier inline-flex items-center gap-1.5 text-muted">
-              <span class="size-2.5 rounded-[2px] border border-default" :style="{ background: draft.colour }" aria-hidden="true" />
-              {{ draft.colour }}
-            </span>
-          </td>
-          <td class="text-muted">{{ draft.roles }}</td>
-          <td class="text-muted">{{ draft.vat }}</td>
-        </tr>
-      </tbody>
-      <tbody v-else>
-        <tr v-for="(draft, index) in drafts" :key="draft.sheetRow ?? `new-${index}`">
+      <tbody>
+        <tr v-for="(draft, index) in drafts" :key="draft.sheetRow ?? `new-${index}`" data-testid="category-row">
           <td>
             <UInput
               :model-value="draft.category"
               :disabled="locked(draft)"
-              :title="locked(draft) ? 'Ledger rows use this category, so it keeps its name' : undefined"
+              :title="locked(draft) ? inUse(draft) : undefined"
               :color="errors.get(index)?.category ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.category)"
               aria-label="Category"
@@ -185,24 +181,26 @@ function save(): void {
           </td>
           <td>
             <UButton
-              v-if="draft.sheetRow === null"
-              icon="i-lucide-x"
+              icon="i-lucide-trash-2"
               color="neutral"
               variant="ghost"
               size="xs"
-              aria-label="Remove this new category"
-              @click="removeNew(index)"
+              :disabled="locked(draft)"
+              :title="locked(draft) ? inUse(draft) : undefined"
+              :aria-label="draft.sheetRow === null ? 'Remove this new category' : `Delete ${draft.savedName || 'this category'}`"
+              data-testid="remove-category"
+              @click="remove(index)"
             />
           </td>
         </tr>
       </tbody>
     </table>
   </div>
-  <div v-if="editable" class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
-    <UButton label="Add category" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="addCategory" />
+  <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
+    <UButton label="Add category" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-category" @click="addCategory" />
     <span class="flex-1" />
     <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = draftsOf(rows)" />
-    <UButton label="Save categories" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" @click="save" />
+    <UButton label="Save categories" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" data-testid="save-categories" @click="save" />
   </div>
 </template>
 

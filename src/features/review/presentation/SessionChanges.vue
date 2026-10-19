@@ -10,19 +10,18 @@ import { moneyFromAmount, negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { cellText } from '../../../shared/text/cellText'
-import type { BillingCells, BillingRowChange, BillingRowsReceipt } from '../../billingPlan/infrastructure/billingPlanWrites'
 import { rulesChangeInWords } from '../../rules/domain/ruleSummary'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
-import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { canUndo, isUndo, wasUndone } from '../../workbook/application/workbookStore'
 import type { SessionWrite } from '../../workbook/application/workbookStore'
-import type { BucketChange, OwnerAdvanceReceipt } from '../../workbook/application/writePlans'
+import type { OwnerAdvanceReceipt } from '../../workbook/application/writePlans'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
-import type { Bucket, DefinedBucket } from '../../workbook/domain/bucket'
+import type { Bucket } from '../../workbook/domain/bucket'
 import { isSameLedgerRow, ledgerRowKeyOf } from '../../workbook/domain/ledgerRowKey'
 import type { LedgerRowKey } from '../../workbook/domain/ledgerRowKey'
+import type { TabRowsReceipt } from '../../workbook/domain/rowChanges'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
-import { BILLING_PLAN_COLUMNS } from '../../workbook/infrastructure/billingPlanTabReader'
+import { changedCellsInWords, rowsChangeInWords } from '../../workbook/presentation/rowsInWords'
 import type { LedgerVerdictChange, VerdictReceipt } from '../domain/verdictChanges'
 
 /** Every write this page made to the workbook, newest first, with Undo on each one that can still be put back. */
@@ -30,15 +29,12 @@ const props = defineProps<{
   writes: readonly SessionWrite[]
   transactions: readonly Transaction[]
   categories: readonly Category[]
-  bucketLabels: Readonly<Record<DefinedBucket, string>>
   busy: boolean
 }>()
 
 const emit = defineEmits<{
   undo: [write: SessionWrite]
 }>()
-
-const names = useDisplayNames()
 
 const SHOWN_ROWS = 3
 
@@ -76,29 +72,6 @@ function ledgerTitle(changes: readonly LedgerVerdictChange[], undid: VerdictRece
   return `Changed ${rows(changes.length)}`
 }
 
-function bucketsTitle(changes: readonly BucketChange[], undid: readonly BucketChange[] | null): string {
-  if (undid !== null) {
-    return 'Undid a bucket change'
-  }
-  const targets = new Set(changes.map((change) => change.bucket))
-  const [only] = targets
-  return targets.size === 1 && only !== undefined
-    ? `Moved ${changes.length === 1 ? 'a category' : `${changes.length} categories`} to ${props.bucketLabels[only]}`
-    : `Changed the bucket of ${changes.length} categories`
-}
-
-function planRows(count: number): string {
-  return count === 1 ? 'a plan row' : `${count} plan rows`
-}
-
-function billingRowsTitle(added: boolean, receipt: BillingRowsReceipt, undid: BillingRowsReceipt | null): string {
-  const count = receipt.rows.length
-  if (undid !== null) {
-    return added ? `Put back ${planRows(count)}` : `Undid adding ${planRows(count)}`
-  }
-  return added ? `Added ${planRows(count)}` : `Deleted ${planRows(count)}`
-}
-
 function titleOf(write: SessionWrite): string {
   switch (write.kind) {
     case 'ledger':
@@ -111,14 +84,8 @@ function titleOf(write: SessionWrite): string {
       return 'Added an owner advance'
     case 'owner-advance-removed':
       return 'Undid an owner advance'
-    case 'buckets':
-      return bucketsTitle(write.changes, write.undid)
-    case 'billing-rows-added':
-      return billingRowsTitle(true, write.receipt, write.undid)
-    case 'billing-rows-removed':
-      return billingRowsTitle(false, write.receipt, write.undid)
-    case 'billing-row-changed':
-      return write.undid === null ? 'Changed a plan row' : 'Undid a change to a plan row'
+    case 'rows':
+      return rowsChangeInWords(write.rules, write.receipt, write.undid)
   }
 }
 
@@ -128,10 +95,7 @@ const ICONS: Readonly<Record<SessionWrite['kind'], string>> = {
   settings: 'i-lucide-sliders-horizontal',
   'owner-advance-added': 'i-lucide-wallet',
   'owner-advance-removed': 'i-lucide-undo-2',
-  buckets: 'i-lucide-layers',
-  'billing-rows-added': 'i-lucide-calendar-plus',
-  'billing-rows-removed': 'i-lucide-calendar-minus',
-  'billing-row-changed': 'i-lucide-calendar-cog',
+  rows: 'i-lucide-table-properties',
 }
 
 function iconOf(write: SessionWrite): string {
@@ -148,26 +112,9 @@ function advanceOf(receipt: OwnerAdvanceReceipt): { readonly date: CivilDate; re
   }
 }
 
-/** A plan row as the tab holds it: the date as a serial number and the amount as a decimal. */
-function billingRowOf(cells: BillingCells): { readonly label: string; readonly date: string; readonly amount: Money } {
-  const item = cellText(cells.item)
-  const description = cellText(cells.description)
-  return {
-    label: [item, cellText(cells.client), description].filter((part) => part !== '').join(', '),
-    date: typeof cells.date === 'number' ? dayFormat.format(new Date(civilDateFromSerial(cells.date))) : cellText(cells.date),
-    amount: moneyFromAmount(Number(cells.amount)),
-  }
-}
-
-/** The cells a change wrote, each from what it held to what it holds. */
-function billingChangesOf(change: BillingRowChange): { readonly column: string; readonly from: string; readonly to: string }[] {
-  const shown = (column: keyof BillingCells, cells: BillingCells): string =>
-    column === 'date' && typeof cells.date === 'number' ? dayFormat.format(new Date(civilDateFromSerial(cells.date))) : quoted(cells[column])
-  return BILLING_PLAN_COLUMNS.filter((column) => cellText(change.before[column]) !== cellText(change.after[column])).map((column) => ({
-    column,
-    from: shown(column, change.before),
-    to: shown(column, change.after),
-  }))
+/** The rows of a write beyond the ones listed: up to three added or deleted, and up to three changed. */
+function rowsNotShown(receipt: TabRowsReceipt): number {
+  return Math.max(0, receipt.added.length + receipt.removed.length - SHOWN_ROWS) + Math.max(0, receipt.changed.length - SHOWN_ROWS)
 }
 
 function flaggedByInWords(flaggedBy: string): string {
@@ -255,26 +202,17 @@ function quoted(cell: string | number | boolean | null): string {
               </span>
             </li>
           </ul>
-          <ul v-else-if="write.kind === 'billing-rows-added' || write.kind === 'billing-rows-removed'" class="detail-list">
-            <li v-for="row in write.receipt.rows.slice(0, SHOWN_ROWS)" :key="row.sheetRow" class="flex flex-col gap-1">
-              <span class="flex min-w-0 items-baseline justify-between gap-3 text-xs">
-                <span class="min-w-0 truncate text-toned">{{ billingRowOf(row.cells).label }}</span>
-                <span class="figure shrink-0 text-muted">{{ billingRowOf(row.cells).date }}, <MoneyText :cents="billingRowOf(row.cells).amount" /></span>
+          <ul v-else-if="write.kind === 'rows'" class="detail-list">
+            <li v-for="row in [...write.receipt.added, ...write.receipt.removed].slice(0, SHOWN_ROWS)" :key="`row-${row.sheetRow}`" class="text-xs text-muted">
+              <span class="text-toned">{{ write.rules.label(row.cells) }}</span>, row {{ row.sheetRow }} of {{ write.rules.tab }}
+            </li>
+            <li v-for="change in write.receipt.changed.slice(0, SHOWN_ROWS)" :key="`changed-${change.sheetRow}`" class="flex flex-col gap-1 text-xs text-muted">
+              <span><span class="text-toned">{{ write.rules.label(change.after) }}</span>, row {{ change.sheetRow }} of {{ write.rules.tab }}</span>
+              <span v-for="cell in changedCellsInWords(write.rules, change.before, change.after)" :key="cell.column">
+                <span class="identifier text-toned">{{ cell.column }}</span> from {{ cell.from }} to {{ cell.to }}
               </span>
-              <span class="text-xs text-muted">row {{ row.sheetRow }} of outgoing-plan</span>
             </li>
-            <li v-if="write.receipt.rows.length > SHOWN_ROWS" class="text-xs text-muted">and {{ write.receipt.rows.length - SHOWN_ROWS }} more</li>
-          </ul>
-          <ul v-else-if="write.kind === 'billing-row-changed'" class="detail-list">
-            <li class="text-xs text-toned">{{ billingRowOf(write.change.after).label }}, row {{ write.change.sheetRow }} of outgoing-plan</li>
-            <li v-for="cell in billingChangesOf(write.change)" :key="cell.column" class="text-xs text-muted">
-              <span class="identifier text-toned">{{ cell.column }}</span> from {{ cell.from }} to {{ cell.to }}
-            </li>
-          </ul>
-          <ul v-else-if="write.kind === 'buckets'" class="detail-list">
-            <li v-for="change in write.changes" :key="change.category" class="text-xs text-muted">
-              <span class="text-toned">{{ names.category(change.category) }}</span> from {{ bucketLabels[change.expected] }} to {{ bucketLabels[change.bucket] }}
-            </li>
+            <li v-if="rowsNotShown(write.receipt) > 0" class="text-xs text-muted">and {{ rows(rowsNotShown(write.receipt)) }} more</li>
           </ul>
         </li>
       </ol>

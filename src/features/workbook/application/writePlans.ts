@@ -8,7 +8,6 @@ import { rulesTabAfter, sameCells } from '../../rules/domain/rulesTabChange'
 import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import { rulesTabRefusals } from '../../rules/domain/rulesTabRefusals'
 import { parseSettings } from '../../settings/domain/settings'
-import type { DefinedBucket } from '../domain/bucket'
 import { isSameLedgerRow } from '../domain/ledgerRowKey'
 import { ADVANCE_BUCKETS } from '../domain/workbook'
 import type { LedgerRowKey } from '../domain/ledgerRowKey'
@@ -333,61 +332,6 @@ function holdsAdvance(row: SheetRow, cells: OwnerAdvanceReceipt['cells']): boole
   return OWNER_ADVANCE_COLUMNS.every((column) =>
     column === 'category' ? comparable(cellText(row.cells[column])) === comparable(cellText(cells[column])) : cellText(row.cells[column]) === cellText(cells[column]),
   )
-}
-
-/** A category's bucket as the app read it, and the bucket it is to have. */
-export interface BucketChange {
-  readonly category: string
-  readonly expected: DefinedBucket
-  readonly bucket: DefinedBucket
-}
-
-/**
- * Sets the bucket of each category on its row of the categories tab. Refused when a category is on
- * no row or on several, or its bucket changed since the app read it.
- */
-export function planBucketChanges(fresh: FreshTabs, changes: readonly BucketChange[]): TabEdits {
-  const categories = requireTab(fresh, 'categories')
-  for (const column of ['category', 'bucket']) {
-    if (!categories.header.some((name) => name.trim() === column)) {
-      throw new WorkbookWriteRefused(`The categories tab has no "${column}" column, so nothing was written.`)
-    }
-  }
-  const refusals: string[] = []
-  const cells: CellEdit[] = []
-  for (const change of changes) {
-    const slug = comparable(change.category)
-    const rows = categories.rows.filter((row) => comparable(cellText(row.cells.category)) === slug)
-    if (rows.length !== 1) {
-      refusals.push(
-        rows.length === 0
-          ? `"${slug}" is no longer on the categories tab.`
-          : `"${slug}" is on ${rows.length} rows of the categories tab (rows ${rows.map((row) => row.sheetRow).join(', ')}), so the app cannot tell which to change.`,
-      )
-      continue
-    }
-    const row = rows[0]!
-    const current = comparable(cellText(row.cells.bucket))
-    if (current !== change.expected) {
-      refusals.push(`"${slug}" changed since the app read it: its bucket is now ${current || 'blank'}.`)
-      continue
-    }
-    if (current !== change.bucket) {
-      cells.push({ tab: 'categories', sheetRow: row.sheetRow, column: 'bucket', value: change.bucket })
-    }
-  }
-  refuseOn(refusals)
-  return { cells, appends: [] }
-}
-
-/** After the write: each category is defined once, with the bucket written. */
-export function verifyBucketChanges(after: FreshTabs, changes: readonly BucketChange[]): void {
-  const defined = definedCategories(requireTab(after, 'categories').rows)
-  for (const change of changes) {
-    if (defined.find((category) => category.slug === comparable(change.category))?.bucket !== change.bucket) {
-      throw new Error(`The write reached the workbook, but "${change.category}" does not read back in the ${change.bucket} bucket. Check the categories tab.`)
-    }
-  }
 }
 
 function settingProblems(rows: readonly SheetRow[]): string[] {

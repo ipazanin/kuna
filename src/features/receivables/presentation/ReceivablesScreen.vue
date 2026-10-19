@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import UButton from '@nuxt/ui/components/Button.vue'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
@@ -25,7 +26,9 @@ import { periodInWords } from '../../filters/domain/periodInWords'
 import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import PeriodBar from '../../filters/presentation/PeriodBar.vue'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
+import { useWorkbook } from '../../workbook/application/workbookStore'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
+import { newestBookingOf } from '../../workbook/domain/workbook'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { ageingOf, daysPastDue } from '../domain/ageing'
 import { daysToPaid } from '../domain/daysToPaid'
@@ -33,6 +36,7 @@ import { RECEIVABLE_ROLES, receivablesOf } from '../domain/invoiceMatching'
 import type { ClientReceivables, MatchedInvoice, PaymentRow } from '../domain/invoiceMatching'
 import DaysToPaidStrip from './DaysToPaidStrip.vue'
 import type { DaysToPaidRow } from './DaysToPaidStrip.vue'
+import InvoiceDialog from './InvoiceDialog.vue'
 import InvoiceList from './InvoiceList.vue'
 import type { InvoiceLine, InvoicePaymentLine } from './InvoiceList.vue'
 import { ageingChart, ageingLegend } from './receivablesCharts'
@@ -43,6 +47,27 @@ const filters = computed(() => shared.value as FilterState)
 const route = useRoute()
 const router = useRouter()
 const phone = usePhoneLayout()
+const { state } = useWorkbook()
+
+/** The invoice the dialog edits, or null to add one. */
+const editing = ref<number | null>(null)
+const dialogOpen = ref(false)
+
+function openInvoice(sheetRow: number | null): void {
+  editing.value = sheetRow
+  dialogOpen.value = true
+}
+
+const invoiceDialog = computed(() => {
+  const workbook = state.workbook
+  if (workbook === null) return null
+  const latest = [...workbook.invoices].sort((upper, lower) => lower.issued.localeCompare(upper.issued) || lower.sheetRow - upper.sheetRow)[0]
+  return {
+    clients: workbook.clients.map((client) => ({ slug: client.slug, name: client.name })),
+    defaultIssued: newestBookingOf(workbook.transactions) ?? latest?.issued,
+    latestNumber: latest?.number ?? '',
+  }
+})
 
 const ALL_CLIENTS = 'all'
 const PRESETS = ['l3', 'l12', 'year', 'all'] as const
@@ -139,6 +164,7 @@ const view = computed(() => {
               : `${days} ${days === 1 ? 'day' : 'days'} past due`
       return {
         key: `${entry.client.slug}-${invoice.invoice.sheetRow}`,
+        sheetRow: invoice.invoice.sheetRow,
         number: invoice.invoice.number,
         client: clientName(entry),
         item: invoice.invoice.item,
@@ -236,9 +262,11 @@ const view = computed(() => {
           v-if="!view.hasInvoices"
           icon="i-lucide-receipt-text"
           title="No invoices yet"
-          description="Receivables matches the invoices tab against the revenue credits, client by client. Add an invoices tab with one row per invoice and a clients tab with one row per client IBAN."
+          description="Receivables matches the invoices tab against the revenue credits, client by client. Add the clients on Workbook, Clients, one row per IBAN they pay from, then the invoices here."
           variant="outline"
           class="rounded-card border-dashed bg-raised/40"
+          :actions="(invoiceDialog?.clients.length ?? 0) > 0 ? [{ label: 'Add an invoice', icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => openInvoice(null) }] : [{ label: 'Add a client', icon: 'i-lucide-users', color: 'neutral', variant: 'outline', to: '/workbook?tab=clients' }]"
+          data-testid="receivables-empty"
         />
         <template v-else>
           <div class="flex flex-wrap items-center gap-3" data-testid="receivables-controls">
@@ -283,12 +311,25 @@ const view = computed(() => {
 
             <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="invoices">
               <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-                <div>
-                  <h2 class="text-sm font-medium text-highlighted">Every invoice, with the payments that settled it</h2>
-                  <p class="mt-0.5 text-xs text-muted">
-                    The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already
-                    issued on the day a payment arrives.
-                  </p>
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-0 flex-1 basis-64">
+                    <h2 class="text-sm font-medium text-highlighted">Every invoice, with the payments that settled it</h2>
+                    <p class="mt-0.5 text-xs text-muted">
+                      The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already
+                      issued on the day a payment arrives.
+                    </p>
+                  </div>
+                  <UButton
+                    label="Add invoice"
+                    icon="i-lucide-plus"
+                    color="neutral"
+                    variant="outline"
+                    size="sm"
+                    :disabled="state.writing || (invoiceDialog?.clients.length ?? 0) === 0"
+                    :title="(invoiceDialog?.clients.length ?? 0) === 0 ? 'Add the client on Workbook, Clients first' : undefined"
+                    data-testid="invoice-add"
+                    @click="openInvoice(null)"
+                  />
                 </div>
                 <dl class="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
                   <div v-for="sum in view.sums" :key="sum.label" class="min-w-0">
@@ -299,7 +340,7 @@ const view = computed(() => {
               </header>
               <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">No invoice was issued in this period, and none is open.</p>
               <div v-else class="px-4 pt-1 pb-2 sm:px-5">
-                <InvoiceList :invoices="view.invoices" :show-client="view.showClient" />
+                <InvoiceList :invoices="view.invoices" :show-client="view.showClient" :editable="!state.writing" @edit="openInvoice" />
               </div>
             </section>
           </div>
@@ -322,6 +363,14 @@ const view = computed(() => {
         </template>
       </template>
     </LedgerGate>
+    <InvoiceDialog
+      v-if="invoiceDialog && invoiceDialog.defaultIssued"
+      v-model:open="dialogOpen"
+      :sheet-row="editing"
+      :clients="invoiceDialog.clients"
+      :default-issued="invoiceDialog.defaultIssued"
+      :latest-number="invoiceDialog.latestNumber"
+    />
   </section>
 </template>
 
