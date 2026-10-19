@@ -10,6 +10,7 @@ import { moneyFromAmount, negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { cellText } from '../../../shared/text/cellText'
+import type { BillingCells, BillingRowChange, BillingRowsReceipt } from '../../billingPlan/infrastructure/billingPlanWrites'
 import { rulesChangeInWords } from '../../rules/domain/ruleSummary'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
@@ -21,6 +22,7 @@ import type { Bucket, DefinedBucket } from '../../workbook/domain/bucket'
 import { isSameLedgerRow, ledgerRowKeyOf } from '../../workbook/domain/ledgerRowKey'
 import type { LedgerRowKey } from '../../workbook/domain/ledgerRowKey'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
+import { BILLING_PLAN_COLUMNS } from '../../workbook/infrastructure/billingPlanTabReader'
 import type { LedgerVerdictChange, VerdictReceipt } from '../domain/verdictChanges'
 
 /** Every write this page made to the workbook, newest first, with Undo on each one that can still be put back. */
@@ -85,6 +87,18 @@ function bucketsTitle(changes: readonly BucketChange[], undid: readonly BucketCh
     : `Changed the bucket of ${changes.length} categories`
 }
 
+function planRows(count: number): string {
+  return count === 1 ? 'a plan row' : `${count} plan rows`
+}
+
+function billingRowsTitle(added: boolean, receipt: BillingRowsReceipt, undid: BillingRowsReceipt | null): string {
+  const count = receipt.rows.length
+  if (undid !== null) {
+    return added ? `Put back ${planRows(count)}` : `Undid adding ${planRows(count)}`
+  }
+  return added ? `Added ${planRows(count)}` : `Deleted ${planRows(count)}`
+}
+
 function titleOf(write: SessionWrite): string {
   switch (write.kind) {
     case 'ledger':
@@ -99,6 +113,12 @@ function titleOf(write: SessionWrite): string {
       return 'Undid an owner advance'
     case 'buckets':
       return bucketsTitle(write.changes, write.undid)
+    case 'billing-rows-added':
+      return billingRowsTitle(true, write.receipt, write.undid)
+    case 'billing-rows-removed':
+      return billingRowsTitle(false, write.receipt, write.undid)
+    case 'billing-row-changed':
+      return write.undid === null ? 'Changed a plan row' : 'Undid a change to a plan row'
   }
 }
 
@@ -109,6 +129,9 @@ const ICONS: Readonly<Record<SessionWrite['kind'], string>> = {
   'owner-advance-added': 'i-lucide-wallet',
   'owner-advance-removed': 'i-lucide-undo-2',
   buckets: 'i-lucide-layers',
+  'billing-rows-added': 'i-lucide-calendar-plus',
+  'billing-rows-removed': 'i-lucide-calendar-minus',
+  'billing-row-changed': 'i-lucide-calendar-cog',
 }
 
 function iconOf(write: SessionWrite): string {
@@ -123,6 +146,28 @@ function advanceOf(receipt: OwnerAdvanceReceipt): { readonly date: CivilDate; re
     category: cellText(receipt.cells.category),
     description: cellText(receipt.cells.description),
   }
+}
+
+/** A plan row as the tab holds it: the date as a serial number and the amount as a decimal. */
+function billingRowOf(cells: BillingCells): { readonly label: string; readonly date: string; readonly amount: Money } {
+  const item = cellText(cells.item)
+  const description = cellText(cells.description)
+  return {
+    label: [item, cellText(cells.client), description].filter((part) => part !== '').join(', '),
+    date: typeof cells.date === 'number' ? dayFormat.format(new Date(civilDateFromSerial(cells.date))) : cellText(cells.date),
+    amount: moneyFromAmount(Number(cells.amount)),
+  }
+}
+
+/** The cells a change wrote, each from what it held to what it holds. */
+function billingChangesOf(change: BillingRowChange): { readonly column: string; readonly from: string; readonly to: string }[] {
+  const shown = (column: keyof BillingCells, cells: BillingCells): string =>
+    column === 'date' && typeof cells.date === 'number' ? dayFormat.format(new Date(civilDateFromSerial(cells.date))) : quoted(cells[column])
+  return BILLING_PLAN_COLUMNS.filter((column) => cellText(change.before[column]) !== cellText(change.after[column])).map((column) => ({
+    column,
+    from: shown(column, change.before),
+    to: shown(column, change.after),
+  }))
 }
 
 function flaggedByInWords(flaggedBy: string): string {
@@ -208,6 +253,22 @@ function quoted(cell: string | number | boolean | null): string {
                 <CategoryChip :category="advanceOf(write.receipt).category" :bucket="bucketOf(advanceOf(write.receipt).category)" />
                 <span>row {{ write.receipt.sheetRow }} of owner-advances</span>
               </span>
+            </li>
+          </ul>
+          <ul v-else-if="write.kind === 'billing-rows-added' || write.kind === 'billing-rows-removed'" class="detail-list">
+            <li v-for="row in write.receipt.rows.slice(0, SHOWN_ROWS)" :key="row.sheetRow" class="flex flex-col gap-1">
+              <span class="flex min-w-0 items-baseline justify-between gap-3 text-xs">
+                <span class="min-w-0 truncate text-toned">{{ billingRowOf(row.cells).label }}</span>
+                <span class="figure shrink-0 text-muted">{{ billingRowOf(row.cells).date }}, <MoneyText :cents="billingRowOf(row.cells).amount" /></span>
+              </span>
+              <span class="text-xs text-muted">row {{ row.sheetRow }} of outgoing-plan</span>
+            </li>
+            <li v-if="write.receipt.rows.length > SHOWN_ROWS" class="text-xs text-muted">and {{ write.receipt.rows.length - SHOWN_ROWS }} more</li>
+          </ul>
+          <ul v-else-if="write.kind === 'billing-row-changed'" class="detail-list">
+            <li class="text-xs text-toned">{{ billingRowOf(write.change.after).label }}, row {{ write.change.sheetRow }} of outgoing-plan</li>
+            <li v-for="cell in billingChangesOf(write.change)" :key="cell.column" class="text-xs text-muted">
+              <span class="identifier text-toned">{{ cell.column }}</span> from {{ cell.from }} to {{ cell.to }}
             </li>
           </ul>
           <ul v-else-if="write.kind === 'buckets'" class="detail-list">

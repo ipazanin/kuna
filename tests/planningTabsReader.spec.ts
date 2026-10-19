@@ -298,7 +298,7 @@ describe('the plan tab', () => {
       scenarios: [['scenario', 'year', 'component', 'amount'], ['floor', 2027, 'salary_gross', 'floor']],
       plan: [
         header,
-        [2027, '', 'Revenue', 7400, 'Rate rise'],
+        [2027, '', 'Purchase', 740, 'A new desk'],
         [2027, 3, 'software', 12.5],
         [2027, '', 'owner_pay_scenario', 'Floor'],
         [2027, 6, 'dividend', 8000],
@@ -306,7 +306,7 @@ describe('the plan tab', () => {
     })
 
     expect(workbook.planLines).toEqual([
-      { year: 2027, month: null, note: 'Rate rise', sheetRow: 2, kind: 'amount', item: 'revenue', amount: 740000 },
+      { year: 2027, month: null, note: 'A new desk', sheetRow: 2, kind: 'amount', item: 'purchase', amount: 74000 },
       { year: 2027, month: 3, note: '', sheetRow: 3, kind: 'amount', item: 'software', amount: 1250 },
       { year: 2027, month: null, note: '', sheetRow: 4, kind: 'owner-pay-scenario', scenario: 'floor' },
       { year: 2027, month: 6, note: '', sheetRow: 5, kind: 'amount', item: 'dividend', amount: 800000 },
@@ -318,22 +318,24 @@ describe('the plan tab', () => {
     const workbook = workbookWith({
       plan: [
         header,
-        [2027, 13, 'revenue', 1],
+        [2027, 13, 'purchase', 1],
         [2027, '', 'snacks', 1],
         [2027, '', 'owner_pay_scenario', 'missing'],
-        [2027, '', 'revenue', 'a lot'],
-        [2027, '', 'revenue', 1],
-        [2027, '', 'revenue', 2],
+        [2027, '', 'purchase', 'a lot'],
+        [2027, '', 'purchase', 1],
+        [2027, '', 'purchase', 2],
+        [2027, '', 'Revenue', 7400],
       ],
     })
 
     expect(workbook.planLines.map((line) => line.sheetRow)).toEqual([6])
     expect(problemsOn(workbook, 'plan')).toEqual([
       [2, 'month "13" is not a month from 1 to 12'],
-      [3, '"snacks" is neither revenue, owner_pay_scenario, dividend, purchase nor a category on the categories tab'],
+      [3, '"snacks" is neither owner_pay_scenario, dividend, purchase nor a category on the categories tab'],
       [4, '"missing" is not a scenario on the scenarios tab'],
       [5, 'amount "a lot" is not a number'],
-      [7, 'revenue for every month of 2027 is already listed above'],
+      [7, 'purchase for every month of 2027 is already listed above'],
+      [8, 'revenue is planned on the outgoing-plan tab, one row per item to invoice, so move this row there'],
     ])
   })
 })

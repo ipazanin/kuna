@@ -16,7 +16,7 @@ import {
   shownLines,
 } from '../src/features/settings/domain/profitAndLossLabels'
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
-import { ledger } from './fixtures/ledger'
+import { euros, ledger } from './fixtures/ledger'
 
 function rows(...entries: [string, SettingRow['value']][]): SettingRow[] {
   return entries.map(([key, value], index) => ({ key, value, sheetRow: index + 2 }))
@@ -203,6 +203,76 @@ describe('company facts', () => {
       { key: 'hr_vat_principle', value: 'invoice' },
       { key: 'hr_depreciation_doubled', value: false },
     ])
+  })
+})
+
+describe('billing terms', () => {
+  it('default to blank, so the billing plan fills nothing until they are set', () => {
+    expect(DEFAULT_SETTINGS.billing).toEqual({
+      monthlyAmount: null,
+      monthlyItem: '',
+      subscriptionAmount: null,
+      subscriptionItem: '',
+      bonusAmount: null,
+      bonusItem: '',
+      client: '',
+    })
+    expect(settingsTabEntries(DEFAULT_SETTINGS).filter((entry) => entry.key.startsWith('billing_'))).toEqual([
+      { key: 'billing_monthly_amount', value: '' },
+      { key: 'billing_monthly_item', value: '' },
+      { key: 'billing_subscription_amount', value: '' },
+      { key: 'billing_subscription_item', value: '' },
+      { key: 'billing_bonus_amount', value: '' },
+      { key: 'billing_bonus_item', value: '' },
+      { key: 'billing_client', value: '' },
+    ])
+  })
+
+  it('read amounts in cents from a number or text, items as written and the client in lower case, and write them back the same way', () => {
+    const { settings, problems } = parseSettings(
+      rows(
+        ['billing_monthly_amount', 5000],
+        ['billing_monthly_item', ' Monthly Fee '],
+        ['billing_subscription_amount', '199.99'],
+        ['billing_subscription_item', 'Subscription'],
+        ['billing_bonus_amount', 8000],
+        ['billing_bonus_item', 'Bonus'],
+        ['billing_client', 'North'],
+      ),
+    )
+
+    expect(problems).toEqual([])
+    expect(settings.billing).toEqual({
+      monthlyAmount: 500000,
+      monthlyItem: 'Monthly Fee',
+      subscriptionAmount: 19999,
+      subscriptionItem: 'Subscription',
+      bonusAmount: 800000,
+      bonusItem: 'Bonus',
+      client: 'north',
+    })
+    expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+  })
+
+  it('fall back to blank for an amount that is not above zero, and say which row', () => {
+    const { settings, problems } = parseSettings(rows(['billing_monthly_amount', 'a lot'], ['billing_bonus_amount', -10], ['billing_monthly_item', 'x'.repeat(61)]))
+
+    expect(settings.billing).toEqual(DEFAULT_SETTINGS.billing)
+    expect(problems).toEqual([
+      { sheetRow: 2, reason: 'billing_monthly_amount: use an amount above zero, such as 7200, so the default is used' },
+      { sheetRow: 3, reason: 'billing_bonus_amount: use an amount above zero, such as 7200, so the default is used' },
+      { sheetRow: 4, reason: 'billing_monthly_item: an item can be at most 60 characters, so the default is used' },
+    ])
+  })
+
+  it('need an item beside each amount before the editor saves them', () => {
+    const errors = settingsErrors({ ...DEFAULT_SETTINGS, billing: { ...DEFAULT_SETTINGS.billing, monthlyAmount: euros(5000), bonusItem: 'Bonus', subscriptionAmount: euros(-0.01) } })
+
+    expect(errors).toEqual({
+      monthlyItem: 'name the item its rows carry on the outgoing-plan tab',
+      subscriptionAmount: 'use an amount above zero, such as 7200',
+      subscriptionItem: 'name the item its rows carry on the outgoing-plan tab',
+    })
   })
 })
 

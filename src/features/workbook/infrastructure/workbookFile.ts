@@ -19,6 +19,7 @@ const RATE_FORMAT = '0.00%'
 const COLUMN_FORMATS: Readonly<Partial<Record<WorkbookTab, Readonly<Record<string, string>>>>> = {
   ledger: { date: DATE_FORMAT, amount: AMOUNT_FORMAT, balance: AMOUNT_FORMAT },
   invoices: { amount: AMOUNT_FORMAT, issued: DATE_FORMAT, due: DATE_FORMAT, period_from: DATE_FORMAT, period_to: DATE_FORMAT },
+  'outgoing-plan': { date: DATE_FORMAT, amount: AMOUNT_FORMAT },
   'owner-advances': { date: DATE_FORMAT, amount: AMOUNT_FORMAT },
   assets: { bought: DATE_FORMAT, in_use: DATE_FORMAT, cost_net: AMOUNT_FORMAT, disposed: DATE_FORMAT },
   grants: {
@@ -155,6 +156,7 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
     rules: gridFor('rules', tabs.rules),
     invoices: gridFor('invoices', tabs.invoices),
     clients: gridFor('clients', tabs.clients),
+    'outgoing-plan': gridFor('outgoing-plan', tabs['outgoing-plan']),
     'owner-advances': gridFor('owner-advances', tabs['owner-advances']),
     assets: gridFor('assets', tabs.assets),
     grants: gridFor('grants', tabs.grants),

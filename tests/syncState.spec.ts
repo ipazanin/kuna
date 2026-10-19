@@ -12,6 +12,7 @@ const workbook = readWorkbook({
   rules: [],
   invoices: [],
   clients: [],
+  'outgoing-plan': [],
   'owner-advances': [],
   assets: [],
   grants: [],

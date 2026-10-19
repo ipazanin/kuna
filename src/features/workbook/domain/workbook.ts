@@ -7,6 +7,7 @@ import type { Money } from '../../../shared/money/money'
 import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
 import type { Asset } from './assets'
+import type { BillingItem } from './billingPlan'
 import type { Bucket, DefinedBucket } from './bucket'
 import type { Grant } from './grants'
 import type { OwnerPayScenario } from './ownerPayScenarios'
@@ -148,6 +149,7 @@ export interface WorkbookProblem {
     | 'rules'
     | 'invoices'
     | 'clients'
+    | 'outgoing-plan'
     | 'owner-advances'
     | 'assets'
     | 'grants'
@@ -178,6 +180,8 @@ export interface Workbook {
   readonly clients: readonly Client[]
   /** False for a Google Sheet without a `clients` tab, where the Apps Script refuses a rule that tests counterparty_is_client. */
   readonly hasClientsTab: boolean
+  /** What is to be invoiced, in the order the tab holds it. */
+  readonly billingPlan: readonly BillingItem[]
   /** In the order the tab holds them. */
   readonly ownerAdvances: readonly OwnerAdvance[]
   /** In the order the tab holds them. */

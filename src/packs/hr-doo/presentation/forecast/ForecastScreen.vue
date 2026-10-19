@@ -158,7 +158,7 @@ const view = computed(() => {
           :chart="view.chart"
           :title="`Month by month, ${year}`"
           subtitle="Income above zero, costs below it and profit before tax as a line. A hatched bar is planned or averaged. A bar the ledger settles opens its rows."
-          definition="Complete months come from the ledger as the accountant books them. The running month and later ones take the plan row for the line, else its average over the last twelve complete months."
+          definition="Complete months come from the ledger as the accountant books them. The running month and later ones take the plan row for the line, or for revenue the billing plan's rows still to invoice, else its average over the last twelve complete months."
           :height="320"
           :phone-height="260"
         >

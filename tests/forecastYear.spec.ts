@@ -5,8 +5,9 @@ import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import type { YearForecast } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
 import type { Money } from '../src/shared/money/money'
+import { planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
-import { planLine, steadyStudio } from './fixtures/steadyStudio'
+import { STEADY_INVOICES, planLine, steadyStudio } from './fixtures/steadyStudio'
 
 function categoryLine(forecast: YearForecast, slug: string) {
   const found = forecast.categories.find((entry) => entry.category.slug === slug)
@@ -142,8 +143,13 @@ describe('forecastYear, the year still running', () => {
 
 describe('forecastYear with plan rows', () => {
   const workbook = steadyStudio({
+    billingPlan: [
+      planRow('Monthly fee', '2026-11-30', 5700, 'example-client'),
+      planRow('Hotel', '2026-11-12', 300, 'example-client'),
+      planRow('Monthly fee', '2026-12-31', 7000, 'example-client', 'A bigger December'),
+    ],
     planLines: [
-      planLine(12, 'revenue', 7000, 'A bigger December'),
+      planLine(12, 'revenue', 7000, 'Moved to the billing plan'),
       planLine(null, 'ai-services', 150),
       planLine(2, 'ai-services', 999, 'Replaced by the ledger'),
       planLine(11, 'purchase', 400, 'A monitor'),
@@ -154,9 +160,25 @@ describe('forecastYear with plan rows', () => {
   })
   const forecast = forecastYear(workbook, 2026, civil('2026-10-19'))
 
-  it('takes a month’s own row before the row for every month, and never over the ledger', () => {
+  it('reads revenue from the billing plan rows still to invoice in their month, and averages a month without any', () => {
     expect(amounts(forecast.revenue).slice(9)).toEqual([euros(6000), euros(6000), euros(7000)])
-    expect(bases(forecast.revenue).slice(9)).toEqual([['averaged'], ['averaged'], ['planned']])
+    expect(bases(forecast.revenue).slice(9)).toEqual([['averaged'], ['planned'], ['planned']])
+    const november = forecast.revenue.months[10]?.figure
+    expect(november?.label).toBe('Revenue, Nov 2026: planned from the billing plan')
+    expect(november?.basis).toBe('plan')
+    expect(november?.steps.map((step) => [step.label, step.on, step.amount])).toEqual([
+      ['Hotel for Example client, billable', '2026-11-12', euros(300)],
+      ['Monthly fee for Example client, billable', '2026-11-30', euros(5700)],
+    ])
+  })
+
+  it('names a client the clients tab gives no name by its slug', () => {
+    const unnamed = forecastYear({ ...workbook, clients: [{ slug: 'example-client', name: '', ibans: [] }] }, 2026, civil('2026-10-19'))
+
+    expect(unnamed.revenue.months[11]?.figure.steps.map((step) => step.label)).toEqual(['Monthly fee for example-client, billable'])
+  })
+
+  it('takes a month’s own row before the row for every month, and never over the ledger', () => {
     const tool = categoryLine(forecast, 'ai-services')
     expect(amounts(tool)).toEqual([...Array.from({ length: 9 }, () => -120), -150, -150, -150].map(euros))
     expect(bases(tool).slice(9)).toEqual([['planned'], ['planned'], ['planned']])
@@ -174,7 +196,33 @@ describe('forecastYear with plan rows', () => {
   })
 
   it('lists the plan rows it does not count, with why', () => {
-    expect(forecast.notModelled.map((entry) => (entry.line.kind === 'amount' ? entry.line.item : entry.line.scenario))).toEqual(['dividend', 'owner-loan-out', 'floor-salary'])
+    expect(forecast.notModelled.map((entry) => (entry.line.kind === 'amount' ? entry.line.item : entry.line.scenario))).toEqual(['revenue', 'dividend', 'owner-loan-out', 'floor-salary'])
+    expect(forecast.notModelled[0]?.reason).toBe('Revenue is planned on the outgoing-plan tab, so the forecast reads it from there.')
+  })
+})
+
+describe('forecastYear with a billing plan the invoices reach', () => {
+  // A fee row for every invoice, each billed in full by its own month's invoice.
+  const billed = STEADY_INVOICES.map((invoice) => planRow('Monthly fee', invoice.issued, invoice.amount / 100, 'example-client'))
+  const octoberFee = planRow('Monthly fee', '2026-10-31', 6500, 'example-client')
+
+  it('expects only the rows the invoices have not billed, from the first month after the last actual one', () => {
+    const forecast = forecastYear(steadyStudio({ billingPlan: [...billed, planRow('Hotel', '2026-09-30', 300, 'example-client'), octoberFee] }), 2026, civil('2026-10-19'))
+
+    // September's hotel is still open, but September's revenue comes from its invoice.
+    expect(forecast.revenue.months[8]?.figure.amount).toBe(euros(6000))
+    expect(bases(forecast.revenue).slice(9)).toEqual([['planned'], ['averaged'], ['averaged']])
+    expect(forecast.revenue.months[9]?.figure.amount).toBe(euros(6500))
+  })
+
+  it('reads a month invoiced before the ledger closes it from its rows in full', () => {
+    // October's invoice is issued on the 15th, so October is not an actual month yet and its invoice bills no row.
+    const october = { ...(STEADY_INVOICES[STEADY_INVOICES.length - 1] as (typeof STEADY_INVOICES)[number]), number: '22-1', amount: euros(6500), issued: civil('2026-10-15'), sheetRow: 99 }
+    const forecast = forecastYear(steadyStudio({ invoices: [...STEADY_INVOICES, october], billingPlan: [...billed, octoberFee] }), 2026, civil('2026-10-19'))
+
+    expect(forecast.revenue.months[8]?.bases).toEqual(['actual'])
+    expect(forecast.revenue.months[9]?.bases).toEqual(['planned'])
+    expect(forecast.revenue.months[9]?.figure.amount).toBe(euros(6500))
   })
 })
 

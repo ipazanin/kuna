@@ -1,8 +1,10 @@
+import { expectedInvoices } from '../../../../features/billingPlan/domain/expectedInvoices'
+import type { ExpectedInvoice } from '../../../../features/billingPlan/domain/expectedInvoices'
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import { PLAN_KEYWORDS } from '../../../../features/workbook/domain/plan'
 import type { PlanLine } from '../../../../features/workbook/domain/plan'
 import { ledgerWindowOf } from '../../../../features/workbook/domain/workbook'
-import type { Category, Workbook } from '../../../../features/workbook/domain/workbook'
+import type { Category, Invoice, Workbook } from '../../../../features/workbook/domain/workbook'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, monthKey, monthNumber, monthOf, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
@@ -72,7 +74,10 @@ export interface YearForecast {
   readonly asOf: CivilDate
   readonly period: TaxPeriod
   readonly calendar: ForecastCalendar
-  /** Client revenue by delivery period. A complete month no invoice delivers in yet is forecast, not read as nothing. */
+  /**
+   * Client revenue by delivery period. A later month, or a complete one no invoice delivers in yet,
+   * takes the billing plan's expected invoices dated in it, else the average.
+   */
   readonly revenue: ForecastLine
   /** Every other category the accrual view counts in profit, in the order of the categories tab. */
   readonly categories: readonly CategoryForecast[]
@@ -108,11 +113,12 @@ type AmountPlanLine = Extract<PlanLine, { readonly kind: 'amount' }>
 /**
  * The year as it is likely to end, seen on `asOf`. Complete months come from the ledger and the
  * owner's advances as the accrual view counts them, the running month is shown and never counted,
- * and each later month takes the plan tab's row for the line, else the average of the line's last
- * twelve actual months. Depreciation and the grant release come from their engines for the whole
- * year. The PD build-up follows, with the advances paid and those still to come on line 56, and
- * the balance and new advance the year leaves to the next. A year before the forecast year's
- * schedule needs its return from the year-end tab, or else from its own forecast.
+ * and each later month takes the plan tab's row for the line, or for revenue the billing plan's
+ * expected invoices, else the average of the line's last twelve actual months. Depreciation and
+ * the grant release come from their engines for the whole year. The PD build-up follows, with the
+ * advances paid and those still to come on line 56, and the balance and new advance the year
+ * leaves to the next. A year before the forecast year's schedule needs its return from the
+ * year-end tab, or else from its own forecast.
  */
 export function forecastYear(workbook: Workbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): YearForecast {
   const registered = workbook.settings.companyFacts.companyRegistered
@@ -195,14 +201,20 @@ function forecastOne(context: ForecastContext): YearForecast {
     delivered.set(target, made)
     return made
   }
-  const lastInvoiced = known.invoices.map((invoice) => monthOf(invoice.deliveryPeriod?.to ?? invoice.issued)).sort()
+  const lastInvoiced = known.invoices.map(deliveredBy).sort()
   const lastInvoicedMonth = lastInvoiced[lastInvoiced.length - 1] ?? null
+  const lastActualRevenue = calendar.lastComplete === null || lastInvoicedMonth === null ? null : minMonth(calendar.lastComplete, lastInvoicedMonth)
+  // An invoice delivering after the last actual month is not counted yet, so it bills no plan row
+  // here either. A month invoiced early then still reads its rows in full.
+  const counted = known.invoices.filter((invoice) => lastActualRevenue !== null && deliveredBy(invoice) <= lastActualRevenue)
+  const expected = expectedInvoices(known.billingPlan, counted)
+  const clientName = (slug: string) => known.clients.find((client) => client.slug === slug)?.name || slug
   const revenue = forecastLine(calendar, {
     label: 'Revenue by delivery period',
     basis: 'invoices',
-    lastActual: calendar.lastComplete === null || lastInvoicedMonth === null ? null : minMonth(calendar.lastComplete, lastInvoicedMonth),
+    lastActual: lastActualRevenue,
     actual: (month) => deliveredIn(yearOfMonth(month)).months.find((entry) => entry.month === month)?.revenue ?? tracedFigure(`Revenue delivered in ${monthLabel(month)}`, ZERO, 'invoices', []),
-    planned: (month) => plannedFigure('revenue', month, 'Revenue', 1),
+    planned: (month) => expectedRevenue(expected.filter((entry) => entry.month === month), month, clientName),
     paidAhead: () => null,
   })
 
@@ -450,6 +462,22 @@ function plannedPurchaseLine(calendar: ForecastCalendar, plan: readonly PlanLine
   return { label, months, total: summed(label, months.map((entry) => entry.figure), 'plan'), averagedOver: null }
 }
 
+/** The month an invoice delivers in last, or its issue month when it names no delivery period. */
+function deliveredBy(invoice: Invoice): MonthKey {
+  return monthOf(invoice.deliveryPeriod?.to ?? invoice.issued)
+}
+
+/** The billing plan rows still to invoice in one month, each on the day it becomes billable. Null when there are none. */
+function expectedRevenue(due: readonly ExpectedInvoice[], month: MonthKey, clientName: (slug: string) => string): TracedFigure | null {
+  if (due.length === 0) {
+    return null
+  }
+  const rows = due.flatMap((invoice) =>
+    invoice.items.map((openRow): TracedFigure => ({ ...tracedFigure(`${openRow.row.item} for ${clientName(invoice.client)}, billable`, openRow.open, 'plan', []), on: openRow.row.date })),
+  )
+  return summed(`Revenue, ${monthLabel(month)}: planned from the billing plan`, rows, 'plan')
+}
+
 /** The plan row for an item in a month: the month's own row, else the row for every month of the year. */
 function planRow(plan: readonly PlanLine[], item: string, month: MonthKey): AmountPlanLine | null {
   const rows = plan.filter((line): line is AmountPlanLine => line.kind === 'amount' && line.item === item)
@@ -468,8 +496,13 @@ function unmodelled(plan: readonly PlanLine[], categories: readonly Category[], 
       return [{ line, reason: 'It is above the asset threshold, so it needs an asset row with its group and the day it is put in use before it depreciates.' }]
     }
     const category = categories.find((candidate) => candidate.slug === line.item)
-    if (!isPlanKeyword(line.item) && category !== undefined && !countsInProfit(category)) {
-      return [{ line, reason: `${category.label ?? category.slug} is taken out of profit and loss, so the forecast does not count it.` }]
+    if (!isPlanKeyword(line.item) && category !== undefined) {
+      if (category.roles.includes(PACK_ROLES.revenue)) {
+        return [{ line, reason: 'Revenue is planned on the outgoing-plan tab, so the forecast reads it from there.' }]
+      }
+      if (!countsInProfit(category)) {
+        return [{ line, reason: `${category.label ?? category.slug} is taken out of profit and loss, so the forecast does not count it.` }]
+      }
     }
     return []
   })

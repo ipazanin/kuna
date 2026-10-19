@@ -60,9 +60,8 @@ describe('filter store', () => {
   it('opens a drill on its screen with the filters narrowed', async () => {
     await useFilters().setFilters({ ...DEFAULT_FILTERS, accounts: ['erste'] })
 
-    const opened = await useFilters().openDrill({ route: 'transactions', filters: { period: { preset: 'l3' }, buckets: ['taxes'] } })
+    await router.push(useFilters().drillLocation({ route: 'transactions', filters: { period: { preset: 'l3' }, buckets: ['taxes'] } })!)
 
-    expect(opened).toBe(true)
     expect(router.currentRoute.value.path).toBe('/transactions')
     expect(router.currentRoute.value.query).toEqual({ p: 'l3', acc: 'erste', b: 'taxes' })
   })
@@ -80,7 +79,5 @@ describe('filter store', () => {
     await useFilters().setFilters({ ...DEFAULT_FILTERS, buckets: ['income'] })
 
     expect(useFilters().drillLocation({ route: 'transactions', filters: { buckets: ['taxes'] } })).toBeNull()
-    expect(await useFilters().openDrill({ route: 'transactions', filters: { buckets: ['taxes'] } })).toBe(false)
-    expect(router.currentRoute.value.path).toBe('/')
   })
 })

@@ -9,7 +9,8 @@ With a Google Sheet, the app asks Google for `drive.file`, which covers files th
 Google Picker or that the app creates, and for `openid email`, which tells it which account signed
 in. The app reads the Sheet and keeps a copy in IndexedDB. It writes only what the user saves, and
 only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, rows
-on the `rules`, `settings` and `owner-advances` tabs, and the `bucket` of the two loan categories.
+on the `rules`, `settings`, `owner-advances` and `outgoing-plan` tabs, and the `bucket` of the two
+loan categories.
 See *Write-back* below.
 
 On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
@@ -71,11 +72,12 @@ take their defaults.
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out. |
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional), and the optional delivery period `period_from` and `period_to` (date cells, both or neither). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. A period that cannot be read is reported, and the issue date stands for it. |
 | `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. |
+| `outgoing-plan` | `item`, `date` (a date cell), `amount` (above zero), `client` and `description`: one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel. `date` is the day it becomes billable, the last day of the worked month for a monthly fee. `client` must be on the `clients` tab, or the row is reported and left out. Only these five columns are read, so the Sheet may keep its own formulas beside them, and a row with nothing in them is skipped. |
 | `owner-advances` | `date`, `amount` (not zero), `description` and `category`: costs the owner paid privately for the company as positive amounts, and the owner's private shares of company payments as negative ones. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
 | `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once. |
 | `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the Workbook editor, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
-| `plan` | `year`, `month` (1 to 12, blank for every month), `item` (`revenue`, a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount` and `note`. `amount` is positive for income and costs alike, a cost without the VAT that is reclaimed. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount`. Each year, month and item once. |
+| `plan` | `year`, `month` (1 to 12, blank for every month), `item` (a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount` and `note`. `amount` is positive for income and costs alike, a cost without the VAT that is reclaimed. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount`. Each year, month and item once. Planned revenue belongs on `outgoing-plan`, so a `revenue` row is reported and left out. |
 | `scenarios` | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (an amount or `floor`), `salary_months` (0 to 12), `nontaxable:<item>` such as `nontaxable:gifts`, `rent_monthly`, `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. |
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
@@ -108,6 +110,13 @@ as before.
 | `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Taxes and Owner screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
 | `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. An entry that is not an IBAN is reported and the list stays blank. |
+| `billing_monthly_amount` | blank | The fee invoiced for each worked month. "Fill the rest of the year" adds a row of it for every month to December. |
+| `billing_monthly_item` | blank | The `item` text of the monthly fee rows on `outgoing-plan`, written as the tab writes it. Needed with the amount. |
+| `billing_subscription_amount` | blank | Subscriptions re-billed every month, filled in the same way. |
+| `billing_subscription_item` | blank | The `item` text of the subscription rows. Needed with the amount. |
+| `billing_bonus_amount` | blank | The bonus agreed for a whole year, shown for reference and never filled in. |
+| `billing_bonus_item` | blank | The `item` text of the bonus rows. Needed with the amount. |
+| `billing_client` | blank | The client the filled rows are for, by its name on the `clients` tab. |
 | `hr_residence_city` | blank | The city or municipality the owner lives in, such as `Grad Zagreb`, which sets the local income tax rates. Settings offers every unit to pick from. A name typed in the workbook is read regardless of case, diacritics and a leading `Grad` or `Općina`, and a name two units share takes the county in brackets, such as `Općina Privlaka (Zadarska)`. Payroll figures need it, so they stay empty while it is blank. |
 | `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
 | `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
@@ -304,7 +313,8 @@ left out. Every line has twelve months, and each month says what it rests on:
 
 - `actual`: a month the ledger covers in full, counted as the accrual view counts it. The month of
   the newest booking is still running. What it holds so far is shown and never counted.
-- `planned`: the `plan` tab's row for the line and month, else its row for every month.
+- `planned`: the `plan` tab's row for the line and month, else its row for every month. For
+  revenue, the `outgoing-plan` rows still to invoice in the month.
 - `paid-ahead`: a month that a `prepaid-annual` cost already paid covers.
 - `averaged`: the line's average over its last twelve actual months, or fewer for a younger
   ledger, never counting its first part month.
@@ -313,6 +323,10 @@ left out. Every line has twelve months, and each month says what it rests on:
 
 Revenue is the invoices by delivery period. A complete month after the last month any invoice
 delivers in is forecast like a later month, so work not yet invoiced does not read as nothing. A
+forecast month takes the `expectedInvoices` dated in it, matched against the invoices that deliver
+by the last actual month only. So a month invoiced before the ledger closes it still reads its rows
+in full, and a row left open in an actual month is not carried forward. A month with no row still
+to invoice takes the average. A `plan` row on a revenue category is listed as not counted. A
 cost paid in arrears forecasts the last complete month until its payment is in the ledger. A
 planned purchase at or below the asset threshold is a cost of its month. One above it, a dividend,
 an owner pay scenario and a row on a category taken out of profit are listed as not counted.
@@ -347,8 +361,8 @@ A pack screen at `/forecast?year=2026`, shown while `owner_pay_module` is on, fo
 newest booking and the one after. It is seen on the newest booking and needs
 `hr_company_registered`. A bar chart gives income, costs and profit before tax by month, with
 planned or averaged bars hatched and the running month shaded. The profit and loss and the PD return
-are lists whose lines open on their parts, the months a plan row or an average stands in for, their
-rows and their rules. The corporate tax card sets each payment the schedule expects beside what the
+are lists whose lines open on their parts, the months a plan row, the billing plan or an average
+stands in for, their rows and their rules. The corporate tax card sets each payment the schedule expects beside what the
 bank rows paid, with the balance due and the new monthly advance. Dividend capacity switches between
 the three payout options with `payout=interim` or `payout=keep` in the address, warns when the cash
 on the newest booking does not cover the interim payout, and the year's plan
@@ -376,6 +390,50 @@ accountant's choices, any gap to the accountant's profit, months no invoice deli
 with no asset row, and what loans to the owner and early asset purchases call for, each with what
 would settle it. The figures are for planning with the accountant, never filing advice.
 
+## Billing plan
+
+The `outgoing-plan` tab is what is to be invoiced, for any freelancer or small business. The
+services in `src/features/billingPlan/domain/` read it with the `invoices` tab:
+
+- `billingTotals`: everything planned, everything invoiced and the difference over all clients,
+  with plan rows by the year of their date and invoices by the year they were issued.
+- `plannedAgainstInvoiced`: each month's plan rows against what invoices billed of them. An
+  invoice lists a month's items together with items left over from before, and may bill next
+  month's fee ahead, so no invoice belongs to one row. Each client's invoices, in issue order, take
+  the client's rows oldest first, by date and then tab order, the way Receivables lets payments
+  fill invoices. An invoice reaches rows dated up to the end of the month after the one it was
+  issued in. What it cannot place there is invoiced with no plan row and is not carried to later
+  rows. Rows still open are not invoiced yet.
+- `itemStatistics`: each kind of item's total, in all and by year, such as how much of the
+  billing is the monthly fee, bonuses, re-billed travel, subscriptions or contractors.
+- `expectedInvoices`: the rows the given invoices have not billed, by month and client, each
+  expected in the month it is dated. The screen passes every invoice, and the forecast the ones it
+  counts.
+- `fillRestOfYear`: the rows "Fill the rest of the year" adds for `billing_client`, the monthly fee
+  and the subscription on the last day of every month from this one to December, skipping a month
+  that already has the item for the client. The yearly bonus is never filled in. The rows stay the
+  one source the forecast reads, so a filled row is adjusted on the tab.
+
+## Billing plan screen
+
+A core screen at `/billing?year=2026`, after Receivables, seen on the newest booking. Tiles give the
+year's planned and invoiced amounts, what of the year's rows is not invoiced yet, and the next
+expected invoice. A chart sets each month's plan rows beside what the invoices billed of them, with
+what an invoice billed beyond the plan hatched on top, and a bar opens its month in the list below
+(`month=2026-10`). The list calls out rows not invoiced yet and invoices with no plan row. Beside it
+are the year's items, each with one colour on every chart and list, and Sums, Planned and Actual per
+year, over every client, as the Sheet's formula block adds them, so the two can be checked before the
+block goes.
+
+The rows of the year can be added, edited and deleted in both modes. "Fill the rest of the year"
+previews the rows `fillRestOfYear` would add and appends them. An edit writes only the cells that
+changed, so a formula amount left alone stays a formula. A delete clears the row's five cells and
+leaves the row and any cells beside it. Both find the row as the app read it, on its own row or on
+the one row that holds it, and refuse when none or several do. Undo takes an addition back, puts a
+deleted row back at the foot of the tab and an edited row back as it was. The billing terms are on
+Workbook, General. Without the tab the screen names the headers to add, and in Excel mode starts one
+from its first row.
+
 ## Receivables
 
 Receivables matches the `invoices` tab against the revenue credits, client by client, the way the
@@ -398,7 +456,7 @@ The workbook lives in IndexedDB, under its own id, as the store of record. The a
 to keep it (`navigator.storage.persist()`, which Firefox shows as a prompt). Clearing the site's data
 deletes it, so the exported files are its only other copies.
 
-- **Template.** "Download the empty template" writes a blank xlsx in the browser: the thirteen tabs
+- **Template.** "Download the empty template" writes a blank xlsx in the browser: the fourteen tabs
   with their headers, a note on every header and every settings key, a default category set for a
   freelancer or a small company, and the default settings. VAT refunds have their own `vat-refund`
   category in the operating bucket, and `tax-refund` in the taxes bucket is for income tax refunds.
@@ -445,7 +503,9 @@ other, a part-month at each end, one loss month, a reimbursement, two rows waiti
 rules tab that reproduces every row flagged `rule`, and rows a person confirmed that no rule covers
 yet. Its `assets`, `grants`, `year-end`, `plan` and `scenarios` tabs hold the two computers it
 bought, its start-up grant, made-up 2025 accountant figures that add up, a plan and two owner pay
-scenarios. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads.
+scenarios. Its `outgoing-plan` tab splits each of the first client's invoices into a month's fee
+and its extras, with October planned and not invoiced yet, and has no rows for the second client,
+whose invoices are invoiced with no plan row. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads.
 Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
 changes nine days past their last export, and `?fake=empty` starts with nothing, which is the first
 run. The visual check covers both, and the import summary of an xlsx it writes from the fake
@@ -462,7 +522,7 @@ needs no preview and makes no call to Google.
 
 ## Write-back
 
-Review, Owner and the Workbook screen write through one path in both modes. Each write reads the tabs it
+Review, Owner, Billing plan and the Workbook screen write through one path in both modes. Each write reads the tabs it
 touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
 what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
 In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
@@ -479,8 +539,8 @@ side in `googleWorkbookWriter.ts`.
   label. Applying a new rule writes its category and `rule`, only to rows flagged `ai` or
   unclassified. Undo writes the exact previous values back through the same checks. Review lists
   every write of the page's session under "Changes in this session", newest first: ledger rows,
-  rules, settings, owner advances and the loan bucket. A ledger write, an added advance and a
-  bucket switch that have not been undone carry Undo there. Rules and settings are changed back on
+  rules, settings, owner advances, plan rows and the loan bucket. A ledger write, an added advance, a
+  plan row added, changed or deleted, and a bucket switch that have not been undone carry Undo there. Rules and settings are changed back on
   Workbook. The list is held in memory, so a reload clears it.
 - **Rules.** The tab after the change must pass every check of `parseRules` in the Apps Script's
   `Rules.gs` (mirrored in `rulesTabRefusals.ts`), against the categories tab as it is now, so a save
@@ -513,6 +573,8 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 | Save settings | get, batchGet of `settings`, `values.batchUpdate` of `value` cells such as `settings!B4`, `values.append` to `settings!A:B` for a new key, get and batchGet again |
 | Add an advance | get, batchGet of `'owner-advances'` and `categories`, `values.append` to `'owner-advances'!A:D`, get and batchGet again. Undo is a `values.batchUpdate` clearing that row's cells |
 | Switch the loan bucket | get, batchGet of `categories`, `values.batchUpdate` of `bucket` cells such as `categories!C16`, get and batchGet again |
+| Add or fill plan rows | get, batchGet of `'outgoing-plan'` and `clients`, one `values.append` of every new row to `'outgoing-plan'!A:<last header>`, get and batchGet again. Undo clears the rows' five cells with a `values.batchUpdate` |
+| Edit or delete a plan row | get, batchGet of `'outgoing-plan'` (and `clients` for an edit), `values.batchUpdate` of the changed or cleared cells such as `'outgoing-plan'!C12`, get and batchGet again |
 
 ### Manual test, against a copy of the Sheet first
 
@@ -573,6 +635,18 @@ memory. Both engines run it over every row, and both must refuse it without a `c
 In development and fake builds, `#/gallery` shows every shared component and chart style with
 made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist
 in a production build.
+
+## Billing parity
+
+`npm run parity:billing -- --workbook <export.xlsx>` compares the app's billing totals with the
+formula block the Sheet keeps beside the `outgoing-plan` rows: Total Amount, Invoiced Amount, Not
+Invoiced Amount, and the year rows under Planned and under Actual, found by their labels. Each
+formula is first run again over the export's own cells, so a figure the export did not recalculate
+fails. A figure is `pass` when the app's equals the tab's to the cent, `corrected` with the reason
+when the tab's formula reads a range that misses plan rows or adds unrounded formula amounts the
+app reads to the cent, and `FAIL` otherwise, which makes the exit code non-zero. The export holds
+real company figures, so the script prints only verdicts, differences and row numbers. Keep the
+export outside the repository and never copy a figure from the output into it.
 
 ## Payroll parity
 

@@ -1,6 +1,15 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
 import { setMoneyFormat } from '../../../shared/money/moneyFormat'
+import {
+  planBillingRowChange,
+  planBillingRowsAppend,
+  planBillingRowsRemoval,
+  verifyBillingRowChange,
+  verifyBillingRowsAppend,
+  verifyBillingRowsRemoval,
+} from '../../billingPlan/infrastructure/billingPlanWrites'
+import type { BillingCells, BillingRowCells, BillingRowChange, BillingRowsReceipt } from '../../billingPlan/infrastructure/billingPlanWrites'
 import { undoOf } from '../../review/domain/verdictChanges'
 import type { LedgerVerdictChange, VerdictReceipt } from '../../review/domain/verdictChanges'
 import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
@@ -66,13 +75,31 @@ export type WrittenChange =
       /** The changes of the write this one undid, or null. */
       readonly undid: readonly BucketChange[] | null
     }
+  /** Plan rows appended. `undid` is the receipt of the removal this one put back, or null. */
+  | { readonly kind: 'billing-rows-added'; readonly receipt: BillingRowsReceipt; readonly undid: BillingRowsReceipt | null }
+  /** Plan rows cleared. `undid` is the receipt of the addition this one took back, or null. */
+  | { readonly kind: 'billing-rows-removed'; readonly receipt: BillingRowsReceipt; readonly undid: BillingRowsReceipt | null }
+  | { readonly kind: 'billing-row-changed'; readonly change: BillingRowChange; readonly undid: BillingRowChange | null }
 
 /** One write this page made to a workbook. Held in memory, so a reload forgets it. */
 export type SessionWrite = WrittenAt & WrittenChange
 
 /** Whether the write put back what an earlier one of the session changed. */
 export function isUndo(write: SessionWrite): boolean {
-  return write.kind === 'owner-advance-removed' || ((write.kind === 'ledger' || write.kind === 'buckets') && write.undid !== null)
+  switch (write.kind) {
+    case 'owner-advance-removed':
+      return true
+    case 'ledger':
+    case 'buckets':
+    case 'billing-rows-added':
+    case 'billing-rows-removed':
+    case 'billing-row-changed':
+      return write.undid !== null
+    case 'owner-advance-added':
+    case 'rules':
+    case 'settings':
+      return false
+  }
 }
 
 /** Whether a later write of the session put back what this one changed. */
@@ -84,6 +111,12 @@ export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]):
       return writes.some((later) => later.kind === 'owner-advance-removed' && later.receipt === write.receipt)
     case 'buckets':
       return writes.some((later) => later.kind === 'buckets' && later.undid === write.changes)
+    case 'billing-rows-added':
+      return writes.some((later) => later.kind === 'billing-rows-removed' && later.undid === write.receipt)
+    case 'billing-rows-removed':
+      return writes.some((later) => later.kind === 'billing-rows-added' && later.undid === write.receipt)
+    case 'billing-row-changed':
+      return writes.some((later) => later.kind === 'billing-row-changed' && later.undid === write.change)
     case 'owner-advance-removed':
     case 'rules':
     case 'settings':
@@ -92,12 +125,12 @@ export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]):
 }
 
 /**
- * Whether Undo can put back what a write changed: a ledger write, an added advance or a bucket
- * change, unless it is an undo itself or was undone since. Rules and settings have no undo.
+ * Whether Undo can put back what a write changed: a ledger write, an added advance, a bucket change
+ * or a plan row added, changed or deleted, unless it is an undo itself or was undone since. Rules
+ * and settings have no undo.
  */
 export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): boolean {
-  const undoable = write.kind === 'ledger' || write.kind === 'owner-advance-added' || write.kind === 'buckets'
-  return undoable && !isUndo(write) && !wasUndone(write, writes)
+  return write.kind !== 'rules' && write.kind !== 'settings' && !isUndo(write) && !wasUndone(write, writes)
 }
 
 export interface WorkbookState {
@@ -188,6 +221,12 @@ export interface WorkbookStore {
   removeOwnerAdvance(receipt: OwnerAdvanceReceipt): Promise<void>
   /** Sets the bucket of categories on their rows of the categories tab. */
   changeBuckets(changes: readonly BucketChange[]): Promise<void>
+  /** Appends rows to the outgoing-plan tab, each checked by the tab's reader. Returns what Undo clears. */
+  addBillingRows(rows: readonly BillingCells[]): Promise<BillingRowsReceipt>
+  /** Clears a plan row, found again as the app read it, refused when no row or several hold it. Returns what Undo writes back. */
+  removeBillingRow(row: BillingRowCells): Promise<BillingRowsReceipt>
+  /** Changes a plan row in place, found the same way, writing only the cells that differ. */
+  changeBillingRow(change: BillingRowChange): Promise<void>
   /** Puts back what a write of this session changed, through that write's own checks. Refused for a write `canUndo` rules out. */
   undo(write: SessionWrite): Promise<void>
 }
@@ -394,6 +433,41 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     )
   }
 
+  async function writeBillingRows(rows: readonly BillingCells[], undid: BillingRowsReceipt | null): Promise<BillingRowsReceipt> {
+    let receipt = null as BillingRowsReceipt | null
+    await writeThrough(
+      ['outgoing-plan', 'clients'],
+      (fresh) => planBillingRowsAppend(fresh, rows),
+      (after, planned) => {
+        receipt = verifyBillingRowsAppend(after, planned)
+      },
+      () => ({ kind: 'billing-rows-added', receipt: receipt!, undid }),
+    )
+    if (receipt === null) {
+      throw new WorkbookWriteRefused('There were no rows to add.')
+    }
+    return receipt
+  }
+
+  async function removeBillingRows(target: BillingRowsReceipt, undid: BillingRowsReceipt | null): Promise<BillingRowsReceipt> {
+    const planned = await writeThrough(
+      ['outgoing-plan'],
+      (fresh) => planBillingRowsRemoval(fresh, target),
+      (after, removal) => verifyBillingRowsRemoval(after, removal.receipt),
+      (removal) => ({ kind: 'billing-rows-removed', receipt: removal.receipt, undid }),
+    )
+    return planned.receipt
+  }
+
+  async function changeBillingRow(change: BillingRowChange, undid: BillingRowChange | null): Promise<void> {
+    await writeThrough(
+      ['outgoing-plan', 'clients'],
+      (fresh) => planBillingRowChange(fresh, change),
+      (after, planned) => verifyBillingRowChange(after, planned.change),
+      (planned) => ({ kind: 'billing-row-changed', change: planned.change, undid }),
+    )
+  }
+
   let opened: Promise<void> | null = null
 
   return {
@@ -502,6 +576,18 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       return writeBuckets(changes, null)
     },
 
+    addBillingRows(rows) {
+      return writeBillingRows(rows, null)
+    },
+
+    removeBillingRow(row) {
+      return removeBillingRows({ rows: [row] }, null)
+    },
+
+    changeBillingRow(change) {
+      return changeBillingRow(change, null)
+    },
+
     async undo(write) {
       if (!canUndo(write, state.writes)) {
         throw new WorkbookWriteRefused('This change cannot be undone from here.')
@@ -518,6 +604,18 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
             write.changes.map((change) => ({ category: change.category, expected: change.bucket, bucket: change.expected })),
             write.changes,
           )
+          return
+        case 'billing-rows-added':
+          await removeBillingRows(write.receipt, write.receipt)
+          return
+        case 'billing-rows-removed':
+          await writeBillingRows(
+            write.receipt.rows.map((row) => row.cells),
+            write.receipt,
+          )
+          return
+        case 'billing-row-changed':
+          await changeBillingRow({ sheetRow: write.change.sheetRow, before: write.change.after, after: write.change.before }, write.change)
           return
       }
     },

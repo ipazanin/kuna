@@ -199,6 +199,7 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
     rules: sheetRowsFromValues(values.rules),
     invoices: sheetRowsFromValues(values.invoices),
     clients: sheetRowsFromValues(values.clients),
+    'outgoing-plan': sheetRowsFromValues(values['outgoing-plan']),
     'owner-advances': sheetRowsFromValues(values['owner-advances']),
     assets: sheetRowsFromValues(values.assets),
     grants: sheetRowsFromValues(values.grants),
@@ -224,6 +225,13 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
             ['hr_birth_year', 1990],
             ['hr_pension_pillar_2', true],
             ['hr_company_registered', '2025-05-12'],
+            ['billing_monthly_amount', 7200],
+            ['billing_monthly_item', 'Monthly Fee'],
+            ['billing_subscription_amount', 60],
+            ['billing_subscription_item', 'Subscription'],
+            ['billing_bonus_amount', 4800],
+            ['billing_bonus_item', 'Bonus'],
+            ['billing_client', 'northwind'],
           ],
     ledger: ledgerValues(bookings),
     categories: [
@@ -252,6 +260,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       ['northwind', 'Northwind Analytics', PAYEES.client.iban],
       ['lumen', 'Lumen Labs', PAYEES.secondClient.iban],
     ],
+    'outgoing-plan': billingPlanValues(invoices),
     'owner-advances': [
       ['date', 'amount', 'description', 'category'],
       [serialOf('2026-02-03'), 212.5, 'Train tickets to the client, paid privately', 'travel'],
@@ -367,10 +376,7 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
     ],
     plan: [
       ['year', 'month', 'item', 'amount', 'note'],
-      [2026, 11, 'revenue', 7200, 'The usual month'],
       [2026, 11, 'purchase', 420, 'Second monitor'],
-      [2026, 12, 'revenue', 7200, ''],
-      [2027, '', 'revenue', 7400, 'A small rate rise'],
       [2027, '', 'software-subscriptions', 10, ''],
       [2027, '', 'owner_pay_scenario', 'floor-salary', ''],
       [2027, 3, 'purchase', 1600, 'Replacement laptop'],
@@ -388,6 +394,54 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
       ['floor-then-board', '', 2027, 'dividend', 'max', '', ''],
     ],
   }
+}
+
+/** Re-billed costs and extras of a worked month, which its invoice carries beside the fee. */
+const BILLED_EXTRAS: Readonly<Record<string, readonly (readonly [item: string, date: string, amount: number, description: string])[]>> = {
+  '2025-09': [['Plane Tickets', '2025-09-09', 286.4, 'Flight to the client workshop']],
+  '2025-12': [['External Contractor', '2025-12-16', 1200, 'Design review by Pixel Studio']],
+  '2026-01': [
+    ['Plane Tickets', '2026-01-09', 318.25, 'Flight to the client visit'],
+    ['Hotel', '2026-01-10', 412.8, 'Hotel for the client visit'],
+  ],
+  '2026-05': [['Plane Tickets', '2026-05-09', 244.1, 'Flight to the client visit']],
+  '2026-08': [
+    ['Hotel', '2026-08-20', 500, 'Hotel for the summer offsite'],
+    ['Subscription', '2026-08-31', 60, 'Model API seat'],
+  ],
+  '2026-09': [['Subscription', '2026-09-30', 60, 'Model API seat']],
+}
+
+/**
+ * The `outgoing-plan` tab of Northwind's work: each worked month's fee and extras add up to its
+ * invoice, the extra sprint is a bonus, and October is planned but not invoiced yet. Lumen's
+ * invoices have no plan rows. Columns H and I hold a block of the Sheet's own formulas, which the
+ * reader skips.
+ */
+function billingPlanValues(invoices: readonly FakeInvoice[]): CellValue[][] {
+  const invoiced = invoices
+    .filter((invoice) => invoice.client === 'northwind')
+    .flatMap((invoice): CellValue[][] => {
+      if (invoice.workedIn === '') {
+        return [['Bonus', serialOf(invoice.issued), invoice.amount, 'northwind', invoice.item]]
+      }
+      const extras = BILLED_EXTRAS[invoice.workedIn] ?? []
+      const fee = roundToCent(invoice.amount - extras.reduce((sum, [, , amount]) => sum + amount, 0))
+      return [
+        ...extras.map(([item, date, amount, description]) => [item, serialOf(date), amount, 'northwind', description]),
+        [invoice.workedIn === MONTHS[0] ? 'Part Time Fee' : 'Monthly Fee', serialOf(lastDayOf(invoice.workedIn)), fee, 'northwind', `Fee for ${invoice.workedIn}`],
+      ]
+    })
+  const planned: CellValue[][] = [
+    ...invoiced,
+    ['Monthly Fee', serialOf('2026-10-31'), 7200, 'northwind', 'Fee for 2026-10'],
+    ['Subscription', serialOf('2026-10-31'), 60, 'Northwind', 'Model API seat'],
+  ]
+  const formulaBlock: CellValue[][] = [['Name', ''], ['Monthly Amount', 7200], ['Bonus', 4800]]
+  return [
+    ['item', 'date', 'amount', 'client', 'description', '', '', 'Constants', ''],
+    ...planned.map((row, index) => [...row, '', '', ...(formulaBlock[index] ?? [])]),
+  ]
 }
 
 type RuleSeed = Partial<Record<(typeof RULE_COLUMNS)[number], CellValue>>

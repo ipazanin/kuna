@@ -21,7 +21,7 @@ if (options.workbook === undefined) {
 
 const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt: '2026-01-01T00:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] }
 
-const SECTIONS = ['transactions', 'categories', 'accounts', 'rules', 'invoices', 'clients', 'ownerAdvances', 'assets', 'grants', 'yearEndLines', 'planLines', 'payScenarios', 'problems']
+const SECTIONS = ['transactions', 'categories', 'accounts', 'rules', 'invoices', 'clients', 'billingPlan', 'ownerAdvances', 'assets', 'grants', 'yearEndLines', 'planLines', 'payScenarios', 'problems']
 
 function contentOf(tabs) {
   const workbook = readWorkbook({ meta: META, ...tabs })

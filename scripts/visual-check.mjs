@@ -53,6 +53,15 @@ const SCREENS = [
   { name: 'period-review', hash: '#/period-review', title: 'Period review', charts: 1, shows: 'Revenue' },
   { name: 'cash', hash: '#/cash', title: 'Cash', charts: 1, shows: 'Legacy' },
   { name: 'receivables', hash: '#/receivables', title: 'Receivables', charts: 1, shows: 'Every invoice' },
+  { name: 'billing', hash: '#/billing', title: 'Billing plan', charts: 2, shows: 'Month by month, 2026' },
+  {
+    name: 'billing-month',
+    hash: '#/billing?year=2026&month=2026-10#billing-month-2026-10',
+    title: 'Billing plan',
+    charts: 2,
+    shows: "of the month's rows is not invoiced yet",
+  },
+  { name: 'billing-2025', hash: '#/billing?year=2025', title: 'Billing plan', charts: 2, shows: 'Month by month, 2025' },
   { name: 'taxes', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'Payroll cadence' },
   { name: 'assets', hash: '#/assets', title: 'Assets', charts: 1, shows: 'Workstation' },
   { name: 'assets-doubled', hash: '#/assets?rates=doubled', title: 'Assets', charts: 1, shows: 'What doubled rates would change' },
@@ -91,6 +100,9 @@ const SOURCE_SCREENS = [
   { name: 'forecast-excel', query: 'fake=excel', hash: '#/forecast?year=2026', title: 'Forecast', charts: 1, shows: 'Corporate tax payments, expected against paid' },
   { name: 'forecast-2027-excel', query: 'fake=excel', hash: '#/forecast?year=2027&payout=interim', title: 'Forecast', charts: 1, shows: 'An interim payout in 2027' },
   { name: 'taxes-excel', query: 'fake=excel', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'For 2026' },
+  { name: 'billing-excel', query: 'fake=excel', hash: '#/billing', title: 'Billing plan', charts: 2, shows: 'Terms on Workbook, General' },
+  { name: 'billing-no-tab', query: 'fake=no-billing-plan', hash: '#/billing', title: 'Billing plan', charts: 0, shows: 'The Sheet has no outgoing-plan tab yet' },
+  { name: 'billing-empty-excel', query: 'fake=excel-no-billing-plan', hash: '#/billing', title: 'Billing plan', charts: 0, shows: 'Add the first row' },
   { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'rows the app could not use', upload: true },
 ]
 

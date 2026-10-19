@@ -9,7 +9,8 @@ import type { CellValue } from './workbookSnapshot'
 /**
  * Writes to the picked Google Sheet through the values API, always RAW. A cell edit names one cell
  * by its header's column and its row, so nothing else on the row is touched. Every request is
- * worked out before the first one is sent, so a refusal never leaves half a write behind.
+ * worked out before the first one is sent, so a refusal never leaves half a write behind. The rows
+ * appended to one tab go in one request, so several new rows land together or not at all.
  */
 export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
   return {
@@ -26,17 +27,19 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
         range: `${sheetNameInRange(edit.tab)}!${columnLetter(columnOf(before, edit.tab, edit.column))}${edit.sheetRow}`,
         values: [[edit.value]],
       }))
-      const appends = edits.appends.map((append) => {
-        const header = headerOf(before, append.tab)
+      const appendedTabs = [...new Set(edits.appends.map((append) => append.tab))]
+      const appends = appendedTabs.map((tab) => {
+        const header = headerOf(before, tab)
         if (header[0] === undefined || header[0].trim() === '') {
-          throw new WorkbookWriteRefused(`Column A of the ${append.tab} tab has no header, so a new row would not line up. Nothing was written.`)
+          throw new WorkbookWriteRefused(`Column A of the ${tab} tab has no header, so a new row would not line up. Nothing was written.`)
         }
-        for (const column of Object.keys(append.cells)) {
-          columnOf(before, append.tab, column)
+        const rows = edits.appends.filter((append) => append.tab === tab)
+        for (const column of rows.flatMap((append) => Object.keys(append.cells))) {
+          columnOf(before, tab, column)
         }
         return {
-          range: `${sheetNameInRange(append.tab)}!A:${columnLetter(header.length)}`,
-          values: [header.map((name): CellValue => append.cells[name.trim()] ?? '')],
+          range: `${sheetNameInRange(tab)}!A:${columnLetter(header.length)}`,
+          values: rows.map((append) => header.map((name): CellValue => append.cells[name.trim()] ?? '')),
         }
       })
       if (data.length > 0) {

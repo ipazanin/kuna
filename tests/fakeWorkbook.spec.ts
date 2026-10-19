@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { civilDate } from '../src/shared/calendar/civilDate'
 import { monthOf } from '../src/shared/calendar/monthKey'
+import { expectedInvoices } from '../src/features/billingPlan/domain/expectedInvoices'
+import { fillRestOfYear } from '../src/features/billingPlan/domain/fillRestOfYear'
+import { plannedAgainstInvoiced } from '../src/features/billingPlan/domain/plannedAgainstInvoiced'
 import { latestBalances } from '../src/features/cash/domain/balances'
 import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfitAndLoss'
 import { ledgerWindowOf } from '../src/features/workbook/domain/workbook'
@@ -74,6 +78,24 @@ describe('fake workbook', () => {
     expect(workbook.planLines.some((line) => line.kind === 'owner-pay-scenario')).toBe(true)
     expect(workbook.payScenarios.map((scenario) => scenario.slug)).toEqual(['floor-salary', 'floor-then-board'])
     expect(workbook.invoices.filter((invoice) => invoice.deliveryPeriod !== null).length).toBeGreaterThan(10)
+  })
+
+  it('holds a billing plan that Northwind’s invoices bill in full up to October, and none for Lumen’s invoices', () => {
+    const [lumen, northwind] = plannedAgainstInvoiced(workbook.billingPlan, workbook.invoices)
+    const excel = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel'))
+
+    expect(new Set(workbook.billingPlan.map((row) => row.item))).toEqual(
+      new Set(['Part Time Fee', 'Monthly Fee', 'Bonus', 'Plane Tickets', 'Hotel', 'External Contractor', 'Subscription']),
+    )
+    expect(northwind?.withoutPlan).toEqual([])
+    expect(northwind?.months.flatMap((month) => month.items.filter((item) => item.open > 0).map((item) => [item.row.date, item.row.item]))).toEqual([
+      ['2026-10-31', 'Monthly Fee'],
+      ['2026-10-31', 'Subscription'],
+    ])
+    expect(lumen?.withoutPlan).toHaveLength(3)
+    expect(expectedInvoices(workbook.billingPlan, workbook.invoices).map((invoice) => [invoice.month, invoice.client])).toEqual([['2026-10', 'northwind']])
+    expect(excel.settings.billing.client).toBe('northwind')
+    expect(fillRestOfYear(excel.billingPlan, excel.settings.billing, civilDate(2026, 10, 16))).toMatchObject({ kind: 'rows', rows: { length: 4 } })
   })
 
   it('names a Zagreb resident in the company facts of its Excel variant, and leaves the Google one on the defaults', () => {

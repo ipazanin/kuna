@@ -6,7 +6,9 @@
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar, the
  * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a line's build-up, a
- * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, both kinds of the Add advance form, a rule made from a row and applied to
+ * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, both kinds of the Add advance form,
+ * a bar of the billing plan's chart opening its month, the rest of the year filled from a preview, a plan row edited and
+ * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser.
@@ -41,6 +43,7 @@ const SCREENS = [
   { hash: '#/period-review?p=all', title: 'Period review', ready: '.chart-body canvas' },
   { hash: '#/cash?p=all', title: 'Cash', ready: '.chart-body canvas' },
   { hash: '#/receivables?p=all', title: 'Receivables', ready: '[data-testid="invoice-list"]' },
+  { hash: '#/billing?p=all', title: 'Billing plan', ready: '[data-testid="billing-rows"]' },
   { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
   { hash: '#/assets?p=all', title: 'Assets', ready: '[data-testid="asset-register"]' },
   { hash: '#/year-end?year=2025&p=all', title: 'Year end', ready: '[data-testid="bridge-steps"]' },
@@ -449,6 +452,107 @@ async function checkWidth(width) {
     await (await waitForText(page, 'button', 'Undo')).tap()
     await waitForText(page, '[data-slot="title"]', 'Advance removed')
     await expect(advances(), (count) => count === before, 'Undo did not take the advance off the list')
+  })
+
+  await step('billing-chart-drill', async () => {
+    await open(page, '#/billing?p=all', 'Billing plan')
+    await settleCharts(page)
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-billing.png`), fullPage: true })
+    await tapUntilDrillOffered(page)
+    await expect(hashOf(page), (hash) => !hash.includes('month='), 'one tap opened the month')
+    const viewRows = await waitForText(page, '[data-testid="chart-drill"] button', 'View rows')
+    await viewRows.tap()
+    await page.waitForFunction(() => window.location.hash.includes('month='))
+    await page.waitForSelector('[data-testid="billing-months"] li[data-selected] [data-testid="billing-month-toggle"][aria-expanded="true"]')
+    await delay(300)
+    await expect(
+      page.evaluate(() => {
+        const box = document.querySelector('[data-testid="billing-months"] li[data-selected]').getBoundingClientRect()
+        return box.top >= document.querySelector('header').getBoundingClientRect().bottom && box.top < window.innerHeight / 2
+      }),
+      (inView) => inView,
+      'the drill did not scroll its month to just below the top bar',
+    )
+    await shoot('billing-month')
+  })
+
+  await step('billing-fill-write-undo', async () => {
+    await openFreshExcel(page, '#/billing?p=all', 'Billing plan')
+    await page.waitForSelector('[data-testid="billing-rows"]')
+    const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
+    const before = await rows()
+    const fill = await page.$('[data-testid="billing-fill"]')
+    await fill.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await fill.tap()
+    await page.waitForSelector('[data-testid="fill-row"]')
+    await delay(300)
+    const previewed = await page.evaluate(() => document.querySelectorAll('[data-testid="fill-row"]').length)
+    await expect(Promise.resolve(previewed), (count) => count > 0, 'the preview lists no rows to fill')
+    await inspect(page, `${width}px fill preview`)
+    await shoot('billing-fill-preview')
+    await page.tap('[data-testid="fill-write"]')
+    await waitForText(page, '[data-slot="title"]', `${previewed} plan rows added`)
+    await expect(rows(), (count) => count === before + previewed, 'the filled rows are not on the list')
+    await delay(700)
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Undone')
+    await expect(rows(), (count) => count === before, 'Undo did not take the filled rows off the list')
+  })
+
+  await step('billing-edit-delete', async () => {
+    await openFreshExcel(page, '#/billing?p=all', 'Billing plan')
+    await page.waitForSelector('[data-testid="billing-rows"]')
+    const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
+    const before = await rows()
+    const openLastRow = async () => {
+      const edit = (await page.$$('[data-testid="billing-row-edit"]')).at(-1)
+      await edit.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await edit.tap()
+      await page.waitForSelector('[data-testid="billing-row-form"]')
+      await delay(300)
+    }
+    await openLastRow()
+    await page.$eval('[data-testid="billing-row-description"]', (input) => input.select())
+    await page.type('[data-testid="billing-row-description"]', 'Seat for the model API, adjusted')
+    await inspect(page, `${width}px edit a plan row`)
+    await shoot('billing-row-edit')
+    await page.tap('button[form="billing-row"]')
+    await waitForText(page, '[data-slot="title"]', 'Plan row saved')
+    await waitForText(page, '[data-testid="billing-row"] p', 'Seat for the model API, adjusted')
+    // A fresh load drops the toast, so the Undo below is the deletion's own.
+    await openFreshExcel(page, '#/billing?p=all', 'Billing plan')
+    await page.waitForSelector('[data-testid="billing-rows"]')
+    await openLastRow()
+    await page.tap('[data-testid="billing-row-delete"]')
+    await waitForText(page, '[data-slot="title"]', 'Plan row deleted')
+    await expect(rows(), (count) => count === before - 1, 'the deleted row is still on the list')
+    await delay(700)
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Undone')
+    await expect(rows(), (count) => count === before, 'Undo did not bring the row back')
+  })
+
+  await step('billing-start-excel', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=excel-no-billing-plan&load=${Date.now()}#/billing`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Billing plan')
+    await page.waitForSelector('[data-testid="billing-empty"]')
+    await shoot('billing-empty')
+    await page.tap('[data-testid="billing-start"]')
+    await page.waitForSelector('[data-testid="billing-row-form"]')
+    await delay(300)
+    await page.tap('[data-testid="billing-row-item"]')
+    await (await waitForText(page, '[role="option"]', 'Monthly Fee')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'))
+    await delay(500)
+    await page.type('[data-testid="billing-row-amount"]', '7200')
+    await inspect(page, `${width}px add the first plan row`)
+    await page.tap('button[form="billing-row"]')
+    await waitForText(page, '[data-slot="title"]', 'Plan row added')
+    await page.waitForSelector('[data-testid="billing-rows"]')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+    await delay(300)
   })
 
   for (const screen of SCREENS) {

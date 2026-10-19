@@ -111,6 +111,13 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'name', note: 'What the screens call the client. Optional.' },
     { name: 'iban', note: 'An IBAN the client pays from. A payment from it counts against that client’s invoices. Required.' },
   ],
+  'outgoing-plan': [
+    { name: 'item', note: 'What kind of item it is, such as the monthly fee, a bonus, a re-billed plane ticket or hotel, a contractor or a subscription. Rows of one kind share the same text. Required.' },
+    { name: 'date', note: 'The day it becomes billable, as a date cell: the last day of the worked month for a monthly fee, the purchase day for a re-billed cost, the day a bonus is agreed. Required.' },
+    { name: 'amount', note: 'What to invoice for it, as a number above zero. A formula is fine. Required.' },
+    { name: 'client', note: 'Who to invoice, by the client name in the clients tab. Required.' },
+    { name: 'description', note: 'What the invoice line says, such as October fee. Optional.' },
+  ],
   'owner-advances': [
     { name: 'date', note: 'When the owner paid, as a date cell. Required.' },
     { name: 'amount', note: 'What the owner paid for the company, as a positive number. Required.' },
@@ -169,7 +176,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
   plan: [
     { name: 'year', note: 'The year planned, such as 2027. Required.' },
     { name: 'month', note: 'The month from 1 to 12. Blank means every month of the year.' },
-    { name: 'item', note: 'revenue, a category from the categories tab, owner_pay_scenario, dividend or purchase. Each year, month and item once. Required.' },
+    { name: 'item', note: 'A category from the categories tab, owner_pay_scenario, dividend or purchase. Each year, month and item once. Planned revenue goes on the outgoing-plan tab. Required.' },
     { name: 'amount', note: 'The amount planned for the month as a positive number, a cost without the VAT that is reclaimed. On an owner_pay_scenario row, the name of a scenario from the scenarios tab. Required.' },
     { name: 'note', note: 'Why you expect it. Optional.' },
   ],
@@ -280,6 +287,7 @@ export function emptyWorkbookTabs(): WorkbookTabs {
     rules: [],
     invoices: [],
     clients: [],
+    'outgoing-plan': [],
     'owner-advances': [],
     assets: [],
     grants: [],

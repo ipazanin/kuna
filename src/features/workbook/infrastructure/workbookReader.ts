@@ -11,6 +11,7 @@ import { isVatTreatment } from '../domain/vatTreatment'
 import { ADVANCE_BUCKETS } from '../domain/workbook'
 import type { Account, Category, Client, Invoice, OwnerAdvance, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
 import { readAssets } from './assetsTabReader'
+import { readBillingPlan } from './billingPlanTabReader'
 import { dateOf, inTabOrder, isUnreadable, moneyOf, optionalPeriod, readRow, slugListOf, slugOf, textOf } from './cellReading'
 import type { RowProblem } from './cellReading'
 import { readGrants } from './grantsTabReader'
@@ -49,6 +50,7 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     invoices: readInvoices(snapshot.invoices, clients, problems),
     clients,
     hasClientsTab,
+    billingPlan: keep('outgoing-plan', readBillingPlan(snapshot['outgoing-plan'], new Set(clients.map((client) => client.slug))), problems),
     ownerAdvances: readOwnerAdvances(snapshot['owner-advances'], categories, problems),
     assets: keep('assets', readAssets(snapshot.assets, new Set(grants.map((grant) => grant.slug))), problems),
     grants,
@@ -87,6 +89,11 @@ export function definedCategories(rows: readonly SheetRow[]): readonly Category[
 
 export function definedCategorySlugs(rows: readonly SheetRow[]): ReadonlySet<string> {
   return new Set(definedCategories(rows).map((category) => category.slug))
+}
+
+/** The clients a `clients` tab names, by the same rule the reader applies. */
+export function definedClientSlugs(rows: readonly SheetRow[]): ReadonlySet<string> {
+  return new Set(readClients(rows, []).map((client) => client.slug))
 }
 
 function readSettings(rows: readonly SheetRow[], problems: WorkbookProblem[]): Settings {

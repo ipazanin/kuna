@@ -82,6 +82,7 @@ const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
 const sheetLink = computed(() => (source.value === 'google' && state.workbook !== null ? spreadsheetLink(state.workbook.id) : null))
 
 const usedCategories = computed(() => new Set(state.workbook?.transactions.map((transaction) => transaction.category) ?? []))
+const billingItems = computed(() => [...new Set(state.workbook?.billingPlan.map((row) => row.item) ?? [])])
 const usedAccounts = computed(() => new Set(state.workbook?.transactions.map((transaction) => transaction.account) ?? []))
 
 const savingSection = ref<'settings' | 'categories' | 'accounts' | FactTab | null>(null)
@@ -188,7 +189,13 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
               <h2 class="text-sm font-medium text-highlighted">Workbook settings</h2>
               <p class="mt-0.5 text-xs text-muted">From the settings tab. Theme is kept per device, on Settings.</p>
             </header>
-            <GeneralSettingsForm :settings="settings" :saving="savingSection === 'settings' || state.writing" @save="saveSettings" />
+            <GeneralSettingsForm
+              :settings="settings"
+              :saving="savingSection === 'settings' || state.writing"
+              :clients="state.workbook.clients"
+              :billing-items="billingItems"
+              @save="saveSettings"
+            />
           </section>
           <LoanBucketSwitch v-if="settings.ownerPayModule" :categories="state.workbook.categories" />
           <section v-if="state.workbook.problems.length" class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5">

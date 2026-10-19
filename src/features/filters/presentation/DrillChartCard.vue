@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -8,7 +9,7 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import ChartCard from '../../../shared/ui/ChartCard.vue'
 import type { ChartPointSelection, ChartZoomWindow } from '../../../shared/ui/ChartCard.vue'
 import { useFilters } from '../application/filterStore'
-import type { DrillChart } from './chartDrill'
+import type { DrillChart, LinkChart } from './chartDrill'
 
 /**
  * A chart whose marks open the rows behind them. A click drills at once. On a phone a tap first
@@ -16,7 +17,7 @@ import type { DrillChart } from './chartDrill'
  * never both shows a figure and leaves the screen.
  */
 const props = defineProps<{
-  chart: DrillChart
+  chart: DrillChart | LinkChart
   title: string
   subtitle?: string
   definition?: string
@@ -29,7 +30,8 @@ const emit = defineEmits<{
   zoom: [window: ChartZoomWindow]
 }>()
 
-const { openDrill, drillLocation } = useFilters()
+const { drillLocation } = useFilters()
+const router = useRouter()
 const phone = usePhoneLayout()
 const chosen = shallowRef<ChartPointSelection | null>(null)
 
@@ -47,14 +49,18 @@ const chosenLabel = computed(() => {
 })
 
 function linkAt(selection: ChartPointSelection): RouteLocationRaw | null {
-  const target = props.chart.drillAt(selection)
+  const chart = props.chart
+  if ('linkAt' in chart) {
+    return chart.linkAt(selection)
+  }
+  const target = chart.drillAt(selection)
   return target === null ? null : drillLocation(target)
 }
 
 function drill(selection: ChartPointSelection): void {
-  const target = props.chart.drillAt(selection)
-  if (target !== null) {
-    void openDrill(target)
+  const location = linkAt(selection)
+  if (location !== null) {
+    void router.push(location)
   }
 }
 
@@ -68,7 +74,7 @@ function select(selection: ChartPointSelection): void {
     drill(selection)
     return
   }
-  chosen.value = props.chart.drillAt(selection) === null ? null : selection
+  chosen.value = linkAt(selection) === null ? null : selection
 }
 </script>
 

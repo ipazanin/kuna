@@ -200,7 +200,7 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
         value: formatWholeMoney(base.profitBeforeTax.amount),
         to: null,
         caption: forecastMonths === 0 ? 'Every month from the ledger' : `${12 - forecastMonths} of 12 months from the ledger alone`,
-        definition: 'Income less costs on the accrual view, as the accountant books them. Months the ledger has not closed take the plan row, else the line’s average.',
+        definition: 'Income less costs on the accrual view, as the accountant books them. Months the ledger has not closed take the plan row, or for revenue the billing plan’s rows still to invoice, else the line’s average.',
       },
       {
         label: 'Corporate tax',
@@ -349,7 +349,7 @@ function dueWords(cash: InterimCash): string {
 }
 
 function planRows(lines: readonly PlanLine[], forecast: YearForecast, year: number, context: ForecastViewContext): PlanRowView[] {
-  const ITEMS: Readonly<Record<string, string>> = { revenue: 'Revenue', dividend: 'Dividend', purchase: 'Purchase' }
+  const ITEMS: Readonly<Record<string, string>> = { dividend: 'Dividend', purchase: 'Purchase' }
   return [...lines]
     .sort((earlier, later) => (earlier.month ?? 0) - (later.month ?? 0) || earlier.sheetRow - later.sheetRow)
     .map((line): PlanRowView => ({

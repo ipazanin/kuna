@@ -7,7 +7,8 @@ import type { SheetRow } from './workbookSnapshot'
 /**
  * The `plan` tab, one row per year, month and item. A key used twice is left out the second time.
  * An item must be a keyword or a category on the categories tab, and an `owner_pay_scenario` row
- * must name a scenario on the scenarios tab, or the row is left out.
+ * must name a scenario on the scenarios tab, or the row is left out. Planned revenue lives on the
+ * `outgoing-plan` tab, so a `revenue` row is left out with a problem that says to move it there.
  */
 export function readPlan(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>, scenarioSlugs: ReadonlySet<string>): TabReading<PlanLine> {
   const facts: PlanLine[] = []
@@ -39,6 +40,7 @@ function readPlanRow(row: SheetRow, categorySlugs: ReadonlySet<string>, scenario
   const timing = { year, month, note: textOf(cells.note), sheetRow: row.sheetRow }
   const item = slugOf(cells.item)
   if (item === '') refuse('no item')
+  if (item === 'revenue') refuse('revenue is planned on the outgoing-plan tab, one row per item to invoice, so move this row there')
   if (item === 'owner_pay_scenario') {
     const scenario = slugOf(cells.amount)
     if (scenario === '') refuse('no scenario in amount')

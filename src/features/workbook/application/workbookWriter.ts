@@ -1,4 +1,5 @@
 import { RULE_COLUMNS } from '../../rules/domain/rule'
+import { BILLING_PLAN_COLUMNS } from '../infrastructure/billingPlanTabReader'
 import type { CellValue, SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
 
 /** One tab as it stands right before or right after a write. */
@@ -16,7 +17,7 @@ export type FreshTabs = Partial<Record<WorkbookTab, TabRead>>
  * The tabs the app writes. Of `categories` it writes only a bucket, which the Apps Script accepts
  * from the tab's own dropdown, and `accounts` it never writes.
  */
-export type WritableTab = 'ledger' | 'rules' | 'settings' | 'categories' | 'owner-advances'
+export type WritableTab = 'ledger' | 'rules' | 'settings' | 'categories' | 'owner-advances' | 'outgoing-plan'
 
 /** One cell set on an existing row, found by its header. An empty string clears the cell. */
 export interface CellEdit {
@@ -60,5 +61,6 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   settings: new Set(['key', 'value']),
   categories: new Set(['bucket']),
   'owner-advances': new Set(['date', 'amount', 'description', 'category']),
+  'outgoing-plan': new Set(BILLING_PLAN_COLUMNS),
 }
 

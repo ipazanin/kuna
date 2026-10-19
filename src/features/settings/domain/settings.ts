@@ -1,5 +1,7 @@
 import { civilDateFromSerial, parseCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
+import { moneyFromAmount } from '../../../shared/money/money'
+import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
@@ -28,7 +30,26 @@ export interface Settings {
   readonly reviewLabel: string
   /** The bank accounts a card purchase settles against, normalised. The rules read such a row as a card purchase. */
   readonly cardSettlementIbans: readonly string[]
+  readonly billing: BillingTerms
   readonly companyFacts: CompanyFacts
+}
+
+/**
+ * The amounts a client is billed on terms, which the billing plan shows and fills in from. Each
+ * amount comes with the `item` text its rows carry on the `outgoing-plan` tab. Null and blank when not set.
+ */
+export interface BillingTerms {
+  /** The fee for each worked month. */
+  readonly monthlyAmount: Money | null
+  readonly monthlyItem: string
+  /** Subscriptions re-billed every month. */
+  readonly subscriptionAmount: Money | null
+  readonly subscriptionItem: string
+  /** The bonus for a whole year, shown for reference and never filled in. */
+  readonly bonusAmount: Money | null
+  readonly bonusItem: string
+  /** The client slug filled rows are for. */
+  readonly client: string
 }
 
 /** Which corporate tax return the company files: `pd` on the accrual profit, `pd-nn` on cash received and paid. */
@@ -80,6 +101,15 @@ export const DEFAULT_SETTINGS: Settings = {
   ownerPayModule: true,
   reviewLabel: 'human',
   cardSettlementIbans: [],
+  billing: {
+    monthlyAmount: null,
+    monthlyItem: '',
+    subscriptionAmount: null,
+    subscriptionItem: '',
+    bonusAmount: null,
+    bonusItem: '',
+    client: '',
+  },
   companyFacts: {
     residenceCity: '',
     birthYear: null,
@@ -101,6 +131,8 @@ const RESERVED_LABELS = ['net', 'all costs', 'owner earns', 'kept']
 const LABEL_MAX_LENGTH = 40
 
 const CITY_MAX_LENGTH = 60
+
+const BILLING_ITEM_MAX_LENGTH = 60
 
 const EARLIEST_BIRTH_YEAR = 1900
 const LATEST_BIRTH_YEAR = 2100
@@ -152,6 +184,57 @@ const BUCKET_LABEL_DEFINITIONS: readonly SettingDefinition[] = BUCKETS.map((buck
 function withFacts(settings: Settings, facts: Partial<CompanyFacts>): Settings {
   return { ...settings, companyFacts: { ...settings.companyFacts, ...facts } }
 }
+
+function withBilling(settings: Settings, terms: Partial<BillingTerms>): Settings {
+  return { ...settings, billing: { ...settings.billing, ...terms } }
+}
+
+export type BillingAmountField = 'monthlyAmount' | 'subscriptionAmount' | 'bonusAmount'
+
+export type BillingItemField = 'monthlyItem' | 'subscriptionItem' | 'bonusItem'
+
+function billingAmountDefinition(key: string, field: BillingAmountField, note: string): SettingDefinition {
+  return {
+    key,
+    note,
+    valueOf: (settings) => {
+      const amount = settings.billing[field]
+      return amount === null ? '' : amount / 100
+    },
+    apply: (settings, cell) => {
+      const amount = typeof cell === 'number' ? cell : Number(String(cell).trim())
+      return billingAmountProblem(amount) ?? withBilling(settings, { [field]: moneyFromAmount(amount) })
+    },
+  }
+}
+
+function billingItemDefinition(key: string, field: BillingItemField, note: string): SettingDefinition {
+  return {
+    key,
+    note,
+    valueOf: (settings) => settings.billing[field],
+    apply: (settings, cell) => {
+      const item = String(cell).trim()
+      return billingItemProblem(item) ?? withBilling(settings, { [field]: item })
+    },
+  }
+}
+
+/** The billing plan's terms, for any freelancer or small business. */
+const BILLING_DEFINITIONS: readonly SettingDefinition[] = [
+  billingAmountDefinition('billing_monthly_amount', 'monthlyAmount', 'The fee invoiced for each worked month, such as 7200. "Fill the rest of the year" adds a row of it for every month to December. Optional.'),
+  billingItemDefinition('billing_monthly_item', 'monthlyItem', 'The item text of the monthly fee rows on the outgoing-plan tab, written as the tab writes it. Needed with billing_monthly_amount.'),
+  billingAmountDefinition('billing_subscription_amount', 'subscriptionAmount', 'Subscriptions re-billed every month, such as 60. "Fill the rest of the year" adds a row of it for every month to December. Optional.'),
+  billingItemDefinition('billing_subscription_item', 'subscriptionItem', 'The item text of the subscription rows on the outgoing-plan tab. Needed with billing_subscription_amount.'),
+  billingAmountDefinition('billing_bonus_amount', 'bonusAmount', 'The bonus agreed for a whole year, such as 4800. It is shown for reference and never filled in. Optional.'),
+  billingItemDefinition('billing_bonus_item', 'bonusItem', 'The item text of the bonus rows on the outgoing-plan tab. Needed with billing_bonus_amount.'),
+  {
+    key: 'billing_client',
+    note: 'The client the filled rows are for, by the client name in the clients tab, such as northwind. Optional.',
+    valueOf: (settings) => settings.billing.client,
+    apply: (settings, cell) => withBilling(settings, { client: String(cell).trim().toLowerCase() }),
+  },
+]
 
 /** The pack's keys, read only while the owner-pay module is on, but kept and checked whatever it is. */
 const COMPANY_FACT_DEFINITIONS: readonly SettingDefinition[] = [
@@ -302,6 +385,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
       return problem ?? { ...settings, cardSettlementIbans: ibans }
     },
   },
+  ...BILLING_DEFINITIONS,
   ...COMPANY_FACT_DEFINITIONS,
 ]
 
@@ -366,6 +450,8 @@ export type SettingsField =
   | 'numberLocale'
   | 'reviewLabel'
   | 'cardSettlementIbans'
+  | BillingAmountField
+  | BillingItemField
   | 'residenceCity'
   | 'birthYear'
   | 'dependants'
@@ -385,6 +471,7 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (review !== null) errors.reviewLabel = review
   const cardAccounts = ibanListProblem(settings.cardSettlementIbans)
   if (cardAccounts !== null) errors.cardSettlementIbans = cardAccounts
+  Object.assign(errors, billingErrors(settings.billing))
   const { residenceCity, birthYear, dependants } = settings.companyFacts
   const city = residenceCityProblem(residenceCity)
   if (city !== null) errors.residenceCity = city
@@ -461,6 +548,33 @@ export function ibanListOf(text: string): string[] {
 function ibanListProblem(ibans: readonly string[]): string | null {
   const malformed = ibans.filter((iban) => !IBAN_SHAPE.test(iban))
   return malformed.length === 0 ? null : `${malformed.map((iban) => `"${iban}"`).join(', ')} ${malformed.length === 1 ? 'is not an IBAN' : 'are not IBANs'}`
+}
+
+/** An amount needs the item its rows carry, or the plan cannot tell which rows it is about. */
+function billingErrors(terms: BillingTerms): Partial<Record<BillingAmountField | BillingItemField, string>> {
+  const errors: Partial<Record<BillingAmountField | BillingItemField, string>> = {}
+  const pairs = [
+    ['monthlyAmount', 'monthlyItem'],
+    ['subscriptionAmount', 'subscriptionItem'],
+    ['bonusAmount', 'bonusItem'],
+  ] as const
+  for (const [amountField, itemField] of pairs) {
+    const amount = terms[amountField]
+    const amountProblem = amount === null ? null : billingAmountProblem(amount / 100)
+    if (amountProblem !== null) errors[amountField] = amountProblem
+    const itemProblem = billingItemProblem(terms[itemField])
+    if (itemProblem !== null) errors[itemField] = itemProblem
+    else if (amount !== null && terms[itemField] === '') errors[itemField] = 'name the item its rows carry on the outgoing-plan tab'
+  }
+  return errors
+}
+
+function billingAmountProblem(amount: number): string | null {
+  return Number.isFinite(amount) && amount > 0 ? null : 'use an amount above zero, such as 7200'
+}
+
+function billingItemProblem(item: string): string | null {
+  return item.length > BILLING_ITEM_MAX_LENGTH ? `an item can be at most ${BILLING_ITEM_MAX_LENGTH} characters` : null
 }
 
 function residenceCityProblem(city: string): string | null {

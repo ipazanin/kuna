@@ -21,6 +21,7 @@ function tabsOf(amounts: number[]): WorkbookTabs {
     rules: [],
     invoices: [],
     clients: [],
+    'outgoing-plan': [],
     'owner-advances': [],
     assets: [],
     grants: [],

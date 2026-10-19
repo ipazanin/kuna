@@ -119,6 +119,7 @@ export function exampleStudio(changes: Partial<Workbook> = {}): Workbook {
     invoices: STUDIO_INVOICES,
     clients: [],
     hasClientsTab: true,
+    billingPlan: [],
     ownerAdvances: STUDIO_ADVANCES,
     assets: STUDIO_ASSETS,
     grants: [STUDIO_GRANT],

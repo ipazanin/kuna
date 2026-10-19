@@ -28,8 +28,6 @@ export interface FilterStore {
   setFilters(next: FilterState): Promise<void>
   /** Where a figure's drill leads, for a link. Null when no row is behind the figure. */
   drillLocation(drill: DrillTarget): RouteLocationRaw | null
-  /** Opens a figure's drill. False when no row is behind the figure. */
-  openDrill(drill: DrillTarget): Promise<boolean>
 }
 
 /**
@@ -69,7 +67,6 @@ export function useFilters(): FilterStore {
     filters: readonly(filters),
     setFilters,
     drillLocation,
-    openDrill,
   }
 }
 
@@ -89,15 +86,6 @@ function drillLocation(drill: DrillTarget): RouteLocationRaw | null {
     return null
   }
   return { path: ROUTE_PATHS[drill.route], query: queryFor(requireRouter(), narrowed, { explicitPeriod: true }) }
-}
-
-async function openDrill(drill: DrillTarget): Promise<boolean> {
-  const location = drillLocation(drill)
-  if (location === null) {
-    return false
-  }
-  await requireRouter().push(location)
-  return true
 }
 
 function queryFor(router: Router, state: FilterState, options: { explicitPeriod?: boolean } = {}): Record<string, string | string[]> {

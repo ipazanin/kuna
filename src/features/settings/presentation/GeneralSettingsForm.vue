@@ -9,15 +9,21 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { LOCAL_UNITS, findLocalUnit } from '../../../packs/hr-doo/ruleset/localUnits'
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
+import { amountOf, moneyFromAmount } from '../../../shared/money/money'
+import type { Money } from '../../../shared/money/money'
 import { fold } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
-import type { CitReturn, CompanyFacts, Settings, VatPrinciple } from '../domain/settings'
+import type { BillingAmountField, BillingItemField, BillingTerms, CitReturn, CompanyFacts, Settings, VatPrinciple } from '../domain/settings'
 
 const props = defineProps<{
   settings: Settings
   saving: boolean
+  /** The clients the billing plan can fill rows for. */
+  clients: readonly { readonly slug: string; readonly name: string }[]
+  /** The item kinds the outgoing-plan tab already uses, so a term names one exactly as the tab writes it. */
+  billingItems: readonly string[]
 }>()
 
 const emit = defineEmits<{
@@ -124,6 +130,63 @@ function updateDependants(text: string): void {
   dependantsText.value = text
   updateFact('dependants', numberOfDependants(text))
 }
+
+const BILLING_TERMS: readonly { readonly label: string; readonly amount: BillingAmountField; readonly item: BillingItemField; readonly help: string }[] = [
+  { label: 'Monthly fee', amount: 'monthlyAmount', item: 'monthlyItem', help: 'Filled for every month to December.' },
+  { label: 'Monthly subscriptions', amount: 'subscriptionAmount', item: 'subscriptionItem', help: 'Re-billed every month, filled the same way.' },
+  { label: 'Yearly bonus', amount: 'bonusAmount', item: 'bonusItem', help: 'Shown for reference, never filled.' },
+]
+
+function updateBilling<Field extends keyof BillingTerms>(field: Field, value: BillingTerms[Field]): void {
+  draft.value = { ...draft.value, billing: { ...draft.value.billing, [field]: value } }
+}
+
+function textOfAmount(amount: Money | null): string {
+  return amount === null ? '' : String(amountOf(amount))
+}
+
+/** The amounts as typed. Text that is not an amount goes into the draft as NaN, so the field shows its error. */
+const billingAmountTexts = ref<Record<BillingAmountField, string>>({
+  monthlyAmount: textOfAmount(props.settings.billing.monthlyAmount),
+  subscriptionAmount: textOfAmount(props.settings.billing.subscriptionAmount),
+  bonusAmount: textOfAmount(props.settings.billing.bonusAmount),
+})
+watch(
+  () => draft.value.billing,
+  (terms) => {
+    for (const { amount } of BILLING_TERMS) {
+      if (!Object.is(amountOfText(billingAmountTexts.value[amount]), terms[amount])) {
+        billingAmountTexts.value = { ...billingAmountTexts.value, [amount]: textOfAmount(terms[amount]) }
+      }
+    }
+  },
+)
+
+/** A blank field is no amount, and a decimal comma reads as a point. */
+function amountOfText(text: string): BillingTerms[BillingAmountField] {
+  const typed = text.trim().replace(',', '.')
+  if (typed === '') return null
+  const amount = Number(typed)
+  return Number.isFinite(amount) ? moneyFromAmount(amount) : (Number.NaN as Money)
+}
+
+function updateBillingAmount(field: BillingAmountField, text: string): void {
+  billingAmountTexts.value = { ...billingAmountTexts.value, [field]: text }
+  updateBilling(field, amountOfText(text))
+}
+
+const billingItemChoices = ref<string[]>([])
+const itemChoices = computed(() => [...new Set([...props.billingItems, ...BILLING_TERMS.map(({ item }) => draft.value.billing[item]), ...billingItemChoices.value])].filter((item) => item !== ''))
+
+function createBillingItem(field: BillingItemField, text: string): void {
+  const typed = text.trim()
+  if (typed !== '') {
+    billingItemChoices.value = [...billingItemChoices.value, typed]
+    updateBilling(field, typed)
+  }
+}
+
+const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
 
 const citReturnItems: { value: CitReturn; label: string }[] = [
   { value: 'pd', label: 'PD, on the accrual profit' },
@@ -244,6 +307,50 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
         description="The default for assets. An asset row can still say otherwise."
         @update:model-value="updateFact('depreciationDoubled', $event)"
       />
+    </fieldset>
+
+    <fieldset class="flex flex-col gap-3" data-testid="billing-terms">
+      <legend class="text-sm font-medium text-highlighted">Billing plan</legend>
+      <p class="-mt-1 text-xs text-muted">
+        What a client is billed on terms. "Fill the rest of the year" on Billing plan adds the monthly rows from them. Name each item exactly as the
+        outgoing-plan tab writes it, or the fill adds a second row in a month that already has one.
+      </p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <template v-for="term in BILLING_TERMS" :key="term.amount">
+          <UFormField :label="term.label" :error="errors[term.amount] ?? false" :help="term.help">
+            <UInput
+              :model-value="billingAmountTexts[term.amount]"
+              inputmode="decimal"
+              placeholder="Not set"
+              class="w-full"
+              @update:model-value="updateBillingAmount(term.amount, String($event))"
+            />
+          </UFormField>
+          <UFormField :label="`${term.label}, item`" :error="errors[term.item] ?? false">
+            <USelectMenu
+              :model-value="draft.billing[term.item]"
+              :items="itemChoices"
+              create-item
+              placeholder="Not set"
+              :search-input="{ placeholder: 'Search or type an item' }"
+              class="w-full"
+              @update:model-value="updateBilling(term.item, String($event ?? ''))"
+              @create="createBillingItem(term.item, $event)"
+            />
+          </UFormField>
+        </template>
+        <UFormField label="Client the rows are for" help="Its name on the clients tab." class="sm:col-span-2">
+          <USelectMenu
+            :model-value="draft.billing.client"
+            :items="clientItems"
+            value-key="value"
+            placeholder="Not set"
+            clear
+            class="w-full"
+            @update:model-value="updateBilling('client', String($event ?? ''))"
+          />
+        </UFormField>
+      </div>
     </fieldset>
 
     <fieldset class="flex flex-col gap-3">

@@ -1,7 +1,7 @@
 import type { Money } from '../../../shared/money/money'
 
 /** The `item` keywords of the `plan` tab. Any other item is a category from the categories tab. */
-export const PLAN_KEYWORDS = ['revenue', 'owner_pay_scenario', 'dividend', 'purchase'] as const
+export const PLAN_KEYWORDS = ['owner_pay_scenario', 'dividend', 'purchase'] as const
 
 interface PlanLineTiming {
   readonly year: number
@@ -19,7 +19,7 @@ export type PlanLine = PlanLineTiming &
   (
     | {
         readonly kind: 'amount'
-        /** `revenue`, `dividend`, `purchase` or a category slug. */
+        /** `dividend`, `purchase` or a category slug. */
         readonly item: string
         readonly amount: Money
       }

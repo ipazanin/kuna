@@ -14,6 +14,7 @@ const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, () => Promise<RouteComponen
   '/period-review': () => import('../../features/period-review/presentation/PeriodReviewScreen.vue'),
   '/cash': () => import('../../features/cash/presentation/CashScreen.vue'),
   '/receivables': () => import('../../features/receivables/presentation/ReceivablesScreen.vue'),
+  '/billing': () => import('../../features/billingPlan/presentation/BillingScreen.vue'),
   '/taxes': () => import('../../packs/hr-doo/presentation/TaxesScreen.vue'),
   '/assets': () => import('../../packs/hr-doo/presentation/assets/AssetsScreen.vue'),
   '/year-end': () => import('../../packs/hr-doo/presentation/yearEnd/YearEndScreen.vue'),
@@ -36,11 +37,15 @@ if (import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
 routes.push({ path: '/:unknown(.*)*', redirect: '/' })
 
 /** Hash history, because GitHub Pages serves static files and cannot answer a deep path with index.html. */
-/** A new screen opens at its top, so its heading is never under the top bar. A filter change keeps the place. */
+/**
+ * A new screen opens at its top, so its heading is never under the top bar. A filter change keeps
+ * the place, and a link to a part of the screen, such as a month in a list, scrolls it to just
+ * below the phone's top bar.
+ */
 export const router = createRouter({
   history: createWebHashHistory(),
   routes,
-  scrollBehavior: (to, from, savedPosition) => savedPosition ?? (to.path === from.path ? false : { top: 0 }),
+  scrollBehavior: (to, from, savedPosition) => savedPosition ?? (to.hash !== '' ? { el: to.hash, top: 72 } : to.path === from.path ? false : { top: 0 }),
 })
 
 const APP_NAME = 'Ledgerboard'
