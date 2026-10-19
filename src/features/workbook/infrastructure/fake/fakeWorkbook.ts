@@ -338,6 +338,7 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
       yearEnd('balance', 'prepaid-accrued-income', 'Plaćeni troškovi budućeg razdoblja', 218.33),
       yearEnd('balance', 'total-assets', 'Ukupno aktiva', 43168.88),
       yearEnd('balance', 'share-capital', 'Temeljni kapital', 2500),
+      yearEnd('balance', 'retained-earnings', 'Zadržana dobit', 0),
       yearEnd('balance', 'profit-of-year', 'Dobit poslovne godine', 32184.71),
       yearEnd('balance', 'payables-employees', 'Obveze prema zaposlenicima', 1400),
       yearEnd('balance', 'payables-taxes', 'Obveze za poreze i doprinose', 4134.17),
@@ -367,6 +368,7 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
     plan: [
       ['year', 'month', 'item', 'amount', 'note'],
       [2026, 11, 'revenue', 7200, 'The usual month'],
+      [2026, 11, 'purchase', 420, 'Second monitor'],
       [2026, 12, 'revenue', 7200, ''],
       [2027, '', 'revenue', 7400, 'A small rate rise'],
       [2027, '', 'software-subscriptions', 10, ''],
@@ -505,6 +507,9 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
     booking(LEGACY_CLOSES, 'Main account', ACCOUNTS.main, 'Account closed, balance moved', 0, 'internal-transfer', 'legacy'),
     booking(LEGACY_CLOSES, 'Legacy account', ACCOUNTS.legacy, 'Account closed, balance moved', 0, 'internal-transfer', 'main'),
     booking('2026-04-28', PAYEES.stateBudget.name, PAYEES.stateBudget.iban, 'Corporate income tax 2025', -3579.97, 'corporate-income-tax', undefined, 'human'),
+    ...['2026-05-29', '2026-06-29', '2026-07-30', '2026-08-28'].map((date) =>
+      booking(date, PAYEES.stateBudget.name, PAYEES.stateBudget.iban, 'Corporate income tax advance', -447.5, 'corporate-income-tax', undefined, 'human'),
+    ),
     booking('2026-05-18', PAYEES.owner.name, PAYEES.owner.iban, 'Dividend 2025', -4000, 'dividend', undefined, 'human'),
     booking('2026-05-18', PAYEES.taxOffice.name, PAYEES.taxOffice.iban, 'Dividend tax 2025', -400, 'dividend-tax', undefined, 'human'),
     booking('2026-05-19', PAYEES.owner.name, PAYEES.owner.iban, 'Loan repaid', 3000, 'owner-loan-repaid', undefined, 'human'),

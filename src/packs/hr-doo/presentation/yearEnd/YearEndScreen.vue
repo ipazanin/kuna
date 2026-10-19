@@ -19,23 +19,22 @@ import { useFilteredLedger } from '../../../../features/transactions/application
 import type { Workbook } from '../../../../features/workbook/domain/workbook'
 import type { YearEndFigure } from '../../../../features/workbook/domain/yearEnd'
 import LedgerGate from '../../../../features/workbook/presentation/LedgerGate.vue'
-import { RULES, RULESET_CHECKED_ON } from '../../ruleset/ruleset'
-import type { RuleId } from '../../ruleset/ruleset'
-import { dayLabel, ruleLink } from '../../ruleset/presentation/ruleWording'
-import type { Rate, RuleCitation } from '../../ruleset/schema'
+import { RULESET_CHECKED_ON } from '../../ruleset/ruleset'
+import { dayLabel } from '../../ruleset/presentation/ruleWording'
+import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { AccrualAdjustment } from '../../domain/accrual/accrualAdjustment'
 import type { AccrualLine } from '../../domain/accrual/accrualLines'
 import { accrualYear } from '../../domain/accrual/accrualYear'
 import { amountOnLine } from '../../domain/accrual/closedYear'
-import { PACK_ROLES, categoriesWithRole } from '../../domain/packRoles'
-import type { PackRole } from '../../domain/packRoles'
 import { percentText } from '../../domain/payroll/payrollArithmetic'
 import { compareYearEnd } from '../../domain/yearEnd/yearEndComparison'
 import type { ComparedLine, ComparedStatement, LineStatus } from '../../domain/yearEnd/yearEndComparison'
 import { yearEndOpenItems } from '../../domain/yearEnd/yearEndOpenItems'
 import MissingRoles from '../MissingRoles.vue'
 import OwnerPayOff from '../OwnerPayOff.vue'
+import { missingAccrualRoles } from '../accrualRoles'
+import { chipsOf, ruleChips, stepsOf } from '../tracedFigureView'
 import { bridgeChart } from './bridgeChart'
 import type { BridgeBar } from './bridgeChart'
 import BridgeSteps from './BridgeSteps.vue'
@@ -43,7 +42,6 @@ import type { BridgeStepView } from './BridgeSteps.vue'
 import ComparisonTable from './ComparisonTable.vue'
 import type { ComparisonRow, ShownValue } from './ComparisonTable.vue'
 import KontoTable from './KontoTable.vue'
-import type { BuildUpStep, RuleChip } from './LineBuildUp.vue'
 import OpenItems from './OpenItems.vue'
 import StatusBadge from './StatusBadge.vue'
 import { ADJUSTMENT_LABELS, STATUSES, STATUS_WORDING, lineLabel } from './yearEndWording'
@@ -55,19 +53,6 @@ const route = useRoute()
 const router = useRouter()
 
 const checkedOn = dayLabel(RULESET_CHECKED_ON)
-
-/** The roles the accrual view reads, and what it gets wrong without them. */
-const ACCRUAL_ROLES: readonly (readonly [PackRole, string])[] = [
-  [PACK_ROLES.revenue, 'client payments stay in profit beside the revenue the invoices deliver'],
-  [PACK_ROLES.grant, 'a grant counts as income when it arrives, beside its release'],
-  [PACK_ROLES.capitalPurchase, 'an asset finds its payment only by its ledger_reference, and an unclaimed purchase counts as a cost'],
-  [PACK_ROLES.arrears, 'salary, its taxes and rent count in the month they were paid'],
-  [PACK_ROLES.prepaidAnnual, 'a policy paid a year ahead counts in the month it was paid'],
-  [PACK_ROLES.vatSettlement, 'VAT paid to the state or refunded counts in profit'],
-  [PACK_ROLES.corporateIncomeTax, 'corporate tax paid counts as a cost beside the tax of the year'],
-  [PACK_ROLES.profitDistribution, 'dividends and their tax count as costs'],
-  [PACK_ROLES.representation, 'no representation is added back to the tax base'],
-]
 
 const TABLES: readonly { readonly key: string; readonly title: string; readonly description: string; readonly statements: readonly ComparedStatement[] }[] = [
   {
@@ -149,8 +134,6 @@ function yearEndView(workbook: Workbook, shownYear: number) {
     rules: [],
   })
 
-  const missingRoles = ACCRUAL_ROLES.filter(([role]) => categoriesWithRole(workbook.categories, role).length === 0).map(([role, leftOut]) => ({ role, leftOut }))
-
   return {
     accrual,
     tiles: STATUSES.map((status) => ({
@@ -203,7 +186,7 @@ function yearEndView(workbook: Workbook, shownYear: number) {
       to: drillOf(item.figure),
       rules: chipsOf(item.rules),
     })),
-    missingRoles,
+    missingRoles: missingAccrualRoles(workbook.categories),
     noVat: workbook.categories.every((category) => category.vat === 'none'),
     unregistered: workbook.settings.companyFacts.companyRegistered === null,
   }
@@ -230,41 +213,14 @@ function rowOf(compared: ComparedLine): ComparisonRow {
       to: drillOf(entry.figure),
       depth: 0,
     })),
-    oursSteps: ours?.kind === 'money' ? stepsOf(ours.figure) : [],
-    cashSteps: stepsOf(cash),
+    oursSteps: ours?.kind === 'money' ? stepsOf(ours.figure, drillOf) : [],
+    cashSteps: stepsOf(cash, drillOf),
     rules: ruleChips(ours === null ? [] : ours.kind === 'money' ? ours.figure.rules : ours.kind === 'rate' ? ours.rate.rules : []),
   }
 }
 
-/** A step this deep inside another names this many of its own steps, and the rest by count. */
-const NESTED = 6
-
-function stepsOf(figure: TracedFigure | null): BuildUpStep[] {
-  if (figure === null) {
-    return []
-  }
-  return figure.steps.flatMap((step, index): BuildUpStep[] => {
-    const key = `${index}`
-    const nested = step.steps.slice(0, NESTED).map((inner, innerIndex): BuildUpStep => ({ key: `${key}-${innerIndex}`, label: inner.label, cents: inner.amount, to: drillOf(inner), depth: 1 }))
-    const more = step.steps.length - NESTED
-    return [
-      { key, label: step.label, cents: step.amount, to: drillOf(step), depth: 0 },
-      ...nested,
-      ...(more > 0 ? [{ key: `${key}-more`, label: `and ${more} more`, cents: null, to: drillOf(step), depth: 1 as const }] : []),
-    ]
-  })
-}
-
 function drillOf(figure: TracedFigure | null): ReturnType<typeof drillLocation> {
   return figure?.drill == null ? null : drillLocation(figure.drill)
-}
-
-function ruleChips(citations: readonly RuleCitation[]): RuleChip[] {
-  return chipsOf(citations.map((citation) => citation.ruleId as RuleId))
-}
-
-function chipsOf(ids: readonly RuleId[]): RuleChip[] {
-  return [...new Set(ids)].map((id) => ({ id, title: RULES.find((rule) => rule.id === id)?.title ?? id, to: ruleLink(id) }))
 }
 
 function shownOf(figure: YearEndFigure): ShownValue {

@@ -75,7 +75,7 @@ take their defaults.
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
 | `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once. |
 | `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the Workbook editor, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
-| `plan` | `year`, `month` (1 to 12, blank for every month), `item` (`revenue`, a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount` and `note`. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount`. Each year, month and item once. |
+| `plan` | `year`, `month` (1 to 12, blank for every month), `item` (`revenue`, a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount` and `note`. `amount` is positive for income and costs alike, a cost without the VAT that is reclaimed. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount`. Each year, month and item once. |
 | `scenarios` | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (an amount or `floor`), `salary_months` (0 to 12), `nontaxable:<item>` such as `nontaxable:gifts`, `rent_monthly`, `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. |
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
@@ -260,8 +260,21 @@ loss (16 and 25), decreases (35), losses brought forward oldest first for five y
 part and adds back the rest, the way the accountant splits representation over two konto lines. A
 first tax period starts on `hr_company_registered` and has no advances. The next period's monthly
 advance is the liability over the months the period touched (59). Advances paid in a later year
-come from `inputs.citAdvancesPaid`, which the payment matching will give. Until then lines 56 to 58
-are left out of such a year.
+come from `inputs.citAdvancesPaid`, which `matchCitPayments` gives. Without them lines 56 to 58 are
+left out of such a year.
+
+`citSchedule` beside them lists the corporate tax a year expects to pay: the previous year's balance
+due on its filing deadline, and an advance for each month, due by the end of the month after, so
+the December advance falls due in January and still counts for its year. From April an advance is
+the previous year's line 59, and before April the line 59 of the year before that. A year before
+the company was registered has no return, so a first period pays no advances and the next year
+starts in April. A closed year's return comes from the `year-end` tab's `liability`,
+`balance-due` and `monthly-advance` lines, with the liability over `months-of-operation` when the
+tab gives no advance. A later year's return is our own liability.
+`matchCitPayments` fills those obligations with the bank rows on `corporate-income-tax` categories,
+oldest due date first, since the annual payment and the advances carry one payment code. Each
+obligation is paid, due in the month it is matched on, overdue or to come. Payments no obligation
+takes are listed, and the advances paid for each year are its line 56.
 
 Each adjustment is `matched` when it agrees with the accountant's own line for it, `explained` when
 it follows from the workbook and the rules with nothing to hold it against, `judgement` when it
@@ -282,6 +295,63 @@ accountant's choice takes precedence and the difference to ours is the judgement
 
 Output VAT on domestic sales, loans to the company and provisions are not modelled. An invoice
 counts as revenue as it stands.
+
+## Forecast
+
+`forecastYear(workbook, year, asOf, rules)` in `src/packs/hr-doo/domain/forecast/` is the year as
+it is likely to end, seen on `asOf`. Ledger rows, owner advances and invoices after that day are
+left out. Every line has twelve months, and each month says what it rests on:
+
+- `actual`: a month the ledger covers in full, counted as the accrual view counts it. The month of
+  the newest booking is still running. What it holds so far is shown and never counted.
+- `planned`: the `plan` tab's row for the line and month, else its row for every month.
+- `paid-ahead`: a month that a `prepaid-annual` cost already paid covers.
+- `averaged`: the line's average over its last twelve actual months, or fewer for a younger
+  ledger, never counting its first part month.
+- `scheduled`: depreciation, small inventory, disposals and the grant release, which the asset
+  and grant engines give for the whole year, assets bought in it included.
+
+Revenue is the invoices by delivery period. A complete month after the last month any invoice
+delivers in is forecast like a later month, so work not yet invoiced does not read as nothing. A
+cost paid in arrears forecasts the last complete month until its payment is in the ledger. A
+planned purchase at or below the asset threshold is a cost of its month. One above it, a dividend,
+an owner pay scenario and a row on a category taken out of profit are listed as not counted.
+
+The PD build-up runs through `taxBase` and `citLiability`. Line 56 is the advances `matchCitPayments`
+finds paid plus those still to come in the year. The forecast gives the balance due on the filing
+deadline and the year after's schedule, with the new monthly advance from April. A year before the
+forecast year needs its return from the `year-end` tab, or else from its own forecast on the same
+day, so the forecast needs `hr_company_registered`. December's revenue is a receivable at the year
+end and December's arrears are paid in January. Cash at the year end starts from cash on the
+newest booking, with open invoices collected and the VAT position settled, then adds each forecast
+month as it is paid. For a year the ledger has not reached, it starts from the year before's
+forecast.
+
+`dividendCapacity(year, forecast, workbook, rules)` in `src/packs/hr-doo/domain/dividend/` sets out
+what the forecast leaves to pay out: profit after tax, retained earnings at the start of the year,
+losses brought forward and what the year has paid out already, the distributable amount, and net
+assets after a payout against the share capital. Beside it stand the grant clawback exposure, cash
+at the year end with December settled less the tax balance, and what the owner owes. Three options
+carry their dividend tax, net, cash, loan and capital consequences: one payout once the members
+adopt the statements, set off against what the owner owes, an interim payout now on the profit of
+the complete months, with the part the year's profit does not cover taxed as the owner's income,
+or keeping the profit in the company. The figures are for planning with the accountant, never
+filing advice.
+
+## Forecast screen
+
+A pack screen at `/forecast?year=2026`, shown while `owner_pay_module` is on, for the year of the
+newest booking and the one after. It is seen on the newest booking and needs
+`hr_company_registered`. A bar chart gives income, costs and profit before tax by month, with
+planned or averaged bars hatched and the running month shaded. The profit and loss and the PD return
+are lists whose lines open on their parts, the months a plan row or an average stands in for, their
+rows and their rules. The corporate tax card sets each payment the schedule expects beside what the
+bank rows paid, with the balance due and the new monthly advance. Dividend capacity switches between
+the three payout options with `payout=interim` or `payout=keep` in the address, and the year's plan
+rows are listed read only, each with why the forecast does not count it where it does not. Taxes
+lists the same payments for every year from the first tax period, with overdue payments and payments
+no obligation takes called out above them. The figures are for planning with the accountant, never
+filing advice.
 
 ## Year end
 

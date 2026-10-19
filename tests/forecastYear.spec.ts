@@ -1,0 +1,300 @@
+import { describe, expect, it } from 'vitest'
+
+import type { MonthBasis } from '../src/packs/hr-doo/domain/forecast/forecastLines'
+import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
+import type { YearForecast } from '../src/packs/hr-doo/domain/forecast/forecastYear'
+import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
+import type { Money } from '../src/shared/money/money'
+import { civil, euros } from './fixtures/ledger'
+import { planLine, steadyStudio } from './fixtures/steadyStudio'
+
+function categoryLine(forecast: YearForecast, slug: string) {
+  const found = forecast.categories.find((entry) => entry.category.slug === slug)
+  if (found === undefined) {
+    throw new Error(`No forecast for ${slug}`)
+  }
+  return found.forecast
+}
+
+function amounts(line: { readonly months: readonly { readonly figure: { readonly amount: Money } }[] }): Money[] {
+  return line.months.map((entry) => entry.figure.amount)
+}
+
+function bases(line: { readonly months: readonly { readonly bases: readonly MonthBasis[] }[] }): (readonly MonthBasis[])[] {
+  return line.months.map((entry) => entry.bases)
+}
+
+const NINE: readonly MonthBasis[][] = Array.from({ length: 9 }, () => ['actual'])
+
+describe('forecastYear, the year still running', () => {
+  const forecast = forecastYear(steadyStudio(), 2026, civil('2026-10-19'))
+
+  it('counts the complete months from the ledger and never the running one', () => {
+    expect(forecast.calendar.lastComplete).toBe('2026-09')
+    expect(forecast.calendar.running).toBe('2026-10')
+    const tool = categoryLine(forecast, 'ai-services')
+    expect(bases(tool)).toEqual([...NINE, ['averaged'], ['averaged'], ['averaged']])
+    // October's 120.00 paid on the 5th is shown, and the month counts the average instead.
+    expect(tool.months[9]?.soFar?.amount).toBe(euros(-120))
+    expect(tool.months[9]?.figure.amount).toBe(euros(-120))
+    expect(tool.months[8]?.soFar).toBeNull()
+  })
+
+  it('averages each line over its last twelve actual months', () => {
+    // Invoices of 6,000.00 a month from October 2025 to September 2026.
+    expect(forecast.revenue.averagedOver).toEqual({ from: '2025-10', to: '2026-09', monthCount: 12 })
+    expect(amounts(forecast.revenue)).toEqual(Array.from({ length: 12 }, () => euros(6000)))
+    expect(bases(forecast.revenue)).toEqual([...NINE, ['averaged'], ['averaged'], ['averaged']])
+    // September's pay is paid on 10 October, so September is actual too.
+    expect(amounts(categoryLine(forecast, 'salary-net'))).toEqual(Array.from({ length: 12 }, () => euros(-1000)))
+    expect(categoryLine(forecast, 'salary-net').averagedOver).toEqual({ from: '2025-10', to: '2026-09', monthCount: 12 })
+  })
+
+  it('takes the months a cost paid ahead already covers from its spread, not the average', () => {
+    const insurance = categoryLine(forecast, 'insurance')
+    // 1.00 a day from 1 September: 30 days, then 31, 30 and 31.
+    expect(amounts(insurance).slice(8)).toEqual([euros(-30), euros(-31), euros(-30), euros(-31)])
+    expect(bases(insurance).slice(8)).toEqual([['actual'], ['paid-ahead'], ['paid-ahead'], ['paid-ahead']])
+  })
+
+  it('depreciates an asset bought in the year from the month after it is put in use', () => {
+    // 2,400.00 at 50% a year is 100.00 a month from August.
+    expect(amounts(forecast.depreciation)).toEqual([0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 100, 100].map(euros))
+    expect(bases(forecast.depreciation).every((entry) => entry.length === 1 && entry[0] === 'scheduled')).toBe(true)
+    expect(forecast.depreciation.total.amount).toBe(euros(500))
+    // The purchase itself goes to the asset books, so equipment has no cost line.
+    expect(forecast.categories.some((entry) => entry.category.slug === 'equipment')).toBe(false)
+  })
+
+  it('builds profit and the PD return from the whole year', () => {
+    // Revenue 72,000.00 less pay 12,000.00, payroll tax 2,400.00, the tool 1,440.00, insurance
+    // 122.00 and depreciation 500.00.
+    expect(forecast.taxBase.revenue.amount).toBe(euros(72000))
+    expect(forecast.taxBase.expenses.amount).toBe(euros(16462))
+    expect(forecast.profitBeforeTax.total.amount).toBe(euros(55538))
+    expect(forecast.taxBase.profitBeforeTax.amount).toBe(euros(55538))
+    expect(forecast.liability.liability.amount).toBe(euros(5553.8))
+    expect(forecast.profitAfterTax.amount).toBe(euros(49984.2))
+  })
+
+  it('lists the categories and engine lines each profit and loss line adds up, signed to sum to it', () => {
+    for (const entry of forecast.lines) {
+      expect(entry.parts.reduce((total, part) => total + part.sign * part.line.total.amount, 0)).toBe(entry.forecast.total.amount)
+    }
+    const material = forecast.lines.find((entry) => entry.line === 'material-costs')
+    expect(material?.parts.map((part) => part.line)).toEqual(expect.arrayContaining([forecast.smallInventory, forecast.plannedPurchases]))
+    expect(forecast.lines.find((entry) => entry.line === 'other-operating-income')?.parts[0]?.line).toBe(forecast.grantRelease)
+  })
+
+  it('puts the advances paid and those still to come on PD line 56', () => {
+    // The 2025 return sets 1,200.00 / 12 = 100.00 a month from April. April to August are paid.
+    expect(forecast.cit.advancesPaid.amount).toBe(euros(500))
+    expect(forecast.cit.advancesPaid.steps).toHaveLength(5)
+    expect(forecast.cit.advancesToCome.amount).toBe(euros(400))
+    expect(forecast.cit.advancesToCome.steps.map((step) => step.label)).toEqual([
+      'Advance for Sept 2026, due 2026-10-31',
+      'Advance for Oct 2026, due 2026-11-30',
+      'Advance for Nov 2026, due 2026-12-31',
+      'Advance for Dec 2026, due 2027-01-31',
+    ])
+    expect(forecast.liability.advancesPaid?.amount).toBe(euros(900))
+    expect(forecast.cit.obligations.map((entry) => entry.status)).toEqual(['paid', 'paid', 'paid', 'paid', 'paid', 'paid', 'due', 'to-come', 'to-come', 'to-come'])
+  })
+
+  it('leaves the balance due and the new monthly advance to the next year', () => {
+    // 5,553.80 less 900.00, and 5,553.80 / 12 = 462.82 from the April advance.
+    expect(forecast.liability.balanceDue?.amount).toBe(euros(4653.8))
+    expect(forecast.cit.balanceDue?.dueOn).toBe('2027-04-30')
+    expect(forecast.cit.balanceDue?.expected.amount).toBe(euros(4653.8))
+    expect(forecast.cit.newAdvance?.month).toBe('2027-04')
+    expect(forecast.cit.newAdvance?.dueOn).toBe('2027-05-31')
+    expect(forecast.cit.newAdvance?.expected.amount).toBe(euros(462.82))
+    // January to March 2027 are still set by the 2025 return.
+    expect(forecast.cit.nextYear.obligations.filter((entry) => entry.kind === 'advance' && entry.month !== null && entry.month < '2027-04').map((entry) => entry.expected.amount)).toEqual(
+      [100, 100, 100].map(euros),
+    )
+  })
+
+  it('holds December’s revenue as a receivable and its pay as owed into January', () => {
+    expect(forecast.decemberReceivable.amount).toBe(euros(6000))
+    expect(forecast.decemberArrears.amount).toBe(euros(1200))
+  })
+
+  it('projects cash to the year end as each forecast month is paid', () => {
+    expect(forecast.cashAtYearEnd.steps.map((step) => [step.label, step.amount])).toEqual([
+      // Every bank row, the newest on 10 October.
+      ['Cash on 2026-10-10', euros(72595)],
+      ['Invoices still open, paid by the year end', euros(6000)],
+      ['VAT the state owes the company now, settled by the year end', euros(600)],
+      // October and November, each paid the month after. December's comes in January.
+      ['Revenue of the forecast months, paid the month after', euros(12000)],
+      // The tool for November and December, October's already paid, and pay and payroll tax for
+      // October and November.
+      ['Costs and other income of the forecast months, as they are paid', euros(-2640)],
+      ['Small purchases planned', euros(0)],
+      // The September to November advances.
+      ['Corporate tax still to pay by the year end', euros(-300)],
+    ])
+    expect(forecast.cashAtYearEnd.amount).toBe(euros(88255))
+  })
+})
+
+describe('forecastYear with plan rows', () => {
+  const workbook = steadyStudio({
+    planLines: [
+      planLine(12, 'revenue', 7000, 'A bigger December'),
+      planLine(null, 'ai-services', 150),
+      planLine(2, 'ai-services', 999, 'Replaced by the ledger'),
+      planLine(11, 'purchase', 400, 'A monitor'),
+      planLine(6, 'dividend', 8000),
+      planLine(3, 'owner-loan-out', 500),
+      { year: 2026, month: null, note: '', sheetRow: 9, kind: 'owner-pay-scenario', scenario: 'floor-salary' },
+    ],
+  })
+  const forecast = forecastYear(workbook, 2026, civil('2026-10-19'))
+
+  it('takes a month’s own row before the row for every month, and never over the ledger', () => {
+    expect(amounts(forecast.revenue).slice(9)).toEqual([euros(6000), euros(6000), euros(7000)])
+    expect(bases(forecast.revenue).slice(9)).toEqual([['averaged'], ['averaged'], ['planned']])
+    const tool = categoryLine(forecast, 'ai-services')
+    expect(amounts(tool)).toEqual([...Array.from({ length: 9 }, () => -120), -150, -150, -150].map(euros))
+    expect(bases(tool).slice(9)).toEqual([['planned'], ['planned'], ['planned']])
+  })
+
+  it('writes off a planned purchase at or below the threshold in its month', () => {
+    expect(forecast.plannedPurchases.months[10]?.figure.amount).toBe(euros(400))
+    expect(forecast.plannedPurchases.months[10]?.bases).toEqual(['planned'])
+    expect(forecast.plannedPurchases.months[9]?.bases).toEqual([])
+    const material = forecast.lines.find((entry) => entry.line === 'material-costs')
+    // The month also holds the insurance already paid and the asset engine's write-offs.
+    expect(material?.forecast.months[10]?.bases).toEqual(['planned', 'paid-ahead', 'scheduled'])
+    // 72,000.00 + 1,000.00 of revenue, the tool at 1,530.00 and the monitor at 400.00.
+    expect(forecast.profitBeforeTax.total.amount).toBe(euros(56048))
+  })
+
+  it('lists the plan rows it does not count, with why', () => {
+    expect(forecast.notModelled.map((entry) => (entry.line.kind === 'amount' ? entry.line.item : entry.line.scenario))).toEqual(['dividend', 'owner-loan-out', 'floor-salary'])
+  })
+})
+
+describe('forecastYear, a purchase above the threshold on the plan', () => {
+  it('lists it for an asset row and leaves it out of profit', () => {
+    const forecast = forecastYear(steadyStudio({ planLines: [planLine(11, 'purchase', 1600, 'A second laptop')] }), 2026, civil('2026-10-19'))
+
+    expect(forecast.plannedPurchases.total.amount).toBe(euros(0))
+    expect(forecast.notModelled.map((entry) => entry.reason)).toEqual([
+      'It is above the asset threshold, so it needs an asset row with its group and the day it is put in use before it depreciates.',
+    ])
+  })
+})
+
+describe('forecastYear before a month’s pay is in the ledger', () => {
+  it('forecasts the last complete month of a cost paid in arrears until its payment arrives', () => {
+    // On 7 October September's pay, due on the 10th, is not in the ledger yet.
+    const forecast = forecastYear(steadyStudio(), 2026, civil('2026-10-07'))
+    const pay = categoryLine(forecast, 'salary-net')
+
+    expect(forecast.calendar.lastComplete).toBe('2026-09')
+    expect(bases(pay).slice(7)).toEqual([['actual'], ['averaged'], ['averaged'], ['averaged'], ['averaged']])
+    expect(pay.averagedOver).toEqual({ from: '2025-09', to: '2026-08', monthCount: 12 })
+    expect(pay.months[8]?.figure.amount).toBe(euros(-1000))
+    expect(bases(categoryLine(forecast, 'ai-services'))[8]).toEqual(['actual'])
+  })
+})
+
+describe('forecastYear, a first tax period', () => {
+  const forecast = forecastYear(steadyStudio({ yearEndLines: [] }), 2025, civil('2025-10-19'))
+
+  it('averages over the complete months the young ledger has', () => {
+    // The ledger starts on 5 January, so February is its first complete month.
+    expect(forecast.revenue.averagedOver).toEqual({ from: '2025-02', to: '2025-09', monthCount: 8 })
+    expect(forecast.revenue.total.amount).toBe(euros(60000))
+  })
+
+  it('pays no advances and leaves the whole liability as the balance due', () => {
+    // Revenue 60,000.00 and the grant 1,000.00, less pay 12,000.00, payroll tax 2,400.00 and the
+    // tool 1,440.00.
+    expect(forecast.period.first).toBe(true)
+    expect(forecast.taxBase.profitBeforeTax.amount).toBe(euros(45160))
+    expect(forecast.liability.liability.amount).toBe(euros(4516))
+    expect(forecast.cit.obligations).toEqual([])
+    expect(forecast.liability.advancesPaid?.amount).toBe(euros(0))
+    expect(forecast.cit.balanceDue?.expected.amount).toBe(euros(4516))
+    expect(forecast.cit.balanceDue?.dueOn).toBe('2026-04-30')
+  })
+
+  it('starts the next year’s advances in April at the liability over the months of the period', () => {
+    // Registered on 2 January, so the period touches twelve months: 4,516.00 / 12 = 376.33.
+    const advances = forecast.cit.nextYear.obligations.filter((entry) => entry.kind === 'advance')
+    expect(advances.map((entry) => entry.month)).toEqual(['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'])
+    expect(forecast.cit.newAdvance?.expected.amount).toBe(euros(376.33))
+  })
+})
+
+describe('forecastYear, a year the ledger has closed', () => {
+  const workbook = steadyStudio({ yearEndLines: [] })
+  const forecast = forecastYear(workbook, 2025, civil('2026-10-19'))
+
+  it('reads every month from the ledger and agrees with the accrual view', () => {
+    const accrual = accrualYear(workbook, 2025, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null })
+
+    expect(forecast.revenue.months.every((entry) => entry.bases.length === 1 && entry.bases[0] === 'actual')).toBe(true)
+    expect(forecast.categories.every((entry) => entry.forecast.months.every((month) => month.bases[0] === 'actual'))).toBe(true)
+    expect(forecast.profitBeforeTax.total.amount).toBe(accrual.bridge.profitBeforeTax.amount)
+    expect(forecast.liability.liability.amount).toBe(accrual.liability.liability.amount)
+    // Nine invoices of 5,000.00 and three of 6,000.00.
+    expect(forecast.revenue.total.amount).toBe(euros(63000))
+  })
+
+  it('reads its cash at the year end from the balances', () => {
+    expect(forecast.cashAtYearEnd.steps).toEqual([])
+    expect(forecast.cashAtYearEnd.label).toBe('Cash at the end of 2025')
+  })
+
+  it('feeds the next year’s schedule from its own liability when the year-end tab has none', () => {
+    const next = forecastYear(workbook, 2026, civil('2026-10-19'))
+    const ownAdvance = Math.round(forecast.liability.liability.amount / 12)
+
+    expect(next.cit.obligations.find((entry) => entry.obligation.kind === 'balance-due')?.obligation.expected.amount).toBe(forecast.liability.liability.amount)
+    expect(next.cit.obligations.find((entry) => entry.obligation.month === '2026-04')?.obligation.expected.amount).toBe(ownAdvance)
+  })
+})
+
+describe('forecastYear, a year the ledger has not reached', () => {
+  it('averages every month and carries cash in from the year before’s forecast', () => {
+    const workbook = steadyStudio()
+    const forecast = forecastYear(workbook, 2027, civil('2026-10-19'))
+    const before = forecastYear(workbook, 2026, civil('2026-10-19'))
+
+    expect(bases(forecast.revenue).every((entry) => entry[0] === 'averaged')).toBe(true)
+    expect(forecast.cashAtYearEnd.steps.slice(0, 3).map((step) => step.amount)).toEqual([
+      before.cashAtYearEnd.amount,
+      before.decemberReceivable.amount,
+      -before.decemberArrears.amount,
+    ])
+    // The 2026 forecast sets the 2027 advances from April.
+    expect(forecast.cit.obligations.find((entry) => entry.obligation.month === '2027-04')?.obligation.expected.amount).toBe(before.liability.monthlyAdvance.amount)
+  })
+
+  it('keeps every obligation from the first tax period on, matched, beside the year’s own', () => {
+    const forecast = forecastYear(steadyStudio(), 2027, civil('2026-10-19'))
+    const own = forecast.cit.obligations.map((entry) => entry.obligation)
+    const earlier = forecast.cit.history.filter((entry) => !own.includes(entry.obligation))
+    const dueDates = forecast.cit.history.map((entry) => entry.obligation.dueOn)
+
+    // The 2026 schedule: the 2025 balance and nine advances, of which the balance and April to August are paid.
+    expect(earlier.map((entry) => entry.obligation.taxYear)).toEqual([2025, ...Array.from({ length: 9 }, () => 2026)])
+    expect(earlier.map((entry) => entry.status)).toEqual(['paid', 'paid', 'paid', 'paid', 'paid', 'paid', 'due', 'to-come', 'to-come', 'to-come'])
+    expect(own.every((obligation) => forecast.cit.history.some((entry) => entry.obligation === obligation))).toBe(true)
+    expect(dueDates).toEqual([...dueDates].sort())
+  })
+})
+
+describe('forecastYear without a registration day', () => {
+  it('refuses, since the tax periods start from it', () => {
+    const workbook = steadyStudio()
+    const unregistered = { ...workbook, settings: { ...workbook.settings, companyFacts: { ...workbook.settings.companyFacts, companyRegistered: null } } }
+
+    expect(() => forecastYear(unregistered, 2026, civil('2026-10-19'))).toThrow('hr_company_registered')
+  })
+})

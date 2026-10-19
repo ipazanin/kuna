@@ -67,6 +67,19 @@ export function depreciationByYear(schedules: readonly DepreciationSchedule[]): 
   })
 }
 
+/** What the year's depreciation charges above what the corporate tax allows, one step per asset, such as a car above the cost cap. */
+export function depreciationAboveAllowed(schedules: readonly DepreciationSchedule[], year: number): TracedFigure {
+  return summed(
+    'Depreciation above what the tax allows',
+    schedules.flatMap((schedule) =>
+      schedule.years
+        .filter((entry) => entry.year === year && entry.deductible.amount !== entry.charge.amount)
+        .map((entry) => tracedFigure(schedule.asset.name, subtractMoney(entry.charge.amount, entry.deductible.amount), 'assets', entry.deductible.rules)),
+    ),
+    'assets',
+  )
+}
+
 /**
  * The same assets and grants at doubled rates, and the change in each year's depreciation, grant
  * release, profit before tax and profit tax. The profit tax change is the profit change at the

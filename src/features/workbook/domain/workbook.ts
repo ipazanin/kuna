@@ -194,6 +194,11 @@ export interface Workbook {
   readonly problems: readonly WorkbookProblem[]
 }
 
+/** The day of the newest transaction, or null when the ledger holds none. */
+export function newestBookingOf(transactions: readonly Transaction[]): CivilDate | null {
+  return transactions.reduce<CivilDate | null>((newest, transaction) => (newest === null || transaction.date > newest ? transaction.date : newest), null)
+}
+
 /** The complete-month window of the whole ledger, or null when it holds no transaction. */
 export function ledgerWindowOf(transactions: readonly Transaction[]): LedgerWindow | null {
   if (transactions.length === 0) {

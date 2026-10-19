@@ -72,17 +72,8 @@ export function citLiability(base: TaxBase, period: TaxPeriod, advancesPaid: Tra
   ], [base.base])
 
   const advanceRule = rules('hr.cit.monthly-advance', taxPeriod)
-  if (advanceRule.value.liabilityDividedBy.text !== 'months-of-prior-period') {
-    throw new RangeError(`The advance rule in force in ${base.year} does not divide the liability by the months of the period.`)
-  }
   const periodMonths = monthCountBetween(monthOf(period.from), monthOf(period.to))
-  const monthlyAdvance = tracedFigure(
-    `PD line 59, the liability over the ${periodMonths} months of the period`,
-    moneyFromCents(dividedRounded(liability.amount, periodMonths)),
-    'ledger',
-    [advanceRule.citation, ...liability.rules],
-    [liability],
-  )
+  const monthlyAdvance = monthlyAdvanceOf(liability, periodMonths, base.year, rules)
 
   const paid =
     period.first && !advanceRule.value.advancesInFirstPeriod.holds
@@ -100,6 +91,33 @@ export function citLiability(base: TaxBase, period: TaxPeriod, advancesPaid: Tra
     refund: settlement?.refund ?? null,
     monthlyAdvance,
   }
+}
+
+/** The period of a year's return. A first period starts on the day the company was registered, and a year before that has none. */
+export function taxPeriodOf(year: number, registered: CivilDate | null): TaxPeriod {
+  if (registered !== null && yearOf(registered) > year) {
+    throw new RangeError(`The company was registered on ${registered}, after ${year}.`)
+  }
+  const first = registered !== null && yearOf(registered) === year
+  return { from: first ? registered : civilDate(year, 1, 1), to: civilDate(year, 12, 31), first }
+}
+
+/** PD line 59: a year's liability over the months of its period, the monthly advance of the next one. */
+export function monthlyAdvanceOf(liability: TracedFigure, months: number, year: number, rules: RuleSource = ruleValue): TracedFigure {
+  const advanceRule = rules('hr.cit.monthly-advance', civilDate(year, 1, 1))
+  if (advanceRule.value.liabilityDividedBy.text !== 'months-of-prior-period') {
+    throw new RangeError(`The advance rule in force in ${year} does not divide the liability by the months of the period.`)
+  }
+  if (!Number.isInteger(months) || months < 1 || months > 12) {
+    throw new RangeError(`${months} is not a number of months a tax period can have.`)
+  }
+  return tracedFigure(
+    `PD line 59, the liability over the ${months} months of the period`,
+    moneyFromCents(dividedRounded(liability.amount, months)),
+    liability.basis,
+    [advanceRule.citation, ...liability.rules],
+    [liability],
+  )
 }
 
 function balanceOf(

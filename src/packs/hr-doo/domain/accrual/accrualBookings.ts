@@ -121,6 +121,11 @@ export function accrualBookings(workbook: Workbook, rules: RuleSource = ruleValu
   })
 }
 
+/** Whether the accrual view counts a category's bookings as income or cost, rather than taking them out of profit whole. */
+export function countsInProfit(category: Category): boolean {
+  return PROFIT_AND_LOSS.has(category.bucket) && !TAKEN_OUT.some(([role]) => category.roles.includes(role))
+}
+
 export function isCounted(entry: AccrualBooking): entry is CountedBooking {
   return entry.treatment === 'counted'
 }

@@ -5,7 +5,8 @@
  * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar, the
- * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a repayment on the Owner loan list, both kinds of the Add advance form, a rule made from a row and applied to
+ * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a line's build-up, a
+ * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, both kinds of the Add advance form, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser.
@@ -43,6 +44,7 @@ const SCREENS = [
   { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
   { hash: '#/assets?p=all', title: 'Assets', ready: '[data-testid="asset-register"]' },
   { hash: '#/year-end?year=2025&p=all', title: 'Year end', ready: '[data-testid="bridge-steps"]' },
+  { hash: '#/forecast?p=all', title: 'Forecast', ready: '[data-testid="forecast-unregistered"]' },
   { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { hash: '#/ruleset', title: 'Ruleset', ready: '[data-testid="rule-card"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
@@ -344,6 +346,56 @@ async function checkWidth(width) {
     await rows.tap()
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the line opened Transactions without its filters')
+  })
+
+  await step('forecast-build-up-and-switch', async () => {
+    await openFreshExcel(page, '#/forecast?year=2026&p=all', 'Forecast')
+    await settleCharts(page)
+    await page.waitForSelector('[data-testid="forecast-obligations"]')
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-forecast.png`), fullPage: true })
+    const toggle = await page.waitForSelector('[data-testid="forecast-profit-and-loss"] [data-testid="build-up-toggle"][aria-expanded="false"]')
+    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await toggle.tap()
+    await page.waitForSelector('[data-testid="forecast-profit-and-loss"] [data-testid="build-up-detail"]')
+    await inspect(page, `${width}px forecast, a line opened`)
+    await shoot('forecast-line')
+    const interim = await waitForText(page, '[data-testid="payout-switch"] button', 'Interim payout now')
+    await interim.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await interim.tap()
+    await expect(hashOf(page), (hash) => hash.includes('payout=interim'), 'the payout switch did not put the option in the address')
+    await waitForText(page, '[data-testid="dividend-capacity"] p', 'An interim payout in 2026')
+    await inspect(page, `${width}px forecast, interim payout`)
+    await shoot('forecast-interim')
+    const next = await waitForText(page, '[data-testid="year-picker"] button', '2027')
+    await next.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await next.tap()
+    await expect(hashOf(page), (hash) => hash.includes('year=2027'), 'the year picker did not put the year in the address')
+    await waitForText(page, '[data-testid="plan-rows"] h2', 'Plan rows for 2027')
+    await inspect(page, `${width}px forecast for 2027`)
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-forecast-2027.png`), fullPage: true })
+    await (await waitForText(page, '[data-testid="year-picker"] button', '2026')).tap()
+    const paid = await page.waitForSelector('[data-testid="forecast-obligations"] a[aria-label$="paid, open the rows"]')
+    await paid.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await paid.tap()
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 1, 'the paid advance opened Transactions without its filters')
+  })
+
+  await step('taxes-corporate-tax-drill', async () => {
+    await openFreshExcel(page, '#/taxes?p=all', 'Taxes')
+    await settleCharts(page)
+    await page.waitForSelector('[data-testid="corporate-tax-2026"]')
+    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-taxes-corporate-tax.png`), fullPage: true })
+    const paid = await page.waitForSelector('[data-testid="corporate-tax-2026"] a[aria-label$="paid, open the rows"]')
+    await paid.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await paid.tap()
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 1, 'the paid advance opened Transactions without its filters')
   })
 
   await step('owner-loan-drill', async () => {

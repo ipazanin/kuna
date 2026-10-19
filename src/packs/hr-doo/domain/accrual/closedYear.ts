@@ -11,7 +11,7 @@ import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { AccrualAdjustment, AdjustmentId, YearEndLineRef } from './accrualAdjustment'
 import { withDrill } from './accrualAdjustment'
-import { isCounted } from './accrualBookings'
+import { isCounted, keptInMonthPaid } from './accrualBookings'
 import type { AccrualBooking, CountedBooking } from './accrualBookings'
 
 // For a closed year the accountant's figure wins where it rests on a choice the ledger cannot
@@ -80,6 +80,11 @@ export function arrearsCutOff(
     adjustment: { id: 'arrears-cut-off', kind: 'judgement', effect: 'profit', figure, lines: [{ statement: 'pl', line: 'profit-before-tax' }] },
     kept: new Set(kept),
   }
+}
+
+/** The bookings as the year's lines count them: by our policy, except those the cut-off keeps in the month they were paid. */
+export function bookingsAfterCutOff(byPolicy: readonly AccrualBooking[], cutOff: ArrearsCutOff | null): readonly AccrualBooking[] {
+  return byPolicy.map((entry) => (isCounted(entry) && cutOff?.kept.has(entry) === true ? keptInMonthPaid(entry) : entry))
 }
 
 interface KeptBooking {

@@ -12,9 +12,9 @@ import type { Money } from '../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleId } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { assetBooks, depreciationByYear } from '../assets/assetBooks'
+import { assetBooks, depreciationAboveAllowed, depreciationByYear } from '../assets/assetBooks'
 import type { DepreciationSettings } from '../assets/depreciationSchedule'
-import { citLiability } from '../cit/citLiability'
+import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import type { CitLiability, TaxPeriod } from '../cit/citLiability'
 import { lossesCarriedInto, taxBase } from '../cit/taxBase'
 import type { CarriedLoss, TaxBase } from '../cit/taxBase'
@@ -27,12 +27,12 @@ import type { RuleSource } from '../payroll/payrollArithmetic'
 import { withDrill } from './accrualAdjustment'
 import type { AccrualAdjustment, AdjustmentId } from './accrualAdjustment'
 import { balanceSheetLines } from './accrualBalanceSheet'
-import { accrualBookings, hasVat, isCounted, keptInMonthPaid } from './accrualBookings'
+import { accrualBookings, hasVat, isCounted } from './accrualBookings'
 import type { AccrualBooking, CapitalisedBooking, CountedBooking, TakenOutTreatment } from './accrualBookings'
 import { moneyLine } from './accrualLines'
 import type { AccrualLine, MoneyLine } from './accrualLines'
-import { arrearsCutOff, grantScheduleJudgement, placementJudgement, representationAsBooked } from './closedYear'
-import { COST_LINES, costLineOf } from './costLines'
+import { arrearsCutOff, bookingsAfterCutOff, grantScheduleJudgement, placementJudgement, representationAsBooked } from './closedYear'
+import { COST_LINES, COST_LINE_LABELS, costLineOf } from './costLines'
 import type { CostLine } from './costLines'
 import { revenueByDelivery } from './revenueByDelivery'
 import type { UninvoicedMonth } from './revenueByDelivery'
@@ -94,15 +94,6 @@ export interface AccrualYear {
 
 const BASIS_POINTS_PER_WHOLE = 10_000
 
-const COST_LINE_LABELS: Readonly<Record<CostLine, string>> = {
-  'material-costs': 'Material costs',
-  'personnel-costs': 'Personnel costs',
-  depreciation: 'Depreciation',
-  'other-costs': 'Other costs',
-  'impairment-provisions-other': 'Impairment, provisions and other operating expenses',
-  'financial-expenses': 'Financial expenses',
-}
-
 /**
  * The accrual profit and loss, balance sheet and PD build-up of a year, from the cash ledger, the
  * invoices, the assets, the grants and the rules. For a closed year whose year-end tab holds the
@@ -112,7 +103,7 @@ const COST_LINE_LABELS: Readonly<Record<CostLine, string>> = {
  * card payment, and which line of a group a figure sits on.
  */
 export function accrualYear(workbook: Workbook, year: number, inputs: AccrualInputs, rules: RuleSource = ruleValue): AccrualYear {
-  const period = taxPeriodOf(workbook, year)
+  const period = taxPeriodOf(year, workbook.settings.companyFacts.companyRegistered)
   const firstDay = civilDate(year, 1, 1)
   const inYear = (date: CivilDate) => yearOf(date) === year
   const accountantMoney = (statement: YearEndStatement, line: string): Money | null => {
@@ -125,7 +116,7 @@ export function accrualYear(workbook: Workbook, year: number, inputs: AccrualInp
   // accountant's cut-off, which the bridge then shows as its own step.
   const byPolicy = accrualBookings(workbook, rules)
   const cutOff = arrearsCutOff(byPolicy, year, workbook.yearEndLines, workbook.categories)
-  const bookings = byPolicy.map((entry) => (isCounted(entry) && cutOff?.kept.has(entry) === true ? keptInMonthPaid(entry) : entry))
+  const bookings = bookingsAfterCutOff(byPolicy, cutOff)
   const paidInYear = byPolicy.filter((entry) => inYear(entry.booking.date))
   const delivered = revenueByDelivery(workbook.invoices, year, rules)
   const accrualRule = rules('hr.acc.accrual-basis', firstDay)
@@ -317,15 +308,7 @@ export function accrualYear(workbook: Workbook, year: number, inputs: AccrualInp
       representation: representationJudgement === null ? representationOurs : summed('Representation as booked', [representationOurs, representationJudgement.figure], 'ledger'),
       personalTransport: costOfRole(PACK_ROLES.personalTransport, 'Personal transport'),
       nonDeductible: costOfRole(PACK_ROLES.nonDeductible, 'Costs the tax never allows'),
-      depreciationAboveAllowed: summed(
-        'Depreciation above what the tax allows',
-        books.schedules.flatMap((schedule) =>
-          schedule.years
-            .filter((entry) => entry.year === year && entry.deductible.amount !== entry.charge.amount)
-            .map((entry) => tracedFigure(schedule.asset.name, subtractMoney(entry.charge.amount, entry.deductible.amount), 'assets', entry.deductible.rules)),
-        ),
-        'assets',
-      ),
+      depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
       relatedPartyInterestShortfall: relatedPartyInterest(workbook, year, profitBeforeTax.amount, lossesBroughtForward, rules),
       lossesBroughtForward,
     },
@@ -436,16 +419,6 @@ export function accrualLine(accrual: AccrualYear, statement: AccrualLine['statem
   return accrual.lines.find((candidate) => candidate.statement === statement && candidate.line === line) ?? null
 }
 
-/** The first tax period runs from registration. A year before the company was registered has none. */
-function taxPeriodOf(workbook: Workbook, year: number): TaxPeriod {
-  const registered = workbook.settings.companyFacts.companyRegistered
-  if (registered !== null && yearOf(registered) > year) {
-    throw new RangeError(`The company was registered on ${registered}, after ${year}.`)
-  }
-  const first = registered !== null && yearOf(registered) === year
-  return { from: first ? registered : civilDate(year, 1, 1), to: civilDate(year, 12, 31), first }
-}
-
 function cashNetOf(entries: readonly AccrualBooking[], workbook: Workbook, year: number): TracedFigure {
   const buckets = [...new Set(entries.map((entry) => entry.booking.bucket))].filter(isDefinedBucket)
   const steps = buckets.map((bucket) =>
@@ -501,7 +474,7 @@ function rangeOf(dates: readonly CivilDate[]): DateRange {
  * its repayment or to 31 December, with none charged. The rule reaches a resident owner only while
  * the company has a tax loss, so without one it is not worked out.
  */
-function relatedPartyInterest(workbook: Workbook, year: number, profitBeforeTax: Money, losses: readonly CarriedLoss[], rules: RuleSource): TracedFigure {
+export function relatedPartyInterest(workbook: Workbook, year: number, profitBeforeTax: Money, losses: readonly CarriedLoss[], rules: RuleSource): TracedFigure {
   if (profitBeforeTax >= 0 && losses.length === 0) {
     return tracedFigure('Not worked out: the company has no tax loss', ZERO, 'ledger', [])
   }

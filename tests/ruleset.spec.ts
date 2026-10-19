@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays, parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { ASSET_GROUPS } from '../src/features/workbook/domain/assets'
+import { FORECAST_RULE_IDS } from '../src/packs/hr-doo/domain/forecast/forecastRules'
 import { ACTS } from '../src/packs/hr-doo/ruleset/acts'
 import { accountingOpenItems, accountingRules } from '../src/packs/hr-doo/ruleset/rules/accounting'
 import { companyLawOpenItems, companyLawRules } from '../src/packs/hr-doo/ruleset/rules/company-law'
@@ -50,66 +51,6 @@ const NN_ISSUE_PATTERN = /^(\d{1,3})\/(\d{2})$/
 
 /** An income tax or contribution rule may cite ZPD only for the corporate tax rate or the add-back of private costs. */
 const ZPD_CROSS_REFERENCES = new Set(['28', '7(1)(13)'])
-
-/** The rules the year-end estimate, the forecast, the payroll and the pay scenarios read for 2025 and 2026. */
-const FORECAST_RULE_IDS: readonly string[] = [
-  'hr.cit.base',
-  'hr.cit.pd-lines',
-  'hr.cit.rate',
-  'hr.cit.rate-test-revenue',
-  'hr.cit.representation-add-back',
-  'hr.cit.personal-transport-add-back',
-  'hr.cit.depreciation-rates',
-  'hr.cit.depreciation-start',
-  'hr.cit.asset-threshold',
-  'hr.cit.fines-add-back',
-  'hr.cit.donation-cap',
-  'hr.cit.sponsorship-decrease',
-  'hr.cit.private-cost-add-back',
-  'hr.cit.grant-revenue',
-  'hr.cit.loss-carry-forward',
-  'hr.cit.related-party-scope',
-  'hr.cit.related-party-report',
-  'hr.cit.balance-due',
-  'hr.cit.monthly-advance',
-  'hr.cit.advance-change',
-  'hr.cit.profit-advance-shortfall',
-  'hr.cit.filing',
-  'hr.contrib.average-wage',
-  'hr.contrib.director-floor',
-  'hr.contrib.board-only-base',
-  'hr.contrib.insurance-basis',
-  'hr.contrib.rates',
-  'hr.contrib.max-base',
-  'hr.contrib.low-pay-relief',
-  'hr.pit.allowance',
-  'hr.pit.brackets',
-  'hr.pit.local-rates',
-  'hr.pit.monthly-advance',
-  'hr.pit.annual-settlement',
-  'hr.pit.youth-relief',
-  'hr.pit.nontaxable-caps',
-  'hr.pit.foreign-per-diem',
-  'hr.pit.loan-benefit',
-  'hr.pit.rent',
-  'hr.pit.dividend',
-  'hr.pit.hidden-distribution',
-  'hr.vat.rates',
-  'hr.vat.input-deduction',
-  'hr.vat.deadlines',
-  'hr.vat.credit',
-  'hr.acc.accrual-basis',
-  'hr.acc.capitalisation',
-  'hr.acc.grant-recognition',
-  'hr.ztd.min-share-capital',
-  'hr.ztd.reserves',
-  'hr.ztd.distributable-profit',
-  'hr.ztd.withhold-on-deterioration',
-  'hr.ztd.capital-protection',
-  'hr.ztd.members-decision-deadline',
-  'hr.ztd.asset-purchase-decision',
-  'hr.ztd.sole-member-deals',
-]
 
 const exampleSource: LegalSource = {
   act: 'ZPD',

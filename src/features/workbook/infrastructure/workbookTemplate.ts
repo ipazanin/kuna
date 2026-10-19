@@ -170,7 +170,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'year', note: 'The year planned, such as 2027. Required.' },
     { name: 'month', note: 'The month from 1 to 12. Blank means every month of the year.' },
     { name: 'item', note: 'revenue, a category from the categories tab, owner_pay_scenario, dividend or purchase. Each year, month and item once. Required.' },
-    { name: 'amount', note: 'The amount planned, as a number. On an owner_pay_scenario row, the name of a scenario from the scenarios tab. Required.' },
+    { name: 'amount', note: 'The amount planned for the month as a positive number, a cost without the VAT that is reclaimed. On an owner_pay_scenario row, the name of a scenario from the scenarios tab. Required.' },
     { name: 'note', note: 'Why you expect it. Optional.' },
   ],
   scenarios: [

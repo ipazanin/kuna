@@ -1,0 +1,349 @@
+import type { RouteLocationRaw } from 'vue-router'
+
+import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
+import type { PlanLine } from '../../../../features/workbook/domain/plan'
+import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { monthKey, yearOfMonth } from '../../../../shared/calendar/monthKey'
+import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { negateMoney, sumMoney } from '../../../../shared/money/money'
+import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { dayLabel, ruleLink } from '../../ruleset/presentation/ruleWording'
+import type { TracedFigure } from '../../ruleset/tracedFigure'
+import { dividendCapacity } from '../../domain/dividend/dividendCapacity'
+import type { PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
+import type { ForecastLine, ForecastMonth, LinePart, MonthBasis } from '../../domain/forecast/forecastLines'
+import { forecastYear } from '../../domain/forecast/forecastYear'
+import type { YearForecast } from '../../domain/forecast/forecastYear'
+import { percentText } from '../../domain/payroll/payrollArithmetic'
+import { citObligationLine } from '../CitObligationList.vue'
+import type { CitObligationLine } from '../CitObligationList.vue'
+import { missingAccrualRoles } from '../accrualRoles'
+import { ruleChips, stepsOf } from '../tracedFigureView'
+import type { BuildUpStep, RuleChip } from '../yearEnd/LineBuildUp.vue'
+import { lineLabel } from '../yearEnd/yearEndWording'
+import type { BuildUpLine } from './BuildUpList.vue'
+import type { ForecastChartMonth } from './forecastChart'
+import { rowsBehind } from './rowsBehind'
+
+/** How the screen opens rows and names categories. */
+export interface ForecastViewContext {
+  readonly link: (drill: DrillTarget | null) => RouteLocationRaw | null
+  readonly categoryName: (slug: string) => string
+}
+
+export interface ShownFigure {
+  readonly key: string
+  readonly label: string
+  readonly cents: number
+  readonly to: RouteLocationRaw | null
+}
+
+export interface PayoutView {
+  readonly id: PayoutOptionId
+  readonly name: string
+  readonly label: string
+  /** When it can be paid, in words. */
+  readonly when: string
+  readonly figures: readonly ShownFigure[]
+  readonly capitalProtected: boolean
+  readonly rules: readonly RuleChip[]
+}
+
+export interface PlanRowView {
+  readonly key: string
+  readonly month: string
+  readonly item: string
+  readonly value: { readonly cents: number } | { readonly text: string }
+  readonly note: string
+  /** Why the forecast does not count the row, or null when it does. */
+  readonly notCounted: string | null
+}
+
+const PAYOUT_NAMES: Readonly<Record<PayoutOptionId, string>> = {
+  'after-adoption': 'One payout next year',
+  interim: 'Interim payout now',
+  keep: 'Keep it in the company',
+}
+
+const BASIS_WORDS: readonly (readonly [MonthBasis, string])[] = [
+  ['actual', 'from the ledger'],
+  ['paid-ahead', 'paid ahead'],
+  ['planned', 'planned'],
+  ['averaged', 'averaged'],
+]
+
+const SHORT_MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
+
+/** Everything the Forecast screen shows for one year, seen on `asOf`. */
+export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, context: ForecastViewContext) {
+  const forecast = forecastYear(workbook, year, asOf)
+  const capacity = dividendCapacity(year, forecast, workbook)
+  const { calendar, taxBase: base, liability, cit } = forecast
+  const linkOf = (figure: TracedFigure | null): RouteLocationRaw | null => (figure === null ? null : context.link(figure.drill))
+  const running = calendar.running !== null && yearOfMonth(calendar.running) === year ? calendar.running : null
+  const forecastMonths = forecast.profitBeforeTax.months.filter(isGuessed).length
+
+  const incomeLines = forecast.lines.filter((entry) => entry.line === 'sales' || entry.line === 'other-operating-income')
+  const costLines = forecast.lines.filter((entry) => !incomeLines.includes(entry))
+  const chartMonths = calendar.months.map((month, index): ForecastChartMonth => {
+    const inMonth = (lines: typeof forecast.lines) => lines.map((entry) => entry.forecast.months[index] as ForecastMonth)
+    const known = (lines: typeof forecast.lines) => rowsBehind(lines.flatMap((entry) => knownFigures(entry.parts, index)))
+    const income = inMonth(incomeLines)
+    const costs = inMonth(costLines)
+    return {
+      month,
+      income: sumMoney(income.map((entry) => entry.figure.amount)),
+      costs: sumMoney(costs.map((entry) => entry.figure.amount)),
+      profit: (forecast.profitBeforeTax.months[index] as ForecastMonth).figure.amount,
+      incomeForecast: income.some(isGuessed),
+      costsForecast: costs.some(isGuessed),
+      basis: basisWords((forecast.profitBeforeTax.months[index] as ForecastMonth).bases),
+      incomeRows: known(incomeLines),
+      costsRows: known(costLines),
+    }
+  })
+
+  const profitAndLoss: BuildUpLine[] = [
+    ...forecast.lines
+      .filter((entry) => entry.line === 'sales' || entry.forecast.total.amount !== 0)
+      .map(
+        (entry): BuildUpLine => ({
+          key: entry.line,
+          label: lineLabel('pl', entry.line),
+          caption: basisCaption(entry.forecast),
+          value: { cents: entry.forecast.total.amount },
+          to: context.link(rowsBehind(entry.parts.flatMap((part) => part.line.months.flatMap((_, index) => knownFigures([part], index))))),
+          total: false,
+          steps: entry.parts.flatMap((part, index) => partSteps(part, `${index}`, context)),
+          rules: ruleChips(entry.forecast.total.rules),
+        }),
+      ),
+    {
+      key: 'profit-before-tax',
+      label: 'Profit before tax',
+      caption: basisCaption(forecast.profitBeforeTax),
+      value: { cents: forecast.profitBeforeTax.total.amount },
+      to: null,
+      total: true,
+      steps: [],
+      rules: ruleChips(base.profitBeforeTax.rules),
+    },
+  ]
+
+  const pdLine = (key: string, figure: TracedFigure, total = false): BuildUpLine => ({
+    key,
+    label: figure.label,
+    caption: null,
+    value: { cents: figure.amount },
+    to: linkOf(figure),
+    total,
+    steps: stepsOf(figure, linkOf),
+    rules: ruleChips(figure.rules),
+  })
+  const pdReturn: BuildUpLine[] = [
+    pdLine('revenue', base.revenue),
+    pdLine('expenses', base.expenses),
+    pdLine('profit', base.profitBeforeTax, true),
+    pdLine('increases', base.increases),
+    pdLine('decreases', base.decreases),
+    pdLine('losses', base.lossesUsed),
+    pdLine('base', base.base, true),
+    {
+      key: 'rate',
+      label: liability.rate.label,
+      caption: null,
+      value: { text: percentText(liability.rate.basisPoints) },
+      to: null,
+      total: false,
+      steps: [{ key: 'test', label: liability.rateTestRevenue.label, cents: liability.rateTestRevenue.amount, to: linkOf(liability.rateTestRevenue), depth: 0 }],
+      rules: ruleChips(liability.rate.rules),
+    },
+    pdLine('liability', liability.liability, true),
+    ...(liability.advancesPaid === null ? [] : [pdLine('advances', liability.advancesPaid)]),
+    ...(liability.balanceDue === null ? [] : [pdLine('balance-due', liability.balanceDue)]),
+    ...(liability.refund === null || liability.refund.amount === 0 ? [] : [pdLine('refund', liability.refund)]),
+    pdLine('monthly-advance', liability.monthlyAdvance),
+    pdLine('profit-after-tax', forecast.profitAfterTax, true),
+  ]
+
+  const less = (figure: TracedFigure): TracedFigure => ({ ...figure, amount: negateMoney(figure.amount) })
+  const capacityLines: BuildUpLine[] = [
+    pdLine('profit-after-tax', capacity.profitAfterTax),
+    pdLine('retained', capacity.retainedEarnings),
+    pdLine('losses', less(capacity.lossesBroughtForward)),
+    pdLine('paid-out', less(capacity.paidOutInYear)),
+    pdLine('distributable', capacity.distributable, true),
+    pdLine('share-capital', capacity.shareCapital),
+    pdLine('net-assets', capacity.netAssetsAtYearEnd),
+    pdLine('max-payout', capacity.maxPayout, true),
+  ]
+  const { prudence } = capacity
+  const prudenceLines: BuildUpLine[] = [
+    pdLine('clawback', prudence.clawbackExposure),
+    pdLine('cash', prudence.cashAtYearEnd),
+    pdLine('balance-due', less(prudence.balanceDue)),
+    pdLine('december', less(prudence.decemberDue)),
+    pdLine('cash-after', prudence.cashAfterObligations, true),
+    pdLine('owed', prudence.owedByOwner),
+  ]
+
+  return {
+    forecast,
+    running,
+    tiles: [
+      {
+        label: 'Profit before tax',
+        value: formatWholeMoney(base.profitBeforeTax.amount),
+        to: null,
+        caption: forecastMonths === 0 ? 'Every month from the ledger' : `${12 - forecastMonths} of 12 months from the ledger alone`,
+        definition: 'Income less costs on the accrual view, as the accountant books them. Months the ledger has not closed take the plan row, else the line’s average.',
+      },
+      {
+        label: 'Corporate tax',
+        value: formatWholeMoney(liability.liability.amount),
+        to: ruleLink('hr.cit.rate'),
+        caption: `At ${percentText(liability.rate.basisPoints)} on a base of ${formatWholeMoney(base.base.amount)}`,
+        definition: 'PD line 53, the tax on the base after the add-backs. Opens the rule with the rates.',
+      },
+      {
+        label: 'Profit after tax',
+        value: formatWholeMoney(forecast.profitAfterTax.amount),
+        to: null,
+        caption: `${formatWholeMoney(capacity.maxPayout.amount)} could be paid out`,
+        definition: 'Profit before tax less the corporate tax of the year. What can be paid out also counts earlier years and the share capital.',
+      },
+      {
+        label: 'Cash at the year end',
+        value: formatWholeMoney(forecast.cashAtYearEnd.amount),
+        to: null,
+        caption: `Projected for 31 Dec ${year}`,
+        definition:
+          'Cash on the newest booking, with open invoices collected and the VAT position settled, then each forecast month as it would be paid. A planning projection, not a bank balance.',
+      },
+    ],
+    chartMonths,
+    profitAndLoss,
+    pdReturn,
+    obligations: cit.obligations.map((entry): CitObligationLine => citObligationLine(entry, linkOf)),
+    advancesPaid: cit.advancesPaid,
+    advancesToCome: cit.advancesToCome,
+    balanceDue: cit.balanceDue === null ? null : { label: cit.balanceDue.expected.label, cents: cit.balanceDue.expected.amount, dueOn: dayLabel(cit.balanceDue.dueOn), rules: ruleChips(cit.balanceDue.expected.rules) },
+    refund: liability.refund !== null && liability.refund.amount > 0 ? liability.refund.amount : null,
+    newAdvance:
+      cit.newAdvance === null || cit.newAdvance.month === null
+        ? null
+        : { month: monthLabel(cit.newAdvance.month), cents: cit.newAdvance.expected.amount, dueOn: dayLabel(cit.newAdvance.dueOn), rules: ruleChips(cit.newAdvance.expected.rules) },
+    unmatched: cit.unmatched.map((figure, index): ShownFigure => ({ key: `${index}`, label: figure.label, cents: figure.amount, to: linkOf(figure) })),
+    capacityLines,
+    prudenceLines,
+    deterioration: ruleChips([prudence.deterioration]),
+    decideBy: dayLabel(capacity.decideBy),
+    payouts: capacity.options.map((option) => payoutView(option, linkOf)),
+    planRows: planRows(workbook.planLines.filter((line) => line.year === year), forecast, year, context),
+    uninvoiced: forecast.uninvoicedMonths.map((entry) => ({ month: monthLabel(entry.month), next: entry.nextInvoice.number })),
+    missingRoles: missingAccrualRoles(workbook.categories),
+  }
+}
+
+/** A month a plan row or an average stands in for, in whole or in part. */
+function isGuessed(entry: ForecastMonth): boolean {
+  return entry.bases.includes('planned') || entry.bases.includes('averaged')
+}
+
+/** The figures of a month the ledger settles, from the parts of a line, which open their rows. */
+function knownFigures(parts: readonly LinePart[], index: number): TracedFigure[] {
+  return parts.flatMap((part) => {
+    const entry = part.line.months[index]
+    return entry !== undefined && entry.bases.length > 0 && !isGuessed(entry) ? [entry.figure] : []
+  })
+}
+
+function basisWords(bases: readonly MonthBasis[]): string {
+  const words = BASIS_WORDS.filter(([basis]) => bases.includes(basis)).map(([, word]) => word)
+  if (words.length > 0) {
+    return words.join(' and ')
+  }
+  return bases.includes('scheduled') ? 'from the asset and grant schedules' : 'nothing'
+}
+
+/** "Jan to Sep from the ledger, Oct averaged, Nov to Dec planned", or "Every month …" when one basis holds the year. */
+function basisCaption(line: ForecastLine): string {
+  const runs: { first: MonthKey; last: MonthKey; words: string }[] = []
+  for (const entry of line.months) {
+    const words = basisWords(entry.bases)
+    const previous = runs[runs.length - 1]
+    if (previous !== undefined && previous.words === words) {
+      previous.last = entry.month
+    } else {
+      runs.push({ first: entry.month, last: entry.month, words })
+    }
+  }
+  const [only] = runs
+  if (runs.length === 1 && only !== undefined) {
+    return `Every month ${only.words}`
+  }
+  const short = (month: MonthKey) => SHORT_MONTH.format(new Date(`${month}-01T00:00:00Z`))
+  return runs.map((run) => `${run.first === run.last ? short(run.first) : `${short(run.first)} to ${short(run.last)}`} ${run.words}`).join(', ')
+}
+
+/** A part of a profit and loss line, with the months a plan row or an average stands in for under it. */
+function partSteps(part: LinePart, key: string, context: ForecastViewContext): BuildUpStep[] {
+  const { line, sign } = part
+  if (line.total.amount === 0) {
+    return []
+  }
+  const scheduled = line.total.basis === 'assets'
+  const rows = rowsBehind(line.months.flatMap((_, index) => knownFigures([part], index)))
+  const guessed = line.months.filter(isGuessed)
+  return [
+    { key, label: line.label, cents: sign * line.total.amount, to: rows === null ? (scheduled ? { path: '/assets' } : null) : context.link(rows), depth: 0 },
+    ...guessed.map(
+      (entry): BuildUpStep => ({ key: `${key}-${entry.month}`, label: `${monthLabel(entry.month)}, ${basisWords(entry.bases)}`, cents: sign * entry.figure.amount, to: null, depth: 1 }),
+    ),
+  ]
+}
+
+function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) => RouteLocationRaw | null): PayoutView {
+  const shown = (key: string, label: string, figure: TracedFigure | null): ShownFigure[] => (figure === null ? [] : [{ key, label, cents: figure.amount, to: linkOf(figure) }])
+  return {
+    id: option.id,
+    name: PAYOUT_NAMES[option.id],
+    label: option.label,
+    when:
+      option.earliestOn === null || option.latestOn === null
+        ? `${option.gross.label}.`
+        : `Earliest on ${dayLabel(option.earliestOn)}, and no later than ${dayLabel(option.latestOn)}.`,
+    figures: [
+      ...shown('gross', 'Payout before tax', option.gross),
+      ...shown('tax', 'Dividend tax', option.dividendTax),
+      ...shown('net', 'Net to the owner', option.net),
+      ...shown('set-off', 'Set off against what the owner owes', option.setOff),
+      ...shown('cash-out', 'Paid out in cash, with the tax', option.cashOut),
+      ...shown('cash-left', 'Cash left after it', option.cashLeft),
+      ...shown('owed-after', 'The owner still owes', option.owedByOwnerAfter),
+      ...shown('benefit', 'Loan benefit in kind a year', option.loanBenefitPerYear),
+      ...shown('net-assets', 'Net assets after it', option.netAssetsAfter),
+      ...shown('clawback', 'Grant clawback at risk', option.clawbackExposure),
+      ...shown('shortfall', 'Taxed as the owner’s income', option.shortfall),
+      ...shown('retained', 'Kept in the company', option.retainedAfter),
+    ],
+    capitalProtected: option.capitalProtected,
+    rules: ruleChips([option.gross, option.dividendTax, option.loanBenefitPerYear, ...(option.shortfall === null ? [] : [option.shortfall])].flatMap((figure) => figure.rules)),
+  }
+}
+
+function planRows(lines: readonly PlanLine[], forecast: YearForecast, year: number, context: ForecastViewContext): PlanRowView[] {
+  const ITEMS: Readonly<Record<string, string>> = { revenue: 'Revenue', dividend: 'Dividend', purchase: 'Purchase' }
+  return [...lines]
+    .sort((earlier, later) => (earlier.month ?? 0) - (later.month ?? 0) || earlier.sheetRow - later.sheetRow)
+    .map((line): PlanRowView => ({
+      key: `${line.sheetRow}`,
+      month: line.month === null ? 'Every month' : monthLabel(monthKey(year, line.month)),
+      item: line.kind === 'owner-pay-scenario' ? 'Owner pay scenario' : (ITEMS[line.item] ?? context.categoryName(line.item)),
+      value: line.kind === 'owner-pay-scenario' ? { text: line.scenario } : { cents: line.amount },
+      note: line.note,
+      notCounted: forecast.notModelled.find((entry) => entry.line === line)?.reason ?? null,
+    }))
+}

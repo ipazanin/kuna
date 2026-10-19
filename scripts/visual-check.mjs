@@ -57,6 +57,7 @@ const SCREENS = [
   { name: 'assets', hash: '#/assets', title: 'Assets', charts: 1, shows: 'Workstation' },
   { name: 'assets-doubled', hash: '#/assets?rates=doubled', title: 'Assets', charts: 1, shows: 'What doubled rates would change' },
   { name: 'year-end', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'From the cash net to profit, 2025' },
+  { name: 'forecast', hash: '#/forecast', title: 'Forecast', charts: 0, shows: 'The forecast needs the day the company was registered' },
   { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: 'Costs the owner paid privately' },
   { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
   {
@@ -87,6 +88,9 @@ const SOURCE_SCREENS = [
   { name: 'workbook-grants-excel', query: 'fake=excel', hash: '#/workbook?tab=grants', title: 'Workbook', charts: 0, shows: 'Save grants' },
   { name: 'workbook-year-end-excel', query: 'fake=excel', hash: '#/workbook?tab=year-end', title: 'Workbook', charts: 0, shows: 'Save year-end lines' },
   { name: 'year-end-excel', query: 'fake=excel', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'Balance paid on' },
+  { name: 'forecast-excel', query: 'fake=excel', hash: '#/forecast?year=2026', title: 'Forecast', charts: 1, shows: 'Corporate tax payments, expected against paid' },
+  { name: 'forecast-2027-excel', query: 'fake=excel', hash: '#/forecast?year=2027&payout=interim', title: 'Forecast', charts: 1, shows: 'An interim payout in 2027' },
+  { name: 'taxes-excel', query: 'fake=excel', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'For 2026' },
   { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'rows the app could not use', upload: true },
 ]
 

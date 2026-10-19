@@ -15,6 +15,15 @@ export const COST_LINES = [
 
 export type CostLine = (typeof COST_LINES)[number]
 
+export const COST_LINE_LABELS: Readonly<Record<CostLine, string>> = {
+  'material-costs': 'Material costs',
+  'personnel-costs': 'Personnel costs',
+  depreciation: 'Depreciation',
+  'other-costs': 'Other costs',
+  'impairment-provisions-other': 'Impairment, provisions and other operating expenses',
+  'financial-expenses': 'Financial expenses',
+}
+
 /** The profit and loss line of each cost class of the Croatian chart of accounts, by a konto's first two digits. */
 const KONTO_CLASS_LINES: Readonly<Record<string, CostLine>> = {
   '40': 'material-costs',
