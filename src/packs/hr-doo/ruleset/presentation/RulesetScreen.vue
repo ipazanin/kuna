@@ -93,15 +93,20 @@ watch(
     search.value = ''
     area.value = 'all'
     await nextTick()
-    // The router scrolls a newly opened screen to its top after it renders. The rule is shown after that.
-    requestAnimationFrame(() => requestAnimationFrame(() => showLinkedRule(ruleId)))
+    // The router scrolls a newly opened screen to its top after it renders. The screen's first frame
+    // then asks for the web fonts its text needs, and they move every card once they swap in, so the
+    // rule is shown after the fonts have loaded.
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await document.fonts.ready
+    showLinkedRule(ruleId)
   },
   { immediate: true },
 )
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
+  <section class="flex max-w-measure flex-col gap-6">
     <PageHeader
       title="Ruleset"
       :description="`The Croatian law behind the pack's figures: each rule's value per year, the article it comes from, and how sure that value is. Checked against the sources on ${checkedOn}.`"

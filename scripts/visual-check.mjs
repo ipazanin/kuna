@@ -1,11 +1,12 @@
 /**
  * Renders every screen of the fake-mode build in real Chrome at four widths, in the dark and the
- * light theme, and asserts what a screenshot cannot: no horizontal overflow, no console errors (CSP
+ * light theme, and the screens that pair cards on a wide monitor at 1920 and 2560 px in one theme
+ * each. It asserts what a screenshot cannot: no horizontal overflow, no console errors (CSP
  * violations included), no request to another origin, that each screen rendered its title, and
  * that it drew as many charts as it has from the fake workbook. Every chart on the gallery must
  * draw and every icon must come from the bundle. At tablet and desktop widths, cards whose tops
  * line up in a row must end at the same height. A deep link to a rule on Ruleset must bring that rule
- * into view below the search bar, marked and focused.
+ * to just below the search bar, marked and focused, and keep it there once slow web fonts swap in.
  *
  * Beyond the screens of the fake Google workbook, it renders the first-run welcome screen
  * (`?fake=empty`), Settings and each Workbook tab for a workbook kept in this browser (`?fake=excel`), and the import
@@ -31,11 +32,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
 const BASE = process.argv[2] ?? 'http://localhost:4173/ledgerboard/'
 
+/** The screens whose layout changes from 1920 px, and one capped at the measure of a single table. */
+const WIDE_SCREENS = ['overview', 'transactions', 'period-review', 'receivables', 'billing', 'taxes', 'owner', 'ruleset-linked']
+
 const VIEWPORTS = [
   { name: 'phone', width: 360, height: 780 },
   { name: 'phone-large', width: 430, height: 932 },
   { name: 'tablet', width: 834, height: 1112, alignedCards: true },
   { name: 'desktop', width: 1440, height: 900, alignedCards: true },
+  { name: 'wide', width: 1920, height: 1080, alignedCards: true, theme: 'dark', screens: WIDE_SCREENS },
+  { name: 'wider', width: 2560, height: 1440, alignedCards: true, theme: 'light', screens: WIDE_SCREENS },
 ]
 
 /** A card is a raised surface. One nested inside another card is part of that card. */
@@ -168,17 +174,31 @@ function readPage(page) {
       raggedRows: raggedCardRows(cardSelector),
     }
 
-    /** Pairs of side-by-side cards whose tops line up but whose bottoms are more than 1 px apart. */
+    /**
+     * Pairs of side-by-side cards whose tops line up but whose bottoms are more than 1 px apart. A card
+     * with a sibling card stacked right under it, beside one without, heads a column of cards beside a
+     * single long card, so its bottom is not meant to line up.
+     */
     function raggedCardRows(selector) {
       const cards = [...document.querySelectorAll(selector)]
         .filter((card) => !card.parentElement?.closest(selector) && card.getClientRects().length > 0)
         .map((card) => ({ card, box: card.getBoundingClientRect() }))
       const label = (card) => (card.querySelector('h2, h3, p, dt, span')?.textContent ?? card.textContent ?? '').trim().slice(0, 32)
+      const headsColumn = ({ card, box }) =>
+        cards.some(
+          (other) =>
+            other.card.parentElement === card.parentElement &&
+            Math.abs(other.box.left - box.left) <= 1 &&
+            Math.abs(other.box.right - box.right) <= 1 &&
+            other.box.top >= box.bottom - 1 &&
+            other.box.top - box.bottom <= 32,
+        )
       const ragged = []
       for (const [index, left] of cards.entries()) {
         for (const right of cards.slice(index + 1)) {
           const sideBySide = left.box.right <= right.box.left + 1 || right.box.right <= left.box.left + 1
           if (!sideBySide || Math.abs(left.box.top - right.box.top) > 1) continue
+          if (headsColumn(left) !== headsColumn(right)) continue
           const gap = Math.abs(left.box.bottom - right.box.bottom)
           if (gap > 1) ragged.push(`"${label(left.card)}" and "${label(right.card)}" end ${Math.round(gap)} px apart`)
         }
@@ -188,13 +208,22 @@ function readPage(page) {
   }, CARD_SELECTOR)
 }
 
-/** Runs in the page: the linked rule card is marked, has focus, and starts below the sticky search bar in the upper half of the window. */
+/** Runs in the page: the linked rule card is marked, has focus, and starts just below the sticky search bar. */
 function linkedRuleInView(ruleId) {
   const card = document.getElementById(`rule-${ruleId}`)
   const bar = document.querySelector('[data-testid="ruleset-bar"]')
   if (card === null || bar === null || card.dataset.linked !== 'true' || document.activeElement !== card) return false
-  const top = card.getBoundingClientRect().top
-  return top >= bar.getBoundingClientRect().bottom - 1 && top < window.innerHeight / 2
+  const below = card.getBoundingClientRect().top - bar.getBoundingClientRect().bottom
+  return below >= -1 && below <= 24
+}
+
+/** Holds back every web font, as a slow runner does, so text reflows after the screen's first frames. */
+async function slowWebFonts(page) {
+  await page.setRequestInterception(true)
+  page.on('request', (request) => {
+    if (request.url().endsWith('.woff2')) setTimeout(() => request.continue(), 400)
+    else request.continue()
+  })
 }
 
 mkdirSync(SCREENSHOT_DIR, { recursive: true })
@@ -223,12 +252,14 @@ const browser = await launch({ executablePath: chromePath(), headless: true, arg
 
 for (const viewport of VIEWPORTS) {
   for (const visit of VISITS) {
+    if (viewport.screens && (!viewport.screens.includes(visit.name) || visit.theme !== viewport.theme)) continue
     const scope = `${viewport.name} ${visit.name}`
     const context = await browser.createBrowserContext()
     const page = await context.newPage()
     const errors = watchForErrors(page)
     const foreignRequests = watchForForeignRequests(page)
 
+    if (visit.linkedRule) await slowWebFonts(page)
     await page.setViewport({ width: viewport.width, height: viewport.height })
     // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
@@ -253,11 +284,12 @@ for (const viewport of VIEWPORTS) {
     }
 
     if (visit.linkedRule && rendered) {
+      await page.evaluate(() => document.fonts.ready.then(() => undefined))
       const shown = await page
         .waitForFunction(linkedRuleInView, { timeout: 5_000 }, visit.linkedRule)
         .then(() => true)
         .catch(() => false)
-      if (!shown) fail(scope, `the deep link did not bring ${visit.linkedRule} into view below the search bar, marked and focused`)
+      if (!shown) fail(scope, `the deep link did not bring ${visit.linkedRule} to just below the search bar, marked and focused, once the fonts loaded`)
     }
 
     // ECharts animates bars in. The screenshot should show where they land.

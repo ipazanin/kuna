@@ -199,88 +199,90 @@ const corporateTax = computed(() => {
           <KpiTile v-for="(tile, index) in taxes.tiles" :key="tile.label" v-bind="tile" :class="{ 'col-span-2 lg:col-span-1': index === 2 }" />
         </div>
 
-        <DrillChartCard
-          :chart="taxes.chart"
-          title="Tax by type, by month"
-          :subtitle="`${taxes.period}. Click a month or a band for its rows.`"
-          definition="Each category of the taxes bucket, stacked. A refund dips below zero in the month it landed. The month still running is hatched and counts in no typical amount."
-          :empty="taxes.empty"
-          :height="320"
-          :phone-height="260"
-        >
-          <template #legend><ChartLegend :entries="taxes.legend" /></template>
-        </DrillChartCard>
+        <div class="wide-pair">
+          <DrillChartCard
+            :chart="taxes.chart"
+            title="Tax by type, by month"
+            :subtitle="`${taxes.period}. Click a month or a band for its rows.`"
+            definition="Each category of the taxes bucket, stacked. A refund dips below zero in the month it landed. The month still running is hatched and counts in no typical amount."
+            :empty="taxes.empty"
+            :height="320"
+            :phone-height="260"
+          >
+            <template #legend><ChartLegend :entries="taxes.legend" /></template>
+          </DrillChartCard>
 
-        <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 class="text-sm font-medium text-highlighted">By type</h2>
-              <p class="mt-0.5 text-xs text-muted">{{ taxes.period }}. Typical is the median of the complete months with a payment.</p>
-            </header>
-            <p v-if="taxes.types.length === 0" class="px-5 py-8 text-sm text-muted">No tax moved in this period.</p>
-            <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-              <table class="data-table w-full text-sm" data-testid="tax-types">
-                <thead>
-                  <tr>
-                    <th scope="col" class="text-start">Type</th>
-                    <th scope="col" class="text-end">Paid</th>
-                    <th scope="col" class="text-end">Typical</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="type in taxes.types" :key="type.category">
-                    <th scope="row" class="w-full text-start font-normal">
-                      <DrillLink :to="type.to" class="inline-flex min-w-0 items-center gap-2 text-toned">
-                        <span class="size-2.5 shrink-0 rounded-[2px]" :style="{ background: type.colour }" aria-hidden="true" />
-                        <span class="max-w-32 truncate sm:max-w-none">{{ type.name }}</span>
-                      </DrillLink>
-                    </th>
-                    <td class="text-end">
-                      <DrillLink :to="type.to" :label="`${type.name}, open the rows`"><MoneyText :cents="type.total" precision="whole" /></DrillLink>
-                    </td>
-                    <td class="figure text-end text-muted">{{ type.typical === null ? '–' : formatWholeMoney(type.typical) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] 3xl:grid-cols-1 3xl:content-start">
+            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
+              <header class="px-4 pt-4 sm:px-5">
+                <h2 class="text-sm font-medium text-highlighted">By type</h2>
+                <p class="mt-0.5 text-xs text-muted">{{ taxes.period }}. Typical is the median of the complete months with a payment.</p>
+              </header>
+              <p v-if="taxes.types.length === 0" class="px-5 py-8 text-sm text-muted">No tax moved in this period.</p>
+              <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+                <table class="data-table w-full text-sm" data-testid="tax-types">
+                  <thead>
+                    <tr>
+                      <th scope="col" class="text-start">Type</th>
+                      <th scope="col" class="text-end">Paid</th>
+                      <th scope="col" class="text-end">Typical</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="type in taxes.types" :key="type.category">
+                      <th scope="row" class="w-full text-start font-normal">
+                        <DrillLink :to="type.to" class="inline-flex min-w-0 items-center gap-2 text-toned">
+                          <span class="size-2.5 shrink-0 rounded-[2px]" :style="{ background: type.colour }" aria-hidden="true" />
+                          <span class="max-w-32 truncate sm:max-w-none">{{ type.name }}</span>
+                        </DrillLink>
+                      </th>
+                      <td class="text-end">
+                        <DrillLink :to="type.to" :label="`${type.name}, open the rows`"><MoneyText :cents="type.total" precision="whole" /></DrillLink>
+                      </td>
+                      <td class="figure text-end text-muted">{{ type.typical === null ? '–' : formatWholeMoney(type.typical) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="payroll-cadence">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 class="text-sm font-medium text-highlighted">Payroll cadence</h2>
-              <p class="mt-0.5 text-xs text-muted">Every watched tax, month by month since its first payment. A month counts as paid when any payment landed in it.</p>
-            </header>
-            <p v-if="taxes.cadences.length === 0" class="px-5 py-8 text-sm text-muted">No watched tax category has a payment yet.</p>
-            <div v-else class="flex flex-col gap-6 px-4 pt-3 pb-4 sm:px-5">
-              <section v-for="cadence in taxes.cadences" :key="cadence.category" :aria-label="cadence.name" class="flex flex-col gap-3">
-                <h3 class="text-sm font-medium text-highlighted">{{ cadence.name }}, since {{ cadence.since }}</h3>
-                <dl class="grid grid-cols-3 gap-3">
-                  <div class="min-w-0">
-                    <dt class="text-xs text-muted">Complete months paid</dt>
-                    <dd class="text-sm font-medium text-highlighted">
-                      <DrillLink :to="cadence.allRows" :label="`${cadence.name}, ${cadence.paid} of ${cadence.elapsed} months paid, open the rows`">
-                        <span class="figure">{{ cadence.paid }} of {{ cadence.elapsed }}</span>
-                      </DrillLink>
-                    </dd>
-                  </div>
-                  <div class="min-w-0">
-                    <dt class="text-xs text-muted">Missed</dt>
-                    <dd class="figure text-sm font-medium" :class="cadence.missed === 0 ? 'text-highlighted' : 'text-negative'">{{ cadence.missed === 0 ? 'None' : cadence.missed }}</dd>
-                  </div>
-                  <div class="min-w-0">
-                    <dt class="text-xs text-muted">Typical month</dt>
-                    <dd class="text-sm font-medium text-highlighted">
-                      <DrillLink v-if="cadence.typical !== null" :to="cadence.allRows" :label="`${cadence.name}, typical month, open the rows`">
-                        <MoneyText :cents="cadence.typical" precision="whole" />
-                      </DrillLink>
-                      <span v-else>–</span>
-                    </dd>
-                  </div>
-                </dl>
-                <CadenceCalendar :name="cadence.name" :cells="cadence.cells" />
-              </section>
-            </div>
-          </section>
+            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="payroll-cadence">
+              <header class="px-4 pt-4 sm:px-5">
+                <h2 class="text-sm font-medium text-highlighted">Payroll cadence</h2>
+                <p class="mt-0.5 text-xs text-muted">Every watched tax, month by month since its first payment. A month counts as paid when any payment landed in it.</p>
+              </header>
+              <p v-if="taxes.cadences.length === 0" class="px-5 py-8 text-sm text-muted">No watched tax category has a payment yet.</p>
+              <div v-else class="flex flex-col gap-6 px-4 pt-3 pb-4 sm:px-5">
+                <section v-for="cadence in taxes.cadences" :key="cadence.category" :aria-label="cadence.name" class="flex flex-col gap-3">
+                  <h3 class="text-sm font-medium text-highlighted">{{ cadence.name }}, since {{ cadence.since }}</h3>
+                  <dl class="grid grid-cols-3 gap-3">
+                    <div class="min-w-0">
+                      <dt class="text-xs text-muted">Complete months paid</dt>
+                      <dd class="text-sm font-medium text-highlighted">
+                        <DrillLink :to="cadence.allRows" :label="`${cadence.name}, ${cadence.paid} of ${cadence.elapsed} months paid, open the rows`">
+                          <span class="figure">{{ cadence.paid }} of {{ cadence.elapsed }}</span>
+                        </DrillLink>
+                      </dd>
+                    </div>
+                    <div class="min-w-0">
+                      <dt class="text-xs text-muted">Missed</dt>
+                      <dd class="figure text-sm font-medium" :class="cadence.missed === 0 ? 'text-highlighted' : 'text-negative'">{{ cadence.missed === 0 ? 'None' : cadence.missed }}</dd>
+                    </div>
+                    <div class="min-w-0">
+                      <dt class="text-xs text-muted">Typical month</dt>
+                      <dd class="text-sm font-medium text-highlighted">
+                        <DrillLink v-if="cadence.typical !== null" :to="cadence.allRows" :label="`${cadence.name}, typical month, open the rows`">
+                          <MoneyText :cents="cadence.typical" precision="whole" />
+                        </DrillLink>
+                        <span v-else>–</span>
+                      </dd>
+                    </div>
+                  </dl>
+                  <CadenceCalendar :name="cadence.name" :cells="cadence.cells" />
+                </section>
+              </div>
+            </section>
+          </div>
         </div>
 
         <section v-if="corporateTax" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="corporate-tax-title" data-testid="corporate-tax">

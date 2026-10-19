@@ -221,50 +221,52 @@ const overview = computed(() => {
           </span>
         </p>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-          <header class="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 sm:px-5">
-            <div>
-              <h2 class="text-sm font-medium text-highlighted">A typical month, three ways</h2>
-              <p class="mt-0.5 text-xs text-muted">
-                Each window ends with the last complete month. A wide spread means recent months are not like the rest.
-              </p>
+        <div class="wide-pair">
+          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
+            <header class="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 sm:px-5">
+              <div>
+                <h2 class="text-sm font-medium text-highlighted">A typical month, three ways</h2>
+                <p class="mt-0.5 text-xs text-muted">
+                  Each window ends with the last complete month. A wide spread means recent months are not like the rest.
+                </p>
+              </div>
+            </header>
+            <div class="px-1 pt-2 pb-2 sm:px-2">
+              <WindowComparison :columns="overview.columnLabels" :rows="overview.comparison" />
             </div>
-          </header>
-          <div class="px-1 pt-2 pb-2 sm:px-2">
-            <WindowComparison :columns="overview.columnLabels" :rows="overview.comparison" />
+          </section>
+
+          <div class="grid gap-4 xl:grid-cols-2 3xl:contents">
+            <DrillChartCard
+              :chart="overview.monthly"
+              class="xl:col-span-2 3xl:col-span-1"
+              title="Income and costs by month"
+              subtitle="Last 12 complete months and the month so far. Income above zero, costs below it. Click a month or a bar for its rows."
+              :definition="`Costs are ${overview.costs}. The line is the average net of the three months up to each one, so it starts once three complete months exist.`"
+              :height="320"
+              :phone-height="260"
+            >
+              <template #legend><ChartLegend :entries="overview.monthlyLegend" /></template>
+            </DrillChartCard>
+
+            <DrillChartCard
+              :chart="overview.split"
+              :title="`Every ${overview.unit} earned`"
+              :subtitle="`Where each ${overview.unit} of income went, per window.`"
+              :definition="`Each bar is one window and adds up to 100%. In a loss there is nothing kept, so the bar splits every ${overview.unit} spent instead.`"
+              :height="180"
+            >
+              <template #legend><ChartLegend :entries="overview.splitLegend" /></template>
+            </DrillChartCard>
+
+            <DrillChartCard
+              :chart="overview.operating"
+              :title="`${overview.operatingLabel} by category`"
+              subtitle="Last 12 complete months"
+              :empty="overview.operatingCount === 0"
+              :height="Math.max(180, overview.operatingCount * 30 + 40)"
+            />
           </div>
-        </section>
-
-        <div class="grid gap-4 xl:grid-cols-2">
-          <DrillChartCard
-            :chart="overview.monthly"
-            class="xl:col-span-2"
-            title="Income and costs by month"
-            subtitle="Last 12 complete months and the month so far. Income above zero, costs below it. Click a month or a bar for its rows."
-            :definition="`Costs are ${overview.costs}. The line is the average net of the three months up to each one, so it starts once three complete months exist.`"
-            :height="320"
-            :phone-height="260"
-          >
-            <template #legend><ChartLegend :entries="overview.monthlyLegend" /></template>
-          </DrillChartCard>
-
-          <DrillChartCard
-            :chart="overview.split"
-            :title="`Every ${overview.unit} earned`"
-            :subtitle="`Where each ${overview.unit} of income went, per window.`"
-            :definition="`Each bar is one window and adds up to 100%. In a loss there is nothing kept, so the bar splits every ${overview.unit} spent instead.`"
-            :height="180"
-          >
-            <template #legend><ChartLegend :entries="overview.splitLegend" /></template>
-          </DrillChartCard>
-
-          <DrillChartCard
-            :chart="overview.operating"
-            :title="`${overview.operatingLabel} by category`"
-            subtitle="Last 12 complete months"
-            :empty="overview.operatingCount === 0"
-            :height="Math.max(180, overview.operatingCount * 30 + 40)"
-          />
         </div>
       </template>
     </LedgerGate>

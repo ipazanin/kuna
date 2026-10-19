@@ -253,7 +253,7 @@ function exportCsv(): void {
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
+  <section class="flex max-w-measure flex-col gap-6">
     <PageHeader title="Transactions" description="The rows behind every figure. Any number elsewhere opens here with its filters." />
     <LedgerGate>
       <template v-if="ledger">

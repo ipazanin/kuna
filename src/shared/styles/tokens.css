@@ -20,6 +20,14 @@
 
   --radius-card: 10px;
   --radius-control: 6px;
+
+  /*
+   * The shell's widest content, and the narrower measure of a screen made of one table, one list or
+   * one form. From 3xl the content beside the sidebar is wide enough for two full cards side by side.
+   */
+  --container-shell: 160rem;
+  --container-measure: 100rem;
+  --breakpoint-3xl: 120rem;
 }
 
 @theme inline {

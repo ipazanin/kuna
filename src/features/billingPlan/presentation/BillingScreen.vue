@@ -201,141 +201,145 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
           <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
         </div>
 
-        <div class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <DrillChartCard
-            :chart="view.chart"
-            :title="`Planned against invoiced, ${year}`"
-            subtitle="Each month's plan rows, and what the invoices billed of them. A bar opens its month below."
-            definition="Invoiced counts what invoices billed of the rows dated in the month, whenever they were issued. What an invoice billed with no plan row it could reach sits hatched on top, in the month it was issued."
-            :empty="view.chartEmpty"
-            :height="300"
-            :phone-height="240"
-          >
-            <template #legend><ChartLegend :entries="view.chart.legend" /></template>
-          </DrillChartCard>
+        <div class="wide-pair">
+          <div class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] 3xl:grid-cols-1 3xl:content-start">
+            <DrillChartCard
+              :chart="view.chart"
+              :title="`Planned against invoiced, ${year}`"
+              subtitle="Each month's plan rows, and what the invoices billed of them. A bar opens its month below."
+              definition="Invoiced counts what invoices billed of the rows dated in the month, whenever they were issued. What an invoice billed with no plan row it could reach sits hatched on top, in the month it was issued."
+              :empty="view.chartEmpty"
+              :height="300"
+              :phone-height="240"
+            >
+              <template #legend><ChartLegend :entries="view.chart.legend" /></template>
+            </DrillChartCard>
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="billing-check-title" data-testid="billing-check">
+            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="billing-check-title" data-testid="billing-check">
+              <header class="px-4 pt-4 sm:px-5">
+                <h2 id="billing-check-title" class="text-sm font-medium text-highlighted">Sums, planned and actual</h2>
+                <p class="mt-0.5 text-xs text-muted">Over every client, as the Sheet's formula block beside the plan rows adds them. Planned goes by the row's date, actual by the invoice's issue date.</p>
+              </header>
+              <div class="check-groups px-4 pt-3 pb-4 sm:px-5">
+                <dl class="check-group">
+                  <p class="check-heading">Sums</p>
+                  <div v-for="line in view.check.sums" :key="line.label" class="check-line">
+                    <dt>{{ line.label }}</dt>
+                    <dd><MoneyText :cents="line.amount" /></dd>
+                  </div>
+                </dl>
+                <dl class="check-group">
+                  <p class="check-heading">Planned per year</p>
+                  <div v-for="line in view.check.planned" :key="line.label" class="check-line">
+                    <dt>{{ line.label }}</dt>
+                    <dd><MoneyText :cents="line.amount" /></dd>
+                  </div>
+                </dl>
+                <dl class="check-group">
+                  <p class="check-heading">Actual per year</p>
+                  <div v-for="line in view.check.actual" :key="line.label" class="check-line">
+                    <dt>{{ line.label }}</dt>
+                    <dd><MoneyText :cents="line.amount" /></dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+          </div>
+
+          <section id="billing-months-card" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="billing-months-title">
             <header class="px-4 pt-4 sm:px-5">
-              <h2 id="billing-check-title" class="text-sm font-medium text-highlighted">Sums, planned and actual</h2>
-              <p class="mt-0.5 text-xs text-muted">Over every client, as the Sheet's formula block beside the plan rows adds them. Planned goes by the row's date, actual by the invoice's issue date.</p>
+              <h2 id="billing-months-title" class="text-sm font-medium text-highlighted">Month by month, {{ year }}</h2>
+              <p class="mt-0.5 text-xs text-muted">
+                Each client's invoices bill its rows oldest first, and reach rows dated up to the end of the month after the one they were issued in. Open a month
+                for its rows and the invoices that billed them.
+              </p>
             </header>
-            <div class="check-groups px-4 pt-3 pb-4 sm:px-5">
-              <dl class="check-group">
-                <p class="check-heading">Sums</p>
-                <div v-for="line in view.check.sums" :key="line.label" class="check-line">
-                  <dt>{{ line.label }}</dt>
-                  <dd><MoneyText :cents="line.amount" /></dd>
-                </div>
-              </dl>
-              <dl class="check-group">
-                <p class="check-heading">Planned per year</p>
-                <div v-for="line in view.check.planned" :key="line.label" class="check-line">
-                  <dt>{{ line.label }}</dt>
-                  <dd><MoneyText :cents="line.amount" /></dd>
-                </div>
-              </dl>
-              <dl class="check-group">
-                <p class="check-heading">Actual per year</p>
-                <div v-for="line in view.check.actual" :key="line.label" class="check-line">
-                  <dt>{{ line.label }}</dt>
-                  <dd><MoneyText :cents="line.amount" /></dd>
-                </div>
-              </dl>
+            <p v-if="view.months.length === 0" class="px-5 py-8 text-sm text-muted">No plan row is dated in {{ year }}, and no invoice of it went beyond the plan.</p>
+            <div v-else class="px-4 pt-1 pb-2 sm:px-5">
+              <BillingMonthList :months="view.months" :selected="selectedMonth" :show-client="showClient" />
             </div>
           </section>
         </div>
 
-        <section id="billing-months-card" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="billing-months-title">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 id="billing-months-title" class="text-sm font-medium text-highlighted">Month by month, {{ year }}</h2>
-            <p class="mt-0.5 text-xs text-muted">
-              Each client's invoices bill its rows oldest first, and reach rows dated up to the end of the month after the one they were issued in. Open a month
-              for its rows and the invoices that billed them.
-            </p>
-          </header>
-          <p v-if="view.months.length === 0" class="px-5 py-8 text-sm text-muted">No plan row is dated in {{ year }}, and no invoice of it went beyond the plan.</p>
-          <div v-else class="px-4 pt-1 pb-2 sm:px-5">
-            <BillingMonthList :months="view.months" :selected="selectedMonth" :show-client="showClient" />
-          </div>
-        </section>
+        <div class="wide-pair">
+          <div class="grid gap-4 xl:grid-cols-2 3xl:grid-cols-1 3xl:content-start">
+            <ChartCard
+              title="By item, every year"
+              subtitle="What each kind of item adds up to, year by year. An item keeps its colour on every chart and list."
+              :option="view.itemsChart.option"
+              :description="view.itemsChart.description"
+              :height="Math.max(140, view.itemYears * 56 + 56)"
+            >
+              <template #legend><ChartLegend :entries="view.itemsChart.legend" /></template>
+            </ChartCard>
 
-        <div class="grid gap-4 xl:grid-cols-2">
-          <ChartCard
-            title="By item, every year"
-            subtitle="What each kind of item adds up to, year by year. An item keeps its colour on every chart and list."
-            :option="view.itemsChart.option"
-            :description="view.itemsChart.description"
-            :height="Math.max(140, view.itemYears * 56 + 56)"
-          >
-            <template #legend><ChartLegend :entries="view.itemsChart.legend" /></template>
-          </ChartCard>
-
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="billing-items-title" data-testid="billing-items">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 id="billing-items-title" class="text-sm font-medium text-highlighted">By item, {{ year }}</h2>
-              <p class="mt-0.5 text-xs text-muted">The year's plan rows by kind, largest first.</p>
-            </header>
-            <p v-if="view.items.length === 0" class="px-5 py-8 text-sm text-muted">No plan row is dated in {{ year }}.</p>
-            <ul v-else class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
-              <li v-for="entry in view.items" :key="entry.item" class="item-line">
-                <span class="swatch" :style="{ background: entry.colour }" aria-hidden="true" />
-                <span class="min-w-0 truncate text-sm text-toned">{{ entry.item }}</span>
-                <span class="figure text-xs text-muted">{{ formatPercent(entry.share) }}</span>
-                <MoneyText :cents="entry.amount" class="text-sm text-highlighted" />
-                <span class="share-bar" aria-hidden="true"><span :style="{ width: `${entry.share * 100}%`, background: entry.colour }" /></span>
-              </li>
-            </ul>
-            <div v-if="references.length > 0" class="border-t border-default px-4 py-3 sm:px-5">
-              <p class="text-xs font-medium text-muted">Terms on Workbook, General</p>
-              <ul class="mt-1 flex flex-col gap-0.5">
-                <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 text-xs text-muted">
-                  <span class="min-w-0 truncate">{{ entry.label }} as <span class="text-toned">{{ entry.item }}</span>, {{ entry.note }}</span>
-                  <MoneyText :cents="entry.amount!" class="text-toned" />
+            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="billing-items-title" data-testid="billing-items">
+              <header class="px-4 pt-4 sm:px-5">
+                <h2 id="billing-items-title" class="text-sm font-medium text-highlighted">By item, {{ year }}</h2>
+                <p class="mt-0.5 text-xs text-muted">The year's plan rows by kind, largest first.</p>
+              </header>
+              <p v-if="view.items.length === 0" class="px-5 py-8 text-sm text-muted">No plan row is dated in {{ year }}.</p>
+              <ul v-else class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
+                <li v-for="entry in view.items" :key="entry.item" class="item-line">
+                  <span class="swatch" :style="{ background: entry.colour }" aria-hidden="true" />
+                  <span class="min-w-0 truncate text-sm text-toned">{{ entry.item }}</span>
+                  <span class="figure text-xs text-muted">{{ formatPercent(entry.share) }}</span>
+                  <MoneyText :cents="entry.amount" class="text-sm text-highlighted" />
+                  <span class="share-bar" aria-hidden="true"><span :style="{ width: `${entry.share * 100}%`, background: entry.colour }" /></span>
                 </li>
               </ul>
+              <div v-if="references.length > 0" class="border-t border-default px-4 py-3 sm:px-5">
+                <p class="text-xs font-medium text-muted">Terms on Workbook, General</p>
+                <ul class="mt-1 flex flex-col gap-0.5">
+                  <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 text-xs text-muted">
+                    <span class="min-w-0 truncate">{{ entry.label }} as <span class="text-toned">{{ entry.item }}</span>, {{ entry.note }}</span>
+                    <MoneyText :cents="entry.amount!" class="text-toned" />
+                  </li>
+                </ul>
+              </div>
+            </section>
+          </div>
+
+          <section id="billing-rows-card" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="billing-rows-title">
+            <header class="flex flex-col gap-3 px-4 pt-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+              <div class="min-w-0">
+                <h2 id="billing-rows-title" class="text-sm font-medium text-highlighted">Plan rows, {{ year }}</h2>
+                <p class="mt-0.5 text-xs text-muted">
+                  The outgoing-plan tab is the one place for planned revenue, and the forecast reads it. Change a row here or in
+                  {{ state.workbook?.source === 'google' ? 'the Sheet' : 'an exported file' }}.
+                </p>
+              </div>
+              <div class="flex shrink-0 flex-wrap gap-2">
+                <UButton label="Add row" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="billing-add" @click="addRow" />
+                <UButton
+                  :label="`Fill the rest of ${fillYear}`"
+                  icon="i-lucide-calendar-plus"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  :disabled="state.writing"
+                  data-testid="billing-fill"
+                  @click="fillDialogOpen = true"
+                />
+              </div>
+            </header>
+            <div v-if="problems.length > 0" class="flex items-start gap-2 px-4 pt-3 text-sm text-toned sm:px-5" data-testid="billing-problems">
+              <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-error" aria-hidden="true" />
+              <div class="min-w-0">
+                <p>{{ problems.length === 1 ? 'One row of the tab is' : `${problems.length} rows of the tab are` }} left out until it is fixed:</p>
+                <ul class="text-xs text-muted">
+                  <li v-for="problem in problems" :key="problem.sheetRow">Row {{ problem.sheetRow }}: {{ problem.reason }}</li>
+                </ul>
+              </div>
+            </div>
+            <p v-if="view.rows.length === 0" class="px-5 py-8 text-sm text-muted">
+              No plan row is dated in {{ year }}. <DrillLink to="/workbook" in-prose class="text-highlighted">Set the terms</DrillLink> and fill the year, or add a row.
+            </p>
+            <div v-else class="px-4 pt-2 pb-3 sm:px-5">
+              <BillingRowList :rows="view.rows" :show-client="showClient" :editable="!state.writing" @edit="editRow" />
             </div>
           </section>
         </div>
-
-        <section id="billing-rows-card" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="billing-rows-title">
-          <header class="flex flex-col gap-3 px-4 pt-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
-            <div class="min-w-0">
-              <h2 id="billing-rows-title" class="text-sm font-medium text-highlighted">Plan rows, {{ year }}</h2>
-              <p class="mt-0.5 text-xs text-muted">
-                The outgoing-plan tab is the one place for planned revenue, and the forecast reads it. Change a row here or in
-                {{ state.workbook?.source === 'google' ? 'the Sheet' : 'an exported file' }}.
-              </p>
-            </div>
-            <div class="flex shrink-0 flex-wrap gap-2">
-              <UButton label="Add row" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="billing-add" @click="addRow" />
-              <UButton
-                :label="`Fill the rest of ${fillYear}`"
-                icon="i-lucide-calendar-plus"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                :disabled="state.writing"
-                data-testid="billing-fill"
-                @click="fillDialogOpen = true"
-              />
-            </div>
-          </header>
-          <div v-if="problems.length > 0" class="flex items-start gap-2 px-4 pt-3 text-sm text-toned sm:px-5" data-testid="billing-problems">
-            <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-error" aria-hidden="true" />
-            <div class="min-w-0">
-              <p>{{ problems.length === 1 ? 'One row of the tab is' : `${problems.length} rows of the tab are` }} left out until it is fixed:</p>
-              <ul class="text-xs text-muted">
-                <li v-for="problem in problems" :key="problem.sheetRow">Row {{ problem.sheetRow }}: {{ problem.reason }}</li>
-              </ul>
-            </div>
-          </div>
-          <p v-if="view.rows.length === 0" class="px-5 py-8 text-sm text-muted">
-            No plan row is dated in {{ year }}. <DrillLink to="/workbook" in-prose class="text-highlighted">Set the terms</DrillLink> and fill the year, or add a row.
-          </p>
-          <div v-else class="px-4 pt-2 pb-3 sm:px-5">
-            <BillingRowList :rows="view.rows" :show-client="showClient" :editable="!state.writing" @edit="editRow" />
-          </div>
-        </section>
       </template>
     </LedgerGate>
 

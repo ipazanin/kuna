@@ -79,6 +79,24 @@ body {
 }
 
 /*
+ * Two cards, or a card and a column of cards, side by side on a wide screen. Below 3xl the wrapper
+ * steps aside, so its cards stack in the screen's own column with the screen's own gaps.
+ */
+.wide-pair {
+  display: contents;
+
+  @variant 3xl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+.wide-pair > :only-child {
+  grid-column: 1 / -1;
+}
+
+/*
  * The phone layout. Every control a thumb can reach is at least 44 by 44 px. The rule is unlayered,
  * so it wins over the Tailwind sizes of Nuxt UI's small buttons, but only below the phone breakpoint.
  */

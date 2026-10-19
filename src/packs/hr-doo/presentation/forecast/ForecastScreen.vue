@@ -90,7 +90,7 @@ const view = computed(() => {
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
+  <section class="flex max-w-measure flex-col gap-6">
     <PageHeader title="Forecast" description="Where will this year end, and what is due in tax? The ledger's complete months, then the plan or each line's average for the rest.">
       <template v-if="years.length > 0 && settings.ownerPayModule" #actions>
         <div class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">

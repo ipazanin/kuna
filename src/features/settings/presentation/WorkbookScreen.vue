@@ -153,7 +153,7 @@ function saveAccounts(cells: SheetRow['cells'][]): void {
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
+  <section class="flex max-w-measure flex-col gap-6">
     <PageHeader
       title="Workbook"
       :description="

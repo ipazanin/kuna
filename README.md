@@ -56,6 +56,17 @@ transactions as cards, and charts with fewer axis labels. A tap on a chart shows
 square, and the installed app keeps clear of the system bars through the safe-area insets. From
 640 px up the layout is the desktop one.
 
+## Wide screens
+
+From 1920 px (the `3xl` breakpoint) a dashboard screen sets related cards side by side, or a long
+list beside a column of the cards that sum it up: Overview, Period review, Receivables, Billing
+plan, Taxes and Owner. The content grows to 160rem beside the sidebar. A screen that is one table,
+one list, one form or a long report keeps a 100rem measure instead, so its rows stay readable:
+Transactions, Year end, Forecast, Ruleset, Review, Workbook and Settings. The other screens simply
+widen. `.wide-pair` in `src/shared/styles/app.css` does the pairing, and the widths are the
+`--container-shell`, `--container-measure` and `--breakpoint-3xl` tokens in `tokens.css`. Below
+1920 px nothing changes.
+
 ## The workbook format
 
 A Google Sheet and an xlsx file share one format. Every column is found by its header name, so
@@ -492,7 +503,7 @@ npm run check          # typecheck and unit tests
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen, dark and light, at four widths in local Chrome, screenshots in visual-check/
+npm run check:visual   # every screen, dark and light, at four widths in local Chrome, and the wide screens at 1920 and 2560, screenshots in visual-check/
 npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only

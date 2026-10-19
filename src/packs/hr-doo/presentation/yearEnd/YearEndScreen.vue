@@ -248,7 +248,7 @@ function oursValue(line: AccrualLine): ShownValue {
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
+  <section class="flex max-w-measure flex-col gap-6">
     <PageHeader title="Year end" description="Do our books agree with the accountant's, and why not? The accountant's figures beside ours, with the bridge that explains each difference.">
       <template v-if="years.length > 1 && settings.ownerPayModule" #actions>
         <div class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">

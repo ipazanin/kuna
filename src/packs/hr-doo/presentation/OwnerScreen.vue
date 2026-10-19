@@ -287,19 +287,20 @@ const owner = computed(() => {
           </section>
         </div>
 
-        <template v-if="owner.hasLoanRoles">
-          <DrillChartCard
-            :chart="owner.timeline"
-            title="Loans to the owner, by month"
-            :subtitle="`${owner.period}. Lent below zero, repaid above it, and the balance since the ledger began.`"
-            definition="The line is lent less repaid over every row since the ledger began, so it carries loans from before the period in view."
-            :height="280"
-            :phone-height="240"
-          >
-            <template #legend><ChartLegend :entries="owner.timelineLegend" /></template>
-          </DrillChartCard>
+        <DrillChartCard
+          v-if="owner.hasLoanRoles"
+          :chart="owner.timeline"
+          title="Loans to the owner, by month"
+          :subtitle="`${owner.period}. Lent below zero, repaid above it, and the balance since the ledger began.`"
+          definition="The line is lent less repaid over every row since the ledger began, so it carries loans from before the period in view."
+          :height="280"
+          :phone-height="240"
+        >
+          <template #legend><ChartLegend :entries="owner.timelineLegend" /></template>
+        </DrillChartCard>
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="owner-loans">
+        <div class="wide-pair">
+          <section v-if="owner.hasLoanRoles" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="owner-loans">
             <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
               <div>
                 <h2 class="text-sm font-medium text-highlighted">Every loan, with the repayments that closed it</h2>
@@ -322,33 +323,33 @@ const owner = computed(() => {
               <LoanList :loans="owner.loans" />
             </div>
           </section>
-        </template>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="owner-advances">
-          <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div class="min-w-0">
-                <h2 class="text-sm font-medium text-highlighted">Costs the owner paid privately</h2>
-                <p class="mt-0.5 max-w-[65ch] text-xs text-muted">
-                  All time, from the owner-advances tab. Each counts as a cost on its date, in its category. Reimbursements to the owner repay the oldest first and
-                  stay outside profit and loss.
-                </p>
+          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="owner-advances">
+            <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="text-sm font-medium text-highlighted">Costs the owner paid privately</h2>
+                  <p class="mt-0.5 max-w-[65ch] text-xs text-muted">
+                    All time, from the owner-advances tab. Each counts as a cost on its date, in its category. Reimbursements to the owner repay the oldest first and
+                    stay outside profit and loss.
+                  </p>
+                </div>
+                <UButton label="Add advance" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="open-add-advance" @click="addingAdvance = true" />
               </div>
-              <UButton label="Add advance" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="open-add-advance" @click="addingAdvance = true" />
+              <dl class="grid grid-cols-3 gap-3">
+                <div v-for="figure in owner.advanceSummary" :key="figure.label" class="min-w-0">
+                  <dt class="text-xs text-muted">{{ figure.label }}</dt>
+                  <dd class="text-sm font-medium text-highlighted">
+                    <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" precision="whole" /></DrillLink>
+                  </dd>
+                </div>
+              </dl>
+            </header>
+            <div class="px-4 pt-1 pb-2 sm:px-5">
+              <AdvanceList :advances="owner.advances" :private-shares="owner.privateShares" />
             </div>
-            <dl class="grid grid-cols-3 gap-3">
-              <div v-for="figure in owner.advanceSummary" :key="figure.label" class="min-w-0">
-                <dt class="text-xs text-muted">{{ figure.label }}</dt>
-                <dd class="text-sm font-medium text-highlighted">
-                  <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" precision="whole" /></DrillLink>
-                </dd>
-              </div>
-            </dl>
-          </header>
-          <div class="px-4 pt-1 pb-2 sm:px-5">
-            <AdvanceList :advances="owner.advances" :private-shares="owner.privateShares" />
-          </div>
-        </section>
+          </section>
+        </div>
         <AddAdvanceDialog
           v-model:open="addingAdvance"
           :categories="ledger.workbook.categories"

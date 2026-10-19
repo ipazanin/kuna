@@ -86,7 +86,7 @@ const screenTitle = computed(() => props.navigation.find((entry) => entry.to ===
     </header>
 
     <main class="app-main min-w-0 px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-9">
-      <div class="mx-auto max-w-[90rem]">
+      <div class="mx-auto max-w-shell">
         <slot />
       </div>
     </main>

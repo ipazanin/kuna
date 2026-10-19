@@ -59,7 +59,7 @@ const darkTheme = computed({
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
+  <section class="flex max-w-measure flex-col gap-6">
     <PageHeader title="Settings" description="Where the ledger comes from, and how the app behaves on this device." />
 
     <div class="grid gap-4 lg:grid-cols-2">

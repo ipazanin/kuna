@@ -257,50 +257,52 @@ const view = computed(() => {
             <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
           </div>
 
-          <div class="grid gap-4 xl:grid-cols-2">
-            <DrillChartCard
-              :chart="view.ageing"
-              title="What is owed, by how late it is"
-              :subtitle="`On ${view.asOf}, the newest booking. Late counts from the due date, or from the issue date when an invoice has none.`"
-              :empty="view.ageingEmpty"
-              :height="view.ageingHeight"
-            >
-              <template #legend><ChartLegend :entries="view.ageingLegend" /></template>
-            </DrillChartCard>
+          <div class="wide-pair">
+            <div class="grid gap-4 xl:grid-cols-2 3xl:grid-cols-1 3xl:content-start">
+              <DrillChartCard
+                :chart="view.ageing"
+                title="What is owed, by how late it is"
+                :subtitle="`On ${view.asOf}, the newest booking. Late counts from the due date, or from the issue date when an invoice has none.`"
+                :empty="view.ageingEmpty"
+                :height="view.ageingHeight"
+              >
+                <template #legend><ChartLegend :entries="view.ageingLegend" /></template>
+              </DrillChartCard>
 
-            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-              <header class="px-4 pt-4 sm:px-5">
-                <h2 class="text-sm font-medium text-highlighted">Days to get paid</h2>
-                <p class="mt-0.5 text-xs text-muted">{{ view.periodText }}. Each dot is an invoice settled in the period, the line its client’s median.</p>
+              <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
+                <header class="px-4 pt-4 sm:px-5">
+                  <h2 class="text-sm font-medium text-highlighted">Days to get paid</h2>
+                  <p class="mt-0.5 text-xs text-muted">{{ view.periodText }}. Each dot is an invoice settled in the period, the line its client’s median.</p>
+                </header>
+                <p v-if="view.daysRows.length === 0" class="px-5 py-8 text-sm text-muted">No client has an invoice yet.</p>
+                <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+                  <DaysToPaidStrip :rows="view.daysRows" />
+                </div>
+              </section>
+            </div>
+
+            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="invoices">
+              <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
+                <div>
+                  <h2 class="text-sm font-medium text-highlighted">Every invoice, with the payments that settled it</h2>
+                  <p class="mt-0.5 text-xs text-muted">
+                    The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already
+                    issued on the day a payment arrives.
+                  </p>
+                </div>
+                <dl class="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+                  <div v-for="sum in view.sums" :key="sum.label" class="min-w-0">
+                    <dt class="text-xs text-muted">{{ sum.label }}</dt>
+                    <dd class="text-sm font-medium text-highlighted"><MoneyText :cents="sum.amount" precision="whole" /></dd>
+                  </div>
+                </dl>
               </header>
-              <p v-if="view.daysRows.length === 0" class="px-5 py-8 text-sm text-muted">No client has an invoice yet.</p>
-              <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-                <DaysToPaidStrip :rows="view.daysRows" />
+              <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">No invoice was issued in this period, and none is open.</p>
+              <div v-else class="px-4 pt-1 pb-2 sm:px-5">
+                <InvoiceList :invoices="view.invoices" :show-client="view.showClient" />
               </div>
             </section>
           </div>
-
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="invoices">
-            <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-              <div>
-                <h2 class="text-sm font-medium text-highlighted">Every invoice, with the payments that settled it</h2>
-                <p class="mt-0.5 text-xs text-muted">
-                  The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already
-                  issued on the day a payment arrives.
-                </p>
-              </div>
-              <dl class="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-                <div v-for="sum in view.sums" :key="sum.label" class="min-w-0">
-                  <dt class="text-xs text-muted">{{ sum.label }}</dt>
-                  <dd class="text-sm font-medium text-highlighted"><MoneyText :cents="sum.amount" precision="whole" /></dd>
-                </div>
-              </dl>
-            </header>
-            <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">No invoice was issued in this period, and none is open.</p>
-            <div v-else class="px-4 pt-1 pb-2 sm:px-5">
-              <InvoiceList :invoices="view.invoices" :show-client="view.showClient" />
-            </div>
-          </section>
 
           <section v-if="view.unattributed.length > 0" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="unattributed-credits">
             <header class="px-4 pt-4 sm:px-5">
