@@ -91,11 +91,11 @@ describe('forecastYear, the year still running', () => {
     expect(forecast.cit.advancesPaid.amount).toBe(euros(500))
     expect(forecast.cit.advancesPaid.steps).toHaveLength(5)
     expect(forecast.cit.advancesToCome.amount).toBe(euros(400))
-    expect(forecast.cit.advancesToCome.steps.map((step) => step.label)).toEqual([
-      'Advance for Sept 2026, due 2026-10-31',
-      'Advance for Oct 2026, due 2026-11-30',
-      'Advance for Nov 2026, due 2026-12-31',
-      'Advance for Dec 2026, due 2027-01-31',
+    expect(forecast.cit.advancesToCome.steps.map((step) => [step.label, step.on])).toEqual([
+      ['Advance for Sept 2026, due', '2026-10-31'],
+      ['Advance for Oct 2026, due', '2026-11-30'],
+      ['Advance for Nov 2026, due', '2026-12-31'],
+      ['Advance for Dec 2026, due', '2027-01-31'],
     ])
     expect(forecast.liability.advancesPaid?.amount).toBe(euros(900))
     expect(forecast.cit.obligations.map((entry) => entry.status)).toEqual(['paid', 'paid', 'paid', 'paid', 'paid', 'paid', 'due', 'to-come', 'to-come', 'to-come'])
@@ -121,9 +121,10 @@ describe('forecastYear, the year still running', () => {
   })
 
   it('projects cash to the year end as each forecast month is paid', () => {
+    expect(forecast.cashAtYearEnd.steps[0]?.on).toBe('2026-10-10')
     expect(forecast.cashAtYearEnd.steps.map((step) => [step.label, step.amount])).toEqual([
       // Every bank row, the newest on 10 October.
-      ['Cash on 2026-10-10', euros(72595)],
+      ['Cash on', euros(72595)],
       ['Invoices still open, paid by the year end', euros(6000)],
       ['VAT the state owes the company now, settled by the year end', euros(600)],
       // October and November, each paid the month after. December's comes in January.

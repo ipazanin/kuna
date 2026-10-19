@@ -41,7 +41,7 @@ export function tracedFigure(
   rules: readonly RuleCitation[],
   steps: readonly TracedFigure[] = [],
 ): TracedFigure {
-  return { label, amount, drill: null, basis, rules, steps }
+  return { label, on: null, amount, drill: null, basis, rules, steps }
 }
 
 /** The rules of a build-up's steps, each rule version once, for a total that only adds them up. */

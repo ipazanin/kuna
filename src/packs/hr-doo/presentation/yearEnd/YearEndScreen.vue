@@ -34,7 +34,7 @@ import { yearEndOpenItems } from '../../domain/yearEnd/yearEndOpenItems'
 import MissingRoles from '../MissingRoles.vue'
 import OwnerPayOff from '../OwnerPayOff.vue'
 import { missingAccrualRoles } from '../accrualRoles'
-import { chipsOf, ruleChips, stepsOf } from '../tracedFigureView'
+import { chipsOf, figureLabel, ruleChips, stepsOf } from '../tracedFigureView'
 import { bridgeChart } from './bridgeChart'
 import type { BridgeBar } from './bridgeChart'
 import BridgeSteps from './BridgeSteps.vue'
@@ -116,10 +116,10 @@ function yearEndView(workbook: Workbook, shownYear: number) {
     { label: 'Profit after tax', kind: 'total', amount: bridge.profitAfterTax.amount, drill: null },
     { label: 'Not explained', kind: 'residual', amount: bridge.unexplainedAfterTax?.figure.amount ?? 0, drill: null },
   ]
-  const total = (key: string, figure: TracedFigure): BridgeStepView => ({ key, label: figure.label, cents: figure.amount, to: drillOf(figure), kind: null, rules: [] })
+  const total = (key: string, figure: TracedFigure): BridgeStepView => ({ key, label: figureLabel(figure), cents: figure.amount, to: drillOf(figure), kind: null, rules: [] })
   const adjustment = (entry: AccrualAdjustment): BridgeStepView => ({
     key: entry.id,
-    label: entry.figure.label,
+    label: figureLabel(entry.figure),
     cents: entry.figure.amount,
     to: drillOf(entry.figure),
     kind: entry.kind,
@@ -170,7 +170,7 @@ function yearEndView(workbook: Workbook, shownYear: number) {
     konto: comparison.konto.map((group) => ({
       key: group.konto.map((line) => line.line).join('-'),
       konto: group.konto.map((line) => ({ line: line.line, label: line.label, cents: line.figure.kind === 'money' ? line.figure.amount : 0 })),
-      categories: group.categories.map((figure, index) => ({ key: `${index}-${figure.label}`, label: figure.label, cents: figure.amount, to: drillOf(figure) })),
+      categories: group.categories.map((figure, index) => ({ key: `${index}-${figure.label}`, label: figureLabel(figure), cents: figure.amount, to: drillOf(figure) })),
       accountant: group.accountant,
       ours: group.ours,
       difference: group.difference,
@@ -179,7 +179,7 @@ function yearEndView(workbook: Workbook, shownYear: number) {
     openItems: yearEndOpenItems(workbook, accrual).map((item) => ({
       key: item.key,
       group: item.group,
-      title: item.title,
+      title: figureLabel({ label: item.title, on: item.on }),
       settledBy: item.settledBy,
       settled: item.settled,
       cents: item.figure?.amount ?? null,

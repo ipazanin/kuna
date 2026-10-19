@@ -27,7 +27,7 @@ import type { AssetGroup } from '../../../../features/workbook/domain/assets'
 import type { Grant } from '../../../../features/workbook/domain/grants'
 import LedgerGate from '../../../../features/workbook/presentation/LedgerGate.vue'
 import { ruleValue } from '../../ruleset/ruleset'
-import { ruleLink } from '../../ruleset/presentation/ruleWording'
+import { dayLabel, ruleLink } from '../../ruleset/presentation/ruleWording'
 import { assetBooks, depreciationByYear, doubledRatesEffect } from '../../domain/assets/assetBooks'
 import { assetRegister } from '../../domain/assets/assetRegister'
 import { accumulatedDepreciationOn, bookValueOn } from '../../domain/assets/depreciationSchedule'
@@ -60,12 +60,6 @@ const GROUPS: Readonly<Record<AssetGroup, string>> = {
   car: 'Car',
   building: 'Building',
   other: 'Other',
-}
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
-function day(date: CivilDate): string {
-  return dayFormat.format(new Date(date))
 }
 
 const now = new Date()
@@ -168,7 +162,7 @@ function assetsView(current: FilteredLedger) {
               caption:
                 firstCondition === undefined
                   ? 'Repaid if employment ended today'
-                  : `Repaid if employment ended today. Required until ${day(firstCondition)}`,
+                  : `Repaid if employment ended today. Required until ${dayLabel(firstCondition)}`,
               definition: "What the grantor could claim back if a condition broke today, from the clawback terms on the grants tab. It is a risk to plan for, never a figure in profit.",
             },
           ]),
@@ -183,7 +177,7 @@ function assetsView(current: FilteredLedger) {
     unmatchedAssets,
     unmatchedPurchases: register.unmatchedPurchases.map((purchase) => ({
       key: `${purchase.row.account}-${purchase.row.sequence}`,
-      date: day(purchase.row.date),
+      date: dayLabel(purchase.row.date),
       counterparty: purchase.row.counterparty || purchase.row.description,
       amount: purchase.row.amount,
       to: drillLocation(purchase.drill),
@@ -235,7 +229,7 @@ function assetsView(current: FilteredLedger) {
     const lastMonth = schedule.months.at(-1)?.month
     const gone =
       schedule.writeOff !== null && schedule.writeOff.on <= today
-        ? `${schedule.treatment === 'small-inventory' ? 'Written off' : 'Disposed'} ${day(schedule.writeOff.on)}`
+        ? `${schedule.treatment === 'small-inventory' ? 'Written off' : 'Disposed'} ${dayLabel(schedule.writeOff.on)}`
         : bookValueToday === 0 && asset.bought <= today && lastMonth !== undefined
           ? `Written off by ${monthLabel(lastMonth)}`
           : null
@@ -243,8 +237,8 @@ function assetsView(current: FilteredLedger) {
       key: `${asset.sheetRow}`,
       name: asset.name,
       payment: paymentDrill === null ? null : drillLocation(paymentDrill),
-      bought: day(asset.bought),
-      inUse: day(asset.inUse),
+      bought: dayLabel(asset.bought),
+      inUse: dayLabel(asset.inUse),
       cost: asset.costNet,
       group: GROUPS[asset.group],
       rate:
@@ -266,16 +260,16 @@ function assetsView(current: FilteredLedger) {
     return {
       key: grant.slug,
       name: grant.slug,
-      received: day(grant.received),
+      received: dayLabel(grant.received),
       receipt: receiptOf(grant),
       amount: grant.amount,
       policy:
         schedule.policy === 'fixed-then-assets'
           ? 'The fixed part counts as income on receipt, and the variable part as the assets it paid for are depreciated.'
-          : `Released evenly over the grant period${grant.period === null ? '' : `, ${day(grant.period.from)} to ${day(grant.period.to)}`}.`,
-      employmentUntil: grant.employmentRequiredUntil === null ? null : day(grant.employmentRequiredUntil),
+          : `Released evenly over the grant period${grant.period === null ? '' : `, ${dayLabel(grant.period.from)} to ${dayLabel(grant.period.to)}`}.`,
+      employmentUntil: grant.employmentRequiredUntil === null ? null : dayLabel(grant.employmentRequiredUntil),
       employmentState: employmentState(grant.employmentRequiredUntil),
-      clawback: exposure === null ? null : { amount: exposure.amount.amount, until: exposure.until === null ? null : day(exposure.until) },
+      clawback: exposure === null ? null : { amount: exposure.amount.amount, until: exposure.until === null ? null : dayLabel(exposure.until) },
       years: schedule.years.map((entry) => ({ year: entry.year, released: entry.released.amount, deferred: entry.deferredAtYearEnd.amount, when: when(entry.year) })),
       neverReleased: schedule.neverReleased.amount,
     }
@@ -371,7 +365,7 @@ function employmentState(until: CivilDate | null): string | null {
             <p class="mt-0.5 text-xs text-muted">From the assets tab. An asset's name opens the ledger payment that bought it, and its rate opens the rule.</p>
           </header>
           <div class="px-4 pt-3 pb-3 sm:px-3">
-            <AssetRegister :lines="view.lines" :totals="view.totals" :year="thisYear" :today="day(today)" />
+            <AssetRegister :lines="view.lines" :totals="view.totals" :year="thisYear" :today="dayLabel(today)" />
           </div>
           <div
             v-if="view.unmatchedAssets.length > 0 || view.unmatchedPurchases.length > 0"

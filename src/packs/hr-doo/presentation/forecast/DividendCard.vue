@@ -75,6 +75,10 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
           <p class="text-sm text-highlighted">{{ option.label }}</p>
           <p class="text-xs text-muted">{{ option.when }}</p>
         </div>
+        <p v-if="option.warning" class="flex items-start gap-2 text-xs text-error" data-testid="payout-warning">
+          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          <span>{{ option.warning }}</span>
+        </p>
         <dl class="payout-cells" data-testid="payout-figures">
           <div v-for="figure in option.figures" :key="figure.key">
             <dt>{{ figure.label }}</dt>

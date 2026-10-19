@@ -12,7 +12,7 @@ import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import { dayLabel, ruleLink } from '../../ruleset/presentation/ruleWording'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { dividendCapacity } from '../../domain/dividend/dividendCapacity'
-import type { PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
+import type { InterimCash, PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
 import type { ForecastLine, ForecastMonth, LinePart, MonthBasis } from '../../domain/forecast/forecastLines'
 import { forecastYear } from '../../domain/forecast/forecastYear'
 import type { YearForecast } from '../../domain/forecast/forecastYear'
@@ -20,7 +20,7 @@ import { percentText } from '../../domain/payroll/payrollArithmetic'
 import { citObligationLine } from '../CitObligationList.vue'
 import type { CitObligationLine } from '../CitObligationList.vue'
 import { missingAccrualRoles } from '../accrualRoles'
-import { ruleChips, stepsOf } from '../tracedFigureView'
+import { figureLabel, ruleChips, stepsOf } from '../tracedFigureView'
 import type { BuildUpStep, RuleChip } from '../yearEnd/LineBuildUp.vue'
 import { lineLabel } from '../yearEnd/yearEndWording'
 import type { BuildUpLine } from './BuildUpList.vue'
@@ -46,6 +46,8 @@ export interface PayoutView {
   readonly label: string
   /** When it can be paid, in words. */
   readonly when: string
+  /** Why the payout cannot be made as it stands, or null when nothing stops it. */
+  readonly warning: string | null
   readonly figures: readonly ShownFigure[]
   readonly capitalProtected: boolean
   readonly rules: readonly RuleChip[]
@@ -134,7 +136,7 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
 
   const pdLine = (key: string, figure: TracedFigure, total = false): BuildUpLine => ({
     key,
-    label: figure.label,
+    label: figureLabel(figure),
     caption: null,
     value: { cents: figure.amount },
     to: linkOf(figure),
@@ -157,7 +159,7 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
       value: { text: percentText(liability.rate.basisPoints) },
       to: null,
       total: false,
-      steps: [{ key: 'test', label: liability.rateTestRevenue.label, cents: liability.rateTestRevenue.amount, to: linkOf(liability.rateTestRevenue), depth: 0 }],
+      steps: [{ key: 'test', label: figureLabel(liability.rateTestRevenue), cents: liability.rateTestRevenue.amount, to: linkOf(liability.rateTestRevenue), depth: 0 }],
       rules: ruleChips(liability.rate.rules),
     },
     pdLine('liability', liability.liability, true),
@@ -235,7 +237,7 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
       cit.newAdvance === null || cit.newAdvance.month === null
         ? null
         : { month: monthLabel(cit.newAdvance.month), cents: cit.newAdvance.expected.amount, dueOn: dayLabel(cit.newAdvance.dueOn), rules: ruleChips(cit.newAdvance.expected.rules) },
-    unmatched: cit.unmatched.map((figure, index): ShownFigure => ({ key: `${index}`, label: figure.label, cents: figure.amount, to: linkOf(figure) })),
+    unmatched: cit.unmatched.map((figure, index): ShownFigure => ({ key: `${index}`, label: figureLabel(figure), cents: figure.amount, to: linkOf(figure) })),
     capacityLines,
     prudenceLines,
     deterioration: ruleChips([prudence.deterioration]),
@@ -307,21 +309,25 @@ function partSteps(part: LinePart, key: string, context: ForecastViewContext): B
 
 function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) => RouteLocationRaw | null): PayoutView {
   const shown = (key: string, label: string, figure: TracedFigure | null): ShownFigure[] => (figure === null ? [] : [{ key, label, cents: figure.amount, to: linkOf(figure) }])
+  const { cashNow } = option
+  const cashShort = cashNow !== null && cashNow.largestPayout.amount < option.gross.amount
   return {
     id: option.id,
     name: PAYOUT_NAMES[option.id],
     label: option.label,
     when:
       option.earliestOn === null || option.latestOn === null
-        ? `${option.gross.label}.`
+        ? `${figureLabel(option.gross)}.`
         : `Earliest on ${dayLabel(option.earliestOn)}, and no later than ${dayLabel(option.latestOn)}.`,
+    warning: cashShort ? interimCashWarning(cashNow) : null,
     figures: [
       ...shown('gross', 'Payout before tax', option.gross),
       ...shown('tax', 'Dividend tax', option.dividendTax),
       ...shown('net', 'Net to the owner', option.net),
       ...shown('set-off', 'Set off against what the owner owes', option.setOff),
       ...shown('cash-out', 'Paid out in cash, with the tax', option.cashOut),
-      ...shown('cash-left', 'Cash left after it', option.cashLeft),
+      ...shown('cash-left', cashNow === null ? 'Cash left after it' : `Cash left after it and ${dueWords(cashNow)}`, option.cashLeft),
+      ...(cashShort ? shown('cash-allows', 'The most the cash allows now', cashNow.largestPayout) : []),
       ...shown('owed-after', 'The owner still owes', option.owedByOwnerAfter),
       ...shown('benefit', 'Loan benefit in kind a year', option.loanBenefitPerYear),
       ...shown('net-assets', 'Net assets after it', option.netAssetsAfter),
@@ -332,6 +338,14 @@ function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) 
     capitalProtected: option.capitalProtected,
     rules: ruleChips([option.gross, option.dividendTax, option.loanBenefitPerYear, ...(option.shortfall === null ? [] : [option.shortfall])].flatMap((figure) => figure.rules)),
   }
+}
+
+function interimCashWarning(cash: InterimCash): string {
+  return `${figureLabel(cash.cash)}, less ${dueWords(cash)}, does not cover this payout and its tax. It covers an interim payout of at most ${formatWholeMoney(cash.largestPayout.amount)}.`
+}
+
+function dueWords(cash: InterimCash): string {
+  return cash.fallingDue.on === null ? 'what falls due' : `what falls due by ${dayLabel(cash.fallingDue.on)}`
 }
 
 function planRows(lines: readonly PlanLine[], forecast: YearForecast, year: number, context: ForecastViewContext): PlanRowView[] {

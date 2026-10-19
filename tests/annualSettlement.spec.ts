@@ -131,7 +131,7 @@ describe('annual settlement of salary', () => {
     })
     const settlement = settle(2026, partYear, 1990)
 
-    expect(settlement.income.steps.map((step) => step.label)[0]).toBe('Income for 2026-06, paid on 2026-07-10')
+    expect(settlement.income.steps.map((step) => [step.label, step.on])[0]).toEqual(['Income for 2026-06, paid on', '2026-07-10'])
     expect(settlement.income.steps).toHaveLength(6)
     expect([settlement.income.amount, settlement.taxableIncome.amount, settlement.withheld.amount]).toEqual([
       euros(5921.37),

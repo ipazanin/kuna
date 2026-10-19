@@ -1,6 +1,7 @@
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import type { Workbook } from '../../../../features/workbook/domain/workbook'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { negateMoney } from '../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
@@ -8,6 +9,7 @@ import type { RuleId } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { AccrualAdjustment, AdjustmentId } from '../accrual/accrualAdjustment'
 import { withDrill } from '../accrual/accrualAdjustment'
+import { bookingFigure } from '../accrual/accrualBookings'
 import type { AccrualYear } from '../accrual/accrualYear'
 import { ownerLoans } from '../ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
@@ -24,7 +26,10 @@ export type OpenItemGroup = 'judgement' | 'unexplained' | 'completeness' | 'comp
 export interface YearEndOpenItem {
   readonly key: string
   readonly group: OpenItemGroup
+  /** When `on` is set, the title leads up to that day. */
   readonly title: string
+  /** The day a screen writes after the title in its own date format. Null when the title names no day. */
+  readonly on: CivilDate | null
   readonly settledBy: string
   /** The figure the item is about, with the rows behind it. */
   readonly figure: TracedFigure | null
@@ -82,7 +87,7 @@ function judgementItems(accrual: AccrualYear): YearEndOpenItem[] {
     const wording = JUDGEMENTS[adjustment.id as JudgementId]
     // A placement moves amounts between lines and adds up to nothing, so it has no figure of its own.
     const figure = adjustment.effect === 'placement' ? null : adjustment.figure
-    return [{ key: adjustment.id, group: 'judgement', title: adjustment.figure.label, settledBy: wording.settledBy, figure, rules: wording.rules, settled: false }]
+    return [{ key: adjustment.id, group: 'judgement', title: adjustment.figure.label, on: adjustment.figure.on, settledBy: wording.settledBy, figure, rules: wording.rules, settled: false }]
   })
 }
 
@@ -99,6 +104,7 @@ function unexplainedItems(accrual: AccrualYear): YearEndOpenItem[] {
             key: gap.id,
             group: 'unexplained',
             title,
+            on: null,
             settledBy: 'Find the rows behind it: the lines and konto groups that differ point to the categories, and a missing role or vat treatment is the usual cause.',
             figure: gap.figure,
             rules: [],
@@ -114,6 +120,7 @@ function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
       key: `uninvoiced-${entry.month}`,
       group: 'completeness',
       title: `No invoice delivers work in ${monthLabel(entry.month)}, while invoice ${entry.nextInvoice.number} came after it`,
+      on: null,
       settledBy: `An invoice for the month, a delivery period on invoice ${entry.nextInvoice.number} that covers it, or the accountant’s word that no work was delivered.`,
       figure: null,
       rules: ['hr.acc.accrual-basis'],
@@ -124,7 +131,8 @@ function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
     (purchase, index): YearEndOpenItem => ({
       key: `no-asset-${index}`,
       group: 'completeness',
-      title: `${purchase.label}: a purchase above the asset threshold with no asset row`,
+      title: `A purchase above the asset threshold with no asset row: ${purchase.label} on`,
+      on: purchase.paidOn,
       settledBy: 'An asset row on the assets tab, so it is depreciated, or the accountant’s word that it is a cost of the year.',
       figure: purchase.cost,
       rules: ['hr.cit.asset-threshold', 'hr.acc.capitalisation'],
@@ -135,6 +143,7 @@ function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
     key: 'invoiced',
     group: 'completeness',
     title: 'Every month up to the last invoice has an invoice that delivers in it',
+    on: null,
     settledBy: 'work was delivered in the year that no invoice names yet.',
     figure: null,
     rules: ['hr.acc.accrual-basis'],
@@ -153,7 +162,7 @@ function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSo
   const loanItems: YearEndOpenItem[] = []
   if (loans.length > 0) {
     const lent = withDrill(
-      summed('Loans to the owner open during the year', loans.map((loan) => withDrill(tracedFigure(`Lent on ${loan.lentOn}`, loan.amount, 'ledger', []), loan.drill)), 'ledger'),
+      summed('Loans to the owner open during the year', loans.map((loan) => withDrill({ ...tracedFigure('Lent on', loan.amount, 'ledger', []), on: loan.lentOn }, loan.drill)), 'ledger'),
       drillToTransactions({
         period: { preset: 'year', year },
         categories: [...categoriesWithRole(workbook.categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(workbook.categories, PACK_ROLES.ownerLoanRepaid)],
@@ -166,6 +175,7 @@ function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSo
         key: 'loan-benefit',
         group: 'compliance',
         title: `Loans to the owner below ${percentText(floor)} interest a year`,
+        on: null,
         settledBy: `The accountant confirms the benefit of interest below ${percentText(floor)} was taxed through payroll, or the loans carry that interest.`,
         figure: lent,
         rules: ['hr.pit.loan-benefit'],
@@ -175,6 +185,7 @@ function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSo
         key: 'related-party-report',
         group: 'compliance',
         title: `The ${report} report with the profit tax return for ${year}`,
+        on: null,
         settledBy: `The ${report} form filed with the return, listing the loans and any lease from the owner.`,
         figure: lent,
         rules: ['hr.cit.related-party-report'],
@@ -184,6 +195,7 @@ function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSo
         key: 'sole-member-deals',
         group: 'compliance',
         title: 'Each loan between the owner and the company in writing',
+        on: null,
         settledBy: 'A loan contract, or a record of each loan, signed by the owner as member and director.',
         figure: lent,
         rules: ['hr.ztd.sole-member-deals'],
@@ -218,8 +230,9 @@ function assetDecisionItems(workbook: Workbook, accrual: AccrualYear, rules: Rul
       key: 'asset-purchase-decision',
       group: 'compliance',
       title: `A members’ decision for purchases above ${percentText(decision.priceShareOfCapital.basisPoints)} of the share capital in the first ${years} years`,
+      on: null,
       settledBy: 'A members’ decision for each purchase, or the accountant’s or a lawyer’s view that ordinary equipment falls outside the rule.',
-      figure: summed('Purchases kept as assets', purchases.map((entry) => withDrill(tracedFigure(entry.label, negateMoney(entry.booking.amount), 'ledger', []), entry.drill)), 'ledger'),
+      figure: summed('Purchases kept as assets', purchases.map((entry) => bookingFigure(entry, negateMoney(entry.booking.amount))), 'ledger'),
       rules: ['hr.ztd.asset-purchase-decision'],
       settled: false,
     },

@@ -29,9 +29,7 @@ export function prepaymentSpread(booking: Booking, months: number, rules: RuleSo
   const spread = spreadByDays(booking.amount, { from: booking.date, to: coveredTo })
   return spread.shares.map((share) => ({
     month: share.month,
-    cost: tracedFigure(`${share.days} of ${spread.totalDays} days covered by the payment of ${booking.date}`, share.amount, 'ledger', [
-      accrual.citation,
-    ]),
+    cost: { ...tracedFigure(`${share.days} of ${spread.totalDays} days covered by the payment of`, share.amount, 'ledger', [accrual.citation]), on: booking.date },
   }))
 }
 

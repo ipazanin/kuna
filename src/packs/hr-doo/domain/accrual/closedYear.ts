@@ -11,7 +11,7 @@ import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { AccrualAdjustment, AdjustmentId, YearEndLineRef } from './accrualAdjustment'
 import { withDrill } from './accrualAdjustment'
-import { isCounted, keptInMonthPaid } from './accrualBookings'
+import { bookingFigure, isCounted, keptInMonthPaid } from './accrualBookings'
 import type { AccrualBooking, CountedBooking } from './accrualBookings'
 
 // For a closed year the accountant's figure wins where it rests on a choice the ledger cannot
@@ -67,7 +67,7 @@ export function arrearsCutOff(
   }
   const steps = [
     ...closing.map((step) => step.figure),
-    ...opening.map((step) => deducted({ ...step.figure, label: `${step.entry.label}, kept in this year when ${year - 1} closed` })),
+    ...opening.map((step) => deducted({ ...step.figure, label: `Kept in this year when ${year - 1} closed: ${step.entry.label} on` })),
   ]
   const figure = withDrill(
     summed('Costs paid in arrears that the accountant keeps in the year they were paid', steps, 'ledger'),
@@ -108,9 +108,9 @@ function keptAtYearEnd(bookings: readonly AccrualBooking[], year: number, yearEn
       .filter((entry) => entry.booking.date > yearEndDay && entry.shares.some((share) => yearOfMonth(share.month) === year))
       .sort((earlier, later) => earlier.booking.date.localeCompare(later.booking.date))
     return (fewestMakingUp(movedBack, difference) ?? []).map((entry) => {
-      const label = `${entry.label}, kept in the month paid as konto ${group.konto.join(', ')} leaves it out of ${year}`
+      const label = `Kept in the month paid as konto ${group.konto.join(', ')} leaves it out of ${year}: ${entry.label} on`
       const cost = negateMoney(sumMoney(entry.shares.map((share) => share.amount)))
-      return { entry, figure: withDrill(tracedFigure(label, cost, 'ledger', entry.vat.cost.rules), entry.drill) }
+      return { entry, figure: bookingFigure(entry, cost, label, entry.vat.cost.rules) }
     })
   })
 }

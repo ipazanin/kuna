@@ -23,7 +23,7 @@ import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArith
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import type { AccrualAdjustment, AdjustmentId } from './accrualAdjustment'
 import { withDrill } from './accrualAdjustment'
-import { hasVat, isCounted } from './accrualBookings'
+import { bookingFigure, hasVat, isCounted } from './accrualBookings'
 import type { AccrualBooking, CapitalisedBooking, CountedBooking } from './accrualBookings'
 import { moneyLine } from './accrualLines'
 import type { MoneyLine } from './accrualLines'
@@ -79,7 +79,7 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
 
   const tangible = summed(
     'Book value of the assets',
-    books.schedules.map((schedule) => ({ ...bookValueOn(schedule, yearEnd), label: `${schedule.asset.name}, book value` })).filter((figure) => figure.amount !== 0),
+    books.schedules.map((schedule) => ({ ...bookValueOn(schedule, yearEnd), label: `${schedule.asset.name}, book value`, on: null })).filter((figure) => figure.amount !== 0),
     'assets',
   )
 
@@ -109,11 +109,11 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const accruedIn = (bucket: DefinedBucket) =>
     accrued
       .filter((entry) => entry.booking.bucket === bucket)
-      .map((entry) => withDrill(tracedFigure(entry.label, negateMoney(entry.booking.amount), 'ledger', []), entry.drill))
+      .map((entry) => bookingFigure(entry, negateMoney(entry.booking.amount)))
   const prepaid = counted
     .filter((entry) => entry.timing === 'prepaid' && entry.booking.date <= yearEnd)
     .map((entry) =>
-      withDrill(tracedFigure(entry.label, negateMoney(sumMoney(entry.shares.filter((share) => yearOfMonth(share.month) > year).map((share) => share.amount))), 'ledger', []), entry.drill),
+      bookingFigure(entry, negateMoney(sumMoney(entry.shares.filter((share) => yearOfMonth(share.month) > year).map((share) => share.amount)))),
     )
     .filter((figure) => figure.amount !== 0)
 

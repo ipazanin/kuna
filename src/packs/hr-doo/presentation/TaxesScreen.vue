@@ -38,6 +38,7 @@ import { citObligationLine } from './CitObligationList.vue'
 import MissingRoles from './MissingRoles.vue'
 import OwnerPayOff from './OwnerPayOff.vue'
 import { categoryLegend, categorySeries, taxByTypeChart } from './packCharts'
+import { figureLabel } from './tracedFigureView'
 
 const ledger = useFilteredLedger()
 const settings = useSettings()
@@ -165,7 +166,7 @@ const corporateTax = computed(() => {
       state: 'ready' as const,
       asOf,
       overdue: { count: overdue.length, outstanding: sumMoney(overdue.map((entry) => entry.outstanding)) },
-      unmatched: cit.unmatched.map((figure, index) => ({ key: `${index}`, label: figure.label, cents: figure.amount, to: linkOf(figure) })),
+      unmatched: cit.unmatched.map((figure, index) => ({ key: `${index}`, label: figureLabel(figure), cents: figure.amount, to: linkOf(figure) })),
       years: taxYears.map((taxYear) => {
         const entries = cit.history.filter((entry) => entry.obligation.taxYear === taxYear)
         return {

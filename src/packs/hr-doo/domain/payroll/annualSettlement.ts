@@ -45,7 +45,7 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
   const settlementCitation = settlementRule.citation
   const paidInYear = input.months.filter((month) => yearOf(month.paidOn) === taxYear)
 
-  const incomeSteps = paidInYear.map((month) => ({ ...month.income, label: `Income for ${month.workedMonth}, paid on ${month.paidOn}` }))
+  const incomeSteps = paidInYear.map((month) => ({ ...month.income, label: `Income for ${month.workedMonth}, paid on`, on: month.paidOn }))
   const income = tracedFigure('Income of the year after pension contributions', sumMoney(incomeSteps.map((step) => step.amount)), basis, [
     settlementCitation,
   ], incomeSteps)
@@ -85,7 +85,7 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
     [brackets.lowerRateTax, brackets.higherRateTax, deducted(youthRelief)],
   )
 
-  const withheldSteps = paidInYear.map((month) => ({ ...month.incomeTax, label: `Withheld for ${month.workedMonth}, paid on ${month.paidOn}` }))
+  const withheldSteps = paidInYear.map((month) => ({ ...month.incomeTax, label: `Withheld for ${month.workedMonth}, paid on`, on: month.paidOn }))
   const withheld = tracedFigure('Income tax withheld in the months', sumMoney(withheldSteps.map((step) => step.amount)), basis, [
     settlementCitation,
   ], withheldSteps)

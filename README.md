@@ -335,8 +335,11 @@ at the year end with December settled less the tax balance, and what the owner o
 carry their dividend tax, net, cash, loan and capital consequences: one payout once the members
 adopt the statements, set off against what the owner owes, an interim payout now on the profit of
 the complete months, with the part the year's profit does not cover taxed as the owner's income,
-or keeping the profit in the company. The figures are for planning with the accountant, never
-filing advice.
+or keeping the profit in the company. The interim payout is weighed against cash on the newest
+booking instead of the year end, less the corporate tax due by the end of that month and the pay
+of the last complete month the ledger has not paid yet. When the payout and its tax exceed that,
+the option gives the largest payout the cash covers. The figures are for planning with the
+accountant, never filing advice.
 
 ## Forecast screen
 
@@ -347,7 +350,8 @@ planned or averaged bars hatched and the running month shaded. The profit and lo
 are lists whose lines open on their parts, the months a plan row or an average stands in for, their
 rows and their rules. The corporate tax card sets each payment the schedule expects beside what the
 bank rows paid, with the balance due and the new monthly advance. Dividend capacity switches between
-the three payout options with `payout=interim` or `payout=keep` in the address, and the year's plan
+the three payout options with `payout=interim` or `payout=keep` in the address, warns when the cash
+on the newest booking does not cover the interim payout, and the year's plan
 rows are listed read only, each with why the forecast does not count it where it does not. Taxes
 lists the same payments for every year from the first tax period, with overdue payments and payments
 no obligation takes called out above them. The figures are for planning with the accountant, never

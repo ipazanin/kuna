@@ -4,9 +4,11 @@ import { dividendCapacity } from '../src/packs/hr-doo/domain/dividend/dividendCa
 import type { DividendCapacity, PayoutOption, PayoutOptionId } from '../src/packs/hr-doo/domain/dividend/dividendCapacity'
 import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import type { Workbook } from '../src/features/workbook/domain/workbook'
+import { subtractMoney } from '../src/shared/money/money'
 import { yearEndLine } from './fixtures/exampleStudio'
-import { civil, euros } from './fixtures/ledger'
-import { STEADY_YEAR_END_2025, planLine, steadyStudio } from './fixtures/steadyStudio'
+import { withPackBuckets } from './fixtures/hrDooCategories'
+import { civil, euros, ledger } from './fixtures/ledger'
+import { STEADY_CATEGORIES, STEADY_ROWS, STEADY_YEAR_END_2025, planLine, steadyStudio } from './fixtures/steadyStudio'
 
 function capacity(year: number, workbook: Workbook = steadyStudio(), asOf = '2026-10-19'): DividendCapacity {
   return dividendCapacity(year, forecastYear(workbook, year, civil(asOf)), workbook)
@@ -43,7 +45,8 @@ describe('dividendCapacity, after a payout already made in the year', () => {
     const { prudence } = result
     // The grant's second year runs from 1 June 2026, with 500.00 at risk.
     expect(prudence.clawbackExposure.amount).toBe(euros(500))
-    expect(prudence.clawbackExposure.steps.map((step) => step.label)).toEqual(['example-grant: Clawback if a condition breaks in the second year, until 2027-05-31'])
+    expect(prudence.clawbackExposure.on).toBe('2026-12-31')
+    expect(prudence.clawbackExposure.steps.map((step) => [step.label, step.on])).toEqual([['example-grant: Clawback if a condition breaks in the second year, until', '2027-05-31']])
     expect(prudence.cashAtYearEnd.amount).toBe(euros(88255))
     expect(prudence.balanceDue.amount).toBe(euros(4653.8))
     // December's pay and payroll tax, and the December advance due on 31 January.
@@ -94,13 +97,25 @@ describe('dividendCapacity, after a payout already made in the year', () => {
     expect(payout.dividendTax.amount).toBe(euros(5100.12))
     expect(payout.setOff.amount).toBe(euros(0))
     expect(payout.cashOut.amount).toBe(euros(42501))
-    expect(payout.cashLeft.amount).toBe(euros(45800.2))
+    // 72,595.00 on 10 October less the September advance of 100.00 due on 31 October, less the payout.
+    expect(payout.cashLeft.amount).toBe(euros(29994))
     expect(payout.owedByOwnerAfter.amount).toBe(euros(3000))
     // 2% of the 3,000.00 that stays lent.
     expect(payout.loanBenefitPerYear.amount).toBe(euros(60))
     expect(payout.shortfall?.amount).toBe(euros(0))
     expect(payout.retainedAfter.amount).toBe(euros(12283.2))
     expect(payout.capitalProtected).toBe(true)
+  })
+
+  it('pays the interim payout from the cash on the newest booking, less what falls due that month', () => {
+    const cash = option(result, 'interim').cashNow
+
+    expect([cash?.cash.amount, cash?.cash.on]).toEqual([euros(72595), '2026-10-10'])
+    expect([cash?.fallingDue.amount, cash?.fallingDue.on]).toEqual([euros(100), '2026-10-31'])
+    expect(cash?.available.amount).toBe(euros(72495))
+    expect(cash?.largestPayout.amount).toBe(euros(42501))
+    expect(option(result, 'after-adoption').cashNow).toBeNull()
+    expect(option(result, 'keep').cashNow).toBeNull()
   })
 
   it('keeps the profit in the company', () => {
@@ -113,6 +128,39 @@ describe('dividendCapacity, after a payout already made in the year', () => {
     expect(kept.owedByOwnerAfter.amount).toBe(euros(3000))
     expect(kept.loanBenefitPerYear.amount).toBe(euros(60))
     expect(kept.clawbackExposure.amount).toBe(euros(0))
+  })
+})
+
+describe('dividendCapacity of an interim payout the cash does not cover', () => {
+  // 40,000.00 lent to the owner on 6 October leaves the profit as it is and the bank with 32,595.00.
+  const rows = [...STEADY_ROWS, { date: '2026-10-06', amount: -40000, category: 'owner-loan-out' }].sort((earlier, later) => earlier.date.localeCompare(later.date))
+  const result = capacity(2026, steadyStudio({ transactions: withPackBuckets(ledger(rows), STEADY_CATEGORIES) }))
+  const payout = option(result, 'interim')
+
+  it('keeps the payout the profit allows and gives the largest one the cash covers', () => {
+    expect(payout.gross.amount).toBe(euros(42501))
+    // 32,595.00 less the 100.00 advance due on 31 October.
+    expect(payout.cashNow?.available.amount).toBe(euros(32495))
+    expect(payout.cashNow?.largestPayout.amount).toBe(euros(32495))
+    expect(payout.cashLeft.amount).toBe(euros(-10006))
+  })
+
+  it('weighs the payouts after the year against cash at the year end', () => {
+    const afterAdoption = option(result, 'after-adoption')
+
+    expect(afterAdoption.cashLeft.amount).toBe(subtractMoney(result.prudence.cashAfterObligations.amount, afterAdoption.cashOut.amount))
+    expect(option(result, 'keep').cashLeft.amount).toBe(result.prudence.cashAfterObligations.amount)
+  })
+})
+
+describe('dividendCapacity of an interim payout before the month’s pay is paid', () => {
+  it('takes off the pay of the last complete month the ledger has not paid yet', () => {
+    // On 9 October the September pay of 1,000.00 and its 200.00 of tax, paid on the 10th, are still to pay.
+    const cash = option(capacity(2026, steadyStudio(), '2026-10-09'), 'interim').cashNow
+
+    expect([cash?.cash.amount, cash?.cash.on]).toEqual([euros(73795), '2026-10-05'])
+    expect(cash?.fallingDue.amount).toBe(euros(1300))
+    expect(cash?.available.amount).toBe(euros(72495))
   })
 })
 

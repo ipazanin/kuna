@@ -2,14 +2,19 @@ import { drillToTransactions } from '../../../../features/filters/domain/drillTa
 import type { Transaction, Workbook } from '../../../../features/workbook/domain/workbook'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { addMonths, lastDayOf, monthKey } from '../../../../shared/calendar/monthKey'
+import { addMonths, lastDayOf, monthKey, monthOf } from '../../../../shared/calendar/monthKey'
+import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
 import { equityBroughtForward } from '../accrual/accrualBalanceSheet'
+import { outstandingFigure } from '../cit/matchCitPayments'
+import { cashOnNewestBooking } from '../forecast/forecastCash'
+import { monthOfLine } from '../forecast/forecastLines'
 import { forecastYear } from '../forecast/forecastYear'
 import type { YearForecast } from '../forecast/forecastYear'
 import { clawbackExposure } from '../grants/grantRelease'
@@ -36,8 +41,10 @@ export interface PayoutOption {
   readonly setOff: TracedFigure
   /** The net paid out in cash and the dividend tax paid to the state. */
   readonly cashOut: TracedFigure
-  /** Cash at the year end with December's revenue and bills settled and the tax balance paid, less this payout. */
+  /** Cash left after the payout: of the interim cash for an interim payout, otherwise of cash at the year end with December settled and the tax balance paid. */
   readonly cashLeft: TracedFigure
+  /** For the interim payout, the cash it is paid from. Null otherwise. */
+  readonly cashNow: InterimCash | null
   readonly owedByOwnerAfter: TracedFigure
   /** The yearly benefit in kind on what stays owed while no interest is charged, taxed through payroll. */
   readonly loanBenefitPerYear: TracedFigure
@@ -50,6 +57,17 @@ export interface PayoutOption {
   readonly shortfall: TracedFigure | null
   /** What stays in the company as retained earnings for later years. */
   readonly retainedAfter: TracedFigure
+}
+
+/** The cash an interim payout is paid from, on the day of the forecast. */
+export interface InterimCash {
+  /** The bank balance on the newest booking. */
+  readonly cash: TracedFigure
+  /** Corporate tax and pay for complete months still unpaid, due by the end of the month of the newest booking. */
+  readonly fallingDue: TracedFigure
+  readonly available: TracedFigure
+  /** The largest interim payout, its tax included, that the available cash covers. */
+  readonly largestPayout: TracedFigure
 }
 
 /** Lines that are not law but weigh on how much to pay out. */
@@ -139,7 +157,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
   const balanceDue = forecast.liability.balanceDue ?? tracedFigure('PD line 57, not known', ZERO, 'ledger', [])
   const advancesAfterYearEnd = forecast.cit.obligations
     .filter((entry) => entry.obligation.dueOn > yearEnd && entry.outstanding > 0)
-    .map((entry) => tracedFigure(`${entry.obligation.expected.label}, due ${entry.obligation.dueOn}`, entry.outstanding, 'ledger', entry.obligation.expected.rules))
+    .map(outstandingFigure)
   const decemberDue = summed('December’s pay, rent and corporate tax advance paid in January', [forecast.decemberArrears, ...advancesAfterYearEnd], 'ledger')
   const cashAfterObligations = summed('Cash at the year end with December settled, less the corporate tax balance', [
     forecast.cashAtYearEnd,
@@ -148,7 +166,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     deducted(balanceDue),
   ], 'ledger')
   const owed = netOwed(ownerLoans(rows, workbook.categories), ownerAdvances(workbook.ownerAdvances.filter((advance) => advance.date <= asOf), rows, workbook.categories), rows, workbook.categories)
-  const owedByOwner = withDrill(tracedFigure(`Owed by the owner on ${asOf}, net`, owed.amount > 0 ? owed.amount : ZERO, 'ledger', []), owed.drill)
+  const owedByOwner = withDrill({ ...tracedFigure('Owed by the owner, net, on', owed.amount > 0 ? owed.amount : ZERO, 'ledger', []), on: asOf }, owed.drill)
   const prudence: DividendPrudence = {
     clawbackExposure: clawbackOn(workbook, yearEnd),
     cashAtYearEnd: forecast.cashAtYearEnd,
@@ -168,8 +186,9 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     gross: maxPayout,
     setsOff: true,
     shortfall: null,
+    cashNow: null,
   })
-  const interim = interimPayout(payout, forecast, opening.retained, paidOutInYear)
+  const interim = interimPayout(payout, forecast, rows, opening.retained, paidOutInYear)
   const keep = payoutOption(payout, {
     id: 'keep',
     label: 'Keep the profit in the company',
@@ -178,6 +197,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     gross: tracedFigure('Nothing paid out', ZERO, 'ledger', []),
     setsOff: false,
     shortfall: null,
+    cashNow: null,
   })
 
   return {
@@ -217,6 +237,8 @@ interface PayoutChoice {
   /** Whether the net payout settles what the owner owes before any of it is paid in cash. */
   readonly setsOff: boolean
   readonly shortfall: TracedFigure | null
+  /** For an interim payout, the cash it is weighed against instead of cash at the year end. */
+  readonly cashNow: InterimCash | null
 }
 
 function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOption {
@@ -242,7 +264,8 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
     net,
     setOff,
     cashOut,
-    cashLeft: summed('Cash left after the payout', [context.cashAfterObligations, deducted(cashOut)], 'ledger'),
+    cashLeft: summed('Cash left after the payout', [choice.cashNow === null ? context.cashAfterObligations : choice.cashNow.available, deducted(cashOut)], 'ledger'),
+    cashNow: choice.cashNow,
     owedByOwnerAfter: owedAfter,
     loanBenefitPerYear: tracedFigure(
       `A year of benefit in kind at ${percentText(benefitRule.value.minimumInterestRate.basisPoints)} on what stays owed, with no interest charged`,
@@ -264,7 +287,7 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
  * year's rate, with what was retained and less what the year paid out. The part the year's own
  * distributable profit does not cover is taxed as the owner's income.
  */
-function interimPayout(context: PayoutContext, forecast: YearForecast, openingRetained: TracedFigure, paidOut: TracedFigure): PayoutOption {
+function interimPayout(context: PayoutContext, forecast: YearForecast, rows: readonly Transaction[], openingRetained: TracedFigure, paidOut: TracedFigure): PayoutOption {
   const { year, yearEnd, rules, distributable } = context
   const { lastComplete } = forecast.calendar
   const december = monthKey(year, 12)
@@ -279,6 +302,7 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, openingRe
       gross: tracedFigure(forecast.asOf > yearEnd ? 'Nothing: the year has ended' : 'Nothing: the year has no complete month for an interim statement', ZERO, 'ledger', []),
       setsOff: false,
       shortfall: null,
+      cashNow: null,
     })
   }
   const toDate = summed(
@@ -294,6 +318,7 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, openingRe
   const gross = tracedFigure('Interim payout', available.amount > 0 ? available.amount : ZERO, 'ledger', available.rules, [available])
   const covered = distributable.amount > 0 ? distributable.amount : ZERO
   const uncovered = subtractMoney(gross.amount, covered)
+  const cashNow = interimCash(forecast, rows, through, gross.amount)
   return payoutOption(context, {
     id: 'interim',
     label,
@@ -305,7 +330,29 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, openingRe
       gross,
       deducted(distributable),
     ]),
+    cashNow,
   })
+}
+
+/**
+ * The cash on the newest booking, less the corporate tax due by the end of its month, overdue
+ * included, and the pay for the last complete month that the ledger has not paid yet. The dividend
+ * tax is withheld from the gross, so the gross is all the cash the payout takes.
+ */
+function interimCash(forecast: YearForecast, rows: readonly Transaction[], lastComplete: MonthKey, gross: Money): InterimCash {
+  const dueBy = lastDayOf(monthOf(forecast.asOf))
+  const taxDue = forecast.cit.history.filter((entry) => entry.outstanding > 0 && entry.obligation.dueOn <= dueBy).map(outstandingFigure)
+  const payDue = forecast.categories
+    .filter((entry) => entry.category.roles.includes(PACK_ROLES.arrears))
+    .map((entry) => monthOfLine(entry.forecast, lastComplete))
+    .filter((month) => !month.bases.includes('actual'))
+    .map((month) => deducted(month.figure))
+  const cash = cashOnNewestBooking(rows)
+  const fallingDue = { ...summed('What falls due by', [...taxDue, ...payDue], 'ledger'), on: dueBy }
+  const available = summed('Cash for an interim payout now', [cash, deducted(fallingDue)], 'ledger')
+  const allowed = available.amount < gross ? available.amount : gross
+  const largestPayout = tracedFigure('The largest interim payout the cash covers, its tax included', allowed > 0 ? allowed : ZERO, 'ledger', available.rules, [available])
+  return { cash, fallingDue, available, largestPayout }
 }
 
 /**
@@ -355,7 +402,11 @@ function shareCapitalOf(workbook: Workbook, year: number, rules: RuleSource): Tr
 function clawbackOn(workbook: Workbook, on: CivilDate): TracedFigure {
   const steps = workbook.grants.flatMap((grant) => {
     const exposure = clawbackExposure(grant, on)
-    return exposure === null ? [] : [{ ...exposure.amount, label: `${grant.slug}: ${exposure.amount.label}${exposure.until === null ? '' : `, until ${exposure.until}`}` }]
+    if (exposure === null) {
+      return []
+    }
+    const named = { ...exposure.amount, label: `${grant.slug}: ${exposure.amount.label}` }
+    return [exposure.until === null ? named : { ...named, label: `${named.label}, until`, on: exposure.until }]
   })
-  return summed(`At risk from the grant clawback terms on ${on}`, steps, 'assets')
+  return { ...summed('At risk from the grant clawback terms on', steps, 'assets'), on }
 }

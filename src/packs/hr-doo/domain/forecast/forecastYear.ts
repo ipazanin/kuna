@@ -14,7 +14,7 @@ import { ruleValue } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
 import { vatPosition } from '../accrual/accrualBalanceSheet'
-import { accrualBookings, countsInProfit, isCounted } from '../accrual/accrualBookings'
+import { accrualBookings, bookingFigure, countsInProfit, isCounted } from '../accrual/accrualBookings'
 import type { CountedBooking } from '../accrual/accrualBookings'
 import { relatedPartyInterest } from '../accrual/accrualYear'
 import { arrearsCutOff, bookingsAfterCutOff } from '../accrual/closedYear'
@@ -28,7 +28,7 @@ import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import type { CitLiability, TaxPeriod } from '../cit/citLiability'
 import { citSchedule, firstAdvanceAtNewAmount } from '../cit/citSchedule'
 import type { CitObligation, CitSchedule } from '../cit/citSchedule'
-import { matchCitPayments } from '../cit/matchCitPayments'
+import { matchCitPayments, outstandingFigure } from '../cit/matchCitPayments'
 import type { MatchedCitObligation } from '../cit/matchCitPayments'
 import { closedYearReturn } from '../cit/priorReturn'
 import type { PriorReturn } from '../cit/priorReturn'
@@ -340,7 +340,7 @@ function citOf(
     `Advances still to come for ${year}`,
     obligations
       .filter((entry) => entry.obligation.kind === 'advance' && entry.outstanding > 0)
-      .map((entry) => tracedFigure(`${entry.obligation.expected.label}, due ${entry.obligation.dueOn}`, entry.outstanding, 'ledger', entry.obligation.expected.rules)),
+      .map(outstandingFigure),
     'ledger',
   )
   const liability = citLiability(base, period, summed(`PD line 56, advances paid and still to come for ${year}`, [advancesPaid, advancesToCome], 'ledger'), rules)
@@ -381,7 +381,7 @@ function sharesByCategoryMonth(counted: readonly CountedBooking[]): ReadonlyMap<
 }
 
 function monthFigure(label: string, shares: MonthShares): TracedFigure {
-  const steps = shares.map(({ entry, amount }) => withDrill(tracedFigure(entry.label, amount, 'ledger', []), entry.drill))
+  const steps = shares.map(({ entry, amount }) => bookingFigure(entry, amount))
   return tracedFigure(label, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(shares.map(({ entry }) => entry.vat.cost)), steps)
 }
 

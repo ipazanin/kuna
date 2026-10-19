@@ -27,7 +27,7 @@ import type { RuleSource } from '../payroll/payrollArithmetic'
 import { withDrill } from './accrualAdjustment'
 import type { AccrualAdjustment, AdjustmentId } from './accrualAdjustment'
 import { balanceSheetLines } from './accrualBalanceSheet'
-import { accrualBookings, hasVat, isCounted } from './accrualBookings'
+import { accrualBookings, bookingFigure, hasVat, isCounted } from './accrualBookings'
 import type { AccrualBooking, CapitalisedBooking, CountedBooking, TakenOutTreatment } from './accrualBookings'
 import { moneyLine } from './accrualLines'
 import type { AccrualLine, MoneyLine } from './accrualLines'
@@ -71,6 +71,7 @@ export interface CategoryTotal {
 /** A purchase on a capital-purchase category above the asset threshold that no asset row claims. It counts in full as a cost. */
 export interface PurchaseWithoutAsset {
   readonly label: string
+  readonly paidOn: CivilDate
   readonly cost: TracedFigure
 }
 
@@ -383,7 +384,7 @@ export function accrualYear(workbook: Workbook, year: number, inputs: AccrualInp
   const capitalSlugs = categoriesWithRole(workbook.categories, PACK_ROLES.capitalPurchase)
   const purchasesWithoutAsset = counted
     .filter((entry) => inYear(entry.booking.date) && capitalSlugs.includes(entry.category.slug) && negateMoney(entry.vat.cost.amount) > threshold)
-    .map((entry) => ({ label: entry.label, cost: withDrill({ ...entry.vat.cost, amount: negateMoney(entry.vat.cost.amount) }, entry.drill) }))
+    .map((entry) => ({ label: entry.label, paidOn: entry.booking.date, cost: withDrill({ ...entry.vat.cost, amount: negateMoney(entry.vat.cost.amount) }, entry.drill) }))
 
   return {
     year,
@@ -438,7 +439,7 @@ function figureOfBookings<Entry extends AccrualBooking>(
   citations: TracedFigure['rules'],
   year: number,
 ): TracedFigure {
-  const steps = entries.map((entry) => withDrill(tracedFigure(entry.label, amountOf(entry), 'ledger', []), entry.drill))
+  const steps = entries.map((entry) => bookingFigure(entry, amountOf(entry)))
   const drill =
     entries.length === 0
       ? null

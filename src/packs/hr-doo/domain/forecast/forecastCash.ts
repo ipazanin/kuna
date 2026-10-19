@@ -1,7 +1,7 @@
 import { latestBalances } from '../../../../features/cash/domain/balances'
 import { receivablesOf } from '../../../../features/receivables/domain/invoiceMatching'
 import { newestBookingOf } from '../../../../features/workbook/domain/workbook'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { Transaction, Workbook } from '../../../../features/workbook/domain/workbook'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, monthKey, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
@@ -9,6 +9,7 @@ import { ZERO, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
+import { outstandingFigure } from '../cit/matchCitPayments'
 import type { MatchedCitObligation } from '../cit/matchCitPayments'
 import { PACK_ROLES } from '../packRoles'
 import { deducted, summed, tracedFigure } from '../payroll/payrollArithmetic'
@@ -62,12 +63,16 @@ export function cashAtYearEnd(inputs: CashInputs): TracedFigure {
   return summed(`Cash at the end of ${year}, as forecast`, steps, 'ledger')
 }
 
+/** The bank balance on the newest booking, named with its day. */
+export function cashOnNewestBooking(transactions: readonly Transaction[]): TracedFigure {
+  const { cashOnHand } = latestBalances(transactions)
+  return withDrill({ ...tracedFigure('Cash on', cashOnHand.amount, 'ledger', []), on: newestBookingOf(transactions) }, cashOnHand.drill)
+}
+
 function cashNow({ known, vatPosition }: CashInputs): TracedFigure[] {
-  const balances = latestBalances(known.transactions)
-  const newest = newestBookingOf(known.transactions)
   const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
   return [
-    withDrill(tracedFigure(`Cash on ${newest}`, balances.cashOnHand.amount, 'ledger', []), balances.cashOnHand.drill),
+    cashOnNewestBooking(known.transactions),
     tracedFigure('Invoices still open, paid by the year end', sumMoney(receivables.clients.map((client) => client.outstanding)), 'invoices', []),
     { ...vatPosition, label: 'VAT the state owes the company now, settled by the year end' },
   ]
@@ -119,7 +124,7 @@ function taxStillToPay({ year, citObligations }: CashInputs, runsInYear: boolean
   return deducted(
     summed(
       'Corporate tax still to pay by the year end',
-      owing.map((entry) => tracedFigure(`${entry.obligation.expected.label}, due ${entry.obligation.dueOn}`, entry.outstanding, 'ledger', entry.obligation.expected.rules)),
+      owing.map(outstandingFigure),
       'ledger',
     ),
   )

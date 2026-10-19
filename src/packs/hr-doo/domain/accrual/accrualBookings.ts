@@ -9,10 +9,14 @@ import { monthOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import type { Money } from '../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
+import type { RuleCitation } from '../../ruleset/schema'
+import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { assetRegister } from '../assets/assetRegister'
 import { advanceDrill } from '../ownerAdvances'
+import { withDrill } from './accrualAdjustment'
 import { rowDrill } from '../ownerLoans'
 import { PACK_ROLES } from '../packRoles'
+import { tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { vatSplit } from '../vat/vatSplit'
 import type { VatSplit } from '../vat/vatSplit'
@@ -48,6 +52,7 @@ interface BookingBase {
   readonly booking: Booking
   readonly category: Category
   readonly source: BookingSource
+  /** Who or what the booking was with, without its day. */
   readonly label: string
   readonly drill: DrillTarget
 }
@@ -135,6 +140,11 @@ export function hasVat(entry: AccrualBooking): entry is CountedBooking | Capital
   return entry.treatment === 'counted' || entry.treatment === 'capitalised'
 }
 
+/** An amount of a booking as a step named by the booking and its day, which opens its row. */
+export function bookingFigure(entry: AccrualBooking, amount: Money, label = `${entry.label} on`, rules: readonly RuleCitation[] = []): TracedFigure {
+  return withDrill({ ...tracedFigure(label, amount, 'ledger', rules), on: entry.booking.date }, entry.drill)
+}
+
 /** The same booking in the month it was paid, for a cut-off that keeps it out of the month before. */
 export function keptInMonthPaid(entry: CountedBooking): CountedBooking {
   return { ...entry, timing: 'kept-in-month-paid', shares: [{ month: monthOf(entry.booking.date), amount: entry.vat.cost.amount }] }
@@ -183,9 +193,9 @@ function plainBooking(booking: Booking): Booking {
 
 function labelOf(source: BookingSource): string {
   if (source.kind === 'owner-advance') {
-    return `${source.advance.description || 'Paid by the owner'}, ${source.advance.date}`
+    return source.advance.description || 'Paid by the owner'
   }
-  return `${source.row.counterparty || source.row.description || source.row.category}, ${source.row.date}`
+  return source.row.counterparty || source.row.description || source.row.category
 }
 
 function drillOf(source: BookingSource): DrillTarget {

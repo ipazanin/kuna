@@ -96,28 +96,20 @@ export function depreciationSchedule(asset: Asset, settings: DepreciationSetting
 export function accumulatedDepreciationOn(schedule: DepreciationSchedule, on: CivilDate): TracedFigure {
   const gone = schedule.writeOff !== null && schedule.writeOff.on <= on
   const counted = schedule.months.filter((entry) => gone || lastDayOf(entry.month) <= on)
-  return tracedFigure(
-    `Accumulated depreciation on ${on}`,
-    sumMoney(counted.map((entry) => entry.charge)),
-    'assets',
-    rulesOf(schedule.years.map((year) => year.charge)),
-  )
+  return { ...tracedFigure('Accumulated depreciation on', sumMoney(counted.map((entry) => entry.charge)), 'assets', rulesOf(schedule.years.map((year) => year.charge))), on }
 }
 
 /** Cost less accumulated depreciation. Nothing before the asset was bought, and nothing once it is written off. */
 export function bookValueOn(schedule: DepreciationSchedule, on: CivilDate): TracedFigure {
   if (on < schedule.asset.bought) {
-    return tracedFigure(`Book value on ${on}, not bought yet`, ZERO, 'assets', [])
+    return { ...tracedFigure('Not bought yet, so no book value on', ZERO, 'assets', []), on }
   }
   const writeOff = schedule.writeOff
   if (writeOff !== null && writeOff.on <= on) {
-    return tracedFigure(`Book value on ${on}, written off on ${writeOff.on}`, ZERO, 'assets', writeOff.figure.rules, [writeOff.figure])
+    return { ...tracedFigure('No book value after the write-off on', ZERO, 'assets', writeOff.figure.rules, [writeOff.figure]), on: writeOff.on }
   }
   const accumulated = accumulatedDepreciationOn(schedule, on)
-  return tracedFigure(`Book value on ${on}`, subtractMoney(schedule.cost.amount, accumulated.amount), 'assets', accumulated.rules, [
-    schedule.cost,
-    deducted(accumulated),
-  ])
+  return { ...tracedFigure('Book value on', subtractMoney(schedule.cost.amount, accumulated.amount), 'assets', accumulated.rules, [schedule.cost, deducted(accumulated)]), on }
 }
 
 /** The last month that carries depreciation: the month of disposal, or the one before when the rule stops earlier. */

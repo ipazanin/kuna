@@ -34,7 +34,7 @@ describe('prepaymentSpread', () => {
     ])
     expect(thisYear).toBe(euros(-109.15))
     expect(prepaid).toBe(euros(-370.85))
-    expect(shares[0].cost.label).toBe('22 of 365 days covered by the payment of 2026-10-10')
+    expect([shares[0].cost.label, shares[0].cost.on]).toEqual(['22 of 365 days covered by the payment of', '2026-10-10'])
   })
 
   it('refuses a cover of no months', () => {

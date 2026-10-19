@@ -134,7 +134,7 @@ export function clawbackExposure(grant: Grant, on: CivilDate): ClawbackExposure 
     return null
   }
   if (on > grant.period.to) {
-    return { amount: tracedFigure(`Nothing, the grant period ended on ${grant.period.to}`, ZERO, 'assets', []), until: null }
+    return { amount: { ...tracedFigure('Nothing, the grant period ended on', ZERO, 'assets', []), on: grant.period.to }, until: null }
   }
   const firstYearEnds = addDays(anniversaryOf(grant.period.from), -1)
   if (on <= firstYearEnds) {
@@ -208,19 +208,14 @@ function straightLine(grant: Grant): PolicyPlan {
 
 function deferredBy(grant: Grant, months: readonly GrantMonth[], released: readonly TracedFigure[], on: CivilDate): TracedFigure {
   if (on < grant.received) {
-    return tracedFigure(`Grant deferred on ${on}, not received yet`, ZERO, 'assets', [])
+    return { ...tracedFigure('Not received yet, so nothing deferred on', ZERO, 'assets', []), on }
   }
   const receivedFigure = tracedFigure('Grant received', grant.amount, 'assets', [])
-  const releasedToDate = tracedFigure(
-    `Released by ${on}`,
-    sumMoney(months.filter((entry) => lastDayOf(entry.month) <= on).map((entry) => entry.released)),
-    'assets',
-    rulesOf(released),
-  )
-  return tracedFigure(`Grant deferred on ${on}`, subtractMoney(grant.amount, releasedToDate.amount), 'assets', releasedToDate.rules, [
-    receivedFigure,
-    deducted(releasedToDate),
-  ])
+  const releasedToDate = {
+    ...tracedFigure('Released by', sumMoney(months.filter((entry) => lastDayOf(entry.month) <= on).map((entry) => entry.released)), 'assets', rulesOf(released)),
+    on,
+  }
+  return { ...tracedFigure('Grant deferred on', subtractMoney(grant.amount, releasedToDate.amount), 'assets', releasedToDate.rules, [receivedFigure, deducted(releasedToDate)]), on }
 }
 
 interface FundedCost {

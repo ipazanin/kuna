@@ -87,7 +87,7 @@ function usageOf(
   const capRow = rows[0]
   const period = capRow.period.text
   const citations = [capsRule.citation]
-  const paidSteps = made.map((payment) => tracedFigure(`Paid on ${payment.paidOn}`, payment.amount, basis, citations))
+  const paidSteps = made.map((payment) => ({ ...tracedFigure('Paid on', payment.amount, basis, citations), on: payment.paidOn }))
   const paid = tracedFigure(`${payment} paid in ${periodKey}`, sumMoney(paidSteps.map((step) => step.amount)), basis, citations, paidSteps)
   const cap = capOf(capRow, made, basis, capsRule)
   const items = rows.map((row) => row.item.count)

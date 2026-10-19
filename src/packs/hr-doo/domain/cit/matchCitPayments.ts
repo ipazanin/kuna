@@ -93,6 +93,12 @@ export function matchCitPayments(
   }
 }
 
+/** What is still to pay on an obligation, named with the day it falls due. */
+export function outstandingFigure(entry: MatchedCitObligation): TracedFigure {
+  const { obligation } = entry
+  return { ...tracedFigure(`${obligation.expected.label}, due`, entry.outstanding, 'ledger', obligation.expected.rules), on: obligation.dueOn }
+}
+
 function statusOf(obligation: CitObligation, outstanding: Money, asOf: CivilDate): CitObligationStatus {
   if (outstanding <= 0) {
     return 'paid'
@@ -111,7 +117,7 @@ interface RowShare {
 
 function paymentStep(share: RowShare): TracedFigure {
   const { row } = share
-  return withDrill(tracedFigure(`${row.description || row.counterparty || row.category}, ${row.date}`, share.amount, 'ledger', []), rowDrill(row))
+  return withDrill({ ...tracedFigure(`${row.description || row.counterparty || row.category} on`, share.amount, 'ledger', []), on: row.date }, rowDrill(row))
 }
 
 /** The one row, or the corporate tax rows from the first payment to the last. */
