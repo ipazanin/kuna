@@ -1,16 +1,18 @@
 import { expectedInvoices } from '../../../../features/billingPlan/domain/expectedInvoices'
 import type { ExpectedInvoice } from '../../../../features/billingPlan/domain/expectedInvoices'
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
+import { displayName } from '../../../../features/workbook/domain/displayName'
+import type { Asset } from '../../../../features/workbook/domain/assets'
 import { PLAN_KEYWORDS } from '../../../../features/workbook/domain/plan'
 import type { PlanLine } from '../../../../features/workbook/domain/plan'
 import { ledgerWindowOf } from '../../../../features/workbook/domain/workbook'
 import type { Category, Invoice, Workbook } from '../../../../features/workbook/domain/workbook'
-import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
+import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { addMonths, monthKey, monthNumber, monthOf, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
+import { addMonths, firstDayOf, monthKey, monthNumber, monthOf, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, divideMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -36,13 +38,21 @@ import { closedYearReturn } from '../cit/priorReturn'
 import type { PriorReturn } from '../cit/priorReturn'
 import { lossesCarriedInto, taxBase } from '../cit/taxBase'
 import type { TaxBase, TaxBaseInput } from '../cit/taxBase'
-import { PACK_ROLES, categoriesWithRole } from '../packRoles'
+import { owedByOwnerOn } from '../dividend/owedByOwner'
+import { PACK_ROLES, categoriesWithRole, isOwnerPayCost } from '../packRoles'
 import type { PackRole } from '../packRoles'
-import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
-import { cashAtYearEnd } from './forecastCash'
-import { AVERAGED_MONTHS, addedUpLine, forecastLine, monthOfLine, scheduledLine } from './forecastLines'
-import type { CategoryForecast, ForecastCalendar, ForecastLine, ForecastMonth, ForecastPlLine, LinePart } from './forecastLines'
+import { salaryDropped } from '../scenarios/scenarioOutcome'
+import type { ScenarioWarning } from '../scenarios/scenarioOutcome'
+import { scenarioPay } from '../scenarios/scenarioPay'
+import type { ScenarioPay } from '../scenarios/scenarioPay'
+import { cashProjection, paymentLagOf } from './forecastCash'
+import type { CashMonth, CashProjection, DividendCash, PaymentLag } from './forecastCash'
+import { ARREARS_AVERAGED_MONTHS, AVERAGED_MONTHS, addedUpLine, forecastLine, monthOfLine, scheduledLine } from './forecastLines'
+import type { CategoryForecast, ForecastCalendar, ForecastLine, ForecastPlLine, LinePart } from './forecastLines'
+import { ownerPayPlan, planGuards } from './planGuards'
+import type { PlanGuard, PlannedOwnerPay } from './planGuards'
 
 /** The corporate tax of the forecast year: what its schedule expects, what the bank rows paid, and what it leaves to the next year. */
 export interface CitForecast {
@@ -68,6 +78,39 @@ export interface UnmodelledPlanLine {
   readonly reason: string
 }
 
+/** The owner pay a plan's scenarios set for the months the ledger has not settled, in place of the owner pay categories. */
+export interface OwnerPayForecast {
+  readonly plan: PlannedOwnerPay
+  readonly pay: ScenarioPay
+  /** The salary with its health contribution and the tax-free items, then the rent when the scenarios pay any. */
+  readonly lines: readonly CategoryForecast[]
+  /** The owner pay categories' last month the ledger settles. Later months follow the scenarios. */
+  readonly lastActual: MonthKey | null
+  /** Each grant whose employment condition the planned pay breaks, with the first day without a salary. */
+  readonly salaryDropped: readonly SalaryDropped[]
+}
+
+export type SalaryDropped = Extract<ScenarioWarning, { readonly kind: 'salary-dropped' }>
+
+/** The plan's dividend of the year, in a month the ledger has not reached. */
+export interface PlannedDividend {
+  readonly line: PlanLine
+  readonly month: MonthKey
+  readonly gross: TracedFigure
+  readonly tax: TracedFigure
+  /** What of the net settles what the owner owes the company on the day of the forecast. */
+  readonly setOff: TracedFigure
+  readonly cashOut: TracedFigure
+}
+
+/** How long cash at the year end lasts at the costs of the year's last three months, as Overview counts runway. */
+export interface ForecastRunway {
+  /** Null when those months cost nothing. */
+  readonly months: number | null
+  readonly cash: TracedFigure
+  readonly monthlyCost: TracedFigure
+}
+
 export interface YearForecast {
   readonly year: number
   /** Ledger rows, owner advances and invoices after this day are left out. */
@@ -79,15 +122,17 @@ export interface YearForecast {
    * takes the billing plan's expected invoices dated in it, else the average.
    */
   readonly revenue: ForecastLine
-  /** Every other category the accrual view counts in profit, in the order of the categories tab. */
+  /** Every other category the accrual view counts in profit, in the order of the categories tab, then the owner pay lines of the plan's scenarios. */
   readonly categories: readonly CategoryForecast[]
+  readonly ownerPay: OwnerPayForecast | null
   readonly depreciation: ForecastLine
-  /** Assets at or below the threshold, written off when put in use. */
+  /** Assets at or below the threshold, written off when put in use, planned purchases among them. */
   readonly smallInventory: ForecastLine
   /** Book value written off when an asset is disposed of. */
   readonly disposals: ForecastLine
-  /** Purchases on the plan tab at or below the asset threshold, written off in their month. */
-  readonly plannedPurchases: ForecastLine
+  /** Purchases on the plan tab the ledger has not reached, kept as assets so the asset engine depreciates them or writes them off. */
+  readonly plannedAssets: readonly Asset[]
+  readonly plannedDividend: PlannedDividend | null
   readonly grantRelease: ForecastLine
   /** Sales, other operating income and the cost lines, by the year-end tab's line ids. */
   readonly lines: readonly ForecastPlLine[]
@@ -99,40 +144,39 @@ export interface YearForecast {
   readonly liability: CitLiability
   readonly profitAfterTax: TracedFigure
   readonly cit: CitForecast
-  /** December's revenue, which the client pays after the year end. */
-  readonly decemberReceivable: TracedFigure
+  /** Revenue of the year the clients pay after it ends. */
+  readonly receivableAtYearEnd: TracedFigure
   /** December's costs on arrears categories, paid in January. Read positive. */
   readonly decemberArrears: TracedFigure
   /** On the day of the forecast. Positive means the state owes the company. */
   readonly vatPosition: TracedFigure
+  readonly paymentLag: PaymentLag
+  readonly cash: CashProjection
+  readonly cashByMonth: readonly CashMonth[]
   readonly cashAtYearEnd: TracedFigure
+  readonly runway: ForecastRunway
   readonly uninvoicedMonths: readonly UninvoicedMonth[]
   readonly notModelled: readonly UnmodelledPlanLine[]
 }
-
-type AmountPlanLine = Extract<PlanLine, { readonly kind: 'amount' }>
 
 /**
  * The year as it is likely to end, seen on `asOf`. Complete months come from the ledger and the
  * owner's advances as the accrual view counts them, the running month is shown and never counted,
  * and each later month takes the plan tab's row for the line, or for revenue the billing plan's
- * expected invoices, else the average of the line's last twelve actual months. Depreciation and
- * the grant release come from their engines for the whole year. The PD build-up follows, with the
- * advances paid and those still to come on line 56, and the balance and new advance the year
- * leaves to the next. A year before the forecast year's schedule needs its return from the
- * year-end tab, or else from its own forecast.
+ * expected invoices, else the average of the line's last twelve actual months, or its last month
+ * for a cost paid in arrears. The plan's owner pay scenarios set the owner pay, its purchases join
+ * the asset books and its dividend leaves the cash. Depreciation and the grant release come from
+ * their engines for the whole year. The PD build-up follows, with the advances paid and those
+ * still to come on line 56, and the balance and new advance the year leaves to the next. A year
+ * before the forecast year's schedule needs its return from the year-end tab, or else from its own
+ * forecast.
  */
 export function forecastYear(workbook: Workbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): YearForecast {
   const registered = workbook.settings.companyFacts.companyRegistered
   if (registered === null) {
     throw new RangeError('The forecast needs hr_company_registered, the day the first tax period starts.')
   }
-  const known: Workbook = {
-    ...workbook,
-    transactions: workbook.transactions.filter((row) => row.date <= asOf),
-    ownerAdvances: workbook.ownerAdvances.filter((advance) => advance.date <= asOf),
-    invoices: workbook.invoices.filter((invoice) => invoice.issued <= asOf),
-  }
+  const known = knownOn(workbook, asOf)
   const forecasts = new Map<number, YearForecast>()
   const forecastOf = (target: number): YearForecast => {
     const made = forecasts.get(target) ?? forecastOne({ known, year: target, asOf, registered, rules, forecastOf })
@@ -140,6 +184,50 @@ export function forecastYear(workbook: Workbook, year: number, asOf: CivilDate, 
     return made
   }
   return forecastOf(year)
+}
+
+/** The plan editor's starting figure for a category: what a month with no plan row takes. */
+export interface PlanDefault {
+  readonly category: Category
+  /** Signed as booked, so a cost is negative. */
+  readonly average: TracedFigure
+  /** True for a cost paid in arrears, which carries its last month forward. */
+  readonly lastMonth: boolean
+}
+
+/**
+ * What each category the forecast counts would take in a month of `year` with no plan row, seen on
+ * `asOf`: the average of its last twelve actual months, or its last actual month for a cost paid
+ * in arrears. It is the same line the forecast builds, so it needs no tax facts. A category whose
+ * average runs against its bucket, such as refunds on a taxes category, is left out, since a plan
+ * row reads income and costs both positive and would turn it around.
+ */
+export function planDefaults(workbook: Workbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): PlanDefault[] {
+  const known = knownOn(workbook, asOf)
+  return categoryForecasts(known, year, calendarOf(known, year), [], null, categoryShares(known, year, rules)).flatMap(({ category, forecast }) => {
+    const { average } = forecast
+    const against = average !== null && (category.bucket === 'income' ? average.amount < 0 : average.amount > 0)
+    return average === null || against ? [] : [{ category, average, lastMonth: category.roles.includes(PACK_ROLES.arrears) }]
+  })
+}
+
+function knownOn(workbook: Workbook, asOf: CivilDate): Workbook {
+  return {
+    ...workbook,
+    transactions: workbook.transactions.filter((row) => row.date <= asOf),
+    ownerAdvances: workbook.ownerAdvances.filter((advance) => advance.date <= asOf),
+    invoices: workbook.invoices.filter((invoice) => invoice.issued <= asOf),
+  }
+}
+
+function calendarOf(known: Workbook, year: number): ForecastCalendar {
+  const window = ledgerWindowOf(known.transactions)
+  return {
+    months: monthsFrom(monthKey(year, 1), monthKey(year, 12)),
+    firstComplete: window?.firstCompleteMonth ?? null,
+    lastComplete: window?.lastCompleteMonth ?? null,
+    running: window?.partMonth ?? null,
+  }
 }
 
 interface ForecastContext {
@@ -152,50 +240,26 @@ interface ForecastContext {
   readonly forecastOf: (year: number) => YearForecast
 }
 
+/** The owner pay categories' months the scenarios take over, from the month after this one. */
+interface OwnerPayHandover {
+  readonly lastActual: MonthKey | null
+}
+
 function forecastOne(context: ForecastContext): YearForecast {
   const { known, year, asOf, registered, rules } = context
   const period = taxPeriodOf(year, registered)
-  const firstDay = civilDate(year, 1, 1)
-  const window = ledgerWindowOf(known.transactions)
-  const calendar: ForecastCalendar = {
-    months: monthsFrom(monthKey(year, 1), monthKey(year, 12)),
-    firstComplete: window?.firstCompleteMonth ?? null,
-    lastComplete: window?.lastCompleteMonth ?? null,
-    running: window?.partMonth ?? null,
-  }
+  const calendar = calendarOf(known, year)
   const plan = known.planLines.filter((line) => line.year === year)
-  const plannedFigure = (item: string, month: MonthKey, label: string, sign: 1 | -1): TracedFigure | null => {
-    const row = planRow(plan, item, month)
-    if (row === null) {
-      return null
-    }
-    return tracedFigure(`${label}, ${monthLabel(month)}: planned${row.note === '' ? '' : `, ${row.note}`}`, sign === 1 ? row.amount : negateMoney(row.amount), 'plan', [])
-  }
+  const guards = planGuards(plan, known.payScenarios, rules)
+  const guarded = (line: PlanLine) => guards.find((guard) => guard.sheetRows.includes(line.sheetRow)) ?? null
+  const usable = plan.filter((line) => guarded(line) === null || line.kind === 'owner-pay-scenario')
 
-  const byPolicy = accrualBookings(known, rules)
-  const bookings = bookingsAfterCutOff(byPolicy, arrearsCutOff(byPolicy, year, known.yearEndLines, known.categories))
-  const shares = sharesByCategoryMonth(bookings.filter(isCounted))
-
-  const earliestRelevant = calendar.lastComplete === null ? monthKey(year, 1) : minMonth(monthKey(year, 1), addMonths(calendar.lastComplete, -AVERAGED_MONTHS))
-  const relevantMonths = monthsFrom(earliestRelevant, monthKey(year, 12))
-  const relevant = (category: Category) =>
-    countsInProfit(category) &&
-    (relevantMonths.some((month) => shares.has(shareKey(category.slug, month))) || (!isPlanKeyword(category.slug) && plan.some((line) => line.kind === 'amount' && line.item === category.slug)))
-  const categories = known.categories.filter(relevant).map((category): CategoryForecast => {
-    const label = category.label ?? category.slug
-    const actual = (month: MonthKey) => monthFigure(`${label}, ${monthLabel(month)}`, shares.get(shareKey(category.slug, month)) ?? [])
-    const arrearsNotYetPaid =
-      calendar.lastComplete !== null && category.roles.includes(PACK_ROLES.arrears) && !shares.has(shareKey(category.slug, calendar.lastComplete))
-    const forecast = forecastLine(calendar, {
-      label,
-      basis: 'ledger',
-      lastActual: calendar.lastComplete === null ? null : arrearsNotYetPaid ? addMonths(calendar.lastComplete, -1) : calendar.lastComplete,
-      actual,
-      planned: (month) => (isPlanKeyword(category.slug) ? null : plannedFigure(category.slug, month, label, category.bucket === 'income' ? 1 : -1)),
-      paidAhead: (month) => (category.roles.includes(PACK_ROLES.prepaidAnnual) && shares.has(shareKey(category.slug, month)) ? actual(month) : null),
-    })
-    return { category, line: category.bucket === 'income' ? 'other-operating-income' : costLineOf(category, year, known.yearEndLines), forecast }
-  })
+  const ownerPayChoice = ownerPayPlan(plan, known.payScenarios, rules)
+  const facts = known.settings.companyFacts
+  const shares = categoryShares(known, year, rules)
+  const handover: OwnerPayHandover | null = ownerPayChoice.kind === 'planned' && facts.residenceCity !== '' ? { lastActual: ownerPayLastActual(known, calendar, shares) } : null
+  const ownerPay = handover === null || ownerPayChoice.kind !== 'planned' ? null : ownerPayForecast(ownerPayChoice.pay, known, calendar, handover, rules)
+  const categories = [...categoryForecasts(known, year, calendar, usable, handover, shares), ...(ownerPay?.lines ?? [])]
 
   const delivered = new Map<number, DeliveredRevenue>()
   const deliveredIn = (target: number): DeliveredRevenue => {
@@ -218,12 +282,12 @@ function forecastOne(context: ForecastContext): YearForecast {
     actual: (month) => deliveredIn(yearOfMonth(month)).months.find((entry) => entry.month === month)?.revenue ?? tracedFigure(`Revenue delivered in ${monthLabel(month)}`, ZERO, 'invoices', []),
     planned: (month) => expectedRevenue(expected.filter((entry) => entry.month === month), month, clientName),
     paidAhead: () => null,
+    comparison: (month) => billedPlan(known, month, clientName),
   })
 
-  const books = assetBooks(known.assets, known.grants, known.settings.companyFacts, rules)
+  const plannedAssets = plannedAssetsOf(known.planLines.filter((line) => line.year <= year && guarded(line) === null), calendar)
+  const books = assetBooks([...known.assets, ...plannedAssets], known.grants, facts, rules)
   const scheduled = scheduledLines(calendar, books, year)
-  const threshold = rules('hr.cit.asset-threshold', firstDay)
-  const plannedPurchases = plannedPurchaseLine(calendar, plan, threshold.value.unitCostAbove.cents, [threshold.citation])
 
   const partsOn = (line: ForecastPlLine['line']): LinePart[] =>
     categories.filter((entry) => entry.line === line).map((entry) => ({ line: entry.forecast, sign: line === 'other-operating-income' ? 1 : -1 }))
@@ -231,7 +295,7 @@ function forecastOne(context: ForecastContext): YearForecast {
   const otherIncome = addedUpLine(calendar, 'Other operating income: the grant released and other income', otherIncomeParts)
   const fromEngines: Partial<Record<CostLine, readonly ForecastLine[]>> = {
     depreciation: [scheduled.depreciation],
-    'material-costs': [scheduled.smallInventory, plannedPurchases],
+    'material-costs': [scheduled.smallInventory],
     'impairment-provisions-other': [scheduled.disposals],
   }
   const costLines = COST_LINES.map((line): ForecastPlLine => {
@@ -276,31 +340,35 @@ function forecastOne(context: ForecastContext): YearForecast {
     deducted(cit.liability.liability),
   ])
 
+  const byPolicy = accrualBookings(known, rules)
   const settlementSlugs = categoriesWithRole(known.categories, PACK_ROLES.vatSettlement)
   const settled = withDrill(
     tracedFigure('VAT refunded less VAT paid to date', sumMoney(known.transactions.filter((row) => settlementSlugs.includes(row.category)).map((row) => row.amount)), 'ledger', []),
     drillToTransactions({ period: { preset: 'all' }, categories: settlementSlugs }),
   )
-  const vat = vatPosition(bookings, monthOf(asOf), settled)
+  const vat = vatPosition(bookingsAfterCutOff(byPolicy, arrearsCutOff(byPolicy, year, known.yearEndLines, known.categories)), monthOf(asOf), settled)
 
   const december = monthKey(year, 12)
-  const decemberRevenue = monthOfLine(revenue, december).figure
-  const decemberReceivable = tracedFigure('Revenue of December, paid after the year end', decemberRevenue.amount, decemberRevenue.basis, decemberRevenue.rules, [decemberRevenue])
   const decemberArrears = summed(
     'December costs paid in arrears in January',
     categories.filter((entry) => entry.category.roles.includes(PACK_ROLES.arrears)).map((entry) => deducted(monthOfLine(entry.forecast, december).figure)),
     'ledger',
   )
-  const cash = cashAtYearEnd({
+  const plannedDividend = plannedDividendOf(usable, calendar, known, asOf, rules)
+  const paymentLag = paymentLagOf(known)
+  const cash = cashProjection({
     year,
     calendar,
     known,
+    asOf,
     revenue,
     categories,
-    plannedPurchases,
+    plannedAssets: plannedAssets.filter((asset) => yearOf(asset.bought) === year),
+    dividend: plannedDividend === null ? null : ({ month: plannedDividend.month, cashOut: plannedDividend.cashOut } satisfies DividendCash),
     citObligations: cit.forecast.history,
     vatPosition: vat,
-    carried: () => (year - 1 < yearOf(registered) ? null : context.forecastOf(year - 1)),
+    paymentLag,
+    carried: () => (year - 1 < yearOf(registered) ? null : context.forecastOf(year - 1).cash),
   })
 
   return {
@@ -310,10 +378,12 @@ function forecastOne(context: ForecastContext): YearForecast {
     calendar,
     revenue,
     categories,
+    ownerPay,
     depreciation: scheduled.depreciation,
     smallInventory: scheduled.smallInventory,
     disposals: scheduled.disposals,
-    plannedPurchases,
+    plannedAssets: plannedAssets.filter((asset) => yearOf(asset.bought) === year),
+    plannedDividend,
     grantRelease: scheduled.grantRelease,
     lines,
     profitBeforeTax: profitBeforeTaxLine,
@@ -322,13 +392,199 @@ function forecastOne(context: ForecastContext): YearForecast {
     liability: cit.liability,
     profitAfterTax,
     cit: cit.forecast,
-    decemberReceivable,
+    receivableAtYearEnd: cash.receivableAtYearEnd,
     decemberArrears,
     vatPosition: vat,
-    cashAtYearEnd: cash,
+    paymentLag,
+    cash,
+    cashByMonth: cash.months,
+    cashAtYearEnd: cash.atYearEnd,
+    runway: runwayOf(cash.atYearEnd, costLines, [scheduled.depreciation, scheduled.disposals], cit.forecast.history, year),
     uninvoicedMonths: deliveredIn(year).uninvoicedMonths,
-    notModelled: unmodelled(plan, known.categories, threshold.value.unitCostAbove.cents),
+    notModelled: unmodelled(plan, guards, ownerPayChoice, ownerPay, known, calendar),
   }
+}
+
+/**
+ * Every category the accrual view counts in profit that the year or its averaging window touches,
+ * or the plan names. With a handover, the owner pay categories stop at its last actual month and
+ * the scenarios' lines take the later months.
+ */
+function categoryForecasts(
+  known: Workbook,
+  year: number,
+  calendar: ForecastCalendar,
+  plan: readonly PlanLine[],
+  handover: OwnerPayHandover | null,
+  shares: ReadonlyMap<string, MonthShares>,
+): CategoryForecast[] {
+  const plannedFigure = (item: string, month: MonthKey, label: string, sign: 1 | -1): TracedFigure | null => {
+    const row = planRow(plan, item, month)
+    if (row === null) {
+      return null
+    }
+    return tracedFigure(`${label}, ${monthLabel(month)}: planned${row.note === '' ? '' : `, ${row.note}`}`, sign === 1 ? row.amount : negateMoney(row.amount), 'plan', [])
+  }
+  const earliestRelevant = calendar.lastComplete === null ? monthKey(year, 1) : minMonth(monthKey(year, 1), addMonths(calendar.lastComplete, -AVERAGED_MONTHS))
+  const relevantMonths = monthsFrom(earliestRelevant, monthKey(year, 12))
+  const relevant = (category: Category) =>
+    countsInProfit(category) &&
+    (relevantMonths.some((month) => shares.has(shareKey(category.slug, month))) || (!isPlanKeyword(category.slug) && plan.some((line) => line.kind === 'amount' && line.item === category.slug)))
+  return known.categories.filter(relevant).map((category): CategoryForecast => {
+    const label = displayName(category.slug, category.label)
+    const actual = (month: MonthKey) => monthFigure(`${label}, ${monthLabel(month)}`, shares.get(shareKey(category.slug, month)) ?? [])
+    const arrears = category.roles.includes(PACK_ROLES.arrears)
+    const handedOver = handover !== null && isOwnerPayCost(category)
+    const fromPlan = (month: MonthKey) => (isPlanKeyword(category.slug) ? null : plannedFigure(category.slug, month, label, category.bucket === 'income' ? 1 : -1))
+    const lastActual = handedOver ? handover.lastActual : categoryLastActual(category, calendar, shares)
+    const forecast = forecastLine(calendar, {
+      label,
+      basis: 'ledger',
+      lastActual,
+      actual,
+      planned: (month) => (handedOver && (lastActual === null || month > lastActual) ? tracedFigure(`${label}, ${monthLabel(month)}: set by the owner pay scenario`, ZERO, 'plan', []) : fromPlan(month)),
+      paidAhead: (month) => (category.roles.includes(PACK_ROLES.prepaidAnnual) && shares.has(shareKey(category.slug, month)) ? actual(month) : null),
+      comparison: fromPlan,
+      averagedMonths: arrears ? ARREARS_AVERAGED_MONTHS : AVERAGED_MONTHS,
+    })
+    return { category, line: category.bucket === 'income' ? 'other-operating-income' : costLineOf(category, year, known.yearEndLines), forecast }
+  })
+}
+
+type MonthShares = readonly { readonly entry: CountedBooking; readonly amount: Money }[]
+
+function categoryShares(known: Workbook, year: number, rules: RuleSource): ReadonlyMap<string, MonthShares> {
+  const byPolicy = accrualBookings(known, rules)
+  const bookings = bookingsAfterCutOff(byPolicy, arrearsCutOff(byPolicy, year, known.yearEndLines, known.categories))
+  return sharesByCategoryMonth(bookings.filter(isCounted))
+}
+
+/** A category's last month the ledger settles: the last complete month, or the one before for a cost paid in arrears whose payment is not in yet. */
+function categoryLastActual(category: Category, calendar: ForecastCalendar, shares: ReadonlyMap<string, MonthShares>): MonthKey | null {
+  if (calendar.lastComplete === null) {
+    return null
+  }
+  const arrearsNotYetPaid = category.roles.includes(PACK_ROLES.arrears) && !shares.has(shareKey(category.slug, calendar.lastComplete))
+  return arrearsNotYetPaid ? addMonths(calendar.lastComplete, -1) : calendar.lastComplete
+}
+
+/** The earliest last actual month of the owner pay categories, so no month counts both the ledger's pay and a scenario's. */
+function ownerPayLastActual(known: Workbook, calendar: ForecastCalendar, shares: ReadonlyMap<string, MonthShares>): MonthKey | null {
+  const months = known.categories
+    .filter((category) => isOwnerPayCost(category) && countsInProfit(category))
+    .map((category) => categoryLastActual(category, calendar, shares))
+    .filter((month): month is MonthKey => month !== null)
+    .sort()
+  return months[0] ?? calendar.lastComplete
+}
+
+/**
+ * The company's side of the planned owner pay, month by month after the owner pay categories'
+ * last actual month: the salary with health on top and the tax-free items within their caps, and
+ * the rent. Paid in arrears when the owner pay categories are.
+ */
+function ownerPayForecast(plan: PlannedOwnerPay, known: Workbook, calendar: ForecastCalendar, handover: OwnerPayHandover, rules: RuleSource): OwnerPayForecast {
+  const pay = scenarioPay(plan.scenario, known.settings.companyFacts, rules)
+  const arrears = known.categories.some((category) => isOwnerPayCost(category) && category.roles.includes(PACK_ROLES.arrears))
+  const scenarioName = plan.scenario.label || plan.scenario.slug
+  const lineOf = (slug: string, label: string, line: CategoryForecast['line'], monthly: (month: MonthKey) => TracedFigure): CategoryForecast => ({
+    category: { slug, label, family: 'owner-pay', bucket: 'owner-pay', colour: '', roles: arrears ? [PACK_ROLES.arrears] : [], vat: 'none' },
+    line,
+    forecast: forecastLine(calendar, {
+      label,
+      basis: 'plan',
+      lastActual: handover.lastActual,
+      actual: (month) => tracedFigure(`${label}, ${monthLabel(month)}: on the owner pay categories`, ZERO, 'plan', []),
+      planned: (month) => deducted(monthly(month)),
+      paidAhead: () => null,
+    }),
+  })
+  const salary = lineOf('owner-pay-scenario-salary', `Salary from ${scenarioName}`, 'personnel-costs', (month) => {
+    const paid = pay.payroll.find((entry) => entry.workedMonth === month)
+    return paid === undefined
+      ? tracedFigure(`Salary from ${scenarioName}, ${monthLabel(month)}: none`, ZERO, 'plan', [])
+      : summed(`Salary from ${scenarioName}, ${monthLabel(month)}`, [paid.employerCost, paid.nontaxablePayments], 'plan')
+  })
+  const rent = lineOf('owner-pay-scenario-rent', `Rent from ${scenarioName}`, 'material-costs', (month) =>
+    summed(`Rent from ${scenarioName}, ${monthLabel(month)}`, pay.rent.filter((part) => part.month === month).map((part) => part.rent), 'plan'),
+  )
+  return { plan, pay, lines: pay.rent.length === 0 ? [salary] : [salary, rent], lastActual: handover.lastActual, salaryDropped: salaryDropped(pay.schedule, known.grants) }
+}
+
+/** Purchases on the plan tab in months the ledger has not reached, as asset rows bought and put in use on their day. */
+function plannedAssetsOf(lines: readonly PlanLine[], calendar: ForecastCalendar): Asset[] {
+  return lines.flatMap((line): Asset[] =>
+    line.kind !== 'purchase' || (calendar.lastComplete !== null && monthOf(line.date) <= calendar.lastComplete)
+      ? []
+      : [
+          {
+            name: `${line.note === '' ? 'Purchase' : line.note}, planned`,
+            bought: line.date,
+            inUse: line.date,
+            costNet: line.amount,
+            group: line.group,
+            doubledRate: false,
+            disposed: null,
+            fundedBy: '',
+            ledgerReference: '',
+            note: line.note,
+            sheetRow: line.sheetRow,
+          },
+        ],
+  )
+}
+
+/**
+ * The plan's dividend in a month the ledger has not settled: the tax withheld at payout, and the
+ * net set off against what the owner owes on the day of the forecast before any of it is paid out.
+ * In the running month it is only what the plan has beyond the profit the ledger has paid out so far.
+ */
+function plannedDividendOf(plan: readonly PlanLine[], calendar: ForecastCalendar, known: Workbook, asOf: CivilDate, rules: RuleSource): PlannedDividend | null {
+  const line = plan.find((candidate) => candidate.kind === 'amount' && candidate.item === 'dividend' && candidate.month !== null)
+  if (line === undefined || line.kind !== 'amount' || line.month === null) {
+    return null
+  }
+  const month = monthKey(line.year, line.month)
+  if (calendar.lastComplete !== null && month <= calendar.lastComplete) {
+    return null
+  }
+  const planned = tracedFigure(`Dividend planned for ${monthLabel(month)}${line.note === '' ? '' : `, ${line.note}`}`, line.amount, 'plan', [])
+  const slugs = categoriesWithRole(known.categories, PACK_ROLES.profitDistribution)
+  const paidSoFar = negateMoney(sumMoney(known.transactions.filter((row) => slugs.includes(row.category) && monthOf(row.date) === month).map((row) => row.amount)))
+  const gross =
+    paidSoFar === 0
+      ? planned
+      : summed(`Dividend still to pay in ${monthLabel(month)}`, [planned, deducted(tracedFigure(`Profit paid out in ${monthLabel(month)} so far, with its tax`, paidSoFar, 'ledger', []))], 'plan')
+  if (gross.amount <= 0) {
+    return null
+  }
+  const taxRule = rules('hr.pit.dividend', firstDayOf(month))
+  const tax = tracedFigure(`Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`, atRate(gross.amount, taxRule.value.rate.basisPoints), 'plan', [taxRule.citation], [gross])
+  const net = summed('Dividend after its tax', [gross, deducted(tax)], 'plan')
+  const owed = owedByOwnerOn(known, asOf)
+  const setOff = tracedFigure('Set off against what the owner owes', net.amount < owed.amount ? net.amount : owed.amount, 'plan', [], [net, owed])
+  return { line, month, gross, tax, setOff, cashOut: summed('Dividend paid out in cash, its tax included', [tax, net, deducted(setOff)], 'plan') }
+}
+
+/**
+ * Cash at the year end over the average monthly cost of October to December, as Overview counts
+ * runway over its last three months: the costs with owner pay, less depreciation and disposals,
+ * which pay nothing, and the corporate tax that falls due in those months.
+ */
+function runwayOf(cash: TracedFigure, costLines: readonly ForecastPlLine[], nonCash: readonly ForecastLine[], citObligations: readonly MatchedCitObligation[], year: number): ForecastRunway {
+  const lastThree = monthsFrom(monthKey(year, 10), monthKey(year, 12))
+  const inMonths = (line: ForecastLine) => lastThree.map((month) => monthOfLine(line, month).figure)
+  const costs = summed(
+    `Costs of ${monthLabel(monthKey(year, 10))} to ${monthLabel(monthKey(year, 12))}`,
+    [
+      ...costLines.flatMap((entry) => inMonths(entry.forecast)),
+      ...nonCash.flatMap((line) => inMonths(line).map(deducted)),
+      ...citObligations.filter((entry) => lastThree.includes(monthOf(entry.obligation.dueOn))).map((entry) => entry.obligation.expected),
+    ],
+    'ledger',
+  )
+  const monthlyCost = tracedFigure('Average monthly cost', divideMoney(costs.amount, lastThree.length), 'ledger', costs.rules, [costs])
+  return { months: costs.amount > 0 ? (cash.amount * lastThree.length) / costs.amount : null, cash, monthlyCost }
 }
 
 /** The schedules of every year from the first tax period, matched to the bank rows, and the year's liability on them. */
@@ -375,7 +631,6 @@ function citOf(
   }
 }
 
-type MonthShares = readonly { readonly entry: CountedBooking; readonly amount: Money }[]
 
 function shareKey(slug: string, month: MonthKey): string {
   return `${slug} ${month}`
@@ -447,22 +702,6 @@ function scheduledLines(calendar: ForecastCalendar, books: AssetBooks, year: num
   }
 }
 
-/**
- * Purchases the plan tab lists for months the ledger has not reached, at or below the asset
- * threshold, as costs of their month. One above it needs an asset row and is not counted here. A
- * month with nothing planned has no basis.
- */
-function plannedPurchaseLine(calendar: ForecastCalendar, plan: readonly PlanLine[], threshold: Money, citations: TracedFigure['rules']): ForecastLine {
-  const label = 'Small purchases planned'
-  const months = calendar.months.map((month): ForecastMonth => {
-    const row = calendar.lastComplete !== null && month <= calendar.lastComplete ? null : planRow(plan, 'purchase', month)
-    return row !== null && row.amount <= threshold
-      ? { month, bases: ['planned'], figure: tracedFigure(`${label}, ${monthLabel(month)}${row.note === '' ? '' : `, ${row.note}`}`, row.amount, 'plan', citations), soFar: null }
-      : { month, bases: [], figure: tracedFigure(`${label}, ${monthLabel(month)}: none`, ZERO, 'plan', []), soFar: null }
-  })
-  return { label, months, total: summed(label, months.map((entry) => entry.figure), 'plan'), averagedOver: null }
-}
-
 /** The month an invoice delivers in last, or its issue month when it names no delivery period. */
 function deliveredBy(invoice: Invoice): MonthKey {
   return monthOf(invoice.deliveryPeriod?.to ?? invoice.issued)
@@ -479,30 +718,66 @@ function expectedRevenue(due: readonly ExpectedInvoice[], month: MonthKey, clien
   return summed(`Revenue, ${monthLabel(month)}: planned from the billing plan`, rows, 'plan')
 }
 
+type AmountPlanLine = Extract<PlanLine, { readonly kind: 'amount' }>
+
 /** The plan row for an item in a month: the month's own row, else the row for every month of the year. */
 function planRow(plan: readonly PlanLine[], item: string, month: MonthKey): AmountPlanLine | null {
   const rows = plan.filter((line): line is AmountPlanLine => line.kind === 'amount' && line.item === item)
   return rows.find((line) => line.month === monthNumber(month)) ?? rows.find((line) => line.month === null) ?? null
 }
 
-function unmodelled(plan: readonly PlanLine[], categories: readonly Category[], threshold: Money): UnmodelledPlanLine[] {
+/** The billing plan's rows dated in a month, all of them, as the plan a month the ledger settles is compared with. Null when it has none. */
+function billedPlan(known: Workbook, month: MonthKey, clientName: (slug: string) => string): TracedFigure | null {
+  const rows = known.billingPlan.filter((row) => monthOf(row.date) === month)
+  if (rows.length === 0) {
+    return null
+  }
+  return summed(
+    `Revenue, ${monthLabel(month)}: the billing plan`,
+    rows.map((row) => ({ ...tracedFigure(`${row.item} for ${clientName(row.client)}`, row.amount, 'plan', []), on: row.date })),
+    'plan',
+  )
+}
+
+function unmodelled(
+  plan: readonly PlanLine[],
+  guards: readonly PlanGuard[],
+  ownerPayChoice: ReturnType<typeof ownerPayPlan>,
+  ownerPay: OwnerPayForecast | null,
+  known: Workbook,
+  calendar: ForecastCalendar,
+): UnmodelledPlanLine[] {
+  const settled = (month: MonthKey) => calendar.lastComplete !== null && month <= calendar.lastComplete
   return plan.flatMap((line): UnmodelledPlanLine[] => {
     if (line.kind === 'owner-pay-scenario') {
-      return [{ line, reason: 'Payroll from an owner pay scenario is not worked out yet, so the payroll categories follow their own plan rows or averages.' }]
+      if (ownerPayChoice.kind === 'refused') {
+        return [{ line, reason: ownerPayChoice.guards.map((guard) => guard.reason).join(' ') }]
+      }
+      return ownerPay === null ? [{ line, reason: 'The payroll needs hr_residence_city for its income tax rates, so the owner pay categories follow their own plan rows or averages.' }] : []
+    }
+    const guard = guards.find((candidate) => candidate.sheetRows.includes(line.sheetRow))
+    if (guard !== undefined) {
+      return [{ line, reason: guard.reason }]
+    }
+    if (line.kind === 'purchase') {
+      if (settled(monthOf(line.date))) {
+        return [{ line, reason: 'Its month is complete in the ledger, which counts what was bought.' }]
+      }
+      return []
     }
     if (line.item === 'dividend') {
-      return [{ line, reason: 'A payout is not a cost. Dividend capacity sets out the payout options.' }]
+      return line.month !== null && settled(monthKey(line.year, line.month)) ? [{ line, reason: 'Its month is complete in the ledger, which counts what was paid out.' }] : []
     }
-    if (line.item === 'purchase' && line.amount > threshold) {
-      return [{ line, reason: 'It is above the asset threshold, so it needs an asset row with its group and the day it is put in use before it depreciates.' }]
-    }
-    const category = categories.find((candidate) => candidate.slug === line.item)
+    const category = known.categories.find((candidate) => candidate.slug === line.item)
     if (!isPlanKeyword(line.item) && category !== undefined) {
       if (category.roles.includes(PACK_ROLES.revenue)) {
         return [{ line, reason: 'Revenue is planned on the outgoing-plan tab, so the forecast reads it from there.' }]
       }
       if (!countsInProfit(category)) {
-        return [{ line, reason: `${category.label ?? category.slug} is taken out of profit and loss, so the forecast does not count it.` }]
+        return [{ line, reason: `${displayName(category.slug, category.label)} is taken out of profit and loss, so the forecast does not count it.` }]
+      }
+      if (ownerPay !== null && isOwnerPayCost(category)) {
+        return [{ line, reason: 'The owner pay scenario sets the owner pay of the year, so this row is not counted.' }]
       }
     }
     return []

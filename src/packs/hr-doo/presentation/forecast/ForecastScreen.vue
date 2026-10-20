@@ -24,14 +24,20 @@ import { newestBookingOf } from '../../../../features/workbook/domain/workbook'
 import LedgerGate from '../../../../features/workbook/presentation/LedgerGate.vue'
 import { RULESET_CHECKED_ON } from '../../ruleset/ruleset'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
+import ConfidenceBadge from '../../ruleset/presentation/ConfidenceBadge.vue'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
+import { planDefaults } from '../../domain/forecast/forecastYear'
+import { employmentFreeFrom } from '../../domain/scenarios/startingScenarios'
 import CitObligationList from '../CitObligationList.vue'
 import MissingRoles from '../MissingRoles.vue'
 import OwnerPayOff from '../OwnerPayOff.vue'
+import { WATCHED_WORDING } from '../payScenarios/payScenariosView'
 import BuildUpList from './BuildUpList.vue'
 import DividendCard from './DividendCard.vue'
 import { forecastChart } from './forecastChart'
 import { forecastView } from './forecastView'
+import PlanActualList from './PlanActualList.vue'
+import PlanEditor from './PlanEditor.vue'
 
 const ledger = useFilteredLedger()
 const settings = useSettings()
@@ -78,7 +84,6 @@ const view = computed(() => {
   try {
     const shaped = forecastView(current.workbook, shown, day, {
       link: (drill) => (drill === null ? null : drillLocation(drill)),
-      categoryName: names.value.category,
     })
     return { state: 'ready' as const, ...shaped, chart: forecastChart(shaped.chartMonths, shaped.running, chartTokens()) }
   } catch (failure) {
@@ -86,6 +91,27 @@ const view = computed(() => {
       return { state: 'failed' as const, failure: failure.message }
     }
     throw failure
+  }
+})
+
+/** The editor needs no tax facts, so it is there while the forecast waits for one. */
+const editor = computed(() => {
+  const current = ledger.value
+  const shown = year.value
+  const day = asOf.value
+  if (current === null || shown === null || day === null) {
+    return null
+  }
+  const { workbook } = current
+  const switchOn = employmentFreeFrom(shown, workbook.grants)
+  return {
+    year: shown,
+    lines: workbook.planLines.filter((line) => line.year === shown),
+    defaults: planDefaults(workbook, shown, day),
+    categories: workbook.categories,
+    scenarios: workbook.payScenarios.filter((scenario) => scenario.year === shown),
+    notCounted: view.value?.state === 'ready' ? view.value.notCounted : new Map<number, string>(),
+    suggestedSwitch: switchOn === null || switchOn === `${shown}-01-01` ? null : switchOn,
   }
 })
 </script>
@@ -139,6 +165,24 @@ const view = computed(() => {
           :description="`The rules behind them were last checked against their sources on ${checkedOn}. The forecast is seen on ${dayLabel(view.forecast.asOf)}, the newest booking.`"
           data-testid="planning-banner"
         />
+
+        <div v-if="view.watched.length > 0" class="flex flex-col gap-2 text-sm text-toned" data-testid="forecast-watched">
+          <p v-for="group in view.watched" :key="group.confidence" class="flex items-start gap-2">
+            <ConfidenceBadge :confidence="group.confidence" />
+            <span class="min-w-0">{{ WATCHED_WORDING[group.confidence] }} for {{ year }}: {{ group.rules.map((rule) => rule.title).join(', ') }}.</span>
+          </p>
+        </div>
+
+        <div v-if="view.employment.length > 0 || view.grantReleased > 0" class="flex flex-col gap-2 text-sm text-toned" data-testid="forecast-grants">
+          <p v-if="view.grantReleased > 0" class="flex items-start gap-2">
+            <UIcon name="i-lucide-hand-coins" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+            <span>The grants release <MoneyText :cents="view.grantReleased" /> in {{ year }}, on the Assets screen's schedule.</span>
+          </p>
+          <p v-for="line in view.employment" :key="line" class="flex items-start gap-2">
+            <UIcon name="i-lucide-briefcase" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+            <span>{{ line }}</span>
+          </p>
+        </div>
 
         <div v-if="view.missingRoles.length > 0 || view.uninvoiced.length > 0" class="flex flex-col gap-3">
           <MissingRoles :missing="view.missingRoles" />
@@ -258,32 +302,34 @@ const view = computed(() => {
         />
 
         <AppCard
-          :title="`Plan rows for ${year}`"
-          subtitle="Read only here. They come from the workbook's plan tab, and a month's own row comes before a row for every month."
-          collapse-id="forecast.plan-rows"
-          :summary="view.planRowsSummary"
-          data-testid="plan-rows"
+          :title="`Cash by month, ${year}`"
+          :subtitle="`The bank balance at each month end the ledger has passed, then projected as each month is paid. ${view.paymentLag}.`"
+          collapse-id="forecast.cash"
+          :summary="view.cashSummary"
+          data-testid="forecast-cash"
         >
-          <template #actions>
-            <DrillLink to="/workbook" in-prose class="text-sm text-highlighted">Open the Workbook screen</DrillLink>
-          </template>
           <div class="px-4 pt-2 pb-3 sm:px-5">
-            <p v-if="view.planRows.length === 0" class="py-4 text-sm text-muted">The plan tab holds no rows for {{ year }}, so every month the ledger has not closed takes its line's average.</p>
-            <ul v-else class="flex flex-col">
-              <li v-for="row in view.planRows" :key="row.key" class="plan-row">
-                <div class="min-w-0">
-                  <p class="text-sm text-highlighted">{{ row.item }}</p>
-                  <p class="text-xs text-muted">{{ row.month }}</p>
-                  <p v-if="row.note" class="text-xs text-muted">{{ row.note }}</p>
-                  <p v-if="row.notCounted" class="mt-0.5 text-xs text-[var(--tone-warning)]">Not counted. {{ row.notCounted }}</p>
-                </div>
-                <MoneyText v-if="'cents' in row.value" :cents="row.value.cents" class="text-sm text-toned" />
-                <span v-else class="identifier text-sm">{{ row.value.text }}</span>
-              </li>
-            </ul>
+            <p v-if="view.runway" class="pb-2 text-sm text-toned">
+              Cash at the year end lasts {{ view.runway.lasts }} at the cost of October to December, <MoneyText :cents="view.runway.monthlyCost" /> a month with the corporate tax due, as Overview counts runway.
+            </p>
+            <BuildUpList :lines="view.cashMonths" test-id="forecast-cash-months" />
+          </div>
+        </AppCard>
+
+        <AppCard
+          :title="`Plan against actual, ${year}`"
+          subtitle="Each month the ledger settles replaces what the plan had for it, and the plan stays here to compare with. Revenue is held against the billing plan, the owner pay against the plan's scenarios."
+          collapse-id="forecast.plan-actual"
+          :summary="view.planActualSummary"
+          data-testid="forecast-plan-actual"
+        >
+          <div class="px-4 pt-2 pb-3 sm:px-5">
+            <p v-if="view.planActual.length === 0" class="py-4 text-sm text-muted">No month the ledger settles in {{ year }} has a plan to compare with yet.</p>
+            <PlanActualList v-else :lines="view.planActual" />
           </div>
         </AppCard>
       </template>
+      <PlanEditor v-if="editor" v-bind="editor" :category-name="names.category" />
     </LedgerGate>
   </section>
 </template>
@@ -296,17 +342,5 @@ const view = computed(() => {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-control);
   padding: 0.625rem 0.75rem;
-}
-
-.plan-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding-block: 0.5rem;
-}
-
-.plan-row + .plan-row {
-  border-top: 1px solid var(--border-default);
 }
 </style>

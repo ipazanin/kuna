@@ -221,3 +221,29 @@ describe('dividendCapacity of a year the year-end tab has not reached', () => {
     expect(result.paidOutInYear.amount).toBe(euros(0))
   })
 })
+
+describe('dividendCapacity, a dividend planned in the running month the ledger has already paid', () => {
+  // 6,000.00 paid out on 8 October, 5,280.00 to the owner and 720.00 of dividend tax.
+  const rows = [...STEADY_ROWS, { date: '2026-10-08', amount: -5280, category: 'dividend' }, { date: '2026-10-08', amount: -720, category: 'dividend-tax' }].sort((earlier, later) =>
+    earlier.date.localeCompare(later.date),
+  )
+  const paidOut = (planLines: Workbook['planLines']) => steadyStudio({ transactions: withPackBuckets(ledger(rows), STEADY_CATEGORIES), planLines })
+
+  it('counts the payout from the ledger and adds nothing from the plan', () => {
+    const workbook = paidOut([planLine(10, 'dividend', 6000)])
+    const forecast = forecastYear(workbook, 2026, civil('2026-10-19'))
+
+    expect(forecast.plannedDividend).toBeNull()
+    expect(forecast.cashAtYearEnd.amount).toBe(forecastYear(paidOut([]), 2026, civil('2026-10-19')).cashAtYearEnd.amount)
+    // February's 6,000.00 and October's.
+    expect(dividendCapacity(2026, forecast, workbook).paidOutInYear.amount).toBe(euros(12000))
+  })
+
+  it('adds only what the plan has beyond the payout', () => {
+    const workbook = paidOut([planLine(10, 'dividend', 8000)])
+    const forecast = forecastYear(workbook, 2026, civil('2026-10-19'))
+
+    expect(forecast.plannedDividend?.gross.amount).toBe(euros(2000))
+    expect(dividendCapacity(2026, forecast, workbook).paidOutInYear.amount).toBe(euros(14000))
+  })
+})

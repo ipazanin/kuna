@@ -7,8 +7,6 @@ import { billingTotals } from '../domain/billingTotals'
 import type { BillingTotals } from '../domain/billingTotals'
 import { expectedInvoices } from '../domain/expectedInvoices'
 import type { ExpectedInvoice } from '../domain/expectedInvoices'
-import { fillRestOfYear } from '../domain/fillRestOfYear'
-import type { RestOfYearFill } from '../domain/fillRestOfYear'
 import { itemStatistics } from '../domain/itemStatistics'
 import type { ItemStatistics } from '../domain/itemStatistics'
 import { plannedAgainstInvoiced } from '../domain/plannedAgainstInvoiced'
@@ -20,7 +18,6 @@ export interface BillingPlanFigures {
   readonly matches: readonly ClientBillingMatch[]
   readonly statistics: ItemStatistics
   readonly expected: readonly ExpectedInvoice[]
-  readonly fill: RestOfYearFill
 }
 
 /** Null until a workbook is on screen and there is a day to see it on. */
@@ -38,7 +35,6 @@ export function useBillingPlan(asOf: MaybeRefOrGetter<CivilDate | null>): Comput
       matches: plannedAgainstInvoiced(billingPlan, invoices),
       statistics: itemStatistics(billingPlan),
       expected: expectedInvoices(billingPlan, invoices),
-      fill: fillRestOfYear(billingPlan, workbook.settings.billing, day),
     }
   })
 }

@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import { civilDate } from '../src/shared/calendar/civilDate'
+import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { monthOf } from '../src/shared/calendar/monthKey'
 import { expectedInvoices } from '../src/features/billingPlan/domain/expectedInvoices'
 import { fillRestOfYear } from '../src/features/billingPlan/domain/fillRestOfYear'
 import { plannedAgainstInvoiced } from '../src/features/billingPlan/domain/plannedAgainstInvoiced'
 import { latestBalances } from '../src/features/cash/domain/balances'
 import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfitAndLoss'
-import { ledgerWindowOf } from '../src/features/workbook/domain/workbook'
+import { ledgerWindowOf, newestBookingOf } from '../src/features/workbook/domain/workbook'
 import { fakeWorkbookSnapshot, fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { categorise } from '../src/features/rules/domain/categorise'
+import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
+import { planAgainstActual } from '../src/packs/hr-doo/domain/forecast/planAgainstActual'
 import { ruleCoverage } from '../src/features/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 
@@ -96,6 +99,20 @@ describe('fake workbook', () => {
     expect(expectedInvoices(workbook.billingPlan, workbook.invoices).map((invoice) => [invoice.month, invoice.client])).toEqual([['2026-10', 'northwind']])
     expect(excel.settings.billing.client).toBe('northwind')
     expect(fillRestOfYear(excel.billingPlan, excel.settings.billing, civilDate(2026, 10, 16))).toMatchObject({ kind: 'rows', rows: { length: 4 } })
+  })
+
+  it('plans 2027 so the forecast switches the owner pay to board-only the day after the grant’s employment date, with a purchase and a dividend', () => {
+    const excel = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel'))
+    const asOf = newestBookingOf(excel.transactions) as CivilDate
+    const forecast = forecastYear(excel, 2027, asOf)
+
+    expect(excel.problems.filter((problem) => problem.tab === 'plan')).toEqual([])
+    expect(forecast.notModelled).toEqual([])
+    expect(forecast.ownerPay?.plan.switchOn).toBe('2027-09-15')
+    expect(forecast.ownerPay?.salaryDropped).toEqual([])
+    expect(forecast.plannedAssets.map((asset) => asset.name)).toEqual(['Replacement laptop, planned'])
+    expect(forecast.plannedDividend?.month).toBe('2027-06')
+    expect(planAgainstActual(forecastYear(excel, 2026, asOf)).map((line) => line.key)).toContain('ai-services')
   })
 
   it('names a Zagreb resident in the company facts of its Excel variant, and leaves the Google one on the defaults', () => {

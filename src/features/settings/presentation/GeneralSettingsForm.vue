@@ -9,8 +9,9 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { LOCAL_UNITS, findLocalUnit } from '../../../packs/hr-doo/ruleset/localUnits'
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
-import { amountOf, moneyFromAmount } from '../../../shared/money/money'
+import { amountOf } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
+import { typedAmount } from '../../../shared/money/typedAmount'
 import { fold } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
@@ -162,12 +163,10 @@ watch(
   },
 )
 
-/** A blank field is no amount, and a decimal comma reads as a point. */
+/** A blank field is no amount. */
 function amountOfText(text: string): BillingTerms[BillingAmountField] {
-  const typed = text.trim().replace(',', '.')
-  if (typed === '') return null
-  const amount = Number(typed)
-  return Number.isFinite(amount) ? moneyFromAmount(amount) : (Number.NaN as Money)
+  if (text.trim() === '') return null
+  return typedAmount(text) ?? (Number.NaN as Money)
 }
 
 function updateBillingAmount(field: BillingAmountField, text: string): void {

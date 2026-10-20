@@ -18,15 +18,16 @@ const SHORT_NAME = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 
 
 /**
  * The rows "Fill the rest of the year" adds for the billing client: the monthly fee and the
- * subscription, each dated on the last day of every month from the month of `asOf` to December. A
- * month that already has the item for the client is skipped, so the action can run again after
- * rows are adjusted. The yearly bonus is never filled in.
+ * subscription, each dated on the last day of every month of `year` from the month of `asOf` to
+ * December, so a later year fills from January and an earlier one fills nothing. A month that
+ * already has the item for the client is skipped, so the action can run again after rows are
+ * adjusted. The yearly bonus is never filled in.
  *
  * Each row takes the description of the client's latest row of the same item, with the new month
  * put where that row's month is named, so "Fee for September" becomes "Fee for October" and
  * "Design tool seat" stays as it is. An item with no row yet is described by its month.
  */
-export function fillRestOfYear(plan: readonly BillingItem[], terms: BillingTerms, asOf: CivilDate): RestOfYearFill {
+export function fillRestOfYear(plan: readonly BillingItem[], terms: BillingTerms, asOf: CivilDate, year: number = yearOf(asOf)): RestOfYearFill {
   if (terms.client === '') {
     return { kind: 'refused', reason: 'Choose the client the rows are for first.' }
   }
@@ -43,7 +44,8 @@ export function fillRestOfYear(plan: readonly BillingItem[], terms: BillingTerms
   for (const row of [...clientRows].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)) {
     latest.set(row.item, row)
   }
-  const months = monthsFrom(monthOf(asOf), monthKey(yearOf(asOf), 12))
+  const first = year === yearOf(asOf) ? monthOf(asOf) : monthKey(year, 1)
+  const months = year < yearOf(asOf) ? [] : monthsFrom(first, monthKey(year, 12))
   return {
     kind: 'rows',
     rows: months.flatMap((month) =>

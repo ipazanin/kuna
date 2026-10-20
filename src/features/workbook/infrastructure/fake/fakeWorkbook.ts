@@ -274,8 +274,10 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
 
 /**
  * The tabs the year-end and planning screens read, for "Example Studio d.o.o.": the two computers
- * the ledger bought, the start-up grant it received, the accountant's 2025 figures, a plan and four
- * owner pay scenarios for 2027, two of them with warnings to show. The accountant's 2025 figures are made up to agree with the accrual view of
+ * the ledger bought, the start-up grant it received, the accountant's 2025 figures, a 2026 plan row
+ * the ledger's months compare with, a 2027 plan whose owner pay switches from the floor salary to
+ * board-only insurance the day after the grant's employment date, with a purchase and a dividend,
+ * and four owner pay scenarios for 2027, two of them with warnings to show. The accountant's 2025 figures are made up to agree with the accrual view of
  * the ledger, except where the Year end screen needs something to show: the grant released, rent
  * placed on other costs, bank interest as financial income and 10.00 moved between two konto lines.
  */
@@ -375,12 +377,15 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
       yearEnd('konto', '46500', 'Reprezentacija', 70, 'representation'),
     ],
     plan: [
-      ['year', 'month', 'item', 'amount', 'note'],
-      [2026, 11, 'purchase', 420, 'Second monitor'],
-      [2027, '', 'software-subscriptions', 10, ''],
-      [2027, '', 'owner_pay_scenario', 'floor-salary', ''],
-      [2027, 3, 'purchase', 1600, 'Replacement laptop'],
-      [2027, 6, 'dividend', 8000, 'After the 2026 statements are adopted'],
+      ['year', 'month', 'item', 'amount', 'note', 'date', 'group'],
+      [2026, '', 'ai-services', 55, 'Model API seats', '', ''],
+      [2026, '', 'purchase', 420, 'Second monitor', serialOf('2026-11-12'), 'equipment'],
+      [2027, '', 'software-subscriptions', 10, '', '', ''],
+      [2027, 1, 'software-subscriptions', 120, 'Yearly design tool', '', ''],
+      [2027, '', 'owner_pay_scenario', 'floor-salary', '', '', ''],
+      [2027, '', 'owner_pay_scenario', 'floor-then-board', '', serialOf('2027-09-15'), ''],
+      [2027, '', 'purchase', 1600, 'Replacement laptop', serialOf('2027-03-10'), 'computers'],
+      [2027, 6, 'dividend', 8000, 'After the 2026 statements are adopted', '', ''],
     ],
     scenarios: [
       ['scenario', 'label', 'year', 'component', 'amount', 'from', 'to'],

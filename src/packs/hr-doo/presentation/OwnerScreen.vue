@@ -233,7 +233,11 @@ const owner = computed(() => {
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Owner" description="What the owner took out, what it cost, and who owes whom between the owner and the company." />
+    <PageHeader title="Owner" description="What the owner took out, what it cost, and who owes whom between the owner and the company.">
+      <template v-if="settings.ownerPayModule" #actions>
+        <UButton label="Compare owner pay mixes" icon="i-lucide-scale" to="/pay-scenarios" color="neutral" variant="outline" size="sm" data-testid="owner-pay-scenarios" />
+      </template>
+    </PageHeader>
     <OwnerPayOff v-if="!settings.ownerPayModule" />
     <LedgerGate v-else>
       <template v-if="ledger && owner">

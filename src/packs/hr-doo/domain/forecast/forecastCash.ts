@@ -1,11 +1,16 @@
 import { latestBalances } from '../../../../features/cash/domain/balances'
+import { daysToPaid } from '../../../../features/receivables/domain/daysToPaid'
 import { receivablesOf } from '../../../../features/receivables/domain/invoiceMatching'
+import type { Asset } from '../../../../features/workbook/domain/assets'
+import { displayName } from '../../../../features/workbook/domain/displayName'
 import { newestBookingOf } from '../../../../features/workbook/domain/workbook'
 import type { Transaction, Workbook } from '../../../../features/workbook/domain/workbook'
-import { civilDate } from '../../../../shared/calendar/civilDate'
-import { addMonths, monthKey, yearOfMonth } from '../../../../shared/calendar/monthKey'
+import { addDays, civilDate } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { addMonths, lastDayOf, monthKey, monthOf, yearOfMonth } from '../../../../shared/calendar/monthKey'
+import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { ZERO, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
@@ -15,11 +20,43 @@ import { PACK_ROLES } from '../packRoles'
 import { deducted, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { CategoryForecast, ForecastCalendar, ForecastLine, ForecastMonth } from './forecastLines'
 
-/** What the year before leaves to the year's cash: its cash at the end, and the December figures that settle in January. */
-export interface CarriedCash {
-  readonly cashAtYearEnd: TracedFigure
-  readonly decemberReceivable: TracedFigure
-  readonly decemberArrears: TracedFigure
+/** What moves the cash, each in the month it is paid or received. */
+export type CashKind = 'open-invoices' | 'vat' | 'revenue' | 'costs' | 'purchases' | 'dividend' | 'corporate-tax' | 'carried-revenue' | 'carried-costs'
+
+export interface CashEvent {
+  readonly month: MonthKey
+  readonly kind: CashKind
+  /** Positive when money comes in. */
+  readonly figure: TracedFigure
+}
+
+export interface CashMonth {
+  readonly month: MonthKey
+  /** From the bank balances for a month the ledger has passed, projected after it. */
+  readonly basis: 'ledger' | 'forecast'
+  /** At the end of the month. A projected month's steps start from the month before. */
+  readonly closing: TracedFigure
+}
+
+/** How long clients take to pay, from Receivables: the median days from issue to payment. */
+export interface PaymentLag {
+  readonly days: number
+  readonly label: string
+}
+
+export interface CashProjection {
+  readonly months: readonly CashMonth[]
+  readonly atYearEnd: TracedFigure
+  /** Revenue of the year still to be received after it ends. */
+  readonly receivableAtYearEnd: TracedFigure
+  /** What the year leaves to the next one's cash: revenue received and costs paid after 31 December. */
+  readonly later: readonly CashEvent[]
+}
+
+/** The planned dividend as it leaves the cash: its tax and what of the net is not set off against what the owner owes. */
+export interface DividendCash {
+  readonly month: MonthKey
+  readonly cashOut: TracedFigure
 }
 
 export interface CashInputs {
@@ -27,40 +64,94 @@ export interface CashInputs {
   readonly calendar: ForecastCalendar
   /** The workbook as it stood on the day of the forecast. */
   readonly known: Workbook
+  readonly asOf: CivilDate
   readonly revenue: ForecastLine
   readonly categories: readonly CategoryForecast[]
-  readonly plannedPurchases: ForecastLine
+  /** Purchases of the plan the ledger has not reached, kept as assets. */
+  readonly plannedAssets: readonly Asset[]
+  readonly dividend: DividendCash | null
   /** Every corporate tax obligation from the first tax period, matched to the bank rows. */
   readonly citObligations: readonly MatchedCitObligation[]
   readonly vatPosition: TracedFigure
-  /** The year before's forecast, for a year the ledger has not reached. Null before the first tax period. */
-  readonly carried: () => CarriedCash | null
+  readonly paymentLag: PaymentLag
+  /** The year before's projection, for a year the ledger has not reached. Null before the first tax period. */
+  readonly carried: () => CashProjection | null
+}
+
+const KIND_LABELS: Readonly<Record<CashKind, string>> = {
+  'carried-revenue': 'Revenue of the year before, received in this one',
+  'carried-costs': 'Costs of the year before, paid in this one',
+  'open-invoices': 'Invoices still open, as the clients pay',
+  vat: 'VAT the state owes the company now, settled the month after',
+  revenue: 'Revenue of the forecast months, as the client pays',
+  costs: 'Costs and other income of the forecast months, as they are paid',
+  purchases: 'Planned purchases, at their net cost',
+  dividend: 'Planned dividend, its tax and what is not set off',
+  'corporate-tax': 'Corporate tax still to pay',
+}
+
+const KIND_ORDER: readonly CashKind[] = ['carried-revenue', 'carried-costs', 'open-invoices', 'vat', 'revenue', 'costs', 'purchases', 'dividend', 'corporate-tax']
+
+/** The median days from issue to payment of every invoice paid so far, or a day when none is, so the revenue of a month comes in the month after. */
+export function paymentLagOf(known: Workbook): PaymentLag {
+  const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
+  const median = daysToPaid(receivables.clients.flatMap((client) => client.invoices), null).median
+  return median === null
+    ? { days: 1, label: 'No invoice is paid yet, so revenue comes in the month after' }
+    : { days: Math.round(median), label: `Clients pay ${Math.round(median)} days after the invoice, the median on Receivables` }
 }
 
 /**
- * Cash at the end of the year. A year the ledger has closed reads it from the balances. Otherwise
- * it starts from cash on the newest booking, with open invoices collected and the VAT position
- * settled by the year end, or from the year before's forecast. Then it adds the forecast months as
- * they would be paid: revenue in the month after, so December's comes in January, costs in their
- * month, costs paid in arrears in the month after, and the corporate tax due by 31 December. Costs
- * paid ahead are already paid, and what the running month has paid so far is not paid twice.
+ * Cash at the end of each month of the year. A month the ledger has passed reads its bank balance.
+ * The rest starts from cash on the newest booking, or from the year before's projection, and adds
+ * each forecast month as it is paid: revenue when the client pays, its lag from Receivables
+ * counted from the end of the month delivered, open invoices from their issue day, costs in their
+ * month, costs paid in arrears in the month after, the VAT position the month after the newest
+ * booking, planned purchases at their net cost, the planned dividend, and the corporate tax by its
+ * due day. Costs paid ahead are already paid, and what the running month has paid so far is not
+ * paid twice.
  */
-export function cashAtYearEnd(inputs: CashInputs): TracedFigure {
+export function cashProjection(inputs: CashInputs): CashProjection {
   const { year, calendar, known } = inputs
+  const months = calendar.months
   const december = monthKey(year, 12)
-  if (calendar.lastComplete !== null && calendar.lastComplete >= december) {
-    const cash = latestBalances(known.transactions.filter((row) => row.date <= civilDate(year, 12, 31))).cashOnHand
-    return withDrill(tracedFigure(`Cash at the end of ${year}`, cash.amount, 'ledger', []), cash.drill)
+  const balanceAt = (month: MonthKey): TracedFigure => {
+    const cash = latestBalances(known.transactions.filter((row) => row.date <= lastDayOf(month))).cashOnHand
+    return withDrill(tracedFigure(`Cash at the end of ${monthLabel(month)}`, cash.amount, 'ledger', []), cash.drill)
   }
+  if (calendar.lastComplete !== null && calendar.lastComplete >= december) {
+    const ledgerMonths = months.map((month): CashMonth => ({ month, basis: 'ledger', closing: balanceAt(month) }))
+    const atYearEnd = { ...(ledgerMonths[11] as CashMonth).closing, label: `Cash at the end of ${year}` }
+    const decemberRevenue = (inputs.revenue.months[11] as ForecastMonth).figure
+    const receivableAtYearEnd = tracedFigure(`Revenue of ${year} received after it ends`, decemberRevenue.amount, decemberRevenue.basis, decemberRevenue.rules, [decemberRevenue])
+    return { months: ledgerMonths, atYearEnd, receivableAtYearEnd, later: [] }
+  }
+
   const runsInYear = calendar.running !== null && yearOfMonth(calendar.running) === year
-  const steps = [
-    ...(runsInYear ? cashNow(inputs) : cashCarriedIn(inputs)),
-    revenueStillToCome(inputs),
-    costsStillToPay(inputs),
-    purchasesStillToPay(inputs),
-    taxStillToPay(inputs, runsInYear),
-  ]
-  return summed(`Cash at the end of ${year}, as forecast`, steps, 'ledger')
+  const opensIn = runsInYear ? (calendar.running as MonthKey) : monthKey(year, 1)
+  const start = runsInYear ? cashOnNewestBooking(known.transactions) : carriedStart(inputs)
+  const events = [...(runsInYear ? nowEvents(inputs, opensIn) : carriedEvents(inputs)), ...forecastEvents(inputs, opensIn, runsInYear)]
+  const inYear = events.filter((event) => event.month <= december)
+  const later = events.filter((event) => event.month > december)
+
+  let previous = start
+  const projected = months.map((month): CashMonth => {
+    if (month < opensIn) {
+      return { month, basis: 'ledger', closing: balanceAt(month) }
+    }
+    const flows = KIND_ORDER.flatMap((kind) => grouped(inYear.filter((event) => event.month === month && event.kind === kind), kind))
+    const closing = summed(`Cash at the end of ${monthLabel(month)}, as forecast`, [{ ...previous, label: month === opensIn ? previous.label : `Cash at the end of ${monthLabel(addMonths(month, -1))}` }, ...flows], 'ledger')
+    previous = closing
+    return { month, basis: 'forecast', closing }
+  })
+  const atYearEnd = summed(`Cash at the end of ${year}, as forecast`, [start, ...KIND_ORDER.flatMap((kind) => grouped(inYear.filter((event) => event.kind === kind), kind))], 'ledger')
+  const receivedLater = later.filter((event) => event.kind === 'revenue' || event.kind === 'open-invoices').map((event) => event.figure)
+  return {
+    months: projected,
+    atYearEnd,
+    receivableAtYearEnd: summed(`Revenue of ${year} received after it ends`, receivedLater, 'ledger'),
+    later,
+  }
 }
 
 /** The bank balance on the newest booking, named with its day. */
@@ -69,65 +160,82 @@ export function cashOnNewestBooking(transactions: readonly Transaction[]): Trace
   return withDrill({ ...tracedFigure('Cash on', cashOnHand.amount, 'ledger', []), on: newestBookingOf(transactions) }, cashOnHand.drill)
 }
 
-function cashNow({ known, vatPosition }: CashInputs): TracedFigure[] {
-  const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
-  return [
-    cashOnNewestBooking(known.transactions),
-    tracedFigure('Invoices still open, paid by the year end', sumMoney(receivables.clients.map((client) => client.outstanding)), 'invoices', []),
-    { ...vatPosition, label: 'VAT the state owes the company now, settled by the year end' },
-  ]
+function grouped(events: readonly CashEvent[], kind: CashKind): TracedFigure[] {
+  return events.length === 0 ? [] : [summed(KIND_LABELS[kind], events.map((event) => event.figure), 'ledger')]
 }
 
-function cashCarriedIn({ year, carried }: CashInputs): TracedFigure[] {
+function carriedStart({ year, carried }: CashInputs): TracedFigure {
   const before = carried()
-  if (before === null) {
-    return [tracedFigure(`Nothing before ${year}`, ZERO, 'ledger', [])]
-  }
-  return [before.cashAtYearEnd, { ...before.decemberReceivable, label: `${before.decemberReceivable.label}, received in January` }, deducted(before.decemberArrears)]
+  return before === null ? tracedFigure(`Nothing before ${year}`, ZERO, 'ledger', []) : before.atYearEnd
 }
 
-function revenueStillToCome({ year, revenue }: CashInputs): TracedFigure {
-  const december = monthKey(year, 12)
-  const months = revenue.months.filter((entry) => isForecast(entry) && entry.month < december)
-  return summed(
-    'Revenue of the forecast months, paid the month after',
-    months.map((entry) => entry.figure),
-    'ledger',
-  )
+/** What the year before left to receive and to pay, in the month it lands. */
+function carriedEvents({ year, carried }: CashInputs): CashEvent[] {
+  const before = carried()
+  return (before?.later ?? [])
+    .filter((event) => yearOfMonth(event.month) === year)
+    .map((event): CashEvent => ({ ...event, kind: event.figure.amount >= 0 ? 'carried-revenue' : 'carried-costs' }))
 }
 
-function costsStillToPay({ year, calendar, categories }: CashInputs): TracedFigure {
-  const december = monthKey(year, 12)
-  const perCategory = categories.flatMap(({ category, forecast }) => {
-    const arrears = category.roles.includes(PACK_ROLES.arrears)
-    const steps = forecast.months
-      .filter((entry) => isForecast(entry) && (arrears ? addMonths(entry.month, 1) : entry.month) <= december)
-      .map((entry) => {
-        const stillToPay = !arrears && entry.month === calendar.running ? afterPaidSoFar(entry) : entry.figure.amount
-        return tracedFigure(`${monthLabel(entry.month)}${arrears ? ', paid the month after' : ''}`, stillToPay, entry.figure.basis, [], [entry.figure])
-      })
-      .filter((step) => step.amount !== 0)
-    return steps.length === 0 ? [] : [summed(category.label ?? category.slug, steps, 'ledger')]
+/** On the newest booking: the invoices still open, as their clients pay, and the VAT position, settled the month after. */
+function nowEvents({ known, asOf, vatPosition, paymentLag }: CashInputs, running: MonthKey): CashEvent[] {
+  const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
+  const open = receivables.clients.flatMap((client) => client.invoices.filter((matched) => matched.remaining > 0))
+  const invoices = open.map((matched): CashEvent => {
+    const expected = addDays(matched.invoice.issued, paymentLag.days)
+    const on = expected > asOf ? expected : addDays(asOf, 1)
+    return { month: monthOf(on), kind: 'open-invoices', figure: { ...tracedFigure(`Invoice ${matched.invoice.number}, expected`, matched.remaining, 'invoices', []), on } }
   })
-  return summed('Costs and other income of the forecast months, as they are paid', perCategory, 'ledger')
+  return [...invoices, { month: addMonths(running, 1), kind: 'vat', figure: { ...vatPosition, label: KIND_LABELS.vat } }]
 }
 
-function purchasesStillToPay({ plannedPurchases }: CashInputs): TracedFigure {
-  return deducted(summed('Small purchases planned', plannedPurchases.months.filter(isForecast).map((entry) => entry.figure), 'plan'))
+function forecastEvents(inputs: CashInputs, opensIn: MonthKey, runsInYear: boolean): CashEvent[] {
+  return [...revenueEvents(inputs), ...costEvents(inputs), ...purchaseEvents(inputs), ...dividendEvents(inputs), ...taxEvents(inputs, opensIn, runsInYear)]
 }
 
-function taxStillToPay({ year, citObligations }: CashInputs, runsInYear: boolean): TracedFigure {
+function revenueEvents({ revenue, paymentLag }: CashInputs): CashEvent[] {
+  return revenue.months.filter(isForecast).map((entry): CashEvent => {
+    const on = addDays(lastDayOf(entry.month), paymentLag.days)
+    return { month: monthOf(on), kind: 'revenue', figure: { ...tracedFigure(`Revenue of ${monthLabel(entry.month)}, expected`, entry.figure.amount, entry.figure.basis, [], [entry.figure]), on } }
+  })
+}
+
+function costEvents({ calendar, categories }: CashInputs): CashEvent[] {
+  return categories.flatMap(({ category, forecast }) => {
+    const arrears = category.roles.includes(PACK_ROLES.arrears)
+    const name = displayName(category.slug, category.label)
+    return forecast.months.filter(isForecast).flatMap((entry): CashEvent[] => {
+      const amount = !arrears && entry.month === calendar.running ? afterPaidSoFar(entry) : entry.figure.amount
+      if (amount === 0) {
+        return []
+      }
+      const label = `${name}, ${monthLabel(entry.month)}${arrears ? ', paid the month after' : ''}`
+      return [{ month: arrears ? addMonths(entry.month, 1) : entry.month, kind: 'costs', figure: tracedFigure(label, amount, entry.figure.basis, [], [entry.figure]) }]
+    })
+  })
+}
+
+function purchaseEvents({ plannedAssets }: CashInputs): CashEvent[] {
+  return plannedAssets.map((asset): CashEvent => ({ month: monthOf(asset.bought), kind: 'purchases', figure: { ...tracedFigure(asset.name, negateMoney(asset.costNet), 'plan', []), on: asset.bought } }))
+}
+
+function dividendEvents({ dividend }: CashInputs): CashEvent[] {
+  return dividend === null ? [] : [{ month: dividend.month, kind: 'dividend', figure: deducted(dividend.cashOut) }]
+}
+
+/**
+ * The corporate tax due by the year end and not yet paid, in the month it is due, or the running
+ * month when it is overdue. A later year takes only what falls due in it.
+ */
+function taxEvents({ year, citObligations }: CashInputs, opensIn: MonthKey, runsInYear: boolean): CashEvent[] {
   const yearEnd = civilDate(year, 12, 31)
-  const owing = citObligations.filter(
-    (entry) => entry.outstanding > 0 && entry.obligation.dueOn <= yearEnd && (runsInYear || entry.obligation.dueOn > civilDate(year - 1, 12, 31)),
-  )
-  return deducted(
-    summed(
-      'Corporate tax still to pay by the year end',
-      owing.map(outstandingFigure),
-      'ledger',
-    ),
-  )
+  const yearBefore = civilDate(year - 1, 12, 31)
+  return citObligations
+    .filter((entry) => entry.outstanding > 0 && entry.obligation.dueOn <= yearEnd && (runsInYear || entry.obligation.dueOn > yearBefore))
+    .map((entry): CashEvent => {
+      const due = monthOf(entry.obligation.dueOn)
+      return { month: due < opensIn ? opensIn : due, kind: 'corporate-tax', figure: deducted(outstandingFigure(entry)) }
+    })
 }
 
 function isForecast(entry: ForecastMonth): boolean {

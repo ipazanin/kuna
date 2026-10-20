@@ -10,6 +10,7 @@ import { civilDateFromSerial, parseCivilDate } from '../../../shared/calendar/ci
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { amountOf, moneyFromAmount } from '../../../shared/money/money'
+import { typedAmount } from '../../../shared/money/typedAmount'
 import { cellText } from '../../../shared/text/cellText'
 import { rowCellsOf } from '../../workbook/application/tabRowWrites'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -84,12 +85,9 @@ watch(open, (opening) => {
 
 const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
 
-/** A decimal comma is read as a point, so 12,50 is twelve fifty. */
 const parsedAmount = computed(() => {
-  const text = fields.value.amount.trim().replace(',', '.')
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null
-  const cents = moneyFromAmount(Number(text))
-  return cents > 0 ? cents : null
+  const cents = typedAmount(fields.value.amount)
+  return cents !== null && cents > 0 ? cents : null
 })
 
 function optionalDate(text: string): CivilDate | null | undefined {

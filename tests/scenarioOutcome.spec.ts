@@ -381,7 +381,8 @@ describe('scenarioCompany', () => {
     expect(inputs.shareCapital.amount).toBe(euros(2500))
   })
 
-  it('takes a later year from the latest year the forecast covers', () => {
-    expect(scenarioCompany(workbook, 2027, civil('2026-10-10')).takenFrom).toBe(2026)
+  it('takes the year after the newest booking from its own forecast, and a later year from that one', () => {
+    expect(scenarioCompany(workbook, 2027, civil('2026-10-10')).takenFrom).toBe(2027)
+    expect(scenarioCompany(workbook, 2028, civil('2026-10-10')).takenFrom).toBe(2027)
   })
 })

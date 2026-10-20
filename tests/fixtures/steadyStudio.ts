@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS } from '../../src/features/settings/domain/settings'
-import type { Asset } from '../../src/features/workbook/domain/assets'
+import type { Asset, AssetGroup } from '../../src/features/workbook/domain/assets'
 import type { DefinedBucket } from '../../src/features/workbook/domain/bucket'
 import type { Grant } from '../../src/features/workbook/domain/grants'
 import type { PlanLine } from '../../src/features/workbook/domain/plan'
@@ -135,8 +135,17 @@ export const STEADY_YEAR_END_2025: readonly YearEndLine[] = [
   yearEndLine(2025, 'balance', 'profit-of-year', 10800),
 ]
 
-export function planLine(month: number | null, item: string, amount: number, note = ''): PlanLine {
-  return { year: 2026, month, note, sheetRow: 2, kind: 'amount', item, amount: euros(amount) }
+export function planLine(month: number | null, item: string, amount: number, note = '', year = 2026): PlanLine {
+  return { year, month, note, sheetRow: 2, kind: 'amount', item, amount: euros(amount) }
+}
+
+export function planPurchase(date: string, amount: number, group: AssetGroup, note = '', sheetRow = 2): PlanLine {
+  const day = civil(date)
+  return { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)), note, sheetRow, kind: 'purchase', date: day, amount: euros(amount), group }
+}
+
+export function planOwnerPay(year: number, scenario: string, from: string | null = null, sheetRow = 2): PlanLine {
+  return { year, month: null, note: '', sheetRow, kind: 'owner-pay-scenario', scenario, from: from === null ? null : civil(from) }
 }
 
 export function steadyStudio(changes: Partial<Workbook> = {}): Workbook {

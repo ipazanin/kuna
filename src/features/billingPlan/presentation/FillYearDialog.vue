@@ -16,6 +16,8 @@ const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
   fill: RestOfYearFill
+  /** Such as "Fill the rest of 2026", or "Fill 2027" for a year still to come. */
+  title: string
   clientName: string
   /** The item colours of the plan, so a filled row wears its item's colour. */
   colours: ReadonlyMap<string, string>
@@ -55,7 +57,7 @@ async function write(): Promise<void> {
 <template>
   <UModal
     v-model:open="open"
-    title="Fill the rest of the year"
+    :title="title"
     description="The monthly fee and the subscription for every month to December that has no row of them yet. Each description follows the item's latest row, with its month moved on, and can be edited before the rows are added."
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"

@@ -14,8 +14,8 @@ export interface TabRead {
 
 export type FreshTabs = Partial<Record<WorkbookTab, TabRead>>
 
-/** The tabs whose rows the Workbook, Receivables, Billing plan and Pay scenarios screens add, change and delete. */
-export type RowTab = 'categories' | 'accounts' | 'clients' | 'invoices' | 'outgoing-plan' | 'assets' | 'grants' | 'year-end' | 'scenarios'
+/** The tabs whose rows the Workbook, Receivables, Billing plan, Forecast and Pay scenarios screens add, change and delete. */
+export type RowTab = 'categories' | 'accounts' | 'clients' | 'invoices' | 'outgoing-plan' | 'assets' | 'grants' | 'year-end' | 'plan' | 'scenarios'
 
 /** The tabs the app writes. Of the ledger it writes only the verdict of a row. */
 export type WritableTab = 'ledger' | 'rules' | 'settings' | 'owner-advances' | RowTab
@@ -84,6 +84,7 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   assets: templateColumns('assets'),
   grants: templateColumns('grants'),
   'year-end': templateColumns('year-end'),
+  plan: templateColumns('plan'),
   scenarios: templateColumns('scenarios'),
 }
 

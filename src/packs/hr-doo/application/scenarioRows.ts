@@ -4,12 +4,15 @@ import type { FreshTabs } from '../../../features/workbook/application/workbookW
 import type { RowAt, RowCells, TabRowsChange } from '../../../features/workbook/domain/rowChanges'
 import { slugChangeRefusals } from '../../../features/workbook/domain/slug'
 import { slugOf } from '../../../features/workbook/infrastructure/cellReading'
+import { readPlan } from '../../../features/workbook/infrastructure/planTabReader'
 import { readScenarios } from '../../../features/workbook/infrastructure/scenariosTabReader'
+import { definedCategorySlugs } from '../../../features/workbook/infrastructure/workbookReader'
 import { TEMPLATE_COLUMNS } from '../../../features/workbook/infrastructure/workbookTemplate'
 import { serialFromCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { amountOf } from '../../../shared/money/money'
 import { cellText } from '../../../shared/text/cellText'
+import { planGuards } from '../domain/forecast/planGuards'
 import { scenarioGuards } from '../domain/scenarios/scenarioGuards'
 import type { ComponentDraft, ScenarioDraft } from '../domain/scenarios/startingScenarios'
 
@@ -69,7 +72,8 @@ function planUses(fresh: FreshTabs): ReadonlyMap<string, readonly string[]> {
 
 /**
  * A scenario's name keeps to the slug format, is never moved onto the rows of another scenario,
- * and is kept while plan rows name it. Each scenario the change touches must then pass its guards.
+ * and is kept while plan rows name it. Each scenario the change touches must then pass its guards,
+ * and so must the owner pay of every plan year that names one of them.
  */
 function scenarioRefusals(check: RowsChangeCheck, fresh: FreshTabs): string[] {
   const edits = editsOf(check, (cells) => slugOf(cells.scenario))
@@ -86,9 +90,16 @@ function scenarioRefusals(check: RowsChangeCheck, fresh: FreshTabs): string[] {
   }
   const touched = new Set(edits.flatMap((edit) => [edit.before, edit.after]).filter((slug): slug is string => slug !== null))
   const after = readScenarios(check.after).scenarios
-  return after
+  const stopped = after
     .filter((scenario) => touched.has(scenario.slug))
     .flatMap((scenario) => scenarioGuards(scenario).map((guard) => `${scenario.label || scenario.slug}: ${guard.reason}`))
+  if (stopped.length > 0) {
+    return stopped
+  }
+  const plan = readPlan(fresh.plan?.rows ?? [], definedCategorySlugs(fresh.categories?.rows ?? []), new Set(after.map((scenario) => scenario.slug))).facts
+  const naming = plan.filter((line) => line.kind === 'owner-pay-scenario' && touched.has(line.scenario))
+  const years = new Set(naming.map((line) => line.year))
+  return planGuards(plan.filter((line) => years.has(line.year)), after).map((guard) => `The plan tab: ${guard.reason}`)
 }
 
 /** The `scenarios` tab: the reader checks each row, then the scenario guards check each scenario the change touches. */
@@ -99,7 +110,7 @@ export const SCENARIO_ROWS: TabRowRules = {
   required: ['scenario', 'year', 'component', 'amount'],
   caseless: ['scenario', 'component', 'amount'],
   dates: ['from', 'to'],
-  reads: ['plan'],
+  reads: ['plan', 'categories'],
   read: (rows) => {
     const { scenarios, problems } = readScenarios(rows)
     return { facts: scenarios.flatMap((scenario) => scenario.components), problems }

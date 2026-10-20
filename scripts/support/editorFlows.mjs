@@ -348,3 +348,93 @@ export async function startingScenariosFlow(page, { press, shoot, inspect }) {
   })
   await dismissToasts(page)
 }
+
+/** The text of a category's row in the plan editor, once it holds `wanted`. */
+async function waitForPlanCategory(page, slug, wanted) {
+  await page
+    .waitForFunction(
+      (category, text) => document.querySelector(`[data-testid="plan-category"][data-category="${category}"]`)?.textContent?.includes(text) ?? false,
+      { timeout: 10_000 },
+      slug,
+      wanted,
+    )
+    .catch(() => {
+      throw new Error(`the plan of ${slug} does not say "${wanted}"`)
+    })
+}
+
+async function openPlanCategory(page, press, slug) {
+  await pressSelector(page, press, `[data-testid="plan-category"][data-category="${slug}"]`)
+  await page.waitForSelector('[data-testid="category-plan-form"]')
+  await delay(400)
+}
+
+/** Forecast for 2027: plan a category for every month and one month of its own, raise it, clear it, Undo the clear, then clear it again. */
+export async function planFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-testid="plan-editor"]')
+  const slug = await page.evaluate(
+    () => [...document.querySelectorAll('[data-testid="plan-category"]:not([disabled])')].find((button) => button.textContent?.includes('No plan row'))?.getAttribute('data-category') ?? null,
+  )
+  if (slug === null) throw new Error('no category without a plan row to plan')
+
+  await openPlanCategory(page, press, slug)
+  await setField(await page.$('[data-testid="plan-every-month"]'), '120')
+  await setField(await page.$('[data-testid="plan-month-1"]'), '300')
+  await inspect?.('plan a category')
+  await shoot('plan-category')
+  await pressSelector(page, press, '[data-testid="plan-save"]')
+  await toast(page, 'Plan saved')
+  await dialogGone(page, '[data-testid="category-plan-form"]')
+  await waitForPlanCategory(page, slug, '€120.00 a month, one month of its own')
+  await shoot('plan-category-saved')
+  await dismissToasts(page)
+
+  await openPlanCategory(page, press, slug)
+  await setField(await page.$('[data-testid="plan-every-month"]'), '130')
+  await inspect?.('edit a plan')
+  await pressSelector(page, press, '[data-testid="plan-save"]')
+  await toast(page, 'Plan saved')
+  await dialogGone(page, '[data-testid="category-plan-form"]')
+  await waitForPlanCategory(page, slug, '€130.00 a month')
+  await dismissToasts(page)
+
+  await openPlanCategory(page, press, slug)
+  await pressSelector(page, press, '[data-testid="plan-clear"]')
+  await toast(page, 'Plan cleared')
+  await dialogGone(page, '[data-testid="category-plan-form"]')
+  await waitForPlanCategory(page, slug, 'No plan row')
+  await undo(page, press)
+  await waitForPlanCategory(page, slug, '€130.00 a month, one month of its own')
+  await dismissToasts(page)
+
+  await openPlanCategory(page, press, slug)
+  await pressSelector(page, press, '[data-testid="plan-clear"]')
+  await toast(page, 'Plan cleared')
+  await dialogGone(page, '[data-testid="category-plan-form"]')
+  await dismissToasts(page)
+}
+
+/** Forecast for 2027 with no plan rows: plan a purchase, which adds the plan tab to a Sheet without one, and Undo it. */
+export async function planTabFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-testid="plan-editor"]')
+  if (await page.$('[data-testid="plan-purchase"]')) throw new Error('a purchase is planned before the flow adds one')
+  await pressSelector(page, press, '[data-testid="plan-add-purchase"]')
+  await page.waitForSelector('[data-testid="purchase-plan-form"]')
+  await delay(400)
+  await setField(await page.$('[data-testid="purchase-name"]'), 'Replacement laptop')
+  await setField(await page.$('[data-testid="purchase-date"]'), '2027-03-10')
+  await setField(await page.$('[data-testid="purchase-amount"]'), '1600')
+  const missing = await page.evaluate(() => document.querySelector('[data-testid="add-tab-notice"]') !== null)
+  await inspect?.('plan a purchase')
+  await shoot('plan-purchase')
+  await pressSelector(page, press, '[data-testid="purchase-save"]')
+  await toast(page, missing ? 'Plan tab added' : 'Purchase planned')
+  await dialogGone(page, '[data-testid="purchase-plan-form"]')
+  await page.waitForSelector('[data-testid="plan-purchase"]')
+  await shoot('plan-purchase-added')
+  await undo(page, press)
+  await page.waitForFunction(() => !document.querySelector('[data-testid="plan-purchase"]'), { timeout: 10_000 }).catch(() => {
+    throw new Error('Undo left the planned purchase on the screen')
+  })
+  await dismissToasts(page)
+}

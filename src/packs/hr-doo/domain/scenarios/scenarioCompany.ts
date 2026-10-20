@@ -15,7 +15,7 @@ import type { RuleSource } from '../payroll/payrollArithmetic'
 
 /** The company's side of a pay scenario: what the year earns before any owner pay, and what it holds. */
 export interface ScenarioCompany {
-  /** The forecast year the figures come from: the scenario's own year, or the latest year the forecast covers when the scenario's is later. */
+  /** The forecast year the figures come from: the scenario's own year, or the latest year the forecast covers, the year after the newest booking, when the scenario's is later. */
   readonly takenFrom: number
   readonly registered: CivilDate
   /** The PD build-up's inputs of that year, with the owner pay taken out of the expenses. */
@@ -36,16 +36,16 @@ export interface ScenarioCompany {
 
 /**
  * The company figures a pay scenario for `year` runs on, from the forecast seen on `asOf`. The
- * forecast reaches the year of the newest booking, so a later scenario year takes that year's
- * figures and `takenFrom` says so. The owner pay the forecast counts is taken back out, so each
- * scenario sets its own.
+ * forecast reaches the year after the newest booking, as the Forecast screen does, so a later
+ * scenario year takes that year's figures and `takenFrom` says so. The owner pay the forecast
+ * counts, a plan's scenarios included, is taken back out, so each scenario sets its own.
  */
 export function scenarioCompany(workbook: Workbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): ScenarioCompany {
   const registered = workbook.settings.companyFacts.companyRegistered
   if (registered === null) {
     throw new RangeError('A pay scenario needs hr_company_registered, the day the first tax period starts.')
   }
-  const covered = yearOf(asOf)
+  const covered = yearOf(asOf) + 1
   const takenFrom = year > covered ? covered : year
   const forecast = forecastYear(workbook, takenFrom, asOf, rules)
   const capacity = dividendCapacity(takenFrom, forecast, workbook, rules)

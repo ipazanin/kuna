@@ -18,8 +18,7 @@ import { monthOfLine } from '../forecast/forecastLines'
 import { forecastYear } from '../forecast/forecastYear'
 import type { YearForecast } from '../forecast/forecastYear'
 import { clawbackExposure } from '../grants/grantRelease'
-import { netOwed, ownerAdvances } from '../ownerAdvances'
-import { ownerLoans } from '../ownerLoans'
+import { owedByOwnerOn } from './owedByOwner'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
@@ -133,7 +132,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
   const lossesBroughtForward = tracedFigure(`Losses brought forward into ${year}`, opening.retained.amount < 0 ? negateMoney(opening.retained.amount) : ZERO, opening.retained.basis, [
     distributableRule.citation,
   ], [opening.retained])
-  const paidOutInYear = paidOutIn(year, rows, workbook)
+  const paidOutInYear = paidOutIn(year, rows, workbook, forecast)
   const distributableSteps = [forecast.profitAfterTax, retainedEarnings, deducted(lossesBroughtForward), deducted(paidOutInYear)]
   const distributable = tracedFigure('Distributable profit', sumMoney(distributableSteps.map((step) => step.amount)), 'ledger', [
     distributableRule.citation,
@@ -163,12 +162,15 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
   const decemberDue = summed('December’s pay, rent and corporate tax advance paid in January', [forecast.decemberArrears, ...advancesAfterYearEnd], 'ledger')
   const cashAfterObligations = summed('Cash at the year end with December settled, less the corporate tax balance', [
     forecast.cashAtYearEnd,
-    forecast.decemberReceivable,
+    forecast.receivableAtYearEnd,
     deducted(decemberDue),
     deducted(balanceDue),
   ], 'ledger')
-  const owed = netOwed(ownerLoans(rows, workbook.categories), ownerAdvances(workbook.ownerAdvances.filter((advance) => advance.date <= asOf), rows, workbook.categories), rows, workbook.categories)
-  const owedByOwner = withDrill({ ...tracedFigure('Owed by the owner, net, on', owed.amount > 0 ? owed.amount : ZERO, 'ledger', []), on: asOf }, owed.drill)
+  const owedNow = owedByOwnerOn(workbook, asOf)
+  const owedByOwner =
+    forecast.plannedDividend === null || forecast.plannedDividend.setOff.amount === 0
+      ? owedNow
+      : summed('Owed by the owner, net, after the planned dividend is set off', [owedNow, deducted(forecast.plannedDividend.setOff)], 'ledger')
   const prudence: DividendPrudence = {
     clawbackExposure: clawbackOn(workbook, yearEnd),
     cashAtYearEnd: forecast.cashAtYearEnd,
@@ -373,21 +375,23 @@ function openingEquity(year: number, forecast: YearForecast, workbook: Workbook,
   }
   const prior = forecastYear(workbook, year - 1, forecast.asOf, rules)
   const before = openingEquity(year - 1, prior, workbook, rules)
-  const steps = [before.retained, deducted(paidOutIn(year - 1, workbook.transactions.filter((row) => row.date <= forecast.asOf), workbook)), prior.profitAfterTax]
+  const steps = [before.retained, deducted(paidOutIn(year - 1, workbook.transactions.filter((row) => row.date <= forecast.asOf), workbook, prior)), prior.profitAfterTax]
   return {
     reserves: before.reserves,
     retained: tracedFigure(`Retained at the start of ${year}, with the forecast profit of ${year - 1}`, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps),
   }
 }
 
-/** Profit paid out in the year and the tax on it, read positive. */
-function paidOutIn(year: number, rows: readonly Transaction[], workbook: Workbook): TracedFigure {
+/** Profit paid out in the year and the tax on it, read positive, with the dividend the plan still has to come in it. */
+function paidOutIn(year: number, rows: readonly Transaction[], workbook: Workbook, forecast: YearForecast): TracedFigure {
   const slugs = categoriesWithRole(workbook.categories, PACK_ROLES.profitDistribution)
   const paid = rows.filter((row) => slugs.includes(row.category) && yearOf(row.date) === year)
-  return withDrill(
+  const fromLedger = withDrill(
     tracedFigure(`Profit paid out in ${year}, with its tax`, negateMoney(sumMoney(paid.map((row) => row.amount))), 'ledger', []),
     drillToTransactions({ period: { preset: 'year', year }, categories: slugs }),
   )
+  const planned = forecast.plannedDividend
+  return planned === null ? fromLedger : summed(`Profit paid out in ${year} and planned`, [fromLedger, planned.gross], 'ledger')
 }
 
 /** The share capital from the latest year-end tab before the year, else the statutory minimum. */

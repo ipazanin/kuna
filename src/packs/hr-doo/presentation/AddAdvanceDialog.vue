@@ -22,7 +22,8 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
-import { amountOf, moneyFromAmount, negateMoney } from '../../../shared/money/money'
+import { amountOf, negateMoney } from '../../../shared/money/money'
+import { typedAmount } from '../../../shared/money/typedAmount'
 import { formatMoney } from '../../../shared/money/moneyFormat'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../features/workbook/application/workbookStore'
@@ -84,12 +85,9 @@ const categoryItems = computed(() =>
     .map((candidate) => ({ label: names.value.category(candidate.slug), value: candidate.slug, bucket: candidate.bucket })),
 )
 
-/** A decimal comma is read as a point, so 12,50 is twelve fifty. */
 const parsedAmount = computed(() => {
-  const text = amount.value.trim().replace(',', '.')
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null
-  const cents = moneyFromAmount(Number(text))
-  return cents > 0 ? cents : null
+  const cents = typedAmount(amount.value)
+  return cents !== null && cents > 0 ? cents : null
 })
 
 const errors = computed(() => ({

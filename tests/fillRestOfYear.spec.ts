@@ -99,4 +99,16 @@ describe('fillRestOfYear', () => {
       reason: 'Set the monthly fee or the monthly subscription, each with its item, first.',
     })
   })
+
+  it('fills a later year from January, so the forecast of that year reads its fees, and an earlier year not at all', () => {
+    const plan = [planRow('Monthly Fee', '2026-12-31', 5000, 'north', 'Fee for December')]
+    const next = rowsOf(fillRestOfYear(plan, TERMS, civil('2026-10-19'), 2027))
+    expect(next).toHaveLength(24)
+    expect(next.slice(0, 2)).toEqual([
+      ['2027-01-31', 'Monthly Fee', euros(5000), 'north', 'Fee for January'],
+      ['2027-01-31', 'Subscription', euros(200), 'north', 'Jan 2027'],
+    ])
+    expect(next[23]?.[0]).toBe('2027-12-31')
+    expect(fillRestOfYear(plan, TERMS, civil('2026-10-19'), 2025)).toEqual({ kind: 'rows', rows: [] })
+  })
 })

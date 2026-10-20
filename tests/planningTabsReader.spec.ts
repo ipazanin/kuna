@@ -6,6 +6,7 @@ import { readSnapshotFrom } from '../src/features/workbook/infrastructure/google
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { civilDate, serialFromCivilDate } from '../src/shared/calendar/civilDate'
 
 /** Serial numbers of the date cells the rows below use. */
 const DAY = {
@@ -291,51 +292,74 @@ describe('the year-end tab', () => {
 })
 
 describe('the plan tab', () => {
-  const header = ['year', 'month', 'item', 'amount', 'note']
+  const header = ['year', 'month', 'item', 'amount', 'note', 'date', 'group']
+  const day = (text: string) => serialFromCivilDate(civilDate(Number(text.slice(0, 4)), Number(text.slice(5, 7)), Number(text.slice(8, 10))))
 
-  it('reads amounts by keyword or category, a blank month as every month, and a scenario by name', () => {
+  it('reads amounts by category or keyword, a blank month as every month, a purchase by its day and a scenario by name', () => {
     const workbook = workbookWith({
-      scenarios: [['scenario', 'year', 'component', 'amount'], ['floor', 2027, 'salary_gross', 'floor']],
+      scenarios: [['scenario', 'year', 'component', 'amount'], ['floor', 2027, 'salary_gross', 'floor'], ['board', 2027, 'director_basis', 'board-only']],
       plan: [
         header,
-        [2027, '', 'Purchase', 740, 'A new desk'],
+        [2027, '', 'Purchase', 740, 'A new desk', day('2027-03-10'), 'Equipment'],
         [2027, 3, 'software', 12.5],
         [2027, '', 'owner_pay_scenario', 'Floor'],
+        [2027, '', 'owner_pay_scenario', 'board', '', day('2027-06-05')],
         [2027, 6, 'dividend', 8000],
+        [2027, '', 'purchase', 740, 'A second desk', day('2027-03-10'), 'equipment'],
       ],
     })
 
     expect(workbook.planLines).toEqual([
-      { year: 2027, month: null, note: 'A new desk', sheetRow: 2, kind: 'amount', item: 'purchase', amount: 74000 },
+      { year: 2027, month: 3, note: 'A new desk', sheetRow: 2, kind: 'purchase', date: '2027-03-10', amount: 74000, group: 'equipment' },
       { year: 2027, month: 3, note: '', sheetRow: 3, kind: 'amount', item: 'software', amount: 1250 },
-      { year: 2027, month: null, note: '', sheetRow: 4, kind: 'owner-pay-scenario', scenario: 'floor' },
-      { year: 2027, month: 6, note: '', sheetRow: 5, kind: 'amount', item: 'dividend', amount: 800000 },
+      { year: 2027, month: null, note: '', sheetRow: 4, kind: 'owner-pay-scenario', scenario: 'floor', from: null },
+      { year: 2027, month: null, note: '', sheetRow: 5, kind: 'owner-pay-scenario', scenario: 'board', from: '2027-06-05' },
+      { year: 2027, month: 6, note: '', sheetRow: 6, kind: 'amount', item: 'dividend', amount: 800000 },
+      { year: 2027, month: 3, note: 'A second desk', sheetRow: 7, kind: 'purchase', date: '2027-03-10', amount: 74000, group: 'equipment' },
     ])
     expect(problemsOn(workbook, 'plan')).toEqual([])
   })
 
   it('leaves out a row it cannot plan with, and says why', () => {
     const workbook = workbookWith({
+      scenarios: [['scenario', 'year', 'component', 'amount'], ['floor', 2027, 'salary_gross', 'floor']],
       plan: [
         header,
-        [2027, 13, 'purchase', 1],
+        [2027, 13, 'software', 1],
         [2027, '', 'snacks', 1],
         [2027, '', 'owner_pay_scenario', 'missing'],
-        [2027, '', 'purchase', 'a lot'],
-        [2027, '', 'purchase', 1],
-        [2027, '', 'purchase', 2],
+        [2027, '', 'software', 'a lot'],
+        [2027, '', 'software', 1],
+        [2027, '', 'software', 2],
         [2027, '', 'Revenue', 7400],
+        [2027, '', 'purchase', 900, 'No day', '', 'computers'],
+        [2027, '', 'purchase', 900, 'Wrong year', day('2026-12-30'), 'computers'],
+        [2027, 4, 'purchase', 900, 'Wrong month', day('2027-03-10'), 'computers'],
+        [2027, '', 'purchase', 900, 'No group', day('2027-03-10')],
+        [2027, '', 'dividend', 8000],
+        [2027, 6, 'dividend', 0],
+        [2027, 2, 'owner_pay_scenario', 'floor'],
+        [2027, '', 'owner_pay_scenario', 'floor'],
+        [2027, '', 'owner_pay_scenario', 'floor'],
       ],
     })
 
-    expect(workbook.planLines.map((line) => line.sheetRow)).toEqual([6])
+    expect(workbook.planLines.map((line) => line.sheetRow)).toEqual([6, 16])
     expect(problemsOn(workbook, 'plan')).toEqual([
       [2, 'month "13" is not a month from 1 to 12'],
       [3, '"snacks" is neither owner_pay_scenario, dividend, purchase nor a category on the categories tab'],
       [4, '"missing" is not a scenario on the scenarios tab'],
       [5, 'amount "a lot" is not a number'],
-      [7, 'purchase for every month of 2027 is already listed above'],
+      [7, 'software for every month of 2027 is already listed above'],
       [8, 'revenue is planned on the outgoing-plan tab, one row per item to invoice, so move this row there'],
+      [9, 'a purchase needs the day it is bought in date'],
+      [10, 'date 2026-12-30 is not in 2027'],
+      [11, 'month 4 is not the month of date 2027-03-10, so leave month blank'],
+      [12, 'no asset group'],
+      [13, 'a dividend is paid in one month, so give its month'],
+      [14, 'amount must be more than zero'],
+      [15, 'an owner pay scenario holds from its date, so leave month blank'],
+      [17, 'An owner pay scenario from 1 January 2027 is already listed above'],
     ])
   })
 })

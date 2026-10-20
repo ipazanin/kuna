@@ -9,8 +9,8 @@ import type { Grant } from '../../../../features/workbook/domain/grants'
 import { useRowWrites } from '../../../../features/workbook/presentation/useRowWrites'
 import { TEMPLATE_COLUMNS } from '../../../../features/workbook/infrastructure/workbookTemplate'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { typedAmount } from '../../../../shared/money/typedAmount'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
 import { SCENARIO_ROWS, scenarioCells } from '../../application/scenarioRows'
 import { startingScenarios } from '../../domain/scenarios/startingScenarios'
@@ -40,13 +40,11 @@ watch(open, (opened) => {
   }
 })
 
-/** Blank leaves the rent out. A decimal comma is read as a point. */
+/** Blank leaves the rent out. */
 const parsedRent = computed((): Money | null | 'bad' => {
-  const text = rent.value.trim().replace(',', '.')
-  if (text === '') return null
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return 'bad'
-  const cents = moneyFromAmount(Number(text))
-  return cents > 0 ? cents : 'bad'
+  if (rent.value.trim() === '') return null
+  const cents = typedAmount(rent.value)
+  return cents !== null && cents > 0 ? cents : 'bad'
 })
 
 const seeded = computed(() => startingScenarios(props.year, props.grants, parsedRent.value === 'bad' ? null : parsedRent.value))

@@ -202,6 +202,11 @@ function watchedGroups(citations: readonly RuleCitation[]): WatchedRules[] {
   })
 }
 
+/** The watched rules anywhere in the figures' build-ups, grouped by their mark. */
+export function watchedIn(figures: readonly TracedFigure[]): WatchedRules[] {
+  return watchedGroups(figures.flatMap(citationsIn).filter((citation) => isWatchedConfidence(citation.confidence)))
+}
+
 /** A figure ready to open on its build-up. */
 export function figureDetail(figure: TracedFigure, subtitle: string, link: (drill: DrillTarget | null) => RouteLocationRaw | null): FigureDetail {
   return {
@@ -211,7 +216,7 @@ export function figureDetail(figure: TracedFigure, subtitle: string, link: (dril
     to: link(figure.drill),
     steps: stepsOf(figure, (step) => link(step.drill)),
     rules: ruleChips(figure.rules),
-    watched: watchedGroups(citationsIn(figure).filter((citation) => isWatchedConfidence(citation.confidence))),
+    watched: watchedIn([figure]),
   }
 }
 

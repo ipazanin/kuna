@@ -16,8 +16,9 @@ import { useRowWrites } from '../../../../features/workbook/presentation/useRowW
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { amountOf, moneyFromAmount } from '../../../../shared/money/money'
+import { amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { typedAmount } from '../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { SCENARIO_ROWS, componentCells } from '../../application/scenarioRows'
 import type { ComponentDraft } from '../../domain/scenarios/startingScenarios'
@@ -100,12 +101,9 @@ const needsAmount = computed(() => (kind.value === 'salary_gross' && !atFloor.va
 const hasSpan = computed(() => kind.value !== 'dividend')
 const hasEnd = computed(() => kind.value !== 'dividend' && kind.value !== 'nontaxable')
 
-/** A decimal comma is read as a point, so 12,50 is twelve fifty. */
 const parsedAmount = computed((): Money | null => {
-  const text = amount.value.trim().replace(',', '.')
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null
-  const cents = moneyFromAmount(Number(text))
-  return cents > 0 ? cents : null
+  const cents = typedAmount(amount.value)
+  return cents !== null && cents > 0 ? cents : null
 })
 
 function dayIn(text: string): CivilDate | null | 'bad' {

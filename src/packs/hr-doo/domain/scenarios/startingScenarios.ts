@@ -26,6 +26,18 @@ export interface StartingScenarios {
 }
 
 /**
+ * The first day of the year no grant requires the employment on: 1 January when none binds the
+ * year, the day after the latest employment date otherwise, or null when that falls after the year.
+ */
+export function employmentFreeFrom(year: number, grants: readonly Grant[]): CivilDate | null {
+  const yearStart = civilDate(year, 1, 1)
+  const required = grants.map((grant) => grant.employmentRequiredUntil).filter((day): day is CivilDate => day !== null)
+  const lastRequired = required.reduce<CivilDate | null>((latest, day) => (latest === null || day > latest ? day : latest), null)
+  const afterRequired = lastRequired === null ? yearStart : addDays(lastRequired, 1)
+  return afterRequired > civilDate(year, 12, 31) ? null : afterRequired < yearStart ? yearStart : afterRequired
+}
+
+/**
  * The four scenarios to start comparing from, for one year: the floor salary all year, the same
  * with the yearly tax-free caps used and rent, and the floor salary until the grants no longer
  * require employment, then board-only insurance or a job elsewhere. Each pays out the rest as a
@@ -34,7 +46,6 @@ export interface StartingScenarios {
  */
 export function startingScenarios(year: number, grants: readonly Grant[], monthlyRent: Money | null, rules: RuleSource = ruleValue): StartingScenarios {
   const yearStart = civilDate(year, 1, 1)
-  const yearEnd = civilDate(year, 12, 31)
   const caps = rules('hr.pit.nontaxable-caps', yearStart).value.caps.rows
   const taxFree = STARTING_TAX_FREE.map((item): ComponentDraft => {
     const cap = caps.find((row) => row.payment.text === item && row.period.text === 'year')?.cap
@@ -48,10 +59,7 @@ export function startingScenarios(year: number, grants: readonly Grant[], monthl
   const dividend: ComponentDraft = { component: 'dividend', amount: 'max', ...always }
   const rent: ComponentDraft[] = monthlyRent === null ? [] : [{ component: 'rent_monthly', amount: monthlyRent, ...always }]
 
-  const required = grants.map((grant) => grant.employmentRequiredUntil).filter((day): day is CivilDate => day !== null)
-  const lastRequired = required.reduce<CivilDate | null>((latest, day) => (latest === null || day > latest ? day : latest), null)
-  const afterRequired = lastRequired === null ? yearStart : addDays(lastRequired, 1)
-  const switchOn = afterRequired > yearEnd ? null : afterRequired < yearStart ? yearStart : afterRequired
+  const switchOn = employmentFreeFrom(year, grants)
   const until = (basis: 'board-only' | 'insured-elsewhere', on: CivilDate): ComponentDraft[] => [
     ...(on > yearStart ? [{ ...floor, to: addDays(on, -1) }] : []),
     { component: 'director_basis', basis, from: on > yearStart ? on : null, to: null },

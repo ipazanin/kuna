@@ -175,10 +175,24 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
   ],
   plan: [
     { name: 'year', note: 'The year planned, such as 2027. Required.' },
-    { name: 'month', note: 'The month from 1 to 12. Blank means every month of the year.' },
-    { name: 'item', note: 'A category from the categories tab, owner_pay_scenario, dividend or purchase. Each year, month and item once. Planned revenue goes on the outgoing-plan tab. Required.' },
-    { name: 'amount', note: 'The amount planned for the month as a positive number, a cost without the VAT that is reclaimed. On an owner_pay_scenario row, the name of a scenario from the scenarios tab. Required.' },
-    { name: 'note', note: 'Why you expect it. Optional.' },
+    {
+      name: 'month',
+      note: 'The month from 1 to 12. Blank means every month of the year. A dividend needs its month, and owner_pay_scenario and purchase rows leave it blank, since their date sets it.',
+    },
+    {
+      name: 'item',
+      note: 'A category from the categories tab, owner_pay_scenario, dividend or purchase. A category or a dividend once per year and month, and one dividend a year. Planned revenue goes on the outgoing-plan tab. Required.',
+    },
+    {
+      name: 'amount',
+      note: 'The amount planned for the month as a positive number, a cost without the VAT that is reclaimed. On a purchase, its net cost. On an owner_pay_scenario row, the name of a scenario of the same year from the scenarios tab. Required.',
+    },
+    { name: 'note', note: 'Why you expect it, or what a purchase is. Optional.' },
+    {
+      name: 'date',
+      note: 'On a purchase, the day it is bought and put in use, as a date cell. Required there. On an owner_pay_scenario row, the day a second scenario takes over from the one without a date.',
+    },
+    { name: 'group', note: `On a purchase, its depreciation group: ${ASSET_GROUPS.join(', ')}. Required there.` },
   ],
   scenarios: [
     { name: 'scenario', note: 'A short name in lower case. The rows that share it make one owner pay scenario. Required.' },

@@ -18,6 +18,8 @@
  * category, an asset and an invoice, and screenshots the editors and the invoice dialog on the way.
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
  * adds the starting scenarios to a workbook without any, which adds the tab to a Sheet without it.
+ * It plans a category for 2027 on Forecast, edits, clears and undoes it, and plans a purchase in a
+ * workbook without plan rows, which adds the plan tab to a Sheet without it.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -35,7 +37,7 @@ import * as XLSX from 'xlsx'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, invoiceFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, invoiceFlow, planFlow, planTabFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
@@ -89,7 +91,7 @@ const SCREENS = [
   { name: 'assets', hash: '#/assets', title: 'Assets', charts: 1, shows: 'Workstation' },
   { name: 'assets-doubled', hash: '#/assets?rates=doubled', title: 'Assets', charts: 1, shows: 'What doubled rates would change' },
   { name: 'year-end', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'From the cash net to profit, 2025' },
-  { name: 'forecast', hash: '#/forecast', title: 'Forecast', charts: 0, shows: 'The forecast needs the day the company was registered', cards: false },
+  { name: 'forecast', hash: '#/forecast', title: 'Forecast', charts: 0, shows: ['The forecast needs the day the company was registered', 'Plan for 2026'] },
   { name: 'pay-scenarios', hash: '#/pay-scenarios', title: 'Pay scenarios', charts: 0, shows: 'The figures need hr_company_registered' },
   { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Costs the owner paid privately', 'Reimbursed with no cost on file'] },
   { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
@@ -509,6 +511,15 @@ const FLOWS = [
     run: startingScenariosFlow,
     viewports: ['phone', 'phone-large', 'desktop'],
     queries: { google: '&fake=no-scenarios', excel: '&fake=excel-no-scenarios' },
+  },
+  { name: 'plan', hash: '#/forecast?year=2027', title: 'Forecast', run: planFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  {
+    name: 'plan-tab',
+    hash: '#/forecast?year=2027',
+    title: 'Forecast',
+    run: planTabFlow,
+    viewports: ['phone', 'phone-large', 'desktop'],
+    queries: { google: '&fake=no-plan', excel: '&fake=excel-no-plan' },
   },
 ]
 const MODES = [

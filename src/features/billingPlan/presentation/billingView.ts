@@ -87,9 +87,9 @@ export interface BillingLinks {
   readonly months: RouteLocationRaw
 }
 
-/** Every year a plan row or an invoice falls in, and the year of the newest booking, oldest first. */
+/** Every year a plan row or an invoice falls in, the year of the newest booking and the year after, which the forecast reaches, oldest first. */
 export function billingYears(figures: BillingPlanFigures, asOf: CivilDate): number[] {
-  return [...new Set([...figures.totals.years.map((entry) => entry.year), yearOf(asOf)])].sort((earlier, later) => earlier - later)
+  return [...new Set([...figures.totals.years.map((entry) => entry.year), yearOf(asOf), yearOf(asOf) + 1])].sort((earlier, later) => earlier - later)
 }
 
 /** What the Billing plan screen shows for one year, seen on `asOf`. */

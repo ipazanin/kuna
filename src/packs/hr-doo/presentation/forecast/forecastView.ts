@@ -1,36 +1,38 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import type { PlanLine } from '../../../../features/workbook/domain/plan'
+import { runwayInWords } from '../../../../features/overview/domain/headline'
 import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthKey, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { negateMoney, sumMoney } from '../../../../shared/money/money'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import type { Money } from '../../../../shared/money/money'
+import { formatMoney, formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import { dayLabel, ruleLink } from '../../ruleset/presentation/ruleWording'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { dividendCapacity } from '../../domain/dividend/dividendCapacity'
 import type { InterimCash, PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
 import type { ForecastLine, ForecastMonth, LinePart, MonthBasis } from '../../domain/forecast/forecastLines'
 import { forecastYear } from '../../domain/forecast/forecastYear'
-import type { YearForecast } from '../../domain/forecast/forecastYear'
+import { planAgainstActual } from '../../domain/forecast/planAgainstActual'
 import { percentText } from '../../domain/payroll/payrollArithmetic'
 import { citObligationLine } from '../CitObligationList.vue'
 import type { CitObligationLine } from '../CitObligationList.vue'
 import { missingAccrualRoles } from '../accrualRoles'
 import { figureLabel, ruleChips, stepsOf } from '../tracedFigureView'
 import type { BuildUpStep, RuleChip } from '../yearEnd/LineBuildUp.vue'
+import { watchedIn } from '../payScenarios/payScenariosView'
 import { lineLabel } from '../yearEnd/yearEndWording'
 import type { BuildUpLine } from './BuildUpList.vue'
 import type { ForecastChartMonth } from './forecastChart'
 import { rowsBehind } from './rowsBehind'
 
-/** How the screen opens rows and names categories. */
+/** How the screen opens rows. */
 export interface ForecastViewContext {
   readonly link: (drill: DrillTarget | null) => RouteLocationRaw | null
-  readonly categoryName: (slug: string) => string
 }
 
 export interface ShownFigure {
@@ -53,14 +55,16 @@ export interface PayoutView {
   readonly rules: readonly RuleChip[]
 }
 
-export interface PlanRowView {
+/** One line of the plan against the ledger, its months under it. */
+export interface PlanActualView {
   readonly key: string
-  readonly month: string
-  readonly item: string
-  readonly value: { readonly cents: number } | { readonly text: string }
-  readonly note: string
-  /** Why the forecast does not count the row, or null when it does. */
-  readonly notCounted: string | null
+  readonly label: string
+  readonly plan: number
+  readonly actual: number
+  readonly difference: number
+  /** In words, such as "120.00 more than planned". */
+  readonly verdict: string
+  readonly months: readonly { readonly key: string; readonly month: string; readonly plan: number; readonly actual: number; readonly difference: number }[]
 }
 
 const PAYOUT_NAMES: Readonly<Record<PayoutOptionId, string>> = {
@@ -191,7 +195,45 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
     pdLine('owed', prudence.owedByOwner),
   ]
 
-  const yearPlanRows = planRows(workbook.planLines.filter((line) => line.year === year), forecast, year, context)
+  const cashMonths = forecast.cashByMonth.map(
+    (entry): BuildUpLine => ({
+      key: entry.month,
+      label: monthLabel(entry.month),
+      caption: entry.basis === 'ledger' ? 'The bank balance at the month end' : 'Projected',
+      value: { cents: entry.closing.amount },
+      to: entry.basis === 'ledger' ? linkOf(entry.closing) : null,
+      total: entry.month === monthKey(year, 12),
+      steps: entry.basis === 'ledger' ? [] : stepsOf(entry.closing, linkOf),
+      rules: ruleChips(entry.closing.rules),
+    }),
+  )
+  const { runway } = forecast
+  const compared = planAgainstActual(forecast).map(
+    (line): PlanActualView => ({
+      key: line.key,
+      label: line.label,
+      plan: line.plan.amount,
+      actual: line.actual.amount,
+      difference: line.difference.amount,
+      verdict: differenceWords(line.difference.amount, line.cost),
+      months: line.months.map((entry) => ({ key: entry.month, month: monthLabel(entry.month), plan: entry.plan.amount, actual: entry.actual.amount, difference: entry.difference.amount })),
+    }),
+  )
+  const notCounted = new Map(forecast.notModelled.map((entry) => [entry.line.sheetRow, entry.reason]))
+  const employment = workbook.grants.flatMap((grant): string[] => {
+    const until = grant.employmentRequiredUntil
+    if (until === null || yearOf(until) !== year) {
+      return []
+    }
+    const dropped = forecast.ownerPay?.salaryDropped.find((entry) => entry.grant === grant.slug) ?? null
+    const pay =
+      forecast.ownerPay === null
+        ? 'The plan sets no owner pay scenario, so the owner pay categories carry on as they are.'
+        : dropped === null
+          ? 'The planned owner pay keeps a salary until then.'
+          : `The planned owner pay stops the salary on ${dayLabel(dropped.from)}${dropped.atRisk === null ? '' : `, which puts ${formatMoney(dropped.atRisk.amount)} at risk`}.`
+    return [`${grant.slug} requires the employment until ${dayLabel(until)}. ${pay}`]
+  })
 
   return {
     forecast,
@@ -222,9 +264,8 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
         label: 'Cash at the year end',
         value: formatWholeMoney(forecast.cashAtYearEnd.amount),
         to: null,
-        caption: `Projected for 31 Dec ${year}`,
-        definition:
-          'Cash on the newest booking, with open invoices collected and the VAT position settled, then each forecast month as it would be paid. A planning projection, not a bank balance.',
+        caption: runway.months === null ? `Projected for 31 Dec ${year}` : `Lasts ${runwayInWords(runway.months)} at the cost of Oct to Dec`,
+        definition: `Cash on the newest booking, then each month as it would be paid: revenue when the client pays, open invoices, the VAT position, costs, purchases, the dividend and the corporate tax. ${forecast.paymentLag.label}. Runway is this cash over the average monthly cost of the year's last three months, corporate tax included and depreciation left out, as Overview counts it. A planning projection, not a bank balance.`,
       },
     ],
     chartMonths,
@@ -248,8 +289,16 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
     deterioration: ruleChips([prudence.deterioration]),
     decideBy: dayLabel(capacity.decideBy),
     payouts: capacity.options.map((option) => payoutView(option, linkOf)),
-    planRows: yearPlanRows,
-    planRowsSummary: `${yearPlanRows.length} ${yearPlanRows.length === 1 ? 'row' : 'rows'}`,
+    cashMonths,
+    cashSummary: `${formatWholeMoney(forecast.cashAtYearEnd.amount)} on 31 Dec ${year}`,
+    paymentLag: forecast.paymentLag.label,
+    runway: runway.months === null ? null : { lasts: runwayInWords(runway.months), monthlyCost: runway.monthlyCost.amount },
+    planActual: compared,
+    planActualSummary: compared.length === 0 ? 'Nothing to compare yet' : `${compared.length} ${compared.length === 1 ? 'line' : 'lines'}`,
+    notCounted,
+    employment,
+    grantReleased: forecast.grantRelease.total.amount,
+    watched: watchedIn([base.base, liability.liability, forecast.profitAfterTax, forecast.cashAtYearEnd, ...(forecast.ownerPay?.lines.map((entry) => entry.forecast.total) ?? [])]),
     uninvoiced: forecast.uninvoicedMonths.map((entry) => ({ month: monthLabel(entry.month), next: entry.nextInvoice.number })),
     missingRoles: missingAccrualRoles(workbook.categories),
   }
@@ -313,6 +362,14 @@ function partSteps(part: LinePart, key: string, context: ForecastViewContext): B
   ]
 }
 
+function differenceWords(difference: number, cost: boolean): string {
+  if (difference === 0) {
+    return 'As planned'
+  }
+  const more = difference > 0
+  return `${formatMoney(Math.abs(difference) as Money)} ${cost ? (more ? 'more spent' : 'less spent') : more ? 'more' : 'less'} than planned`
+}
+
 function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) => RouteLocationRaw | null): PayoutView {
   const shown = (key: string, label: string, figure: TracedFigure | null): ShownFigure[] => (figure === null ? [] : [{ key, label, cents: figure.amount, to: linkOf(figure) }])
   const { cashNow } = option
@@ -352,18 +409,4 @@ function interimCashWarning(cash: InterimCash): string {
 
 function dueWords(cash: InterimCash): string {
   return cash.fallingDue.on === null ? 'what falls due' : `what falls due by ${dayLabel(cash.fallingDue.on)}`
-}
-
-function planRows(lines: readonly PlanLine[], forecast: YearForecast, year: number, context: ForecastViewContext): PlanRowView[] {
-  const ITEMS: Readonly<Record<string, string>> = { dividend: 'Dividend', purchase: 'Purchase' }
-  return [...lines]
-    .sort((earlier, later) => (earlier.month ?? 0) - (later.month ?? 0) || earlier.sheetRow - later.sheetRow)
-    .map((line): PlanRowView => ({
-      key: `${line.sheetRow}`,
-      month: line.month === null ? 'Every month' : monthLabel(monthKey(year, line.month)),
-      item: line.kind === 'owner-pay-scenario' ? 'Owner pay scenario' : (ITEMS[line.item] ?? context.categoryName(line.item)),
-      value: line.kind === 'owner-pay-scenario' ? { text: line.scenario } : { cents: line.amount },
-      note: line.note,
-      notCounted: forecast.notModelled.find((entry) => entry.line === line)?.reason ?? null,
-    }))
 }

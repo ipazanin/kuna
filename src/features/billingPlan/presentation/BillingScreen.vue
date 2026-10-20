@@ -30,6 +30,7 @@ import { billingYears, billingView } from './billingView'
 import type { BillingRowLine } from './billingView'
 import { itemColours } from './billingCharts'
 import FillYearDialog from './FillYearDialog.vue'
+import { fillRestOfYear } from '../domain/fillRestOfYear'
 
 const { state } = useWorkbook()
 const route = useRoute()
@@ -100,8 +101,14 @@ const knownItems = computed(() => {
 })
 const colours = computed(() => itemColours(figures.value?.statistics.items.map((total) => total.item) ?? [], chartTokens()))
 
-const fillYear = computed(() => (asOf.value === null ? null : yearOf(asOf.value)))
-const fillCount = computed(() => (figures.value?.fill.kind === 'rows' ? figures.value.fill.rows.length : 0))
+/** The year on screen, or the year of the newest booking when an earlier one is shown, since only months to come are filled. */
+const fillYear = computed(() => (asOf.value === null ? null : Math.max(year.value ?? yearOf(asOf.value), yearOf(asOf.value))))
+const fill = computed(() => {
+  const workbook = state.workbook
+  return workbook === null || asOf.value === null || fillYear.value === null ? null : fillRestOfYear(workbook.billingPlan, workbook.settings.billing, asOf.value, fillYear.value)
+})
+const fillCount = computed(() => (fill.value?.kind === 'rows' ? fill.value.rows.length : 0))
+const fillLabel = computed(() => (asOf.value !== null && fillYear.value === yearOf(asOf.value) ? `Fill the rest of ${fillYear.value}` : `Fill ${fillYear.value}`))
 
 const editing = ref<BillingRowLine | null>(null)
 const rowDialogOpen = ref(false)
@@ -186,7 +193,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             <UButton label="Add the first row" icon="i-lucide-plus" :disabled="state.writing" data-testid="billing-start" @click="addRow" />
             <UButton
               v-if="fillCount > 0"
-              :label="`Fill the rest of ${fillYear}`"
+              :label="fillLabel"
               icon="i-lucide-calendar-plus"
               color="neutral"
               variant="outline"
@@ -289,7 +296,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             <template #actions>
               <UButton label="Add row" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="billing-add" @click="addRow" />
               <UButton
-                :label="`Fill the rest of ${fillYear}`"
+                :label="fillLabel"
                 icon="i-lucide-calendar-plus"
                 color="neutral"
                 variant="outline"
@@ -328,7 +335,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
       :default-date="asOf"
       :default-client="terms?.client ?? ''"
     />
-    <FillYearDialog v-if="figures" v-model:open="fillDialogOpen" :fill="figures.fill" :client-name="clientName" :colours="colours" />
+    <FillYearDialog v-if="fill" v-model:open="fillDialogOpen" :fill="fill" :title="fillLabel" :client-name="clientName" :colours="colours" />
   </section>
 </template>
 

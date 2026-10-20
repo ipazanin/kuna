@@ -10,7 +10,8 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
-import { amountOf, moneyFromAmount } from '../../../shared/money/money'
+import { amountOf } from '../../../shared/money/money'
+import { typedAmount } from '../../../shared/money/typedAmount'
 import { rowCellsOf } from '../../workbook/application/tabRowWrites'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RowCells } from '../../workbook/domain/rowChanges'
@@ -66,12 +67,9 @@ function createItem(text: string): void {
   }
 }
 
-/** A decimal comma is read as a point, so 12,50 is twelve fifty. */
 const parsedAmount = computed(() => {
-  const text = amount.value.trim().replace(',', '.')
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null
-  const cents = moneyFromAmount(Number(text))
-  return cents > 0 ? cents : null
+  const cents = typedAmount(amount.value)
+  return cents !== null && cents > 0 ? cents : null
 })
 
 const errors = computed(() => ({

@@ -32,7 +32,7 @@ import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, invoiceFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, invoiceFlow, planFlow, planTabFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -395,7 +395,7 @@ async function checkWidth(width) {
     await delay(200)
     await next.tap()
     await expect(hashOf(page), (hash) => hash.includes('year=2027'), 'the year picker did not put the year in the address')
-    await waitForText(page, '[data-testid="plan-rows"] h2', 'Plan rows for 2027')
+    await waitForText(page, '[data-testid="plan-editor"] h2', 'Plan for 2027')
     await inspect(page, `${width}px forecast for 2027`)
     await page.screenshot({ path: join(OUTPUT_DIR, `${width}-forecast-2027.png`), fullPage: true })
     await (await waitForText(page, '[data-testid="year-picker"] button', '2026')).tap()
@@ -638,6 +638,8 @@ async function checkWidth(width) {
       ['invoices', '#/receivables?p=all', 'Receivables', invoiceFlow],
       ['scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', scenarioFlow],
       ['starting-scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', startingScenariosFlow, mode === 'google' ? '&fake=no-scenarios' : '&fake=excel-no-scenarios'],
+      ['plan', '#/forecast?year=2027', 'Forecast', planFlow],
+      ['plan-tab', '#/forecast?year=2027', 'Forecast', planTabFlow, mode === 'google' ? '&fake=no-plan' : '&fake=excel-no-plan'],
     ]) {
       await step(`${name}-${mode}`, async () => {
         await page.goto(`${BASE}?theme=dark${variant ?? query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
