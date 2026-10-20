@@ -13,6 +13,7 @@ import type { CellValue } from '../src/features/workbook/infrastructure/workbook
 import { civil, euros } from './fixtures/ledger'
 import { excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
+import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 
 const used = new Set<string>()
 
@@ -166,7 +167,7 @@ describe.each([
 
     await add(store, CLIENT_ROWS, { client: 'acme', name: '', iban: SECOND_ACME_IBAN })
 
-    expect(store.state.workbook?.clients).toEqual([{ slug: 'acme', name: 'Acme Studio', ibans: [ACME_IBAN, SECOND_ACME_IBAN] }])
+    expect(store.state.workbook?.clients).toEqual([{ slug: 'acme', name: 'Acme Studio', ibans: [ACME_IBAN, SECOND_ACME_IBAN], invoicing: NO_CLIENT_INVOICING }])
     await expect(add(store, CLIENT_ROWS, { client: 'globex', name: 'Globex', iban: ACME_IBAN })).rejects.toThrow(`${ACME_IBAN} is already on the clients tab for acme, on row 2.`)
     await expect(add(store, CLIENT_ROWS, { client: 'globex', name: 'Globex', iban: 'XX00FAKE0000000001' })).rejects.toThrow('is not a valid IBAN')
     await expect(add(store, CLIENT_ROWS, { client: 'acme', name: 'Acme Ltd', iban: 'XX50FAKE0000000096' })).rejects.toThrow('acme is called "Acme Studio" on row 2.')

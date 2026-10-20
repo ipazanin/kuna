@@ -7,6 +7,7 @@ import type { ClientReceivables, Receivables } from '../src/features/receivables
 import type { Category, Client, Invoice } from '../src/features/workbook/domain/workbook'
 import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
+import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 
 const NORTH = 'XX00FAKE0000000000000101'
 const NORTH_SECOND = 'XX00FAKE0000000000000102'
@@ -14,8 +15,8 @@ const SOUTH = 'XX00FAKE0000000000000201'
 const STRANGER = 'XX00FAKE0000000000000999'
 
 const CLIENTS: readonly Client[] = [
-  { slug: 'north', name: 'North Ltd', ibans: [NORTH, NORTH_SECOND] },
-  { slug: 'south', name: 'South GmbH', ibans: [SOUTH] },
+  { slug: 'north', name: 'North Ltd', ibans: [NORTH, NORTH_SECOND], invoicing: NO_CLIENT_INVOICING },
+  { slug: 'south', name: 'South GmbH', ibans: [SOUTH], invoicing: NO_CLIENT_INVOICING },
 ]
 
 /** Revenue is picked by its role, so the category here is named something else on purpose. */

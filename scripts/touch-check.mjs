@@ -10,7 +10,7 @@
  * the cost of a reimbursement with no cost on file added from Owner and from Review,
  * the billing plan's next expected invoice opening its month, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a category, an asset and an
- * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a rule made from a row and applied to
+ * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, an invoice made and re-exported, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
@@ -32,7 +32,7 @@ import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, invoiceFlow, planFlow, planTabFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, invoiceFlow, invoiceRunFlow, planFlow, planTabFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -636,6 +636,7 @@ async function checkWidth(width) {
       ['categories', '#/workbook?tab=categories', 'Workbook', categoryFlow],
       ['assets', '#/workbook?tab=assets', 'Workbook', assetFlow],
       ['invoices', '#/receivables?p=all', 'Receivables', invoiceFlow],
+      ['invoice-run', '#/receivables?p=all', 'Receivables', invoiceRunFlow],
       ['scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', scenarioFlow],
       ['starting-scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', startingScenariosFlow, mode === 'google' ? '&fake=no-scenarios' : '&fake=excel-no-scenarios'],
       ['plan', '#/forecast?year=2027', 'Forecast', planFlow],

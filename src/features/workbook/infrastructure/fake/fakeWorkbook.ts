@@ -175,8 +175,9 @@ const MONTHS = [
 const LOSS_MONTH = '2025-11'
 
 /**
- * As a Google Sheet its `settings` tab holds only the row the Apps Script requires, so every default
- * applies. As a workbook kept in this browser it names its company, the way a template user would.
+ * As a Google Sheet its `settings` tab holds the row the Apps Script requires and the invoice
+ * details, so every other default applies. As a workbook kept in this browser it also names its
+ * company, the way a template user would.
  * Rows the rules tab does not reproduce are flagged as a person's, so Review has coverage gaps to show.
  */
 export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 'google'): WorkbookSnapshot {
@@ -209,13 +210,32 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
   }
 }
 
+/** What the made-up company's invoices print. The invoice folder is left to pick, as on a first run. */
+const FAKE_INVOICING: CellValue[][] = [
+  ['invoice_company_name', 'Example Studio d.o.o.'],
+  ['invoice_address', 'Primjerna ulica 12, Đakovo'],
+  ['invoice_country', 'Croatia'],
+  ['invoice_vat_id', 'HR00000000000'],
+  ['invoice_phone', '+385 1 000 0000'],
+  ['invoice_mail', 'billing@example.com'],
+  ['invoice_iban', 'HR6212345670000000001'],
+  ['invoice_swift', 'EXMPHR22'],
+  ['invoice_bank', 'Example Bank d.d.'],
+  ['invoice_court_register', '000000000'],
+  ['invoice_share_capital', 'EUR 2,500.00 (fully paid-up)'],
+  ['invoice_place', 'Đakovo'],
+  ['invoice_issue_time', '17:00h'],
+  ['invoice_signatory', 'Alex Čolić'],
+  ['invoice_signatory_title', 'director'],
+]
+
 /** The tabs as the Sheets API returns them: header row first, dates as serial numbers. */
 export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<WorkbookTab, CellValue[][]> {
   const { bookings, invoices } = fakeBooks()
   return {
     settings:
       source === 'google'
-        ? [['key', 'value'], ['card_settlement_ibans', '']]
+        ? [['key', 'value'], ['card_settlement_ibans', ''], ...FAKE_INVOICING]
         : [
             ['key', 'value'],
             ['template_version', 1],
@@ -232,6 +252,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
             ['billing_bonus_amount', 4800],
             ['billing_bonus_item', 'Bonus'],
             ['billing_client', 'northwind'],
+            ...FAKE_INVOICING,
           ],
     ledger: ledgerValues(bookings),
     categories: [
@@ -256,8 +277,8 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       ]),
     ],
     clients: [
-      ['client', 'name', 'iban'],
-      ['northwind', 'Northwind Analytics', PAYEES.client.iban],
+      ['client', 'name', 'iban', 'address', 'country', 'tax_id', 'invoice_mail', 'mail_language', 'reverse_charge'],
+      ['northwind', 'Northwind Analytics', PAYEES.client.iban, '1 Example Road, London', 'United Kingdom', 'GB000000000', 'accounts@northwind.example', 'en', true],
       ['lumen', 'Lumen Labs', PAYEES.secondClient.iban],
     ],
     'outgoing-plan': billingPlanValues(invoices),

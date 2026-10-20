@@ -6,6 +6,9 @@ import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { isIban } from '../../workbook/domain/iban'
+import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
+import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
+import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
 
 /** The workbook format this app writes. A higher number comes from a newer app. */
 export const TEMPLATE_VERSION = 1
@@ -32,8 +35,50 @@ export interface Settings {
   /** The bank accounts a card purchase settles against, normalised. The rules read such a row as a card purchase. */
   readonly cardSettlementIbans: readonly string[]
   readonly billing: BillingTerms
+  readonly invoicing: InvoicingTerms
   readonly companyFacts: CompanyFacts
 }
+
+/**
+ * What an invoice the app makes says about your company, and where it is filed and mailed from.
+ * Blank text is left off the invoice. The number pattern, file path, mail texts and VAT note have
+ * defaults, the invoice generator's own.
+ */
+export interface InvoicingTerms {
+  /** Your company's name as the invoice prints it. */
+  readonly name: string
+  readonly address: string
+  readonly country: string
+  readonly vatId: string
+  readonly phone: string
+  readonly mail: string
+  /** Normalised. The account the client pays into. */
+  readonly iban: string
+  readonly swift: string
+  /** The bank the IBAN is with, for the footer. */
+  readonly bank: string
+  readonly courtRegister: string
+  /** As printed, such as EUR 2,500.00 (fully paid-up). */
+  readonly shareCapital: string
+  /** Where the invoice is issued, printed before its date. */
+  readonly place: string
+  /** The issuing time the invoice prints, such as 17:00h. */
+  readonly issueTime: string
+  /** Who prepares and signs the invoice. */
+  readonly signatory: string
+  /** The signatory's role, such as director. */
+  readonly signatoryTitle: string
+  readonly numberPattern: string
+  /** The Drive folder picked to file invoices under. Blank until one is picked. */
+  readonly folderId: string
+  readonly filePath: string
+  readonly mailSubject: string
+  readonly mailBody: string
+  /** The note a reverse-charge invoice prints under its totals. */
+  readonly reverseChargeNote: string
+}
+
+export const DEFAULT_REVERSE_CHARGE_NOTE = 'Not subject to VAT in accordance with Article 17 of the Croatian VAT Law - reverse charge'
 
 /**
  * The amounts a client is billed on terms, which the billing plan shows and fills in from. Each
@@ -110,6 +155,29 @@ export const DEFAULT_SETTINGS: Settings = {
     bonusAmount: null,
     bonusItem: '',
     client: '',
+  },
+  invoicing: {
+    name: '',
+    address: '',
+    country: '',
+    vatId: '',
+    phone: '',
+    mail: '',
+    iban: '',
+    swift: '',
+    bank: '',
+    courtRegister: '',
+    shareCapital: '',
+    place: '',
+    issueTime: '',
+    signatory: '',
+    signatoryTitle: '',
+    numberPattern: DEFAULT_NUMBER_PATTERN,
+    folderId: '',
+    filePath: DEFAULT_FILE_PATH,
+    mailSubject: DEFAULT_MAIL_SUBJECT,
+    mailBody: DEFAULT_MAIL_BODY,
+    reverseChargeNote: DEFAULT_REVERSE_CHARGE_NOTE,
   },
   companyFacts: {
     residenceCity: '',
@@ -232,6 +300,63 @@ const BILLING_DEFINITIONS: readonly SettingDefinition[] = [
     valueOf: (settings) => settings.billing.client,
     apply: (settings, cell) => withBilling(settings, { client: String(cell).trim().toLowerCase() }),
   },
+]
+
+export type InvoicingField = keyof InvoicingTerms
+
+/** What is wrong with one invoicing value, or null. Only the fields the app fills in or files by have a rule. */
+function invoicingProblem(field: InvoicingField, value: string): string | null {
+  switch (field) {
+    case 'iban':
+      return value === '' || isIban(value) ? null : `"${value}" is not an IBAN`
+    case 'numberPattern':
+      return numberPatternProblem(value)
+    case 'filePath':
+      return filePathProblem(value)
+    case 'mailSubject':
+    case 'mailBody':
+      return mailTemplateProblem(value)
+    default:
+      return null
+  }
+}
+
+function invoicingDefinition(key: string, field: InvoicingField, note: string): SettingDefinition {
+  return {
+    key,
+    note,
+    valueOf: (settings) => settings.invoicing[field],
+    apply: (settings, cell) => {
+      const typed = String(cell)
+      const text = field === 'iban' ? normaliseIban(typed) : field === 'mailBody' ? typed.replaceAll('\r\n', '\n').trim() : typed.replace(/\s*[\r\n]+\s*/g, ' ').trim()
+      return invoicingProblem(field, text) ?? { ...settings, invoicing: { ...settings.invoicing, [field]: text } }
+    },
+  }
+}
+
+/** What an invoice the app makes prints about your company, and how it is numbered, filed and mailed. */
+const INVOICING_DEFINITIONS: readonly SettingDefinition[] = [
+  invoicingDefinition('invoice_company_name', 'name', 'Your company’s name as the invoice prints it, such as Example Studio d.o.o. Needed to make an invoice.'),
+  invoicingDefinition('invoice_address', 'address', 'Your street and town, such as Example Street 1, Zagreb. Needed to make an invoice.'),
+  invoicingDefinition('invoice_country', 'country', 'Your country, printed under the address. Optional.'),
+  invoicingDefinition('invoice_vat_id', 'vatId', 'Your VAT ID, such as HR00000000000. Needed to make an invoice.'),
+  invoicingDefinition('invoice_phone', 'phone', 'The phone number the invoice prints. Optional.'),
+  invoicingDefinition('invoice_mail', 'mail', 'The mail address the invoice prints. Optional.'),
+  invoicingDefinition('invoice_iban', 'iban', 'The IBAN the client pays into. Needed to make an invoice.'),
+  invoicingDefinition('invoice_swift', 'swift', 'Your bank’s SWIFT or BIC code. Optional.'),
+  invoicingDefinition('invoice_bank', 'bank', 'The bank the IBAN is with, for the footer. Optional.'),
+  invoicingDefinition('invoice_court_register', 'courtRegister', 'Your court register number, for the footer. Optional.'),
+  invoicingDefinition('invoice_share_capital', 'shareCapital', 'Your share capital as the footer prints it, such as EUR 2,500.00 (fully paid-up). Optional.'),
+  invoicingDefinition('invoice_place', 'place', 'The town the invoice is issued in, printed before its date. Needed to make an invoice.'),
+  invoicingDefinition('invoice_issue_time', 'issueTime', 'The issuing time the invoice prints, such as 17:00h. Blank leaves the line out.'),
+  invoicingDefinition('invoice_signatory', 'signatory', 'Who prepares and signs the invoice, by name. Needed to make an invoice.'),
+  invoicingDefinition('invoice_signatory_title', 'signatoryTitle', 'The signatory’s role, such as director. Optional.'),
+  invoicingDefinition('invoice_number_pattern', 'numberPattern', `How invoice numbers are written: {n} is the sequence, which restarts each year, {yy} and {yyyy} the year. Blank means ${DEFAULT_NUMBER_PATTERN}.`),
+  invoicingDefinition('invoice_folder_id', 'folderId', 'The Google Drive folder invoices are filed under, as the app’s folder picker sets it. Optional.'),
+  invoicingDefinition('invoice_file_path', 'filePath', `Where under that folder each invoice is filed, with {yyyy}, {yy}, {mm}, {client} and {number}. Blank means ${DEFAULT_FILE_PATH}.`),
+  invoicingDefinition('invoice_mail_subject', 'mailSubject', `The subject of the invoice mail, with {month}, {number}, {client}, {company} and {signatory}. Blank means ${DEFAULT_MAIL_SUBJECT}.`),
+  invoicingDefinition('invoice_mail_body', 'mailBody', 'The text of the invoice mail, with the same words in braces as the subject. Blank means a short note signed by the signatory.'),
+  invoicingDefinition('invoice_reverse_charge_note', 'reverseChargeNote', 'The note a reverse-charge invoice prints under its totals. Blank means the Croatian VAT law’s Article 17 note.'),
 ]
 
 /** The pack's keys, read only while the owner-pay module is on, but kept and checked whatever it is. */
@@ -384,6 +509,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     },
   },
   ...BILLING_DEFINITIONS,
+  ...INVOICING_DEFINITIONS,
   ...COMPANY_FACT_DEFINITIONS,
 ]
 
@@ -450,6 +576,7 @@ export type SettingsField =
   | 'cardSettlementIbans'
   | BillingAmountField
   | BillingItemField
+  | InvoicingField
   | 'residenceCity'
   | 'birthYear'
   | 'dependants'
@@ -470,6 +597,10 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   const cardAccounts = ibanListProblem(settings.cardSettlementIbans)
   if (cardAccounts !== null) errors.cardSettlementIbans = cardAccounts
   Object.assign(errors, billingErrors(settings.billing))
+  for (const [field, value] of Object.entries(settings.invoicing) as [InvoicingField, string][]) {
+    const problem = invoicingProblem(field, value)
+    if (problem !== null) errors[field] = problem
+  }
   const { residenceCity, birthYear, dependants } = settings.companyFacts
   const city = residenceCityProblem(residenceCity)
   if (city !== null) errors.residenceCity = city

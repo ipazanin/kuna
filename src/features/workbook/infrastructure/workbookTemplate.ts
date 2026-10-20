@@ -110,6 +110,12 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'client', note: 'A short name in lower case, such as northwind. One row per IBAN, so a client paying from two accounts has two rows. Required.' },
     { name: 'name', note: 'What the screens call the client. Optional.' },
     { name: 'iban', note: 'An IBAN the client pays from. A payment from it counts against that client’s invoices. Required.' },
+    { name: 'address', note: 'The street and town an invoice to the client prints. Fill it on the client’s first row. Needed to make an invoice.' },
+    { name: 'country', note: 'The country printed under the address. Optional.' },
+    { name: 'tax_id', note: 'The client’s tax or VAT ID, printed on the invoice. Optional.' },
+    { name: 'invoice_mail', note: 'Who the invoice mail goes to, one address. Optional.' },
+    { name: 'mail_language', note: 'The language of the month’s name in the mail, such as en or hr. Blank means English.' },
+    { name: 'reverse_charge', note: 'TRUE when the client accounts for the VAT, so the invoice carries none and prints the reverse-charge note. The app makes only such invoices.' },
   ],
   'outgoing-plan': [
     { name: 'item', note: 'What kind of item it is, such as the monthly fee, a bonus, a re-billed plane ticket or hotel, a contractor or a subscription. Rows of one kind share the same text. Required.' },

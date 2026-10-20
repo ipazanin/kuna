@@ -1,5 +1,6 @@
 import { googleConfig } from './googleConfig'
 import {
+  EXPIRY_MARGIN_MS,
   forgetAccessToken,
   forgetAccountEmail,
   loadAccessToken,
@@ -34,7 +35,8 @@ export function prepareGoogleIdentity(): Promise<void> {
 /**
  * Asks Google for an access token. Call it from a click handler: Firefox blocks the consent popup
  * unless it opens during a user gesture. `prompt: ''` shows a popup only when Google needs one, and
- * the remembered email as the login hint skips the account chooser.
+ * the remembered email as the login hint skips the account chooser. The token carries only these
+ * scopes, never a Gmail grant given since, because this one is kept in `localStorage`.
  */
 export async function requestToken(): Promise<StoredAccessToken> {
   const { clientId } = googleConfig()
@@ -47,6 +49,7 @@ export async function requestToken(): Promise<StoredAccessToken> {
       client_id: clientId,
       scope: SCOPES,
       prompt: '',
+      include_granted_scopes: false,
       ...(loginHint === null ? {} : { login_hint: loginHint }),
       callback: (response) => {
         if (response.error) {
@@ -68,10 +71,57 @@ export async function requestToken(): Promise<StoredAccessToken> {
   return token
 }
 
+const GMAIL_COMPOSE = 'https://www.googleapis.com/auth/gmail.compose'
+
+let gmailToken: { readonly value: string; readonly expiresAt: number } | null = null
+
+/** The Gmail token of this page while it is still good. It is never stored, so a reload asks again. */
+export function currentGmailToken(): string | null {
+  return gmailToken !== null && gmailToken.expiresAt - EXPIRY_MARGIN_MS > Date.now() ? gmailToken.value : null
+}
+
+/**
+ * Asks Google for `gmail.compose` on top of what was granted, the first time with a consent popup.
+ * Call it from a click handler, as `requestToken`. The token stays in this page's memory only,
+ * since it can send mail as well as save drafts.
+ */
+export async function requestGmailToken(): Promise<string> {
+  const { clientId } = googleConfig()
+  await prepareGoogleIdentity()
+  const requestedAt = Date.now()
+  const loginHint = loadAccountEmail()
+  return new Promise<string>((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: GMAIL_COMPOSE,
+      prompt: '',
+      include_granted_scopes: true,
+      ...(loginHint === null ? {} : { login_hint: loginHint }),
+      callback: (response) => {
+        if (response.error) {
+          reject(new Error(`Google refused Gmail access: ${response.error} ${response.error_description ?? ''}`.trim()))
+          return
+        }
+        if (!google.accounts.oauth2.hasGrantedAllScopes(response, GMAIL_COMPOSE)) {
+          reject(new Error('Gmail access was not granted, so no draft can be saved. Leave "Create the mail draft" off to write the mail yourself.'))
+          return
+        }
+        gmailToken = { value: response.access_token, expiresAt: requestedAt + Number(response.expires_in) * 1000 }
+        resolve(response.access_token)
+      },
+      error_callback: (failure) => {
+        reject(new Error(`The Google popup did not complete: ${failure.type} ${failure.message}`.trim()))
+      },
+    })
+    client.requestAccessToken()
+  })
+}
+
 /** Forgets the token and the account on this device, as switching to a workbook kept here does. */
 export function forgetGoogleSignIn(): void {
   forgetAccessToken()
   forgetAccountEmail()
+  gmailToken = null
 }
 
 /** Revokes the app's access with Google when a token is still good, then forgets the sign-in here. */

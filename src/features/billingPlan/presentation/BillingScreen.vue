@@ -17,6 +17,7 @@ import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
+import InvoiceRunDialog from '../../invoicing/presentation/InvoiceRunDialog.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import { BILLING_PLAN_COLUMNS } from '../../workbook/infrastructure/billingPlanTabReader'
@@ -110,6 +111,7 @@ const fill = computed(() => {
 const fillCount = computed(() => (fill.value?.kind === 'rows' ? fill.value.rows.length : 0))
 const fillLabel = computed(() => (asOf.value !== null && fillYear.value === yearOf(asOf.value) ? `Fill the rest of ${fillYear.value}` : `Fill ${fillYear.value}`))
 
+const runOpen = ref(false)
 const editing = ref<BillingRowLine | null>(null)
 const rowDialogOpen = ref(false)
 const fillDialogOpen = ref(false)
@@ -140,8 +142,17 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
 <template>
   <section class="flex flex-col gap-6">
     <PageHeader title="Billing plan" description="What is to be invoiced and what the invoices billed of it, the newest plan rows first.">
-      <template v-if="tabState === 'rows' && years.length > 1" #actions>
-        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">
+      <template v-if="tabState === 'rows'" #actions>
+        <UButton
+          v-if="(figures?.expected.length ?? 0) > 0"
+          label="Make invoice"
+          icon="i-lucide-file-plus-2"
+          size="sm"
+          :disabled="state.writing"
+          data-testid="billing-make-invoice"
+          @click="runOpen = true"
+        />
+        <div v-if="years.length > 1" class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">
           <UButton
             v-for="entry in years"
             :key="entry"
@@ -336,6 +347,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
       :default-client="terms?.client ?? ''"
     />
     <FillYearDialog v-if="fill" v-model:open="fillDialogOpen" :fill="fill" :title="fillLabel" :client-name="clientName" :colours="colours" />
+    <InvoiceRunDialog v-model:open="runOpen" :mode="{ kind: 'new', client: figures?.expected[0]?.client ?? null }" />
   </section>
 </template>
 

@@ -8,6 +8,7 @@ import type { Money } from '../src/shared/money/money'
 import { planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
 import { STEADY_INVOICES, planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
+import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 
 function categoryLine(forecast: YearForecast, slug: string) {
   const found = forecast.categories.find((entry) => entry.category.slug === slug)
@@ -201,7 +202,7 @@ describe('forecastYear with plan rows', () => {
   })
 
   it('names a client the clients tab gives no name by its slug', () => {
-    const unnamed = forecastYear({ ...workbook, clients: [{ slug: 'example-client', name: '', ibans: [] }] }, 2026, civil('2026-10-19'))
+    const unnamed = forecastYear({ ...workbook, clients: [{ slug: 'example-client', name: '', ibans: [], invoicing: NO_CLIENT_INVOICING }] }, 2026, civil('2026-10-19'))
 
     expect(unnamed.revenue.months[11]?.figure.steps.map((step) => step.label)).toEqual(['Monthly fee for example-client, billable'])
   })

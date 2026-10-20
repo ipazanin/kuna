@@ -17,9 +17,14 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RowCells } from '../../workbook/domain/rowChanges'
 import { useRowWrites } from '../../workbook/presentation/useRowWrites'
 import { INVOICE_ROWS, invoiceCellsOf } from '../application/invoiceRows'
-import { newInvoiceDates } from '../domain/newInvoice'
+import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 
 const open = defineModel<boolean>('open', { required: true })
+
+const emit = defineEmits<{
+  /** Draw the invoice's PDF again, file it over the old one and save a fresh draft. */
+  reexport: [sheetRow: number]
+}>()
 
 const props = defineProps<{
   /** The row of the invoice to edit, or null to add one. */
@@ -164,7 +169,7 @@ async function remove(): Promise<void> {
   <UModal
     v-model:open="open"
     :title="sheetRow === null ? 'Add an invoice' : `Edit invoice ${opened.number}`"
-    :description="sheetRow === null ? 'One row of the invoices tab, as the invoice generator files it.' : `Row ${sheetRow} of the invoices tab. Only the cells you change are written.`"
+    :description="sheetRow === null ? 'One row of the invoices tab, for an invoice made elsewhere. Make invoice draws, files and records a new one.' : `Row ${sheetRow} of the invoices tab. Only the cells you change are written.`"
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"
   >
@@ -208,6 +213,17 @@ async function remove(): Promise<void> {
           :disabled="writes.busy.value"
           data-testid="invoice-delete"
           @click="remove"
+        />
+        <UButton
+          v-if="sheetRow !== null"
+          label="Re-export"
+          icon="i-lucide-file-output"
+          color="neutral"
+          variant="ghost"
+          title="Draw the PDF again, replace it in Drive and save a fresh mail draft"
+          :disabled="writes.busy.value"
+          data-testid="invoice-reexport"
+          @click="emit('reexport', sheetRow)"
         />
         <div class="ms-auto flex flex-wrap gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />

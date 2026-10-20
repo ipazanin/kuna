@@ -8,11 +8,11 @@ import { UNCLASSIFIED, isDefinedBucket } from '../domain/bucket'
 import { ledgerRowKeyOf } from '../domain/ledgerRowKey'
 import type { LedgerRowKey } from '../domain/ledgerRowKey'
 import { isVatTreatment } from '../domain/vatTreatment'
-import { ADVANCE_BUCKETS } from '../domain/workbook'
-import type { Account, Category, Client, Invoice, OwnerAdvance, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
+import { ADVANCE_BUCKETS, NO_CLIENT_INVOICING } from '../domain/workbook'
+import type { Account, Category, Client, ClientInvoicing, Invoice, OwnerAdvance, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
 import { readAssets } from './assetsTabReader'
 import { readBillingPlan } from './billingPlanTabReader'
-import { dateOf, inTabOrder, isUnreadable, moneyOf, optionalPeriod, readRow, slugListOf, slugOf, textOf } from './cellReading'
+import { booleanOf, dateOf, inTabOrder, isUnreadable, moneyOf, optionalPeriod, readRow, slugListOf, slugOf, textOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
 import { readGrants } from './grantsTabReader'
 import { readPlan } from './planTabReader'
@@ -188,7 +188,38 @@ export interface ClientRow {
   readonly slug: string
   readonly name: string
   readonly iban: string
+  readonly invoicing: ClientInvoicing
   readonly sheetRow: number
+}
+
+/** The invoice columns of one clients row. A language the browser does not know or a reverse charge that is not TRUE or FALSE is reported, and read as blank. */
+function clientInvoicingOf(row: SheetRow, problems: RowProblem[]): ClientInvoicing {
+  const { cells } = row
+  let mailLanguage = textOf(cells.mail_language).toLowerCase()
+  if (mailLanguage !== '' && !knownLanguage(mailLanguage)) {
+    problems.push({ sheetRow: row.sheetRow, reason: `"${mailLanguage}" is not a language such as en or hr, so the mail is written in English` })
+    mailLanguage = ''
+  }
+  const reverseCharge = cells.reverse_charge === undefined || textOf(cells.reverse_charge) === '' ? false : booleanOf(cells.reverse_charge)
+  if (reverseCharge === null) {
+    problems.push({ sheetRow: row.sheetRow, reason: `reverse_charge "${textOf(cells.reverse_charge)}" is neither TRUE nor FALSE, so it reads as FALSE` })
+  }
+  return {
+    address: textOf(cells.address),
+    country: textOf(cells.country),
+    taxId: textOf(cells.tax_id),
+    invoiceMail: textOf(cells.invoice_mail),
+    mailLanguage,
+    reverseCharge: reverseCharge ?? false,
+  }
+}
+
+function knownLanguage(tag: string): boolean {
+  try {
+    return Intl.DateTimeFormat.supportedLocalesOf([tag]).length > 0
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -212,23 +243,31 @@ export function readClientRows(rows: readonly SheetRow[]): TabReading<ClientRow>
       continue
     }
     ownerOfIban.set(iban, slug)
-    facts.push({ slug, name: textOf(row.cells.name), iban, sheetRow: row.sheetRow })
+    facts.push({ slug, name: textOf(row.cells.name), iban, invoicing: clientInvoicingOf(row, problems), sheetRow: row.sheetRow })
   }
   return { facts, problems }
 }
 
-/** One client per name, with every IBAN its rows give and the first name they give. */
+/** One client per name, with every IBAN its rows give, and the first name and invoice details they give. */
 function clientsOf(rows: readonly ClientRow[]): Client[] {
-  const bySlug = new Map<string, { name: string; ibans: string[] }>()
+  const bySlug = new Map<string, { name: string; ibans: string[]; invoicing: ClientInvoicing }>()
   for (const row of rows) {
-    const client = bySlug.get(row.slug) ?? { name: '', ibans: [] }
+    const client = bySlug.get(row.slug) ?? { name: '', ibans: [], invoicing: NO_CLIENT_INVOICING }
     client.name ||= row.name
+    client.invoicing = {
+      address: client.invoicing.address || row.invoicing.address,
+      country: client.invoicing.country || row.invoicing.country,
+      taxId: client.invoicing.taxId || row.invoicing.taxId,
+      invoiceMail: client.invoicing.invoiceMail || row.invoicing.invoiceMail,
+      mailLanguage: client.invoicing.mailLanguage || row.invoicing.mailLanguage,
+      reverseCharge: client.invoicing.reverseCharge || row.invoicing.reverseCharge,
+    }
     if (!client.ibans.includes(row.iban)) {
       client.ibans.push(row.iban)
     }
     bySlug.set(row.slug, client)
   }
-  return [...bySlug].map(([slug, client]) => ({ slug, name: client.name, ibans: client.ibans }))
+  return [...bySlug].map(([slug, client]) => ({ slug, name: client.name, ibans: client.ibans, invoicing: client.invoicing }))
 }
 
 /**

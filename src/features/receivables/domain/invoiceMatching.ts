@@ -5,6 +5,7 @@ import { drillToTransactions } from '../../filters/domain/drillTarget'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import type { Category, Client, Invoice, Transaction } from '../../workbook/domain/workbook'
+import { NO_CLIENT_INVOICING } from '../../workbook/domain/workbook'
 
 /** The category roles receivables select by, as the `roles` column of `categories` spells them. */
 export const RECEIVABLE_ROLES = {
@@ -90,7 +91,7 @@ export function receivablesOf(
   const named = new Set(clients.map((client) => client.slug))
   const everyClient = [
     ...clients,
-    ...[...new Set(invoices.map((invoice) => invoice.client))].filter((slug) => !named.has(slug)).map((slug): Client => ({ slug, name: '', ibans: [] })),
+    ...[...new Set(invoices.map((invoice) => invoice.client))].filter((slug) => !named.has(slug)).map((slug): Client => ({ slug, name: '', ibans: [], invoicing: NO_CLIENT_INVOICING })),
   ]
   return {
     clients: everyClient.map((client) => {

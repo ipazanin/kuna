@@ -10,6 +10,7 @@ import { exampleStudio, yearEndLine } from './exampleStudio'
 import { withPackBuckets } from './hrDooCategories'
 import { civil, euros, ledger } from './ledger'
 import type { RowSpec } from './ledger'
+import { NO_CLIENT_INVOICING } from '../../src/features/workbook/domain/workbook'
 
 // Steady Studio d.o.o., registered on 2 January 2025, with synthetic figures. It invoices its one
 // client on the last day of each month and is paid on the 20th of the next. Pay and payroll tax
@@ -155,7 +156,7 @@ export function steadyStudio(changes: Partial<Workbook> = {}): Workbook {
     categories,
     transactions: withPackBuckets(ledger(STEADY_ROWS), categories),
     invoices: STEADY_INVOICES,
-    clients: [{ slug: 'example-client', name: 'Example client', ibans: [CLIENT_IBAN] }],
+    clients: [{ slug: 'example-client', name: 'Example client', ibans: [CLIENT_IBAN], invoicing: NO_CLIENT_INVOICING }],
     ownerAdvances: [],
     assets: [STEADY_LAPTOP],
     grants: [STEADY_GRANT],

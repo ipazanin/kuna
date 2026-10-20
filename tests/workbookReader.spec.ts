@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 
 const CATEGORIES: CellValue[][] = [
   ['category', 'family', 'bucket', 'colour'],
@@ -232,7 +233,7 @@ describe('readWorkbook', () => {
       ]),
     })
 
-    expect(workbook.clients).toEqual([{ slug: 'north', name: 'North Ltd', ibans: ['XX00FAKE0101', 'XX00FAKE0102'] }])
+    expect(workbook.clients).toEqual([{ slug: 'north', name: 'North Ltd', ibans: ['XX00FAKE0101', 'XX00FAKE0102'], invoicing: NO_CLIENT_INVOICING }])
     expect(workbook.invoices.map((invoice) => [invoice.number, invoice.client, invoice.amount, invoice.issued, invoice.due])).toEqual([
       ['1-1-26', 'north', 120050, '2026-01-28', '2026-02-28'],
       ['2-1-26', 'north', 30000, '2026-02-27', null],

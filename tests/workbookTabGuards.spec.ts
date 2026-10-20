@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { invoiceChangeRefusals } from '../src/features/receivables/domain/invoiceGuards'
-import { newInvoiceDates } from '../src/features/receivables/domain/newInvoice'
+import { newInvoiceDates } from '../src/features/invoicing/domain/invoiceDates'
 import { accountChangeRefusals } from '../src/features/settings/domain/accountGuards'
 import { categoryChangeRefusals } from '../src/features/settings/domain/categoryGuards'
 import { clientChangeRefusals } from '../src/features/settings/domain/clientGuards'

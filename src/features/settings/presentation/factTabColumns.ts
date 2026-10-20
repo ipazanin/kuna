@@ -47,6 +47,12 @@ export const CLIENT_COLUMNS: readonly EditorColumn[] = [
   { name: 'client', label: 'Client', kind: 'word', width: 'w-36' },
   { name: 'name', label: 'Name', kind: 'text', width: 'w-48' },
   { name: 'iban', label: 'IBAN', kind: 'iban', width: 'w-64' },
+  { name: 'address', label: 'Address', kind: 'text', width: 'w-56' },
+  { name: 'country', label: 'Country', kind: 'text', width: 'w-36' },
+  { name: 'tax_id', label: 'Tax ID', kind: 'text', width: 'w-36' },
+  { name: 'invoice_mail', label: 'Invoice mail to', kind: 'text', width: 'w-56' },
+  { name: 'mail_language', label: 'Mail language', kind: 'text', width: 'w-28', placeholderOf: () => 'en' },
+  { name: 'reverse_charge', label: 'Reverse charge', kind: 'flag', width: 'w-32' },
 ]
 
 export const GRANT_COLUMNS: readonly EditorColumn[] = [

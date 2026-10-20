@@ -231,6 +231,87 @@ export async function invoiceFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 }
 
+async function waitForRunStage(page, selector) {
+  await page.waitForSelector(selector, { visible: true, timeout: 20_000 }).catch(async () => {
+    const said = await page.evaluate(() => document.querySelector('[data-testid="invoice-run"]')?.textContent?.replace(/\s+/g, ' ').slice(0, 400))
+    throw new Error(`no ${selector} within 20 s, the dialog says: ${said}`)
+  })
+  await delay(300)
+}
+
+async function runFinished(page) {
+  await page
+    .waitForFunction(
+      () => {
+        const steps = [...document.querySelectorAll('[data-testid="invoice-run-steps"] li')]
+        return steps.length > 0 && steps.every((step) => step.dataset.status === 'done') && document.querySelector('[data-testid="invoice-run-close"]') !== null
+      },
+      { timeout: 20_000 },
+    )
+    .catch(async () => {
+      const said = await page.evaluate(() => document.querySelector('[data-testid="invoice-run-steps"]')?.textContent?.replace(/\s+/g, ' '))
+      throw new Error(`the run did not finish, its steps say: ${said}`)
+    })
+  await delay(300)
+}
+
+/**
+ * Make invoice: the form from the billing plan, the checks, and the steps. With a Google Sheet the
+ * fake Picker is the browser's confirm dialog: the invoice folder and the year folder are picked,
+ * the month folder is not, so the flow makes it on request. A re-export then finds the folders
+ * without asking. In Excel mode the PDF is saved through the browser.
+ */
+export async function invoiceRunFlow(page, { press, shoot, inspect }) {
+  const answers = ['accept', 'accept', 'dismiss']
+  const asked = []
+  const answer = async (dialog) => {
+    asked.push(dialog.message())
+    if (answers.shift() === 'accept') await dialog.accept()
+    else await dialog.dismiss()
+  }
+  page.on('dialog', answer)
+  try {
+    await pressSelector(page, press, '[data-testid="invoice-make"]')
+    await waitForRunStage(page, '[data-testid="invoice-lines"]')
+    const number = await page.$eval('[data-testid="invoice-run-number"]', (input) => input.value)
+    if (number === '') throw new Error('the dialog suggests no invoice number')
+    const google = (await page.$('[data-testid="invoice-run-draft"]')) !== null
+    if (google) await pressSelector(page, press, '[data-testid="invoice-run-draft"]')
+    await inspect?.('make an invoice')
+    await shoot('invoice-run-form')
+    await pressSelector(page, press, '[data-testid="invoice-run-check"]')
+    if (google) {
+      await waitForRunStage(page, '[data-testid="invoice-run-hidden"]')
+      await shoot('invoice-run-hidden')
+      await pressSelector(page, press, '[data-testid="invoice-run-create-folder"]')
+    }
+    await waitForRunStage(page, '[data-testid="invoice-run-ready"]')
+    await shoot('invoice-run-ready')
+    await pressSelector(page, press, '[data-testid="invoice-run-make"]')
+    await runFinished(page)
+    await shoot('invoice-run-done')
+    await pressSelector(page, press, '[data-testid="invoice-run-close"]')
+    await waitForInvoice(page, number, true)
+    if (!google) return
+
+    if (asked.length !== 3) throw new Error(`the Picker opened ${asked.length} times on the first run, not 3`)
+    await pressSelector(page, press, `[data-testid="invoice-edit"][aria-label="Edit invoice ${number}"]`)
+    await page.waitForSelector('[data-testid="invoice-form"]')
+    await delay(400)
+    await pressSelector(page, press, '[data-testid="invoice-reexport"]')
+    await waitForRunStage(page, '[data-testid="invoice-lines"]')
+    await pressSelector(page, press, '[data-testid="invoice-run-check"]')
+    await waitForRunStage(page, '[data-testid="invoice-run-ready"]')
+    await pressSelector(page, press, '[data-testid="invoice-run-make"]')
+    await runFinished(page)
+    await shoot('invoice-reexport-done')
+    if (asked.length !== 3) throw new Error('the re-export opened the Picker for a folder already in view')
+    await pressSelector(page, press, '[data-testid="invoice-run-close"]')
+  } finally {
+    page.off('dialog', answer)
+  }
+}
+
 async function dialogGone(page, selector) {
   await page.waitForFunction((wanted) => !document.querySelector(wanted), { timeout: 10_000 }, selector).catch(() => {
     throw new Error(`${selector} is still open`)

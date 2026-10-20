@@ -110,7 +110,23 @@ export interface Client {
   readonly name: string
   /** Normalised. A payment from one of them is the client's. */
   readonly ibans: readonly string[]
+  readonly invoicing: ClientInvoicing
 }
+
+/** What an invoice to the client prints and where its mail goes, each from the first of the client's rows that gives it. Blank when none does. */
+export interface ClientInvoicing {
+  readonly address: string
+  readonly country: string
+  readonly taxId: string
+  /** Who the invoice mail goes to. */
+  readonly invoiceMail: string
+  /** A language tag such as en or hr, for the month's name in the mail. English when blank. */
+  readonly mailLanguage: string
+  /** True when the client accounts for the VAT, so the invoice carries none and prints the reverse-charge note. */
+  readonly reverseCharge: boolean
+}
+
+export const NO_CLIENT_INVOICING: ClientInvoicing = { address: '', country: '', taxId: '', invoiceMail: '', mailLanguage: '', reverseCharge: false }
 
 /** A row of the `owner-advances` tab: a cost the owner paid privately for the company, or the owner's private share of a company payment. */
 export interface OwnerAdvance {

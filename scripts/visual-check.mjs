@@ -16,6 +16,8 @@
  *
  * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
  * category, an asset and an invoice, and screenshots the editors and the invoice dialog on the way.
+ * It also makes an invoice through the checks and every step, with the fake Picker picking the
+ * invoice and year folders and the month folder made on request, then re-exports it.
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
  * adds the starting scenarios to a workbook without any, which adds the tab to a Sheet without it.
  * It plans a category for 2027 on Forecast, edits, clears and undoes it, and plans a purchase in a
@@ -37,7 +39,7 @@ import * as XLSX from 'xlsx'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, invoiceFlow, planFlow, planTabFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, invoiceFlow, invoiceRunFlow, planFlow, planTabFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
@@ -181,7 +183,7 @@ const SIDEWAYS_SCROLL_ALLOWED = [
     reason: 'Seven input columns at their narrowest are wider than the 100rem measure the Workbook screen keeps.',
   },
   { card: 'workbook.accounts', upTo: 1024, reason: 'Every column is an input, and they fit beside each other only from 1280 px.' },
-  { card: 'workbook.clients', upTo: 1024, reason: 'Every column is an input, and they fit beside each other only from 1280 px.' },
+  { card: 'workbook.clients', upTo: Infinity, reason: 'Nine input columns, with the invoice details, are wider than the 100rem measure the Workbook screen keeps.' },
   { card: 'workbook.assets', upTo: Infinity, reason: 'Ten input columns are wider than the 100rem measure the Workbook screen keeps.' },
   { card: 'workbook.grants', upTo: Infinity, reason: 'Twelve input columns are wider than the 100rem measure the Workbook screen keeps.' },
   { card: 'workbook.year-end', upTo: Infinity, reason: 'Nine input columns are wider than the 100rem measure the Workbook screen keeps.' },
@@ -503,6 +505,7 @@ const FLOWS = [
   { name: 'categories', hash: '#/workbook?tab=categories', title: 'Workbook', run: categoryFlow },
   { name: 'assets', hash: '#/workbook?tab=assets', title: 'Workbook', run: assetFlow },
   { name: 'invoices', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceFlow },
+  { name: 'invoice-run', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceRunFlow },
   { name: 'scenarios', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   {
     name: 'starting-scenarios',

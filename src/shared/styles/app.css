@@ -137,6 +137,12 @@ body {
   }
 }
 
+/* Google's Picker can open over a modal dialog, which turns pointer events off on the body, and its own styles never turn them back on. */
+.picker-dialog-bg,
+.picker-dialog {
+  pointer-events: auto;
+}
+
 /* A sheet that rises from the bottom of a phone, clear of the gesture bar. */
 .phone-sheet {
   max-height: 85dvh;

@@ -13,7 +13,9 @@ rows of the tabs a person keeps by hand: `rules`, `settings`, `owner-advances`, 
 `categories`, `accounts`, `clients`, `invoices`, `assets`, `grants`, `year-end`, `plan` and
 `scenarios`. It never writes a formula a change leaves alone or data validation, and writes a header
 only when the user agrees to add the `plan` or `scenarios` tab to a Sheet without one.
-See *Write-back* below.
+See *Write-back* below. Making an invoice also files its PDF in the Drive folder the user picks for
+invoices, and, only for a user who turns the mail draft on, asks for `gmail.compose` to save a
+Gmail draft. See *Invoices*.
 
 On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
 start from the empty template. Settings has "Switch data source" for the same three choices.
@@ -29,6 +31,11 @@ of Google" in Settings revokes it with `google.accounts.oauth2.revoke` and remov
 While a token is good, the app syncs on open and whenever the tab becomes visible again, at most
 once every ten minutes after the last read or attempt. Without one, the Sync button works as before,
 since a new token needs a click to open Google's popup.
+
+The kept token carries only those scopes, since the app asks for it with `include_granted_scopes`
+off. The `gmail.compose` grant of *Invoices* comes as a second token, which lives in the page's
+memory for its hour and is never stored, because it can send mail as well as save drafts. Sign out
+forgets it too.
 
 The token model returns no ID token, so after the first sign-in the app reads the email address
 once from the OpenID Connect userinfo endpoint (`https://openidconnect.googleapis.com/v1/userinfo`,
@@ -104,7 +111,7 @@ take their defaults.
 | `settings` | `key`, `value`, one row per setting |
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out. |
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional), and the optional delivery period `period_from` and `period_to` (date cells, both or neither). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. A period that cannot be read is reported, and the issue date stands for it. |
-| `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. |
+| `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. The optional invoice columns `address`, `country`, `tax_id`, `invoice_mail`, `mail_language` (a language tag such as `en` or `hr`, blank for English) and `reverse_charge` (TRUE or FALSE) are read from the first of a client's rows that fills each one, the way `name` is. A language the browser does not know, or a `reverse_charge` that is neither TRUE nor FALSE, is reported and read as blank. |
 | `outgoing-plan` | `item`, `date` (a date cell), `amount` (above zero), `client` and `description`: one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel. `date` is the day it becomes billable, the last day of the worked month for a monthly fee. `client` must be on the `clients` tab, or the row is reported and left out. Only these five columns are read, so the Sheet may keep its own formulas beside them, and a row with nothing in them is skipped. |
 | `owner-advances` | `date`, `amount` (not zero), `description` and `category`: costs the owner paid privately for the company as positive amounts, and the owner's private shares of company payments as negative ones. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
@@ -150,6 +157,13 @@ as before.
 | `billing_bonus_amount` | blank | The bonus agreed for a whole year, shown for reference and never filled in. |
 | `billing_bonus_item` | blank | The `item` text of the bonus rows. Needed with the amount. |
 | `billing_client` | blank | The client the filled rows are for, by its name on the `clients` tab. |
+| `invoice_company_name`, `invoice_address`, `invoice_vat_id`, `invoice_iban`, `invoice_place`, `invoice_signatory` | blank | What an invoice prints about your company: the name, street and town, VAT ID, the IBAN the client pays into, the town it is issued in and who prepares and signs it. Making an invoice needs all six. An IBAN that is not valid is reported. |
+| `invoice_country`, `invoice_phone`, `invoice_mail`, `invoice_swift`, `invoice_bank`, `invoice_court_register`, `invoice_share_capital`, `invoice_issue_time`, `invoice_signatory_title` | blank | The rest of the invoice's details, each left off while blank. The bank, court register number and share capital go in the footer, the share capital as printed, such as `EUR 2,500.00 (fully paid-up)`. |
+| `invoice_number_pattern` | `{n}-1-{yy}` | How a new invoice is numbered. `{n}` is the sequence, which restarts each year, and `{yy}` or `{yyyy}` the year. A pattern without `{n}` once is reported. |
+| `invoice_folder_id` | blank | The Drive folder invoices are filed under. "Make invoice" asks for it in the Picker the first time and writes it here. |
+| `invoice_file_path` | `{yyyy}/{yyyy}-{mm}/{yyyy}-{mm}-{client}-invoice.pdf` | Where under that folder each invoice is filed, with `{yyyy}`, `{yy}`, `{mm}` from the issue date, `{client}` and `{number}`. It must end in `.pdf`. |
+| `invoice_mail_subject`, `invoice_mail_body` | `Invoice {number}, {month}` and a short note signed `{signatory}` | The invoice mail, with `{month}` (the issue month in the client's `mail_language`), `{number}`, `{client}`, `{company}` and `{signatory}`. |
+| `invoice_reverse_charge_note` | the Croatian VAT law's Article 17 note | Printed under the totals, after an asterisk. |
 | `hr_residence_city` | blank | The city or municipality the owner lives in, such as `Grad Zagreb`, which sets the local income tax rates. Settings offers every unit to pick from. A name typed in the workbook is read regardless of case, diacritics and a leading `Grad` or `Općina`, and a name two units share takes the county in brackets, such as `Općina Privlaka (Zadarska)`. Payroll figures need it, so they stay empty while it is blank. |
 | `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
 | `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
@@ -663,13 +677,64 @@ deleted row back at the foot of the tab and an edited row back as it was. The bi
 Workbook, General. Without the tab the screen names the headers to add, and in Excel mode starts one
 from its first row.
 
+## Invoices
+
+"Make invoice" on Receivables and on the Billing plan makes an invoice the way the invoice generator
+did, and drafts its mail without sending it. The services are in `src/features/invoicing/`.
+
+- **The form.** The issue date is today. The number is the next one by `invoice_number_pattern`
+  among the invoices issued in that year, over every client, so `{n}-1-{yy}` after `9-1-26` gives
+  `10-1-26` and the first invoice of 2027 is `1-1-27`. A number the pattern does not describe is
+  passed over. The due date is a month after the issue date, on the last day of the next month
+  when that month is shorter, as the generator's `addOneMonth` did. The delivery period is the
+  issue month. All of them can be changed. The lines start from the client's billing plan rows still
+  open up to the end of the issue month, one per row, named by the row's description. Lines can be
+  edited, removed and added, and "One line for the total" makes one line named as the client's last
+  invoice was. The total is the sum of the lines. "Open the PDF" shows the invoice as it stands.
+- **What it needs.** The six `invoice_` settings above, the client's `address`, and
+  `reverse_charge` TRUE. The app makes only invoices without VAT for a client who accounts for it,
+  with the note. A domestic invoice with VAT is made elsewhere and recorded with "Record invoice".
+- **The PDF** is drawn in the browser with pdf-lib, loaded only when the dialog first opens, in the
+  layout of the generator's Sheet template. Its font is Inter from the app's own font files: the
+  Latin file, and the Latin Extended one for letters such as č, ć, ž, š and đ.
+- **Check** reads the Sheet again, so the number is checked on the register as it is now, and stops
+  when a sync or a change is already running. From then on the number stays as checked. Then it
+  finds each folder of `invoice_file_path` by name under the invoice folder, among what the app can
+  see. With `drive.file` the app sees only folders it made or the user picked, so a folder the old
+  generator made is not in view. Rather than make a second one of the same name, the app opens the
+  Picker inside its parent, titled with the folder to pick, and asks for the folders beside it too,
+  so the next months need no pick. A picked folder stays in view. When the user cancels, the app
+  offers to create the folder instead. Last, it refuses a file name already in view in the folder.
+  A PDF the old generator filed is not in view, so the number on the register is the guard that
+  matters.
+- **Make the invoice** then runs the steps in order: file the PDF (making any folder the user chose
+  to make), save the Gmail draft, and add the register row through the same write as "Record
+  invoice". A step that fails stops the run and shows why, and "Retry the remaining steps" runs the
+  ones left, so the PDF is never filed twice.
+- **The mail.** "Create the mail draft" is remembered on this device and off at first. The first
+  time it runs, Google asks the user to allow `gmail.compose`. The draft goes to the client's
+  `invoice_mail` with the PDF attached and is never sent. With it off, the PDF downloads and "Write
+  the mail in Gmail" opens Gmail's compose window with the recipient, subject and text filled in.
+- **Re-export**, in the editor of an invoice on Receivables, draws the PDF again with the
+  register's number and dates, replaces the file of the same name in view, and saves a fresh draft.
+  The old draft stays in Gmail until it is deleted there. The register row changes only when its
+  item or amount do.
+- **Excel mode** has no Drive, so the PDF downloads and the register row is written to the
+  workbook kept in this browser.
+
+The register keeps one row per invoice: the lines' descriptions joined by `; ` as `item` and the
+total as `amount`, with the number, client, dates and delivery period, the eight columns the
+generator wrote.
+
 ## Receivables
 
-"Add invoice" above the list, and the pencil on each invoice, add, edit and delete rows of the
-`invoices` tab in both modes, in the eight columns the invoice generator writes. The number is
-written as text, the amount as a number and each date as a date cell. A new invoice starts on the
-newest booking, due a month later, for the work of its month, as the generator sets them. With no
-invoices yet, the empty screen offers the first one, or the clients tab when no client is on it.
+"Record invoice" above the list, and the pencil on each invoice, add, edit and delete rows of the
+`invoices` tab in both modes, in the eight columns the invoice generator writes, for an invoice made
+elsewhere. "Make invoice" beside it makes one, as *Invoices* describes. The number is written as
+text, the amount as a number and each date as a date cell. A recorded invoice starts on the newest
+booking, due a month later, for the work of its month, as the generator set them. With no invoices
+yet, the empty screen offers to make the first one or record it, or the clients tab when no client
+is on it.
 
 Receivables matches the `invoices` tab against the revenue credits, client by client, the way the
 Sheet's `outgoing` tab does for its one client. A credit belongs to the client whose `clients` row
@@ -755,7 +820,12 @@ ledger's months compare with, a 2027 plan whose owner pay switches from the floo
 board-only insurance the day after the grant's employment date, with a planned laptop and a
 dividend, and four owner pay scenarios for 2027, two of them with warnings to show. Its `outgoing-plan` tab splits each of the first client's invoices into a month's fee
 and its extras, with October planned and not invoiced yet, and has no rows for the second client,
-whose invoices are invoiced with no plan row. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads.
+whose invoices are invoiced with no plan row. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads. A
+Drive and a Gmail held in memory answer "Make invoice" the same way: the invoice folder holds this
+year's and last year's folders with every month inside, made by another app and out of view until
+picked, and the browser's confirm dialog stands in for the Picker, OK picking every folder it names
+and Cancel none. Its settings carry made-up invoice details, and Northwind has an address, an
+invoice mail and reverse charge, while Lumen has none, so its invoice is refused.
 Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
 changes nine days past their last export, and `?fake=empty` starts with nothing, which is the first
 run. `?fake=no-scenarios` leaves the `scenarios` tab out of the Sheet, so adding the starting
@@ -858,6 +928,7 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 | Save accounts | the same, reading `accounts`, `ledger` and `clients` |
 | Save clients | the same, reading `clients`, `accounts`, `invoices`, `'outgoing-plan'` and `settings` |
 | Add, edit or delete an invoice | the same, reading `invoices` and `clients`, appending to `invoices!A:H` |
+| Make an invoice | Check: the sync's reads, then Drive `files.list` of each path folder's children (`'<parent>' in parents and trashed = false`), the Picker for a folder not in view, and on the first run the settings write of `invoice_folder_id`. Make: `files.create` of a folder the user chose to make, `files.list` of the target folder, a multipart `files.create` upload of the PDF to `www.googleapis.com/upload/drive/v3`, `users.drafts.create` on `gmail.googleapis.com` when the draft is on, then the invoice write above. A re-export uploads with `files.update` instead |
 | Save assets, grants or year-end | the same, reading `assets` and `grants`, or `grants` and `assets`, or `'year-end'` and `categories` |
 | Add or fill plan rows, edit or delete one | the same, reading `'outgoing-plan'` and `clients`. A fill appends every new row in one request |
 | Add, edit or delete a scenario component, rename or copy a scenario, add the starting scenarios | the same, reading `scenarios`, `plan` and `categories` (each when the Sheet has it). Adding the starting scenarios to a Sheet without the tab first sends `spreadsheets.batchUpdate` with one `addSheet` request, then a `values.batchUpdate` of the header cells `scenarios!A1` to `scenarios!G1`, before the append |
@@ -885,12 +956,19 @@ Never run it first on the original.
    date. Press Undo and check the row is empty again. On Workbook, General, switch "Loans to the
    owner count as owner pay" off and on. Check only the two `bucket` cells of the loan categories
    changed.
-9. On Workbook, Categories, add a category and save. Check the new row at the foot of `categories`
+9. On Workbook, General, fill the Invoices fields. On Workbook, Clients, give the client its
+   address, invoice mail and reverse charge. On Receivables, press "Make invoice" with a test
+   number agreed beforehand, open the PDF, press Check and pick the invoice folder, the year folder
+   and every month folder the Picker offers. Make the invoice with the mail draft on, then check the
+   PDF in the month folder, the draft in Gmail (not sent) and the new row on `invoices`. Re-export
+   it from its editor and check the PDF was replaced and a second draft saved. Delete the test row,
+   the PDF and both drafts.
+10. On Workbook, Categories, add a category and save. Check the new row at the foot of `categories`
    and that the ledger's category dropdown offers it. Change its colour, check only that cell changed,
    then delete it and press Undo. Try to rename a category the ledger uses and read the refusal. On
    Receivables, add an invoice, check its row on `invoices` with the dates shown as dates and the
    number as text, edit its amount, delete it and press Undo.
-10. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
+11. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
    reads the rules and settings tabs the way the morning ingest does, so it must finish without an
    error. Then repeat steps 2, 3 and 5 on the original, and check the next 06:00 run in Executions.
 
@@ -1012,8 +1090,16 @@ GitHub Pages cannot set headers, so the policy is a `<meta>` tag in `index.html`
 only from this origin and from Google's two script hosts, plus one inline script allowed by its
 SHA-256 hash, which picks the theme before the first paint so the loading screen is not the wrong
 colour. Editing that script means replacing its hash in the policy. Frames load only from Google's
-Picker and sign-in hosts, and requests go only to the Sheets and Drive APIs, the userinfo endpoint and the
-token revocation endpoint (`oauth2.googleapis.com`, where `google.accounts.oauth2.revoke` posts).
+Picker and sign-in hosts, and requests go only to these hosts:
+
+| Host | What the app asks it |
+|---|---|
+| `sheets.googleapis.com` | Reads and writes of the picked Sheet |
+| `www.googleapis.com` | Drive: listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`) |
+| `gmail.googleapis.com` | The invoice mail draft, only once the user turned it on |
+| `openidconnect.googleapis.com` | The userinfo endpoint |
+| `oauth2.googleapis.com` | Token revocation, where `google.accounts.oauth2.revoke` posts |
+
 The manifest and the service worker come from this origin only. Styles allow `'unsafe-inline'`
 because Nuxt UI writes its colour variables into an inline `<style>`, and the Google Picker and
 Identity Services libraries inject their own. Without it the Picker dialog loses its layout. The

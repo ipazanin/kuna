@@ -26,6 +26,8 @@ import type { FilterState, Period } from '../../filters/domain/filterState'
 import { periodInWords } from '../../filters/domain/periodInWords'
 import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import PeriodBar from '../../filters/presentation/PeriodBar.vue'
+import InvoiceRunDialog from '../../invoicing/presentation/InvoiceRunDialog.vue'
+import type { InvoiceRunMode } from '../../invoicing/presentation/useInvoiceRun'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
@@ -57,6 +59,15 @@ const dialogOpen = ref(false)
 function openInvoice(sheetRow: number | null): void {
   editing.value = sheetRow
   dialogOpen.value = true
+}
+
+const runMode = ref<InvoiceRunMode>({ kind: 'new', client: null })
+const runOpen = ref(false)
+
+function openRun(mode: InvoiceRunMode): void {
+  dialogOpen.value = false
+  runMode.value = mode
+  runOpen.value = true
 }
 
 const invoiceDialog = computed(() => {
@@ -268,7 +279,14 @@ const view = computed(() => {
           description="Receivables matches the invoices tab against the revenue credits, client by client. Add the clients on Workbook, Clients, one row per IBAN they pay from, then the invoices here."
           variant="outline"
           class="rounded-card border-dashed bg-raised/40"
-          :actions="(invoiceDialog?.clients.length ?? 0) > 0 ? [{ label: 'Add an invoice', icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => openInvoice(null) }] : [{ label: 'Add a client', icon: 'i-lucide-users', color: 'neutral', variant: 'outline', to: '/workbook?tab=clients' }]"
+          :actions="
+            (invoiceDialog?.clients.length ?? 0) > 0
+              ? [
+                  { label: 'Make an invoice', icon: 'i-lucide-file-plus-2', onClick: () => openRun({ kind: 'new', client: null }) },
+                  { label: 'Record one made elsewhere', icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => openInvoice(null) },
+                ]
+              : [{ label: 'Add a client', icon: 'i-lucide-users', color: 'neutral', variant: 'outline', to: '/workbook?tab=clients' }]
+          "
           data-testid="receivables-empty"
         />
         <template v-else>
@@ -315,13 +333,21 @@ const view = computed(() => {
               </template>
               <template #actions>
                 <UButton
-                  label="Add invoice"
+                  label="Make invoice"
+                  icon="i-lucide-file-plus-2"
+                  size="sm"
+                  :disabled="state.writing || (invoiceDialog?.clients.length ?? 0) === 0"
+                  data-testid="invoice-make"
+                  @click="openRun({ kind: 'new', client: null })"
+                />
+                <UButton
+                  label="Record invoice"
                   icon="i-lucide-plus"
                   color="neutral"
                   variant="outline"
                   size="sm"
                   :disabled="state.writing || (invoiceDialog?.clients.length ?? 0) === 0"
-                  :title="(invoiceDialog?.clients.length ?? 0) === 0 ? 'Add the client on Workbook, Clients first' : undefined"
+                  :title="(invoiceDialog?.clients.length ?? 0) === 0 ? 'Add the client on Workbook, Clients first' : 'Add the row of an invoice made elsewhere'"
                   data-testid="invoice-add"
                   @click="openInvoice(null)"
                 />
@@ -369,7 +395,9 @@ const view = computed(() => {
       :clients="invoiceDialog.clients"
       :default-issued="invoiceDialog.defaultIssued"
       :latest-number="invoiceDialog.latestNumber"
+      @reexport="(sheetRow) => openRun({ kind: 'reexport', sheetRow })"
     />
+    <InvoiceRunDialog v-model:open="runOpen" :mode="runMode" />
   </section>
 </template>
 

@@ -154,6 +154,14 @@
             It also asks for <code>openid email</code>, which tells it the email address of the Google account you signed in with. That is
             all it reads about your account.
           </p>
+          <p>
+            When you make an invoice, it lists the folders inside the invoice folder you picked, again only those it made or you picked.
+          </p>
+          <p>
+            If you turn on "Create the mail draft", it also asks for <code>gmail.compose</code>, which lets it save a draft in your Gmail.
+            It saves one draft per invoice and never sends mail. Google's wording for this permission includes sending, which the app does
+            not do.
+          </p>
           <p>In Excel mode it reads only the .xlsx file you open or drop on the page.</p>
         </section>
         <section>
@@ -164,11 +172,15 @@
             change. Before each write it reads the tab again, and it refuses when the row it means cannot be found exactly once. It never
             writes any other cell, and it never deletes a row.
           </p>
+          <p>
+            When you make an invoice, it files the PDF in the invoice folder you picked, making a year or month folder there only when you
+            ask it to, and it never overwrites a file except on a re-export you start.
+          </p>
         </section>
         <section>
           <h2>Where your data goes</h2>
           <p>
-            There is no server. The page talks only to Google's own APIs, and only to read and write the Sheet you picked. No analytics, no tracking, no
+            There is no server. The page talks only to Google's own APIs, and only to read and write the Sheet you picked, file the invoices you make and save their drafts. No analytics, no tracking, no
             third-party scripts beyond Google's sign-in and file picker.
           </p>
         </section>
@@ -180,7 +192,8 @@
           <p>
             Google's access token is kept in this browser until it expires, about an hour after you sign in, so a reload or a new tab can
             sync without asking again. Your email address is stored only to skip Google's account chooser the next time you sign in. Sign out
-            of Google in Settings removes both and revokes the token.
+            of Google in Settings removes both and revokes the token. The Gmail permission's token is kept only in the open page and is
+            gone when you close or reload it.
           </p>
           <p>
             In Excel mode, the workbook lives in this browser's storage and in the files you export. Clearing this site's data in the browser

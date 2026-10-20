@@ -6,6 +6,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
+import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
 import { LOCAL_UNITS, findLocalUnit } from '../../../packs/hr-doo/ruleset/localUnits'
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
@@ -16,7 +17,7 @@ import { fold } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
-import type { BillingAmountField, BillingItemField, BillingTerms, CitReturn, CompanyFacts, Settings, VatPrinciple } from '../domain/settings'
+import type { BillingAmountField, BillingItemField, BillingTerms, CitReturn, CompanyFacts, InvoicingField, Settings, VatPrinciple } from '../domain/settings'
 
 const props = defineProps<{
   settings: Settings
@@ -187,6 +188,35 @@ function createBillingItem(field: BillingItemField, text: string): void {
 
 const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
 
+/** A field with `lines` is a text box that grows, so a long path or subject wraps instead of scrolling inside the card. */
+const INVOICING_FIELDS: readonly { readonly field: InvoicingField; readonly label: string; readonly help?: string; readonly lines?: number; readonly wide?: boolean }[] = [
+  { field: 'name', label: 'Company name on the invoice' },
+  { field: 'address', label: 'Address', help: 'Street and town.' },
+  { field: 'country', label: 'Country' },
+  { field: 'vatId', label: 'VAT ID' },
+  { field: 'phone', label: 'Phone' },
+  { field: 'mail', label: 'Mail' },
+  { field: 'iban', label: 'IBAN', help: 'The account the client pays into.' },
+  { field: 'swift', label: 'SWIFT' },
+  { field: 'bank', label: 'Bank', help: 'For the footer, such as Example Bank d.d.' },
+  { field: 'courtRegister', label: 'Court register number' },
+  { field: 'shareCapital', label: 'Share capital', help: 'As the footer prints it, such as EUR 2,500.00 (fully paid-up).' },
+  { field: 'place', label: 'Place of issue', help: 'Printed before the date.' },
+  { field: 'issueTime', label: 'Issuing time', help: 'Such as 17:00h. Blank leaves the line out.' },
+  { field: 'signatory', label: 'Signatory', help: 'Prepares and signs the invoice.' },
+  { field: 'signatoryTitle', label: 'Signatory’s role', help: 'Such as director.' },
+  { field: 'numberPattern', label: 'Number pattern', help: '{n} is the sequence, which restarts each year. {yy} and {yyyy} are the year.' },
+  { field: 'filePath', label: 'File path', help: 'Under the invoice folder, with {yyyy}, {yy}, {mm}, {client} and {number}.', lines: 1, wide: true },
+  { field: 'folderId', label: 'Invoice folder', help: 'The Drive folder id. Make invoice asks you to pick it the first time.', lines: 1, wide: true },
+  { field: 'mailSubject', label: 'Mail subject', help: 'With {month}, {number}, {client}, {company} and {signatory}.', lines: 1, wide: true },
+  { field: 'mailBody', label: 'Mail text', lines: 6, wide: true },
+  { field: 'reverseChargeNote', label: 'Reverse-charge note', help: 'Printed under the totals, after an asterisk.', lines: 2, wide: true },
+]
+
+function updateInvoicing(field: InvoicingField, value: string): void {
+  draft.value = { ...draft.value, invoicing: { ...draft.value.invoicing, [field]: value } }
+}
+
 const citReturnItems: { value: CitReturn; label: string }[] = [
   { value: 'pd', label: 'PD, on the accrual profit' },
   { value: 'pd-nn', label: 'PD-NN, on cash received and paid' },
@@ -347,6 +377,43 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
             clear
             class="w-full"
             @update:model-value="updateBilling('client', String($event ?? ''))"
+          />
+        </UFormField>
+      </div>
+    </fieldset>
+
+    <fieldset class="flex flex-col gap-3" data-testid="invoicing-terms">
+      <legend class="text-sm font-medium text-highlighted">Invoices</legend>
+      <p class="-mt-1 text-xs text-muted">
+        What an invoice made on Receivables or Billing plan prints about your company, and how it is numbered, filed and mailed. The client’s address and
+        mail are on Workbook, Clients.
+      </p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField
+          v-for="entry in INVOICING_FIELDS"
+          :key="entry.field"
+          :label="entry.label"
+          :help="entry.help ?? ''"
+          :error="errors[entry.field] ?? false"
+          :class="{ 'sm:col-span-2': entry.wide }"
+        >
+          <UTextarea
+            v-if="entry.lines"
+            :model-value="draft.invoicing[entry.field]"
+            :rows="entry.lines"
+            autoresize
+            placeholder="Not set"
+            class="w-full"
+            :class="{ identifier: entry.field === 'folderId' }"
+            @update:model-value="updateInvoicing(entry.field, String($event))"
+          />
+          <UInput
+            v-else
+            :model-value="draft.invoicing[entry.field]"
+            placeholder="Not set"
+            class="w-full"
+            :class="{ identifier: entry.field === 'iban' }"
+            @update:model-value="updateInvoicing(entry.field, String($event))"
           />
         </UFormField>
       </div>

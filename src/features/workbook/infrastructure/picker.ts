@@ -41,28 +41,40 @@ export function preparePicker(): Promise<void> {
   return loadPickerLibrary()
 }
 
+/** Where a folder Picker opens and what it says above the folders. */
+export interface FolderPickerOptions {
+  /** The folder whose contents it shows. My Drive when absent. */
+  readonly parentId?: string
+  readonly title?: string
+  /** Lets the person pick several folders at once. */
+  readonly several?: boolean
+}
+
 /**
  * Opens Google's Picker in its docs.google.com frame. Picking a file is what grants the app
  * `drive.file` access to it. Resolves with the picked documents, or an empty list on cancel.
  */
-export async function pickFromDrive(kind: PickerKind, accessToken: string): Promise<PickedDocument[]> {
+export async function pickFromDrive(kind: PickerKind, accessToken: string, folders: FolderPickerOptions = {}): Promise<PickedDocument[]> {
   const { apiKey, projectNumber } = googleConfig()
   await loadPickerLibrary()
 
-  const view =
-    kind === 'spreadsheet'
-      ? new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS)
-      : new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-          .setIncludeFolders(true)
-          .setSelectFolderEnabled(true)
-          .setMimeTypes(FOLDER_MIME_TYPE)
+  const folderView = (): google.picker.DocsView => {
+    const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS).setIncludeFolders(true).setSelectFolderEnabled(true)
+    view.setMimeTypes(FOLDER_MIME_TYPE)
+    if (folders.parentId !== undefined) view.setParent(folders.parentId)
+    return view
+  }
+  const view = kind === 'spreadsheet' ? new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS) : folderView()
 
   return new Promise<PickedDocument[]>((resolve) => {
-    const picker = new google.picker.PickerBuilder()
+    const builder = new google.picker.PickerBuilder()
       .addView(view)
       .setAppId(projectNumber)
       .setOAuthToken(accessToken)
       .setDeveloperKey(apiKey)
+    if (folders.title !== undefined) builder.setTitle(folders.title)
+    if (folders.several === true) builder.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+    const picker = builder
       .setCallback((result) => {
         const action = result[google.picker.Response.ACTION]
         if (action === google.picker.Action.CANCEL) {

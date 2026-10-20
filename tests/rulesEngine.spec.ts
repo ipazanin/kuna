@@ -15,6 +15,7 @@ import type { CategorisableTransaction } from '../src/features/rules/domain/tran
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { NO_SIGNALS } from './fixtures/ledger'
+import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 
 const OWN_IBAN = 'XX00FAKE0000000001'
 const CARD_SETTLEMENT_IBAN = 'XX00FAKE0000000099'
@@ -25,7 +26,7 @@ const context = categorisationContextOf({
     { slug: 'main', iban: OWN_IBAN, currency: '' },
     { slug: 'sterling', iban: 'XX00FAKE0000000002', currency: 'gbp' },
   ],
-  clients: [{ slug: 'acme', name: 'Acme', ibans: [CLIENT_IBAN] }],
+  clients: [{ slug: 'acme', name: 'Acme', ibans: [CLIENT_IBAN], invoicing: NO_CLIENT_INVOICING }],
   settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [CARD_SETTLEMENT_IBAN] },
 })
 
