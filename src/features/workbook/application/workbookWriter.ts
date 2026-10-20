@@ -14,8 +14,8 @@ export interface TabRead {
 
 export type FreshTabs = Partial<Record<WorkbookTab, TabRead>>
 
-/** The tabs whose rows the Workbook, Receivables and Billing plan screens add, change and delete. */
-export type RowTab = 'categories' | 'accounts' | 'clients' | 'invoices' | 'outgoing-plan' | 'assets' | 'grants' | 'year-end'
+/** The tabs whose rows the Workbook, Receivables, Billing plan and Pay scenarios screens add, change and delete. */
+export type RowTab = 'categories' | 'accounts' | 'clients' | 'invoices' | 'outgoing-plan' | 'assets' | 'grants' | 'year-end' | 'scenarios'
 
 /** The tabs the app writes. Of the ledger it writes only the verdict of a row. */
 export type WritableTab = 'ledger' | 'rules' | 'settings' | 'owner-advances' | RowTab
@@ -34,9 +34,17 @@ export interface RowAppend {
   readonly cells: Readonly<Record<string, CellValue>>
 }
 
+/** A tab the workbook lacks, added with the template's header before anything is written to it. */
+export interface NewTab {
+  readonly tab: RowTab
+  readonly header: readonly string[]
+}
+
 export interface TabEdits {
   readonly cells: readonly CellEdit[]
   readonly appends: readonly RowAppend[]
+  /** Only ever a tab the template defines, and only when the person asked for it. */
+  readonly newTabs?: readonly NewTab[]
 }
 
 /** Where a write goes: the picked Google Sheet, or the workbook kept in this browser. */
@@ -76,5 +84,6 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   assets: templateColumns('assets'),
   grants: templateColumns('grants'),
   'year-end': templateColumns('year-end'),
+  scenarios: templateColumns('scenarios'),
 }
 

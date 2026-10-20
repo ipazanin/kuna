@@ -274,8 +274,8 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
 
 /**
  * The tabs the year-end and planning screens read, for "Example Studio d.o.o.": the two computers
- * the ledger bought, the start-up grant it received, the accountant's 2025 figures, a plan and two
- * owner pay scenarios. The accountant's 2025 figures are made up to agree with the accrual view of
+ * the ledger bought, the start-up grant it received, the accountant's 2025 figures, a plan and four
+ * owner pay scenarios for 2027, two of them with warnings to show. The accountant's 2025 figures are made up to agree with the accrual view of
  * the ledger, except where the Year end screen needs something to show: the grant released, rent
  * placed on other costs, bank interest as financial income and 10.00 moved between two konto lines.
  */
@@ -385,13 +385,18 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
     scenarios: [
       ['scenario', 'label', 'year', 'component', 'amount', 'from', 'to'],
       ['floor-salary', 'Floor salary all year', 2027, 'salary_gross', 'floor', '', ''],
-      ['floor-salary', '', 2027, 'director_basis', 'employee', '', ''],
       ['floor-salary', '', 2027, 'dividend', 'max', '', ''],
+      ['floor-extras', 'Floor salary, tax-free items and rent', 2027, 'salary_gross', 'floor', '', ''],
+      ['floor-extras', '', 2027, 'nontaxable:results-bonus', 1200, '', ''],
+      ['floor-extras', '', 2027, 'nontaxable:occasional-gift', 900, serialOf('2027-12-01'), ''],
+      ['floor-extras', '', 2027, 'rent_monthly', 350, '', ''],
+      ['floor-extras', '', 2027, 'dividend', 'max', '', ''],
       ['floor-then-board', 'Floor salary, then board member only', 2027, 'salary_gross', 'floor', '', serialOf('2027-09-14')],
-      ['floor-then-board', '', 2027, 'director_basis', 'employee', '', serialOf('2027-09-14')],
       ['floor-then-board', '', 2027, 'director_basis', 'board-only', serialOf('2027-09-15'), ''],
-      ['floor-then-board', '', 2027, 'nontaxable:gifts', 700, '', ''],
       ['floor-then-board', '', 2027, 'dividend', 'max', '', ''],
+      ['early-exit', 'Salary stops in June, large payout', 2027, 'salary_gross', 2000, '', serialOf('2027-06-30')],
+      ['early-exit', '', 2027, 'director_basis', 'insured-elsewhere', serialOf('2027-07-01'), ''],
+      ['early-exit', '', 2027, 'dividend', 120000, '', ''],
     ],
   }
 }

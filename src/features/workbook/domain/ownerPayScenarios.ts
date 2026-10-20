@@ -1,8 +1,8 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
 
-/** The `component` names of the `scenarios` tab. A tax-free item is written `nontaxable:<item>`, such as `nontaxable:gifts`. */
-export const SCENARIO_COMPONENTS = ['salary_gross', 'salary_months', 'nontaxable', 'rent_monthly', 'dividend', 'director_basis'] as const
+/** The `component` names of the `scenarios` tab. A tax-free item is written `nontaxable:<item>`, such as `nontaxable:occasional-gift`. */
+export const SCENARIO_COMPONENTS = ['salary_gross', 'nontaxable', 'rent_monthly', 'dividend', 'director_basis'] as const
 
 /** How the owner is insured as the director: employed by the company, as a board member only, or employed elsewhere. */
 export const DIRECTOR_BASES = ['employee', 'board-only', 'insured-elsewhere'] as const
@@ -21,7 +21,6 @@ interface ComponentSpan {
 export type ScenarioComponent = ComponentSpan &
   (
     | { readonly component: 'salary_gross'; readonly gross: Money | 'floor' }
-    | { readonly component: 'salary_months'; readonly months: number }
     | { readonly component: 'nontaxable'; readonly item: string; readonly amount: Money }
     | { readonly component: 'rent_monthly'; readonly amount: Money }
     | { readonly component: 'dividend'; readonly amount: Money | 'max' }

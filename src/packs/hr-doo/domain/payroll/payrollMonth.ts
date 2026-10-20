@@ -27,6 +27,8 @@ export interface PayrollMonthInput {
   /** Monday to Friday, public holidays included, as the monthly fund of hours counts them. */
   readonly workingDaysInMonth: number
   readonly nontaxablePayments: readonly NontaxablePayment[]
+  /** The part of tax-free payments over their caps, which is taxed as salary on top of the gross. */
+  readonly overCaps?: TracedFigure
   readonly basis: FigureBasis
 }
 
@@ -60,8 +62,8 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
   if (input.paidOn < firstDayOf(input.workedMonth)) {
     throw new RangeError(`A salary for ${input.workedMonth} cannot be paid on ${input.paidOn}.`)
   }
-  if (input.agreedMonthlyGross < 0) {
-    throw new RangeError('The agreed gross cannot be negative.')
+  if (input.agreedMonthlyGross < 0 || (input.overCaps?.amount ?? 0) < 0) {
+    throw new RangeError('The agreed gross and the pay over the tax-free caps cannot be negative.')
   }
   const { basis } = input
   // The accountant takes the contribution bases of the month worked, so a December salary paid in
@@ -76,7 +78,14 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
   const cityRates = localRates(facts.residenceCity, input.paidOn, rules)
   const capsRule = rules('hr.pit.nontaxable-caps', input.paidOn)
 
-  const gross = grossSalary(input, floorRule)
+  const salary = grossSalary(input, floorRule)
+  const gross =
+    input.overCaps === undefined || input.overCaps.amount === 0
+      ? salary
+      : tracedFigure('Gross salary with the payments over their tax-free caps', addMoney(salary.amount, input.overCaps.amount), basis, rulesOf([salary, input.overCaps]), [
+          salary,
+          input.overCaps,
+        ])
   const pensionRelief = lowPayRelief(gross.amount, reliefRule, basis)
 
   const monthlyMaximum = maximumBase.value.monthlyMaximum.cents

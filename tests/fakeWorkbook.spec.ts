@@ -68,7 +68,7 @@ describe('fake workbook', () => {
     expect(workbook.transactions.some((transaction) => transaction.flaggedBy === 'ai' && transaction.bucket === 'unclassified')).toBe(true)
   })
 
-  it('holds the planning tabs of a small company: two assets, a grant that funds one, a year of accountant figures, a plan and two scenarios', () => {
+  it('holds the planning tabs of a small company: two assets, a grant that funds one, a year of accountant figures, a plan and four scenarios', () => {
     expect(workbook.assets.map((asset) => [asset.name, asset.fundedBy])).toEqual([
       ['Laptop 14 inch', ''],
       ['Workstation', 'startup-grant'],
@@ -76,7 +76,7 @@ describe('fake workbook', () => {
     expect(workbook.grants.map((grant) => grant.slug)).toEqual(['startup-grant'])
     expect(new Set(workbook.yearEndLines.map((line) => line.statement))).toEqual(new Set(['pl', 'balance', 'tax', 'distribution', 'grant', 'konto']))
     expect(workbook.planLines.some((line) => line.kind === 'owner-pay-scenario')).toBe(true)
-    expect(workbook.payScenarios.map((scenario) => scenario.slug)).toEqual(['floor-salary', 'floor-then-board'])
+    expect(workbook.payScenarios.map((scenario) => scenario.slug)).toEqual(['floor-salary', 'floor-extras', 'floor-then-board', 'early-exit'])
     expect(workbook.invoices.filter((invoice) => invoice.deliveryPeriod !== null).length).toBeGreaterThan(10)
   })
 

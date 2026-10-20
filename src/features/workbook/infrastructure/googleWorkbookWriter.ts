@@ -10,7 +10,8 @@ import type { CellValue } from './workbookSnapshot'
  * Writes to the picked Google Sheet through the values API, always RAW. A cell edit names one cell
  * by its header's column and its row, so nothing else on the row is touched. Every request is
  * worked out before the first one is sent, so a refusal never leaves half a write behind. The rows
- * appended to one tab go in one request, so several new rows land together or not at all.
+ * appended to one tab go in one request, so several new rows land together or not at all. A new tab
+ * is added and given its header before anything else is written.
  */
 export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
   return {
@@ -23,25 +24,42 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
     },
 
     async write(edits, before) {
-      const data: ValueRange[] = edits.cells.map((edit) => ({
-        range: `${sheetNameInRange(edit.tab)}!${columnLetter(columnOf(before, edit.tab, edit.column))}${edit.sheetRow}`,
-        values: [[edit.value]],
-      }))
+      const newTabs = edits.newTabs ?? []
+      for (const { tab } of newTabs) {
+        if (before[tab] !== undefined) {
+          throw new Error(`The ${tab} tab is already in the Sheet, so it is not added again.`)
+        }
+      }
+      // A tab added here reads as its template header, so the edits below place their cells the same way.
+      const read: FreshTabs = { ...before, ...Object.fromEntries(newTabs.map(({ tab, header }) => [tab, { header, rows: [], lastRow: 1 }])) }
+      const headerCells: ValueRange[] = newTabs.flatMap(({ tab, header }) =>
+        header.map((name) => ({ range: `${sheetNameInRange(tab)}!${columnLetter(columnOf(read, tab, name))}1`, values: [[name]] })),
+      )
+      const data: ValueRange[] = [
+        ...headerCells,
+        ...edits.cells.map((edit) => ({
+          range: `${sheetNameInRange(edit.tab)}!${columnLetter(columnOf(read, edit.tab, edit.column))}${edit.sheetRow}`,
+          values: [[edit.value]],
+        })),
+      ]
       const appendedTabs = [...new Set(edits.appends.map((append) => append.tab))]
       const appends = appendedTabs.map((tab) => {
-        const header = headerOf(before, tab)
+        const header = headerOf(read, tab)
         if (header[0] === undefined || header[0].trim() === '') {
           throw new WorkbookWriteRefused(`Column A of the ${tab} tab has no header, so a new row would not line up. Nothing was written.`)
         }
         const rows = edits.appends.filter((append) => append.tab === tab)
         for (const column of rows.flatMap((append) => Object.keys(append.cells))) {
-          columnOf(before, tab, column)
+          columnOf(read, tab, column)
         }
         return {
           range: `${sheetNameInRange(tab)}!A:${columnLetter(header.length)}`,
           values: rows.map((append) => header.map((name): CellValue => append.cells[name.trim()] ?? '')),
         }
       })
+      for (const { tab } of newTabs) {
+        await sheets.addSheet(tab)
+      }
       if (data.length > 0) {
         await sheets.batchUpdate({ valueInputOption: 'RAW', data })
       }

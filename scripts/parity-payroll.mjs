@@ -25,8 +25,8 @@ import * as XLSX from 'xlsx'
 import { payrollMonth } from '../src/packs/hr-doo/domain/payroll/payrollMonth.ts'
 import { localRates } from '../src/packs/hr-doo/domain/payroll/incomeTax.ts'
 import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset.ts'
-import { civilDate } from '../src/shared/calendar/civilDate.ts'
-import { lastDayOf, monthKey, parseMonthKey } from '../src/shared/calendar/monthKey.ts'
+import { civilDate, weekdaysBetween } from '../src/shared/calendar/civilDate.ts'
+import { firstDayOf, lastDayOf, monthKey, parseMonthKey } from '../src/shared/calendar/monthKey.ts'
 import { ZERO, addMoney, moneyFromAmount, sumMoney } from '../src/shared/money/money.ts'
 
 const { values: options } = parseArgs({
@@ -60,15 +60,6 @@ const NONTAXABLE_PAYMENTS = new Map([
 ])
 const OUTSIDE_PAYROLL = new Set(['Zakup poslovnog prostora', 'Refundacija troškova'])
 const STATE_LINE = '- Država'
-
-/** Monday to Friday, public holidays included, which is how the monthly fund of hours counts working days. */
-function weekdaysIn(month) {
-  const lastDay = Number(lastDayOf(month).slice(8, 10))
-  const [year, monthNumber] = month.split('-').map(Number)
-  return Array.from({ length: lastDay }, (_, index) => new Date(Date.UTC(year, monthNumber - 1, index + 1)).getUTCDay()).filter(
-    (weekday) => weekday !== 0 && weekday !== 6,
-  ).length
-}
 
 function readSalaryWorkbook(path) {
   const book = XLSX.read(readFileSync(path), { type: 'buffer' })
@@ -159,7 +150,7 @@ for (const requested of options.months.split(',').map((text) => text.trim())) {
   const unknownRows = besideSalary.filter((row) => !NONTAXABLE_PAYMENTS.has(row.label) && !OUTSIDE_PAYROLL.has(row.label))
   report(month, 'every payment beside the salary is a known kind', verdictOf(unknownRows.length === 0))
 
-  const workingDaysInMonth = weekdaysIn(workbook.workedMonth)
+  const workingDaysInMonth = weekdaysBetween(firstDayOf(workbook.workedMonth), lastDayOf(workbook.workedMonth))
   const facts = {
     residenceCity: taxNote[1],
     pensionPillarTwo: (sheetAmount('Mirovinsko (II. stup)') ?? ZERO) !== ZERO,

@@ -230,3 +230,121 @@ export async function invoiceFlow(page, { press, shoot, inspect }) {
   await waitForInvoice(page, number, true)
   await dismissToasts(page)
 }
+
+async function dialogGone(page, selector) {
+  await page.waitForFunction((wanted) => !document.querySelector(wanted), { timeout: 10_000 }, selector).catch(() => {
+    throw new Error(`${selector} is still open`)
+  })
+  await delay(300)
+}
+
+/** The component button of a scenario whose text starts with `text`, or null. */
+function componentIn(page, scenario, text) {
+  return page.evaluateHandle(
+    (slug, wanted) => [...document.querySelectorAll(`[data-scenario="${slug}"] [data-testid="scenario-component"]`)].find((button) => button.textContent?.trim().startsWith(wanted)) ?? null,
+    scenario,
+    text,
+  )
+}
+
+async function waitForComponent(page, scenario, text, shown) {
+  await page
+    .waitForFunction(
+      (slug, wanted, present) => [...document.querySelectorAll(`[data-scenario="${slug}"] [data-testid="scenario-component"]`)].some((button) => button.textContent?.trim().startsWith(wanted)) === present,
+      { timeout: 10_000 },
+      scenario,
+      text,
+      shown,
+    )
+    .catch(() => {
+      throw new Error(`"${text}" is ${shown ? 'not' : 'still'} in ${scenario}`)
+    })
+}
+
+async function openComponent(page, press, scenario, text) {
+  const button = (await componentIn(page, scenario, text)).asElement()
+  if (button === null) throw new Error(`no "${text}" in ${scenario}`)
+  await button.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(button)
+  await page.waitForSelector('[data-testid="scenario-component-form"]')
+  await delay(400)
+}
+
+/** Pay scenarios: add rent to the floor salary scenario, raise it, delete it, Undo the delete, then copy the scenario and Undo the copy. */
+export async function scenarioFlow(page, { press, shoot, inspect }) {
+  const scenario = 'floor-salary'
+  await pressSelector(page, press, `[data-scenario="${scenario}"] [data-testid="scenario-add-component"]`)
+  await page.waitForSelector('[data-testid="scenario-component-form"]')
+  await delay(400)
+  await choose(page, press, await page.$('[data-testid="component-kind"]'), 'Rent')
+  await setField(await page.waitForSelector('[data-testid="component-amount"]'), '300')
+  await setField(await page.$('[data-testid="component-from"]'), '2027-07-01')
+  await inspect?.('add a component')
+  await shoot('scenario-add')
+  await pressSelector(page, press, '[data-testid="component-save"]')
+  await toast(page, 'Component added')
+  await dialogGone(page, '[data-testid="scenario-component-form"]')
+  await waitForComponent(page, scenario, 'Rent of', true)
+  await shoot('scenario-added')
+  await dismissToasts(page)
+
+  await openComponent(page, press, scenario, 'Rent of')
+  await setField(await page.$('[data-testid="component-amount"]'), '320')
+  await inspect?.('edit a component')
+  await shoot('scenario-edit')
+  await pressSelector(page, press, '[data-testid="component-save"]')
+  await toast(page, 'Component saved')
+  await dialogGone(page, '[data-testid="scenario-component-form"]')
+  await waitForComponent(page, scenario, 'Rent of €320.00', true)
+  await dismissToasts(page)
+
+  await openComponent(page, press, scenario, 'Rent of')
+  await pressSelector(page, press, '[data-testid="component-delete"]')
+  await toast(page, 'Component deleted')
+  await dialogGone(page, '[data-testid="scenario-component-form"]')
+  await waitForComponent(page, scenario, 'Rent of', false)
+  await undo(page, press)
+  await waitForComponent(page, scenario, 'Rent of €320.00', true)
+  await dismissToasts(page)
+
+  await pressSelector(page, press, `[data-scenario="${scenario}"] [data-testid="scenario-copy"]`)
+  await page.waitForSelector('[data-testid="scenario-name-form"]')
+  await delay(400)
+  await inspect?.('copy a scenario')
+  await pressSelector(page, press, '[data-testid="scenario-name-save"]')
+  await toast(page, 'Scenario copied')
+  await page.waitForSelector('[data-scenario="floor-salary-copy"]')
+  await undo(page, press)
+  await page.waitForFunction(() => !document.querySelector('[data-scenario="floor-salary-copy"]'), { timeout: 10_000 })
+  await dismissToasts(page)
+
+  await openComponent(page, press, scenario, 'Rent of')
+  await pressSelector(page, press, '[data-testid="component-delete"]')
+  await toast(page, 'Component deleted')
+  await dialogGone(page, '[data-testid="scenario-component-form"]')
+  await dismissToasts(page)
+}
+
+/** Pay scenarios with no scenarios yet: add the starting four, which adds the tab to a Sheet without one, and Undo them. */
+export async function startingScenariosFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-testid="scenario-editor"]')
+  if (await page.$('[data-scenario]')) throw new Error('a scenario is on the screen before the flow adds the starting ones')
+  await pressSelector(page, press, '[data-testid="add-starting-scenarios"]')
+  await page.waitForSelector('[data-testid="starting-scenarios-form"]')
+  await delay(400)
+  await setField(await page.$('[data-testid="starting-rent"]'), '300')
+  await inspect?.('add the starting scenarios')
+  await shoot('starting-scenarios')
+  const missing = await page.evaluate(() => document.querySelector('[data-testid="add-tab-notice"]') !== null)
+  await pressSelector(page, press, '[data-testid="starting-scenarios-save"]')
+  await toast(page, missing ? 'Scenarios tab added' : 'Starting scenarios added')
+  await dialogGone(page, '[data-testid="starting-scenarios-form"]')
+  await page.waitForSelector('[data-scenario="floor-salary-2027"]')
+  await shoot('starting-added')
+  await undo(page, press)
+  await page.waitForFunction(() => !document.querySelector('[data-scenario]'), { timeout: 10_000 }).catch(() => {
+    throw new Error('Undo left starting scenarios on the screen')
+  })
+  await dismissToasts(page)
+}

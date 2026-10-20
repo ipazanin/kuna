@@ -21,8 +21,11 @@ export interface RowWrites {
   readonly busy: Readonly<Ref<boolean>>
   /** Where the writes go, such as "the invoices tab of the Sheet". */
   where(): string
-  /** Writes the change and says so in a toast with Undo, or says why nothing was written. Resolves to whether it went through. */
-  write(change: TabRowsChange, done: RowWriteToast, failedTitle: string): Promise<boolean>
+  /**
+   * Writes the change and says so in a toast with Undo, or says why nothing was written. Resolves
+   * to whether it went through. `addMissingTab` adds the tab to a Sheet that lacks it, once asked.
+   */
+  write(change: TabRowsChange, done: RowWriteToast, failedTitle: string, addMissingTab?: boolean): Promise<boolean>
 }
 
 /** Writes to one tab's rows with their toasts: what was written with Undo beside it, or why nothing was. */
@@ -51,10 +54,10 @@ export function useRowWrites(rules: TabRowRules): RowWrites {
     }
   }
 
-  async function write(change: TabRowsChange, done: RowWriteToast, failedTitle: string): Promise<boolean> {
+  async function write(change: TabRowsChange, done: RowWriteToast, failedTitle: string, addMissingTab = false): Promise<boolean> {
     busy.value = true
     try {
-      const receipt = await store.changeRows(rules, change)
+      const receipt = await store.changeRows(rules, change, addMissingTab)
       const recorded = store.state.writes[0]
       if (receipt === null || recorded?.kind !== 'rows' || recorded.receipt !== receipt) {
         toast.add({ title: 'Nothing changed', description: `The ${rules.tab} tab already holds this.`, icon: 'i-lucide-info', color: 'neutral' })

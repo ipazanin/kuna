@@ -14,6 +14,8 @@
  *
  * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
  * category, an asset and an invoice, and screenshots the editors and the invoice dialog on the way.
+ * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
+ * adds the starting scenarios to a workbook without any, which adds the tab to a Sheet without it.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -30,7 +32,7 @@ import * as XLSX from 'xlsx'
 
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
-import { assetFlow, categoryFlow, invoiceFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, invoiceFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
@@ -77,6 +79,7 @@ const SCREENS = [
   { name: 'assets-doubled', hash: '#/assets?rates=doubled', title: 'Assets', charts: 1, shows: 'What doubled rates would change' },
   { name: 'year-end', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'From the cash net to profit, 2025' },
   { name: 'forecast', hash: '#/forecast', title: 'Forecast', charts: 0, shows: 'The forecast needs the day the company was registered' },
+  { name: 'pay-scenarios', hash: '#/pay-scenarios', title: 'Pay scenarios', charts: 0, shows: 'The figures need hr_company_registered' },
   { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: 'Costs the owner paid privately' },
   { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
   {
@@ -112,6 +115,9 @@ const SOURCE_SCREENS = [
   { name: 'year-end-excel', query: 'fake=excel', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'Balance paid on' },
   { name: 'forecast-excel', query: 'fake=excel', hash: '#/forecast?year=2026', title: 'Forecast', charts: 1, shows: 'Corporate tax payments, expected against paid' },
   { name: 'forecast-2027-excel', query: 'fake=excel', hash: '#/forecast?year=2027&payout=interim', title: 'Forecast', charts: 1, shows: 'An interim payout in 2027' },
+  { name: 'pay-scenarios-excel', query: 'fake=excel', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', charts: 1, shows: 'Side by side' },
+  { name: 'pay-scenarios-2026-excel', query: 'fake=excel', hash: '#/pay-scenarios?year=2026', title: 'Pay scenarios', charts: 0, shows: 'No scenario for 2026 to compare yet' },
+  { name: 'pay-scenarios-no-tab', query: 'fake=no-scenarios', hash: '#/pay-scenarios', title: 'Pay scenarios', charts: 0, shows: 'No scenario is for 2027 yet' },
   { name: 'taxes-excel', query: 'fake=excel', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'For 2026' },
   { name: 'billing-excel', query: 'fake=excel', hash: '#/billing', title: 'Billing plan', charts: 2, shows: 'Terms on Workbook, General' },
   { name: 'billing-no-tab', query: 'fake=no-billing-plan', hash: '#/billing', title: 'Billing plan', charts: 0, shows: 'The Sheet has no outgoing-plan tab yet' },
@@ -342,16 +348,25 @@ const FLOWS = [
   { name: 'categories', hash: '#/workbook?tab=categories', title: 'Workbook', run: categoryFlow },
   { name: 'assets', hash: '#/workbook?tab=assets', title: 'Workbook', run: assetFlow },
   { name: 'invoices', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceFlow },
+  { name: 'scenarios', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  {
+    name: 'starting-scenarios',
+    hash: '#/pay-scenarios?year=2027',
+    title: 'Pay scenarios',
+    run: startingScenariosFlow,
+    viewports: ['phone', 'phone-large', 'desktop'],
+    queries: { google: '&fake=no-scenarios', excel: '&fake=excel-no-scenarios' },
+  },
 ]
 const MODES = [
   { name: 'google', query: '' },
   { name: 'excel', query: '&fake=excel' },
 ]
 
-for (const viewport of VIEWPORTS.filter((candidate) => candidate.name === 'phone' || candidate.name === 'desktop')) {
+for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 'desktop'].includes(candidate.name))) {
   for (const mode of MODES) {
     for (const theme of THEMES) {
-      for (const flow of FLOWS) {
+      for (const flow of FLOWS.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name))) {
         const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
         const context = await browser.createBrowserContext()
         const page = await context.newPage()
@@ -365,7 +380,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => candidate.name === 'phone
           if (report.scrollWidth > report.clientWidth + 1) fail(scope, `${when}: horizontal overflow, scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
         }
         try {
-          await page.goto(`${BASE}?theme=${theme}${mode.query}${flow.hash}`, { waitUntil: 'networkidle0' })
+          await page.goto(`${BASE}?theme=${theme}${flow.queries?.[mode.name] ?? mode.query}${flow.hash}`, { waitUntil: 'networkidle0' })
           await page.waitForFunction((title) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === title, { timeout: 10_000 }, flow.title)
           await flow.run(page, {
             press: (handle) => handle.click(),

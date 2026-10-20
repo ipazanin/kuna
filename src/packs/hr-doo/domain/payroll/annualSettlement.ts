@@ -14,6 +14,8 @@ export interface AnnualSettlementInput {
   readonly taxYear: number
   /** Salary months of any year. Only those paid in the tax year count, because salary is taxed when it is paid. */
   readonly months: readonly PayrollMonth[]
+  /** Months whose allowance another employer's payroll uses, so this settlement leaves them out. */
+  readonly allowanceMonthsElsewhere?: number
   readonly basis: FigureBasis
 }
 
@@ -51,9 +53,14 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
   ], incomeSteps)
 
   const monthlyAllowance = personalAllowance(facts.dependants, yearEnd, basis, rules)
-  const allowanceMonths = settlementRule.value.unusedAllowanceUsed.holds ? settlementRule.value.allowanceMonths.count : paidInYear.length
+  const elsewhere = input.allowanceMonthsElsewhere ?? 0
+  const yearMonths = settlementRule.value.allowanceMonths.count
+  if (!Number.isInteger(elsewhere) || elsewhere < 0 || elsewhere > yearMonths) {
+    throw new RangeError(`${elsewhere} is not a number of months another employer can use the allowance in.`)
+  }
+  const allowanceMonths = settlementRule.value.unusedAllowanceUsed.holds ? yearMonths - elsewhere : paidInYear.length
   const allowance = tracedFigure(
-    `Personal allowance for ${allowanceMonths} months`,
+    elsewhere === 0 ? `Personal allowance for ${allowanceMonths} months` : `Personal allowance for ${allowanceMonths} months, the other ${elsewhere} used by another employer`,
     moneyFromCents(monthlyAllowance.amount * allowanceMonths),
     basis,
     [...monthlyAllowance.rules, settlementCitation],

@@ -35,7 +35,7 @@ import type { MatchedCitObligation } from '../cit/matchCitPayments'
 import { closedYearReturn } from '../cit/priorReturn'
 import type { PriorReturn } from '../cit/priorReturn'
 import { lossesCarriedInto, taxBase } from '../cit/taxBase'
-import type { TaxBase } from '../cit/taxBase'
+import type { TaxBase, TaxBaseInput } from '../cit/taxBase'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import type { PackRole } from '../packRoles'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
@@ -92,6 +92,8 @@ export interface YearForecast {
   /** Sales, other operating income and the cost lines, by the year-end tab's line ids. */
   readonly lines: readonly ForecastPlLine[]
   readonly profitBeforeTax: ForecastLine
+  /** What the PD build-up starts from, so a pay scenario can run it again with other owner pay. */
+  readonly taxBaseInput: TaxBaseInput
   readonly taxBase: TaxBase
   /** PD lines 43 to 59, with line 56 the advances paid and still to come. */
   readonly liability: CitLiability
@@ -255,20 +257,18 @@ function forecastOne(context: ForecastContext): YearForecast {
     return tracedFigure(label, negateMoney(sumMoney(figures.map((figure) => figure.amount))), 'ledger', rulesOf(figures), figures)
   }
   const lossesBroughtForward = lossesCarriedInto(year, known.yearEndLines, rules)
-  const base = taxBase(
-    {
-      year,
-      revenue: tracedFigure('PD line 1, revenue', revenueTotal.amount, 'ledger', revenueTotal.rules, [revenueTotal]),
-      expenses: tracedFigure('PD line 2, expenses', expenses.amount, 'ledger', expenses.rules, [expenses]),
-      representation: costOfRole(PACK_ROLES.representation, 'Representation, with its VAT'),
-      personalTransport: costOfRole(PACK_ROLES.personalTransport, 'Personal transport'),
-      nonDeductible: costOfRole(PACK_ROLES.nonDeductible, 'Costs the tax never allows'),
-      depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
-      relatedPartyInterestShortfall: relatedPartyInterest(known, year, subtractMoney(revenueTotal.amount, expenses.amount), lossesBroughtForward, rules),
-      lossesBroughtForward,
-    },
-    rules,
-  )
+  const taxBaseInput: TaxBaseInput = {
+    year,
+    revenue: tracedFigure('PD line 1, revenue', revenueTotal.amount, 'ledger', revenueTotal.rules, [revenueTotal]),
+    expenses: tracedFigure('PD line 2, expenses', expenses.amount, 'ledger', expenses.rules, [expenses]),
+    representation: costOfRole(PACK_ROLES.representation, 'Representation, with its VAT'),
+    personalTransport: costOfRole(PACK_ROLES.personalTransport, 'Personal transport'),
+    nonDeductible: costOfRole(PACK_ROLES.nonDeductible, 'Costs the tax never allows'),
+    depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
+    relatedPartyInterestShortfall: relatedPartyInterest(known, year, subtractMoney(revenueTotal.amount, expenses.amount), lossesBroughtForward, rules),
+    lossesBroughtForward,
+  }
+  const base = taxBase(taxBaseInput, rules)
 
   const cit = citOf(context, period, base)
   const profitAfterTax = tracedFigure('Profit after tax', subtractMoney(base.profitBeforeTax.amount, cit.liability.liability.amount), 'ledger', rulesOf([base.profitBeforeTax, cit.liability.liability]), [
@@ -317,6 +317,7 @@ function forecastOne(context: ForecastContext): YearForecast {
     grantRelease: scheduled.grantRelease,
     lines,
     profitBeforeTax: profitBeforeTaxLine,
+    taxBaseInput,
     taxBase: base,
     liability: cit.liability,
     profitAfterTax,

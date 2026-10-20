@@ -186,12 +186,12 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'year', note: 'The year the scenario is for. Every row of a scenario has the same year. Required.' },
     {
       name: 'component',
-      note: 'salary_gross, salary_months, nontaxable:<item> such as nontaxable:gifts, rent_monthly, dividend or director_basis. Required.',
+      note: 'salary_gross, nontaxable:<item> such as nontaxable:occasional-gift, rent_monthly, dividend or director_basis. Required.',
     },
     {
       name: 'amount',
       note:
-        `A number above zero. salary_gross also takes floor, dividend also takes max, salary_months takes 0 to 12, and director_basis takes ${DIRECTOR_BASES.join(', ')}. Required.`,
+        `A number above zero: a month's gross salary or rent, or a year's tax-free item or dividend. salary_gross also takes floor, dividend also takes max, and director_basis takes ${DIRECTOR_BASES.join(', ')}. Required.`,
     },
     { name: 'from', note: 'The first day it holds, as a date cell in the scenario year. Blank means the start of the year.' },
     { name: 'to', note: 'The last day it holds, as a date cell in the scenario year. Blank means the end of the year.' },

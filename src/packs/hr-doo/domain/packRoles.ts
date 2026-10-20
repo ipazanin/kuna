@@ -37,3 +37,8 @@ export function categoriesWithRole(categories: readonly Category[], role: PackRo
 export function categoriesInBucket(categories: readonly Category[], bucket: DefinedBucket): string[] {
   return categories.filter((category) => category.bucket === bucket).map((category) => category.slug)
 }
+
+/** A cost of paying the owner: the owner-pay bucket, and the taxes owed because the owner was paid. */
+export function isOwnerPayCost(category: Category): boolean {
+  return category.bucket === 'owner-pay' || (category.bucket === 'taxes' && category.roles.includes(PACK_ROLES.ownerPayTax))
+}

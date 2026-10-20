@@ -1,7 +1,7 @@
 import type { GoogleSheet } from '../../application/readFromGoogle'
 import { columnLetter } from '../../../../shared/text/columnLetter'
 import type { AppendRequest, BatchUpdateRequest, SheetsValues, ValueRange } from '../sheetsClient'
-import type { CellValue } from '../workbookSnapshot'
+import type { CellValue, WorkbookTab } from '../workbookSnapshot'
 import { FAKE_SPREADSHEET_ID, FAKE_WORKBOOK_TITLE, fakeWorkbookValues } from './fakeWorkbook'
 
 export type RecordedSheetsRequest =
@@ -9,6 +9,7 @@ export type RecordedSheetsRequest =
   | { readonly kind: 'batchGet'; readonly ranges: readonly string[] }
   | { readonly kind: 'batchUpdate'; readonly request: BatchUpdateRequest }
   | { readonly kind: 'append'; readonly range: string; readonly request: AppendRequest }
+  | { readonly kind: 'addSheet'; readonly title: string }
 
 /** A Google Sheet held in memory that answers the values API as Google does and records every request. */
 export interface FakeSheets extends SheetsValues {
@@ -66,6 +67,14 @@ export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonl
       }
     },
 
+    async addSheet(title) {
+      requests.push({ kind: 'addSheet', title })
+      if (grids[title] !== undefined) {
+        throw new Error(`400 from the fake Sheet: A sheet with the name "${title}" already exists.`)
+      }
+      grids[title] = []
+    },
+
     async append(range, request) {
       requests.push({ kind: 'append', range, request })
       const match = WHOLE_COLUMNS.exec(range)
@@ -102,9 +111,15 @@ function columnIndexOf(letters: string): number {
 export const fakeGoogleSheet: GoogleSheet = { id: FAKE_SPREADSHEET_ID, name: FAKE_WORKBOOK_TITLE }
 
 let session: FakeSheets | null = null
+let leftOut: readonly WorkbookTab[] = []
+
+/** The tabs the fake build's Google Sheet lacks for this page, as its `?fake=` variant says. Set before the first sync or write. */
+export function leaveOutOfFakeSheet(tabs: readonly WorkbookTab[]): void {
+  leftOut = tabs
+}
 
 /** The fake build's Google Sheet, the same one for every sync and write until the page reloads. */
 export function fakeSheetsSession(): FakeSheets {
-  session ??= createFakeSheets(fakeWorkbookValues('google'))
+  session ??= createFakeSheets(Object.fromEntries(Object.entries(fakeWorkbookValues('google')).filter(([tab]) => !leftOut.includes(tab as WorkbookTab))))
   return session
 }

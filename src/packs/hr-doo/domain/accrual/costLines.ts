@@ -2,7 +2,7 @@ import type { Category } from '../../../../features/workbook/domain/workbook'
 import type { YearEndLine } from '../../../../features/workbook/domain/yearEnd'
 import { ZERO, addMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { PACK_ROLES } from '../packRoles'
+import { isOwnerPayCost } from '../packRoles'
 
 export const COST_LINES = [
   'material-costs',
@@ -57,7 +57,7 @@ export function costLineOf(category: Category, year: number, yearEnd: readonly Y
 }
 
 function bucketDefault(category: Category): CostLine {
-  if (category.bucket === 'owner-pay' || (category.bucket === 'taxes' && category.roles.includes(PACK_ROLES.ownerPayTax))) {
+  if (isOwnerPayCost(category)) {
     return 'personnel-costs'
   }
   return category.bucket === 'taxes' ? 'other-costs' : 'material-costs'

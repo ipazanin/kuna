@@ -10,8 +10,9 @@ Google Picker or that the app creates, and for `openid email`, which tells it wh
 in. The app reads the Sheet and keeps a copy in IndexedDB. It writes only what the user saves, and
 only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, and
 rows of the tabs a person keeps by hand: `rules`, `settings`, `owner-advances`, `outgoing-plan`,
-`categories`, `accounts`, `clients`, `invoices`, `assets`, `grants` and `year-end`. It never writes a
-header, a formula a change leaves alone, or data validation.
+`categories`, `accounts`, `clients`, `invoices`, `assets`, `grants`, `year-end` and `scenarios`. It
+never writes a formula a change leaves alone or data validation, and writes a header only when the
+user agrees to add the `scenarios` tab to a Sheet without one.
 See *Write-back* below.
 
 On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
@@ -63,7 +64,7 @@ From 1920 px (the `3xl` breakpoint) a dashboard screen sets related cards side b
 list beside a column of the cards that sum it up: Overview, Period review, Receivables, Billing
 plan, Taxes and Owner. The content grows to 160rem beside the sidebar. A screen that is one table,
 one list, one form or a long report keeps a 100rem measure instead, so its rows stay readable:
-Transactions, Year end, Forecast, Ruleset, Review, Workbook and Settings. The other screens simply
+Transactions, Year end, Forecast, Pay scenarios, Ruleset, Review, Workbook and Settings. The other screens simply
 widen. `.wide-pair` in `src/shared/styles/app.css` does the pairing, and the widths are the
 `--container-shell`, `--container-measure` and `--breakpoint-3xl` tokens in `tokens.css`. Below
 1920 px nothing changes.
@@ -90,7 +91,7 @@ take their defaults.
 | `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once. |
 | `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the Workbook editor, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
 | `plan` | `year`, `month` (1 to 12, blank for every month), `item` (a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount` and `note`. `amount` is positive for income and costs alike, a cost without the VAT that is reclaimed. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount`. Each year, month and item once. Planned revenue belongs on `outgoing-plan`, so a `revenue` row is reported and left out. |
-| `scenarios` | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (an amount or `floor`), `salary_months` (0 to 12), `nontaxable:<item>` such as `nontaxable:gifts`, `rent_monthly`, `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. |
+| `scenarios` | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (a month's gross or `floor`), `nontaxable:<item>` such as `nontaxable:occasional-gift` (a year's amount of a tax-free item), `rent_monthly` (a month's rent), `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. A tax-free item is paid with the salary of the month its `from` falls in, January when blank, and a dividend once the year's statements are adopted, so their `to` is not read. The label is read from the scenario's first row that has one. |
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
 and a capital first letter, so `ai-services` reads "AI services". Links and filters keep the name.
@@ -383,6 +384,98 @@ lists the same payments for every year from the first tax period, with overdue p
 no obligation takes called out above them. The figures are for planning with the accountant, never
 filing advice.
 
+## Pay scenarios
+
+`payScenarios(workbook, year, asOf, rules)` in `src/packs/hr-doo/domain/scenarios/` works out every
+scenario of a year from the `scenarios` tab on the same company figures, with
+`scenarioOutcome(scenario, company, facts, rules)` for each one.
+
+The company figures come from the forecast seen on `asOf`. The forecast reaches the year of the
+newest booking, so a scenario for a later year takes that year's figures, says so, and applies the
+rules of its own year. The owner pay the forecast counts, the `owner-pay` bucket and the taxes with
+the `owner-pay-tax` role, is taken back out of profit, cash and the PD build-up, so each scenario
+sets its own. Cash starts from cash at the year end with December settled, before the owner pay
+and the year's corporate tax. The owner's own facts are the `hr_` settings keys: city, birth year,
+pillar II and dependants.
+
+A scenario is laid out over its year. A day a `salary_gross` row covers is a day as an employee of
+the company. A day without one is a day insured elsewhere when a `director_basis` row says
+`insured-elsewhere`, and otherwise a day as a board member on own contributions, since the law
+insures a director that way when nothing else does. Then:
+
+- Each month with salary runs through `payrollMonth`, paid on the last day of the month worked. A
+  part month is prorated by working days. A salary below the director floor is paid at the floor.
+- Tax-free items are checked against their yearly caps with `nontaxableUsage`. The part over a cap is
+  taxed as salary in the month it is paid.
+- As a board member only, the owner pays pension and health on the board member base himself. It is
+  not a company cost. A part month is prorated by calendar days, which is an assumption. Insured
+  elsewhere, the yearly difference to the director floor is taken as nothing.
+- `annualSettlement` recomputes the year's income tax with the youth relief. Months whose
+  allowance another employer uses are left out of it.
+- Rent is taxed at 12% of 70% of it, which the owner pays.
+- The corporate tax runs through `taxBase` and `citLiability` twice, with the salary, tax-free
+  items and rent deducted and without them.
+- A `dividend` of `max` pays out the year's profit after tax as far as the distributable amount and
+  the share capital allow, and leaves earlier years' retained earnings alone. Its tax is withheld,
+  and the net settles what the owner owes the company first.
+
+The outcome sets out net to the owner, total cost to the company, taxes and contributions by type,
+pillar II as the owner's savings and pillar I as pension rights, what the company keeps, net to the
+owner of each 100.00 of profit before owner pay, and cash after the year. Net to the owner, pillar
+II, the state and what is kept always add up to the profit before owner pay. Every figure is a
+traced figure with its steps and rules. `marginalEuro` recomputes the owner-pay lane's table of the
+next 100.00 of company money for the year: a tax-free item, rent, a dividend, and salary at the
+lower rate, with the youth relief when the birth year has one, and at the higher rate.
+
+Warnings: a salary below the director floor, a tax-free item over its cap, no salary on a day before
+a grant's `employment_required_until` with what its clawback terms put at risk then, a dividend
+above what the year can pay out, net assets below the share capital after the payout, and cash that
+does not cover the year. Notes say what the figures rest on: a real basis for each tax-free item,
+real business space for rent, and the board member and insured elsewhere assumptions.
+
+`scenarioGuards` stops a scenario that cannot be worked out, and the screen lists why instead of
+its figures. Each guard names the rows:
+
+| Guard | Refused when |
+|---|---|
+| One a day | two `salary_gross`, `director_basis` or `rent_monthly` rows hold on the same day |
+| Salary by month | two salary rows pay a salary in the same month, since a salary changes only from the first of a month |
+| One dividend | more than one `dividend` row |
+| Basis and salary | `board-only` or `insured-elsewhere` on a day with a salary, or `employee` on a day without one |
+| Yearly cap | a tax-free item the ruleset does not list for the year, or one without a yearly cap, such as one capped by the day, the month or the kilometre, or tax free at actual cost |
+| Employee only | a tax-free item paid in a month with no salary |
+
+`startingScenarios(year, grants, rent, rules)` gives the four to start from: the floor salary all
+year, the same with a results bonus, an occasional gift and a flat meal allowance at their caps
+from the ruleset and the owner's rent, and the floor salary until the day after the grants'
+employment date, then board-only insurance or a job elsewhere. Each pays out the rest as a
+dividend, and the first is the base the others are compared with. When no day of the year is free
+of the employment condition, the last two are left out.
+
+## Pay scenarios screen
+
+A pack screen at `/pay-scenarios?year=2027`, beside Forecast and Owner, shown while
+`owner_pay_module` is on, for the year of the newest booking, the year after, which it opens on,
+and any year a scenario is for. It needs `hr_company_registered` and `hr_residence_city` for the
+figures, and lets the scenarios be edited without them. A banner says the figures are for planning
+with the accountant, a line says when the company figures come from an earlier year, and the
+estimate badge lists the rules the ruleset only estimates for the year.
+
+Two to four scenarios are compared side by side, picked with `compare=` in the address, with
+`base=` the one the others are compared against, by default the starting floor salary scenario.
+One 100% bar per scenario splits the profit before owner pay into net to the owner, pillar II, each
+tax and contribution, and what the company keeps. Below it, the lines of each scenario sit side by
+side with the difference to the base, and the best value of a line with a better direction is
+ticked. Every figure, the company figures and the next-100.00 routes open their build-up and
+rules. Warnings and notes follow per scenario. Below the lg breakpoint the table turns into one card
+per line.
+
+The editor lists the year's scenarios as their rows. A component is added, edited or deleted in a
+dialog, a scenario is renamed or copied with all its rows, and "Add the starting scenarios" writes
+the four for the year, asking for the owner's rent. Every change is one write with Undo in the
+toast, in both modes. A Google Sheet without a `scenarios` tab gets it only from that dialog, which
+says it adds the tab with the template's header before it writes the rows.
+
 ## Year end
 
 A pack screen at `/year-end?year=2025`, shown while `owner_pay_module` is on, for the years the
@@ -522,7 +615,7 @@ npm run check          # typecheck and unit tests
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen, dark and light, at four widths in local Chrome, the wide screens at 1920 and 2560, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, screenshots in visual-check/
+npm run check:visual   # every screen, dark and light, at four widths in local Chrome, the wide screens at 1920 and 2560, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's at 430 too, screenshots in visual-check/
 npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, the row editors in both modes, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
@@ -532,13 +625,15 @@ The fake workbook is an 18-month synthetic company: two accounts, one closed by 
 other, a part-month at each end, one loss month, a reimbursement, two rows waiting for review, a
 rules tab that reproduces every row flagged `rule`, and rows a person confirmed that no rule covers
 yet. Its `assets`, `grants`, `year-end`, `plan` and `scenarios` tabs hold the two computers it
-bought, its start-up grant, made-up 2025 accountant figures that add up, a plan and two owner pay
-scenarios. Its `outgoing-plan` tab splits each of the first client's invoices into a month's fee
+bought, its start-up grant, made-up 2025 accountant figures that add up, a plan and four owner pay
+scenarios for 2027, two of them with warnings to show. Its `outgoing-plan` tab splits each of the first client's invoices into a month's fee
 and its extras, with October planned and not invoiced yet, and has no rows for the second client,
 whose invoices are invoiced with no plan row. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads.
 Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
 changes nine days past their last export, and `?fake=empty` starts with nothing, which is the first
-run. The visual check covers both, and the import summary of an xlsx it writes from the fake
+run. `?fake=no-scenarios` leaves the `scenarios` tab out of the Sheet, so adding the starting
+scenarios adds the tab, and `?fake=excel-no-scenarios` starts a workbook kept in this browser with no
+scenario rows. The visual check covers both, and the import summary of an xlsx it writes from the fake
 workbook. It and the touch check run against a preview of the fake build, so start one first:
 
 ```sh
@@ -552,7 +647,7 @@ needs no preview and makes no call to Google.
 
 ## Write-back
 
-Review, Owner, Billing plan, Receivables and the Workbook screen write through one path in both modes. Each write reads the tabs it
+Review, Owner, Billing plan, Receivables, Pay scenarios and the Workbook screen write through one path in both modes. Each write reads the tabs it
 touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
 what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
 In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
@@ -589,8 +684,8 @@ side in `googleWorkbookWriter.ts`.
   operating or taxes bucket. Undo clears the row again, only while one row still holds exactly what
   was written.
 - **Rows of a tab.** `categories`, `accounts`, `clients`, `invoices`, `assets`, `grants`,
-  `year-end` and `outgoing-plan` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
-  with each tab's rules beside its feature. One write adds rows below the last one, changes rows in
+  `year-end`, `outgoing-plan` and `scenarios` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
+  with each tab's rules beside its feature or pack. One write adds rows below the last one, changes rows in
   place and deletes rows. A row to change or delete is found on its own row if that still holds what
   the app read, else on the one row that does, and the write is refused when none or several do. A
   change writes only the cells that differ, and a delete clears the tab's own columns and leaves any
@@ -607,6 +702,13 @@ side in `googleWorkbookWriter.ts`.
   | `invoices` | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. One period date without the other. The tab needs all eight columns the generator writes, and the app never adds one. |
   | `grants` | A name outside the slug format or already on another row. Renaming or deleting a grant an asset is funded by. |
   | `assets`, `year-end`, `outgoing-plan` | What their readers refuse, such as an asset listed twice, a grant the grants tab lacks, or a konto row naming an unknown category. |
+  | `scenarios` | A name outside the slug format. Renaming a scenario onto the name another scenario holds. Renaming or deleting the last row of a scenario a `plan` row names. Then every scenario the change touches must pass the guards of *Pay scenarios*, each refusal naming the scenario and its rows. |
+
+  The plan never adds a tab on its own. Only when the person agrees, as the starting scenarios
+  dialog asks before it writes, a Google Sheet without the tab gets it, named as the template names
+  it, with the template's header in row 1, and only for a tab the template defines. The tab is added
+  and given its header first, then the rows are appended in the same write. In Excel mode the
+  workbook always holds every tab, so nothing is added.
 
   The loan switch on Workbook, General is a change to the `bucket` cells of the loan categories.
   Undo writes the change back the other way through the same plan: added rows cleared, changed rows
@@ -628,6 +730,7 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 | Add, edit or delete an invoice | the same, reading `invoices` and `clients`, appending to `invoices!A:H` |
 | Save assets, grants or year-end | the same, reading `assets` and `grants`, or `grants` and `assets`, or `'year-end'` and `categories` |
 | Add or fill plan rows, edit or delete one | the same, reading `'outgoing-plan'` and `clients`. A fill appends every new row in one request |
+| Add, edit or delete a scenario component, rename or copy a scenario, add the starting scenarios | the same, reading `scenarios` and `plan` (when the Sheet has it). Adding the starting scenarios to a Sheet without the tab first sends `spreadsheets.batchUpdate` with one `addSheet` request, then a `values.batchUpdate` of the header cells `scenarios!A1` to `scenarios!G1`, before the append |
 | Undo any of these | the same requests, with the change turned around |
 
 ### Manual test, against a copy of the Sheet first

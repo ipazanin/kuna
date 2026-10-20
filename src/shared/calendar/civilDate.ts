@@ -51,6 +51,18 @@ export function daysBetween(from: CivilDate, to: CivilDate): number {
   return Math.round((toUtc(to) - toUtc(from)) / MILLISECONDS_PER_DAY)
 }
 
+/** Monday to Friday from `from` to `to`, both included, public holidays counted as working days the way a monthly fund of hours counts them. */
+export function weekdaysBetween(from: CivilDate, to: CivilDate): number {
+  let count = 0
+  for (let day = toUtc(from); day <= toUtc(to); day += MILLISECONDS_PER_DAY) {
+    const weekday = new Date(day).getUTCDay()
+    if (weekday !== 0 && weekday !== 6) {
+      count += 1
+    }
+  }
+  return count
+}
+
 export function yearOf(date: CivilDate): number {
   return Number(date.slice(0, 4))
 }

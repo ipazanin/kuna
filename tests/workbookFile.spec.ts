@@ -186,7 +186,7 @@ describe('exporting', () => {
     expect(workbook.ownerAdvances).toHaveLength(4)
     expect(workbook.assets).toHaveLength(2)
     expect(workbook.yearEndLines.length).toBeGreaterThan(40)
-    expect(workbook.payScenarios).toHaveLength(2)
+    expect(workbook.payScenarios).toHaveLength(4)
     expect(workbook.billingPlan.length).toBeGreaterThan(15)
     expect(imported.tabs['outgoing-plan'].find((row) => row.cells.date !== undefined)?.cells.date).toEqual(expect.any(Number))
     expect(imported.tabs.invoices.every((row) => typeof row.cells.number === 'string')).toBe(true)

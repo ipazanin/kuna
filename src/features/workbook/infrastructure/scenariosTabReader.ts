@@ -1,6 +1,6 @@
 import { DIRECTOR_BASES, SCENARIO_COMPONENTS } from '../domain/ownerPayScenarios'
 import type { OwnerPayScenario, ScenarioComponent } from '../domain/ownerPayScenarios'
-import { inTabOrder, isUnreadable, moneyOf, optionalDate, readRow, refuse, requiredChoice, requiredYear, slugOf, textOf, wholeNumberOf } from './cellReading'
+import { inTabOrder, isUnreadable, moneyOf, optionalDate, readRow, refuse, requiredChoice, requiredYear, slugOf, textOf } from './cellReading'
 import type { RowProblem } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 import type { Money } from '../../../shared/money/money'
@@ -71,7 +71,7 @@ function readScenarioRow(row: SheetRow): ScenarioRow {
 type Span = Pick<ScenarioComponent, 'from' | 'to' | 'sheetRow'>
 
 function nontaxableComponent(item: string, cells: SheetRow['cells'], span: Span): ScenarioComponent {
-  if (!ITEM_SHAPE.test(item)) refuse(`"${item}" is not a tax-free item name, such as nontaxable:gifts`)
+  if (!ITEM_SHAPE.test(item)) refuse(`"${item}" is not a tax-free item name, such as nontaxable:occasional-gift`)
   return { ...span, component: 'nontaxable', item, amount: positiveAmount(cells) }
 }
 
@@ -79,11 +79,6 @@ function namedComponent(component: Exclude<(typeof SCENARIO_COMPONENTS)[number],
   switch (component) {
     case 'salary_gross':
       return { ...span, component, gross: slugOf(cells.amount) === 'floor' ? 'floor' : positiveAmount(cells, 'or floor') }
-    case 'salary_months': {
-      const months = wholeNumberOf(cells.amount)
-      if (months === null || months < 0 || months > 12) refuse(`amount "${textOf(cells.amount)}" is not a number of months from 0 to 12`)
-      return { ...span, component, months }
-    }
     case 'rent_monthly':
       return { ...span, component, amount: positiveAmount(cells) }
     case 'dividend':

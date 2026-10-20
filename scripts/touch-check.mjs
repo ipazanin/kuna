@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
-import { assetFlow, categoryFlow, invoiceFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, invoiceFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -50,6 +50,7 @@ const SCREENS = [
   { hash: '#/assets?p=all', title: 'Assets', ready: '[data-testid="asset-register"]' },
   { hash: '#/year-end?year=2025&p=all', title: 'Year end', ready: '[data-testid="bridge-steps"]' },
   { hash: '#/forecast?p=all', title: 'Forecast', ready: '[data-testid="forecast-unregistered"]' },
+  { hash: '#/pay-scenarios?p=all', title: 'Pay scenarios', ready: '[data-testid="scenario-editor"]' },
   { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { hash: '#/ruleset', title: 'Ruleset', ready: '[data-testid="rule-card"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
@@ -557,17 +558,37 @@ async function checkWidth(width) {
     await delay(300)
   })
 
+  await step('pay-scenarios-figures', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=excel&load=${Date.now()}#/pay-scenarios?year=2027`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Pay scenarios')
+    await page.waitForSelector('[data-testid="scenario-comparison"]')
+    await inspect(page, `${width}px pay scenarios`)
+    await shoot('pay-scenarios')
+    const figure = await page.waitForSelector('[data-line="net"] button')
+    await figure.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await figure.tap()
+    await page.waitForSelector('[data-testid="figure-detail"]')
+    await delay(400)
+    await inspect(page, `${width}px pay scenarios build-up`)
+    await shoot('pay-scenarios-build-up')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="figure-detail"]'))
+  })
+
   for (const [mode, query] of [
     ['google', ''],
     ['excel', '&fake=excel'],
   ]) {
-    for (const [name, hash, title, run] of [
+    for (const [name, hash, title, run, variant] of [
       ['categories', '#/workbook?tab=categories', 'Workbook', categoryFlow],
       ['assets', '#/workbook?tab=assets', 'Workbook', assetFlow],
       ['invoices', '#/receivables?p=all', 'Receivables', invoiceFlow],
+      ['scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', scenarioFlow],
+      ['starting-scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', startingScenariosFlow, mode === 'google' ? '&fake=no-scenarios' : '&fake=excel-no-scenarios'],
     ]) {
       await step(`${name}-${mode}`, async () => {
-        await page.goto(`${BASE}?theme=dark${query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+        await page.goto(`${BASE}?theme=dark${variant ?? query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
         await waitForTitle(page, title)
         await run(page, {
           press: (handle) => handle.tap(),

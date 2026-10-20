@@ -2,6 +2,7 @@ import { cellText } from '../../../shared/text/cellText'
 import type { RowAt, RowCells, RowChange, TabRowsChange, TabRowsReceipt } from '../domain/rowChanges'
 import type { TabReading } from '../infrastructure/cellReading'
 import type { SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
+import { TEMPLATE_COLUMNS } from '../infrastructure/workbookTemplate'
 import { WorkbookWriteRefused } from './workbookWriter'
 import type { CellEdit, FreshTabs, RowTab, TabEdits, TabRead } from './workbookWriter'
 
@@ -87,9 +88,12 @@ export function rowCellsOf(row: SheetRow, columns: readonly string[]): RowCells 
  * leave it must read as cleanly as it does now by the tab's own reader, and pass the tab's checks. A changed row writes
  * only the cells that differ, so a formula left alone stays a formula. A deleted row has its cells
  * in the rule's columns cleared, and anything beside them is left. Added rows go below the last row.
+ * With `addMissingTab`, which the person must have agreed to, a tab the workbook lacks is added with
+ * the template's header first.
  */
-export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: TabRowsChange): RowsPlan {
-  const tab = requireRowTab(fresh, rules)
+export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: TabRowsChange, addMissingTab = false): RowsPlan {
+  const newTab = addMissingTab && fresh[rules.tab] === undefined ? { tab: rules.tab, header: TEMPLATE_COLUMNS[rules.tab].map((column) => column.name) } : null
+  const tab = newTab === null ? requireRowTab(fresh, rules) : { header: newTab.header, rows: [], lastRow: 1 }
   const header = new Set(tab.header.map((name) => name.trim()))
   const refusals: string[] = []
   const takenRows = new Set<number>()
@@ -144,8 +148,9 @@ export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: Tab
       rules.columns.filter((column) => cellText(row.cells[column]) !== '').map((column): CellEdit => ({ tab: rules.tab, sheetRow: row.sheetRow, column, value: '' })),
     ),
   ]
+  const appends = change.added.map((added) => ({ tab: rules.tab, cells: filledCells(added) }))
   return {
-    edits: { cells, appends: change.added.map((added) => ({ tab: rules.tab, cells: filledCells(added) })) },
+    edits: newTab === null ? { cells, appends } : { cells, appends, newTabs: [newTab] },
     added: change.added,
     changed: changed.map(({ row, after }) => ({ sheetRow: row.sheetRow, before: rowCellsOf(row, rules.columns), after })),
     removed: removed.map(({ row }) => ({ sheetRow: row.sheetRow, cells: rowCellsOf(row, rules.columns) })),

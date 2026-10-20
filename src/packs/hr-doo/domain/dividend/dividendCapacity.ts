@@ -97,6 +97,8 @@ export interface DividendCapacity {
   readonly distributable: TracedFigure
   /** The share capital, which net assets must still cover after a payout. */
   readonly shareCapital: TracedFigure
+  /** Reserves the year starts with, which count in net assets but are not paid out. */
+  readonly reserves: TracedFigure
   readonly netAssetsAtYearEnd: TracedFigure
   /** The distributable amount that leaves the share capital covered, never below nothing. */
   readonly maxPayout: TracedFigure
@@ -208,6 +210,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     paidOutInYear,
     distributable,
     shareCapital,
+    reserves: opening.reserves,
     netAssetsAtYearEnd,
     maxPayout,
     decideBy,

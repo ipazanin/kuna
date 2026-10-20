@@ -19,6 +19,7 @@ const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, () => Promise<RouteComponen
   '/assets': () => import('../../packs/hr-doo/presentation/assets/AssetsScreen.vue'),
   '/year-end': () => import('../../packs/hr-doo/presentation/yearEnd/YearEndScreen.vue'),
   '/forecast': () => import('../../packs/hr-doo/presentation/forecast/ForecastScreen.vue'),
+  '/pay-scenarios': () => import('../../packs/hr-doo/presentation/payScenarios/PayScenariosScreen.vue'),
   '/owner': () => import('../../packs/hr-doo/presentation/OwnerScreen.vue'),
   '/ruleset': () => import('../../packs/hr-doo/ruleset/presentation/RulesetScreen.vue'),
   '/review': () => import('../../features/review/presentation/ReviewScreen.vue'),

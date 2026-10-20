@@ -74,6 +74,15 @@ async function appendValues(accessToken: string, spreadsheetId: string, range: s
   })
 }
 
+/** Adds an empty tab at the end of the spreadsheet. */
+async function addSheetTo(accessToken: string, spreadsheetId: string, title: string): Promise<void> {
+  await googleFetch(`${SHEETS_API}/${encodeURIComponent(spreadsheetId)}:batchUpdate`, accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }),
+  })
+}
+
 /** Each tab's numeric id by its title, which a link to a row on that tab needs as its `gid`. */
 async function getSheetIds(accessToken: string, spreadsheetId: string): Promise<ReadonlyMap<string, number>> {
   const query = new URLSearchParams({ fields: 'sheets.properties(title,sheetId)' })
@@ -87,12 +96,13 @@ async function getSheetIds(accessToken: string, spreadsheetId: string): Promise<
   )
 }
 
-/** The Sheets values API for one spreadsheet, as the read and write paths use it. */
+/** The Sheets API for one spreadsheet, as the read and write paths use it. */
 export interface SheetsValues {
   sheetIds(): Promise<ReadonlyMap<string, number>>
   batchGet(ranges: readonly string[]): Promise<ValueRange[]>
   batchUpdate(request: BatchUpdateRequest): Promise<void>
   append(range: string, request: AppendRequest): Promise<void>
+  addSheet(title: string): Promise<void>
 }
 
 export function sheetsValuesFor(accessToken: string, spreadsheetId: string): SheetsValues {
@@ -101,5 +111,6 @@ export function sheetsValuesFor(accessToken: string, spreadsheetId: string): She
     batchGet: (ranges) => batchGetValues(accessToken, spreadsheetId, ranges),
     batchUpdate: (request) => batchUpdateValues(accessToken, spreadsheetId, request),
     append: (range, request) => appendValues(accessToken, spreadsheetId, range, request),
+    addSheet: (title) => addSheetTo(accessToken, spreadsheetId, title),
   }
 }

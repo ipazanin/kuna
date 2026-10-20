@@ -197,9 +197,11 @@ export interface WorkbookStore {
   removeOwnerAdvance(receipt: OwnerAdvanceReceipt): Promise<void>
   /**
    * Adds, changes and deletes rows of one tab in one write, each row found again as the app read
-   * it and the tab checked by its rules. Returns what Undo puts back, or null when nothing differed.
+   * it and the tab checked by its rules. With `addMissingTab`, once the person agreed, a Google
+   * Sheet without the tab gets it with the template's header first. Returns what Undo puts back,
+   * or null when nothing differed.
    */
-  changeRows(rules: TabRowRules, change: TabRowsChange): Promise<TabRowsReceipt | null>
+  changeRows(rules: TabRowRules, change: TabRowsChange, addMissingTab?: boolean): Promise<TabRowsReceipt | null>
   /** Puts back what a write of this session changed, through that write's own checks. Refused for a write `canUndo` rules out. */
   undo(write: SessionWrite): Promise<void>
 }
@@ -397,11 +399,11 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     )
   }
 
-  async function writeRows(rules: TabRowRules, change: TabRowsChange, undid: TabRowsReceipt | null): Promise<TabRowsReceipt | null> {
+  async function writeRows(rules: TabRowRules, change: TabRowsChange, undid: TabRowsReceipt | null, addMissingTab = false): Promise<TabRowsReceipt | null> {
     let receipt = null as TabRowsReceipt | null
     await writeThrough(
       [rules.tab, ...rules.reads],
-      (fresh) => planRowsChange(fresh, rules, change),
+      (fresh) => planRowsChange(fresh, rules, change, addMissingTab),
       (after, planned) => {
         receipt = verifyRowsChange(after, rules, planned)
       },
@@ -503,8 +505,8 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
 
     removeOwnerAdvance,
 
-    changeRows(rules, change) {
-      return writeRows(rules, change, null)
+    changeRows(rules, change, addMissingTab = false) {
+      return writeRows(rules, change, null, addMissingTab)
     },
 
     async undo(write) {
