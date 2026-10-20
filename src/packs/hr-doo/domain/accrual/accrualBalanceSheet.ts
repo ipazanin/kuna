@@ -97,7 +97,7 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const receivablesTrade = tracedFigure('Invoiced and not yet paid', sumMoney(tradeSteps.map((step) => step.amount)), 'invoices', rulesOf(tradeSteps), tradeSteps)
 
   const advances = workbook.ownerAdvances.filter((advance) => advance.date <= yearEnd)
-  const owed = netOwed(ownerLoans(rows, workbook.categories), ownerAdvances(advances, rows, workbook.categories), rows, workbook.categories)
+  const owed = netOwed(ownerLoans(advances, rows, workbook.categories), ownerAdvances(advances, rows, workbook.categories), workbook.categories)
   const owedFigure = withDrill(tracedFigure('Owed by the owner on loans, private shares and advances, net', owed.amount, 'ledger', []), owed.drill)
 
   const vat = vatPosition(bookings, monthKey(year, 12), rowsFigure('VAT refunded less VAT paid to the year end', roleRows(PACK_ROLES.vatSettlement)))

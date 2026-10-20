@@ -1,8 +1,9 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { addMonths, lastDayOf, monthOf } from '../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../shared/calendar/monthKey'
-import { ZERO, addMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../shared/money/money'
+import { moneyFromCents, subtractMoney, sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
+import { settleOpenRows } from '../../../shared/money/settleOpenRows'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
 import type { Invoice } from '../../workbook/domain/workbook'
 
@@ -44,12 +45,13 @@ export interface ClientBillingMatch {
  * The plan rows of each client against the invoices that billed them. An invoice lists a month's
  * items together with items left over from before, and may bill next month's fee ahead, so no
  * invoice belongs to one row. Instead each client's invoices, in issue order, take the client's
- * rows oldest first, by date and then tab order, the way Receivables lets payments fill invoices.
- * An invoice first fills the rows dated up to the end of the month it was issued in. What is left,
- * when it is a fee billed ahead of at least one euro, reaches on to the rows of the next month. A
- * smaller remainder is a rounding difference, invoiced above the plan, so a cent never part fills
- * a later month. What an invoice cannot place is invoiced with no plan row and is not carried to
- * later rows, and an invoice of zero or less places nothing.
+ * rows. An invoice first fills the rows dated up to the end of the month it was issued in: the
+ * fewest open rows it equals exactly, or else the rows oldest first, by date and then tab order,
+ * the way Receivables lets payments fill invoices. What is left, when it is a fee billed ahead of
+ * at least one euro, reaches on to the rows of the next month in the same way. A smaller remainder
+ * is a rounding difference, invoiced above the plan, so a cent never part fills a later month.
+ * What an invoice cannot place is invoiced with no plan row and is not carried to later rows, and
+ * an invoice of zero or less places nothing.
  */
 export function plannedAgainstInvoiced(plan: readonly BillingItem[], invoices: readonly Invoice[]): readonly ClientBillingMatch[] {
   const clients = [...new Set([...plan.map((row) => row.client), ...invoices.map((invoice) => invoice.client)])].sort()
@@ -69,23 +71,16 @@ function matchClient(client: string, plan: readonly BillingItem[], invoices: rea
   const rows = [...plan].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)
   const register = [...invoices].sort((earlier, later) => earlier.issued.localeCompare(later.issued) || earlier.sheetRow - later.sheetRow)
   const shares: InvoiceShare[][] = rows.map(() => [])
-  const filled: Money[] = rows.map(() => ZERO)
+  const open: Money[] = rows.map((row) => row.amount)
   const withoutPlan: InvoiceShare[] = []
-  let next = 0
-  /** Places what is left of an invoice on the open rows dated up to `reach`, oldest first, and returns what it could not place. */
+  /** Places what is left of an invoice on the open rows dated up to `reach`, and returns what it could not place. */
   const place = (invoice: Invoice, amount: Money, reach: CivilDate): Money => {
-    let left = amount
-    while (left > 0 && next < rows.length && rows[next]!.date <= reach) {
-      const open = subtractMoney(rows[next]!.amount, filled[next]!)
-      const taken = left < open ? left : open
-      filled[next] = addMoney(filled[next]!, taken)
-      shares[next]!.push({ invoice, amount: taken })
-      left = subtractMoney(left, taken)
-      if (filled[next] === rows[next]!.amount) {
-        next += 1
-      }
-    }
-    return left
+    const inReach = (index: number) => rows[index]!.date <= reach
+    return settleOpenRows(open, amount, inReach, inReach).reduce((left, { index, applied }) => {
+      open[index] = subtractMoney(open[index]!, applied)
+      shares[index]!.push({ invoice, amount: applied })
+      return subtractMoney(left, applied)
+    }, amount)
   }
   for (const invoice of register) {
     const issuedIn = monthOf(invoice.issued)
@@ -97,7 +92,7 @@ function matchClient(client: string, plan: readonly BillingItem[], invoices: rea
       withoutPlan.push({ invoice, amount: left })
     }
   }
-  const items = rows.map((row, index): MatchedBillingItem => ({ row, invoiced: filled[index]!, open: subtractMoney(row.amount, filled[index]!), invoices: shares[index]! }))
+  const items = rows.map((row, index): MatchedBillingItem => ({ row, invoiced: subtractMoney(row.amount, open[index]!), open: open[index]!, invoices: shares[index]! }))
   return { client, months: monthsOf(items), withoutPlan }
 }
 

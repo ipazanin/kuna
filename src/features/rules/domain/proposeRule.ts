@@ -1,3 +1,4 @@
+import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
 import { categorise } from './categorise'
 import { placeBefore } from './rulePlacement'
@@ -5,18 +6,16 @@ import type { Rule, RuleCondition } from './rule'
 import { foldRuleText } from './transactionFacts'
 import type { CategorisableTransaction, CategorisationContext } from './transactionFacts'
 
-/** What separates a payee's name from a description carried in the same field. */
-const DESCRIPTION_MARK = ' · '
-
 /** Roles of the categories that come in a credit and a debit pair, so one side of the pair never files the other. */
 const DIRECTION_PAIRED_ROLES: ReadonlySet<string> = new Set(['revenue', 'client-refund', 'owner-loan-out', 'owner-loan-repaid', 'reimbursement'])
 
 /**
  * A rule that files rows like this one in its category: by the counterparty IBAN when the row has
  * one, else by the counterparty's name as a merchant fragment, and by direction when the category
- * is one of a credit and debit pair. It goes just before the rule that decides the row today, or
- * last when none does. Where that needs other rules renumbered, the order here ties and the save
- * renumbers them. Null when the row's category is not defined or nothing names the counterparty.
+ * is one of a credit and debit pair. A card purchase settled against the bank's own account goes
+ * by the merchant after the description mark, since the IBAN is the bank's. It goes just before
+ * the rule that decides the row today, or last when none does. Where that needs other rules
+ * renumbered, the order here ties and the save renumbers them. Null when the row's category is not defined or nothing names the counterparty.
  */
 export function proposeRule(
   transaction: CategorisableTransaction & Pick<Transaction, 'category'>,
@@ -27,10 +26,11 @@ export function proposeRule(
   if (category === undefined) {
     return null
   }
-  const merchant = merchantFragment(transaction.counterparty)
+  const counterparty = counterpartyIdentity(transaction, context.cardSettlementIbans)
+  const merchant = foldRuleText(counterparty.writtenName)
   const identity: RuleCondition | null =
-    transaction.counterpartyIban !== ''
-      ? { column: 'counterparty_iban', iban: transaction.counterpartyIban }
+    counterparty.iban !== ''
+      ? { column: 'counterparty_iban', iban: counterparty.iban }
       : merchant !== ''
         ? { column: 'counterparty_contains', fragment: merchant }
         : null
@@ -55,11 +55,6 @@ export function proposeRule(
       (directionPaired ? ` Only ${direction === 'credit' ? 'credits' : 'debits'}, since the category is one side of a pair.` : ''),
     sheetRow: null,
   }
-}
-
-function merchantFragment(counterparty: string): string {
-  const markAt = counterparty.indexOf(DESCRIPTION_MARK)
-  return foldRuleText(markAt === -1 ? counterparty : counterparty.slice(0, markAt))
 }
 
 export function unusedId(stem: string, rules: readonly Rule[]): string {

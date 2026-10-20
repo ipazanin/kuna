@@ -1,5 +1,7 @@
+import { advanceDrill, rowDrill } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import { RECEIVABLE_ROLES } from '../../../../features/receivables/domain/invoiceMatching'
+import type { Asset } from '../../../../features/workbook/domain/assets'
 import { PROFIT_AND_LOSS_BUCKETS } from '../../../../features/workbook/domain/bucket'
 import type { Bucket } from '../../../../features/workbook/domain/bucket'
 import { bookingOfAdvance } from '../../../../features/workbook/domain/workbook'
@@ -12,9 +14,7 @@ import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { assetRegister } from '../assets/assetRegister'
-import { advanceDrill } from '../ownerAdvances'
 import { withDrill } from './accrualAdjustment'
-import { rowDrill } from '../ownerLoans'
 import { PACK_ROLES } from '../packRoles'
 import { tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
@@ -65,6 +65,8 @@ export interface TakenOutBooking extends BookingBase {
 export interface CapitalisedBooking extends BookingBase {
   readonly treatment: 'capitalised'
   readonly vat: VatSplit
+  /** The asset rows that claim the payment. */
+  readonly assets: readonly Asset[]
 }
 
 /** Counted without its deductible VAT, in the months it belongs to. */
@@ -102,7 +104,12 @@ const TAKEN_OUT: readonly (readonly [role: string, treatment: TakenOutTreatment]
 export function accrualBookings(workbook: Workbook, rules: RuleSource = ruleValue): readonly AccrualBooking[] {
   const categories = new Map(workbook.categories.map((category) => [category.slug, category]))
   const register = assetRegister(workbook.assets, workbook.transactions, workbook.categories, rules)
-  const claimed = new Set(register.assets.flatMap((entry) => (entry.payment === null ? [] : [entry.payment.row])))
+  const claimed = new Map<Transaction, Asset[]>()
+  for (const { asset, payment } of register.assets) {
+    if (payment !== null) {
+      claimed.set(payment.row, [...(claimed.get(payment.row) ?? []), asset])
+    }
+  }
   const sources: BookingSource[] = [
     ...workbook.transactions.map((row): BookingSource => ({ kind: 'ledger', row })),
     ...workbook.ownerAdvances.map((advance): BookingSource => ({ kind: 'owner-advance', advance })),
@@ -119,8 +126,9 @@ export function accrualBookings(workbook: Workbook, rules: RuleSource = ruleValu
       return [{ ...described, treatment: takenOut[1] }]
     }
     const vat = vatSplit(described.booking, category, rules)
-    if (source.kind === 'ledger' && claimed.has(source.row)) {
-      return [{ ...described, treatment: 'capitalised', vat }]
+    const assets = source.kind === 'ledger' ? claimed.get(source.row) : undefined
+    if (assets !== undefined) {
+      return [{ ...described, treatment: 'capitalised', vat, assets }]
     }
     return [{ ...described, treatment: 'counted', vat, ...timed(described.booking, vat, category, workbook, rules) }]
   })

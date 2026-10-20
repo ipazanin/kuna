@@ -109,4 +109,15 @@ describe('compareYearEnd', () => {
     expect(comparison.konto[1]?.categories[0]?.drill).not.toBeNull()
     expect(comparison.unnamedKonto.map((entry) => entry.line)).toEqual(['49000'])
   })
+
+  it('adds the small inventory the year wrote off to the category its payment sits in', () => {
+    const comparison = compared([yearEndLine(2025, 'konto', '40120', 200, ['equipment'])])
+
+    // The desk, 200.00 without its VAT, paid on equipment and written off when put in use. The laptop went to the asset books.
+    expect(comparison.konto.map((group) => [group.ours, group.difference])).toEqual([[euros(200), euros(0)]])
+    expect(comparison.konto[0]?.categories.map((figure) => [figure.label, figure.amount])).toEqual([
+      ['Equipment', euros(0)],
+      ['Equipment, small inventory written off', euros(200)],
+    ])
+  })
 })

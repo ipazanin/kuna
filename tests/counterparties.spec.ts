@@ -14,7 +14,21 @@ describe('counterpartyIdentity', () => {
       key: 'name:CAFE SIME',
       foldedName: 'CAFE SIME',
       writtenName: 'Café Šime',
+      iban: '',
     })
+  })
+
+  it('goes by the merchant after the description mark when the IBAN is a card settlement account', () => {
+    const settlement = new Set(['XX00FAKE0003'])
+    const cardPurchase = { counterparty: 'Example Bank d.d. · TRAM TICKETS,EXAMPLE.ORG', counterpartyIban: 'XX00 FAKE 0003' }
+
+    expect(counterpartyIdentity(cardPurchase, settlement)).toEqual({
+      key: 'name:TRAM TICKETS,EXAMPLE.ORG',
+      foldedName: 'TRAM TICKETS,EXAMPLE.ORG',
+      writtenName: 'TRAM TICKETS,EXAMPLE.ORG',
+      iban: '',
+    })
+    expect(counterpartyIdentity(cardPurchase).key).toBe('iban:XX00 FAKE 0003')
   })
 })
 

@@ -69,7 +69,7 @@ function rowsInWords(count: number): string {
             <p class="mt-0.5 flex items-center gap-1 text-xs text-muted">
               <UIcon :name="group.iban ? 'i-lucide-landmark' : 'i-lucide-store'" class="size-3.5 shrink-0" aria-hidden="true" />
               <span v-if="group.iban" class="identifier break-all">{{ group.iban }}</span>
-              <span v-else>Grouped by name, since the rows carry no IBAN</span>
+              <span v-else>Grouped by name, since the rows carry no IBAN of their own</span>
             </p>
             <ul class="mt-2 flex flex-wrap gap-1.5">
               <li v-for="entry in group.categories" :key="entry.category" class="flex items-center gap-1">

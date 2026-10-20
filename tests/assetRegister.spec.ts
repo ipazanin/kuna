@@ -99,4 +99,26 @@ describe('assetRegister', () => {
     expect(register.assets[0]?.payment).toBeNull()
     expect(register.unmatchedPurchases).toEqual([])
   })
+
+  it('reports a payment found by reference that the claiming assets do not add up to, with or without VAT', () => {
+    const transactions = ledger([
+      { date: '2025-07-22', amount: -1100, category: 'equipment', description: 'Invoice 55/1 phone and mouse' },
+      { date: '2025-07-23', amount: -900, category: 'equipment', description: 'Invoice 56/1 monitor' },
+    ])
+    // The phone and the mouse cost 880.00 together, which is 1,100.00 with VAT. The monitor's 760.00 is neither 900.00 nor 950.00.
+    const register = assetRegister(
+      [
+        asset('Example phone', 800, '2025-07-22', 'Invoice 55/1'),
+        asset('Example mouse', 80, '2025-07-22', 'Invoice 55/1'),
+        asset('Example monitor', 760, '2025-07-23', 'Invoice 56/1'),
+      ],
+      transactions,
+      CATEGORIES,
+    )
+
+    expect(register.mismatchedPayments.map((payment) => [payment.row.description, payment.assets.map((claiming) => claiming.name), payment.costNet])).toEqual([
+      ['Invoice 56/1 monitor', ['Example monitor'], euros(760)],
+    ])
+    expect(register.mismatchedPayments[0]?.drill.filters.amount).toEqual({ min: euros(-900), max: euros(-900) })
+  })
 })

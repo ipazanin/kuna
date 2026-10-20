@@ -48,7 +48,7 @@ describe('plannedAgainstInvoiced', () => {
     expect(match.withoutPlan).toEqual([])
   })
 
-  it('fills rows oldest first, so a ticket left off one invoice is billed by it and the fee finishes on the next', () => {
+  it('takes the row an invoice equals before an older one, so a ticket left off one invoice goes to the next', () => {
     const plan = [
       planRow('Plane Tickets', '2026-03-07', 240, 'north', 'March ticket'),
       planRow('Monthly Fee', '2026-03-31', 5000, 'north', 'March fee'),
@@ -59,11 +59,42 @@ describe('plannedAgainstInvoiced', () => {
     const match = matchOf(plan, [april, march])
 
     expect(billedBy(match)).toEqual([
+      ['March ticket', ['4-1-26'], 0],
+      ['March fee', ['3-1-26'], 0],
+      ['April fee', ['4-1-26'], 0],
+    ])
+    expect(match.months[0]?.items[1]?.invoices.map((share) => share.amount)).toEqual([euros(5000)])
+  })
+
+  it('fills rows oldest first when no set of open rows equals the invoice', () => {
+    const plan = [
+      planRow('Plane Tickets', '2026-03-07', 240, 'north', 'March ticket'),
+      planRow('Monthly Fee', '2026-03-31', 5000, 'north', 'March fee'),
+      planRow('Monthly Fee', '2026-04-30', 5000, 'north', 'April fee'),
+    ]
+    const match = matchOf(plan, [invoiceOf('3-1-26', 4900, '2026-03-20'), invoiceOf('4-1-26', 5340, '2026-04-20')])
+
+    expect(billedBy(match)).toEqual([
       ['March ticket', ['3-1-26'], 0],
       ['March fee', ['3-1-26', '4-1-26'], 0],
       ['April fee', ['4-1-26'], 0],
     ])
-    expect(match.months[0]?.items[1]?.invoices.map((share) => share.amount)).toEqual([euros(4760), euros(240)])
+    expect(match.months[0]?.items[1]?.invoices.map((share) => share.amount)).toEqual([euros(4660), euros(340)])
+  })
+
+  it('lets a fee billed ahead take next month’s fee it equals, not an older bonus of that month', () => {
+    const plan = [
+      planRow('Monthly Fee', '2026-04-30', 5000, 'north', 'April fee'),
+      planRow('Bonus', '2026-05-15', 6000, 'north', 'Bonus'),
+      planRow('Monthly Fee', '2026-05-31', 5000, 'north', 'May fee'),
+    ]
+    const match = matchOf(plan, [invoiceOf('4-1-26', 5000, '2026-04-20'), invoiceOf('5-1-26', 5000, '2026-04-26'), invoiceOf('6-1-26', 6000, '2026-06-19')])
+
+    expect(billedBy(match)).toEqual([
+      ['April fee', ['4-1-26'], 0],
+      ['Bonus', ['6-1-26'], 0],
+      ['May fee', ['5-1-26'], 0],
+    ])
   })
 
   it('lets an invoice bill next month’s fee ahead, and no row after that month', () => {
@@ -101,7 +132,7 @@ describe('plannedAgainstInvoiced', () => {
     const invoices = [
       invoiceOf('4-1-26', 5000, '2026-04-20'),
       invoiceOf('5-1-26', 5000, '2026-04-26'),
-      // The rest of the bonus at 1,666.67, the ticket, May's fee, the contractor and June's fee.
+      // The bonus at 6,666.67, the ticket, the contractor and June's fee.
       invoiceOf('6-1-26', 13077.07, '2026-06-19'),
       invoiceOf('7-1-26', 5000, '2026-07-20'),
       invoiceOf('8-1-26', 5150, '2026-08-20'),
@@ -111,9 +142,9 @@ describe('plannedAgainstInvoiced', () => {
 
     expect(billedBy(match)).toEqual([
       ['April fee', ['4-1-26'], 0],
-      ['Bonus', ['5-1-26', '6-1-26'], 0],
+      ['Bonus', ['6-1-26'], 0],
       ['May ticket', ['6-1-26'], 0],
-      ['May fee', ['6-1-26'], 0],
+      ['May fee', ['5-1-26'], 0],
       ['June contractor', ['6-1-26'], 0],
       ['June fee', ['6-1-26'], 0],
       ['July fee', ['7-1-26'], 0],

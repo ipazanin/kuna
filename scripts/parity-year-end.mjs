@@ -131,7 +131,7 @@ if (comparison.distribution !== null) {
 
 console.log('Konto lines by the categories they share, no verdict')
 for (const group of comparison.konto) {
-  console.log(`  konto ${group.konto.map((line) => line.line).join(', ')} (${group.categories.map((figure) => figure.label).join(', ')}): differs by ${difference(group.difference)}`)
+  console.log(`  konto ${group.konto.map((line) => line.line).join(', ')} (${group.categories.map((figure) => figure.label).join(' + ')}): differs by ${difference(group.difference)}`)
 }
 if (comparison.unnamedKonto.length > 0) {
   console.log(`  konto ${comparison.unnamedKonto.map((line) => line.line).join(', ')}: name no category`)

@@ -150,6 +150,21 @@ describe('proposeRule', () => {
     expect(proposeRule(row!, workbook, context)?.order).toBe(0)
   })
 
+  it('names a card purchase by its merchant, not by the bank account it settles against', () => {
+    const settlement = 'XX00FAKE0000000003'
+    const cardContext = categorisationContextOf({
+      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }],
+      clients: [],
+      settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [settlement] },
+    })
+    const [row] = ledger([{ date: '2026-09-01', amount: -19, counterparty: 'Example Bank d.d. · VISA OFFICE,EXAMPLE.GOV', iban: settlement, category: 'travel', flaggedBy: 'ivan' }])
+
+    expect(proposeRule(row!, workbook, cardContext)).toMatchObject({
+      id: 'merchant-visa-office-example-gov',
+      conditions: [{ column: 'counterparty_contains', fragment: 'VISA OFFICE,EXAMPLE.GOV' }],
+    })
+  })
+
   it('proposes nothing for an undefined category or a row that names no counterparty', () => {
     const [unknownCategory, nameless] = ledger([
       { date: '2026-09-01', amount: -20, counterparty: 'Desk Co', category: 'nope', flaggedBy: 'ivan' },

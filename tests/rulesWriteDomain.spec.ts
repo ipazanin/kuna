@@ -192,6 +192,27 @@ describe('rule coverage', () => {
     expect(exceptions).toEqual([])
   })
 
+  it('groups card purchases settled against the bank account by their merchants', () => {
+    const settlement = 'XX00FAKE0000000003'
+    const cardContext = categorisationContextOf({
+      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }],
+      clients: [],
+      settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [settlement] },
+    })
+    const rows = ledger([
+      { date: '2026-04-21', amount: -12, counterparty: 'Example Bank d.d. · TRAM TICKETS,EXAMPLE.ORG', iban: settlement, category: 'travel', flaggedBy: 'ivan' },
+      { date: '2026-04-22', amount: -30, counterparty: 'Example Bank d.d. · BAKERY ROW,EXAMPLE CITY', iban: settlement, category: 'equipment', flaggedBy: 'ivan' },
+      { date: '2026-04-24', amount: -14, counterparty: 'Example Bank d.d. · TRAM TICKETS,EXAMPLE.ORG', iban: settlement, category: 'travel', flaggedBy: 'ivan' },
+    ])
+
+    const { notCovered } = ruleCoverage(rows, [], cardContext)
+
+    expect(notCovered.map((group) => [group.key, group.name, group.iban, group.rows.length])).toEqual([
+      ['name:TRAM TICKETS,EXAMPLE.ORG', 'TRAM TICKETS,EXAMPLE.ORG', '', 2],
+      ['name:BAKERY ROW,EXAMPLE CITY', 'BAKERY ROW,EXAMPLE CITY', '', 1],
+    ])
+  })
+
   it('leaves out a confirmed row a rule already files the same way', () => {
     const rows = ledger([{ date: '2026-09-01', amount: -20, counterparty: 'AIRLINE CO', category: 'travel', flaggedBy: 'ivan' }])
     const rules = [rule('airline', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'travel', 2)]

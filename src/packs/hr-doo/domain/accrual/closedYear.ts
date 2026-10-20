@@ -3,8 +3,9 @@ import type { Category } from '../../../../features/workbook/domain/workbook'
 import type { YearEndLine } from '../../../../features/workbook/domain/yearEnd'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import { yearOfMonth } from '../../../../shared/calendar/monthKey'
-import { ZERO, moneyFromCents, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { fewestMakingUp } from '../../../../shared/money/settleOpenRows'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { GrantYearCheck } from '../grants/grantRelease'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
@@ -107,9 +108,10 @@ function keptAtYearEnd(bookings: readonly AccrualBooking[], year: number, yearEn
     const movedBack = inGroup
       .filter((entry) => entry.booking.date > yearEndDay && entry.shares.some((share) => yearOfMonth(share.month) === year))
       .sort((earlier, later) => earlier.booking.date.localeCompare(later.booking.date))
-    return (fewestMakingUp(movedBack, difference) ?? []).map((entry) => {
+    const costOf = (entry: CountedBooking) => negateMoney(sumMoney(entry.shares.map((share) => share.amount)))
+    return (fewestMakingUp(movedBack, costOf, difference) ?? []).map((entry) => {
       const label = `Kept in the month paid as konto ${group.konto.join(', ')} leaves it out of ${year}: ${entry.label} on`
-      const cost = negateMoney(sumMoney(entry.shares.map((share) => share.amount)))
+      const cost = costOf(entry)
       return { entry, figure: bookingFigure(entry, cost, label, entry.vat.cost.rules) }
     })
   })
@@ -239,29 +241,4 @@ function kontoLinesOf(yearEnd: readonly YearEndLine[], year: number): YearEndLin
 
 function accountantFigure(line: YearEndLine): TracedFigure {
   return tracedFigure(`Konto ${line.line}, ${line.label}`, line.figure.kind === 'money' ? line.figure.amount : ZERO, 'accountant', [])
-}
-
-/** The smallest set of bookings whose costs add up to the amount. Null when none does or there are too many to try. */
-function fewestMakingUp(candidates: readonly CountedBooking[], amount: Money): readonly CountedBooking[] | null {
-  const mostTried = 16
-  if (candidates.length > mostTried) {
-    return null
-  }
-  const costs = candidates.map((entry) => negateMoney(sumMoney(entry.shares.map((share) => share.amount))))
-  let best: number | null = null
-  for (let mask = 1; mask < 1 << candidates.length; mask += 1) {
-    const total = moneyFromCents(costs.reduce<number>((sum, cost, index) => ((mask >> index) & 1 ? sum + cost : sum), 0))
-    if (total === amount && (best === null || bitCount(mask) < bitCount(best))) {
-      best = mask
-    }
-  }
-  return best === null ? null : candidates.filter((_, index) => ((best >> index) & 1) === 1)
-}
-
-function bitCount(mask: number): number {
-  let count = 0
-  for (let rest = mask; rest > 0; rest >>= 1) {
-    count += rest & 1
-  }
-  return count
 }

@@ -13,6 +13,8 @@ const ACCRUAL_ROLES: readonly (readonly [PackRole, string])[] = [
   [PACK_ROLES.corporateIncomeTax, 'corporate tax paid counts as a cost beside the tax of the year'],
   [PACK_ROLES.profitDistribution, 'dividends and their tax count as costs'],
   [PACK_ROLES.representation, 'no representation is added back to the tax base'],
+  [PACK_ROLES.personalTransport, 'PD line 7 adds back no personal transport'],
+  [PACK_ROLES.nonDeductible, 'PD lines 9, 11 and 24 add back no fine or private cost'],
 ]
 
 export function missingAccrualRoles(categories: readonly Category[]): { readonly role: PackRole; readonly leftOut: string }[] {

@@ -30,7 +30,7 @@ import { PACK_ROLES, categoriesInBucket, categoriesWithRole } from '../domain/pa
 import AddAdvanceDialog from './AddAdvanceDialog.vue'
 import type { AdvancePrefill } from './AddAdvanceDialog.vue'
 import AdvanceList from './AdvanceList.vue'
-import type { AdvanceLine, PrivateShareLine } from './AdvanceList.vue'
+import type { AdvanceLine } from './AdvanceList.vue'
 import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import MissingRoles from './MissingRoles.vue'
@@ -70,9 +70,9 @@ const owner = computed(() => {
   const months = chartedMonths(filters.period, window)
   const take = ownerTake(profitAndLossRows, categories, filters.period, window)
   const cost = ownerCost(profitAndLossRows, categories, filters.period, window)
-  const loans = ownerLoans(scoped, categories)
+  const loans = ownerLoans(current.scopedAdvances, scoped, categories)
   const advances = ownerAdvances(current.scopedAdvances, scoped, categories)
-  const owed = netOwed(loans, advances, scoped, categories)
+  const owed = netOwed(loans, advances, categories)
   const takeMonths = ownerTakeByMonth(profitAndLossRows, categories, months, window)
   const series = categorySeries(
     categoriesInBucket(categories, 'owner-pay').filter((category) => takeMonths.some((month) => month.byCategory[category]?.amount !== 0)),
@@ -139,9 +139,8 @@ const owner = computed(() => {
         to: drillLocation(owed.drill),
         caption: owed.amount > 0 ? 'The owner owes the company' : owed.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way',
         definition:
-          `All time, one balance across both directions. The owner owes the company what was lent less what was repaid (${formatWholeMoney(owed.loanBalance)}), ` +
-          `plus the owner's private shares of company payments (${formatWholeMoney(owed.privateShares)}), ` +
-          `less what the owner paid back on a reimbursement category (${formatWholeMoney(owed.privateCostsRepaid.amount)}). ` +
+          `All time, one balance across both directions. The owner owes the company what was lent, private costs and private shares of company payments included, ` +
+          `less what the owner paid back on a loan or reimbursement category (${formatWholeMoney(owed.loanBalance)}). ` +
           `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(owed.advancesOutstanding)}). ` +
           (advances.unaccountedTotal > 0
             ? `That figure counts the reimbursements with no cost on file (${formatMoney(advances.unaccountedTotal)}) as paid to the owner until their costs are added. `
@@ -156,7 +155,7 @@ const owner = computed(() => {
     takeTotal: { amount: take.total.amount, to: drillLocation(take.total.drill) },
     reimbursements: take.reimbursements.map(takeLine),
     hasLoanRoles,
-    timeline: loanTimelineChart(loanMonths(scoped, categories, months, window), loanColours, tokens),
+    timeline: loanTimelineChart(loanMonths(current.scopedAdvances, scoped, categories, months, window), loanColours, tokens),
     timelineLegend: [
       { label: LENT_SERIES, colour: loanColours.lent },
       { label: REPAID_SERIES, colour: loanColours.repaid },
@@ -197,16 +196,6 @@ const owner = computed(() => {
         })),
       }),
     ),
-    privateShares: [...advances.privateShares].reverse().map(
-      (line): PrivateShareLine => ({
-        key: `${line.advance.sheetRow}`,
-        paidOn: day(line.advance.date),
-        description: line.advance.description,
-        category: categoryName(line.advance.category),
-        share: line.share,
-        to: drillLocation(line.drill),
-      }),
-    ),
     newestBooking: workbook.transactions.reduce((newest, transaction) => (transaction.date > newest ? transaction.date : newest), workbook.transactions[0]!.date),
     openCount: loans.openCount,
     oldestOpen: loans.oldestOpen === null ? null : day(loans.oldestOpen),
@@ -214,6 +203,7 @@ const owner = computed(() => {
       (loan, index): LoanLine => ({
         key: `${loan.lentOn}-${index}`,
         lentOn: day(loan.lentOn),
+        privateShare: loan.privateShareOf === null ? null : loan.privateShareOf.description || `Private share of a payment filed as ${categoryName(loan.privateShareOf.category)}`,
         amount: loan.amount,
         remaining: loan.remaining,
         open: loan.status === 'open',
@@ -326,7 +316,8 @@ const owner = computed(() => {
             data-testid="owner-loans"
           >
             <template #subtitle>
-              All time. Repayments go to the oldest open loan first, and one that outruns a loan carries on to the next.
+              All time, private costs and private shares of company payments included. Repayments first close the loans they equal exactly. The rest go to the
+              oldest open loan first, and one that outruns a loan carries on to the next.
               <template v-if="owner.openCount > 0">{{ owner.openCount }} open, the oldest from {{ owner.oldestOpen }}.</template>
               <template v-else>None open.</template>
             </template>
@@ -348,8 +339,8 @@ const owner = computed(() => {
           <AppCard title="Costs the owner paid privately" collapse-id="owner.advances" :summary="owner.advancesSummary" data-testid="owner-advances">
             <template #subtitle>
               <span class="block max-w-[65ch]">
-                All time, from the owner-advances tab. Each counts as a cost on its date, in its category. Reimbursements to the owner repay the oldest first and stay
-                outside profit and loss.
+                All time, from the owner-advances tab. Each counts as a cost on its date, in its category. Reimbursements to the owner first repay the costs they
+                equal exactly, and the rest repay the oldest first. They stay outside profit and loss.
               </span>
             </template>
             <template #actions>
@@ -374,7 +365,7 @@ const owner = computed(() => {
                 </p>
                 <UnaccountedReimbursements :payments="owner.unaccounted" :editable="!state.writing" @add-cost="addAdvance" />
               </section>
-              <AdvanceList :advances="owner.advances" :private-shares="owner.privateShares" />
+              <AdvanceList :advances="owner.advances" />
             </div>
           </AppCard>
         </div>

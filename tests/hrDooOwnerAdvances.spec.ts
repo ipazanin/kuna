@@ -67,12 +67,13 @@ describe('owner advances', () => {
       [civil('2026-03-28'), euros(-45), euros(45)],
     ])
     expect(book.unaccountedTotal).toBe(euros(65))
-    expect(netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), book, ledgerRows, PACK_CATEGORIES).amount).toBe(euros(1065))
+    expect(netOwed(ownerLoans(advances, ledgerRows, PACK_CATEGORIES), book, PACK_CATEGORIES).amount).toBe(euros(1065))
 
     // The costs the two payments repaid, added as the screen prefills them, settle the list and take net owed back to the loan.
-    const settled = ownerAdvances([...advances, advance('2026-02-14', 20), advance('2026-03-27', 45)], ledgerRows, PACK_CATEGORIES)
+    const settledAdvances = [...advances, advance('2026-02-14', 20), advance('2026-03-27', 45)]
+    const settled = ownerAdvances(settledAdvances, ledgerRows, PACK_CATEGORIES)
     expect(settled.unaccounted).toEqual([])
-    expect(netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), settled, ledgerRows, PACK_CATEGORIES).amount).toBe(euros(1000))
+    expect(netOwed(ownerLoans(settledAdvances, ledgerRows, PACK_CATEGORIES), settled, PACK_CATEGORIES).amount).toBe(euros(1000))
   })
 
   it('drills each unaccounted reimbursement to its own row', () => {
@@ -87,7 +88,7 @@ describe('owner advances', () => {
     expect(book.unaccounted.map((line) => filterTransactions(ledgerRows, { ...DEFAULT_FILTERS, ...line.drill.filters }, window).map((row) => row.date))).toEqual([[civil('2026-02-16')]])
   })
 
-  it('reads a payment to the owner on a day the owner paid in as returning that payment first, so only the rest repays costs', () => {
+  it('reads a payment to the owner on a day the owner paid in as returning that payment first, so only the rest repays costs or counts as reimbursed', () => {
     const ledgerRows = rows([
       { date: '2026-02-10', amount: 30, category: 'reimbursement-from-owner' },
       { date: '2026-02-10', amount: -50, category: 'reimbursement-to-owner' },
@@ -100,7 +101,34 @@ describe('owner advances', () => {
       [civil('2026-03-01'), euros(80)],
     ])
     expect(book.unaccounted).toEqual([])
-    expect([book.reimbursed.amount, book.outstanding.amount]).toEqual([euros(130), euros(-30)])
+    expect([book.reimbursed.amount, book.outstanding.amount]).toEqual([euros(100), euros(0)])
+  })
+
+  it('lets a reimbursement repay the fewest costs it equals exactly before the oldest open ones', () => {
+    // One payment repaid the flights and the client lunch, a later one the notary, the court fee and the tolls.
+    const book = ownerAdvances(
+      [
+        advance('2025-06-14', 20, 'travel', 'Notary'),
+        advance('2025-06-14', 4, 'travel', 'Court fee'),
+        advance('2025-06-16', 150, 'travel', 'Flights'),
+        advance('2025-06-19', 45, 'travel', 'Tolls'),
+        advance('2025-06-20', 100, 'travel', 'Client lunch'),
+      ],
+      rows([
+        { date: '2025-07-10', amount: -250, category: 'reimbursement-to-owner' },
+        { date: '2025-12-09', amount: -69, category: 'reimbursement-to-owner' },
+      ]),
+      PACK_CATEGORIES,
+    )
+
+    expect(book.advances.map((line) => [line.advance.description, line.repaidOn])).toEqual([
+      ['Notary', civil('2025-12-09')],
+      ['Court fee', civil('2025-12-09')],
+      ['Flights', civil('2025-07-10')],
+      ['Tolls', civil('2025-12-09')],
+      ['Client lunch', civil('2025-07-10')],
+    ])
+    expect(book.unaccounted).toEqual([])
   })
 
   it('nets the loans and the private costs the owner repaid against the advances the company owes, as one signed balance', () => {
@@ -110,13 +138,12 @@ describe('owner advances', () => {
       { date: '2026-02-15', amount: -100, category: 'reimbursement-to-owner' },
       { date: '2026-02-20', amount: 30, category: 'reimbursement-from-owner' },
     ])
-    const loans = ownerLoans(ledgerRows, PACK_CATEGORIES)
+    const loans = ownerLoans([], ledgerRows, PACK_CATEGORIES)
     const advances = ownerAdvances([advance('2026-01-20', 250), advance('2026-03-01', 500)], ledgerRows, PACK_CATEGORIES)
-    const owed = netOwed(loans, advances, ledgerRows, PACK_CATEGORIES)
+    const owed = netOwed(loans, advances, PACK_CATEGORIES)
 
-    // The owner owes 600 on the loan less the 30 paid back for a private cost, and the company owes 650 of the 750 advanced.
-    expect(owed).toMatchObject({ amount: euros(-80), loanBalance: euros(600), advancesOutstanding: euros(650) })
-    expect(owed.privateCostsRepaid.amount).toBe(euros(30))
+    // The owner owes 600 on the loan less the 30 paid back on a reimbursement category, and the company owes 650 of the 750 advanced.
+    expect(owed).toMatchObject({ amount: euros(-80), loanBalance: euros(570), advancesOutstanding: euros(650) })
   })
 
   describe('a private share of a company payment', () => {
@@ -129,22 +156,22 @@ describe('owner advances', () => {
     ])
     const privateShare = advance('2025-08-08', -9.71, 'office-supplies', 'Private share of the online order')
 
-    it('counts as lent to the owner, so the order, the repayment and the return net to nothing owed', () => {
+    it('counts as lent to the owner, so the order, the repayment and the return net to nothing owed in either part', () => {
       const book = ownerAdvances([privateShare], ledgerRows, PACK_CATEGORIES)
-      const owed = netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), book, ledgerRows, PACK_CATEGORIES)
+      const loans = ownerLoans([privateShare], ledgerRows, PACK_CATEGORIES)
+      const owed = netOwed(loans, book, PACK_CATEGORIES)
 
       expect(book.advances).toEqual([])
       expect(book.unaccounted).toEqual([])
-      expect(book.privateShares.map((line) => [line.advance.date, line.share])).toEqual([[civil('2025-08-08'), euros(9.71)]])
-      expect([book.advanced.amount, book.privateShareTotal.amount, book.reimbursed.amount, book.outstanding.amount]).toEqual([euros(0), euros(9.71), euros(9.71), euros(-9.71)])
-      // Lent 9.71 as the share less the 19.42 paid back, against the 9.71 the company returned.
-      expect(owed).toMatchObject({ amount: euros(0), loanBalance: euros(0), privateShares: euros(9.71), advancesOutstanding: euros(-9.71) })
-      expect(owed.privateCostsRepaid.amount).toBe(euros(19.42))
+      expect([book.advanced.amount, book.reimbursed.amount, book.outstanding.amount]).toEqual([euros(0), euros(0), euros(0)])
+      // Lent 9.71 as the share and repaid 9.71, the 19.42 paid back less the 9.71 the company returned.
+      expect(loans.loans.map((loan) => [loan.lentOn, loan.amount, loan.status, loan.repaidOn])).toEqual([[civil('2025-08-08'), euros(9.71), 'repaid', civil('2025-09-05')]])
+      expect(owed).toMatchObject({ amount: euros(0), loanBalance: euros(0), advancesOutstanding: euros(0) })
     })
 
     it('adds nothing to net owed beside a cost the owner paid, which stays owed in full', () => {
       const advances = [advance('2025-07-01', 100, 'travel'), privateShare]
-      const owed = netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), ownerAdvances(advances, ledgerRows, PACK_CATEGORIES), ledgerRows, PACK_CATEGORIES)
+      const owed = netOwed(ownerLoans(advances, ledgerRows, PACK_CATEGORIES), ownerAdvances(advances, ledgerRows, PACK_CATEGORIES), PACK_CATEGORIES)
 
       expect(owed.amount).toBe(euros(-100))
     })
@@ -165,11 +192,11 @@ describe('owner advances', () => {
     it('drills apart from the costs the owner paid', () => {
       const advances = [advance('2025-07-01', 100, 'travel'), privateShare]
       const book = ownerAdvances(advances, ledgerRows, PACK_CATEGORIES)
+      const share = ownerLoans(advances, ledgerRows, PACK_CATEGORIES).loans.find((loan) => loan.privateShareOf !== null)
       const listed = (filters: Partial<FilterState>) => scopeOwnerAdvances(advances, { ...DEFAULT_FILTERS, ...filters }).map((line) => `${line.category} ${line.date}`)
 
       expect(listed(book.advanced.drill.filters)).toEqual(['travel 2025-07-01'])
-      expect(listed(book.privateShareTotal.drill.filters)).toEqual(['office-supplies 2025-08-08'])
-      expect(listed(book.privateShares[0]!.drill.filters)).toEqual(['office-supplies 2025-08-08'])
+      expect(listed(share!.drill.filters)).toEqual(['office-supplies 2025-08-08'])
       expect(listed(book.outstanding.drill.filters)).toEqual(['travel 2025-07-01'])
     })
   })
@@ -183,7 +210,8 @@ describe('owner advances', () => {
     ])
     const advances = [advance('2026-01-20', 250), advance('2026-03-01', 80)]
     const book = ownerAdvances(advances, ledgerRows, PACK_CATEGORIES)
-    const owed = netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), book, ledgerRows, PACK_CATEGORIES)
+    const loans = ownerLoans(advances, ledgerRows, PACK_CATEGORIES)
+    const owed = netOwed(loans, book, PACK_CATEGORIES)
     const listed = (filters: Partial<FilterState>) => {
       const applied = { ...DEFAULT_FILTERS, ...filters }
       return [...scopeTransactions(ledgerRows, applied).map((row) => `${row.category} ${row.amount}`), ...scopeOwnerAdvances(advances, applied).map((line) => `advance ${line.date}`)]
@@ -192,7 +220,7 @@ describe('owner advances', () => {
     expect(listed(book.advanced.drill.filters)).toEqual(['advance 2026-01-20', 'advance 2026-03-01'])
     expect(listed(book.outstanding.drill.filters)).toEqual([`reimbursement-to-owner ${euros(-100)}`, 'advance 2026-01-20', 'advance 2026-03-01'])
     expect(listed(book.advances[1]!.drill.filters)).toEqual(['advance 2026-03-01'])
-    expect(listed(owed.privateCostsRepaid.drill.filters)).toEqual([`reimbursement-from-owner ${euros(30)}`])
+    expect(listed(loans.repaid.drill.filters)).toEqual([`reimbursement-from-owner ${euros(30)}`])
     expect(listed(owed.drill.filters)).toEqual([
       `reimbursement-from-owner ${euros(30)}`,
       `reimbursement-to-owner ${euros(-100)}`,

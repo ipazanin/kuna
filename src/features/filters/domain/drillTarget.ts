@@ -1,6 +1,9 @@
 import { monthRange } from '../../../shared/calendar/dateRange'
 import type { MonthKey } from '../../../shared/calendar/monthKey'
+import { negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
+import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
+import { EVERY_OWNER_ADVANCE } from './filterState'
 import type { AmountRange, FilterState, Period } from './filterState'
 
 export type DrillRoute = 'overview' | 'transactions' | 'trends' | 'spending' | 'period-review' | 'cash'
@@ -23,6 +26,25 @@ export function drillToTransactions(filters: Partial<FilterState>): DrillTarget 
 
 export function monthPeriod(month: MonthKey): Period {
   return { preset: 'custom', range: monthRange(month) }
+}
+
+/** The one row, found again by its day, category and exact amount. */
+export function rowDrill(row: Transaction): DrillTarget {
+  return drillToTransactions({
+    period: { preset: 'custom', range: { from: row.date, to: row.date } },
+    categories: [row.category],
+    amount: { min: row.amount, max: row.amount },
+  })
+}
+
+/** The one owner advance, found again by its day and the exact amount it books. */
+export function advanceDrill(advance: OwnerAdvance): DrillTarget {
+  const booked = negateMoney(advance.amount)
+  return drillToTransactions({
+    period: { preset: 'custom', range: { from: advance.date, to: advance.date } },
+    categories: [EVERY_OWNER_ADVANCE],
+    amount: { min: booked, max: booked },
+  })
 }
 
 /**

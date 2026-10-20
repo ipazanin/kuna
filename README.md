@@ -142,7 +142,7 @@ as before.
 | `label_neutral` | `Neutral` | Same for `neutral`. |
 | `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Taxes and Owner screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
-| `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. An entry that is not an IBAN is reported and the list stays blank. |
+| `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. Review's rule coverage groups such a row by the merchant after ` · ` in its counterparty, and a rule made from it tests `counterparty_contains` on that merchant, since the IBAN is the bank's. An entry that is not an IBAN is reported and the list stays blank. |
 | `billing_monthly_amount` | blank | The fee invoiced for each worked month. "Fill the rest of the year" adds a row of it for every month to December. |
 | `billing_monthly_item` | blank | The `item` text of the monthly fee rows on `outgoing-plan`, written as the tab writes it. Needed with the amount. |
 | `billing_subscription_amount` | blank | Subscriptions re-billed every month, filled in the same way. |
@@ -195,9 +195,15 @@ down, as *Accrual year* describes, and the Year end screen shows its figures.
 The effective tax rate is the taxes bucket, paid less refunded, over client revenue. A tax refund
 belongs in the taxes bucket. Whether loans count as owner pay is the bucket of the two loan
 categories on the `categories` tab, which "Loans to the owner count as owner pay" on Workbook,
-General switches between `owner-pay` and `financing`. Repayments are matched to loans first in,
-first out, and the loan balance is lent less repaid over the whole ledger, signed. A screen says
-which role no category carries, and what it leaves out because of that.
+General switches between `owner-pay` and `financing`. The loan book holds everything the owner owes
+the company: loans and private costs on an `owner-loan-out` category, and the owner's private shares
+of company payments from the `owner-advances` tab. Credits on an `owner-loan-repaid` category repay
+them, and so does a payment from the owner on a `reimbursement` category, less what the company sent
+back the same day. Each repayment first closes the fewest loans lent by its day that it equals
+exactly. The repayments left then go to the oldest open loan first, and one that outruns a loan
+carries on to the next, so none of them takes a loan that a later repayment equals. The loan
+balance is lent less repaid over the whole ledger, signed. A screen says which role no category
+carries, and what it leaves out because of that.
 
 Costs the owner paid privately go on the `owner-advances` tab, from the Sheet or from "Add advance"
 on Owner. Each counts as a cost on its date and in its category on every profit and loss figure:
@@ -209,10 +215,12 @@ balances, payees, Cash and Review leave them out. An account, counterparty or re
 them out too, since an advance has no bank account, no ledger counterparty and nothing to review.
 Transactions then says how many advances in the period it does not list. "Every owner advance", a
 choice among the categories in Add filter, selects all of them and no bank row. Payments to the
-owner on a `reimbursement` category repay them oldest first and stay financing. A payment to the
-owner on a day the owner also paid the company on a `reimbursement` category returns that payment
-first, as when the owner paid a private share back twice and the company sent the extra back, and
-only the rest of it repays costs.
+owner on a `reimbursement` category repay them and stay financing. Each one first repays the fewest
+costs paid by its day that it equals exactly, and the ones left then repay the oldest first. A
+payment to the owner on a day
+the owner also paid the company on a `reimbursement` category returns that payment first, as when
+the owner paid a private share back twice and the company sent the extra back. Only the rest of it
+repays costs, and Reimbursed counts only that rest.
 
 What a payment to the owner repays beyond every cost on the tab is a reimbursement with no cost on
 file. Net owed counts it as money paid to the owner, which it is until its cost is added. Owner
@@ -224,18 +232,16 @@ The tab holds two kinds of row, told apart by the sign of the amount. A positive
 the owner paid privately for the company, as above. A negative amount is the owner's private share
 of a payment the company made, which the bank row cannot split off since the ledger holds the bank
 data as booked. For an order of 45.12 filed as office supplies with 9.71 of it private, the row is
-the order's date, -9.71 and office supplies. It takes 9.71 off that cost on that date, and net owed
-counts it as lent to the owner until payments from the owner on a `reimbursement` category repay it.
-No reimbursement is matched to a private share, so Owner lists the shares in their own group without
-a repayment status, and Transactions badges them "Private share".
+the order's date, -9.71 and office supplies. It takes 9.71 off that cost on that date, and the
+loan book counts it as lent to the owner until a payment from the owner on a `reimbursement`
+category repays it. Owner lists each share among the loans with its repayment, and Transactions
+badges them "Private share".
 
-Net owed, on Owner and Overview, is one signed balance. The owner owes the company the loan balance
-plus the private shares, less every payment from the owner on a `reimbursement` category, which
-repays a private share or a private cost the company paid for the owner. The company owes the owner
-the costs the owner paid, less what it reimbursed. Positive means the owner owes the company. A
-private cost the company paid in full counts as lent only when its row is in a category with the
-`owner-loan-out` role. Filed as an ordinary cost with no private share, it counts in costs and not
-in net owed.
+Net owed, on Owner and Overview, is one signed balance. The owner owes the company the loan
+balance, private shares and private costs included. The company owes the owner the costs the owner
+paid, less what it reimbursed. Positive means the owner owes the company. A private cost the
+company paid in full counts as lent only when its row is in a category with the `owner-loan-out`
+role. Filed as an ordinary cost with no private share, it counts in costs and not in net owed.
 
 ## Assets
 
@@ -244,8 +250,10 @@ register lists each asset with its yearly rate from `hr.cit.depreciation-rates`,
 charge, the depreciation so far and the book value today. An asset's name opens the ledger debit
 that paid for it: its `ledger_reference` found in a row's reference or description, or else a debit
 on a `capital-purchase` category of its net cost, with or without VAT at the standard rate. Assets
-with no payment, and capital purchases on no asset row, are listed under the register. An item at
-or below `hr.cit.asset-threshold` is small inventory, written off when put in use.
+with no payment, and capital purchases on no asset row, are listed under the register. So is a
+payment found by a `ledger_reference` that is not what the assets claiming it cost together, with or
+without VAT at the standard rate. An item at or below `hr.cit.asset-threshold` is small inventory,
+written off when put in use.
 
 Depreciation is straight-line from the month after an asset is put in use, each year rounded to the
 cent. A chart draws each asset's book value by month until it reaches zero, and a list gives the
@@ -593,7 +601,8 @@ opens on how ours is built, every step drilling to its rows, with the rules behi
 
 A waterfall leads from the cash net to profit before and after tax, one bar per adjustment, with
 what nothing explains last. Konto lines that share a category are compared as one group beside our
-figure for those categories. The tax payment date is checked against a ledger payment of our
+figure for those categories, with the small inventory their payments bought and the year wrote off
+beside each one. The tax payment date is checked against a ledger payment of our
 balance due, and the distribution decision against our profit after tax. Open items list the
 accountant's choices, any gap to the accountant's profit, months no invoice delivers in, purchases
 with no asset row, and what loans to the owner and early asset purchases call for, each with what
@@ -609,9 +618,10 @@ services in `src/features/billingPlan/domain/` read it with the `invoices` tab:
 - `plannedAgainstInvoiced`: each month's plan rows against what invoices billed of them. An
   invoice lists a month's items together with items left over from before, and may bill next
   month's fee ahead, so no invoice belongs to one row. Each client's invoices, in issue order, take
-  the client's rows oldest first, by date and then tab order, the way Receivables lets payments
-  fill invoices. An invoice first fills the rows dated up to the end of the month it was issued
-  in. A remainder of €1 or more is a fee billed ahead and reaches on to the rows of the next month.
+  the client's rows. An invoice first fills the rows dated up to the end of the month it was issued
+  in: the fewest open rows it equals exactly, or else the rows oldest first, by date and then tab
+  order, the way Receivables lets payments fill invoices. A remainder of €1 or more is a fee billed
+  ahead and reaches on to the rows of the next month in the same way.
   A smaller one is a rounding difference, such as a row whose formula reads a cent below what was
   billed, and is invoiced above the plan on that invoice, so it never part fills a later month.
   What an invoice cannot place is invoiced with no plan row and is not carried to later rows. Rows

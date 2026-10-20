@@ -69,7 +69,10 @@ export interface DistributionCheck {
 /** Konto lines that share a category, beside our accrual figure for those categories. */
 export interface KontoComparison {
   readonly konto: readonly YearEndLine[]
-  /** Each category's accrual figure, a cost as a positive amount as the konto prints it. */
+  /**
+   * Each category's accrual figure, a cost as a positive amount as the konto prints it, and after
+   * it the small inventory its payments bought and the year wrote off.
+   */
   readonly categories: readonly TracedFigure[]
   readonly accountant: Money
   readonly ours: Money
@@ -258,11 +261,17 @@ function kontoComparisons(accountant: readonly YearEndLine[], workbook: Workbook
   const categories = new Map(workbook.categories.map((category) => [category.slug, category]))
   const konto = accountant.filter((line) => line.statement === 'konto')
   return kontoGroups(konto).map((group) => {
-    const figures = group.categories.map((slug) => {
+    const figures = group.categories.flatMap((slug) => {
       const total = totals.get(slug)
       const category = categories.get(slug)
+      const name = displayName(slug, category?.label ?? '')
+      const drill = total?.figure.drill ?? yearDrill(accrual.year, [slug])
       const amount = total === undefined ? ZERO : category?.bucket === 'income' ? total.figure.amount : negateMoney(total.figure.amount)
-      return withDrill(tracedFigure(displayName(slug, category?.label ?? ''), amount, 'ledger', total?.figure.rules ?? []), total?.figure.drill ?? yearDrill(accrual.year, [slug]))
+      const writtenOff = accrual.smallInventory.filter((entry) => entry.category === slug).map((entry) => entry.figure)
+      return [
+        withDrill(tracedFigure(name, amount, 'ledger', total?.figure.rules ?? []), drill),
+        ...(writtenOff.length === 0 ? [] : [withDrill(summed(`${name}, small inventory written off`, writtenOff, 'assets'), drill)]),
+      ]
     })
     const ours = sumMoney(figures.map((figure) => figure.amount))
     return {

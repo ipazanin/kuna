@@ -1,4 +1,4 @@
-import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
+import { drillToTransactions, rowDrill } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import type { Category, Transaction } from '../../../../features/workbook/domain/workbook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -7,7 +7,6 @@ import { negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/m
 import type { Money } from '../../../../shared/money/money'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
-import { rowDrill } from '../ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { CitObligation, CitSchedule } from './citSchedule'

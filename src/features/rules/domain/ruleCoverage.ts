@@ -15,11 +15,11 @@ export interface CategoryCount {
 
 /** Rows from one counterparty that a person confirmed and the rules do not file the same way. */
 export interface CoverageGroup<Row> {
-  /** `iban:` plus the IBAN, or `name:` plus the folded name, as counterparty filters key them. An exception adds the rule's id. */
+  /** `iban:` plus the IBAN, or `name:` plus the folded name, as counterparty filters key them, or a card merchant's folded name. An exception adds the rule's id. */
   readonly key: string
   /** The name as the newest row writes it. */
   readonly name: string
-  /** Blank when the group is by name. */
+  /** Blank when the group is by name, a card merchant's included. */
   readonly iban: string
   /** Newest first. */
   readonly rows: readonly Row[]
@@ -44,7 +44,8 @@ export interface RuleCoverage<Row> {
 /**
  * Human-confirmed rows in a defined category that the rules would not file the same way at rule
  * confidence, grouped by counterparty IBAN, else by name, and split by whether a rule settles them
- * in another category. Exceptions are grouped by counterparty and rule. Largest groups first.
+ * in another category. A card purchase settled against the bank's own account is grouped by its
+ * merchant. Exceptions are grouped by counterparty and rule. Largest groups first.
  */
 export function ruleCoverage<Row extends CoverageRow>(transactions: readonly Row[], rules: readonly Rule[], context: CategorisationContext): RuleCoverage<Row> {
   type Group = { name: string; iban: string; rows: Row[] }
@@ -59,8 +60,8 @@ export function ruleCoverage<Row extends CoverageRow>(transactions: readonly Row
     if (settlingRule !== null && verdict.category === transaction.category) {
       continue
     }
-    const identity = counterpartyIdentity(transaction)
-    const emptyGroup: Group = { name: identity.writtenName, iban: transaction.counterpartyIban, rows: [] }
+    const identity = counterpartyIdentity(transaction, context.cardSettlementIbans)
+    const emptyGroup: Group = { name: identity.writtenName, iban: identity.iban, rows: [] }
     if (settlingRule !== null) {
       const key = `${identity.key}|${settlingRule}`
       const group = exceptions.get(key) ?? { ...emptyGroup, ruleId: settlingRule, ruleCategory: verdict.category }

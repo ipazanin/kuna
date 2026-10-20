@@ -184,6 +184,13 @@ function assetsView(current: FilteredLedger) {
       amount: purchase.row.amount,
       to: drillLocation(purchase.drill),
     })),
+    mismatchedPayments: register.mismatchedPayments.map((payment) => ({
+      key: `${payment.row.account}-${payment.row.sequence}`,
+      date: dayLabel(payment.row.date),
+      claimedBy: `${payment.assets.map((asset) => asset.name).join(', ')}, ${formatMoney(payment.costNet)} without VAT`,
+      amount: payment.row.amount,
+      to: drillLocation(payment.drill),
+    })),
     threshold: formatMoney(threshold),
     chart,
     yearsSummary: years.length === 0 ? 'No asset is depreciated' : `${years.length} ${years.length === 1 ? 'year' : 'years'}, ${years[0]!.year} to ${years[years.length - 1]!.year}`,
@@ -372,7 +379,7 @@ function employmentState(until: CivilDate | null): string | null {
             <AssetRegister :lines="view.lines" :totals="view.totals" :year="thisYear" :today="dayLabel(today)" />
           </div>
           <div
-            v-if="view.unmatchedAssets.length > 0 || view.unmatchedPurchases.length > 0"
+            v-if="view.unmatchedAssets.length > 0 || view.unmatchedPurchases.length > 0 || view.mismatchedPayments.length > 0"
             class="flex flex-col gap-3 border-t border-default px-4 py-3 sm:px-5"
             data-testid="asset-notices"
           >
@@ -397,6 +404,26 @@ function employmentState(until: CivilDate | null): string | null {
                       <span class="figure shrink-0 text-xs text-muted">{{ purchase.date }}</span>
                       <span class="min-w-0 flex-1 truncate">{{ purchase.counterparty }}</span>
                       <MoneyText :cents="purchase.amount" class="text-toned" />
+                    </DrillLink>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div v-if="view.mismatchedPayments.length > 0" class="flex items-start gap-2 text-sm text-toned">
+              <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+              <div class="flex min-w-0 flex-1 flex-col gap-2">
+                <p>
+                  {{ view.mismatchedPayments.length }} {{ view.mismatchedPayments.length === 1 ? 'payment' : 'payments' }} found by a
+                  <span class="identifier">ledger_reference</span> {{ view.mismatchedPayments.length === 1 ? 'is' : 'are' }} not what the assets that claim
+                  {{ view.mismatchedPayments.length === 1 ? 'it' : 'them' }} cost, with or without VAT at the standard rate. Check each asset's reference and its
+                  <span class="identifier">cost_net</span>.
+                </p>
+                <ul class="flex flex-col" data-testid="mismatched-payments">
+                  <li v-for="payment in view.mismatchedPayments" :key="payment.key">
+                    <DrillLink :to="payment.to" :label="`Payment of ${payment.date}, open the row`" class="purchase-link">
+                      <span class="figure shrink-0 text-xs text-muted">{{ payment.date }}</span>
+                      <span class="min-w-0 flex-1 truncate">{{ payment.claimedBy }}</span>
+                      <MoneyText :cents="payment.amount" class="text-toned" />
                     </DrillLink>
                   </li>
                 </ul>

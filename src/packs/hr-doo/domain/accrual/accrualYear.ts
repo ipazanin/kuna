@@ -68,6 +68,13 @@ export interface CategoryTotal {
   readonly figure: TracedFigure
 }
 
+/** One asset written off as small inventory when put in use in the year. */
+export interface SmallInventoryWriteOff {
+  /** The category of the payment that bought it. Null when no payment claims it. */
+  readonly category: string | null
+  readonly figure: TracedFigure
+}
+
 /** A purchase on a capital-purchase category above the asset threshold that no asset row claims. It counts in full as a cost. */
 export interface PurchaseWithoutAsset {
   readonly label: string
@@ -87,6 +94,8 @@ export interface AccrualYear {
   readonly liability: CitLiability
   /** Each category's accrual figure in the year, for the konto lines that name it. */
   readonly categoryTotals: readonly CategoryTotal[]
+  /** Small inventory written off in the year, one entry per asset. The cost lines count it on material costs as one figure. */
+  readonly smallInventory: readonly SmallInventoryWriteOff[]
   /** Every booking the cash view counts, with what the accrual view does with it, after any cut-off. */
   readonly bookings: readonly AccrualBooking[]
   readonly uninvoicedMonths: readonly UninvoicedMonth[]
@@ -160,6 +169,12 @@ export function accrualYear(workbook: Workbook, year: number, inputs: AccrualInp
   const writtenOff = (treatment: 'small-inventory' | 'depreciated', label: string) =>
     summed(label, writeOffs.filter((entry) => entry.schedule.treatment === treatment).map((entry) => entry.figure), 'assets')
   const smallInventory = writtenOff('small-inventory', 'Small inventory written off when put in use')
+  const paymentCategoryOf = new Map(
+    byPolicy.flatMap((entry) => (entry.treatment === 'capitalised' ? entry.assets.map((asset) => [asset, entry.category.slug] as const) : [])),
+  )
+  const smallInventoryWriteOffs = writeOffs
+    .filter((entry) => entry.schedule.treatment === 'small-inventory')
+    .map((entry): SmallInventoryWriteOff => ({ category: paymentCategoryOf.get(entry.schedule.asset) ?? null, figure: entry.figure }))
   const disposals = writtenOff('depreciated', 'Book value of disposed assets written off')
 
   const grantChecks = grantResiduals(books.grants, workbook.yearEndLines)
@@ -409,6 +424,7 @@ export function accrualYear(workbook: Workbook, year: number, inputs: AccrualInp
     taxBase: base,
     liability,
     categoryTotals,
+    smallInventory: smallInventoryWriteOffs,
     bookings,
     uninvoicedMonths: delivered.uninvoicedMonths,
     purchasesWithoutAsset,
@@ -481,7 +497,7 @@ export function relatedPartyInterest(workbook: Workbook, year: number, profitBef
   }
   const dayBefore = civilDate(year - 1, 12, 31)
   const yearEnd = civilDate(year, 12, 31)
-  const centDays = ownerLoans(workbook.transactions, workbook.categories).loans.reduce((total, loan) => {
+  const centDays = ownerLoans(workbook.ownerAdvances, workbook.transactions, workbook.categories).loans.reduce((total, loan) => {
     let balance: number = loan.amount
     let from = loan.lentOn
     let sum = 0

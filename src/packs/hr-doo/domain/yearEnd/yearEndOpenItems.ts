@@ -156,7 +156,7 @@ function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSo
   const { year } = accrual
   const firstDay = civilDate(year, 1, 1)
   const lastDay = civilDate(year, 12, 31)
-  const loans = ownerLoans(workbook.transactions, workbook.categories).loans.filter(
+  const loans = ownerLoans(workbook.ownerAdvances, workbook.transactions, workbook.categories).loans.filter(
     (loan) => loan.amount > 0 && loan.lentOn <= lastDay && (loan.repaidOn === null || loan.repaidOn >= firstDay),
   )
   const loanItems: YearEndOpenItem[] = []
