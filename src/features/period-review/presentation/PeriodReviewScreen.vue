@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { chartTokens } from '../../../shared/charts/chartTokens'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
@@ -96,6 +97,12 @@ const review = computed(() => {
     changeSign: row.change === null || section === 'outside' ? 0 : section === 'cost' ? -row.change : row.change,
   })
   const sectionTitles = { income: shown.bucketLabels.income, cost: 'Costs', outside: 'Outside profit and loss' }
+  const sections = categoryChanges(profitAndLossRows, result.current.range, result.prior, window).map((section) => ({
+    key: section.key,
+    title: sectionTitles[section.key],
+    rows: section.rows.map((row) => rowOf(row, section.key)),
+  }))
+  const categoryCount = sections.reduce((count, section) => count + section.rows.length, 0)
   return {
     period,
     currentLabel,
@@ -118,11 +125,11 @@ const review = computed(() => {
       { series, netLine: MONTHLY_NET },
     ),
     legend: [...profitAndLossLegend(series), { label: MONTHLY_NET.name, colour: 'var(--chart-ink)', mark: 'line' as const }],
-    sections: categoryChanges(profitAndLossRows, result.current.range, result.prior, window).map((section) => ({
-      key: section.key,
-      title: sectionTitles[section.key],
-      rows: section.rows.map((row) => rowOf(row, section.key)),
-    })),
+    sections,
+    categoriesSummary:
+      categoryCount === 0
+        ? 'No categorised rows in this period'
+        : `${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'}, under ${sections.map((section) => section.title.toLowerCase()).join(', ')}`,
   }
 })
 </script>
@@ -141,24 +148,30 @@ const review = computed(() => {
 
         <div class="wide-pair">
           <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] 3xl:grid-cols-1 3xl:content-start">
-            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-              <header class="px-4 pt-4 sm:px-5">
-                <h2 class="text-sm font-medium text-highlighted">Profit and loss</h2>
-                <p class="mt-0.5 text-xs text-muted">{{ review.priorLabel ? `Against ${review.priorLabel}` : 'No earlier period to compare' }}</p>
-              </header>
-              <div class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+            <AppCard title="Profit and loss" :subtitle="review.priorLabel ? `Against ${review.priorLabel}` : 'No earlier period to compare'">
+              <div class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
                 <table class="data-table w-full text-sm">
                   <thead>
                     <tr>
                       <th scope="col" class="text-start">Line</th>
                       <th scope="col" class="text-end">{{ review.currentLabel }}</th>
                       <th scope="col" class="text-end">{{ review.priorLabel ?? 'Prior period' }}</th>
-                      <th scope="col" class="text-end">Change</th>
+                      <th scope="col" class="hidden text-end @sm:table-cell">Change</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="line in review.lines" :key="line.line">
-                      <th scope="row" class="text-start" :class="line.emphasised ? 'font-medium text-highlighted' : 'font-normal text-toned'">{{ line.label }}</th>
+                      <th scope="row" class="cell-wraps text-start" :class="line.emphasised ? 'font-medium text-highlighted' : 'font-normal text-toned'">
+                        {{ line.label }}
+                        <MoneyText
+                          v-if="line.change !== null"
+                          :cents="line.change"
+                          precision="whole"
+                          sign="always"
+                          class="block text-xs font-normal @sm:hidden"
+                          :class="line.changeSign > 0 ? 'text-positive' : line.changeSign < 0 ? 'text-negative' : 'text-muted'"
+                        />
+                      </th>
                       <td class="text-end">
                         <DrillLink :to="line.currentTo" :label="`${line.label}, ${review.currentLabel}, open the rows`">
                           <MoneyText :cents="line.current" precision="whole" />
@@ -170,7 +183,7 @@ const review = computed(() => {
                         </DrillLink>
                         <span v-else class="text-dimmed">No data</span>
                       </td>
-                      <td class="text-end">
+                      <td class="hidden text-end @sm:table-cell">
                         <MoneyText
                           v-if="line.change !== null"
                           :cents="line.change"
@@ -184,7 +197,7 @@ const review = computed(() => {
                   </tbody>
                 </table>
               </div>
-            </section>
+            </AppCard>
 
             <DrillChartCard
               :chart="review.byMonth"
@@ -199,28 +212,34 @@ const review = computed(() => {
             </DrillChartCard>
           </div>
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 class="text-sm font-medium text-highlighted">By category</h2>
-              <p class="mt-0.5 text-xs text-muted">Biggest changes first.</p>
-            </header>
+          <AppCard title="By category" subtitle="Biggest changes first." collapse-id="period-review.categories" :summary="review.categoriesSummary">
             <p v-if="review.sections.length === 0" class="px-5 py-8 text-sm text-muted">No categorised rows in this period.</p>
-            <div v-else class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+            <div v-else class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
               <table class="data-table w-full text-sm">
                 <template v-for="section in review.sections" :key="section.key">
                   <thead>
                     <tr>
                       <th scope="colgroup" class="section-heading text-start">{{ section.title }}</th>
-                      <th scope="col" class="hidden text-start sm:table-cell">Family</th>
+                      <th scope="col" class="hidden text-start @2xl:table-cell">Family</th>
                       <th scope="col" class="text-end">{{ review.currentLabel }}</th>
                       <th scope="col" class="text-end">{{ review.priorLabel ?? 'Prior period' }}</th>
-                      <th scope="col" class="text-end">Change</th>
+                      <th scope="col" class="hidden text-end @md:table-cell">Change</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="row in section.rows" :key="row.key">
-                      <th scope="row" class="text-start font-normal text-highlighted">{{ row.category }}</th>
-                      <td class="hidden text-muted sm:table-cell">{{ row.family }}</td>
+                      <th scope="row" class="cell-wraps text-start font-normal text-highlighted">
+                        {{ row.category }}
+                        <MoneyText
+                          v-if="row.change !== null"
+                          :cents="row.change"
+                          precision="whole"
+                          sign="always"
+                          class="block text-xs @md:hidden"
+                          :class="row.changeSign > 0 ? 'text-positive' : row.changeSign < 0 ? 'text-negative' : 'text-muted'"
+                        />
+                      </th>
+                      <td class="hidden text-muted @2xl:table-cell">{{ row.family }}</td>
                       <td class="text-end">
                         <DrillLink v-if="row.current !== null" :to="row.currentTo" :label="`${row.category}, ${review.currentLabel}, open the rows`">
                           <MoneyText :cents="row.current" precision="whole" />
@@ -233,7 +252,7 @@ const review = computed(() => {
                         </DrillLink>
                         <span v-else class="text-dimmed">–</span>
                       </td>
-                      <td class="text-end">
+                      <td class="hidden text-end @md:table-cell">
                         <MoneyText
                           v-if="row.change !== null"
                           :cents="row.change"
@@ -252,7 +271,7 @@ const review = computed(() => {
               Outside profit and loss: reimbursements and other financing settle costs counted above, so they are listed here and left out of
               both directions.
             </p>
-          </section>
+          </AppCard>
         </div>
       </template>
     </LedgerGate>

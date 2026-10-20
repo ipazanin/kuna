@@ -5,6 +5,7 @@ import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
+import AppCard from '../../../shared/ui/AppCard.vue'
 import { downloadTemplate, emptyLocalWorkbook } from '../../excel/application/workbookFiles'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -60,7 +61,7 @@ async function getTemplate(): Promise<void> {
 </script>
 
 <template>
-  <ul class="choices rounded-card border border-default bg-raised shadow-raised" data-testid="data-source-choices">
+  <AppCard as="ul" class="choices" data-testid="data-source-choices">
     <li class="choice">
       <UIcon name="i-lucide-sheet" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
@@ -126,7 +127,7 @@ async function getTemplate(): Promise<void> {
       </div>
       <UButton label="Start empty" icon="i-lucide-plus" color="neutral" variant="outline" :loading="startingEmpty" class="choice-action" @click="startEmpty" />
     </li>
-  </ul>
+  </AppCard>
 
   <ImportDialog v-model:file="pickedFile" @imported="emit('chosen')" />
 </template>

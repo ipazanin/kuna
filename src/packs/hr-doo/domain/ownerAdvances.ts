@@ -39,9 +39,19 @@ export interface PrivateShareLine {
   readonly drill: DrillTarget
 }
 
+/** A payment to the owner on a reimbursement category that no cost on the owner-advances tab accounts for, in part or in full. */
+export interface UnaccountedReimbursement {
+  readonly payment: Transaction
+  /** What no cost accounts for, read positive. The payment itself may be larger when it also repaid a cost. */
+  readonly amount: Money
+  readonly drill: DrillTarget
+}
+
 export interface OwnerAdvanceBook {
   /** The costs the owner paid, oldest first. */
   readonly advances: readonly OwnerAdvanceLine[]
+  /** Oldest first. Net owed counts them as paid to the owner until their costs are on the tab. */
+  readonly unaccounted: readonly UnaccountedReimbursement[]
   /** Oldest first. */
   readonly privateShares: readonly PrivateShareLine[]
   /** Every cost the owner paid privately. */
@@ -53,6 +63,8 @@ export interface OwnerAdvanceBook {
   /** Advanced less reimbursed, signed. Positive means the company still owes the owner. */
   readonly outstanding: Figure
   readonly openCount: number
+  /** What the unaccounted payments add up to, read positive. */
+  readonly unaccountedTotal: Money
 }
 
 /**
@@ -86,15 +98,20 @@ const CREDITS: AmountRange = { min: moneyFromCents(1), max: null }
 
 /**
  * The costs the owner paid matched to the reimbursements paid to the owner, first in, first out,
- * with no date cap, as loans are matched to repayments. The private shares are listed apart and
+ * with no date cap, as loans are matched to repayments. A payment to the owner on a day the owner
+ * also paid the company on a reimbursement category first returns that payment, as when the owner
+ * paid a private share back twice and the company sent the extra back, so only what is left of it
+ * repays costs. What no cost takes is listed as unaccounted. The private shares are listed apart and
  * matched to nothing. The balance comes from the rows themselves, so it states a reimbursement no
  * advance accounts for.
  */
 export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): OwnerAdvanceBook {
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
-  const repaymentRows = [...transactions]
-    .filter((transaction) => reimbursement.includes(transaction.category) && transaction.amount < 0)
+  const reimbursementRows = transactions.filter((transaction) => reimbursement.includes(transaction.category))
+  const repaymentRows = reimbursementRows
+    .filter((transaction) => transaction.amount < 0)
     .sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
+  const repayments = repaymentsOfCosts(repaymentRows, reimbursementRows)
   const ordered = [...advances].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)
   const paidByOwner = ordered.filter((advance) => advanceKindOf(advance) === 'paid-by-owner')
   const privateShares = ordered
@@ -102,20 +119,19 @@ export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: r
     .map((advance): PrivateShareLine => ({ advance, share: negateMoney(advance.amount), drill: advanceDrill(advance) }))
 
   let repaymentIndex = 0
-  let leftInRepayment = repaymentRows[0] === undefined ? ZERO : negateMoney(repaymentRows[0].amount)
+  let leftInRepayment = repayments[0]?.amount ?? ZERO
   const lines = paidByOwner.map((advance): OwnerAdvanceLine => {
     let remaining = advance.amount
-    const repayments: AdvanceRepaymentShare[] = []
-    while (remaining > 0 && repaymentIndex < repaymentRows.length) {
-      const repayment = repaymentRows[repaymentIndex]!
+    const shares: AdvanceRepaymentShare[] = []
+    while (remaining > 0 && repaymentIndex < repayments.length) {
+      const repayment = repayments[repaymentIndex]!.payment
       const applied = Math.min(remaining, leftInRepayment) as Money
-      repayments.push({ repaidOn: repayment.date, applied, drill: rowDrill(repayment) })
+      shares.push({ repaidOn: repayment.date, applied, drill: rowDrill(repayment) })
       remaining = subtractMoney(remaining, applied)
       leftInRepayment = subtractMoney(leftInRepayment, applied)
       if (leftInRepayment === 0) {
         repaymentIndex += 1
-        const next = repaymentRows[repaymentIndex]
-        leftInRepayment = next === undefined ? ZERO : negateMoney(next.amount)
+        leftInRepayment = repayments[repaymentIndex]?.amount ?? ZERO
       }
     }
     return {
@@ -123,10 +139,17 @@ export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: r
       drill: advanceDrill(advance),
       remaining,
       status: remaining === 0 ? 'repaid' : 'open',
-      repaidOn: remaining === 0 ? (repayments[repayments.length - 1]?.repaidOn ?? null) : null,
-      repayments,
+      repaidOn: remaining === 0 ? (shares[shares.length - 1]?.repaidOn ?? null) : null,
+      repayments: shares,
     }
   })
+  const unaccounted = repayments.slice(repaymentIndex).map(
+    (repayment, index): UnaccountedReimbursement => ({
+      payment: repayment.payment,
+      amount: index === 0 ? leftInRepayment : repayment.amount,
+      drill: rowDrill(repayment.payment),
+    }),
+  )
 
   const advanced = paidByOwner.reduce((total, advance) => addMoney(total, advance.amount), ZERO)
   const privateShareTotal = privateShares.reduce((total, line) => addMoney(total, line.share), ZERO)
@@ -144,7 +167,28 @@ export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: r
       drill: drillToTransactions({ period: { preset: 'all' }, categories: [...reimbursement, EVERY_OWNER_ADVANCE], amount: DEBITS }),
     },
     openCount: lines.filter((line) => line.status === 'open').length,
+    unaccounted,
+    unaccountedTotal: unaccounted.reduce((total, line) => addMoney(total, line.amount), ZERO),
   }
+}
+
+/**
+ * What each payment to the owner, oldest first, leaves to repay costs, read positive: the payment
+ * less what it returned of the owner's payments to the company on the same day. A payment that
+ * only returned one leaves nothing and drops out.
+ */
+function repaymentsOfCosts(toOwner: readonly Transaction[], reimbursementRows: readonly Transaction[]): { readonly payment: Transaction; readonly amount: Money }[] {
+  const paidInByDay = new Map<CivilDate, Money>()
+  for (const row of reimbursementRows.filter((candidate) => candidate.amount > 0)) {
+    paidInByDay.set(row.date, addMoney(paidInByDay.get(row.date) ?? ZERO, row.amount))
+  }
+  return toOwner.flatMap((payment) => {
+    const paidIn = paidInByDay.get(payment.date) ?? ZERO
+    const returned = Math.min(paidIn, negateMoney(payment.amount)) as Money
+    paidInByDay.set(payment.date, subtractMoney(paidIn, returned))
+    const amount = subtractMoney(negateMoney(payment.amount), returned)
+    return amount === 0 ? [] : [{ payment, amount }]
+  })
 }
 
 /**

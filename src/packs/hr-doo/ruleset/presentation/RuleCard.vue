@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppCard from '../../../../shared/ui/AppCard.vue'
 import ConfidenceBadge from './ConfidenceBadge.vue'
 import RuleSources from './RuleSources.vue'
 import RuleTable from './RuleTable.vue'
@@ -19,22 +20,23 @@ withDefaults(
 </script>
 
 <template>
-  <article
+  <AppCard
     :id="`rule-${rule.id}`"
+    as="article"
+    heading="h3"
+    :title="rule.title"
     tabindex="-1"
-    class="rule-card rounded-card border border-default bg-raised shadow-raised"
+    class="rule-card"
     :class="{ 'is-linked': linked }"
     :data-linked="linked ? 'true' : undefined"
-    :aria-labelledby="`rule-${rule.id}-title`"
     data-testid="rule-card"
   >
-    <header class="flex flex-col gap-1 px-4 pt-4 sm:px-5">
-      <h3 :id="`rule-${rule.id}-title`" class="text-[0.9375rem] font-medium text-highlighted">{{ rule.title }}</h3>
-      <p class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-muted">
+    <template #subtitle>
+      <span class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <span class="identifier text-toned" data-testid="rule-id">{{ rule.id }}</span>
         <span>{{ rule.appliesBy }}</span>
-      </p>
-    </header>
+      </span>
+    </template>
 
     <div class="rule-body px-4 pt-3 pb-4 sm:px-5">
       <div class="flex min-w-0 flex-col gap-4">
@@ -95,11 +97,12 @@ withDefaults(
 
       <RuleSources :sources="rule.sources" class="min-w-0" />
     </div>
-  </article>
+  </AppCard>
 </template>
 
 <style scoped>
 .rule-card {
+  container-type: inline-size;
   outline: none;
   transition:
     border-color 160ms ease,
@@ -118,7 +121,8 @@ withDefaults(
   gap: 1rem;
 }
 
-@media (min-width: 1024px) {
+/* The sources sit beside the values only where the widest value table still fits. */
+@container (min-width: 68rem) {
   .rule-body {
     grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
     gap: 1.5rem;

@@ -6,6 +6,7 @@ import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { currencyUnitName, formatDecimal, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
@@ -222,19 +223,14 @@ const overview = computed(() => {
         </p>
 
         <div class="wide-pair">
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-            <header class="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 sm:px-5">
-              <div>
-                <h2 class="text-sm font-medium text-highlighted">A typical month, three ways</h2>
-                <p class="mt-0.5 text-xs text-muted">
-                  Each window ends with the last complete month. A wide spread means recent months are not like the rest.
-                </p>
-              </div>
-            </header>
+          <AppCard
+            title="A typical month, three ways"
+            subtitle="Each window ends with the last complete month. A wide spread means recent months are not like the rest."
+          >
             <div class="px-1 pt-2 pb-2 sm:px-2">
               <WindowComparison :columns="overview.columnLabels" :rows="overview.comparison" />
             </div>
-          </section>
+          </AppCard>
 
           <div class="grid gap-4 xl:grid-cols-2 3xl:contents">
             <DrillChartCard

@@ -37,16 +37,21 @@ if (import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
 
 routes.push({ path: '/:unknown(.*)*', redirect: '/' })
 
+/** How far below the top of the window a link to a part of a screen puts it, clear of the phone's top bar. */
+export const LINKED_PART_TOP = 72
+
 /** Hash history, because GitHub Pages serves static files and cannot answer a deep path with index.html. */
 /**
  * A new screen opens at its top, so its heading is never under the top bar. A filter change keeps
  * the place, and a link to a part of the screen, such as a month in a list, scrolls it to just
- * below the phone's top bar.
+ * below the phone's top bar. The first load is already at the top, and a scroll there could land
+ * after a screen scrolled itself to a linked row.
  */
 export const router = createRouter({
   history: createWebHashHistory(),
   routes,
-  scrollBehavior: (to, from, savedPosition) => savedPosition ?? (to.hash !== '' ? { el: to.hash, top: 72 } : to.path === from.path ? false : { top: 0 }),
+  scrollBehavior: (to, from, savedPosition) =>
+    savedPosition ?? (to.hash !== '' ? { el: to.hash, top: LINKED_PART_TOP } : to.path === from.path || from.matched.length === 0 ? false : { top: 0 }),
 })
 
 const APP_NAME = 'Ledgerboard'

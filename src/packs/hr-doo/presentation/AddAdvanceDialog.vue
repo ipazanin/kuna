@@ -1,3 +1,16 @@
+<script lang="ts">
+import type { CivilDate } from '../../../shared/calendar/civilDate'
+import type { Money } from '../../../shared/money/money'
+
+/** What the form starts on for a cost already reimbursed, such as a payment to the owner with no cost on file. */
+export interface AdvancePrefill {
+  readonly date: CivilDate
+  /** Read positive. */
+  readonly amount: Money
+  readonly description: string
+}
+</script>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
@@ -8,9 +21,8 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
-import { moneyFromAmount, negateMoney } from '../../../shared/money/money'
+import { amountOf, moneyFromAmount, negateMoney } from '../../../shared/money/money'
 import { formatMoney } from '../../../shared/money/moneyFormat'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../features/workbook/application/workbookStore'
@@ -28,13 +40,18 @@ const KIND_CHOICES: readonly { readonly kind: OwnerAdvanceKind; readonly label: 
 
 const open = defineModel<boolean>('open', { required: true })
 
-const props = defineProps<{
-  categories: readonly Category[]
-  /** The day the form starts on: the newest booking in the ledger. */
-  defaultDate: CivilDate
-  /** Where the advance is written, for the toast. */
-  inSheet: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    categories: readonly Category[]
+    /** The day the form starts on: the newest booking in the ledger. */
+    defaultDate: CivilDate
+    /** Where the advance is written, for the toast. */
+    inSheet: boolean
+    /** A cost the form starts on instead of a blank one. */
+    prefill?: AdvancePrefill | null
+  }>(),
+  { prefill: null },
+)
 
 const store = useWorkbook()
 const toast = useToast()
@@ -52,9 +69,9 @@ const tried = ref(false)
 watch(open, (opened) => {
   if (opened) {
     kind.value = 'paid-by-owner'
-    date.value = props.defaultDate
-    amount.value = ''
-    description.value = ''
+    date.value = props.prefill?.date ?? props.defaultDate
+    amount.value = props.prefill === null ? '' : amountOf(props.prefill.amount).toFixed(2)
+    description.value = props.prefill?.description ?? ''
     category.value = ''
     tried.value = false
   }

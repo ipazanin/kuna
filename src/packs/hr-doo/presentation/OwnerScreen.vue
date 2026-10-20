@@ -4,7 +4,8 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../shared/charts/chartTokens'
-import { currencyUnitName, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import { currencyUnitName, formatMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
@@ -27,12 +28,14 @@ import { ownerTake, ownerTakeByMonth } from '../domain/ownerTake'
 import type { OwnerTakeLine } from '../domain/ownerTake'
 import { PACK_ROLES, categoriesInBucket, categoriesWithRole } from '../domain/packRoles'
 import AddAdvanceDialog from './AddAdvanceDialog.vue'
+import type { AdvancePrefill } from './AddAdvanceDialog.vue'
 import AdvanceList from './AdvanceList.vue'
 import type { AdvanceLine, PrivateShareLine } from './AdvanceList.vue'
 import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import MissingRoles from './MissingRoles.vue'
 import OwnerPayOff from './OwnerPayOff.vue'
+import UnaccountedReimbursements from './UnaccountedReimbursements.vue'
 import { LENT_SERIES, OUTSTANDING_SERIES, REPAID_SERIES, categoryLegend, categorySeries, loanTimelineChart, ownerDrawsChart } from './packCharts'
 
 const ledger = useFilteredLedger()
@@ -41,6 +44,12 @@ const { drillLocation } = useFilters()
 const names = useDisplayNames()
 const { state } = useWorkbook()
 const addingAdvance = ref(false)
+const advancePrefill = ref<AdvancePrefill | null>(null)
+
+function addAdvance(prefill: AdvancePrefill | null): void {
+  advancePrefill.value = prefill
+  addingAdvance.value = true
+}
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
@@ -134,6 +143,9 @@ const owner = computed(() => {
           `plus the owner's private shares of company payments (${formatWholeMoney(owed.privateShares)}), ` +
           `less what the owner paid back on a reimbursement category (${formatWholeMoney(owed.privateCostsRepaid.amount)}). ` +
           `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(owed.advancesOutstanding)}). ` +
+          (advances.unaccountedTotal > 0
+            ? `That figure counts the reimbursements with no cost on file (${formatMoney(advances.unaccountedTotal)}) as paid to the owner until their costs are added. `
+            : '') +
           'Positive means the owner owes the company. A private cost the company paid in full counts as lent only when its row is in a category with the owner-loan-out role.',
       },
     ],
@@ -160,6 +172,12 @@ const owner = computed(() => {
       { label: 'Reimbursed', amount: advances.reimbursed.amount, to: drillLocation(advances.reimbursed.drill) },
       { label: 'Owed to the owner', amount: advances.outstanding.amount, to: drillLocation(advances.outstanding.drill) },
     ],
+    unaccounted: advances.unaccounted,
+    advancesSummary: [
+      `${advances.advances.length} ${advances.advances.length === 1 ? 'cost' : 'costs'}`,
+      `${formatWholeMoney(advances.outstanding.amount)} owed to the owner`,
+      ...(advances.unaccounted.length === 0 ? [] : [`${advances.unaccounted.length} ${advances.unaccounted.length === 1 ? 'reimbursement' : 'reimbursements'} with no cost on file`]),
+    ].join(', '),
     advances: [...advances.advances].reverse().map(
       (line): AdvanceLine => ({
         key: `${line.advance.sheetRow}`,
@@ -238,11 +256,7 @@ const owner = computed(() => {
             <template #legend><ChartLegend :entries="owner.drawsLegend" /></template>
           </DrillChartCard>
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 class="text-sm font-medium text-highlighted">Owner take by category</h2>
-              <p class="mt-0.5 text-xs text-muted">{{ owner.period }}. Paid to the owner reads positive.</p>
-            </header>
+          <AppCard title="Owner take by category" :subtitle="`${owner.period}. Paid to the owner reads positive.`">
             <p v-if="owner.takeLines.length === 0" class="px-5 py-8 text-sm text-muted">Nothing went to the owner in this period.</p>
             <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
               <table class="data-table w-full text-sm" data-testid="owner-take">
@@ -284,7 +298,7 @@ const owner = computed(() => {
                 </table>
               </template>
             </div>
-          </section>
+          </AppCard>
         </div>
 
         <DrillChartCard
@@ -300,16 +314,19 @@ const owner = computed(() => {
         </DrillChartCard>
 
         <div class="wide-pair">
-          <section v-if="owner.hasLoanRoles" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="owner-loans">
-            <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-              <div>
-                <h2 class="text-sm font-medium text-highlighted">Every loan, with the repayments that closed it</h2>
-                <p class="mt-0.5 text-xs text-muted">
-                  All time. Repayments go to the oldest open loan first, and one that outruns a loan carries on to the next.
-                  <template v-if="owner.openCount > 0">{{ owner.openCount }} open, the oldest from {{ owner.oldestOpen }}.</template>
-                  <template v-else>None open.</template>
-                </p>
-              </div>
+          <AppCard
+            v-if="owner.hasLoanRoles"
+            title="Every loan, with the repayments that closed it"
+            collapse-id="owner.loans"
+            :summary="`${owner.loans.length} ${owner.loans.length === 1 ? 'loan' : 'loans'}, ${owner.openCount === 0 ? 'none open' : `${owner.openCount} open`}`"
+            data-testid="owner-loans"
+          >
+            <template #subtitle>
+              All time. Repayments go to the oldest open loan first, and one that outruns a loan carries on to the next.
+              <template v-if="owner.openCount > 0">{{ owner.openCount }} open, the oldest from {{ owner.oldestOpen }}.</template>
+              <template v-else>None open.</template>
+            </template>
+            <template #header>
               <dl class="grid grid-cols-3 gap-3">
                 <div v-for="figure in owner.loanSummary" :key="figure.label" class="min-w-0">
                   <dt class="text-xs text-muted">{{ figure.label }}</dt>
@@ -318,24 +335,23 @@ const owner = computed(() => {
                   </dd>
                 </div>
               </dl>
-            </header>
+            </template>
             <div class="px-4 pt-1 pb-2 sm:px-5">
               <LoanList :loans="owner.loans" />
             </div>
-          </section>
+          </AppCard>
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="owner-advances">
-            <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <h2 class="text-sm font-medium text-highlighted">Costs the owner paid privately</h2>
-                  <p class="mt-0.5 max-w-[65ch] text-xs text-muted">
-                    All time, from the owner-advances tab. Each counts as a cost on its date, in its category. Reimbursements to the owner repay the oldest first and
-                    stay outside profit and loss.
-                  </p>
-                </div>
-                <UButton label="Add advance" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="open-add-advance" @click="addingAdvance = true" />
-              </div>
+          <AppCard title="Costs the owner paid privately" collapse-id="owner.advances" :summary="owner.advancesSummary" data-testid="owner-advances">
+            <template #subtitle>
+              <span class="block max-w-[65ch]">
+                All time, from the owner-advances tab. Each counts as a cost on its date, in its category. Reimbursements to the owner repay the oldest first and stay
+                outside profit and loss.
+              </span>
+            </template>
+            <template #actions>
+              <UButton label="Add advance" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="open-add-advance" @click="addAdvance(null)" />
+            </template>
+            <template #header>
               <dl class="grid grid-cols-3 gap-3">
                 <div v-for="figure in owner.advanceSummary" :key="figure.label" class="min-w-0">
                   <dt class="text-xs text-muted">{{ figure.label }}</dt>
@@ -344,17 +360,26 @@ const owner = computed(() => {
                   </dd>
                 </div>
               </dl>
-            </header>
+            </template>
             <div class="px-4 pt-1 pb-2 sm:px-5">
+              <section v-if="owner.unaccounted.length > 0" class="border-b border-default pt-2 pb-2" aria-labelledby="unaccounted-heading" data-testid="owner-unaccounted">
+                <h3 id="unaccounted-heading" class="text-xs font-medium text-[var(--tone-warning)]">Reimbursed with no cost on file</h3>
+                <p class="mt-0.5 max-w-[65ch] text-xs text-muted">
+                  The company paid these to the owner on a reimbursement category, and no cost on the owner-advances tab accounts for them. Net owed counts them as paid to
+                  the owner. Add the cost each one repaid and it nets out.
+                </p>
+                <UnaccountedReimbursements :payments="owner.unaccounted" :editable="!state.writing" @add-cost="addAdvance" />
+              </section>
               <AdvanceList :advances="owner.advances" :private-shares="owner.privateShares" />
             </div>
-          </section>
+          </AppCard>
         </div>
         <AddAdvanceDialog
           v-model:open="addingAdvance"
           :categories="ledger.workbook.categories"
           :default-date="owner.newestBooking"
           :in-sheet="state.workbook?.source === 'google'"
+          :prefill="advancePrefill"
         />
       </template>
     </LedgerGate>

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import AppCard from '../../../../shared/ui/AppCard.vue'
 import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
 import type { Grant } from '../../../../features/workbook/domain/grants'
 import type { OwnerPayScenario, ScenarioComponent } from '../../../../features/workbook/domain/ownerPayScenarios'
@@ -45,25 +46,25 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
 </script>
 
 <template>
-  <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="scenario-editor-title" data-testid="scenario-editor">
-    <header class="flex flex-col gap-2 px-4 pt-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
-      <div>
-        <h2 id="scenario-editor-title" class="text-sm font-medium text-highlighted">Scenarios for {{ year }}</h2>
-        <p class="mt-0.5 text-xs text-muted">Rows of the scenarios tab. A change is written at once, with Undo in the toast.</p>
-      </div>
+  <AppCard
+    :title="`Scenarios for ${year}`"
+    subtitle="Rows of the scenarios tab. A change is written at once, with Undo in the toast."
+    collapse-id="pay-scenarios.editor"
+    :summary="scenarios.length === 0 ? 'No scenario yet' : scenarios.map((scenario) => scenario.label || scenario.slug).join(', ')"
+    data-testid="scenario-editor"
+  >
+    <template v-if="!startingTaken" #actions>
       <UButton
-        v-if="!startingTaken"
         label="Add the starting scenarios"
         icon="i-lucide-list-plus"
         color="neutral"
         variant="outline"
         size="sm"
-        class="shrink-0 self-start"
         :disabled="store.state.writing"
         data-testid="add-starting-scenarios"
         @click="startingOpen = true"
       />
-    </header>
+    </template>
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
       <p v-if="scenarios.length === 0" class="py-4 text-sm text-muted">No scenario is for {{ year }} yet. The starting scenarios give four to compare, all editable.</p>
       <article v-for="scenario in scenarios" :key="scenario.slug" class="scenario-card" :data-scenario="scenario.slug">
@@ -100,7 +101,7 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
     <ComponentDialog v-if="editing" v-model:open="componentOpen" :scenario="editing.scenario" :component="editing.component" />
     <ScenarioNameDialog v-if="naming" v-model:open="nameOpen" :scenario="naming.scenario" :mode="naming.mode" :taken="taken" />
     <StartingScenariosDialog v-model:open="startingOpen" :year="year" :grants="grants" :tab-missing="tabMissing" :taken="taken" />
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>

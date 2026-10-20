@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
+import AppCard from '../../../shared/ui/AppCard.vue'
 import ProblemList from '../../excel/presentation/ProblemList.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -29,6 +30,10 @@ const { state } = useWorkbook()
 const workbook = computed(() => state.workbook)
 const ordered = computed(() => inTryingOrder(workbook.value?.rules ?? []))
 const problems = computed(() => (workbook.value?.problems ?? []).filter((problem) => problem.tab === 'rules'))
+const summary = computed(() => {
+  const on = ordered.value.filter((rule) => rule.enabled).length
+  return `${ordered.value.length} ${ordered.value.length === 1 ? 'rule' : 'rules'}, ${on} switched on`
+})
 const bucketBySlug = computed(() => new Map((workbook.value?.categories ?? []).map((category) => [category.slug, category.bucket])))
 
 /** How many ledger rows each rule decides today. */
@@ -57,14 +62,8 @@ function holdIfHighlighted(rule: Rule, element: unknown): void {
   if (isHighlighted(rule)) highlightedRow.value = element instanceof HTMLElement ? element : null
 }
 
-watch(
-  [highlightedId, () => ordered.value.length],
-  async () => {
-    await nextTick()
-    highlightedRow.value?.scrollIntoView({ block: 'center' })
-  },
-  { immediate: true },
-)
+/** Scrolls once the marked row is on the page, which on a first load comes after the rules arrive. */
+watch(highlightedRow, (row) => row?.scrollIntoView({ block: 'center' }), { flush: 'post' })
 
 const editorOpen = ref(false)
 const editorSource = ref<RuleEditorSource | null>(null)
@@ -121,16 +120,17 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
 </script>
 
 <template>
-  <section class="rounded-card border border-default bg-raised shadow-raised" data-testid="rules-tab">
-    <header class="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 sm:px-5">
-      <div class="min-w-0">
-        <h2 class="text-sm font-medium text-highlighted">Rules</h2>
-        <p class="mt-0.5 text-xs text-muted">
-          Tried from the top. The first enabled rule whose conditions all hold decides a row. Every save is checked the way the Apps Script reads the tab.
-        </p>
-      </div>
+  <AppCard
+    title="Rules"
+    subtitle="Tried from the top. The first enabled rule whose conditions all hold decides a row. Every save is checked the way the Apps Script reads the tab."
+    collapse-id="workbook.rules"
+    :summary="summary"
+    :reveal="highlightedId !== null"
+    data-testid="rules-tab"
+  >
+    <template #actions>
       <UButton label="Add rule" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="add-rule" @click="addRule" />
-    </header>
+    </template>
 
     <div v-if="problems.length" class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
       <UAlert
@@ -197,7 +197,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
 
     <RuleEditor v-model:open="editorOpen" :source="editorSource" />
     <RuleChangeDialog v-model:open="dialogOpen" :pending="pending" />
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>

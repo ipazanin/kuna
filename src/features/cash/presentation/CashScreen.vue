@@ -4,6 +4,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { formatDecimal, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
@@ -111,12 +112,7 @@ const cash = computed(() => {
         </DrillChartCard>
 
         <ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <li
-            v-for="account in cash.accounts"
-            :key="account.account"
-            class="flex flex-col gap-2 rounded-card border border-default bg-raised p-4 shadow-raised"
-            :class="{ 'account-closed': account.closed }"
-          >
+          <AppCard v-for="account in cash.accounts" :key="account.account" as="li" class="gap-2 p-4" :class="{ 'account-closed': account.closed }">
             <div class="flex items-center justify-between gap-2">
               <p class="flex items-center gap-2 text-sm text-toned">
                 <span class="size-2.5 rounded-[2px]" :style="{ background: account.colour }" aria-hidden="true" />
@@ -128,7 +124,7 @@ const cash = computed(() => {
               <span class="text-figure-lg font-semibold whitespace-nowrap text-highlighted">{{ formatWholeMoney(account.balance) }}</span>
             </DrillLink>
             <p class="text-xs text-muted">As of {{ account.asOf }}. {{ account.count }} rows since {{ account.firstSeen }}.</p>
-          </li>
+          </AppCard>
         </ul>
       </template>
     </LedgerGate>

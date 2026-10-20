@@ -12,7 +12,7 @@ import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
 import type { BillingPlanFigures } from '../application/useBillingPlan'
 import type { MatchedBillingItem } from '../domain/plannedAgainstInvoiced'
-import { billingMonthChart, itemColours, itemYearsChart } from './billingCharts'
+import { itemColours, itemYearsChart } from './billingCharts'
 
 export type BillingStatus = 'invoiced' | 'part' | 'open'
 
@@ -45,7 +45,7 @@ export interface BillingRowLine {
   readonly invoices: readonly BillingInvoiceShare[]
 }
 
-/** What an invoice issued in a month billed beyond the plan rows it could reach. */
+/** What an invoice issued in a month billed above the plan rows it could reach. */
 export interface WithoutPlanLine {
   readonly key: string
   readonly number: string
@@ -61,7 +61,7 @@ export interface BillingMonthLine {
   readonly invoiced: Money
   readonly open: Money
   readonly withoutPlan: Money
-  /** Null for a month with no plan rows, only invoices beyond the plan. */
+  /** Null for a month with no plan rows, only invoices above the plan. */
   readonly status: BillingStatus | null
   readonly rows: readonly BillingRowLine[]
   readonly withoutPlanLines: readonly WithoutPlanLine[]
@@ -184,7 +184,7 @@ export function billingView(
       value: formatWholeMoney(openInYear),
       caption: openRows.length === 0 ? `Every ${year} plan row is invoiced` : `${openRows.length} ${openRows.length === 1 ? 'row' : 'rows'} of ${year} still open`,
       definition:
-        'What the invoices have not billed of the plan rows dated in the year. Each client’s invoices bill its rows oldest first, reaching rows dated up to the end of the month after the one they were issued in.',
+        'What the invoices have not billed of the plan rows dated in the year. Each client’s invoices bill its rows oldest first, up to the end of the month they were issued in, and the next month’s rows with €1 or more left.',
       to: links.months,
     },
     {
@@ -200,19 +200,16 @@ export function billingView(
   const yearStatistics = figures.statistics.years.find((entry) => entry.year === year)
   return {
     tiles,
-    chart: billingMonthChart(
-      months.map((month) => ({
-        month: month.month,
-        planned: month.planned,
-        invoiced: month.invoiced,
-        withoutPlan: month.withoutPlan,
-        to: month.rows.length === 0 && month.withoutPlanLines.length === 0 ? null : links.month(month.month),
-      })),
-      tokens,
-    ),
-    chartEmpty: months.every((month) => month.planned === 0 && month.withoutPlan === 0),
     months: listedMonths,
-    rows,
+    monthsSummary:
+      listedMonths.length === 0
+        ? 'No month with plan rows'
+        : `${listedMonths.length} ${listedMonths.length === 1 ? 'month' : 'months'}, ${formatWholeMoney(yearTotals.planned)} planned, ${formatWholeMoney(openInYear)} not invoiced yet`,
+    rowsSummary:
+      rows.length === 0
+        ? 'No plan rows in the year'
+        : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}, ${openRows.length === 0 ? 'every one invoiced' : `${openRows.length} not invoiced yet`}`,
+    rows: [...rows].sort((earlier, later) => later.date.localeCompare(earlier.date) || earlier.sheetRow - later.sheetRow),
     items:
       yearStatistics?.items.map((entry) => ({
         item: entry.item,
@@ -232,7 +229,6 @@ export function billingView(
         { label: 'Invoiced amount', amount: all.invoiced },
         { label: 'Not invoiced', amount: all.notInvoiced },
       ],
-      planned: all.years.filter((entry) => entry.planned !== 0).map((entry): BillingCheckLine => ({ label: String(entry.year), amount: entry.planned })),
       actual: all.years.filter((entry) => entry.invoiced !== 0).map((entry): BillingCheckLine => ({ label: String(entry.year), amount: entry.invoiced })),
     },
   }

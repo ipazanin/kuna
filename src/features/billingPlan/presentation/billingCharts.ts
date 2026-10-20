@@ -1,16 +1,10 @@
-import type { RouteLocationRaw } from 'vue-router'
-
-import { monthAxisLabel, monthLabel } from '../../../shared/calendar/monthLabel'
-import type { MonthKey } from '../../../shared/calendar/monthKey'
-import { BAR_END_RIGHT, BAR_END_UP, incompleteDecal, moneyAxisLabel, stackGap } from '../../../shared/charts/chartTheme'
+import { BAR_END_RIGHT, moneyAxisLabel, stackGap } from '../../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../shared/charts/chartTooltip'
-import type { BarSeries } from '../../../shared/charts/echarts'
+import type { BarSeries, ChartOption } from '../../../shared/charts/echarts'
 import { sumMoney } from '../../../shared/money/money'
-import type { Money } from '../../../shared/money/money'
 import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../shared/ui/ChartLegend.vue'
-import type { LinkChart } from '../../filters/presentation/chartDrill'
 import type { YearItems } from '../domain/itemStatistics'
 
 /** The categorical slots before the rest fold into one grey series. */
@@ -31,91 +25,14 @@ function seriesNameOf(item: string, items: readonly string[]): string {
   return items.length > SLOTS && items.indexOf(item) >= SLOTS - 1 ? OTHER_ITEMS : item
 }
 
-/** One month of the selected year as the chart draws it. */
-export interface BillingChartMonth {
-  readonly month: MonthKey
-  /** The plan rows dated in the month. */
-  readonly planned: Money
-  /** What invoices billed of those rows. */
-  readonly invoiced: Money
-  /** What invoices issued in the month billed beyond any plan row. */
-  readonly withoutPlan: Money
-  /** The month in the list further down, or null for a month with nothing in it. */
-  readonly to: RouteLocationRaw | null
-}
-
-const PLANNED = 'Planned'
-const INVOICED = 'Invoiced'
-const WITHOUT_PLAN = 'Invoiced with no plan row'
-
-export interface BillingChart extends LinkChart {
+export interface ItemYearsChart {
+  readonly option: ChartOption
+  readonly description: string
   readonly legend: readonly LegendEntry[]
 }
 
-/**
- * Planned beside invoiced for every month of the year. Invoiced counts what the invoices billed of
- * the month's rows, so a shorter bar is work not invoiced yet. What an invoice issued in the month
- * billed with no plan row sits hatched on top of it.
- */
-export function billingMonthChart(months: readonly BillingChartMonth[], tokens: ChartTokens): BillingChart {
-  const withoutPlan = months.some((month) => month.withoutPlan > 0)
-  const series: BarSeries[] = [
-    { type: 'bar', name: PLANNED, color: tokens.deemphasis, itemStyle: { borderRadius: BAR_END_UP }, data: months.map((month) => month.planned) },
-    {
-      type: 'bar',
-      name: INVOICED,
-      stack: 'invoiced',
-      color: tokens.buckets.income,
-      itemStyle: stackGap(tokens),
-      data: months.map((month) => ({ value: month.invoiced, itemStyle: { borderRadius: month.withoutPlan > 0 ? 0 : BAR_END_UP } })),
-    },
-    ...(withoutPlan
-      ? [
-          {
-            type: 'bar' as const,
-            name: WITHOUT_PLAN,
-            stack: 'invoiced',
-            color: tokens.buckets.income,
-            itemStyle: { ...stackGap(tokens), borderRadius: BAR_END_UP, decal: incompleteDecal(tokens) },
-            data: months.map((month) => month.withoutPlan),
-          },
-        ]
-      : []),
-  ]
-  return {
-    option: {
-      grid: { top: 16 },
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        formatter: axisTooltip({ tokens, categoryLabel: monthAxisLabel('long'), formatAmount: (amount) => formatWholeMoney(amount) }),
-      },
-      xAxis: { type: 'category', data: months.map((month) => month.month), axisLabel: { color: tokens.inkMuted, formatter: monthAxisLabel('short') } },
-      yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
-      series,
-    },
-    description: describeMonths(months),
-    legend: [
-      { label: PLANNED, colour: 'var(--chart-deemphasis)' },
-      { label: INVOICED, colour: 'var(--bucket-income)' },
-      ...(withoutPlan ? [{ label: WITHOUT_PLAN, colour: 'var(--bucket-income)', mark: 'hatched' as const }] : []),
-    ],
-    linkAt: ({ dataIndex }) => months[dataIndex]?.to ?? null,
-  }
-}
-
-function describeMonths(months: readonly BillingChartMonth[]): string {
-  const planned = sumMoney(months.map((month) => month.planned))
-  const invoiced = sumMoney(months.map((month) => month.invoiced))
-  const open = months.filter((month) => month.invoiced < month.planned).map((month) => monthLabel(month.month))
-  return [
-    `Planned ${formatWholeMoney(planned)} and invoiced ${formatWholeMoney(invoiced)} of it, by month.`,
-    open.length === 0 ? 'Every month is invoiced in full.' : `Not invoiced in full: ${open.join(', ')}.`,
-  ].join(' ')
-}
-
 /** Each year's plan as one bar, its items stacked in their colours, largest item of the whole plan first. */
-export function itemYearsChart(years: readonly YearItems[], items: readonly string[], tokens: ChartTokens): BillingChart {
+export function itemYearsChart(years: readonly YearItems[], items: readonly string[], tokens: ChartTokens): ItemYearsChart {
   const colours = itemColours(items, tokens)
   const names = [...new Set(items.map((item) => seriesNameOf(item, items)))]
   const amountOf = (year: YearItems, name: string): number =>
@@ -140,7 +57,6 @@ export function itemYearsChart(years: readonly YearItems[], items: readonly stri
       .map((year) => `${year.year}: ${formatWholeMoney(year.total)}, of it ${year.items.map((entry) => `${entry.item} ${formatWholeMoney(entry.amount)}`).join(', ')}.`)
       .join(' '),
     legend: names.map((name) => ({ label: name, colour: name === OTHER_ITEMS ? 'var(--chart-deemphasis)' : (colours.get(name) ?? 'var(--chart-ink)') })),
-    linkAt: () => null,
   }
 }
 

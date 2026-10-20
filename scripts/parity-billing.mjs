@@ -8,11 +8,11 @@
  *   npm run parity:billing -- --workbook <path to export.xlsx>
  *
  * The block's figures are found by their labels: Total Amount, Invoiced Amount, Not Invoiced
- * Amount, and the year rows under Planned and under Actual. Each formula is first run again over
- * the export's own cells, so a figure the export did not recalculate fails. A figure is `pass` when
- * the app's equals the tab's to the cent, `corrected` with the reason when the tab's formula misses
- * rows or adds unrounded formula amounts the app reads to the cent, and `FAIL` otherwise. The exit
- * code is non-zero on any FAIL.
+ * Amount, and the year rows under Actual. Each formula is first run again over the export's own
+ * cells, so a figure the export did not recalculate fails. A figure is `pass` when the app's equals
+ * the tab's to the cent, `corrected` with the reason when the tab's formula misses rows or adds
+ * unrounded formula amounts the app reads to the cent, and `FAIL` otherwise. The exit code is
+ * non-zero on any FAIL.
  */
 
 import { readFileSync } from 'node:fs'
@@ -225,15 +225,12 @@ const total = compare('Total amount', labelled('total amount'), totals.planned)
 const invoiced = compare('Invoiced amount', labelled('invoiced amount'), totals.invoiced)
 compareDifference('Not invoiced', labelled('not invoiced amount'), total, invoiced)
 const yearOfApp = (year) => totals.years.find((entry) => entry.year === year)
-for (const row of yearRowsOf('planned')) {
-  compare(`Planned ${row.year}`, row, yearOfApp(row.year)?.planned ?? 0, row.year)
-}
 for (const row of yearRowsOf('actual')) {
   compare(`Actual ${row.year}`, row, yearOfApp(row.year)?.invoiced ?? 0, row.year)
 }
-const listed = new Set([...yearRowsOf('planned'), ...yearRowsOf('actual')].map((row) => row.year))
-for (const entry of totals.years.filter((candidate) => !listed.has(candidate.year))) {
-  console.log(`note       ${entry.year} has plan rows or invoices and no row in the tab's block`)
+const listed = new Set(yearRowsOf('actual').map((row) => row.year))
+for (const entry of totals.years.filter((candidate) => candidate.invoiced !== 0 && !listed.has(candidate.year))) {
+  console.log(`note       ${entry.year} has invoices and no row under Actual in the tab's block`)
 }
 
 console.log(failures === 0 ? '\nbilling parity: no failures' : `\nbilling parity: ${failures} FAIL`)

@@ -78,7 +78,7 @@ export function moneyAxisLabel(tokens: ChartTokens): { color: string; fontSize: 
  * Diagonal stripes in the surface colour, cut across the fill of the current part-month. The bar
  * keeps its series colour, so identity holds, and the stripes say the month is not over.
  */
-export function incompleteDecal(tokens: ChartTokens): Record<string, unknown> {
+function incompleteDecal(tokens: ChartTokens): Record<string, unknown> {
   return {
     symbol: 'rect',
     symbolSize: 1,

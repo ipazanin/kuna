@@ -12,6 +12,7 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { ZERO, addMoney, sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { formatWholeMoney } from '../../../shared/money/moneyFormat'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
@@ -241,7 +242,9 @@ const view = computed(() => {
     ageingHeight: Math.max(140, ageingClients.length * 48 + 56),
     daysRows,
     invoices: listed,
+    invoicesSummary: `${listed.length} ${listed.length === 1 ? 'invoice' : 'invoices'}, ${formatWholeMoney(outstanding)} outstanding`,
     sums,
+    unattributedSummary: `${unattributed.length} ${unattributed.length === 1 ? 'credit' : 'credits'}, ${formatWholeMoney(unattributedTotal)}`,
     unattributed: unattributed.map((credit) => ({
       key: String(credit.transaction.sheetRow),
       date: day(credit.transaction.date),
@@ -297,59 +300,55 @@ const view = computed(() => {
                 <template #legend><ChartLegend :entries="view.ageingLegend" /></template>
               </DrillChartCard>
 
-              <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-                <header class="px-4 pt-4 sm:px-5">
-                  <h2 class="text-sm font-medium text-highlighted">Days to get paid</h2>
-                  <p class="mt-0.5 text-xs text-muted">{{ view.periodText }}. Each dot is an invoice settled in the period, the line its client’s median.</p>
-                </header>
+              <AppCard title="Days to get paid" :subtitle="`${view.periodText}. Each dot is an invoice settled in the period, the line its client’s median.`">
                 <p v-if="view.daysRows.length === 0" class="px-5 py-8 text-sm text-muted">No client has an invoice yet.</p>
                 <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
                   <DaysToPaidStrip :rows="view.daysRows" />
                 </div>
-              </section>
+              </AppCard>
             </div>
 
-            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="invoices">
-              <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                  <div class="min-w-0 flex-1 basis-64">
-                    <h2 class="text-sm font-medium text-highlighted">Every invoice, with the payments that settled it</h2>
-                    <p class="mt-0.5 text-xs text-muted">
-                      The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already
-                      issued on the day a payment arrives.
-                    </p>
-                  </div>
-                  <UButton
-                    label="Add invoice"
-                    icon="i-lucide-plus"
-                    color="neutral"
-                    variant="outline"
-                    size="sm"
-                    :disabled="state.writing || (invoiceDialog?.clients.length ?? 0) === 0"
-                    :title="(invoiceDialog?.clients.length ?? 0) === 0 ? 'Add the client on Workbook, Clients first' : undefined"
-                    data-testid="invoice-add"
-                    @click="openInvoice(null)"
-                  />
-                </div>
+            <AppCard title="Every invoice, with the payments that settled it" collapse-id="receivables.invoices" :summary="view.invoicesSummary" data-testid="invoices">
+              <template #subtitle>
+                The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already issued on
+                the day a payment arrives.
+              </template>
+              <template #actions>
+                <UButton
+                  label="Add invoice"
+                  icon="i-lucide-plus"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  :disabled="state.writing || (invoiceDialog?.clients.length ?? 0) === 0"
+                  :title="(invoiceDialog?.clients.length ?? 0) === 0 ? 'Add the client on Workbook, Clients first' : undefined"
+                  data-testid="invoice-add"
+                  @click="openInvoice(null)"
+                />
+              </template>
+              <template #header>
                 <dl class="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
                   <div v-for="sum in view.sums" :key="sum.label" class="min-w-0">
                     <dt class="text-xs text-muted">{{ sum.label }}</dt>
                     <dd class="text-sm font-medium text-highlighted"><MoneyText :cents="sum.amount" precision="whole" /></dd>
                   </div>
                 </dl>
-              </header>
+              </template>
               <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">No invoice was issued in this period, and none is open.</p>
               <div v-else class="px-4 pt-1 pb-2 sm:px-5">
                 <InvoiceList :invoices="view.invoices" :show-client="view.showClient" :editable="!state.writing" @edit="openInvoice" />
               </div>
-            </section>
+            </AppCard>
           </div>
 
-          <section v-if="view.unattributed.length > 0" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="unattributed-credits">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 class="text-sm font-medium text-highlighted">Revenue no client accounts for</h2>
-              <p class="mt-0.5 text-xs text-muted">From an IBAN the clients tab does not name, so it pays no invoice. Add the IBAN to the clients tab to match it.</p>
-            </header>
+          <AppCard
+            v-if="view.unattributed.length > 0"
+            title="Revenue no client accounts for"
+            subtitle="From an IBAN the clients tab does not name, so it pays no invoice. Add the IBAN to the clients tab to match it."
+            collapse-id="receivables.unattributed"
+            :summary="view.unattributedSummary"
+            data-testid="unattributed-credits"
+          >
             <ul class="flex flex-col px-4 pt-1 pb-2 sm:px-5">
               <li v-for="credit in view.unattributed" :key="credit.key" class="credit-row">
                 <span class="figure text-xs text-muted">{{ credit.date }}</span>
@@ -359,7 +358,7 @@ const view = computed(() => {
                 </DrillLink>
               </li>
             </ul>
-          </section>
+          </AppCard>
         </template>
       </template>
     </LedgerGate>

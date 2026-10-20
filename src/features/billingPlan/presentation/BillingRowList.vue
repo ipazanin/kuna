@@ -7,7 +7,7 @@ import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { BILLING_STATUS } from './billingView'
 import type { BillingRowLine } from './billingView'
 
-/** The year's plan rows in date order: a table on a wide screen, one card per row on a phone. */
+/** The year's plan rows, newest date first and in the tab's order within a date: a table on a wide screen, one card per row on a phone. */
 defineProps<{
   rows: readonly BillingRowLine[]
   showClient: boolean
@@ -76,14 +76,14 @@ function day(date: string): string {
       <tbody>
         <tr v-for="row in rows" :key="row.key" data-testid="billing-row">
           <td class="figure whitespace-nowrap text-toned">{{ day(row.date) }}</td>
-          <th scope="row" class="text-start font-normal">
+          <th scope="row" class="cell-wraps text-start font-normal">
             <span class="inline-flex items-center gap-2 text-highlighted">
               <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
               {{ row.item }}
             </span>
           </th>
-          <td class="text-toned">{{ row.description }}</td>
-          <td v-if="showClient" class="text-toned">{{ row.clientName }}</td>
+          <td class="cell-wraps text-toned">{{ row.description }}</td>
+          <td v-if="showClient" class="cell-wraps text-toned">{{ row.clientName }}</td>
           <td class="text-end"><MoneyText :cents="row.amount" class="text-highlighted" /></td>
           <td>
             <UBadge :label="BILLING_STATUS[row.status].label" :color="BILLING_STATUS[row.status].color" variant="subtle" size="sm" />

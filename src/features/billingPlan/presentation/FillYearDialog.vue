@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { usePhoneLayout } from '../../../shared/layout/viewport'
@@ -9,7 +10,7 @@ import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { useRowWrites } from '../../workbook/presentation/useRowWrites'
 import { BILLING_PLAN_ROWS, billingCellsOf } from '../application/billingPlanRows'
-import type { RestOfYearFill } from '../domain/fillRestOfYear'
+import type { BillingItemDraft, RestOfYearFill } from '../domain/fillRestOfYear'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -28,10 +29,26 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
 const rows = computed(() => (props.fill.kind === 'rows' ? props.fill.rows : []))
 const total = computed(() => sumMoney(rows.value.map((row) => row.amount)))
 
+/** The descriptions edited in the preview, by row. A row not edited keeps the one the fill proposes. */
+const edited = ref<Record<string, string>>({})
+
+watch(open, (opened) => {
+  if (opened) edited.value = {}
+})
+
+function keyOf(row: BillingItemDraft): string {
+  return `${row.date} ${row.item}`
+}
+
+function descriptionOf(row: BillingItemDraft): string {
+  return edited.value[keyOf(row)] ?? row.description
+}
+
 async function write(): Promise<void> {
   const count = rows.value.length
-  const added = await writes.write({ added: rows.value.map(billingCellsOf), changed: [], removed: [] }, { title: count === 1 ? 'Plan row added' : `${count} plan rows added` }, 'Not added')
-  if (added) open.value = false
+  const added = rows.value.map((row) => billingCellsOf({ ...row, description: descriptionOf(row) }))
+  const written = await writes.write({ added, changed: [], removed: [] }, { title: count === 1 ? 'Plan row added' : `${count} plan rows added` }, 'Not added')
+  if (written) open.value = false
 }
 </script>
 
@@ -39,7 +56,7 @@ async function write(): Promise<void> {
   <UModal
     v-model:open="open"
     title="Fill the rest of the year"
-    description="The monthly fee and the subscription for every month to December that has no row of them yet. Adjust each row afterwards as the month turns out."
+    description="The monthly fee and the subscription for every month to December that has no row of them yet. Each description follows the item's latest row, with its month moved on, and can be edited before the rows are added."
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"
   >
@@ -55,13 +72,22 @@ async function write(): Promise<void> {
             {{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }} for {{ clientName }}, <MoneyText :cents="total" /> in all, appended to the foot of the outgoing-plan tab.
           </p>
           <ul class="flex flex-col">
-            <li v-for="row in rows" :key="`${row.date}-${row.item}`" class="fill-row" data-testid="fill-row">
+            <li v-for="row in rows" :key="keyOf(row)" class="fill-row" data-testid="fill-row">
               <span class="swatch" :style="{ background: colours.get(row.item) ?? 'var(--chart-deemphasis)' }" aria-hidden="true" />
               <span class="min-w-0">
                 <span class="block truncate text-sm text-highlighted">{{ row.item }}</span>
-                <span class="figure block text-xs text-muted">{{ dayFormat.format(new Date(row.date)) }}, {{ row.description }}</span>
+                <span class="figure block text-xs text-muted">{{ dayFormat.format(new Date(row.date)) }}</span>
               </span>
               <MoneyText :cents="row.amount" class="text-sm text-toned" />
+              <UInput
+                :model-value="descriptionOf(row)"
+                size="sm"
+                class="fill-description"
+                placeholder="Description"
+                :aria-label="`Description of the ${row.item} row of ${dayFormat.format(new Date(row.date))}`"
+                data-testid="fill-description"
+                @update:model-value="edited = { ...edited, [keyOf(row)]: String($event) }"
+              />
             </li>
           </ul>
         </template>
@@ -89,7 +115,12 @@ async function write(): Promise<void> {
   grid-template-columns: 0.625rem minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.625rem;
+  row-gap: 0.375rem;
   padding: 0.5rem 0;
+}
+
+.fill-description {
+  grid-column: 2 / -1;
 }
 
 .fill-row + .fill-row {

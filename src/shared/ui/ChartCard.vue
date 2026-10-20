@@ -29,8 +29,8 @@ import { chartTokens } from '../charts/chartTokens'
 import { monthAxisLabel } from '../calendar/monthLabel'
 import { usePhoneLayout } from '../layout/viewport'
 import { formatWholeMoney } from '../money/moneyFormat'
+import AppCard from './AppCard.vue'
 import DrillLink from './DrillLink.vue'
-import InfoPopover from './InfoPopover.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -208,37 +208,28 @@ function onDataZoom(): void {
 </script>
 
 <template>
-  <section data-testid="chart-card" class="flex min-w-0 flex-col rounded-card border border-default bg-raised shadow-raised" :aria-busy="loading">
-    <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <h2 class="flex items-center gap-2 text-sm font-medium text-highlighted">
-            {{ title }}
-            <UIcon v-if="loading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-dimmed" aria-label="Loading" />
-          </h2>
-          <p v-if="subtitle" class="mt-0.5 text-xs text-muted">{{ subtitle }}</p>
-        </div>
-        <div class="-my-1 -me-1.5 flex shrink-0 items-center">
-          <UButton
-            v-if="!empty"
-            :icon="showTable ? 'i-lucide-chart-column' : 'i-lucide-table'"
-            :label="showTable ? 'Chart' : 'Table'"
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            class="text-muted"
-            :aria-pressed="showTable"
-            :aria-label="`Show ${title} as a table`"
-            data-testid="chart-table-toggle"
-            @click="showTable = !showTable"
-          />
-          <InfoPopover v-if="definition" :subject="title" :definition="definition" />
-        </div>
-      </div>
-      <div v-if="$slots.legend && !empty">
-        <slot name="legend" />
-      </div>
-    </header>
+  <AppCard data-testid="chart-card" :title="title" :subtitle="subtitle" :definition="definition" :aria-busy="loading">
+    <template #title>
+      {{ title }}
+      <UIcon v-if="loading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-dimmed" aria-label="Loading" />
+    </template>
+    <template v-if="!empty" #actions>
+      <UButton
+        :icon="showTable ? 'i-lucide-chart-column' : 'i-lucide-table'"
+        :label="showTable ? 'Chart' : 'Table'"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        class="-my-1 text-muted"
+        :aria-pressed="showTable"
+        :aria-label="`Show ${title} as a table`"
+        data-testid="chart-table-toggle"
+        @click="showTable = !showTable"
+      />
+    </template>
+    <template v-if="$slots.legend && !empty" #header>
+      <slot name="legend" />
+    </template>
 
     <div class="chart-body grow px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px` }">
       <UEmpty
@@ -286,5 +277,5 @@ function onDataZoom(): void {
       />
     </div>
     <slot name="footer" />
-  </section>
+  </AppCard>
 </template>

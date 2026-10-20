@@ -41,7 +41,7 @@ import StatusBadge from './StatusBadge.vue'
 
 /**
  * The accountant's lines of one statement beside ours: a table on a wide screen, one card per line
- * below the xl breakpoint, where eight columns do not fit. Each line opens on how ours is built.
+ * below 1440 px, where eight columns do not fit beside the sidebar. Each line opens on how ours is built.
  */
 const props = defineProps<{
   rows: readonly ComparisonRow[]
@@ -51,7 +51,7 @@ const props = defineProps<{
 /** A statement the cash view has no figure for, such as the PD return, leaves out its two cash columns. */
 const hasCash = computed(() => props.rows.some((row) => row.cash !== null))
 
-const narrow = useMediaQuery('(max-width: 1279px)')
+const narrow = useMediaQuery('(max-width: 1439px)')
 const open = ref(new Set<string>())
 
 /** The table cell names this many adjustments, and the opened line all of them. */
@@ -152,7 +152,7 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
       <tbody>
         <template v-for="row in rows" :key="row.key">
           <tr :data-status="row.status">
-            <th scope="row" class="text-start font-normal">
+            <th scope="row" class="cell-wraps text-start font-normal">
               <button
                 type="button"
                 class="row-toggle"
@@ -183,7 +183,7 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
               </td>
               <td class="text-end"><MoneyText v-if="row.difference !== null" :cents="row.difference" sign="always" class="text-toned" /><span v-else class="text-dimmed">–</span></td>
             </template>
-            <td class="explained-cell">
+            <td class="explained-cell cell-wraps">
               <ul v-if="row.explainedBy.length > 0" class="flex flex-col">
                 <li v-for="step in row.explainedBy.slice(0, NAMED)" :key="step.key">
                   <DrillLink :to="step.to" :label="`${step.label}, open the rows`" class="text-toned">{{ step.label }}</DrillLink>
@@ -221,7 +221,7 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
 }
 
 .explained-cell {
-  min-width: 10rem;
+  min-width: 8rem;
 }
 
 .build-up-row td {

@@ -6,6 +6,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { fold } from '../../../../shared/text/fold'
+import AppCard from '../../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import { useSettings } from '../../../../features/settings/application/useSettings'
 import { findLocalUnit } from '../localUnits'
@@ -144,9 +145,11 @@ watch(
       </p>
     </div>
 
-    <p v-if="linkedMissing" class="rounded-card border border-default bg-raised px-4 py-3 text-sm text-toned" role="status">
-      The link points at <span class="identifier">{{ linkedRule }}</span>, which is not in the ruleset. It may have been renamed, so search for it below.
-    </p>
+    <AppCard v-if="linkedMissing" as="div" class="px-4 py-3" role="status">
+      <p class="text-sm text-toned">
+        The link points at <span class="identifier">{{ linkedRule }}</span>, which is not in the ruleset. It may have been renamed, so search for it below.
+      </p>
+    </AppCard>
 
     <WatchList :items="watchShown" :total="watched.length" :checked-on="checkedOn" :searching="searched !== ''" />
 
@@ -172,18 +175,14 @@ watch(
       />
     </section>
 
-    <section class="rounded-card border border-default bg-raised shadow-raised" aria-labelledby="marks-title">
-      <header class="px-4 pt-4 sm:px-5">
-        <h2 id="marks-title" class="text-sm font-medium text-highlighted">How sure each value is</h2>
-        <p class="mt-0.5 text-xs text-muted">Every version of a rule carries one of these marks. The figures are for planning with the accountant, never filing advice.</p>
-      </header>
+    <AppCard title="How sure each value is" subtitle="Every version of a rule carries one of these marks. The figures are for planning with the accountant, never filing advice.">
       <dl class="marks px-4 pt-3 pb-4 sm:px-5">
         <div v-for="confidence in CONFIDENCE_ORDER" :key="confidence" class="flex flex-col items-start gap-1">
           <dt><ConfidenceBadge :confidence="confidence" /></dt>
           <dd class="text-xs text-toned">{{ CONFIDENCE_WORDING[confidence].meaning }}</dd>
         </div>
       </dl>
-    </section>
+    </AppCard>
   </section>
 </template>
 

@@ -9,7 +9,7 @@ import { categoryTotals } from '../src/features/spending/domain/categoryTotals'
 import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfitAndLoss'
 import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from '../src/features/filters/domain/filterState'
 import type { FilterState } from '../src/features/filters/domain/filterState'
-import { advancesLeftOutByBankFilters, scopeOwnerAdvances, scopeTransactions } from '../src/features/transactions/domain/filterTransactions'
+import { advancesLeftOutByBankFilters, filterTransactions, scopeOwnerAdvances, scopeTransactions } from '../src/features/transactions/domain/filterTransactions'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
@@ -53,6 +53,56 @@ describe('owner advances', () => {
     expect(book.outstanding.amount).toBe(euros(-120))
   })
 
+  it('lists what a reimbursement pays beyond every cost on file, which net owed counts as paid to the owner until the cost is added', () => {
+    const ledgerRows = rows([
+      { date: '2026-01-05', amount: -1000, category: 'owner-loan-out' },
+      { date: '2026-02-15', amount: -100, category: 'reimbursement-to-owner' },
+      { date: '2026-03-28', amount: -45, category: 'reimbursement-to-owner', description: 'Refund of a parking fee' },
+    ])
+    const advances = [advance('2026-01-20', 80)]
+    const book = ownerAdvances(advances, ledgerRows, PACK_CATEGORIES)
+
+    expect(book.unaccounted.map((line) => [line.payment.date, line.payment.amount, line.amount])).toEqual([
+      [civil('2026-02-15'), euros(-100), euros(20)],
+      [civil('2026-03-28'), euros(-45), euros(45)],
+    ])
+    expect(book.unaccountedTotal).toBe(euros(65))
+    expect(netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), book, ledgerRows, PACK_CATEGORIES).amount).toBe(euros(1065))
+
+    // The costs the two payments repaid, added as the screen prefills them, settle the list and take net owed back to the loan.
+    const settled = ownerAdvances([...advances, advance('2026-02-14', 20), advance('2026-03-27', 45)], ledgerRows, PACK_CATEGORIES)
+    expect(settled.unaccounted).toEqual([])
+    expect(netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), settled, ledgerRows, PACK_CATEGORIES).amount).toBe(euros(1000))
+  })
+
+  it('drills each unaccounted reimbursement to its own row', () => {
+    const ledgerRows = rows([
+      { date: '2026-02-15', amount: -100, category: 'reimbursement-to-owner' },
+      { date: '2026-02-16', amount: -100, category: 'reimbursement-to-owner' },
+    ])
+    const book = ownerAdvances([advance('2026-01-20', 100)], ledgerRows, PACK_CATEGORIES)
+
+    const window = windowOf('2026-02-01', '2026-02-28')
+
+    expect(book.unaccounted.map((line) => filterTransactions(ledgerRows, { ...DEFAULT_FILTERS, ...line.drill.filters }, window).map((row) => row.date))).toEqual([[civil('2026-02-16')]])
+  })
+
+  it('reads a payment to the owner on a day the owner paid in as returning that payment first, so only the rest repays costs', () => {
+    const ledgerRows = rows([
+      { date: '2026-02-10', amount: 30, category: 'reimbursement-from-owner' },
+      { date: '2026-02-10', amount: -50, category: 'reimbursement-to-owner' },
+      { date: '2026-03-01', amount: -80, category: 'reimbursement-to-owner' },
+    ])
+    const book = ownerAdvances([advance('2026-01-20', 100)], ledgerRows, PACK_CATEGORIES)
+
+    expect(book.advances[0]?.repayments.map((share) => [share.repaidOn, share.applied])).toEqual([
+      [civil('2026-02-10'), euros(20)],
+      [civil('2026-03-01'), euros(80)],
+    ])
+    expect(book.unaccounted).toEqual([])
+    expect([book.reimbursed.amount, book.outstanding.amount]).toEqual([euros(130), euros(-30)])
+  })
+
   it('nets the loans and the private costs the owner repaid against the advances the company owes, as one signed balance', () => {
     const ledgerRows = rows([
       { date: '2026-01-05', amount: -1000, category: 'owner-loan-out' },
@@ -84,6 +134,7 @@ describe('owner advances', () => {
       const owed = netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), book, ledgerRows, PACK_CATEGORIES)
 
       expect(book.advances).toEqual([])
+      expect(book.unaccounted).toEqual([])
       expect(book.privateShares.map((line) => [line.advance.date, line.share])).toEqual([[civil('2025-08-08'), euros(9.71)]])
       expect([book.advanced.amount, book.privateShareTotal.amount, book.reimbursed.amount, book.outstanding.amount]).toEqual([euros(0), euros(9.71), euros(9.71), euros(-9.71)])
       // Lent 9.71 as the share less the 19.42 paid back, against the 9.71 the company returned.

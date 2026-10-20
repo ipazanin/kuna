@@ -80,6 +80,69 @@ describe('plannedAgainstInvoiced', () => {
     expect(match.withoutPlan.map((share) => [share.invoice.number, share.amount])).toEqual([['5-1-26', euros(2000)]])
   })
 
+  it('keeps a rounding cent on the invoice that billed it, above the plan, instead of letting it ripple into later months', () => {
+    // The bonus row's formula reads 6,666.66 and the invoices billed 6,666.67 of it.
+    const plan = [
+      planRow('Monthly Fee', '2026-04-30', 5000, 'north', 'April fee'),
+      planRow('Bonus', '2026-05-15', 6666.66, 'north', 'Bonus'),
+      planRow('Plane Tickets', '2026-05-25', 210.4, 'north', 'May ticket'),
+      planRow('Monthly Fee', '2026-05-31', 5000, 'north', 'May fee'),
+      planRow('Contractor', '2026-06-08', 1200, 'north', 'June contractor'),
+      planRow('Monthly Fee', '2026-06-30', 5000, 'north', 'June fee'),
+      planRow('Monthly Fee', '2026-07-31', 5000, 'north', 'July fee'),
+      planRow('Monthly Fee', '2026-08-31', 5000, 'north', 'August fee'),
+      planRow('Subscription', '2026-08-31', 150, 'north', 'August subscription'),
+      planRow('Plane Tickets', '2026-09-10', 98.3, 'north', 'September ticket'),
+      planRow('Monthly Fee', '2026-09-30', 5000, 'north', 'September fee'),
+      planRow('Subscription', '2026-09-30', 150, 'north', 'September subscription'),
+      planRow('Monthly Fee', '2026-10-31', 5000, 'north', 'October fee'),
+      planRow('Subscription', '2026-10-31', 150, 'north', 'October subscription'),
+    ]
+    const invoices = [
+      invoiceOf('4-1-26', 5000, '2026-04-20'),
+      invoiceOf('5-1-26', 5000, '2026-04-26'),
+      // The rest of the bonus at 1,666.67, the ticket, May's fee, the contractor and June's fee.
+      invoiceOf('6-1-26', 13077.07, '2026-06-19'),
+      invoiceOf('7-1-26', 5000, '2026-07-20'),
+      invoiceOf('8-1-26', 5150, '2026-08-20'),
+      invoiceOf('9-1-26', 5248.3, '2026-09-21'),
+    ]
+    const match = matchOf(plan, invoices)
+
+    expect(billedBy(match)).toEqual([
+      ['April fee', ['4-1-26'], 0],
+      ['Bonus', ['5-1-26', '6-1-26'], 0],
+      ['May ticket', ['6-1-26'], 0],
+      ['May fee', ['6-1-26'], 0],
+      ['June contractor', ['6-1-26'], 0],
+      ['June fee', ['6-1-26'], 0],
+      ['July fee', ['7-1-26'], 0],
+      ['August fee', ['8-1-26'], 0],
+      ['August subscription', ['8-1-26'], 0],
+      ['September ticket', ['9-1-26'], 0],
+      ['September fee', ['9-1-26'], 0],
+      ['September subscription', ['9-1-26'], 0],
+      ['October fee', [], euros(5000)],
+      ['October subscription', [], euros(150)],
+    ])
+    expect(match.withoutPlan.map((share) => [share.invoice.number, share.amount])).toEqual([['6-1-26', euros(0.01)]])
+  })
+
+  it('lets a remainder of one euro or more bill the next month ahead, and keeps a smaller one above the plan', () => {
+    const plan = [planRow('Monthly Fee', '2026-03-31', 5000, 'north', 'March fee'), planRow('Monthly Fee', '2026-04-30', 5000, 'north', 'April fee')]
+
+    expect(billedBy(matchOf(plan, [invoiceOf('3-1-26', 5001, '2026-03-20')]))).toEqual([
+      ['March fee', ['3-1-26'], 0],
+      ['April fee', ['3-1-26'], euros(4999)],
+    ])
+    const short = matchOf(plan, [invoiceOf('3-1-26', 5000.99, '2026-03-20')])
+    expect(billedBy(short)).toEqual([
+      ['March fee', ['3-1-26'], 0],
+      ['April fee', [], euros(5000)],
+    ])
+    expect(short.withoutPlan.map((share) => [share.invoice.number, share.amount])).toEqual([['3-1-26', euros(0.99)]])
+  })
+
   it('leaves part of a row open, and lists every row not invoiced in full', () => {
     const plan = [
       planRow('Monthly Fee', '2026-08-31', 5000, 'north', 'August fee'),

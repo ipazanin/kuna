@@ -15,6 +15,7 @@ import { RouterLink } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import AppCard from './AppCard.vue'
 import InfoPopover from './InfoPopover.vue'
 import SparkLine from './SparkLine.vue'
 
@@ -50,9 +51,7 @@ const deltaPresentation = computed(() => {
 </script>
 
 <template>
-  <article
-    class="kpi-tile group relative flex min-w-0 flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised transition-colors hover:border-accented"
-  >
+  <AppCard as="article" class="kpi-tile group relative gap-3 p-4 transition-colors hover:border-accented">
     <div class="flex items-start justify-between gap-2">
       <RouterLink v-if="to !== null" :to="to" class="kpi-link min-w-0 text-sm text-muted transition-colors group-hover:text-toned">
         <span class="block truncate">{{ label }}</span>
@@ -79,7 +78,7 @@ const deltaPresentation = computed(() => {
       </div>
       <SparkLine v-if="trend" :points="trend" class="kpi-trend mb-0.5" />
     </div>
-  </article>
+  </AppCard>
 </template>
 
 <style scoped>

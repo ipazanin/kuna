@@ -69,6 +69,26 @@ widen. `.wide-pair` in `src/shared/styles/app.css` does the pairing, and the wid
 `--container-shell`, `--container-measure` and `--breakpoint-3xl` tokens in `tokens.css`. Below
 1920 px nothing changes.
 
+## Cards
+
+Every card on a screen is `AppCard` in `src/shared/ui/`: a raised surface with a header of title,
+subtitle, actions and an optional definition behind an info button. Charts use it through
+`ChartCard`, and tiles use the bare surface without a header. A card with a long list or table, such
+as plan rows, invoices, rules or a Workbook editor, has a toggle at the end of its header. Collapsed,
+it shows its title and one summary line, such as the row count or a total. Each card opens
+expanded unless its screen says otherwise, and this device remembers the choice in `localStorage`
+under `ledgerboard.card.` and the card's id, such as `billing.months`. Without storage the card keeps
+its state until the page reloads. A link into a collapsed card, such as a tile that opens a month,
+opens it first and is not remembered. Charts, tiles and short summaries do not collapse.
+
+A card fits its content without sideways scroll. Where two cards would not fit side by side, they
+stack. A table in a narrow card gives way first: names and descriptions wrap, a change moves under
+its row's name, and a secondary column such as the account, the family or the month strip drops out
+below a container width (Tailwind's `@container` variants, so a card answers to its own width, not
+the window's). Only the Workbook editors, where every column is an input, scroll sideways, and
+`check:visual` fails on any other card that does. A popover stays inside the window and opens
+beside the row it belongs to, not over it, where there is room.
+
 ## The workbook format
 
 A Google Sheet and an xlsx file share one format. Every column is found by its header name, so
@@ -189,7 +209,16 @@ balances, payees, Cash and Review leave them out. An account, counterparty or re
 them out too, since an advance has no bank account, no ledger counterparty and nothing to review.
 Transactions then says how many advances in the period it does not list. "Every owner advance", a
 choice among the categories in Add filter, selects all of them and no bank row. Payments to the
-owner on a `reimbursement` category repay them oldest first and stay financing.
+owner on a `reimbursement` category repay them oldest first and stay financing. A payment to the
+owner on a day the owner also paid the company on a `reimbursement` category returns that payment
+first, as when the owner paid a private share back twice and the company sent the extra back, and
+only the rest of it repays costs.
+
+What a payment to the owner repays beyond every cost on the tab is a reimbursement with no cost on
+file. Net owed counts it as money paid to the owner, which it is until its cost is added. Owner
+lists each one under "Reimbursed with no cost on file" with its drill, the Net owed tile's build-up
+names their total, and Review shows one item per payment. "Add the cost" on either screen opens Add
+advance on the amount left unaccounted, the day before the payment and the payment's description.
 
 The tab holds two kinds of row, told apart by the sign of the amount. A positive amount is a cost
 the owner paid privately for the company, as above. A negative amount is the owner's private share
@@ -506,9 +535,12 @@ services in `src/features/billingPlan/domain/` read it with the `invoices` tab:
   invoice lists a month's items together with items left over from before, and may bill next
   month's fee ahead, so no invoice belongs to one row. Each client's invoices, in issue order, take
   the client's rows oldest first, by date and then tab order, the way Receivables lets payments
-  fill invoices. An invoice reaches rows dated up to the end of the month after the one it was
-  issued in. What it cannot place there is invoiced with no plan row and is not carried to later
-  rows. Rows still open are not invoiced yet.
+  fill invoices. An invoice first fills the rows dated up to the end of the month it was issued
+  in. A remainder of €1 or more is a fee billed ahead and reaches on to the rows of the next month.
+  A smaller one is a rounding difference, such as a row whose formula reads a cent below what was
+  billed, and is invoiced above the plan on that invoice, so it never part fills a later month.
+  What an invoice cannot place is invoiced with no plan row and is not carried to later rows. Rows
+  still open are not invoiced yet.
 - `itemStatistics`: each kind of item's total, in all and by year, such as how much of the
   billing is the monthly fee, bonuses, re-billed travel, subscriptions or contractors.
 - `expectedInvoices`: the rows the given invoices have not billed, by month and client, each
@@ -516,22 +548,27 @@ services in `src/features/billingPlan/domain/` read it with the `invoices` tab:
   counts.
 - `fillRestOfYear`: the rows "Fill the rest of the year" adds for `billing_client`, the monthly fee
   and the subscription on the last day of every month from this one to December, skipping a month
-  that already has the item for the client. The yearly bonus is never filled in. The rows stay the
-  one source the forecast reads, so a filled row is adjusted on the tab.
+  that already has the item for the client. Each row takes the description of the client's latest
+  row of the same item, with the new month put where that row names its own month, long or short
+  and with the year after it, so "Fee for September" becomes "Fee for October" and a description
+  that names no month is kept as it is. An item with no row yet is described by its month, such as
+  "Oct 2026". The yearly bonus is never filled in. The rows stay the one source the forecast reads,
+  so a filled row is adjusted on the tab.
 
 ## Billing plan screen
 
 A core screen at `/billing?year=2026`, after Receivables, seen on the newest booking. Tiles give the
 year's planned and invoiced amounts, what of the year's rows is not invoiced yet, and the next
-expected invoice. A chart sets each month's plan rows beside what the invoices billed of them, with
-what an invoice billed beyond the plan hatched on top, and a bar opens its month in the list below
-(`month=2026-10`). The list calls out rows not invoiced yet and invoices with no plan row. Beside it
-are the year's items, each with one colour on every chart and list, and Sums, Planned and Actual per
-year, over every client, as the Sheet's formula block adds them, so the two can be checked before the
-block goes.
+expected invoice, which opens its month in "Month by month" (`month=2026-10`). That list opens
+collapsed, since planned and invoiced mostly agree, and a link into it opens it. It calls out
+rows not invoiced yet and what invoices billed above the plan. "Totals over every client" gives
+everything planned, everything invoiced and the difference, and what was invoiced each year by issue
+date. Beside it are the items, each with one colour on every chart and list, and the year's plan
+rows, newest date first and in the tab's order within a date, as Receivables lists its invoices.
 
 The rows of the year can be added, edited and deleted in both modes. "Fill the rest of the year"
-previews the rows `fillRestOfYear` would add and appends them. An edit writes only the cells that
+previews the rows `fillRestOfYear` would add, with each description in a field to edit, and appends
+them. An edit writes only the cells that
 changed, so a formula amount left alone stays a formula. A delete clears the row's five cells and
 leaves the row and any cells beside it. Both find the row as the app read it, on its own row or on
 the one row that holds it, and refuse when none or several do. Undo takes an addition back, puts a
@@ -615,14 +652,15 @@ npm run check          # typecheck and unit tests
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen, dark and light, at four widths in local Chrome, the wide screens at 1920 and 2560, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's at 430 too, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, the row editors in both modes, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at eight widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's at 430 too, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, a card collapsed and expanded per screen, the row editors in both modes, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
 
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
-other, a part-month at each end, one loss month, a reimbursement, two rows waiting for review, a
+other, a part-month at each end, one loss month, reimbursements to the owner, the last of them with
+no cost on file, two rows waiting for review, a
 rules tab that reproduces every row flagged `rule`, and rows a person confirmed that no rule covers
 yet. Its `assets`, `grants`, `year-end`, `plan` and `scenarios` tabs hold the two computers it
 bought, its start-up grant, made-up 2025 accountant figures that add up, a plan and four owner pay
@@ -677,8 +715,9 @@ side in `googleWorkbookWriter.ts`.
 - **Settings.** Each changed key is set in its `value` cell, or appended as a `key`, `value` row when
   the tab lacks it. A key on two rows, a value that changed since the read, or a value the settings
   reader would not use is refused.
-- **Owner advances.** "Add advance" appends one `date`, `amount`, `description`, `category` row,
-  the date as a serial number so the cell is a date. "I paid a company cost" writes a positive
+- **Owner advances.** "Add advance" on Owner, and "Add the cost" on Owner and Review, append one
+  `date`, `amount`, `description`, `category` row, the date as a serial number so the cell is a
+  date. "I paid a company cost" writes a positive
   amount and "Part of a company payment was mine" a negative one. It is refused unless the tab has
   those four columns, the amount is not zero, and the category is on the categories tab, as it is now, in the
   operating or taxes bucket. Undo clears the row again, only while one row still holds exactly what
@@ -802,7 +841,7 @@ in a production build.
 
 `npm run parity:billing -- --workbook <export.xlsx>` compares the app's billing totals with the
 formula block the Sheet keeps beside the `outgoing-plan` rows: Total Amount, Invoiced Amount, Not
-Invoiced Amount, and the year rows under Planned and under Actual, found by their labels. Each
+Invoiced Amount, and the year rows under Actual, found by their labels. Each
 formula is first run again over the export's own cells, so a figure the export did not recalculate
 fails. A figure is `pass` when the app's equals the tab's to the cent, `corrected` with the reason
 when the tab's formula reads a range that misses plan rows or adds unrounded formula amounts the

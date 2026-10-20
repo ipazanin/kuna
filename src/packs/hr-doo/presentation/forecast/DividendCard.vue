@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
@@ -30,14 +31,11 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
 </script>
 
 <template>
-  <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="dividend-title" data-testid="dividend-capacity">
-    <header class="px-4 pt-4 sm:px-5">
-      <h2 id="dividend-title" class="text-sm font-medium text-highlighted">Dividend capacity</h2>
-      <p class="mt-0.5 text-xs text-muted">
-        What the {{ year }} profit leaves to pay out, and what each way of paying it does to cash, tax and what the owner owes. The members decide on the
-        {{ year }} statements by {{ decideBy }}.
-      </p>
-    </header>
+  <AppCard
+    title="Dividend capacity"
+    :subtitle="`What the ${year} profit leaves to pay out, and what each way of paying it does to cash, tax and what the owner owes. The members decide on the ${year} statements by ${decideBy}.`"
+    data-testid="dividend-capacity"
+  >
 
     <div class="grid gap-x-8 gap-y-5 px-4 pt-3 pb-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div class="flex min-w-0 flex-col gap-4">
@@ -100,7 +98,7 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
         </ul>
       </div>
     </div>
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>

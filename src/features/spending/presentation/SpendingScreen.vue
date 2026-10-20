@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import { bucketTone } from '../../../shared/charts/chartTokens'
+import { formatWholeMoney } from '../../../shared/money/moneyFormat'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
@@ -70,6 +72,10 @@ const spending = computed(() => {
     ),
     priorLabel,
     stripScale,
+    payeesSummary:
+      payees[0] === undefined
+        ? 'Nothing left the company in this period'
+        : `${payees.length} ${payees.length === 1 ? 'counterparty' : 'counterparties'}, the most ${payees[0].label} at ${formatWholeMoney(payees[0].total.amount)}`,
     payees: payees.map((payee) => ({
       key: payee.key,
       label: payee.label,
@@ -106,33 +112,35 @@ const spending = computed(() => {
             :compared="spending.priorLabel !== null"
           />
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 class="text-sm font-medium text-highlighted">Who the company paid most</h2>
-              <p class="mt-0.5 text-xs text-muted">Money out only, grouped by IBAN or name.</p>
-            </header>
+          <AppCard
+            title="Who the company paid most"
+            subtitle="Money out only, grouped by IBAN or name."
+            collapse-id="spending.payees"
+            :summary="spending.payeesSummary"
+            data-testid="top-payees"
+          >
             <p v-if="spending.payees.length === 0" class="px-5 py-8 text-sm text-muted">Nothing left the company in this period.</p>
-            <div v-else class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+            <div v-else class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
               <table class="data-table w-full text-sm">
                 <thead>
                   <tr>
                     <th scope="col" class="text-start">Counterparty</th>
-                    <th scope="col" class="hidden sm:table-cell"><span class="sr-only">The last 12 months</span></th>
+                    <th scope="col" class="hidden @lg:table-cell"><span class="sr-only">The last 12 months</span></th>
                     <th scope="col" class="text-end">Rows</th>
                     <th scope="col" class="text-end">Paid</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="payee in spending.payees" :key="payee.key">
-                    <th scope="row" class="w-full text-start font-normal">
-                      <div class="flex max-w-36 min-w-0 flex-col gap-1 sm:max-w-60">
-                        <DrillLink :to="payee.to" class="min-w-0 text-highlighted"><span class="block truncate">{{ payee.label }}</span></DrillLink>
+                    <th scope="row" class="cell-wraps w-full text-start font-normal">
+                      <div class="payee-cell flex flex-col gap-1">
+                        <DrillLink :to="payee.to" class="min-w-0 text-highlighted"><span class="block break-words">{{ payee.label }}</span></DrillLink>
                         <PayeeCategories :payee="payee.label" :categories="payee.categories">
                           <UBadge v-if="payee.rhythm" :label="payee.rhythm" color="neutral" variant="subtle" size="sm" class="shrink-0" />
                         </PayeeCategories>
                       </div>
                     </th>
-                    <td class="hidden sm:table-cell"><MonthStrip :cells="payee.strip" :scale="spending.stripScale" /></td>
+                    <td class="hidden @lg:table-cell"><MonthStrip :cells="payee.strip" :scale="spending.stripScale" /></td>
                     <td class="figure text-end text-muted">{{ payee.count }}</td>
                     <td class="text-end">
                       <DrillLink :to="payee.to" :label="`${payee.label}, open the rows`">
@@ -143,9 +151,17 @@ const spending = computed(() => {
                 </tbody>
               </table>
             </div>
-          </section>
+          </AppCard>
         </div>
       </template>
     </LedgerGate>
   </section>
 </template>
+
+<style scoped>
+/* The name takes the width the other columns leave, wrapping a long name and cutting a long chip short, rather than widening the table. */
+.payee-cell {
+  width: 0;
+  min-width: 100%;
+}
+</style>

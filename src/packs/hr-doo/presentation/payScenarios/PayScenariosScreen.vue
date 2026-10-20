@@ -12,6 +12,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { formatPercent } from '../../../../shared/money/moneyFormat'
+import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -203,11 +204,11 @@ function openDetail(opened: FigureDetail): void {
           </p>
         </div>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="company-figures-title" data-testid="company-figures">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 id="company-figures-title" class="text-sm font-medium text-highlighted">What every scenario starts from</h2>
-            <p class="mt-0.5 text-xs text-muted">The {{ ready.company.takenFrom }} forecast with its owner pay taken back out. Open a figure for how it is built.</p>
-          </header>
+        <AppCard
+          title="What every scenario starts from"
+          :subtitle="`The ${ready.company.takenFrom} forecast with its owner pay taken back out. Open a figure for how it is built.`"
+          data-testid="company-figures"
+        >
           <ul class="grid gap-2 px-4 pt-3 pb-4 sm:grid-cols-2 sm:px-5 xl:grid-cols-3">
             <li v-for="line in companyLines" :key="line.title">
               <button type="button" class="input-figure" :aria-label="`${line.title}: open how it is built`" @click="openDetail(line)">
@@ -216,7 +217,7 @@ function openDetail(opened: FigureDetail): void {
               </button>
             </li>
           </ul>
-        </section>
+        </AppCard>
 
         <UEmpty
           v-if="shown.columns.length === 0"
@@ -261,41 +262,43 @@ function openDetail(opened: FigureDetail): void {
             <template #legend><ChartLegend :entries="bars.legend" /></template>
           </ChartCard>
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="comparison-title">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 id="comparison-title" class="text-sm font-medium text-highlighted">Side by side</h2>
-              <p class="mt-0.5 text-xs text-muted">A tick marks the best of a line that has a better way. The figure under each is the difference to the base. Open any figure for how it is built and its rules.</p>
-            </header>
+          <AppCard
+            title="Side by side"
+            subtitle="A tick marks the best of a line that has a better way. The figure under each is the difference to the base. Open any figure for how it is built and its rules."
+            collapse-id="pay-scenarios.comparison"
+            :summary="`${shown.columns.length} ${shown.columns.length === 1 ? 'scenario' : 'scenarios'}, ${shown.lines.length} lines each`"
+          >
             <div class="px-4 pt-1 pb-4 sm:px-5">
               <ScenarioComparison :columns="shown.columns" :lines="shown.lines" @open="openDetail" />
             </div>
-          </section>
+          </AppCard>
 
           <div class="grid gap-4 lg:grid-cols-2" data-testid="scenario-warnings">
-            <section v-for="column in shown.columns" :key="column.slug" class="min-w-0 rounded-card border border-default bg-raised p-4 shadow-raised sm:px-5" :aria-label="`${column.label}, warnings and notes`">
-              <h2 class="text-sm font-medium text-highlighted">{{ column.label }}</h2>
-              <p v-if="column.warnings.length === 0" class="mt-2 flex items-start gap-2 text-sm text-toned">
-                <UIcon name="i-lucide-circle-check" class="mt-0.5 size-4 shrink-0 text-[var(--tone-positive)]" aria-hidden="true" />
-                <span>Nothing to warn about.</span>
-              </p>
-              <ul v-else class="mt-2 flex flex-col gap-1.5">
-                <li v-for="warning in column.warnings" :key="warning" class="flex items-start gap-2 text-sm text-toned">
-                  <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
-                  <span>{{ warning }}</span>
-                </li>
-              </ul>
-              <ul v-if="column.notes.length > 0" class="mt-3 flex flex-col gap-1">
-                <li v-for="note in column.notes" :key="note" class="text-xs text-muted">{{ note }}</li>
-              </ul>
-            </section>
+            <AppCard v-for="column in shown.columns" :key="column.slug" :title="column.label">
+              <div class="px-4 pt-2 pb-4 sm:px-5">
+                <p v-if="column.warnings.length === 0" class="flex items-start gap-2 text-sm text-toned">
+                  <UIcon name="i-lucide-circle-check" class="mt-0.5 size-4 shrink-0 text-[var(--tone-positive)]" aria-hidden="true" />
+                  <span>Nothing to warn about.</span>
+                </p>
+                <ul v-else class="flex flex-col gap-1.5">
+                  <li v-for="warning in column.warnings" :key="warning" class="flex items-start gap-2 text-sm text-toned">
+                    <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+                    <span>{{ warning }}</span>
+                  </li>
+                </ul>
+                <ul v-if="column.notes.length > 0" class="mt-3 flex flex-col gap-1">
+                  <li v-for="note in column.notes" :key="note" class="text-xs text-muted">{{ note }}</li>
+                </ul>
+              </div>
+            </AppCard>
           </div>
         </template>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="marginal-title" data-testid="marginal-euro">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 id="marginal-title" class="text-sm font-medium text-highlighted">The next 100.00 of company money, {{ year }}</h2>
-            <p class="mt-0.5 text-xs text-muted">What reaches you of 100.00 the company has before corporate tax, by route, from the rules of the year. Salary above the floor buys pension too.</p>
-          </header>
+        <AppCard
+          :title="`The next 100.00 of company money, ${year}`"
+          subtitle="What reaches you of 100.00 the company has before corporate tax, by route, from the rules of the year. Salary above the floor buys pension too."
+          data-testid="marginal-euro"
+        >
           <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
             <li v-for="route in marginal" :key="route.title">
               <button type="button" class="route-row" :aria-label="`${route.title}: open how it is built`" @click="openDetail(route)">
@@ -304,7 +307,7 @@ function openDetail(opened: FigureDetail): void {
               </button>
             </li>
           </ul>
-        </section>
+        </AppCard>
       </template>
 
       <ScenarioEditor v-if="year !== null" :year="year" :scenarios="yearScenarios" :refusals="refusals" :grants="workbook?.grants ?? []" :tab-missing="tabMissing" :taken="taken" />

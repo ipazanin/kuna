@@ -7,12 +7,14 @@
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar, the
  * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a line's build-up, a
  * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, both kinds of the Add advance form,
- * a bar of the billing plan's chart opening its month, the rest of the year filled from a preview, a plan row edited and
+ * the cost of a reimbursement with no cost on file added from Owner and from Review,
+ * the billing plan's next expected invoice opening its month, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a category, an asset and an
  * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
- * writes go to the fake workbook kept in this browser.
+ * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
+ * the payee breakdown has to stay inside the window and off its own row.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
  *
@@ -29,6 +31,7 @@ import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
+import { collapseAndExpand } from './support/cardFlows.mjs'
 import { assetFlow, categoryFlow, invoiceFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 
@@ -38,24 +41,27 @@ const BASE = process.argv[2] ?? 'http://localhost:4173/ledgerboard/'
 const WIDTHS = [360, 430]
 const SMALLEST_TARGET = 44
 
-/** `ready` appears once the screen drew the fake workbook. `p=all` resets the filters the drills left behind. */
+/**
+ * `ready` appears once the screen drew the fake workbook. `p=all` resets the filters the drills left
+ * behind. A screen collapses and expands its first collapsible card, unless `cards: false` says it has none.
+ */
 const SCREENS = [
-  { hash: '#/trends?p=all', title: 'Trends', ready: '.chart-body canvas' },
+  { hash: '#/trends?p=all', title: 'Trends', ready: '.chart-body canvas', cards: false },
   { hash: '#/spending?p=all', title: 'Spending', ready: '[data-testid="cost-line"]' },
   { hash: '#/period-review?p=all', title: 'Period review', ready: '.chart-body canvas' },
-  { hash: '#/cash?p=all', title: 'Cash', ready: '.chart-body canvas' },
+  { hash: '#/cash?p=all', title: 'Cash', ready: '.chart-body canvas', cards: false },
   { hash: '#/receivables?p=all', title: 'Receivables', ready: '[data-testid="invoice-list"]' },
   { hash: '#/billing?p=all', title: 'Billing plan', ready: '[data-testid="billing-rows"]' },
   { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
   { hash: '#/assets?p=all', title: 'Assets', ready: '[data-testid="asset-register"]' },
   { hash: '#/year-end?year=2025&p=all', title: 'Year end', ready: '[data-testid="bridge-steps"]' },
-  { hash: '#/forecast?p=all', title: 'Forecast', ready: '[data-testid="forecast-unregistered"]' },
+  { hash: '#/forecast?p=all', title: 'Forecast', ready: '[data-testid="forecast-unregistered"]', cards: false },
   { hash: '#/pay-scenarios?p=all', title: 'Pay scenarios', ready: '[data-testid="scenario-editor"]' },
   { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { hash: '#/ruleset', title: 'Ruleset', ready: '[data-testid="rule-card"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
   { hash: '#/workbook', title: 'Workbook', ready: '[data-testid="workbook-tabs"]' },
-  { hash: '#/settings', title: 'Settings', ready: '[data-testid="data-source-card"]' },
+  { hash: '#/settings', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
 ]
 
 mkdirSync(OUTPUT_DIR, { recursive: true })
@@ -269,6 +275,16 @@ async function checkWidth(width) {
     await several.asElement().tap()
     await page.waitForSelector('[data-testid="payee-breakdown"] a')
     await delay(300)
+    await expect(
+      several.asElement().evaluate((trigger) => {
+        const panel = document.querySelector('[data-testid="payee-breakdown"]').getBoundingClientRect()
+        const row = trigger.closest('tr').getBoundingClientRect()
+        const inside = panel.left >= 0 && panel.right <= window.innerWidth && panel.top >= 0 && panel.bottom <= window.innerHeight
+        return inside && (panel.top >= row.bottom - 1 || panel.bottom <= row.top + 1)
+      }),
+      (placed) => placed,
+      'the breakdown leaves the window or covers the row it belongs to',
+    )
     await inspect(page, `${width}px payee breakdown open`)
     await shoot('payee-breakdown')
     const firstLine = await page.$('[data-testid="payee-breakdown"] a')
@@ -457,14 +473,47 @@ async function checkWidth(width) {
     await expect(advances(), (count) => count === before, 'Undo did not take the advance off the list')
   })
 
-  await step('billing-chart-drill', async () => {
+  for (const [screen, title] of [
+    ['owner', 'Owner'],
+    ['review', 'Review'],
+  ]) {
+    await step(`${screen}-unaccounted-cost`, async () => {
+      await openFreshExcel(page, `#/${screen}?p=all`, title)
+      const unaccounted = () => page.evaluate(() => document.querySelectorAll('[data-testid="unaccounted-reimbursement"]').length)
+      await expect(unaccounted(), (count) => count === 1, 'the reimbursement with no cost on file is not listed')
+      const adder = await page.$('[data-testid="add-unaccounted-cost"]')
+      await adder.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await adder.tap()
+      await page.waitForSelector('[data-testid="add-advance"]')
+      await delay(300)
+      await expect(
+        page.$eval('[data-testid="add-advance"] input[inputmode="decimal"]', (input) => input.value),
+        (amount) => amount === '38.50',
+        'Add the cost did not start on the amount left unaccounted',
+      )
+      await page.tap('[data-testid="advance-category"]')
+      await page.waitForSelector('[role="listbox"] [role="option"]')
+      await page.keyboard.type('travel')
+      await (await waitForText(page, '[role="option"]', 'Travel')).tap()
+      await delay(200)
+      await inspect(page, `${width}px add the cost on ${title}`)
+      await shoot(`${screen}-add-unaccounted-cost`)
+      await page.tap('button[form="add-advance"]')
+      await waitForText(page, '[data-slot="title"]', 'Advance added')
+      await expect(unaccounted(), (count) => count === 0, 'the reimbursement is still listed once its cost is on file')
+      await delay(700)
+      await (await waitForText(page, 'button', 'Undo')).tap()
+      await waitForText(page, '[data-slot="title"]', 'Advance removed')
+      await expect(unaccounted(), (count) => count === 1, 'Undo did not list the reimbursement again')
+    })
+  }
+
+  await step('billing-month-link', async () => {
     await open(page, '#/billing?p=all', 'Billing plan')
     await settleCharts(page)
     await page.screenshot({ path: join(OUTPUT_DIR, `${width}-billing.png`), fullPage: true })
-    await tapUntilDrillOffered(page)
-    await expect(hashOf(page), (hash) => !hash.includes('month='), 'one tap opened the month')
-    const viewRows = await waitForText(page, '[data-testid="chart-drill"] button', 'View rows')
-    await viewRows.tap()
+    await (await waitForText(page, '[data-testid="billing-tiles"] .kpi-link', 'Next expected invoice')).tap()
     await page.waitForFunction(() => window.location.hash.includes('month='))
     await page.waitForSelector('[data-testid="billing-months"] li[data-selected] [data-testid="billing-month-toggle"][aria-expanded="true"]')
     await delay(300)
@@ -474,7 +523,7 @@ async function checkWidth(width) {
         return box.top >= document.querySelector('header').getBoundingClientRect().bottom && box.top < window.innerHeight / 2
       }),
       (inView) => inView,
-      'the drill did not scroll its month to just below the top bar',
+      'the tile did not scroll its month to just below the top bar',
     )
     await shoot('billing-month')
   })
@@ -492,11 +541,14 @@ async function checkWidth(width) {
     await delay(300)
     const previewed = await page.evaluate(() => document.querySelectorAll('[data-testid="fill-row"]').length)
     await expect(Promise.resolve(previewed), (count) => count > 0, 'the preview lists no rows to fill')
+    await page.$eval('[data-testid="fill-description"]', (input) => input.select())
+    await page.type('[data-testid="fill-description"]', 'Fee for the last sprint')
     await inspect(page, `${width}px fill preview`)
     await shoot('billing-fill-preview')
     await page.tap('[data-testid="fill-write"]')
     await waitForText(page, '[data-slot="title"]', `${previewed} plan rows added`)
     await expect(rows(), (count) => count === before + previewed, 'the filled rows are not on the list')
+    await waitForText(page, '[data-testid="billing-row"] p', 'Fee for the last sprint')
     await delay(700)
     await (await waitForText(page, 'button', 'Undo')).tap()
     await waitForText(page, '[data-slot="title"]', 'Undone')
@@ -603,11 +655,22 @@ async function checkWidth(width) {
   }
 
   for (const screen of SCREENS) {
-    await step(screen.title.toLowerCase().replace(' ', '-'), async () => {
+    const name = screen.title.toLowerCase().replace(' ', '-')
+    await step(name, async () => {
       await open(page, screen.hash, screen.title)
       await page.waitForSelector(screen.ready)
       await expect(topBarTitle(page), (title) => title === screen.title, 'the top bar does not name the screen')
       if (screen.title === 'Settings') await shoot('settings')
+      if (screen.cards !== false) {
+        await collapseAndExpand(
+          page,
+          (handle) => handle.tap(),
+          async () => {
+            await inspect(page, `${width}px ${name} card collapsed`)
+            await shoot(`${name}-card-collapsed`)
+          },
+        )
+      }
     })
   }
 
@@ -752,7 +815,7 @@ async function checkWidth(width) {
       (count) => count === '1',
       'the session panel does not count the write',
     )
-    const toggle = await page.$('[data-testid="session-toggle"]')
+    const toggle = await page.$('[data-testid="session-changes"] [data-testid="card-toggle"]')
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
     await toggle.tap()
@@ -963,7 +1026,8 @@ function topBarTitle(page) {
 async function waitForText(page, selector, text) {
   const handle = await page
     .waitForFunction(
-      (css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null,
+      // A collapsed card keeps its body on the page, hidden, so nothing inside one counts.
+      (css, wanted) => [...document.querySelectorAll(css)].find((element) => !element.closest('[data-collapsed="true"]') && element.textContent?.trim().startsWith(wanted)) ?? null,
       { timeout: 10_000 },
       selector,
       text,

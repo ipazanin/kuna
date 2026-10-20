@@ -9,7 +9,7 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import ChartCard from '../../../shared/ui/ChartCard.vue'
 import type { ChartPointSelection, ChartZoomWindow } from '../../../shared/ui/ChartCard.vue'
 import { useFilters } from '../application/filterStore'
-import type { DrillChart, LinkChart } from './chartDrill'
+import type { DrillChart } from './chartDrill'
 
 /**
  * A chart whose marks open the rows behind them. A click drills at once. On a phone a tap first
@@ -17,7 +17,7 @@ import type { DrillChart, LinkChart } from './chartDrill'
  * never both shows a figure and leaves the screen.
  */
 const props = defineProps<{
-  chart: DrillChart | LinkChart
+  chart: DrillChart
   title: string
   subtitle?: string
   definition?: string
@@ -49,11 +49,7 @@ const chosenLabel = computed(() => {
 })
 
 function linkAt(selection: ChartPointSelection): RouteLocationRaw | null {
-  const chart = props.chart
-  if ('linkAt' in chart) {
-    return chart.linkAt(selection)
-  }
-  const target = chart.drillAt(selection)
+  const target = props.chart.drillAt(selection)
   return target === null ? null : drillLocation(target)
 }
 

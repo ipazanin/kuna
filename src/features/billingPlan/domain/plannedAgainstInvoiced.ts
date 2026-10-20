@@ -1,6 +1,7 @@
+import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { addMonths, lastDayOf, monthOf } from '../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../shared/calendar/monthKey'
-import { ZERO, addMoney, subtractMoney, sumMoney } from '../../../shared/money/money'
+import { ZERO, addMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
 import type { Invoice } from '../../workbook/domain/workbook'
@@ -35,7 +36,7 @@ export interface ClientBillingMatch {
   readonly client: string
   /** Every month a plan row of the client is dated in, oldest first. */
   readonly months: readonly BillingMonth[]
-  /** What each invoice billed beyond the plan rows it could reach, in issue order. */
+  /** What each invoice billed above the plan rows it could reach, a rounding difference among them, in issue order. */
   readonly withoutPlan: readonly InvoiceShare[]
 }
 
@@ -44,9 +45,11 @@ export interface ClientBillingMatch {
  * items together with items left over from before, and may bill next month's fee ahead, so no
  * invoice belongs to one row. Instead each client's invoices, in issue order, take the client's
  * rows oldest first, by date and then tab order, the way Receivables lets payments fill invoices.
- * An invoice reaches rows dated up to the end of the month after the one it was issued in. What it
- * cannot place there is invoiced with no plan row and is not carried to later rows, and an invoice
- * of zero or less places nothing.
+ * An invoice first fills the rows dated up to the end of the month it was issued in. What is left,
+ * when it is a fee billed ahead of at least one euro, reaches on to the rows of the next month. A
+ * smaller remainder is a rounding difference, invoiced above the plan, so a cent never part fills
+ * a later month. What an invoice cannot place is invoiced with no plan row and is not carried to
+ * later rows, and an invoice of zero or less places nothing.
  */
 export function plannedAgainstInvoiced(plan: readonly BillingItem[], invoices: readonly Invoice[]): readonly ClientBillingMatch[] {
   const clients = [...new Set([...plan.map((row) => row.client), ...invoices.map((invoice) => invoice.client)])].sort()
@@ -59,6 +62,9 @@ export function plannedAgainstInvoiced(plan: readonly BillingItem[], invoices: r
   )
 }
 
+/** The least an invoice's remainder must be to bill next month's rows ahead. Less is a rounding difference. */
+const AHEAD_AT_LEAST = moneyFromCents(100)
+
 function matchClient(client: string, plan: readonly BillingItem[], invoices: readonly Invoice[]): ClientBillingMatch {
   const rows = [...plan].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)
   const register = [...invoices].sort((earlier, later) => earlier.issued.localeCompare(later.issued) || earlier.sheetRow - later.sheetRow)
@@ -66,9 +72,9 @@ function matchClient(client: string, plan: readonly BillingItem[], invoices: rea
   const filled: Money[] = rows.map(() => ZERO)
   const withoutPlan: InvoiceShare[] = []
   let next = 0
-  for (const invoice of register) {
-    const reach = lastDayOf(addMonths(monthOf(invoice.issued), 1))
-    let left = invoice.amount
+  /** Places what is left of an invoice on the open rows dated up to `reach`, oldest first, and returns what it could not place. */
+  const place = (invoice: Invoice, amount: Money, reach: CivilDate): Money => {
+    let left = amount
     while (left > 0 && next < rows.length && rows[next]!.date <= reach) {
       const open = subtractMoney(rows[next]!.amount, filled[next]!)
       const taken = left < open ? left : open
@@ -78,6 +84,14 @@ function matchClient(client: string, plan: readonly BillingItem[], invoices: rea
       if (filled[next] === rows[next]!.amount) {
         next += 1
       }
+    }
+    return left
+  }
+  for (const invoice of register) {
+    const issuedIn = monthOf(invoice.issued)
+    let left = place(invoice, invoice.amount, lastDayOf(issuedIn))
+    if (left >= AHEAD_AT_LEAST) {
+      left = place(invoice, left, lastDayOf(addMonths(issuedIn, 1)))
     }
     if (left !== 0) {
       withoutPlan.push({ invoice, amount: left })

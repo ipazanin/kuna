@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
@@ -8,6 +8,7 @@ import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { moneyFromAmount, negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { cellText } from '../../../shared/text/cellText'
 import { rulesChangeInWords } from '../../rules/domain/ruleSummary'
@@ -37,8 +38,6 @@ const emit = defineEmits<{
 }>()
 
 const SHOWN_ROWS = 3
-
-const open = ref(false)
 
 const timeFormat = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -128,17 +127,21 @@ function quoted(cell: string | number | boolean | null): string {
 </script>
 
 <template>
-  <section v-if="writes.length" class="min-w-0 overflow-clip rounded-card border border-default bg-raised shadow-raised" data-testid="session-changes">
-    <button type="button" class="session-toggle" :aria-expanded="open" aria-controls="session-changes-list" data-testid="session-toggle" @click="open = !open">
-      <span class="flex min-w-0 items-center gap-2">
-        <UIcon name="i-lucide-history" class="size-4 shrink-0 text-muted" aria-hidden="true" />
-        <span class="text-sm font-medium text-highlighted">Changes in this session</span>
-        <UBadge :label="String(writes.length)" color="neutral" variant="subtle" size="sm" class="figure" data-testid="session-count" />
-      </span>
-      <UIcon name="i-lucide-chevron-down" class="chevron size-4 shrink-0 text-muted" :class="{ turned: open }" aria-hidden="true" />
-    </button>
-
-    <div v-if="open" id="session-changes-list" class="border-t border-default">
+  <AppCard
+    v-if="writes.length"
+    class="overflow-clip"
+    title="Changes in this session"
+    collapse-id="review.session-changes"
+    :summary="`The newest: ${titleOf(writes[0]!)}`"
+    start-collapsed
+    data-testid="session-changes"
+  >
+    <template #title>
+      <UIcon name="i-lucide-history" class="size-4 shrink-0 text-muted" aria-hidden="true" />
+      Changes in this session
+      <UBadge :label="String(writes.length)" color="neutral" variant="subtle" size="sm" class="figure" data-testid="session-count" />
+    </template>
+    <div class="mt-3 border-t border-default">
       <p class="px-4 pt-3 text-xs text-muted sm:px-5">Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules and settings are changed back on Workbook.</p>
       <ol class="mt-2">
         <li v-for="write in writes" :key="write.id" class="session-write" data-testid="session-write">
@@ -217,40 +220,10 @@ function quoted(cell: string | number | boolean | null): string {
         </li>
       </ol>
     </div>
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>
-.session-toggle {
-  display: flex;
-  width: 100%;
-  min-height: 3rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  text-align: start;
-}
-
-.session-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.chevron {
-  transition: transform 160ms ease;
-}
-
-.chevron.turned {
-  transform: rotate(180deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chevron {
-    transition: none;
-  }
-}
-
 .session-write {
   display: flex;
   flex-direction: column;
@@ -277,7 +250,6 @@ function quoted(cell: string | number | boolean | null): string {
 }
 
 @media (min-width: 640px) {
-  .session-toggle,
   .session-write {
     padding-inline: 1.25rem;
   }

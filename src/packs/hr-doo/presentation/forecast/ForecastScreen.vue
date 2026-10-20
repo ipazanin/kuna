@@ -9,6 +9,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
@@ -166,34 +167,35 @@ const view = computed(() => {
         </DrillChartCard>
 
         <div class="grid gap-4 xl:grid-cols-2">
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="profit-and-loss-title">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 id="profit-and-loss-title" class="text-sm font-medium text-highlighted">Profit and loss</h2>
-              <p class="mt-0.5 text-xs text-muted">By the lines the accountant prints. Open a line for what it adds up and the months a plan row or an average stands in for.</p>
-            </header>
+          <AppCard
+            title="Profit and loss"
+            subtitle="By the lines the accountant prints. Open a line for what it adds up and the months a plan row or an average stands in for."
+            collapse-id="forecast.profit-and-loss"
+            :summary="view.profitAndLossSummary"
+          >
             <div class="px-4 pt-2 pb-3 sm:px-5">
               <BuildUpList :lines="view.profitAndLoss" test-id="forecast-profit-and-loss" />
             </div>
-          </section>
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="pd-return-title">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 id="pd-return-title" class="text-sm font-medium text-highlighted">Profit tax return, PD</h2>
-              <p class="mt-0.5 text-xs text-muted">From profit to the tax, the advances and the balance, by form line. Open a line for its steps and rules.</p>
-            </header>
+          </AppCard>
+          <AppCard
+            title="Profit tax return, PD"
+            subtitle="From profit to the tax, the advances and the balance, by form line. Open a line for its steps and rules."
+            collapse-id="forecast.pd-return"
+            :summary="view.pdReturnSummary"
+          >
             <div class="px-4 pt-2 pb-3 sm:px-5">
               <BuildUpList :lines="view.pdReturn" test-id="forecast-pd-return" />
             </div>
-          </section>
+          </AppCard>
         </div>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="advances-title" data-testid="forecast-advances">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 id="advances-title" class="text-sm font-medium text-highlighted">Corporate tax payments, expected against paid</h2>
-            <p class="mt-0.5 text-xs text-muted">
-              The balance due on last year's return and this year's advances. The bank rows fill them oldest due date first, since the annual payment and the
-              advances share one payment code.
-            </p>
-          </header>
+        <AppCard
+          title="Corporate tax payments, expected against paid"
+          subtitle="The balance due on last year's return and this year's advances. The bank rows fill them oldest due date first, since the annual payment and the advances share one payment code."
+          collapse-id="forecast.advances"
+          :summary="view.obligationsSummary"
+          data-testid="forecast-advances"
+        >
           <div class="grid gap-3 px-4 pt-3 sm:grid-cols-3 sm:px-5">
             <div class="next-figure">
               <p class="text-xs text-muted">Advances for {{ year }}</p>
@@ -242,7 +244,7 @@ const view = computed(() => {
             <p v-if="view.obligations.length === 0" class="px-2 py-4 text-sm text-muted">A first tax period pays no advances, and no earlier return leaves a balance.</p>
             <CitObligationList v-else :lines="view.obligations" test-id="forecast-obligations" />
           </div>
-        </section>
+        </AppCard>
 
         <DividendCard
           :year="view.forecast.year"
@@ -255,14 +257,16 @@ const view = computed(() => {
           @choose="pickPayout"
         />
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="plan-rows-title" data-testid="plan-rows">
-          <header class="flex flex-col gap-2 px-4 pt-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
-            <div>
-              <h2 id="plan-rows-title" class="text-sm font-medium text-highlighted">Plan rows for {{ year }}</h2>
-              <p class="mt-0.5 text-xs text-muted">Read only here. They come from the workbook's plan tab, and a month's own row comes before a row for every month.</p>
-            </div>
-            <DrillLink to="/workbook" in-prose class="shrink-0 text-sm text-highlighted">Open the Workbook screen</DrillLink>
-          </header>
+        <AppCard
+          :title="`Plan rows for ${year}`"
+          subtitle="Read only here. They come from the workbook's plan tab, and a month's own row comes before a row for every month."
+          collapse-id="forecast.plan-rows"
+          :summary="view.planRowsSummary"
+          data-testid="plan-rows"
+        >
+          <template #actions>
+            <DrillLink to="/workbook" in-prose class="text-sm text-highlighted">Open the Workbook screen</DrillLink>
+          </template>
           <div class="px-4 pt-2 pb-3 sm:px-5">
             <p v-if="view.planRows.length === 0" class="py-4 text-sm text-muted">The plan tab holds no rows for {{ year }}, so every month the ledger has not closed takes its line's average.</p>
             <ul v-else class="flex flex-col">
@@ -278,7 +282,7 @@ const view = computed(() => {
               </li>
             </ul>
           </div>
-        </section>
+        </AppCard>
       </template>
     </LedgerGate>
   </section>

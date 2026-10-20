@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
+import AppCard from '../../../shared/ui/AppCard.vue'
 import { CATEGORY_ROWS } from '../../../features/settings/application/workbookTabRows'
 import { rowCellsOf } from '../../../features/workbook/application/tabRowWrites'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
@@ -55,26 +56,28 @@ async function choose(asPay: boolean): Promise<void> {
 </script>
 
 <template>
-  <section class="rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5" data-testid="loan-bucket">
-    <header class="mb-4">
-      <h2 class="text-sm font-medium text-highlighted">Loans to the owner</h2>
-      <p class="mt-0.5 text-xs text-muted">From the categories tab: the bucket of the categories with the owner-loan-out and owner-loan-repaid roles.</p>
-    </header>
-    <p v-if="loanCategories.length === 0" class="text-sm text-muted">No category carries the owner-loan-out or owner-loan-repaid role, so there is nothing to switch.</p>
-    <template v-else>
-      <USwitch
-        :model-value="countsAsPay"
-        :loading="writes.busy.value || store.state.writing"
-        :disabled="writes.busy.value || store.state.writing"
-        label="Loans to the owner count as owner pay"
-        :description="
-          countsAsPay
-            ? 'On: a loan is pay taken early and its repayment pay handed back, so both count in owner pay, costs and net. Off moves both to financing, outside profit and loss.'
-            : 'Off: loans and their repayments are financing, outside profit and loss. On moves both into owner pay, where they count in costs and net.'
-        "
-        @update:model-value="choose($event)"
-      />
-      <p v-if="mixed" class="mt-3 text-xs text-[var(--tone-warning)]">The loan categories sit in different buckets now: {{ listed }}. Switching puts both in one.</p>
-    </template>
-  </section>
+  <AppCard
+    title="Loans to the owner"
+    subtitle="From the categories tab: the bucket of the categories with the owner-loan-out and owner-loan-repaid roles."
+    data-testid="loan-bucket"
+  >
+    <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
+      <p v-if="loanCategories.length === 0" class="text-sm text-muted">No category carries the owner-loan-out or owner-loan-repaid role, so there is nothing to switch.</p>
+      <template v-else>
+        <USwitch
+          :model-value="countsAsPay"
+          :loading="writes.busy.value || store.state.writing"
+          :disabled="writes.busy.value || store.state.writing"
+          label="Loans to the owner count as owner pay"
+          :description="
+            countsAsPay
+              ? 'On: a loan is pay taken early and its repayment pay handed back, so both count in owner pay, costs and net. Off moves both to financing, outside profit and loss.'
+              : 'Off: loans and their repayments are financing, outside profit and loss. On moves both into owner pay, where they count in costs and net.'
+          "
+          @update:model-value="choose($event)"
+        />
+        <p v-if="mixed" class="mt-3 text-xs text-[var(--tone-warning)]">The loan categories sit in different buckets now: {{ listed }}. Switching puts both in one.</p>
+      </template>
+    </div>
+  </AppCard>
 </template>

@@ -28,10 +28,10 @@ export interface CostSection {
 import { computed } from 'vue'
 
 import { formatPercent, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import type { LegendEntry } from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
-import InfoPopover from '../../../shared/ui/InfoPopover.vue'
 
 /**
  * Cost by category as a list of bars under their buckets, each against a mark for the period
@@ -48,6 +48,13 @@ const props = defineProps<{
 
 const scale = computed(() => Math.max(1, ...props.sections.flatMap((section) => section.lines.flatMap((line) => [line.current, line.prior ?? 0]))))
 
+const summary = computed(() => {
+  const lines = props.sections.flatMap((section) => section.lines)
+  const largest = lines.reduce<CostLine | null>((best, line) => (best === null || line.current > best.current ? line : best), null)
+  if (largest === null) return 'Nothing was spent in this period'
+  return `${lines.length} ${lines.length === 1 ? 'category' : 'categories'}, the largest ${largest.name} at ${formatWholeMoney(largest.current)}`
+})
+
 function widthOf(amount: number): string {
   return `${(Math.max(0, amount) / scale.value) * 100}%`
 }
@@ -59,19 +66,10 @@ function changeText(change: CostChange | null): string {
 </script>
 
 <template>
-  <section class="flex min-w-0 flex-col rounded-card border border-default bg-raised shadow-raised" data-testid="cost-by-category">
-    <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <h2 class="text-sm font-medium text-highlighted">Cost by category</h2>
-          <p class="mt-0.5 text-xs text-muted">{{ subtitle }}</p>
-        </div>
-        <div class="-my-1 -me-1.5 shrink-0">
-          <InfoPopover subject="Cost by category" :definition="definition" />
-        </div>
-      </div>
+  <AppCard title="Cost by category" :subtitle="subtitle" :definition="definition" collapse-id="spending.categories" :summary="summary" data-testid="cost-by-category">
+    <template #header>
       <ChartLegend :entries="legend" />
-    </header>
+    </template>
 
     <p v-if="sections.length === 0" class="px-5 py-8 text-sm text-muted">Nothing was spent in this period.</p>
     <div v-else class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
@@ -99,7 +97,7 @@ function changeText(change: CostChange | null): string {
         </ul>
       </section>
     </div>
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>

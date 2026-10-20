@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import type { Money } from '../../../shared/money/money'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../filters/application/filterStore'
@@ -72,7 +73,7 @@ function accountOf(row: ListedRow): string {
 </script>
 
 <template>
-  <div class="overflow-clip rounded-card border border-default bg-raised shadow-raised">
+  <AppCard as="div" class="overflow-clip">
     <p class="flex items-baseline justify-between gap-3 border-b border-default px-4 py-3 text-sm" data-testid="transaction-total">
       <span class="text-muted">{{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}, total</span>
       <MoneyText :cents="total" class="font-semibold text-highlighted" />
@@ -128,7 +129,7 @@ function accountOf(row: ListedRow): string {
         </li>
       </ul>
     </section>
-  </div>
+  </AppCard>
 </template>
 
 <style scoped>

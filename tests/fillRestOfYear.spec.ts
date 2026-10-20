@@ -23,7 +23,7 @@ function rowsOf(fill: RestOfYearFill): [string, string, number, string, string][
 }
 
 describe('fillRestOfYear', () => {
-  it('adds the monthly fee and the subscription on the last day of every month from this one to December, and never the bonus', () => {
+  it('adds the monthly fee and the subscription on the last day of every month from this one to December, and never the bonus, described by the month while the item has no row yet', () => {
     expect(rowsOf(fillRestOfYear([], TERMS, civil('2026-10-19')))).toEqual([
       ['2026-10-31', 'Monthly Fee', euros(5000), 'north', 'Oct 2026'],
       ['2026-10-31', 'Subscription', euros(200), 'north', 'Oct 2026'],
@@ -32,6 +32,39 @@ describe('fillRestOfYear', () => {
       ['2026-12-31', 'Monthly Fee', euros(5000), 'north', 'Dec 2026'],
       ['2026-12-31', 'Subscription', euros(200), 'north', 'Dec 2026'],
     ])
+  })
+
+  it('describes each row as the client’s latest row of its item, with the new month where that row names its own', () => {
+    const plan = [
+      planRow('Monthly Fee', '2026-09-30', 5000, 'north', 'Fee for September'),
+      planRow('Monthly Fee', '2026-08-31', 5000, 'north', 'Fee for August'),
+      planRow('Subscription', '2026-09-30', 200, 'north', 'Design tool seat'),
+      planRow('Monthly Fee', '2026-09-30', 5000, 'south', 'South fee, September'),
+    ]
+
+    expect(rowsOf(fillRestOfYear(plan, TERMS, civil('2026-10-19'))).map(([date, item, , , description]) => [date, item, description])).toEqual([
+      ['2026-10-31', 'Monthly Fee', 'Fee for October'],
+      ['2026-10-31', 'Subscription', 'Design tool seat'],
+      ['2026-11-30', 'Monthly Fee', 'Fee for November'],
+      ['2026-11-30', 'Subscription', 'Design tool seat'],
+      ['2026-12-31', 'Monthly Fee', 'Fee for December'],
+      ['2026-12-31', 'Subscription', 'Design tool seat'],
+    ])
+  })
+
+  it('swaps a short name and the year after it, keeps capitals, and leaves "may" in a sentence alone', () => {
+    const fees = (plan: ReturnType<typeof planRow>[], asOf: string) =>
+      rowsOf(fillRestOfYear(plan, { ...TERMS, subscriptionAmount: null }, civil(asOf))).map(([date, , , , description]) => [date, description])
+
+    expect(fees([planRow('Monthly Fee', '2025-12-31', 5000, 'north', 'DECEMBER work, Dec 2025, Dec 25')], '2026-08-10')).toEqual([
+      ['2026-08-31', 'AUGUST work, Aug 2026, Aug 26'],
+      ['2026-09-30', 'SEPTEMBER work, Sept 2026, Sept 26'],
+      ['2026-10-31', 'OCTOBER work, Oct 2026, Oct 26'],
+      ['2026-11-30', 'NOVEMBER work, Nov 2026, Nov 26'],
+      ['2026-12-31', 'DECEMBER work, Dec 2026, Dec 26'],
+    ])
+    expect(fees([planRow('Monthly Fee', '2026-05-31', 5000, 'north', 'May fee, may change')], '2026-12-01')).toEqual([['2026-12-31', 'December fee, may change']])
+    expect(fees([planRow('Monthly Fee', '2026-09-30', 5000, 'north', 'Sep 2026 sprint')], '2026-12-01')).toEqual([['2026-12-31', 'Dec 2026 sprint']])
   })
 
   it('skips a month that already has the item for the client, whatever its date and amount', () => {

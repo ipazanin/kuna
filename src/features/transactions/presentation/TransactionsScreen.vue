@@ -14,6 +14,7 @@ import { bucketTone } from '../../../shared/charts/chartTokens'
 import { downloadFile } from '../../../shared/files/downloadFile'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { sumMoney } from '../../../shared/money/money'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
@@ -150,6 +151,14 @@ function besideHeading(rowClass = ''): { class: { td: (cell: EntryCell) => strin
   return { class: { td: (cell) => (isHeading(cell) ? 'hidden' : rowClass) } }
 }
 
+/** Why a row waits for review, beside its category. */
+function reviewBadge(listed: ListedRow) {
+  if (listed.kind === 'owner-advance') return null
+  if (listed.bucket === UNCLASSIFIED) return h(UBadge, { label: 'Unclassified', color: 'warning', variant: 'subtle', size: 'sm' })
+  if (listed.flaggedBy === 'ai') return h(UBadge, { label: 'AI guess', color: 'info', variant: 'subtle', size: 'sm' })
+  return null
+}
+
 const columns: TableColumn<TableEntry>[] = [
   {
     id: 'date',
@@ -176,7 +185,7 @@ const columns: TableColumn<TableEntry>[] = [
     id: 'counterparty',
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.counterparty : ''),
     header: 'Counterparty',
-    meta: besideHeading(),
+    meta: besideHeading('whitespace-normal'),
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
@@ -186,43 +195,35 @@ const columns: TableColumn<TableEntry>[] = [
         listed.kind === 'bank'
           ? h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(listed).key] }), class: 'text-highlighted' }, () => listed.counterparty || 'No counterparty')
           : h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [listed.counterparty, h(UBadge, { label: listed.label, color: 'neutral', variant: 'subtle', size: 'sm' })])
-      return h('div', { class: 'min-w-48 max-w-96' }, [name, listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description)])
+      return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [name, listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description)])
     },
   },
   {
     id: 'category',
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.category : ''),
     header: 'Category',
-    meta: besideHeading(),
+    meta: besideHeading('whitespace-normal'),
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
       const listed = entry.row
-      return h('span', { class: 'inline-flex items-center gap-1.5 whitespace-nowrap text-toned' }, [
-        h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: `var(--bucket-${bucketTone(listed.bucket)})` }, 'aria-hidden': 'true' }),
-        listed.category === ''
-          ? h('span', { class: 'text-muted' }, 'No category')
-          : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
+      return h('span', { class: 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-toned' }, [
+        h('span', { class: 'inline-flex items-center gap-1.5' }, [
+          h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: `var(--bucket-${bucketTone(listed.bucket)})` }, 'aria-hidden': 'true' }),
+          listed.category === ''
+            ? h('span', { class: 'text-muted' }, 'No category')
+            : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
+        ]),
+        reviewBadge(listed),
       ])
-    },
-  },
-  {
-    id: 'flag',
-    header: 'Review',
-    meta: besideHeading(),
-    cell: ({ row }) => {
-      const entry = row.original
-      if (entry.kind === 'group' || entry.row.kind === 'owner-advance') return ''
-      if (entry.row.bucket === UNCLASSIFIED) return h(UBadge, { label: 'Unclassified', color: 'warning', variant: 'subtle', size: 'sm' })
-      if (entry.row.flaggedBy === 'ai') return h(UBadge, { label: 'AI guess', color: 'info', variant: 'subtle', size: 'sm' })
-      return ''
     },
   },
   {
     id: 'account',
     accessorFn: (entry) => (entry.kind === 'row' && entry.row.kind === 'bank' ? entry.row.account : ''),
     header: 'Account',
-    meta: besideHeading(),
+    // The account is the first column a narrow card gives up, since the filters name it too.
+    meta: { class: { th: 'hidden @4xl:table-cell', ...besideHeading('hidden @4xl:table-cell').class } },
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
@@ -238,7 +239,7 @@ const columns: TableColumn<TableEntry>[] = [
     meta: { class: { th: 'text-end', ...besideHeading('text-end').class } },
     cell: ({ row }) => (row.original.kind === 'group' ? '' : h(MoneyText, { cents: row.original.row.amount, tone: 'flow' })),
     footer: () =>
-      h('span', { class: 'inline-flex items-baseline gap-2' }, [
+      h('span', { class: 'inline-flex items-baseline gap-2 whitespace-nowrap' }, [
         h('span', { class: 'text-xs font-normal text-muted' }, `${rows.value.length} ${rows.value.length === 1 ? 'row' : 'rows'}, total`),
         h(MoneyText, { cents: total.value, class: 'font-semibold text-highlighted' }),
       ]),
@@ -327,7 +328,7 @@ function exportCsv(): void {
           :show-account="severalAccounts"
           @toggle="collapsed.toggle"
         />
-        <div v-else class="overflow-hidden rounded-card border border-default bg-raised shadow-raised">
+        <AppCard v-else as="div" class="@container overflow-hidden">
           <UTable
             v-model:sorting="sorting"
             :data="tableEntries"
@@ -338,7 +339,7 @@ function exportCsv(): void {
             sticky
             class="max-h-[70dvh]"
           />
-        </div>
+        </AppCard>
       </template>
     </LedgerGate>
   </section>

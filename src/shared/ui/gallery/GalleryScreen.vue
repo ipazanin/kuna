@@ -9,6 +9,7 @@ import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
 import { chartTokens } from '../../charts/chartTokens'
+import AppCard from '../AppCard.vue'
 import ChartCard from '../ChartCard.vue'
 import type { ChartPointSelection } from '../ChartCard.vue'
 import ChartLegend from '../ChartLegend.vue'
@@ -171,6 +172,7 @@ const columns: TableColumn<SampleTransaction>[] = [
   {
     accessorKey: 'account',
     header: 'Account',
+    meta: { class: { th: 'hidden @4xl:table-cell', td: 'hidden @4xl:table-cell' } },
     cell: ({ row }) => (row.getIsGrouped() ? '' : h('span', { class: 'text-muted' }, row.original.account)),
   },
   {
@@ -216,7 +218,7 @@ const columns: TableColumn<SampleTransaction>[] = [
 
     <section class="gallery-section">
       <h2 class="gallery-heading">Type</h2>
-      <div class="flex flex-col gap-3 rounded-card border border-default bg-raised p-5">
+      <AppCard as="div" class="gap-3 p-5">
         <p class="text-title font-semibold text-highlighted">Period review, 2026 against 2025</p>
         <p class="text-figure-lg font-semibold text-highlighted">€148,210</p>
         <p class="max-w-[65ch] text-sm text-default">
@@ -226,7 +228,7 @@ const columns: TableColumn<SampleTransaction>[] = [
         <p class="text-xs text-muted">Captions and axis labels at 12 px in the muted ink.</p>
         <p class="figure text-sm text-default">Tabular figures: €1,111.11 / €8,888.88 / −€404.04</p>
         <p class="identifier text-toned">HR00 0000 0000 0000 0000 0</p>
-      </div>
+      </AppCard>
     </section>
 
     <section class="gallery-section">
@@ -293,6 +295,23 @@ const columns: TableColumn<SampleTransaction>[] = [
           :delta="{ change: -1, text: '−4', comparison: 'since the last sync' }"
           definition="Rows guessed by AI, rows with no category, and rows carrying a review reason."
         />
+      </div>
+    </section>
+
+    <section class="gallery-section">
+      <h2 class="gallery-heading">Cards</h2>
+      <div class="grid gap-3 md:grid-cols-2">
+        <AppCard title="A card" subtitle="Title, subtitle and actions in the header, the body below." definition="A definition sits behind the info button.">
+          <template #actions>
+            <UButton label="Add row" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" />
+          </template>
+          <p class="px-4 pt-3 pb-4 text-sm text-toned sm:px-5">Charts, tiles and short summaries keep their body in view.</p>
+        </AppCard>
+        <AppCard title="A collapsible card" subtitle="A long list or table. Its toggle is remembered on this device." collapse-id="gallery.sample" summary="3 rows, €1,240 open">
+          <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
+            <li v-for="row in ['September fee', 'October fee', 'Travel to the client']" :key="row" class="border-b border-default py-2 text-sm text-toned last:border-b-0">{{ row }}</li>
+          </ul>
+        </AppCard>
       </div>
     </section>
 
@@ -380,20 +399,22 @@ const columns: TableColumn<SampleTransaction>[] = [
 
     <section class="gallery-section">
       <h2 class="gallery-heading">Money and drill links</h2>
-      <div class="grid gap-x-8 gap-y-2 rounded-card border border-default bg-raised p-5 text-sm sm:grid-cols-2">
-        <p class="flex justify-between gap-4"><span class="text-muted">Plain</span><MoneyText :cents="1234567" /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">Negative</span><MoneyText :cents="-98765" /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">Money out, as a flow</span><MoneyText :cents="-98765" tone="flow" /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">Change, sign always</span><MoneyText :cents="31000" sign="always" tone="flow" /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">A loss, as an outcome</span><MoneyText :cents="-31000" tone="outcome" /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">Cost as magnitude</span><MoneyText :cents="-412050" sign="magnitude" /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">Whole euros</span><MoneyText :cents="4821049" precision="whole" /></p>
-        <p class="flex justify-between gap-4"><span class="text-muted">Compact</span><MoneyText :cents="4821049" precision="compact" /></p>
-        <p class="flex justify-between gap-4">
-          <span class="text-muted">Drill link</span>
-          <DrillLink :to="transactionsLink" label="Open the 14 travel transactions"><MoneyText :cents="-391000" sign="magnitude" /></DrillLink>
-        </p>
-      </div>
+      <AppCard as="div" class="p-5">
+        <div class="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+          <p class="flex justify-between gap-4"><span class="text-muted">Plain</span><MoneyText :cents="1234567" /></p>
+          <p class="flex justify-between gap-4"><span class="text-muted">Negative</span><MoneyText :cents="-98765" /></p>
+          <p class="flex justify-between gap-4"><span class="text-muted">Money out, as a flow</span><MoneyText :cents="-98765" tone="flow" /></p>
+          <p class="flex justify-between gap-4"><span class="text-muted">Change, sign always</span><MoneyText :cents="31000" sign="always" tone="flow" /></p>
+          <p class="flex justify-between gap-4"><span class="text-muted">A loss, as an outcome</span><MoneyText :cents="-31000" tone="outcome" /></p>
+          <p class="flex justify-between gap-4"><span class="text-muted">Cost as magnitude</span><MoneyText :cents="-412050" sign="magnitude" /></p>
+          <p class="flex justify-between gap-4"><span class="text-muted">Whole euros</span><MoneyText :cents="4821049" precision="whole" /></p>
+          <p class="flex justify-between gap-4"><span class="text-muted">Compact</span><MoneyText :cents="4821049" precision="compact" /></p>
+          <p class="flex justify-between gap-4">
+            <span class="text-muted">Drill link</span>
+            <DrillLink :to="transactionsLink" label="Open the 14 travel transactions"><MoneyText :cents="-391000" sign="magnitude" /></DrillLink>
+          </p>
+        </div>
+      </AppCard>
       <p class="max-w-[65ch] text-sm text-default">
         Travel cost <DrillLink :to="transactionsLink"><MoneyText :cents="391000" /></DrillLink> over the last 12 months, down from
         <DrillLink :to="transactionsLink"><MoneyText :cents="512000" /></DrillLink>. Every figure opens the rows behind it.
@@ -405,17 +426,20 @@ const columns: TableColumn<SampleTransaction>[] = [
         <h2 class="gallery-heading">Transactions table</h2>
         <USwitch v-model="groupByMonth" label="Group by month" size="sm" />
       </div>
-      <div class="overflow-hidden rounded-card border border-default bg-raised">
-        <UTable
-          v-model:sorting="sorting"
-          v-model:grouping="grouping"
-          v-model:expanded="expanded"
-          :data="[...SAMPLE_TRANSACTIONS]"
-          :columns="columns"
-          :grouping-options="{ groupedColumnMode: 'remove', getGroupedRowModel: getGroupedRowModel() }"
-          sticky
-          class="max-h-[26rem]"
-        />
+      <p class="text-sm text-muted sm:hidden">The table is the layout from 640 px up. A phone lists the rows as cards.</p>
+      <div class="hidden sm:block">
+        <AppCard as="div" class="@container overflow-hidden">
+          <UTable
+            v-model:sorting="sorting"
+            v-model:grouping="grouping"
+            v-model:expanded="expanded"
+            :data="[...SAMPLE_TRANSACTIONS]"
+            :columns="columns"
+            :grouping-options="{ groupedColumnMode: 'remove', getGroupedRowModel: getGroupedRowModel() }"
+            sticky
+            class="max-h-[26rem]"
+          />
+        </AppCard>
       </div>
     </section>
 

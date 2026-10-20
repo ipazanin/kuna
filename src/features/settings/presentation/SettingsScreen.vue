@@ -6,6 +6,7 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { activeTheme, chooseTheme } from '../../../shared/theme/theme'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import SwitchSourceDialog from '../../data-source/presentation/SwitchSourceDialog.vue'
 import { exportReminderDue } from '../../excel/domain/exportReminder'
@@ -63,84 +64,86 @@ const darkTheme = computed({
     <PageHeader title="Settings" description="Where the ledger comes from, and how the app behaves on this device." />
 
     <div class="grid gap-4 lg:grid-cols-2">
-      <section class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5" data-testid="data-source-card">
-        <h2 class="text-sm font-medium text-highlighted">Data source</h2>
-        <template v-if="source === 'excel'">
-          <p class="text-base text-highlighted">{{ workbookName }}</p>
-          <p class="text-sm text-muted">Kept in this browser. Your exported files are its only other copies.</p>
-          <p class="figure text-xs text-muted">
-            <span v-if="changedAt">Last changed {{ changedAt }}. </span>{{ exportedAt ? `Last exported ${exportedAt}.` : 'Not exported yet.' }}
-          </p>
-          <UAlert
-            v-if="reminderDue"
-            icon="i-lucide-clock-alert"
-            color="warning"
-            variant="subtle"
-            title="Some changes are in no exported file yet"
-            description="They live only in this browser, which can lose them if its site data is cleared. Export to keep a copy."
-          />
-        </template>
-        <template v-else-if="source === 'google'">
-          <p class="text-base text-highlighted">{{ workbookName }}</p>
-          <p class="text-sm text-muted">
-            A Google Sheet, read with your Google sign-in. A copy is kept in this browser, and so is the sign-in until it expires, about an hour
-            later.
-          </p>
-          <p v-if="changedAt" class="figure text-xs text-muted">Last synced {{ changedAt }}</p>
-        </template>
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            icon="i-lucide-download"
-            label="Export to Excel"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :loading="exporting"
-            :disabled="exporting || state.workbook === null"
-            @click="exportNow"
-          />
-          <UButton
-            v-if="source === 'excel'"
-            icon="i-lucide-file-input"
-            label="Import a file"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            @click="fileInput?.click()"
-          />
-          <UButton icon="i-lucide-arrow-left-right" label="Switch data source" color="neutral" variant="outline" size="sm" @click="switching = true" />
-          <UButton
-            v-if="source === 'google'"
-            icon="i-lucide-log-out"
-            label="Sign out of Google"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :loading="signingOut"
-            @click="signOut"
-          />
-          <UButton
-            v-if="sheetLink"
-            :to="sheetLink"
-            target="_blank"
-            icon="i-lucide-external-link"
-            label="Open the Sheet"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-          />
+      <AppCard title="Data source" data-testid="data-source-card">
+        <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
+          <template v-if="source === 'excel'">
+            <p class="text-base text-highlighted">{{ workbookName }}</p>
+            <p class="text-sm text-muted">Kept in this browser. Your exported files are its only other copies.</p>
+            <p class="figure text-xs text-muted">
+              <span v-if="changedAt">Last changed {{ changedAt }}. </span>{{ exportedAt ? `Last exported ${exportedAt}.` : 'Not exported yet.' }}
+            </p>
+            <UAlert
+              v-if="reminderDue"
+              icon="i-lucide-clock-alert"
+              color="warning"
+              variant="subtle"
+              title="Some changes are in no exported file yet"
+              description="They live only in this browser, which can lose them if its site data is cleared. Export to keep a copy."
+            />
+          </template>
+          <template v-else-if="source === 'google'">
+            <p class="text-base text-highlighted">{{ workbookName }}</p>
+            <p class="text-sm text-muted">
+              A Google Sheet, read with your Google sign-in. A copy is kept in this browser, and so is the sign-in until it expires, about an hour
+              later.
+            </p>
+            <p v-if="changedAt" class="figure text-xs text-muted">Last synced {{ changedAt }}</p>
+          </template>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              icon="i-lucide-download"
+              label="Export to Excel"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :loading="exporting"
+              :disabled="exporting || state.workbook === null"
+              @click="exportNow"
+            />
+            <UButton
+              v-if="source === 'excel'"
+              icon="i-lucide-file-input"
+              label="Import a file"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="fileInput?.click()"
+            />
+            <UButton icon="i-lucide-arrow-left-right" label="Switch data source" color="neutral" variant="outline" size="sm" @click="switching = true" />
+            <UButton
+              v-if="source === 'google'"
+              icon="i-lucide-log-out"
+              label="Sign out of Google"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :loading="signingOut"
+              @click="signOut"
+            />
+            <UButton
+              v-if="sheetLink"
+              :to="sheetLink"
+              target="_blank"
+              icon="i-lucide-external-link"
+              label="Open the Sheet"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+            />
+          </div>
+          <input ref="fileInput" type="file" :accept="`.xlsx,${XLSX_MIME_TYPE}`" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
         </div>
-        <input ref="fileInput" type="file" :accept="`.xlsx,${XLSX_MIME_TYPE}`" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
-      </section>
+      </AppCard>
 
-      <section class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5">
-        <h2 class="text-sm font-medium text-highlighted">Appearance and privacy</h2>
-        <USwitch v-model="darkTheme" label="Dark theme" description="Remembered on this device." />
-        <p class="text-sm text-muted">
-          There is no server. Nothing leaves this browser except calls to Google's APIs for a Sheet you picked.
-          <a :href="privacyPage" class="settings-link inline-target">Read the privacy notes</a>
-        </p>
-      </section>
+      <AppCard title="Appearance and privacy">
+        <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
+          <USwitch v-model="darkTheme" label="Dark theme" description="Remembered on this device." />
+          <p class="text-sm text-muted">
+            There is no server. Nothing leaves this browser except calls to Google's APIs for a Sheet you picked.
+            <a :href="privacyPage" class="settings-link inline-target">Read the privacy notes</a>
+          </p>
+        </div>
+      </AppCard>
     </div>
 
     <SwitchSourceDialog v-model:open="switching" />

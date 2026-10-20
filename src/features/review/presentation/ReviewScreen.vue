@@ -3,7 +3,14 @@ import { computed, ref } from 'vue'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
+import { sumMoney } from '../../../shared/money/money'
+import { formatMoney } from '../../../shared/money/moneyFormat'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
+import { ownerAdvances } from '../../../packs/hr-doo/domain/ownerAdvances'
+import AddAdvanceDialog from '../../../packs/hr-doo/presentation/AddAdvanceDialog.vue'
+import type { AdvancePrefill } from '../../../packs/hr-doo/presentation/AddAdvanceDialog.vue'
+import UnaccountedReimbursements from '../../../packs/hr-doo/presentation/UnaccountedReimbursements.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { categorise } from '../../rules/domain/categorise'
 import type { CoverageGroup } from '../../rules/domain/ruleCoverage'
@@ -12,11 +19,13 @@ import { draftForRow } from '../../rules/domain/ruleDraft'
 import { categorisationContextOf } from '../../rules/domain/transactionFacts'
 import RuleEditor from '../../rules/presentation/RuleEditor.vue'
 import type { RuleEditorSource } from '../../rules/presentation/RuleEditor.vue'
+import { useSettings } from '../../settings/application/useSettings'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { SessionWrite } from '../../workbook/application/workbookStore'
 import { needsReview } from '../../workbook/domain/needsReview'
+import { newestBookingOf } from '../../workbook/domain/workbook'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { sheetRowLink } from '../../workbook/infrastructure/sheetRowLink'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
@@ -49,6 +58,24 @@ const queue = computed(() => {
     link: sheetRowLink(workbook.id, workbook.ledgerSheetId, transaction.sheetRow),
   }))
 })
+
+const settings = useSettings()
+
+/** Payments to the owner that no cost the owner paid accounts for, which wait until a person adds the cost. */
+const unaccounted = computed(() => {
+  const current = ledger.value
+  if (current === null || !settings.value.ownerPayModule) return []
+  return ownerAdvances(current.scopedAdvances, current.scoped, current.workbook.categories).unaccounted
+})
+const unaccountedSummary = computed(() => `${formatMoney(sumMoney(unaccounted.value.map((payment) => payment.amount)))} in all, counted as paid to the owner`)
+const newestBooking = computed(() => newestBookingOf(ledger.value?.workbook.transactions ?? []))
+const addingCost = ref(false)
+const costPrefill = ref<AdvancePrefill | null>(null)
+
+function addCost(prefill: AdvancePrefill): void {
+  costPrefill.value = prefill
+  addingCost.value = true
+}
 
 const coverage = computed(() =>
   ledger.value === null || context.value === null ? { notCovered: [], exceptions: [] } : ruleCoverage(ledger.value.scoped, ledger.value.workbook.rules, context.value),
@@ -129,19 +156,23 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
         />
 
         <UEmpty
-          v-if="queue.length === 0"
+          v-if="queue.length === 0 && unaccounted.length === 0"
           icon="i-lucide-check-check"
           title="Nothing waits for review"
           description="Every row in view has a category a rule or a person set."
           variant="outline"
           class="rounded-card bg-raised"
         />
-        <section v-else class="min-w-0 overflow-clip rounded-card border border-default bg-raised shadow-raised" data-testid="review-queue">
-          <header class="px-4 pt-4 pb-3 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">{{ queue.length }} {{ queue.length === 1 ? 'row' : 'rows' }} to review</h2>
-            <p class="mt-0.5 text-xs text-muted">Newest first, from every month of the ledger. Open a row to see what the rules say about it.</p>
-          </header>
-          <ul class="border-t border-default">
+        <AppCard
+          v-if="queue.length > 0"
+          class="overflow-clip"
+          :title="`${queue.length} ${queue.length === 1 ? 'row' : 'rows'} to review`"
+          subtitle="Newest first, from every month of the ledger. Open a row to see what the rules say about it."
+          collapse-id="review.queue"
+          summary="Each waits for a confirmation or another category."
+          data-testid="review-queue"
+        >
+          <ul class="mt-3 border-t border-default">
             <ReviewQueueItem
               v-for="entry in queue"
               :key="entry.transaction.sheetRow"
@@ -157,10 +188,34 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
               @make-rule="makeRule(entry.transaction)"
             />
           </ul>
-        </section>
+        </AppCard>
+
+        <AppCard
+          v-if="unaccounted.length > 0"
+          :title="`${unaccounted.length} ${unaccounted.length === 1 ? 'reimbursement' : 'reimbursements'} with no cost on file`"
+          collapse-id="review.unaccounted"
+          :summary="unaccountedSummary"
+          data-testid="review-unaccounted"
+        >
+          <template #subtitle>
+            Paid to the owner on a reimbursement category, with no cost on the owner-advances tab to repay. Net owed counts each as paid to the owner until its cost
+            is added.
+          </template>
+          <div class="px-4 pt-1 pb-2 sm:px-5">
+            <UnaccountedReimbursements :payments="unaccounted" :editable="!busy" @add-cost="addCost" />
+          </div>
+        </AppCard>
 
         <RuleCoverage :coverage="coverage" :categories="ledger.workbook.categories" :busy="busy" @make-rule="makeRuleForGroup" />
         <RuleEditor v-model:open="editorOpen" :source="editorSource" />
+        <AddAdvanceDialog
+          v-if="newestBooking"
+          v-model:open="addingCost"
+          :categories="ledger.workbook.categories"
+          :default-date="newestBooking"
+          :in-sheet="ledger.workbook.source === 'google'"
+          :prefill="costPrefill"
+        />
       </template>
     </LedgerGate>
   </section>

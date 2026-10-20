@@ -191,6 +191,8 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
     pdLine('owed', prudence.owedByOwner),
   ]
 
+  const yearPlanRows = planRows(workbook.planLines.filter((line) => line.year === year), forecast, year, context)
+
   return {
     forecast,
     running,
@@ -227,8 +229,11 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
     ],
     chartMonths,
     profitAndLoss,
+    profitAndLossSummary: `Profit before tax ${formatWholeMoney(forecast.profitBeforeTax.total.amount)}`,
     pdReturn,
+    pdReturnSummary: `Tax ${formatWholeMoney(liability.liability.amount)}, a monthly advance of ${formatWholeMoney(liability.monthlyAdvance.amount)}`,
     obligations: cit.obligations.map((entry): CitObligationLine => citObligationLine(entry, linkOf)),
+    obligationsSummary: `${formatWholeMoney(cit.advancesPaid.amount)} paid, ${formatWholeMoney(cit.advancesToCome.amount)} still to come`,
     advancesPaid: cit.advancesPaid,
     advancesToCome: cit.advancesToCome,
     balanceDue: cit.balanceDue === null ? null : { label: cit.balanceDue.expected.label, cents: cit.balanceDue.expected.amount, dueOn: dayLabel(cit.balanceDue.dueOn), rules: ruleChips(cit.balanceDue.expected.rules) },
@@ -243,7 +248,8 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
     deterioration: ruleChips([prudence.deterioration]),
     decideBy: dayLabel(capacity.decideBy),
     payouts: capacity.options.map((option) => payoutView(option, linkOf)),
-    planRows: planRows(workbook.planLines.filter((line) => line.year === year), forecast, year, context),
+    planRows: yearPlanRows,
+    planRowsSummary: `${yearPlanRows.length} ${yearPlanRows.length === 1 ? 'row' : 'rows'}`,
     uninvoiced: forecast.uninvoicedMonths.map((entry) => ({ month: monthLabel(entry.month), next: entry.nextInvoice.number })),
     missingRoles: missingAccrualRoles(workbook.categories),
   }

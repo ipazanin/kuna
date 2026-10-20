@@ -8,7 +8,7 @@ import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { BILLING_STATUS } from './billingView'
 import type { BillingMonthLine } from './billingView'
 
-/** Each month of the year with plan rows or invoices beyond the plan, open on the one a link or a bar names. */
+/** Each month of the year with plan rows or invoices above the plan, open on the one a link names. */
 const props = defineProps<{
   months: readonly BillingMonthLine[]
   /** The month to open and scroll to, from the address. */
@@ -58,7 +58,7 @@ function toggle(month: MonthKey): void {
         </span>
         <span class="month-status flex flex-wrap items-center justify-end gap-1.5">
           <UBadge v-if="month.status" :label="BILLING_STATUS[month.status].label" :color="BILLING_STATUS[month.status].color" variant="subtle" size="sm" />
-          <UBadge v-if="month.withoutPlan > 0" label="Beyond the plan" color="warning" variant="outline" size="sm" />
+          <UBadge v-if="month.withoutPlan > 0" label="Above the plan" color="warning" variant="outline" size="sm" />
         </span>
         <UIcon name="i-lucide-chevron-down" class="chevron size-4 shrink-0 text-muted" :class="{ turned: expanded.has(month.month) }" aria-hidden="true" />
       </button>
@@ -91,7 +91,7 @@ function toggle(month: MonthKey): void {
         <div v-if="month.withoutPlanLines.length > 0" class="flex flex-col gap-1" data-testid="billing-without-plan">
           <p class="callout text-xs">
             <UIcon name="i-lucide-file-question-mark" class="size-3.5 shrink-0" aria-hidden="true" />
-            <span>Invoiced in {{ month.label }} with no plan row it could reach. Add the row it billed, or check the amount.</span>
+            <span>Invoiced in {{ month.label }} above the plan rows it could reach. Add the row it billed, or check the amounts.</span>
           </p>
           <ul class="flex flex-col">
             <li v-for="line in month.withoutPlanLines" :key="line.key" class="plan-line">

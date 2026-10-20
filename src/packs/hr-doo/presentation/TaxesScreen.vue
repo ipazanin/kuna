@@ -7,7 +7,8 @@ import { yearOf } from '../../../shared/calendar/civilDate'
 import { monthLabel } from '../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { sumMoney } from '../../../shared/money/money'
-import { formatWholeMoney } from '../../../shared/money/moneyFormat'
+import { formatMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
@@ -74,6 +75,26 @@ const taxes = computed(() => {
   const watched = categoriesWithRole(categories, PACK_ROLES.watched)
   const unit = settings.value.bucketLabels.taxes
   const percent = new Intl.NumberFormat(settings.value.numberLocale, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const cadences = payrollCadence(profitAndLossRows, categories, window).map((cadence) => {
+    const first = cadence.months[0]?.month
+    return {
+      category: cadence.category,
+      name: categoryName(cadence.category),
+      since: first === undefined ? '' : monthLabel(first),
+      paid: cadence.monthsPaid,
+      elapsed: cadence.monthsElapsed,
+      missed: cadence.monthsMissed,
+      typical: cadence.typicalMonth,
+      allRows: drillLocation(drillToTransactions({ period: { preset: 'all' }, categories: [cadence.category] })),
+      cells: cadence.months.map((month) => ({
+        month: month.month,
+        state: month.state,
+        amount: month.amount.amount,
+        to: month.state === 'not-yet-due' ? null : drillLocation(month.amount.drill),
+      })),
+    }
+  })
+  const missed = cadences.reduce((count, cadence) => count + cadence.missed, 0)
   return {
     period: periodInWords(filters.period, window),
     missing: [
@@ -118,25 +139,11 @@ const taxes = computed(() => {
       to: drillLocation(type.total.drill),
       typical: type.typicalMonth,
     })),
-    cadences: payrollCadence(profitAndLossRows, categories, window).map((cadence) => {
-      const first = cadence.months[0]?.month
-      return {
-        category: cadence.category,
-        name: categoryName(cadence.category),
-        since: first === undefined ? '' : monthLabel(first),
-        paid: cadence.monthsPaid,
-        elapsed: cadence.monthsElapsed,
-        missed: cadence.monthsMissed,
-        typical: cadence.typicalMonth,
-        allRows: drillLocation(drillToTransactions({ period: { preset: 'all' }, categories: [cadence.category] })),
-        cells: cadence.months.map((month) => ({
-          month: month.month,
-          state: month.state,
-          amount: month.amount.amount,
-          to: month.state === 'not-yet-due' ? null : drillLocation(month.amount.drill),
-        })),
-      }
-    }),
+    cadences,
+    cadenceSummary:
+      cadences.length === 0
+        ? 'No watched tax category has a payment yet'
+        : `${cadences.length} watched ${cadences.length === 1 ? 'tax' : 'taxes'}, ${missed === 0 ? 'no month missed' : `${missed} ${missed === 1 ? 'month' : 'months'} missed`}`,
   }
 })
 
@@ -184,6 +191,15 @@ const corporateTax = computed(() => {
     throw failure
   }
 })
+
+const corporateTaxSummary = computed(() => {
+  const tax = corporateTax.value
+  if (tax === null) return ''
+  if (tax.state === 'unregistered') return 'Needs the day the company was registered'
+  if (tax.state === 'failed') return tax.failure
+  if (tax.overdue.count > 0) return `${tax.overdue.count} ${tax.overdue.count === 1 ? 'payment' : 'payments'} overdue, ${formatMoney(tax.overdue.outstanding)} still owed`
+  return `${tax.years.length} ${tax.years.length === 1 ? 'tax year' : 'tax years'}, nothing overdue`
+})
 </script>
 
 <template>
@@ -213,11 +229,7 @@ const corporateTax = computed(() => {
           </DrillChartCard>
 
           <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] 3xl:grid-cols-1 3xl:content-start">
-            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-              <header class="px-4 pt-4 sm:px-5">
-                <h2 class="text-sm font-medium text-highlighted">By type</h2>
-                <p class="mt-0.5 text-xs text-muted">{{ taxes.period }}. Typical is the median of the complete months with a payment.</p>
-              </header>
+            <AppCard title="By type" :subtitle="`${taxes.period}. Typical is the median of the complete months with a payment.`">
               <p v-if="taxes.types.length === 0" class="px-5 py-8 text-sm text-muted">No tax moved in this period.</p>
               <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
                 <table class="data-table w-full text-sm" data-testid="tax-types">
@@ -244,13 +256,15 @@ const corporateTax = computed(() => {
                   </tbody>
                 </table>
               </div>
-            </section>
+            </AppCard>
 
-            <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="payroll-cadence">
-              <header class="px-4 pt-4 sm:px-5">
-                <h2 class="text-sm font-medium text-highlighted">Payroll cadence</h2>
-                <p class="mt-0.5 text-xs text-muted">Every watched tax, month by month since its first payment. A month counts as paid when any payment landed in it.</p>
-              </header>
+            <AppCard
+              title="Payroll cadence"
+              subtitle="Every watched tax, month by month since its first payment. A month counts as paid when any payment landed in it."
+              collapse-id="taxes.cadence"
+              :summary="taxes.cadenceSummary"
+              data-testid="payroll-cadence"
+            >
               <p v-if="taxes.cadences.length === 0" class="px-5 py-8 text-sm text-muted">No watched tax category has a payment yet.</p>
               <div v-else class="flex flex-col gap-6 px-4 pt-3 pb-4 sm:px-5">
                 <section v-for="cadence in taxes.cadences" :key="cadence.category" :aria-label="cadence.name" class="flex flex-col gap-3">
@@ -281,18 +295,21 @@ const corporateTax = computed(() => {
                   <CadenceCalendar :name="cadence.name" :cells="cadence.cells" />
                 </section>
               </div>
-            </section>
+            </AppCard>
           </div>
         </div>
 
-        <section v-if="corporateTax" class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="corporate-tax-title" data-testid="corporate-tax">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 id="corporate-tax-title" class="text-sm font-medium text-highlighted">Corporate income tax, expected against paid</h2>
-            <p class="mt-0.5 text-xs text-muted">
-              Each year's balance due and monthly advances from the first tax period on, filled by the bank rows oldest due date first, since the annual
-              payment and the advances share one payment code.<template v-if="corporateTax.state === 'ready'"> Seen on {{ dayLabel(corporateTax.asOf) }}, the newest booking.</template>
-            </p>
-          </header>
+        <AppCard
+          v-if="corporateTax"
+          title="Corporate income tax, expected against paid"
+          collapse-id="taxes.corporate-tax"
+          :summary="corporateTaxSummary"
+          data-testid="corporate-tax"
+        >
+          <template #subtitle>
+            Each year's balance due and monthly advances from the first tax period on, filled by the bank rows oldest due date first, since the annual payment
+            and the advances share one payment code.<template v-if="corporateTax.state === 'ready'"> Seen on {{ dayLabel(corporateTax.asOf) }}, the newest booking.</template>
+          </template>
           <div v-if="corporateTax.state === 'unregistered'" class="flex items-start gap-2 px-4 py-4 text-sm text-toned sm:px-5">
             <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
             <p>
@@ -343,7 +360,7 @@ const corporateTax = computed(() => {
               </section>
             </div>
           </template>
-        </section>
+        </AppCard>
       </template>
     </LedgerGate>
   </section>

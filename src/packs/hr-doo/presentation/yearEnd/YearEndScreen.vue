@@ -7,6 +7,7 @@ import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
@@ -133,6 +134,7 @@ function yearEndView(workbook: Workbook, shownYear: number) {
     kind: entry === null ? 'matched' : 'open',
     rules: [],
   })
+  const openItems = yearEndOpenItems(workbook, accrual)
 
   return {
     accrual,
@@ -154,12 +156,12 @@ function yearEndView(workbook: Workbook, shownYear: number) {
       total('profit-after-tax', bridge.profitAfterTax),
       residual('unexplained-after-tax', 'Not explained after tax', bridge.unexplainedAfterTax),
     ],
-    tables: TABLES.map((table) => ({
-      ...table,
-      rows: comparison.lines
+    tables: TABLES.map((table) => {
+      const rows = comparison.lines
         .filter((line) => table.statements.includes(line.statement) && (line.statement !== 'grant' || GRANT_LINES[line.line] === table.key))
-        .map(rowOf),
-    })),
+        .map(rowOf)
+      return { ...table, rows, summary: statusesInWords(rows) }
+    }),
     recorded: comparison.recorded.map((entry) => ({
       key: `${entry.accountant.statement}-${entry.accountant.line}`,
       label: lineLabel(entry.accountant.statement, entry.accountant.line),
@@ -176,7 +178,8 @@ function yearEndView(workbook: Workbook, shownYear: number) {
       difference: group.difference,
     })),
     unnamedKonto: comparison.unnamedKonto.map((line) => ({ line: line.line, label: line.label, cents: line.figure.kind === 'money' ? line.figure.amount : 0 })),
-    openItems: yearEndOpenItems(workbook, accrual).map((item) => ({
+    kontoSummary: `${comparison.konto.length} compared, ${comparison.konto.filter((group) => group.difference !== 0).length} with a difference`,
+    openItems: openItems.map((item) => ({
       key: item.key,
       group: item.group,
       title: figureLabel({ label: item.title, on: item.on }),
@@ -186,10 +189,18 @@ function yearEndView(workbook: Workbook, shownYear: number) {
       to: drillOf(item.figure),
       rules: chipsOf(item.rules),
     })),
+    openItemsSummary: `${openItems.filter((item) => !item.settled).length} to settle, ${openItems.filter((item) => item.settled).length} settled`,
     missingRoles: missingAccrualRoles(workbook.categories),
     noVat: workbook.categories.every((category) => category.vat === 'none'),
     unregistered: workbook.settings.companyFacts.companyRegistered === null,
   }
+}
+
+/** "8 lines: 5 matched, 2 explained, 1 open", in the order of the tiles. */
+function statusesInWords(rows: readonly ComparisonRow[]): string {
+  if (rows.length === 0) return 'No lines for the year'
+  const counts = STATUSES.map((status) => ({ status, count: rows.filter((row) => row.status === status).length })).filter((entry) => entry.count > 0)
+  return `${rows.length} ${rows.length === 1 ? 'line' : 'lines'}: ${counts.map((entry) => `${entry.count} ${STATUS_WORDING[entry.status].label.toLowerCase()}`).join(', ')}`
 }
 
 function rowOf(compared: ComparedLine): ComparisonRow {
@@ -330,31 +341,36 @@ function oursValue(line: AccrualLine): ShownValue {
           <template #legend><ChartLegend :entries="view.chart.legend" /></template>
         </DrillChartCard>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" aria-labelledby="bridge-steps-title">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 id="bridge-steps-title" class="text-sm font-medium text-highlighted">The bridge, step by step</h2>
-            <p class="mt-0.5 text-xs text-muted">Each adjustment with how it stands against the accountant and the rules behind it.</p>
-          </header>
+        <AppCard
+          title="The bridge, step by step"
+          subtitle="Each adjustment with how it stands against the accountant and the rules behind it."
+          collapse-id="year-end.bridge"
+          :summary="`${view.steps.length} steps from the cash net to profit after tax`"
+        >
           <div class="px-4 pt-2 pb-3 sm:px-5">
             <BridgeSteps :steps="view.steps" />
           </div>
-        </section>
+        </AppCard>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">Open items</h2>
-            <p class="mt-0.5 text-xs text-muted">What to settle with the accountant, and what would settle it.</p>
-          </header>
+        <AppCard
+          title="Open items"
+          subtitle="What to settle with the accountant, and what would settle it."
+          collapse-id="year-end.open-items"
+          :summary="view.openItemsSummary"
+        >
           <div class="px-4 pt-3 pb-4 sm:px-5">
             <OpenItems :items="view.openItems" />
           </div>
-        </section>
+        </AppCard>
 
-        <section v-for="table in view.tables" :key="table.key" class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">{{ table.title }}</h2>
-            <p class="mt-0.5 text-xs text-muted">{{ table.description }} Open a line for how ours is built.</p>
-          </header>
+        <AppCard
+          v-for="table in view.tables"
+          :key="table.key"
+          :title="table.title"
+          :subtitle="`${table.description} Open a line for how ours is built.`"
+          :collapse-id="`year-end.${table.key}`"
+          :summary="table.summary"
+        >
           <div class="px-4 pt-3 pb-3 sm:px-3">
             <p v-if="table.rows.length === 0" class="py-4 text-sm text-muted">The year-end tab holds none of these lines for {{ year }}.</p>
             <ComparisonTable v-else :rows="table.rows" :test-id="`comparison-${table.key}`" />
@@ -382,21 +398,18 @@ function oursValue(line: AccrualLine): ShownValue {
               </li>
             </ul>
           </div>
-        </section>
+        </AppCard>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">Konto lines</h2>
-            <p class="mt-0.5 text-xs text-muted">
-              Each konto line beside our accrual figure for the categories its <span class="identifier">categories</span> cell names. Lines that share a category
-              are compared together.
-            </p>
-          </header>
+        <AppCard title="Konto lines" collapse-id="year-end.konto" :summary="view.kontoSummary">
+          <template #subtitle>
+            Each konto line beside our accrual figure for the categories its <span class="identifier">categories</span> cell names. Lines that share a category
+            are compared together.
+          </template>
           <div class="px-4 pt-2 pb-3 sm:px-5">
             <p v-if="view.konto.length === 0 && view.unnamedKonto.length === 0" class="py-4 text-sm text-muted">The year-end tab holds no konto lines for {{ year }}.</p>
             <KontoTable v-else :groups="view.konto" :unnamed="view.unnamedKonto" />
           </div>
-        </section>
+        </AppCard>
       </template>
     </LedgerGate>
   </section>

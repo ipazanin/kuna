@@ -417,6 +417,8 @@ const BILLED_EXTRAS: Readonly<Record<string, readonly (readonly [item: string, d
   '2026-09': [['Subscription', '2026-09-30', 60, 'Model API seat']],
 }
 
+const MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+
 /**
  * The `outgoing-plan` tab of Northwind's work: each worked month's fee and extras add up to its
  * invoice, the extra sprint is a bonus, and October is planned but not invoiced yet. Lumen's
@@ -434,12 +436,12 @@ function billingPlanValues(invoices: readonly FakeInvoice[]): CellValue[][] {
       const fee = roundToCent(invoice.amount - extras.reduce((sum, [, , amount]) => sum + amount, 0))
       return [
         ...extras.map(([item, date, amount, description]) => [item, serialOf(date), amount, 'northwind', description]),
-        [invoice.workedIn === MONTHS[0] ? 'Part Time Fee' : 'Monthly Fee', serialOf(lastDayOf(invoice.workedIn)), fee, 'northwind', `Fee for ${invoice.workedIn}`],
+        [invoice.workedIn === MONTHS[0] ? 'Part Time Fee' : 'Monthly Fee', serialOf(lastDayOf(invoice.workedIn)), fee, 'northwind', `Fee for ${MONTH_AND_YEAR.format(new Date(`${invoice.workedIn}-01`))}`],
       ]
     })
   const planned: CellValue[][] = [
     ...invoiced,
-    ['Monthly Fee', serialOf('2026-10-31'), 7200, 'northwind', 'Fee for 2026-10'],
+    ['Monthly Fee', serialOf('2026-10-31'), 7200, 'northwind', 'Fee for October 2026'],
     ['Subscription', serialOf('2026-10-31'), 60, 'Northwind', 'Model API seat'],
   ]
   const formulaBlock: CellValue[][] = [['Name', ''], ['Monthly Amount', 7200], ['Bonus', 4800]]
@@ -577,6 +579,8 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
     booking('2026-05-22', PAYEES.unknownPayer.name, PAYEES.unknownPayer.iban, 'Payment, no reference', 650, 'revenue', undefined, 'human'),
     booking('2026-07-10', PAYEES.secondClient.name, PAYEES.secondClient.iban, 'Invoice LL-001', 1500, 'revenue'),
     booking('2026-08-08', 'GADGET CORNER', '', 'Card purchase', -38.9, 'equipment', undefined, 'ai'),
+    booking('2026-10-05', PAYEES.owner.name, PAYEES.owner.iban, 'Refund of the design tool and the printer paper', -123.2, 'reimbursement-to-owner', undefined, 'human'),
+    booking('2026-10-06', PAYEES.owner.name, PAYEES.owner.iban, 'Refund of a parking fee', -38.5, 'reimbursement-to-owner', undefined, 'human'),
     booking('2026-10-08', 'SNACK KIOSK', '', 'Card purchase', -6.4, 'card-purchase-unknown', undefined, 'ai'),
   )
   invoice('lumen', 'Workshop', 1500, '2026-05-12')

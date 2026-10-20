@@ -37,28 +37,33 @@ function barStyle(change: number): Record<string, string> {
 </script>
 
 <template>
-  <div class="relative overflow-x-auto">
+  <div class="@container relative overflow-x-auto">
     <table class="data-table window-table w-full text-sm">
       <thead>
         <tr>
           <th scope="col" class="text-start">Per month</th>
           <th v-for="column in columns" :key="column" scope="col" class="text-end">{{ column }}</th>
-          <th scope="col" class="text-end">Last 3 vs 12 months</th>
-          <th scope="col" class="hidden w-32 sm:table-cell"><span class="sr-only">The change on a scale of minus to plus 50%</span></th>
+          <th scope="col" class="hidden text-end @md:table-cell">Last 3 vs 12 months</th>
+          <th scope="col" class="hidden w-32 @xl:table-cell"><span class="sr-only">The change on a scale of minus to plus 50%</span></th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="row.label" :class="{ emphasised: row.emphasised }">
-          <th scope="row" class="text-start font-normal text-toned">{{ row.label }}</th>
+          <th scope="row" class="cell-wraps text-start font-normal text-toned">
+            {{ row.label }}
+            <span v-if="row.recentChange !== null" class="figure block text-xs font-normal text-muted @md:hidden">
+              {{ formatPercent(row.recentChange, 'always') }} last 3 vs 12 months
+            </span>
+          </th>
           <td v-for="(cell, index) in row.cells" :key="index" class="text-end">
             <DrillLink :to="cell.to" :label="`${row.label}, ${columns[index]}, open the rows`">
               <MoneyText :cents="cell.perMonth" precision="whole" :class="row.emphasised ? 'font-medium text-highlighted' : ''" />
             </DrillLink>
           </td>
-          <td class="figure text-end text-toned">
+          <td class="figure hidden text-end text-toned @md:table-cell">
             {{ row.recentChange === null ? '–' : formatPercent(row.recentChange, 'always') }}
           </td>
-          <td class="hidden sm:table-cell">
+          <td class="hidden @xl:table-cell">
             <span class="change-scale" aria-hidden="true">
               <span v-if="row.recentChange !== null" class="change-bar" :style="barStyle(row.recentChange)" />
             </span>
@@ -74,13 +79,6 @@ function barStyle(change: number): Record<string, string> {
 .window-table thead th {
   white-space: normal;
   vertical-align: bottom;
-}
-
-@media (max-width: 639px) {
-  .window-table th,
-  .window-table td {
-    padding-inline: 0.5rem;
-  }
 }
 
 .window-table tbody tr.emphasised:not(.emphasised + .emphasised) th,

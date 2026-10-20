@@ -4,6 +4,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import AppCard from '../../../shared/ui/AppCard.vue'
 import type { CoverageGroup, RuleCoverage } from '../../rules/domain/ruleCoverage'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
@@ -39,14 +40,16 @@ function rowsInWords(count: number): string {
 </script>
 
 <template>
-  <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised" data-testid="rule-coverage">
-    <header class="px-4 pt-4 sm:px-5">
-      <h2 class="text-sm font-medium text-highlighted">Confirmed rows no rule repeats</h2>
-      <p class="mt-0.5 text-xs text-muted">
-        <template v-if="rowCount">{{ rowsInWords(rowCount) }} a person filed that the rules would not file the same way.</template>
-        <template v-else>Every row a person filed is one the rules would file the same way.</template>
-      </p>
-    </header>
+  <AppCard
+    title="Confirmed rows no rule repeats"
+    collapse-id="review.coverage"
+    :summary="`${coverage.notCovered.length} not covered, ${coverage.exceptions.length} ${coverage.exceptions.length === 1 ? 'exception' : 'exceptions'}`"
+    data-testid="rule-coverage"
+  >
+    <template #subtitle>
+      <template v-if="rowCount">{{ rowsInWords(rowCount) }} a person filed that the rules would not file the same way.</template>
+      <template v-else>Every row a person filed is one the rules would file the same way.</template>
+    </template>
 
     <template v-if="coverage.notCovered.length">
       <header class="group-heading">
@@ -136,7 +139,7 @@ function rowsInWords(count: number): string {
       </ul>
     </template>
     <div class="h-2" />
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>

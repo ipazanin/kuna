@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import UTabs from '@nuxt/ui/components/Tabs.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
+import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import LoanBucketSwitch from '../../../packs/hr-doo/presentation/LoanBucketSwitch.vue'
 import ProblemList from '../../excel/presentation/ProblemList.vue'
@@ -75,10 +76,14 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 
+/** The tab a link from another screen opened. Its card opens even when this device keeps it collapsed, until another tab is picked. */
+const linkedTab = ref(typeof route.query.tab === 'string' ? route.query.tab : null)
+
 /** The tab lives in the query, so a link opens the same tab. General is the default and is left out. */
 const activeTab = computed<WorkbookTab>({
   get: () => TABS.find((tab) => tab.value === route.query.tab)?.value ?? 'general',
   set: (tab) => {
+    linkedTab.value = null
     const { tab: _previous, ...others } = route.query
     void router.replace({ query: tab === 'general' ? others : { ...others, tab } })
   },
@@ -134,6 +139,10 @@ function sheetLacks(tab: RowTab): boolean {
   return source.value === 'google' && (state.snapshot?.meta.missingTabs.includes(tab) ?? false)
 }
 
+function rowsInWords(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`
+}
+
 function columnsOf(tab: RowTab): string {
   return TEMPLATE_COLUMNS[tab].map((column) => column.name).join(', ')
 }
@@ -187,27 +196,34 @@ async function saveSettings(next: Settings): Promise<void> {
     >
       <template #general>
         <div class="flex flex-col gap-6">
-          <section class="rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5">
-            <header class="mb-4">
-              <h2 class="text-sm font-medium text-highlighted">Workbook settings</h2>
-              <p class="mt-0.5 text-xs text-muted">From the settings tab. Theme is kept per device, on Settings.</p>
-            </header>
-            <GeneralSettingsForm
-              :settings="settings"
-              :saving="savingSettings || state.writing"
-              :clients="state.workbook.clients"
-              :billing-items="billingItems"
-              @save="saveSettings"
-            />
-          </section>
+          <AppCard
+            title="Workbook settings"
+            subtitle="From the settings tab. Theme is kept per device, on Settings."
+            collapse-id="workbook.settings"
+            summary="The company and owner facts, the billing plan terms and the bucket labels"
+          >
+            <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
+              <GeneralSettingsForm
+                :settings="settings"
+                :saving="savingSettings || state.writing"
+                :clients="state.workbook.clients"
+                :billing-items="billingItems"
+                @save="saveSettings"
+              />
+            </div>
+          </AppCard>
           <LoanBucketSwitch v-if="settings.ownerPayModule" :categories="state.workbook.categories" />
-          <section v-if="state.workbook.problems.length" class="flex flex-col gap-3 rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5">
-            <header>
-              <h2 class="text-sm font-medium text-highlighted">Rows the app could not use as written</h2>
-              <p class="mt-0.5 text-xs text-muted">Each is left out, or read with its default, until it is fixed in the workbook.</p>
-            </header>
-            <ProblemList :problems="state.workbook.problems" />
-          </section>
+          <AppCard
+            v-if="state.workbook.problems.length"
+            title="Rows the app could not use as written"
+            subtitle="Each is left out, or read with its default, until it is fixed in the workbook."
+            collapse-id="workbook.problems"
+            :summary="rowsInWords(state.workbook.problems.length, 'row', 'rows')"
+          >
+            <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
+              <ProblemList :problems="state.workbook.problems" />
+            </div>
+          </AppCard>
         </div>
       </template>
 
@@ -216,33 +232,39 @@ async function saveSettings(next: Settings): Promise<void> {
       </template>
 
       <template #categories>
-        <section class="rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">Categories</h2>
-            <p class="mt-0.5 text-xs text-muted">
-              The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name
-              and its row.
-            </p>
-            <p v-if="source === 'google'" class="mt-1 text-xs text-muted" data-testid="dropdown-note">The ledger's category dropdown in the Sheet lists this tab's categories.</p>
-            <p v-if="sheetLacks('categories')" class="mt-2 text-xs text-toned">
+        <AppCard
+          title="Categories"
+          collapse-id="workbook.categories"
+          :summary="rowsInWords(state.snapshot?.categories.length ?? 0, 'category', 'categories')"
+          :reveal="linkedTab === 'categories'"
+        >
+          <template #subtitle>
+            The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name and its
+            row.
+            <span v-if="source === 'google'" class="mt-1 block" data-testid="dropdown-note">The ledger's category dropdown in the Sheet lists this tab's categories.</span>
+            <span v-if="sheetLacks('categories')" class="mt-2 block text-toned">
               The Sheet has no categories tab yet. Add one named categories with these headers in row 1, then sync:
               <span class="identifier">{{ columnsOf('categories') }}</span>.
-            </p>
-          </header>
+            </span>
+          </template>
           <CategoriesEditor :rows="state.snapshot?.categories ?? []" :uses="categoriesInUse" :saving="saving('categories')" @save="saveRows('categories', $event)" />
-        </section>
+        </AppCard>
       </template>
 
       <template #accounts>
-        <section class="rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">Accounts</h2>
-            <p class="mt-0.5 text-xs text-muted">Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}.</p>
-            <p v-if="sheetLacks('accounts')" class="mt-2 text-xs text-toned">
+        <AppCard
+          title="Accounts"
+          collapse-id="workbook.accounts"
+          :summary="rowsInWords(state.snapshot?.accounts.length ?? 0, 'account', 'accounts')"
+          :reveal="linkedTab === 'accounts'"
+        >
+          <template #subtitle>
+            Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}.
+            <span v-if="sheetLacks('accounts')" class="mt-2 block text-toned">
               The Sheet has no accounts tab yet. Add one named accounts with these headers in row 1, then sync:
               <span class="identifier">{{ columnsOf('accounts') }}</span>.
-            </p>
-          </header>
+            </span>
+          </template>
           <AccountsEditor
             :rows="state.snapshot?.accounts ?? []"
             :uses="accountsInUse"
@@ -250,19 +272,23 @@ async function saveSettings(next: Settings): Promise<void> {
             :saving="saving('accounts')"
             @save="saveRows('accounts', $event)"
           />
-        </section>
+        </AppCard>
       </template>
 
       <template v-for="(fact, tab) in FACT_TABS" :key="tab" #[tab]>
-        <section class="rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">{{ fact.title }}</h2>
-            <p class="mt-0.5 text-xs text-muted">{{ fact.description }}</p>
-            <p v-if="sheetLacks(tab)" class="mt-2 text-xs text-toned">
+        <AppCard
+          :title="fact.title"
+          :collapse-id="`workbook.${tab}`"
+          :summary="rowsInWords(state.snapshot?.[tab].length ?? 0, fact.rowNoun, `${fact.rowNoun}s`)"
+          :reveal="linkedTab === tab"
+        >
+          <template #subtitle>
+            {{ fact.description }}
+            <span v-if="sheetLacks(tab)" class="mt-2 block text-toned">
               The Sheet has no {{ tab }} tab yet. Add one named {{ tab }} with these headers in row 1, then sync:
               <span class="identifier">{{ columnsOf(tab) }}</span>.
-            </p>
-          </header>
+            </span>
+          </template>
           <FactTabEditor
             :rows="state.snapshot?.[tab] ?? []"
             :columns="factTabEditors[tab].columns"
@@ -273,7 +299,7 @@ async function saveSettings(next: Settings): Promise<void> {
             :saving="saving(tab)"
             @save="saveRows(tab, $event)"
           />
-        </section>
+        </AppCard>
       </template>
     </UTabs>
   </section>

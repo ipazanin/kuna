@@ -11,6 +11,7 @@ import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { formatMoney, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
@@ -174,6 +175,7 @@ function assetsView(current: FilteredLedger) {
       accumulated: lines.reduce((total, line) => total + line.accumulated, 0),
       bookValue,
     },
+    registerSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatWholeMoney(bookValue)} book value today`,
     unmatchedAssets,
     unmatchedPurchases: register.unmatchedPurchases.map((purchase) => ({
       key: `${purchase.row.account}-${purchase.row.sequence}`,
@@ -184,6 +186,7 @@ function assetsView(current: FilteredLedger) {
     })),
     threshold: formatMoney(threshold),
     chart,
+    yearsSummary: years.length === 0 ? 'No asset is depreciated' : `${years.length} ${years.length === 1 ? 'year' : 'years'}, ${years[0]!.year} to ${years[years.length - 1]!.year}`,
     years: years.map(
       (entry): DepreciationYearLine => ({
         year: entry.year,
@@ -323,7 +326,7 @@ function employmentState(until: CivilDate | null): string | null {
       <template v-else-if="view && view.failure === null">
         <MissingRoles :missing="view.missing" />
 
-        <section class="rounded-card border border-default bg-raised p-4 shadow-raised sm:p-5" data-testid="doubled-rates">
+        <AppCard class="p-4 sm:p-5" data-testid="doubled-rates">
           <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
             <USwitch
               :model-value="view.doubled"
@@ -353,17 +356,18 @@ function employmentState(until: CivilDate | null): string | null {
             </p>
             <DoubledRatesChanges :lines="view.changes" :show-grant="view.changesGrant" />
           </div>
-        </section>
+        </AppCard>
 
         <div class="grid grid-cols-2 gap-3" :class="view.tiles.length === 4 ? 'lg:grid-cols-4' : ''">
           <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
         </div>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">Asset register</h2>
-            <p class="mt-0.5 text-xs text-muted">From the assets tab. An asset's name opens the ledger payment that bought it, and its rate opens the rule.</p>
-          </header>
+        <AppCard
+          title="Asset register"
+          subtitle="From the assets tab. An asset's name opens the ledger payment that bought it, and its rate opens the rule."
+          collapse-id="assets.register"
+          :summary="view.registerSummary"
+        >
           <div class="px-4 pt-3 pb-3 sm:px-3">
             <AssetRegister :lines="view.lines" :totals="view.totals" :year="thisYear" :today="dayLabel(today)" />
           </div>
@@ -400,7 +404,7 @@ function employmentState(until: CivilDate | null): string | null {
             </div>
             <DrillLink to="/workbook?tab=assets" in-prose class="self-start text-sm text-highlighted">Open the Assets tab</DrillLink>
           </div>
-        </section>
+        </AppCard>
 
         <div class="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <ChartCard
@@ -418,27 +422,27 @@ function employmentState(until: CivilDate | null): string | null {
             <template #legend><ChartLegend :entries="view.chart.legend" /></template>
           </ChartCard>
 
-          <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-            <header class="px-4 pt-4 sm:px-5">
-              <h2 class="text-sm font-medium text-highlighted">Depreciation per year</h2>
-              <p class="mt-0.5 text-xs text-muted">Every year the assets cover. Open a year for the charge of each asset.</p>
-            </header>
+          <AppCard
+            title="Depreciation per year"
+            subtitle="Every year the assets cover. Open a year for the charge of each asset."
+            collapse-id="assets.years"
+            :summary="view.yearsSummary"
+          >
             <div class="px-4 pt-2 pb-2 sm:px-5">
               <p v-if="view.years.length === 0" class="py-6 text-sm text-muted">No asset is depreciated. Small inventory is written off when put in use.</p>
               <DepreciationYears v-else :key="String(view.doubled)" :years="view.years" />
             </div>
-          </section>
+          </AppCard>
         </div>
 
-        <section class="min-w-0 rounded-card border border-default bg-raised shadow-raised">
-          <header class="px-4 pt-4 sm:px-5">
-            <h2 class="text-sm font-medium text-highlighted">The grant beside it</h2>
-            <p class="mt-0.5 text-xs text-muted">From the grants tab: what is counted as income each year, what waits as deferred income, and the employment condition.</p>
-          </header>
+        <AppCard
+          title="The grant beside it"
+          subtitle="From the grants tab: what is counted as income each year, what waits as deferred income, and the employment condition."
+        >
           <div class="px-4 pt-3 pb-4 sm:px-5">
             <GrantPanel :grants="view.grants" :comparisons="view.comparisons" />
           </div>
-        </section>
+        </AppCard>
       </template>
     </LedgerGate>
   </section>
