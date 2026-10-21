@@ -1,8 +1,8 @@
 import { columnLetter } from '../../../shared/text/columnLetter'
-import { WRITABLE_COLUMNS, WorkbookWriteRefused } from '../application/workbookWriter'
-import type { FreshTabs, TabRead, WorkbookWriter, WritableTab } from '../application/workbookWriter'
+import { WRITABLE_COLUMNS, WorkbookWriteRefused, editableColumns, insertedRowNumbers } from '../application/workbookWriter'
+import type { FreshTabs, RowAppend, TabRead, WorkbookWriter, WritableTab } from '../application/workbookWriter'
 import { sheetNameInRange } from './sheetsClient'
-import type { SheetsValues, ValueRange } from './sheetsClient'
+import type { SheetsValues, SpreadsheetRequest, ValueRange } from './sheetsClient'
 import { sheetRowsFromValues } from './workbookSnapshot'
 import type { CellValue } from './workbookSnapshot'
 
@@ -12,13 +12,19 @@ import type { CellValue } from './workbookSnapshot'
  * worked out before the first one is sent, so a refusal never leaves half a write behind. The rows
  * appended to one tab go in one request, so several new rows land together or not at all. A new tab
  * is added and given its header before anything else is written.
+ *
+ * Rows put in above a row of the read, as the ledger takes a statement, are made in one structural
+ * request with the format and the dropdowns of the row below copied onto them, the way the
+ * shadow-accounting Apps Script inserts a batch, and then filled. Rows taken out go in one request
+ * too, from the bottom up.
  */
 export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
+  let sheetIds: ReadonlyMap<string, number> | null = null
   return {
     async read(tabs) {
       // A batchGet fails whole on a tab that does not exist, so it asks only for the tabs the Sheet has.
-      const sheetIds = await sheets.sheetIds()
-      const present = tabs.filter((tab) => sheetIds.has(tab))
+      sheetIds = await sheets.sheetIds()
+      const present = tabs.filter((tab) => sheetIds!.has(tab))
       const ranges = await sheets.batchGet(present.map(sheetNameInRange))
       return Object.fromEntries(present.map((tab, index) => [tab, tabReadOf(ranges[index]?.values ?? [])]))
     },
@@ -37,37 +43,107 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
       )
       const data: ValueRange[] = [
         ...headerCells,
-        ...edits.cells.map((edit) => ({
-          range: `${sheetNameInRange(edit.tab)}!${columnLetter(columnOf(read, edit.tab, edit.column))}${edit.sheetRow}`,
-          values: [[edit.value]],
-        })),
+        ...edits.cells.map((edit) => {
+          if (!editableColumns(edit.tab).has(edit.column)) {
+            throw new Error(`The app never changes the ${edit.column} column of a row already on the ${edit.tab} tab.`)
+          }
+          return { range: `${sheetNameInRange(edit.tab)}!${columnLetter(columnOf(read, edit.tab, edit.column))}${edit.sheetRow}`, values: [[edit.value]] }
+        }),
       ]
-      const appendedTabs = [...new Set(edits.appends.map((append) => append.tab))]
-      const appends = appendedTabs.map((tab) => {
-        const header = headerOf(read, tab)
-        if (header[0] === undefined || header[0].trim() === '') {
-          throw new WorkbookWriteRefused(`Column A of the ${tab} tab has no header, so a new row would not line up. Nothing was written.`)
+      const footAppends = edits.appends.filter((append) => append.before === undefined)
+      const appendedTabs = [...new Set(footAppends.map((append) => append.tab))]
+      const appends = appendedTabs.map((tab) => ({
+        range: `${sheetNameInRange(tab)}!A:${columnLetter(lineUpHeader(read, tab).length)}`,
+        values: footAppends.filter((append) => append.tab === tab).map((append) => rowValues(read, tab, append)),
+      }))
+      const reshaped = reshapingOf(read, edits.appends, edits.deletions ?? [], edits.cells.map((edit) => edit.tab), () => {
+        if (sheetIds === null) {
+          throw new Error('Rows were to be put in or taken out before the Sheet was read.')
         }
-        const rows = edits.appends.filter((append) => append.tab === tab)
-        for (const column of rows.flatMap((append) => Object.keys(append.cells))) {
-          columnOf(read, tab, column)
-        }
-        return {
-          range: `${sheetNameInRange(tab)}!A:${columnLetter(header.length)}`,
-          values: rows.map((append) => header.map((name): CellValue => append.cells[name.trim()] ?? '')),
-        }
+        return sheetIds
       })
-      for (const { tab } of newTabs) {
-        await sheets.addSheet(tab)
+      if (newTabs.length > 0) {
+        await sheets.updateSpreadsheet(newTabs.map(({ tab }) => ({ addSheet: { properties: { title: tab } } })))
       }
       if (data.length > 0) {
         await sheets.batchUpdate({ valueInputOption: 'RAW', data })
+      }
+      if (reshaped.requests.length > 0) {
+        await sheets.updateSpreadsheet(reshaped.requests)
+      }
+      if (reshaped.cells.length > 0) {
+        await sheets.batchUpdate({ valueInputOption: 'RAW', data: reshaped.cells })
       }
       for (const append of appends) {
         await sheets.append(append.range, { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', values: append.values })
       }
     },
   }
+}
+
+/**
+ * The structural requests for rows put in and taken out, and the cells of the rows put in at the
+ * rows they land on. Requests run from the bottom up, so each index still means the row it was read as.
+ */
+function reshapingOf(
+  read: FreshTabs,
+  appends: readonly RowAppend[],
+  deletions: readonly { readonly tab: WritableTab; readonly sheetRow: number }[],
+  editedTabs: readonly WritableTab[],
+  ids: () => ReadonlyMap<string, number>,
+): { readonly requests: SpreadsheetRequest[]; readonly cells: ValueRange[] } {
+  const requests: SpreadsheetRequest[] = []
+  const cells: ValueRange[] = []
+  const inserted = appends.filter((append) => append.before !== undefined)
+  for (const tab of [...new Set([...inserted, ...deletions].map((change) => change.tab))]) {
+    const tabInserts = inserted.filter((append) => append.tab === tab)
+    const tabDeletions = deletions.filter((deletion) => deletion.tab === tab)
+    if ((tabInserts.length > 0 && tabDeletions.length > 0) || editedTabs.includes(tab)) {
+      throw new Error(`One write may not move rows of the ${tab} tab and also change it otherwise.`)
+    }
+    const sheetId = ids().get(tab)
+    if (sheetId === undefined) {
+      throw new WorkbookWriteRefused(`The Sheet has no ${tab} tab, so nothing was written.`)
+    }
+    const width = lineUpHeader(read, tab).length
+    const befores = tabInserts.map((append) => append.before!)
+    for (const before of [...new Set(befores)].sort((upper, lower) => lower - upper)) {
+      const count = befores.filter((other) => other === before).length
+      const start = before - 1
+      const below = { sheetId, startRowIndex: start + count, endRowIndex: start + count + 1, startColumnIndex: 0, endColumnIndex: width }
+      const placed = { sheetId, startRowIndex: start, endRowIndex: start + count, startColumnIndex: 0, endColumnIndex: width }
+      requests.push(
+        { insertDimension: { range: { sheetId, dimension: 'ROWS', startIndex: start, endIndex: start + count }, inheritFromBefore: false } },
+        { copyPaste: { source: below, destination: placed, pasteType: 'PASTE_FORMAT', pasteOrientation: 'NORMAL' } },
+        { copyPaste: { source: below, destination: placed, pasteType: 'PASTE_DATA_VALIDATION', pasteOrientation: 'NORMAL' } },
+      )
+    }
+    const landed = insertedRowNumbers(befores)
+    tabInserts.forEach((append, index) => {
+      cells.push({ range: `${sheetNameInRange(tab)}!A${landed[index]}:${columnLetter(width)}${landed[index]}`, values: [rowValues(read, tab, append)] })
+    })
+    for (const sheetRow of [...new Set(tabDeletions.map((deletion) => deletion.sheetRow))].sort((upper, lower) => lower - upper)) {
+      requests.push({ deleteDimension: { range: { sheetId, dimension: 'ROWS', startIndex: sheetRow - 1, endIndex: sheetRow } } })
+    }
+  }
+  return { requests, cells }
+}
+
+/** The tab's header, refused when column A has none, since a new row would then not line up. */
+function lineUpHeader(read: FreshTabs, tab: WritableTab): readonly string[] {
+  const header = headerOf(read, tab)
+  if (header[0] === undefined || header[0].trim() === '') {
+    throw new WorkbookWriteRefused(`Column A of the ${tab} tab has no header, so a new row would not line up. Nothing was written.`)
+  }
+  return header
+}
+
+/** A new row's cells under the tab's header from A, every column it fills checked first. */
+function rowValues(read: FreshTabs, tab: WritableTab, append: RowAppend): CellValue[] {
+  for (const column of Object.keys(append.cells)) {
+    columnOf(read, tab, column)
+  }
+  return lineUpHeader(read, tab).map((name): CellValue => append.cells[name.trim()] ?? '')
 }
 
 function tabReadOf(values: readonly (readonly CellValue[])[]): TabRead {

@@ -138,6 +138,14 @@ const expanded = ref<ExpandedState>(true)
 
 const tableTotal = SAMPLE_TRANSACTIONS.reduce((total, transaction) => total + transaction.amountCents, 0)
 
+/** As on Transactions, the category moves under the counterparty in a narrow card. */
+function sampleCategory(transaction: SampleTransaction) {
+  return h('span', { class: 'inline-flex items-center gap-1.5 text-toned' }, [
+    h('span', { class: 'size-2 rounded-[2px]', style: { background: `var(--bucket-${transaction.bucket})` }, 'aria-hidden': 'true' }),
+    transaction.category,
+  ])
+}
+
 const columns: TableColumn<SampleTransaction>[] = [
   { accessorKey: 'month', header: 'Month' },
   {
@@ -156,18 +164,16 @@ const columns: TableColumn<SampleTransaction>[] = [
     cell: ({ row }) =>
       row.getIsGrouped()
         ? ''
-        : h(DrillLink, { to: transactionsLink, class: 'text-highlighted' }, () => row.original.counterparty),
+        : h('div', [
+            h(DrillLink, { to: transactionsLink, class: 'text-highlighted' }, () => row.original.counterparty),
+            h('div', { class: 'mt-1 @2xl:hidden' }, [sampleCategory(row.original)]),
+          ]),
   },
   {
     accessorKey: 'category',
     header: 'Category',
-    cell: ({ row }) =>
-      row.getIsGrouped()
-        ? ''
-        : h('span', { class: 'inline-flex items-center gap-1.5 text-toned' }, [
-            h('span', { class: 'size-2 rounded-[2px]', style: { background: `var(--bucket-${row.original.bucket})` }, 'aria-hidden': 'true' }),
-            row.original.category,
-          ]),
+    meta: { class: { th: 'hidden @2xl:table-cell', td: 'hidden @2xl:table-cell' } },
+    cell: ({ row }) => (row.getIsGrouped() ? '' : sampleCategory(row.original)),
   },
   {
     accessorKey: 'account',

@@ -1,6 +1,6 @@
 import type { GoogleSheet } from '../../application/readFromGoogle'
 import { columnLetter } from '../../../../shared/text/columnLetter'
-import type { AppendRequest, BatchUpdateRequest, SheetsValues, ValueRange } from '../sheetsClient'
+import type { AppendRequest, BatchUpdateRequest, SheetsValues, SpreadsheetRequest, ValueRange } from '../sheetsClient'
 import type { CellValue, WorkbookTab } from '../workbookSnapshot'
 import { FAKE_SPREADSHEET_ID, FAKE_WORKBOOK_TITLE, fakeWorkbookValues } from './fakeWorkbook'
 
@@ -9,7 +9,7 @@ export type RecordedSheetsRequest =
   | { readonly kind: 'batchGet'; readonly ranges: readonly string[] }
   | { readonly kind: 'batchUpdate'; readonly request: BatchUpdateRequest }
   | { readonly kind: 'append'; readonly range: string; readonly request: AppendRequest }
-  | { readonly kind: 'addSheet'; readonly title: string }
+  | { readonly kind: 'updateSpreadsheet'; readonly requests: readonly SpreadsheetRequest[] }
 
 /** A Google Sheet held in memory that answers the values API as Google does and records every request. */
 export interface FakeSheets extends SheetsValues {
@@ -18,7 +18,7 @@ export interface FakeSheets extends SheetsValues {
   readonly requests: RecordedSheetsRequest[]
 }
 
-const SINGLE_CELL = /^([a-z_]+|'[a-z_-]+')!([A-Z]+)(\d+)$/
+const CELLS = /^([a-z_]+|'[a-z_-]+')!([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/
 const WHOLE_COLUMNS = /^([a-z_]+|'[a-z_-]+')!A:([A-Z]+)$/
 
 export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonly CellValue[])[]>>): FakeSheets {
@@ -52,27 +52,49 @@ export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonl
     async batchUpdate(request) {
       requests.push({ kind: 'batchUpdate', request })
       for (const write of request.data) {
-        const match = SINGLE_CELL.exec(write.range)
-        if (match === null) {
-          throw new Error(`The fake Sheet writes single cells only, not ${write.range}`)
+        const match = CELLS.exec(write.range)
+        if (match === null || (match[4] !== undefined && match[3] !== match[5])) {
+          throw new Error(`The fake Sheet writes single cells or part of one row only, not ${write.range}`)
         }
         const [, tab, letters, row] = match as unknown as [string, string, string, string]
         const grid = gridOf(tab)
         const rowIndex = Number(row) - 1
-        const columnIndex = columnIndexOf(letters)
+        const firstColumn = columnIndexOf(letters)
         while (grid.length <= rowIndex) grid.push([])
         const cells = grid[rowIndex]!
-        while (cells.length <= columnIndex) cells.push(null)
-        cells[columnIndex] = write.values[0]?.[0] ?? null
+        const values = write.values[0] ?? []
+        values.forEach((value, offset) => {
+          while (cells.length <= firstColumn + offset) cells.push(null)
+          cells[firstColumn + offset] = value ?? null
+        })
       }
     },
 
-    async addSheet(title) {
-      requests.push({ kind: 'addSheet', title })
-      if (grids[title] !== undefined) {
-        throw new Error(`400 from the fake Sheet: A sheet with the name "${title}" already exists.`)
+    async updateSpreadsheet(changes) {
+      requests.push({ kind: 'updateSpreadsheet', requests: changes })
+      const tabOf = (sheetId: number): (CellValue | null)[][] => {
+        const tab = Object.keys(grids)[sheetId]
+        if (tab === undefined) throw new Error(`400 from the fake Sheet: No grid with id: ${sheetId}`)
+        return grids[tab]!
       }
-      grids[title] = []
+      for (const change of changes) {
+        if ('addSheet' in change) {
+          const { title } = change.addSheet.properties
+          if (grids[title] !== undefined) {
+            throw new Error(`400 from the fake Sheet: A sheet with the name "${title}" already exists.`)
+          }
+          grids[title] = []
+        } else if ('insertDimension' in change) {
+          const { sheetId, startIndex, endIndex } = change.insertDimension.range
+          const grid = tabOf(sheetId)
+          while (grid.length < startIndex) grid.push([])
+          grid.splice(startIndex, 0, ...Array.from({ length: endIndex - startIndex }, () => []))
+        } else if ('deleteDimension' in change) {
+          const { sheetId, startIndex, endIndex } = change.deleteDimension.range
+          tabOf(sheetId).splice(startIndex, endIndex - startIndex)
+        }
+        // A copied format or dropdown leaves no value behind, so the fake has nothing to do for it.
+      }
     },
 
     async append(range, request) {

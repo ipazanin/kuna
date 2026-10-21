@@ -168,7 +168,7 @@ describe('categorise', () => {
       rule([{ column: 'direction', direction: 'debit' }], { id: 'any-debit', order: 300, category: 'other-costs' }),
     ]
 
-    expect(categorise(row({ counterpartyIban: owner, description: 'Zakup 3/2026' }), rules, context).ruleId).toBe('owner-rent')
+    expect(categorise(row({ counterpartyIban: owner, description: 'Zakup prostora, studeni' }), rules, context).ruleId).toBe('owner-rent')
     expect(categorise(row({ counterpartyIban: owner, description: 'something else' }), rules, context).ruleId).toBe('owner-review')
   })
 })
@@ -181,8 +181,8 @@ describe('the derived signals', () => {
   it('reads the revenue code from the creditor reference, else from the head of the description only', () => {
     expect(budgetRevenueCode('HR68 8168-0000', '')).toBe('8168')
     expect(budgetRevenueCode('hr68 1880-2026-1', '')).toBe('1880')
-    expect(budgetRevenueCode('', '1651 POR.NA DOBIT')).toBe('1651')
-    expect(budgetRevenueCode('', 'PONUDA 2154-2025-800')).toBe('')
+    expect(budgetRevenueCode('', '1651 PREDUJAM POREZA')).toBe('1651')
+    expect(budgetRevenueCode('', 'PONUDA 3187-2026-410')).toBe('')
     expect(budgetRevenueCode('HR00 ABC', '16510 X')).toBe('')
   })
 
@@ -198,8 +198,8 @@ describe('the derived signals', () => {
   it('compares the instructed or posted currency with the account currency', () => {
     expect(isForeignCurrency({ instructedCurrency: 'usd' }, '', 'EUR')).toBe(true)
     expect(isForeignCurrency({ instructedCurrency: 'EUR' }, '', 'EUR')).toBe(false)
-    expect(isForeignCurrency({ instructedCurrency: '' }, 'POS KUPOVINA/10.12/GBP/824,85', 'EUR')).toBe(true)
-    expect(isForeignCurrency({ instructedCurrency: '' }, 'POS KUPOVINA/10.12/GBP/824,85', 'GBP')).toBe(false)
+    expect(isForeignCurrency({ instructedCurrency: '' }, 'POS KUPOVINA/03.04/GBP/312,40', 'EUR')).toBe(true)
+    expect(isForeignCurrency({ instructedCurrency: '' }, 'POS KUPOVINA/03.04/GBP/312,40', 'GBP')).toBe(false)
     expect(isForeignCurrency({ instructedCurrency: '' }, 'GBP SHOP', 'EUR')).toBe(false)
     expect(postedCurrency('POS KUPOVINA/1.12/GBP/1')).toBe('')
   })

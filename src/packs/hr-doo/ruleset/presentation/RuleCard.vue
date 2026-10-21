@@ -142,7 +142,13 @@ withDefaults(
 
 .value-table .term-label {
   width: 40%;
-  min-width: 10rem;
+}
+
+/* In a narrow card a term's label wraps sooner, so its values fit without scrolling. */
+@container (min-width: 40rem) {
+  .value-table .term-label {
+    min-width: 10rem;
+  }
 }
 
 /* A value a newer version changed, so a reader scanning across the years finds it. */

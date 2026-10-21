@@ -4,7 +4,7 @@ import { periodReview, reviewPeriodOf } from '../src/features/period-review/doma
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const rows = ledger([
-  { date: '2025-06-12', amount: 2500, category: 'share-capital' },
+  { date: '2025-06-16', amount: 2500, category: 'share-capital' },
   { date: '2025-07-04', amount: 6000, category: 'revenue' },
   { date: '2025-11-12', amount: -1000, category: 'salary-net' },
   { date: '2026-01-04', amount: 7000, category: 'revenue' },
@@ -14,7 +14,7 @@ const rows = ledger([
   { date: '2026-07-04', amount: 4000, category: 'revenue' },
   { date: '2026-10-02', amount: 9000, category: 'revenue' },
 ])
-const window = windowOf('2025-06-12', '2026-10-02')
+const window = windowOf('2025-06-16', '2026-10-02')
 
 describe('periodReview', () => {
   it('compares only the complete months of a year the ledger covers in part, and shows no prior when the ledger holds none', () => {
@@ -63,7 +63,7 @@ describe('periodReview', () => {
 })
 
 describe('reviewPeriodOf', () => {
-  const window = windowOf('2025-06-12', '2026-10-05')
+  const window = windowOf('2025-06-16', '2026-10-05')
 
   it('keeps a year, quarter or custom range as it is', () => {
     expect(reviewPeriodOf({ preset: 'quarter', year: 2026, quarter: 2 }, window)).toEqual({ preset: 'quarter', year: 2026, quarter: 2 })
@@ -71,7 +71,7 @@ describe('reviewPeriodOf', () => {
 
   it('opens on the last complete quarter when the shared period is a rolling window', () => {
     expect(reviewPeriodOf({ preset: 'l12' }, window)).toEqual({ preset: 'quarter', year: 2026, quarter: 3 })
-    expect(reviewPeriodOf({ preset: 'all' }, windowOf('2025-06-12', '2026-01-05'))).toEqual({ preset: 'quarter', year: 2025, quarter: 4 })
-    expect(reviewPeriodOf({ preset: 'l3' }, windowOf('2025-06-12', '2026-05-05'))).toEqual({ preset: 'quarter', year: 2026, quarter: 1 })
+    expect(reviewPeriodOf({ preset: 'all' }, windowOf('2025-06-16', '2026-01-05'))).toEqual({ preset: 'quarter', year: 2025, quarter: 4 })
+    expect(reviewPeriodOf({ preset: 'l3' }, windowOf('2025-06-16', '2026-05-05'))).toEqual({ preset: 'quarter', year: 2026, quarter: 1 })
   })
 })

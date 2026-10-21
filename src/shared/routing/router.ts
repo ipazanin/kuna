@@ -9,6 +9,7 @@ import type { ScreenPath } from './screens'
 const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, () => Promise<RouteComponent>>> = {
   '/': () => import('../../features/overview/presentation/OverviewScreen.vue'),
   '/transactions': () => import('../../features/transactions/presentation/TransactionsScreen.vue'),
+  '/import': () => import('../../features/imports/presentation/ImportScreen.vue'),
   '/trends': () => import('../../features/trends/presentation/TrendsScreen.vue'),
   '/spending': () => import('../../features/spending/presentation/SpendingScreen.vue'),
   '/period-review': () => import('../../features/period-review/presentation/PeriodReviewScreen.vue'),

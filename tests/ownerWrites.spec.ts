@@ -47,7 +47,7 @@ function switchLoans(store: WorkbookStore, bucket: string, categories = ['owner-
   return store.changeRows(CATEGORY_ROWS, { added: [], changed, removed: [] })
 }
 
-const DESK = { date: civil('2026-10-10'), amount: euros(120.5), description: 'Desk lamp ', category: 'Equipment' }
+const DESK = { date: civil('2026-10-10'), amount: euros(117.3), description: 'Desk lamp ', category: 'Equipment' }
 
 /** An advance appended as Add advance appends it. */
 function addAdvance(store: WorkbookStore, draft: OwnerAdvanceDraft) {
@@ -63,10 +63,10 @@ describe.each([
 
     const receipt = await addAdvance(store, DESK)
 
-    expect(receipt?.added).toEqual([{ sheetRow: 3, cells: { date: 46305, amount: 120.5, description: 'Desk lamp', category: 'equipment' } }])
+    expect(receipt?.added).toEqual([{ sheetRow: 3, cells: { date: 46305, amount: 117.3, description: 'Desk lamp', category: 'equipment' } }])
     expect(store.state.workbook?.ownerAdvances.map((advance) => [advance.date, advance.amount, advance.category, advance.bucket])).toEqual([
       ['2026-06-27', euros(40), 'equipment', 'operating'],
-      ['2026-10-10', euros(120.5), 'equipment', 'operating'],
+      ['2026-10-10', euros(117.3), 'equipment', 'operating'],
     ])
 
     await store.undo(store.state.writes[0]!)
@@ -154,7 +154,7 @@ describe('owner writes to a Google Sheet', () => {
     expect(sheets.requests.find((request) => request.kind === 'append')).toEqual({
       kind: 'append',
       range: "'owner-advances'!A:D",
-      request: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', values: [[46305, 120.5, 'Desk lamp', 'equipment']] },
+      request: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', values: [[46305, 117.3, 'Desk lamp', 'equipment']] },
     })
     expect(writtenRanges()).toEqual(['categories!C5'])
   })

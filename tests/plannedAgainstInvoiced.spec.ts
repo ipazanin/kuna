@@ -112,10 +112,10 @@ describe('plannedAgainstInvoiced', () => {
   })
 
   it('keeps a rounding cent on the invoice that billed it, above the plan, instead of letting it ripple into later months', () => {
-    // The bonus row's formula reads 6,666.66 and the invoices billed 6,666.67 of it.
+    // The bonus row's formula reads 4,666.66 and the invoices billed 4,666.67 of it.
     const plan = [
       planRow('Monthly Fee', '2026-04-30', 5000, 'north', 'April fee'),
-      planRow('Bonus', '2026-05-15', 6666.66, 'north', 'Bonus'),
+      planRow('Bonus', '2026-05-15', 4666.66, 'north', 'Bonus'),
       planRow('Plane Tickets', '2026-05-25', 210.4, 'north', 'May ticket'),
       planRow('Monthly Fee', '2026-05-31', 5000, 'north', 'May fee'),
       planRow('Contractor', '2026-06-08', 1200, 'north', 'June contractor'),
@@ -132,8 +132,8 @@ describe('plannedAgainstInvoiced', () => {
     const invoices = [
       invoiceOf('4-1-26', 5000, '2026-04-20'),
       invoiceOf('5-1-26', 5000, '2026-04-26'),
-      // The bonus at 6,666.67, the ticket, the contractor and June's fee.
-      invoiceOf('6-1-26', 13077.07, '2026-06-19'),
+      // The bonus at 4,666.67, the ticket, the contractor and June's fee.
+      invoiceOf('6-1-26', 11077.07, '2026-06-19'),
       invoiceOf('7-1-26', 5000, '2026-07-20'),
       invoiceOf('8-1-26', 5150, '2026-08-20'),
       invoiceOf('9-1-26', 5248.3, '2026-09-21'),

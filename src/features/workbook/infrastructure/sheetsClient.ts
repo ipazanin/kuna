@@ -74,12 +74,41 @@ async function appendValues(accessToken: string, spreadsheetId: string, range: s
   })
 }
 
-/** Adds an empty tab at the end of the spreadsheet. */
-async function addSheetTo(accessToken: string, spreadsheetId: string, title: string): Promise<void> {
+/** A range of whole rows of one tab, 0-based and end-exclusive, as `spreadsheets.batchUpdate` takes it. */
+export interface RowSpan {
+  readonly sheetId: number
+  readonly startIndex: number
+  readonly endIndex: number
+}
+
+/** The structural requests the app sends: a new tab, rows put in or taken out, and the formats and dropdowns copied onto new rows. */
+export type SpreadsheetRequest =
+  | { readonly addSheet: { readonly properties: { readonly title: string } } }
+  | { readonly insertDimension: { readonly range: RowSpan & { readonly dimension: 'ROWS' }; readonly inheritFromBefore: boolean } }
+  | { readonly deleteDimension: { readonly range: RowSpan & { readonly dimension: 'ROWS' } } }
+  | {
+      readonly copyPaste: {
+        readonly source: GridSpan
+        readonly destination: GridSpan
+        readonly pasteType: 'PASTE_FORMAT' | 'PASTE_DATA_VALIDATION'
+        readonly pasteOrientation: 'NORMAL'
+      }
+    }
+
+export interface GridSpan {
+  readonly sheetId: number
+  readonly startRowIndex: number
+  readonly endRowIndex: number
+  readonly startColumnIndex: number
+  readonly endColumnIndex: number
+}
+
+/** Sends structural requests in one call, which Sheets applies in order and all or none. */
+async function updateSpreadsheetOf(accessToken: string, spreadsheetId: string, requests: readonly SpreadsheetRequest[]): Promise<void> {
   await googleFetch(`${SHEETS_API}/${encodeURIComponent(spreadsheetId)}:batchUpdate`, accessToken, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }),
+    body: JSON.stringify({ requests }),
   })
 }
 
@@ -102,7 +131,7 @@ export interface SheetsValues {
   batchGet(ranges: readonly string[]): Promise<ValueRange[]>
   batchUpdate(request: BatchUpdateRequest): Promise<void>
   append(range: string, request: AppendRequest): Promise<void>
-  addSheet(title: string): Promise<void>
+  updateSpreadsheet(requests: readonly SpreadsheetRequest[]): Promise<void>
 }
 
 export function sheetsValuesFor(accessToken: string, spreadsheetId: string): SheetsValues {
@@ -111,6 +140,6 @@ export function sheetsValuesFor(accessToken: string, spreadsheetId: string): She
     batchGet: (ranges) => batchGetValues(accessToken, spreadsheetId, ranges),
     batchUpdate: (request) => batchUpdateValues(accessToken, spreadsheetId, request),
     append: (range, request) => appendValues(accessToken, spreadsheetId, range, request),
-    addSheet: (title) => addSheetTo(accessToken, spreadsheetId, title),
+    updateSpreadsheet: (requests) => updateSpreadsheetOf(accessToken, spreadsheetId, requests),
   }
 }

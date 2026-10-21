@@ -1,0 +1,149 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:fn="http://www.w3.org/2005/xpath-functions">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>053.00000000000000083807609.0001</MsgId>
+      <CreDtTm>2031-03-12T03:00:10.358</CreDtTm>
+    </GrpHdr>
+    <Stmt>
+      <Id>CAMT053/0000000000/978/2031/42/001</Id>
+      <LglSeqNb>42</LglSeqNb>
+      <CreDtTm>2031-03-12T03:00:10.358</CreDtTm>
+      <FrToDt>
+        <FrDtTm>2031-03-11T00:00:00.000</FrDtTm>
+        <ToDtTm>2031-03-11T23:59:59.999</ToDtTm>
+      </FrToDt>
+      <RptgSrc>
+        <Prtry>EXMPHR2249752565522</Prtry>
+      </RptgSrc>
+      <Acct>
+        <Id>
+          <IBAN>HR2923400091110000001</IBAN>
+        </Id>
+        <Ccy>EUR</Ccy>
+        <Nm>Example Studio d.o.o.</Nm>
+        <Svcr>
+          <FinInstnId>
+            <BICFI>ESBCHR22</BICFI>
+          </FinInstnId>
+        </Svcr>
+      </Acct>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>OPBD</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="EUR">9030.13</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2031-03-11</Dt>
+        </Dt>
+      </Bal>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>CLBD</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="EUR">9953.28</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2031-03-11</Dt>
+        </Dt>
+      </Bal>
+      <TxsSummry>
+        <TtlCdtNtries>
+          <NbOfNtries>1</NbOfNtries>
+          <Sum>923.15</Sum>
+        </TtlCdtNtries>
+        <TtlDbtNtries>
+          <NbOfNtries>0</NbOfNtries>
+          <Sum>0.00</Sum>
+        </TtlDbtNtries>
+      </TxsSummry>
+      <Ntry>
+        <NtryRef>20316396895020</NtryRef>
+        <Amt Ccy="EUR">923.15</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts>
+          <Cd>BOOK</Cd>
+        </Sts>
+        <BookgDt>
+          <Dt>2031-03-11</Dt>
+        </BookgDt>
+        <ValDt>
+          <Dt>2031-03-11</Dt>
+        </ValDt>
+        <AcctSvcrRef>2031-74101882-00752204301</AcctSvcrRef>
+        <BkTxCd>
+          <Domn>
+            <Cd>PMNT</Cd>
+            <Fmly>
+              <Cd>RCDT</Cd>
+              <SubFmlyCd>NTAV</SubFmlyCd>
+            </Fmly>
+          </Domn>
+          <Prtry>
+            <Cd>NOTPROVIDED</Cd>
+          </Prtry>
+        </BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <AcctSvcrRef>2031-74101882-00752204301</AcctSvcrRef>
+              <InstrId>Order 2</InstrId>
+              <EndToEndId>HR00 031835</EndToEndId>
+            </Refs>
+            <AmtDtls>
+              <TxAmt>
+                <Amt Ccy="EUR">923.15</Amt>
+              </TxAmt>
+            </AmtDtls>
+            <Chrgs>
+              <Rcrd>
+                <Amt Ccy="EUR">0.00</Amt>
+              </Rcrd>
+            </Chrgs>
+            <RltdPties>
+              <Dbtr>
+                <Pty>
+                  <Nm>Northwind Analytics Ltd</Nm>
+                  <PstlAdr>
+                    <AdrLine>Primjerna ulica 1, Zagreb</AdrLine>
+                    <AdrLine>Example Road 2</AdrLine>
+                  </PstlAdr>
+                  <Id>
+                    <OrgId>
+                      <LEI>52996300516093369389</LEI>
+                    </OrgId>
+                  </Id>
+                </Pty>
+              </Dbtr>
+              <DbtrAcct>
+                <Id>
+                  <IBAN>HR2420011116383368706</IBAN>
+                </Id>
+              </DbtrAcct>
+            </RltdPties>
+            <RmtInf>
+              <Strd>
+                <CdtrRefInf>
+                  <Tp>
+                    <CdOrPrtry>
+                      <Cd>SCOR</Cd>
+                    </CdOrPrtry>
+                  </Tp>
+                  <Ref>HR027926-19672674662-89804</Ref>
+                </CdtrRefInf>
+                <AddtlRmtInf>Invoice 3-1-31</AddtlRmtInf>
+              </Strd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <AddtlStmtInf>Privremeno stanje: 9.953,28; Rezervirano za naplatu: 0,00; Dopusteno prekoracenje: 0,00; Rezervirano po nalogu FINA-e: 0,00; Raspolozivo stanje: 9.953,28</AddtlStmtInf>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

@@ -7,7 +7,7 @@ import { counterpartyLabels } from '../src/features/workbook/domain/counterparty
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const transactions = ledger([
-  { date: '2026-07-04', amount: 8000, category: 'revenue', counterparty: 'Northwind', iban: 'HR1210010051863000160' },
+  { date: '2026-07-04', amount: 8000, category: 'revenue', counterparty: 'Northwind', iban: 'HR6212345670000000001' },
   { date: '2026-07-05', amount: 2000, category: 'revenue', counterparty: 'Contoso' },
   { date: '2026-07-06', amount: -100, category: 'client-refund', counterparty: 'Contoso' },
   { date: '2026-08-12', amount: -3000, category: 'equipment', counterparty: 'Laptop Store' },
@@ -72,7 +72,7 @@ describe('groupTransactions by counterparty', () => {
   it('labels each counterparty, keeps its IBAN, and shares money in against money in and money out against money out', () => {
     // money in 8000 + 1900, money out 3000 + 1050 + 400
     expect(groups.map((group) => [group.label, group.iban, group.share])).toEqual([
-      ['NORTHWIND', 'HR1210010051863000160', { of: 'money-in', fraction: 8000 / 9900 }],
+      ['NORTHWIND', 'HR6212345670000000001', { of: 'money-in', fraction: 8000 / 9900 }],
       ['LAPTOP STORE', '', { of: 'money-out', fraction: 3000 / 4450 }],
       ['CONTOSO', '', { of: 'money-in', fraction: 1900 / 9900 }],
       ['BRIGHTDESK', '', { of: 'money-out', fraction: 1050 / 4450 }],

@@ -73,19 +73,19 @@ describe('readWorkbook', () => {
     const workbook = readWorkbook(
       snapshotWith([
         ['date', 'account', 'amount', 'balance', 'reference'],
-        [46310, 'main', -95.49, 10, 11699714971],
-        [46309, 'main', -23.91, 105.49, '2026-104257476-11686413376'],
+        [46310, 'main', -87.36, 10, 11573920468],
+        [46309, 'main', -31.84, 97.36, '2026-208813590-11502274931'],
       ]),
     )
 
-    expect(workbook.transactions.map((transaction) => transaction.reference)).toEqual(['11699714971', '2026-104257476-11686413376'])
+    expect(workbook.transactions.map((transaction) => transaction.reference)).toEqual(['11573920468', '2026-208813590-11502274931'])
   })
 
   it('numbers the sequence from the tab position, so the top row is the newest booking', () => {
     const workbook = readWorkbook(
       snapshotWith([
         ['date', 'account', 'amount', 'balance'],
-        [46307, 'main', -300, 700],
+        [46307, 'main', -250, 750],
         [46307, 'main', -1000, 1000],
         [46300, 'main', 2000, 2000],
       ]),
@@ -113,7 +113,7 @@ describe('readWorkbook', () => {
     const workbook = readWorkbook(
       snapshotWith([
         ['date', 'account', 'amount', 'balance', 'category'],
-        [46300, 'main', -95.49, 1, 'zzz-test'],
+        [46300, 'main', -87.36, 1, 'zzz-test'],
         [46299, 'main', -1, 2, 'half-filled'],
         [46298, 'main', -1, 3, 'odd-bucket'],
         [46297, 'main', -1, 4],

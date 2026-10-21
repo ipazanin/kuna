@@ -18,7 +18,7 @@ describe('money', () => {
     expect(moneyFromAmount(0.29)).toBe(29)
     expect(moneyFromAmount(-39.9)).toBe(-3990)
     expect(moneyFromAmount(17199.5)).toBe(1719950)
-    expect(amountOf(moneyFromAmount(-1077.81))).toBe(-1077.81)
+    expect(amountOf(moneyFromAmount(-1043.67))).toBe(-1043.67)
   })
 
   it('refuses what is not an amount', () => {

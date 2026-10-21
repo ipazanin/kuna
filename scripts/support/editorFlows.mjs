@@ -627,3 +627,68 @@ export async function moveShareFlow(page, { press, shoot, inspect }) {
   await shoot('move-share-moved')
   await dismissToasts(page)
 }
+
+async function dropFile(page, path) {
+  const input = await page.waitForSelector('[data-testid="import-file"] input[type="file"]', { timeout: 10_000 }).catch(() => {
+    throw new Error('Import offers no file input')
+  })
+  await input.uploadFile(path)
+}
+
+async function dryRunSays(page, text) {
+  await page
+    .waitForFunction((wanted) => document.querySelector('[data-testid="dry-run-summary"]')?.textContent?.includes(wanted) ?? false, { timeout: 10_000 }, text)
+    .catch(async () => {
+      const said = await page.evaluate(() => document.querySelector('[data-testid="dry-run-summary"]')?.textContent?.trim())
+      throw new Error(`the dry run does not say "${text}", it says: ${said ?? 'nothing'}`)
+    })
+  await delay(300)
+}
+
+/** Import: drop the sample camt.053 statement, read the dry run, confirm, find every row on the ledger, and Undo. */
+export function importCamtFlow(path) {
+  return async (page, { press, shoot, inspect }) => {
+    await dropFile(page, path)
+    await dryRunSays(page, 'Confirming adds 4 rows')
+    if ((await page.$$('[data-testid="dry-run-row"]')).length !== 4) throw new Error('the dry run does not list the four entries')
+    await inspect?.('the camt dry run')
+    await shoot('import-camt-dry-run')
+    await pressSelector(page, press, '[data-testid="import-confirm"]')
+    await toast(page, 'Imported 4 rows')
+    await dryRunSays(page, 'Confirming would write nothing. 4 rows are on the ledger already')
+    await shoot('import-camt-confirmed')
+    await undo(page, press)
+    await dryRunSays(page, 'Confirming adds 4 rows')
+    await shoot('import-camt-undone')
+    await dismissToasts(page)
+  }
+}
+
+/** Import: drop the sample bank export, make and save a profile from the guess, confirm the dry run, and Undo. */
+export function importTableFlow(path) {
+  return async (page, { press, shoot, inspect }) => {
+    await dropFile(page, path)
+    const name = await page.waitForSelector('[data-testid="profile-editor"] input[data-testid="profile-name"], [data-testid="profile-editor"] [data-testid="profile-name"] input', { timeout: 10_000 }).catch(() => {
+      throw new Error('no profile editor for an export no saved profile fits')
+    })
+    await setField(name, 'example-bank')
+    await dryRunSays(page, 'Confirming adds 4 rows')
+    await inspect?.('the new profile')
+    await shoot('import-profile')
+    await pressSelector(page, press, '[data-testid="profile-save"]')
+    await toast(page, 'Profile saved')
+    await dismissToasts(page)
+    await page.waitForFunction(() => !document.querySelector('[data-testid="profile-editor"]'), { timeout: 10_000 }).catch(() => {
+      throw new Error('the saved profile is not the one picked')
+    })
+    await dryRunSays(page, 'Confirming adds 4 rows')
+    await shoot('import-table-dry-run')
+    await pressSelector(page, press, '[data-testid="import-confirm"]')
+    await toast(page, 'Imported 4 rows')
+    await dryRunSays(page, 'Confirming would write nothing')
+    await undo(page, press)
+    await dryRunSays(page, 'Confirming adds 4 rows')
+    await shoot('import-table-undone')
+    await dismissToasts(page)
+  }
+}

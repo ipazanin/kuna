@@ -1,6 +1,7 @@
 export type ScreenPath =
   | '/'
   | '/transactions'
+  | '/import'
   | '/trends'
   | '/spending'
   | '/period-review'
@@ -30,6 +31,7 @@ export interface Screen {
 export const SCREENS: readonly Screen[] = [
   { path: '/', title: 'Overview', icon: 'i-lucide-layout-dashboard' },
   { path: '/transactions', title: 'Transactions', icon: 'i-lucide-list' },
+  { path: '/import', title: 'Import', icon: 'i-lucide-file-up' },
   { path: '/trends', title: 'Trends', icon: 'i-lucide-trending-up' },
   { path: '/spending', title: 'Spending', icon: 'i-lucide-chart-bar' },
   { path: '/period-review', title: 'Period review', icon: 'i-lucide-calendar-range' },

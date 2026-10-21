@@ -86,6 +86,17 @@ export async function readWorkbookFile(bytes: ArrayBuffer | Uint8Array): Promise
   return { tabs: { ...EMPTY_TABS, ...tabs }, missingTabs }
 }
 
+/**
+ * The first sheet of a file SheetJS reads, xlsx, xls or ods as bytes, or a csv's text, whose cells
+ * stay as written so `1.234,56` is not read as a number. The cells start from A1.
+ */
+export async function readFirstSheet(contents: ArrayBuffer | string): Promise<(CellValue | undefined)[][]> {
+  const XLSX = await sheetJs()
+  const book = typeof contents === 'string' ? XLSX.read(contents, { type: 'string', raw: true }) : XLSX.read(contents, { type: 'array', cellText: false })
+  const sheet = book.Sheets[book.SheetNames[0] ?? '']
+  return sheet === undefined ? [] : gridOf(XLSX, sheet)
+}
+
 /** The cells from A1, so row numbers match the sheet's even when its used range starts lower. */
 function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet): (CellValue | undefined)[][] {
   const reference = sheet['!ref']

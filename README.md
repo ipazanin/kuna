@@ -8,12 +8,13 @@ browser (Excel mode). There is no backend. It deploys to GitHub Pages at
 With a Google Sheet, the app asks Google for `drive.file`, which covers files the user picks in the
 Google Picker or that the app creates, and for `openid email`, which tells it which account signed
 in. The app reads the Sheet and keeps a copy in IndexedDB. It writes only what the user saves, and
-only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, and
-rows of the tabs a person keeps by hand: `rules`, `settings`, `owner-advances`, `outgoing-plan`,
-`categories`, `accounts`, `clients`, `invoices`, `assets`, `grants`, `year-end`, `plan`,
-`scenarios` and `splits`. It never writes a formula a change leaves alone or data validation, and
-writes a header only when the user agrees to add the `plan`, `scenarios` or `splits` tab to a Sheet
-without one.
+only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, the
+rows of a bank statement the user imports, and rows of the tabs a person keeps by hand: `rules`,
+`settings`, `owner-advances`, `outgoing-plan`, `categories`, `accounts`, `clients`, `invoices`,
+`assets`, `grants`, `year-end`, `plan`, `scenarios` and `splits`. It never writes a formula a change
+leaves alone. It writes data validation only by copying a ledger row's dropdowns onto the rows an
+import puts in above it. It writes a header only when the user agrees to add the `plan`,
+`scenarios` or `splits` tab to a Sheet without one.
 See *Write-back* below. Making an invoice also files its PDF in the Drive folder the user picks for
 invoices, and, only for a user who turns the mail draft on, asks for `gmail.compose` to save a
 Gmail draft. See *Invoices*.
@@ -72,7 +73,7 @@ From 1920 px (the `3xl` breakpoint) a dashboard screen sets related cards side b
 list beside a column of the cards that sum it up: Overview, Period review, Receivables, Billing
 plan, Taxes and Owner. The content grows to 160rem beside the sidebar. A screen that is one table,
 one list, one form or a long report keeps a 100rem measure instead, so its rows stay readable:
-Transactions, Year end, Forecast, Pay scenarios, Ruleset, Review, Workbook and Settings. The other screens simply
+Transactions, Import, Year end, Forecast, Pay scenarios, Ruleset, Review, Workbook and Settings. The other screens simply
 widen. `.wide-pair` in `src/shared/styles/app.css` does the pairing, and the widths are the
 `--container-shell`, `--container-measure` and `--breakpoint-3xl` tokens in `tokens.css`. Below
 1920 px nothing changes.
@@ -90,8 +91,8 @@ its state until the page reloads. A link into a collapsed card, such as a tile t
 opens it first and is not remembered. Charts, tiles and short summaries do not collapse.
 
 A card fits its content without sideways scroll. Where two cards would not fit side by side, they
-stack. A table in a narrow card gives way first: names and descriptions wrap, a change moves under
-its row's name, and a secondary column such as the account, the family or the month strip drops out
+stack. A table in a narrow card gives way first: names and descriptions wrap, a change, a category
+or a due date moves under its row's name, and a secondary column such as the account, the family or the month strip drops out
 below a container width (Tailwind's `@container` variants, so a card answers to its own width, not
 the window's). Only the Workbook editors, where every column is an input, scroll sideways, and
 `check:visual` fails on any other card that does. A popover stays inside the window and opens
@@ -174,6 +175,7 @@ as before.
 | `hr_cit_return` | `pd` | `pd` for the corporate tax return on the accrual profit, `pd-nn` for the one on cash. |
 | `hr_vat_principle` | `invoice` | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment. |
 | `hr_depreciation_doubled` | `FALSE` | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it. |
+| `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves. A profile that cannot be read is reported and not offered. |
 
 The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack. Workbook,
 General shows them while `owner_pay_module` is on. They belong in the workbook and never in the app.
@@ -836,6 +838,87 @@ Switching from Excel mode to another source deletes the workbook kept in the bro
 one has been read. SheetJS loads only on the first import, export or template download, as its own
 chunk.
 
+## Import
+
+A core screen at `/import`, after Transactions, adds a bank statement to the ledger in both modes.
+Drop or pick a file. Nothing is written until the dry run is confirmed, and Undo in the toast takes
+the rows out again. The services are in `src/features/imports/`.
+
+**camt.053.** `readCamtDocument` is the shadow-accounting Apps Script's `ErsteCamt.gs` over the
+browser's `DOMParser`. It finds elements by local name, so any camt.053 version reads, takes booked
+entries only, and reads every amount in cents from its decimal text, refusing a negative one, one
+finer than a cent and a localised `1.234,56`. Entries are put in booking-date order, ties in
+document order, and the running balance must close at CLBD. The counts and sums of TxsSummry are
+checked per direction. TxsSummry is required from Erste (`ESBCHR22`), as the Apps Script requires
+it, and a statement from another bank without it reads with a note. Unlike the Apps Script, a file
+may hold several Stmt, and each one is read or refused on its own. The counterparty is the creditor
+of a debit or the debtor of a credit, unless that side states this account's IBAN or, without an
+IBAN, its holder's name. An entry whose domain is `ACMT` or whose sub-family is `COMM` or `CHRG`
+takes the servicer's name when it names no party, since those are ISO 20022 sub-family codes. The
+description is the unstructured remittance lines joined, then the structured remittance's text,
+then the bank's own wording. The statement column holds `<creation day>-statement-<LglSeqNb>`, and
+a statement is known by its IBAN and LglSeqNb. A reversal, a batched entry, a value date standing
+in for a missing booking date and an entry without a bank reference are stored in `review_reasons`,
+joined by ` | `, so the row waits on Review.
+
+**Spreadsheet exports.** Any other file goes to SheetJS: xlsx, xls, ods or csv, a csv read as UTF-8
+or else Windows-1250 with its cells kept as text. A profile on the settings tab says how one bank's
+export reads, such as
+`import_profile_otp-business` = `account=otp; date=Datum knjiženja; date_format=dd.mm.yyyy;
+decimal=comma; debit=Isplata; credit=Uplata; balance=Stanje; counterparty=Naziv;
+counterparty_iban=IBAN; description=Opis plaćanja`. Columns are named by their header text, and
+the header row is the first of the file's first 40 rows that carries all of them, so a bank's title
+lines above it do not matter. `date_format` is `dd.mm.yyyy` (a trailing dot and a time are fine),
+`dd/mm/yyyy`, `mm/dd/yyyy` or `yyyy-mm-dd`, and a date cell reads as a date whatever it says.
+`decimal` is `comma` or `point` for amounts written as text. The amount is one signed `amount`
+column, or a `debit` and a `credit` column of which each row fills one. `balance`, `counterparty`,
+`counterparty_iban`, `description` and `reference` are optional. A row without a date, or with a
+label such as a total where the date goes, is skipped and noted. A row with a date the profile
+cannot read refuses the file. A file listing newest first is turned round, and with a balance
+column each row's balance must follow from the one before. A row without a bank reference gets
+`row-<key>-<n>`: sixteen hex digits from its account, date, amount, balance and text, and its count
+among equal rows of the file, so the same row in a later, overlapping export gets the same key. The
+statement column holds the file's name and the first eight hex digits of its SHA-256. Import offers
+the first saved profile whose columns head a row of the file. Otherwise it starts a new one from
+the file: the header row, columns guessed from Croatian and English header words, the date format
+and decimal mark from the cells, and the account whose IBAN the title lines name. The dry run reads
+the file with the profile as it is edited, and "Save new profile" writes it to the settings tab
+through the settings write.
+
+**The dry run** lists each statement's entries with the category the rules give them, as the
+ingest categorises, and checks them against the ledger as it is on screen:
+
+| Check | What happens |
+|---|---|
+| On the ledger already | An entry whose account holds its reference is listed as such and never written, so importing a statement twice, or one the Apps Script filed, writes nothing. |
+| Follows the ledger | New entries must come after every entry the ledger holds, carry a reference, and not predate the account's newest row. |
+| Opening balance | The balance before the first new entry must be where the ledger leaves the account, or a statement in between is missing, and the statement is refused. |
+| A new account | An account with no rows waits until "Start <account> at <opening>" is ticked, or for a file without balances until its opening balance is typed. |
+| Statement numbers | A camt statement whose LglSeqNb is not one past the newest on the ledger for the account is noted, as the balances still decide. |
+| Partly new | A statement whose first entries are on the ledger adds the rest and says so. |
+
+Statements of one account are taken oldest first, each against where the one before left the
+account. A refused one leaves the account where it was, so the next one is refused for the gap, and
+the others are still written. A file without balances gets them worked out from where the ledger
+leaves the account.
+
+**The write** goes through the row write path, `LEDGER_ROWS` in
+`src/features/imports/application/ledgerRows.ts`, and writes whole ledger rows, A to R, as the Apps
+Script's `ledgerRowFor` does. The tab reads newest first, so each statement goes in as one block
+where the Apps Script inserts a batch: above the first row whose date is not after the statement's
+newest one, the block newest first. The Apps Script reads each account's balance off its topmost
+row, so a block at the foot would stop its next morning. Right before writing, the tab as it is
+then is checked again: no new row may be on it already by its account and reference, which happens
+when the morning ingest filed the statement since the dry run, each account's new rows must open at
+its newest balance and run on from it, and none may predate the account's newest row. Undo takes
+the rows out whole, since a blank row stops the Apps Script too, and is refused once a newer row of
+the account sits above them. A Google Sheet whose ledger tab lacks a column the rows fill, such as
+the signal columns of an older Sheet, is refused with the column to add.
+
+In Google mode the Apps Script may file the same statements on its morning run. Its rows carry the
+same bank references, so whichever writes first, the other finds the rows on the ledger and writes
+nothing, and the dry run says so.
+
 ## Workbook screen
 
 The screen at `#/workbook` holds one tab per part of the workbook a person keeps by hand, and
@@ -865,8 +948,8 @@ npm run check          # typecheck and unit tests
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at eight widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's, the plan editor's, the split editor's and the move to splits at 430 too, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, a card collapsed and expanded per screen, the row editors, the split editor and the move to splits in both modes, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's, the plan editor's, the split editor's, the move to splits and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, a card collapsed and expanded per screen, the row editors, the split editor, the move to splits and both statement imports in both modes, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -884,7 +967,12 @@ and its extras, with October planned and not invoiced yet, and has no rows for t
 whose invoices are invoiced with no plan row. Its `splits` tab splits three rows: a salary paid
 with a results bonus, a design invoice that also paid a workshop, and a business lunch with the
 owner's own part in it. Its `owner-advances` tab still holds one private share as a negative row,
-for "Move to splits" to move. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads. A
+for "Move to splits" to move. Its ledger tab carries every column from A to R, as the Sheet does. On
+Import the fake build offers two sample files that carry the main account on from its newest row: a
+camt.053 statement with a client payment, a card purchase in dollars, a bank fee and a reversal,
+and a Croatian bank's xlsx export with a title above the header, text dates, a decimal comma, split
+debit and credit columns and a total below, which no saved profile fits yet. Both start from the
+same balance, so once one is imported the other is refused. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads. A
 Drive and a Gmail held in memory answer "Make invoice" the same way: the invoice folder holds this
 year's and last year's folders with every month inside, made by another app and out of view until
 picked, and the browser's confirm dialog stands in for the Picker, OK picking every folder it names
@@ -941,9 +1029,11 @@ side in `googleWorkbookWriter.ts`.
   the tab lacks it. A key on two rows, a value that changed since the read, or a value the settings
   reader would not use is refused.
 - **Rows of a tab.** `categories`, `accounts`, `clients`, `invoices`, `owner-advances`, `assets`,
-  `grants`, `year-end`, `outgoing-plan`, `plan`, `scenarios` and `splits` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
+  `grants`, `year-end`, `outgoing-plan`, `plan`, `scenarios`, `splits` and the imported rows of
+  `ledger` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
   with each tab's rules beside its feature or pack. One write adds rows below the last one, changes rows in
-  place and deletes rows. A row to change or delete is found on its own row if that still holds what
+  place and deletes rows. A tab kept in an order of its own, which only the ledger is, places its
+  added rows above a row instead, and takes deleted rows out whole. A row to change or delete is found on its own row if that still holds what
   the app read, else on the one row that does, and the write is refused when none or several do. A
   change writes only the cells that differ, and a delete clears the tab's own columns and leaves any
   cell beside them. Dates go in as serial numbers and amounts as numbers. Before anything is written,
@@ -960,6 +1050,7 @@ side in `googleWorkbookWriter.ts`.
   | `grants` | A name outside the slug format or already on another row. Renaming or deleting a grant an asset is funded by. |
   | `owner-advances` | What its reader refuses: an amount of zero or below, which for a negative one points to the `splits` tab, or a category the categories tab lacks or keeps outside the operating and taxes buckets. "Add advance" on Owner, and "Add the cost" on Owner and Review, add one row, and "Move to splits" deletes one. |
   | `splits` | What its reader refuses against the ledger and the categories as they are now, which are the guards of *Split rows*. A split of a row an asset claims, with the asset named. |
+  | `ledger` | An imported row already on the tab by its account and reference, new rows that do not open at the account's newest balance or predate its newest row, as *Import* describes, and a row the ledger reader would leave out. Undo is refused when a newer row of the account sits above the rows it takes out. |
   | `assets`, `year-end`, `outgoing-plan` | What their readers refuse, such as an asset listed twice, a grant the grants tab lacks, or a konto row naming an unknown category. |
   | `plan` | What its reader refuses, such as a purchase without its date or group, a dividend without its month, or a category twice in one month. Then every year the change touches must pass the plan guards of *Forecast*. A purchase or a switch day on an older tab without the `date` and `group` columns names the columns to add. |
   | `scenarios` | A name outside the slug format. Renaming a scenario onto the name another scenario holds. Renaming or deleting the last row of a scenario a `plan` row names. Then every scenario the change touches must pass the guards of *Pay scenarios*, each refusal naming the scenario and its rows, and every plan year that names one of them must pass the plan guards. |
@@ -995,6 +1086,8 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 | Add or fill plan rows, edit or delete one | the same, reading `'outgoing-plan'` and `clients`. A fill appends every new row in one request |
 | Add, edit or delete a scenario component, rename or copy a scenario, add the starting scenarios | the same, reading `scenarios`, `plan` and `categories` (each when the Sheet has it). Adding the starting scenarios to a Sheet without the tab first sends `spreadsheets.batchUpdate` with one `addSheet` request, then a `values.batchUpdate` of the header cells `scenarios!A1` to `scenarios!G1`, before the append |
 | Plan the owner pay, a category, a purchase or the dividend on Forecast, change or clear it | the same, reading `plan`, `categories` and `scenarios`. The first save to a Sheet without the tab adds it as above, with the header cells `plan!A1` to `plan!G1` |
+| Import statements | get, `values.batchGet` of `ledger` and `categories`, one `spreadsheets.batchUpdate` that per block of rows sends `insertDimension` at the block's place and two `copyPaste` requests copying the format and the data validation of the row below onto the new rows, the bottom block first, then `values.batchUpdate` of whole rows such as `ledger!A2:R2`, get and batchGet again. Undo sends one `spreadsheets.batchUpdate` of `deleteDimension` requests, bottom row first |
+| Save an import profile | the settings write above, with the `import_profile_<name>` key |
 | Undo any of these | the same requests, with the change turned around |
 
 ### Manual test, against a copy of the Sheet first
@@ -1035,7 +1128,15 @@ Never run it first on the original.
    then delete it and press Undo. Try to rename a category the ledger uses and read the refusal. On
    Receivables, add an invoice, check its row on `invoices` with the dates shown as dates and the
    number as text, edit its amount, delete it and press Undo.
-11. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
+11. In the copy, note the rows of the newest Erste statement on `ledger`, then delete them as whole
+   rows. On Import, drop that statement's XML from the statements archive. The dry run lists its
+   entries as new, opening where the ledger now leaves the account. Confirm, then check in the copy
+   that the rows are back where they were with every cell as before, dates shown as dates and the
+   category dropdown on each new row. Drop the same file again and check the dry run writes nothing.
+   Undo the import under "Changes in this session" and check the rows are gone with no blank row
+   left, then import it once more. Run "Preview camt ingest (writes nothing)" from the Shadow
+   Accounting menu and check it reports that statement as already filed.
+12. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
    reads the rules and settings tabs the way the morning ingest does, so it must finish without an
    error. Then repeat steps 2, 3 and 5 on the original, and check the next 06:00 run in Executions.
 

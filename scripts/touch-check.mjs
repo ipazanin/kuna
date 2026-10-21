@@ -11,7 +11,8 @@
  * the billing plan's next expected invoice opening its month, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a category, an asset and an
  * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a payment split, edited, deleted and
- * brought back, the private share moved to splits on Owner and on Review, an invoice made and re-exported, a rule made from a row and applied to
+ * brought back, the private share moved to splits on Owner and on Review, a camt.053 statement and a bank export imported on Import, the export
+ * with a profile made for it, each confirmed and undone, an invoice made and re-exported, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
@@ -33,7 +34,8 @@ import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, invoiceFlow, invoiceRunFlow, moveShareFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, importCamtFlow, importTableFlow, invoiceFlow, invoiceRunFlow, moveShareFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -47,6 +49,7 @@ const SMALLEST_TARGET = 44
  * behind. A screen collapses and expands its first collapsible card, unless `cards: false` says it has none.
  */
 const SCREENS = [
+  { hash: '#/import', title: 'Import', ready: '[data-testid="import-file"]', cards: false },
   { hash: '#/trends?p=all', title: 'Trends', ready: '.chart-body canvas', cards: false },
   { hash: '#/spending?p=all', title: 'Spending', ready: '[data-testid="cost-line"]' },
   { hash: '#/period-review?p=all', title: 'Period review', ready: '.chart-body canvas' },
@@ -70,6 +73,7 @@ for (const stale of readdirSync(OUTPUT_DIR).filter((file) => file.endsWith('.png
   rmSync(join(OUTPUT_DIR, stale))
 }
 const TEMPLATE_FILE = await writeFakeTemplateFile(join(OUTPUT_DIR, 'filled-template.xlsx'))
+const IMPORT_SAMPLES = await writeImportSamples(OUTPUT_DIR)
 
 const failures = []
 const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars'] })
@@ -640,6 +644,8 @@ async function checkWidth(width) {
       ['split-tab', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow, mode === 'google' ? '&fake=no-splits' : '&fake=excel-no-splits'],
       ['move-share', '#/owner', 'Owner', moveShareFlow],
       ['move-share-review', '#/review', 'Review', moveShareFlow],
+      ['import-camt', '#/import', 'Import', importCamtFlow(IMPORT_SAMPLES.camt)],
+      ['import-table', '#/import', 'Import', importTableFlow(IMPORT_SAMPLES.table)],
     ]) {
       await step(`${name}-${mode}`, async () => {
         await page.goto(`${BASE}?theme=dark${variant ?? query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })

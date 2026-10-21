@@ -47,7 +47,10 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 
-/** Expected against paid, oldest due date first: a table on a wide screen, one card per payment on a phone. */
+/**
+ * Expected against paid, oldest due date first: a table on a wide screen, one card per payment on a
+ * phone. In a narrow card the table moves the due date and the status under the payment's name.
+ */
 defineProps<{
   lines: readonly CitObligationLine[]
   testId: string
@@ -85,22 +88,26 @@ const phone = usePhoneLayout()
     </li>
   </ul>
 
-  <div v-else class="overflow-x-auto">
+  <div v-else class="@container overflow-x-auto">
     <table class="data-table obligation-table w-full text-sm" :data-testid="testId">
       <thead>
         <tr>
           <th scope="col" class="text-start">Payment</th>
-          <th scope="col" class="w-32 text-start">Due</th>
+          <th scope="col" class="hidden w-32 text-start @2xl:table-cell">Due</th>
           <th scope="col" class="w-28 text-end">Expected</th>
           <th scope="col" class="w-28 text-end">Paid</th>
           <th scope="col" class="w-28 text-end">Still owed</th>
-          <th scope="col" class="w-36 text-start">Status</th>
+          <th scope="col" class="hidden w-36 text-start @2xl:table-cell">Status</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="line in lines" :key="line.key" :data-status="line.status" :class="{ 'is-to-come': line.status === 'to-come' }">
-          <th scope="row" class="truncate text-start font-normal text-toned">{{ line.label }}</th>
-          <td class="figure text-muted">{{ line.dueOn }}</td>
+          <th scope="row" class="truncate text-start font-normal text-toned">
+            {{ line.label }}
+            <span class="block text-xs text-muted @2xl:hidden">Due {{ line.dueOn }}</span>
+            <UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" class="mt-1 @2xl:hidden" />
+          </th>
+          <td class="figure hidden text-muted @2xl:table-cell">{{ line.dueOn }}</td>
           <td class="text-end"><MoneyText :cents="line.expected" /></td>
           <td class="text-end">
             <DrillLink :to="line.paidTo" :label="`${line.label}, paid, open the rows`"><MoneyText :cents="line.paid" /></DrillLink>
@@ -108,7 +115,7 @@ const phone = usePhoneLayout()
           <td class="text-end" :class="{ 'text-error': line.status === 'overdue' }">
             <MoneyText v-if="line.outstanding > 0" :cents="line.outstanding" /><span v-else class="text-dimmed">–</span>
           </td>
-          <td><UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" /></td>
+          <td class="hidden @2xl:table-cell"><UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" /></td>
         </tr>
       </tbody>
     </table>
@@ -146,7 +153,6 @@ const phone = usePhoneLayout()
 }
 
 .obligation-table {
-  min-width: 40rem;
   table-layout: fixed;
 }
 

@@ -5,7 +5,7 @@ import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 
 const rows = ledger([
   { date: '2026-04-04', amount: 5000, category: 'revenue' },
-  { date: '2026-04-10', amount: -300, category: 'travel' },
+  { date: '2026-04-09', amount: -300, category: 'travel' },
   { date: '2026-05-10', amount: -100, category: 'accounting' },
   { date: '2026-07-04', amount: 4000, category: 'revenue' },
   { date: '2026-07-10', amount: -900, category: 'travel' },

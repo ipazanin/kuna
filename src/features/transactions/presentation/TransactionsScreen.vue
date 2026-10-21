@@ -181,6 +181,23 @@ function reviewBadge(listed: ListedRow) {
   return null
 }
 
+function categoryOf(listed: ListedRow) {
+  return h('span', { class: 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-toned' }, [
+    h('span', { class: 'inline-flex items-center gap-1.5' }, [
+      h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: `var(--bucket-${bucketTone(listed.bucket)})` }, 'aria-hidden': 'true' }),
+      listed.category === ''
+        ? h('span', { class: 'text-muted' }, 'No category')
+        : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
+    ]),
+    reviewBadge(listed),
+  ])
+}
+
+/** Below a container width the category column drops out and the category moves under the row's name. */
+function categoryBelowName(listed: ListedRow) {
+  return h('div', { class: 'mt-1 text-sm @2xl:hidden' }, [categoryOf(listed)])
+}
+
 const columns: TableColumn<TableEntry>[] = [
   {
     id: 'date',
@@ -234,6 +251,7 @@ const columns: TableColumn<TableEntry>[] = [
             `Part ${split.index + 1} of ${split.count}`,
           ]),
           split.note === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, split.note),
+          categoryBelowName(listed),
         ])
       }
       // An advance has no counterparty in the ledger, so a counterparty filter would leave it out.
@@ -241,28 +259,23 @@ const columns: TableColumn<TableEntry>[] = [
         listed.kind === 'bank'
           ? h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(listed).key] }), class: 'text-highlighted' }, () => listed.counterparty || 'No counterparty')
           : h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [listed.counterparty, h(UBadge, { label: OWNER_ADVANCE_LABEL, color: 'neutral', variant: 'subtle', size: 'sm' })])
-      return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [name, listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description)])
+      return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [
+        name,
+        listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description),
+        categoryBelowName(listed),
+      ])
     },
   },
   {
     id: 'category',
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.category : ''),
     header: 'Category',
-    meta: besideHeading('whitespace-normal'),
+    meta: { class: { th: 'hidden @2xl:table-cell', ...besideHeading('hidden whitespace-normal @2xl:table-cell').class } },
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
       if (entry.kind === 'split') return h('span', { class: 'text-xs text-muted' }, 'Counts as its parts')
-      const listed = entry.row
-      return h('span', { class: 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-toned' }, [
-        h('span', { class: 'inline-flex items-center gap-1.5' }, [
-          h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: `var(--bucket-${bucketTone(listed.bucket)})` }, 'aria-hidden': 'true' }),
-          listed.category === ''
-            ? h('span', { class: 'text-muted' }, 'No category')
-            : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
-        ]),
-        reviewBadge(listed),
-      ])
+      return categoryOf(entry.row)
     },
   },
   {

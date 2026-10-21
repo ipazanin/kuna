@@ -3,8 +3,8 @@ import type { RowAt, RowCells, RowChange, TabRowsChange, TabRowsReceipt } from '
 import type { TabReading } from '../infrastructure/cellReading'
 import type { SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
 import { TEMPLATE_COLUMNS } from '../infrastructure/workbookTemplate'
-import { WorkbookWriteRefused } from './workbookWriter'
-import type { CellEdit, FreshTabs, RowTab, TabEdits, TabRead } from './workbookWriter'
+import { WorkbookWriteRefused, insertedRowNumbers, shiftedRowNumber } from './workbookWriter'
+import type { CellEdit, FreshTabs, RowAppend, RowTab, TabEdits, TabRead } from './workbookWriter'
 
 /** What one row is called in a sentence, such as "an invoice" and "3 invoices". */
 export interface RowNoun {
@@ -13,14 +13,14 @@ export interface RowNoun {
   readonly article: 'a' | 'an'
 }
 
-/** A touched row: what it held and what it is to hold. `before` is null for an added row, `after` for a deleted one. */
+/** A touched row: what it held and what it is to hold. `before` is null for an added row, `after` for a deleted one. `sheetRow` is where the row stands after the change, or for a deleted one where it stood. */
 export interface RowEdit {
   readonly sheetRow: number
   readonly before: RowCells | null
   readonly after: RowCells | null
 }
 
-/** The tab before and after a change, as the checks see it. Added rows sit below the last row, as they will. */
+/** The tab before and after a change, as the checks see it. Added rows sit where they will, below the last row unless the rules place them. */
 export interface RowsChangeCheck {
   readonly before: readonly SheetRow[]
   readonly after: readonly SheetRow[]
@@ -47,6 +47,14 @@ export interface TabRowRules {
   refusals(check: RowsChangeCheck, fresh: FreshTabs): readonly string[]
   /** What names a row for a person, such as its category or its invoice number. */
   label(cells: RowCells): string
+  /**
+   * For a tab kept in an order of its own, every added row by its index in the change, top to
+   * bottom as they will stand, each with the row of the read it goes above, the last row plus one
+   * for below it. Without it every added row goes below the last row, in the change's order.
+   */
+  place?(rows: readonly SheetRow[], added: readonly RowCells[], lastRow: number): readonly AddedPlace[]
+  /** A deleted row is taken out of the tab, so the rows below move up, rather than having its cells cleared. */
+  readonly deletesWholeRows?: true
 }
 
 /** The touched rows as a tab's checks take them: what each held and holds, picked from its cells, with no row number for an added row. */
@@ -67,14 +75,22 @@ export function untouchedOf<Picked>(check: RowsChangeCheck, pick: (cells: SheetR
   return check.before.filter((row) => !touched.has(row.sheetRow)).map((row) => ({ sheetRow: row.sheetRow, ...pick(row.cells) }))
 }
 
+/** Where an added row goes: above row `before` of the read. */
+export interface AddedPlace {
+  readonly index: number
+  readonly before: number
+}
+
 /** A change planned on a read taken just before it, with each row found where it is now. */
 export interface RowsPlan {
   readonly edits: TabEdits
   readonly added: readonly RowCells[]
   readonly changed: readonly RowChange[]
   readonly removed: readonly RowAt[]
-  /** Rows that already held an added row's cells, so the new ones can be told apart after the write. */
+  /** Rows that already held an added row's cells, where they stand after the write, so the new ones can be told apart. */
   readonly alreadyThere: readonly number[]
+  /** For each deleted row, how many rows held its cells before, so a row taken out whole can be checked gone. */
+  readonly heldBefore: readonly number[]
 }
 
 /** A row's cells in the rule's columns, raw, a missing cell as blank, so a formula's value is compared as the Sheet gives it. */
@@ -119,20 +135,42 @@ export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: Tab
   }
   refuseOn(refusals)
 
+  const foot = tab.lastRow + 1
+  const placed = rules.place?.(tab.rows, change.added, tab.lastRow) ?? change.added.map((_, index) => ({ index, before: foot }))
+  const inPlace = placed.filter((place) => place.before !== foot)
+  const atFoot = placed.filter((place) => place.before === foot)
+  const inserts = inPlace.map((place) => place.before)
+  const deletes = rules.deletesWholeRows ? removed.map(({ row }) => row.sheetRow) : []
+  if ((inserts.length > 0 || deletes.length > 0) && (changed.length > 0 || (inserts.length > 0 && removed.length > 0))) {
+    throw new Error(`A write that moves rows of the ${rules.tab} tab may not also change rows on it.`)
+  }
+  const finalOf = (sheetRow: number): number => shiftedRowNumber(sheetRow, inserts) - deletes.filter((deleted) => deleted < sheetRow).length
+  const insertedAt = insertedRowNumbers(inserts)
+  const addedAt: number[] = []
+  inPlace.forEach((place, order) => {
+    addedAt[place.index] = insertedAt[order]!
+  })
+  atFoot.forEach((place, order) => {
+    addedAt[place.index] = foot + inserts.length + order
+  })
+
   const afterOf = new Map(changed.map(({ row, after }) => [row.sheetRow, after]))
   const removedRows = new Set(removed.map(({ row }) => row.sheetRow))
-  const afterRows = [
-    ...tab.rows.flatMap((row): SheetRow[] => {
+  const afterRows: AfterRow[] = [
+    ...tab.rows.flatMap((row): AfterRow[] => {
+      if (deletes.includes(row.sheetRow)) {
+        return []
+      }
       const after = afterOf.get(row.sheetRow)
       const cells = after !== undefined ? withCells(row.cells, rules.columns, after) : removedRows.has(row.sheetRow) ? withCells(row.cells, rules.columns, {}) : row.cells
-      return Object.keys(cells).length === 0 ? [] : [{ sheetRow: row.sheetRow, cells }]
+      return Object.keys(cells).length === 0 ? [] : [{ sheetRow: finalOf(row.sheetRow), cells, readAs: row.sheetRow }]
     }),
-    ...change.added.map((cells, index) => ({ sheetRow: tab.lastRow + 1 + index, cells: filledCells(cells) })),
-  ]
+    ...change.added.map((cells, index) => ({ sheetRow: addedAt[index]!, cells: filledCells(cells), readAs: null })),
+  ].sort((upper, lower) => upper.sheetRow - lower.sheetRow)
   const edits: RowEdit[] = [
     ...changed.map(({ row, after }) => ({ sheetRow: row.sheetRow, before: rowCellsOf(row, rules.columns), after })),
     ...removed.map(({ row }) => ({ sheetRow: row.sheetRow, before: rowCellsOf(row, rules.columns), after: null })),
-    ...change.added.map((cells, index) => ({ sheetRow: tab.lastRow + 1 + index, before: null, after: cells })),
+    ...change.added.map((cells, index) => ({ sheetRow: addedAt[index]!, before: null, after: cells })),
   ]
   // The tab's own checks name the cause, so the reader's account of the same row is held back until they pass.
   refuseOn(rules.refusals({ before: tab.rows, after: afterRows, edits }, fresh))
@@ -144,18 +182,29 @@ export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: Tab
         .filter((column) => cellText(row.cells[column]) !== cellText(after[column]))
         .map((column): CellEdit => ({ tab: rules.tab, sheetRow: row.sheetRow, column, value: after[column] ?? '' })),
     ),
-    ...removed.flatMap(({ row }) =>
-      rules.columns.filter((column) => cellText(row.cells[column]) !== '').map((column): CellEdit => ({ tab: rules.tab, sheetRow: row.sheetRow, column, value: '' })),
-    ),
+    ...removed
+      .filter(({ row }) => !deletes.includes(row.sheetRow))
+      .flatMap(({ row }) => rules.columns.filter((column) => cellText(row.cells[column]) !== '').map((column): CellEdit => ({ tab: rules.tab, sheetRow: row.sheetRow, column, value: '' }))),
   ]
-  const appends = change.added.map((added) => ({ tab: rules.tab, cells: filledCells(added) }))
+  const appends = [...inPlace, ...atFoot].map(({ index, before }): RowAppend => {
+    const cells = filledCells(change.added[index]!)
+    return before === foot ? { tab: rules.tab, cells } : { tab: rules.tab, cells, before }
+  })
+  const deletions = deletes.map((sheetRow) => ({ tab: rules.tab, sheetRow }))
+  const tabEdits: TabEdits = deletions.length === 0 ? { cells, appends } : { cells, appends, deletions }
   return {
-    edits: newTab === null ? { cells, appends } : { cells, appends, newTabs: [newTab] },
+    edits: newTab === null ? tabEdits : { ...tabEdits, newTabs: [newTab] },
     added: change.added,
     changed: changed.map(({ row, after }) => ({ sheetRow: row.sheetRow, before: rowCellsOf(row, rules.columns), after })),
     removed: removed.map(({ row }) => ({ sheetRow: row.sheetRow, cells: rowCellsOf(row, rules.columns) })),
-    alreadyThere: tab.rows.filter((row) => change.added.some((added) => holds(row, added, rules))).map((row) => row.sheetRow),
+    alreadyThere: tab.rows.filter((row) => change.added.some((added) => holds(row, added, rules))).map((row) => finalOf(row.sheetRow)),
+    heldBefore: removed.map(({ row }) => tab.rows.filter((candidate) => holds(candidate, rowCellsOf(row, rules.columns), rules)).length),
   }
+}
+
+/** A row of the tab as the change would leave it, with the row it was read as, or null for an added one. */
+interface AfterRow extends SheetRow {
+  readonly readAs: number | null
 }
 
 /** After the write: each changed row holds what was written, each deleted row holds none of it, and each added row is on the tab once more. */
@@ -168,12 +217,15 @@ export function verifyRowsChange(after: FreshTabs, rules: TabRowRules, plan: Row
       throw new Error(`The write reached the workbook, but row ${change.sheetRow} of the ${rules.tab} tab does not read back as written. Check it in the Sheet.`)
     }
   }
-  for (const removed of plan.removed) {
+  plan.removed.forEach((removed, index) => {
     const row = rowAt(removed.sheetRow)
-    if (row !== undefined && rules.columns.some((column) => cellText(row.cells[column]) !== '')) {
+    const stays = rules.deletesWholeRows
+      ? rows.filter((candidate) => holds(candidate, removed.cells, rules)).length > plan.heldBefore[index]! - plan.removed.filter((other) => sameCells(other.cells, removed.cells, rules)).length
+      : row !== undefined && rules.columns.some((column) => cellText(row.cells[column]) !== '')
+    if (stays) {
       throw new Error(`The write reached the workbook, but row ${removed.sheetRow} of the ${rules.tab} tab still holds the ${rules.noun.one}. Check it in the Sheet.`)
     }
-  }
+  })
   const taken = new Set<number>()
   const added = plan.added.map((cells): RowAt => {
     const row = rows.find((candidate) => holds(candidate, cells, rules) && !plan.alreadyThere.includes(candidate.sheetRow) && !taken.has(candidate.sheetRow))
@@ -191,22 +243,25 @@ export function verifyRowsChange(after: FreshTabs, rules: TabRowRules, plan: Row
  * row did not have before, a row it leaves alone that is read today and would be left out, and a
  * deleted row whose other cells would stay behind as a row the reader reports.
  */
-function readerRefusals(rules: TabRowRules, before: readonly SheetRow[], after: readonly SheetRow[], edits: readonly RowEdit[], fresh: FreshTabs): string[] {
+function readerRefusals(rules: TabRowRules, before: readonly SheetRow[], after: readonly AfterRow[], edits: readonly RowEdit[], fresh: FreshTabs): string[] {
   const readBefore = rules.read(before, fresh)
   const keptBefore = new Set(readBefore.facts.map((fact) => fact.sheetRow))
   const readAfter = rules.read(after, fresh)
   const keptAfter = new Set(readAfter.facts.map((fact) => fact.sheetRow))
   const reasonsOf = (reading: typeof readAfter, sheetRow: number): string[] => reading.problems.filter((problem) => problem.sheetRow === sheetRow).map((problem) => problem.reason)
-  const touched = new Set(edits.map((edit) => edit.sheetRow))
+  const touched = new Set(edits.filter((edit) => edit.before !== null).map((edit) => edit.sheetRow))
   const refusals: string[] = []
   for (const edit of edits) {
-    const reasons = reasonsOf(readAfter, edit.sheetRow)
     const where = edit.before === null ? `The new ${rules.noun.one}` : `Row ${edit.sheetRow}`
     if (edit.after === null) {
-      if (after.some((row) => row.sheetRow === edit.sheetRow) && reasons.length > 0) {
+      const reasons = reasonsOf(readAfter, edit.sheetRow)
+      if (!rules.deletesWholeRows && after.some((row) => row.sheetRow === edit.sheetRow) && reasons.length > 0) {
         refusals.push(`Row ${edit.sheetRow} also holds cells under other headers, so deleting the ${rules.noun.one} would leave a row the app reports. Delete the row in the Sheet.`)
       }
-    } else if (!keptAfter.has(edit.sheetRow)) {
+      continue
+    }
+    const reasons = reasonsOf(readAfter, edit.sheetRow)
+    if (!keptAfter.has(edit.sheetRow)) {
       refusals.push(`${where} would be left out: ${reasons.join(', ')}.`)
     } else {
       const known = edit.before === null ? [] : reasonsOf(readBefore, edit.sheetRow)
@@ -217,8 +272,8 @@ function readerRefusals(rules: TabRowRules, before: readonly SheetRow[], after: 
     }
   }
   for (const row of after) {
-    if (!touched.has(row.sheetRow) && keptBefore.has(row.sheetRow) && !keptAfter.has(row.sheetRow)) {
-      refusals.push(`Row ${row.sheetRow} would then be left out: ${reasonsOf(readAfter, row.sheetRow).join(', ')}.`)
+    if (row.readAs !== null && !touched.has(row.readAs) && keptBefore.has(row.readAs) && !keptAfter.has(row.sheetRow)) {
+      refusals.push(`Row ${row.readAs} would then be left out: ${reasonsOf(readAfter, row.sheetRow).join(', ')}.`)
     }
   }
   return refusals
@@ -247,6 +302,10 @@ function locate(tab: TabRead, rules: TabRowRules, sheetRow: number, cells: RowCe
   return holding.length === 0
     ? `${named.charAt(0).toUpperCase()}${named.slice(1)} is no longer on the ${rules.tab} tab as the app read it. Sync and look again.`
     : `${holding.length} rows of the ${rules.tab} tab hold ${named} (rows ${holding.map((candidate) => candidate.sheetRow).join(', ')}), so the app cannot tell which one is meant. Change it in the Sheet.`
+}
+
+function sameCells(left: RowCells, right: RowCells, rules: TabRowRules): boolean {
+  return holds({ sheetRow: 0, cells: left }, right, rules)
 }
 
 function holds(row: SheetRow, cells: RowCells, rules: TabRowRules): boolean {

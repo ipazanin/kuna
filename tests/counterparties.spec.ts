@@ -57,7 +57,7 @@ describe('topCounterparties', () => {
     { date: '2026-08-06', amount: -800, counterparty: 'Alex Example', iban: 'XX00FAKE0020', category: 'reimbursement-to-owner' },
     { date: '2026-08-07', amount: 500, counterparty: 'Alex Example', iban: 'XX00FAKE0020', category: 'owner-loan-repaid' },
     { date: '2026-08-08', amount: -5000, counterparty: 'Own savings', iban: 'XX00FAKE0099', category: 'internal-transfer' },
-    { date: '2026-09-09', amount: -95.49, counterparty: 'MODEL API', category: 'zzz-test' },
+    { date: '2026-09-09', amount: -87.36, counterparty: 'MODEL API', category: 'zzz-test' },
     { date: '2026-09-10', amount: -30, counterparty: 'Model API', category: 'ai-services' },
   ])
   const window = windowOf('2026-07-03', '2026-10-01')
@@ -67,7 +67,7 @@ describe('topCounterparties', () => {
     expect(top.map((payee) => [payee.label, payee.total.amount, payee.transactionCount])).toEqual([
       ['Alex Example', euros(1500), 1],
       ['ZUTA TISKARA', euros(300), 2],
-      ['Model API', euros(125.49), 2],
+      ['Model API', euros(117.36), 2],
     ])
   })
 

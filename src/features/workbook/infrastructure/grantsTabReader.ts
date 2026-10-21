@@ -1,4 +1,4 @@
-import { addMoney } from '../../../shared/money/money'
+import { addMoney, plainAmount } from '../../../shared/money/money'
 import { GRANT_RELEASES } from '../domain/grants'
 import type { Grant, GrantClawback, GrantParts, GrantRelease } from '../domain/grants'
 import {
@@ -8,7 +8,6 @@ import {
   optionalDate,
   optionalMoney,
   optionalPeriod,
-  plainAmount,
   positiveMoney,
   readRow,
   refuse,

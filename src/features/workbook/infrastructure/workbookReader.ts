@@ -397,23 +397,25 @@ function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, 
   return { date, amount, description: textOf(cells.description), category: slug, family: category.family, bucket: category.bucket, sheetRow: row.sheetRow }
 }
 
-function readLedger(
-  rows: readonly SheetRow[],
-  categories: readonly Category[],
-  problems: WorkbookProblem[],
-): Transaction[] {
+/** The transactions a `ledger` tab holds against these categories, and why the other rows were left out. */
+export function readLedgerTab(rows: readonly SheetRow[], categories: readonly Category[]): TabReading<Transaction> {
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
   const tabOrder = inTabOrder(rows)
-  const transactions: Transaction[] = []
+  const facts: Transaction[] = []
+  const problems: RowProblem[] = []
   tabOrder.forEach((row, position) => {
     const transaction = readLedgerRow(row, tabOrder.length - position, categoryBySlug)
     if (typeof transaction === 'string') {
-      problems.push({ tab: 'ledger', sheetRow: row.sheetRow, reason: transaction })
+      problems.push({ sheetRow: row.sheetRow, reason: transaction })
     } else {
-      transactions.push(transaction)
+      facts.push(transaction)
     }
   })
-  return transactions
+  return { facts, problems }
+}
+
+function readLedger(rows: readonly SheetRow[], categories: readonly Category[], problems: WorkbookProblem[]): Transaction[] {
+  return [...keep('ledger', readLedgerTab(rows, categories), problems)]
 }
 
 /** The transaction on one ledger row, or why the row cannot be read. */

@@ -135,8 +135,3 @@ export function requiredChoice<Choice extends string>(cells: Cells, column: stri
   if (word === '') refuse(`no ${noun}`)
   return (choices as readonly string[]).includes(word) ? (word as Choice) : refuse(`"${word}" is not a ${noun}. Use ${choices.join(', ')}`)
 }
-
-/** An amount written for a person to read in a problem, such as `-1234.50`, the same in every locale. */
-export function plainAmount(money: Money): string {
-  return (money / 100).toFixed(2)
-}

@@ -58,7 +58,7 @@ describe('starting scenarios on a Google Sheet without a scenarios tab', () => {
     const { store, sheets, writtenRanges } = await googleHarness(used)
     const receipt = await store.changeRows(SCENARIO_ROWS, { added: scenarioCells(drafts), changed: [], removed: [] }, true)
 
-    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'addSheet', 'batchUpdate', 'append', 'sheetIds', 'batchGet'])
+    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'updateSpreadsheet', 'batchUpdate', 'append', 'sheetIds', 'batchGet'])
     expect(writtenRanges()).toEqual(['scenarios!A1', 'scenarios!B1', 'scenarios!C1', 'scenarios!D1', 'scenarios!E1', 'scenarios!F1', 'scenarios!G1'])
     expect(sheets.grids.scenarios?.[0]).toEqual(HEADER)
     expect(sheets.grids.scenarios?.[3]).toEqual(['floor-salary-extras-2027', 'Floor salary, tax-free items and rent', 2027, 'salary_gross', 'floor', '', ''])

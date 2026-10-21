@@ -148,7 +148,7 @@ describe('split writes to a Google Sheet', () => {
     await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']])).rejects.toThrow('The workbook has no splits tab')
     await writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']], true)
 
-    expect(sheets.requests.filter((request) => request.kind === 'addSheet')).toEqual([{ kind: 'addSheet', title: 'splits' }])
+    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toEqual([{ kind: 'updateSpreadsheet', requests: [{ addSheet: { properties: { title: 'splits' } } }] }])
     expect(sheets.grids.splits?.[0]).toEqual(SPLIT_HEADER)
     expect(sheets.requests.find((request) => request.kind === 'append')).toMatchObject({ range: 'splits!A:G' })
     expect(store.state.workbook?.splits).toHaveLength(1)

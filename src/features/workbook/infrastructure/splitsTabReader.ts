@@ -1,9 +1,9 @@
-import { ZERO, addMoney } from '../../../shared/money/money'
+import { ZERO, addMoney, plainAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { holdsSplitKey } from '../domain/splits'
 import type { LedgerSplit, SplitKey, SplitPart } from '../domain/splits'
 import type { Category, Transaction } from '../domain/workbook'
-import { inTabOrder, isUnreadable, plainAmount, readRow, refuse, requiredDate, requiredMoney, slugOf, textOf } from './cellReading'
+import { inTabOrder, isUnreadable, readRow, refuse, requiredDate, requiredMoney, slugOf, textOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 

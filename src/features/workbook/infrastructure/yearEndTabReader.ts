@@ -1,4 +1,4 @@
-import { negateMoney, subtractMoney, sumMoney } from '../../../shared/money/money'
+import { negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { YEAR_END_STATEMENTS, yearEndLineDefinition } from '../domain/yearEnd'
 import type { YearEndFigure, YearEndFigureKind, YearEndLine, YearEndLineDefinition } from '../domain/yearEnd'
@@ -7,7 +7,6 @@ import {
   inTabOrder,
   isUnreadable,
   moneyOf,
-  plainAmount,
   readRow,
   refuse,
   requiredChoice,

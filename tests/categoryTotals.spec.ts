@@ -12,7 +12,7 @@ const rows = ledger([
   { date: '2026-08-01', amount: 1000, category: 'owner-loan-repaid' },
   { date: '2026-08-02', amount: -400, category: 'reimbursement-to-owner' },
   { date: '2026-08-03', amount: -5000, category: 'internal-transfer' },
-  { date: '2026-08-04', amount: -95.49, category: 'zzz-test' },
+  { date: '2026-08-04', amount: -87.36, category: 'zzz-test' },
   { date: '2026-10-01', amount: -1, category: 'travel' },
 ])
 const window = windowOf('2026-07-04', '2026-10-01')

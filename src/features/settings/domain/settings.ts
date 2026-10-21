@@ -6,6 +6,8 @@ import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { isIban } from '../../workbook/domain/iban'
+import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
+import type { ImportProfile } from '../../imports/domain/importProfile'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
@@ -37,6 +39,8 @@ export interface Settings {
   readonly billing: BillingTerms
   readonly invoicing: InvoicingTerms
   readonly companyFacts: CompanyFacts
+  /** How each bank's spreadsheet export reads, from the `import_profile_<name>` keys, in tab order. */
+  readonly importProfiles: readonly ImportProfile[]
 }
 
 /**
@@ -189,6 +193,7 @@ export const DEFAULT_SETTINGS: Settings = {
     vatPrinciple: 'invoice',
     depreciationDoubled: false,
   },
+  importProfiles: [],
 }
 
 /** `flagged_by` values the categoriser writes, which a person's label must not reuse. */
@@ -530,6 +535,21 @@ export function parseSettings(rows: readonly SettingRow[]): { readonly settings:
       problems.push({ sheetRow: row.sheetRow, reason: 'a value without a key' })
       continue
     }
+    if (key.startsWith(IMPORT_PROFILE_PREFIX)) {
+      if (seen.has(key)) {
+        problems.push({ sheetRow: row.sheetRow, reason: `"${key}" is already set above` })
+        continue
+      }
+      seen.add(key)
+      if (row.value === undefined || String(row.value).trim() === '') continue
+      const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), String(row.value))
+      if (typeof profile === 'string') {
+        problems.push({ sheetRow: row.sheetRow, reason: `${key}: ${profile}, so the profile is not offered` })
+      } else {
+        settings = { ...settings, importProfiles: [...settings.importProfiles, profile] }
+      }
+      continue
+    }
     const definition = DEFINITION_BY_KEY.get(key)
     if (definition === undefined) {
       problems.push({ sheetRow: row.sheetRow, reason: `"${key}" is not a setting this app knows, so it is kept but not used` })
@@ -561,11 +581,17 @@ export function parseSettings(rows: readonly SettingRow[]): { readonly settings:
 
 /** The key and value of every setting, in template order, as a `settings` tab holds them. */
 export function settingsTabEntries(settings: Settings): { readonly key: string; readonly value: SettingCell }[] {
-  return SETTING_DEFINITIONS.map((definition) => ({ key: definition.key, value: definition.valueOf(settings) }))
+  return [
+    ...SETTING_DEFINITIONS.map((definition) => ({ key: definition.key, value: definition.valueOf(settings) })),
+    ...settings.importProfiles.map((profile) => ({ key: profileKey(profile.name), value: profileValue(profile) })),
+  ]
 }
 
+const IMPORT_PROFILE_NOTE =
+  'How one bank\'s spreadsheet export imports, as word=column pairs: account, date, date_format, decimal, amount or debit and credit, and the optional balance, counterparty, counterparty_iban, description and reference. Import saves it.'
+
 export function settingNote(key: string): string | null {
-  return DEFINITION_BY_KEY.get(key)?.note ?? null
+  return key.startsWith(IMPORT_PROFILE_PREFIX) ? IMPORT_PROFILE_NOTE : (DEFINITION_BY_KEY.get(key)?.note ?? null)
 }
 
 export type SettingsField =

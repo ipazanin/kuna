@@ -1,6 +1,7 @@
 import { RULE_COLUMNS } from '../../../rules/domain/rule'
 import type { WorkbookSource } from '../../domain/workbook'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../workbookSnapshot'
+import { TEMPLATE_COLUMNS } from '../workbookTemplate'
 import { sheetRowsFromValues } from '../workbookSnapshot'
 
 /**
@@ -289,7 +290,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       [serialOf('2026-02-03'), 212.5, 'Train tickets to the client, paid privately', 'travel'],
       [serialOf('2026-08-21'), 89, 'Design tool, annual plan on the owner’s card', 'software-subscriptions'],
       [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies'],
-      [serialOf('2025-10-02'), -9.71, 'Private share of the paper and ink order', 'office-supplies'],
+      [serialOf('2025-10-02'), -13.45, 'Private share of the paper and ink order', 'office-supplies'],
     ],
     splits: splitsValues(ledger),
     ...planningValues(),
@@ -367,9 +368,9 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
       yearEnd('pl', 'profit-after-tax', 'Dobit razdoblja', 32184.71),
       yearEnd('balance', 'tangible-assets', 'Dugotrajna materijalna imovina', 3746.07),
       yearEnd('balance', 'receivables-trade', 'Potraživanja od kupaca', 14426.47),
-      yearEnd('balance', 'receivables-members-employees', 'Potraživanja od zaposlenika i članova poduzetnika', 3009.71),
+      yearEnd('balance', 'receivables-members-employees', 'Potraživanja od zaposlenika i članova poduzetnika', 3013.45),
       yearEnd('balance', 'receivables-state', 'Potraživanja od države', 2400.63),
-      yearEnd('balance', 'cash', 'Novac u banci i blagajni', 19367.67),
+      yearEnd('balance', 'cash', 'Novac u banci i blagajni', 19363.93),
       yearEnd('balance', 'prepaid-accrued-income', 'Plaćeni troškovi budućeg razdoblja', 218.33),
       yearEnd('balance', 'total-assets', 'Ukupno aktiva', 43168.88),
       yearEnd('balance', 'share-capital', 'Temeljni kapital', 2500),
@@ -396,7 +397,7 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
       yearEnd('grant', 'released-in-year', 'Prihod od potpore', 2050),
       yearEnd('grant', 'deferred-at-year-end', 'Odgođeni prihod od potpore', 2950),
       yearEnd('konto', '41200', 'Usluge telefona', 82.04, 'telecom'),
-      yearEnd('konto', '41810', 'Računovodstvene usluge', 1200, 'accounting'),
+      yearEnd('konto', '41810', 'Računovodstvene usluge', 1196, 'accounting'),
       yearEnd('konto', '41850', 'Softver i pretplate', 435.87, 'ai-services, software-subscriptions'),
       yearEnd('konto', '46500', 'Reprezentacija', 70, 'representation'),
     ],
@@ -579,7 +580,7 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
   }
   const all: Booking[] = [
     booking('2025-05-14', 'Alex Example', PAYEES.owner.iban, 'Share capital paid in', 2500, 'share-capital', undefined, 'human'),
-    booking('2025-05-20', 'Brightdesk Accounting', PAYEES.accountant.iban, 'Company registration', -450, 'accounting'),
+    booking('2025-05-20', 'Brightdesk Accounting', PAYEES.accountant.iban, 'Company registration', -445, 'accounting'),
     booking('2025-05-28', 'Laptop Store', '', 'Card purchase, laptop', -1899, 'equipment', undefined, 'human'),
   ]
   for (const month of MONTHS.slice(1)) {
@@ -632,7 +633,7 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
   all.push(
     booking('2025-08-18', PAYEES.insurer.name, PAYEES.insurer.iban, 'Annual policy', -348, 'health-insurance', undefined, 'human'),
     booking('2025-09-15', PAYEES.grantor.name, PAYEES.grantor.iban, 'Start-up grant', 5000, 'grant-income', undefined, 'human'),
-    booking('2025-10-02', 'PAPER & INK STORE', '', 'Card purchase', -45.12, 'office-supplies', undefined, 'human'),
+    booking('2025-10-02', 'PAPER & INK STORE', '', 'Card purchase', -53.86, 'office-supplies', undefined, 'human'),
     booking(`${LOSS_MONTH}-21`, 'Laptop Store', '', 'Card purchase, workstation', -3400, 'equipment', undefined, 'human'),
     booking('2025-12-03', PAYEES.owner.name, PAYEES.owner.iban, 'Loan to owner', -3000, 'owner-loan-out', undefined, 'human'),
     booking('2025-12-22', PAYEES.owner.name, PAYEES.owner.iban, 'Year-end bonus', -1000, 'salary-bonus', undefined, 'human'),
@@ -717,7 +718,7 @@ function ledgerValues(entries: readonly Booking[]): CellValue[][] {
   })
   const newestFirst = [...rows].reverse()
   return [
-    ['date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance', 'category', 'flagged_by', 'reference'],
+    TEMPLATE_COLUMNS.ledger.map((column) => column.name),
     ...newestFirst.map((row) => [
       serialOf(row.date),
       row.account,

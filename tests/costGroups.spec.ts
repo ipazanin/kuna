@@ -5,7 +5,7 @@ import { costGroups } from '../src/features/spending/domain/costGroups'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const rows = ledger([
-  { date: '2026-04-10', amount: -300, category: 'travel' },
+  { date: '2026-04-09', amount: -300, category: 'travel' },
   { date: '2026-04-12', amount: -100, category: 'payroll-tax' },
   { date: '2026-04-20', amount: 0, category: 'accounting' },
   { date: '2026-07-10', amount: -510, category: 'travel' },

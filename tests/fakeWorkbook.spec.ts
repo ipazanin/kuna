@@ -24,7 +24,7 @@ const window = ledgerWindowOf(workbook.transactions)
 describe('fake workbook', () => {
   it('reads cleanly through the app’s own reader, but for one private share left to move to the splits tab', () => {
     expect(workbook.problems.map((problem) => [problem.tab, problem.sheetRow])).toEqual([['owner-advances', 5]])
-    expect(workbook.privateSharesToMove.map((share) => [share.date, share.amount])).toEqual([['2025-10-02', 971]])
+    expect(workbook.privateSharesToMove.map((share) => [share.date, share.amount])).toEqual([['2025-10-02', 1345]])
     expect(window).not.toBeNull()
   })
 
@@ -40,8 +40,8 @@ describe('fake workbook', () => {
     expect(presented.splits.map((split) => [split.row.date, split.parts.map((part) => [part.amount, part.category, part.sheetRow])]).at(-1)).toEqual([
       '2025-10-02',
       [
-        [-3541, 'office-supplies', null],
-        [-971, 'owner-loan-out', null],
+        [-4041, 'office-supplies', null],
+        [-1345, 'owner-loan-out', null],
       ],
     ])
     expect(presented.transactions).toHaveLength(workbook.transactions.length + 4)

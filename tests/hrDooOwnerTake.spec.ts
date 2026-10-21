@@ -13,7 +13,7 @@ const transactions = withPackBuckets(
     { date: '2026-07-12', amount: -1100, category: 'salary-net' },
     { date: '2026-07-12', amount: -460, category: 'payroll-contributions' },
     { date: '2026-07-12', amount: -94, category: 'payroll-tax' },
-    { date: '2026-08-03', amount: -3000, category: 'owner-loan-out' },
+    { date: '2026-08-05', amount: -3000, category: 'owner-loan-out' },
     { date: '2026-08-12', amount: -1100, category: 'salary-net' },
     { date: '2026-08-20', amount: -212.5, category: 'reimbursement-to-owner' },
     { date: '2026-08-28', amount: -1650, category: 'corporate-income-tax' },

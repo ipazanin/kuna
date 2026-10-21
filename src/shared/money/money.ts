@@ -63,3 +63,8 @@ export function divideMoney(money: Money, divisor: number): Money {
 export function ratioOf(part: Money, whole: Money): number | null {
   return whole === 0 ? null : part / whole
 }
+
+/** An amount written for a person to read in a problem, such as `-1234.50`, the same in every locale. */
+export function plainAmount(money: Money): string {
+  return (money / 100).toFixed(2)
+}

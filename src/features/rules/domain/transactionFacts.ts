@@ -139,7 +139,7 @@ export function isForeignCurrency(
 }
 
 /**
- * The currency of a PDF card line, `POS KUPOVINA/10.12/GBP/824,85`, read as that field and not as a
+ * The currency of a PDF card line, `POS KUPOVINA/03.04/GBP/312,40`, read as that field and not as a
  * bare code anywhere in the text, which a merchant's name could carry.
  */
 export function postedCurrency(foldedDescription: string): string {

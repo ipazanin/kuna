@@ -133,7 +133,7 @@ const status = computed(() => (rowsShown.value.length === props.table.rows.lengt
             <td
               v-for="(cell, index) in row.cells"
               :key="index"
-              :class="[table.textColumns[index] ? 'text-start whitespace-normal' : 'figure text-end', cell.changed ? 'is-changed' : 'text-default']"
+              :class="[table.textColumns[index] ? 'cell-wraps text-start' : 'figure text-end', cell.changed ? 'is-changed' : 'text-default']"
             >
               {{ cell.wording }}<span v-if="cell.changed" class="sr-only">, changed</span>
             </td>
@@ -166,8 +166,11 @@ tr.is-focus > td {
   padding: 0.375rem 0.625rem;
 }
 
-.term-table td.whitespace-normal {
-  min-width: 10rem;
+/* In a narrow card a text cell wraps sooner, so the table fits without scrolling. */
+@container (min-width: 40rem) {
+  .term-table td.cell-wraps {
+    min-width: 10rem;
+  }
 }
 
 /* The rowspan cell sits in the group's first row only, so the group's top rule needs the row itself. */

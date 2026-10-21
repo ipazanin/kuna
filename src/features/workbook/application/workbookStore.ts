@@ -22,7 +22,7 @@ import { readFromGoogle } from './readFromGoogle'
 import type { GoogleSheet } from './readFromGoogle'
 import { planRowsChange, verifyRowsChange } from './tabRowWrites'
 import type { TabRowRules } from './tabRowWrites'
-import { WorkbookWriteRefused } from './workbookWriter'
+import { WorkbookWriteRefused, hasEdits } from './workbookWriter'
 import type { FreshTabs, TabEdits, WorkbookWriter } from './workbookWriter'
 import { planRulesChange, planSettingsChange, planVerdicts, verifyRulesChange, verifySettingsChange, verifyVerdicts } from './writePlans'
 import type { SettingChange } from './writePlans'
@@ -325,7 +325,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       const writer = current.meta.source === 'excel' ? localWorkbookWriter(current) : await ports.googleWriter(current.meta.id)
       const fresh = await writer.read(tabs)
       const planned = plan(fresh)
-      if (planned.edits.cells.length === 0 && planned.edits.appends.length === 0) {
+      if (!hasEdits(planned.edits)) {
         return planned
       }
       sent = true

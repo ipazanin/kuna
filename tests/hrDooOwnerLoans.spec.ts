@@ -137,9 +137,9 @@ describe('owner loans', () => {
   it('counts a payment from the owner on a reimbursement category as repaying the private costs it equals, so only the loans stay open', () => {
     const loans = book(
       [
-        { date: '2026-03-26', amount: -2000, category: 'owner-loan-out' },
+        { date: '2026-03-26', amount: -1700, category: 'owner-loan-out' },
         { date: '2026-04-21', amount: -12.4, category: 'private-cost-for-owner' },
-        { date: '2026-04-22', amount: -2000, category: 'owner-loan-out' },
+        { date: '2026-04-22', amount: -1700, category: 'owner-loan-out' },
         { date: '2026-04-23', amount: -30.1, category: 'private-cost-for-owner' },
         { date: '2026-04-24', amount: -18.25, category: 'private-cost-for-owner' },
         { date: '2026-05-12', amount: 42.5, category: 'reimbursement-from-owner' },
@@ -155,7 +155,7 @@ describe('owner loans', () => {
       [civil('2026-04-23'), 'repaid', civil('2026-05-12')],
       [civil('2026-04-24'), 'repaid', civil('2026-06-10')],
     ])
-    expect([loans.lent.amount, loans.repaid.amount, loans.outstanding.amount, loans.openCount]).toEqual([euros(4060.75), euros(60.75), euros(4000), 2])
+    expect([loans.lent.amount, loans.repaid.amount, loans.outstanding.amount, loans.openCount]).toEqual([euros(3460.75), euros(60.75), euros(3400), 2])
   })
 
   it('still matches a repayment to the private costs it equals once many loans are open', () => {
@@ -182,7 +182,7 @@ describe('owner loans', () => {
     const rows = withSplit(
       withPackBuckets(
         ledger([
-          { date: '2025-07-24', amount: -1000, category: 'owner-loan-out' },
+          { date: '2025-07-24', amount: -900, category: 'owner-loan-out' },
           { date: '2025-08-09', amount: -40, category: 'office-supplies', counterparty: 'Online shop' },
           { date: '2025-09-05', amount: 16.8, category: 'reimbursement-from-owner' },
           { date: '2025-09-05', amount: -8.4, category: 'reimbursement-to-owner' },
@@ -199,10 +199,10 @@ describe('owner loans', () => {
     const loans = ownerLoans(rows, WITH_PRIVATE_COSTS)
 
     expect(loans.loans.map((loan) => [loan.lentOn, loan.amount, loan.remaining, loan.repaidOn, loan.row.split?.note ?? null])).toEqual([
-      [civil('2025-07-24'), euros(1000), euros(1000), null, null],
+      [civil('2025-07-24'), euros(900), euros(900), null, null],
       [civil('2025-08-09'), euros(8.4), euros(0), civil('2025-09-05'), 'A book for the owner'],
     ])
-    expect([loans.lent.amount, loans.repaid.amount, loans.outstanding.amount, loans.openCount]).toEqual([euros(1008.4), euros(8.4), euros(1000), 1])
+    expect([loans.lent.amount, loans.repaid.amount, loans.outstanding.amount, loans.openCount]).toEqual([euros(908.4), euros(8.4), euros(900), 1])
   })
 
   it('lets a repayment close the fewest loans it equals exactly before the oldest open one', () => {

@@ -12,7 +12,7 @@ const rows = ledger([
   { date: '2026-07-20', amount: 3000, category: 'owner-loan-repaid' },
   { date: '2026-07-21', amount: -212.5, category: 'reimbursement-to-owner' },
   { date: '2026-07-22', amount: -5000, category: 'internal-transfer' },
-  { date: '2026-07-23', amount: -95.49, category: 'zzz-test' },
+  { date: '2026-07-23', amount: -87.36, category: 'zzz-test' },
   { date: '2026-09-01', amount: -10, category: 'ai-services' },
 ])
 

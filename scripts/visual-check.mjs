@@ -1,5 +1,5 @@
 /**
- * Renders every screen of the fake-mode build in real Chrome at eight widths, from 360 to 2560 px,
+ * Renders every screen of the fake-mode build in real Chrome at nine widths, from 360 to 2560 px,
  * in the dark and the light theme at 360, 430 and 1440 and in one theme at the others. It asserts
  * what a screenshot cannot: no horizontal overflow, no card whose content is wider than the card
  * outside the editors allowed to scroll sideways, no console errors (CSP violations included), no
@@ -23,7 +23,9 @@
  * It plans a category for 2027 on Forecast, edits, clears and undoes it, and plans a purchase in a
  * workbook without plan rows, which adds the plan tab to a Sheet without it. On Transactions it
  * splits a payment, edits the split, deletes it and undoes the delete, and splits one in a workbook
- * without the splits tab, and on Owner and Review it moves the private share to the splits tab.
+ * without the splits tab, and on Owner and Review it moves the private share to the splits tab. On
+ * Import it drops the sample camt.053 statement and the sample bank export, makes a profile for the
+ * export, reads each dry run, confirms it and undoes it, at 360, 430 and 1440 px.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -41,7 +43,8 @@ import * as XLSX from 'xlsx'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, invoiceFlow, invoiceRunFlow, moveShareFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, importCamtFlow, importTableFlow, invoiceFlow, invoiceRunFlow, moveShareFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { writeImportSamples } from './support/importSampleFiles.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
@@ -54,6 +57,7 @@ const BASE = process.argv[2] ?? 'http://localhost:4173/ledgerboard/'
 const VIEWPORTS = [
   { name: 'phone', width: 360, height: 780, cardFlow: true },
   { name: 'phone-large', width: 430, height: 932, cardFlow: true },
+  { name: 'small-tablet', width: 640, height: 960, theme: 'light' },
   { name: 'tablet', width: 768, height: 1024, alignedCards: true, theme: 'dark' },
   { name: 'tablet-wide', width: 1024, height: 1366, alignedCards: true, theme: 'light' },
   { name: 'laptop', width: 1280, height: 800, alignedCards: true, theme: 'dark' },
@@ -76,6 +80,7 @@ const CARD_SELECTOR = '.rounded-card, .gallery-frame'
 const SCREENS = [
   { name: 'overview', hash: '#/', title: 'Overview', charts: 3, shows: 'A typical month', cards: false },
   { name: 'transactions', hash: '#/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics', cards: false },
+  { name: 'import', hash: '#/import', title: 'Import', charts: 0, shows: 'Drop a statement file here', cards: false },
   { name: 'trends', hash: '#/trends', title: 'Trends', charts: 3, shows: 'Cumulative net', cards: false },
   { name: 'spending', hash: '#/spending', title: 'Spending', charts: 0, shows: 'Northwind' },
   { name: 'period-review', hash: '#/period-review', title: 'Period review', charts: 1, shows: 'Revenue' },
@@ -374,6 +379,7 @@ function writeImportFile() {
 }
 
 const IMPORT_FILE = writeImportFile()
+const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 
 const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars'] })
 
@@ -537,6 +543,8 @@ const FLOWS = [
   },
   { name: 'move-share', hash: '#/owner', title: 'Owner', run: moveShareFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'move-share-review', hash: '#/review', title: 'Review', run: moveShareFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'import-camt', hash: '#/import', title: 'Import', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'import-table', hash: '#/import', title: 'Import', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
 ]
 const MODES = [
   { name: 'google', query: '' },
