@@ -14,6 +14,7 @@ import { readAssets } from './assetsTabReader'
 import { readBillingPlan } from './billingPlanTabReader'
 import { booleanOf, dateOf, inTabOrder, isUnreadable, moneyOf, optionalPeriod, readRow, slugListOf, slugOf, textOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
+import { readDismissals } from './dismissedTabReader'
 import { readGrants } from './grantsTabReader'
 import { readPlan } from './planTabReader'
 import { readScenarios } from './scenariosTabReader'
@@ -64,6 +65,7 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     yearEndLines: keep('year-end', readYearEnd(snapshot['year-end'], categorySlugs), problems),
     planLines: keep('plan', readPlan(snapshot.plan, categorySlugs, new Set(scenarios.scenarios.map((scenario) => scenario.slug))), problems),
     payScenarios: scenarios.scenarios,
+    dismissals: keep('dismissed', readDismissals(snapshot.dismissed), problems),
     settings,
     problems,
   }

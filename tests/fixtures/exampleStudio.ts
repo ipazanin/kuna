@@ -127,6 +127,7 @@ export function exampleStudio(changes: Partial<Workbook> = {}): Workbook {
     yearEndLines: [],
     planLines: [],
     payScenarios: [],
+    dismissals: [],
     settings: { ...DEFAULT_SETTINGS, companyFacts: { ...DEFAULT_SETTINGS.companyFacts, companyRegistered: civil('2025-03-03') } },
     problems: [],
     ...changes,

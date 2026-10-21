@@ -178,10 +178,10 @@ function accountOf(row: ListedRow): string {
 </template>
 
 <style scoped>
-/* The page scrolls under the phone's top app bar, so a heading sticks just below it. */
+/* The page scrolls under the bars that stay at the top, the top bar and the tab row, so a heading sticks just below them. */
 .group-heading {
   position: sticky;
-  top: calc(3.5rem + env(safe-area-inset-top));
+  top: var(--sticky-band);
   z-index: 1;
   border-bottom: 1px solid var(--border-default);
   background: var(--surface-elevated);

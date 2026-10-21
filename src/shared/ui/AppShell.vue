@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
 
+import { useStickyBandPart } from '../layout/stickyBand'
 import { useMediaQuery, usePhoneLayout } from '../layout/viewport'
 import AppBrand from './AppBrand.vue'
 import ScreenNavigation from './ScreenNavigation.vue'
@@ -46,6 +47,8 @@ function keepFocusAfterNavigation(event: Event): void {
   }
 }
 
+useStickyBandPart(useTemplateRef<HTMLElement>('topBar'))
+
 const screenTitle = computed(() => props.navigation.find((entry) => entry.to === route.path)?.label ?? props.title)
 </script>
 
@@ -63,6 +66,7 @@ const screenTitle = computed(() => props.navigation.find((entry) => entry.to ===
 
     <header
       v-else
+      ref="topBar"
       class="top-bar sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4"
     >
       <USlideover

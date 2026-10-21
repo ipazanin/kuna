@@ -39,7 +39,6 @@ export const SPLIT_ROWS: TabRowRules = {
   columns: COLUMNS,
   required: COLUMNS.filter((column) => column !== 'note'),
   caseless: ['account', 'category'],
-  dates: ['date'],
   reads: ['ledger', 'categories', 'assets'],
   read: (rows, fresh) => {
     const categoryRows = fresh.categories?.rows ?? []

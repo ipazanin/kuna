@@ -9,13 +9,13 @@ import { decodeFilters, encodeFilters, hasFilterKeys, withoutFilterKeys } from '
 import { DEFAULT_FILTERS } from '../domain/filterState'
 import type { FilterState } from '../domain/filterState'
 
-const ROUTE_PATHS: Readonly<Record<DrillRoute, string>> = {
-  overview: '/',
-  transactions: '/transactions',
-  trends: '/trends',
-  spending: '/spending',
-  'period-review': '/period-review',
-  cash: '/cash',
+/** The page each drill opens, with the tab it opens on when that is not the page's default tab. */
+const ROUTE_PATHS: Readonly<Record<DrillRoute, { readonly path: string; readonly tab?: string }>> = {
+  overview: { path: '/' },
+  transactions: { path: '/transactions' },
+  trends: { path: '/trends' },
+  spending: { path: '/spending' },
+  'period-review': { path: '/period-review' },
 }
 
 // One filter state for the whole app, mirrored into the route query so every view is linkable.
@@ -78,14 +78,17 @@ async function setFilters(next: FilterState): Promise<void> {
 
 /**
  * The drill's screen with the narrowed filters in its query. The period is always written out, so
- * following the link sets the filters even where they come out at their defaults.
+ * following the link sets the filters even where they come out at their defaults. The drill opens
+ * on the tab its route names, so the tab of the page it starts from never carries over.
  */
 function drillLocation(drill: DrillTarget): RouteLocationRaw | null {
   const narrowed = applyDrill(filters.value, drill.filters)
   if (narrowed === null) {
     return null
   }
-  return { path: ROUTE_PATHS[drill.route], query: queryFor(requireRouter(), narrowed, { explicitPeriod: true }) }
+  const target = ROUTE_PATHS[drill.route]
+  const { tab: _sourceTab, ...query } = queryFor(requireRouter(), narrowed, { explicitPeriod: true })
+  return { path: target.path, query: target.tab === undefined ? query : { ...query, tab: target.tab } }
 }
 
 function queryFor(router: Router, state: FilterState, options: { explicitPeriod?: boolean } = {}): Record<string, string | string[]> {

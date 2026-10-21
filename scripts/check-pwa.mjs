@@ -186,11 +186,11 @@ try {
   await page.goto(`${appUrl}?offline-check=1#/transactions`)
   await waitForTitle(page, 'Transactions')
   await page.waitForFunction(() => document.body.innerText.includes('Northwind Analytics'))
-  await page.goto(`${appUrl}?offline-check=2#/cash`)
-  await waitForTitle(page, 'Cash')
+  await page.goto(`${appUrl}?offline-check=2#/trends`)
+  await waitForTitle(page, 'Trends')
   await page.waitForSelector('.chart-body canvas')
   await page.reload()
-  await waitForTitle(page, 'Cash')
+  await waitForTitle(page, 'Trends')
   await page.waitForSelector('.chart-body canvas')
   assert.deepEqual(errors, [], 'Offline navigation must not produce browser errors.')
   console.log('PASS: offline reload shows the imported workbook, lazy screens and charts included')
@@ -219,7 +219,7 @@ try {
   await page.bringToFront()
   await clickText(page, '[data-testid="update-prompt"] button', 'Reload')
   await page.waitForFunction(() => window.pwaCheckDocument === undefined, { polling: 100 })
-  await waitForTitle(page, 'Cash')
+  await waitForTitle(page, 'Trends')
   await probe.waitForFunction(async (scope) => {
     const registration = await navigator.serviceWorker.getRegistration(scope)
     return registration?.active?.state === 'activated' && !registration.waiting

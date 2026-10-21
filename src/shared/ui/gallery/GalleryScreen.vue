@@ -13,10 +13,14 @@ import AppCard from '../AppCard.vue'
 import ChartCard from '../ChartCard.vue'
 import type { ChartPointSelection } from '../ChartCard.vue'
 import ChartLegend from '../ChartLegend.vue'
+import DonutCard from '../DonutCard.vue'
+import type { DonutPart } from '../DonutCard.vue'
 import DrillLink from '../DrillLink.vue'
 import KpiTile from '../KpiTile.vue'
 import MoneyText from '../MoneyText.vue'
 import PageHeader from '../PageHeader.vue'
+import PageTabs from '../PageTabs.vue'
+import { formatWholeMoney } from '../../money/moneyFormat'
 import { civilDate } from '../../calendar/civilDate'
 import { anchorWindow } from '../../calendar/ledgerWindow'
 import AccountPicker from '../../../features/filters/presentation/AccountPicker.vue'
@@ -107,6 +111,25 @@ const charts = {
   costsByCategory: costsByCategory(tokens),
   everyEuroEarned: everyEuroEarned(tokens),
 }
+
+/** Made-up shares of a year's income, coloured by bucket as every chart colours them. */
+const EURO_PARTS: readonly DonutPart[] = [
+  { key: 'operating', label: 'Operating', value: 2_412_000, colour: '--bucket-operating', to: transactionsLink },
+  { key: 'taxes', label: 'Taxes', value: 1_176_000, colour: '--bucket-taxes', to: transactionsLink },
+  { key: 'owner-pay', label: 'Owner pay', value: 2_058_000, colour: '--bucket-owner-pay', to: transactionsLink },
+  { key: 'kept', label: 'Kept', value: 2_940_000, colour: '--chart-deemphasis', to: null },
+]
+const TAX_PARTS: readonly DonutPart[] = [
+  { key: 'contributions', label: 'Payroll contributions', value: 486_000, colour: '--series-3', to: transactionsLink },
+  { key: 'corporate', label: 'Corporate income tax', value: 412_500, colour: '--series-7', to: transactionsLink },
+  { key: 'payroll-tax', label: 'Payroll tax', value: 98_400, colour: '--series-1', to: transactionsLink },
+  { key: 'dividend', label: 'Dividend tax', value: 31_000, colour: '--series-5', to: transactionsLink },
+]
+const GALLERY_TABS = [
+  { value: 'first', label: 'Queue', count: 3 },
+  { value: 'second', label: 'Rules' },
+  { value: 'third', label: 'History' },
+]
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
 
@@ -261,6 +284,7 @@ const columns: TableColumn<SampleTransaction>[] = [
       <div class="flex flex-wrap gap-3">
         <div class="gallery-frame"><SyncStatus state="first-run" compact /></div>
         <div class="gallery-frame"><SyncStatus state="ready" synced-at="2026-10-16T06:04:00Z" compact /></div>
+        <div class="gallery-frame"><SyncStatus state="syncing" synced-at="2026-10-16T06:04:00Z" compact /></div>
         <div class="gallery-frame"><SyncStatus state="error" error-message="Google did not answer." compact /></div>
       </div>
     </section>
@@ -398,9 +422,56 @@ const columns: TableColumn<SampleTransaction>[] = [
           </template>
         </ChartCard>
 
+        <ChartCard
+          title="A collapsible chart"
+          description="Made-up month-end cash for the gallery, in a chart that folds away."
+          subtitle="A reference chart a screen opens folded"
+          collapse-id="gallery.chart"
+          summary="Cash rose in 9 of the last 12 months"
+          :option="charts.cashAtMonthEnd"
+          :height="200"
+        />
+
         <ChartCard title="Loading" description="A chart while it reloads." subtitle="A refetch keeps the last frame, faded" :option="charts.cashAtMonthEnd" loading :height="200" />
         <ChartCard title="Empty" description="No rows in the period." subtitle="No rows in the period" :option="{}" empty :height="200" />
       </div>
+    </section>
+
+    <section class="gallery-section">
+      <h2 class="gallery-heading">Donuts</h2>
+      <div class="grid gap-4 xl:grid-cols-2">
+        <DonutCard
+          title="Every euro earned, last 12 months"
+          description="Made-up split of a year's income for the gallery: operating 28%, taxes 14%, owner pay 24%, kept 34%."
+          subtitle="Where each euro of income went"
+          :parts="EURO_PARTS"
+          :total="formatWholeMoney(8_586_000)"
+          total-label="income"
+        />
+        <DonutCard
+          title="Tax by type"
+          description="Made-up taxes paid in a year for the gallery, by type."
+          subtitle="Taxes paid in the year"
+          :parts="TAX_PARTS"
+          :total="formatWholeMoney(1_027_900)"
+          total-label="paid"
+          collapse-id="gallery.donut"
+          summary="4 kinds of tax, €10,279 paid"
+        >
+          <template #below>
+            <p class="mt-2 text-xs text-muted">Less <span class="figure">{{ formatWholeMoney(64_000) }}</span> refunded, so the year's taxes come to <span class="figure">{{ formatWholeMoney(963_900) }}</span>.</p>
+          </template>
+        </DonutCard>
+      </div>
+    </section>
+
+    <section class="gallery-section">
+      <h2 class="gallery-heading">Page tabs</h2>
+      <PageTabs :tabs="GALLERY_TABS" label="Gallery tabs">
+        <template #first><p class="text-sm text-toned">The first tab is the default, so it stays out of the address.</p></template>
+        <template #second><p class="text-sm text-toned">Picking a tab writes it into the address, so Back steps through tabs.</p></template>
+        <template #third><p class="text-sm text-toned">A count shows as a badge, and a screen reader hears it with the label.</p></template>
+      </PageTabs>
     </section>
 
     <section class="gallery-section">

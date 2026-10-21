@@ -14,12 +14,11 @@ describe('headline', () => {
     ])
     const months = monthlyProfitAndLoss(rows, windowOf('2026-08-01', '2026-10-02'))
 
-    expect(headline(months, 24.6)).toMatchObject({
+    expect(headline(months)).toMatchObject({
       month: '2026-09',
       cameIn: { amount: euros(7126) },
       wentOut: { amount: euros(2817) },
       loss: null,
-      cashLasts: 'about 2 years',
     })
   })
 
@@ -31,12 +30,12 @@ describe('headline', () => {
     ])
     const months = monthlyProfitAndLoss(rows, windowOf('2026-09-01', '2026-10-02'))
 
-    expect(headline(months, 3.2)?.loss).toBe(euros(1500))
+    expect(headline(months)?.loss).toBe(euros(1500))
   })
 
   it('has nothing to say before the first complete month', () => {
     const rows = ledger([{ date: '2026-10-02', amount: 50, category: 'revenue' }])
-    expect(headline(monthlyProfitAndLoss(rows, windowOf('2026-10-02', '2026-10-02')), null)).toBeNull()
+    expect(headline(monthlyProfitAndLoss(rows, windowOf('2026-10-02', '2026-10-02')))).toBeNull()
   })
 })
 

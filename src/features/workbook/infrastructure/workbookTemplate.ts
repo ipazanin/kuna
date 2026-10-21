@@ -4,6 +4,7 @@ import type { Settings } from '../../settings/domain/settings'
 import { ASSET_GROUPS } from '../domain/assets'
 import type { DefinedBucket } from '../domain/bucket'
 import { GRANT_RELEASES } from '../domain/grants'
+import { SUGGESTION_KINDS } from '../domain/dismissals'
 import { DIRECTOR_BASES } from '../domain/ownerPayScenarios'
 import { VAT_TREATMENTS } from '../domain/vatTreatment'
 import { YEAR_END_STATEMENTS } from '../domain/yearEnd'
@@ -234,6 +235,15 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'category', note: 'A category from the categories tab. The part counts there, with its own timing. Required.' },
     { name: 'note', note: 'What this part paid for. Optional.' },
   ],
+  dismissed: [
+    { name: 'kind', note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}, the two lists of confirmed rows no rule repeats on Review. Required.` },
+    {
+      name: 'key',
+      note: 'The counterparty the suggestion groups its rows by: iban: and the IBAN, or name: and the name in lower case without accents. An exception adds | and the id of the rule it differs from. Required.',
+    },
+    { name: 'category', note: "The category most of the group's rows were in when it was dismissed. Optional." },
+    { name: 'dismissed_on', note: 'The day it was dismissed, as a date cell. Optional.' },
+  ],
 }
 
 interface CategorySeed {
@@ -333,6 +343,7 @@ export function emptyWorkbookTabs(): WorkbookTabs {
     plan: [],
     scenarios: [],
     splits: [],
+    dismissed: [],
   }
 }
 

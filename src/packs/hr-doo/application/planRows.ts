@@ -84,7 +84,6 @@ export const PLAN_ROWS: TabRowRules = {
   columns: COLUMNS,
   required: ['year', 'month', 'item', 'amount'],
   caseless: ['item', 'amount', 'group'],
-  dates: ['date'],
   reads: ['categories', 'scenarios'],
   read: readFresh,
   refusals: planRefusals,

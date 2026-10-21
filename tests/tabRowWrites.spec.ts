@@ -11,7 +11,7 @@ import { WorkbookWriteRefused } from '../src/features/workbook/application/workb
 import type { RowAt, RowCells } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { civil, euros } from './fixtures/ledger'
-import { cellData, excelHarness, forgetCaches, googleHarness, ruleRow, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { cellData, dateFormat, excelHarness, forgetCaches, googleHarness, ruleRow, sentRequests, textFormat, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 
@@ -158,6 +158,37 @@ describe.each([
       [9, 'paper', ''],
     ])
     expect(store.state.workbook?.problems).toEqual([])
+  })
+
+  it('refuses to put a deleted row back while a later change deleted a row above it, until that change is undone', async () => {
+    const { store } = await harnessOf(used, everyTab())
+    const slugs = () => store.state.snapshot?.categories.map((row) => row.cells.category)
+
+    await add(store, CATEGORY_ROWS, STATIONERY)
+    await remove(store, CATEGORY_ROWS, 8)
+    await remove(store, CATEGORY_ROWS, 7)
+    const [above, first] = store.state.writes
+
+    await expect(store.undo(first!)).rejects.toThrow(
+      new WorkbookWriteRefused('A later change to the categories tab added or deleted rows above the ones this would put back, so they would land on the wrong rows. Undo the later change first.'),
+    )
+    expect(slugs()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing'])
+
+    await store.undo(above!)
+    await store.undo(first!)
+    expect(slugs()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing', 'courier', 'stationery'])
+  })
+
+  it('refuses for good once the row above came from undoing an earlier change', async () => {
+    const { store } = await harnessOf(used, everyTab())
+
+    await add(store, CATEGORY_ROWS, STATIONERY)
+    await remove(store, CATEGORY_ROWS, 7)
+    await remove(store, CATEGORY_ROWS, 7)
+    const [second, earlier] = store.state.writes
+    await store.undo(earlier!)
+
+    await expect(store.undo(second!)).rejects.toThrow('Put them back in the workbook by hand.')
   })
 
   it('puts a deleted row back on its own row when rows below it were deleted since', async () => {
@@ -333,10 +364,26 @@ describe('row writes to a Google Sheet', () => {
 
     expect(sentRequests(sheets)).toEqual([
       { appendCells: { sheetId: invoices, rows: [{ values: ['2-1-26', 'acme', 'October work', 4200, 46326, '', '', ''].map(cellData) }], fields: 'userEnteredValue' } },
+      dateFormat(invoices, 2, 4),
       { deleteDimension: { range: { sheetId: invoices, dimension: 'ROWS', startIndex: 1, endIndex: 2 } } },
     ])
     expect(writtenRanges()).toEqual([])
     expect(sheets.grids.invoices?.map((row) => row[0])).toEqual(['number', '2-1-26'])
+    expect(sheets.formats.invoices?.[1]?.[4]).toBe('yyyy-mm-dd')
+  })
+
+  it('gives every date it writes the date format, a changed date and a year-end date line too', async () => {
+    const { store, sheets } = await googleHarness(used, everyTab())
+    const ids = await sheets.sheetIds()
+
+    await edit(store, ASSET_ROWS, 2, { in_use: 45812, note: 'Moved desks' })
+    await add(store, YEAR_END_ROWS, { year: 2025, statement: 'tax', line: 'filed-on', amount: 46139 }, { year: 2025, statement: 'pl', line: 'material-costs', amount: 6242.17 })
+
+    expect(sentRequests(sheets).filter((request) => 'repeatCell' in request)).toEqual([dateFormat(ids.get('assets')!, 1, 2), dateFormat(ids.get('year-end')!, 3, 4)])
+    expect(sheets.formats.assets?.[1]?.[2]).toBe('yyyy-mm-dd')
+    expect(sheets.formats.assets?.[1]?.[9]).toBeUndefined()
+    expect(sheets.formats['year-end']?.[3]?.[4]).toBe('yyyy-mm-dd')
+    expect(sheets.formats['year-end']?.[4]?.[4]).toBeUndefined()
   })
 
   it('sends the cells, the deletions and the new rows of one write in one batchUpdate, in that order', async () => {
@@ -364,7 +411,8 @@ describe('row writes to a Google Sheet', () => {
     sheets.requests.length = 0
     await store.undo(store.state.writes[0]!)
 
-    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['updateCells', 'deleteDimension', 'insertDimension', 'copyPaste', 'copyPaste', 'updateCells'])
+    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['updateCells', 'deleteDimension', 'insertDimension', 'copyPaste', 'copyPaste', 'updateCells', 'repeatCell', 'repeatCell', 'repeatCell'])
+    expect(sentRequests(sheets).slice(6)).toEqual([0, 1, 2].map((column) => textFormat(categories, 6, column, 2)))
     expect(sentRequests(sheets)[2]).toEqual({ insertDimension: { range: { sheetId: categories, dimension: 'ROWS', startIndex: 6, endIndex: 8 }, inheritFromBefore: false } })
     expect(sheets.grids.categories?.map((row) => row[0])).toEqual(['category', 'equipment', 'ai-services', 'revenue', 'postage', 'printing', 'courier', 'stationery', 'paper'])
   })

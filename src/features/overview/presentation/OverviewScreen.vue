@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
+import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../shared/calendar/monthLabel'
@@ -8,36 +8,36 @@ import { chartTokens } from '../../../shared/charts/chartTokens'
 import { currencyUnitName, formatDecimal, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
+import DonutCard from '../../../shared/ui/DonutCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import { balanceSeries, latestBalances } from '../../cash/domain/balances'
+import { TOTAL_SERIES, accountColours, balanceChart } from '../../cash/presentation/cashChart'
 import { useFilters } from '../../filters/application/filterStore'
-import { drillToTransactions } from '../../filters/domain/drillTarget'
 import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { useSettings } from '../../settings/application/useSettings'
 import { costLabelsInSentence, lineLabel, shownLines } from '../../settings/domain/profitAndLossLabels'
-import { categoryTotals } from '../../spending/domain/categoryTotals'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { monthlyProfitAndLoss } from '../../trends/domain/monthlyProfitAndLoss'
 import { ROLLING_3_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSeries } from '../../trends/presentation/profitAndLossChart'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
-import { needsReview } from '../../workbook/domain/needsReview'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useWorkbook } from '../../workbook/application/workbookStore'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
-import { netOwed, ownerAdvances } from '../../../packs/hr-doo/domain/ownerAdvances'
-import { ownerLoans } from '../../../packs/hr-doo/domain/ownerLoans'
 import { euroSplit } from '../domain/euroSplit'
 import { headline } from '../domain/headline'
 import { runway } from '../domain/runway'
 import { recentChange, windowAverages } from '../domain/windowAverages'
-import { categoryBarsChart, euroSplitChart, splitLegend, splitParts } from './overviewCharts'
+import { euroDonut } from './overviewCharts'
+import { waitingJobs } from './waitingForYou'
 import WindowComparison from './WindowComparison.vue'
 import type { WindowRow } from './WindowComparison.vue'
 
 const ledger = useFilteredLedger()
+const { state } = useWorkbook()
 const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
@@ -46,6 +46,7 @@ const EMPHASISED_LINES: readonly ProfitAndLossLine[] = ['net', 'ownerEarns']
 
 const LONG_MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
 const LONG_MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 /** "September" this year, "December 2025" before it. */
 function monthName(month: MonthKey): string {
@@ -53,28 +54,36 @@ function monthName(month: MonthKey): string {
   return (date.getUTCFullYear() === new Date().getFullYear() ? LONG_MONTH : LONG_MONTH_AND_YEAR).format(date)
 }
 
+function runwayText(months: number | null): string {
+  return months === null ? 'No costs' : formatDecimal(months)
+}
+
+/** The jobs come from the whole workbook, whatever the filters say, as the menu's review count does. */
+const waiting = computed(() => (ledger.value === null || state.workbook === null ? [] : waitingJobs(ledger.value.workbook, state.workbook.transactions)))
+
 const overview = computed(() => {
   const current = ledger.value
   if (current === null) {
     return null
   }
-  const { workbook, scoped, scopedAdvances, profitAndLossRows, accountRows, window } = current
+  const { workbook, profitAndLossRows, accountRows, window } = current
   const shown = settings.value
   const tokens = chartTokens()
   const series = profitAndLossSeries(shown)
-  const parts = splitParts(shown)
   const costs = costLabelsInSentence(shown)
   const averages = windowAverages(profitAndLossRows, window)
   const balances = latestBalances(accountRows)
   const recentRunway = runway(balances.cashOnHand, averages.last3)
+  const yearRunway = runway(balances.cashOnHand, averages.last12)
   const months = monthlyProfitAndLoss(profitAndLossRows, window)
   const lastTwelve = months.filter((month) => month.complete).slice(-12)
-  const lastTwelveAndMonthSoFar = months.slice(-13)
-  const cashMonths = balanceSeries(accountRows, window).months.slice(-12)
+  const balanceMonths = balanceSeries(accountRows, window)
+  const cashMonths = balanceMonths.months.slice(-13)
   const lastMonthEnd = [...cashMonths].reverse().find((month) => month.complete) ?? null
   const cashChange = lastMonthEnd === null ? null : balances.cashOnHand.amount - lastMonthEnd.total.amount
-  const reviewCount = scoped.filter(needsReview).length
   const sinceLabel = averages.allTime === null ? null : `All time, since ${averages.allTime.span.from}`
+  const known = workbook.accounts.map((account) => account.slug)
+  const colours = accountColours([...known, ...balanceMonths.accounts.filter((account) => !known.includes(account))], tokens)
 
   const columns = [averages.last3, averages.last12, averages.allTime].flatMap((column) => (column === null ? [] : [column]))
   const columnLabels = ['Last 3 months', 'Last 12 months', ...(sinceLabel === null ? [] : [sinceLabel])]
@@ -88,12 +97,10 @@ const overview = computed(() => {
       recentChange: recentChange(averages.last3.lines[line].perMonth, averages.last12.lines[line].perMonth),
     }))
 
-  const operating = categoryTotals(profitAndLossRows, { preset: 'l12' }, window).filter((total) => total.bucket === 'operating')
   const costChange = averages.last3.lines.cost.perMonth - averages.last12.lines.cost.perMonth
-
-  const said = headline(months, recentRunway.months)
-  const owed = netOwed(ownerLoans(scoped, workbook.categories), ownerAdvances(scopedAdvances, scoped, workbook.categories), workbook.categories)
-  const ownerMoves = workbook.categories.some((category) => category.roles.includes('owner-loan-out')) || scopedAdvances.length > 0
+  const said = headline(months)
+  const euro = euroSplit(averages.last12.totals, averages.last12.period)
+  const closedCount = balances.accounts.filter((account) => account.closed).length
   return {
     headline:
       said === null
@@ -103,14 +110,13 @@ const overview = computed(() => {
             cameIn: { amount: said.cameIn.amount, to: drillLocation(said.cameIn.drill) },
             wentOut: { amount: said.wentOut.amount, to: drillLocation(said.wentOut.drill) },
             loss: said.loss,
-            cashLasts: said.cashLasts,
           },
     tiles: [
       {
         label: 'Cash on hand',
         value: formatWholeMoney(balances.cashOnHand.amount),
         to: drillLocation(balances.cashOnHand.drill),
-        trend: cashMonths.map((month) => month.total.amount),
+        trend: cashMonths.slice(-12).map((month) => month.total.amount),
         ...(cashChange === null || lastMonthEnd === null
           ? {}
           : { delta: { change: cashChange, text: formatWholeMoney(cashChange, 'always'), comparison: `since the end of ${monthLabel(lastMonthEnd.month)}` } }),
@@ -137,53 +143,52 @@ const overview = computed(() => {
         label: 'Runway',
         value: recentRunway.months === null ? 'No costs' : `${formatDecimal(recentRunway.months)} months`,
         to: drillLocation(recentRunway.monthlyCost.drill),
-        caption: "At the last 3 months' cost",
-        definition: 'Cash on hand divided by the monthly costs: how long the company runs if no more income arrives.',
+        caption: `At the 3-month cost, ${runwayText(yearRunway.months)} at the 12-month cost`,
+        definition:
+          'Cash on hand divided by the monthly costs: how long the company runs if no more income arrives. The figure takes the last three complete months, the caption the last twelve.',
       },
     ],
-    owed:
-      !shown.ownerPayModule || !ownerMoves
-        ? null
-        : {
-            amount: Math.abs(owed.amount),
-            who: owed.amount > 0 ? 'The owner owes the company' : owed.amount < 0 ? 'The company owes the owner' : null,
-          },
-    review: {
-      count: reviewCount,
-      to: drillLocation(drillToTransactions({ period: { preset: 'all' }, needsReview: true })),
-    },
     comparison,
     columnLabels,
     unit: currencyUnitName(),
     costs,
-    operatingLabel: shown.bucketLabels.operating,
     monthlyLegend: [
       ...profitAndLossLegend(series),
       { label: ROLLING_3_NET.name, colour: 'var(--chart-ink)', mark: 'line' as const },
       { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
     ],
-    splitLegend: splitLegend(parts),
-    split: euroSplitChart(
-      [
-        { label: 'Last 3 months', split: euroSplit(averages.last3.totals, averages.last3.span.monthCount, averages.last3.period) },
-        { label: 'Last 12 months', split: euroSplit(averages.last12.totals, averages.last12.span.monthCount, averages.last12.period) },
-        ...(averages.allTime === null || sinceLabel === null
-          ? []
-          : [{ label: sinceLabel, split: euroSplit(averages.allTime.totals, averages.allTime.span.monthCount, averages.allTime.period) }]),
-      ],
-      parts,
-      tokens,
-    ),
-    monthly: profitAndLossChart(lastTwelveAndMonthSoFar, tokens, { series, netLine: ROLLING_3_NET }),
-    operating: categoryBarsChart(operating, tokens, shown.bucketLabels.operating, names.value.category),
-    operatingCount: operating.length,
+    monthly: profitAndLossChart(months.slice(-13), tokens, { series, netLine: ROLLING_3_NET }),
+    balance: balanceChart(cashMonths, balanceMonths.accounts, colours, tokens, names.value.account),
+    balanceLegend: [
+      ...balanceMonths.accounts.map((account) => ({ label: names.value.account(account), colour: colours.get(account) ?? 'var(--chart-ink)' })),
+      { label: TOTAL_SERIES, colour: 'var(--chart-ink)', mark: 'line' as const },
+      { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
+    ],
+    euro: {
+      ...euroDonut(euro, shown, drillLocation),
+      total: formatWholeMoney(euro.shortfall ?? euro.whole),
+      totalLabel: euro.basis === 'income' ? 'income' : 'more out than in',
+      loss: euro.basis === 'cost',
+    },
+    accounts: balances.accounts.map((account) => ({
+      account: account.account,
+      name: names.value.account(account.account),
+      colour: colours.get(account.account) ?? 'var(--chart-ink)',
+      balance: account.balance.amount,
+      to: drillLocation(account.balance.drill),
+      asOf: dayFormat.format(new Date(account.asOf)),
+      firstSeen: dayFormat.format(new Date(account.firstSeen)),
+      count: account.transactionCount,
+      closed: account.closed,
+    })),
+    accountsSummary: `${balances.accounts.length} ${balances.accounts.length === 1 ? 'account' : 'accounts'}${closedCount > 0 ? `, ${closedCount} closed` : ''}`,
   }
 })
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Overview" description="How the company is doing, and what a normal month looks like." />
+    <PageHeader title="Overview" description="How the company is doing, and what waits for you." />
     <LedgerGate>
       <template v-if="ledger && overview">
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
@@ -195,32 +200,21 @@ const overview = computed(() => {
           <DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" precision="whole" /></DrillLink>
           went out<template v-if="overview.headline.loss !== null">, a loss of
             <MoneyText :cents="overview.headline.loss" precision="whole" class="text-negative" /></template>.
-          <template v-if="overview.headline.cashLasts">At this pace the cash lasts {{ overview.headline.cashLasts }}.</template>
         </p>
 
-        <p v-if="overview.review.count > 0" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="review-notice">
-          <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
-          <span>
-            {{ overview.review.count }} {{ overview.review.count === 1 ? 'row waits' : 'rows wait' }} for a category check.
-            <DrillLink :to="overview.review.to" in-prose class="text-highlighted">Review them</DrillLink>
-          </span>
-        </p>
+        <AppCard v-if="waiting.length" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
+          <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
+            <li v-for="job in waiting" :key="job.key" class="waiting-line" :data-job="job.key">
+              <span class="waiting-dot" :class="job.tone" aria-hidden="true" />
+              <span class="min-w-0 flex-1 text-sm text-toned">{{ job.text }}</span>
+              <DrillLink :to="job.link.to" :label="`${job.text}, open ${job.link.label}`" class="shrink-0 text-sm font-medium text-highlighted">{{ job.link.label }}</DrillLink>
+            </li>
+          </ul>
+        </AppCard>
 
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiTile v-for="tile in overview.tiles" :key="tile.label" v-bind="tile" />
         </div>
-
-        <p v-if="overview.owed" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="net-owed">
-          <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
-          <span>
-            <template v-if="overview.owed.who">
-              {{ overview.owed.who }} <MoneyText :cents="overview.owed.amount" precision="whole" class="font-medium text-highlighted" />, loans and private
-              payments together.
-            </template>
-            <template v-else>Nothing is owed either way between the owner and the company.</template>
-            <DrillLink to="/owner" in-prose class="ms-1 text-highlighted">See who owes what</DrillLink>
-          </span>
-        </p>
 
         <div class="wide-pair">
           <AppCard
@@ -246,22 +240,50 @@ const overview = computed(() => {
             </DrillChartCard>
 
             <DrillChartCard
-              :chart="overview.split"
-              :title="`Every ${overview.unit} earned`"
-              :subtitle="`Where each ${overview.unit} of income went, per window.`"
-              :definition="`Each bar is one window and adds up to 100%. In a loss there is nothing kept, so the bar splits every ${overview.unit} spent instead.`"
-              :height="180"
+              :chart="overview.balance"
+              title="Balance at month end"
+              subtitle="Last 12 months and the month so far, each account stacked with the total on top"
+              :height="280"
+              :phone-height="240"
             >
-              <template #legend><ChartLegend :entries="overview.splitLegend" /></template>
+              <template #legend><ChartLegend :entries="overview.balanceLegend" /></template>
             </DrillChartCard>
 
-            <DrillChartCard
-              :chart="overview.operating"
-              :title="`${overview.operatingLabel} by category`"
-              subtitle="Last 12 complete months"
-              :empty="overview.operatingCount === 0"
-              :height="Math.max(180, overview.operatingCount * 30 + 40)"
+            <DonutCard
+              :title="`Every ${overview.unit} earned, last 12 months`"
+              :subtitle="overview.euro.loss ? `Costs ran above income, so the ring splits every ${overview.unit} spent.` : `Where each ${overview.unit} of income went.`"
+              :definition="`What is kept is income less ${overview.costs}. In a loss nothing is kept, so the ring splits every ${overview.unit} spent instead.`"
+              :description="overview.euro.description"
+              :parts="overview.euro.parts"
+              :total="overview.euro.total"
+              :total-label="overview.euro.totalLabel"
             />
+
+            <AppCard
+              title="Accounts"
+              class="xl:col-span-2"
+              collapse-id="overview.accounts"
+              :summary="overview.accountsSummary"
+              start-collapsed
+              subtitle="Each account at its newest balance"
+              data-testid="overview-accounts"
+            >
+              <ul class="account-list mt-3 border-t border-default">
+                <li v-for="account in overview.accounts" :key="account.account" class="account-row" :class="{ 'account-closed': account.closed }">
+                  <div class="min-w-0">
+                    <p class="flex flex-wrap items-center gap-2 text-sm text-toned">
+                      <span class="size-2.5 shrink-0 rounded-[2px]" :style="{ background: account.colour }" aria-hidden="true" />
+                      {{ account.name }}
+                      <UBadge v-if="account.closed" label="Closed" color="neutral" variant="subtle" size="sm" />
+                    </p>
+                    <p class="mt-0.5 text-xs text-muted">As of {{ account.asOf }}. {{ account.count }} rows since {{ account.firstSeen }}.</p>
+                  </div>
+                  <DrillLink :to="account.to" :label="`${account.name}, every row`" class="shrink-0">
+                    <span class="figure text-base font-semibold whitespace-nowrap text-highlighted">{{ formatWholeMoney(account.balance) }}</span>
+                  </DrillLink>
+                </li>
+              </ul>
+            </AppCard>
           </div>
         </div>
       </template>
@@ -280,6 +302,54 @@ const overview = computed(() => {
 .headline-figure {
   font-weight: 600;
   color: var(--ink-strong);
+}
+
+.waiting-line {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.5rem;
+}
+
+.waiting-line + .waiting-line {
+  border-top: 1px solid var(--border-default);
+}
+
+.waiting-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border-radius: 50%;
+}
+
+.waiting-dot.warning {
+  background: var(--tone-warning);
+}
+
+.waiting-dot.negative {
+  background: var(--tone-negative);
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.account-row + .account-row {
+  border-top: 1px solid var(--border-default);
+}
+
+.account-closed :deep(.text-highlighted) {
+  color: var(--ink-muted);
+}
+
+@media (min-width: 640px) {
+  .account-row {
+    padding-inline: 1.25rem;
+  }
 }
 
 @media (max-width: 639px) {

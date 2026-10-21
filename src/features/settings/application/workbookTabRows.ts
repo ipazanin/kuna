@@ -106,7 +106,6 @@ export const CATEGORY_ROWS: TabRowRules = {
   columns: columnsOf('categories'),
   required: ['category', 'family', 'bucket'],
   caseless: ['category', 'family', 'bucket', 'vat'],
-  dates: [],
   reads: ['ledger', 'rules', 'owner-advances', 'splits', 'year-end', 'plan'],
   read: (rows) => readCategoryRows(rows),
   refusals: (check, fresh) => {
@@ -134,7 +133,6 @@ export const ACCOUNT_ROWS: TabRowRules = {
   columns: columnsOf('accounts'),
   required: ['account', 'iban'],
   caseless: ['account', 'iban', 'currency'],
-  dates: [],
   reads: ['ledger', 'clients'],
   read: (rows) => readAccountRows(rows, null),
   refusals: (check, fresh) =>
@@ -152,7 +150,6 @@ export const CLIENT_ROWS: TabRowRules = {
   columns: columnsOf('clients'),
   required: ['client', 'iban'],
   caseless: ['client', 'iban'],
-  dates: [],
   reads: ['accounts', 'invoices', 'outgoing-plan', 'settings'],
   read: (rows) => readClientRows(rows),
   refusals: (check, fresh) => {
@@ -171,7 +168,6 @@ export const ASSET_ROWS: TabRowRules = {
   columns: columnsOf('assets'),
   required: ['asset', 'bought', 'cost_net', 'group'],
   caseless: ['group', 'funded_by'],
-  dates: ['bought', 'in_use', 'disposed'],
   reads: ['grants'],
   read: (rows, fresh) => readAssets(rows, new Set(readGrants(fresh.grants?.rows ?? []).facts.map((grant) => grant.slug))),
   refusals: () => [],
@@ -184,7 +180,6 @@ export const GRANT_ROWS: TabRowRules = {
   columns: columnsOf('grants'),
   required: ['grant', 'received', 'amount'],
   caseless: ['grant', 'release', 'clawback_year1', 'clawback_year2'],
-  dates: ['received', 'period_from', 'period_to', 'employment_required_until'],
   reads: ['assets'],
   read: (rows) => readGrants(rows),
   refusals: (check, fresh) =>
@@ -206,7 +201,6 @@ export const YEAR_END_ROWS: TabRowRules = {
   columns: columnsOf('year-end'),
   required: ['year', 'statement', 'line', 'amount'],
   caseless: ['statement', 'line'],
-  dates: [],
   reads: ['categories'],
   read: (rows, fresh) => readYearEndLines(rows, definedCategorySlugs(fresh.categories?.rows ?? [])),
   refusals: () => [],

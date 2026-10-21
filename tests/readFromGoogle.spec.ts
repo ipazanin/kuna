@@ -52,6 +52,16 @@ describe('readFromGoogle', () => {
     expect(calls).toEqual(['token', 'picker'])
   })
 
+  it('asks a phone to open the Picker once back from Google when no Sheet is given, and to read the Sheet when one is', async () => {
+    const ports = portsWith({})
+
+    await readFromGoogle(ports, null)
+    await readFromGoogle(ports, BOOKS)
+
+    expect(ports.requestAccessToken).toHaveBeenNthCalledWith(1, 'pick')
+    expect(ports.requestAccessToken).toHaveBeenNthCalledWith(2, 'sync')
+  })
+
   it('opens the Picker when no Sheet is given and reads the one picked', async () => {
     const picked = { id: 'sheet-2', name: 'Picked' }
     const ports = portsWith({ pickSpreadsheet: vi.fn(async () => picked) })

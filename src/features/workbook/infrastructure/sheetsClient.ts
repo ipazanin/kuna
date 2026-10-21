@@ -66,7 +66,13 @@ export interface GridCoordinate {
   readonly columnIndex: number
 }
 
-/** The requests the app sends: a new tab, rows put in or taken out, the formats and dropdowns copied onto new rows, and cell values. */
+/** How a cell shows a number or text: a date as `yyyy-mm-dd`, or text as typed. */
+export interface NumberFormat {
+  readonly type: 'DATE' | 'TEXT'
+  readonly pattern: string
+}
+
+/** The requests the app sends: a new tab, rows put in or taken out, the formats and dropdowns copied onto new rows, cell values and cell number formats. */
 export type SpreadsheetRequest =
   | { readonly addSheet: { readonly properties: { readonly sheetId: number; readonly title: string } } }
   | { readonly insertDimension: { readonly range: RowSpan & { readonly dimension: 'ROWS' }; readonly inheritFromBefore: boolean } }
@@ -81,6 +87,13 @@ export type SpreadsheetRequest =
     }
   | { readonly updateCells: { readonly start: GridCoordinate; readonly rows: readonly RowData[]; readonly fields: 'userEnteredValue' } }
   | { readonly appendCells: { readonly sheetId: number; readonly rows: readonly RowData[]; readonly fields: 'userEnteredValue' } }
+  | {
+      readonly repeatCell: {
+        readonly range: GridSpan
+        readonly cell: { readonly userEnteredFormat: { readonly numberFormat: NumberFormat } }
+        readonly fields: 'userEnteredFormat.numberFormat'
+      }
+    }
 
 export interface GridSpan {
   readonly sheetId: number

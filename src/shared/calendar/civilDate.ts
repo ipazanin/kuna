@@ -17,6 +17,12 @@ export function civilDate(year: number, month: number, day: number): CivilDate {
   return fromUtc(utc.getTime())
 }
 
+/** The day it is on this device. */
+export function today(): CivilDate {
+  const now = new Date()
+  return civilDate(now.getFullYear(), now.getMonth() + 1, now.getDate())
+}
+
 /** A Sheets serial date such as 46310. A fraction is a time of day, which is dropped. */
 export function civilDateFromSerial(serial: number): CivilDate {
   if (!Number.isFinite(serial)) {

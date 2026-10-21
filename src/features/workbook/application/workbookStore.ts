@@ -93,6 +93,35 @@ export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): b
   return write.kind !== 'rules' && write.kind !== 'settings' && !isUndo(write) && !wasUndone(write, writes)
 }
 
+/**
+ * Why Undo would put a write's deleted rows back on the wrong row, or null when it would not. Undo
+ * puts each one back on the row it stood on, which is only right while every row above it is the
+ * same, so a later write of the session that added or deleted a row above them, and is still in
+ * place, stops it. A later write and its own undo cancel out.
+ */
+function undoOrderRefusal(write: SessionWrite, writes: readonly SessionWrite[]): string | null {
+  if (write.kind !== 'rows' || write.receipt.removed.length === 0) {
+    return null
+  }
+  const tab = write.rules.tab
+  const deleted = write.receipt.removed.map((row) => row.sheetRow)
+  // Where the first row below every deleted row stands once they are gone. A row deleted from there
+  // down leaves the places alone, and so does one added further down. One added on that very row
+  // may belong above a deleted row, so it counts.
+  const firstBelow = Math.max(...deleted) - deleted.length + 1
+  const later = writes.find((other) => {
+    if (other.id <= write.id || other.workbookId !== write.workbookId || other.kind !== 'rows' || other.rules.tab !== tab || wasUndone(other, writes)) return false
+    const undid = other.undid === null ? undefined : writes.find((candidate) => candidate.kind === 'rows' && candidate.receipt === other.undid)
+    if (undid !== undefined && undid.id > write.id) return false
+    return other.receipt.added.some((row) => row.sheetRow <= firstBelow) || other.receipt.removed.some((row) => row.sheetRow < firstBelow)
+  })
+  if (later === undefined) {
+    return null
+  }
+  const reason = `A later change to the ${tab} tab added or deleted rows above the ones this would put back, so they would land on the wrong rows.`
+  return canUndo(later, writes) ? `${reason} Undo the later change first.` : `${reason} Put them back in the workbook by hand.`
+}
+
 export interface WorkbookState {
   /** Null until a cached copy, a sync or an import supplies one. */
   readonly workbook: Workbook | null
@@ -177,7 +206,7 @@ export interface WorkbookStore {
    * or null when nothing differed.
    */
   changeRows(rules: TabRowRules, change: TabRowsChange, addMissingTab?: boolean): Promise<TabRowsReceipt | null>
-  /** Puts back what a write of this session changed, through that write's own checks. Refused for a write `canUndo` rules out. */
+  /** Puts back what a write of this session changed, through that write's own checks. Refused for a write `canUndo` rules out, and while `undoOrderRefusal` gives a reason. */
   undo(write: SessionWrite): Promise<void>
 }
 
@@ -465,9 +494,14 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
         case 'ledger':
           await writeVerdicts(undoOf(write.receipt), write.receipt)
           return
-        case 'rows':
+        case 'rows': {
+          const refusal = undoOrderRefusal(write, state.writes)
+          if (refusal !== null) {
+            throw new WorkbookWriteRefused(refusal)
+          }
           await writeRows(write.rules, undoOfRows(write.receipt), write.receipt)
           return
+        }
       }
     },
   }

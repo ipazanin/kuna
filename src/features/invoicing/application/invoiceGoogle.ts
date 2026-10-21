@@ -12,7 +12,7 @@ export async function invoiceDrive(): Promise<InvoiceDrive> {
     const { fakeInvoiceGoogleSession } = await import('../infrastructure/fake/fakeInvoiceGoogle')
     return fakeInvoiceGoogleSession().drive
   }
-  return googleInvoiceDrive(currentAccessToken()?.value ?? (await requestToken()).value)
+  return googleInvoiceDrive(currentAccessToken()?.value ?? (await requestToken('none')).value)
 }
 
 /** Gmail drafts with this page's Gmail token, or with a new grant, which opens Google's popup. Call it first in a click handler. */

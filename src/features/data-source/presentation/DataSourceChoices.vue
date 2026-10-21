@@ -5,11 +5,13 @@ import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
+import { useMediaQuery } from '../../../shared/layout/viewport'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import { downloadTemplate, emptyLocalWorkbook } from '../../excel/application/workbookFiles'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { WorkbookSource } from '../../workbook/domain/workbook'
+import { REDIRECT_SIGN_IN_QUERY } from '../../workbook/infrastructure/googleRedirect'
 import { XLSX_MIME_TYPE } from '../../workbook/infrastructure/workbookFile'
 
 /** The three places a workbook can come from. Each action changes the workbook on screen. */
@@ -25,6 +27,8 @@ const emit = defineEmits<{
 
 const store = useWorkbook()
 const toast = useToast()
+
+const signInByRedirect = useMediaQuery(REDIRECT_SIGN_IN_QUERY)
 
 const pickedFile = ref<File | null>(null)
 const startingEmpty = ref(false)
@@ -72,16 +76,20 @@ async function getTemplate(): Promise<void> {
           settings tab, and only in the Sheet you pick.
         </p>
       </div>
-      <UButton
-        :label="current === 'google' ? 'Choose a Sheet' : 'Connect'"
-        icon="i-lucide-log-in"
-        color="neutral"
-        variant="outline"
-        :loading="store.state.status === 'syncing'"
-        :disabled="store.state.status === 'syncing'"
-        class="choice-action"
-        @click="connectGoogle"
-      />
+      <div class="choice-action">
+        <UButton
+          :label="current === 'google' ? 'Choose a Sheet' : 'Connect'"
+          icon="i-lucide-log-in"
+          color="neutral"
+          variant="outline"
+          :loading="store.state.status === 'syncing'"
+          :disabled="store.state.status === 'syncing'"
+          @click="connectGoogle"
+        />
+        <p v-if="signInByRedirect" class="mt-2 max-w-56 text-xs text-muted" data-testid="redirect-sign-in-note">
+          Google may ask about cookies first, then brings you back here.
+        </p>
+      </div>
     </li>
 
     <li class="choice">

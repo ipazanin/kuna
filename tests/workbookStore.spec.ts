@@ -31,6 +31,7 @@ function tabsOf(amounts: number[]): WorkbookTabs {
     plan: [],
     scenarios: [],
     splits: [],
+    dismissed: [],
   }
 }
 

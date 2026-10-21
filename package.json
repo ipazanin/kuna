@@ -13,7 +13,6 @@
     "typecheck": "vue-tsc -b --noEmit",
     "check": "npm run typecheck && npm test",
     "check:visual": "node --import ./scripts/support/typescriptResolve.mjs scripts/visual-check.mjs",
-    "parity:figures": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-figures.mjs",
     "parity:rules": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-rules.mjs",
     "parity:payroll": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-payroll.mjs",
     "parity:year-end": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-year-end.mjs",

@@ -14,7 +14,7 @@ export interface TabRead {
 
 export type FreshTabs = Partial<Record<WorkbookTab, TabRead>>
 
-/** The tabs whose rows the Workbook, Transactions, Owner, Receivables, Billing plan, Forecast, Pay scenarios and Import screens add, change and delete. */
+/** The tabs whose rows the Workbook, Transactions, Review, Owner, Receivables, Billing plan, Forecast and Pay scenarios screens add, change and delete. */
 export type RowTab =
   | 'ledger'
   | 'categories'
@@ -29,6 +29,7 @@ export type RowTab =
   | 'plan'
   | 'scenarios'
   | 'splits'
+  | 'dismissed'
 
 /** The tabs the app writes. */
 export type WritableTab = 'rules' | 'settings' | RowTab
@@ -125,5 +126,6 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   plan: templateColumns('plan'),
   scenarios: templateColumns('scenarios'),
   splits: templateColumns('splits'),
+  dismissed: templateColumns('dismissed'),
 }
 

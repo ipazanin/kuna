@@ -77,3 +77,9 @@ function readChartTokens(style: CSSStyleDeclaration): ChartTokens {
     ageing: [1, 2, 3, 4, 5].map((step) => read(`--ageing-${step}`)),
   }
 }
+
+/** Any colour token of tokens.css, such as `--bucket-taxes`, as the active theme sets it, for a canvas that cannot read CSS variables. */
+export function tokenColour(token: string): string {
+  void activeTheme.value
+  return getComputedStyle(document.documentElement).getPropertyValue(token).trim()
+}

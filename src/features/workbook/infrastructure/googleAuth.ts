@@ -9,6 +9,17 @@ import {
   saveAccountEmail,
 } from './googleSession'
 import type { StoredAccessToken } from './googleSession'
+import {
+  GMAIL_COMPOSE,
+  GMAIL_NOT_GRANTED,
+  REDIRECT_SIGN_IN_QUERY,
+  authorizationUrl,
+  redirectFragmentOf,
+  savePendingRedirect,
+  settleRedirect,
+  takePendingRedirect,
+} from './googleRedirect'
+import type { RedirectGrant, RedirectResume, RedirectReturn } from './googleRedirect'
 import { loadScript } from './loadScript'
 
 const IDENTITY_SERVICES_SRC = 'https://accounts.google.com/gsi/client'
@@ -32,13 +43,62 @@ export function prepareGoogleIdentity(): Promise<void> {
   return loadScript(IDENTITY_SERVICES_SRC)
 }
 
+/** Whether this device signs in by moving the whole tab to Google and back, instead of in Google's popup. */
+export function signsInByRedirect(): boolean {
+  return window.matchMedia(REDIRECT_SIGN_IN_QUERY).matches
+}
+
+/**
+ * Moves the tab to Google, remembering a one-time `state`, the grant, what to do once back and the
+ * hash route to return to. The promise never settles, since the page goes away.
+ */
+function redirectToGoogle(grant: RedirectGrant, scope: string, resume: RedirectResume): Promise<never> {
+  const state = crypto.randomUUID()
+  savePendingRedirect({ state, grant, resume, route: window.location.hash.startsWith('#/') ? window.location.hash : '#/' })
+  window.location.assign(
+    authorizationUrl({
+      clientId: googleConfig().clientId,
+      redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}`,
+      scope,
+      state,
+      includeGrantedScopes: grant === 'gmail',
+      loginHint: loadAccountEmail(),
+    }),
+  )
+  return new Promise<never>(() => {})
+}
+
+/**
+ * Takes Google's answer from the address the tab came back to, before the router reads it: keeps
+ * the token as the popup's would be kept, and puts the route the person left back in the address.
+ * Null when the address holds no answer.
+ */
+export function takeGoogleRedirect(): RedirectReturn | null {
+  const fragment = redirectFragmentOf(window.location.hash)
+  if (fragment === null) {
+    return null
+  }
+  const answer = settleRedirect(fragment, takePendingRedirect(), Date.now())
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${answer.route}`)
+  if (answer.kind === 'granted' && answer.grant === 'gmail') {
+    gmailToken = { value: answer.token.value, expiresAt: answer.token.expiresAt }
+  } else if (answer.kind === 'granted') {
+    keepSignIn(answer.token)
+  }
+  return answer
+}
+
 /**
  * Asks Google for an access token. Call it from a click handler: Firefox blocks the consent popup
  * unless it opens during a user gesture. `prompt: ''` shows a popup only when Google needs one, and
  * the remembered email as the login hint skips the account chooser. The token carries only these
- * scopes, never a Gmail grant given since, because this one is kept in `localStorage`.
+ * scopes, never a Gmail grant given since, because this one is kept in `localStorage`. On a phone
+ * the tab goes to Google instead, and `resume` says what the app does once back.
  */
-export async function requestToken(): Promise<StoredAccessToken> {
+export async function requestToken(resume: RedirectResume): Promise<StoredAccessToken> {
+  if (signsInByRedirect()) {
+    return redirectToGoogle('sign-in', SCOPES, resume)
+  }
   const { clientId } = googleConfig()
   await prepareGoogleIdentity()
   const requestedAt = Date.now()
@@ -64,14 +124,17 @@ export async function requestToken(): Promise<StoredAccessToken> {
     })
     client.requestAccessToken()
   })
-  saveAccessToken(token)
-  if (loginHint === null) {
-    void rememberAccountEmail(token)
-  }
+  keepSignIn(token)
   return token
 }
 
-const GMAIL_COMPOSE = 'https://www.googleapis.com/auth/gmail.compose'
+function keepSignIn(token: StoredAccessToken): void {
+  const hadHint = loadAccountEmail() !== null
+  saveAccessToken(token)
+  if (!hadHint) {
+    void rememberAccountEmail(token)
+  }
+}
 
 let gmailToken: { readonly value: string; readonly expiresAt: number } | null = null
 
@@ -83,9 +146,13 @@ export function currentGmailToken(): string | null {
 /**
  * Asks Google for `gmail.compose` on top of what was granted, the first time with a consent popup.
  * Call it from a click handler, as `requestToken`. The token stays in this page's memory only,
- * since it can send mail as well as save drafts.
+ * since it can send mail as well as save drafts. On a phone the tab goes to Google, and the action
+ * that asked starts again once back, with the token this new page holds.
  */
 export async function requestGmailToken(): Promise<string> {
+  if (signsInByRedirect()) {
+    return redirectToGoogle('gmail', GMAIL_COMPOSE, 'none')
+  }
   const { clientId } = googleConfig()
   await prepareGoogleIdentity()
   const requestedAt = Date.now()
@@ -103,7 +170,7 @@ export async function requestGmailToken(): Promise<string> {
           return
         }
         if (!google.accounts.oauth2.hasGrantedAllScopes(response, GMAIL_COMPOSE)) {
-          reject(new Error('Gmail access was not granted, so no draft can be saved. Leave "Create the mail draft" off to write the mail yourself.'))
+          reject(new Error(GMAIL_NOT_GRANTED))
           return
         }
         gmailToken = { value: response.access_token, expiresAt: requestedAt + Number(response.expires_in) * 1000 }

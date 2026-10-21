@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
+import { useStickyBandPart } from '../../../../shared/layout/stickyBand'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { fold } from '../../../../shared/text/fold'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -72,17 +73,13 @@ const linkedRule = computed(() => (typeof route.query.rule === 'string' ? route.
 const linkedMissing = computed(() => linkedRule.value !== null && !rules.value.some((rule) => rule.id === linkedRule.value))
 
 const filterBar = ref<HTMLElement | null>(null)
+useStickyBandPart(filterBar)
 
 /** Scrolls the linked rule to just below the sticky filter bar and moves focus to it, so a screen reader reads it next. */
 function showLinkedRule(ruleId: string): void {
   const card = document.getElementById(`rule-${ruleId}`)
-  if (card === null) {
-    return
-  }
-  const bar = filterBar.value
-  const barBottom = bar === null ? 0 : Number.parseFloat(getComputedStyle(bar).top || '0') + bar.offsetHeight
-  window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - barBottom - 12 })
-  card.focus({ preventScroll: true })
+  card?.scrollIntoView({ block: 'start' })
+  card?.focus({ preventScroll: true })
 }
 
 watch(

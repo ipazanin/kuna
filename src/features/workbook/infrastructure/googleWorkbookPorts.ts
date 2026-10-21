@@ -9,7 +9,7 @@ import type { WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
 /** The real Google side of a sync: GIS for the token, the Picker, and one Sheets batchGet. */
 export const googleWorkbookPorts: GoogleWorkbookPorts = {
   liveAccessToken: () => currentAccessToken()?.value ?? null,
-  requestAccessToken: async () => (await requestToken()).value,
+  requestAccessToken: async (then) => (await requestToken(then)).value,
   async pickSpreadsheet(accessToken) {
     const [picked] = await pickFromDrive('spreadsheet', accessToken)
     return picked === undefined ? null : { id: picked.id, name: picked.name }
@@ -46,6 +46,6 @@ export async function readSnapshotFrom(sheets: SheetsValues, sheet: GoogleSheet)
 
 /** The Sheets values API for the picked Sheet, with a token: the kept one, or a new one, which needs the click that asked for the write. */
 export async function sheetsValuesForWriting(spreadsheetId: string): Promise<SheetsValues> {
-  const accessToken = currentAccessToken()?.value ?? (await requestToken()).value
+  const accessToken = currentAccessToken()?.value ?? (await requestToken('none')).value
   return sheetsValuesFor(accessToken, spreadsheetId)
 }

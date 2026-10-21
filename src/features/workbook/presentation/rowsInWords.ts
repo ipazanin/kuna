@@ -2,6 +2,7 @@ import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
 import { cellText } from '../../../shared/text/cellText'
 import type { RowNoun, TabRowRules } from '../application/tabRowWrites'
 import type { RowCells, TabRowsReceipt } from '../domain/rowChanges'
+import { isDateCell } from '../infrastructure/cellFormats'
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
@@ -26,9 +27,10 @@ export function rowsChangeInWords(rules: TabRowRules, receipt: TabRowsReceipt, u
   return `${said.charAt(0).toUpperCase()}${said.slice(1)}`
 }
 
-/** A cell as a person reads it: a date column's serial number as a day, a blank as "blank", text in quotes. */
-export function cellInWords(rules: TabRowRules, column: string, cell: RowCells[string] | undefined): string {
-  if (rules.dates.includes(column) && typeof cell === 'number' && Number.isFinite(cell)) {
+/** A cell of the row as a person reads it: a date's serial number as a day, a blank as "blank", text in quotes. */
+function cellInWords(rules: TabRowRules, column: string, cells: RowCells): string {
+  const cell = cells[column]
+  if (typeof cell === 'number' && Number.isFinite(cell) && isDateCell(rules.tab, column, (name) => cells[name])) {
     return dayFormat.format(new Date(civilDateFromSerial(cell)))
   }
   const text = cellText(cell)
@@ -39,5 +41,5 @@ export function cellInWords(rules: TabRowRules, column: string, cell: RowCells[s
 export function changedCellsInWords(rules: TabRowRules, before: RowCells, after: RowCells): { readonly column: string; readonly from: string; readonly to: string }[] {
   return rules.columns
     .filter((column) => cellText(before[column]) !== cellText(after[column]))
-    .map((column) => ({ column, from: cellInWords(rules, column, before[column]), to: cellInWords(rules, column, after[column]) }))
+    .map((column) => ({ column, from: cellInWords(rules, column, before), to: cellInWords(rules, column, after) }))
 }

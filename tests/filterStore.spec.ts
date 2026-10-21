@@ -13,7 +13,7 @@ let unbind: () => void
 async function routerAt(location: string): Promise<Router> {
   const created = createRouter({
     history: createMemoryHistory(),
-    routes: ['/', '/transactions', '/spending', '/cash'].map((path) => ({ path, component: SCREEN })),
+    routes: ['/', '/transactions', '/spending', '/owner'].map((path) => ({ path, component: SCREEN })),
   })
   await created.push(location)
   await created.isReady()
@@ -50,10 +50,10 @@ describe('filter store', () => {
   it('keeps the filters across a plain navigation to another screen', async () => {
     await useFilters().setFilters({ ...DEFAULT_FILTERS, accounts: ['erste'] })
 
-    await router.push('/cash')
+    await router.push('/owner')
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(router.currentRoute.value.fullPath).toBe('/cash?acc=erste')
+    expect(router.currentRoute.value.fullPath).toBe('/owner?acc=erste')
     expect(useFilters().filters.value.accounts).toEqual(['erste'])
   })
 
@@ -64,6 +64,20 @@ describe('filter store', () => {
 
     expect(router.currentRoute.value.path).toBe('/transactions')
     expect(router.currentRoute.value.query).toEqual({ p: 'l3', acc: 'erste', b: 'taxes' })
+  })
+
+  it('opens a drill on its page without the tab of the page it starts from', async () => {
+    await router.push('/spending?tab=over-time&year=2026')
+    await useFilters().setFilters(DEFAULT_FILTERS)
+
+    expect(useFilters().drillLocation({ route: 'transactions', filters: { buckets: ['taxes'] } })).toEqual({
+      path: '/transactions',
+      query: { year: '2026', p: 'l12', b: 'taxes' },
+    })
+    expect(useFilters().drillLocation({ route: 'spending', filters: { buckets: ['taxes'] } })).toEqual({
+      path: '/spending',
+      query: { year: '2026', p: 'l12', b: 'taxes' },
+    })
   })
 
   it('writes the period into a drill link, so following it sets the filters even at their defaults', async () => {

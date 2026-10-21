@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import UTabs from '@nuxt/ui/components/Tabs.vue'
+import { useRoute } from 'vue-router'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
+import PageTabs from '../../../shared/ui/PageTabs.vue'
+import type { PageTab } from '../../../shared/ui/PageTabs.vue'
 import LoanBucketSwitch from '../../../packs/hr-doo/presentation/LoanBucketSwitch.vue'
 import ProblemList from '../../excel/presentation/ProblemList.vue'
-import RulesTab from '../../rules/presentation/RulesTab.vue'
 import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RowTab } from '../../workbook/application/workbookWriter'
@@ -30,15 +30,14 @@ import FactTabEditor from './FactTabEditor.vue'
 import { CLIENT_COLUMNS, GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from './factTabColumns'
 import GeneralSettingsForm from './GeneralSettingsForm.vue'
 
-const TABS = [
-  { label: 'General', value: 'general', icon: 'i-lucide-sliders-horizontal', slot: 'general' as const },
-  { label: 'Rules', value: 'rules', icon: 'i-lucide-list-ordered', slot: 'rules' as const },
-  { label: 'Categories', value: 'categories', icon: 'i-lucide-tags', slot: 'categories' as const },
-  { label: 'Accounts', value: 'accounts', icon: 'i-lucide-landmark', slot: 'accounts' as const },
-  { label: 'Clients', value: 'clients', icon: 'i-lucide-users', slot: 'clients' as const },
-  { label: 'Assets', value: 'assets', icon: 'i-lucide-laptop', slot: 'assets' as const },
-  { label: 'Grants', value: 'grants', icon: 'i-lucide-hand-coins', slot: 'grants' as const },
-  { label: 'Year end', value: 'year-end', icon: 'i-lucide-book-check', slot: 'year-end' as const },
+const TABS: readonly PageTab[] = [
+  { label: 'General', value: 'general', icon: 'i-lucide-sliders-horizontal' },
+  { label: 'Categories', value: 'categories', icon: 'i-lucide-tags' },
+  { label: 'Accounts', value: 'accounts', icon: 'i-lucide-landmark' },
+  { label: 'Clients', value: 'clients', icon: 'i-lucide-users' },
+  { label: 'Assets', value: 'assets', icon: 'i-lucide-laptop' },
+  { label: 'Grants', value: 'grants', icon: 'i-lucide-hand-coins' },
+  { label: 'Year end', value: 'year-end', icon: 'i-lucide-book-check' },
 ]
 
 /** The tabs edited as a table of fields, each with its section text. */
@@ -69,26 +68,13 @@ const FACT_TABS = {
   },
 } as const
 
-type WorkbookTab = (typeof TABS)[number]['value']
-
 const store = useWorkbook()
 const { state } = store
 const toast = useToast()
 const route = useRoute()
-const router = useRouter()
 
 /** The tab a link from another screen opened. Its card opens even when this device keeps it collapsed, until another tab is picked. */
 const linkedTab = ref(typeof route.query.tab === 'string' ? route.query.tab : null)
-
-/** The tab lives in the query, so a link opens the same tab. General is the default and is left out. */
-const activeTab = computed<WorkbookTab>({
-  get: () => TABS.find((tab) => tab.value === route.query.tab)?.value ?? 'general',
-  set: (tab) => {
-    linkedTab.value = null
-    const { tab: _previous, ...others } = route.query
-    void router.replace({ query: tab === 'general' ? others : { ...others, tab } })
-  },
-})
 
 const source = computed(() => state.choice?.source ?? state.workbook?.source ?? null)
 const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
@@ -188,15 +174,7 @@ async function saveSettings(next: Settings): Promise<void> {
       "
     />
 
-    <UTabs
-      v-if="state.workbook"
-      v-model="activeTab"
-      :items="TABS"
-      variant="link"
-      color="neutral"
-      :ui="{ root: 'min-w-0 gap-5', list: 'workbook-tabs', indicator: 'bottom-0 h-0.5 bg-[var(--accent)]', trigger: 'shrink-0' }"
-      data-testid="workbook-tabs"
-    >
+    <PageTabs v-if="state.workbook" :tabs="TABS" label="Parts of the workbook" data-testid="workbook-tabs" @select="linkedTab = null">
       <template #general>
         <div class="flex flex-col gap-6">
           <AppCard
@@ -228,10 +206,6 @@ async function saveSettings(next: Settings): Promise<void> {
             </div>
           </AppCard>
         </div>
-      </template>
-
-      <template #rules>
-        <RulesTab />
       </template>
 
       <template #categories>
@@ -304,15 +278,6 @@ async function saveSettings(next: Settings): Promise<void> {
           />
         </AppCard>
       </template>
-    </UTabs>
+    </PageTabs>
   </section>
 </template>
-
-<style scoped>
-/* On a phone the tab strip scrolls on its own, so a longer list of tabs never widens the page. */
-:deep(.workbook-tabs) {
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-</style>

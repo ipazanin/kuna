@@ -626,6 +626,22 @@ async function dryRunSays(page, text) {
   await delay(300)
 }
 
+/** After a confirmed import, the dry run says how the new rows stand on Review, and says nothing once Undo took them out. */
+async function waitingOnReview(page, shown) {
+  await page
+    .waitForFunction(
+      (wanted) => {
+        const notice = document.querySelector('[data-testid="import-waiting"]')
+        return wanted ? (notice?.textContent?.includes('on Review') ?? false) : notice === null
+      },
+      { timeout: 10_000 },
+      shown,
+    )
+    .catch(() => {
+      throw new Error(shown ? 'the confirmed import does not say how many new rows wait on Review' : 'the notice about the new rows stayed after Undo')
+    })
+}
+
 /** Import: drop the sample camt.053 statement, read the dry run, confirm, find every row on the ledger, and Undo. */
 export function importCamtFlow(path) {
   return async (page, { press, shoot, inspect }) => {
@@ -637,9 +653,11 @@ export function importCamtFlow(path) {
     await pressSelector(page, press, '[data-testid="import-confirm"]')
     await toast(page, 'Imported 4 rows')
     await dryRunSays(page, 'Confirming would write nothing. 4 rows are on the ledger already')
+    await waitingOnReview(page, true)
     await shoot('import-camt-confirmed')
     await undo(page, press)
     await dryRunSays(page, 'Confirming adds 4 rows')
+    await waitingOnReview(page, false)
     await shoot('import-camt-undone')
     await dismissToasts(page)
   }
@@ -667,9 +685,88 @@ export function importTableFlow(path) {
     await pressSelector(page, press, '[data-testid="import-confirm"]')
     await toast(page, 'Imported 4 rows')
     await dryRunSays(page, 'Confirming would write nothing')
+    await waitingOnReview(page, true)
     await undo(page, press)
     await dryRunSays(page, 'Confirming adds 4 rows')
     await shoot('import-table-undone')
     await dismissToasts(page)
   }
+}
+
+/** Review: open the gadget purchase in the queue, then split it, edit and delete the split and Undo, as on Transactions. */
+export async function reviewSplitFlow(page, context) {
+  const summary = await page
+    .waitForFunction(() => [...document.querySelectorAll('[data-testid="review-row"] > button')].find((button) => button.textContent?.includes('GADGET CORNER')) ?? null, { timeout: 10_000 })
+    .then((handle) => handle.asElement())
+    .catch(() => {
+      throw new Error('the queue does not hold the gadget purchase')
+    })
+  await summary.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await context.press(summary)
+  await page.waitForSelector('[data-testid="review-details"]')
+  await splitFlow(page, { ...context, shoot: (name) => context.shoot(`review-${name}`) })
+}
+
+/** Opens a collapsed card by its test id, scrolled to the middle first. */
+async function openCard(page, press, testId) {
+  const toggle = await page.waitForSelector(`[data-testid="${testId}"] [data-testid="card-toggle"]`, { timeout: 10_000 }).catch(() => {
+    throw new Error(`no card ${testId}`)
+  })
+  if ((await toggle.evaluate((element) => element.getAttribute('aria-expanded'))) === 'true') return
+  await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(toggle)
+  await delay(300)
+}
+
+function coverageGroupShown(page, name, shown) {
+  return page
+    .waitForFunction(
+      (wanted, present) => [...document.querySelectorAll('[data-testid="coverage-gap"]')].some((group) => group.textContent?.includes(wanted)) === present,
+      { timeout: 10_000 },
+      name,
+      shown,
+    )
+    .catch(() => {
+      throw new Error(shown ? `${name} is not listed among the rows no rule settles` : `${name} is still listed among the rows no rule settles`)
+    })
+}
+
+/**
+ * Review, Rules: dismiss a group no rule settles, which in a Google Sheet without the dismissed
+ * tab first asks to add it, find it under the dismissed suggestions, restore it, and Undo the restore.
+ */
+export async function dismissFlow(page, { press, shoot, inspect }) {
+  await openCard(page, press, 'rule-coverage')
+  await coverageGroupShown(page, 'Laptop Store', true)
+  const group = await page.evaluateHandle(() => [...document.querySelectorAll('[data-testid="coverage-gap"]')].find((row) => row.textContent?.includes('Laptop Store')))
+  const dismiss = await group.asElement().$('[data-testid="coverage-dismiss"]')
+  await dismiss.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(dismiss)
+  await delay(400)
+  const asks = await page.$('[data-testid="dismiss-add-tab"]')
+  if (asks !== null) {
+    await page.waitForSelector('[data-testid="add-tab-notice"]')
+    await inspect?.('dismiss asks to add the tab')
+    await shoot('dismiss-add-tab')
+    await press(asks)
+  }
+  await toast(page, 'Dismissed Laptop Store')
+  await coverageGroupShown(page, 'Laptop Store', false)
+  await dismissToasts(page)
+  await openCard(page, press, 'dismissed-suggestions')
+  await page.waitForFunction(() => document.querySelector('[data-testid="dismissed-suggestion"]')?.textContent?.includes('Laptop Store') ?? false, { timeout: 10_000 }).catch(() => {
+    throw new Error('the dismissed group is not under the dismissed suggestions')
+  })
+  await inspect?.('dismissed suggestions')
+  await shoot('dismissed-suggestions')
+  await pressSelector(page, press, '[data-testid="restore-suggestion"]')
+  await toast(page, 'Suggestion restored')
+  await coverageGroupShown(page, 'Laptop Store', true)
+  await undo(page, press)
+  await coverageGroupShown(page, 'Laptop Store', false)
+  await shoot('dismiss-undone')
+  await dismissToasts(page)
 }

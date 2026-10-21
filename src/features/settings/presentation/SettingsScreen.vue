@@ -2,10 +2,11 @@
 import { computed, ref, useTemplateRef } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import USwitch from '@nuxt/ui/components/Switch.vue'
+import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { activeTheme, chooseTheme } from '../../../shared/theme/theme'
+import { chooseTheme, themeChoice } from '../../../shared/theme/theme'
+import type { ThemeChoice } from '../../../shared/theme/theme'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import SwitchSourceDialog from '../../data-source/presentation/SwitchSourceDialog.vue'
@@ -53,10 +54,11 @@ function takeFile(event: Event): void {
   input.value = ''
 }
 
-const darkTheme = computed({
-  get: () => activeTheme.value === 'dark',
-  set: (dark: boolean) => chooseTheme(dark ? 'dark' : 'light'),
-})
+const THEME_CHOICES: { label: string; value: ThemeChoice }[] = [
+  { label: 'System', value: 'system' },
+  { label: 'Light', value: 'light' },
+  { label: 'Dark', value: 'dark' },
+]
 </script>
 
 <template>
@@ -137,7 +139,17 @@ const darkTheme = computed({
 
       <AppCard title="Appearance and privacy">
         <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-          <USwitch v-model="darkTheme" label="Dark theme" description="Remembered on this device." />
+          <URadioGroup
+            :model-value="themeChoice"
+            :items="THEME_CHOICES"
+            legend="Theme"
+            orientation="horizontal"
+            variant="table"
+            :ui="{ item: 'flex-1' }"
+            data-testid="theme-choice"
+            @update:model-value="chooseTheme($event as ThemeChoice)"
+          />
+          <p class="text-xs text-muted">System follows this device's setting as it changes. Light or Dark is remembered on this device.</p>
           <p class="text-sm text-muted">
             There is no server. Nothing leaves this browser except calls to Google's APIs for a Sheet you picked.
             <a :href="privacyPage" class="settings-link inline-target">Read the privacy notes</a>

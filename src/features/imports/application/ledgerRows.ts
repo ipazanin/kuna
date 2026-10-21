@@ -29,7 +29,6 @@ export const LEDGER_ROWS: TabRowRules = {
   columns: COLUMNS,
   required: ['date', 'account', 'amount', 'balance'],
   caseless: [],
-  dates: ['date'],
   reads: ['categories'],
   read: (rows, fresh) => readLedgerTab(rows, definedCategories(fresh.categories?.rows ?? [])),
   refusals: (check, fresh) => {

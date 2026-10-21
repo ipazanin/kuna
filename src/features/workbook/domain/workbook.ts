@@ -9,6 +9,7 @@ import type { Settings } from '../../settings/domain/settings'
 import type { Asset } from './assets'
 import type { BillingItem } from './billingPlan'
 import type { Bucket, DefinedBucket } from './bucket'
+import type { Dismissal } from './dismissals'
 import type { Grant } from './grants'
 import type { OwnerPayScenario } from './ownerPayScenarios'
 import type { PlanLine } from './plan'
@@ -181,6 +182,7 @@ export interface WorkbookProblem {
     | 'plan'
     | 'scenarios'
     | 'splits'
+    | 'dismissed'
   readonly sheetRow: number
   readonly reason: string
 }
@@ -224,6 +226,8 @@ export interface Workbook {
   readonly planLines: readonly PlanLine[]
   /** In the order their first rows appear on the tab. */
   readonly payScenarios: readonly OwnerPayScenario[]
+  /** The suggestions on Review a person dismissed, in the order the tab holds them. */
+  readonly dismissals: readonly Dismissal[]
   readonly settings: Settings
   readonly problems: readonly WorkbookProblem[]
 }

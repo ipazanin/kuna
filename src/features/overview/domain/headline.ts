@@ -4,19 +4,17 @@ import type { Money } from '../../../shared/money/money'
 import type { Figure } from '../../filters/domain/drillTarget'
 import type { MonthOfProfitAndLoss } from '../../trends/domain/monthlyProfitAndLoss'
 
-/** What the newest complete month brought, and how long the cash lasts, as the parts of one plain statement. */
+/** What the newest complete month brought, as the parts of one plain statement. */
 export interface Headline {
   readonly month: MonthKey
   readonly cameIn: Figure
   readonly wentOut: Figure
   /** What the month lost, read positive. Null when it did not lose money. */
   readonly loss: Money | null
-  /** "about 2 years", or null when nothing is being spent. */
-  readonly cashLasts: string | null
 }
 
 /** The headline of the newest complete month, or null while the ledger has none. */
-export function headline(months: readonly MonthOfProfitAndLoss[], runwayMonths: number | null): Headline | null {
+export function headline(months: readonly MonthOfProfitAndLoss[]): Headline | null {
   const newest = [...months].reverse().find((month) => month.complete)
   if (newest === undefined) {
     return null
@@ -27,7 +25,6 @@ export function headline(months: readonly MonthOfProfitAndLoss[], runwayMonths: 
     cameIn: newest.lines.income,
     wentOut: newest.lines.cost,
     loss: net < 0 ? negateMoney(net) : null,
-    cashLasts: runwayInWords(runwayMonths),
   }
 }
 

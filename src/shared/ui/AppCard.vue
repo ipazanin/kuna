@@ -3,7 +3,6 @@ import { onMounted, ref, useId, useTemplateRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { LINKED_PART_TOP } from '../routing/router'
 import { rememberCollapse, storedCollapse } from './cardCollapse'
 import InfoPopover from './InfoPopover.vue'
 
@@ -51,7 +50,7 @@ const root = useTemplateRef<HTMLElement>('root')
 onMounted(() => {
   const target = props.reveal && route.hash !== '' ? document.getElementById(route.hash.slice(1)) : null
   if (target !== null && root.value?.contains(target)) {
-    window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - LINKED_PART_TOP })
+    target.scrollIntoView({ block: 'start' })
   }
 })
 

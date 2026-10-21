@@ -9,7 +9,7 @@ import { WorkbookWriteRefused } from '../src/features/workbook/application/workb
 import type { RowAt, RowCells, RowChange } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { civil, euros } from './fixtures/ledger'
-import { cellData, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { cellData, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -169,15 +169,19 @@ describe('billing plan writes to a Google Sheet', () => {
 
     await addRows(store, [OCTOBER_FEE])
 
+    const sheetId = (await sheets.sheetIds()).get('outgoing-plan')!
+    const added = sheets.grids['outgoing-plan']!.length - 1
     expect(sentRequests(sheets)).toEqual([
       {
         appendCells: {
-          sheetId: (await sheets.sheetIds()).get('outgoing-plan'),
+          sheetId,
           rows: [{ values: ['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026'].map(cellData) }],
           fields: 'userEnteredValue',
         },
       },
+      dateFormat(sheetId, added, 1),
     ])
+    expect(sheets.formats['outgoing-plan']?.[added]?.[1]).toBe('yyyy-mm-dd')
   })
 
   it('appends every row of a fill in one request, so they land together or not at all', async () => {

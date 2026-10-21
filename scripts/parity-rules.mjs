@@ -4,25 +4,21 @@
  * where the two disagree on the category, on who decided it, or on which rule did. Nothing is
  * written anywhere.
  *
- *   npm run parity:rules -- --workbook <export.xlsx> [--statements <folder of camt xml>] [--scripts <Apps Script folder>]
+ *   npm run parity:rules -- --workbook <export.xlsx> [--scripts <Apps Script folder>]
  *
  * The Apps Script side loads every `.gs` file of the project into `node:vm`, so it reads the rules
  * with `readRules`, turns a ledger row into signals with `ledgerRowSignals` and categorises with
- * `categoriseTransaction`, all as written. An export without a `rules` tab gets the rows
- * `rulesTabSeedRows` would seed, read by both sides, while the project still has that function.
- * `--statements` fills the signal columns of ledger rows that have none from the archived camt
- * files, parsed by `parseCamtStatement` and matched by account and bank reference, for an export
- * taken before the columns existed.
+ * `categoriseTransaction`, all as written. The export needs its `rules`, `settings` and `clients`
+ * tabs.
  *
  * Each side reads the card settlement accounts from the `card_settlement_ibans` setting with its
- * own reader. An export without a settings tab gives both the `CARD_SETTLEMENT_IBAN` constant of an
- * older `Categorise.gs`, or none once the constant is gone. The client IBANs come from the
- * export's `clients` tab, which the Apps Script reads with `requireClientIbans` when an enabled rule
- * tests `counterparty_is_client`, and the app with its workbook reader. The two lists must agree.
+ * own reader. The client IBANs come from the export's `clients` tab, which the Apps Script reads
+ * with `requireClientIbans` when an enabled rule tests `counterparty_is_client`, and the app with
+ * its workbook reader. The two lists must agree.
  *
- * A synthetic case follows: one rule, tried first, that files credits from a client. Its clients
- * are the export's tab, or two counterparty IBANs that sent the ledger money when the export has
- * none. Both engines run over every row with it, and both must refuse it without a clients tab.
+ * A synthetic case follows: one rule, tried first, that files credits from a client of the
+ * export's tab. Both engines run over every row with it, and both must refuse it without a clients
+ * tab.
  *
  * The output names rows by sheet row, rule id and category only. The export holds real bank data,
  * so keep it outside the repository.
@@ -40,19 +36,15 @@ import { RULE_COLUMNS } from '../src/features/rules/domain/rule.ts'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts.ts'
 import { readWorkbookFile, workbookGrids } from '../src/features/workbook/infrastructure/workbookFile.ts'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
-import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot.ts'
-
-const SIGNAL_COLUMNS = ['purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency', 'review_reasons']
 
 const { values: options } = parseArgs({
   options: {
     workbook: { type: 'string' },
-    statements: { type: 'string' },
     scripts: { type: 'string', default: join(homedir(), 'gdrive/work/dss/dss-finance/shadow-accounting/scripts') },
   },
 })
 if (options.workbook === undefined) {
-  console.error('Usage: npm run parity:rules -- --workbook <export.xlsx> [--statements <folder of camt xml>] [--scripts <Apps Script folder>]')
+  console.error('Usage: npm run parity:rules -- --workbook <export.xlsx> [--scripts <Apps Script folder>]')
   process.exit(2)
 }
 
@@ -65,33 +57,21 @@ function callAppsScript(name, ...args) {
   return vm.runInContext(`${name}(...__args)`, appsScript)
 }
 
-const { tabs: fileTabs, missingTabs: tabsTheExportLacks } = await readWorkbookFile(readFileSync(options.workbook))
-let tabs = fileTabs
-let missingTabs = tabsTheExportLacks
+const { tabs, missingTabs } = await readWorkbookFile(readFileSync(options.workbook))
 console.log(`loaded ${projectFiles.length} Apps Script files from ${options.scripts}`)
-
-if (tabs.rules.length === 0) {
-  if (!appsScriptDefines('rulesTabSeedRows')) {
-    console.error('The export has no rules tab, and this Apps Script project no longer seeds one, so there is nothing to compare. Export the Sheet again.')
-    process.exit(1)
-  }
-  const seeded = callAppsScript('rulesTabSeedRows')
-  tabs = { ...tabs, rules: sheetRowsFromValues([vm.runInContext('RULE_COLUMNS', appsScript), ...seeded]) }
-  missingTabs = missingTabs.filter((tab) => tab !== 'rules')
-  console.log(`the export has no rules tab, so both engines read the ${seeded.length} rows rulesTabSeedRows builds`)
+const lacking = ['rules', 'settings', 'clients'].filter((tab) => missingTabs.includes(tab))
+if (lacking.length > 0) {
+  console.error(`The export has no ${lacking.join(', ')} tab, so there is nothing to compare. Export the Sheet again.`)
+  process.exit(1)
 }
 
 const spreadsheet = spreadsheetOver(tabs, missingTabs)
 const ownIbans = Object.keys(callAppsScript('requireAccountIbans', spreadsheet))
 
-if (options.statements !== undefined) {
-  tabs = { ...tabs, ledger: withStatementSignals(tabs.ledger, options.statements) }
-}
-
 const workbook = workbookOver(tabs, missingTabs)
 const cardAccounts = cardSettlementAccounts()
 const settings = { ...workbook.settings, cardSettlementIbans: cardAccounts.app }
-console.log(missingTabs.includes('clients') ? 'the export has no clients tab' : `the export has a clients tab with ${workbook.clients.length} clients`)
+console.log(`the export has a clients tab with ${workbook.clients.length} clients`)
 
 const exported = compareEngines(tabs, spreadsheet, workbook)
 if (exported === null) {
@@ -188,10 +168,9 @@ function clientIbansOf(appsScriptRules, caseSpreadsheet, caseWorkbook) {
 }
 
 /**
- * A synthetic case on top of the export: a rule tried first that files credits from a client, run
- * by both engines over every row. Its clients are the export's clients tab, or, for an export
- * without one, two counterparty IBANs that sent the ledger money, kept in memory only. Then the
- * same rule without a clients tab, which both sides must refuse.
+ * A synthetic case on top of the export: a rule tried first that files credits from a client of
+ * the export's clients tab, run by both engines over every row. Then the same rule without a
+ * clients tab, which both sides must refuse.
  */
 function compareClientRule() {
   const category = workbook.categories.find((candidate) => candidate.roles.includes('revenue'))?.slug ?? workbook.categories[0]?.slug
@@ -202,12 +181,9 @@ function compareClientRule() {
   const ruleHeader = [...new Set([...RULE_COLUMNS, ...tabs.rules.flatMap((row) => Object.keys(row.cells))])]
   const firstOrder = Math.min(0, ...workbook.rules.map((rule) => rule.order)) - 100
   const syntheticRule = { sheetRow: Math.max(1, ...tabs.rules.map((row) => row.sheetRow)) + 1, cells: { rule: 'parity-synthetic-client', order: firstOrder, enabled: true, direction: 'credit', counterparty_is_client: true, category, confidence: 'rule' } }
-  const clientRows = missingTabs.includes('clients') ? syntheticClientRows() : tabs.clients
-  const withRule = { ...tabs, rules: [...tabs.rules, syntheticRule], clients: clientRows }
-  const caseMissingTabs = missingTabs.filter((tab) => tab !== 'clients')
-  console.log(`synthetic counterparty_is_client case: one rule filing client credits as ${category}, with ${new Set(clientRows.map((row) => row.cells.client)).size} clients ${missingTabs.includes('clients') ? 'made up from credit IBANs' : 'from the export'}`)
-  const caseWorkbook = workbookOver(withRule, caseMissingTabs)
-  const compared = compareEngines(withRule, spreadsheetOver(withRule, caseMissingTabs, ruleHeader), caseWorkbook)
+  const withRule = { ...tabs, rules: [...tabs.rules, syntheticRule] }
+  console.log(`synthetic counterparty_is_client case: one rule filing client credits as ${category}, with ${workbook.clients.length === 1 ? 'the one client' : `the ${workbook.clients.length} clients`} of the export`)
+  const compared = compareEngines(withRule, spreadsheetOver(withRule, missingTabs, ruleHeader), workbookOver(withRule, missingTabs))
   if (compared === null) {
     return false
   }
@@ -216,7 +192,7 @@ function compareClientRule() {
   compared.differences.forEach((line) => console.log(`    ${line}`))
 
   const withoutClients = { ...withRule, clients: [] }
-  const missing = [...caseMissingTabs, 'clients']
+  const missing = [...missingTabs, 'clients']
   const appRefuses = workbookOver(withoutClients, missing).problems.some((problem) => problem.tab === 'rules' && problem.reason.startsWith('parity-synthetic-client tests counterparty_is_client'))
   let appsScriptRefuses = false
   try {
@@ -230,13 +206,6 @@ function compareClientRule() {
   return decided > 0 && compared.differences.length === 0 && compared.ruleProblems === 0 && compared.clientsAgree && appRefuses && appsScriptRefuses
 }
 
-/** Two clients made from the counterparty IBANs of the first credits from outside the company, as `clients` tab rows. */
-function syntheticClientRows() {
-  const own = new Set(ownIbans.map((iban) => iban.replace(/\s+/g, '').toUpperCase()))
-  const ibans = [...new Set(workbook.transactions.filter((transaction) => transaction.amount > 0 && transaction.counterpartyIban !== '' && !own.has(transaction.counterpartyIban)).map((transaction) => transaction.counterpartyIban))].slice(0, 2)
-  return ibans.map((iban, index) => ({ sheetRow: index + 2, cells: { client: `synthetic-${index + 1}`, iban } }))
-}
-
 function workbookOver(caseTabs, caseMissingTabs) {
   return readWorkbook({
     meta: { id: 'parity', source: 'google', title: options.workbook, syncedAt: new Date().toISOString(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: caseMissingTabs },
@@ -244,17 +213,8 @@ function workbookOver(caseTabs, caseMissingTabs) {
   })
 }
 
-/** Each side's card settlement accounts, from the settings tab, or from the old constant for an export without one. */
+/** Each side's card settlement accounts, from the settings tab. */
 function cardSettlementAccounts() {
-  if (tabs.settings.length === 0) {
-    const constant = appsScriptDefines('CARD_SETTLEMENT_IBAN') ? [vm.runInContext('CARD_SETTLEMENT_IBAN', appsScript)] : []
-    console.log(
-      constant.length === 0
-        ? 'the export has no settings tab and Categorise.gs names no CARD_SETTLEMENT_IBAN, so neither side knows a card settlement account'
-        : 'the export has no settings tab, so both sides take the card settlement account from CARD_SETTLEMENT_IBAN in Categorise.gs',
-    )
-    return { appsScript: constant, app: constant, agree: true }
-  }
   let appsScriptIbans
   try {
     appsScriptIbans = [...callAppsScript('requireCardSettlementIbans', spreadsheet)]
@@ -268,48 +228,6 @@ function cardSettlementAccounts() {
       (agree ? '' : ', and the two lists DIFFER'),
   )
   return { appsScript: appsScriptIbans, app: workbook.settings.cardSettlementIbans, agree }
-}
-
-function appsScriptDefines(name) {
-  return vm.runInContext(`typeof ${name} !== 'undefined'`, appsScript)
-}
-
-/** Fills the signal columns of ledger rows that have none, from the camt files matched by account and bank reference. */
-function withStatementSignals(ledgerRows, folder) {
-  const accountNames = callAppsScript('requireAccountIbans', spreadsheet)
-  const signalsByEntry = new Map()
-  const files = readdirSync(folder).filter((name) => name.endsWith('.xml')).sort()
-  for (const name of files) {
-    const statement = callAppsScript('parseCamtStatement', readFileSync(join(folder, name), 'utf8'), accountNames)
-    for (const entry of statement.rows) {
-      if (entry.reference) {
-        signalsByEntry.set(entryKey(statement.account, entry.reference), signalCellsOf(entry))
-      }
-    }
-  }
-  let filled = 0
-  const rows = ledgerRows.map((row) => {
-    const signals = signalsByEntry.get(entryKey(row.cells.account, row.cells.reference))
-    if (signals === undefined || SIGNAL_COLUMNS.some((column) => row.cells[column] !== undefined)) {
-      return row
-    }
-    filled += 1
-    const stated = Object.fromEntries(Object.entries(signals).filter(([, cell]) => cell !== '' && cell !== null && cell !== undefined))
-    return { ...row, cells: { ...row.cells, ...stated } }
-  })
-  console.log(`${files.length} camt files, ${signalsByEntry.size} entries, signals filled on ${filled} ledger rows`)
-  return rows
-}
-
-/** The signal columns of the ledger row `ledgerRowFor` would write for a parsed camt entry. */
-function signalCellsOf(entry) {
-  const { cells } = callAppsScript('ledgerRowFor', entry, { category: '', flaggedBy: '' })
-  const columns = vm.runInContext('LEDGER_TAB_COLUMNS', appsScript)
-  return Object.fromEntries(SIGNAL_COLUMNS.map((column) => [column, cells[columns.indexOf(column)]]))
-}
-
-function entryKey(account, reference) {
-  return `${String(account ?? '').trim().toLowerCase()}\u0000${String(reference ?? '').trim()}`
 }
 
 /**

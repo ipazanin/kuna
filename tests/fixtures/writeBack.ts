@@ -54,6 +54,25 @@ export function cellData(value: CellValue): CellData {
   return { userEnteredValue: typeof value === 'number' ? { numberValue: value } : typeof value === 'boolean' ? { boolValue: value } : { stringValue: value } }
 }
 
+/** The request that gives one cell, or a run of rows in its column, a number format, 0-based as the API counts. */
+export function numberFormatRequest(sheetId: number, rowIndex: number, columnIndex: number, format: { type: 'DATE' | 'TEXT'; pattern: string }, rowCount = 1): SpreadsheetRequest {
+  return {
+    repeatCell: {
+      range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + rowCount, startColumnIndex: columnIndex, endColumnIndex: columnIndex + 1 },
+      cell: { userEnteredFormat: { numberFormat: format } },
+      fields: 'userEnteredFormat.numberFormat',
+    },
+  }
+}
+
+export function dateFormat(sheetId: number, rowIndex: number, columnIndex: number, rowCount = 1): SpreadsheetRequest {
+  return numberFormatRequest(sheetId, rowIndex, columnIndex, { type: 'DATE', pattern: 'yyyy-mm-dd' }, rowCount)
+}
+
+export function textFormat(sheetId: number, rowIndex: number, columnIndex: number, rowCount = 1): SpreadsheetRequest {
+  return numberFormatRequest(sheetId, rowIndex, columnIndex, { type: 'TEXT', pattern: '@' }, rowCount)
+}
+
 export function workbookGrids(): Record<string, CellValue[][]> {
   return {
     ledger: [LEDGER_HEADER, ...LEDGER_ROWS.map((row) => [...row])],
@@ -105,9 +124,9 @@ function ports(choice: WorkbookChoice, sheets: FakeSheets, used: Set<string>): W
   }
 }
 
-/** A store showing a Google Sheet held in a fake that records every request, read once as a sync would. */
-export async function googleHarness(used: Set<string>, grids = workbookGrids()): Promise<WriteBackHarness> {
-  const sheets = createFakeSheets(grids)
+/** A store showing a Google Sheet held in a fake that records every request, read once as a sync would, with the tabs' number formats where a test gives them. */
+export async function googleHarness(used: Set<string>, grids = workbookGrids(), numberFormats: Record<string, (string | null)[][]> = {}): Promise<WriteBackHarness> {
+  const sheets = createFakeSheets(grids, numberFormats)
   const snapshot = await readSnapshotFrom(sheets, SHEET)
   await keepInCache(snapshot, used)
   const store = createWorkbookStore(ports({ source: 'google', id: SHEET.id, name: SHEET.name }, sheets, used))

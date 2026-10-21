@@ -22,15 +22,20 @@ function cardState(card) {
 
 /**
  * Collapses the first open collapsible card with its header toggle, checks it shows its title and a
- * summary line and that the choice is remembered, then opens it again. `whileCollapsed` runs with
- * the card collapsed, for a screenshot. Returns the card's title.
+ * summary line and that the choice is remembered, then opens it again. A screen whose collapsible
+ * cards all start collapsed has its first one opened first. `whileCollapsed` runs with the card
+ * collapsed, for a screenshot. Returns the card's title.
  */
 export async function collapseAndExpand(page, press, whileCollapsed = async () => {}) {
-  const card = await page.$('[data-card][data-collapsed="false"]')
-  if (card === null) throw new Error('no open collapsible card on the screen')
+  const card = (await page.$('[data-card][data-collapsed="false"]')) ?? (await page.$('[data-card][data-collapsed="true"]'))
+  if (card === null) throw new Error('no collapsible card on the screen')
   const toggle = await card.$('[data-testid="card-toggle"]')
   await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await delay(200)
+  if ((await card.evaluate((element) => element.dataset.collapsed)) === 'true') {
+    await press(toggle)
+    await delay(200)
+  }
 
   await press(toggle)
   await delay(200)

@@ -46,7 +46,6 @@ export const INVOICE_ROWS: TabRowRules = {
   columns: INVOICE_COLUMNS,
   required: INVOICE_COLUMNS,
   caseless: ['client'],
-  dates: ['issued', 'due', 'period_from', 'period_to'],
   reads: ['clients'],
   read: (rows, fresh) => readInvoiceRows(rows, definedClientSlugs(fresh.clients?.rows ?? [])),
   refusals: (check) =>

@@ -8,7 +8,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { syncAge } from '../calendar/syncAge'
-import { usePhoneLayout } from '../layout/viewport'
 
 const props = withDefaults(
   defineProps<{
@@ -16,7 +15,7 @@ const props = withDefaults(
     /** ISO timestamp of the last successful sync. */
     syncedAt?: string | null
     errorMessage?: string
-    /** The narrow top-bar form: how long ago in words, the error detail moved into the button's description. */
+    /** The top bar's form: one button with how long ago, the full time and any error in what a screen reader hears. */
     compact?: boolean
   }>(),
   { syncedAt: null, errorMessage: '', compact: false },
@@ -40,15 +39,29 @@ const ticking = setInterval(() => {
 }, 60_000)
 onBeforeUnmount(() => clearInterval(ticking))
 
-const phone = usePhoneLayout()
 const syncLabel = computed(() => (props.state === 'syncing' ? 'Syncing' : props.state === 'error' ? 'Try again' : 'Sync'))
 
 const asOfText = computed(() => {
   const synced = syncedAtDate.value
   if (synced === null) return 'Not synced yet'
-  if (props.compact) return syncAge(synced, now.value)
   const sameDay = synced.toDateString() === now.value.toDateString()
   return `As of ${sameDay ? `today, ${timeOnly.format(synced)}` : dayAndTime.format(synced)}`
+})
+
+/** The top bar's one button: how long ago on one line, or what it is doing. */
+const compactLabel = computed(() => {
+  if (props.state === 'syncing') return 'Syncing…'
+  if (props.state === 'error') return 'Try again'
+  return syncedAtDate.value === null ? 'Sync' : syncAge(syncedAtDate.value, now.value)
+})
+
+/** What a screen reader hears for that button: its visible words first, then the full time of the last sync. */
+const compactName = computed(() => {
+  const synced = syncedAtDate.value
+  if (props.state === 'syncing') return 'Syncing'
+  const last = synced === null ? 'not synced yet' : `last synced ${fullStamp.format(synced)}`
+  if (props.state === 'error') return `Try again. Sync failed, ${last}`
+  return synced === null ? 'Sync. Not synced yet' : `Synced ${syncAge(synced, now.value)}, ${fullStamp.format(synced)}. Sync now`
 })
 
 const errorDetailId = useId()
@@ -67,39 +80,48 @@ const errorDetailId = useId()
     </template>
 
     <template v-else>
-      <p
-        v-if="state === 'error'"
-        class="flex min-w-0 items-center gap-1.5 text-xs font-medium text-error"
-        role="status"
-      >
-        <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" aria-hidden="true" />
-        <span>Sync failed</span>
-      </p>
-      <p v-else-if="compact" class="min-w-0 text-end text-xs leading-tight text-muted" role="status">
-        <span class="block">{{ syncedAtDate ? 'Synced' : '' }}</span>
-        <time v-if="syncedAtDate" :datetime="syncedAt ?? undefined" :title="fullStamp.format(syncedAtDate)" class="block whitespace-nowrap">
-          {{ asOfText }}
-        </time>
-        <span v-else class="block">{{ asOfText }}</span>
-      </p>
-      <p v-else class="min-w-0 truncate text-xs text-muted" role="status">
-        <time v-if="syncedAtDate" :datetime="syncedAt ?? undefined" :title="fullStamp.format(syncedAtDate)" class="figure">
-          {{ asOfText }}
-        </time>
-        <span v-else>{{ asOfText }}</span>
-      </p>
-
+      <p v-if="compact && state === 'error'" class="sr-only" role="status">Sync failed</p>
       <UButton
-        icon="i-lucide-refresh-cw"
-        v-bind="compact && phone ? { 'aria-label': syncLabel } : { label: syncLabel }"
+        v-if="compact"
+        :icon="state === 'error' ? 'i-lucide-triangle-alert' : 'i-lucide-refresh-cw'"
+        loading-icon="i-lucide-refresh-cw"
+        :label="compactLabel"
+        :aria-label="compactName"
         :loading="state === 'syncing'"
         :disabled="state === 'syncing'"
         :aria-describedby="state === 'error' && errorMessage ? errorDetailId : undefined"
         color="neutral"
         variant="outline"
         size="sm"
+        class="top-bar-action"
+        :class="{ 'text-error': state === 'error' }"
+        data-testid="compact-sync"
         @click="emit('sync')"
       />
+      <template v-else>
+        <p v-if="state === 'error'" class="flex min-w-0 items-center gap-1.5 text-xs font-medium text-error" role="status">
+          <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" aria-hidden="true" />
+          <span>Sync failed</span>
+        </p>
+        <p v-else class="min-w-0 truncate text-xs text-muted" role="status">
+          <time v-if="syncedAtDate" :datetime="syncedAt ?? undefined" :title="fullStamp.format(syncedAtDate)" class="figure">
+            {{ asOfText }}
+          </time>
+          <span v-else>{{ asOfText }}</span>
+        </p>
+
+        <UButton
+          icon="i-lucide-refresh-cw"
+          :label="syncLabel"
+          :loading="state === 'syncing'"
+          :disabled="state === 'syncing'"
+          :aria-describedby="state === 'error' && errorMessage ? errorDetailId : undefined"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          @click="emit('sync')"
+        />
+      </template>
 
       <p
         v-if="state === 'error' && errorMessage"

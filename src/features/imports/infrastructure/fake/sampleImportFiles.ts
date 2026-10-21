@@ -4,7 +4,7 @@ import { fakeWorkbookValues } from '../../../workbook/infrastructure/fake/fakeWo
 import type { CellValue } from '../../../workbook/infrastructure/workbookSnapshot'
 
 /**
- * Two statement files for the fake build's Import screen, each carrying on the fake workbook's main
+ * Two statement files for the fake build's Import tab on Transactions, each carrying on the fake workbook's main
  * account from its newest row: a camt.053 statement with a client payment, a card purchase in
  * dollars, a bank fee and a reversal, and a Croatian bank's xlsx export with a decimal comma,
  * text dates, split debit and credit columns, a title above the header and a total below. Every

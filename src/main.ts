@@ -4,8 +4,9 @@ import { createApp } from 'vue'
 import ui from '@nuxt/ui/vue-plugin'
 
 import App from './App.vue'
+import { takeGoogleRedirect } from './features/workbook/infrastructure/googleAuth'
 import { startServiceWorker } from './shared/pwa/appUpdate'
-import { router } from './shared/routing/router'
+import { createAppRouter } from './shared/routing/router'
 import { applyInitialTheme } from './shared/theme/theme'
 
 applyInitialTheme()
@@ -16,7 +17,8 @@ async function start(): Promise<void> {
     const { seedFakeWorkbook } = await import('./features/workbook/infrastructure/fake/seedFakeWorkbook')
     await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'))
   }
-  createApp(App).use(router).use(ui).mount('#app')
+  const googleReturn = takeGoogleRedirect()
+  createApp(App, { googleReturn }).use(createAppRouter()).use(ui).mount('#app')
   // Inline, as above. Development and the fake build never cache the app.
   if (import.meta.env.PROD && import.meta.env.VITE_FAKE_WORKBOOK !== 'true') {
     startServiceWorker()

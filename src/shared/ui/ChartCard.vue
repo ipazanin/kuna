@@ -52,6 +52,12 @@ const props = withDefaults(
     formatValue?: (value: number) => string
     /** Where a value in the table view leads, when the chart's marks drill. */
     linkAt?: (selection: ChartPointSelection) => RouteLocationRaw | null
+    /** Makes the chart collapsible, as AppCard's collapse id does, under its own id such as "year.konto". */
+    collapseId?: string
+    /** The one line the collapsed chart shows under its title. */
+    summary?: string
+    startCollapsed?: boolean
+    reveal?: boolean
   }>(),
   {
     formatValue: (value: number) => formatWholeMoney(value),
@@ -61,6 +67,8 @@ const props = withDefaults(
     emptyTitle: 'Nothing to show for this period',
     emptyDescription: 'Pick a longer period or clear a filter.',
     height: 260,
+    startCollapsed: false,
+    reveal: false,
   },
 )
 
@@ -208,7 +216,14 @@ function onDataZoom(): void {
 </script>
 
 <template>
-  <AppCard data-testid="chart-card" :title="title" :subtitle="subtitle" :definition="definition" :aria-busy="loading">
+  <AppCard
+    data-testid="chart-card"
+    :title="title"
+    :subtitle="subtitle"
+    :definition="definition"
+    :aria-busy="loading"
+    v-bind="collapseId === undefined ? {} : { collapseId, summary, startCollapsed, reveal }"
+  >
     <template #title>
       {{ title }}
       <UIcon v-if="loading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-dimmed" aria-label="Loading" />

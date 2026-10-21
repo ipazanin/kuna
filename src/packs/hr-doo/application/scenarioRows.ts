@@ -109,7 +109,6 @@ export const SCENARIO_ROWS: TabRowRules = {
   columns: COLUMNS,
   required: ['scenario', 'year', 'component', 'amount'],
   caseless: ['scenario', 'component', 'amount'],
-  dates: ['from', 'to'],
   reads: ['plan', 'categories'],
   read: (rows) => {
     const { scenarios, problems } = readScenarios(rows)

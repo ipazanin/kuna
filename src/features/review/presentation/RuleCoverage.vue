@@ -9,21 +9,26 @@ import type { CoverageGroup, RuleCoverage } from '../../rules/domain/ruleCoverag
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
+import type { SuggestionKind } from '../../workbook/domain/dismissals'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 
 /**
  * Rows a person filed that the rules would not file the same way, by counterparty. Rows no rule
  * settles may want a rule. Rows a rule settles in another category are exceptions to that rule,
- * and a new rule for them would file the rule's other rows wrongly.
+ * and a new rule for them would file the rule's other rows wrongly. A group the person dismissed
+ * is left out before it gets here.
  */
 const props = defineProps<{
   coverage: RuleCoverage<Transaction>
   categories: readonly Category[]
   busy: boolean
+  /** How many of the groups the dismissed tab hides, for the summary. */
+  dismissedCount: number
 }>()
 
 const emit = defineEmits<{
   makeRule: [group: CoverageGroup<Transaction>]
+  dismiss: [kind: SuggestionKind, group: CoverageGroup<Transaction>]
 }>()
 
 const bucketBySlug = computed(() => new Map(props.categories.map((category) => [category.slug, category.bucket])))
@@ -31,6 +36,11 @@ const bucketBySlug = computed(() => new Map(props.categories.map((category) => [
 function bucketOf(category: string): Bucket {
   return bucketBySlug.value.get(category) ?? UNCLASSIFIED
 }
+
+const groupCount = computed(() => props.coverage.notCovered.length + props.coverage.exceptions.length)
+const summary = computed(
+  () => `${groupCount.value} ${groupCount.value === 1 ? 'group' : 'groups'} no rule repeats${props.dismissedCount > 0 ? `, ${props.dismissedCount} dismissed` : ''}`,
+)
 
 const rowCount = computed(() => [...props.coverage.notCovered, ...props.coverage.exceptions].reduce((total, group) => total + group.rows.length, 0))
 
@@ -42,12 +52,14 @@ function rowsInWords(count: number): string {
 <template>
   <AppCard
     title="Confirmed rows no rule repeats"
-    collapse-id="review.coverage"
-    :summary="`${coverage.notCovered.length} not covered, ${coverage.exceptions.length} ${coverage.exceptions.length === 1 ? 'exception' : 'exceptions'}`"
+    collapse-id="review.no-rule-repeats"
+    :summary="summary"
+    start-collapsed
     data-testid="rule-coverage"
   >
     <template #subtitle>
       <template v-if="rowCount">{{ rowsInWords(rowCount) }} a person filed that the rules would not file the same way.</template>
+      <template v-else-if="dismissedCount > 0">Apart from the groups you dismissed, every row a person filed is one the rules would file the same way.</template>
       <template v-else>Every row a person filed is one the rules would file the same way.</template>
     </template>
 
@@ -78,17 +90,29 @@ function rowsInWords(count: number): string {
               </li>
             </ul>
           </div>
-          <UButton
-            label="Make this a rule"
-            icon="i-lucide-list-plus"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            class="self-start"
-            :disabled="busy"
-            data-testid="coverage-make-rule"
-            @click="emit('makeRule', group)"
-          />
+          <div class="group-actions">
+            <UButton
+              label="Make this a rule"
+              icon="i-lucide-list-plus"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :disabled="busy"
+              data-testid="coverage-make-rule"
+              @click="emit('makeRule', group)"
+            />
+            <UButton
+              label="Dismiss"
+              icon="i-lucide-eye-off"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :aria-label="`Dismiss ${group.name || 'the rows with no counterparty'}`"
+              :disabled="busy"
+              data-testid="coverage-dismiss"
+              @click="emit('dismiss', 'not-covered', group)"
+            />
+          </div>
         </li>
       </ul>
     </template>
@@ -125,16 +149,28 @@ function rowsInWords(count: number): string {
               <CategoryChip :category="group.ruleCategory" :bucket="bucketOf(group.ruleCategory)" />
             </p>
           </div>
-          <UButton
-            label="Open the rule"
-            icon="i-lucide-list-ordered"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            class="self-start"
-            :to="{ path: '/workbook', query: { tab: 'rules', rule: group.ruleId } }"
-            data-testid="coverage-open-rule"
-          />
+          <div class="group-actions">
+            <UButton
+              label="Open the rule"
+              icon="i-lucide-list-ordered"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :to="{ path: '/review', query: { tab: 'rules', rule: group.ruleId } }"
+              data-testid="coverage-open-rule"
+            />
+            <UButton
+              label="Dismiss"
+              icon="i-lucide-eye-off"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :aria-label="`Dismiss ${group.name || 'the rows with no counterparty'}`"
+              :disabled="busy"
+              data-testid="coverage-dismiss"
+              @click="emit('dismiss', 'exception', group)"
+            />
+          </div>
         </li>
       </ul>
     </template>
@@ -157,6 +193,20 @@ function rowsInWords(count: number): string {
   justify-content: space-between;
   gap: 0.75rem 1rem;
   padding: 0.75rem 1rem;
+}
+
+.group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .group-actions {
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+  }
 }
 
 .group-row + .group-row {

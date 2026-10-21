@@ -1,19 +1,21 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
- * and its navigation drawer, the review notice's drill, a chart's tap-then-drill, the filter sheet with a
+ * with its one-line Sync button and its navigation drawer, Workbook's tabs with Back through them, the review line of Overview's waiting card, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar, the
  * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a line's build-up, a
  * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, the Add advance form,
- * the cost of a reimbursement with no cost on file added from Owner and from Review,
+ * the cost of a reimbursement with no cost on file added from Review,
  * the billing plan's next expected invoice opening its month, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a category, an asset and an
  * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a payment split, edited, deleted and
- * brought back, a camt.053 statement and a bank export imported on Import, the export
+ * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
+ * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused,
+ * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
  * with a profile made for it, each confirmed and undone, an invoice made and re-exported, a rule made from a row and applied to
- * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
+ * the rows still waiting, a rule edited and switched off on Review's Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
@@ -38,7 +40,22 @@ import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, importCamtFlow, importTableFlow, invoiceFlow, invoiceRunFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { pageTabsFlow } from './support/pageTabFlows.mjs'
+import {
+  assetFlow,
+  categoryFlow,
+  dismissFlow,
+  importCamtFlow,
+  importTableFlow,
+  invoiceFlow,
+  invoiceRunFlow,
+  planFlow,
+  planTabFlow,
+  reviewSplitFlow,
+  scenarioFlow,
+  splitFlow,
+  startingScenariosFlow,
+} from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -51,18 +68,17 @@ const selection = runSelection(WIDTHS)
 const BASE = selection.base
 
 /** Steps that carry on from the page an earlier step left, so a run limited to one of them runs that one too. */
-const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview', 'filter-sheet': 'review-drill' }
+const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview' }
 
 /**
  * `ready` appears once the screen drew the fake workbook. `p=all` resets the filters the drills left
  * behind. A screen collapses and expands its first collapsible card, unless `cards: false` says it has none.
  */
 const SCREENS = [
-  { hash: '#/import', title: 'Import', ready: '[data-testid="import-file"]', cards: false },
+  { hash: '#/transactions?tab=import', title: 'Transactions', ready: '[data-testid="import-file"]', cards: false },
   { hash: '#/trends?p=all', title: 'Trends', ready: '.chart-body canvas', cards: false },
   { hash: '#/spending?p=all', title: 'Spending', ready: '[data-testid="cost-line"]' },
   { hash: '#/period-review?p=all', title: 'Period review', ready: '.chart-body canvas' },
-  { hash: '#/cash?p=all', title: 'Cash', ready: '.chart-body canvas', cards: false },
   { hash: '#/receivables?p=all', title: 'Receivables', ready: '[data-testid="invoice-list"]' },
   { hash: '#/billing?p=all', title: 'Billing plan', ready: '[data-testid="billing-rows"]' },
   { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
@@ -154,12 +170,18 @@ async function checkWidth(width) {
       page.evaluate(() => {
         const bar = document.querySelector('header')
         const menu = bar?.querySelector('[data-testid="open-navigation"]')?.getBoundingClientRect()
-        const sync = bar?.querySelector('[data-testid="sync-status"] button')?.getBoundingClientRect()
-        const syncedAt = bar?.querySelector('[data-testid="sync-status"] time')?.textContent?.trim() ?? ''
-        return { menuAtLeft: menu !== undefined && menu.left < 24, syncAtRight: sync !== undefined && sync.right > window.innerWidth - 24, syncedAt }
+        const button = bar?.querySelector('[data-testid="compact-sync"]')
+        const sync = button?.getBoundingClientRect()
+        return {
+          menuAtLeft: menu !== undefined && menu.left < 24,
+          syncAtRight: sync !== undefined && sync.right > window.innerWidth - 24,
+          height: Math.round(sync?.height ?? 0),
+          time: button?.textContent?.trim() ?? '',
+          name: button?.getAttribute('aria-label') ?? '',
+        }
       }),
-      (bar) => bar.menuAtLeft && bar.syncAtRight && bar.syncedAt !== '',
-      'the top bar does not hold the menu at the left and Sync with its time at the right',
+      (bar) => bar.menuAtLeft && bar.syncAtRight && bar.height === 44 && / ago$|^just now$|^yesterday$|^on /.test(bar.time) && bar.name.startsWith(`Synced ${bar.time}, `),
+      'the top bar does not hold the menu at the left and one 44 px Sync button with the time since the last sync at the right',
     )
   })
 
@@ -199,18 +221,23 @@ async function checkWidth(width) {
     )
   })
 
-  await step('review-drill', async () => {
+  await step('waiting-review', async () => {
     await open(page, '#/', 'Overview')
-    const reviewLink = await waitForText(page, '[data-testid="review-notice"] a', 'Review them')
+    await page.waitForSelector('[data-testid="waiting-for-you"]')
+    await shoot('overview-waiting')
+    const reviewLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="review"] a', 'Review')
+    await reviewLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
     await reviewLink.tap()
-    await waitForTitle(page, 'Transactions')
-    await expect(hashOf(page), (hash) => hash.includes('review=1'), 'the drill did not carry the needs-review filter')
-    await expect(filterCount(page), (count) => count === '1', 'the filter button does not count one active filter')
-    await page.waitForSelector('[data-testid="transaction-card"]')
-    await shoot('transactions-cards')
+    await waitForTitle(page, 'Review')
+    await expect(reviewCount(page), (count) => count === 2, 'the waiting line did not open the queue with its two rows')
   })
 
   await step('filter-sheet', async () => {
+    await open(page, '#/transactions?p=all&review=1', 'Transactions')
+    await expect(filterCount(page), (count) => count === '1', 'the filter button does not count one active filter')
+    await page.waitForSelector('[data-testid="transaction-card"]')
+    await shoot('transactions-cards')
     await page.tap('[data-testid="open-filters"]')
     await waitForText(page, '[role="dialog"] [aria-label="Active filters"]', 'Needs review')
     await delay(300)
@@ -490,10 +517,7 @@ async function checkWidth(width) {
     await expect(advances(), (count) => count === before, 'Undo did not take the advance off the list')
   })
 
-  for (const [screen, title] of [
-    ['owner', 'Owner'],
-    ['review', 'Review'],
-  ]) {
+  for (const [screen, title] of [['review', 'Review']]) {
     await step(`${screen}-unaccounted-cost`, async () => {
       await openFreshExcel(page, `#/${screen}?p=all`, title)
       const unaccounted = () => page.evaluate(() => document.querySelectorAll('[data-testid="unaccounted-reimbursement"]').length)
@@ -660,8 +684,10 @@ async function checkWidth(width) {
       ['plan-tab', '#/forecast?year=2027', 'Forecast', planTabFlow, mode === 'google' ? '&fake=no-plan' : '&fake=excel-no-plan'],
       ['split', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow],
       ['split-tab', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow, mode === 'google' ? '&fake=no-splits' : '&fake=excel-no-splits'],
-      ['import-camt', '#/import', 'Import', importCamtFlow(IMPORT_SAMPLES.camt)],
-      ['import-table', '#/import', 'Import', importTableFlow(IMPORT_SAMPLES.table)],
+      ['split-review', '#/review', 'Review', reviewSplitFlow],
+      ['dismiss', '#/review?tab=rules', 'Review', dismissFlow],
+      ['import-camt', '#/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
+      ['import-table', '#/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
     ]) {
       await step(`${name}-${mode}`, async () => {
         await page.goto(`${BASE}?theme=dark${variant ?? query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
@@ -790,6 +816,11 @@ async function checkWidth(width) {
     await shoot('workbook-accounts')
   })
 
+  await step('page-tabs', async () => {
+    await open(page, '#/workbook', 'Workbook')
+    await pageTabsFlow(page, { press: (handle) => handle.tap(), shoot })
+  })
+
   await step('review-confirm-undo', async () => {
     await openFreshExcel(page, '#/review', 'Review')
     await expect(reviewCount(page), (count) => count === 2, 'the queue does not hold the two fake rows')
@@ -839,6 +870,8 @@ async function checkWidth(width) {
       (count) => count === '1',
       'the session panel does not count the write',
     )
+    // The panel sits below the queue, where the toast rises, so the toast goes first.
+    await closeToasts(page)
     const toggle = await page.$('[data-testid="session-changes"] [data-testid="card-toggle"]')
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -894,7 +927,8 @@ async function checkWidth(width) {
   })
 
   await step('coverage-split', async () => {
-    await openFreshExcel(page, '#/review', 'Review')
+    await openFreshExcel(page, '#/review?tab=rules', 'Review')
+    await openCoverage(page)
     const split = await waitForText(page, '[data-testid="coverage-gap"]', 'STATE BUDGET')
     await expect(
       split.evaluate((group) => group.textContent ?? ''),
@@ -938,12 +972,12 @@ async function checkWidth(width) {
     await inspect(page, `${width}px coverage with exceptions`)
     await shoot('coverage-split')
     await (await exception.$('[data-testid="coverage-open-rule"]')).tap()
-    await waitForTitle(page, 'Workbook')
+    await page.waitForFunction(() => window.location.hash.includes('rule=merchant-laptop-store'))
     await page.waitForSelector('[data-testid="rule-row"][aria-current="true"]')
     await expect(
       page.evaluate(() => document.querySelector('[data-testid="rule-row"][aria-current="true"]')?.textContent ?? ''),
       (text) => text.includes('merchant-laptop-store'),
-      'Open the rule does not mark the rule on the Rules tab',
+      'Open the rule does not mark the rule in the rules list',
     )
     await delay(300)
     await inspect(page, `${width}px rule highlighted`)
@@ -951,7 +985,7 @@ async function checkWidth(width) {
   })
 
   await step('rules-tab-edit', async () => {
-    await openFreshExcel(page, '#/workbook?tab=rules', 'Workbook')
+    await openFreshExcel(page, '#/review?tab=rules', 'Review')
     await page.waitForSelector('[data-testid="rule-row"]')
     await inspect(page, `${width}px rules tab`)
     await shoot('rules-tab')
@@ -986,6 +1020,49 @@ async function checkWidth(width) {
       (off) => off,
       'the rule did not switch off',
     )
+  })
+
+  await step('google-return', async () => {
+    const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.file openid email')
+    /** Loads the app as Google sends the tab back, with what the tab remembered before it left. */
+    const comeBack = async (variant, pending, fragment) => {
+      await page.goto(`${BASE}?theme=dark&fake=${variant}#/`, { waitUntil: 'networkidle0' })
+      await page.evaluate((remembered) => {
+        localStorage.removeItem('ledgerboard.google-token')
+        localStorage.setItem('ledgerboard.google-account', 'owner@example.com')
+        localStorage.setItem('ledgerboard.google-redirect', JSON.stringify(remembered))
+      }, pending)
+      await page.goto(`${BASE}?theme=dark&fake=${variant}&load=${Date.now()}#${fragment}`, { waitUntil: 'networkidle0' })
+    }
+    const keptToken = () => page.evaluate(() => JSON.parse(localStorage.getItem('ledgerboard.google-token') ?? 'null')?.value ?? null)
+    const fragmentGone = () => page.evaluate(() => !window.location.href.includes('access_token') && !window.location.href.includes('error='))
+
+    await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Ledgerboard')
+    await waitForText(page, '[data-testid="redirect-sign-in-note"]', 'Google may ask about cookies first')
+
+    await comeBack('google', { state: 'touch-check', grant: 'sign-in', resume: 'none', route: '#/review?tab=rules' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
+    await waitForTitle(page, 'Review')
+    await waitForText(page, 'li[data-slot="base"]', 'Signed in to Google')
+    await expect(hashOf(page), (hash) => hash === '#/review?tab=rules', 'the return did not land on the tab the sign-in left')
+    await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address')
+    await expect(keptToken(), (token) => token === 'fake-token', 'the token from the fragment was not kept as the sign-in')
+    await inspect(page, `${width}px google return`)
+    await shoot('google-return')
+
+    await comeBack('empty', { state: 'touch-check', grant: 'sign-in', resume: 'pick', route: '#/' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
+    await waitForTitle(page, 'Overview')
+
+    await comeBack('google', { state: 'touch-check', grant: 'sign-in', resume: 'sync', route: '#/transactions' }, `access_token=forged-token&expires_in=3599&scope=${scope}&state=forged`)
+    await waitForTitle(page, 'Transactions')
+    await waitForText(page, 'li[data-slot="base"]', 'Not signed in to Google')
+    await expect(fragmentGone(), (gone) => gone, 'the forged token stayed in the address')
+    await expect(keptToken(), (token) => token === null, 'a token with the wrong state was kept')
+
+    await comeBack('google', { state: 'touch-check', grant: 'gmail', resume: 'none', route: '#/receivables' }, 'error=access_denied&state=touch-check')
+    await waitForTitle(page, 'Receivables')
+    await waitForText(page, 'li[data-slot="base"]', 'No Gmail access')
+    await expect(fragmentGone(), (gone) => gone, 'the error stayed in the address')
   })
 
   await step('excel-import', async () => {
@@ -1101,6 +1178,23 @@ function groupState(page, category) {
       cards: group.querySelectorAll('[data-testid="transaction-card"]').length,
     }
   }, category)
+}
+
+async function closeToasts(page) {
+  await page.evaluate(() => {
+    for (const close of document.querySelectorAll('li[data-slot="base"] button[aria-label="Close"]')) close.click()
+  })
+  await page.waitForFunction(() => document.querySelectorAll('li[data-slot="base"]').length === 0, { timeout: 5_000 })
+}
+
+/** Opens the collapsed list of confirmed rows no rule repeats. */
+async function openCoverage(page) {
+  const toggle = await page.waitForSelector('[data-testid="rule-coverage"] [data-testid="card-toggle"]')
+  if ((await toggle.evaluate((element) => element.getAttribute('aria-expanded'))) === 'true') return
+  await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await toggle.tap()
+  await delay(300)
 }
 
 function reviewCount(page) {

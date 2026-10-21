@@ -1,7 +1,7 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import type { Ref } from 'vue'
 
-import { civilDate, parseCivilDate } from '../../../shared/calendar/civilDate'
+import { parseCivilDate, today } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../shared/calendar/dateRange'
 import { downloadFile } from '../../../shared/files/downloadFile'
@@ -61,11 +61,6 @@ function rememberDraftPreference(on: boolean): void {
   } catch {
     // Not remembered on this device, so the switch starts off next time.
   }
-}
-
-function today(): CivilDate {
-  const now = new Date()
-  return civilDate(now.getFullYear(), now.getMonth() + 1, now.getDate())
 }
 
 function amountText(amount: Money): string {

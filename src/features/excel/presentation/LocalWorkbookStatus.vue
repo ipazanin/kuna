@@ -47,7 +47,7 @@ const reminder = computed(() => {
       color="neutral"
       variant="outline"
       size="sm"
-      :class="{ 'has-reminder': compact && reminder }"
+      :class="{ 'top-bar-action': compact, 'has-reminder': compact && reminder }"
       @click="exportNow"
     />
     <p v-if="reminder && !compact" class="flex w-full items-start gap-1.5 text-xs text-[var(--tone-warning)]" role="status">
@@ -65,8 +65,8 @@ const reminder = computed(() => {
 .has-reminder::after {
   content: '';
   position: absolute;
-  top: -3px;
-  right: -3px;
+  top: 0;
+  right: 0.5rem;
   width: 8px;
   height: 8px;
   border-radius: 50%;

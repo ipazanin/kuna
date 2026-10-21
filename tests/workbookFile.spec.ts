@@ -34,11 +34,11 @@ function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
 }
 
 describe('the template', () => {
-  it('has the fifteen tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
+  it('has the sixteen tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
     const tabs = emptyWorkbookTabs()
     const book = XLSX.read(await writeWorkbookFile(tabs, workbookOf(tabs)), { type: 'array' })
 
-    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits'])
+    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits', 'dismissed'])
     for (const name of book.SheetNames) {
       const sheet = book.Sheets[name]!
       const header = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })[0] ?? []
@@ -99,7 +99,7 @@ describe('reading an xlsx file', () => {
       }),
     )
 
-    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits'])
+    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits', 'dismissed'])
     expect(contents.tabs.ledger.map((row) => row.sheetRow)).toEqual([2, 4])
     expect(contents.tabs.ledger[0]?.cells.note).toBe('kept')
   })
@@ -129,7 +129,7 @@ describe('reading an xlsx file', () => {
       accounts: ['main', 'side'],
       dateRange: { from: '2026-10-04', to: '2026-10-05' },
       categoryCount: 0,
-      defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits'],
+      defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits', 'dismissed'],
       refusal: null,
     })
     expect(preview.summary.problems.map((problem) => [problem.tab, problem.sheetRow])).toEqual([

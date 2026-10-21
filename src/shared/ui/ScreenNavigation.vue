@@ -4,6 +4,8 @@ export interface NavigationEntry {
   readonly label: string
   /** A Lucide icon name such as `i-lucide-wallet`. */
   readonly icon: string
+  /** What waits on the screen, such as the rows to review, shown beside its name. Left out at zero. */
+  readonly count?: number
 }
 </script>
 
@@ -23,6 +25,10 @@ defineProps<{
         <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
           <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
           <span>{{ entry.label }}</span>
+          <template v-if="entry.count">
+            <span class="nav-count figure" aria-hidden="true" data-testid="nav-count">{{ entry.count }}</span>
+            <span class="sr-only">, {{ entry.count }} waiting</span>
+          </template>
         </RouterLink>
       </li>
     </ul>
@@ -42,6 +48,23 @@ defineProps<{
   transition:
     background-color 120ms ease,
     color 120ms ease;
+}
+
+.nav-count {
+  margin-inline-start: auto;
+  min-width: 1.375rem;
+  padding: 0 0.375rem;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  color: var(--ink-secondary);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.nav-link.is-active .nav-count {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .nav-link:hover {

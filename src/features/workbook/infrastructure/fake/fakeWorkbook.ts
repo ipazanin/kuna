@@ -15,6 +15,9 @@ export const FAKE_SPREADSHEET_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP'
 
 export const FAKE_WORKBOOK_TITLE = 'Fake workbook'
 
+/** Like the live Sheet, the fake Google Sheet has no dismissed tab yet, so the first Dismiss on Review asks to add it. */
+export const FAKE_SHEET_LACKS: readonly WorkbookTab[] = ['dismissed']
+
 /** The `roles` column as the shadow-accounting Sheet seeds it. Salary and rent are paid in the month after the work, hence `arrears`. */
 const CATEGORY_ROLES: Readonly<Record<string, string>> = {
   revenue: 'revenue',
@@ -192,7 +195,7 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
       ledgerSheetId: source === 'google' ? 0 : null,
       lastExportedAt: null,
       unexportedSince: null,
-      missingTabs: [],
+      missingTabs: source === 'google' ? FAKE_SHEET_LACKS : [],
     },
     ledger: sheetRowsFromValues(values.ledger),
     categories: sheetRowsFromValues(values.categories),
@@ -209,6 +212,7 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
     plan: sheetRowsFromValues(values.plan),
     scenarios: sheetRowsFromValues(values.scenarios),
     splits: sheetRowsFromValues(values.splits),
+    dismissed: source === 'google' ? [] : sheetRowsFromValues(values.dismissed),
   }
 }
 
@@ -292,6 +296,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies'],
     ],
     splits: splitsValues(ledger),
+    dismissed: [['kind', 'key', 'category', 'dismissed_on']],
     ...planningValues(),
   }
 }

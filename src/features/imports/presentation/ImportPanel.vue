@@ -12,10 +12,13 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 import { negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
+import { cellText } from '../../../shared/text/cellText'
 import AppCard from '../../../shared/ui/AppCard.vue'
-import PageHeader from '../../../shared/ui/PageHeader.vue'
+import DrillLink from '../../../shared/ui/DrillLink.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { needsReview } from '../../workbook/domain/needsReview'
+import { slugOf } from '../../workbook/infrastructure/cellReading'
 import { useRowWrites } from '../../workbook/presentation/useRowWrites'
 import { dryRunFor, fittingProfiles, statementReadings } from '../application/importStatements'
 import { LEDGER_ROWS } from '../application/ledgerRows'
@@ -82,9 +85,14 @@ const savingProfile = ref(false)
 const shape = computed(() => (loaded.value?.kind === 'table' ? fileShapeOf(loaded.value.grid) : null))
 const fitting = computed(() => (loaded.value?.kind === 'table' ? fittingProfiles(loaded.value.grid, savedProfiles.value) : []))
 
+/** The rows the last confirmed import wrote, by account and bank reference, which every imported row carries. */
+const imported = ref<ReadonlySet<string> | null>(null)
+const rowKey = (account: string, reference: string): string => `${account}|${reference}`
+
 /** A newly loaded file starts on the first saved profile that fits it, or on a new one guessed from the file. */
 function takeFile(file: LoadedImportFile): void {
   loaded.value = file
+  imported.value = null
   started.value = {}
   typedOpenings.value = {}
   editing.value = false
@@ -176,8 +184,17 @@ const inGoogle = computed(() => store.state.choice?.source === 'google')
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
-  await writes.write({ added: run.added, changed: [], removed: [] }, { title: run.newRows === 1 ? 'Imported 1 row' : `Imported ${run.newRows} rows` }, 'Not imported')
+  const written = await writes.write({ added: run.added, changed: [], removed: [] }, { title: run.newRows === 1 ? 'Imported 1 row' : `Imported ${run.newRows} rows` }, 'Not imported')
+  if (written) imported.value = new Set(run.added.map((cells) => rowKey(slugOf(cells.account), cellText(cells.reference))))
 }
+
+/** How the imported rows stand on the ledger now. Once Undo took them out again, there is nothing to say. */
+const importedRows = computed(() => {
+  const keys = imported.value
+  if (keys === null || workbook.value === null) return null
+  const rows = workbook.value.transactions.filter((transaction) => keys.has(rowKey(transaction.account, transaction.reference)))
+  return rows.length === 0 ? null : { count: rows.length, waiting: rows.filter(needsReview).length }
+})
 
 function rowsInWords(count: number): string {
   return count === 1 ? '1 row' : `${count} rows`
@@ -198,9 +215,7 @@ const summary = computed(() => {
 </script>
 
 <template>
-  <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader title="Import" description="Add a bank statement to the ledger: a camt.053 file, or a bank's spreadsheet export read by a saved profile. Nothing is written until you confirm." />
-
+  <div class="flex flex-col gap-6">
     <UEmpty
       v-if="workbook === null"
       icon="i-lucide-book-open"
@@ -211,6 +226,10 @@ const summary = computed(() => {
     />
 
     <template v-else>
+      <p class="max-w-[65ch] text-sm text-muted">
+        Add a bank statement to the ledger: a camt.053 file, or a bank's spreadsheet export read by a saved profile. Nothing is written until you confirm.
+      </p>
+
       <AppCard title="Statement file" subtitle="A camt.053 statement (.xml), or an export as .xlsx, .xls, .ods or .csv.">
         <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5" data-testid="import-file">
           <UFileUpload
@@ -274,6 +293,14 @@ const summary = computed(() => {
         <AppCard title="Dry run" data-testid="dry-run">
           <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
             <p class="text-sm text-toned" data-testid="dry-run-summary">{{ summary }}</p>
+            <div v-if="importedRows" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-toned" role="status" data-testid="import-waiting">
+              <p class="flex items-start gap-2">
+                <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0" :class="importedRows.waiting > 0 ? 'text-[var(--tone-warning)]' : 'text-muted'" aria-hidden="true" />
+                <span v-if="importedRows.waiting > 0">{{ importedRows.waiting }} new {{ importedRows.waiting === 1 ? 'row waits' : 'rows wait' }} on Review.</span>
+                <span v-else>The rules settled every new row, so none waits on Review.</span>
+              </p>
+              <DrillLink v-if="importedRows.waiting > 0" to="/review" class="font-medium text-highlighted">Open Review</DrillLink>
+            </div>
             <p v-if="inGoogle && loaded?.kind === 'camt'" class="text-sm text-muted">
               The shadow-accounting Apps Script may file the same statements on its morning run. Its rows carry the same bank references, so whichever writes first, the other finds them on the ledger and writes nothing.
             </p>
@@ -293,5 +320,5 @@ const summary = computed(() => {
         class="rounded-card border-dashed bg-raised/40"
       />
     </template>
-  </section>
+  </div>
 </template>

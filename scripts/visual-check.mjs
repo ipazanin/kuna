@@ -23,8 +23,11 @@
  * It plans a category for 2027 on Forecast, edits, clears and undoes it, and plans a purchase in a
  * workbook without plan rows, which adds the plan tab to a Sheet without it. On Transactions it
  * splits a payment, edits the split, deletes it and undoes the delete, and splits one in a workbook
- * without the splits tab. On Import it drops the sample camt.053 statement and the sample bank export, makes a profile for the
- * export, reads each dry run, confirms it and undoes it, at 360, 430 and 1440 px.
+ * without the splits tab. On Review it does the same from a row of the queue, and dismisses a group of
+ * confirmed rows no rule repeats, which adds the dismissed tab to a Sheet without it, restores it and
+ * undoes the restore. On the Import tab of Transactions it drops the sample camt.053 statement and the
+ * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
+ * new rows wait on Review and undoes it, at 360, 430 and 1440 px.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -46,7 +49,22 @@ import * as XLSX from 'xlsx'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, importCamtFlow, importTableFlow, invoiceFlow, invoiceRunFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { pageTabsFlow } from './support/pageTabFlows.mjs'
+import {
+  assetFlow,
+  categoryFlow,
+  dismissFlow,
+  importCamtFlow,
+  importTableFlow,
+  invoiceFlow,
+  invoiceRunFlow,
+  planFlow,
+  planTabFlow,
+  reviewSplitFlow,
+  scenarioFlow,
+  splitFlow,
+  startingScenariosFlow,
+} from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { runSelection } from './support/runSelection.mjs'
 
@@ -84,13 +102,12 @@ const CARD_SELECTOR = '.rounded-card, .gallery-frame'
  * remembers as collapsed. `cards: false` marks a screen with no collapsible card.
  */
 const SCREENS = [
-  { name: 'overview', hash: '#/', title: 'Overview', charts: 3, shows: 'A typical month', cards: false },
+  { name: 'overview', hash: '#/', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
   { name: 'transactions', hash: '#/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics', cards: false },
-  { name: 'import', hash: '#/import', title: 'Import', charts: 0, shows: 'Drop a statement file here', cards: false },
+  { name: 'import', hash: '#/transactions?tab=import', title: 'Transactions', charts: 0, shows: 'Drop a statement file here', cards: false },
   { name: 'trends', hash: '#/trends', title: 'Trends', charts: 3, shows: 'Cumulative net', cards: false },
   { name: 'spending', hash: '#/spending', title: 'Spending', charts: 0, shows: 'Northwind' },
   { name: 'period-review', hash: '#/period-review', title: 'Period review', charts: 1, shows: 'Revenue' },
-  { name: 'cash', hash: '#/cash', title: 'Cash', charts: 1, shows: 'Legacy', cards: false },
   { name: 'receivables', hash: '#/receivables', title: 'Receivables', charts: 1, shows: 'Every invoice' },
   { name: 'billing', hash: '#/billing', title: 'Billing plan', charts: 1, shows: ['Month by month, 2026', 'Totals over every client'] },
   {
@@ -108,7 +125,7 @@ const SCREENS = [
   { name: 'year-end', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'From the cash net to profit, 2025' },
   { name: 'forecast', hash: '#/forecast', title: 'Forecast', charts: 0, shows: ['The forecast needs the day the company was registered', 'Plan for 2026'] },
   { name: 'pay-scenarios', hash: '#/pay-scenarios', title: 'Pay scenarios', charts: 0, shows: 'The figures need hr_company_registered' },
-  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Costs the owner paid privately', 'Reimbursed with no cost on file'] },
+  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review'] },
   { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
   {
     name: 'ruleset-linked',
@@ -119,6 +136,16 @@ const SCREENS = [
     linkedRule: 'hr.contrib.director-floor',
   },
   { name: 'review', hash: '#/review', title: 'Review', charts: 0, shows: ['GADGET CORNER', 'Refund of a parking fee'] },
+  { name: 'review-rules', hash: '#/review?tab=rules', title: 'Review', charts: 0, shows: ['merchant-airline', 'Confirmed rows no rule repeats'] },
+  {
+    name: 'review-rule-linked',
+    hash: '#/review?tab=rules&rule=merchant-airline',
+    title: 'Review',
+    charts: 0,
+    shows: 'merchant-airline',
+    collapsedBefore: ['review.rules'],
+    linkedRow: '[data-testid="rule-row"][aria-current="true"]',
+  },
   { name: 'workbook', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Bucket labels' },
   {
     name: 'workbook-categories',
@@ -129,22 +156,16 @@ const SCREENS = [
     collapsedBefore: ['workbook.categories'],
     linkedCard: 'workbook.categories',
   },
-  {
-    name: 'workbook-rule-linked',
-    hash: '#/workbook?tab=rules&rule=merchant-airline',
-    title: 'Workbook',
-    charts: 0,
-    shows: 'merchant-airline',
-    collapsedBefore: ['workbook.rules'],
-    linkedRow: '[data-testid="rule-row"][aria-current="true"]',
-  },
   { name: 'workbook-clients', hash: '#/workbook?tab=clients', title: 'Workbook', charts: 0, shows: 'Add client row' },
   { name: 'workbook-assets', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
   { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Fake workbook', cards: false },
 ]
 
 /** The gallery's chart cards that draw a chart. The loading card counts, the empty one does not. */
-const GALLERY_CHARTS = 6
+const GALLERY_CHARTS = 7
+
+/** The gallery's donut cards, each of which must draw its ring. */
+const GALLERY_DONUTS = 2
 
 /** Screens outside the fake Google workbook. `query` picks the fake variant, `upload` drops the import file on the page. */
 const SOURCE_SCREENS = [
@@ -244,6 +265,7 @@ function readPage(page) {
       overflowing: [...new Set(overflowing)].slice(0, 6),
       title: document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() ?? null,
       chartHeights: [...document.querySelectorAll('.chart-body canvas')].map((canvas) => canvas.getBoundingClientRect().height),
+      donutHeights: [...document.querySelectorAll('[data-testid="donut-card"] canvas')].map((canvas) => canvas.getBoundingClientRect().height),
       iconCount: document.querySelectorAll('svg.iconify').length,
       unrenderedIcons: [...document.querySelectorAll('.iconify')].filter((icon) => icon.tagName.toLowerCase() !== 'svg').length,
       themeClass: doc.classList.contains('light') ? 'light' : doc.classList.contains('dark') ? 'dark' : 'none',
@@ -328,14 +350,18 @@ function readPage(page) {
   }, CARD_SELECTOR)
 }
 
-/** Runs in the page: the linked part sits just below the top, or in view at the foot of a page too short to scroll it higher, in a card that is open. */
+/**
+ * Runs in the page: the linked part sits just below the bars that stay at the top, or in view at
+ * the foot of a page too short to scroll it higher, in a card that is open.
+ */
 function linkedPartLanded(id) {
   const part = document.getElementById(id)
   const card = part?.closest('[data-card]')
   if (part === null || card?.dataset.collapsed !== 'false') return false
+  const band = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-band')) || 0
   const top = part.getBoundingClientRect().top
   const atFoot = window.scrollY >= document.documentElement.scrollHeight - window.innerHeight - 1
-  return (top >= 56 && top <= 96) || (atFoot && top > 0 && top < window.innerHeight)
+  return (top >= band && top <= band + 40) || (atFoot && top >= band && top < window.innerHeight)
 }
 
 /** Runs in the page: the linked row is in an open card and inside the window. */
@@ -391,6 +417,7 @@ const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 
 /** The editors' flows, each on a fresh load, so the fake Sheet and the workbook kept in this browser start from their seed. */
 const FLOWS = [
+  { name: 'page-tabs', hash: '#/workbook', title: 'Workbook', run: pageTabsFlow },
   { name: 'categories', hash: '#/workbook?tab=categories', title: 'Workbook', run: categoryFlow },
   { name: 'assets', hash: '#/workbook?tab=assets', title: 'Workbook', run: assetFlow },
   { name: 'invoices', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceFlow },
@@ -422,8 +449,10 @@ const FLOWS = [
     viewports: ['phone', 'desktop'],
     queries: { google: '&fake=no-splits', excel: '&fake=excel-no-splits' },
   },
-  { name: 'import-camt', hash: '#/import', title: 'Import', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
-  { name: 'import-table', hash: '#/import', title: 'Import', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'split-review', hash: '#/review', title: 'Review', run: reviewSplitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'dismiss', hash: '#/review?tab=rules', title: 'Review', run: dismissFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'import-camt', hash: '#/transactions?tab=import', title: 'Transactions', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'import-table', hash: '#/transactions?tab=import', title: 'Transactions', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
 ]
 const MODES = [
   { name: 'google', query: '' },
@@ -519,6 +548,9 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     const collapsed = report.chartHeights.filter((height) => height < 100)
     if (collapsed.length) fail(scope, `${collapsed.length} chart(s) drew under 100px tall: ${collapsed.join(', ')}`)
     if (visit.gallery && report.iconCount < 10) fail(scope, `only ${report.iconCount} icons rendered as SVG`)
+    if (visit.gallery && (report.donutHeights.length !== GALLERY_DONUTS || report.donutHeights.some((height) => height < 150))) {
+      fail(scope, `drew donuts ${report.donutHeights.map(Math.round).join(', ')} px tall, expected ${GALLERY_DONUTS} of at least 150 px`)
+    }
     if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
     for (const wide of report.cardOverflow) {
       const allowed = SIDEWAYS_SCROLL_ALLOWED.find((entry) => entry.card === wide.card && viewport.width <= entry.upTo)

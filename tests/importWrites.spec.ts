@@ -14,7 +14,7 @@ import type { CellValue } from '../src/features/workbook/infrastructure/workbook
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { moneyFromCents } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
-import { LEDGER_HEADER, LEDGER_ROWS as LEDGER_VALUES, excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
+import { LEDGER_HEADER, LEDGER_ROWS as LEDGER_VALUES, dateFormat, excelHarness, forgetCaches, googleHarness, ruleRow, textFormat, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -195,6 +195,8 @@ describe.each([
           { copyPaste: { source: { sheetId: 0, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 18 }, destination: { sheetId: 0, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 18 }, pasteType: 'PASTE_FORMAT', pasteOrientation: 'NORMAL' } },
           { copyPaste: { source: { sheetId: 0, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 18 }, destination: { sheetId: 0, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 18 }, pasteType: 'PASTE_DATA_VALIDATION', pasteOrientation: 'NORMAL' } },
           { updateCells: { start: { sheetId: 0, rowIndex: 1, columnIndex: 0 }, rows: [{ values: expect.any(Array) }], fields: 'userEnteredValue' } },
+          dateFormat(0, 1, 0),
+          ...[1, 2, 3, 4, 5, 8, 9, 10, 12, 13, 14, 15].map((column) => textFormat(0, 1, column)),
         ],
       })
       expect(writtenRanges()).toEqual(['ledger!A2:R2'])
@@ -207,6 +209,24 @@ describe.each([
       expect(sheets.requests.at(-3)).toEqual({ kind: 'updateSpreadsheet', requests: [{ deleteDimension: { range: { sheetId: 0, dimension: 'ROWS', startIndex: 1, endIndex: 2 } } }] })
       expect(sheets.grids.ledger?.length).toBe(5)
     }
+  })
+
+  it('gives a new row the formats of the row below it, but text cells the text format and the date the date format', async () => {
+    const euro = '"€"#,##0.00'
+    // As on the live ledger, the row below carries the euro format on its category cell too.
+    const below = ['yyyy-mm-dd', null, null, null, null, null, euro, euro, euro, null, null, '@', '@', '@', '@', '@', '@', '@']
+    const { store, sheets } = await googleHarness(used, grids(), { ledger: [[], ...LEDGER_VALUES.map(() => [...below])] })
+    const run = dryRun(store, creditStatement())
+
+    await store.changeRows(LEDGER_ROWS, { added: run.added, changed: [], removed: [] })
+
+    const inserted = sheets.formats.ledger![1]!
+    expect(inserted[LEDGER_HEADER.indexOf('date')]).toBe('yyyy-mm-dd')
+    expect(inserted[LEDGER_HEADER.indexOf('amount')]).toBe(euro)
+    expect(inserted[LEDGER_HEADER.indexOf('balance')]).toBe(euro)
+    expect(inserted[LEDGER_HEADER.indexOf('category')]).toBe('@')
+    expect(inserted[LEDGER_HEADER.indexOf('purpose')]).toBe('@')
+    expect(sheets.formats.ledger![2]).toEqual(below)
   })
 
   it('refuses rows the ingest filed since the dry run, and writes nothing', async () => {

@@ -9,7 +9,7 @@ import type { Transaction } from '../src/features/workbook/domain/workbook'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { euros } from './fixtures/ledger'
-import { excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -126,7 +126,8 @@ describe('split writes to a Google Sheet', () => {
     await writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']], true)
 
     const splits = (await sheets.sheetIds()).get('splits')!
-    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells'])
+    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells', 'repeatCell'])
+    expect(sentRequests(sheets)[3]).toEqual(dateFormat(splits, 1, 0, 2))
     expect(sentRequests(sheets)[0]).toEqual({ addSheet: { properties: { sheetId: splits, title: 'splits' } } })
     expect(sentRequests(sheets)[2]).toMatchObject({ appendCells: { sheetId: splits } })
     expect(sheets.grids.splits?.[0]).toEqual(SPLIT_HEADER)

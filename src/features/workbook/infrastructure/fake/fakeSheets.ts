@@ -1,7 +1,7 @@
 import type { GoogleSheet } from '../../application/readFromGoogle'
 import type { CellData, RowData, SheetsValues, SpreadsheetRequest, ValueRange } from '../sheetsClient'
 import type { CellValue, WorkbookTab } from '../workbookSnapshot'
-import { FAKE_SPREADSHEET_ID, FAKE_WORKBOOK_TITLE, fakeWorkbookValues } from './fakeWorkbook'
+import { FAKE_SHEET_LACKS, FAKE_SPREADSHEET_ID, FAKE_WORKBOOK_TITLE, fakeWorkbookValues } from './fakeWorkbook'
 
 export type RecordedSheetsRequest =
   | { readonly kind: 'sheetIds' }
@@ -12,13 +12,19 @@ export type RecordedSheetsRequest =
 export interface FakeSheets extends SheetsValues {
   /** Each tab's cells, row 1 first. Tests change them to play the ingest or a person in the Sheet. */
   readonly grids: Record<string, (CellValue | null)[][]>
+  /** Each tab's number formats, such as `yyyy-mm-dd`, in the same rows and columns as its cells. A cell without one is null or missing. */
+  readonly formats: Record<string, (string | null)[][]>
   readonly requests: RecordedSheetsRequest[]
   /** The tab a sheet id names, as a request gives it. */
   tabWithId(sheetId: number): string | undefined
 }
 
-export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonly CellValue[])[]>>): FakeSheets {
+export function createFakeSheets(
+  tabs: Readonly<Record<string, readonly (readonly CellValue[])[]>>,
+  numberFormats: Readonly<Record<string, readonly (readonly (string | null)[])[]>> = {},
+): FakeSheets {
   const grids: Record<string, (CellValue | null)[][]> = Object.fromEntries(Object.entries(tabs).map(([tab, rows]) => [tab, rows.map((row) => [...row])]))
+  const formats: Record<string, (string | null)[][]> = Object.fromEntries(Object.keys(grids).map((tab) => [tab, (numberFormats[tab] ?? []).map((row) => [...row])]))
   const requests: RecordedSheetsRequest[] = []
   const ids = new Map(Object.keys(grids).map((tab, index) => [tab, index]))
 
@@ -34,6 +40,7 @@ export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonl
 
   return {
     grids,
+    formats,
     requests,
 
     tabWithId(sheetId) {
@@ -54,11 +61,19 @@ export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonl
       requests.push({ kind: 'updateSpreadsheet', requests: changes })
       // Sheets applies all of the requests or none, so the fake works on copies and keeps them only when every request went through.
       const working: Record<string, (CellValue | null)[][]> = Object.fromEntries(Object.entries(grids).map(([tab, grid]) => [tab, grid.map((row) => [...row])]))
+      const workingFormats: Record<string, (string | null)[][]> = Object.fromEntries(Object.entries(formats).map(([tab, grid]) => [tab, grid.map((row) => [...row])]))
       const workingIds = new Map(ids)
-      const tabOf = (sheetId: number): (CellValue | null)[][] => {
+      const tabNameOf = (sheetId: number): string => {
         const tab = [...workingIds].find(([, id]) => id === sheetId)?.[0]
         if (tab === undefined) throw new Error(`400 from the fake Sheet: No grid with id: ${sheetId}`)
-        return working[tab]!
+        return tab
+      }
+      const tabOf = (sheetId: number): (CellValue | null)[][] => working[tabNameOf(sheetId)]!
+      /** The tab's formats, padded to at least this many rows, so a row put in or taken out lines up with the cells. */
+      const formatsOf = (sheetId: number, rows: number): (string | null)[][] => {
+        const grid = (workingFormats[tabNameOf(sheetId)] ??= [])
+        while (grid.length < rows) grid.push([])
+        return grid
       }
       for (const change of changes) {
         if ('addSheet' in change) {
@@ -67,15 +82,18 @@ export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonl
             throw new Error(`400 from the fake Sheet: A sheet with the name "${title}" or the id ${sheetId} already exists.`)
           }
           working[title] = []
+          workingFormats[title] = []
           workingIds.set(title, sheetId)
         } else if ('insertDimension' in change) {
           const { sheetId, startIndex, endIndex } = change.insertDimension.range
           const grid = tabOf(sheetId)
           while (grid.length < startIndex) grid.push([])
           grid.splice(startIndex, 0, ...Array.from({ length: endIndex - startIndex }, () => []))
+          formatsOf(sheetId, startIndex).splice(startIndex, 0, ...Array.from({ length: endIndex - startIndex }, () => []))
         } else if ('deleteDimension' in change) {
           const { sheetId, startIndex, endIndex } = change.deleteDimension.range
           tabOf(sheetId).splice(startIndex, endIndex - startIndex)
+          formatsOf(sheetId, endIndex).splice(startIndex, endIndex - startIndex)
         } else if ('updateCells' in change) {
           const { start, rows } = change.updateCells
           writeRows(tabOf(start.sheetId), start.rowIndex, start.columnIndex, rows)
@@ -83,11 +101,25 @@ export function createFakeSheets(tabs: Readonly<Record<string, readonly (readonl
           const grid = tabOf(change.appendCells.sheetId)
           // New cells go right after the last row with anything in it.
           writeRows(grid, trimmed(grid).length, 0, change.appendCells.rows)
+        } else if ('repeatCell' in change) {
+          const { range, cell } = change.repeatCell
+          const grid = formatsOf(range.sheetId, range.endRowIndex)
+          for (let row = range.startRowIndex; row < range.endRowIndex; row += 1) {
+            for (let column = range.startColumnIndex; column < range.endColumnIndex; column += 1) grid[row]![column] = cell.userEnteredFormat.numberFormat.pattern
+          }
+        } else if ('copyPaste' in change && change.copyPaste.pasteType === 'PASTE_FORMAT') {
+          const { source, destination } = change.copyPaste
+          const grid = formatsOf(source.sheetId, Math.max(source.endRowIndex, destination.endRowIndex))
+          for (let row = destination.startRowIndex; row < destination.endRowIndex; row += 1) {
+            const from = source.startRowIndex + ((row - destination.startRowIndex) % (source.endRowIndex - source.startRowIndex))
+            for (let column = destination.startColumnIndex; column < destination.endColumnIndex; column += 1) grid[row]![column] = grid[from]![column] ?? null
+          }
         }
-        // A copied format or dropdown leaves no value behind, so the fake has nothing to do for it.
+        // A copied dropdown leaves no value or number format behind, so the fake has nothing to do for it.
       }
       for (const tab of Object.keys(working)) {
         grids[tab] = working[tab]!
+        formats[tab] = workingFormats[tab] ?? []
       }
       ids.clear()
       for (const [tab, id] of workingIds) ids.set(tab, id)
@@ -135,6 +167,6 @@ export function leaveOutOfFakeSheet(tabs: readonly WorkbookTab[]): void {
 
 /** The fake build's Google Sheet, the same one for every sync and write until the page reloads. */
 export function fakeSheetsSession(): FakeSheets {
-  session ??= createFakeSheets(Object.fromEntries(Object.entries(fakeWorkbookValues('google')).filter(([tab]) => !leftOut.includes(tab as WorkbookTab))))
+  session ??= createFakeSheets(Object.fromEntries(Object.entries(fakeWorkbookValues('google')).filter(([tab]) => ![...FAKE_SHEET_LACKS, ...leftOut].includes(tab as WorkbookTab))))
   return session
 }

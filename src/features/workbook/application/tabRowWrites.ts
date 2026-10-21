@@ -37,8 +37,6 @@ export interface TabRowRules {
   readonly required: readonly string[]
   /** Columns compared without regard to case when a row is found again, as the readers read them. */
   readonly caseless: readonly string[]
-  /** Columns holding dates as serial days, so a person reads them as dates. */
-  readonly dates: readonly string[]
   /** The other tabs the reader and the checks need. */
   readonly reads: readonly WorkbookTab[]
   /** The tab's own reader, against the other tabs as they are now. */

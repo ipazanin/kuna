@@ -123,7 +123,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
   <AppCard
     title="Rules"
     subtitle="Tried from the top. The first enabled rule whose conditions all hold decides a row. Every save is checked the way the Apps Script reads the tab."
-    collapse-id="workbook.rules"
+    collapse-id="review.rules"
     :summary="summary"
     :reveal="highlightedId !== null"
     data-testid="rules-tab"

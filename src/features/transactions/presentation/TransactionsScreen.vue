@@ -18,11 +18,14 @@ import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
+import PageTabs from '../../../shared/ui/PageTabs.vue'
+import type { PageTab } from '../../../shared/ui/PageTabs.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { DEFAULT_BUCKET_LABELS } from '../../settings/domain/settings'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
 import { withoutChips } from '../../filters/domain/filterChips'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
+import ImportPanel from '../../imports/presentation/ImportPanel.vue'
 import { counterpartyIdentity, counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -41,6 +44,11 @@ import type { Transaction } from '../../workbook/domain/workbook'
 import SplitDialog from './SplitDialog.vue'
 import TransactionCards from './TransactionCards.vue'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
+
+const TABS: readonly PageTab[] = [
+  { label: 'Rows', value: 'rows', icon: 'i-lucide-list' },
+  { label: 'Import', value: 'import', icon: 'i-lucide-file-up' },
+]
 
 const ledger = useFilteredLedger()
 const { filters, setFilters, drillLocation } = useFilters()
@@ -349,95 +357,104 @@ function exportCsv(): void {
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader title="Transactions" description="The rows behind every figure. Any number elsewhere opens here with its filters." />
-    <LedgerGate>
-      <template v-if="ledger">
-        <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
+    <PageHeader title="Transactions" description="The rows behind every figure, and new bank statements coming in. Any number elsewhere opens here with its filters." />
+    <PageTabs :tabs="TABS" label="Rows and imports">
+      <template #rows>
+        <div class="flex flex-col gap-6">
+          <LedgerGate>
+            <template v-if="ledger">
+              <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
 
-        <div class="flex flex-wrap items-center gap-2">
-          <UInput
-            v-model="search"
-            icon="i-lucide-search"
-            placeholder="Search counterparty, description, category, reference"
-            aria-label="Search transactions"
-            size="sm"
-            class="w-full sm:w-96"
-          />
-          <USelect v-model="groupBy" :items="[...GROUPINGS]" size="sm" aria-label="Group rows" class="w-44" />
-          <template v-if="groups">
-            <UButton
-              icon="i-lucide-chevrons-down-up"
-              v-bind="phone ? {} : { label: 'Collapse all' }"
-              aria-label="Collapse all"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              data-testid="collapse-all"
-              @click="collapsed.collapseAll(groups.map((group) => group.key))"
-            />
-            <UButton
-              icon="i-lucide-chevrons-up-down"
-              v-bind="phone ? {} : { label: 'Expand all' }"
-              aria-label="Expand all"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              data-testid="expand-all"
-              @click="collapsed.expandAll()"
-            />
-          </template>
-          <UButton
-            icon="i-lucide-download"
-            label="Export CSV"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            class="sm:ms-auto"
-            :disabled="rows.length === 0"
-            @click="exportCsv"
-          />
+              <div class="flex flex-wrap items-center gap-2">
+                <UInput
+                  v-model="search"
+                  icon="i-lucide-search"
+                  placeholder="Search counterparty, description, category, reference"
+                  aria-label="Search transactions"
+                  size="sm"
+                  class="w-full sm:w-96"
+                />
+                <USelect v-model="groupBy" :items="[...GROUPINGS]" size="sm" aria-label="Group rows" class="w-44" />
+                <template v-if="groups">
+                  <UButton
+                    icon="i-lucide-chevrons-down-up"
+                    v-bind="phone ? {} : { label: 'Collapse all' }"
+                    aria-label="Collapse all"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    data-testid="collapse-all"
+                    @click="collapsed.collapseAll(groups.map((group) => group.key))"
+                  />
+                  <UButton
+                    icon="i-lucide-chevrons-up-down"
+                    v-bind="phone ? {} : { label: 'Expand all' }"
+                    aria-label="Expand all"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    data-testid="expand-all"
+                    @click="collapsed.expandAll()"
+                  />
+                </template>
+                <UButton
+                  icon="i-lucide-download"
+                  label="Export CSV"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  class="sm:ms-auto"
+                  :disabled="rows.length === 0"
+                  @click="exportCsv"
+                />
+              </div>
+
+              <p v-if="advancesLeftOut" class="flex items-start gap-2 text-xs text-muted" data-testid="advances-left-out">
+                <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>{{ advancesLeftOut }}</span>
+              </p>
+
+              <UEmpty
+                v-if="rows.length === 0"
+                icon="i-lucide-search-x"
+                title="No transactions match these filters"
+                description="Clear a filter or pick a longer period."
+                :actions="[{ label: 'Clear filters', color: 'neutral', variant: 'outline', onClick: () => setFilters(withoutChips(filters)) }]"
+                variant="outline"
+                class="rounded-card bg-raised"
+              />
+              <TransactionCards
+                v-else-if="phone"
+                :rows="sortedRows"
+                :groups="groups"
+                :total="total"
+                :bucket-labels="bucketLabels"
+                :is-collapsed="collapsed.isCollapsed"
+                :show-account="severalAccounts"
+                :writing="state.writing"
+                @toggle="collapsed.toggle"
+                @split="openSplit"
+              />
+              <AppCard v-else as="div" class="@container overflow-hidden">
+                <UTable
+                  v-model:sorting="sorting"
+                  :data="tableEntries"
+                  :columns="columns"
+                  :sorting-options="{ manualSorting: true }"
+                  :meta="{ class: { tr: (row: EntryCell['row']) => (row.original.kind === 'group' ? 'bg-elevated' : '') } }"
+                  :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : entry.kind === 'split' ? entry.key : entry.row.key)"
+                  sticky
+                  class="max-h-[70dvh]"
+                />
+              </AppCard>
+              <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
+            </template>
+          </LedgerGate>
         </div>
-
-        <p v-if="advancesLeftOut" class="flex items-start gap-2 text-xs text-muted" data-testid="advances-left-out">
-          <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          <span>{{ advancesLeftOut }}</span>
-        </p>
-
-        <UEmpty
-          v-if="rows.length === 0"
-          icon="i-lucide-search-x"
-          title="No transactions match these filters"
-          description="Clear a filter or pick a longer period."
-          :actions="[{ label: 'Clear filters', color: 'neutral', variant: 'outline', onClick: () => setFilters(withoutChips(filters)) }]"
-          variant="outline"
-          class="rounded-card bg-raised"
-        />
-        <TransactionCards
-          v-else-if="phone"
-          :rows="sortedRows"
-          :groups="groups"
-          :total="total"
-          :bucket-labels="bucketLabels"
-          :is-collapsed="collapsed.isCollapsed"
-          :show-account="severalAccounts"
-          :writing="state.writing"
-          @toggle="collapsed.toggle"
-          @split="openSplit"
-        />
-        <AppCard v-else as="div" class="@container overflow-hidden">
-          <UTable
-            v-model:sorting="sorting"
-            :data="tableEntries"
-            :columns="columns"
-            :sorting-options="{ manualSorting: true }"
-            :meta="{ class: { tr: (row: EntryCell['row']) => (row.original.kind === 'group' ? 'bg-elevated' : '') } }"
-            :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : entry.kind === 'split' ? entry.key : entry.row.key)"
-            sticky
-            class="max-h-[70dvh]"
-          />
-        </AppCard>
-        <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
       </template>
-    </LedgerGate>
+      <template #import>
+        <ImportPanel />
+      </template>
+    </PageTabs>
   </section>
 </template>

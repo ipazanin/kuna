@@ -28,6 +28,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* A linked part of a screen lands just below the bars that stay at the top, which stickyBand.ts measures. */
+:root {
+  --sticky-band: 0px;
+}
+
+:where([id]) {
+  scroll-margin-top: calc(var(--sticky-band) + 0.75rem);
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -137,6 +146,14 @@ body {
     align-items: center;
     min-height: 44px;
   }
+}
+
+/* The top bar's one button, Sync or Export: a pill on one line at the full 44 px tap height, so it never wraps beside the screen title. */
+.top-bar-action {
+  height: 2.75rem;
+  padding-inline: 0.875rem;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 /* Google's Picker can open over a modal dialog, which turns pointer events off on the body, and its own styles never turn them back on. */

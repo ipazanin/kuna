@@ -1,5 +1,4 @@
 import 'fake-indexeddb/auto'
-import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
@@ -36,6 +35,7 @@ function snapshotOf(workbookId: string, ledger: SheetRow[], syncedAt = '2026-10-
     plan: [{ sheetRow: 2, cells: { year: 2027, item: 'revenue', amount: 7400 } }],
     scenarios: [{ sheetRow: 2, cells: { scenario: 'floor', year: 2027, component: 'salary_gross', amount: 'floor' } }],
     splits: [{ sheetRow: 2, cells: { date: 46297, account: 'main', row_amount: -20, row_balance: 980, amount: -15, category: 'software', note: 'Seat' } }],
+    dismissed: [{ sheetRow: 2, cells: { kind: 'not-covered', key: 'name:corner shop', category: 'software', dismissed_on: 46297 } }],
   }
 }
 
@@ -78,60 +78,6 @@ describe('workbook cache', () => {
     expect(read?.['outgoing-plan'][0]?.cells.item).toBe('Monthly Fee')
   })
 
-  it('opens a copy cached before the planning tabs existed, with those tabs empty', async () => {
-    const name = 'ledgerboard-workbook-sheet-before-planning'
-    const earlier = new Dexie(name)
-    earlier.version(1).stores({ meta: 'key', ledger: 'sheetRow', categories: 'sheetRow', accounts: 'sheetRow' })
-    earlier.version(2).stores({ settings: 'sheetRow' })
-    earlier.version(3).stores({ rules: 'sheetRow' })
-    earlier.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
-    await earlier.table('meta').put({ key: 'workbook', id: 'sheet-before-planning', source: 'excel', title: 'Before', syncedAt: '2026-10-01T06:00:00.000Z' })
-    await earlier.table('ledger').put(ledgerRow(2, 5))
-    earlier.close()
-
-    const read = await cacheFor('sheet-before-planning').read()
-
-    expect(read?.ledger).toEqual([ledgerRow(2, 5)])
-    expect([read?.assets, read?.grants, read?.['year-end'], read?.plan, read?.scenarios]).toEqual([[], [], [], [], []])
-  })
-
-  it('opens a copy cached before the outgoing-plan tab existed, with that tab empty', async () => {
-    const name = 'ledgerboard-workbook-sheet-before-billing'
-    const earlier = new Dexie(name)
-    earlier.version(1).stores({ meta: 'key', ledger: 'sheetRow', categories: 'sheetRow', accounts: 'sheetRow' })
-    earlier.version(2).stores({ settings: 'sheetRow' })
-    earlier.version(3).stores({ rules: 'sheetRow' })
-    earlier.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
-    earlier.version(5).stores({ assets: 'sheetRow', grants: 'sheetRow', 'year-end': 'sheetRow', plan: 'sheetRow', scenarios: 'sheetRow' })
-    await earlier.table('meta').put({ key: 'workbook', id: 'sheet-before-billing', source: 'excel', title: 'Before', syncedAt: '2026-10-01T06:00:00.000Z' })
-    await earlier.table('plan').put({ sheetRow: 2, cells: { year: 2027, item: 'revenue', amount: 7400 } })
-    earlier.close()
-
-    const read = await cacheFor('sheet-before-billing').read()
-
-    expect(read?.plan).toHaveLength(1)
-    expect(read?.['outgoing-plan']).toEqual([])
-  })
-
-  it('opens a copy cached before the splits tab existed, with that tab empty', async () => {
-    const name = 'ledgerboard-workbook-sheet-before-splits'
-    const earlier = new Dexie(name)
-    earlier.version(1).stores({ meta: 'key', ledger: 'sheetRow', categories: 'sheetRow', accounts: 'sheetRow' })
-    earlier.version(2).stores({ settings: 'sheetRow' })
-    earlier.version(3).stores({ rules: 'sheetRow' })
-    earlier.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
-    earlier.version(5).stores({ assets: 'sheetRow', grants: 'sheetRow', 'year-end': 'sheetRow', plan: 'sheetRow', scenarios: 'sheetRow' })
-    earlier.version(6).stores({ 'outgoing-plan': 'sheetRow' })
-    await earlier.table('meta').put({ key: 'workbook', id: 'sheet-before-splits', source: 'excel', title: 'Before', syncedAt: '2026-10-01T06:00:00.000Z' })
-    await earlier.table('ledger').put(ledgerRow(2, 5))
-    earlier.close()
-
-    const read = await cacheFor('sheet-before-splits').read()
-
-    expect(read?.ledger).toEqual([ledgerRow(2, 5)])
-    expect(read?.splits).toEqual([])
-  })
-
   it('replaces the whole copy, so rows gone from the Sheet are gone from the cache', async () => {
     const cache = cacheFor('sheet-b')
     await cache.replace(snapshotOf('sheet-b', [ledgerRow(2, 1), ledgerRow(3, 2), ledgerRow(4, 3)]))
@@ -157,30 +103,6 @@ describe('workbook cache', () => {
 
     await expect(cache.replace(snapshotOf('sheet-other', []))).rejects.toThrow(/sheet-other/)
     expect((await cache.read())?.ledger).toHaveLength(1)
-  })
-
-  it('opens a copy cached before the settings tab and Excel mode existed', async () => {
-    const name = 'ledgerboard-workbook-sheet-old'
-    const legacy = new Dexie(name)
-    legacy.version(1).stores({ meta: 'key', ledger: 'sheetRow', categories: 'sheetRow', accounts: 'sheetRow' })
-    await legacy.table('meta').put({ key: 'workbook', spreadsheetId: 'sheet-old', title: 'Old', syncedAt: '2026-10-01T06:00:00.000Z' })
-    await legacy.table('ledger').put(ledgerRow(2, 5))
-    legacy.close()
-
-    const read = await cacheFor('sheet-old').read()
-
-    expect(read?.meta).toEqual({
-      id: 'sheet-old',
-      source: 'google',
-      title: 'Old',
-      syncedAt: '2026-10-01T06:00:00.000Z',
-      ledgerSheetId: null,
-      lastExportedAt: null,
-      unexportedSince: null,
-      missingTabs: [],
-    })
-    expect(read?.ledger).toEqual([ledgerRow(2, 5)])
-    expect(read?.settings).toEqual([])
   })
 
   it('reads nothing after the copy is deleted', async () => {

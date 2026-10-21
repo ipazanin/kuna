@@ -6,7 +6,7 @@ import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
 import { EVERY_OWNER_ADVANCE } from './filterState'
 import type { AmountRange, FilterState, Period } from './filterState'
 
-export type DrillRoute = 'overview' | 'transactions' | 'trends' | 'spending' | 'period-review' | 'cash'
+export type DrillRoute = 'overview' | 'transactions' | 'trends' | 'spending' | 'period-review'
 
 /** Where a click on a figure leads, and the filters that reproduce the rows behind it. */
 export interface DrillTarget {

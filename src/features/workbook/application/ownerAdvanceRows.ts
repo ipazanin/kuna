@@ -31,7 +31,6 @@ export const OWNER_ADVANCE_ROWS: TabRowRules = {
   columns: COLUMNS,
   required: COLUMNS,
   caseless: ['category'],
-  dates: ['date'],
   reads: ['categories'],
   read: (rows, fresh) => readOwnerAdvanceRows(rows, definedCategories(fresh.categories?.rows ?? [])),
   refusals: () => [],

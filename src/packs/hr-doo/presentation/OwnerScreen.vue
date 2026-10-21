@@ -20,7 +20,6 @@ import FilterBar from '../../../features/filters/presentation/FilterBar.vue'
 import { useSettings } from '../../../features/settings/application/useSettings'
 import { useFilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
-import { useWorkbook } from '../../../features/workbook/application/workbookStore'
 import type { Transaction } from '../../../features/workbook/domain/workbook'
 import LedgerGate from '../../../features/workbook/presentation/LedgerGate.vue'
 import { netOwed, ownerAdvances } from '../domain/ownerAdvances'
@@ -30,28 +29,19 @@ import { ownerTake, ownerTakeByMonth } from '../domain/ownerTake'
 import type { OwnerTakeLine } from '../domain/ownerTake'
 import { PACK_ROLES, categoriesInBucket, categoriesWithRole } from '../domain/packRoles'
 import AddAdvanceDialog from './AddAdvanceDialog.vue'
-import type { AdvancePrefill } from './AddAdvanceDialog.vue'
 import AdvanceList from './AdvanceList.vue'
 import type { AdvanceLine } from './AdvanceList.vue'
 import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import MissingRoles from './MissingRoles.vue'
 import OwnerPayOff from './OwnerPayOff.vue'
-import UnaccountedReimbursements from './UnaccountedReimbursements.vue'
 import { LENT_SERIES, OUTSTANDING_SERIES, REPAID_SERIES, categoryLegend, categorySeries, loanTimelineChart, ownerDrawsChart } from './packCharts'
 
 const ledger = useFilteredLedger()
 const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
-const { state } = useWorkbook()
 const addingAdvance = ref(false)
-const advancePrefill = ref<AdvancePrefill | null>(null)
-
-function addAdvance(prefill: AdvancePrefill | null): void {
-  advancePrefill.value = prefill
-  addingAdvance.value = true
-}
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
@@ -352,7 +342,7 @@ const owner = computed(() => {
               </span>
             </template>
             <template #actions>
-              <UButton label="Add advance" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="open-add-advance" @click="addAdvance(null)" />
+              <UButton label="Add advance" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="open-add-advance" @click="addingAdvance = true" />
             </template>
             <template #header>
               <dl class="grid grid-cols-3 gap-3">
@@ -365,14 +355,12 @@ const owner = computed(() => {
               </dl>
             </template>
             <div class="px-4 pt-1 pb-2 sm:px-5">
-              <section v-if="owner.unaccounted.length > 0" class="border-b border-default pt-2 pb-2" aria-labelledby="unaccounted-heading" data-testid="owner-unaccounted">
-                <h3 id="unaccounted-heading" class="text-xs font-medium text-[var(--tone-warning)]">Reimbursed with no cost on file</h3>
-                <p class="mt-0.5 max-w-[65ch] text-xs text-muted">
-                  The company paid these to the owner on a reimbursement category, and no cost on the owner-advances tab accounts for them. Net owed counts them as paid to
-                  the owner. Add the cost each one repaid and it nets out.
-                </p>
-                <UnaccountedReimbursements :payments="owner.unaccounted" :editable="!state.writing" @add-cost="addAdvance" />
-              </section>
+              <p v-if="owner.unaccounted.length > 0" class="border-b border-default py-2 text-xs text-muted" data-testid="owner-unaccounted">
+                {{ owner.unaccounted.length }} {{ owner.unaccounted.length === 1 ? 'reimbursement' : 'reimbursements' }} to the owner with no cost on file
+                {{ owner.unaccounted.length === 1 ? 'waits' : 'wait' }} on Review, and Net owed counts {{ owner.unaccounted.length === 1 ? 'it' : 'them' }} as paid to the
+                owner until the cost is added.
+                <DrillLink to="/review" in-prose class="font-medium text-highlighted">Open Review</DrillLink>
+              </p>
               <AdvanceList :advances="owner.advances" />
             </div>
           </AppCard>
@@ -381,7 +369,6 @@ const owner = computed(() => {
           v-model:open="addingAdvance"
           :categories="ledger.workbook.categories"
           :default-date="owner.newestBooking"
-          :prefill="advancePrefill"
         />
       </template>
     </LedgerGate>

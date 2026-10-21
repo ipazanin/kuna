@@ -25,7 +25,6 @@ export const BILLING_PLAN_ROWS: TabRowRules = {
   columns: BILLING_PLAN_COLUMNS,
   required: BILLING_PLAN_COLUMNS,
   caseless: ['client'],
-  dates: ['date'],
   reads: ['clients'],
   read: (rows, fresh) => readBillingPlan(rows, definedClientSlugs(fresh.clients?.rows ?? [])),
   refusals: () => [],

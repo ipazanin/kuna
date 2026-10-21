@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, inject, ref, useTemplateRef } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
 
+import { useStickyBandPart } from '../../../shared/layout/stickyBand'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
+import { PAGE_TAB_ACTIONS } from '../../../shared/ui/PageTabs.vue'
 
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { useSettings } from '../../settings/application/useSettings'
@@ -63,6 +65,9 @@ const accounts = computed({
 })
 
 const phone = usePhoneLayout()
+/** Inside a page's tabs, a phone shows the Filters button at the right end of the tab row. */
+const tabActions = inject(PAGE_TAB_ACTIONS, null)
+useStickyBandPart(useTemplateRef<HTMLElement>('bar'))
 const sheetOpen = ref(false)
 
 /** Narrowings beyond the period: the accounts, counted once, and every chip. */
@@ -78,28 +83,30 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
 </script>
 
 <template>
-  <div v-if="phone" class="flex items-center gap-3">
-    <USlideover v-model:open="sheetOpen" side="bottom" title="Filters" :ui="{ content: 'phone-sheet' }">
-      <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" data-testid="open-filters">
-        <span>Filters</span>
-        <UBadge v-if="activeCount > 0" :label="String(activeCount)" size="sm" class="rounded-full" data-testid="filter-count" />
-        <span class="sr-only">, {{ activeCount }} active</span>
-      </UButton>
-      <template #body>
-        <div class="flex flex-col gap-4">
-          <PeriodBar v-if="showPeriod" v-model:period="period" :window="window" stacked v-bind="presets === undefined ? {} : { presets }" />
-          <AccountPicker v-model="accounts" :options="accountOptions" class="w-full" />
-          <AddFilterMenu v-model="choices" :workbook="workbook" />
-          <FilterChipRow v-if="chips.length" :chips="chips" @remove="removeChip" @clear="clearChips" />
-        </div>
-      </template>
-      <template #footer>
-        <UButton label="Show results" block size="lg" @click="sheetOpen = false" />
-      </template>
-    </USlideover>
+  <div v-if="phone" class="flex items-center gap-3" :class="{ hidden: tabActions !== null && !showPeriod }">
+    <Teleport :to="tabActions" :disabled="tabActions === null" defer>
+      <USlideover v-model:open="sheetOpen" side="bottom" title="Filters" :ui="{ content: 'phone-sheet' }">
+        <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" :class="{ 'ms-2': tabActions !== null }" data-testid="open-filters">
+          <span>Filters</span>
+          <UBadge v-if="activeCount > 0" :label="String(activeCount)" size="sm" class="rounded-full" data-testid="filter-count" />
+          <span class="sr-only">, {{ activeCount }} active</span>
+        </UButton>
+        <template #body>
+          <div class="flex flex-col gap-4">
+            <PeriodBar v-if="showPeriod" v-model:period="period" :window="window" stacked v-bind="presets === undefined ? {} : { presets }" />
+            <AccountPicker v-model="accounts" :options="accountOptions" class="w-full" />
+            <AddFilterMenu v-model="choices" :workbook="workbook" />
+            <FilterChipRow v-if="chips.length" :chips="chips" @remove="removeChip" @clear="clearChips" />
+          </div>
+        </template>
+        <template #footer>
+          <UButton label="Show results" block size="lg" @click="sheetOpen = false" />
+        </template>
+      </USlideover>
+    </Teleport>
     <p v-if="showPeriod" class="figure min-w-0 truncate text-sm text-muted" data-testid="period-range">{{ periodInWords(period, window) }}</p>
   </div>
-  <div v-else class="filter-bar" data-testid="filter-bar">
+  <div v-else ref="bar" class="filter-bar" data-testid="filter-bar">
     <PeriodBar v-if="showPeriod" v-model:period="period" :window="window" v-bind="presets === undefined ? {} : { presets }" />
     <div class="flex min-w-0 items-center gap-2">
       <AccountPicker v-model="accounts" :options="accountOptions" class="shrink-0" />

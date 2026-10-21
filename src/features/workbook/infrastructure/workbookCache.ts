@@ -18,20 +18,10 @@ function workbookDatabaseName(workbookId: string): string {
   return `ledgerboard-workbook-${workbookId}`
 }
 
+/** Every tab is a table keyed by its sheet row. A new tab needs the next version number. */
 function openDatabase(workbookId: string): WorkbookDatabase {
   const database = new Dexie(workbookDatabaseName(workbookId)) as WorkbookDatabase
-  database.version(1).stores({
-    meta: 'key',
-    ledger: 'sheetRow',
-    categories: 'sheetRow',
-    accounts: 'sheetRow',
-  })
-  database.version(2).stores({ settings: 'sheetRow' })
-  database.version(3).stores({ rules: 'sheetRow' })
-  database.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
-  database.version(5).stores({ assets: 'sheetRow', grants: 'sheetRow', 'year-end': 'sheetRow', plan: 'sheetRow', scenarios: 'sheetRow' })
-  database.version(6).stores({ 'outgoing-plan': 'sheetRow' })
-  database.version(7).stores({ splits: 'sheetRow' })
+  database.version(8).stores({ meta: 'key', ...Object.fromEntries(WORKBOOK_TABS.map((tab) => [tab, 'sheetRow'])) })
   return database
 }
 
@@ -69,7 +59,7 @@ export function openWorkbookCache(workbookId: string): WorkbookCache {
         if (stored === undefined) {
           return null
         }
-        const meta = metaOf(stored)
+        const { key: _key, ...meta } = stored
         const rows = await Promise.all(tabTables.map((table) => table.toArray()))
         const tabs = Object.fromEntries(WORKBOOK_TABS.map((tab, index) => [tab, rows[index] ?? []])) as unknown as WorkbookTabs
         return { meta, ...tabs }
@@ -83,20 +73,5 @@ export function openWorkbookCache(workbookId: string): WorkbookCache {
     close() {
       database.close()
     },
-  }
-}
-
-/** A copy cached by an earlier version lacks the newer fields, and was always a Google Sheet. */
-function metaOf(stored: StoredMeta): WorkbookMeta {
-  const legacy = stored as Partial<StoredMeta> & { readonly spreadsheetId?: string }
-  return {
-    id: legacy.id ?? legacy.spreadsheetId ?? '',
-    source: legacy.source ?? 'google',
-    title: stored.title,
-    syncedAt: stored.syncedAt,
-    ledgerSheetId: legacy.ledgerSheetId ?? null,
-    lastExportedAt: legacy.lastExportedAt ?? null,
-    unexportedSince: legacy.unexportedSince ?? null,
-    missingTabs: legacy.missingTabs ?? [],
   }
 }

@@ -46,7 +46,7 @@ const gate = computed(() => {
     title="The ledger has no transactions yet"
     description="Import a bank statement, or export the workbook, add your bank rows to its ledger tab in Excel and import the file again. Categories and settings can be set up here first."
     :actions="[
-      { label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push('/import') },
+      { label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/transactions', query: { tab: 'import' } }) },
       { label: 'Export to Excel', icon: 'i-lucide-download', color: 'neutral', variant: 'outline', onClick: exportNow },
       { label: 'Open Settings', icon: 'i-lucide-settings', color: 'neutral', variant: 'outline', onClick: () => router.push('/settings') },
     ]"
@@ -58,7 +58,7 @@ const gate = computed(() => {
     icon="i-lucide-sheet"
     title="The ledger tab has no transactions yet"
     description="Import a bank statement, or once rows reach the Sheet's ledger tab, sync again."
-    :actions="[{ label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push('/import') }]"
+    :actions="[{ label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/transactions', query: { tab: 'import' } }) }]"
     variant="outline"
     class="rounded-card border-dashed bg-raised/40"
   />

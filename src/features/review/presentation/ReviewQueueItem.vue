@@ -22,6 +22,8 @@ const props = defineProps<{
   expanded: boolean
   /** A link to the row in the Sheet, or null in Excel mode or before the tab's id is known. */
   link: string | null
+  /** True when the splits tab already splits the row, so Split edits its parts. */
+  split: boolean
   busy: boolean
 }>()
 
@@ -30,6 +32,7 @@ const emit = defineEmits<{
   confirm: []
   recategorise: [category: string]
   makeRule: []
+  split: []
 }>()
 
 const names = useDisplayNames()
@@ -158,6 +161,17 @@ function recategorise(category: string | undefined): void {
           :disabled="busy"
           data-testid="make-rule"
           @click="emit('makeRule')"
+        />
+        <UButton
+          v-if="transaction.amount !== 0"
+          :label="split ? 'Edit the split' : 'Split'"
+          :icon="split ? 'i-lucide-pencil' : 'i-lucide-split'"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :disabled="busy"
+          :data-testid="split ? 'edit-split' : 'split-row'"
+          @click="emit('split')"
         />
       </div>
     </div>

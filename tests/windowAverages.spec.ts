@@ -58,7 +58,7 @@ describe('windowAverages', () => {
 
 describe('euroSplit', () => {
   it('splits income into the three costs and what is kept while there is a profit', () => {
-    const split = euroSplit(windowAverages(rows, window).last3.totals, 3, { preset: 'l3' })
+    const split = euroSplit(windowAverages(rows, window).last3.totals, { preset: 'l3' })
 
     expect(split.basis).toBe('income')
     expect(split.slices.map((slice) => [slice.part, slice.total])).toEqual([
@@ -69,7 +69,6 @@ describe('euroSplit', () => {
     ])
     expect(split.slices.reduce((total, slice) => total + slice.share, 0)).toBeCloseTo(1, 12)
     expect(split.shortfall).toBeNull()
-    expect(split.keptPerEuroEarned).toBeCloseTo(6500 / 9000, 12)
   })
 
   it('switches to cost as the whole in a loss, so no slice goes negative', () => {
@@ -78,7 +77,7 @@ describe('euroSplit', () => {
       { date: '2026-07-12', amount: -1500, category: 'salary-net' },
       { date: '2026-07-21', amount: -3500, category: 'equipment' },
     ])
-    const split = euroSplit(windowAverages(loss, windowOf('2026-07-01', '2026-08-03')).last3.totals, 3, { preset: 'l3' })
+    const split = euroSplit(windowAverages(loss, windowOf('2026-07-01', '2026-08-03')).last3.totals, { preset: 'l3' })
 
     expect(split.basis).toBe('cost')
     expect(split.whole).toBe(euros(5000))
@@ -87,14 +86,13 @@ describe('euroSplit', () => {
       ['taxes', 0],
       ['ownerPay', 0.3],
     ])
-    expect(split.shortfall?.total).toBe(euros(4000))
-    expect(split.keptPerEuroEarned).toBe(-4)
+    expect(split.shortfall).toBe(euros(4000))
   })
 
-  it('has no kept ratio without income', () => {
+  it('has nothing to split without income', () => {
     const empty = windowAverages([], window).last3.totals
 
-    expect(euroSplit(empty, 3, { preset: 'l3' })).toMatchObject({ basis: 'income', whole: ZERO, keptPerEuroEarned: null })
+    expect(euroSplit(empty, { preset: 'l3' })).toMatchObject({ basis: 'income', whole: ZERO, shortfall: null })
   })
 })
 
