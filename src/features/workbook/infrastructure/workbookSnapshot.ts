@@ -25,6 +25,7 @@ export const WORKBOOK_TABS = [
   'year-end',
   'plan',
   'scenarios',
+  'splits',
 ] as const
 
 export type WorkbookTab = (typeof WORKBOOK_TABS)[number]
@@ -65,6 +66,7 @@ export const EMPTY_TABS: WorkbookTabs = {
   'year-end': [],
   plan: [],
   scenarios: [],
+  splits: [],
 }
 
 /**

@@ -250,7 +250,7 @@ describe('readWorkbook', () => {
     expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.sheetRow === 5)?.reason).toMatch(/east is not on the clients tab/)
   })
 
-  it('reads an advance as a cost the owner paid or as a private share, and leaves out a zero, a text amount and a category outside the operating and taxes buckets', () => {
+  it('reads an advance as a cost the owner paid, keeps a negative one apart as a private share to move, and leaves out a zero, a text amount and a category outside the operating and taxes buckets', () => {
     const workbook = readWorkbook({
       ...snapshotWith([['date']]),
       'owner-advances': sheetRowsFromValues([
@@ -266,9 +266,10 @@ describe('readWorkbook', () => {
 
     expect(workbook.ownerAdvances).toEqual([
       { date: '2026-10-05', amount: 8900, description: 'Design tool', category: 'software', family: 'operating', bucket: 'operating', sheetRow: 2 },
-      { date: '2026-10-06', amount: -500, description: 'Private share of a software order', category: 'software', family: 'operating', bucket: 'operating', sheetRow: 3 },
     ])
+    expect(workbook.privateSharesToMove).toEqual([{ date: '2026-10-06', amount: 500, description: 'Private share of a software order', category: 'software', sheetRow: 3 }])
     expect(workbook.problems.filter((problem) => problem.tab === 'owner-advances').map((problem) => problem.reason)).toEqual([
+      'a negative amount is the owner’s private share of a company payment, which belongs on the splits tab. Press "Move to splits" on Owner or Review to move it',
       'the amount is zero',
       'the amount "twelve" is not a number',
       '"revenue" is in the income bucket, and an advance counts as an operating cost or a tax',

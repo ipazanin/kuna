@@ -12,7 +12,7 @@ import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { categoryPlanCells, replacedPlanRows } from '../../application/planRows'
 import type { KeyedRow } from '../../application/planRows'
-import PlanTabNotice from './PlanTabNotice.vue'
+import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { fieldAmount, monthsOf } from './planWording'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { usePlanWrites } from './usePlanWrites'
@@ -112,7 +112,7 @@ async function clear(): Promise<void> {
             <UInput v-model="months[index]" inputmode="decimal" :placeholder="placeholder" class="w-full" :aria-label="`${month.name} ${year}`" :data-testid="`plan-month-${month.number}`" />
           </UFormField>
         </fieldset>
-        <PlanTabNotice v-if="writes.tabMissing.value" :headers="writes.headers" />
+        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" :headers="writes.headers" />
       </form>
     </template>
     <template #footer>

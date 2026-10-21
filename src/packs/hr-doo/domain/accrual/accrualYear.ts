@@ -497,7 +497,7 @@ export function relatedPartyInterest(workbook: Workbook, year: number, profitBef
   }
   const dayBefore = civilDate(year - 1, 12, 31)
   const yearEnd = civilDate(year, 12, 31)
-  const centDays = ownerLoans(workbook.ownerAdvances, workbook.transactions, workbook.categories).loans.reduce((total, loan) => {
+  const centDays = ownerLoans(workbook.transactions, workbook.categories).loans.reduce((total, loan) => {
     let balance: number = loan.amount
     let from = loan.lentOn
     let sum = 0

@@ -114,15 +114,17 @@ body {
  * so it wins over the Tailwind sizes of Nuxt UI's small buttons, but only below the phone breakpoint.
  */
 @media (max-width: 639px) {
-  :where(button:not([role='switch'], [role='checkbox']), a[href], select, textarea, [role='button'], [role='combobox'], [role='tab']),
+  :where(button:not([role='switch'], [role='checkbox'], [role='radio']), a[href], select, textarea, [role='button'], [role='combobox'], [role='tab']),
   :where(input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='file'])) {
     min-height: 44px;
     min-width: 44px;
   }
 
-  /* A switch or a checkbox stays its own size. Its label, which toggles it too, carries the height. */
+  /* A switch, a checkbox or a radio stays its own size. Its label, which toggles it too, carries the height. */
   [data-slot='root']:has(> [data-slot='container'] > :is([role='switch'], [role='checkbox'])) > [data-slot='container'],
-  [data-slot='root']:has(> [data-slot='container'] > :is([role='switch'], [role='checkbox'])) [data-slot='label'] {
+  [data-slot='root']:has(> [data-slot='container'] > :is([role='switch'], [role='checkbox'])) [data-slot='label'],
+  [data-slot='item']:has(> [data-slot='container'] > [role='radio']) > [data-slot='container'],
+  [data-slot='item']:has(> [data-slot='container'] > [role='radio']) [data-slot='label'] {
     display: flex;
     align-items: center;
     min-height: 44px;

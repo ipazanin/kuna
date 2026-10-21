@@ -11,8 +11,8 @@ export interface LoanRepaymentLine {
 export interface LoanLine {
   readonly key: string
   readonly lentOn: string
-  /** How the owner-advances tab describes it, when the loan is the owner's private share of a company payment. */
-  readonly privateShare: string | null
+  /** The payment it is a part of, when the loan is the owner's part of a split company payment. */
+  readonly part: string | null
   readonly amount: number
   readonly remaining: number
   readonly open: boolean
@@ -58,7 +58,7 @@ defineProps<{
           <template v-else>Nothing lent on this row</template>
         </p>
       </div>
-      <p v-if="loan.privateShare !== null" class="truncate text-xs text-muted">{{ loan.privateShare }}</p>
+      <p v-if="loan.part !== null" class="truncate text-xs text-muted">{{ loan.part }}</p>
       <ol v-if="loan.repayments.length > 0" class="loan-trail" :aria-label="`Repayments matched to the loan of ${loan.lentOn}`">
         <li v-for="repayment in loan.repayments" :key="repayment.key">
           <DrillLink :to="repayment.to" :label="`Repayment of ${repayment.date}, open the row`" class="loan-share">

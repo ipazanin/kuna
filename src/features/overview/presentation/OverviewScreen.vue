@@ -92,7 +92,7 @@ const overview = computed(() => {
   const costChange = averages.last3.lines.cost.perMonth - averages.last12.lines.cost.perMonth
 
   const said = headline(months, recentRunway.months)
-  const owed = netOwed(ownerLoans(scopedAdvances, scoped, workbook.categories), ownerAdvances(scopedAdvances, scoped, workbook.categories), workbook.categories)
+  const owed = netOwed(ownerLoans(scoped, workbook.categories), ownerAdvances(scopedAdvances, scoped, workbook.categories), workbook.categories)
   const ownerMoves = workbook.categories.some((category) => category.roles.includes('owner-loan-out')) || scopedAdvances.length > 0
   return {
     headline:

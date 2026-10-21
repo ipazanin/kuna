@@ -2,6 +2,8 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { CATEGORY_ROWS } from '../src/features/settings/application/workbookTabRows'
+import { OWNER_ADVANCE_ROWS, ownerAdvanceCellsOf } from '../src/features/workbook/application/ownerAdvanceRows'
+import type { OwnerAdvanceDraft } from '../src/features/workbook/application/ownerAdvanceRows'
 import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
 import { canUndo, wasUndone } from '../src/features/workbook/application/workbookStore'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
@@ -47,6 +49,11 @@ function switchLoans(store: WorkbookStore, bucket: string, categories = ['owner-
 
 const DESK = { date: civil('2026-10-10'), amount: euros(120.5), description: 'Desk lamp ', category: 'Equipment' }
 
+/** An advance appended as Add advance appends it. */
+function addAdvance(store: WorkbookStore, draft: OwnerAdvanceDraft) {
+  return store.changeRows(OWNER_ADVANCE_ROWS, { added: [ownerAdvanceCellsOf(draft)], changed: [], removed: [] })
+}
+
 describe.each([
   ['a Google Sheet', googleHarness],
   ['a workbook kept in this browser', excelHarness],
@@ -54,36 +61,34 @@ describe.each([
   it('appends an advance that reads back as a cost in its category, and Undo clears it again', async () => {
     const { store } = await harnessOf(used, gridsWithOwnerTabs())
 
-    const receipt = await store.addOwnerAdvance(DESK)
+    const receipt = await addAdvance(store, DESK)
 
-    expect(receipt).toEqual({ cells: { date: 46305, amount: 120.5, description: 'Desk lamp', category: 'equipment' }, sheetRow: 3 })
+    expect(receipt?.added).toEqual([{ sheetRow: 3, cells: { date: 46305, amount: 120.5, description: 'Desk lamp', category: 'equipment' } }])
     expect(store.state.workbook?.ownerAdvances.map((advance) => [advance.date, advance.amount, advance.category, advance.bucket])).toEqual([
       ['2026-06-27', euros(40), 'equipment', 'operating'],
       ['2026-10-10', euros(120.5), 'equipment', 'operating'],
     ])
 
-    await store.removeOwnerAdvance(receipt)
+    await store.undo(store.state.writes[0]!)
 
     expect(store.state.workbook?.ownerAdvances).toHaveLength(1)
     expect(store.state.workbook?.problems).toEqual([])
-    await expect(store.removeOwnerAdvance(receipt)).rejects.toThrow('no longer on the owner-advances tab')
+    await expect(store.changeRows(OWNER_ADVANCE_ROWS, { added: [], changed: [], removed: receipt!.added })).rejects.toThrow('is no longer on the owner-advances tab')
   })
 
-  it('appends a private share of a company payment as a negative amount, which reads back as one', async () => {
+  it('refuses a negative amount, which is a private share and belongs on the splits tab', async () => {
     const { store } = await harnessOf(used, gridsWithOwnerTabs())
 
-    const receipt = await store.addOwnerAdvance({ ...DESK, amount: euros(-9.71), description: 'Private share of the online order' })
-
-    expect(receipt.cells.amount).toBe(-9.71)
-    expect(store.state.workbook?.ownerAdvances.map((advance) => advance.amount)).toEqual([euros(40), euros(-9.71)])
+    await expect(addAdvance(store, { ...DESK, amount: euros(-12.8), description: 'Private share of the online order' })).rejects.toThrow('belongs on the splits tab')
+    expect(store.state.workbook?.ownerAdvances.map((advance) => advance.amount)).toEqual([euros(40)])
   })
 
   it('refuses an advance in a category outside the operating and taxes buckets, and one the tab does not define', async () => {
     const { store } = await harnessOf(used, gridsWithOwnerTabs())
 
-    await expect(store.addOwnerAdvance({ ...DESK, category: 'revenue' })).rejects.toThrow('an advance counts as an operating cost or a tax')
-    await expect(store.addOwnerAdvance({ ...DESK, category: 'snacks' })).rejects.toThrow(WorkbookWriteRefused)
-    await expect(store.addOwnerAdvance({ ...DESK, amount: euros(0) })).rejects.toThrow('other than zero')
+    await expect(addAdvance(store, { ...DESK, category: 'revenue' })).rejects.toThrow('an advance counts as an operating cost or a tax')
+    await expect(addAdvance(store, { ...DESK, category: 'snacks' })).rejects.toThrow(WorkbookWriteRefused)
+    await expect(addAdvance(store, { ...DESK, amount: euros(0) })).rejects.toThrow('the amount is zero')
     expect(store.state.workbook?.ownerAdvances).toHaveLength(1)
   })
 
@@ -105,18 +110,16 @@ describe.each([
 
   it('lists an advance, its undo and the loan switch among the session writes, and undoes them from there', async () => {
     const { store } = await harnessOf(used, gridsWithOwnerTabs())
-    const receipt = await store.addOwnerAdvance(DESK)
+    await addAdvance(store, DESK)
     await switchLoans(store, 'financing')
     const [switched, added] = store.state.writes
 
-    expect(store.state.writes.map((write) => write.kind)).toEqual(['rows', 'owner-advance-added'])
-    expect(added).toMatchObject({ kind: 'owner-advance-added', receipt })
+    expect(store.state.writes.map((write) => (write.kind === 'rows' ? write.rules.tab : write.kind))).toEqual(['categories', 'owner-advances'])
     expect(canUndo(switched!, store.state.writes)).toBe(true)
 
     await store.undo(switched!)
     await store.undo(added!)
 
-    expect(store.state.writes.map((write) => write.kind)).toEqual(['owner-advance-removed', 'rows', 'rows', 'owner-advance-added'])
     expect(store.state.writes.map((write) => [canUndo(write, store.state.writes), wasUndone(write, store.state.writes)])).toEqual([
       [false, false],
       [false, false],
@@ -145,7 +148,7 @@ describe('owner writes to a Google Sheet', () => {
   it('writes the date as a serial number and the bucket as one RAW cell, found by its header', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, gridsWithOwnerTabs())
 
-    await store.addOwnerAdvance(DESK)
+    await addAdvance(store, DESK)
     await switchLoans(store, 'financing', ['owner-loan-out'])
 
     expect(sheets.requests.find((request) => request.kind === 'append')).toEqual({
@@ -163,7 +166,7 @@ describe('owner writes to a Google Sheet', () => {
     sheets.grids.categories!.splice(1, 0, ['travel', 'operating', 'operating', ''])
     sheets.grids.categories!.push(['owner-loan-out', 'owner', 'owner-pay', 'owner-loan-out'])
 
-    await expect(store.addOwnerAdvance(DESK)).rejects.toThrow('The workbook has no owner-advances tab')
+    await expect(addAdvance(store, DESK)).rejects.toThrow('The workbook has no owner-advances tab')
     await expect(switchLoans(store, 'financing', ['owner-loan-out'])).rejects.toThrow('2 rows of the categories tab hold the category "owner-loan-out"')
   })
 })

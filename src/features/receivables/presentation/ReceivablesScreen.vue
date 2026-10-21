@@ -30,6 +30,7 @@ import InvoiceRunDialog from '../../invoicing/presentation/InvoiceRunDialog.vue'
 import type { InvoiceRunMode } from '../../invoicing/presentation/useInvoiceRun'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { listedRowKey } from '../../workbook/domain/splits'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
@@ -151,7 +152,7 @@ const view = computed(() => {
   const tokens = chartTokens()
 
   const paymentLine = (prefix: string) => (allocation: { payment: PaymentRow; amount: Money }, index: number): InvoicePaymentLine => ({
-    key: `${prefix}-${allocation.payment.transaction.sheetRow}-${index}`,
+    key: `${prefix}-${listedRowKey(allocation.payment.transaction)}-${index}`,
     date: day(allocation.payment.transaction.date),
     amount: allocation.amount,
     to: drillLocation(allocation.payment.drill),
@@ -257,7 +258,7 @@ const view = computed(() => {
     sums,
     unattributedSummary: `${unattributed.length} ${unattributed.length === 1 ? 'credit' : 'credits'}, ${formatWholeMoney(unattributedTotal)}`,
     unattributed: unattributed.map((credit) => ({
-      key: String(credit.transaction.sheetRow),
+      key: listedRowKey(credit.transaction),
       date: day(credit.transaction.date),
       counterparty: credit.transaction.counterparty || 'No counterparty',
       amount: credit.transaction.amount,

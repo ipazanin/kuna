@@ -207,6 +207,7 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
     'year-end': sheetRowsFromValues(values['year-end']),
     plan: sheetRowsFromValues(values.plan),
     scenarios: sheetRowsFromValues(values.scenarios),
+    splits: sheetRowsFromValues(values.splits),
   }
 }
 
@@ -232,6 +233,7 @@ const FAKE_INVOICING: CellValue[][] = [
 /** The tabs as the Sheets API returns them: header row first, dates as serial numbers. */
 export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<WorkbookTab, CellValue[][]> {
   const { bookings, invoices } = fakeBooks()
+  const ledger = ledgerValues(bookings)
   return {
     settings:
       source === 'google'
@@ -254,7 +256,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
             ['billing_client', 'northwind'],
             ...FAKE_INVOICING,
           ],
-    ledger: ledgerValues(bookings),
+    ledger,
     categories: [
       ['category', 'family', 'bucket', 'colour', 'roles', 'vat'],
       ...CATEGORY_SEED.flatMap((group) =>
@@ -289,6 +291,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies'],
       [serialOf('2025-10-02'), -9.71, 'Private share of the paper and ink order', 'office-supplies'],
     ],
+    splits: splitsValues(ledger),
     ...planningValues(),
   }
 }
@@ -425,6 +428,51 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
       ['early-exit', '', 2027, 'dividend', 120000, '', ''],
     ],
   }
+}
+
+interface FakeSplit {
+  readonly date: string
+  readonly counterparty: string
+  readonly description: string
+  readonly parts: readonly (readonly [category: string, amount: number | null, note: string])[]
+}
+
+/**
+ * Three ledger rows split into parts, each found by its day, counterparty and description: a June salary paid
+ * with a results bonus, a design invoice that also paid a workshop, and a business lunch with the
+ * owner's own share in it. The last part of each takes a fixed amount and the first the rest.
+ */
+const SPLIT_ROWS: readonly FakeSplit[] = [
+  { date: '2026-07-12', counterparty: PAYEES.owner.name, description: 'Salary for 2026-06', parts: [['salary-net', null, 'Net salary'], ['salary-bonus', 200, 'Results bonus paid with the salary']] },
+  { date: '2026-03-16', counterparty: PAYEES.contractor.name, description: 'Design work', parts: [['external-contractors', null, 'Design work'], ['consulting', 400, 'Workshop facilitation']] },
+  { date: '2026-05-10', counterparty: 'BISTRO HARBOUR · business lunch', description: 'Card purchase', parts: [['representation', null, 'Client lunch'], ['owner-loan-out', 25, 'The owner’s own lunch']] },
+]
+
+function splitsValues(ledger: readonly (readonly CellValue[])[]): CellValue[][] {
+  const [header = [], ...rows] = ledger
+  const column = (name: string): number => header.indexOf(name)
+  return [
+    ['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note'],
+    ...SPLIT_ROWS.flatMap((split) => {
+      const row = rows.find(
+        (cells) => cells[column('date')] === serialOf(split.date) && cells[column('counterparty')] === split.counterparty && cells[column('description')] === split.description,
+      )
+      if (row === undefined) {
+        throw new Error(`The fake ledger has no row "${split.description}" on ${split.date} to split.`)
+      }
+      const amount = Number(row[column('amount')])
+      const fixed = split.parts.reduce((sum, [, part]) => sum + (part ?? 0), 0)
+      return split.parts.map(([category, part, note]) => [
+        row[column('date')]!,
+        row[column('account')]!,
+        amount,
+        row[column('balance')]!,
+        part === null ? roundToCent(amount + fixed) : -part,
+        category,
+        note,
+      ])
+    }),
+  ]
 }
 
 /** Re-billed costs and extras of a worked month, which its invoice carries beside the fee. */

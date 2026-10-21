@@ -1,8 +1,9 @@
 /**
- * Runs the accrual engine over an xlsx export of the workbook and compares every line of the
- * year-end tab for one year with ours. The export holds real company figures, so keep it outside
- * the repository. This prints verdicts and differences only, never a figure itself, and nothing
- * from its output belongs in the repository either.
+ * Runs the accrual engine over an xlsx export of the workbook, a split row through its parts as the
+ * screens count it, and compares every line of the year-end tab for one year with ours. The export
+ * holds real company figures, so keep it outside the repository. This prints verdicts and
+ * differences only, never a figure itself, and nothing from its output belongs in the repository
+ * either.
  *
  *   npm run parity:year-end -- --workbook <path to export.xlsx> --year 2025
  *
@@ -23,6 +24,7 @@ import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear.ts'
 import { amountOnLine } from '../src/packs/hr-doo/domain/accrual/closedYear.ts'
 import { compareYearEnd } from '../src/packs/hr-doo/domain/yearEnd/yearEndComparison.ts'
 import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset.ts'
+import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook.ts'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
 import { readWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile.ts'
 import { amountOf, sumMoney } from '../src/shared/money/money.ts'
@@ -36,10 +38,11 @@ if (options.workbook === undefined || !Number.isInteger(year)) {
 
 const bytes = readFileSync(options.workbook)
 const { tabs, missingTabs } = await readWorkbookFile(bytes)
-const workbook = readWorkbook({
+const read = readWorkbook({
   meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs },
   ...tabs,
 })
+const workbook = presentedWorkbook(read)
 const accountant = workbook.yearEndLines.filter((line) => line.year === year)
 if (accountant.length === 0) {
   console.error(`The year-end tab has no rows for ${year}.`)

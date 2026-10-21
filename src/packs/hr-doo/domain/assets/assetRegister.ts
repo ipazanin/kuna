@@ -92,6 +92,25 @@ export function assetRegister(
   }
 }
 
+/**
+ * The names of the assets that claim each bank row, by the row's place on the ledger, as the
+ * register matches them. A split of such a row is refused, so the row counts whole.
+ */
+export function assetsClaimingRows(
+  assets: readonly Asset[],
+  transactions: readonly Transaction[],
+  categories: readonly Category[],
+  rules: RuleSource = ruleValue,
+): ReadonlyMap<number, readonly string[]> {
+  const claiming = new Map<number, string[]>()
+  for (const { asset, payment } of assetRegister(assets, transactions, categories, rules).assets) {
+    if (payment !== null) {
+      claiming.set(payment.row.sheetRow, [...(claiming.get(payment.row.sheetRow) ?? []), asset.name])
+    }
+  }
+  return claiming
+}
+
 function mismatchedPayments(assets: readonly Asset[], byReference: readonly (AssetPayment | null)[], debits: readonly Transaction[], rules: RuleSource): MismatchedPayment[] {
   return debits.flatMap((row) => {
     const claiming = assets.filter((_, position) => byReference[position]?.row === row)

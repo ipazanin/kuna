@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { counterpartyIdentity, counterpartyLabels } from '../src/features/workbook/domain/counterpartyIdentity'
 import { topCounterparties } from '../src/features/spending/domain/topCounterparties'
+import { PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import { euros, ledger, windowOf } from './fixtures/ledger'
+import { withSplit } from './fixtures/splits'
 
 describe('counterpartyIdentity', () => {
   it('goes by IBAN when the row has one, whatever the name says', () => {
@@ -108,6 +110,26 @@ describe('topCounterparties', () => {
       ['Laptop Store', 'one-off'],
       ['Rent', 'monthly'],
       ['Cafe', null],
+    ])
+  })
+
+  it('counts a split row as one payment, still one-off, and once under each category its parts take', () => {
+    const rows = withSplit(
+      ledger([{ date: '2026-04-09', amount: -120, counterparty: 'Office Shop', iban: 'XX00FAKE0033', category: 'office-supplies' }]),
+      { date: '2026-04-09', amount: -120 },
+      [
+        [-80, 'office-supplies'],
+        [-30, 'travel'],
+        [-10, 'office-supplies'],
+      ],
+      PACK_CATEGORIES,
+    )
+    const [shop] = topCounterparties(rows, { preset: 'all' }, windowOf('2026-01-01', '2026-05-01'))
+
+    expect([shop?.transactionCount, shop?.rhythm]).toEqual([1, 'one-off'])
+    expect(shop?.categories.map((part) => [part.category, part.amount.amount, part.transactionCount])).toEqual([
+      ['office-supplies', euros(90), 1],
+      ['travel', euros(30), 1],
     ])
   })
 

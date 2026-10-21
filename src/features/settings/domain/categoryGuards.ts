@@ -15,7 +15,7 @@ export interface CategoryEdit {
 }
 
 export interface CategoryUses {
-  /** What names each category outside its tab: ledger rows, rules, owner advances, year-end konto rows and plan rows. */
+  /** What names each category outside its tab: ledger rows, rules, owner advances, split parts, year-end konto rows and plan rows. */
   readonly named: SlugUses
   /** How many owner advances each category carries. */
   readonly advances: ReadonlyMap<string, number>

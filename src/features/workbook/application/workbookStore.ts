@@ -24,19 +24,8 @@ import { planRowsChange, verifyRowsChange } from './tabRowWrites'
 import type { TabRowRules } from './tabRowWrites'
 import { WorkbookWriteRefused } from './workbookWriter'
 import type { FreshTabs, TabEdits, WorkbookWriter } from './workbookWriter'
-import {
-  planOwnerAdvanceAppend,
-  planOwnerAdvanceRemoval,
-  planRulesChange,
-  planSettingsChange,
-  planVerdicts,
-  verifyOwnerAdvanceAppend,
-  verifyOwnerAdvanceRemoval,
-  verifyRulesChange,
-  verifySettingsChange,
-  verifyVerdicts,
-} from './writePlans'
-import type { OwnerAdvanceDraft, OwnerAdvanceReceipt, SettingChange } from './writePlans'
+import { planRulesChange, planSettingsChange, planVerdicts, verifyRulesChange, verifySettingsChange, verifyVerdicts } from './writePlans'
+import type { SettingChange } from './writePlans'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
 
@@ -59,9 +48,6 @@ export type WrittenChange =
     }
   | { readonly kind: 'rules'; readonly change: RulesTabChange }
   | { readonly kind: 'settings'; readonly changes: readonly SettingChange[] }
-  | { readonly kind: 'owner-advance-added'; readonly receipt: OwnerAdvanceReceipt }
-  /** An appended advance cleared again. `receipt` is the one its addition returned. */
-  | { readonly kind: 'owner-advance-removed'; readonly receipt: OwnerAdvanceReceipt }
   | {
       readonly kind: 'rows'
       /** The tab's rules, which the write's Undo goes through again. */
@@ -77,12 +63,9 @@ export type SessionWrite = WrittenAt & WrittenChange
 /** Whether the write put back what an earlier one of the session changed. */
 export function isUndo(write: SessionWrite): boolean {
   switch (write.kind) {
-    case 'owner-advance-removed':
-      return true
     case 'ledger':
     case 'rows':
       return write.undid !== null
-    case 'owner-advance-added':
     case 'rules':
     case 'settings':
       return false
@@ -94,11 +77,8 @@ export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]):
   switch (write.kind) {
     case 'ledger':
       return writes.some((later) => later.kind === 'ledger' && later.undid === write.receipt)
-    case 'owner-advance-added':
-      return writes.some((later) => later.kind === 'owner-advance-removed' && later.receipt === write.receipt)
     case 'rows':
       return writes.some((later) => later.kind === 'rows' && later.undid === write.receipt)
-    case 'owner-advance-removed':
     case 'rules':
     case 'settings':
       return false
@@ -106,9 +86,8 @@ export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]):
 }
 
 /**
- * Whether Undo can put back what a write changed: a ledger write, an added advance, or rows added,
- * changed or deleted on a tab, unless it is an undo itself or was undone since. Rules and settings
- * have no undo.
+ * Whether Undo can put back what a write changed: a ledger write, or rows added, changed or deleted
+ * on a tab, unless it is an undo itself or was undone since. Rules and settings have no undo.
  */
 export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): boolean {
   return write.kind !== 'rules' && write.kind !== 'settings' && !isUndo(write) && !wasUndone(write, writes)
@@ -191,10 +170,6 @@ export interface WorkbookStore {
   changeRules(change: RulesTabChange): Promise<void>
   /** Sets settings rows by key, adding a row for a key the tab lacks. */
   changeSettings(changes: readonly SettingChange[]): Promise<void>
-  /** Appends a cost the owner paid privately to the owner-advances tab. Returns what Undo clears. */
-  addOwnerAdvance(draft: OwnerAdvanceDraft): Promise<OwnerAdvanceReceipt>
-  /** Clears an advance appended earlier, refused unless a row still holds exactly what was written. */
-  removeOwnerAdvance(receipt: OwnerAdvanceReceipt): Promise<void>
   /**
    * Adds, changes and deletes rows of one tab in one write, each row found again as the app read
    * it and the tab checked by its rules. With `addMissingTab`, once the person agreed, a Google
@@ -390,15 +365,6 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     return planned.receipt
   }
 
-  async function removeOwnerAdvance(receipt: OwnerAdvanceReceipt): Promise<void> {
-    await writeThrough(
-      ['owner-advances'],
-      (fresh) => ({ edits: planOwnerAdvanceRemoval(fresh, receipt) }),
-      (after, planned) => verifyOwnerAdvanceRemoval(after, planned.edits),
-      () => ({ kind: 'owner-advance-removed', receipt }),
-    )
-  }
-
   async function writeRows(rules: TabRowRules, change: TabRowsChange, undid: TabRowsReceipt | null, addMissingTab = false): Promise<TabRowsReceipt | null> {
     let receipt = null as TabRowsReceipt | null
     await writeThrough(
@@ -487,24 +453,6 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       )
     },
 
-    async addOwnerAdvance(draft) {
-      let receipt = null as OwnerAdvanceReceipt | null
-      await writeThrough(
-        ['owner-advances', 'categories'],
-        (fresh) => planOwnerAdvanceAppend(fresh, draft),
-        (after, planned) => {
-          receipt = verifyOwnerAdvanceAppend(after, planned)
-        },
-        () => ({ kind: 'owner-advance-added', receipt: receipt! }),
-      )
-      if (receipt === null) {
-        throw new Error('The advance was not written.')
-      }
-      return receipt
-    },
-
-    removeOwnerAdvance,
-
     changeRows(rules, change, addMissingTab = false) {
       return writeRows(rules, change, null, addMissingTab)
     },
@@ -516,9 +464,6 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
       switch (write.kind) {
         case 'ledger':
           await writeVerdicts(undoOf(write.receipt), write.receipt)
-          return
-        case 'owner-advance-added':
-          await removeOwnerAdvance(write.receipt)
           return
         case 'rows':
           await writeRows(write.rules, undoOfRows(write.receipt), write.receipt)

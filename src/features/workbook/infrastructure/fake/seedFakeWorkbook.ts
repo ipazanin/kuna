@@ -11,6 +11,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, tab: WorkbookTab])[] = [
   ['no-billing-plan', 'outgoing-plan'],
   ['no-scenarios', 'scenarios'],
   ['no-plan', 'plan'],
+  ['no-splits', 'splits'],
 ]
 
 /**
@@ -18,7 +19,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, tab: WorkbookTab])[] = [
  * `?fake=excel` keeps it as a workbook of this browser with changes nine days past their last
  * export, and `?fake=empty` keeps nothing, which is a first run. `?fake=no-billing-plan` and
  * `?fake=excel-no-billing-plan` leave out the outgoing-plan tab, `?fake=no-scenarios` the
- * scenarios tab and `?fake=no-plan` the plan tab, from the Sheet too, so a write can add it. Only main.ts imports this, behind
+ * scenarios tab, `?fake=no-plan` the plan tab and `?fake=no-splits` the splits tab, from the Sheet too, so a write can add it. Only main.ts imports this, behind
  * an inline VITE_FAKE_WORKBOOK comparison, so the module and its fixture never reach a production chunk.
  */
 export async function seedFakeWorkbook(variant: string | null): Promise<void> {

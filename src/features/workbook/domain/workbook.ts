@@ -13,6 +13,7 @@ import type { Grant } from './grants'
 import type { OwnerPayScenario } from './ownerPayScenarios'
 import type { PlanLine } from './plan'
 import type { VatTreatment } from './vatTreatment'
+import type { LedgerSplit } from './splits'
 import type { YearEndLine } from './yearEnd'
 
 export interface Category {
@@ -81,6 +82,19 @@ export interface Transaction {
   readonly reviewReasons: readonly string[]
   /** The 1-based row on the tab when it was read. */
   readonly sheetRow: number
+  /** Set on a part of a split bank row, which the screens count in the row's place. */
+  readonly split?: SplitPartOf
+}
+
+/** Where a part of a split row comes from: the bank row as booked, and the part's place among its parts. */
+export interface SplitPartOf {
+  readonly whole: Transaction
+  /** From 0, in the order of the splits tab. */
+  readonly index: number
+  readonly count: number
+  readonly note: string
+  /** The part's row on the splits tab, or null for a private share on the owner-advances tab that still waits to be moved there. */
+  readonly sheetRow: number | null
 }
 
 /** What profit and loss counts of a row: a bank transaction, or a cost the owner paid privately. */
@@ -128,10 +142,10 @@ export interface ClientInvoicing {
 
 export const NO_CLIENT_INVOICING: ClientInvoicing = { address: '', country: '', taxId: '', invoiceMail: '', mailLanguage: '', reverseCharge: false }
 
-/** A row of the `owner-advances` tab: a cost the owner paid privately for the company, or the owner's private share of a company payment. */
+/** A row of the `owner-advances` tab: a cost the owner paid privately for the company. */
 export interface OwnerAdvance {
   readonly date: CivilDate
-  /** Never zero. Positive is what the owner paid for the company. Negative is the private share of a payment the company made, which the bank row cannot split off. */
+  /** Above zero. */
   readonly amount: Money
   readonly description: string
   /** A category in the operating or taxes bucket. */
@@ -144,13 +158,23 @@ export interface OwnerAdvance {
 /** The buckets a cost the owner paid privately may count in. */
 export const ADVANCE_BUCKETS = ['operating', 'taxes'] as const satisfies readonly DefinedBucket[]
 
-export type OwnerAdvanceKind = 'paid-by-owner' | 'private-share'
-
-export function advanceKindOf(advance: OwnerAdvance): OwnerAdvanceKind {
-  return advance.amount > 0 ? 'paid-by-owner' : 'private-share'
+/**
+ * A negative row of the `owner-advances` tab, which is how the tab held the owner's private share
+ * of a company payment before the splits tab. The reader refuses it as an advance and keeps it
+ * here, so it can be moved to the splits tab.
+ */
+export interface PrivateShareToMove {
+  /** The day the advance gives, which may be the card's day rather than the bank's. */
+  readonly date: CivilDate
+  /** Read positive. */
+  readonly amount: Money
+  readonly description: string
+  /** The category of the company payment the share came off. */
+  readonly category: string
+  readonly sheetRow: number
 }
 
-/** An advance as profit and loss counts it: a cost on its date, in its category. A private share takes its amount off that cost. */
+/** An advance as profit and loss counts it: a cost on its date, in its category. */
 export function bookingOfAdvance(advance: OwnerAdvance): Booking {
   return { date: advance.date, amount: negateMoney(advance.amount), category: advance.category, family: advance.family, bucket: advance.bucket }
 }
@@ -172,6 +196,7 @@ export interface WorkbookProblem {
     | 'year-end'
     | 'plan'
     | 'scenarios'
+    | 'splits'
   readonly sheetRow: number
   readonly reason: string
 }
@@ -200,6 +225,13 @@ export interface Workbook {
   readonly billingPlan: readonly BillingItem[]
   /** In the order the tab holds them. */
   readonly ownerAdvances: readonly OwnerAdvance[]
+  /** The negative rows of the owner-advances tab, in the order the tab holds them. */
+  readonly privateSharesToMove: readonly PrivateShareToMove[]
+  /**
+   * The bank rows split into parts on the `splits` tab, each split once the tab's guards pass. The
+   * screens count a split row through its parts, and the ledger and its readers keep the row whole.
+   */
+  readonly splits: readonly LedgerSplit[]
   /** In the order the tab holds them. */
   readonly assets: readonly Asset[]
   /** In the order the tab holds them. */

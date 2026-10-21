@@ -6,6 +6,7 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../../features/filters/application/filterStore'
+import { listedRowKey } from '../../../features/workbook/domain/splits'
 import type { UnaccountedReimbursement } from '../domain/ownerAdvances'
 import type { AdvancePrefill } from './AddAdvanceDialog.vue'
 
@@ -36,7 +37,7 @@ function addCost(line: UnaccountedReimbursement): void {
 
 <template>
   <ul class="flex flex-col" data-testid="unaccounted-reimbursements">
-    <li v-for="line in [...props.payments].reverse()" :key="`${line.payment.account}-${line.payment.sheetRow}`" class="payment-row" data-testid="unaccounted-reimbursement">
+    <li v-for="line in [...props.payments].reverse()" :key="listedRowKey(line.payment)" class="payment-row" data-testid="unaccounted-reimbursement">
       <div class="min-w-0">
         <p class="truncate text-sm text-highlighted">{{ line.payment.description || line.payment.counterparty || 'Reimbursement' }}</p>
         <p class="truncate text-xs text-muted">

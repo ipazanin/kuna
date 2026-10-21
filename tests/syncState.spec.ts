@@ -19,6 +19,7 @@ const workbook = readWorkbook({
   'year-end': [],
   plan: [],
   scenarios: [],
+  splits: [],
 })
 const choice = { source: 'google' as const, id: 'sheet', name: 'Books' }
 

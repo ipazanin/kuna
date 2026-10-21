@@ -64,12 +64,13 @@ function rulesNaming(rows: readonly SheetRow[]): ReadonlyMap<string, string> {
   return new Map([...ids].map(([slug, named]) => [slug, named.length === 1 ? `the rule ${named[0]}` : `the rules ${named.join(', ')}`]))
 }
 
-/** What names each category outside its tab: ledger rows, rules, owner advances, year-end konto rows and plan rows. */
+/** What names each category outside its tab: ledger rows, rules, owner advances, split parts, year-end konto rows and plan rows. */
 export function categoryUses(rowsOf: RowsOf): SlugUses {
   return usesOf([
     countedBy(rowsOf('ledger'), (row) => [slugOf(row.cells.category)], 'ledger row', 'ledger rows'),
     rulesNaming(rowsOf('rules')),
     countedBy(rowsOf('owner-advances'), (row) => [slugOf(row.cells.category)], 'owner advance', 'owner advances'),
+    countedBy(rowsOf('splits'), (row) => [slugOf(row.cells.category)], 'split part', 'split parts'),
     countedBy(rowsOf('year-end'), (row) => slugListOf(row.cells.categories), 'year-end konto row', 'year-end konto rows'),
     countedBy(rowsOf('plan'), (row) => [slugOf(row.cells.item)], 'plan tab row', 'plan tab rows'),
   ])
@@ -106,7 +107,7 @@ export const CATEGORY_ROWS: TabRowRules = {
   required: ['category', 'family', 'bucket'],
   caseless: ['category', 'family', 'bucket', 'vat'],
   dates: [],
-  reads: ['ledger', 'rules', 'owner-advances', 'year-end', 'plan'],
+  reads: ['ledger', 'rules', 'owner-advances', 'splits', 'year-end', 'plan'],
   read: (rows) => readCategoryRows(rows),
   refusals: (check, fresh) => {
     const advances = new Map<string, number>()

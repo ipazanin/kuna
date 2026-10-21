@@ -35,6 +35,7 @@ function snapshotOf(workbookId: string, ledger: SheetRow[], syncedAt = '2026-10-
     'year-end': [{ sheetRow: 2, cells: { year: 2025, statement: 'tax', line: 'rate', amount: 0.1 } }],
     plan: [{ sheetRow: 2, cells: { year: 2027, item: 'revenue', amount: 7400 } }],
     scenarios: [{ sheetRow: 2, cells: { scenario: 'floor', year: 2027, component: 'salary_gross', amount: 'floor' } }],
+    splits: [{ sheetRow: 2, cells: { date: 46297, account: 'main', row_amount: -20, row_balance: 980, amount: -15, category: 'software', note: 'Seat' } }],
   }
 }
 
@@ -110,6 +111,25 @@ describe('workbook cache', () => {
 
     expect(read?.plan).toHaveLength(1)
     expect(read?.['outgoing-plan']).toEqual([])
+  })
+
+  it('opens a copy cached before the splits tab existed, with that tab empty', async () => {
+    const name = 'ledgerboard-workbook-sheet-before-splits'
+    const earlier = new Dexie(name)
+    earlier.version(1).stores({ meta: 'key', ledger: 'sheetRow', categories: 'sheetRow', accounts: 'sheetRow' })
+    earlier.version(2).stores({ settings: 'sheetRow' })
+    earlier.version(3).stores({ rules: 'sheetRow' })
+    earlier.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
+    earlier.version(5).stores({ assets: 'sheetRow', grants: 'sheetRow', 'year-end': 'sheetRow', plan: 'sheetRow', scenarios: 'sheetRow' })
+    earlier.version(6).stores({ 'outgoing-plan': 'sheetRow' })
+    await earlier.table('meta').put({ key: 'workbook', id: 'sheet-before-splits', source: 'excel', title: 'Before', syncedAt: '2026-10-01T06:00:00.000Z' })
+    await earlier.table('ledger').put(ledgerRow(2, 5))
+    earlier.close()
+
+    const read = await cacheFor('sheet-before-splits').read()
+
+    expect(read?.ledger).toEqual([ledgerRow(2, 5)])
+    expect(read?.splits).toEqual([])
   })
 
   it('replaces the whole copy, so rows gone from the Sheet are gone from the cache', async () => {

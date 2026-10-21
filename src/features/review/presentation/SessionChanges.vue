@@ -4,10 +4,6 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../shared/calendar/civilDate'
-import { moneyFromAmount, negateMoney } from '../../../shared/money/money'
-import type { Money } from '../../../shared/money/money'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { cellText } from '../../../shared/text/cellText'
@@ -15,7 +11,6 @@ import { rulesChangeInWords } from '../../rules/domain/ruleSummary'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { canUndo, isUndo, wasUndone } from '../../workbook/application/workbookStore'
 import type { SessionWrite } from '../../workbook/application/workbookStore'
-import type { OwnerAdvanceReceipt } from '../../workbook/application/writePlans'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
 import { isSameLedgerRow, ledgerRowKeyOf } from '../../workbook/domain/ledgerRowKey'
@@ -79,10 +74,6 @@ function titleOf(write: SessionWrite): string {
       return rulesChangeInWords(write.change)
     case 'settings':
       return write.changes.length === 1 ? `Set ${write.changes[0]!.key}` : `Changed ${write.changes.length} settings`
-    case 'owner-advance-added':
-      return 'Added an owner advance'
-    case 'owner-advance-removed':
-      return 'Undid an owner advance'
     case 'rows':
       return rowsChangeInWords(write.rules, write.receipt, write.undid)
   }
@@ -92,23 +83,11 @@ const ICONS: Readonly<Record<SessionWrite['kind'], string>> = {
   ledger: 'i-lucide-tag',
   rules: 'i-lucide-list-ordered',
   settings: 'i-lucide-sliders-horizontal',
-  'owner-advance-added': 'i-lucide-wallet',
-  'owner-advance-removed': 'i-lucide-undo-2',
   rows: 'i-lucide-table-properties',
 }
 
 function iconOf(write: SessionWrite): string {
   return isUndo(write) ? 'i-lucide-undo-2' : ICONS[write.kind]
-}
-
-/** An advance as its receipt wrote it: the date as a serial number and the amount as a decimal, negative for a private share. */
-function advanceOf(receipt: OwnerAdvanceReceipt): { readonly date: CivilDate; readonly cost: Money; readonly category: string; readonly description: string } {
-  return {
-    date: civilDateFromSerial(Number(receipt.cells.date)),
-    cost: negateMoney(moneyFromAmount(Number(receipt.cells.amount))),
-    category: cellText(receipt.cells.category),
-    description: cellText(receipt.cells.description),
-  }
 }
 
 /** The rows of a write beyond the ones listed: up to three added or deleted, and up to three changed. */
@@ -191,18 +170,6 @@ function quoted(cell: string | number | boolean | null): string {
           <ul v-else-if="write.kind === 'settings'" class="detail-list">
             <li v-for="change in write.changes" :key="change.key" class="text-xs text-muted">
               <span class="identifier text-toned">{{ change.key }}</span> from {{ quoted(change.expected) }} to {{ quoted(change.value) }}
-            </li>
-          </ul>
-          <ul v-else-if="write.kind === 'owner-advance-added' || write.kind === 'owner-advance-removed'" class="detail-list">
-            <li class="flex flex-col gap-1">
-              <span class="flex min-w-0 items-baseline justify-between gap-3 text-xs">
-                <span class="min-w-0 truncate text-toned">{{ advanceOf(write.receipt).description || (advanceOf(write.receipt).cost > 0 ? 'Private share of a company payment' : 'Paid by the owner') }}</span>
-                <span class="figure shrink-0 text-muted">{{ dayFormat.format(new Date(advanceOf(write.receipt).date)) }}, <MoneyText :cents="advanceOf(write.receipt).cost" tone="flow" /></span>
-              </span>
-              <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
-                <CategoryChip :category="advanceOf(write.receipt).category" :bucket="bucketOf(advanceOf(write.receipt).category)" />
-                <span>row {{ write.receipt.sheetRow }} of owner-advances</span>
-              </span>
             </li>
           </ul>
           <ul v-else-if="write.kind === 'rows'" class="detail-list">

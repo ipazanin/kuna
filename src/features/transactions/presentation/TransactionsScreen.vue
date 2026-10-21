@@ -25,21 +25,26 @@ import { withoutChips } from '../../filters/domain/filterChips'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { counterpartyIdentity, counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useCollapsedGroups } from '../application/collapsedGroups'
 import { transactionsCsv } from '../application/transactionsCsv'
 import { useFilteredLedger } from '../application/useFilteredLedger'
 import { advancesLeftOutByBankFilters } from '../domain/filterTransactions'
-import { inBookingOrder, listedRows } from '../domain/listedRows'
-import type { ListedRow } from '../domain/listedRows'
+import { OWNER_ADVANCE_LABEL, inBookingOrder, listedRows, withSplitHeadings } from '../domain/listedRows'
+import type { ListedEntry, ListedRow } from '../domain/listedRows'
 import { groupTransactions } from '../domain/transactionGroups'
 import type { Grouping, TransactionGroup } from '../domain/transactionGroups'
+import type { LedgerSplit } from '../../workbook/domain/splits'
+import type { Transaction } from '../../workbook/domain/workbook'
+import SplitDialog from './SplitDialog.vue'
 import TransactionCards from './TransactionCards.vue'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
 
 const ledger = useFilteredLedger()
 const { filters, setFilters, drillLocation } = useFilters()
+const { state } = useWorkbook()
 
 const GROUPINGS: readonly { readonly label: string; readonly value: Grouping }[] = [
   { label: 'No grouping', value: 'none' },
@@ -108,17 +113,32 @@ const groups = computed<TransactionGroup[] | null>(() => {
 
 const bucketLabels = computed(() => ledger.value?.workbook.settings.bucketLabels ?? DEFAULT_BUCKET_LABELS)
 
-/** The table's rows: each group's heading, then its rows unless it is collapsed. */
-type TableEntry = { readonly kind: 'group'; readonly group: TransactionGroup } | { readonly kind: 'row'; readonly row: ListedRow }
+/** The table's rows: each group's heading, then its rows unless it is collapsed, a split payment's parts under the payment. */
+type TableEntry = { readonly kind: 'group'; readonly group: TransactionGroup } | ListedEntry
 
 const tableEntries = computed<TableEntry[]>(() =>
   groups.value === null
-    ? sortedRows.value.map((row) => ({ kind: 'row', row }))
-    : groups.value.flatMap((group): TableEntry[] => [
-        { kind: 'group', group },
-        ...(collapsed.isCollapsed(group.key) ? [] : group.rows.map((row): TableEntry => ({ kind: 'row', row }))),
-      ]),
+    ? withSplitHeadings(sortedRows.value)
+    : groups.value.flatMap((group): TableEntry[] => [{ kind: 'group', group }, ...(collapsed.isCollapsed(group.key) ? [] : withSplitHeadings(group.rows))]),
 )
+
+/** The payment the split editor is open on, with its split on the splits tab or null. */
+const splitting = ref<{ readonly row: Transaction; readonly split: LedgerSplit | null } | null>(null)
+const splitOpen = ref(false)
+
+function splitOf(row: Transaction): LedgerSplit | null {
+  return ledger.value?.workbook.splits.find((split) => split.row.sheetRow === row.sheetRow) ?? null
+}
+
+/** A split read from a private share still on the owner-advances tab is moved on Owner or Review, not edited here. */
+function waitsToMove(row: Transaction): boolean {
+  return splitOf(row)?.parts.some((part) => part.sheetRow === null) ?? false
+}
+
+function openSplit(row: Transaction): void {
+  splitting.value = { row, split: splitOf(row) }
+  splitOpen.value = true
+}
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
@@ -146,6 +166,8 @@ type EntryCell = { readonly row: { readonly original: TableEntry } }
 
 const isHeading = (cell: EntryCell): boolean => cell.row.original.kind === 'group'
 
+const isPart = (entry: TableEntry): boolean => entry.kind === 'row' && entry.row.kind === 'bank' && entry.row.split !== undefined
+
 /** A group's heading fills its whole row, so every other cell of that row is left out. */
 function besideHeading(rowClass = ''): { class: { td: (cell: EntryCell) => string } } {
   return { class: { td: (cell) => (isHeading(cell) ? 'hidden' : rowClass) } }
@@ -162,7 +184,7 @@ function reviewBadge(listed: ListedRow) {
 const columns: TableColumn<TableEntry>[] = [
   {
     id: 'date',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.date : ''),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.date : entry.kind === 'split' ? entry.whole.date : ''),
     header: sortableHeader('Date'),
     meta: {
       colspan: { td: (cell: EntryCell) => (isHeading(cell) ? String(COLUMN_COUNT) : '1') },
@@ -178,23 +200,47 @@ const columns: TableColumn<TableEntry>[] = [
           onToggle: () => collapsed.toggle(entry.group.key),
         })
       }
-      return h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.row.date)))
+      if (entry.kind === 'split') {
+        return h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.whole.date)))
+      }
+      return isPart(entry) ? '' : h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.row.date)))
     },
   },
   {
     id: 'counterparty',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.counterparty : ''),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.counterparty : entry.kind === 'split' ? entry.whole.counterparty : ''),
     header: 'Counterparty',
     meta: besideHeading('whitespace-normal'),
+    footer: () => h('span', { class: 'text-xs font-normal text-muted' }, `${rows.value.length} ${rows.value.length === 1 ? 'row' : 'rows'}`),
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
+      if (entry.kind === 'split') {
+        const { whole } = entry
+        return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [
+          h('span', { class: 'inline-flex flex-wrap items-center gap-2 text-highlighted' }, [
+            h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(whole).key] }), class: 'text-highlighted' }, () => whole.counterparty || 'No counterparty'),
+            h(UBadge, { label: waitsToMove(whole) ? 'Private share to move' : `Split in ${entry.count} parts`, color: 'neutral', variant: 'subtle', size: 'sm' }),
+          ]),
+          whole.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, whole.description),
+        ])
+      }
       const listed = entry.row
+      if (listed.kind === 'bank' && listed.split !== undefined) {
+        const { split } = listed
+        return h('div', { class: 'min-w-40 max-w-56 ps-4 @4xl:max-w-96' }, [
+          h('span', { class: 'inline-flex items-center gap-1.5 text-toned' }, [
+            h(UIcon, { name: 'i-lucide-corner-down-right', class: 'size-3.5 shrink-0 text-muted', 'aria-hidden': 'true' }),
+            `Part ${split.index + 1} of ${split.count}`,
+          ]),
+          split.note === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, split.note),
+        ])
+      }
       // An advance has no counterparty in the ledger, so a counterparty filter would leave it out.
       const name =
         listed.kind === 'bank'
           ? h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(listed).key] }), class: 'text-highlighted' }, () => listed.counterparty || 'No counterparty')
-          : h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [listed.counterparty, h(UBadge, { label: listed.label, color: 'neutral', variant: 'subtle', size: 'sm' })])
+          : h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [listed.counterparty, h(UBadge, { label: OWNER_ADVANCE_LABEL, color: 'neutral', variant: 'subtle', size: 'sm' })])
       return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [name, listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description)])
     },
   },
@@ -206,6 +252,7 @@ const columns: TableColumn<TableEntry>[] = [
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
+      if (entry.kind === 'split') return h('span', { class: 'text-xs text-muted' }, 'Counts as its parts')
       const listed = entry.row
       return h('span', { class: 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-toned' }, [
         h('span', { class: 'inline-flex items-center gap-1.5' }, [
@@ -220,13 +267,14 @@ const columns: TableColumn<TableEntry>[] = [
   },
   {
     id: 'account',
-    accessorFn: (entry) => (entry.kind === 'row' && entry.row.kind === 'bank' ? entry.row.account : ''),
+    accessorFn: (entry) => (entry.kind === 'row' && entry.row.kind === 'bank' ? entry.row.account : entry.kind === 'split' ? entry.whole.account : ''),
     header: 'Account',
     // The account is the first column a narrow card gives up, since the filters name it too.
     meta: { class: { th: 'hidden @4xl:table-cell', ...besideHeading('hidden @4xl:table-cell').class } },
     cell: ({ row }) => {
       const entry = row.original
-      if (entry.kind === 'group') return ''
+      if (entry.kind === 'group' || isPart(entry)) return ''
+      if (entry.kind === 'split') return h('span', { class: 'text-muted' }, names.value.account(entry.whole.account))
       return entry.row.kind === 'bank'
         ? h('span', { class: 'text-muted' }, names.value.account(entry.row.account))
         : h('span', { class: 'text-muted' }, 'No bank account')
@@ -234,15 +282,55 @@ const columns: TableColumn<TableEntry>[] = [
   },
   {
     id: 'amount',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.amount : entry.group.total),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.amount : entry.kind === 'split' ? entry.whole.amount : entry.group.total),
     header: sortableHeader('Amount', true),
     meta: { class: { th: 'text-end', ...besideHeading('text-end').class } },
-    cell: ({ row }) => (row.original.kind === 'group' ? '' : h(MoneyText, { cents: row.original.row.amount, tone: 'flow' })),
+    cell: ({ row }) => {
+      const entry = row.original
+      if (entry.kind === 'group') return ''
+      if (entry.kind === 'split') return h(MoneyText, { cents: entry.whole.amount, class: 'text-muted' })
+      return h(MoneyText, { cents: entry.row.amount, tone: 'flow' })
+    },
+    // The count sits under the counterparty, so the amount column stays as narrow as its figures.
     footer: () =>
       h('span', { class: 'inline-flex items-baseline gap-2 whitespace-nowrap' }, [
-        h('span', { class: 'text-xs font-normal text-muted' }, `${rows.value.length} ${rows.value.length === 1 ? 'row' : 'rows'}, total`),
+        h('span', { class: 'text-xs font-normal text-muted' }, 'Total'),
         h(MoneyText, { cents: total.value, class: 'font-semibold text-highlighted' }),
       ]),
+  },
+  {
+    id: 'actions',
+    header: () => h('span', { class: 'sr-only' }, 'Actions'),
+    meta: { class: { th: 'w-0 px-0', ...besideHeading('w-0 ps-0 pe-2').class } },
+    cell: ({ row }) => {
+      const entry = row.original
+      if (entry.kind === 'split') {
+        return waitsToMove(entry.whole)
+          ? ''
+          : h(UButton, {
+              icon: 'i-lucide-pencil',
+              color: 'neutral',
+              variant: 'ghost',
+              size: 'xs',
+              'aria-label': `Edit the split of ${entry.whole.counterparty || 'the payment'}`,
+              'data-testid': 'edit-split',
+              disabled: state.writing,
+              onClick: () => openSplit(entry.whole),
+            })
+      }
+      if (entry.kind !== 'row' || entry.row.kind !== 'bank' || entry.row.split !== undefined || entry.row.amount === 0) return ''
+      const listed = entry.row
+      return h(UButton, {
+        icon: 'i-lucide-split',
+        color: 'neutral',
+        variant: 'ghost',
+        size: 'xs',
+        'aria-label': `Split the payment of ${listed.counterparty || 'this row'}`,
+        'data-testid': 'split-row',
+        disabled: state.writing,
+        onClick: () => openSplit(listed),
+      })
+    },
   },
 ]
 
@@ -326,7 +414,10 @@ function exportCsv(): void {
           :bucket-labels="bucketLabels"
           :is-collapsed="collapsed.isCollapsed"
           :show-account="severalAccounts"
+          :writing="state.writing"
+          :waits-to-move="waitsToMove"
           @toggle="collapsed.toggle"
+          @split="openSplit"
         />
         <AppCard v-else as="div" class="@container overflow-hidden">
           <UTable
@@ -335,11 +426,12 @@ function exportCsv(): void {
             :columns="columns"
             :sorting-options="{ manualSorting: true }"
             :meta="{ class: { tr: (row: EntryCell['row']) => (row.original.kind === 'group' ? 'bg-elevated' : '') } }"
-            :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : entry.row.key)"
+            :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : entry.kind === 'split' ? entry.key : entry.row.key)"
             sticky
             class="max-h-[70dvh]"
           />
         </AppCard>
+        <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
       </template>
     </LedgerGate>
   </section>

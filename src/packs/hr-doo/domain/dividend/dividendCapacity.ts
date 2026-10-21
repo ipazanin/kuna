@@ -79,7 +79,7 @@ export interface DividendPrudence {
   /** December's pay, rent and corporate tax advance, paid in January. Cash at the year end already settles the VAT position. */
   readonly decemberDue: TracedFigure
   readonly cashAfterObligations: TracedFigure
-  /** What the owner owes the company on loans, private shares and advances, net, on the day of the forecast. */
+  /** What the owner owes the company on loans and advances, net, on the day of the forecast. */
   readonly owedByOwner: TracedFigure
   /** Profit is withheld when the position has seriously and lastingly worsened, which the members judge. */
   readonly deterioration: RuleCitation

@@ -21,7 +21,9 @@
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
  * adds the starting scenarios to a workbook without any, which adds the tab to a Sheet without it.
  * It plans a category for 2027 on Forecast, edits, clears and undoes it, and plans a purchase in a
- * workbook without plan rows, which adds the plan tab to a Sheet without it.
+ * workbook without plan rows, which adds the plan tab to a Sheet without it. On Transactions it
+ * splits a payment, edits the split, deletes it and undoes the delete, and splits one in a workbook
+ * without the splits tab, and on Owner and Review it moves the private share to the splits tab.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -39,7 +41,7 @@ import * as XLSX from 'xlsx'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, invoiceFlow, invoiceRunFlow, planFlow, planTabFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, invoiceFlow, invoiceRunFlow, moveShareFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
@@ -524,6 +526,17 @@ const FLOWS = [
     viewports: ['phone', 'phone-large', 'desktop'],
     queries: { google: '&fake=no-plan', excel: '&fake=excel-no-plan' },
   },
+  { name: 'split', hash: '#/transactions?p=all&q=GADGET', title: 'Transactions', run: splitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  {
+    name: 'split-tab',
+    hash: '#/transactions?p=all&q=GADGET',
+    title: 'Transactions',
+    run: splitFlow,
+    viewports: ['phone', 'desktop'],
+    queries: { google: '&fake=no-splits', excel: '&fake=excel-no-splits' },
+  },
+  { name: 'move-share', hash: '#/owner', title: 'Owner', run: moveShareFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'move-share-review', hash: '#/review', title: 'Review', run: moveShareFlow, viewports: ['phone', 'phone-large', 'desktop'] },
 ]
 const MODES = [
   { name: 'google', query: '' },

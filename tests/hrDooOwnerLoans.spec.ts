@@ -2,16 +2,17 @@ import { describe, expect, it } from 'vitest'
 
 import { loanMonths, ownerLoans } from '../src/packs/hr-doo/domain/ownerLoans'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
-import type { Category, OwnerAdvance } from '../src/features/workbook/domain/workbook'
+import type { Category } from '../src/features/workbook/domain/workbook'
 import { DEFAULT_FILTERS } from '../src/features/filters/domain/filterState'
 import type { FilterState } from '../src/features/filters/domain/filterState'
-import { scopeOwnerAdvances, scopeTransactions } from '../src/features/transactions/domain/filterTransactions'
+import { scopeTransactions } from '../src/features/transactions/domain/filterTransactions'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
+import { withSplit } from './fixtures/splits'
 
-function book(rows: readonly RowSpec[], categories: readonly Category[] = PACK_CATEGORIES, advances: readonly OwnerAdvance[] = []) {
-  return ownerLoans(advances, withPackBuckets(ledger(rows), categories), categories)
+function book(rows: readonly RowSpec[], categories: readonly Category[] = PACK_CATEGORIES) {
+  return ownerLoans(withPackBuckets(ledger(rows), categories), categories)
 }
 
 /** A private cost the company paid for the owner, filed on a category that carries the loan-out role. */
@@ -19,10 +20,6 @@ const WITH_PRIVATE_COSTS: readonly Category[] = [
   ...PACK_CATEGORIES,
   { slug: 'private-cost-for-owner', family: 'owner-pay', bucket: 'owner-pay', colour: '', roles: ['owner-loan-out'], vat: 'none' },
 ]
-
-function privateShare(date: string, amount: number): OwnerAdvance {
-  return { date: civil(date), amount: euros(-amount), description: 'Private share of an order', category: 'office-supplies', family: 'operating', bucket: 'operating', sheetRow: 2 }
-}
 
 describe('owner loans', () => {
   it('matches repayments to loans first in, first out, carrying a repayment on into the next loan', () => {
@@ -128,7 +125,7 @@ describe('owner loans', () => {
         { date: '2026-04-02', amount: 200, category: 'owner-loan-repaid' },
       ]),
     )
-    const months = loanMonths([], transactions, PACK_CATEGORIES, ['2026-02', '2026-03', '2026-04'] as MonthKey[], windowOf('2026-01-10', '2026-04-02'))
+    const months = loanMonths(transactions, PACK_CATEGORIES, ['2026-02', '2026-03', '2026-04'] as MonthKey[], windowOf('2026-01-10', '2026-04-02'))
 
     expect(months.map((month) => [month.month, month.complete, month.lent.amount, month.repaid.amount, month.outstanding.amount])).toEqual([
       ['2026-02', true, euros(0), euros(300), euros(700)],
@@ -180,22 +177,30 @@ describe('owner loans', () => {
     expect(loans.openCount).toBe(17)
   })
 
-  it('holds a private share of a company payment as lent, repaid by the owner less what the company sent back the same day', () => {
-    // The owner paid the 8.40 share back twice and the company returned the extra.
-    const share = privateShare('2025-08-08', 8.4)
-    const loans = book(
+  it('holds the owner’s part of a split company payment as lent, repaid by the owner less what the company sent back the same day', () => {
+    // The owner paid the 8.40 part back twice and the company returned the extra.
+    const rows = withSplit(
+      withPackBuckets(
+        ledger([
+          { date: '2025-07-24', amount: -1000, category: 'owner-loan-out' },
+          { date: '2025-08-09', amount: -40, category: 'office-supplies', counterparty: 'Online shop' },
+          { date: '2025-09-05', amount: 16.8, category: 'reimbursement-from-owner' },
+          { date: '2025-09-05', amount: -8.4, category: 'reimbursement-to-owner' },
+        ]),
+        WITH_PRIVATE_COSTS,
+      ),
+      { date: '2025-08-09', amount: -40 },
       [
-        { date: '2025-07-24', amount: -1000, category: 'owner-loan-out' },
-        { date: '2025-09-05', amount: 16.8, category: 'reimbursement-from-owner' },
-        { date: '2025-09-05', amount: -8.4, category: 'reimbursement-to-owner' },
+        [-31.6, 'office-supplies'],
+        [-8.4, 'private-cost-for-owner', 'A book for the owner'],
       ],
-      PACK_CATEGORIES,
-      [share],
+      WITH_PRIVATE_COSTS,
     )
+    const loans = ownerLoans(rows, WITH_PRIVATE_COSTS)
 
-    expect(loans.loans.map((loan) => [loan.lentOn, loan.amount, loan.remaining, loan.repaidOn, loan.privateShareOf])).toEqual([
+    expect(loans.loans.map((loan) => [loan.lentOn, loan.amount, loan.remaining, loan.repaidOn, loan.row.split?.note ?? null])).toEqual([
       [civil('2025-07-24'), euros(1000), euros(1000), null, null],
-      [civil('2025-08-08'), euros(8.4), euros(0), civil('2025-09-05'), share],
+      [civil('2025-08-09'), euros(8.4), euros(0), civil('2025-09-05'), 'A book for the owner'],
     ])
     expect([loans.lent.amount, loans.repaid.amount, loans.outstanding.amount, loans.openCount]).toEqual([euros(1008.4), euros(8.4), euros(1000), 1])
   })
@@ -249,24 +254,29 @@ describe('owner loans', () => {
     expect(loans.loans.map((loan) => loan.remaining)).toEqual([euros(200), euros(300)])
   })
 
-  it('drills lent, repaid and each private share to the rows behind them', () => {
-    const share = privateShare('2026-02-02', 15)
-    const categories = PACK_CATEGORIES
-    const transactions = withPackBuckets(
-      ledger([
-        { date: '2026-01-10', amount: -1000, category: 'owner-loan-out' },
-        { date: '2026-02-20', amount: 400, category: 'owner-loan-repaid' },
-        { date: '2026-02-21', amount: 15, category: 'reimbursement-from-owner' },
-      ]),
+  it('drills lent, repaid and the owner’s part of a split payment to the rows behind them', () => {
+    const transactions = withSplit(
+      withPackBuckets(
+        ledger([
+          { date: '2026-01-10', amount: -1000, category: 'owner-loan-out' },
+          { date: '2026-02-02', amount: -50, category: 'office-supplies' },
+          { date: '2026-02-20', amount: 400, category: 'owner-loan-repaid' },
+          { date: '2026-02-21', amount: 15, category: 'reimbursement-from-owner' },
+        ]),
+        WITH_PRIVATE_COSTS,
+      ),
+      { date: '2026-02-02', amount: -50 },
+      [
+        [-35, 'office-supplies'],
+        [-15, 'private-cost-for-owner'],
+      ],
+      WITH_PRIVATE_COSTS,
     )
-    const loans = ownerLoans([share], transactions, categories)
-    const listed = (filters: Partial<FilterState>) => {
-      const applied = { ...DEFAULT_FILTERS, ...filters }
-      return [...scopeTransactions(transactions, applied).map((row) => `${row.category} ${row.amount}`), ...scopeOwnerAdvances([share], applied).map((advance) => `share ${advance.date}`)]
-    }
+    const loans = ownerLoans(transactions, WITH_PRIVATE_COSTS)
+    const listed = (filters: Partial<FilterState>) => scopeTransactions(transactions, { ...DEFAULT_FILTERS, ...filters }).map((row) => `${row.category} ${row.amount}`)
 
-    expect(listed(loans.lent.drill.filters)).toEqual([`owner-loan-out ${euros(-1000)}`, 'share 2026-02-02'])
+    expect(listed(loans.lent.drill.filters)).toEqual([`private-cost-for-owner ${euros(-15)}`, `owner-loan-out ${euros(-1000)}`])
     expect(listed(loans.repaid.drill.filters)).toEqual([`reimbursement-from-owner ${euros(15)}`, `owner-loan-repaid ${euros(400)}`])
-    expect(listed(loans.loans[1]!.drill.filters)).toEqual(['share 2026-02-02'])
+    expect(listed(loans.loans[1]!.drill.filters)).toEqual([`private-cost-for-owner ${euros(-15)}`])
   })
 })

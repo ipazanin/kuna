@@ -6,11 +6,12 @@
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar, the
  * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a line's build-up, a
- * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, both kinds of the Add advance form,
+ * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, the Add advance form,
  * the cost of a reimbursement with no cost on file added from Owner and from Review,
  * the billing plan's next expected invoice opening its month, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a category, an asset and an
- * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, an invoice made and re-exported, a rule made from a row and applied to
+ * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a payment split, edited, deleted and
+ * brought back, the private share moved to splits on Owner and on Review, an invoice made and re-exported, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
@@ -32,7 +33,7 @@ import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, invoiceFlow, invoiceRunFlow, planFlow, planTabFlow, scenarioFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, invoiceFlow, invoiceRunFlow, moveShareFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -456,12 +457,6 @@ async function checkWidth(width) {
     await page.keyboard.type('travel')
     await (await waitForText(page, '[role="option"]', 'Travel')).tap()
     await delay(200)
-    await (await waitForText(page, '[data-testid="advance-kind"] button', 'Part of a company payment was mine')).tap()
-    await waitForText(page, '[data-testid="add-advance"] label', 'Private part')
-    await inspect(page, `${width}px add advance form, private share`)
-    await shoot('owner-add-private-share')
-    await (await waitForText(page, '[data-testid="advance-kind"] button', 'I paid a company cost')).tap()
-    await waitForText(page, '[data-testid="add-advance"] label', 'Amount')
     await inspect(page, `${width}px add advance form`)
     await shoot('owner-add-advance')
     await page.tap('button[form="add-advance"]')
@@ -469,7 +464,7 @@ async function checkWidth(width) {
     await expect(advances(), (count) => count === before + 1, 'the advance is not on the list')
     await delay(700)
     await (await waitForText(page, 'button', 'Undo')).tap()
-    await waitForText(page, '[data-slot="title"]', 'Advance removed')
+    await waitForText(page, '[data-slot="title"]', 'Undone')
     await expect(advances(), (count) => count === before, 'Undo did not take the advance off the list')
   })
 
@@ -504,7 +499,7 @@ async function checkWidth(width) {
       await expect(unaccounted(), (count) => count === 0, 'the reimbursement is still listed once its cost is on file')
       await delay(700)
       await (await waitForText(page, 'button', 'Undo')).tap()
-      await waitForText(page, '[data-slot="title"]', 'Advance removed')
+      await waitForText(page, '[data-slot="title"]', 'Undone')
       await expect(unaccounted(), (count) => count === 1, 'Undo did not list the reimbursement again')
     })
   }
@@ -641,6 +636,10 @@ async function checkWidth(width) {
       ['starting-scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', startingScenariosFlow, mode === 'google' ? '&fake=no-scenarios' : '&fake=excel-no-scenarios'],
       ['plan', '#/forecast?year=2027', 'Forecast', planFlow],
       ['plan-tab', '#/forecast?year=2027', 'Forecast', planTabFlow, mode === 'google' ? '&fake=no-plan' : '&fake=excel-no-plan'],
+      ['split', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow],
+      ['split-tab', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow, mode === 'google' ? '&fake=no-splits' : '&fake=excel-no-splits'],
+      ['move-share', '#/owner', 'Owner', moveShareFlow],
+      ['move-share-review', '#/review', 'Review', moveShareFlow],
     ]) {
       await step(`${name}-${mode}`, async () => {
         await page.goto(`${BASE}?theme=dark${variant ?? query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })

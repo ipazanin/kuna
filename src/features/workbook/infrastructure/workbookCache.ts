@@ -31,6 +31,7 @@ function openDatabase(workbookId: string): WorkbookDatabase {
   database.version(4).stores({ invoices: 'sheetRow', clients: 'sheetRow', 'owner-advances': 'sheetRow' })
   database.version(5).stores({ assets: 'sheetRow', grants: 'sheetRow', 'year-end': 'sheetRow', plan: 'sheetRow', scenarios: 'sheetRow' })
   database.version(6).stores({ 'outgoing-plan': 'sheetRow' })
+  database.version(7).stores({ splits: 'sheetRow' })
   return database
 }
 

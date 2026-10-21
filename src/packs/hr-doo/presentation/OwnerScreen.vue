@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { CivilDate } from '../../../shared/calendar/civilDate'
+import { negateMoney } from '../../../shared/money/money'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { currencyUnitName, formatMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import AppCard from '../../../shared/ui/AppCard.vue'
@@ -20,6 +21,7 @@ import { useSettings } from '../../../features/settings/application/useSettings'
 import { useFilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../features/workbook/application/workbookStore'
+import type { Transaction } from '../../../features/workbook/domain/workbook'
 import LedgerGate from '../../../features/workbook/presentation/LedgerGate.vue'
 import { netOwed, ownerAdvances } from '../domain/ownerAdvances'
 import { ownerCost } from '../domain/ownerCost'
@@ -35,6 +37,7 @@ import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import MissingRoles from './MissingRoles.vue'
 import OwnerPayOff from './OwnerPayOff.vue'
+import PrivateSharesToMove from './PrivateSharesToMove.vue'
 import UnaccountedReimbursements from './UnaccountedReimbursements.vue'
 import { LENT_SERIES, OUTSTANDING_SERIES, REPAID_SERIES, categoryLegend, categorySeries, loanTimelineChart, ownerDrawsChart } from './packCharts'
 
@@ -57,6 +60,12 @@ function day(date: CivilDate): string {
   return dayFormat.format(new Date(date))
 }
 
+/** What a loan that is part of a split payment came out of, such as "Part of €60.00 to Paper & Ink on 2 Oct 2025: printer ink". */
+function partOfPayment(whole: Transaction, note: string): string {
+  const paid = `Part of ${formatMoney(negateMoney(whole.amount))} to ${whole.counterparty || 'a payee'} on ${day(whole.date)}`
+  return note === '' ? paid : `${paid}: ${note}`
+}
+
 const owner = computed(() => {
   const current = ledger.value
   if (current === null) {
@@ -70,7 +79,7 @@ const owner = computed(() => {
   const months = chartedMonths(filters.period, window)
   const take = ownerTake(profitAndLossRows, categories, filters.period, window)
   const cost = ownerCost(profitAndLossRows, categories, filters.period, window)
-  const loans = ownerLoans(current.scopedAdvances, scoped, categories)
+  const loans = ownerLoans(scoped, categories)
   const advances = ownerAdvances(current.scopedAdvances, scoped, categories)
   const owed = netOwed(loans, advances, categories)
   const takeMonths = ownerTakeByMonth(profitAndLossRows, categories, months, window)
@@ -139,7 +148,7 @@ const owner = computed(() => {
         to: drillLocation(owed.drill),
         caption: owed.amount > 0 ? 'The owner owes the company' : owed.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way',
         definition:
-          `All time, one balance across both directions. The owner owes the company what was lent, private costs and private shares of company payments included, ` +
+          `All time, one balance across both directions. The owner owes the company what was lent, private costs and the owner's parts of split company payments included, ` +
           `less what the owner paid back on a loan or reimbursement category (${formatWholeMoney(owed.loanBalance)}). ` +
           `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(owed.advancesOutstanding)}). ` +
           (advances.unaccountedTotal > 0
@@ -155,7 +164,7 @@ const owner = computed(() => {
     takeTotal: { amount: take.total.amount, to: drillLocation(take.total.drill) },
     reimbursements: take.reimbursements.map(takeLine),
     hasLoanRoles,
-    timeline: loanTimelineChart(loanMonths(current.scopedAdvances, scoped, categories, months, window), loanColours, tokens),
+    timeline: loanTimelineChart(loanMonths(scoped, categories, months, window), loanColours, tokens),
     timelineLegend: [
       { label: LENT_SERIES, colour: loanColours.lent },
       { label: REPAID_SERIES, colour: loanColours.repaid },
@@ -203,7 +212,7 @@ const owner = computed(() => {
       (loan, index): LoanLine => ({
         key: `${loan.lentOn}-${index}`,
         lentOn: day(loan.lentOn),
-        privateShare: loan.privateShareOf === null ? null : loan.privateShareOf.description || `Private share of a payment filed as ${categoryName(loan.privateShareOf.category)}`,
+        part: loan.row.split === undefined ? null : partOfPayment(loan.row.split.whole, loan.row.split.note),
         amount: loan.amount,
         remaining: loan.remaining,
         open: loan.status === 'open',
@@ -307,6 +316,22 @@ const owner = computed(() => {
           <template #legend><ChartLegend :entries="owner.timelineLegend" /></template>
         </DrillChartCard>
 
+        <AppCard
+          v-if="ledger.workbook.privateSharesToMove.length > 0"
+          :title="`${ledger.workbook.privateSharesToMove.length} private ${ledger.workbook.privateSharesToMove.length === 1 ? 'share' : 'shares'} to move to splits`"
+          data-testid="owner-private-shares"
+        >
+          <template #subtitle>
+            <span class="block max-w-[65ch]">
+              Negative rows of the owner-advances tab, which is how the owner’s part of a company payment was kept before splits. Until it is moved, each counts as the
+              split the move writes, so no figure changes when you move it.
+            </span>
+          </template>
+          <div class="px-4 pt-1 pb-2 sm:px-5">
+            <PrivateSharesToMove :shares="ledger.workbook.privateSharesToMove" :editable="!state.writing" />
+          </div>
+        </AppCard>
+
         <div class="wide-pair">
           <AppCard
             v-if="owner.hasLoanRoles"
@@ -316,7 +341,7 @@ const owner = computed(() => {
             data-testid="owner-loans"
           >
             <template #subtitle>
-              All time, private costs and private shares of company payments included. Repayments first close the loans they equal exactly. The rest go to the
+              All time, private costs and the owner's parts of split company payments included. Repayments first close the loans they equal exactly. The rest go to the
               oldest open loan first, and one that outruns a loan carries on to the next.
               <template v-if="owner.openCount > 0">{{ owner.openCount }} open, the oldest from {{ owner.oldestOpen }}.</template>
               <template v-else>None open.</template>
@@ -373,7 +398,6 @@ const owner = computed(() => {
           v-model:open="addingAdvance"
           :categories="ledger.workbook.categories"
           :default-date="owner.newestBooking"
-          :in-sheet="state.workbook?.source === 'google'"
           :prefill="advancePrefill"
         />
       </template>

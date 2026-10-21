@@ -9,6 +9,7 @@ import PageHeader from '../../../shared/ui/PageHeader.vue'
 import LoanBucketSwitch from '../../../packs/hr-doo/presentation/LoanBucketSwitch.vue'
 import ProblemList from '../../excel/presentation/ProblemList.vue'
 import RulesTab from '../../rules/presentation/RulesTab.vue'
+import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RowTab } from '../../workbook/application/workbookWriter'
 import type { TabRowsChange } from '../../workbook/domain/rowChanges'
@@ -95,6 +96,8 @@ const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
 const rowsOfSnapshot: RowsOf = (tab) => state.snapshot?.[tab] ?? []
 const categoriesInUse = computed(() => categoryUses(rowsOfSnapshot))
 const accountsInUse = computed(() => accountUses(rowsOfSnapshot))
+/** The reader's problems and the splits the figures leave out, such as one of a row an asset claims. */
+const problems = computed(() => (state.workbook === null ? [] : presentedWorkbook(state.workbook).problems))
 const billingItems = computed(() => [...new Set(state.workbook?.billingPlan.map((row) => row.item) ?? [])])
 
 const savingSettings = ref(false)
@@ -214,14 +217,14 @@ async function saveSettings(next: Settings): Promise<void> {
           </AppCard>
           <LoanBucketSwitch v-if="settings.ownerPayModule" :categories="state.workbook.categories" />
           <AppCard
-            v-if="state.workbook.problems.length"
+            v-if="problems.length"
             title="Rows the app could not use as written"
             subtitle="Each is left out, or read with its default, until it is fixed in the workbook."
             collapse-id="workbook.problems"
-            :summary="rowsInWords(state.workbook.problems.length, 'row', 'rows')"
+            :summary="rowsInWords(problems.length, 'row', 'rows')"
           >
             <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-              <ProblemList :problems="state.workbook.problems" />
+              <ProblemList :problems="problems" />
             </div>
           </AppCard>
         </div>

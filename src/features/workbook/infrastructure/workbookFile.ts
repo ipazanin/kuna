@@ -35,6 +35,7 @@ const COLUMN_FORMATS: Readonly<Partial<Record<WorkbookTab, Readonly<Record<strin
   },
   plan: { amount: AMOUNT_FORMAT },
   scenarios: { amount: AMOUNT_FORMAT, from: DATE_FORMAT, to: DATE_FORMAT },
+  splits: { date: DATE_FORMAT, row_amount: AMOUNT_FORMAT, row_balance: AMOUNT_FORMAT, amount: AMOUNT_FORMAT },
 }
 
 const FIGURE_FORMATS: Readonly<Record<YearEndFigureKind, string>> = { money: AMOUNT_FORMAT, date: DATE_FORMAT, rate: RATE_FORMAT, count: '0' }
@@ -163,6 +164,7 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
     'year-end': gridFor('year-end', tabs['year-end']),
     plan: gridFor('plan', tabs.plan),
     scenarios: gridFor('scenarios', tabs.scenarios),
+    splits: gridFor('splits', tabs.splits),
   }
 }
 

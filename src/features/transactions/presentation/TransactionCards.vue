@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
+import UButton from '@nuxt/ui/components/Button.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { Money } from '../../../shared/money/money'
 import AppCard from '../../../shared/ui/AppCard.vue'
@@ -13,7 +15,9 @@ import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { bucketTone } from '../../../shared/charts/chartTokens'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
+import { OWNER_ADVANCE_LABEL, withSplitHeadings } from '../domain/listedRows'
 import type { ListedRow } from '../domain/listedRows'
+import type { Transaction } from '../../workbook/domain/workbook'
 import type { TransactionGroup } from '../domain/transactionGroups'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
 
@@ -28,20 +32,25 @@ const props = defineProps<{
   isCollapsed: (key: string) => boolean
   /** Off when only one account is in view, where naming it on every row says nothing. */
   showAccount: boolean
+  /** True while a change is being written, when no split can be opened. */
+  writing: boolean
+  /** Whether a split row's split is a private share still on the owner-advances tab, which is moved on Owner or Review. */
+  waitsToMove: (row: Transaction) => boolean
 }>()
 
 const emit = defineEmits<{
   toggle: [key: string]
+  split: [row: Transaction]
 }>()
 
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 
-/** One untitled section when ungrouped, so both forms share the card markup. */
+/** One untitled section when ungrouped, so both forms share the card markup. A split payment heads its parts. */
 const sections = computed(() =>
   props.groups === null
-    ? [{ key: 'all', rows: props.rows, group: null }]
-    : props.groups.map((group) => ({ key: group.key, rows: group.rows, group })),
+    ? [{ key: 'all', entries: withSplitHeadings(props.rows), group: null }]
+    : props.groups.map((group) => ({ key: group.key, entries: withSplitHeadings(group.rows), group })),
 )
 
 const thisYear = String(new Date().getFullYear())
@@ -49,7 +58,7 @@ const dayInYear = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 /** "12 Sept" this year, "12 Sept 2025" before it. */
-function shortDate(row: ListedRow): string {
+function shortDate(row: Pick<ListedRow, 'date'>): string {
   return (row.date.startsWith(thisYear) ? dayInYear : dayFormat).format(new Date(row.date))
 }
 
@@ -61,7 +70,7 @@ function toggleRow(key: string): void {
 }
 
 function badgeOf(row: ListedRow): { label: string; color: 'warning' | 'info' | 'neutral' } | null {
-  if (row.kind === 'owner-advance') return { label: row.label, color: 'neutral' }
+  if (row.kind === 'owner-advance') return { label: OWNER_ADVANCE_LABEL, color: 'neutral' }
   if (row.bucket === UNCLASSIFIED) return { label: 'Unclassified', color: 'warning' }
   if (row.flaggedBy === 'ai') return { label: 'AI guess', color: 'info' }
   return null
@@ -89,44 +98,83 @@ function accountOf(row: ListedRow): string {
         />
       </h2>
       <ul v-if="!section.group || !isCollapsed(section.key)">
-        <li v-for="row in section.rows" :key="row.key" class="card" data-testid="transaction-card">
-          <button type="button" class="card-summary" :aria-expanded="openRows.has(row.key)" @click="toggleRow(row.key)">
+        <template v-for="entry in section.entries" :key="entry.kind === 'split' ? entry.key : entry.row.key">
+        <li v-if="entry.kind === 'split'" class="card split-heading" data-testid="split-heading">
+          <span class="flex min-w-0 flex-col gap-0.5">
             <span class="flex items-baseline justify-between gap-3">
-              <span class="min-w-0 truncate font-medium text-highlighted">{{ row.counterparty || 'No counterparty' }}</span>
-              <MoneyText :cents="row.amount" tone="flow" class="shrink-0 font-medium" />
+              <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
+              <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
+            </span>
+            <span class="flex items-center gap-2 text-xs text-muted">
+              <UBadge :label="waitsToMove(entry.whole) ? 'Private share to move' : `Split in ${entry.count} parts`" color="neutral" variant="subtle" size="sm" />
+              <span class="figure">{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ names.account(entry.whole.account) }}</template></span>
+            </span>
+          </span>
+          <UButton
+            v-if="!waitsToMove(entry.whole)"
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="ghost"
+            :disabled="writing"
+            :aria-label="`Edit the split of ${entry.whole.counterparty || 'the payment'}`"
+            data-testid="edit-split"
+            @click="emit('split', entry.whole)"
+          />
+        </li>
+        <li v-else class="card" :class="{ part: entry.row.kind === 'bank' && entry.row.split }" data-testid="transaction-card">
+          <button type="button" class="card-summary" :aria-expanded="openRows.has(entry.row.key)" @click="toggleRow(entry.row.key)">
+            <span class="flex items-baseline justify-between gap-3">
+              <span v-if="entry.row.kind === 'bank' && entry.row.split" class="flex min-w-0 items-center gap-1.5 text-toned">
+                <UIcon name="i-lucide-corner-down-right" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+                <span class="truncate">Part {{ entry.row.split.index + 1 }} of {{ entry.row.split.count }}<template v-if="entry.row.split.note">, {{ entry.row.split.note }}</template></span>
+              </span>
+              <span v-else class="min-w-0 truncate font-medium text-highlighted">{{ entry.row.counterparty || 'No counterparty' }}</span>
+              <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
             </span>
             <span class="flex items-center justify-between gap-3 text-xs text-muted">
               <span class="flex min-w-0 items-center gap-1.5">
-                <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(--bucket-${bucketTone(row.bucket)})` }" aria-hidden="true" />
-                <span class="truncate text-toned">{{ row.category === '' ? 'No category' : names.category(row.category) }}</span>
-                <UBadge v-if="badgeOf(row)" v-bind="badgeOf(row)" variant="subtle" size="sm" class="shrink-0" />
+                <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(--bucket-${bucketTone(entry.row.bucket)})` }" aria-hidden="true" />
+                <span class="truncate text-toned">{{ entry.row.category === '' ? 'No category' : names.category(entry.row.category) }}</span>
+                <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
               </span>
               <span class="figure shrink-0">
-                {{ shortDate(row) }}<template v-if="showAccount">, {{ accountOf(row) }}</template>
+                {{ shortDate(entry.row) }}<template v-if="showAccount">, {{ accountOf(entry.row) }}</template>
               </span>
             </span>
           </button>
-          <div v-if="openRows.has(row.key)" class="card-details" data-testid="transaction-details">
-            <p v-if="row.description" class="text-sm text-toned">{{ row.description }}</p>
-            <p class="text-xs text-muted">{{ dayFormat.format(new Date(row.date)) }}, {{ accountOf(row) }}</p>
+          <div v-if="openRows.has(entry.row.key)" class="card-details" data-testid="transaction-details">
+            <p v-if="entry.row.description" class="text-sm text-toned">{{ entry.row.description }}</p>
+            <p class="text-xs text-muted">{{ dayFormat.format(new Date(entry.row.date)) }}, {{ accountOf(entry.row) }}</p>
             <div class="flex flex-wrap gap-x-4">
               <DrillLink
-                v-if="row.kind === 'bank'"
-                :to="drillLocation(drillToTransactions({ counterparties: [counterpartyIdentity(row).key] }))"
+                v-if="entry.row.kind === 'bank'"
+                :to="drillLocation(drillToTransactions({ counterparties: [counterpartyIdentity(entry.row).key] }))"
                 class="inline-target text-sm text-highlighted"
               >
                 Every row from this counterparty
               </DrillLink>
               <DrillLink
-                v-if="row.category"
-                :to="drillLocation(drillToTransactions({ categories: [row.category] }))"
+                v-if="entry.row.category"
+                :to="drillLocation(drillToTransactions({ categories: [entry.row.category] }))"
                 class="inline-target text-sm text-highlighted"
               >
-                Every row in {{ names.category(row.category) }}
+                Every row in {{ names.category(entry.row.category) }}
               </DrillLink>
+              <UButton
+                v-if="entry.row.kind === 'bank' && !entry.row.split && entry.row.amount !== 0"
+                label="Split"
+                icon="i-lucide-split"
+                color="neutral"
+                variant="link"
+                class="inline-target px-0 text-sm"
+                :disabled="writing"
+                data-testid="split-row"
+                @click="emit('split', entry.row)"
+              />
             </div>
           </div>
         </li>
+        </template>
       </ul>
     </section>
   </AppCard>
@@ -172,5 +220,17 @@ function accountOf(row: ListedRow): string {
 
 .card + .card {
   border-top: 1px solid var(--border-default);
+}
+
+.split-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+}
+
+.part .card-summary {
+  padding-inline-start: 1.75rem;
 }
 </style>

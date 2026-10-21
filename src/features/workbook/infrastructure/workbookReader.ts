@@ -1,4 +1,5 @@
 import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
+import { negateMoney } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
 import { readRules } from '../../rules/domain/readRules'
 import type { Rule } from '../../rules/domain/rule'
@@ -9,7 +10,7 @@ import { ledgerRowKeyOf } from '../domain/ledgerRowKey'
 import type { LedgerRowKey } from '../domain/ledgerRowKey'
 import { isVatTreatment } from '../domain/vatTreatment'
 import { ADVANCE_BUCKETS, NO_CLIENT_INVOICING } from '../domain/workbook'
-import type { Account, Category, Client, ClientInvoicing, Invoice, OwnerAdvance, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
+import type { Account, Category, Client, ClientInvoicing, Invoice, OwnerAdvance, PrivateShareToMove, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
 import { readAssets } from './assetsTabReader'
 import { readBillingPlan } from './billingPlanTabReader'
 import { booleanOf, dateOf, inTabOrder, isUnreadable, moneyOf, optionalPeriod, readRow, slugListOf, slugOf, textOf } from './cellReading'
@@ -17,6 +18,7 @@ import type { RowProblem, TabReading } from './cellReading'
 import { readGrants } from './grantsTabReader'
 import { readPlan } from './planTabReader'
 import { readScenarios } from './scenariosTabReader'
+import { readSplits } from './splitsTabReader'
 import type { CellValue, SheetRow, WorkbookSnapshot } from './workbookSnapshot'
 import { readYearEnd } from './yearEndTabReader'
 
@@ -37,13 +39,18 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
   const grants = keep('grants', readGrants(snapshot.grants), problems)
   const scenarios = readScenarios(snapshot.scenarios)
   problems.push(...tabProblems('scenarios', scenarios.problems))
+  const transactions = readLedger(snapshot.ledger, categories, problems)
+  const advances = readOwnerAdvanceRows(snapshot['owner-advances'], categories)
+  problems.push(...tabProblems('owner-advances', advances.problems))
+  const splits = readSplits(snapshot.splits, transactions, categories)
+  problems.push(...tabProblems('splits', splits.problems))
   return {
     id: snapshot.meta.id,
     source: snapshot.meta.source,
     title: snapshot.meta.title,
     ledgerSheetId: snapshot.meta.ledgerSheetId,
     syncedAt: snapshot.meta.syncedAt,
-    transactions: readLedger(snapshot.ledger, categories, problems),
+    transactions,
     categories,
     accounts: withoutRows(keep('accounts', readAccountRows(snapshot.accounts, settings.currency), problems)),
     rules: readRulesTab(snapshot.rules, categories, hasClientsTab, problems),
@@ -51,7 +58,9 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     clients,
     hasClientsTab,
     billingPlan: keep('outgoing-plan', readBillingPlan(snapshot['outgoing-plan'], new Set(clients.map((client) => client.slug))), problems),
-    ownerAdvances: readOwnerAdvances(snapshot['owner-advances'], categories, problems),
+    ownerAdvances: advances.facts,
+    privateSharesToMove: advances.privateShares,
+    splits: splits.splits,
     assets: keep('assets', readAssets(snapshot.assets, new Set(grants.map((grant) => grant.slug))), problems),
     grants,
     yearEndLines: keep('year-end', readYearEnd(snapshot['year-end'], categorySlugs), problems),
@@ -85,6 +94,11 @@ function tabProblems(tab: WorkbookProblem['tab'], rowProblems: readonly RowProbl
 export function ledgerRowKeyOfRow(row: SheetRow): LedgerRowKey | null {
   const transaction = readLedgerRow(row, 0, new Map())
   return typeof transaction === 'string' ? null : ledgerRowKeyOf(transaction)
+}
+
+/** The transactions a `ledger` tab holds against a `categories` tab, by the same rule the reader applies. */
+export function definedTransactions(ledgerRows: readonly SheetRow[], categoryRows: readonly SheetRow[]): readonly Transaction[] {
+  return readLedger(ledgerRows, definedCategories(categoryRows), [])
 }
 
 /** The categories a `categories` tab defines, by the same rule the reader applies. */
@@ -328,24 +342,37 @@ function readInvoiceRow(row: SheetRow): Omit<Invoice, 'deliveryPeriod'> | string
   return { number, client, item: textOf(cells.item), amount, issued, due, sheetRow: row.sheetRow }
 }
 
-function readOwnerAdvances(rows: readonly SheetRow[], categories: readonly Category[], problems: WorkbookProblem[]): OwnerAdvance[] {
-  const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
-  const advances: OwnerAdvance[] = []
-  for (const row of inTabOrder(rows)) {
-    const advance = readOwnerAdvanceRow(row, categoryBySlug)
-    if (typeof advance === 'string') {
-      problems.push({ tab: 'owner-advances', sheetRow: row.sheetRow, reason: advance })
-    } else {
-      advances.push(advance)
-    }
-  }
-  return advances
+export interface OwnerAdvanceReading extends TabReading<OwnerAdvance> {
+  readonly privateShares: readonly PrivateShareToMove[]
 }
 
 /**
- * A positive amount is a cost the owner paid, a negative one the owner's private share of a company
- * payment. Either moves a cost, so a category outside the operating and taxes buckets leaves the row out.
+ * A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets
+ * leaves the row out. A negative amount is a private share of a company payment, which belongs on
+ * the splits tab, so it is reported and kept apart to be moved there.
  */
+export function readOwnerAdvanceRows(rows: readonly SheetRow[], categories: readonly Category[]): OwnerAdvanceReading {
+  const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
+  const facts: OwnerAdvance[] = []
+  const privateShares: PrivateShareToMove[] = []
+  const problems: RowProblem[] = []
+  for (const row of inTabOrder(rows)) {
+    const advance = readOwnerAdvanceRow(row, categoryBySlug)
+    if (typeof advance === 'string') {
+      problems.push({ sheetRow: row.sheetRow, reason: advance })
+    } else if (advance.amount < 0) {
+      problems.push({
+        sheetRow: row.sheetRow,
+        reason: 'a negative amount is the owner’s private share of a company payment, which belongs on the splits tab. Press "Move to splits" on Owner or Review to move it',
+      })
+      privateShares.push({ date: advance.date, amount: negateMoney(advance.amount), description: advance.description, category: advance.category, sheetRow: advance.sheetRow })
+    } else {
+      facts.push(advance)
+    }
+  }
+  return { facts, problems, privateShares }
+}
+
 function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, Category>): OwnerAdvance | string {
   const { cells } = row
   const date = dateOf(cells.date)

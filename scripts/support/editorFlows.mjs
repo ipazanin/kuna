@@ -519,3 +519,111 @@ export async function planTabFlow(page, { press, shoot, inspect }) {
   })
   await dismissToasts(page)
 }
+
+/** The Split action of the one row in view: in the table's last column, or inside its card on a phone once the card is open. */
+async function openSplitOfRow(page, press) {
+  const button = await page.$('[data-testid="split-row"]')
+  const visible = button !== null && (await button.evaluate((element) => element.getBoundingClientRect().width > 0))
+  if (!visible) {
+    await pressSelector(page, press, '[data-testid="transaction-card"] .card-summary')
+  }
+  await pressSelector(page, press, '[data-testid="split-row"]')
+  await page.waitForSelector('[data-testid="split-form"]')
+  await delay(400)
+}
+
+/** Picks a category in the category picker, whose options end with the category's name. */
+async function chooseCategory(page, press, trigger, label) {
+  await trigger.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(150)
+  await press(trigger)
+  const handle = await page
+    .waitForFunction((wanted) => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null, { timeout: 5_000 }, label)
+    .catch(() => {
+      throw new Error(`no category "${label}"`)
+    })
+  await press(handle.asElement())
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  await delay(200)
+}
+
+async function setPart(page, index, amount) {
+  const parts = await page.$$('[data-testid="split-part"]')
+  const part = parts[index]
+  if (part === undefined) throw new Error(`no part ${index + 1} in the split editor`)
+  await setField(await part.$('[data-testid="split-part-amount"]'), amount)
+  return part
+}
+
+async function waitForSplit(page, present) {
+  await page.waitForFunction((wanted) => (document.querySelector('[data-testid="edit-split"]') !== null) === wanted, { timeout: 10_000 }, present).catch(() => {
+    throw new Error(present ? 'the split row is not listed with its parts' : 'the split row is still listed with its parts')
+  })
+}
+
+/** Transactions: split the one gadget purchase in two, change the parts, delete the split, and Undo the delete. */
+export async function splitFlow(page, { press, shoot, inspect }) {
+  await waitForSplit(page, false)
+  await openSplitOfRow(page, press)
+  const missing = await page.evaluate(() => document.querySelector('[data-testid="add-tab-notice"]') !== null)
+  await setPart(page, 0, '30.00')
+  const second = await setPart(page, 1, '8.90')
+  await chooseCategory(page, press, await second.$('[data-testid="split-part-category"]'), 'Office supplies')
+  await setField(await second.$('[data-testid="split-part-note"]'), 'Printer paper')
+  await inspect?.('split a row')
+  await shoot(missing ? 'split-add-tab' : 'split-add')
+  await pressSelector(page, press, '[data-testid="split-save"]')
+  await toast(page, 'Split in 2 parts')
+  await dialogGone(page, '[data-testid="split-form"]')
+  await waitForSplit(page, true)
+  await shoot('split-added')
+  await dismissToasts(page)
+  if (missing) return
+
+  await pressSelector(page, press, '[data-testid="edit-split"]')
+  await page.waitForSelector('[data-testid="split-form"]')
+  await delay(400)
+  await setPart(page, 0, '28.90')
+  await setPart(page, 1, '5.00')
+  await pressSelector(page, press, '[data-testid="split-add-part"]')
+  await delay(200)
+  const third = (await page.$$('[data-testid="split-part"]'))[2]
+  await chooseCategory(page, press, await third.$('[data-testid="split-part-category"]'), 'Owner loan out')
+  await inspect?.('edit a split')
+  await shoot('split-edit')
+  await pressSelector(page, press, '[data-testid="split-save"]')
+  await toast(page, 'Split saved')
+  await dialogGone(page, '[data-testid="split-form"]')
+  await dismissToasts(page)
+
+  await pressSelector(page, press, '[data-testid="edit-split"]')
+  await page.waitForSelector('[data-testid="split-form"]')
+  await delay(400)
+  await pressSelector(page, press, '[data-testid="split-delete"]')
+  await toast(page, 'Split deleted')
+  await dialogGone(page, '[data-testid="split-form"]')
+  await waitForSplit(page, false)
+  await undo(page, press)
+  await waitForSplit(page, true)
+  await shoot('split-undone')
+  await dismissToasts(page)
+}
+
+/** Owner or Review: move the private share to the splits tab, after which it is gone from the list. */
+export async function moveShareFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-testid="private-share"]')
+  await pressSelector(page, press, '[data-testid="move-share-open"]')
+  await page.waitForSelector('[data-testid="move-share"]')
+  await delay(400)
+  if ((await page.$$('[data-testid="move-share-part"]')).length !== 2) throw new Error('the move does not show the two parts it writes')
+  await inspect?.('move a private share')
+  await shoot('move-share')
+  await pressSelector(page, press, '[data-testid="move-share-confirm"]')
+  await toast(page, 'Moved to splits')
+  await dialogGone(page, '[data-testid="move-share"]')
+  await page.waitForFunction(() => !document.querySelector('[data-testid="private-share"]'), { timeout: 10_000 }).catch(() => {
+    throw new Error('the private share is still listed after the move')
+  })
+  await shoot('move-share-moved')
+  await dismissToasts(page)
+}

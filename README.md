@@ -10,9 +10,10 @@ Google Picker or that the app creates, and for `openid email`, which tells it wh
 in. The app reads the Sheet and keeps a copy in IndexedDB. It writes only what the user saves, and
 only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, and
 rows of the tabs a person keeps by hand: `rules`, `settings`, `owner-advances`, `outgoing-plan`,
-`categories`, `accounts`, `clients`, `invoices`, `assets`, `grants`, `year-end`, `plan` and
-`scenarios`. It never writes a formula a change leaves alone or data validation, and writes a header
-only when the user agrees to add the `plan` or `scenarios` tab to a Sheet without one.
+`categories`, `accounts`, `clients`, `invoices`, `assets`, `grants`, `year-end`, `plan`,
+`scenarios` and `splits`. It never writes a formula a change leaves alone or data validation, and
+writes a header only when the user agrees to add the `plan`, `scenarios` or `splits` tab to a Sheet
+without one.
 See *Write-back* below. Making an invoice also files its PDF in the Drive folder the user picks for
 invoices, and, only for a user who turns the mail draft on, asks for `gmail.compose` to save a
 Gmail draft. See *Invoices*.
@@ -113,11 +114,12 @@ take their defaults.
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional), and the optional delivery period `period_from` and `period_to` (date cells, both or neither). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. A period that cannot be read is reported, and the issue date stands for it. |
 | `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. The optional invoice columns `address`, `country`, `tax_id`, `invoice_mail`, `mail_language` (a language tag such as `en` or `hr`, blank for English) and `reverse_charge` (TRUE or FALSE) are read from the first of a client's rows that fills each one, the way `name` is. A language the browser does not know, or a `reverse_charge` that is neither TRUE nor FALSE, is reported and read as blank. |
 | `outgoing-plan` | `item`, `date` (a date cell), `amount` (above zero), `client` and `description`: one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel. `date` is the day it becomes billable, the last day of the worked month for a monthly fee. `client` must be on the `clients` tab, or the row is reported and left out. Only these five columns are read, so the Sheet may keep its own formulas beside them, and a row with nothing in them is skipped. |
-| `owner-advances` | `date`, `amount` (not zero), `description` and `category`: costs the owner paid privately for the company as positive amounts, and the owner's private shares of company payments as negative ones. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. |
+| `owner-advances` | `date`, `amount` (above zero), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount is how the tab once held the owner's private share of a company payment. It is reported, and counts as the split "Move to splits" writes for it until it is moved, as *Split rows* describes. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
 | `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once. |
 | `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the Workbook editor, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
 | `plan` | `year`, `month` (1 to 12, blank for every month), `item` (a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount`, `note`, and the optional `date` (a date cell) and `group`. `amount` is positive for income and costs alike, a cost without the VAT that is reclaimed. A category is listed once per year and month. A `dividend` needs its month. A `purchase` needs `date`, the day it is bought and put in use, and `group`, one of the `assets` tab's groups, and takes its month from the date. Its `note` says what it is, and two purchases may share a day. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount` and leaves `month` blank: without a `date` it holds from 1 January, and a second row with a `date` switches to another scenario from that day. Planned revenue belongs on `outgoing-plan`, so a `revenue` row is reported and left out. The rules across rows are the plan guards of *Forecast*. |
+| `splits` | `date` (a date cell), `account`, `row_amount` and `row_balance`, which find one ledger row, then the part's `amount`, `category` and the optional `note`: one row per part of a bank row that paid for more than one thing. The parts of a row share its four key cells, as *Split rows* describes. |
 | `scenarios` | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (a month's gross or `floor`), `nontaxable:<item>` such as `nontaxable:occasional-gift` (a year's amount of a tax-free item), `rent_monthly` (a month's rent), `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. A tax-free item is paid with the salary of the month its `from` falls in, January when blank, and a dividend once the year's statements are adopted, so their `to` is not read. The label is read from the scenario's first row that has one. |
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
@@ -210,14 +212,14 @@ The effective tax rate is the taxes bucket, paid less refunded, over client reve
 belongs in the taxes bucket. Whether loans count as owner pay is the bucket of the two loan
 categories on the `categories` tab, which "Loans to the owner count as owner pay" on Workbook,
 General switches between `owner-pay` and `financing`. The loan book holds everything the owner owes
-the company: loans and private costs on an `owner-loan-out` category, and the owner's private shares
-of company payments from the `owner-advances` tab. Credits on an `owner-loan-repaid` category repay
-them, and so does a payment from the owner on a `reimbursement` category, less what the company sent
-back the same day. Each repayment first closes the fewest loans lent by its day that it equals
-exactly. The repayments left then go to the oldest open loan first, and one that outruns a loan
-carries on to the next, so none of them takes a loan that a later repayment equals. The loan
-balance is lent less repaid over the whole ledger, signed. A screen says which role no category
-carries, and what it leaves out because of that.
+the company: loans and private costs on an `owner-loan-out` category, the owner's part of a split
+company payment among them. Credits on an `owner-loan-repaid` category repay them, and so does a
+payment from the owner on a `reimbursement` category, less what the company sent back the same day.
+Each repayment first closes the fewest loans lent by its day that it equals exactly. The repayments
+left then go to the oldest open loan first, and one that outruns a loan carries on to the next, so
+none of them takes a loan that a later repayment equals. The loan balance is lent less repaid over
+the whole ledger, signed. A screen says which role no category carries, and what it leaves out
+because of that.
 
 Costs the owner paid privately go on the `owner-advances` tab, from the Sheet or from "Add advance"
 on Owner. Each counts as a cost on its date and in its category on every profit and loss figure:
@@ -242,20 +244,78 @@ lists each one under "Reimbursed with no cost on file" with its drill, the Net o
 names their total, and Review shows one item per payment. "Add the cost" on either screen opens Add
 advance on the amount left unaccounted, the day before the payment and the payment's description.
 
-The tab holds two kinds of row, told apart by the sign of the amount. A positive amount is a cost
-the owner paid privately for the company, as above. A negative amount is the owner's private share
-of a payment the company made, which the bank row cannot split off since the ledger holds the bank
-data as booked. For an order of 45.12 filed as office supplies with 9.71 of it private, the row is
-the order's date, -9.71 and office supplies. It takes 9.71 off that cost on that date, and the
-loan book counts it as lent to the owner until a payment from the owner on a `reimbursement`
-category repays it. Owner lists each share among the loans with its repayment, and Transactions
-badges them "Private share".
+The owner's private share of a payment the company made is a part of that payment on the `splits`
+tab, in a category with the `owner-loan-out` role, as *Split rows* describes. The loan book counts it
+as lent to the owner until a payment from the owner on a `reimbursement` category repays it, and
+Owner lists it among the loans with the payment it is a part of.
 
-Net owed, on Owner and Overview, is one signed balance. The owner owes the company the loan
-balance, private shares and private costs included. The company owes the owner the costs the owner
-paid, less what it reimbursed. Positive means the owner owes the company. A private cost the
-company paid in full counts as lent only when its row is in a category with the `owner-loan-out`
-role. Filed as an ordinary cost with no private share, it counts in costs and not in net owed.
+Net owed, on Owner and Overview, is one signed balance. The owner owes the company the loan balance,
+private costs and the owner's parts of split payments included. The company owes the owner the costs
+the owner paid, less what it reimbursed. Positive means the owner owes the company. A private cost
+the company paid in full counts as lent only when its row is in a category with the `owner-loan-out`
+role. Filed as an ordinary cost with no part split off, it counts in costs and not in net owed.
+
+## Split rows
+
+A bank row that paid for more than one thing, such as an order with a private item in it or a
+salary paid with a bonus, is split on the `splits` tab. The ledger keeps the row as the bank booked
+it, so the Apps Script, the balance chain and the append-only rule do not change. Each tab row is
+one part: the ledger row's `date`, `account`, `row_amount` and `row_balance`, then the part's
+`amount`, `category` and `note`. The four key cells find exactly one ledger row, since the balance
+chain makes them unique. Copy the balance from the ledger row when typing a split in the Sheet.
+
+The reader checks each split and refuses it whole, every one of its tab rows reported, when one of
+these holds. The bank row then counts whole.
+
+| Guard | Refused when |
+|---|---|
+| One row | the key finds no ledger row, or more than one |
+| Readable | a row of the split cannot be read, such as an amount typed as text |
+| Two parts | the split has fewer than two parts |
+| Same sign | a part is zero, or has the other sign to its row |
+| Adds up | the parts do not add up to the row |
+| Known category | a part's category is blank or not on the `categories` tab |
+| No asset | an asset on the `assets` tab claims the row as its payment, as the register of *Assets* matches it |
+
+The figure screens count a split row through its parts. `presentedWorkbook` in
+`src/features/transactions/application/` puts each part in the row's place, next to the
+owner-pay presentation of the settings: a part keeps the row's day, account, balance, booking order
+and text, and takes its own amount, category, family and bucket. So every profit and loss figure,
+the owner figures, the taxes, the accrual view, the year end and the forecast count the parts, and
+balances and cash on hand stay as they were. A part takes its own category's timing and bucket,
+never the row's, so a category with the `arrears` role moves its part to the month before it was
+paid. The review queue, rule coverage and the rules, the billing plan, the writes and the import
+summary keep the rows as read, since a person reviews and a rule files the row the bank booked.
+Workbook, General lists the reader's problems with the splits the figures leave out.
+
+Transactions lists a split row as the bank row, badged with its number of parts, with the parts
+under it, each one a row of its own that filters and drills like any other. A filter that keeps one
+part still shows the bank row above it. The CSV export writes the parts, each with its note and
+`splits` as its tab. "Split" on a bank row opens the editor: parts with an amount, a category and a
+note, at least two, typed without a sign since each takes the row's, with what is left to place shown
+as the amounts change. The arrow beside an amount puts the rest of the payment into that part. The
+editor says so up front when an asset claims the row, and saves nothing. The pencil on a split row
+opens the same editor to change, add or remove parts or delete the split. Each save is one write
+through the row write path with Undo in the toast, in both modes, and a Google Sheet without a
+`splits` tab gets it with the template's header from the first save, which the editor says
+beforehand.
+
+### Private shares
+
+A negative row on the `owner-advances` tab is how the owner's private share of a company payment was
+kept before this tab. The reader reports it and keeps it apart. "Move to splits" on Owner, and the
+same item on Review, finds the bank row it came off: a debit in the share's category, within three
+days of the advance's date, since the advance carries the card's day, that paid more than the share
+and is not split or claimed by an asset. When several match, the dialog lets you pick one. It
+writes the split, the company's part in the row's category and the owner's part in a category with
+the `owner-loan-out` role with the advance's description as its note, then deletes the advance row,
+each through the row write path. When the delete fails, the split is taken back. The move has no
+Undo, since the tab no longer takes a negative amount, but the split can be edited on Transactions.
+
+Until it is moved, a private share counts as the split its move would write, on the first category
+with the `owner-loan-out` role, so no figure changes when you press the button. Net owed reads the
+same before and after. A share no single bank row matches counts nowhere, and Workbook, General says
+why.
 
 ## Assets
 
@@ -267,7 +327,8 @@ on a `capital-purchase` category of its net cost, with or without VAT at the sta
 with no payment, and capital purchases on no asset row, are listed under the register. So is a
 payment found by a `ledger_reference` that is not what the assets claiming it cost together, with or
 without VAT at the standard rate. An item at or below `hr.cit.asset-threshold` is small inventory,
-written off when put in use.
+written off when put in use. A split of a payment an asset claims is refused, so the register
+always matches whole bank rows.
 
 Depreciation is straight-line from the month after an asset is put in use, each year rounded to the
 cent. A chart draws each asset's book value by month until it reaches zero, and a list gives the
@@ -290,8 +351,8 @@ the PD build-up, each line keyed by the `year-end` tab's line ids and each figur
 and rules. It also returns the adjustments that lead from the cash view to the accrual view, and the
 bridge from the cash net to profit before and after tax.
 
-The bridge starts from net as the screens count it, the bank rows and the owner's advances of the
-year. Each step is one adjustment:
+The bridge starts from net as the screens count it, the bank rows, a split row through its parts,
+and the owner's advances of the year. Each step is one adjustment:
 
 - Client payments leave, and revenue by delivery period from the `invoices` tab comes in. A month
   no invoice delivers in, while a later invoice exists, is listed and never filled in.
@@ -316,7 +377,7 @@ names counts by its bucket. Income other than revenue and grants counts as other
 since no role marks financial income.
 
 The balance sheet holds the assets' book values, revenue delivered and not yet paid, what the owner
-owes on loans, private shares and advances (net owed at the year end), the VAT position, cash, costs
+owes on loans and advances (net owed at the year end), the VAT position, cash, costs
 paid ahead and work delivered on invoices issued later. Costs paid in arrears after the year are
 owed to suppliers, to the owner and employees, or as taxes, by their bucket. Corporate tax owed is
 every year's liability less what the ledger paid on it, with earlier years from their `year-end`
@@ -756,7 +817,7 @@ The workbook lives in IndexedDB, under its own id, as the store of record. The a
 to keep it (`navigator.storage.persist()`, which Firefox shows as a prompt). Clearing the site's data
 deletes it, so the exported files are its only other copies.
 
-- **Template.** "Download the empty template" writes a blank xlsx in the browser: the fourteen tabs
+- **Template.** "Download the empty template" writes a blank xlsx in the browser: the fifteen tabs
   with their headers, a note on every header and every settings key, a default category set for a
   freelancer or a small company, and the default settings. VAT refunds have their own `vat-refund`
   category in the operating bucket, and `tax-refund` in the taxes bucket is for income tax refunds.
@@ -804,8 +865,8 @@ npm run check          # typecheck and unit tests
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at eight widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's and the plan editor's at 430 too, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, a card collapsed and expanded per screen, the row editors in both modes, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at eight widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's, the plan editor's, the split editor's and the move to splits at 430 too, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, a card collapsed and expanded per screen, the row editors, the split editor and the move to splits in both modes, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -820,7 +881,10 @@ ledger's months compare with, a 2027 plan whose owner pay switches from the floo
 board-only insurance the day after the grant's employment date, with a planned laptop and a
 dividend, and four owner pay scenarios for 2027, two of them with warnings to show. Its `outgoing-plan` tab splits each of the first client's invoices into a month's fee
 and its extras, with October planned and not invoiced yet, and has no rows for the second client,
-whose invoices are invoiced with no plan row. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads. A
+whose invoices are invoiced with no plan row. Its `splits` tab splits three rows: a salary paid
+with a results bonus, a design invoice that also paid a workshop, and a business lunch with the
+owner's own part in it. Its `owner-advances` tab still holds one private share as a negative row,
+for "Move to splits" to move. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads. A
 Drive and a Gmail held in memory answer "Make invoice" the same way: the invoice folder holds this
 year's and last year's folders with every month inside, made by another app and out of view until
 picked, and the browser's confirm dialog stands in for the Picker, OK picking every folder it names
@@ -831,7 +895,8 @@ changes nine days past their last export, and `?fake=empty` starts with nothing,
 run. `?fake=no-scenarios` leaves the `scenarios` tab out of the Sheet, so adding the starting
 scenarios adds the tab, and `?fake=excel-no-scenarios` starts a workbook kept in this browser with no
 scenario rows. `?fake=no-plan` and `?fake=excel-no-plan` do the same for the `plan` tab, so the plan
-editor's first save adds it. The visual check covers all four, and the import summary of an xlsx it writes from the fake
+editor's first save adds it, and `?fake=no-splits` and `?fake=excel-no-splits` the same for the
+`splits` tab and the split editor. The visual check covers all six, and the import summary of an xlsx it writes from the fake
 workbook. It and the touch check run against a preview of the fake build, so start one first:
 
 ```sh
@@ -845,7 +910,7 @@ needs no preview and makes no call to Google.
 
 ## Write-back
 
-Review, Owner, Billing plan, Receivables, Forecast, Pay scenarios and the Workbook screen write through one path in both modes. Each write reads the tabs it
+Review, Transactions, Owner, Billing plan, Receivables, Forecast, Pay scenarios and the Workbook screen write through one path in both modes. Each write reads the tabs it
 touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
 what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
 In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
@@ -875,15 +940,8 @@ side in `googleWorkbookWriter.ts`.
 - **Settings.** Each changed key is set in its `value` cell, or appended as a `key`, `value` row when
   the tab lacks it. A key on two rows, a value that changed since the read, or a value the settings
   reader would not use is refused.
-- **Owner advances.** "Add advance" on Owner, and "Add the cost" on Owner and Review, append one
-  `date`, `amount`, `description`, `category` row, the date as a serial number so the cell is a
-  date. "I paid a company cost" writes a positive
-  amount and "Part of a company payment was mine" a negative one. It is refused unless the tab has
-  those four columns, the amount is not zero, and the category is on the categories tab, as it is now, in the
-  operating or taxes bucket. Undo clears the row again, only while one row still holds exactly what
-  was written.
-- **Rows of a tab.** `categories`, `accounts`, `clients`, `invoices`, `assets`, `grants`,
-  `year-end`, `outgoing-plan`, `plan` and `scenarios` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
+- **Rows of a tab.** `categories`, `accounts`, `clients`, `invoices`, `owner-advances`, `assets`,
+  `grants`, `year-end`, `outgoing-plan`, `plan`, `scenarios` and `splits` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
   with each tab's rules beside its feature or pack. One write adds rows below the last one, changes rows in
   place and deletes rows. A row to change or delete is found on its own row if that still holds what
   the app read, else on the one row that does, and the write is refused when none or several do. A
@@ -895,17 +953,19 @@ side in `googleWorkbookWriter.ts`.
 
   | Tab | Refused, with the reason given |
   |---|---|
-  | `categories` | A name outside the slug format (lower-case letters and digits with single hyphens) or already on another row. Renaming or deleting a category that ledger rows, rules, owner advances, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. |
+  | `categories` | A name outside the slug format (lower-case letters and digits with single hyphens) or already on another row. Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. |
   | `accounts` | A name outside the slug format or already on another row. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the ingest refuses a statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. Leaving the tab with no IBAN, which stops the Apps Script's morning run. The tab needs its `account` and `iban` headers, as the Apps Script does. |
   | `clients` | A name outside the slug format. A second row of a client under another name. Renaming or deleting the last row of a client that invoices, plan rows or `billing_client` name. A new or changed IBAN that is not valid, is on another client row, or is one of your accounts. |
   | `invoices` | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. One period date without the other. The tab needs all eight columns the generator writes, and the app never adds one. |
   | `grants` | A name outside the slug format or already on another row. Renaming or deleting a grant an asset is funded by. |
+  | `owner-advances` | What its reader refuses: an amount of zero or below, which for a negative one points to the `splits` tab, or a category the categories tab lacks or keeps outside the operating and taxes buckets. "Add advance" on Owner, and "Add the cost" on Owner and Review, add one row, and "Move to splits" deletes one. |
+  | `splits` | What its reader refuses against the ledger and the categories as they are now, which are the guards of *Split rows*. A split of a row an asset claims, with the asset named. |
   | `assets`, `year-end`, `outgoing-plan` | What their readers refuse, such as an asset listed twice, a grant the grants tab lacks, or a konto row naming an unknown category. |
   | `plan` | What its reader refuses, such as a purchase without its date or group, a dividend without its month, or a category twice in one month. Then every year the change touches must pass the plan guards of *Forecast*. A purchase or a switch day on an older tab without the `date` and `group` columns names the columns to add. |
   | `scenarios` | A name outside the slug format. Renaming a scenario onto the name another scenario holds. Renaming or deleting the last row of a scenario a `plan` row names. Then every scenario the change touches must pass the guards of *Pay scenarios*, each refusal naming the scenario and its rows, and every plan year that names one of them must pass the plan guards. |
 
   The plan never adds a tab on its own. Only when the person agrees, as the starting scenarios
-  dialog and the plan editor's dialogs ask before they write, a Google Sheet without the tab gets it, named as the template names
+  dialog, the plan editor's dialogs, the split editor and the move to splits ask before they write, a Google Sheet without the tab gets it, named as the template names
   it, with the template's header in row 1, and only for a tab the template defines. The tab is added
   and given its header first, then the rows are appended in the same write. In Excel mode the
   workbook always holds every tab, so nothing is added.
@@ -924,7 +984,9 @@ The requests each Google use case sends, in order. Every write is `valueInputOpt
 | Edit, switch on or off, move a rule | get, batchGet of `rules`, `categories` and `clients` (when the Sheet has it), `values.batchUpdate` of the changed cells such as `rules!C12`, get and batchGet again |
 | Save settings | get, batchGet of `settings`, `values.batchUpdate` of `value` cells such as `settings!B4`, `values.append` to `settings!A:B` for a new key, get and batchGet again |
 | Add an advance | get, batchGet of `'owner-advances'` and `categories`, `values.append` to `'owner-advances'!A:D`, get and batchGet again. Undo is a `values.batchUpdate` clearing that row's cells |
-| Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `'year-end'` and `plan` (each when the Sheet has it), `values.batchUpdate` of the changed or cleared cells such as `categories!C16`, one `values.append` of the new rows to `categories!A:<last header>`, get and batchGet again |
+| Split a row, edit or delete a split | get, batchGet of `splits`, `ledger`, `categories` and `assets` (each when the Sheet has it), `values.batchUpdate` of the changed or cleared cells such as `splits!E3`, one `values.append` of the new parts to `splits!A:G`, get and batchGet again. The first split in a Sheet without the tab adds it as the starting scenarios do, with the header cells `splits!A1` to `splits!G1` |
+| Move a private share to splits | the split write above, then the delete of the advance: get, batchGet of `'owner-advances'` and `categories`, a `values.batchUpdate` clearing its row's cells, get and batchGet again. When the delete is refused, the split write's undo runs |
+| Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `splits`, `'year-end'` and `plan` (each when the Sheet has it), `values.batchUpdate` of the changed or cleared cells such as `categories!C16`, one `values.append` of the new rows to `categories!A:<last header>`, get and batchGet again |
 | Save accounts | the same, reading `accounts`, `ledger` and `clients` |
 | Save clients | the same, reading `clients`, `accounts`, `invoices`, `'outgoing-plan'` and `settings` |
 | Add, edit or delete an invoice | the same, reading `invoices` and `clients`, appending to `invoices!A:H` |
@@ -955,7 +1017,12 @@ Never run it first on the original.
 8. On Owner, add an advance. Check one new row at the foot of `owner-advances`, its date shown as a
    date. Press Undo and check the row is empty again. On Workbook, General, switch "Loans to the
    owner count as owner pay" off and on. Check only the two `bucket` cells of the loan categories
-   changed.
+   changed. On Owner, press "Move to splits" on the private share, pick the bank row and the
+   category for the owner's part, and move it. Check two new rows on `splits` with the bank row's
+   date, account, amount and balance, and that the share's row on `owner-advances` is empty. Net
+   owed on Owner reads the same as before.
+   On Transactions, split a payment in two, check its two rows on `splits`, change a part, then
+   delete the split and press Undo.
 9. On Workbook, General, fill the Invoices fields. On Workbook, Clients, give the client its
    address, invoice mail and reverse charge. On Receivables, press "Make invoice" with a test
    number agreed beforehand, open the PDF, press Check and pick the invoice folder, the year folder
@@ -1049,14 +1116,16 @@ month, only in the annual settlement.
 ## Year-end parity
 
 `npm run parity:year-end -- --workbook <export.xlsx> --year 2025` runs the accrual engine over an
-xlsx export of the Sheet and compares every line of that year's `year-end` rows with ours. It
-prints the bridge's steps with their kinds, then a verdict per line. `pass` means ours equals the
-accountant's to the cent with no judgement behind it. `judgement` means it equals because the
-engine took the accountant's figure, and names each judgement with the difference it carries.
-`recorded` is a decision or a date the ledger cannot give, checked where it can be: `paid-on` needs
-a corporate tax payment of our balance due on that day, and the distribution lines must share out
-our profit after tax. The verdicts come from the same comparison the Year end screen shows. `FAIL` gives the residual. Konto rows are listed by the categories they share,
-with their differences and no verdict, since one category can sit on several of them.
+xlsx export of the Sheet, a split row through its parts as the screens count it, and compares every
+line of that year's `year-end` rows with ours. It prints the bridge's steps with their kinds, then a
+verdict per line. `pass` means ours equals the accountant's to the cent with no judgement behind it.
+`judgement` means it equals because the engine took the accountant's figure, and names each
+judgement with the difference it carries. `recorded` is a decision or a date the ledger cannot give,
+checked where it can be: `paid-on` needs a corporate tax payment of our balance due on that day, and
+the distribution lines must share out our profit after tax. The verdicts come from the same
+comparison the Year end screen shows. `FAIL` gives the residual. Konto rows are listed by the
+categories they share, with their differences and no verdict, since one category can sit on several
+of them.
 
 The exit code is non-zero unless the bridge's steps add up from the cash net to our profit before
 tax, our profit before and after tax equal the accountant's to the cent, and no line fails. The export holds real company figures, so the script prints only verdicts and

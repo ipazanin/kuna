@@ -14,11 +14,23 @@ export interface TabRead {
 
 export type FreshTabs = Partial<Record<WorkbookTab, TabRead>>
 
-/** The tabs whose rows the Workbook, Receivables, Billing plan, Forecast and Pay scenarios screens add, change and delete. */
-export type RowTab = 'categories' | 'accounts' | 'clients' | 'invoices' | 'outgoing-plan' | 'assets' | 'grants' | 'year-end' | 'plan' | 'scenarios'
+/** The tabs whose rows the Workbook, Transactions, Owner, Receivables, Billing plan, Forecast and Pay scenarios screens add, change and delete. */
+export type RowTab =
+  | 'categories'
+  | 'accounts'
+  | 'clients'
+  | 'invoices'
+  | 'outgoing-plan'
+  | 'owner-advances'
+  | 'assets'
+  | 'grants'
+  | 'year-end'
+  | 'plan'
+  | 'scenarios'
+  | 'splits'
 
 /** The tabs the app writes. Of the ledger it writes only the verdict of a row. */
-export type WritableTab = 'ledger' | 'rules' | 'settings' | 'owner-advances' | RowTab
+export type WritableTab = 'ledger' | 'rules' | 'settings' | RowTab
 
 /** One cell set on an existing row, found by its header. An empty string clears the cell. */
 export interface CellEdit {
@@ -75,7 +87,7 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   ledger: new Set(['category', 'flagged_by']),
   rules: new Set(RULE_COLUMNS),
   settings: new Set(['key', 'value']),
-  'owner-advances': new Set(['date', 'amount', 'description', 'category']),
+  'owner-advances': templateColumns('owner-advances'),
   'outgoing-plan': new Set(BILLING_PLAN_COLUMNS),
   categories: templateColumns('categories'),
   accounts: templateColumns('accounts'),
@@ -86,5 +98,6 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   'year-end': templateColumns('year-end'),
   plan: templateColumns('plan'),
   scenarios: templateColumns('scenarios'),
+  splits: templateColumns('splits'),
 }
 

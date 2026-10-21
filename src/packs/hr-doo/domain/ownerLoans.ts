@@ -6,12 +6,10 @@ import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { ZERO, addMoney, moneyFromCents, negateMoney, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { settlePayments } from '../../../shared/money/settleOpenRows'
-import { advanceDrill, drillToTransactions, monthPeriod, rowDrill } from '../../../features/filters/domain/drillTarget'
+import { drillToTransactions, monthPeriod, rowDrill } from '../../../features/filters/domain/drillTarget'
 import type { DrillTarget, Figure } from '../../../features/filters/domain/drillTarget'
-import { EVERY_OWNER_ADVANCE } from '../../../features/filters/domain/filterState'
 import type { FilterState, Period } from '../../../features/filters/domain/filterState'
-import { advanceKindOf } from '../../../features/workbook/domain/workbook'
-import type { Category, OwnerAdvance, Transaction } from '../../../features/workbook/domain/workbook'
+import type { Category, Transaction } from '../../../features/workbook/domain/workbook'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
 import { netReimbursements } from './reimbursements'
 
@@ -32,15 +30,15 @@ export interface OwnerLoan {
   /** The repayment that closed the loan. Null while it is open, and when nothing was lent on it. */
   readonly repaidOn: CivilDate | null
   readonly repayments: readonly LoanRepaymentShare[]
-  /** The owner-advances row when what was lent is the owner's private share of a company payment. */
-  readonly privateShareOf: OwnerAdvance | null
+  /** The loan-out row, which is a part of a split row when what was lent is the owner's share of a company payment. */
+  readonly row: Transaction
   readonly drill: DrillTarget
 }
 
 export interface OwnerLoanBook {
   /** Oldest first. */
   readonly loans: readonly OwnerLoan[]
-  /** Every debit on a loan-out category and every private share of a company payment, read positive. */
+  /** Every debit on a loan-out category, read positive. */
   readonly lent: Figure
   /**
    * Every credit on a loan-repaid category and every payment from the owner on a reimbursement
@@ -65,8 +63,7 @@ export interface LoanMonth {
 interface Lent {
   readonly lentOn: CivilDate
   readonly amount: Money
-  readonly privateShareOf: OwnerAdvance | null
-  readonly drill: DrillTarget
+  readonly row: Transaction
 }
 
 interface Repayment {
@@ -75,16 +72,16 @@ interface Repayment {
 }
 
 /**
- * What the owner owes the company: loans on a loan-out category, private costs the company paid
- * on one, and the owner's private shares of company payments. Each repayment, on a loan-repaid or a
+ * What the owner owes the company: loans on a loan-out category, and private costs the company paid
+ * on one, a part of a split payment included. Each repayment, on a loan-repaid or a
  * reimbursement category, closes the fewest loans lent by its day that it equals exactly. The
  * repayments no set of loans equals then go to the oldest open loans first with no date cap,
  * running on into the next. Whatever is repaid past the last loan stays out of the list. The
  * headline figures come from the rows themselves, so the balance states an excess repayment that
  * the list cannot hand to any loan.
  */
-export function ownerLoans(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): OwnerLoanBook {
-  const lent = lentOf(advances, transactions, categories)
+export function ownerLoans(transactions: readonly Transaction[], categories: readonly Category[]): OwnerLoanBook {
+  const lent = lentOf(transactions, categories)
   const repayments = repaymentsOf(transactions, categories)
   const placed = settlePayments(
     lent.map((entry) => entry.amount),
@@ -111,12 +108,12 @@ export function ownerLoans(advances: readonly OwnerAdvance[], transactions: read
       status: closed ? 'repaid' : 'open',
       repaidOn: closed && entry.amount > 0 ? (repaymentShares[repaymentShares.length - 1]?.repaidOn ?? null) : null,
       repayments: repaymentShares,
-      privateShareOf: entry.privateShareOf,
-      drill: entry.drill,
+      row: entry.row,
+      drill: rowDrill(entry.row),
     }
   })
 
-  const drills = bookDrills(categories, lent)
+  const drills = bookDrills(categories)
   const lentTotal = sumOf(lent)
   const repaidTotal = sumOf(repayments)
   const openLoans = loans.filter((loan) => loan.status === 'open')
@@ -132,16 +129,10 @@ export function ownerLoans(advances: readonly OwnerAdvance[], transactions: read
 }
 
 /** Lent and repaid in each month asked for, with the balance at each month's end. */
-export function loanMonths(
-  advances: readonly OwnerAdvance[],
-  transactions: readonly Transaction[],
-  categories: readonly Category[],
-  months: readonly MonthKey[],
-  window: LedgerWindow,
-): LoanMonth[] {
-  const lent = lentOf(advances, transactions, categories).filter((entry) => entry.amount > 0)
+export function loanMonths(transactions: readonly Transaction[], categories: readonly Category[], months: readonly MonthKey[], window: LedgerWindow): LoanMonth[] {
+  const lent = lentOf(transactions, categories).filter((entry) => entry.amount > 0)
   const repayments = repaymentsOf(transactions, categories)
-  const drills = bookDrills(categories, lent)
+  const drills = bookDrills(categories)
   return months.map((month) => {
     const lentIn = sumOf(lent.filter((entry) => monthOf(entry.lentOn) === month))
     const repaidIn = sumOf(repayments.filter((repayment) => monthOf(repayment.payment.date) === month))
@@ -162,17 +153,12 @@ export function loanMonths(
   })
 }
 
-/** Every loan-out row and every private share, oldest first, a row before a share on the same day. */
-function lentOf(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): Lent[] {
+/** Every loan-out row, oldest first. */
+function lentOf(transactions: readonly Transaction[], categories: readonly Category[]): Lent[] {
   const loanOut = categoriesWithRole(categories, PACK_ROLES.ownerLoanOut)
-  const rows = oldestFirst(transactions.filter((transaction) => loanOut.includes(transaction.category))).map(
-    (row): Lent => ({ lentOn: row.date, amount: row.amount < 0 ? negateMoney(row.amount) : ZERO, privateShareOf: null, drill: rowDrill(row) }),
+  return oldestFirst(transactions.filter((transaction) => loanOut.includes(transaction.category))).map(
+    (row): Lent => ({ lentOn: row.date, amount: row.amount < 0 ? negateMoney(row.amount) : ZERO, row }),
   )
-  const privateShares = advances
-    .filter((advance) => advanceKindOf(advance) === 'private-share')
-    .sort((earlier, later) => earlier.sheetRow - later.sheetRow)
-    .map((advance): Lent => ({ lentOn: advance.date, amount: negateMoney(advance.amount), privateShareOf: advance, drill: advanceDrill(advance) }))
-  return [...rows, ...privateShares].sort((earlier, later) => earlier.lentOn.localeCompare(later.lentOn))
 }
 
 /** Every credit on a loan-repaid category and every payment from the owner on a reimbursement category, net of same-day returns, oldest first. */
@@ -185,16 +171,15 @@ function repaymentsOf(transactions: readonly Transaction[], categories: readonly
   return repayments.sort((earlier, later) => earlier.payment.date.localeCompare(later.payment.date) || earlier.payment.sequence - later.payment.sequence)
 }
 
-/** The filters behind lent, repaid and the balance. With private shares, lent lists every owner advance, since one amount bound cannot pick out the shares beside the loan debits. */
-function bookDrills(categories: readonly Category[], lent: readonly Lent[]): Record<'lent' | 'repaid' | 'outstanding', Partial<FilterState>> {
+/** The filters behind lent, repaid and the balance. */
+function bookDrills(categories: readonly Category[]): Record<'lent' | 'repaid' | 'outstanding', Partial<FilterState>> {
   const loanOut = categoriesWithRole(categories, PACK_ROLES.ownerLoanOut)
   const loanRepaid = categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
-  const shares = lent.some((entry) => entry.privateShareOf !== null) ? [EVERY_OWNER_ADVANCE] : []
   return {
-    lent: shares.length === 0 ? { categories: loanOut, amount: { min: null, max: moneyFromCents(-1) } } : { categories: [...loanOut, ...shares] },
+    lent: { categories: loanOut, amount: { min: null, max: moneyFromCents(-1) } },
     repaid: { categories: [...loanRepaid, ...reimbursement], amount: { min: moneyFromCents(1), max: null } },
-    outstanding: { categories: [...loanOut, ...loanRepaid, ...reimbursement, ...shares] },
+    outstanding: { categories: [...loanOut, ...loanRepaid, ...reimbursement] },
   }
 }
 

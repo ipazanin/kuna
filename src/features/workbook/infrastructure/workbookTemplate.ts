@@ -126,7 +126,10 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
   ],
   'owner-advances': [
     { name: 'date', note: 'When the owner paid, as a date cell. Required.' },
-    { name: 'amount', note: 'What the owner paid for the company, as a positive number. Required.' },
+    {
+      name: 'amount',
+      note: "What the owner paid for the company, as a number above zero. Required. The owner's private share of a company payment goes on the splits tab.",
+    },
     { name: 'description', note: 'What it was for. Optional.' },
     { name: 'category', note: 'A category from the categories tab in the operating or taxes bucket. The cost counts there on its date. Required.' },
   ],
@@ -215,6 +218,21 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     },
     { name: 'from', note: 'The first day it holds, as a date cell in the scenario year. Blank means the start of the year.' },
     { name: 'to', note: 'The last day it holds, as a date cell in the scenario year. Blank means the end of the year.' },
+  ],
+  splits: [
+    { name: 'date', note: 'The booking date of the ledger row the part belongs to, as a date cell. Required.' },
+    { name: 'account', note: 'The account of that ledger row. Required.' },
+    { name: 'row_amount', note: 'The amount of that ledger row, as the ledger holds it. Required.' },
+    {
+      name: 'row_balance',
+      note: 'The balance of that ledger row, copied from the ledger. With the date, account and amount it finds exactly one row. Required.',
+    },
+    {
+      name: 'amount',
+      note: "What of the row this part is, with the row's sign. A row's parts add up to it, and a row has at least two. Required.",
+    },
+    { name: 'category', note: 'A category from the categories tab. The part counts there, with its own timing. Required.' },
+    { name: 'note', note: 'What this part paid for. Optional.' },
   ],
 }
 
@@ -314,6 +332,7 @@ export function emptyWorkbookTabs(): WorkbookTabs {
     'year-end': [],
     plan: [],
     scenarios: [],
+    splits: [],
   }
 }
 

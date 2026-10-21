@@ -11,6 +11,7 @@ import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfi
 import { ledgerWindowOf, newestBookingOf } from '../src/features/workbook/domain/workbook'
 import { fakeWorkbookSnapshot, fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
 import { categorise } from '../src/features/rules/domain/categorise'
 import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import { planAgainstActual } from '../src/packs/hr-doo/domain/forecast/planAgainstActual'
@@ -21,9 +22,29 @@ const workbook = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
 const window = ledgerWindowOf(workbook.transactions)
 
 describe('fake workbook', () => {
-  it('reads cleanly through the app’s own reader', () => {
-    expect(workbook.problems).toEqual([])
+  it('reads cleanly through the app’s own reader, but for one private share left to move to the splits tab', () => {
+    expect(workbook.problems.map((problem) => [problem.tab, problem.sheetRow])).toEqual([['owner-advances', 5]])
+    expect(workbook.privateSharesToMove.map((share) => [share.date, share.amount])).toEqual([['2025-10-02', 971]])
     expect(window).not.toBeNull()
+  })
+
+  it('splits three rows, one of them with the owner’s own part, and reads the private share as the split its move writes', () => {
+    const presented = presentedWorkbook(workbook)
+
+    expect(workbook.splits.map((split) => [split.row.date, split.parts.map((part) => part.category)])).toEqual([
+      ['2026-07-12', ['salary-net', 'salary-bonus']],
+      ['2026-03-16', ['external-contractors', 'consulting']],
+      ['2026-05-10', ['representation', 'owner-loan-out']],
+    ])
+    expect(presented.problems).toEqual(workbook.problems)
+    expect(presented.splits.map((split) => [split.row.date, split.parts.map((part) => [part.amount, part.category, part.sheetRow])]).at(-1)).toEqual([
+      '2025-10-02',
+      [
+        [-3541, 'office-supplies', null],
+        [-971, 'owner-loan-out', null],
+      ],
+    ])
+    expect(presented.transactions).toHaveLength(workbook.transactions.length + 4)
   })
 
   it('is the same on every run', () => {
@@ -118,7 +139,7 @@ describe('fake workbook', () => {
   it('names a Zagreb resident in the company facts of its Excel variant, and leaves the Google one on the defaults', () => {
     const excel = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel'))
 
-    expect(excel.problems).toEqual([])
+    expect(excel.problems.map((problem) => problem.tab)).toEqual(['owner-advances'])
     expect(excel.settings.companyFacts).toMatchObject({ residenceCity: 'Zagreb', companyRegistered: '2025-05-12' })
     expect(workbook.settings.companyFacts.residenceCity).toBe('')
   })

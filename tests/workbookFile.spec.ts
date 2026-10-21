@@ -20,9 +20,9 @@ function workbookOf(tabs: WorkbookTabs): Workbook {
 
 /** What two reads of the same tabs must agree on. The meta differs by design. */
 function contentOf(workbook: Workbook) {
-  const { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, settings, problems } =
+  const { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, privateSharesToMove, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, problems } =
     workbook
-  return { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, settings, problems }
+  return { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, privateSharesToMove, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, problems }
 }
 
 function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
@@ -34,11 +34,11 @@ function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
 }
 
 describe('the template', () => {
-  it('has the fourteen tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
+  it('has the fifteen tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
     const tabs = emptyWorkbookTabs()
     const book = XLSX.read(await writeWorkbookFile(tabs, workbookOf(tabs)), { type: 'array' })
 
-    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios'])
+    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits'])
     for (const name of book.SheetNames) {
       const sheet = book.Sheets[name]!
       const header = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })[0] ?? []
@@ -52,6 +52,8 @@ describe('the template', () => {
       'year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note',
     ])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.splits!, { header: 1 })[0]).toEqual(['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note'])
+    expect(book.Sheets.splits?.D1?.c?.[0]?.t).toMatch(/finds exactly one row/)
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['outgoing-plan']!, { header: 1 })[0]).toEqual(['item', 'date', 'amount', 'client', 'description'])
     expect(book.Sheets['outgoing-plan']?.B1?.c?.[0]?.t).toMatch(/billable/)
     expect(book.Sheets.invoices?.A1?.c?.[0]?.t).toMatch(/as text/)
@@ -97,7 +99,7 @@ describe('reading an xlsx file', () => {
       }),
     )
 
-    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios'])
+    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits'])
     expect(contents.tabs.ledger.map((row) => row.sheetRow)).toEqual([2, 4])
     expect(contents.tabs.ledger[0]?.cells.note).toBe('kept')
   })
@@ -127,7 +129,7 @@ describe('reading an xlsx file', () => {
       accounts: ['main', 'side'],
       dateRange: { from: '2026-10-04', to: '2026-10-05' },
       categoryCount: 0,
-      defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios'],
+      defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits'],
       refusal: null,
     })
     expect(preview.summary.problems.map((problem) => [problem.tab, problem.sheetRow])).toEqual([
@@ -183,7 +185,10 @@ describe('exporting', () => {
     expect(contentOf(workbookOf(imported.tabs))).toEqual(contentOf(workbook))
     expect(workbook.invoices.length).toBeGreaterThan(10)
     expect(workbook.clients).toHaveLength(2)
-    expect(workbook.ownerAdvances).toHaveLength(4)
+    expect(workbook.ownerAdvances).toHaveLength(3)
+    expect(workbook.privateSharesToMove).toHaveLength(1)
+    expect(workbook.splits).toHaveLength(3)
+    expect(imported.tabs.splits.every((row) => typeof row.cells.date === 'number' && typeof row.cells.row_balance === 'number')).toBe(true)
     expect(workbook.assets).toHaveLength(2)
     expect(workbook.yearEndLines.length).toBeGreaterThan(40)
     expect(workbook.payScenarios).toHaveLength(4)
@@ -225,7 +230,7 @@ describe('exporting', () => {
 
     const imported = await readWorkbookFile(await writeWorkbookFile(withRules, workbook))
 
-    expect(workbook.problems).toEqual([])
+    expect(workbook.problems.map((problem) => problem.tab)).toEqual(['owner-advances'])
     expect(workbook.rules.map((rule) => [rule.id, rule.enabled, rule.conditions.length])).toEqual([
       ['own-account', true, 1],
       ['tax-code', true, 2],

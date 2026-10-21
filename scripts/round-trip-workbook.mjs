@@ -21,7 +21,7 @@ if (options.workbook === undefined) {
 
 const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt: '2026-01-01T00:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] }
 
-const SECTIONS = ['transactions', 'categories', 'accounts', 'rules', 'invoices', 'clients', 'billingPlan', 'ownerAdvances', 'assets', 'grants', 'yearEndLines', 'planLines', 'payScenarios', 'problems']
+const SECTIONS = ['transactions', 'categories', 'accounts', 'rules', 'invoices', 'clients', 'billingPlan', 'ownerAdvances', 'privateSharesToMove', 'splits', 'assets', 'grants', 'yearEndLines', 'planLines', 'payScenarios', 'problems']
 
 function contentOf(tabs) {
   const workbook = readWorkbook({ meta: META, ...tabs })
@@ -36,10 +36,10 @@ const second = contentOf(reimported.tabs)
 
 for (const section of SECTIONS) {
   const same = isDeepStrictEqual(first[section], second[section])
-  console.log(`${section.padEnd(13)} ${String(first[section].length).padStart(5)} -> ${String(second[section].length).padStart(5)}  ${same ? 'same' : 'DIFFERENT'}`)
+  console.log(`${section.padEnd(19)} ${String(first[section].length).padStart(5)} -> ${String(second[section].length).padStart(5)}  ${same ? 'same' : 'DIFFERENT'}`)
 }
 const sameSettings = isDeepStrictEqual(first.settings, second.settings)
-console.log(`${'settings'.padEnd(13)} ${sameSettings ? 'same' : 'DIFFERENT'}`)
+console.log(`${'settings'.padEnd(19)} ${sameSettings ? 'same' : 'DIFFERENT'}`)
 console.log(`missing tabs on import: ${imported.missingTabs.join(', ') || 'none'}; after export: ${reimported.missingTabs.join(', ') || 'none'}`)
 
 const allSame = sameSettings && SECTIONS.every((section) => isDeepStrictEqual(first[section], second[section]))

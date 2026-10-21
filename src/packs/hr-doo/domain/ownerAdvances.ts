@@ -6,7 +6,6 @@ import { advanceDrill, drillToTransactions, rowDrill } from '../../../features/f
 import type { DrillTarget, Figure } from '../../../features/filters/domain/drillTarget'
 import { EVERY_OWNER_ADVANCE } from '../../../features/filters/domain/filterState'
 import type { AmountRange } from '../../../features/filters/domain/filterState'
-import { advanceKindOf } from '../../../features/workbook/domain/workbook'
 import type { Category, OwnerAdvance, Transaction } from '../../../features/workbook/domain/workbook'
 import type { OwnerLoanBook } from './ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
@@ -61,7 +60,7 @@ export interface OwnerAdvanceBook {
 /** One signed balance across both directions. Positive means the owner owes the company. */
 export interface NetOwed {
   readonly amount: Money
-  /** What the loan book holds: lent, private shares and private costs included, less what the owner repaid. */
+  /** What the loan book holds: lent, private costs included, less what the owner repaid. */
   readonly loanBalance: Money
   /** Paid by the owner less reimbursed. */
   readonly advancesOutstanding: Money
@@ -75,16 +74,13 @@ const DEBITS: AmountRange = { min: null, max: moneyFromCents(-1) }
  * The costs the owner paid matched to the reimbursements paid to the owner. Each reimbursement,
  * less what it returned of a payment from the owner the same day, settles the fewest costs paid by
  * its day that it equals exactly. The reimbursements no set of costs equals then go to the oldest
- * open costs first with no date cap. What no cost takes is listed as unaccounted. The private
- * shares belong to the loan book. The balance comes from the rows themselves, so it states a
- * reimbursement no advance accounts for.
+ * open costs first with no date cap. What no cost takes is listed as unaccounted. The balance comes
+ * from the rows themselves, so it states a reimbursement no advance accounts for.
  */
 export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): OwnerAdvanceBook {
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
   const repayments = netReimbursements(transactions, categories).toOwner
-  const paidByOwner = advances
-    .filter((advance) => advanceKindOf(advance) === 'paid-by-owner')
-    .sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)
+  const paidByOwner = [...advances].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)
 
   const placed = settlePayments(
     paidByOwner.map((advance) => advance.amount),
@@ -120,7 +116,7 @@ export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: r
 
   const advanced = paidByOwner.reduce((total, advance) => addMoney(total, advance.amount), ZERO)
   const reimbursed = repayments.reduce((total, repayment) => addMoney(total, repayment.amount), ZERO)
-  // Transactions lists a cost the owner paid as a debit and a private share as a credit, so the debit bound leaves out the shares and the reimbursements from the owner.
+  // The debit bound leaves out the reimbursements from the owner, which repay the loan book.
   return {
     advances: lines,
     advanced: { amount: advanced, drill: drillToTransactions({ period: { preset: 'all' }, categories: [EVERY_OWNER_ADVANCE], amount: DEBITS }) },

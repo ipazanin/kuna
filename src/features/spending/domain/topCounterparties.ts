@@ -18,6 +18,7 @@ export interface CounterpartyCategory {
   readonly bucket: Bucket
   /** What left the company under this category, read positive. */
   readonly amount: Figure
+  /** Bank rows, so the parts of a split row count as one. */
   readonly transactionCount: number
 }
 
@@ -30,6 +31,7 @@ export interface CounterpartyTotal {
   readonly label: string
   /** What left the company in the period, read positive. */
   readonly total: Figure
+  /** Bank rows, so the parts of a split row count as one. */
   readonly transactionCount: number
   /**
    * What left the company in each of the 12 months up to the period's last month, whatever the
@@ -73,8 +75,8 @@ export function topCounterparties(
     {
       readonly spellings: Map<string, number>
       total: Money
-      count: number
-      readonly byCategory: Map<string, { readonly bucket: Bucket; paid: Money; count: number }>
+      readonly payments: Set<number>
+      readonly byCategory: Map<string, { readonly bucket: Bucket; paid: Money; readonly payments: Set<number> }>
     }
   >()
   for (const transaction of transactionsInPeriod(transactions, period, window)) {
@@ -82,13 +84,13 @@ export function topCounterparties(
       continue
     }
     const identity = counterpartyIdentity(transaction)
-    const group = groups.get(identity.key) ?? { spellings: new Map<string, number>(), total: ZERO, count: 0, byCategory: new Map() }
+    const group = groups.get(identity.key) ?? { spellings: new Map<string, number>(), total: ZERO, payments: new Set<number>(), byCategory: new Map() }
     group.spellings.set(identity.writtenName, (group.spellings.get(identity.writtenName) ?? 0) + 1)
     group.total = subtractMoney(group.total, transaction.amount)
-    group.count += 1
-    const underCategory = group.byCategory.get(transaction.category) ?? { bucket: transaction.bucket, paid: ZERO, count: 0 }
+    group.payments.add(transaction.sheetRow)
+    const underCategory = group.byCategory.get(transaction.category) ?? { bucket: transaction.bucket, paid: ZERO, payments: new Set<number>() }
     underCategory.paid = subtractMoney(underCategory.paid, transaction.amount)
-    underCategory.count += 1
+    underCategory.payments.add(transaction.sheetRow)
     group.byCategory.set(transaction.category, underCategory)
     groups.set(identity.key, group)
   }
@@ -103,10 +105,10 @@ export function topCounterparties(
           amount: group.total,
           drill: drillToTransactions({ period, counterparties: [key], buckets: PAYING_BUCKETS, amount: { min: null, max: LARGEST_DEBIT } }),
         },
-        transactionCount: group.count,
+        transactionCount: group.payments.size,
         strip,
         rhythm:
-          paidMonths >= 3 && paidMonths >= coveredStripMonths * MONTHLY_SHARE ? 'monthly' : group.count === 1 ? 'one-off' : null,
+          paidMonths >= 3 && paidMonths >= coveredStripMonths * MONTHLY_SHARE ? 'monthly' : group.payments.size === 1 ? 'one-off' : null,
         categories: [...group.byCategory]
           .map(([category, paid]): CounterpartyCategory => ({
             category,
@@ -115,7 +117,7 @@ export function topCounterparties(
               amount: paid.paid,
               drill: drillToTransactions({ period, counterparties: [key], categories: [category], amount: { min: null, max: LARGEST_DEBIT } }),
             },
-            transactionCount: paid.count,
+            transactionCount: paid.payments.size,
           }))
           .sort((left, right) => right.amount.amount - left.amount.amount || left.category.localeCompare(right.category)),
       }

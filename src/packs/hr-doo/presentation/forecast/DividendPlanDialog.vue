@@ -10,7 +10,7 @@ import type { PlanLine } from '../../../../features/workbook/domain/plan'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import type { Money } from '../../../../shared/money/money'
 import { dividendPlanCells } from '../../application/planRows'
-import PlanTabNotice from './PlanTabNotice.vue'
+import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { fieldAmount, monthsOf } from './planWording'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { usePlanWrites } from './usePlanWrites'
@@ -87,7 +87,7 @@ async function remove(): Promise<void> {
         <UFormField label="Note" class="sm:col-span-2">
           <UInput v-model="note" placeholder="After the statements are adopted" class="w-full" data-testid="dividend-note" />
         </UFormField>
-        <PlanTabNotice v-if="writes.tabMissing.value" :headers="writes.headers" class="sm:col-span-2" />
+        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" :headers="writes.headers" class="sm:col-span-2" />
       </form>
     </template>
     <template #footer>
