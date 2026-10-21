@@ -143,7 +143,7 @@ async function remove(): Promise<void> {
   if (current === null || current.length === 0) return
   const deleted = await writes.write(
     { added: [], changed: [], removed: current },
-    { title: 'Split deleted', description: `The payment counts whole again. Its rows on ${writes.where()} are cleared.` },
+    { title: 'Split deleted', description: `The payment counts whole again. Its rows on ${writes.where()} are taken out.` },
     'Not deleted',
   )
   if (deleted) open.value = false

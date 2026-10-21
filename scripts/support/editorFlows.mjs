@@ -609,25 +609,6 @@ export async function splitFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 }
 
-/** Owner or Review: move the private share to the splits tab, after which it is gone from the list. */
-export async function moveShareFlow(page, { press, shoot, inspect }) {
-  await page.waitForSelector('[data-testid="private-share"]')
-  await pressSelector(page, press, '[data-testid="move-share-open"]')
-  await page.waitForSelector('[data-testid="move-share"]')
-  await delay(400)
-  if ((await page.$$('[data-testid="move-share-part"]')).length !== 2) throw new Error('the move does not show the two parts it writes')
-  await inspect?.('move a private share')
-  await shoot('move-share')
-  await pressSelector(page, press, '[data-testid="move-share-confirm"]')
-  await toast(page, 'Moved to splits')
-  await dialogGone(page, '[data-testid="move-share"]')
-  await page.waitForFunction(() => !document.querySelector('[data-testid="private-share"]'), { timeout: 10_000 }).catch(() => {
-    throw new Error('the private share is still listed after the move')
-  })
-  await shoot('move-share-moved')
-  await dismissToasts(page)
-}
-
 async function dropFile(page, path) {
   const input = await page.waitForSelector('[data-testid="import-file"] input[type="file"]', { timeout: 10_000 }).catch(() => {
     throw new Error('Import offers no file input')

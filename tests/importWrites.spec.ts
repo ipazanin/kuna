@@ -170,8 +170,8 @@ describe.each([
   ['a Google Sheet', googleHarness],
   ['a workbook kept in this browser', excelHarness],
 ] as const)('importing into %s', (name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
-  it('puts the new rows in on top, newest first, a second import finds them all, and Undo takes them out', async () => {
-    const { store, sheets } = await harnessOf(used, grids())
+  it('puts the new rows in on top, newest first, in one request, a second import finds them all, and Undo takes them out', async () => {
+    const { store, sheets, writtenRanges } = await harnessOf(used, grids())
     const before = ledgerCells(store)
 
     const receipt = await store.changeRows(LEDGER_ROWS, { added: dryRun(store, creditStatement()).added, changed: [], removed: [] })
@@ -186,18 +186,18 @@ describe.each([
     expect(again.statements[0]?.notes).toEqual(['Every entry is on the ledger already, so importing it writes nothing.'])
 
     if (name === 'a Google Sheet') {
-      const structural = sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')
-      expect(structural).toEqual([
-        {
-          kind: 'updateSpreadsheet',
-          requests: [
-            { insertDimension: { range: { sheetId: 0, dimension: 'ROWS', startIndex: 1, endIndex: 2 }, inheritFromBefore: false } },
-            { copyPaste: { source: { sheetId: 0, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 18 }, destination: { sheetId: 0, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 18 }, pasteType: 'PASTE_FORMAT', pasteOrientation: 'NORMAL' } },
-            { copyPaste: { source: { sheetId: 0, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 18 }, destination: { sheetId: 0, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 18 }, pasteType: 'PASTE_DATA_VALIDATION', pasteOrientation: 'NORMAL' } },
-          ],
-        },
-      ])
-      expect(sheets.requests.filter((request) => request.kind === 'batchUpdate').flatMap((request) => (request.kind === 'batchUpdate' ? request.request.data.map((write) => write.range) : []))).toEqual(['ledger!A2:R2'])
+      const written = sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')
+      expect(written).toHaveLength(1)
+      expect(written[0]).toEqual({
+        kind: 'updateSpreadsheet',
+        requests: [
+          { insertDimension: { range: { sheetId: 0, dimension: 'ROWS', startIndex: 1, endIndex: 2 }, inheritFromBefore: false } },
+          { copyPaste: { source: { sheetId: 0, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 18 }, destination: { sheetId: 0, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 18 }, pasteType: 'PASTE_FORMAT', pasteOrientation: 'NORMAL' } },
+          { copyPaste: { source: { sheetId: 0, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 18 }, destination: { sheetId: 0, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 18 }, pasteType: 'PASTE_DATA_VALIDATION', pasteOrientation: 'NORMAL' } },
+          { updateCells: { start: { sheetId: 0, rowIndex: 1, columnIndex: 0 }, rows: [{ values: expect.any(Array) }], fields: 'userEnteredValue' } },
+        ],
+      })
+      expect(writtenRanges()).toEqual(['ledger!A2:R2'])
     }
 
     const write = store.state.writes[0]!
@@ -250,6 +250,20 @@ describe.each([
   })
 })
 
+describe('an import into a Google Sheet', () => {
+  it('leaves the ledger as it was when the one request of the import fails, so no empty row is left for the morning ingest', async () => {
+    const { store, sheets } = await googleHarness(used, grids())
+    const before = structuredClone(sheets.grids.ledger)
+    const send = sheets.updateSpreadsheet.bind(sheets)
+    sheets.updateSpreadsheet = (requests) => send([...requests, { deleteDimension: { range: { sheetId: 999, dimension: 'ROWS', startIndex: 1, endIndex: 2 } } }])
+
+    await expect(store.changeRows(LEDGER_ROWS, { added: dryRun(store, creditStatement()).added, changed: [], removed: [] })).rejects.toThrow('No grid with id: 999')
+
+    expect(sheets.grids.ledger).toEqual(before)
+    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
+  })
+})
+
 describe('a tabular import through its profile', () => {
   it('works balances out from the ledger when the export gives none', async () => {
     const { store } = await googleHarness(used, grids())
@@ -265,5 +279,21 @@ describe('a tabular import through its profile', () => {
       [46311, 7150, 8150, 'promet (ffffffff)'],
     ])
     expect(dryRunFor(statementReadings(file, workbook, { ...profile, account: 'nowhere' }), workbook, new Map()).statements[0]?.refusal).toMatch(/is for nowhere, which is not on the accounts tab/)
+  })
+
+  it('finds a file it imported on the ledger, and refuses it once a changed profile gives its rows other keys', async () => {
+    const { store } = await googleHarness(used, grids())
+    const profile: ImportProfile = { name: 'bank', account: 'main', date: 'Datum', dateFormat: 'dd.mm.yyyy', decimal: 'comma', amount: { signed: 'Iznos' }, balance: '', counterparty: 'Naziv', counterpartyIban: '', description: 'Opis', reference: '' }
+    const grid = [['Datum', 'Naziv', 'Opis', 'Iznos'], ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'], ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00']]
+    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), grid }
+    const runOf = (read: ImportProfile) => dryRunFor(statementReadings(file, store.state.workbook!, read), store.state.workbook!, new Map())
+    await store.changeRows(LEDGER_ROWS, { added: runOf(profile).added, changed: [], removed: [] })
+
+    expect(runOf(profile)).toMatchObject({ newRows: 0, inLedger: 2 })
+    const changed = runOf({ ...profile, description: 'Naziv' })
+    expect(changed.newRows).toBe(0)
+    expect(changed.statements[0]?.refusal).toBe(
+      'Rows of promet (ffffffff) are on the ledger already, so this file was imported before, and none of its entries match them now, such as after a change to its profile. Nothing of it is written.',
+    )
   })
 })

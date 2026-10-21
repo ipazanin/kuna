@@ -41,39 +41,6 @@ async function batchGetValues(
   }))
 }
 
-/** RAW: Sheets stores each value as given and never parses a string into a number, a date or a formula. */
-export type ValueInputOption = 'RAW'
-
-export interface BatchUpdateRequest {
-  readonly valueInputOption: ValueInputOption
-  readonly data: readonly ValueRange[]
-}
-
-async function batchUpdateValues(accessToken: string, spreadsheetId: string, request: BatchUpdateRequest): Promise<void> {
-  await googleFetch(`${SHEETS_API}/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`, accessToken, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  })
-}
-
-export interface AppendRequest {
-  readonly valueInputOption: ValueInputOption
-  /** INSERT_ROWS writes into new rows, so nothing below the table is overwritten. */
-  readonly insertDataOption: 'INSERT_ROWS'
-  readonly values: readonly (readonly CellValue[])[]
-}
-
-/** Adds rows after the table the range finds, starting at the table's first column. */
-async function appendValues(accessToken: string, spreadsheetId: string, range: string, request: AppendRequest): Promise<void> {
-  const query = new URLSearchParams({ valueInputOption: request.valueInputOption, insertDataOption: request.insertDataOption })
-  await googleFetch(`${SHEETS_API}/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}:append?${query}`, accessToken, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ majorDimension: 'ROWS', values: request.values }),
-  })
-}
-
 /** A range of whole rows of one tab, 0-based and end-exclusive, as `spreadsheets.batchUpdate` takes it. */
 export interface RowSpan {
   readonly sheetId: number
@@ -81,9 +48,27 @@ export interface RowSpan {
   readonly endIndex: number
 }
 
-/** The structural requests the app sends: a new tab, rows put in or taken out, and the formats and dropdowns copied onto new rows. */
+/**
+ * A cell's value as `spreadsheets.batchUpdate` writes it. Text goes in as `stringValue`, which Sheets
+ * stores as given and never parses into a number, a date or a formula. An empty object clears the cell.
+ */
+export type CellData = { readonly userEnteredValue?: { readonly stringValue: string } | { readonly numberValue: number } | { readonly boolValue: boolean } }
+
+/** One row of cells from the first column a request names. */
+export interface RowData {
+  readonly values: readonly CellData[]
+}
+
+/** Where an update starts: a 0-based row and column of one tab. */
+export interface GridCoordinate {
+  readonly sheetId: number
+  readonly rowIndex: number
+  readonly columnIndex: number
+}
+
+/** The requests the app sends: a new tab, rows put in or taken out, the formats and dropdowns copied onto new rows, and cell values. */
 export type SpreadsheetRequest =
-  | { readonly addSheet: { readonly properties: { readonly title: string } } }
+  | { readonly addSheet: { readonly properties: { readonly sheetId: number; readonly title: string } } }
   | { readonly insertDimension: { readonly range: RowSpan & { readonly dimension: 'ROWS' }; readonly inheritFromBefore: boolean } }
   | { readonly deleteDimension: { readonly range: RowSpan & { readonly dimension: 'ROWS' } } }
   | {
@@ -94,6 +79,8 @@ export type SpreadsheetRequest =
         readonly pasteOrientation: 'NORMAL'
       }
     }
+  | { readonly updateCells: { readonly start: GridCoordinate; readonly rows: readonly RowData[]; readonly fields: 'userEnteredValue' } }
+  | { readonly appendCells: { readonly sheetId: number; readonly rows: readonly RowData[]; readonly fields: 'userEnteredValue' } }
 
 export interface GridSpan {
   readonly sheetId: number
@@ -103,7 +90,7 @@ export interface GridSpan {
   readonly endColumnIndex: number
 }
 
-/** Sends structural requests in one call, which Sheets applies in order and all or none. */
+/** Sends the requests in one call, which Sheets applies in order, and not at all when any of them is not valid. */
 async function updateSpreadsheetOf(accessToken: string, spreadsheetId: string, requests: readonly SpreadsheetRequest[]): Promise<void> {
   await googleFetch(`${SHEETS_API}/${encodeURIComponent(spreadsheetId)}:batchUpdate`, accessToken, {
     method: 'POST',
@@ -129,8 +116,6 @@ async function getSheetIds(accessToken: string, spreadsheetId: string): Promise<
 export interface SheetsValues {
   sheetIds(): Promise<ReadonlyMap<string, number>>
   batchGet(ranges: readonly string[]): Promise<ValueRange[]>
-  batchUpdate(request: BatchUpdateRequest): Promise<void>
-  append(range: string, request: AppendRequest): Promise<void>
   updateSpreadsheet(requests: readonly SpreadsheetRequest[]): Promise<void>
 }
 
@@ -138,8 +123,6 @@ export function sheetsValuesFor(accessToken: string, spreadsheetId: string): She
   return {
     sheetIds: () => getSheetIds(accessToken, spreadsheetId),
     batchGet: (ranges) => batchGetValues(accessToken, spreadsheetId, ranges),
-    batchUpdate: (request) => batchUpdateValues(accessToken, spreadsheetId, request),
-    append: (range, request) => appendValues(accessToken, spreadsheetId, range, request),
     updateSpreadsheet: (requests) => updateSpreadsheetOf(accessToken, spreadsheetId, requests),
   }
 }

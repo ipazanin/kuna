@@ -1,9 +1,12 @@
+import { columnLetter } from '../../src/shared/text/columnLetter'
 import { RULE_COLUMNS } from '../../src/features/rules/domain/rule'
 import { createWorkbookStore } from '../../src/features/workbook/application/workbookStore'
 import type { WorkbookStore, WorkbookStorePorts } from '../../src/features/workbook/application/workbookStore'
 import { createFakeSheets } from '../../src/features/workbook/infrastructure/fake/fakeSheets'
 import type { FakeSheets } from '../../src/features/workbook/infrastructure/fake/fakeSheets'
 import { readSnapshotFrom } from '../../src/features/workbook/infrastructure/googleWorkbookPorts'
+import { sheetNameInRange } from '../../src/features/workbook/infrastructure/sheetsClient'
+import type { CellData, SpreadsheetRequest } from '../../src/features/workbook/infrastructure/sheetsClient'
 import { googleWorkbookWriter } from '../../src/features/workbook/infrastructure/googleWorkbookWriter'
 import { openWorkbookCache } from '../../src/features/workbook/infrastructure/workbookCache'
 import type { WorkbookChoice } from '../../src/features/workbook/infrastructure/workbookChoice'
@@ -45,6 +48,12 @@ export function ruleRow(cells: Partial<Record<(typeof RULE_COLUMNS)[number], Cel
   return RULE_COLUMNS.map((column) => cells[column] ?? '')
 }
 
+/** A cell as an updateCells or appendCells request carries it, a blank one as no value. */
+export function cellData(value: CellValue): CellData {
+  if (value === '') return {}
+  return { userEnteredValue: typeof value === 'number' ? { numberValue: value } : typeof value === 'boolean' ? { boolValue: value } : { stringValue: value } }
+}
+
 export function workbookGrids(): Record<string, CellValue[][]> {
   return {
     ledger: [LEDGER_HEADER, ...LEDGER_ROWS.map((row) => [...row])],
@@ -70,7 +79,7 @@ export function workbookGrids(): Record<string, CellValue[][]> {
 export interface WriteBackHarness {
   readonly store: WorkbookStore
   readonly sheets: FakeSheets
-  /** Every range a batchUpdate wrote, in order. */
+  /** Every range an updateCells request wrote, in order, in A1 notation. */
   readonly writtenRanges: () => string[]
 }
 
@@ -107,7 +116,7 @@ export async function googleHarness(used: Set<string>, grids = workbookGrids()):
   return {
     store,
     sheets,
-    writtenRanges: () => sheets.requests.flatMap((request) => (request.kind === 'batchUpdate' ? request.request.data.map((write) => write.range) : [])),
+    writtenRanges: () => updatedRanges(sheets),
   }
 }
 
@@ -125,6 +134,22 @@ export async function excelHarness(used: Set<string>, grids = workbookGrids()): 
   const store = createWorkbookStore(ports({ source: 'excel', id, name: 'Books' }, sheets, used))
   await store.open()
   return { store, sheets, writtenRanges: () => [] }
+}
+
+/** Every request the writes sent in their batchUpdates, in order. */
+export function sentRequests(sheets: FakeSheets): SpreadsheetRequest[] {
+  return sheets.requests.flatMap((request) => (request.kind === 'updateSpreadsheet' ? [...request.requests] : []))
+}
+
+function updatedRanges(sheets: FakeSheets): string[] {
+  return sentRequests(sheets).flatMap((change) => {
+    if (!('updateCells' in change)) return []
+    const { start, rows } = change.updateCells
+    const width = Math.max(...rows.map((row) => row.values.length))
+    const from = `${columnLetter(start.columnIndex + 1)}${start.rowIndex + 1}`
+    const to = `${columnLetter(start.columnIndex + width)}${start.rowIndex + rows.length}`
+    return [`${sheetNameInRange(sheets.tabWithId(start.sheetId) ?? '?')}!${from === to ? from : `${from}:${to}`}`]
+  })
 }
 
 async function keepInCache(snapshot: WorkbookSnapshot, used: Set<string>): Promise<void> {

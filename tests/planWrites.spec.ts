@@ -51,8 +51,8 @@ describe('the plan tab on a Google Sheet without one', () => {
     await expect(store.changeRows(PLAN_ROWS, change)).rejects.toThrow(new WorkbookWriteRefused('The workbook has no plan tab, so nothing was written.'))
 
     await store.changeRows(PLAN_ROWS, change, true)
-    expect(writtenRanges()).toEqual(['plan!A1', 'plan!B1', 'plan!C1', 'plan!D1', 'plan!E1', 'plan!F1', 'plan!G1'])
-    expect(sheets.grids.plan).toEqual([PLAN_HEADER, [2027, '', 'ai-services', 150, '', '', '']])
+    expect(writtenRanges()).toEqual(['plan!A1:G1'])
+    expect(sheets.grids.plan).toEqual([PLAN_HEADER, [2027, null, 'ai-services', 150, null, null, null]])
     expect(lines(store)).toEqual(['ai-services every 15000'])
 
     await store.undo(store.state.writes[0]!)

@@ -5,13 +5,12 @@ import { presentedWorkbook } from '../src/features/transactions/application/pres
 import { listedRows, withSplitHeadings } from '../src/features/transactions/domain/listedRows'
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
 import { listedRowKey, splitLedger } from '../src/features/workbook/domain/splits'
-import type { Category, PrivateShareToMove } from '../src/features/workbook/domain/workbook'
+import type { Category } from '../src/features/workbook/domain/workbook'
 import { readSplits } from '../src/features/workbook/infrastructure/splitsTabReader'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { countedSplits, privateShareCandidates } from '../src/packs/hr-doo/domain/countedSplits'
-import { owedByOwnerOn } from '../src/packs/hr-doo/domain/dividend/owedByOwner'
+import { countedSplits } from '../src/packs/hr-doo/domain/countedSplits'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
 import { compareYearEnd } from '../src/packs/hr-doo/domain/yearEnd/yearEndComparison'
 import { STUDIO_CATEGORIES, STUDIO_ROWS, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
@@ -163,7 +162,7 @@ describe('readSplits', () => {
   })
 })
 
-function snapshotOf(splits: CellValue[][], advances: CellValue[][] = [['date', 'amount', 'description', 'category']], assets: CellValue[][] = []): WorkbookSnapshot {
+function snapshotOf(splits: CellValue[][], assets: CellValue[][] = []): WorkbookSnapshot {
   return {
     meta: { id: 'books', source: 'excel', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...EMPTY_TABS,
@@ -178,7 +177,6 @@ function snapshotOf(splits: CellValue[][], advances: CellValue[][] = [['date', '
       ...CATEGORIES.map((category): CellValue[] => [category.slug, category.family, category.bucket, category.roles.join(', ')]),
       ['equipment', 'operating', 'operating', 'capital-purchase'],
     ]),
-    'owner-advances': sheetRowsFromValues(advances),
     assets: sheetRowsFromValues(assets),
     splits: sheetRowsFromValues([SPLIT_HEADER, ...splits]),
   }
@@ -189,7 +187,6 @@ describe('countedSplits', () => {
     const workbook = readWorkbook(
       snapshotOf(
         [[...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']],
-        undefined,
         [
           ['asset', 'bought', 'cost_net', 'group', 'ledger_reference'],
           ['Shredder', 46090, 48, 'equipment', 'Order 77'],
@@ -206,48 +203,9 @@ describe('countedSplits', () => {
     ])
     expect(presentedWorkbook(workbook).transactions.map((row) => row.amount)).toEqual([euros(-25), euros(-60), euros(1000)])
   })
-
-  it('reads a private share still on the owner-advances tab as the split its move writes, on the bank row of its category a day later', () => {
-    const workbook = readWorkbook(snapshotOf([], [['date', 'amount', 'description', 'category'], [46089, -15, 'The owner’s pens', 'office-supplies']]))
-    const counted = countedSplits(workbook)
-
-    expect(workbook.ownerAdvances).toEqual([])
-    expect(counted.problems).toEqual([])
-    expect(counted.splits.map((split) => [split.row.sheetRow, split.parts.map((part) => [part.amount, part.category, part.note, part.sheetRow])])).toEqual([
-      [
-        3,
-        [
-          [euros(-45), 'office-supplies', '', null],
-          [euros(-15), 'owner-loan-out', 'The owner’s pens', null],
-        ],
-      ],
-    ])
-  })
-
-  it('counts a private share nowhere when no single bank row matches it, or another share matches its row too', () => {
-    const tooLate = readWorkbook(snapshotOf([], [['date', 'amount', 'description', 'category'], [46080, -15, 'Pens', 'office-supplies']]))
-    const twice = readWorkbook(
-      snapshotOf([], [['date', 'amount', 'description', 'category'], [46089, -15, 'Pens', 'office-supplies'], [46090, -5, 'Ink', 'office-supplies']]),
-    )
-
-    expect(countedSplits(tooLate).splits).toEqual([])
-    expect(countedSplits(tooLate).problems[0]?.reason).toBe(
-      'no ledger row in office-supplies within 3 days of 2026-02-27 paid more than the share, so it counts nowhere until it is split by hand on Transactions',
-    )
-    expect(countedSplits(twice).splits).toEqual([])
-    expect(countedSplits(twice).problems.map((problem) => problem.sheetRow)).toEqual([2, 3])
-  })
-
-  it('offers no bank row a split already holds or an asset claims', () => {
-    const share: PrivateShareToMove = { date: civil('2026-03-08'), amount: euros(15), description: 'Pens', category: 'office-supplies', sheetRow: 2 }
-    const split = readWorkbook(snapshotOf([[...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']]))
-
-    expect(privateShareCandidates(readWorkbook(snapshotOf([])), share).map((row) => row.sheetRow)).toEqual([3])
-    expect(privateShareCandidates(split, share)).toEqual([])
-  })
 })
 
-describe('the move of a private share and the split of a salary, on a company of the same shape', () => {
+describe('the split of a salary, on a company with a private share split off', () => {
   // A 60.00 order on 9 August with a private 12.50 in it, which the owner repaid on 5 September,
   // and a July salary of 2,000.00 for June with an 800.00 bonus in it.
   const categories: readonly Category[] = [
@@ -268,23 +226,12 @@ describe('the move of a private share and the split of a salary, on a company of
   )
   const order = rows.find((row) => row.description === 'Online order')!
   const salary = rows.find((row) => row.description === 'June salary')!
-  const share: PrivateShareToMove = { date: civil('2025-08-08'), amount: euros(12.5), description: 'Private item', category: 'office-supplies', sheetRow: 2 }
   const moved = splitOf(order, [[-47.5, 'office-supplies'], [-12.5, 'private-cost-for-owner', 'Private item']], categories)
   const bonus = splitOf(salary, [[-1200, 'salary-net'], [-800, 'salary-bonus']], categories)
 
-  const before = presentedWorkbook(exampleStudio({ categories, transactions: rows, privateSharesToMove: [share] }))
   const after = presentedWorkbook(exampleStudio({ categories, transactions: rows, splits: [moved] }))
   const withBonus = presentedWorkbook(exampleStudio({ categories, transactions: rows, splits: [moved, bonus] }))
-  const newest = civil('2026-04-30')
-  const profitBeforeTax = (workbook: typeof before) => accrualYear(workbook, 2025, { depreciation: workbook.settings.companyFacts, citAdvancesPaid: null }).bridge.profitBeforeTax.amount
-
-  it('keeps net owed, today and at the year end, the profit before tax and the cash on hand when the share moves', () => {
-    expect(owedByOwnerOn(after, newest).amount).toBe(owedByOwnerOn(before, newest).amount)
-    expect(owedByOwnerOn(after, civil('2025-12-31')).amount).toBe(owedByOwnerOn(before, civil('2025-12-31')).amount)
-    expect(profitBeforeTax(after)).toBe(profitBeforeTax(before))
-    expect(latestBalances(after.transactions).cashOnHand.amount).toBe(latestBalances(before.transactions).cashOnHand.amount)
-    expect(after.transactions.filter((row) => row.category === 'private-cost-for-owner').map((row) => row.amount)).toEqual([euros(-12.5)])
-  })
+  const profitBeforeTax = (workbook: typeof after) => accrualYear(workbook, 2025, { depreciation: workbook.settings.companyFacts, citAdvancesPaid: null }).bridge.profitBeforeTax.amount
 
   it('still closes the year with the salary split, since a bonus paid in July for June stays in the year', () => {
     const pbt = profitBeforeTax(withBonus)

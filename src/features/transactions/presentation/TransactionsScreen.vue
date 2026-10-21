@@ -130,11 +130,6 @@ function splitOf(row: Transaction): LedgerSplit | null {
   return ledger.value?.workbook.splits.find((split) => split.row.sheetRow === row.sheetRow) ?? null
 }
 
-/** A split read from a private share still on the owner-advances tab is moved on Owner or Review, not edited here. */
-function waitsToMove(row: Transaction): boolean {
-  return splitOf(row)?.parts.some((part) => part.sheetRow === null) ?? false
-}
-
 function openSplit(row: Transaction): void {
   splitting.value = { row, split: splitOf(row) }
   splitOpen.value = true
@@ -237,7 +232,7 @@ const columns: TableColumn<TableEntry>[] = [
         return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [
           h('span', { class: 'inline-flex flex-wrap items-center gap-2 text-highlighted' }, [
             h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(whole).key] }), class: 'text-highlighted' }, () => whole.counterparty || 'No counterparty'),
-            h(UBadge, { label: waitsToMove(whole) ? 'Private share to move' : `Split in ${entry.count} parts`, color: 'neutral', variant: 'subtle', size: 'sm' }),
+            h(UBadge, { label: `Split in ${entry.count} parts`, color: 'neutral', variant: 'subtle', size: 'sm' }),
           ]),
           whole.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, whole.description),
         ])
@@ -318,18 +313,16 @@ const columns: TableColumn<TableEntry>[] = [
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'split') {
-        return waitsToMove(entry.whole)
-          ? ''
-          : h(UButton, {
-              icon: 'i-lucide-pencil',
-              color: 'neutral',
-              variant: 'ghost',
-              size: 'xs',
-              'aria-label': `Edit the split of ${entry.whole.counterparty || 'the payment'}`,
-              'data-testid': 'edit-split',
-              disabled: state.writing,
-              onClick: () => openSplit(entry.whole),
-            })
+        return h(UButton, {
+          icon: 'i-lucide-pencil',
+          color: 'neutral',
+          variant: 'ghost',
+          size: 'xs',
+          'aria-label': `Edit the split of ${entry.whole.counterparty || 'the payment'}`,
+          'data-testid': 'edit-split',
+          disabled: state.writing,
+          onClick: () => openSplit(entry.whole),
+        })
       }
       if (entry.kind !== 'row' || entry.row.kind !== 'bank' || entry.row.split !== undefined || entry.row.amount === 0) return ''
       const listed = entry.row
@@ -428,7 +421,6 @@ function exportCsv(): void {
           :is-collapsed="collapsed.isCollapsed"
           :show-account="severalAccounts"
           :writing="state.writing"
-          :waits-to-move="waitsToMove"
           @toggle="collapsed.toggle"
           @split="openSplit"
         />

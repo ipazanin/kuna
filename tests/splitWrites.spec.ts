@@ -8,10 +8,8 @@ import type { RowAt } from '../src/features/workbook/domain/rowChanges'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { moveShareToSplits } from '../src/packs/hr-doo/application/privateShareMove'
-import { privateShareCandidates, privateShareCategories } from '../src/packs/hr-doo/domain/countedSplits'
 import { euros } from './fixtures/ledger'
-import { excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -31,10 +29,6 @@ function grids(withSplitsTab = true): Record<string, CellValue[][]> {
       ['ai-services', 'operating', 'operating', ''],
       ['revenue', 'income', 'income', 'revenue'],
       ['owner-loan-out', 'owner', 'owner-pay', 'owner-loan-out'],
-    ],
-    'owner-advances': [
-      ['date', 'amount', 'description', 'category'],
-      [46298, -8.9, 'The owner’s headphones', 'ai-services'],
     ],
     assets: [
       ['asset', 'bought', 'cost_net', 'group', 'ledger_reference'],
@@ -122,23 +116,6 @@ describe.each([
     await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'snacks']])).rejects.toThrow(WorkbookWriteRefused)
     expect(store.state.snapshot?.splits).toEqual([])
   })
-
-  it('moves a private share to the splits tab and clears its advance row, so it is not counted twice', async () => {
-    const { store } = await harnessOf(used, grids())
-    const workbook = store.state.workbook!
-    const [share] = workbook.privateSharesToMove
-    const [row] = privateShareCandidates(workbook, share!)
-
-    await moveShareToSplits(store, share!, row!, privateShareCategories(workbook.categories)[0]!, false)
-
-    expect(store.state.workbook?.privateSharesToMove).toEqual([])
-    expect(store.state.workbook?.problems).toEqual([])
-    expect(store.state.workbook?.splits[0]?.parts.map((part) => [part.amount, part.category, part.note])).toEqual([
-      [euros(-11.1), 'ai-services', ''],
-      [euros(-8.9), 'owner-loan-out', 'The owner’s headphones'],
-    ])
-    expect(store.state.writes.map((write) => (write.kind === 'rows' ? write.rules.tab : write.kind))).toEqual(['owner-advances', 'splits'])
-  })
 })
 
 describe('split writes to a Google Sheet', () => {
@@ -148,24 +125,12 @@ describe('split writes to a Google Sheet', () => {
     await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']])).rejects.toThrow('The workbook has no splits tab')
     await writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']], true)
 
-    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toEqual([{ kind: 'updateSpreadsheet', requests: [{ addSheet: { properties: { title: 'splits' } } }] }])
+    const splits = (await sheets.sheetIds()).get('splits')!
+    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells'])
+    expect(sentRequests(sheets)[0]).toEqual({ addSheet: { properties: { sheetId: splits, title: 'splits' } } })
+    expect(sentRequests(sheets)[2]).toMatchObject({ appendCells: { sheetId: splits } })
     expect(sheets.grids.splits?.[0]).toEqual(SPLIT_HEADER)
-    expect(sheets.requests.find((request) => request.kind === 'append')).toMatchObject({ range: 'splits!A:G' })
     expect(store.state.workbook?.splits).toHaveLength(1)
-  })
-
-  it('takes the split back when the advance row cannot be cleared, so nothing changes', async () => {
-    const { store, sheets } = await googleHarness(used, grids())
-    const workbook = store.state.workbook!
-    const [share] = workbook.privateSharesToMove
-    const [row] = privateShareCandidates(workbook, share!)
-    sheets.grids['owner-advances']![1]![2] = 'Changed in the Sheet meanwhile'
-
-    await expect(moveShareToSplits(store, share!, row!, privateShareCategories(workbook.categories)[0]!, false)).rejects.toThrow(
-      'The advance row was not deleted, so the split was taken back and nothing changed.',
-    )
-    expect(store.state.workbook?.splits).toEqual([])
-    expect(store.state.writes.map((write) => write.kind === 'rows' && write.undid !== null)).toEqual([true, false])
   })
 
   it('writes each part as a date serial and plain numbers, the key copied from the row', () => {

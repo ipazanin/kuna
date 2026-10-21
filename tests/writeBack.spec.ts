@@ -7,7 +7,7 @@ import { categorisationContextOf } from '../src/features/rules/domain/transactio
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
-import { LEDGER_ROWS, excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
+import { LEDGER_ROWS, cellData, excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -170,31 +170,25 @@ describe.each([
 })
 
 describe('writing to a Google Sheet', () => {
-  it('confirms with one RAW write to flagged_by, column J, after reading the ledger and categories', async () => {
+  it('confirms with one write of the text in flagged_by, column J, after reading the ledger and categories', async () => {
     const { store, sheets } = await googleHarness(used)
 
     await store.setVerdicts([confirmation(row(store, 'MODEL API INC'), settings(store))!])
 
-    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'batchUpdate', 'sheetIds', 'batchGet'])
+    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'updateSpreadsheet', 'sheetIds', 'batchGet'])
     expect(sheets.requests[1]).toEqual({ kind: 'batchGet', ranges: ['ledger', 'categories'] })
-    expect(sheets.requests[2]).toEqual({ kind: 'batchUpdate', request: { valueInputOption: 'RAW', data: [{ range: 'ledger!J3', values: [['ivan']] }] } })
+    expect(sheets.requests[2]).toEqual({
+      kind: 'updateSpreadsheet',
+      requests: [{ updateCells: { start: { sheetId: 0, rowIndex: 2, columnIndex: 9 }, rows: [{ values: [{ userEnteredValue: { stringValue: 'ivan' } }] }], fields: 'userEnteredValue' } }],
+    })
   })
 
-  it('recategorises with RAW writes to I and J of that row only', async () => {
+  it('recategorises with writes to I and J of that row only, in one request', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used)
 
     await store.setVerdicts([recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
 
-    expect(sheets.requests[2]).toEqual({
-      kind: 'batchUpdate',
-      request: {
-        valueInputOption: 'RAW',
-        data: [
-          { range: 'ledger!I2', values: [['equipment']] },
-          { range: 'ledger!J2', values: [['ivan']] },
-        ],
-      },
-    })
+    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
     expect(writtenRanges()).toEqual(['ledger!I2', 'ledger!J2'])
     expect(sheets.grids.ledger![1]).toEqual([...LEDGER_ROWS[0]!.slice(0, 8), 'equipment', 'ivan', ...LEDGER_ROWS[0]!.slice(10)])
   })
@@ -213,10 +207,10 @@ describe('writing to a Google Sheet', () => {
 
   it('says so loudly when rows moved between the read and the write', async () => {
     const { store, sheets } = await googleHarness(used)
-    const write = sheets.batchUpdate.bind(sheets)
-    sheets.batchUpdate = async (request) => {
+    const write = sheets.updateSpreadsheet.bind(sheets)
+    sheets.updateSpreadsheet = async (requests) => {
       sheets.grids.ledger!.splice(1, 0, [46301, 'main', 's-003', 'ARRIVED MEANWHILE', '', 'x', -1, 999, 'unknown', 'ai', 'REF-9'])
-      await write(request)
+      await write(requests)
     }
 
     await expect(store.setVerdicts([recategorisation(row(store, 'MODEL API INC'), 'equipment', settings(store))])).rejects.toThrow(
@@ -245,7 +239,7 @@ describe('writing to a Google Sheet', () => {
       'No ledger row matches the main row with reference REF-2 any more.',
     )
     await expect(store.setVerdicts([recategorisation(twice, 'revenue', settings(store))])).rejects.toThrow('2 ledger rows match the main row with reference REF-3 (rows 3, 5)')
-    expect(sheets.requests.some((request) => request.kind === 'batchUpdate')).toBe(false)
+    expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
   })
 
   it('refuses a row someone changed in the Sheet since the last sync', async () => {
@@ -254,7 +248,7 @@ describe('writing to a Google Sheet', () => {
     sheets.grids.ledger![1]![9] = 'ivan'
 
     await expect(store.setVerdicts([recategorisation(target, 'equipment', settings(store))])).rejects.toThrow('Row 2 changed since the app read it')
-    expect(sheets.requests.some((request) => request.kind === 'batchUpdate')).toBe(false)
+    expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
   })
 
   it('finds category and flagged_by by header, wherever they sit', async () => {
@@ -269,7 +263,7 @@ describe('writing to a Google Sheet', () => {
     expect(row(store, 'GADGET CORNER').category).toBe('equipment')
   })
 
-  it('appends a rule with values.append, RAW, into new rows, its cells in the header order', async () => {
+  it('appends a rule below the last row, its cells in the header order', async () => {
     const { store, sheets } = await googleHarness(used)
 
     await store.changeRules({
@@ -279,13 +273,8 @@ describe('writing to a Google Sheet', () => {
 
     expect(sheets.requests[1]).toEqual({ kind: 'batchGet', ranges: ['rules', 'categories'] })
     expect(sheets.requests[2]).toEqual({
-      kind: 'append',
-      range: 'rules!A:U',
-      request: {
-        valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
-        values: [ruleRow({ rule: 'desk-co', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule', note: 'Furniture' })],
-      },
+      kind: 'updateSpreadsheet',
+      requests: [{ appendCells: { sheetId: 4, rows: [{ values: ruleRow({ rule: 'desk-co', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule', note: 'Furniture' }).map(cellData) }], fields: 'userEnteredValue' } }],
     })
     expect(sheets.grids.rules).toHaveLength(3)
   })
@@ -307,7 +296,7 @@ describe('writing to a Google Sheet', () => {
     await expect(
       store.changeRules({ appended: ruleTabCells({ id: 'x', order: 1, enabled: true, conditions: [{ column: 'is_card' }], category: 'equipment', confidence: 'rule', note: '', sheetRow: null }), edited: [] }),
     ).rejects.toThrow('column V is headed "owner", which no rule can test')
-    expect(sheets.requests.some((request) => request.kind === 'append')).toBe(false)
+    expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
   })
 
   it('refuses a rule that tests counterparty_is_client until the Sheet has a clients tab with client and iban columns', async () => {
@@ -335,7 +324,7 @@ describe('writing to a Google Sheet', () => {
     withClients.clients = [['client', 'name', 'iban'], ['acme', 'Acme', 'XX00FAKE0000000042']]
     const { store, sheets } = await googleHarness(used, withClients)
     await store.changeRules({ appended: asksForClients, edited: [] })
-    expect(sheets.requests.filter((request) => request.kind === 'append')).toHaveLength(1)
+    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
     expect(store.state.workbook?.rules.map((rule) => rule.id)).toContain('client-pays')
     expect(store.state.workbook?.problems.filter((problem) => problem.tab === 'rules')).toEqual([])
   })
@@ -349,11 +338,8 @@ describe('writing to a Google Sheet', () => {
     ])
 
     expect(writtenRanges()).toEqual(['settings!B3'])
-    expect(sheets.requests.find((request) => request.kind === 'append')).toEqual({
-      kind: 'append',
-      range: 'settings!A:B',
-      request: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', values: [['company_name', 'Example Studio']] },
-    })
+    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
+    expect(sheets.grids.settings!.at(-1)).toEqual(['company_name', 'Example Studio'])
   })
 
   it('refuses settings for a Sheet without a settings tab, and a key set on two rows', async () => {

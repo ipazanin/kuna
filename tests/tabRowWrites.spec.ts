@@ -11,7 +11,7 @@ import { WorkbookWriteRefused } from '../src/features/workbook/application/workb
 import type { RowAt, RowCells } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { civil, euros } from './fixtures/ledger'
-import { excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
+import { cellData, excelHarness, forgetCaches, googleHarness, ruleRow, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 
@@ -125,6 +125,55 @@ describe.each([
     expect(store.state.workbook?.problems).toEqual([])
   })
 
+  it('deletes rows, changes a row below them and adds one in a single write, and Undo puts each deleted row back on its own row', async () => {
+    const { store } = await harnessOf(used, everyTab())
+    const rows = () => store.state.workbook?.categories.map((category) => category.slug) ?? []
+    await add(store, CATEGORY_ROWS, STATIONERY, { ...STATIONERY, category: 'paper' })
+    const paper = rowOf(store, CATEGORY_ROWS, 9)
+
+    const receipt = await store.changeRows(CATEGORY_ROWS, {
+      added: [{ ...STATIONERY, category: 'ink' }],
+      changed: [{ sheetRow: 9, before: paper.cells, after: { ...paper.cells, colour: '#ffffff' } }],
+      removed: [rowOf(store, CATEGORY_ROWS, 7), rowOf(store, CATEGORY_ROWS, 8)],
+    })
+
+    expect(rows()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing', 'paper', 'ink'])
+    expect(store.state.snapshot?.categories.map((row) => row.sheetRow)).toEqual([2, 3, 4, 5, 6, 7, 8])
+    expect(receipt?.changed.map((change) => change.sheetRow)).toEqual([7])
+    expect(receipt?.removed.map((row) => [row.sheetRow, row.cells.category])).toEqual([
+      [7, 'courier'],
+      [8, 'stationery'],
+    ])
+
+    await store.undo(store.state.writes[0]!)
+
+    expect(store.state.snapshot?.categories.map((row) => [row.sheetRow, row.cells.category, row.cells.colour ?? ''])).toEqual([
+      [2, 'equipment', '#dce9f9'],
+      [3, 'ai-services', ''],
+      [4, 'revenue', ''],
+      [5, 'postage', ''],
+      [6, 'printing', ''],
+      [7, 'courier', ''],
+      [8, 'stationery', ''],
+      [9, 'paper', ''],
+    ])
+    expect(store.state.workbook?.problems).toEqual([])
+  })
+
+  it('puts a deleted row back on its own row when rows below it were deleted since', async () => {
+    const { store } = await harnessOf(used, everyTab())
+    await add(store, CATEGORY_ROWS, STATIONERY)
+
+    const first = await remove(store, CATEGORY_ROWS, 7)
+    await remove(store, CATEGORY_ROWS, 7)
+    await store.undo(store.state.writes.find((write) => write.kind === 'rows' && write.receipt === first)!)
+
+    expect(store.state.snapshot?.categories.slice(-2).map((row) => [row.sheetRow, row.cells.category])).toEqual([
+      [6, 'printing'],
+      [7, 'courier'],
+    ])
+  })
+
   it('refuses to rename or delete a category the ledger, the rules, the advances, the year-end or the plan tab names', async () => {
     const { store } = await harnessOf(used, everyTab())
 
@@ -206,7 +255,10 @@ describe.each([
 
     expect(store.state.workbook?.invoices.map((invoice) => [invoice.number, invoice.amount])).toEqual([['2-1-26', euros(4300)]])
     await store.undo(store.state.writes[0]!)
-    expect(store.state.workbook?.invoices.map((invoice) => invoice.number)).toEqual(['2-1-26', '1-1-26'])
+    expect(store.state.workbook?.invoices.map((invoice) => [invoice.number, invoice.sheetRow])).toEqual([
+      ['1-1-26', 2],
+      ['2-1-26', 3],
+    ])
   })
 
   it('adds and changes assets, grants and year-end lines through their readers, and keeps a grant an asset is funded by', async () => {
@@ -233,6 +285,18 @@ describe.each([
     expect(store.state.workbook?.grants.map((grant) => grant.slug)).toEqual(['startup'])
   })
 
+  it('checks an added row against the row it lands on when a delete in the same write moves that row up', async () => {
+    const grids = everyTab()
+    const [header, startup, innovation] = grids.grants as [CellValue[], CellValue[], CellValue[]]
+    const { store } = await harnessOf(used, { ...grids, grants: [header, startup, ['spare', ...startup.slice(1)], innovation] })
+    const { cells: innovationCells } = rowOf(store, GRANT_ROWS, 4)
+
+    // Taking out row 3 puts the new row on row 4, where innovation stands today.
+    await expect(store.changeRows(GRANT_ROWS, { added: [innovationCells], changed: [], removed: [rowOf(store, GRANT_ROWS, 3)] })).rejects.toThrow(
+      '"innovation" is already a grant, on row 4.',
+    )
+  })
+
   it('refuses a change to a row that no longer holds what the app read', async () => {
     const { store } = await harnessOf(used, everyTab())
     const stale = rowOf(store, ACCOUNT_ROWS, 2)
@@ -246,35 +310,74 @@ describe.each([
 })
 
 describe('row writes to a Google Sheet', () => {
-  it('writes only the cells that changed, RAW, by header, and appends a new category under every header', async () => {
+  it('writes only the cells that changed, by header, and appends a new category under every header', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, everyTab())
+    const categories = (await sheets.sheetIds()).get('categories')!
 
     await edit(store, CATEGORY_ROWS, 2, { colour: '#ffffff' })
     await add(store, CATEGORY_ROWS, STATIONERY)
 
     expect(writtenRanges()).toEqual(['categories!D2'])
-    expect(sheets.requests.filter((request) => request.kind === 'batchUpdate').map((request) => request.kind === 'batchUpdate' && request.request.valueInputOption)).toEqual(['RAW'])
-    expect(sheets.requests.find((request) => request.kind === 'append')).toEqual({
-      kind: 'append',
-      range: 'categories!A:G',
-      request: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', values: [['stationery', 'operating', 'operating', '', '', '', '']] },
-    })
-    expect(sheets.requests.some((request) => request.kind === 'batchUpdate' && request.request.data.some((write) => write.range.startsWith('ledger!')))).toBe(false)
+    expect(sentRequests(sheets).filter((request) => 'appendCells' in request)).toEqual([
+      { appendCells: { sheetId: categories, rows: [{ values: ['stationery', 'operating', 'operating', '', '', '', ''].map(cellData) }], fields: 'userEnteredValue' } },
+    ])
+    expect(writtenRanges().some((range) => range.startsWith('ledger!'))).toBe(false)
   })
 
-  it('appends an invoice in the eight columns, the number as text and every date a serial number, and deletes one by clearing its cells', async () => {
+  it('appends an invoice in the eight columns, the number as text and every date a serial number, and deletes one by taking its row out', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, everyTab())
+    const invoices = (await sheets.sheetIds()).get('invoices')!
 
     await add(store, INVOICE_ROWS, { number: '2-1-26', client: 'acme', item: 'October work', amount: 4200, issued: 46326, due: '', period_from: '', period_to: '' })
     await remove(store, INVOICE_ROWS, 2)
 
-    expect(sheets.requests.find((request) => request.kind === 'append')).toEqual({
-      kind: 'append',
-      range: 'invoices!A:H',
-      request: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', values: [['2-1-26', 'acme', 'October work', 4200, 46326, '', '', '']] },
+    expect(sentRequests(sheets)).toEqual([
+      { appendCells: { sheetId: invoices, rows: [{ values: ['2-1-26', 'acme', 'October work', 4200, 46326, '', '', ''].map(cellData) }], fields: 'userEnteredValue' } },
+      { deleteDimension: { range: { sheetId: invoices, dimension: 'ROWS', startIndex: 1, endIndex: 2 } } },
+    ])
+    expect(writtenRanges()).toEqual([])
+    expect(sheets.grids.invoices?.map((row) => row[0])).toEqual(['number', '2-1-26'])
+  })
+
+  it('sends the cells, the deletions and the new rows of one write in one batchUpdate, in that order', async () => {
+    const { store, sheets } = await googleHarness(used, everyTab())
+    const categories = (await sheets.sheetIds()).get('categories')!
+    await add(store, CATEGORY_ROWS, STATIONERY, { ...STATIONERY, category: 'paper' })
+    const paper = rowOf(store, CATEGORY_ROWS, 9)
+    sheets.requests.length = 0
+
+    await store.changeRows(CATEGORY_ROWS, {
+      added: [{ ...STATIONERY, category: 'ink' }],
+      changed: [{ sheetRow: 9, before: paper.cells, after: { ...paper.cells, colour: '#ffffff' } }],
+      removed: [rowOf(store, CATEGORY_ROWS, 7), rowOf(store, CATEGORY_ROWS, 8)],
     })
-    expect(writtenRanges()).toEqual(['invoices!A2', 'invoices!B2', 'invoices!C2', 'invoices!D2', 'invoices!E2', 'invoices!F2', 'invoices!G2', 'invoices!H2'])
-    expect(sheets.grids.invoices).toHaveLength(3)
+
+    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
+    expect(sentRequests(sheets)).toEqual([
+      { updateCells: { start: { sheetId: categories, rowIndex: 8, columnIndex: 3 }, rows: [{ values: [cellData('#ffffff')] }], fields: 'userEnteredValue' } },
+      { deleteDimension: { range: { sheetId: categories, dimension: 'ROWS', startIndex: 7, endIndex: 8 } } },
+      { deleteDimension: { range: { sheetId: categories, dimension: 'ROWS', startIndex: 6, endIndex: 7 } } },
+      { appendCells: { sheetId: categories, rows: [{ values: ['ink', 'operating', 'operating', '', '', '', ''].map(cellData) }], fields: 'userEnteredValue' } },
+    ])
+    expect(sheets.grids.categories?.map((row) => row[0])).toEqual(['category', 'equipment', 'ai-services', 'revenue', 'postage', 'printing', 'paper', 'ink'])
+
+    sheets.requests.length = 0
+    await store.undo(store.state.writes[0]!)
+
+    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['updateCells', 'deleteDimension', 'insertDimension', 'copyPaste', 'copyPaste', 'updateCells'])
+    expect(sentRequests(sheets)[2]).toEqual({ insertDimension: { range: { sheetId: categories, dimension: 'ROWS', startIndex: 6, endIndex: 8 }, inheritFromBefore: false } })
+    expect(sheets.grids.categories?.map((row) => row[0])).toEqual(['category', 'equipment', 'ai-services', 'revenue', 'postage', 'printing', 'courier', 'stationery', 'paper'])
+  })
+
+  it('changes nothing in the Sheet when one request of the write is refused', async () => {
+    const { store, sheets } = await googleHarness(used, everyTab())
+    const before = structuredClone(sheets.grids.categories)
+    const send = sheets.updateSpreadsheet.bind(sheets)
+    sheets.updateSpreadsheet = (requests) => send([...requests, { deleteDimension: { range: { sheetId: 999, dimension: 'ROWS', startIndex: 1, endIndex: 2 } } }])
+
+    await expect(store.changeRows(CATEGORY_ROWS, { added: [STATIONERY], changed: [], removed: [rowOf(store, CATEGORY_ROWS, 7)] })).rejects.toThrow('No grid with id: 999')
+
+    expect(sheets.grids.categories).toEqual(before)
   })
 
   it('leaves a formula cell alone when the change does not touch it', async () => {

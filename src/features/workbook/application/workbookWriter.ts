@@ -41,11 +41,11 @@ export interface CellEdit {
   readonly value: CellValue
 }
 
-/** A new row, its cells keyed by header: below the last one, or put in above row `before` of the read. */
+/** A new row, its cells keyed by header: below the last one, or put in so that it stands on row `at` once the write is done. */
 export interface RowAppend {
   readonly tab: WritableTab
   readonly cells: Readonly<Record<string, CellValue>>
-  readonly before?: number
+  readonly at?: number
 }
 
 /** A row taken out of its tab, the rows below it moving up, numbered as the read numbers it. */
@@ -60,10 +60,13 @@ export interface NewTab {
   readonly header: readonly string[]
 }
 
+/**
+ * One write, carried out in this order: the cells set on rows as the read numbers them, the rows
+ * taken out, the rows put in on their `at` rows from the top down, then the rows added below the last one.
+ */
 export interface TabEdits {
   readonly cells: readonly CellEdit[]
   readonly appends: readonly RowAppend[]
-  /** Rows taken out whole, never together with cell edits or rows put in on the same tab. */
   readonly deletions?: readonly RowDeletion[]
   /** Only ever a tab the template defines, and only when the person asked for it. */
   readonly newTabs?: readonly NewTab[]
@@ -124,13 +127,3 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   splits: templateColumns('splits'),
 }
 
-
-/** The row each row put in lands on once all of them are in, given the row of the read each goes above. Rows sharing a place keep their order. */
-export function insertedRowNumbers(befores: readonly number[]): number[] {
-  return befores.map((before, index) => before + befores.filter((other, otherIndex) => other < before || (other === before && otherIndex < index)).length)
-}
-
-/** The row a row of the read moves to once rows are put in above these rows. */
-export function shiftedRowNumber(sheetRow: number, befores: readonly number[]): number {
-  return sheetRow + befores.filter((before) => before <= sheetRow).length
-}

@@ -37,7 +37,6 @@ import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import MissingRoles from './MissingRoles.vue'
 import OwnerPayOff from './OwnerPayOff.vue'
-import PrivateSharesToMove from './PrivateSharesToMove.vue'
 import UnaccountedReimbursements from './UnaccountedReimbursements.vue'
 import { LENT_SERIES, OUTSTANDING_SERIES, REPAID_SERIES, categoryLegend, categorySeries, loanTimelineChart, ownerDrawsChart } from './packCharts'
 
@@ -315,22 +314,6 @@ const owner = computed(() => {
         >
           <template #legend><ChartLegend :entries="owner.timelineLegend" /></template>
         </DrillChartCard>
-
-        <AppCard
-          v-if="ledger.workbook.privateSharesToMove.length > 0"
-          :title="`${ledger.workbook.privateSharesToMove.length} private ${ledger.workbook.privateSharesToMove.length === 1 ? 'share' : 'shares'} to move to splits`"
-          data-testid="owner-private-shares"
-        >
-          <template #subtitle>
-            <span class="block max-w-[65ch]">
-              Negative rows of the owner-advances tab, which is how the owner’s part of a company payment was kept before splits. Until it is moved, each counts as the
-              split the move writes, so no figure changes when you move it.
-            </span>
-          </template>
-          <div class="px-4 pt-1 pb-2 sm:px-5">
-            <PrivateSharesToMove :shares="ledger.workbook.privateSharesToMove" :editable="!state.writing" />
-          </div>
-        </AppCard>
 
         <div class="wide-pair">
           <AppCard

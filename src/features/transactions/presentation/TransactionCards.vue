@@ -34,8 +34,6 @@ const props = defineProps<{
   showAccount: boolean
   /** True while a change is being written, when no split can be opened. */
   writing: boolean
-  /** Whether a split row's split is a private share still on the owner-advances tab, which is moved on Owner or Review. */
-  waitsToMove: (row: Transaction) => boolean
 }>()
 
 const emit = defineEmits<{
@@ -106,12 +104,11 @@ function accountOf(row: ListedRow): string {
               <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
             </span>
             <span class="flex items-center gap-2 text-xs text-muted">
-              <UBadge :label="waitsToMove(entry.whole) ? 'Private share to move' : `Split in ${entry.count} parts`" color="neutral" variant="subtle" size="sm" />
+              <UBadge :label="`Split in ${entry.count} parts`" color="neutral" variant="subtle" size="sm" />
               <span class="figure">{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ names.account(entry.whole.account) }}</template></span>
             </span>
           </span>
           <UButton
-            v-if="!waitsToMove(entry.whole)"
             icon="i-lucide-pencil"
             color="neutral"
             variant="ghost"

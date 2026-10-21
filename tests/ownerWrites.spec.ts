@@ -9,7 +9,7 @@ import { canUndo, wasUndone } from '../src/features/workbook/application/workboo
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
 import { civil, euros } from './fixtures/ledger'
-import { excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { cellData, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -145,16 +145,14 @@ describe('owner writes to a Google Sheet', () => {
     expect(writtenRanges()).toEqual(['categories!C6'])
   })
 
-  it('writes the date as a serial number and the bucket as one RAW cell, found by its header', async () => {
+  it('writes the date as a serial number and the bucket as one cell, found by its header', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, gridsWithOwnerTabs())
 
     await addAdvance(store, DESK)
     await switchLoans(store, 'financing', ['owner-loan-out'])
 
-    expect(sheets.requests.find((request) => request.kind === 'append')).toEqual({
-      kind: 'append',
-      range: "'owner-advances'!A:D",
-      request: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', values: [[46305, 117.3, 'Desk lamp', 'equipment']] },
+    expect(sentRequests(sheets).find((request) => 'appendCells' in request)).toEqual({
+      appendCells: { sheetId: (await sheets.sheetIds()).get('owner-advances'), rows: [{ values: [46305, 117.3, 'Desk lamp', 'equipment'].map(cellData) }], fields: 'userEnteredValue' },
     })
     expect(writtenRanges()).toEqual(['categories!C5'])
   })

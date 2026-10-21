@@ -123,7 +123,7 @@ async function remove(): Promise<void> {
   if (row === null || cells === null) return
   const deleted = await writes.write(
     { added: [], changed: [], removed: [{ sheetRow: row.sheetRow, cells }] },
-    { title: 'Plan row deleted', description: `Row ${row.sheetRow} of ${writes.where()} is cleared.` },
+    { title: 'Plan row deleted', description: `Row ${row.sheetRow} of ${writes.where()} is taken out.` },
     'Not deleted',
   )
   if (deleted) open.value = false

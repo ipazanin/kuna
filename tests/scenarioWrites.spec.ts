@@ -10,7 +10,7 @@ import { SCENARIO_ROWS, componentCells, copiedScenario, renamedScenario, scenari
 import { startingScenarios } from '../src/packs/hr-doo/domain/scenarios/startingScenarios'
 import { civil, euros } from './fixtures/ledger'
 import { STEADY_GRANT } from './fixtures/steadyStudio'
-import { excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -54,16 +54,17 @@ describe('starting scenarios on a Google Sheet without a scenarios tab', () => {
     expect(sheets.requests.filter((request) => request.kind !== 'sheetIds' && request.kind !== 'batchGet')).toEqual([])
   })
 
-  it('adds the tab with the template header, then the rows, and reads them back', async () => {
+  it('adds the tab with the template header and the rows in one request, and reads them back', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used)
     const receipt = await store.changeRows(SCENARIO_ROWS, { added: scenarioCells(drafts), changed: [], removed: [] }, true)
 
-    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'updateSpreadsheet', 'batchUpdate', 'append', 'sheetIds', 'batchGet'])
-    expect(writtenRanges()).toEqual(['scenarios!A1', 'scenarios!B1', 'scenarios!C1', 'scenarios!D1', 'scenarios!E1', 'scenarios!F1', 'scenarios!G1'])
+    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'updateSpreadsheet', 'sheetIds', 'batchGet'])
+    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells'])
+    expect(writtenRanges()).toEqual(['scenarios!A1:G1'])
     expect(sheets.grids.scenarios?.[0]).toEqual(HEADER)
-    expect(sheets.grids.scenarios?.[3]).toEqual(['floor-salary-extras-2027', 'Floor salary, tax-free items and rent', 2027, 'salary_gross', 'floor', '', ''])
-    expect(sheets.grids.scenarios?.[9]).toEqual(['floor-then-board-2027', 'Floor salary, then board member only', 2027, 'salary_gross', 'floor', '', MAY_LAST])
-    expect(sheets.grids.scenarios?.[10]).toEqual(['floor-then-board-2027', '', 2027, 'director_basis', 'board-only', JUNE_FIRST, ''])
+    expect(sheets.grids.scenarios?.[3]).toEqual(['floor-salary-extras-2027', 'Floor salary, tax-free items and rent', 2027, 'salary_gross', 'floor', null, null])
+    expect(sheets.grids.scenarios?.[9]).toEqual(['floor-then-board-2027', 'Floor salary, then board member only', 2027, 'salary_gross', 'floor', null, MAY_LAST])
+    expect(sheets.grids.scenarios?.[10]).toEqual(['floor-then-board-2027', null, 2027, 'director_basis', 'board-only', JUNE_FIRST, null])
     expect(receipt?.added).toHaveLength(14)
     expect(store.state.snapshot?.meta.missingTabs).not.toContain('scenarios')
     expect(scenarios(store).map(([slug]) => slug)).toEqual(['floor-salary-2027', 'floor-salary-extras-2027', 'floor-then-board-2027', 'floor-then-elsewhere-2027'])

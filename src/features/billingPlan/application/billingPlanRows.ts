@@ -18,10 +18,7 @@ export function billingCellsOf(draft: BillingItemDraft): RowCells {
   }
 }
 
-/**
- * The `outgoing-plan` tab's five columns. Cells beside them, such as the Sheet's own formula block,
- * are never written, and the reader skips a row that keeps only those, so a deleted row may keep them.
- */
+/** The `outgoing-plan` tab's five columns, checked by its reader against the clients tab as it is now. */
 export const BILLING_PLAN_ROWS: TabRowRules = {
   tab: 'outgoing-plan',
   noun: { one: 'plan row', many: 'plan rows', article: 'a' },

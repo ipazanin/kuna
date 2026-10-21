@@ -114,8 +114,8 @@ take their defaults.
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out. |
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional), and the optional delivery period `period_from` and `period_to` (date cells, both or neither). A row without a number, client, amount or issue date, or a number used twice for one client, is reported and left out. A period that cannot be read is reported, and the issue date stands for it. |
 | `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN two clients claim is reported and left out the second time. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. The optional invoice columns `address`, `country`, `tax_id`, `invoice_mail`, `mail_language` (a language tag such as `en` or `hr`, blank for English) and `reverse_charge` (TRUE or FALSE) are read from the first of a client's rows that fills each one, the way `name` is. A language the browser does not know, or a `reverse_charge` that is neither TRUE nor FALSE, is reported and read as blank. |
-| `outgoing-plan` | `item`, `date` (a date cell), `amount` (above zero), `client` and `description`: one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel. `date` is the day it becomes billable, the last day of the worked month for a monthly fee. `client` must be on the `clients` tab, or the row is reported and left out. Only these five columns are read, so the Sheet may keep its own formulas beside them, and a row with nothing in them is skipped. |
-| `owner-advances` | `date`, `amount` (above zero), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount is how the tab once held the owner's private share of a company payment. It is reported, and counts as the split "Move to splits" writes for it until it is moved, as *Split rows* describes. |
+| `outgoing-plan` | `item`, `date` (a date cell), `amount` (above zero), `client` and `description`: one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel. `date` is the day it becomes billable, the last day of the worked month for a monthly fee. `client` must be on the `clients` tab, or the row is reported and left out. Only these five columns are read. |
+| `owner-advances` | `date`, `amount` (above zero), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount, the owner's private share of a company payment, is reported and left out, since that share is a part on the `splits` tab, as *Split rows* describes. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
 | `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once. |
 | `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the Workbook editor, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
@@ -301,23 +301,6 @@ opens the same editor to change, add or remove parts or delete the split. Each s
 through the row write path with Undo in the toast, in both modes, and a Google Sheet without a
 `splits` tab gets it with the template's header from the first save, which the editor says
 beforehand.
-
-### Private shares
-
-A negative row on the `owner-advances` tab is how the owner's private share of a company payment was
-kept before this tab. The reader reports it and keeps it apart. "Move to splits" on Owner, and the
-same item on Review, finds the bank row it came off: a debit in the share's category, within three
-days of the advance's date, since the advance carries the card's day, that paid more than the share
-and is not split or claimed by an asset. When several match, the dialog lets you pick one. It
-writes the split, the company's part in the row's category and the owner's part in a category with
-the `owner-loan-out` role with the advance's description as its note, then deletes the advance row,
-each through the row write path. When the delete fails, the split is taken back. The move has no
-Undo, since the tab no longer takes a negative amount, but the split can be edited on Transactions.
-
-Until it is moved, a private share counts as the split its move would write, on the first category
-with the `owner-loan-out` role, so no figure changes when you press the button. Net owed reads the
-same before and after. A share no single bank row matches counts nowhere, and Workbook, General says
-why.
 
 ## Assets
 
@@ -733,10 +716,10 @@ rows, newest date first and in the tab's order within a date, as Receivables lis
 The rows of the year can be added, edited and deleted in both modes. "Fill the rest of 2026", or
 "Fill 2027" on the year after, previews the rows `fillRestOfYear` would add, with each description in a field to edit, and appends
 them. An edit writes only the cells that
-changed, so a formula amount left alone stays a formula. A delete clears the row's five cells and
-leaves the row and any cells beside it. Both find the row as the app read it, on its own row or on
-the one row that holds it, and refuse when none or several do. Undo takes an addition back, puts a
-deleted row back at the foot of the tab and an edited row back as it was. The billing terms are on
+changed, so a formula amount left alone stays a formula. A delete takes the row out, so the rows
+below it move up. Both find the row as the app read it, on its own row or on the one row that holds
+it, and refuse when none or several do. Undo takes an addition back, puts a deleted row back on the
+row it stood on and an edited row back as it was. The billing terms are on
 Workbook, General. Without the tab the screen names the headers to add, and in Excel mode starts one
 from its first row.
 
@@ -896,6 +879,7 @@ ingest categorises, and checks them against the ledger as it is on screen:
 | A new account | An account with no rows waits until "Start <account> at <opening>" is ticked, or for a file without balances until its opening balance is typed. |
 | Statement numbers | A camt statement whose LglSeqNb is not one past the newest on the ledger for the account is noted, as the balances still decide. |
 | Partly new | A statement whose first entries are on the ledger adds the rest and says so. |
+| Imported before | A bank export whose statement label, its file name and hash, is on the ledger already, and that still has entries the ledger lacks, is refused. Its rows' keys changed since, such as after an edit to its profile, so they cannot be told from the rows it wrote. Imported again as it was, it writes nothing. |
 
 Statements of one account are taken oldest first, each against where the one before left the
 account. A refused one leaves the account where it was, so the next one is refused for the gap, and
@@ -910,9 +894,10 @@ newest one, the block newest first. The Apps Script reads each account's balance
 row, so a block at the foot would stop its next morning. Right before writing, the tab as it is
 then is checked again: no new row may be on it already by its account and reference, which happens
 when the morning ingest filed the statement since the dry run, each account's new rows must open at
-its newest balance and run on from it, and none may predate the account's newest row. Undo takes
-the rows out whole, since a blank row stops the Apps Script too, and is refused once a newer row of
-the account sits above them. A Google Sheet whose ledger tab lacks a column the rows fill, such as
+its newest balance and run on from it, and none may predate the account's newest row. The rows and
+their cells go in as one request, so a failed write leaves no empty row behind. Undo takes the rows
+out whole, since a blank row stops the Apps Script too, and is refused once a newer row of the
+account sits above them. A Google Sheet whose ledger tab lacks a column the rows fill, such as
 the signal columns of an older Sheet, is refused with the column to add.
 
 In Google mode the Apps Script may file the same statements on its morning run. Its rows carry the
@@ -927,7 +912,7 @@ could not use), Rules, Categories, Accounts, Clients, Assets, Grants and Year en
 for a Google Sheet and in Excel mode. Each tab is a table of fields: add a row, change any field,
 delete a row with its bin, then "Save" writes the whole change as one write with Undo in the toast
 and under "Changes in this session" on Review. Only the cells that changed are written, so a formula
-left alone stays a formula, and a deleted row has its cells cleared. "Discard changes" goes back to
+left alone stays a formula, and a deleted row is taken out, so the rows below it move up. "Discard changes" goes back to
 what the tab holds.
 
 Each table checks its rows as the reader would before it lets a save go: a row the reader would
@@ -948,8 +933,8 @@ npm run check          # typecheck and unit tests
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's, the plan editor's, the split editor's, the move to splits and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, a card collapsed and expanded per screen, the row editors, the split editor, the move to splits and both statement imports in both modes, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's, the plan editor's, the split editor's and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar and drawer, drills, filter sheet, import, a card collapsed and expanded per screen, the row editors, the split editor and both statement imports in both modes, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -964,10 +949,9 @@ ledger's months compare with, a 2027 plan whose owner pay switches from the floo
 board-only insurance the day after the grant's employment date, with a planned laptop and a
 dividend, and four owner pay scenarios for 2027, two of them with warnings to show. Its `outgoing-plan` tab splits each of the first client's invoices into a month's fee
 and its extras, with October planned and not invoiced yet, and has no rows for the second client,
-whose invoices are invoiced with no plan row. Its `splits` tab splits three rows: a salary paid
-with a results bonus, a design invoice that also paid a workshop, and a business lunch with the
-owner's own part in it. Its `owner-advances` tab still holds one private share as a negative row,
-for "Move to splits" to move. Its ledger tab carries every column from A to R, as the Sheet does. On
+whose invoices are invoiced with no plan row. Its `splits` tab splits four rows: a salary paid
+with a results bonus, a design invoice that also paid a workshop, and a business lunch and an
+office order, each with the owner's own part in it. Its ledger tab carries every column from A to R, as the Sheet does. On
 Import the fake build offers two sample files that carry the main account on from its newest row: a
 camt.053 statement with a client payment, a card purchase in dollars, a bank fee and a reversal,
 and a Croatian bank's xlsx export with a title above the header, text dates, a decimal comma, split
@@ -992,6 +976,22 @@ npm run build:fake && npm run preview:fake -- --port 4173
 npm run check:visual
 npm run check:touch
 ```
+
+While working on a screen, both take `--only` and `--widths` to run a part of the check quickly:
+
+```sh
+npm run check:visual -- --only billing,owner --widths 360,1440
+npm run check:touch -- --only billing,split --widths 430
+```
+
+`--only` takes screen and flow names for the visual check, such as `billing`, `workbook-categories`
+or `split`, and step names for the touch check, such as `billing-edit-delete` or `split-google`. A
+name also picks every name that starts with it and a hyphen, so `billing` takes `billing-2025` and
+`billing-excel` too. A touch step that carries on from the page of an earlier one runs that one as
+well. `--widths` takes widths the check already has. A name nothing is called fails with the names
+there are, and a run that would check nothing fails too. A limited run keeps the screenshots it does not
+take and says on its last line that it was limited. Only the full run, without options, is the check
+before a commit. The address of the preview can go before or after the options.
 
 `check:pwa` serves the production build itself and sends every other origin to a dead proxy, so it
 needs no preview and makes no call to Google.
@@ -1033,10 +1033,10 @@ side in `googleWorkbookWriter.ts`.
   `ledger` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
   with each tab's rules beside its feature or pack. One write adds rows below the last one, changes rows in
   place and deletes rows. A tab kept in an order of its own, which only the ledger is, places its
-  added rows above a row instead, and takes deleted rows out whole. A row to change or delete is found on its own row if that still holds what
+  added rows above a row instead. A row to change or delete is found on its own row if that still holds what
   the app read, else on the one row that does, and the write is refused when none or several do. A
-  change writes only the cells that differ, and a delete clears the tab's own columns and leaves any
-  cell beside them. Dates go in as serial numbers and amounts as numbers. Before anything is written,
+  change writes only the cells that differ. A delete takes the row out whole, so the rows below move
+  up and no blank row is left, on every tab. Dates go in as serial numbers and amounts as numbers. Before anything is written,
   the tab as the change would leave it is read by the tab's own reader: a row the change writes may
   not be left out or gain a problem, and a row it leaves alone may not drop out. Then the tab's
   checks run, each with its reason:
@@ -1048,7 +1048,7 @@ side in `googleWorkbookWriter.ts`.
   | `clients` | A name outside the slug format. A second row of a client under another name. Renaming or deleting the last row of a client that invoices, plan rows or `billing_client` name. A new or changed IBAN that is not valid, is on another client row, or is one of your accounts. |
   | `invoices` | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. One period date without the other. The tab needs all eight columns the generator writes, and the app never adds one. |
   | `grants` | A name outside the slug format or already on another row. Renaming or deleting a grant an asset is funded by. |
-  | `owner-advances` | What its reader refuses: an amount of zero or below, which for a negative one points to the `splits` tab, or a category the categories tab lacks or keeps outside the operating and taxes buckets. "Add advance" on Owner, and "Add the cost" on Owner and Review, add one row, and "Move to splits" deletes one. |
+  | `owner-advances` | What its reader refuses: an amount of zero or below, which for a negative one points to the `splits` tab, or a category the categories tab lacks or keeps outside the operating and taxes buckets. "Add advance" on Owner, and "Add the cost" on Owner and Review, add one row. |
   | `splits` | What its reader refuses against the ledger and the categories as they are now, which are the guards of *Split rows*. A split of a row an asset claims, with the asset named. |
   | `ledger` | An imported row already on the tab by its account and reference, new rows that do not open at the account's newest balance or predate its newest row, as *Import* describes, and a row the ledger reader would leave out. Undo is refused when a newer row of the account sits above the rows it takes out. |
   | `assets`, `year-end`, `outgoing-plan` | What their readers refuse, such as an asset listed twice, a grant the grants tab lacks, or a konto row naming an unknown category. |
@@ -1056,39 +1056,54 @@ side in `googleWorkbookWriter.ts`.
   | `scenarios` | A name outside the slug format. Renaming a scenario onto the name another scenario holds. Renaming or deleting the last row of a scenario a `plan` row names. Then every scenario the change touches must pass the guards of *Pay scenarios*, each refusal naming the scenario and its rows, and every plan year that names one of them must pass the plan guards. |
 
   The plan never adds a tab on its own. Only when the person agrees, as the starting scenarios
-  dialog, the plan editor's dialogs, the split editor and the move to splits ask before they write, a Google Sheet without the tab gets it, named as the template names
-  it, with the template's header in row 1, and only for a tab the template defines. The tab is added
-  and given its header first, then the rows are appended in the same write. In Excel mode the
-  workbook always holds every tab, so nothing is added.
+  dialog, the plan editor's dialogs and the split editor ask before they write, a Google Sheet without the tab gets it, named as the template names
+  it, with the template's header in row 1, and only for a tab the template defines. The tab, its
+  header and the rows go in the same write. In Excel mode the workbook always holds every tab, so
+  nothing is added.
 
   The loan switch on Workbook, General is a change to the `bucket` cells of the loan categories.
-  Undo writes the change back the other way through the same plan: added rows cleared, changed rows
-  put back, deleted rows added again at the foot. The ledger's category dropdown is never touched.
+  Undo writes the change back the other way through the same plan: added rows taken out, changed
+  rows put back, and each deleted row put back on the row it stood on, with its cells, the rows
+  from there down moving down again. The ledger's category dropdown is never touched.
   It takes its options from the categories tab's category column, a rule set up by hand in the Sheet.
 
-The requests each Google use case sends, in order. Every write is `valueInputOption=RAW`.
+Every write to a Google Sheet is one `spreadsheets.batchUpdate`, which Sheets applies in order and,
+when any of its requests is not valid, not at all. So a write that fails leaves the Sheet as it was,
+and never an empty row the morning ingest would stop on. Its requests run in this order:
 
-| Use case | Requests |
+1. `addSheet` for a tab the person agreed to add, with a sheet id the app picks, and `updateCells` of
+   its header in row 1.
+2. `updateCells` of each changed cell, such as `ledger!I57`, found by its header on the row as read.
+3. `deleteDimension` of each deleted row, the bottom row first.
+4. For rows put in at a place, the ledger's new statements and rows Undo puts back, per block of rows
+   from the top down: `insertDimension`, two `copyPaste` requests that copy the format and the data
+   validation of the row below onto the new rows, and `updateCells` of the whole rows, such as
+   `ledger!A2:R2`.
+5. `appendCells` of the rows added below the last row, every new row of the tab in one request.
+
+Every value goes in as `userEnteredValue`, text as `stringValue`, which Sheets stores as typed and
+never reads as a number, a date or a formula. Amounts and dates are numbers, a date as its serial
+number, so the column's date format shows it. Each write reads the tabs it touches before the
+batchUpdate and again after it:
+
+| Use case | Requests besides the batchUpdate |
 |---|---|
-| Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids), `values.batchGet` of `ledger` and `categories`, `values.batchUpdate` of single cells such as `ledger!I57` and `ledger!J57`, then the same get and batchGet again |
-| Add a rule | get, `values.batchGet` of `rules`, `categories` and `clients` (when the Sheet has it), `values.append` to `rules!A:U` with `insertDataOption=INSERT_ROWS` (plus a `values.batchUpdate` of `order` cells when rules are renumbered), get and batchGet again |
-| Edit, switch on or off, move a rule | get, batchGet of `rules`, `categories` and `clients` (when the Sheet has it), `values.batchUpdate` of the changed cells such as `rules!C12`, get and batchGet again |
-| Save settings | get, batchGet of `settings`, `values.batchUpdate` of `value` cells such as `settings!B4`, `values.append` to `settings!A:B` for a new key, get and batchGet again |
-| Add an advance | get, batchGet of `'owner-advances'` and `categories`, `values.append` to `'owner-advances'!A:D`, get and batchGet again. Undo is a `values.batchUpdate` clearing that row's cells |
-| Split a row, edit or delete a split | get, batchGet of `splits`, `ledger`, `categories` and `assets` (each when the Sheet has it), `values.batchUpdate` of the changed or cleared cells such as `splits!E3`, one `values.append` of the new parts to `splits!A:G`, get and batchGet again. The first split in a Sheet without the tab adds it as the starting scenarios do, with the header cells `splits!A1` to `splits!G1` |
-| Move a private share to splits | the split write above, then the delete of the advance: get, batchGet of `'owner-advances'` and `categories`, a `values.batchUpdate` clearing its row's cells, get and batchGet again. When the delete is refused, the split write's undo runs |
-| Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `splits`, `'year-end'` and `plan` (each when the Sheet has it), `values.batchUpdate` of the changed or cleared cells such as `categories!C16`, one `values.append` of the new rows to `categories!A:<last header>`, get and batchGet again |
-| Save accounts | the same, reading `accounts`, `ledger` and `clients` |
-| Save clients | the same, reading `clients`, `accounts`, `invoices`, `'outgoing-plan'` and `settings` |
-| Add, edit or delete an invoice | the same, reading `invoices` and `clients`, appending to `invoices!A:H` |
+| Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids), `values.batchGet` of `ledger` and `categories` |
+| Add, edit, switch on or off, move a rule | get, batchGet of `rules`, `categories` and `clients` (when the Sheet has it) |
+| Save settings, or an import profile | get, batchGet of `settings` |
+| Add an advance, delete one | get, batchGet of `'owner-advances'` and `categories` |
+| Split a row, edit or delete a split | get, batchGet of `splits`, `ledger`, `categories` and `assets` (each when the Sheet has it) |
+| Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `splits`, `'year-end'` and `plan` (each when the Sheet has it) |
+| Save accounts | get, batchGet of `accounts`, `ledger` and `clients` |
+| Save clients | get, batchGet of `clients`, `accounts`, `invoices`, `'outgoing-plan'` and `settings` |
+| Add, edit or delete an invoice | get, batchGet of `invoices` and `clients` |
 | Make an invoice | Check: the sync's reads, then Drive `files.list` of each path folder's children (`'<parent>' in parents and trashed = false`), the Picker for a folder not in view, and on the first run the settings write of `invoice_folder_id`. Make: `files.create` of a folder the user chose to make, `files.list` of the target folder, a multipart `files.create` upload of the PDF to `www.googleapis.com/upload/drive/v3`, `users.drafts.create` on `gmail.googleapis.com` when the draft is on, then the invoice write above. A re-export uploads with `files.update` instead |
-| Save assets, grants or year-end | the same, reading `assets` and `grants`, or `grants` and `assets`, or `'year-end'` and `categories` |
-| Add or fill plan rows, edit or delete one | the same, reading `'outgoing-plan'` and `clients`. A fill appends every new row in one request |
-| Add, edit or delete a scenario component, rename or copy a scenario, add the starting scenarios | the same, reading `scenarios`, `plan` and `categories` (each when the Sheet has it). Adding the starting scenarios to a Sheet without the tab first sends `spreadsheets.batchUpdate` with one `addSheet` request, then a `values.batchUpdate` of the header cells `scenarios!A1` to `scenarios!G1`, before the append |
-| Plan the owner pay, a category, a purchase or the dividend on Forecast, change or clear it | the same, reading `plan`, `categories` and `scenarios`. The first save to a Sheet without the tab adds it as above, with the header cells `plan!A1` to `plan!G1` |
-| Import statements | get, `values.batchGet` of `ledger` and `categories`, one `spreadsheets.batchUpdate` that per block of rows sends `insertDimension` at the block's place and two `copyPaste` requests copying the format and the data validation of the row below onto the new rows, the bottom block first, then `values.batchUpdate` of whole rows such as `ledger!A2:R2`, get and batchGet again. Undo sends one `spreadsheets.batchUpdate` of `deleteDimension` requests, bottom row first |
-| Save an import profile | the settings write above, with the `import_profile_<name>` key |
-| Undo any of these | the same requests, with the change turned around |
+| Save assets, grants or year-end | get, batchGet of `assets` and `grants`, or `grants` and `assets`, or `'year-end'` and `categories` |
+| Add or fill plan rows, edit or delete one | get, batchGet of `'outgoing-plan'` and `clients` |
+| Add, edit or delete a scenario component, rename or copy a scenario, add the starting scenarios | get, batchGet of `scenarios`, `plan` and `categories` (each when the Sheet has it) |
+| Plan the owner pay, a category, a purchase or the dividend on Forecast, change or clear it | get, batchGet of `plan`, `categories` and `scenarios` |
+| Import statements | get, batchGet of `ledger` and `categories` |
+| Undo any of these | the same reads, with the change turned around |
 
 ### Manual test, against a copy of the Sheet first
 
@@ -1108,14 +1123,12 @@ Never run it first on the original.
    other cell did.
 7. On Workbook, General, change the company name. Check the `settings` tab.
 8. On Owner, add an advance. Check one new row at the foot of `owner-advances`, its date shown as a
-   date. Press Undo and check the row is empty again. On Workbook, General, switch "Loans to the
-   owner count as owner pay" off and on. Check only the two `bucket` cells of the loan categories
-   changed. On Owner, press "Move to splits" on the private share, pick the bank row and the
-   category for the owner's part, and move it. Check two new rows on `splits` with the bank row's
-   date, account, amount and balance, and that the share's row on `owner-advances` is empty. Net
-   owed on Owner reads the same as before.
+   date. Press Undo and check the row is gone, with no blank row left. On Workbook, General, switch
+   "Loans to the owner count as owner pay" off and on. Check only the two `bucket` cells of the loan
+   categories changed.
    On Transactions, split a payment in two, check its two rows on `splits`, change a part, then
-   delete the split and press Undo.
+   delete the split. Check its rows are gone with no blank row left, press Undo and check they are
+   back on the rows they stood on, with the rows below them moved down again.
 9. On Workbook, General, fill the Invoices fields. On Workbook, Clients, give the client its
    address, invoice mail and reverse charge. On Receivables, press "Make invoice" with a test
    number agreed beforehand, open the PDF, press Check and pick the invoice folder, the year folder
@@ -1125,9 +1138,10 @@ Never run it first on the original.
    the PDF and both drafts.
 10. On Workbook, Categories, add a category and save. Check the new row at the foot of `categories`
    and that the ledger's category dropdown offers it. Change its colour, check only that cell changed,
-   then delete it and press Undo. Try to rename a category the ledger uses and read the refusal. On
-   Receivables, add an invoice, check its row on `invoices` with the dates shown as dates and the
-   number as text, edit its amount, delete it and press Undo.
+   then delete it and check the row is gone with no blank row left. Press Undo and check it is back
+   at the foot. Try to rename a category the ledger uses and read the refusal. On Receivables, add an
+   invoice, check its row on `invoices` with the dates shown as dates and the number as text, edit
+   its amount, delete it and press Undo.
 11. In the copy, note the rows of the newest Erste statement on `ledger`, then delete them as whole
    rows. On Import, drop that statement's XML from the statements archive. The dry run lists its
    entries as new, opening where the ledger now leaves the account. Confirm, then check in the copy
@@ -1174,18 +1188,6 @@ memory. Both engines run it over every row, and both must refuse it without a `c
 In development and fake builds, `#/gallery` shows every shared component and chart style with
 made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist
 in a production build.
-
-## Billing parity
-
-`npm run parity:billing -- --workbook <export.xlsx>` compares the app's billing totals with the
-formula block the Sheet keeps beside the `outgoing-plan` rows: Total Amount, Invoiced Amount, Not
-Invoiced Amount, and the year rows under Actual, found by their labels. Each
-formula is first run again over the export's own cells, so a figure the export did not recalculate
-fails. A figure is `pass` when the app's equals the tab's to the cent, `corrected` with the reason
-when the tab's formula reads a range that misses plan rows or adds unrounded formula amounts the
-app reads to the cent, and `FAIL` otherwise, which makes the exit code non-zero. The export holds
-real company figures, so the script prints only verdicts, differences and row numbers. Keep the
-export outside the repository and never copy a figure from the output into it.
 
 ## Payroll parity
 

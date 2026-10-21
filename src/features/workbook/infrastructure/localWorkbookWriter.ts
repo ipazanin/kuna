@@ -1,5 +1,5 @@
 import { cellText } from '../../../shared/text/cellText'
-import { WRITABLE_COLUMNS, editableColumns, insertedRowNumbers, shiftedRowNumber } from '../application/workbookWriter'
+import { WRITABLE_COLUMNS, editableColumns } from '../application/workbookWriter'
 import type { TabRead, WorkbookWriter } from '../application/workbookWriter'
 import { TEMPLATE_COLUMNS } from './workbookTemplate'
 import { WORKBOOK_TABS } from './workbookSnapshot'
@@ -8,8 +8,9 @@ import type { SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
 /**
  * Writes to a working copy of the workbook kept in this browser. Its rows carry no header row, so
  * a tab's header is the template's columns and then any other column its rows use, which is what
- * an export writes. The store saves the copy once the write reads back. Rows put in above a row
- * move the rows below them down, and rows taken out move them up, as in a Sheet.
+ * an export writes. The store saves the copy once the write reads back. It carries out a write in
+ * the order the Google Sheet does, so rows taken out move the rows below them up and rows put in
+ * move them down, as in a Sheet.
  */
 export function localWorkbookWriter(tabs: WorkbookTabs): WorkbookWriter {
   const working = Object.fromEntries(WORKBOOK_TABS.map((tab) => [tab, [...tabs[tab]]])) as { -readonly [Tab in WorkbookTab]: SheetRow[] }
@@ -33,12 +34,6 @@ export function localWorkbookWriter(tabs: WorkbookTabs): WorkbookWriter {
         }
       }
       const deletions = edits.deletions ?? []
-      const inserted = edits.appends.filter((append) => append.before !== undefined)
-      for (const tab of new Set([...deletions, ...inserted].map((change) => change.tab))) {
-        if (edits.cells.some((edit) => edit.tab === tab) || (deletions.some((deletion) => deletion.tab === tab) && inserted.some((append) => append.tab === tab))) {
-          throw new Error(`One write may not move rows of the ${tab} tab and also change it otherwise.`)
-        }
-      }
       for (const edit of edits.cells) {
         working[edit.tab] = working[edit.tab].flatMap((row) => {
           if (row.sheetRow !== edit.sheetRow) {
@@ -56,16 +51,14 @@ export function localWorkbookWriter(tabs: WorkbookTabs): WorkbookWriter {
           .filter((row) => !taken.includes(row.sheetRow))
           .map((row) => ({ sheetRow: row.sheetRow - taken.filter((sheetRow) => sheetRow < row.sheetRow).length, cells: row.cells }))
       }
-      for (const tab of new Set(inserted.map((append) => append.tab))) {
-        const tabInserts = inserted.filter((append) => append.tab === tab)
-        const befores = tabInserts.map((append) => append.before!)
-        const landed = insertedRowNumbers(befores)
-        working[tab] = [
-          ...working[tab].map((row) => ({ sheetRow: shiftedRowNumber(row.sheetRow, befores), cells: row.cells })),
-          ...tabInserts.map((append, index) => ({ sheetRow: landed[index]!, cells: filled(append.cells) })),
+      for (const append of [...edits.appends.filter((candidate) => candidate.at !== undefined)].sort((upper, lower) => upper.at! - lower.at!)) {
+        const at = append.at!
+        working[append.tab] = [
+          ...working[append.tab].map((row) => (row.sheetRow < at ? row : { sheetRow: row.sheetRow + 1, cells: row.cells })),
+          { sheetRow: at, cells: filled(append.cells) },
         ].sort((upper, lower) => upper.sheetRow - lower.sheetRow)
       }
-      for (const append of edits.appends.filter((candidate) => candidate.before === undefined)) {
+      for (const append of edits.appends.filter((candidate) => candidate.at === undefined)) {
         working[append.tab] = [...working[append.tab], { sheetRow: lastRowOf(working[append.tab]) + 1, cells: filled(append.cells) }]
       }
     },

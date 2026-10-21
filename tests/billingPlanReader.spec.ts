@@ -30,7 +30,7 @@ function workbookWith(plan: CellValue[][], clients: CellValue[][] = CLIENTS) {
 }
 
 describe('the outgoing-plan tab', () => {
-  const header: CellValue[] = ['item', 'date', 'amount', 'client', 'description', '', '', 'Constants', '']
+  const header: CellValue[] = ['item', 'date', 'amount', 'client', 'description']
 
   it('reads each row with its amount in cents, the client in lower case and its sheet row', () => {
     const workbook = workbookWith([
@@ -45,18 +45,6 @@ describe('the outgoing-plan tab', () => {
       { item: 'Bonus', date: '2026-01-01', amount: 416667, client: 'north', description: 'Bonus for five months', sheetRow: 3 },
       { item: 'Monthly Fee', date: '2026-01-31', amount: 500000, client: 'north', description: '', sheetRow: 4 },
     ])
-    expect(workbook.problems).toEqual([])
-  })
-
-  it('ignores the formula block beside the rows, also on rows that hold nothing else', () => {
-    const workbook = workbookWith([
-      header,
-      ['Monthly Fee', DAY['2025-12-31'], 5000, 'north', 'December fee', '', '', 'Monthly Amount', 5000],
-      ['', '', '', '', '', '', '', 'Sums'],
-      ['', '', '', '', '', '', '', 'Total Amount', 5000],
-    ])
-
-    expect(workbook.billingPlan.map((row) => row.sheetRow)).toEqual([2])
     expect(workbook.problems).toEqual([])
   })
 

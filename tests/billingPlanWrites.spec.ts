@@ -9,7 +9,7 @@ import { WorkbookWriteRefused } from '../src/features/workbook/application/workb
 import type { RowAt, RowCells, RowChange } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { civil, euros } from './fixtures/ledger'
-import { excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { cellData, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -18,7 +18,7 @@ afterEach(async () => {
   await forgetCaches(used)
 })
 
-/** Two plan rows, the second a formula's value, with a formula block of the Sheet's own beside them in H and I. */
+/** Two plan rows, the second a formula's value. */
 function gridsWithBillingPlan(): Record<string, CellValue[][]> {
   return {
     ...workbookGrids(),
@@ -27,9 +27,9 @@ function gridsWithBillingPlan(): Record<string, CellValue[][]> {
       ['acme', 'Acme Studio', 'XX00FAKE0000000099'],
     ],
     'outgoing-plan': [
-      ['item', 'date', 'amount', 'client', 'description', '', '', 'Constants', ''],
-      ['Monthly Fee', 46295, 4000, 'acme', 'Sep 2026', '', '', 'Monthly Amount', 4000],
-      ['Bonus', 46300, 833.333333, 'acme', 'Bonus share', '', '', 'Bonus', 10000],
+      ['item', 'date', 'amount', 'client', 'description'],
+      ['Monthly Fee', 46295, 4000, 'acme', 'Sep 2026'],
+      ['Bonus', 46300, 833.333333, 'acme', 'Bonus share'],
     ],
   }
 }
@@ -130,20 +130,20 @@ describe.each([
     expect(store.state.workbook?.billingPlan[0]?.amount).toBe(euros(4100))
   })
 
-  it('deletes a row by clearing its five cells, and Undo writes it back', async () => {
+  it('deletes a row by taking it out, so the rows below move up, and Undo puts it back on its own row', async () => {
     const { store } = await harnessOf(used, gridsWithBillingPlan())
 
     const receipt = await removeRow(store, planRowAt(store, 2))
 
     expect(receipt?.removed).toEqual([{ sheetRow: 2, cells: { item: 'Monthly Fee', date: 46295, amount: 4000, client: 'acme', description: 'Sep 2026' } }])
-    expect(plan(store)).toEqual([['Bonus', '2026-10-05', euros(833.33)]])
-    await expect(removeRow(store, planRowAt(store, 3))).resolves.toBeDefined()
+    expect(store.state.workbook?.billingPlan.map((row) => [row.item, row.sheetRow])).toEqual([['Bonus', 2]])
+    await expect(removeRow(store, planRowAt(store, 2))).resolves.toBeDefined()
     expect(plan(store)).toEqual([])
 
     const deleted = store.state.writes.find((write) => write.kind === 'rows' && write.receipt === receipt)
     await store.undo(deleted!)
 
-    expect(plan(store)).toEqual([['Monthly Fee', '2026-09-30', euros(4000)]])
+    expect(store.state.workbook?.billingPlan.map((row) => [row.item, row.sheetRow])).toEqual([['Monthly Fee', 2]])
     expect(store.state.writes[0]).toMatchObject({ kind: 'rows', undid: receipt })
     await expect(store.undo(deleted!)).rejects.toThrow(WorkbookWriteRefused)
   })
@@ -157,23 +157,27 @@ describe('billing plan writes to a Google Sheet', () => {
 
     await removeRow(store, fee)
 
-    expect(writtenRanges()).toEqual(["'outgoing-plan'!A3", "'outgoing-plan'!B3", "'outgoing-plan'!C3", "'outgoing-plan'!D3", "'outgoing-plan'!E3"])
-    expect(sheets.grids['outgoing-plan']![2]?.slice(7)).toEqual(['Monthly Amount', 4000])
+    expect(writtenRanges()).toEqual([])
+    expect(sheets.grids['outgoing-plan']!.map((row) => row[4])).toEqual(['description', 'Inserted in the Sheet', 'Bonus share'])
 
     sheets.grids['outgoing-plan']!.push(['Bonus', 46300, 833.333333, 'acme', 'Bonus share'], ['Bonus', 46300, 833.333333, 'acme', 'Bonus share'])
-    await expect(removeRow(store, { sheetRow: 99, cells: planRowAt(store, 4).cells })).rejects.toThrow('3 rows of the outgoing-plan tab hold')
+    await expect(removeRow(store, { sheetRow: 99, cells: planRowAt(store, 3).cells })).rejects.toThrow('3 rows of the outgoing-plan tab hold')
   })
 
-  it('appends with values.append, RAW, the date as a serial number, and leaves the formula columns blank', async () => {
+  it('appends below the last row, the date as a serial number', async () => {
     const { store, sheets } = await googleHarness(used, gridsWithBillingPlan())
 
     await addRows(store, [OCTOBER_FEE])
 
-    expect(sheets.requests.find((request) => request.kind === 'append')).toEqual({
-      kind: 'append',
-      range: "'outgoing-plan'!A:H",
-      request: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', values: [['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026', '', '', '']] },
-    })
+    expect(sentRequests(sheets)).toEqual([
+      {
+        appendCells: {
+          sheetId: (await sheets.sheetIds()).get('outgoing-plan'),
+          rows: [{ values: ['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026'].map(cellData) }],
+          fields: 'userEnteredValue',
+        },
+      },
+    ])
   })
 
   it('appends every row of a fill in one request, so they land together or not at all', async () => {
@@ -181,9 +185,9 @@ describe('billing plan writes to a Google Sheet', () => {
 
     await addRows(store, [OCTOBER_FEE, { ...OCTOBER_FEE, date: 46356, description: 'Nov 2026' }])
 
-    const appends = sheets.requests.filter((request) => request.kind === 'append')
+    const appends = sentRequests(sheets).flatMap((request) => ('appendCells' in request ? [request.appendCells] : []))
     expect(appends).toHaveLength(1)
-    expect(appends[0]?.kind === 'append' ? appends[0].request.values.map((row) => row[4]) : []).toEqual(['Oct 2026', 'Nov 2026'])
+    expect(appends[0]?.rows.map((row) => row.values[4])).toEqual([cellData('Oct 2026'), cellData('Nov 2026')])
   })
 
   it('writes one cell when one changes, and never the formula value of a cell left alone', async () => {

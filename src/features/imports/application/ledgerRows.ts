@@ -16,7 +16,7 @@ const COLUMNS = TEMPLATE_COLUMNS.ledger.map((column) => column.name)
  * first, so each statement goes in as one block where the shadow-accounting Apps Script inserts a
  * batch: above the first row that is not newer than the batch's newest day. The Apps Script reads
  * each account's balance off its topmost row, so a block at the foot would break its next morning.
- * Undo takes the rows out whole, since a blank row in the ledger stops the Apps Script too.
+ * Undo takes the rows out, since a blank row in the ledger stops the Apps Script too.
  *
  * Against the tab as it is right before the write, no added row may already be there by its
  * account and reference, each account's new rows must open at its newest balance and run on from
@@ -41,7 +41,6 @@ export const LEDGER_ROWS: TabRowRules = {
     return [date, cellText(cells.counterparty) || cellText(cells.description), cellText(cells.amount)].filter((part) => part !== '').join(', ') || 'blank'
   },
   place: (rows, added, lastRow) => placeBlocks(rows, added, lastRow),
-  deletesWholeRows: true,
 }
 
 /** Each account's newest row on the tab, by day and then by tab position, as the readers take a closing balance. */

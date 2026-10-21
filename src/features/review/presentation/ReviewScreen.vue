@@ -10,7 +10,6 @@ import PageHeader from '../../../shared/ui/PageHeader.vue'
 import { ownerAdvances } from '../../../packs/hr-doo/domain/ownerAdvances'
 import AddAdvanceDialog from '../../../packs/hr-doo/presentation/AddAdvanceDialog.vue'
 import type { AdvancePrefill } from '../../../packs/hr-doo/presentation/AddAdvanceDialog.vue'
-import PrivateSharesToMove from '../../../packs/hr-doo/presentation/PrivateSharesToMove.vue'
 import UnaccountedReimbursements from '../../../packs/hr-doo/presentation/UnaccountedReimbursements.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { categorise } from '../../rules/domain/categorise'
@@ -72,8 +71,6 @@ const unaccounted = computed(() => {
   if (current === null || !settings.value.ownerPayModule) return []
   return ownerAdvances(current.scopedAdvances, current.scoped, current.workbook.categories).unaccounted
 })
-/** Offered with the owner-pay module off too, since the reader refuses the rows until they move. */
-const sharesToMove = computed(() => state.workbook?.privateSharesToMove ?? [])
 const unaccountedSummary = computed(() => `${formatMoney(sumMoney(unaccounted.value.map((payment) => payment.amount)))} in all, counted as paid to the owner`)
 const newestBooking = computed(() => newestBookingOf(ledger.value?.workbook.transactions ?? []))
 const addingCost = ref(false)
@@ -163,7 +160,7 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
         />
 
         <UEmpty
-          v-if="queue.length === 0 && unaccounted.length === 0 && sharesToMove.length === 0"
+          v-if="queue.length === 0 && unaccounted.length === 0"
           icon="i-lucide-check-check"
           title="Nothing waits for review"
           description="Every row in view has a category a rule or a person set."
@@ -210,22 +207,6 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
           </template>
           <div class="px-4 pt-1 pb-2 sm:px-5">
             <UnaccountedReimbursements :payments="unaccounted" :editable="!busy" @add-cost="addCost" />
-          </div>
-        </AppCard>
-
-        <AppCard
-          v-if="sharesToMove.length > 0"
-          :title="`${sharesToMove.length} private ${sharesToMove.length === 1 ? 'share' : 'shares'} to move to splits`"
-          collapse-id="review.private-shares"
-          :summary="`${sharesToMove.length === 1 ? 'A negative row' : 'Negative rows'} of the owner-advances tab`"
-          data-testid="review-private-shares"
-        >
-          <template #subtitle>
-            The owner’s part of a company payment, kept as a negative row of the owner-advances tab. It belongs on the splits tab now. Until it is moved, it counts as the
-            split the move writes.
-          </template>
-          <div class="px-4 pt-1 pb-2 sm:px-5">
-            <PrivateSharesToMove :shares="sharesToMove" :editable="!busy" />
           </div>
         </AppCard>
 

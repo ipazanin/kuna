@@ -290,7 +290,6 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
       [serialOf('2026-02-03'), 212.5, 'Train tickets to the client, paid privately', 'travel'],
       [serialOf('2026-08-21'), 89, 'Design tool, annual plan on the owner’s card', 'software-subscriptions'],
       [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies'],
-      [serialOf('2025-10-02'), -13.45, 'Private share of the paper and ink order', 'office-supplies'],
     ],
     splits: splitsValues(ledger),
     ...planningValues(),
@@ -439,14 +438,16 @@ interface FakeSplit {
 }
 
 /**
- * Three ledger rows split into parts, each found by its day, counterparty and description: a June salary paid
- * with a results bonus, a design invoice that also paid a workshop, and a business lunch with the
- * owner's own share in it. The last part of each takes a fixed amount and the first the rest.
+ * Four ledger rows split into parts, each found by its day, counterparty and description: a June
+ * salary paid with a results bonus, a design invoice that also paid a workshop, a business lunch
+ * with the owner's own share in it, and an office order with a private item in it. The last part of
+ * each takes a fixed amount and the first the rest.
  */
 const SPLIT_ROWS: readonly FakeSplit[] = [
   { date: '2026-07-12', counterparty: PAYEES.owner.name, description: 'Salary for 2026-06', parts: [['salary-net', null, 'Net salary'], ['salary-bonus', 200, 'Results bonus paid with the salary']] },
   { date: '2026-03-16', counterparty: PAYEES.contractor.name, description: 'Design work', parts: [['external-contractors', null, 'Design work'], ['consulting', 400, 'Workshop facilitation']] },
   { date: '2026-05-10', counterparty: 'BISTRO HARBOUR · business lunch', description: 'Card purchase', parts: [['representation', null, 'Client lunch'], ['owner-loan-out', 25, 'The owner’s own lunch']] },
+  { date: '2025-10-02', counterparty: 'PAPER & INK STORE', description: 'Card purchase', parts: [['office-supplies', null, 'Paper and ink for the office'], ['owner-loan-out', 13.45, 'Private share of the paper and ink order']] },
 ]
 
 function splitsValues(ledger: readonly (readonly CellValue[])[]): CellValue[][] {
@@ -497,8 +498,7 @@ const MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'long', year: '
 /**
  * The `outgoing-plan` tab of Northwind's work: each worked month's fee and extras add up to its
  * invoice, the extra sprint is a bonus, and October is planned but not invoiced yet. Lumen's
- * invoices have no plan rows. Columns H and I hold a block of the Sheet's own formulas, which the
- * reader skips.
+ * invoices have no plan rows.
  */
 function billingPlanValues(invoices: readonly FakeInvoice[]): CellValue[][] {
   const invoiced = invoices
@@ -514,15 +514,11 @@ function billingPlanValues(invoices: readonly FakeInvoice[]): CellValue[][] {
         [invoice.workedIn === MONTHS[0] ? 'Part Time Fee' : 'Monthly Fee', serialOf(lastDayOf(invoice.workedIn)), fee, 'northwind', `Fee for ${MONTH_AND_YEAR.format(new Date(`${invoice.workedIn}-01`))}`],
       ]
     })
-  const planned: CellValue[][] = [
+  return [
+    ['item', 'date', 'amount', 'client', 'description'],
     ...invoiced,
     ['Monthly Fee', serialOf('2026-10-31'), 7200, 'northwind', 'Fee for October 2026'],
     ['Subscription', serialOf('2026-10-31'), 60, 'Northwind', 'Model API seat'],
-  ]
-  const formulaBlock: CellValue[][] = [['Name', ''], ['Monthly Amount', 7200], ['Bonus', 4800]]
-  return [
-    ['item', 'date', 'amount', 'client', 'description', '', '', 'Constants', ''],
-    ...planned.map((row, index) => [...row, '', '', ...(formulaBlock[index] ?? [])]),
   ]
 }
 

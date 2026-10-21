@@ -22,8 +22,8 @@ export interface SplitPart {
   readonly family: string
   readonly bucket: Bucket
   readonly note: string
-  /** The part's row on the splits tab, or null for a private share still on the owner-advances tab. */
-  readonly sheetRow: number | null
+  /** The part's row on the splits tab. */
+  readonly sheetRow: number
 }
 
 /** A bank row and the parts that count in its place, which add up to it. */

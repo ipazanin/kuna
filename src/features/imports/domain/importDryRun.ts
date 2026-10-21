@@ -73,9 +73,11 @@ export interface DryRunInputs {
  * filed adds nothing. Each statement's new rows must follow every row it shares with the ledger,
  * carry a reference, not predate the account's newest row, and open at the balance the ledger
  * leaves the account at. An account with no rows yet waits until the person starts it at the
- * statement's opening. Statements of one account are taken oldest first, each against where the
- * one before left the account, and a refused one leaves the account where it was, so a later one
- * is refused for the gap. New rows are categorised by the rules, as the ingest does.
+ * statement's opening. A bank export whose label, its file name and hash, is on the ledger already
+ * and that still has new rows is refused, since its rows' keys changed since it was imported.
+ * Statements of one account are taken oldest first, each against where the one before left the
+ * account, and a refused one leaves the account where it was, so a later one is refused for the
+ * gap. New rows are categorised by the rules, as the ingest does.
  */
 export function importDryRun(readings: readonly StatementReading[], inputs: DryRunInputs): ImportDryRun {
   const states = accountStates(inputs.transactions)
@@ -118,6 +120,16 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   if (firstNew < 0) {
     notes.push(statement.rows.length === 0 ? 'The statement has no booked entries, so importing it writes nothing.' : 'Every entry is on the ledger already, so importing it writes nothing.')
     return { statement: shown(null, null, statement.opening), added: [] }
+  }
+  if (statement.source.kind === 'table' && state.labels.has(statement.label)) {
+    return {
+      statement: shown(
+        `Rows of ${statement.label} are on the ledger already, so this file was imported before, and ${firstNew === 0 ? 'none' : 'only some'} of its entries match them now, such as after a change to its profile. Nothing of it is written.`,
+        null,
+        statement.opening,
+      ),
+      added: [],
+    }
   }
   const fresh = statement.rows.slice(firstNew)
   if (inLedger.slice(firstNew).some((held) => held)) {

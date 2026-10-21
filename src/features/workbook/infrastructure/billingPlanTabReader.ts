@@ -3,21 +3,14 @@ import { inTabOrder, isUnreadable, positiveMoney, readRow, refuse, requiredDate,
 import type { RowProblem, TabReading } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 
-/** The columns the app reads and writes. Anything else on the tab is the Sheet's own. */
+/** The columns the app reads and writes. */
 export const BILLING_PLAN_COLUMNS = ['item', 'date', 'amount', 'client', 'description'] as const
 
-/**
- * The `outgoing-plan` tab. Only its five columns are read, and a row with nothing in them is skipped
- * without a problem, because a Sheet may keep its own formulas beside the rows. A client the clients
- * tab does not name leaves the row out.
- */
+/** The `outgoing-plan` tab, its five columns only. A client the clients tab does not name leaves the row out. */
 export function readBillingPlan(rows: readonly SheetRow[], clientSlugs: ReadonlySet<string>): TabReading<BillingItem> {
   const facts: BillingItem[] = []
   const problems: RowProblem[] = []
   for (const row of inTabOrder(rows)) {
-    if (BILLING_PLAN_COLUMNS.every((column) => row.cells[column] === undefined)) {
-      continue
-    }
     const item = readRow(() => readBillingPlanRow(row, clientSlugs))
     if (isUnreadable(item)) {
       problems.push({ sheetRow: row.sheetRow, reason: item.unreadable })

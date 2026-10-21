@@ -20,9 +20,9 @@ function workbookOf(tabs: WorkbookTabs): Workbook {
 
 /** What two reads of the same tabs must agree on. The meta differs by design. */
 function contentOf(workbook: Workbook) {
-  const { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, privateSharesToMove, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, problems } =
+  const { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, problems } =
     workbook
-  return { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, privateSharesToMove, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, problems }
+  return { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, problems }
 }
 
 function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
@@ -186,8 +186,7 @@ describe('exporting', () => {
     expect(workbook.invoices.length).toBeGreaterThan(10)
     expect(workbook.clients).toHaveLength(2)
     expect(workbook.ownerAdvances).toHaveLength(3)
-    expect(workbook.privateSharesToMove).toHaveLength(1)
-    expect(workbook.splits).toHaveLength(3)
+    expect(workbook.splits).toHaveLength(4)
     expect(imported.tabs.splits.every((row) => typeof row.cells.date === 'number' && typeof row.cells.row_balance === 'number')).toBe(true)
     expect(workbook.assets).toHaveLength(2)
     expect(workbook.yearEndLines.length).toBeGreaterThan(40)
@@ -230,7 +229,7 @@ describe('exporting', () => {
 
     const imported = await readWorkbookFile(await writeWorkbookFile(withRules, workbook))
 
-    expect(workbook.problems.map((problem) => problem.tab)).toEqual(['owner-advances'])
+    expect(workbook.problems).toEqual([])
     expect(workbook.rules.map((rule) => [rule.id, rule.enabled, rule.conditions.length])).toEqual([
       ['own-account', true, 1],
       ['tax-code', true, 2],

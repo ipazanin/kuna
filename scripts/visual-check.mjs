@@ -23,13 +23,16 @@
  * It plans a category for 2027 on Forecast, edits, clears and undoes it, and plans a purchase in a
  * workbook without plan rows, which adds the plan tab to a Sheet without it. On Transactions it
  * splits a payment, edits the split, deletes it and undoes the delete, and splits one in a workbook
- * without the splits tab, and on Owner and Review it moves the private share to the splits tab. On
- * Import it drops the sample camt.053 statement and the sample bank export, makes a profile for the
+ * without the splits tab. On Import it drops the sample camt.053 statement and the sample bank export, makes a profile for the
  * export, reads each dry run, confirms it and undoes it, at 360, 430 and 1440 px.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
  *   npm run check:visual -- http://localhost:4173/ledgerboard/
+ *
+ * While working on one screen, `--only billing,owner` limits the run to the screens and flows with those names,
+ * or names that start with them and a hyphen, and `--widths 360,1440` to those widths. A limited
+ * run keeps the other screenshots and says it was limited. The full run without options is the check.
  *
  * Screenshots go to visual-check/ (gitignored), or to VISUAL_OUTPUT_DIR.
  */
@@ -43,12 +46,12 @@ import * as XLSX from 'xlsx'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, importCamtFlow, importTableFlow, invoiceFlow, invoiceRunFlow, moveShareFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, importCamtFlow, importTableFlow, invoiceFlow, invoiceRunFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
+import { runSelection } from './support/runSelection.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
-const BASE = process.argv[2] ?? 'http://localhost:4173/ledgerboard/'
 
 /**
  * Every screen renders at each width. A width with a `theme` renders in that theme only, since the
@@ -65,6 +68,9 @@ const VIEWPORTS = [
   { name: 'wide', width: 1920, height: 1080, alignedCards: true, theme: 'dark' },
   { name: 'wider', width: 2560, height: 1440, alignedCards: true, theme: 'light' },
 ]
+
+const selection = runSelection(VIEWPORTS.map((viewport) => viewport.width))
+const BASE = selection.base
 
 /** A card is a raised surface. One nested inside another card is part of that card. */
 const CARD_SELECTOR = '.rounded-card, .gallery-frame'
@@ -359,9 +365,11 @@ async function slowWebFonts(page) {
 }
 
 mkdirSync(SCREENSHOT_DIR, { recursive: true })
-// Screenshots of a screen that no longer exists would otherwise survive and mislead a review.
-for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => file.endsWith('.png'))) {
-  rmSync(join(SCREENSHOT_DIR, stale))
+// Screenshots of a screen that no longer exists would otherwise survive and mislead a review. A limited run keeps the others.
+if (!selection.limited) {
+  for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => file.endsWith('.png'))) {
+    rmSync(join(SCREENSHOT_DIR, stale))
+  }
 }
 
 /** The fake workbook as an xlsx file, with a ledger row that has no amount and a setting the app does not know. */
@@ -381,10 +389,60 @@ function writeImportFile() {
 const IMPORT_FILE = writeImportFile()
 const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 
-const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars'] })
+/** The editors' flows, each on a fresh load, so the fake Sheet and the workbook kept in this browser start from their seed. */
+const FLOWS = [
+  { name: 'categories', hash: '#/workbook?tab=categories', title: 'Workbook', run: categoryFlow },
+  { name: 'assets', hash: '#/workbook?tab=assets', title: 'Workbook', run: assetFlow },
+  { name: 'invoices', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceFlow },
+  { name: 'invoice-run', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceRunFlow },
+  { name: 'scenarios', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  {
+    name: 'starting-scenarios',
+    hash: '#/pay-scenarios?year=2027',
+    title: 'Pay scenarios',
+    run: startingScenariosFlow,
+    viewports: ['phone', 'phone-large', 'desktop'],
+    queries: { google: '&fake=no-scenarios', excel: '&fake=excel-no-scenarios' },
+  },
+  { name: 'plan', hash: '#/forecast?year=2027', title: 'Forecast', run: planFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  {
+    name: 'plan-tab',
+    hash: '#/forecast?year=2027',
+    title: 'Forecast',
+    run: planTabFlow,
+    viewports: ['phone', 'phone-large', 'desktop'],
+    queries: { google: '&fake=no-plan', excel: '&fake=excel-no-plan' },
+  },
+  { name: 'split', hash: '#/transactions?p=all&q=GADGET', title: 'Transactions', run: splitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  {
+    name: 'split-tab',
+    hash: '#/transactions?p=all&q=GADGET',
+    title: 'Transactions',
+    run: splitFlow,
+    viewports: ['phone', 'desktop'],
+    queries: { google: '&fake=no-splits', excel: '&fake=excel-no-splits' },
+  },
+  { name: 'import-camt', hash: '#/import', title: 'Import', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'import-table', hash: '#/import', title: 'Import', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
+]
+const MODES = [
+  { name: 'google', query: '' },
+  { name: 'excel', query: '&fake=excel' },
+]
 
-for (const viewport of VIEWPORTS) {
-  for (const visit of VISITS) {
+const visits = VISITS.filter((visit) => selection.takes(visit.name))
+const flows = FLOWS.filter((flow) => selection.takes(flow.name))
+const unmatched = selection.unmatched()
+if (unmatched !== null) {
+  console.error(unmatched)
+  process.exit(2)
+}
+
+const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars'] })
+let checked = 0
+
+for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
+  for (const visit of visits) {
     if (viewport.theme && visit.theme !== viewport.theme) continue
     const scope = `${viewport.name} ${visit.name}`
     const context = await browser.createBrowserContext()
@@ -498,6 +556,7 @@ for (const viewport of VIEWPORTS) {
       }
     }
 
+    checked += 1
     console.log(
       `${`${scope} ${visit.theme}`.padEnd(34)} ${String(viewport.width).padStart(4)}px  ` +
         `scroll=${report.scrollWidth} client=${report.clientWidth}  errors=${errors.length}  ` +
@@ -508,53 +567,11 @@ for (const viewport of VIEWPORTS) {
   }
 }
 
-/** The editors' flows, each on a fresh load, so the fake Sheet and the workbook kept in this browser start from their seed. */
-const FLOWS = [
-  { name: 'categories', hash: '#/workbook?tab=categories', title: 'Workbook', run: categoryFlow },
-  { name: 'assets', hash: '#/workbook?tab=assets', title: 'Workbook', run: assetFlow },
-  { name: 'invoices', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceFlow },
-  { name: 'invoice-run', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceRunFlow },
-  { name: 'scenarios', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },
-  {
-    name: 'starting-scenarios',
-    hash: '#/pay-scenarios?year=2027',
-    title: 'Pay scenarios',
-    run: startingScenariosFlow,
-    viewports: ['phone', 'phone-large', 'desktop'],
-    queries: { google: '&fake=no-scenarios', excel: '&fake=excel-no-scenarios' },
-  },
-  { name: 'plan', hash: '#/forecast?year=2027', title: 'Forecast', run: planFlow, viewports: ['phone', 'phone-large', 'desktop'] },
-  {
-    name: 'plan-tab',
-    hash: '#/forecast?year=2027',
-    title: 'Forecast',
-    run: planTabFlow,
-    viewports: ['phone', 'phone-large', 'desktop'],
-    queries: { google: '&fake=no-plan', excel: '&fake=excel-no-plan' },
-  },
-  { name: 'split', hash: '#/transactions?p=all&q=GADGET', title: 'Transactions', run: splitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
-  {
-    name: 'split-tab',
-    hash: '#/transactions?p=all&q=GADGET',
-    title: 'Transactions',
-    run: splitFlow,
-    viewports: ['phone', 'desktop'],
-    queries: { google: '&fake=no-splits', excel: '&fake=excel-no-splits' },
-  },
-  { name: 'move-share', hash: '#/owner', title: 'Owner', run: moveShareFlow, viewports: ['phone', 'phone-large', 'desktop'] },
-  { name: 'move-share-review', hash: '#/review', title: 'Review', run: moveShareFlow, viewports: ['phone', 'phone-large', 'desktop'] },
-  { name: 'import-camt', hash: '#/import', title: 'Import', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
-  { name: 'import-table', hash: '#/import', title: 'Import', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
-]
-const MODES = [
-  { name: 'google', query: '' },
-  { name: 'excel', query: '&fake=excel' },
-]
 
-for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 'desktop'].includes(candidate.name))) {
+for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 'desktop'].includes(candidate.name) && selection.takesWidth(candidate.width))) {
   for (const mode of MODES) {
     for (const theme of THEMES) {
-      for (const flow of FLOWS.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name))) {
+      for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name))) {
         const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
         const context = await browser.createBrowserContext()
         const page = await context.newPage()
@@ -585,6 +602,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 
         }
         if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
         if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
+        checked += 1
         console.log(`${scope.padEnd(44)} ${String(viewport.width).padStart(4)}px  errors=${errors.length}  foreign=${foreignRequests.length}`)
         await context.close()
       }
@@ -593,6 +611,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 
 }
 
 await browser.close()
+if (checked === 0) fail(selection.summary(), 'checked nothing, since none of these screens or flows runs at these widths')
 
 if (overflowSeen.length) {
   console.log('\ncards wider than their content:')
@@ -606,4 +625,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`  ✗ ${failure}`)
   process.exit(1)
 }
-console.log('\nall viewports clean')
+console.log(selection.limited ? `\nevery screen and flow of this limited run clean (${selection.summary()}). The full run without options is the check` : '\nall viewports clean')

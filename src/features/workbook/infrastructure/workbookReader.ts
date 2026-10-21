@@ -1,5 +1,4 @@
 import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
-import { negateMoney } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
 import { readRules } from '../../rules/domain/readRules'
 import type { Rule } from '../../rules/domain/rule'
@@ -10,7 +9,7 @@ import { ledgerRowKeyOf } from '../domain/ledgerRowKey'
 import type { LedgerRowKey } from '../domain/ledgerRowKey'
 import { isVatTreatment } from '../domain/vatTreatment'
 import { ADVANCE_BUCKETS, NO_CLIENT_INVOICING } from '../domain/workbook'
-import type { Account, Category, Client, ClientInvoicing, Invoice, OwnerAdvance, PrivateShareToMove, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
+import type { Account, Category, Client, ClientInvoicing, Invoice, OwnerAdvance, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
 import { readAssets } from './assetsTabReader'
 import { readBillingPlan } from './billingPlanTabReader'
 import { booleanOf, dateOf, inTabOrder, isUnreadable, moneyOf, optionalPeriod, readRow, slugListOf, slugOf, textOf } from './cellReading'
@@ -59,7 +58,6 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     hasClientsTab,
     billingPlan: keep('outgoing-plan', readBillingPlan(snapshot['outgoing-plan'], new Set(clients.map((client) => client.slug))), problems),
     ownerAdvances: advances.facts,
-    privateSharesToMove: advances.privateShares,
     splits: splits.splits,
     assets: keep('assets', readAssets(snapshot.assets, new Set(grants.map((grant) => grant.slug))), problems),
     grants,
@@ -342,35 +340,24 @@ function readInvoiceRow(row: SheetRow): Omit<Invoice, 'deliveryPeriod'> | string
   return { number, client, item: textOf(cells.item), amount, issued, due, sheetRow: row.sheetRow }
 }
 
-export interface OwnerAdvanceReading extends TabReading<OwnerAdvance> {
-  readonly privateShares: readonly PrivateShareToMove[]
-}
-
 /**
  * A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets
- * leaves the row out. A negative amount is a private share of a company payment, which belongs on
- * the splits tab, so it is reported and kept apart to be moved there.
+ * leaves the row out. A negative amount, the owner's private share of a company payment, belongs on
+ * the splits tab and leaves the row out too.
  */
-export function readOwnerAdvanceRows(rows: readonly SheetRow[], categories: readonly Category[]): OwnerAdvanceReading {
+export function readOwnerAdvanceRows(rows: readonly SheetRow[], categories: readonly Category[]): TabReading<OwnerAdvance> {
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
   const facts: OwnerAdvance[] = []
-  const privateShares: PrivateShareToMove[] = []
   const problems: RowProblem[] = []
   for (const row of inTabOrder(rows)) {
     const advance = readOwnerAdvanceRow(row, categoryBySlug)
     if (typeof advance === 'string') {
       problems.push({ sheetRow: row.sheetRow, reason: advance })
-    } else if (advance.amount < 0) {
-      problems.push({
-        sheetRow: row.sheetRow,
-        reason: 'a negative amount is the owner’s private share of a company payment, which belongs on the splits tab. Press "Move to splits" on Owner or Review to move it',
-      })
-      privateShares.push({ date: advance.date, amount: negateMoney(advance.amount), description: advance.description, category: advance.category, sheetRow: advance.sheetRow })
     } else {
       facts.push(advance)
     }
   }
-  return { facts, problems, privateShares }
+  return { facts, problems }
 }
 
 function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, Category>): OwnerAdvance | string {
@@ -385,6 +372,9 @@ function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, 
   }
   if (amount === 0) {
     return 'the amount is zero'
+  }
+  if (amount < 0) {
+    return 'a negative amount is the owner’s private share of a company payment, which belongs on the splits tab. Press "Split" on its bank row on Transactions instead'
   }
   const slug = slugOf(cells.category)
   const category = categoryBySlug.get(slug)

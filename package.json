@@ -17,7 +17,6 @@
     "parity:rules": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-rules.mjs",
     "parity:payroll": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-payroll.mjs",
     "parity:year-end": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-year-end.mjs",
-    "parity:billing": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-billing.mjs",
     "import:local-rates": "node scripts/import-local-rates.mjs",
     "check:round-trip": "node --import ./scripts/support/typescriptResolve.mjs scripts/round-trip-workbook.mjs",
     "check:touch": "node --import ./scripts/support/typescriptResolve.mjs scripts/touch-check.mjs",

@@ -11,7 +11,7 @@
  * the billing plan's next expected invoice opening its month, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a category, an asset and an
  * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a payment split, edited, deleted and
- * brought back, the private share moved to splits on Owner and on Review, a camt.053 statement and a bank export imported on Import, the export
+ * brought back, a camt.053 statement and a bank export imported on Import, the export
  * with a profile made for it, each confirmed and undone, an invoice made and re-exported, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on the Rules tab, the Ruleset search, a
  * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
@@ -24,6 +24,10 @@
  *   npm run build:fake && npm run preview:fake -- --port 4173
  *   npm run check:touch -- http://localhost:4173/ledgerboard/
  *
+ * While working on one screen, `--only billing,owner` limits the run to the steps with those names,
+ * or names that start with them and a hyphen, and `--widths 360,1440` to those widths. A limited
+ * run keeps the other screenshots and says it was limited. The full run without options is the check.
+ *
  * Screenshots go to visual-check/touch/ (gitignored), or to TOUCH_OUTPUT_DIR.
  */
 
@@ -34,15 +38,20 @@ import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { assetFlow, categoryFlow, importCamtFlow, importTableFlow, invoiceFlow, invoiceRunFlow, moveShareFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
+import { assetFlow, categoryFlow, importCamtFlow, importTableFlow, invoiceFlow, invoiceRunFlow, planFlow, planTabFlow, scenarioFlow, splitFlow, startingScenariosFlow } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
+import { runSelection } from './support/runSelection.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUTPUT_DIR = process.env.TOUCH_OUTPUT_DIR ?? join(ROOT, 'visual-check', 'touch')
-const BASE = process.argv[2] ?? 'http://localhost:4173/ledgerboard/'
 const WIDTHS = [360, 430]
 const SMALLEST_TARGET = 44
+const selection = runSelection(WIDTHS)
+const BASE = selection.base
+
+/** Steps that carry on from the page an earlier step left, so a run limited to one of them runs that one too. */
+const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview', 'filter-sheet': 'review-drill' }
 
 /**
  * `ready` appears once the screen drew the fake workbook. `p=all` resets the filters the drills left
@@ -69,29 +78,35 @@ const SCREENS = [
 ]
 
 mkdirSync(OUTPUT_DIR, { recursive: true })
-for (const stale of readdirSync(OUTPUT_DIR).filter((file) => file.endsWith('.png') || file.endsWith('.xlsx'))) {
-  rmSync(join(OUTPUT_DIR, stale))
+if (!selection.limited) {
+  for (const stale of readdirSync(OUTPUT_DIR).filter((file) => file.endsWith('.png') || file.endsWith('.xlsx'))) {
+    rmSync(join(OUTPUT_DIR, stale))
+  }
 }
 const TEMPLATE_FILE = await writeFakeTemplateFile(join(OUTPUT_DIR, 'filled-template.xlsx'))
 const IMPORT_SAMPLES = await writeImportSamples(OUTPUT_DIR)
 
 const failures = []
+let checked = 0
 const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars'] })
 
 try {
-  for (const width of WIDTHS) {
+  for (const width of WIDTHS.filter(selection.takesWidth)) {
     await checkWidth(width)
   }
 } finally {
   await browser.close()
 }
+const unmatched = selection.unmatched()
+if (unmatched !== null) failures.push(unmatched)
+if (checked === 0) failures.push(`${selection.summary()} checked nothing`)
 
 if (failures.length) {
   console.error(`\n${failures.length} problem(s):`)
   for (const failure of failures) console.error(`  ✗ ${failure}`)
   process.exit(1)
 }
-console.log('\nall touch checks clean')
+console.log(selection.limited ? `\nevery step of this limited run clean (${selection.summary()}). The full run without options is the check` : '\nall touch checks clean')
 
 async function checkWidth(width) {
   const context = await browser.createBrowserContext()
@@ -111,6 +126,9 @@ async function checkWidth(width) {
   await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
 
   const step = async (name, run) => {
+    const followed = Object.entries(CARRIES_ON_FROM).some(([later, earlier]) => earlier === name && selection.takes(later))
+    if (!selection.takes(name) && !followed) return
+    checked += 1
     const scope = `${width}px ${name}`
     const startedAt = Date.now()
     try {
@@ -642,8 +660,6 @@ async function checkWidth(width) {
       ['plan-tab', '#/forecast?year=2027', 'Forecast', planTabFlow, mode === 'google' ? '&fake=no-plan' : '&fake=excel-no-plan'],
       ['split', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow],
       ['split-tab', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow, mode === 'google' ? '&fake=no-splits' : '&fake=excel-no-splits'],
-      ['move-share', '#/owner', 'Owner', moveShareFlow],
-      ['move-share-review', '#/review', 'Review', moveShareFlow],
       ['import-camt', '#/import', 'Import', importCamtFlow(IMPORT_SAMPLES.camt)],
       ['import-table', '#/import', 'Import', importTableFlow(IMPORT_SAMPLES.table)],
     ]) {

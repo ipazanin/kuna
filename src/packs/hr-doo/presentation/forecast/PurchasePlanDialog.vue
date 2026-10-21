@@ -75,7 +75,7 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const row = props.purchase === null ? null : writes.rowOf(props.purchase)
   if (row === null) return
-  if (await writes.write({ added: [], changed: [], removed: [row] }, { title: 'Purchase deleted', description: `Row ${row.sheetRow} of ${writes.where()} is cleared.` }, 'Not deleted')) open.value = false
+  if (await writes.write({ added: [], changed: [], removed: [row] }, { title: 'Purchase deleted', description: `Row ${row.sheetRow} of ${writes.where()} is taken out.` }, 'Not deleted')) open.value = false
 }
 </script>
 

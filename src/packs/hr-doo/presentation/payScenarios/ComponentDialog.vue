@@ -178,7 +178,7 @@ async function remove(): Promise<void> {
   if (component === null || cells === null) return
   const deleted = await writes.write(
     { added: [], changed: [], removed: [{ sheetRow: component.sheetRow, cells }] },
-    { title: 'Component deleted', description: `Row ${component.sheetRow} of ${writes.where()} is cleared.` },
+    { title: 'Component deleted', description: `Row ${component.sheetRow} of ${writes.where()} is taken out.` },
     'Not deleted',
   )
   if (deleted) open.value = false
