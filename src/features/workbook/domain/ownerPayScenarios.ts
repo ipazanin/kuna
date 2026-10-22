@@ -30,7 +30,7 @@ export type ScenarioComponent = ComponentSpan &
 /** A named owner pay mix for one year, from the rows of the `scenarios` tab that share its name. */
 export interface OwnerPayScenario {
   readonly slug: string
-  /** From the first of its rows that gives one. Blank when none does. */
+  /** The label its rows give. Blank when none gives one or they differ. */
   readonly label: string
   readonly year: number
   /** In tab order. */

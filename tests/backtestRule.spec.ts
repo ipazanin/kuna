@@ -65,12 +65,6 @@ describe('backtestRuleChange', () => {
     expect(changed.map((change) => change.transaction.amount)).not.toContain(-6000)
   })
 
-  it('places a candidate after an existing rule of the same order, as an appended row lands', () => {
-    const sameOrder = { ...rule('also-travel', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'equipment'), sheetRow: null }
-
-    expect(Object.values(backtestRuleChange(RULES, [...RULES, sameOrder], rows, context)).flat()).toEqual([])
-  })
-
   it('settles nothing with a review rule', () => {
     const candidate = rule('model-review', 50, [{ column: 'counterparty_contains', fragment: 'MODEL API' }], '', 'review')
 

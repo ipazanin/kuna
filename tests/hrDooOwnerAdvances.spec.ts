@@ -123,8 +123,8 @@ describe('owner advances', () => {
     )
 
     expect(book.advances.map((line) => [line.advance.description, line.repaidOn])).toEqual([
-      ['Notary', civil('2025-12-09')],
       ['Court fee', civil('2025-12-09')],
+      ['Notary', civil('2025-12-09')],
       ['Flights', civil('2025-07-10')],
       ['Tolls', civil('2025-12-09')],
       ['Client lunch', civil('2025-07-10')],

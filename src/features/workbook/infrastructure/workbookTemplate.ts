@@ -18,7 +18,7 @@ export interface TemplateColumn {
 
 const RULE_COLUMN_NOTES: Readonly<Record<(typeof RULE_COLUMNS)[number], string>> = {
   rule: 'A short id, used once, such as merchant-telecom. Required.',
-  order: 'A number. Rules are tried from the lowest, and the first enabled one whose conditions all hold decides the row. Required.',
+  order: 'A number. Rules are tried from the lowest, and the first enabled one whose conditions all hold decides the row. Give each enabled rule its own order. Required.',
   enabled: 'TRUE or FALSE. A FALSE rule is kept but never tried. Required.',
   direction: 'Condition: credit for money in, debit for money out, or blank.',
   counterparty_iban: 'Condition: the counterparty IBAN, spaces and case ignored.',
@@ -38,6 +38,17 @@ const RULE_COLUMN_NOTES: Readonly<Record<(typeof RULE_COLUMNS)[number], string>>
   category: 'What the rule files the row as, from the categories tab. A review rule may leave it blank.',
   confidence: 'rule files the row as settled. review files it as ai, so it waits for review.',
   note: 'Why the rule exists and why it sits where it does. Optional.',
+}
+
+/** The tabs whose rows have no business key of their own, so each row carries an id. */
+export const TABS_WITH_IDS = ['outgoing-plan', 'owner-advances', 'assets', 'year-end', 'plan', 'splits', 'dismissed'] as const satisfies readonly WorkbookTab[]
+
+/** The column that holds a row's id on the tabs that carry one. */
+export const ID_COLUMN = 'id'
+
+const ID_TEMPLATE_COLUMN: TemplateColumn = {
+  name: ID_COLUMN,
+  note: 'A code the app gives each row so it can find the row again. Leave it as it is. On a copied row, clear it, and the app gives the copy its own.',
 }
 
 /**
@@ -111,7 +122,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'client', note: 'A short name in lower case, such as northwind. One row per IBAN, so a client paying from two accounts has two rows. Required.' },
     { name: 'name', note: 'What the screens call the client. Optional.' },
     { name: 'iban', note: 'An IBAN the client pays from. A payment from it counts against that client’s invoices. Required.' },
-    { name: 'address', note: 'The street and town an invoice to the client prints. Fill it on the client’s first row. Needed to make an invoice.' },
+    { name: 'address', note: 'The street and town an invoice to the client prints. Fill it on one of the client’s rows, or the same on each. Needed to make an invoice.' },
     { name: 'country', note: 'The country printed under the address. Optional.' },
     { name: 'tax_id', note: 'The client’s tax or VAT ID, printed on the invoice. Optional.' },
     { name: 'invoice_mail', note: 'Who the invoice mail goes to, one address. Optional.' },
@@ -124,6 +135,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'amount', note: 'What to invoice for it, as a number above zero. A formula is fine. Required.' },
     { name: 'client', note: 'Who to invoice, by the client name in the clients tab. Required.' },
     { name: 'description', note: 'What the invoice line says, such as October fee. Optional.' },
+    ID_TEMPLATE_COLUMN,
   ],
   'owner-advances': [
     { name: 'date', note: 'When the owner paid, as a date cell. Required.' },
@@ -133,6 +145,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     },
     { name: 'description', note: 'What it was for. Optional.' },
     { name: 'category', note: 'A category from the categories tab in the operating or taxes bucket. The cost counts there on its date. Required.' },
+    ID_TEMPLATE_COLUMN,
   ],
   assets: [
     { name: 'asset', note: 'What was bought, such as Laptop 14 inch. Each asset once. Required.' },
@@ -145,6 +158,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'funded_by', note: 'The grant that paid for it, by the name in the grants tab. Optional.' },
     { name: 'ledger_reference', note: 'Text that finds the purchase on the ledger, such as its bank reference. Optional.' },
     { name: 'note', note: 'Anything worth keeping with it. Optional.' },
+    ID_TEMPLATE_COLUMN,
   ],
   grants: [
     { name: 'grant', note: 'A short name in lower case, such as startup-grant. Each grant once. Required.' },
@@ -182,6 +196,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'aop', note: 'The AOP code of the line on the official form, when the package has one. Optional.' },
     { name: 'source', note: 'The file the figure was read from. Optional.' },
     { name: 'note', note: 'Anything worth keeping with it. Optional.' },
+    ID_TEMPLATE_COLUMN,
   ],
   plan: [
     { name: 'year', note: 'The year planned, such as 2027. Required.' },
@@ -203,10 +218,11 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
       note: 'On a purchase, the day it is bought and put in use, as a date cell. Required there. On an owner_pay_scenario row, the day a second scenario takes over from the one without a date.',
     },
     { name: 'group', note: `On a purchase, its depreciation group: ${ASSET_GROUPS.join(', ')}. Required there.` },
+    ID_TEMPLATE_COLUMN,
   ],
   scenarios: [
     { name: 'scenario', note: 'A short name in lower case. The rows that share it make one owner pay scenario. Required.' },
-    { name: 'label', note: 'What the screens call the scenario. Optional, read from its first row that has one.' },
+    { name: 'label', note: 'What the screens call the scenario. Optional. Rows of one scenario that give it differently read blank.' },
     { name: 'year', note: 'The year the scenario is for. Every row of a scenario has the same year. Required.' },
     {
       name: 'component',
@@ -234,6 +250,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     },
     { name: 'category', note: 'A category from the categories tab. The part counts there, with its own timing. Required.' },
     { name: 'note', note: 'What this part paid for. Optional.' },
+    ID_TEMPLATE_COLUMN,
   ],
   dismissed: [
     { name: 'kind', note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}, the two lists of confirmed rows no rule repeats on Review. Required.` },
@@ -243,7 +260,13 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     },
     { name: 'category', note: "The category most of the group's rows were in when it was dismissed. Optional." },
     { name: 'dismissed_on', note: 'The day it was dismissed, as a date cell. Optional.' },
+    ID_TEMPLATE_COLUMN,
   ],
+}
+
+/** The tab's columns other than its id, which a row the app writes is found again by. */
+export function contentColumns(tab: WorkbookTab): string[] {
+  return TEMPLATE_COLUMNS[tab].map((column) => column.name).filter((name) => name !== ID_COLUMN)
 }
 
 interface CategorySeed {

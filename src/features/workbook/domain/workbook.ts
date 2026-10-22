@@ -4,6 +4,7 @@ import { anchorWindow } from '../../../shared/calendar/ledgerWindow'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
+import { naturalOrder } from '../../../shared/text/naturalOrder'
 import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
 import type { Asset } from './assets'
@@ -60,9 +61,9 @@ export interface Transaction {
   readonly account: string
   readonly date: CivilDate
   /**
-   * Booking order across the whole ledger, oldest first. It comes from the tab's own order, which
-   * is newest first with the last booking of a day on top, so the highest sequence on an account's
-   * latest date is its closing balance.
+   * Booking order across the whole ledger, oldest first, as `bookingOrder` derives it from the
+   * fields: by date, then by account name, then in the order each account's balances chain. So the
+   * highest sequence on an account's latest date is its closing balance.
    */
   readonly sequence: number
   readonly statement: string
@@ -90,7 +91,7 @@ export interface Transaction {
 /** Where a part of a split row comes from: the bank row as booked, and the part's place among its parts. */
 export interface SplitPartOf {
   readonly whole: Transaction
-  /** From 0, in the order of the splits tab. */
+  /** From 0, larger parts first. */
   readonly index: number
   readonly count: number
   readonly note: string
@@ -114,8 +115,13 @@ export interface Invoice {
   readonly due: CivilDate | null
   /** The period the work was delivered in, or null when the tab leaves it blank and the issue date stands for it. */
   readonly deliveryPeriod: DateRange | null
-  /** The 1-based row on the tab, which is also the order the invoices were written in. */
+  /** The 1-based row on the tab when it was read. */
   readonly sheetRow: number
+}
+
+/** The order invoices were issued in: by issue date, then by number, with the numbers inside it compared as numbers. */
+export function invoiceOrder(earlier: Pick<Invoice, 'issued' | 'number'>, later: Pick<Invoice, 'issued' | 'number'>): number {
+  return earlier.issued.localeCompare(later.issued) || naturalOrder(earlier.number, later.number)
 }
 
 /** A client from the `clients` tab, which holds one row per IBAN. */
@@ -154,6 +160,18 @@ export interface OwnerAdvance {
   readonly family: string
   readonly bucket: Bucket
   readonly sheetRow: number
+  /** Absent on a row from before rows carried an id. */
+  readonly id?: string
+}
+
+/** Costs the owner paid, oldest first, and on one day by amount, description and category. */
+export function ownerAdvanceOrder(earlier: OwnerAdvance, later: OwnerAdvance): number {
+  return (
+    earlier.date.localeCompare(later.date) ||
+    earlier.amount - later.amount ||
+    naturalOrder(earlier.description, later.description) ||
+    naturalOrder(earlier.category, later.category)
+  )
 }
 
 /** The buckets a cost the owner paid privately may count in. */
@@ -196,7 +214,7 @@ export interface Workbook {
   readonly ledgerSheetId: number | null
   /** ISO timestamp of the read this copy came from, or of the last change kept in this browser. */
   readonly syncedAt: string
-  /** Newest first, as the tab holds them. */
+  /** In the order the tab holds them, which the Apps Script keeps newest first. `sequence` gives the booking order. */
   readonly transactions: readonly Transaction[]
   readonly categories: readonly Category[]
   readonly accounts: readonly Account[]

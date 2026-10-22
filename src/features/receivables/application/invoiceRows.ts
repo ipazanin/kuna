@@ -7,11 +7,11 @@ import { editsOf, untouchedOf } from '../../workbook/application/tabRowWrites'
 import type { TabRowRules } from '../../workbook/application/tabRowWrites'
 import type { RowCells } from '../../workbook/domain/rowChanges'
 import { definedClientSlugs, readInvoiceRows } from '../../workbook/infrastructure/workbookReader'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
+import { contentColumns } from '../../workbook/infrastructure/workbookTemplate'
 import { invoiceChangeRefusals } from '../domain/invoiceGuards'
 
 /** The eight columns the invoice generator writes. It refuses a tab whose header lacks one or names another, so the app needs all eight too. */
-const INVOICE_COLUMNS = TEMPLATE_COLUMNS.invoices.map((column) => column.name)
+const INVOICE_COLUMNS = contentColumns('invoices')
 
 /** An invoice as the dialog gives it. A blank due date or delivery period is null. */
 export interface InvoiceDraft {

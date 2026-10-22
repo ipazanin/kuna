@@ -9,7 +9,7 @@ import { canUndo, wasUndone } from '../src/features/workbook/application/workboo
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
 import { civil, euros } from './fixtures/ledger'
-import { cellData, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { AN_ID, cellData, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -63,7 +63,7 @@ describe.each([
 
     const receipt = await addAdvance(store, DESK)
 
-    expect(receipt?.added).toEqual([{ sheetRow: 3, cells: { date: 46305, amount: 117.3, description: 'Desk lamp', category: 'equipment' } }])
+    expect(receipt?.added).toEqual([{ sheetRow: 3, cells: { date: 46305, amount: 117.3, description: 'Desk lamp', category: 'equipment', id: AN_ID } }])
     expect(store.state.workbook?.ownerAdvances.map((advance) => [advance.date, advance.amount, advance.category, advance.bucket])).toEqual([
       ['2026-06-27', euros(40), 'equipment', 'operating'],
       ['2026-10-10', euros(117.3), 'equipment', 'operating'],
@@ -145,16 +145,16 @@ describe('owner writes to a Google Sheet', () => {
     expect(writtenRanges()).toEqual(['categories!C6'])
   })
 
-  it('writes the date as a serial number and the bucket as one cell, found by its header', async () => {
+  it('writes the date as a serial number, a new id under an id header the tab lacked, and the bucket as one cell, found by its header', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, gridsWithOwnerTabs())
 
     await addAdvance(store, DESK)
     await switchLoans(store, 'financing', ['owner-loan-out'])
 
     expect(sentRequests(sheets).find((request) => 'appendCells' in request)).toEqual({
-      appendCells: { sheetId: (await sheets.sheetIds()).get('owner-advances'), rows: [{ values: [46305, 117.3, 'Desk lamp', 'equipment'].map(cellData) }], fields: 'userEnteredValue' },
+      appendCells: { sheetId: (await sheets.sheetGrids()).get('owner-advances')?.sheetId, rows: [{ values: [...[46305, 117.3, 'Desk lamp', 'equipment'].map(cellData), { userEnteredValue: { stringValue: AN_ID } }] }], fields: 'userEnteredValue' },
     })
-    expect(writtenRanges()).toEqual(['categories!C5'])
+    expect(writtenRanges()).toEqual(["'owner-advances'!E1", 'categories!C5'])
   })
 
   it('refuses an advance on a Sheet without an owner-advances tab, and a bucket for a category row that two rows match', async () => {

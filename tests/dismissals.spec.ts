@@ -39,7 +39,7 @@ function deskGroup(store: WorkbookStore) {
 }
 
 describe('the dismissed tab', () => {
-  it('reads one row per dismissal and reports a row it cannot use', () => {
+  it('reads one row per dismissal, and reports a row it cannot use and every row of a suggestion dismissed twice', () => {
     const reading = readDismissals(
       sheetRowsFromValues([
         HEADER,
@@ -52,15 +52,13 @@ describe('the dismissed tab', () => {
       ]),
     )
 
-    expect(reading.facts).toEqual([
-      { kind: 'not-covered', key: DESK_KEY, category: 'equipment', dismissedOn: '2026-10-21', sheetRow: 2 },
-      { kind: 'exception', key: 'name:corner shop', category: '', dismissedOn: null, sheetRow: 3 },
-    ])
+    expect(reading.facts).toEqual([{ kind: 'exception', key: 'name:corner shop', category: '', dismissedOn: null, sheetRow: 3 }])
     expect(reading.problems.map((problem) => [problem.sheetRow, problem.reason])).toEqual([
-      [4, `${DESK_KEY} is already dismissed above`],
       [5, '"rule" is not a kind of suggestion. Use not-covered, exception'],
       [6, 'no key'],
       [7, 'dismissed_on "Tuesday" is not a date cell'],
+      [2, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
+      [4, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
     ])
   })
 
@@ -125,10 +123,10 @@ describe('dismissals written to a Google Sheet without the tab', () => {
     await expect(store.changeRows(DISMISSED_ROWS, change)).rejects.toThrow('The workbook has no dismissed tab')
     await store.changeRows(DISMISSED_ROWS, change, true)
 
-    const dismissed = (await sheets.sheetIds()).get('dismissed')!
+    const dismissed = (await sheets.sheetGrids()).get('dismissed')!.sheetId
     expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells', 'repeatCell'])
     expect(sentRequests(sheets)[3]).toEqual(dateFormat(dismissed, 1, 3))
-    expect(sheets.grids.dismissed?.[0]).toEqual(HEADER)
+    expect(sheets.grids.dismissed?.[0]).toEqual([...HEADER, 'id'])
     expect(store.state.snapshot?.meta.missingTabs).not.toContain('dismissed')
     expect(coverageOf(store).coverage.notCovered.map((group) => group.key)).not.toContain(DESK_KEY)
   })

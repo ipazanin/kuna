@@ -12,7 +12,6 @@ const CATEGORIES: CellValue[][] = [
   ['Software', 'Operating', 'Operating', '#dce9f9'],
   ['half-filled', 'operating'],
   ['odd-bucket', 'operating', 'expenses'],
-  ['revenue', 'neutral', 'neutral'],
 ]
 
 function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGORIES, settings: CellValue[][] = []): WorkbookSnapshot {
@@ -81,20 +80,41 @@ describe('readWorkbook', () => {
     expect(workbook.transactions.map((transaction) => transaction.reference)).toEqual(['11573920468', '2026-208813590-11502274931'])
   })
 
-  it('numbers the sequence from the tab position, so the top row is the newest booking', () => {
+  it('numbers the sequence from the balance chain, wherever the rows sit on the tab', () => {
     const workbook = readWorkbook(
       snapshotWith([
         ['date', 'account', 'amount', 'balance'],
-        [46307, 'main', -250, 750],
         [46307, 'main', -1000, 1000],
         [46300, 'main', 2000, 2000],
+        [46307, 'main', -250, 750],
       ]),
     )
 
     expect(workbook.transactions.map((transaction) => [transaction.sheetRow, transaction.sequence])).toEqual([
-      [2, 3],
-      [3, 2],
-      [4, 1],
+      [2, 2],
+      [3, 1],
+      [4, 3],
+    ])
+    expect(workbook.problems.filter((problem) => problem.tab === 'ledger')).toEqual([])
+  })
+
+  it('reports a day whose balances do not chain on the row its guessed order closes with', () => {
+    const workbook = readWorkbook(
+      snapshotWith([
+        ['date', 'account', 'amount', 'balance', 'reference'],
+        [46307, 'main', -250, 700, 'B'],
+        [46307, 'main', -1000, 1000, 'A'],
+        [46300, 'main', 2000, 2000, 'C'],
+      ]),
+    )
+
+    expect(workbook.transactions.map((transaction) => transaction.reference)).toEqual(['B', 'A', 'C'])
+    expect(workbook.problems.filter((problem) => problem.tab === 'ledger')).toEqual([
+      {
+        tab: 'ledger',
+        sheetRow: 2,
+        reason: 'the balances of the main rows of 2026-10-12 do not follow from one another, so they are ordered by reference and this row\'s balance closing the day is a guess',
+      },
     ])
   })
 
@@ -128,17 +148,33 @@ describe('readWorkbook', () => {
     ])
   })
 
-  it('keeps the first definition of a category and reports the rows it could not use', () => {
-    const workbook = readWorkbook(snapshotWith([['date']]))
+  it('reports the rows it could not use as categories, and defines a category on two rows by neither', () => {
+    const workbook = readWorkbook(snapshotWith([['date']], [...CATEGORIES, ['revenue', 'neutral', 'neutral']]))
 
-    expect(workbook.categories.map((category) => [category.slug, category.bucket])).toEqual([
-      ['revenue', 'income'],
-      ['software', 'operating'],
-    ])
+    expect(workbook.categories.map((category) => [category.slug, category.bucket])).toEqual([['software', 'operating']])
     expect(workbook.problems).toEqual([
+      { tab: 'categories', sheetRow: 2, reason: '"revenue" is defined on more than one row, so none of them counts' },
       { tab: 'categories', sheetRow: 4, reason: 'category, family and bucket are not all filled' },
       { tab: 'categories', sheetRow: 5, reason: '"expenses" is not a bucket' },
-      { tab: 'categories', sheetRow: 6, reason: '"revenue" is already defined above' },
+      { tab: 'categories', sheetRow: 6, reason: '"revenue" is defined on more than one row, so none of them counts' },
+    ])
+  })
+
+  it('reads an account named on two rows from neither', () => {
+    const workbook = readWorkbook({
+      ...snapshotWith([['date']]),
+      accounts: sheetRowsFromValues([
+        ['account', 'iban'],
+        ['main', 'XX00FAKE0001'],
+        ['Main', 'XX00FAKE0002'],
+        ['travel', ''],
+      ]),
+    })
+
+    expect(workbook.accounts.map((account) => account.slug)).toEqual(['travel'])
+    expect(workbook.problems.filter((problem) => problem.tab === 'accounts').map((problem) => [problem.tab, problem.sheetRow, problem.reason])).toEqual([
+      ['accounts', 2, 'main is named on more than one row, so none of them counts'],
+      ['accounts', 3, 'main is named on more than one row, so none of them counts'],
     ])
   })
 
@@ -212,7 +248,7 @@ describe('readWorkbook', () => {
     ])
   })
 
-  it('reads invoices and clients, keeping a number as text and leaving out what the matching cannot use', () => {
+  it('reads invoices and clients, keeping a number as text and leaving out every row of an IBAN or a number given twice', () => {
     const workbook = readWorkbook({
       ...snapshotWith([['date']]),
       clients: sheetRowsFromValues([
@@ -233,21 +269,47 @@ describe('readWorkbook', () => {
       ]),
     })
 
-    expect(workbook.clients).toEqual([{ slug: 'north', name: 'North Ltd', ibans: ['XX00FAKE0101', 'XX00FAKE0102'], invoicing: NO_CLIENT_INVOICING }])
+    expect(workbook.clients).toEqual([{ slug: 'north', name: '', ibans: ['XX00FAKE0102'], invoicing: NO_CLIENT_INVOICING }])
     expect(workbook.invoices.map((invoice) => [invoice.number, invoice.client, invoice.amount, invoice.issued, invoice.due])).toEqual([
-      ['1-1-26', 'north', 120050, '2026-01-28', '2026-02-28'],
       ['2-1-26', 'north', 30000, '2026-02-27', null],
       ['3-1-26', 'east', 10000, '2026-03-09', null],
     ])
     expect(workbook.problems.filter((problem) => problem.tab !== 'categories').map((problem) => [problem.tab, problem.sheetRow])).toEqual([
+      ['clients', 2],
       ['clients', 4],
       ['clients', 5],
+      ['invoices', 2],
       ['invoices', 4],
       ['invoices', 5],
       ['invoices', 6],
       ['invoices', 7],
     ])
+    expect(workbook.problems.find((problem) => problem.tab === 'clients' && problem.sheetRow === 2)?.reason).toBe('XX00FAKE0101 is on more than one row, so none of them counts')
+    expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.sheetRow === 2)?.reason).toBe(
+      'invoice 1-1-26 for north is listed on more than one row, so none of them counts',
+    )
     expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.sheetRow === 5)?.reason).toMatch(/east is not on the clients tab/)
+  })
+
+  it('reads a name or invoice detail a client’s rows give differently as blank, and reports it on each of its rows', () => {
+    const workbook = readWorkbook({
+      ...snapshotWith([['date']]),
+      clients: sheetRowsFromValues([
+        ['client', 'name', 'iban', 'address', 'reverse_charge'],
+        ['north', 'North Ltd', 'XX00FAKE0101', '1 Road', true],
+        ['north', 'North Limited', 'XX00FAKE0102', '', false],
+        ['north', '', 'XX00FAKE0103', '1 Road', ''],
+      ]),
+    })
+
+    expect(workbook.clients).toEqual([
+      { slug: 'north', name: '', ibans: ['XX00FAKE0101', 'XX00FAKE0102', 'XX00FAKE0103'], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Road' } },
+    ])
+    expect(workbook.problems.filter((problem) => problem.tab === 'clients').map((problem) => [problem.sheetRow, problem.reason])).toEqual([
+      [2, 'the rows of north give name, reverse_charge differently, so they read blank'],
+      [3, 'the rows of north give name, reverse_charge differently, so they read blank'],
+      [4, 'the rows of north give name, reverse_charge differently, so they read blank'],
+    ])
   })
 
   it('reads an advance as a cost the owner paid, and leaves out a negative one, a zero, a text amount and a category outside the operating and taxes buckets', () => {

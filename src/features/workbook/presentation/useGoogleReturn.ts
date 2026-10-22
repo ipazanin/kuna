@@ -1,7 +1,7 @@
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useWorkbook } from '../application/workbookStore'
-import type { RedirectReturn } from '../infrastructure/googleRedirect'
+import type { RedirectReturn } from '../../../shared/google/googleRedirect'
 
 /**
  * Picks up after a redirect sign-in: reads the Sheet again or opens the Picker when that is what the

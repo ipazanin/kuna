@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
+import { naturalOrder } from '../../../shared/text/naturalOrder'
 
 /** One row of the `outgoing-plan` tab: something to invoice a client, billable from its date. */
 export interface BillingItem {
@@ -13,4 +14,17 @@ export interface BillingItem {
   readonly client: string
   readonly description: string
   readonly sheetRow: number
+  /** Absent on a row from before rows carried an id. */
+  readonly id?: string
+}
+
+/** Items oldest first, and on one day by item, amount, description and client. */
+export function billingItemOrder(earlier: Omit<BillingItem, 'sheetRow'>, later: Omit<BillingItem, 'sheetRow'>): number {
+  return (
+    earlier.date.localeCompare(later.date) ||
+    naturalOrder(earlier.item, later.item) ||
+    earlier.amount - later.amount ||
+    naturalOrder(earlier.description, later.description) ||
+    naturalOrder(earlier.client, later.client)
+  )
 }

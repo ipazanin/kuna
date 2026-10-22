@@ -1,3 +1,5 @@
+import { expect } from 'vitest'
+
 import { columnLetter } from '../../src/shared/text/columnLetter'
 import { RULE_COLUMNS } from '../../src/features/rules/domain/rule'
 import { createWorkbookStore } from '../../src/features/workbook/application/workbookStore'
@@ -47,6 +49,9 @@ export const LEDGER_ROWS: CellValue[][] = [
 export function ruleRow(cells: Partial<Record<(typeof RULE_COLUMNS)[number], CellValue>>): CellValue[] {
   return RULE_COLUMNS.map((column) => cells[column] ?? '')
 }
+
+/** A new row's id as the app makes one: a version 4 UUID. */
+export const AN_ID = expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
 
 /** A cell as an updateCells or appendCells request carries it, a blank one as no value. */
 export function cellData(value: CellValue): CellData {

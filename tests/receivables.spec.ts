@@ -56,6 +56,15 @@ function states(receivables: ClientReceivables) {
 }
 
 describe('invoice matching', () => {
+  it('fills invoices issued on one day by number, compared as numbers, wherever their rows sit', () => {
+    const north = client(match([paid('2026-02-10', 100)], [invoice('10-1-26', 100, '2026-01-31'), invoice('9-1-26', 100, '2026-01-31')]), 'north')
+
+    expect(states(north)).toEqual([
+      ['10-1-26', 'outstanding', euros(100), null],
+      ['9-1-26', 'paid', euros(0), civil('2026-02-10')],
+    ])
+  })
+
   it('fills invoices oldest first and lets a payment reach only invoices issued by its day', () => {
     const north = client(
       match(
@@ -123,16 +132,14 @@ describe('invoice matching', () => {
     })
   })
 
-  it('breaks a tie on the issue day by the order the invoices were written, and settles nothing on an invoice of nothing', () => {
-    const writtenFirst = invoice('X', 300, '2026-01-31')
-    const writtenSecond = invoice('Y', 200, '2026-01-31')
+  it('lists the invoices in the order given, and settles nothing on an invoice of nothing', () => {
     const nothing = invoice('Z', 0, '2026-01-31')
-    const north = client(match([paid('2026-02-02', 300)], [nothing, writtenSecond, writtenFirst]), 'north')
+    const north = client(match([paid('2026-02-02', 300)], [nothing, invoice('Y', 200, '2026-01-31'), invoice('X', 300, '2026-01-31')]), 'north')
 
     expect(states(north)).toEqual([
-      ['X', 'paid', euros(0), civil('2026-02-02')],
-      ['Y', 'outstanding', euros(200), null],
       ['Z', 'paid', euros(0), null],
+      ['Y', 'outstanding', euros(200), null],
+      ['X', 'paid', euros(0), civil('2026-02-02')],
     ])
   })
 

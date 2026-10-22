@@ -2,8 +2,9 @@ import { nextTick, readonly, ref } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteComponent, RouteRecordRaw, Router } from 'vue-router'
 
+import { installedPack } from '../../features/packs/packContribution'
 import { nameScreen } from './browserTitle'
-import { SCREENS } from './screens'
+import { SCREENS, screensWith } from './screens'
 import type { ScreenPath } from './screens'
 
 /** Each screen is its own chunk, so ECharts and the table load only with the screens that draw them. */
@@ -13,20 +14,8 @@ const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, () => Promise<RouteComponen
   '/review': () => import('../../features/review/presentation/ReviewScreen.vue'),
   '/invoicing': () => import('../../features/invoicing/presentation/InvoicingScreen.vue'),
   '/analysis': () => import('../../features/analysis/presentation/AnalysisScreen.vue'),
-  '/owner': () => import('../../packs/hr-doo/presentation/OwnerScreen.vue'),
-  '/year': () => import('../../packs/hr-doo/presentation/year/YearScreen.vue'),
   '/settings': () => import('../../features/settings/presentation/SettingsScreen.vue'),
 }
-
-const routes: RouteRecordRaw[] = SCREENS.map((screen) => ({ path: screen.path, component: SCREEN_COMPONENTS[screen.path] }))
-
-// Written inline so the production build folds it to false and drops the gallery chunk entirely.
-// The fake build keeps it, because the visual check screenshots the gallery from that build.
-if (import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-  routes.push({ path: '/gallery', component: () => import('../ui/gallery/GalleryScreen.vue') })
-}
-
-routes.push({ path: '/:unknown(.*)*', redirect: '/' })
 
 const loading = ref(false)
 
@@ -48,6 +37,19 @@ const stopLoading = (): void => {
  * the top, and a scroll there could land after a screen scrolled itself to a linked row.
  */
 export function createAppRouter(): Router {
+  const pack = installedPack()
+  const screens = screensWith(pack.screens)
+  const routes: RouteRecordRaw[] = [
+    ...SCREENS.map((screen) => ({ path: screen.path, component: SCREEN_COMPONENTS[screen.path] })),
+    ...pack.screens.map((screen) => ({ path: screen.path, component: screen.component })),
+  ]
+  // Written inline so the production build folds it to false and drops the gallery chunk entirely.
+  // The fake build keeps it, because the visual check screenshots the gallery from that build.
+  if (import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
+    routes.push({ path: '/gallery', component: () => import('../ui/gallery/GalleryScreen.vue') })
+  }
+  routes.push({ path: '/:unknown(.*)*', redirect: '/' })
+
   const router = createRouter({
     history: createWebHashHistory(),
     routes,
@@ -71,7 +73,7 @@ export function createAppRouter(): Router {
     if (failure) {
       return
     }
-    nameScreen(SCREENS.find((candidate) => candidate.path === to.path)?.title ?? null)
+    nameScreen(screens.find((candidate) => candidate.path === to.path)?.title ?? null)
     if (from.matched.length > 0 && to.path !== from.path) {
       void nextTick(() => document.querySelector<HTMLElement>('[data-testid="screen-title"]')?.focus({ preventScroll: true }))
     }

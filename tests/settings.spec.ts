@@ -60,7 +60,20 @@ describe('parseSettings', () => {
 
     expect(settings).toEqual(DEFAULT_SETTINGS)
     expect(problems.map((problem) => problem.sheetRow)).toEqual([2, 3, 4, 5, 6])
-    expect(problems[1]?.reason).toBe('"currency" is already set above')
+    expect(problems.slice(0, 2).map((problem) => problem.reason)).toEqual([
+      '"currency" is set on more than one row, so the default is used',
+      '"currency" is set on more than one row, so the default is used',
+    ])
+  })
+
+  it('offers no import profile whose key is set on more than one row', () => {
+    const { settings, problems } = parseSettings(rows(['import_profile_bank', 'account=main; date=1; amount=2'], ['import_profile_bank', 'account=main; date=1; amount=3']))
+
+    expect(settings.importProfiles).toEqual([])
+    expect(problems.map((problem) => [problem.sheetRow, problem.reason])).toEqual([
+      [2, '"import_profile_bank" is set on more than one row, so the profile is not offered'],
+      [3, '"import_profile_bank" is set on more than one row, so the profile is not offered'],
+    ])
   })
 
   it('refuses a currency the cents arithmetic cannot hold', () => {

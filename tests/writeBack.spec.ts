@@ -115,11 +115,21 @@ describe.each([
 
     await expect(
       store.changeRules({ appended: { rule: 'Merchant-Model', order: 200, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [] }),
-    ).rejects.toThrow('the id "Merchant-Model" is already used on row 2')
+    ).rejects.toThrow('row 3: the id "Merchant-Model" is on more than one row, so none of them is tried')
     await expect(
       store.changeRules({ appended: { rule: 'snacks', order: 200, enabled: true, description_contains: 'X', category: 'snacks', confidence: 'rule' }, edited: [] }),
     ).rejects.toThrow('the categories tab does not define it')
     expect(store.state.workbook!.rules).toHaveLength(1)
+  })
+
+  it('refuses a rule that would share its order with an enabled rule, since the Apps Script breaks that tie by row', async () => {
+    const { store } = await harnessOf(used)
+
+    await expect(
+      store.changeRules({ appended: { rule: 'also-model', order: 100, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [] }),
+    ).rejects.toThrow('Nothing was written. Also-model and merchant-model would share the order 100, and the Apps Script tries rules of one order by their row, so give each its own order.')
+    await store.changeRules({ appended: { rule: 'parked', order: 100, enabled: false, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [] })
+    expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model', 'parked'])
   })
 
   it('refuses any rules change while the tab has a problem elsewhere', async () => {
@@ -175,7 +185,7 @@ describe('writing to a Google Sheet', () => {
 
     await store.setVerdicts([confirmation(row(store, 'MODEL API INC'), settings(store))!])
 
-    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'updateSpreadsheet', 'sheetIds', 'batchGet'])
+    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetGrids', 'batchGet', 'updateSpreadsheet', 'sheetGrids', 'batchGet'])
     expect(sheets.requests[1]).toEqual({ kind: 'batchGet', ranges: ['ledger', 'categories'] })
     expect(sheets.requests[2]).toEqual({
       kind: 'updateSpreadsheet',

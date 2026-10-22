@@ -28,7 +28,8 @@
  * splits a payment, edits the split, deletes it and undoes the delete, and splits one in a workbook
  * without the splits tab. On Review it does the same from a row of the queue, and dismisses a group of
  * confirmed rows no rule repeats, which adds the dismissed tab to a Sheet without it, restores it and
- * undoes the restore. On the Import tab of Transactions it drops the sample camt.053 statement and the
+ * undoes the restore. On Overview it gives the rows of a workbook from before ids their ids, from
+ * the line in Waiting for you and its dialog. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
  * new rows wait on Review and undoes it, at 360, 430 and 1440 px.
  *
@@ -62,6 +63,7 @@ import {
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
+  missingIdsFlow,
   planFlow,
   planTabFlow,
   reviewSplitFlow,
@@ -527,6 +529,7 @@ const FLOWS = [
   { name: 'split-review', hash: '#/review', title: 'Review', run: reviewSplitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'change-category', hash: '#/transactions?p=all&q=CODE%20HOST', title: 'Transactions', run: changeCategoryFlow },
   { name: 'dismiss', hash: '#/review?tab=rules', title: 'Review', run: dismissFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'ids', hash: '#/', title: 'Overview', run: missingIdsFlow, queries: { google: '&fake=no-ids', excel: '&fake=excel-no-ids' } },
   { name: 'import-camt', hash: '#/transactions?tab=import', title: 'Transactions', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'import-table', hash: '#/transactions?tab=import', title: 'Transactions', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
 ]

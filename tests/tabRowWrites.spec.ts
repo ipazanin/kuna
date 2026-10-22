@@ -307,7 +307,7 @@ describe.each([
     expect(store.state.workbook?.yearEndLines).toHaveLength(3)
     await expect(remove(store, GRANT_ROWS, 2)).rejects.toThrow('"startup" cannot be deleted, since it is used by 1 asset.')
     await expect(edit(store, GRANT_ROWS, 3, { grant: 'innovation-2026' })).rejects.toThrow('"innovation" cannot be renamed, since it is used by 1 asset.')
-    await expect(add(store, ASSET_ROWS, { asset: 'Laptop', bought: 46296, cost_net: 420, group: 'computers' })).rejects.toThrow('The new asset would be left out: "Laptop" is already listed above.')
+    await expect(add(store, ASSET_ROWS, { asset: 'Laptop', bought: 46296, cost_net: 420, group: 'computers' })).rejects.toThrow('The new asset would be left out: "Laptop" is listed on more than one row, so none of them counts. Row 2 would then be left out: "Laptop" is listed on more than one row, so none of them counts.')
     await expect(add(store, ASSET_ROWS, { asset: 'Desk', bought: 46296, cost_net: 300, group: 'furniture' })).rejects.toThrow('"furniture" is not a group')
     await expect(add(store, ASSET_ROWS, { asset: 'Desk', bought: 46296, cost_net: 300, group: 'equipment', funded_by: 'lottery' })).rejects.toThrow('lottery is not on the grants tab')
     await expect(add(store, YEAR_END_ROWS, { year: 2025, statement: 'konto', line: '41200', amount: 82.04, categories: 'phones' })).rejects.toThrow('"phones" is not on the categories tab')
@@ -343,7 +343,7 @@ describe.each([
 describe('row writes to a Google Sheet', () => {
   it('writes only the cells that changed, by header, and appends a new category under every header', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, everyTab())
-    const categories = (await sheets.sheetIds()).get('categories')!
+    const categories = (await sheets.sheetGrids()).get('categories')!.sheetId
 
     await edit(store, CATEGORY_ROWS, 2, { colour: '#ffffff' })
     await add(store, CATEGORY_ROWS, STATIONERY)
@@ -357,7 +357,7 @@ describe('row writes to a Google Sheet', () => {
 
   it('appends an invoice in the eight columns, the number as text and every date a serial number, and deletes one by taking its row out', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, everyTab())
-    const invoices = (await sheets.sheetIds()).get('invoices')!
+    const invoices = (await sheets.sheetGrids()).get('invoices')!.sheetId
 
     await add(store, INVOICE_ROWS, { number: '2-1-26', client: 'acme', item: 'October work', amount: 4200, issued: 46326, due: '', period_from: '', period_to: '' })
     await remove(store, INVOICE_ROWS, 2)
@@ -374,12 +374,12 @@ describe('row writes to a Google Sheet', () => {
 
   it('gives every date it writes the date format, a changed date and a year-end date line too', async () => {
     const { store, sheets } = await googleHarness(used, everyTab())
-    const ids = await sheets.sheetIds()
+    const grids = await sheets.sheetGrids()
 
     await edit(store, ASSET_ROWS, 2, { in_use: 45812, note: 'Moved desks' })
     await add(store, YEAR_END_ROWS, { year: 2025, statement: 'tax', line: 'filed-on', amount: 46139 }, { year: 2025, statement: 'pl', line: 'material-costs', amount: 6242.17 })
 
-    expect(sentRequests(sheets).filter((request) => 'repeatCell' in request)).toEqual([dateFormat(ids.get('assets')!, 1, 2), dateFormat(ids.get('year-end')!, 3, 4)])
+    expect(sentRequests(sheets).filter((request) => 'repeatCell' in request)).toEqual([dateFormat(grids.get('assets')!.sheetId, 1, 2), dateFormat(grids.get('year-end')!.sheetId, 3, 4)])
     expect(sheets.formats.assets?.[1]?.[2]).toBe('yyyy-mm-dd')
     expect(sheets.formats.assets?.[1]?.[9]).toBeUndefined()
     expect(sheets.formats['year-end']?.[3]?.[4]).toBe('yyyy-mm-dd')
@@ -388,7 +388,7 @@ describe('row writes to a Google Sheet', () => {
 
   it('sends the cells, the deletions and the new rows of one write in one batchUpdate, in that order', async () => {
     const { store, sheets } = await googleHarness(used, everyTab())
-    const categories = (await sheets.sheetIds()).get('categories')!
+    const categories = (await sheets.sheetGrids()).get('categories')!.sheetId
     await add(store, CATEGORY_ROWS, STATIONERY, { ...STATIONERY, category: 'paper' })
     const paper = rowOf(store, CATEGORY_ROWS, 9)
     sheets.requests.length = 0

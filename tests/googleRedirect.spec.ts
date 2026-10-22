@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { currentGmailToken, signsInByRedirect, takeGoogleRedirect } from '../src/features/workbook/infrastructure/googleAuth'
+import { currentGmailToken, signsInByRedirect, takeGoogleRedirect } from '../src/shared/google/googleAuth'
 import {
   GMAIL_COMPOSE,
   GMAIL_NOT_GRANTED,
@@ -11,9 +11,9 @@ import {
   savePendingRedirect,
   settleRedirect,
   takePendingRedirect,
-} from '../src/features/workbook/infrastructure/googleRedirect'
-import type { PendingRedirect } from '../src/features/workbook/infrastructure/googleRedirect'
-import { loadAccessToken } from '../src/features/workbook/infrastructure/googleSession'
+} from '../src/shared/google/googleRedirect'
+import type { PendingRedirect } from '../src/shared/google/googleRedirect'
+import { loadAccessToken } from '../src/shared/google/googleSession'
 
 const SIGN_IN_SCOPE = 'https://www.googleapis.com/auth/drive.file openid email'
 const PENDING: PendingRedirect = { state: 'one-time-state', grant: 'sign-in', resume: 'sync', route: '#/review?tab=rules' }

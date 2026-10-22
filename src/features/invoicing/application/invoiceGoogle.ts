@@ -1,4 +1,4 @@
-import { currentAccessToken, currentGmailToken, requestGmailToken, requestToken } from '../../workbook/infrastructure/googleAuth'
+import { currentAccessToken, currentGmailToken, requestGmailToken, requestToken } from '../../../shared/google/googleAuth'
 import { gmailDrafts, googleInvoiceDrive } from '../infrastructure/googleInvoiceDrive'
 import type { InvoiceDrive, MailDrafts } from './invoiceRun'
 

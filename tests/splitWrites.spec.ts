@@ -9,7 +9,7 @@ import type { Transaction } from '../src/features/workbook/domain/workbook'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { euros } from './fixtures/ledger'
-import { dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { AN_ID, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -62,8 +62,8 @@ describe.each([
     const receipt = await writeSplit(store, model, [[-12, 'ai-services', 'Seats'], [-8, 'owner-loan-out', 'The owner’s seat']])
 
     expect(receipt?.added.map((row) => row.cells)).toEqual([
-      { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -12, category: 'ai-services', note: 'Seats' },
-      { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -8, category: 'owner-loan-out', note: 'The owner’s seat' },
+      { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -12, category: 'ai-services', note: 'Seats', id: AN_ID },
+      { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -8, category: 'owner-loan-out', note: 'The owner’s seat', id: AN_ID },
     ])
     expect(store.state.workbook?.splits.map((split) => [split.row.sheetRow, split.parts.map((part) => [part.amount, part.category])])).toEqual([
       [
@@ -125,12 +125,12 @@ describe('split writes to a Google Sheet', () => {
     await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']])).rejects.toThrow('The workbook has no splits tab')
     await writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']], true)
 
-    const splits = (await sheets.sheetIds()).get('splits')!
+    const splits = (await sheets.sheetGrids()).get('splits')!.sheetId
     expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells', 'repeatCell'])
     expect(sentRequests(sheets)[3]).toEqual(dateFormat(splits, 1, 0, 2))
     expect(sentRequests(sheets)[0]).toEqual({ addSheet: { properties: { sheetId: splits, title: 'splits' } } })
     expect(sentRequests(sheets)[2]).toMatchObject({ appendCells: { sheetId: splits } })
-    expect(sheets.grids.splits?.[0]).toEqual(SPLIT_HEADER)
+    expect(sheets.grids.splits?.[0]).toEqual([...SPLIT_HEADER, 'id'])
     expect(store.state.workbook?.splits).toHaveLength(1)
   })
 

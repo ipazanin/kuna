@@ -6,9 +6,8 @@ import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../shared/ui/PageTabs.vue'
-import LoanBucketSwitch from '../../../packs/hr-doo/presentation/LoanBucketSwitch.vue'
-import RulesetPanel from '../../../packs/hr-doo/ruleset/presentation/RulesetPanel.vue'
 import ProblemList from '../../excel/presentation/ProblemList.vue'
+import { shownPack } from '../../packs/packContribution'
 import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RowTab } from '../../workbook/application/workbookWriter'
@@ -26,6 +25,7 @@ import { useSettingsSave } from './useSettingsSave'
 const { state } = useWorkbook()
 const route = useRoute()
 const { settings, saving: savingSettings, save: saveSettings } = useSettingsSave()
+const pack = computed(() => shownPack(settings.value))
 
 /** The workbook's tabs need a workbook on screen. This device's tab is there before one is. */
 const tabs = computed((): PageTab[] => [
@@ -35,7 +35,7 @@ const tabs = computed((): PageTab[] => [
         { label: 'General', value: 'general', icon: 'i-lucide-sliders-horizontal' },
         { label: 'Categories', value: 'categories', icon: 'i-lucide-tags' },
         { label: 'Accounts', value: 'accounts', icon: 'i-lucide-landmark' },
-        ...(settings.value.ownerPayModule ? [{ label: 'Ruleset', value: 'ruleset', icon: 'i-lucide-scale' }] : []),
+        ...pack.value.settingsTabs.map(({ label, value, icon }) => ({ label, value, icon })),
       ]),
   { label: 'This device', value: 'device', icon: 'i-lucide-monitor-smartphone' },
 ])
@@ -99,7 +99,7 @@ function saveRows(tab: RowSection, change: TabRowsChange): void {
       <template #general>
         <div v-if="state.workbook" class="flex flex-col gap-6">
           <GeneralSettingsForm :settings="settings" :saving="savingSettings || state.writing" @save="saveSettings" />
-          <LoanBucketSwitch v-if="settings.ownerPayModule" :categories="state.workbook.categories" />
+          <component :is="card" v-for="(card, index) in pack.settingsCards" :key="index" />
           <AppCard
             title="Rows the app could not use as written"
             :subtitle="problems.length > 0 ? 'Each is left out, or read with its default, until it is fixed in the workbook.' : undefined"
@@ -160,8 +160,8 @@ function saveRows(tab: RowSection, change: TabRowsChange): void {
         </AppCard>
       </template>
 
-      <template #ruleset>
-        <RulesetPanel />
+      <template v-for="tab in pack.settingsTabs" #[tab.value]>
+        <component :is="tab.component" />
       </template>
 
       <template #device>

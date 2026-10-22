@@ -11,7 +11,7 @@ import type { Money } from '../../../shared/money/money'
 import { formatMoney } from '../../../shared/money/moneyFormat'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
-import { assetsClaimingRows } from '../../../packs/hr-doo/domain/assets/assetRegister'
+import { installedPack } from '../../packs/packContribution'
 import { rowCellsOf } from '../../workbook/application/tabRowWrites'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -79,7 +79,7 @@ const remainder = computed(() => subtractMoney(whole.value, placed.value))
 
 const claimedBy = computed(() => {
   const workbook = store.state.workbook
-  return workbook === null ? [] : (assetsClaimingRows(workbook.assets, workbook.transactions, workbook.categories).get(props.row.sheetRow) ?? [])
+  return workbook === null ? [] : (installedPack().rowsKeptWhole(workbook).get(props.row.sheetRow) ?? [])
 })
 
 const tabMissing = computed(() => store.state.choice?.source === 'google' && (store.state.snapshot?.meta.missingTabs.includes('splits') ?? false))

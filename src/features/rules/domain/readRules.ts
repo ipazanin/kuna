@@ -1,4 +1,5 @@
 import { normaliseIban } from '../../../shared/text/fold'
+import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { CONDITION_COLUMNS, RULE_COLUMNS, inTryingOrder } from './rule'
 import type { Rule, RuleCondition, RuleConfidence } from './rule'
 import { foldRuleText } from './transactionFacts'
@@ -27,7 +28,7 @@ type ConditionColumnName = (typeof CONDITION_COLUMNS)[number]
  * error for the tab. A refused row is left out, which hands its rows to the rules below it, so the
  * Apps Script would refuse the whole tab where this reports a problem.
  *
- * Refused: an unknown column, no id or one used twice, an order that is not a number, an enabled
+ * Refused: an unknown column, no id or one on more than one row, every row of it, an order that is not a number, an enabled
  * cell that is not TRUE or FALSE, an enabled rule with no condition or an unreadable one, a `rule`
  * confidence rule whose category `definedCategories` lacks, and an enabled rule that tests
  * `counterparty_is_client` in a workbook without a clients tab, which stops the Apps Script's
@@ -36,7 +37,10 @@ type ConditionColumnName = (typeof CONDITION_COLUMNS)[number]
  */
 export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>, hasClientsTab: boolean): RulesRead {
   const problems: RuleTabProblem[] = []
-  const rowById = new Map<string, number>()
+  const shared = sharedKeys(
+    rows.filter((row) => textOf(row.cells.rule) !== ''),
+    (row) => textOf(row.cells.rule).toLowerCase(),
+  )
   const rules: Rule[] = []
   for (const row of [...rows].sort((upper, lower) => upper.sheetRow - lower.sheetRow)) {
     const refuse = (reason: string): void => {
@@ -52,12 +56,10 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
       refuse('no rule id')
       continue
     }
-    const earlierRow = rowById.get(id.toLowerCase())
-    if (earlierRow !== undefined) {
-      refuse(`the id "${id}" is already used on row ${earlierRow}`)
+    if (shared.has(id.toLowerCase())) {
+      refuse(`the id "${id}" is on more than one row, so none of them is tried`)
       continue
     }
-    rowById.set(id.toLowerCase(), row.sheetRow)
     const orderCell = row.cells.order
     const order = Number(orderCell)
     if (textOf(orderCell) === '' || !Number.isFinite(order)) {

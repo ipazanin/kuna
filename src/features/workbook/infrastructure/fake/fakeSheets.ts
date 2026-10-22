@@ -1,10 +1,13 @@
 import type { GoogleSheet } from '../../application/readFromGoogle'
-import type { CellData, RowData, SheetsValues, SpreadsheetRequest, ValueRange } from '../sheetsClient'
+import type { CellData, RowData, SheetGrid, SheetsValues, SpreadsheetRequest, ValueRange } from '../sheetsClient'
 import type { CellValue, WorkbookTab } from '../workbookSnapshot'
 import { FAKE_SHEET_LACKS, FAKE_SPREADSHEET_ID, FAKE_WORKBOOK_TITLE, fakeWorkbookValues } from './fakeWorkbook'
 
+/** How many columns Google gives a new tab. */
+const NEW_TAB_COLUMNS = 26
+
 export type RecordedSheetsRequest =
-  | { readonly kind: 'sheetIds' }
+  | { readonly kind: 'sheetGrids' }
   | { readonly kind: 'batchGet'; readonly ranges: readonly string[] }
   | { readonly kind: 'updateSpreadsheet'; readonly requests: readonly SpreadsheetRequest[] }
 
@@ -14,6 +17,8 @@ export interface FakeSheets extends SheetsValues {
   readonly grids: Record<string, (CellValue | null)[][]>
   /** Each tab's number formats, such as `yyyy-mm-dd`, in the same rows and columns as its cells. A cell without one is null or missing. */
   readonly formats: Record<string, (string | null)[][]>
+  /** Each tab's grid width. A request that writes past it fails, as Google's does. Tests narrow it to play a tab trimmed by hand. */
+  readonly columnCounts: Record<string, number>
   readonly requests: RecordedSheetsRequest[]
   /** The tab a sheet id names, as a request gives it. */
   tabWithId(sheetId: number): string | undefined
@@ -25,6 +30,7 @@ export function createFakeSheets(
 ): FakeSheets {
   const grids: Record<string, (CellValue | null)[][]> = Object.fromEntries(Object.entries(tabs).map(([tab, rows]) => [tab, rows.map((row) => [...row])]))
   const formats: Record<string, (string | null)[][]> = Object.fromEntries(Object.keys(grids).map((tab) => [tab, (numberFormats[tab] ?? []).map((row) => [...row])]))
+  const columnCounts: Record<string, number> = Object.fromEntries(Object.entries(grids).map(([tab, rows]) => [tab, Math.max(NEW_TAB_COLUMNS, ...rows.map((row) => row.length))]))
   const requests: RecordedSheetsRequest[] = []
   const ids = new Map(Object.keys(grids).map((tab, index) => [tab, index]))
 
@@ -41,15 +47,16 @@ export function createFakeSheets(
   return {
     grids,
     formats,
+    columnCounts,
     requests,
 
     tabWithId(sheetId) {
       return [...ids].find(([, id]) => id === sheetId)?.[0]
     },
 
-    async sheetIds() {
-      requests.push({ kind: 'sheetIds' })
-      return new Map(ids)
+    async sheetGrids() {
+      requests.push({ kind: 'sheetGrids' })
+      return new Map([...ids].map(([tab, sheetId]): [string, SheetGrid] => [tab, { sheetId, columnCount: columnCounts[tab]! }]))
     },
 
     async batchGet(ranges) {
@@ -63,12 +70,18 @@ export function createFakeSheets(
       const working: Record<string, (CellValue | null)[][]> = Object.fromEntries(Object.entries(grids).map(([tab, grid]) => [tab, grid.map((row) => [...row])]))
       const workingFormats: Record<string, (string | null)[][]> = Object.fromEntries(Object.entries(formats).map(([tab, grid]) => [tab, grid.map((row) => [...row])]))
       const workingIds = new Map(ids)
+      const workingCounts = { ...columnCounts }
       const tabNameOf = (sheetId: number): string => {
         const tab = [...workingIds].find(([, id]) => id === sheetId)?.[0]
         if (tab === undefined) throw new Error(`400 from the fake Sheet: No grid with id: ${sheetId}`)
         return tab
       }
       const tabOf = (sheetId: number): (CellValue | null)[][] => working[tabNameOf(sheetId)]!
+      const withinGrid = (sheetId: number, columnIndex: number, rows: readonly RowData[]): void => {
+        const last = columnIndex + Math.max(0, ...rows.map((row) => row.values.length)) - 1
+        const count = workingCounts[tabNameOf(sheetId)]!
+        if (last >= count) throw new Error(`400 from the fake Sheet: GridCoordinate.columnIndex[${last}] is after last column in grid[${count - 1}]`)
+      }
       /** The tab's formats, padded to at least this many rows, so a row put in or taken out lines up with the cells. */
       const formatsOf = (sheetId: number, rows: number): (string | null)[][] => {
         const grid = (workingFormats[tabNameOf(sheetId)] ??= [])
@@ -84,6 +97,9 @@ export function createFakeSheets(
           working[title] = []
           workingFormats[title] = []
           workingIds.set(title, sheetId)
+          workingCounts[title] = NEW_TAB_COLUMNS
+        } else if ('appendDimension' in change) {
+          workingCounts[tabNameOf(change.appendDimension.sheetId)]! += change.appendDimension.length
         } else if ('insertDimension' in change) {
           const { sheetId, startIndex, endIndex } = change.insertDimension.range
           const grid = tabOf(sheetId)
@@ -96,9 +112,11 @@ export function createFakeSheets(
           formatsOf(sheetId, endIndex).splice(startIndex, endIndex - startIndex)
         } else if ('updateCells' in change) {
           const { start, rows } = change.updateCells
+          withinGrid(start.sheetId, start.columnIndex, rows)
           writeRows(tabOf(start.sheetId), start.rowIndex, start.columnIndex, rows)
         } else if ('appendCells' in change) {
           const grid = tabOf(change.appendCells.sheetId)
+          withinGrid(change.appendCells.sheetId, 0, change.appendCells.rows)
           // New cells go right after the last row with anything in it.
           writeRows(grid, trimmed(grid).length, 0, change.appendCells.rows)
         } else if ('repeatCell' in change) {
@@ -123,6 +141,7 @@ export function createFakeSheets(
       }
       ids.clear()
       for (const [tab, id] of workingIds) ids.set(tab, id)
+      Object.assign(columnCounts, workingCounts)
     },
   }
 }
@@ -159,14 +178,16 @@ export const fakeGoogleSheet: GoogleSheet = { id: FAKE_SPREADSHEET_ID, name: FAK
 
 let session: FakeSheets | null = null
 let leftOut: readonly WorkbookTab[] = []
+let withIds = true
 
-/** The tabs the fake build's Google Sheet lacks for this page, as its `?fake=` variant says. Set before the first sync or write. */
-export function leaveOutOfFakeSheet(tabs: readonly WorkbookTab[]): void {
+/** The tabs the fake build's Google Sheet lacks for this page, and whether its rows carry ids, as its `?fake=` variant says. Set before the first sync or write. */
+export function shapeFakeSheet(tabs: readonly WorkbookTab[], ids: boolean): void {
   leftOut = tabs
+  withIds = ids
 }
 
 /** The fake build's Google Sheet, the same one for every sync and write until the page reloads. */
 export function fakeSheetsSession(): FakeSheets {
-  session ??= createFakeSheets(Object.fromEntries(Object.entries(fakeWorkbookValues('google')).filter(([tab]) => ![...FAKE_SHEET_LACKS, ...leftOut].includes(tab as WorkbookTab))))
+  session ??= createFakeSheets(Object.fromEntries(Object.entries(fakeWorkbookValues('google', withIds)).filter(([tab]) => ![...FAKE_SHEET_LACKS, ...leftOut].includes(tab as WorkbookTab))))
   return session
 }

@@ -1,9 +1,9 @@
 import { ZERO, addMoney, plainAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
-import { holdsSplitKey } from '../domain/splits'
+import { holdsSplitKey, partOrder } from '../domain/splits'
 import type { LedgerSplit, SplitKey, SplitPart } from '../domain/splits'
 import type { Category, Transaction } from '../domain/workbook'
-import { inTabOrder, isUnreadable, readRow, refuse, requiredDate, requiredMoney, slugOf, textOf } from './cellReading'
+import { idOf, inTabOrder, isUnreadable, readRow, refuse, requiredDate, requiredMoney, slugOf, textOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 
@@ -15,10 +15,11 @@ export interface SplitTabRow {
   readonly category: string
   readonly note: string
   readonly sheetRow: number
+  readonly id?: string
 }
 
 export interface SplitsReading extends TabReading<SplitTabRow> {
-  /** Each split whose guards pass, in the order its first row appears on the tab. */
+  /** Each split whose guards pass, in the order its first row appears on the tab, its parts larger first. */
   readonly splits: readonly LedgerSplit[]
 }
 
@@ -57,7 +58,7 @@ export function readSplits(rows: readonly SheetRow[], transactions: readonly Tra
       groupOf(key).unreadable.push(row.sheetRow)
       continue
     }
-    groupOf(key).parts.push({ key, ...part, sheetRow: row.sheetRow })
+    groupOf(key).parts.push({ key, ...part, sheetRow: row.sheetRow, ...idOf(row.cells) })
   }
 
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
@@ -74,10 +75,12 @@ export function readSplits(rows: readonly SheetRow[], transactions: readonly Tra
     facts.push(...group.parts)
     splits.push({
       row: found[0]!,
-      parts: group.parts.map((part): SplitPart => {
-        const category = categoryBySlug.get(part.category)!
-        return { amount: part.amount, category: part.category, family: category.family, bucket: category.bucket, note: part.note, sheetRow: part.sheetRow }
-      }),
+      parts: group.parts
+        .map((part): SplitPart => {
+          const category = categoryBySlug.get(part.category)!
+          return { amount: part.amount, category: part.category, family: category.family, bucket: category.bucket, note: part.note, sheetRow: part.sheetRow, ...(part.id === undefined ? {} : { id: part.id }) }
+        })
+        .sort(partOrder),
     })
   }
   return { facts, problems: problems.sort((upper, lower) => upper.sheetRow - lower.sheetRow), splits }

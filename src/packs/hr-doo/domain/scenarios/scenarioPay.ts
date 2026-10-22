@@ -4,6 +4,7 @@ import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { Rate, RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -132,11 +133,11 @@ interface CapSplit {
   readonly rules: readonly RuleCitation[]
 }
 
-/** Each tax-free payment split at its yearly cap, the earlier payments of an item filling the cap first. */
+/** Each tax-free payment split at its yearly cap, the earlier payments of an item filling the cap first, a month's payments by item. */
 function splitAtCaps(schedule: ScenarioSchedule, usage: ReturnType<typeof nontaxableUsage>): CapSplit[] {
   const left = new Map(usage.map((entry) => [entry.payment, entry.cap?.amount ?? null]))
   return [...schedule.nontaxable]
-    .sort((earlier, later) => earlier.month.localeCompare(later.month) || earlier.item.sheetRow - later.item.sheetRow)
+    .sort((earlier, later) => earlier.month.localeCompare(later.month) || naturalOrder(earlier.item.item, later.item.item) || earlier.item.amount - later.item.amount)
     .map((plan) => {
       const cap = left.get(plan.item.item) ?? null
       const within = cap === null ? plan.item.amount : ((plan.item.amount < cap ? plan.item.amount : cap) as Money)

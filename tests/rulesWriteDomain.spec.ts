@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { confirmation, recategorisation, undoOf } from '../src/features/review/domain/verdictChanges'
 import { readRules } from '../src/features/rules/domain/readRules'
-import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
+import { RULE_COLUMNS, newOrderTies } from '../src/features/rules/domain/rule'
 import type { Rule, RuleCondition } from '../src/features/rules/domain/rule'
 import { ruleCoverage } from '../src/features/rules/domain/ruleCoverage'
 import { placeBefore, swapWithNeighbour } from '../src/features/rules/domain/rulePlacement'
@@ -23,6 +23,26 @@ function rule(id: string, order: number, conditions: RuleCondition[], category =
 }
 
 const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], clients: [], settings: DEFAULT_SETTINGS })
+
+describe('newOrderTies', () => {
+  const card: RuleCondition[] = [{ column: 'is_card' }]
+
+  it('refuses a change that makes two enabled rules share an order, and lets a disabled rule share one', () => {
+    const before = [rule('a', 100, card), rule('b', 200, card)]
+
+    expect(newOrderTies(before, [...before, rule('c', 200, card)])).toEqual([
+      'b and c would share the order 200, and the Apps Script tries rules of one order by their row, so give each its own order',
+    ])
+    expect(newOrderTies(before, [...before, { ...rule('c', 200, card), enabled: false }])).toEqual([])
+  })
+
+  it('leaves alone a tie the rules had before the change', () => {
+    const before = [rule('a', 100, card), rule('b', 100, card)]
+
+    expect(newOrderTies(before, [{ ...rule('a', 100, card), category: 'travel' }, rule('b', 100, card)])).toEqual([])
+    expect(newOrderTies(before, [...before, rule('c', 100, card)])).toHaveLength(1)
+  })
+})
 
 describe('rulesTabRefusals, the mirror of parseRules in Rules.gs', () => {
   const header = [...RULE_COLUMNS]
@@ -67,6 +87,7 @@ describe('rulesTabRefusals, the mirror of parseRules in Rules.gs', () => {
     ]
 
     expect(rulesTabRefusals(header, rows, CATEGORIES, false).map((refusal) => refusal.split(':')[0])).toEqual([
+      'row 2',
       'row 3',
       'row 4',
       'row 5',

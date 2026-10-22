@@ -3,7 +3,7 @@ import { WRITABLE_COLUMNS, WorkbookWriteRefused, editableColumns } from '../appl
 import type { CellEdit, FreshTabs, RowAppend, TabRead, WorkbookWriter, WritableTab } from '../application/workbookWriter'
 import { DATE_FORMAT, isDateCell } from './cellFormats'
 import { sheetNameInRange } from './sheetsClient'
-import type { CellData, NumberFormat, RowData, SheetsValues, SpreadsheetRequest } from './sheetsClient'
+import type { CellData, NumberFormat, RowData, SheetGrid, SheetsValues, SpreadsheetRequest } from './sheetsClient'
 import { sheetRowsFromValues } from './workbookSnapshot'
 import type { CellValue } from './workbookSnapshot'
 
@@ -13,28 +13,34 @@ import type { CellValue } from './workbookSnapshot'
  * before it is sent. A cell edit names one cell by its header's column and its row, so nothing else
  * on the row is touched.
  *
- * The requests run in the order `TabEdits` gives: a new tab with its header, the cell edits, the
- * rows taken out from the bottom up, the rows put in from the top down, each block with the format
- * and the dropdowns of the row below copied onto it the way the shadow-accounting Apps Script
- * inserts a batch, and last the rows added below the last one. Every date the write puts in a cell
- * gets the date format in the same batch, since a tab without one would show its serial number.
+ * The requests run in the order `TabEdits` gives: a new tab with its header, a new column's header
+ * after the last column in use, with columns added to the grid first when it has none free, the
+ * cell edits, the rows taken out from the bottom up, the rows put in from the top down, each block
+ * with the format and the dropdowns of the row below copied onto it the way the shadow-accounting
+ * Apps Script inserts a batch, and last the rows added below the last one. Every date the write
+ * puts in a cell gets the date format in the same batch, since a tab without one would show its
+ * serial number.
  */
 export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
-  let sheetIds: ReadonlyMap<string, number> | null = null
+  let grids: ReadonlyMap<string, SheetGrid> | null = null
+  /** Each tab's columns in use as last read, up to the last cell of its widest row, header or not. */
+  let widths: ReadonlyMap<string, number> = new Map()
   return {
     async read(tabs) {
       // A batchGet fails whole on a tab that does not exist, so it asks only for the tabs the Sheet has.
-      sheetIds = await sheets.sheetIds()
-      const present = tabs.filter((tab) => sheetIds!.has(tab))
+      grids = await sheets.sheetGrids()
+      const present = tabs.filter((tab) => grids!.has(tab))
       const ranges = await sheets.batchGet(present.map(sheetNameInRange))
-      return Object.fromEntries(present.map((tab, index) => [tab, tabReadOf(ranges[index]?.values ?? [])]))
+      const values = present.map((_, index) => ranges[index]?.values ?? [])
+      widths = new Map(present.map((tab, index) => [tab, values[index]!.reduce((widest, row) => Math.max(widest, row.length), 0)]))
+      return Object.fromEntries(present.map((tab, index) => [tab, tabReadOf(values[index]!)]))
     },
 
     async write(edits, before) {
-      if (sheetIds === null) {
+      if (grids === null) {
         throw new Error('A write was planned before the Sheet was read.')
       }
-      const ids = new Map(sheetIds)
+      const ids = new Map([...grids].map(([tab, grid]) => [tab, grid.sheetId]))
       const newTabs = edits.newTabs ?? []
       for (const { tab } of newTabs) {
         if (before[tab] !== undefined || ids.has(tab)) {
@@ -42,8 +48,24 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
         }
         ids.set(tab, unusedSheetId(ids))
       }
-      // A tab added here reads as its template header, so the edits below place their cells the same way.
-      const read: FreshTabs = { ...before, ...Object.fromEntries(newTabs.map(({ tab, header }) => [tab, { header, rows: [], lastRow: 1 }])) }
+      const newColumns = (edits.newColumns ?? []).map((added) => {
+        const header = headerOf(before, added.tab)
+        if (header.some((name) => name.trim() === added.column)) {
+          throw new Error(`The ${added.tab} tab already has a ${added.column} column, so it is not added again.`)
+        }
+        return { ...added, header, index: Math.max(header.length, widths.get(added.tab) ?? 0) }
+      })
+      if (new Set(newColumns.map((added) => added.tab)).size < newColumns.length) {
+        throw new Error('A write adds at most one column to a tab.')
+      }
+      // A tab or a column added here reads as part of the header, so the edits below place their cells the same way.
+      const read: FreshTabs = {
+        ...before,
+        ...Object.fromEntries(newTabs.map(({ tab, header }) => [tab, { header, rows: [], lastRow: 1 }])),
+        ...Object.fromEntries(
+          newColumns.map(({ tab, column, header, index }) => [tab, { ...before[tab]!, header: [...header, ...Array<string>(index - header.length).fill(''), column] }]),
+        ),
+      }
       const sheetIdOf = (tab: WritableTab): number => {
         const sheetId = ids.get(tab)
         if (sheetId === undefined) {
@@ -59,6 +81,14 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
           { addSheet: { properties: { sheetId: sheetIdOf(tab), title: tab } } },
           { updateCells: { start: { sheetId: sheetIdOf(tab), rowIndex: 0, columnIndex: 0 }, rows: [{ values: header.map(cellData) }], fields: 'userEnteredValue' } },
         ]),
+        ...newColumns.flatMap(({ tab, column, index }): SpreadsheetRequest[] => {
+          const sheetId = sheetIdOf(tab)
+          const lacking = index + 1 - grids!.get(tab)!.columnCount
+          return [
+            ...(lacking > 0 ? [{ appendDimension: { sheetId, dimension: 'COLUMNS', length: lacking } } as const] : []),
+            { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: index }, rows: [{ values: [cellData(column)] }], fields: 'userEnteredValue' } },
+          ]
+        }),
         ...edits.cells.flatMap((edit): SpreadsheetRequest[] => {
           if (!editableColumns(edit.tab).has(edit.column)) {
             throw new Error(`The app never changes the ${edit.column} column of a row already on the ${edit.tab} tab.`)

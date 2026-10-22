@@ -3,14 +3,16 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { addMoney, moneyFromAmount, negateMoney, plainAmount, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { fold, normaliseIban } from '../../../shared/text/fold'
-import type { CellValue } from '../../workbook/infrastructure/workbookSnapshot'
 import { profileColumns } from './importProfile'
 import type { DateFormat, DecimalMark, ImportProfile } from './importProfile'
 import { StatementRefused } from './importedStatement'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 
+/** A cell of a bank's statement file: text, a number, a date as a serial number, or a flag. */
+export type StatementCell = string | number | boolean
+
 /** A sheet's cells from A1, row by row, as a spreadsheet file holds them. */
-export type CellGrid = readonly (readonly (CellValue | undefined)[])[]
+export type CellGrid = readonly (readonly (StatementCell | undefined)[])[]
 
 /** How far down a file the header row is looked for, past a bank's title and account lines. */
 const HEADER_SEARCH_ROWS = 40
@@ -67,7 +69,7 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
   }
   const header = grid[headerIndex]!.map((cell) => headerKey(cellString(cell)))
   const columnOf = (name: string): number => (name === '' ? -1 : header.indexOf(headerKey(name)))
-  const cellAt = (row: readonly (CellValue | undefined)[], name: string): CellValue | undefined => {
+  const cellAt = (row: readonly (StatementCell | undefined)[], name: string): StatementCell | undefined => {
     const column = columnOf(name)
     return column < 0 ? undefined : row[column]
   }
@@ -161,9 +163,9 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
 
 /** The row's signed amount: the signed column, or the credit less the debit, where exactly one of the two holds an amount. */
 function amountOfRow(
-  cells: readonly (CellValue | undefined)[],
+  cells: readonly (StatementCell | undefined)[],
   profile: ImportProfile,
-  cellAt: (row: readonly (CellValue | undefined)[], name: string) => CellValue | undefined,
+  cellAt: (row: readonly (StatementCell | undefined)[], name: string) => StatementCell | undefined,
 ): Money | string {
   if ('signed' in profile.amount) {
     const cell = cellAt(cells, profile.amount.signed)
@@ -216,7 +218,7 @@ function checkBalances(rows: readonly ReadRow[]): void {
 }
 
 /** A text date in the profile's format, or a date cell's serial number. */
-export function dateOf(cell: CellValue | undefined, format: DateFormat): CivilDate | null {
+export function dateOf(cell: StatementCell | undefined, format: DateFormat): CivilDate | null {
   if (typeof cell === 'number') {
     return Number.isFinite(cell) && cell > 0 && cell < 2_958_466 ? civilDateFromSerial(cell) : null
   }
@@ -247,7 +249,7 @@ const TEXT_AMOUNT: Record<DecimalMark, RegExp> = {
  * A number cell, or text such as `1.234,56`, `-80,00` or `1,234.56 EUR` by the decimal mark. Null
  * for anything else, such as `12.50` read with a decimal comma, which is not a grouped thousand.
  */
-export function moneyOf(cell: CellValue | undefined, decimal: DecimalMark): Money | null {
+export function moneyOf(cell: StatementCell | undefined, decimal: DecimalMark): Money | null {
   if (typeof cell === 'number') {
     return Number.isFinite(cell) ? moneyFromAmount(cell) : null
   }
@@ -277,7 +279,7 @@ function fnv(text: string, seed: number): string {
   return hash.toString(16).padStart(8, '0')
 }
 
-function cellString(cell: CellValue | undefined): string {
+function cellString(cell: StatementCell | undefined): string {
   return cell === undefined ? '' : String(cell).trim()
 }
 

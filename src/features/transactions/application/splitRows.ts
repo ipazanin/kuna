@@ -2,7 +2,7 @@ import { civilDateFromSerial, serialFromCivilDate } from '../../../shared/calend
 import { amountOf } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { cellText } from '../../../shared/text/cellText'
-import { assetsClaimingRows } from '../../../packs/hr-doo/domain/assets/assetRegister'
+import { installedPack } from '../../packs/packContribution'
 import type { TabRowRules } from '../../workbook/application/tabRowWrites'
 import type { RowAt, RowCells, TabRowsChange } from '../../workbook/domain/rowChanges'
 import type { SplitPart } from '../../workbook/domain/splits'
@@ -11,7 +11,7 @@ import { readAssets } from '../../workbook/infrastructure/assetsTabReader'
 import { dateOf, moneyOf, slugOf } from '../../workbook/infrastructure/cellReading'
 import { readSplits } from '../../workbook/infrastructure/splitsTabReader'
 import { definedCategories, definedTransactions } from '../../workbook/infrastructure/workbookReader'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
+import { contentColumns } from '../../workbook/infrastructure/workbookTemplate'
 
 /** One part as the tab holds it: the bank row's key, then the part, the date as a serial number so the cell is a date cell. */
 export function splitCellsOf(row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance'>, part: Pick<SplitPart, 'amount' | 'category' | 'note'>): RowCells {
@@ -26,12 +26,12 @@ export function splitCellsOf(row: Pick<Transaction, 'date' | 'account' | 'amount
   }
 }
 
-const COLUMNS = TEMPLATE_COLUMNS.splits.map((column) => column.name)
+const COLUMNS = contentColumns('splits')
 
 /**
  * The `splits` tab, checked by its reader against the ledger and the categories as they are now,
- * so a split the guards refuse is never written. A split of a row an asset claims is refused too,
- * since the asset register claims the whole payment.
+ * so a split the guards refuse is never written. A split of a row the pack keeps whole, such as
+ * one an asset claims as its whole payment, is refused too.
  */
 export const SPLIT_ROWS: TabRowRules = {
   tab: 'splits',
@@ -47,12 +47,12 @@ export const SPLIT_ROWS: TabRowRules = {
   refusals: (check, fresh) => {
     const categoryRows = fresh.categories?.rows ?? []
     const transactions = definedTransactions(fresh.ledger?.rows ?? [], categoryRows)
-    const claiming = assetsClaimingRows(readAssets(fresh.assets?.rows ?? [], new Set()).facts, transactions, definedCategories(categoryRows))
+    const claiming = installedPack().rowsKeptWhole({ assets: readAssets(fresh.assets?.rows ?? [], new Set()).facts, transactions, categories: definedCategories(categoryRows) })
     const written = check.edits.flatMap((edit) => (edit.after === null ? [] : [edit.after]))
     const claimed = transactions.filter((row) => claiming.has(row.sheetRow) && written.some((cells) => keyHolds(cells, row)))
     return claimed.map((row) => {
-      const assets = claiming.get(row.sheetRow)!
-      return `${assets.map((name) => `"${name}"`).join(' and ')} on the assets tab ${assets.length === 1 ? 'claims' : 'claim'} ledger row ${row.sheetRow} as payment, so the row stays whole.`
+      const claimedBy = claiming.get(row.sheetRow)!
+      return `${claimedBy.map((name) => `"${name}"`).join(' and ')} on the assets tab ${claimedBy.length === 1 ? 'claims' : 'claim'} ledger row ${row.sheetRow} as payment, so the row stays whole.`
     })
   },
   label: (cells) => {

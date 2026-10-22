@@ -2,7 +2,7 @@ import { backtestRuleChange } from './backtestRule'
 import type { BacktestTransaction, RuleBacktest } from './backtestRule'
 import { readRules } from './readRules'
 import type { RuleTabRow } from './readRules'
-import { RULE_COLUMNS } from './rule'
+import { RULE_COLUMNS, newOrderTies } from './rule'
 import type { Rule } from './rule'
 import { rulesTabAfter } from './rulesTabChange'
 import type { RulesTabChange } from './rulesTabChange'
@@ -32,7 +32,11 @@ export function previewRulesChange<Row extends BacktestTransaction>(
   const lastRow = rows.reduce((last, row) => Math.max(last, row.sheetRow), 1)
   const after = rulesTabAfter(rows, change, lastRow)
   const header = [...new Set([...RULE_COLUMNS, ...after.rows.flatMap((row) => Object.keys(row.cells))])]
-  const refusals = [...after.refusals, ...rulesTabRefusals(header, after.rows, definedCategories, hasClientsTab)]
   const proposed = readRules(after.rows, definedCategories, hasClientsTab).rules
+  const refusals = [
+    ...after.refusals,
+    ...rulesTabRefusals(header, after.rows, definedCategories, hasClientsTab),
+    ...newOrderTies(current, proposed),
+  ]
   return { refusals, backtest: backtestRuleChange(current, proposed, transactions, context) }
 }

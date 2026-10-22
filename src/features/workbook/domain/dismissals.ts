@@ -15,4 +15,6 @@ export interface Dismissal {
   /** Null when the cell is blank. */
   readonly dismissedOn: CivilDate | null
   readonly sheetRow: number
+  /** Absent on a row from before rows carried an id. */
+  readonly id?: string
 }

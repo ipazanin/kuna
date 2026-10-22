@@ -9,7 +9,7 @@ import { WorkbookWriteRefused } from '../src/features/workbook/application/workb
 import type { RowAt, RowCells, RowChange } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { civil, euros } from './fixtures/ledger'
-import { cellData, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { AN_ID, cellData, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -71,8 +71,8 @@ describe.each([
     const receipt = await addRows(store, [OCTOBER_FEE, november])
 
     expect(receipt?.added).toEqual([
-      { sheetRow: 4, cells: { item: 'Monthly Fee', date: 46326, amount: 4000, client: 'acme', description: 'Oct 2026' } },
-      { sheetRow: 5, cells: november },
+      { sheetRow: 4, cells: { item: 'Monthly Fee', date: 46326, amount: 4000, client: 'acme', description: 'Oct 2026', id: AN_ID } },
+      { sheetRow: 5, cells: { ...november, id: AN_ID } },
     ])
     expect(plan(store)).toEqual([
       ['Monthly Fee', '2026-09-30', euros(4000)],
@@ -135,7 +135,7 @@ describe.each([
 
     const receipt = await removeRow(store, planRowAt(store, 2))
 
-    expect(receipt?.removed).toEqual([{ sheetRow: 2, cells: { item: 'Monthly Fee', date: 46295, amount: 4000, client: 'acme', description: 'Sep 2026' } }])
+    expect(receipt?.removed).toEqual([{ sheetRow: 2, cells: { item: 'Monthly Fee', date: 46295, amount: 4000, client: 'acme', description: 'Sep 2026', id: '' } }])
     expect(store.state.workbook?.billingPlan.map((row) => [row.item, row.sheetRow])).toEqual([['Bonus', 2]])
     await expect(removeRow(store, planRowAt(store, 2))).resolves.toBeDefined()
     expect(plan(store)).toEqual([])
@@ -164,18 +164,19 @@ describe('billing plan writes to a Google Sheet', () => {
     await expect(removeRow(store, { sheetRow: 99, cells: planRowAt(store, 3).cells })).rejects.toThrow('3 rows of the outgoing-plan tab hold')
   })
 
-  it('appends below the last row, the date as a serial number', async () => {
+  it('appends below the last row, the date as a serial number, with a new id under an id header the tab lacked', async () => {
     const { store, sheets } = await googleHarness(used, gridsWithBillingPlan())
 
     await addRows(store, [OCTOBER_FEE])
 
-    const sheetId = (await sheets.sheetIds()).get('outgoing-plan')!
+    const sheetId = (await sheets.sheetGrids()).get('outgoing-plan')!.sheetId
     const added = sheets.grids['outgoing-plan']!.length - 1
     expect(sentRequests(sheets)).toEqual([
+      { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: 5 }, rows: [{ values: [cellData('id')] }], fields: 'userEnteredValue' } },
       {
         appendCells: {
           sheetId,
-          rows: [{ values: ['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026'].map(cellData) }],
+          rows: [{ values: [...['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026'].map(cellData), { userEnteredValue: { stringValue: AN_ID } }] }],
           fields: 'userEnteredValue',
         },
       },

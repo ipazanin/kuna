@@ -1,5 +1,7 @@
 import { cellText } from '../../../shared/text/cellText'
 import type { LedgerVerdictChange, VerdictReceipt } from '../../review/domain/verdictChanges'
+import { readRules } from '../../rules/domain/readRules'
+import { newOrderTies } from '../../rules/domain/rule'
 import { rulesTabAfter, sameCells } from '../../rules/domain/rulesTabChange'
 import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import { rulesTabRefusals } from '../../rules/domain/rulesTabRefusals'
@@ -93,8 +95,9 @@ export function verifyVerdicts(after: FreshTabs, plan: VerdictPlan): void {
 
 /**
  * The rules tab with the change made must pass every check the Apps Script's `parseRules` makes,
- * against the categories and clients tabs as they are now, or nothing is written. Edited rows
- * change only the cells that differ.
+ * against the categories and clients tabs as they are now, and leave no two enabled rules sharing
+ * an order that did not share it before, or nothing is written. Edited rows change only the cells
+ * that differ.
  */
 export function planRulesChange(fresh: FreshTabs, change: RulesTabChange): TabEdits {
   const rules = requireTab(fresh, 'rules')
@@ -107,10 +110,13 @@ export function planRulesChange(fresh: FreshTabs, change: RulesTabChange): TabEd
   if (missing.length > 0) {
     throw new WorkbookWriteRefused(`The rules tab has no ${missing.map((column) => `"${column}"`).join(', ')} column, which this rule needs.`)
   }
-  const refusals = rulesTabRefusals(rules.header, after.rows, definedCategorySlugs(requireTab(fresh, 'categories').rows), clientsTabAnswers(fresh.clients))
+  const definedCategories = definedCategorySlugs(requireTab(fresh, 'categories').rows)
+  const hasClientsTab = clientsTabAnswers(fresh.clients)
+  const refusals = rulesTabRefusals(rules.header, after.rows, definedCategories, hasClientsTab)
   if (refusals.length > 0) {
     throw new WorkbookWriteRefused(`The rules tab would not pass the Apps Script's check, so nothing was written: ${refusals.join('. ')}.`)
   }
+  refuseOn(newOrderTies(readRules(rules.rows, definedCategories, hasClientsTab).rules, readRules(after.rows, definedCategories, hasClientsTab).rules).map(sentence))
   const cells: CellEdit[] = []
   for (const edit of change.edited) {
     const row = rules.rows.find((candidate) => cellText(candidate.cells.rule).toLowerCase() === edit.id.trim().toLowerCase())

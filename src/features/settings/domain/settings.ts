@@ -6,6 +6,7 @@ import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { isIban } from '../../workbook/domain/iban'
+import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
@@ -537,24 +538,26 @@ const DEFINITION_BY_KEY = new Map(SETTING_DEFINITIONS.map((definition) => [defin
 /**
  * The settings a `settings` tab describes, and what in it could not be used. A blank value means the
  * default. An unknown key is kept in the tab and reported. A value that does not hold falls back to
- * the default and is reported. The first row of a key wins, as with categories.
+ * the default and is reported. A key set on more than one row is used from none of them, so it
+ * takes its default, since where a row sits decides nothing.
  */
 export function parseSettings(rows: readonly SettingRow[]): { readonly settings: Settings; readonly problems: SettingProblem[] } {
   const problems: SettingProblem[] = []
-  const seen = new Set<string>()
+  const keyOf = (row: SettingRow): string => row.key.trim().toLowerCase()
+  const shared = sharedKeys(rows, keyOf)
   let settings = DEFAULT_SETTINGS
   for (const row of rows) {
-    const key = row.key.trim().toLowerCase()
+    const key = keyOf(row)
     if (key === '') {
       problems.push({ sheetRow: row.sheetRow, reason: 'a value without a key' })
       continue
     }
+    const known = key.startsWith(IMPORT_PROFILE_PREFIX) || DEFINITION_BY_KEY.has(key)
+    if (known && shared.has(key)) {
+      problems.push({ sheetRow: row.sheetRow, reason: `"${key}" is set on more than one row, so ${key.startsWith(IMPORT_PROFILE_PREFIX) ? 'the profile is not offered' : 'the default is used'}` })
+      continue
+    }
     if (key.startsWith(IMPORT_PROFILE_PREFIX)) {
-      if (seen.has(key)) {
-        problems.push({ sheetRow: row.sheetRow, reason: `"${key}" is already set above` })
-        continue
-      }
-      seen.add(key)
       if (row.value === undefined || String(row.value).trim() === '') continue
       const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), String(row.value))
       if (typeof profile === 'string') {
@@ -569,11 +572,6 @@ export function parseSettings(rows: readonly SettingRow[]): { readonly settings:
       problems.push({ sheetRow: row.sheetRow, reason: `"${key}" is not a setting this app knows, so it is kept but not used` })
       continue
     }
-    if (seen.has(key)) {
-      problems.push({ sheetRow: row.sheetRow, reason: `"${key}" is already set above` })
-      continue
-    }
-    seen.add(key)
     if (row.value === undefined || String(row.value).trim() === '') {
       continue
     }

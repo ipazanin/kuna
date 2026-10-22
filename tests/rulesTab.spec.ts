@@ -95,6 +95,23 @@ describe('reading the rules tab', () => {
     })
   })
 
+  it('tries enabled rules that share an order by id, and reports the tie on each of them', () => {
+    const workbook = readWorkbook(
+      snapshotWith([
+        HEADER,
+        ruleRow({ rule: 'rule-10', order: 100, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
+        ruleRow({ rule: 'rule-9', order: 100, enabled: true, is_card: true, category: 'bank-fees', confidence: 'rule' }),
+        ruleRow({ rule: 'parked', order: 100, enabled: false, is_card: true, category: 'travel', confidence: 'rule' }),
+      ]),
+    )
+
+    expect(workbook.rules.map((rule) => rule.id)).toEqual(['parked', 'rule-9', 'rule-10'])
+    expect(workbook.problems.map((problem) => [problem.sheetRow, problem.reason])).toEqual([
+      [2, 'rule-9 and rule-10 share the order 100, so the app tries them by id and the Apps Script by row. Give each its own order'],
+      [3, 'rule-9 and rule-10 share the order 100, so the app tries them by id and the Apps Script by row. Give each its own order'],
+    ])
+  })
+
   it('reports each refusal on its row instead of failing the workbook', () => {
     const workbook = readWorkbook(
       snapshotWith([
@@ -115,11 +132,12 @@ describe('reading the rules tab', () => {
       ], undefined, ['clients']),
     )
 
-    expect(workbook.rules.map((rule) => rule.id)).toEqual(['same', 'kept'])
+    expect(workbook.rules.map((rule) => rule.id)).toEqual(['kept'])
     expect(workbook.problems.map((problem) => [problem.tab, problem.sheetRow, problem.reason])).toEqual([
       ['rules', 2, '"colour" is not a column a rule can test'],
       ['rules', 3, 'no rule id'],
-      ['rules', 5, 'the id "SAME" is already used on row 4'],
+      ['rules', 4, 'the id "same" is on more than one row, so none of them is tried'],
+      ['rules', 5, 'the id "SAME" is on more than one row, so none of them is tried'],
       ['rules', 6, 'first has the order "first", which is not a number'],
       ['rules', 7, 'maybe has the enabled cell "yes", and it is TRUE or FALSE'],
       ['rules', 8, 'sure has the confidence "certain", and it is rule or review'],

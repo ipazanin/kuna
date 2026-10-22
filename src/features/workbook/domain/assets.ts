@@ -26,4 +26,6 @@ export interface Asset {
   readonly ledgerReference: string
   readonly note: string
   readonly sheetRow: number
+  /** Absent on a row from before rows carried an id. */
+  readonly id?: string
 }

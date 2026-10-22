@@ -11,7 +11,7 @@ import { downloadTemplate, emptyLocalWorkbook } from '../../excel/application/wo
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { WorkbookSource } from '../../workbook/domain/workbook'
-import { REDIRECT_SIGN_IN_QUERY } from '../../workbook/infrastructure/googleRedirect'
+import { REDIRECT_SIGN_IN_QUERY } from '../../../shared/google/googleRedirect'
 import { XLSX_MIME_TYPE } from '../../workbook/infrastructure/workbookFile'
 
 /** The three places a workbook can come from. Each action changes the workbook on screen. */

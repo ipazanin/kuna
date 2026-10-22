@@ -65,8 +65,8 @@ export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames:
 }
 
 /**
- * Whether this row is the one the ledger's rows resolve to. Only the first row with a name defines
- * it, so a later duplicate of a used name may still be renamed.
+ * Whether renaming this row would leave ledger rows without their category. Of rows that share a
+ * used name only the first in the editor keeps it, so a duplicate can still be renamed away.
  */
 export function keepsItsName(draft: CategoryDraft, drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>): boolean {
   const saved = draft.savedName.trim().toLowerCase()

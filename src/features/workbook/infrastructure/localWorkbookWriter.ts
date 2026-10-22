@@ -8,9 +8,9 @@ import type { SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
 /**
  * Writes to a working copy of the workbook kept in this browser. Its rows carry no header row, so
  * a tab's header is the template's columns and then any other column its rows use, which is what
- * an export writes. The store saves the copy once the write reads back. It carries out a write in
- * the order the Google Sheet does, so rows taken out move the rows below them up and rows put in
- * move them down, as in a Sheet.
+ * an export writes, and a template column is never missing. The store saves the copy once the
+ * write reads back. It carries out a write in the order the Google Sheet does, so rows taken out
+ * move the rows below them up and rows put in move them down, as in a Sheet.
  */
 export function localWorkbookWriter(tabs: WorkbookTabs): WorkbookWriter {
   const working = Object.fromEntries(WORKBOOK_TABS.map((tab) => [tab, [...tabs[tab]]])) as { -readonly [Tab in WorkbookTab]: SheetRow[] }
@@ -21,6 +21,10 @@ export function localWorkbookWriter(tabs: WorkbookTabs): WorkbookWriter {
     },
 
     async write(edits) {
+      const [added] = edits.newColumns ?? []
+      if (added !== undefined) {
+        throw new Error(`The ${added.tab} tab kept in this browser already has every template column, so ${added.column} is not added.`)
+      }
       for (const edit of edits.cells) {
         if (!editableColumns(edit.tab).has(edit.column)) {
           throw new Error(`The app never changes the ${edit.column} column of a row already on the ${edit.tab} tab.`)

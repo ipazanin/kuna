@@ -1,8 +1,9 @@
 import { cellText } from '../../../shared/text/cellText'
+import { newRecordId } from '../domain/recordId'
 import type { RowAt, RowCells, RowChange, TabRowsChange, TabRowsReceipt } from '../domain/rowChanges'
 import type { TabReading } from '../infrastructure/cellReading'
 import type { SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
-import { TEMPLATE_COLUMNS } from '../infrastructure/workbookTemplate'
+import { ID_COLUMN, TABS_WITH_IDS, TEMPLATE_COLUMNS } from '../infrastructure/workbookTemplate'
 import { WorkbookWriteRefused } from './workbookWriter'
 import type { CellEdit, FreshTabs, RowAppend, RowTab, TabEdits, TabRead } from './workbookWriter'
 
@@ -31,7 +32,7 @@ export interface RowsChangeCheck {
 export interface TabRowRules {
   readonly tab: RowTab
   readonly noun: RowNoun
-  /** The columns the app writes on the tab. A row is found again by them. */
+  /** The columns the app writes on the tab, its id aside. A row is found again by them. */
   readonly columns: readonly string[]
   /** The columns the tab needs before anything is written. */
   readonly required: readonly string[]
@@ -103,10 +104,15 @@ export function rowCellsOf(row: SheetRow, columns: readonly string[]): RowCells 
  * only the cells that differ, so a formula left alone stays a formula. A deleted row is taken out
  * whole, so no blank row is left. Added rows go below the last row unless the rules place them, and
  * restored rows go back on the rows they stood on.
+ * On a tab whose rows carry an id, an added row without one gets a new one, a deleted row keeps its
+ * id for Undo, and a tab without the id column gets it in the same write.
  * With `addMissingTab`, which the person must have agreed to, a tab the workbook lacks is added with
  * the template's header first.
  */
 export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: TabRowsChange, addMissingTab = false): RowsPlan {
+  const carriesIds = (TABS_WITH_IDS as readonly WorkbookTab[]).includes(rules.tab)
+  const added = carriesIds ? change.added.map((cells) => (cellText(cells[ID_COLUMN]) === '' ? { ...cells, [ID_COLUMN]: newRecordId() } : cells)) : change.added
+  const keptColumns = carriesIds ? [...rules.columns, ID_COLUMN] : rules.columns
   const newTab = addMissingTab && fresh[rules.tab] === undefined ? { tab: rules.tab, header: TEMPLATE_COLUMNS[rules.tab].map((column) => column.name) } : null
   const tab = newTab === null ? requireRowTab(fresh, rules) : { header: newTab.header, rows: [], lastRow: 1 }
   const header = new Set(tab.header.map((name) => name.trim()))
@@ -129,15 +135,16 @@ export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: Tab
   const changed = locateEach(change.changed, (target) => target.before).map(({ row, target }) => ({ row, after: { ...rowCellsOf(row, rules.columns), ...target.after } }))
   const removed = locateEach(change.removed, (target) => target.cells)
   const restored = [...(change.restored ?? [])].sort((upper, lower) => upper.sheetRow - lower.sheetRow)
-  const written = [...change.added, ...restored.map((row) => row.cells), ...change.changed.map((target) => target.after)]
+  const written = [...added, ...restored.map((row) => row.cells), ...change.changed.map((target) => target.after)]
   const missing = [...new Set(written.flatMap((cells) => rules.columns.filter((column) => !header.has(column) && cellText(cells[column]) !== '')))]
+  const newColumn = carriesIds && !header.has(ID_COLUMN) && written.some((cells) => cellText(cells[ID_COLUMN]) !== '') ? { tab: rules.tab, column: ID_COLUMN } : null
   if (missing.length > 0) {
     refusals.push(`The ${rules.tab} tab has no ${quotedList(missing)} column for what this change writes. Add the column to row 1 in the Sheet, or leave the field blank.`)
   }
   refuseOn(refusals)
 
   const foot = tab.lastRow + 1
-  const placed = rules.place?.(tab.rows, change.added, tab.lastRow) ?? change.added.map((_, index) => ({ index, before: foot }))
+  const placed = rules.place?.(tab.rows, added, tab.lastRow) ?? added.map((_, index) => ({ index, before: foot }))
   const inPlace = placed.filter((place) => place.before !== foot)
   const atFoot = placed.filter((place) => place.before === foot)
   const deleted = removed.map(({ row }) => row.sheetRow)
@@ -163,13 +170,13 @@ export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: Tab
       const after = afterOf.get(row.sheetRow)
       return { sheetRow: finalOf(row.sheetRow), cells: after === undefined ? row.cells : withCells(row.cells, rules.columns, after), readAs: row.sheetRow }
     }),
-    ...change.added.map((cells, index) => ({ sheetRow: addedAt[index]!, cells: filledCells(cells), readAs: null })),
+    ...added.map((cells, index) => ({ sheetRow: addedAt[index]!, cells: filledCells(cells), readAs: null })),
     ...restored.map((row) => ({ sheetRow: row.sheetRow, cells: filledCells(row.cells), readAs: null })),
   ].sort((upper, lower) => upper.sheetRow - lower.sheetRow)
   const edits: RowEdit[] = [
     ...changed.map(({ row, after }) => ({ sheetRow: row.sheetRow, before: rowCellsOf(row, rules.columns), after })),
     ...removed.map(({ row }) => ({ sheetRow: row.sheetRow, before: rowCellsOf(row, rules.columns), after: null })),
-    ...change.added.map((cells, index) => ({ sheetRow: addedAt[index]!, before: null, after: cells })),
+    ...added.map((cells, index) => ({ sheetRow: addedAt[index]!, before: null, after: cells })),
     ...restored.map((row) => ({ sheetRow: row.sheetRow, before: null, after: row.cells })),
   ]
   // The tab's own checks name the cause, so the reader's account of the same row is held back until they pass.
@@ -182,18 +189,24 @@ export function planRowsChange(fresh: FreshTabs, rules: TabRowRules, change: Tab
       .map((column): CellEdit => ({ tab: rules.tab, sheetRow: row.sheetRow, column, value: after[column] ?? '' })),
   )
   const appends: RowAppend[] = [
-    ...inPlace.map(({ index }) => ({ tab: rules.tab, cells: filledCells(change.added[index]!), at: addedAt[index]! })),
+    ...inPlace.map(({ index }) => ({ tab: rules.tab, cells: filledCells(added[index]!), at: addedAt[index]! })),
     ...restored.map((row) => ({ tab: rules.tab, cells: filledCells(row.cells), at: row.sheetRow })),
-    ...atFoot.map(({ index }) => ({ tab: rules.tab, cells: filledCells(change.added[index]!) })),
+    ...atFoot.map(({ index }) => ({ tab: rules.tab, cells: filledCells(added[index]!) })),
   ]
   const deletions = deleted.map((sheetRow) => ({ tab: rules.tab, sheetRow }))
-  const tabEdits: TabEdits = deletions.length === 0 ? { cells, appends } : { cells, appends, deletions }
-  const verified = [...change.added, ...restored.map((row) => row.cells)]
+  const tabEdits: TabEdits = {
+    cells,
+    appends,
+    ...(deletions.length === 0 ? {} : { deletions }),
+    ...(newTab === null ? {} : { newTabs: [newTab] }),
+    ...(newColumn === null ? {} : { newColumns: [newColumn] }),
+  }
+  const verified = [...added, ...restored.map((row) => row.cells)]
   return {
-    edits: newTab === null ? tabEdits : { ...tabEdits, newTabs: [newTab] },
+    edits: tabEdits,
     added: verified,
     changed: changed.map(({ row, after }) => ({ sheetRow: finalOf(row.sheetRow), before: rowCellsOf(row, rules.columns), after })),
-    removed: removed.map(({ row }) => ({ sheetRow: row.sheetRow, cells: rowCellsOf(row, rules.columns) })),
+    removed: removed.map(({ row }) => ({ sheetRow: row.sheetRow, cells: rowCellsOf(row, keptColumns) })),
     alreadyThere: kept.filter((row) => verified.some((cells) => holds(row, cells, rules))).map((row) => finalOf(row.sheetRow)),
     heldBefore: removed.map(({ row }) => tab.rows.filter((candidate) => holds(candidate, rowCellsOf(row, rules.columns), rules)).length),
   }

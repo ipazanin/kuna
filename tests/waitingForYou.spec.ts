@@ -19,12 +19,12 @@ function jobsOf(workbook: Workbook) {
 }
 
 describe('waiting for you', () => {
-  it('names each job with the page that does it, the late ones as late', () => {
+  it('names each job with the page that does it, the late ones as late, the pack jobs after the core ones', () => {
     expect(jobsOf(fake('google'))).toEqual([
       ['review', '2 rows wait for a category check', 'warning', 'Review'],
-      ['unaccounted', 'A reimbursement to the owner has no cost on file', 'warning', 'Review'],
       ['invoice', "This month's invoice for Northwind Analytics is not made yet", 'warning', 'Invoicing'],
       ['overdue', '2 invoices are past the due date, €4,200.00 still owed', 'negative', 'Invoices'],
+      ['unaccounted', 'A reimbursement to the owner has no cost on file', 'warning', 'Review'],
     ])
   })
 

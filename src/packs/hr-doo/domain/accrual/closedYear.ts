@@ -6,6 +6,7 @@ import { yearOfMonth } from '../../../../shared/calendar/monthKey'
 import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { fewestMakingUp } from '../../../../shared/money/settleOpenRows'
+import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { GrantYearCheck } from '../grants/grantRelease'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
@@ -214,9 +215,11 @@ export interface KontoGroup {
   readonly amount: Money
 }
 
-/** Konto lines that share a category, joined, so each group holds every konto line of its categories. */
+/** Konto lines that share a category, joined, so each group holds every konto line of its categories. Lines go by their konto number. */
 export function kontoGroups(yearEnd: readonly YearEndLine[]): KontoGroup[] {
-  const lines = yearEnd.filter((line) => line.statement === 'konto' && line.categories.length > 0 && line.figure.kind === 'money')
+  const lines = yearEnd
+    .filter((line) => line.statement === 'konto' && line.categories.length > 0 && line.figure.kind === 'money')
+    .sort(byKonto)
   const groups: { categories: Set<string>; lines: YearEndLine[] }[] = []
   for (const line of lines) {
     const joined = groups.filter((group) => line.categories.some((slug) => group.categories.has(slug)))
@@ -229,14 +232,19 @@ export function kontoGroups(yearEnd: readonly YearEndLine[]): KontoGroup[] {
     groups.push(merged)
   }
   return groups.map((group) => ({
-    konto: [...group.lines].sort((earlier, later) => earlier.sheetRow - later.sheetRow).map((line) => line.line),
+    konto: [...group.lines].sort(byKonto).map((line) => line.line),
     categories: [...group.categories],
     amount: sumMoney(group.lines.map((line) => (line.figure.kind === 'money' ? line.figure.amount : ZERO))),
   }))
 }
 
+/** A year's konto lines that hold an amount, by konto number. */
 function kontoLinesOf(yearEnd: readonly YearEndLine[], year: number): YearEndLine[] {
-  return yearEnd.filter((line) => line.year === year && line.statement === 'konto' && line.figure.kind === 'money')
+  return yearEnd.filter((line) => line.year === year && line.statement === 'konto' && line.figure.kind === 'money').sort(byKonto)
+}
+
+function byKonto(earlier: YearEndLine, later: YearEndLine): number {
+  return naturalOrder(earlier.line, later.line)
 }
 
 function accountantFigure(line: YearEndLine): TracedFigure {

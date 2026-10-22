@@ -1,6 +1,6 @@
 import type { GoogleSheet, GoogleWorkbookPorts } from '../application/readFromGoogle'
-import { currentAccessToken, requestToken } from './googleAuth'
-import { pickFromDrive } from './picker'
+import { currentAccessToken, requestToken } from '../../../shared/google/googleAuth'
+import { pickFromDrive } from '../../../shared/google/picker'
 import { sheetNameInRange, sheetsValuesFor } from './sheetsClient'
 import type { SheetsValues } from './sheetsClient'
 import { EMPTY_TABS, WORKBOOK_TABS, sheetRowsFromValues } from './workbookSnapshot'
@@ -21,11 +21,11 @@ export const googleWorkbookPorts: GoogleWorkbookPorts = {
 export async function readSnapshotFrom(sheets: SheetsValues, sheet: GoogleSheet): Promise<WorkbookSnapshot> {
   const syncedAt = new Date().toISOString()
   // A batchGet fails whole on a tab that does not exist, so it asks only for the tabs the Sheet has.
-  const sheetIds = await sheets.sheetIds()
-  if (!sheetIds.has('ledger')) {
+  const grids = await sheets.sheetGrids()
+  if (!grids.has('ledger')) {
     throw new Error(`${sheet.name} has no tab called "ledger", so it is not a Ledgerboard workbook.`)
   }
-  const present: WorkbookTab[] = WORKBOOK_TABS.filter((tab) => sheetIds.has(tab))
+  const present: WorkbookTab[] = WORKBOOK_TABS.filter((tab) => grids.has(tab))
   const ranges = await sheets.batchGet(present.map(sheetNameInRange))
   const tabs = Object.fromEntries(present.map((tab, index) => [tab, sheetRowsFromValues(ranges[index]?.values ?? [])]))
   return {
@@ -34,10 +34,10 @@ export async function readSnapshotFrom(sheets: SheetsValues, sheet: GoogleSheet)
       source: 'google',
       title: sheet.name,
       syncedAt,
-      ledgerSheetId: sheetIds.get('ledger') ?? null,
+      ledgerSheetId: grids.get('ledger')?.sheetId ?? null,
       lastExportedAt: null,
       unexportedSince: null,
-      missingTabs: WORKBOOK_TABS.filter((tab) => !sheetIds.has(tab)),
+      missingTabs: WORKBOOK_TABS.filter((tab) => !grids.has(tab)),
     },
     ...EMPTY_TABS,
     ...tabs,

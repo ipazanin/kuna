@@ -5,7 +5,7 @@ import { drillToTransactions } from '../../filters/domain/drillTarget'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import type { Category, Client, Invoice, Transaction } from '../../workbook/domain/workbook'
-import { NO_CLIENT_INVOICING } from '../../workbook/domain/workbook'
+import { NO_CLIENT_INVOICING, invoiceOrder } from '../../workbook/domain/workbook'
 
 /** The category roles receivables select by, as the `roles` column of `categories` spells them. */
 export const RECEIVABLE_ROLES = {
@@ -50,7 +50,7 @@ export interface MatchedPayment {
 
 export interface ClientReceivables {
   readonly client: Client
-  /** In the order the invoices tab holds them. */
+  /** In the order they were given. */
   readonly invoices: readonly MatchedInvoice[]
   /** Oldest first. */
   readonly payments: readonly MatchedPayment[]
@@ -111,8 +111,8 @@ export function receivablesOf(
 }
 
 /**
- * The scan for one client. Invoices are filled oldest first, by issue date and then by the order
- * they were written. Each payment, oldest first, can fill only the invoices already issued on its
+ * The scan for one client. Invoices are filled in the order they were issued, by issue date and
+ * then by number. Each payment, oldest first, can fill only the invoices already issued on its
  * day, less what earlier payments filled. So a credit that arrives before its invoice is a credit
  * with no invoice, and an overpayment never makes anything owed negative.
  */
@@ -121,7 +121,7 @@ export function matchClientInvoices(
   invoices: readonly Invoice[],
   credits: readonly Transaction[],
 ): Omit<ClientReceivables, 'refunded'> {
-  const register = [...invoices].sort((earlier, later) => earlier.issued.localeCompare(later.issued) || earlier.sheetRow - later.sheetRow)
+  const register = [...invoices].sort(invoiceOrder)
   const payments = oldestFirst(credits).map(paymentRow)
 
   let appliedSoFar = ZERO
@@ -168,10 +168,9 @@ export function matchClientInvoices(
     }
   })
 
-  const registerOrder = [...matched].sort((upper, lower) => upper.invoice.sheetRow - lower.invoice.sheetRow)
   return {
     client,
-    invoices: registerOrder,
+    invoices: invoices.map((invoice) => matched.find((candidate) => candidate.invoice === invoice)!),
     payments: matchedPayments,
     outstanding: sumMoney(matched.map((invoice) => invoice.remaining)),
     overpaid: sumMoney(matchedPayments.filter((payment) => payment.applied > 0).map((payment) => payment.leftover)),

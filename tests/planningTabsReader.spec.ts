@@ -120,7 +120,7 @@ describe('the assets tab', () => {
     expect(problemsOn(workbook, 'assets')).toEqual([[3, "innovation is not on the grants tab, so the asset's depreciation releases no grant"]])
   })
 
-  it('leaves out a row it cannot depreciate, and says why', () => {
+  it('leaves out a row it cannot depreciate and every row of a name listed twice, and says why', () => {
     const workbook = workbookWith({
       assets: [
         header,
@@ -137,7 +137,7 @@ describe('the assets tab', () => {
       ],
     })
 
-    expect(workbook.assets.map((asset) => asset.name)).toEqual(['Server'])
+    expect(workbook.assets.map((asset) => asset.name)).toEqual([])
     expect(problemsOn(workbook, 'assets')).toEqual([
       [2, 'no asset name'],
       [3, 'bought "2025-05-28" is not a date cell'],
@@ -147,7 +147,8 @@ describe('the assets tab', () => {
       [7, '"furniture" is not a group. Use computers, equipment, car, building, other'],
       [8, 'doubled "maybe" is neither TRUE nor FALSE'],
       [9, 'disposed 2025-11-21 is before in_use 2025-11-24'],
-      [11, '"server" is already listed above'],
+      [10, '"Server" is listed on more than one row, so none of them counts'],
+      [11, '"server" is listed on more than one row, so none of them counts'],
     ])
   })
 })
@@ -178,7 +179,7 @@ describe('the grants tab', () => {
     expect(workbook.problems).toEqual([expect.objectContaining({ tab: 'categories' })])
   })
 
-  it('leaves out a grant whose parts or period do not fit its release', () => {
+  it('leaves out a grant whose parts or period do not fit its release, and every row of a name listed twice', () => {
     const workbook = workbookWith({
       grants: [
         header,
@@ -193,7 +194,7 @@ describe('the grants tab', () => {
       ],
     })
 
-    expect(workbook.grants.map((grant) => grant.slug)).toEqual(['g'])
+    expect(workbook.grants.map((grant) => grant.slug)).toEqual([])
     expect(problemsOn(workbook, 'grants')).toEqual([
       [2, 'fixed_part and variable_part add up to 900.00, not the amount 1000.00'],
       [3, 'fixed_part and variable_part go together, and only one is filled'],
@@ -201,7 +202,8 @@ describe('the grants tab', () => {
       [5, 'a straight-line release needs period_from and period_to'],
       [6, '"monthly" is not a release. Use fixed-then-assets, straight-line'],
       [7, 'clawback_year1 "half" is neither whole nor an amount above zero'],
-      [9, '"g" is already listed above'],
+      [8, '"g" is listed on more than one row, so none of them counts'],
+      [9, '"g" is listed on more than one row, so none of them counts'],
     ])
   })
 })
@@ -243,13 +245,14 @@ describe('the year-end tab', () => {
         [2025, 'tax', 'rate', '', 10],
         [2025, 'tax', 'paid-on', '', 'April'],
         [2025, 'pl', 'sales', '', 'lots'],
-        [2025, 'pl', 'sales', '', 100, 'software'],
+        [2025, 'pl', 'material-costs', '', 100, 'software'],
         [2025, 'pl', 'sales', '', 200],
+        [2025, 'pl', 'sales', '', 300],
         [2025, 'konto', '41200', '', 50, 'snacks'],
       ],
     })
 
-    expect(workbook.yearEndLines.map((line) => line.sheetRow)).toEqual([9, 11])
+    expect(workbook.yearEndLines.map((line) => line.sheetRow)).toEqual([9, 12])
     expect(problemsOn(workbook, 'year-end')).toEqual([
       [2, 'year "last year" is not a year'],
       [3, '"notes" is not a statement. Use pl, balance, tax, distribution, grant, konto'],
@@ -259,8 +262,9 @@ describe('the year-end tab', () => {
       [7, 'amount "April" is not a date cell, and this line is a date'],
       [8, 'amount "lots" is not a number'],
       [9, 'categories is read on konto rows only, so it is ignored here'],
-      [10, '2025 pl sales is already listed above'],
-      [11, '"snacks" is not on the categories tab'],
+      [10, '2025 pl sales is listed on more than one row, so none of them counts'],
+      [11, '2025 pl sales is listed on more than one row, so none of them counts'],
+      [12, '"snacks" is not on the categories tab'],
     ])
   })
 
@@ -320,7 +324,7 @@ describe('the plan tab', () => {
     expect(problemsOn(workbook, 'plan')).toEqual([])
   })
 
-  it('leaves out a row it cannot plan with, and says why', () => {
+  it('leaves out a row it cannot plan with and every row of a key listed twice, and says why', () => {
     const workbook = workbookWith({
       scenarios: [['scenario', 'year', 'component', 'amount'], ['floor', 2027, 'salary_gross', 'floor']],
       plan: [
@@ -344,13 +348,14 @@ describe('the plan tab', () => {
       ],
     })
 
-    expect(workbook.planLines.map((line) => line.sheetRow)).toEqual([6, 16])
+    expect(workbook.planLines.map((line) => line.sheetRow)).toEqual([])
     expect(problemsOn(workbook, 'plan')).toEqual([
       [2, 'month "13" is not a month from 1 to 12'],
       [3, '"snacks" is neither owner_pay_scenario, dividend, purchase nor a category on the categories tab'],
       [4, '"missing" is not a scenario on the scenarios tab'],
       [5, 'amount "a lot" is not a number'],
-      [7, 'software for every month of 2027 is already listed above'],
+      [6, 'software for every month of 2027 is listed on more than one row, so none of them counts'],
+      [7, 'software for every month of 2027 is listed on more than one row, so none of them counts'],
       [8, 'revenue is planned on the outgoing-plan tab, one row per item to invoice, so move this row there'],
       [9, 'a purchase needs the day it is bought in date'],
       [10, 'date 2026-12-30 is not in 2027'],
@@ -359,7 +364,8 @@ describe('the plan tab', () => {
       [13, 'a dividend is paid in one month, so give its month'],
       [14, 'amount must be more than zero'],
       [15, 'an owner pay scenario holds from its date, so leave month blank'],
-      [17, 'An owner pay scenario from 1 January 2027 is already listed above'],
+      [16, 'An owner pay scenario from 1 January 2027 is listed on more than one row, so none of them counts'],
+      [17, 'An owner pay scenario from 1 January 2027 is listed on more than one row, so none of them counts'],
     ])
   })
 })
@@ -373,7 +379,7 @@ describe('the scenarios tab', () => {
         header,
         ['floor-then-board', 'Floor, then board only', 2027, 'salary_gross', 'Floor', '', DAY['2027-06-30']],
         ['floor-then-board', '', 2027, 'director_basis', 'board-only', DAY['2027-07-01']],
-        ['floor-then-board', 'Ignored', 2027, 'nontaxable:occasional-gift', 700],
+        ['floor-then-board', '', 2027, 'nontaxable:occasional-gift', 700],
         ['salary', '', 2027, 'salary_gross', 2400.5],
         ['salary', '', 2027, 'rent_monthly', 300],
         ['salary', '', 2027, 'dividend', 'max'],
@@ -405,13 +411,13 @@ describe('the scenarios tab', () => {
     expect(problemsOn(workbook, 'scenarios')).toEqual([])
   })
 
-  it('leaves out a row it cannot model, and says why', () => {
+  it('leaves out a row it cannot model and every row of a component given twice, and says why', () => {
     const workbook = workbookWith({
       scenarios: [
         header,
         ['mix', '', 2027, 'salary_gross', 'floor'],
-        ['mix', '', 2028, 'dividend', 'max'],
-        ['mix', '', 2027, 'salary_gross', 'floor'],
+        ['mix', '', 2027, 'rent_monthly', 300],
+        ['mix', '', 2027, 'rent_monthly', 300],
         ['mix', '', 2027, 'bonus', 100],
         ['mix', '', 2027, 'nontaxable:', 100],
         ['mix', '', 2027, 'salary_months', 6],
@@ -425,8 +431,8 @@ describe('the scenarios tab', () => {
 
     expect(workbook.payScenarios.map((scenario) => scenario.components.map((component) => component.sheetRow))).toEqual([[2]])
     expect(problemsOn(workbook, 'scenarios')).toEqual([
-      [3, 'mix is a scenario for 2027 on an earlier row'],
-      [4, 'mix already has this component for the same days above'],
+      [3, 'mix has this component for the same days on more than one row, so none of them counts'],
+      [4, 'mix has this component for the same days on more than one row, so none of them counts'],
       [5, '"bonus" is not a component. Use salary_gross, rent_monthly, dividend, director_basis'],
       [6, '"" is not a tax-free item name, such as nontaxable:occasional-gift'],
       [7, '"salary_months" is not a component. Use salary_gross, rent_monthly, dividend, director_basis'],
@@ -435,6 +441,27 @@ describe('the scenarios tab', () => {
       [10, 'from 2028-01-10 is outside 2027'],
       [11, 'to 2027-01-15 is before from 2027-07-01'],
       [12, 'no scenario name'],
+    ])
+  })
+
+  it('leaves out a scenario whose rows name two years, and reads a label its rows give differently as blank', () => {
+    const workbook = workbookWith({
+      scenarios: [
+        header,
+        ['split', 'First', 2027, 'salary_gross', 'floor'],
+        ['split', '', 2028, 'dividend', 'max'],
+        ['named', 'One', 2027, 'salary_gross', 'floor'],
+        ['named', 'Two', 2027, 'rent_monthly', 300],
+        ['named', '', 2027, 'dividend', 'max'],
+      ],
+    })
+
+    expect(workbook.payScenarios.map((scenario) => [scenario.slug, scenario.label, scenario.components.length])).toEqual([['named', '', 3]])
+    expect(problemsOn(workbook, 'scenarios')).toEqual([
+      [2, 'split names the years 2027 and 2028, and a scenario is for one year, so none of its rows counts'],
+      [3, 'split names the years 2027 and 2028, and a scenario is for one year, so none of its rows counts'],
+      [4, 'the rows of named give its label differently, so it reads blank'],
+      [5, 'the rows of named give its label differently, so it reads blank'],
     ])
   })
 })

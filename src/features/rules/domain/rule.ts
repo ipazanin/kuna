@@ -1,3 +1,5 @@
+import { naturalOrder } from '../../../shared/text/naturalOrder'
+
 /** `rule` files a row at full confidence. `review` writes `ai`, so the row waits on Needs review. */
 export type RuleConfidence = 'rule' | 'review'
 
@@ -27,7 +29,7 @@ export interface Rule {
   readonly category: string
   readonly confidence: RuleConfidence
   readonly note: string
-  /** The tab row, which breaks a tie between equal orders. Null for a rule not on the tab yet. */
+  /** The tab row it was read from. Null for a rule not on the tab yet. */
   readonly sheetRow: number | null
 }
 
@@ -53,11 +55,29 @@ export const CONDITION_COLUMNS = [
 /** Every column of the `rules` tab in its seeded order. */
 export const RULE_COLUMNS = ['rule', 'order', 'enabled', ...CONDITION_COLUMNS, 'category', 'confidence', 'note'] as const
 
-/** The rules in the order they are tried: by order, then by tab row, with a rule not on the tab yet last among equals. */
+/**
+ * The rules in the order they are tried: by order, then by id. `Rules.gs` breaks a tie by the tab
+ * row instead, so two enabled rules that share an order are reported and a save that makes such a
+ * tie is refused, which keeps the two in step.
+ */
 export function inTryingOrder(rules: readonly Rule[]): Rule[] {
-  return [...rules].sort((earlier, later) => earlier.order - later.order || tabPosition(earlier) - tabPosition(later))
+  return [...rules].sort((earlier, later) => earlier.order - later.order || naturalOrder(earlier.id.toLowerCase(), later.id.toLowerCase()))
 }
 
-function tabPosition(rule: Rule): number {
-  return rule.sheetRow ?? Number.POSITIVE_INFINITY
+/** The enabled rules that share an order with another enabled rule, in groups of one order each. */
+export function orderTies(rules: readonly Rule[]): readonly (readonly Rule[])[] {
+  const byOrder = new Map<number, Rule[]>()
+  for (const rule of inTryingOrder(rules.filter((candidate) => candidate.enabled))) {
+    byOrder.set(rule.order, [...(byOrder.get(rule.order) ?? []), rule])
+  }
+  return [...byOrder.values()].filter((group) => group.length > 1)
+}
+
+/** Why a change to the rules leaves enabled rules sharing an order that did not share it before. Empty when it makes no new tie. */
+export function newOrderTies(before: readonly Rule[], after: readonly Rule[]): string[] {
+  const tieOf = (group: readonly Rule[]): string => `${group[0]!.order} ${group.map((rule) => rule.id.toLowerCase()).join(' ')}`
+  const known = new Set(orderTies(before).map(tieOf))
+  return orderTies(after)
+    .filter((group) => !known.has(tieOf(group)))
+    .map((group) => `${group.map((rule) => rule.id).join(' and ')} would share the order ${group[0]!.order}, and the Apps Script tries rules of one order by their row, so give each its own order`)
 }

@@ -51,14 +51,14 @@ describe('starting scenarios on a Google Sheet without a scenarios tab', () => {
     await expect(store.changeRows(SCENARIO_ROWS, { added: scenarioCells(drafts), changed: [], removed: [] })).rejects.toThrow(
       new WorkbookWriteRefused('The workbook has no scenarios tab, so nothing was written.'),
     )
-    expect(sheets.requests.filter((request) => request.kind !== 'sheetIds' && request.kind !== 'batchGet')).toEqual([])
+    expect(sheets.requests.filter((request) => request.kind !== 'sheetGrids' && request.kind !== 'batchGet')).toEqual([])
   })
 
   it('adds the tab with the template header and the rows in one request, and reads them back', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used)
     const receipt = await store.changeRows(SCENARIO_ROWS, { added: scenarioCells(drafts), changed: [], removed: [] }, true)
 
-    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetIds', 'batchGet', 'updateSpreadsheet', 'sheetIds', 'batchGet'])
+    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetGrids', 'batchGet', 'updateSpreadsheet', 'sheetGrids', 'batchGet'])
     expect(sentRequests(sheets).map((request) => Object.keys(request)[0]).slice(0, 3)).toEqual(['addSheet', 'updateCells', 'appendCells'])
     expect(sentRequests(sheets).slice(3).every((request) => 'repeatCell' in request)).toBe(true)
     expect(writtenRanges()).toEqual(['scenarios!A1:G1'])

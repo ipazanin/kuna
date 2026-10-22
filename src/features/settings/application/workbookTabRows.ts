@@ -11,7 +11,7 @@ import { slugListOf, slugOf, textOf } from '../../workbook/infrastructure/cellRe
 import { readGrants } from '../../workbook/infrastructure/grantsTabReader'
 import { definedCategorySlugs, readAccountRows, readCategoryRows, readClientRows } from '../../workbook/infrastructure/workbookReader'
 import type { SheetRow, WorkbookTab } from '../../workbook/infrastructure/workbookSnapshot'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
+import { contentColumns } from '../../workbook/infrastructure/workbookTemplate'
 import { readYearEndLines } from '../../workbook/infrastructure/yearEndTabReader'
 import { accountChangeRefusals } from '../domain/accountGuards'
 import { categoryChangeRefusals } from '../domain/categoryGuards'
@@ -22,10 +22,6 @@ export type RowsOf = (tab: WorkbookTab) => readonly SheetRow[]
 
 function rowsOfFresh(fresh: FreshTabs): RowsOf {
   return (tab) => fresh[tab]?.rows ?? []
-}
-
-function columnsOf(tab: WorkbookTab): string[] {
-  return TEMPLATE_COLUMNS[tab].map((column) => column.name)
 }
 
 function counted(count: number, one: string, many: string): string {
@@ -103,7 +99,7 @@ function noun(one: string, many: string, article: RowNoun['article'] = 'a'): Row
 export const CATEGORY_ROWS: TabRowRules = {
   tab: 'categories',
   noun: noun('category', 'categories'),
-  columns: columnsOf('categories'),
+  columns: contentColumns('categories'),
   required: ['category', 'family', 'bucket'],
   caseless: ['category', 'family', 'bucket', 'vat'],
   reads: ['ledger', 'rules', 'owner-advances', 'splits', 'year-end', 'plan'],
@@ -130,7 +126,7 @@ function clientIbansOf(rows: readonly SheetRow[]): ReadonlyMap<string, string> {
 export const ACCOUNT_ROWS: TabRowRules = {
   tab: 'accounts',
   noun: noun('account', 'accounts', 'an'),
-  columns: columnsOf('accounts'),
+  columns: contentColumns('accounts'),
   required: ['account', 'iban'],
   caseless: ['account', 'iban', 'currency'],
   reads: ['ledger', 'clients'],
@@ -147,7 +143,7 @@ export const ACCOUNT_ROWS: TabRowRules = {
 export const CLIENT_ROWS: TabRowRules = {
   tab: 'clients',
   noun: noun('client row', 'client rows'),
-  columns: columnsOf('clients'),
+  columns: contentColumns('clients'),
   required: ['client', 'iban'],
   caseless: ['client', 'iban'],
   reads: ['accounts', 'invoices', 'outgoing-plan', 'settings'],
@@ -165,7 +161,7 @@ export const CLIENT_ROWS: TabRowRules = {
 export const ASSET_ROWS: TabRowRules = {
   tab: 'assets',
   noun: noun('asset', 'assets', 'an'),
-  columns: columnsOf('assets'),
+  columns: contentColumns('assets'),
   required: ['asset', 'bought', 'cost_net', 'group'],
   caseless: ['group', 'funded_by'],
   reads: ['grants'],
@@ -177,7 +173,7 @@ export const ASSET_ROWS: TabRowRules = {
 export const GRANT_ROWS: TabRowRules = {
   tab: 'grants',
   noun: noun('grant', 'grants'),
-  columns: columnsOf('grants'),
+  columns: contentColumns('grants'),
   required: ['grant', 'received', 'amount'],
   caseless: ['grant', 'release', 'clawback_year1', 'clawback_year2'],
   reads: ['assets'],
@@ -198,7 +194,7 @@ export const GRANT_ROWS: TabRowRules = {
 export const YEAR_END_ROWS: TabRowRules = {
   tab: 'year-end',
   noun: noun('year-end line', 'year-end lines'),
-  columns: columnsOf('year-end'),
+  columns: contentColumns('year-end'),
   required: ['year', 'statement', 'line', 'amount'],
   caseless: ['statement', 'line'],
   reads: ['categories'],

@@ -1,4 +1,4 @@
-import { leaveOutOfFakeSheet } from './fakeSheets'
+import { shapeFakeSheet } from './fakeSheets'
 import { FAKE_SPREADSHEET_ID, FAKE_WORKBOOK_TITLE, fakeWorkbookSnapshot } from './fakeWorkbook'
 import type { WorkbookTab } from '../workbookSnapshot'
 import { saveWorkbookChoice } from '../workbookChoice'
@@ -19,7 +19,9 @@ const LEFT_OUT: readonly (readonly [suffix: string, tab: WorkbookTab])[] = [
  * `?fake=excel` keeps it as a workbook of this browser with changes nine days past their last
  * export, and `?fake=empty` keeps nothing, which is a first run. `?fake=no-billing-plan` and
  * `?fake=excel-no-billing-plan` leave out the outgoing-plan tab, `?fake=no-scenarios` the
- * scenarios tab, `?fake=no-plan` the plan tab and `?fake=no-splits` the splits tab, from the Sheet too, so a write can add it. Only main.ts imports this, behind
+ * scenarios tab, `?fake=no-plan` the plan tab and `?fake=no-splits` the splits tab, from the Sheet too, so a write can add it.
+ * `?fake=no-ids` and `?fake=excel-no-ids` keep the rows of the tabs that carry ids without them, and the Sheet without the id column,
+ * so Overview offers to add them. Only main.ts imports this, behind
  * an inline VITE_FAKE_WORKBOOK comparison, so the module and its fixture never reach a production chunk.
  */
 export async function seedFakeWorkbook(variant: string | null): Promise<void> {
@@ -29,11 +31,12 @@ export async function seedFakeWorkbook(variant: string | null): Promise<void> {
   }
   const source = variant?.startsWith('excel') ? 'excel' : 'google'
   const now = Date.now()
-  const full = fakeWorkbookSnapshot(new Date(now).toISOString(), source)
+  const withIds = !(variant?.endsWith('no-ids') ?? false)
+  const full = fakeWorkbookSnapshot(new Date(now).toISOString(), source, withIds)
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const snapshot = missing === null ? full : { ...full, [missing]: [], meta: { ...full.meta, missingTabs: source === 'google' ? [...full.meta.missingTabs, missing] : [] } }
-  if (source === 'google' && missing !== null) {
-    leaveOutOfFakeSheet([missing])
+  if (source === 'google') {
+    shapeFakeSheet(missing === null ? [] : [missing], withIds)
   }
   const seeded =
     source === 'excel'

@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
+import { naturalOrder } from '../../../shared/text/naturalOrder'
 import type { Bucket } from './bucket'
 import type { Transaction } from './workbook'
 
@@ -24,13 +25,20 @@ export interface SplitPart {
   readonly note: string
   /** The part's row on the splits tab. */
   readonly sheetRow: number
+  /** Absent on a row from before rows carried an id. */
+  readonly id?: string
 }
 
 /** A bank row and the parts that count in its place, which add up to it. */
 export interface LedgerSplit {
   readonly row: Transaction
-  /** In the order of the splits tab. */
+  /** Larger first, as `partOrder` puts them. */
   readonly parts: readonly SplitPart[]
+}
+
+/** Parts larger first, then by category and note, so a part's number does not hang on where its row sits. */
+export function partOrder(earlier: SplitPart, later: SplitPart): number {
+  return Math.abs(later.amount) - Math.abs(earlier.amount) || naturalOrder(earlier.category, later.category) || naturalOrder(earlier.note, later.note)
 }
 
 export function splitKeyOf(row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance'>): SplitKey {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { googleConfig } from '../src/features/workbook/infrastructure/googleConfig'
+import { googleConfig } from '../src/shared/google/googleConfig'
 
 function configure(clientId: string, apiKey: string, projectNumber: string): void {
   vi.stubEnv('VITE_GOOGLE_CLIENT_ID', clientId)

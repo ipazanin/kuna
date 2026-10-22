@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { latestBalances } from '../src/features/cash/domain/balances'
 import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
+import { countedSplits } from '../src/features/transactions/domain/countedSplits'
 import { listedRows, withSplitHeadings } from '../src/features/transactions/domain/listedRows'
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
 import { listedRowKey, splitLedger } from '../src/features/workbook/domain/splits'
@@ -10,7 +11,7 @@ import { readSplits } from '../src/features/workbook/infrastructure/splitsTabRea
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { countedSplits } from '../src/packs/hr-doo/domain/countedSplits'
+import { assetsClaimingRows } from '../src/packs/hr-doo/domain/assets/assetRegister'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
 import { compareYearEnd } from '../src/packs/hr-doo/domain/yearEnd/yearEndComparison'
 import { STUDIO_CATEGORIES, STUDIO_ROWS, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
@@ -91,6 +92,16 @@ describe('readSplits', () => {
           { amount: euros(-15), category: 'owner-loan-out', family: 'owner-pay', bucket: 'owner-pay', note: '', sheetRow: 3 },
         ],
       },
+    ])
+  })
+
+  it('numbers the parts larger first, then by category, wherever their rows sit', () => {
+    const reading = read([...KEY, -10, 'travel'], [...KEY, -25, 'owner-loan-out'], [...KEY, -25, 'office-supplies'])
+
+    expect(reading.splits[0]?.parts.map((part) => [part.amount, part.category])).toEqual([
+      [euros(-25), 'office-supplies'],
+      [euros(-25), 'owner-loan-out'],
+      [euros(-10), 'travel'],
     ])
   })
 
@@ -193,7 +204,7 @@ describe('countedSplits', () => {
         ],
       ),
     )
-    const counted = countedSplits(workbook)
+    const counted = countedSplits(workbook.splits, assetsClaimingRows(workbook.assets, workbook.transactions, workbook.categories))
 
     expect(workbook.splits).toHaveLength(1)
     expect(counted.splits).toEqual([])

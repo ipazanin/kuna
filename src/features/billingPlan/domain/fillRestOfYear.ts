@@ -4,6 +4,7 @@ import { firstDayOf, lastDayOf, monthKey, monthOf, monthsFrom, yearOfMonth } fro
 import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../shared/calendar/monthLabel'
 import type { BillingTerms } from '../../settings/domain/settings'
+import { billingItemOrder } from '../../workbook/domain/billingPlan'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
 
 /** A plan row before it is on the tab. */
@@ -41,7 +42,7 @@ export function fillRestOfYear(plan: readonly BillingItem[], terms: BillingTerms
   const clientRows = plan.filter((row) => row.client === terms.client)
   const planned = new Set(clientRows.map((row) => `${monthOf(row.date)} ${row.item}`))
   const latest = new Map<string, BillingItem>()
-  for (const row of [...clientRows].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)) {
+  for (const row of [...clientRows].sort(billingItemOrder)) {
     latest.set(row.item, row)
   }
   const first = year === yearOf(asOf) ? monthOf(asOf) : monthKey(year, 1)

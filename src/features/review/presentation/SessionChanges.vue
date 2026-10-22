@@ -76,6 +76,8 @@ function titleOf(write: SessionWrite): string {
       return write.changes.length === 1 ? `Set ${write.changes[0]!.key}` : `Changed ${write.changes.length} settings`
     case 'rows':
       return rowsChangeInWords(write.rules, write.receipt, write.undid)
+    case 'ids':
+      return `Gave ${rows(write.given.reduce((sum, tab) => sum + tab.rows, 0))} an id`
   }
 }
 
@@ -84,6 +86,7 @@ const ICONS: Readonly<Record<SessionWrite['kind'], string>> = {
   rules: 'i-lucide-list-ordered',
   settings: 'i-lucide-sliders-horizontal',
   rows: 'i-lucide-table-properties',
+  ids: 'i-lucide-key-round',
 }
 
 function iconOf(write: SessionWrite): string {
@@ -171,6 +174,9 @@ function quoted(cell: string | number | boolean | null): string {
             <li v-for="change in write.changes" :key="change.key" class="text-xs text-muted">
               <span class="identifier text-toned">{{ change.key }}</span> from {{ quoted(change.expected) }} to {{ quoted(change.value) }}
             </li>
+          </ul>
+          <ul v-else-if="write.kind === 'ids'" class="detail-list">
+            <li v-for="tab in write.given" :key="tab.tab" class="text-xs text-muted">{{ rows(tab.rows) }} of <span class="identifier text-toned">{{ tab.tab }}</span></li>
           </ul>
           <ul v-else-if="write.kind === 'rows'" class="detail-list">
             <li v-for="row in [...write.receipt.added, ...write.receipt.removed].slice(0, SHOWN_ROWS)" :key="`row-${row.sheetRow}`" class="text-xs text-muted">

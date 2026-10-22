@@ -6,6 +6,7 @@ import { advanceDrill, drillToTransactions, rowDrill } from '../../../features/f
 import type { DrillTarget, Figure } from '../../../features/filters/domain/drillTarget'
 import { EVERY_OWNER_ADVANCE } from '../../../features/filters/domain/filterState'
 import type { AmountRange } from '../../../features/filters/domain/filterState'
+import { ownerAdvanceOrder } from '../../../features/workbook/domain/workbook'
 import type { Category, OwnerAdvance, Transaction } from '../../../features/workbook/domain/workbook'
 import type { OwnerLoanBook } from './ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
@@ -80,7 +81,7 @@ const DEBITS: AmountRange = { min: null, max: moneyFromCents(-1) }
 export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): OwnerAdvanceBook {
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
   const repayments = netReimbursements(transactions, categories).toOwner
-  const paidByOwner = [...advances].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sheetRow - later.sheetRow)
+  const paidByOwner = [...advances].sort(ownerAdvanceOrder)
 
   const placed = settlePayments(
     paidByOwner.map((advance) => advance.amount),

@@ -8,6 +8,7 @@ import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../filters/application/filterStore'
+import { shownPack } from '../../packs/packContribution'
 import { priorEqualPeriod } from '../../filters/domain/periodComparison'
 import { periodInWords } from '../../filters/domain/periodInWords'
 import { useSettings } from '../../settings/application/useSettings'
@@ -30,12 +31,6 @@ const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 
-/** The pages that break the taxes and the owner pay further down, in the Croatian pack. */
-const GROUP_LINKS = {
-  taxes: { label: 'Year, Taxes', to: { path: '/year', query: { tab: 'taxes' } } },
-  'owner-pay': { label: 'Owner, Taken', to: { path: '/owner', query: { tab: 'taken' } } },
-} as const
-
 const spending = computed(() => {
   const current = ledger.value
   if (current === null) {
@@ -46,7 +41,7 @@ const spending = computed(() => {
   const groups = costGroups(categoryTotals(profitAndLossRows, filters.period, window), prior === null ? null : categoryTotals(profitAndLossRows, prior, window))
   const groupTitle = (key: CostGroup['key']): string =>
     key === 'money-back' ? 'Money back' : settings.value.bucketLabels[key]
-  const pack = settings.value.ownerPayModule
+  const pack = shownPack(settings.value)
   const priorLabel = prior === null ? null : periodInWords(prior, window)
   const payees = topCounterparties(scoped, filters.period, window)
   const stripScale = Math.max(0, ...payees.flatMap((payee) => payee.strip.map((cell) => cell.amount)))
@@ -61,7 +56,7 @@ const spending = computed(() => {
       (group): CostSection => ({
         key: group.key,
         title: groupTitle(group.key),
-        ...(pack && group.key in GROUP_LINKS ? { link: GROUP_LINKS[group.key as keyof typeof GROUP_LINKS] } : {}),
+        link: pack.costGroupLinks(group.key),
         total: group.total,
         priorTotal: group.priorTotal,
         change: group.change,

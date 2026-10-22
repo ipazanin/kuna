@@ -10,7 +10,7 @@ import type { Workbook } from '../domain/workbook'
 import { googleWorkbookPorts, readSnapshotFrom, sheetsValuesForWriting } from '../infrastructure/googleWorkbookPorts'
 import { googleWorkbookWriter } from '../infrastructure/googleWorkbookWriter'
 import { localWorkbookWriter } from '../infrastructure/localWorkbookWriter'
-import { currentAccessToken, forgetGoogleSignIn, prepareGoogleIdentity, signOutOfGoogle } from '../infrastructure/googleAuth'
+import { currentAccessToken, forgetGoogleSignIn, prepareGoogleIdentity, signOutOfGoogle } from '../../../shared/google/googleAuth'
 import { loadWorkbookChoice, saveWorkbookChoice } from '../infrastructure/workbookChoice'
 import type { WorkbookChoice } from '../infrastructure/workbookChoice'
 import { openWorkbookCache } from '../infrastructure/workbookCache'
@@ -18,8 +18,11 @@ import type { WorkbookCache } from '../infrastructure/workbookCache'
 import { readWorkbook } from '../infrastructure/workbookReader'
 import { WORKBOOK_TABS } from '../infrastructure/workbookSnapshot'
 import type { WorkbookSnapshot, WorkbookTab, WorkbookTabs } from '../infrastructure/workbookSnapshot'
+import { TABS_WITH_IDS } from '../infrastructure/workbookTemplate'
 import { readFromGoogle } from './readFromGoogle'
 import type { GoogleSheet } from './readFromGoogle'
+import { planMissingIds, verifyMissingIds } from './rowIds'
+import type { RowsWithoutIds } from './rowIds'
 import { planRowsChange, verifyRowsChange } from './tabRowWrites'
 import type { TabRowRules } from './tabRowWrites'
 import { WorkbookWriteRefused, hasEdits } from './workbookWriter'
@@ -48,6 +51,8 @@ export type WrittenChange =
     }
   | { readonly kind: 'rules'; readonly change: RulesTabChange }
   | { readonly kind: 'settings'; readonly changes: readonly SettingChange[] }
+  /** Ids given to rows that had none, per tab. */
+  | { readonly kind: 'ids'; readonly given: readonly RowsWithoutIds[] }
   | {
       readonly kind: 'rows'
       /** The tab's rules, which the write's Undo goes through again. */
@@ -68,6 +73,7 @@ export function isUndo(write: SessionWrite): boolean {
       return write.undid !== null
     case 'rules':
     case 'settings':
+    case 'ids':
       return false
   }
 }
@@ -81,16 +87,17 @@ export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]):
       return writes.some((later) => later.kind === 'rows' && later.undid === write.receipt)
     case 'rules':
     case 'settings':
+    case 'ids':
       return false
   }
 }
 
 /**
  * Whether Undo can put back what a write changed: a ledger write, or rows added, changed or deleted
- * on a tab, unless it is an undo itself or was undone since. Rules and settings have no undo.
+ * on a tab, unless it is an undo itself or was undone since. Rules, settings and ids have no undo.
  */
 export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): boolean {
-  return write.kind !== 'rules' && write.kind !== 'settings' && !isUndo(write) && !wasUndone(write, writes)
+  return (write.kind === 'ledger' || write.kind === 'rows') && !isUndo(write) && !wasUndone(write, writes)
 }
 
 /**
@@ -206,6 +213,11 @@ export interface WorkbookStore {
    * or null when nothing differed.
    */
   changeRows(rules: TabRowRules, change: TabRowsChange, addMissingTab?: boolean): Promise<TabRowsReceipt | null>
+  /**
+   * Gives every row of the tabs whose rows carry an id, and that has none, a new one in one write,
+   * adding the id column to a tab without it. Returns how many rows of each tab got one.
+   */
+  addMissingIds(): Promise<readonly RowsWithoutIds[]>
   /** Puts back what a write of this session changed, through that write's own checks. Refused for a write `canUndo` rules out, and while `undoOrderRefusal` gives a reason. */
   undo(write: SessionWrite): Promise<void>
 }
@@ -484,6 +496,11 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
 
     changeRows(rules, change, addMissingTab = false) {
       return writeRows(rules, change, null, addMissingTab)
+    },
+
+    async addMissingIds() {
+      const planned = await writeThrough(TABS_WITH_IDS, planMissingIds, verifyMissingIds, ({ lacking }) => ({ kind: 'ids', given: lacking }))
+      return planned.lacking
     },
 
     async undo(write) {

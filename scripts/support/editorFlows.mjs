@@ -833,3 +833,25 @@ export async function dismissFlow(page, { press, shoot, inspect }) {
   await shoot('dismiss-undone')
   await dismissToasts(page)
 }
+
+/** Overview's line for rows without an id: open its dialog, read the tabs and counts, add the ids, and the line is gone. */
+export async function missingIdsFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-job="ids"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Overview has no line for rows without an id')
+  })
+  await inspect?.('the line for rows without an id')
+  await shoot('ids-line')
+  await pressSelector(page, press, '[data-testid="missing-ids-open"]')
+  await page.waitForSelector('[data-testid="missing-ids"] li', { visible: true, timeout: 10_000 })
+  await delay(400)
+  await inspect?.('the ids dialog')
+  await shoot('ids-dialog')
+  await pressSelector(page, press, '[data-testid="missing-ids-add"]')
+  await toast(page, 'Ids added')
+  await dialogGone(page, '[data-testid="missing-ids"]')
+  await page.waitForFunction(() => !document.querySelector('[data-job="ids"]'), { timeout: 10_000 }).catch(() => {
+    throw new Error('the line for rows without an id stayed after the ids were added')
+  })
+  await shoot('ids-added')
+  await dismissToasts(page)
+}

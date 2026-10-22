@@ -7,6 +7,7 @@ import { ZERO, subtractMoney, sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { formatPercent, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
+import { billingItemOrder } from '../../workbook/domain/billingPlan'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
 import type { BillingPlanFigures } from '../application/useBillingPlan'
 import type { MatchedBillingItem } from '../domain/plannedAgainstInvoiced'
@@ -106,7 +107,7 @@ export function billingView(
   const matchedRows = figures.matches
     .flatMap((match) => match.months.flatMap((month) => month.items))
     .filter((matched) => yearOf(matched.row.date) === year)
-    .sort((earlier, later) => earlier.row.date.localeCompare(later.row.date) || earlier.row.sheetRow - later.row.sheetRow)
+    .sort((earlier, later) => billingItemOrder(earlier.row, later.row))
   const rows = matchedRows.map(rowLine)
   const withoutPlan = figures.matches
     .flatMap((match) => match.withoutPlan)
@@ -173,7 +174,7 @@ export function billingView(
       rows.length === 0
         ? 'No plan rows in the year'
         : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}, ${openRows.length === 0 ? 'every one invoiced' : `${openRows.length} not invoiced yet`}`,
-    rows: [...rows].sort((earlier, later) => later.date.localeCompare(earlier.date) || earlier.sheetRow - later.sheetRow),
+    rows: [...rows].sort((earlier, later) => later.date.localeCompare(earlier.date) || billingItemOrder(earlier, later)),
     items,
     itemsSummary:
       largest === undefined

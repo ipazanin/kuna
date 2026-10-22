@@ -46,15 +46,15 @@ describe('the template', () => {
       header.forEach((_, column) => expect(sheet[XLSX.utils.encode_cell({ r: 0, c: column })]?.c?.[0]?.t, `${name} column ${column + 1}`).toBeTruthy())
     }
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.assets!, { header: 1 })[0]).toEqual([
-      'asset', 'bought', 'in_use', 'cost_net', 'group', 'doubled', 'disposed', 'funded_by', 'ledger_reference', 'note',
+      'asset', 'bought', 'in_use', 'cost_net', 'group', 'doubled', 'disposed', 'funded_by', 'ledger_reference', 'note', 'id',
     ])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['year-end']!, { header: 1 })[0]).toEqual([
-      'year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note',
+      'year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note', 'id',
     ])
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category'])
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.splits!, { header: 1 })[0]).toEqual(['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category', 'id'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.splits!, { header: 1 })[0]).toEqual(['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note', 'id'])
     expect(book.Sheets.splits?.D1?.c?.[0]?.t).toMatch(/finds exactly one row/)
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['outgoing-plan']!, { header: 1 })[0]).toEqual(['item', 'date', 'amount', 'client', 'description'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['outgoing-plan']!, { header: 1 })[0]).toEqual(['item', 'date', 'amount', 'client', 'description', 'id'])
     expect(book.Sheets['outgoing-plan']?.B1?.c?.[0]?.t).toMatch(/billable/)
     expect(book.Sheets.invoices?.A1?.c?.[0]?.t).toMatch(/as text/)
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.rules!, { header: 1 })[0]).toEqual([...RULE_COLUMNS])

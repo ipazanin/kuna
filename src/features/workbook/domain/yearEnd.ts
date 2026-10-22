@@ -120,6 +120,8 @@ export interface YearEndLine {
   readonly source: string
   readonly note: string
   readonly sheetRow: number
+  /** Absent on a row from before rows carried an id. */
+  readonly id?: string
 }
 
 export function yearEndLineDefinition(statement: YearEndStatement, line: string): YearEndLineDefinition | null {

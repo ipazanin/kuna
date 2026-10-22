@@ -1,9 +1,8 @@
 import { normaliseIban } from '../../../shared/text/fold'
 import type { Account } from '../../workbook/domain/workbook'
-import type { CellValue } from '../../workbook/infrastructure/workbookSnapshot'
 import { DATE_FORMATS } from './importProfile'
 import type { DateFormat, DecimalMark, ImportProfile } from './importProfile'
-import type { CellGrid } from './tabularStatement'
+import type { CellGrid, StatementCell } from './tabularStatement'
 import { dateOf } from './tabularStatement'
 
 /** Header words of Croatian and English bank exports, in the order they are tried. */
@@ -60,7 +59,7 @@ export function fileShapeOf(grid: CellGrid): FileShape | null {
   const description = pick(HINTS.description)
   const counterparty = pick(HINTS.counterparty)
   const below = grid.slice(headerRow + 1, headerRow + 30)
-  const columnCells = (name: string): (CellValue | undefined)[] => {
+  const columnCells = (name: string): (StatementCell | undefined)[] => {
     const column = headers.indexOf(name)
     return column < 0 ? [] : below.map((row) => row[column])
   }
@@ -85,19 +84,19 @@ export function fileShapeOf(grid: CellGrid): FileShape | null {
 }
 
 /** A text date in any known format, or a number in the range of date cells from 1954 to 2119. */
-function isDateCell(cell: CellValue | undefined): boolean {
+function isDateCell(cell: StatementCell | undefined): boolean {
   return typeof cell === 'string' ? DATE_FORMATS.some((format) => dateOf(cell, format) !== null) : typeof cell === 'number' && cell > 20_000 && cell < 80_000
 }
 
 /** The format most text dates of the column read in, `dd.mm.yyyy` when none is text. */
-function dateFormatOf(cells: readonly (CellValue | undefined)[]): DateFormat {
+function dateFormatOf(cells: readonly (StatementCell | undefined)[]): DateFormat {
   const texts = cells.filter((cell): cell is string => typeof cell === 'string' && cell.trim() !== '')
   const fits = DATE_FORMATS.map((format) => ({ format, count: texts.filter((text) => dateOf(text, format) !== null).length }))
   return fits.reduce((best, fit) => (fit.count > best.count ? fit : best), { format: 'dd.mm.yyyy' as DateFormat, count: 0 }).format
 }
 
 /** A comma when text amounts end in a comma and two digits, as `1.234,56` does, else a point. */
-function decimalOf(cells: readonly (CellValue | undefined)[]): DecimalMark {
+function decimalOf(cells: readonly (StatementCell | undefined)[]): DecimalMark {
   const texts = cells.filter((cell): cell is string => typeof cell === 'string' && cell.trim() !== '')
   const comma = texts.filter((text) => /,\d{1,2}\s*[A-Za-z]*$/.test(text.trim())).length
   const point = texts.filter((text) => /\.\d{1,2}\s*[A-Za-z]*$/.test(text.trim())).length

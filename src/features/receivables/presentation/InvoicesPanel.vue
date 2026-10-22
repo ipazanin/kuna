@@ -31,7 +31,7 @@ import { useFilteredLedger } from '../../transactions/application/useFilteredLed
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { listedRowKey } from '../../workbook/domain/splits'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
-import { newestBookingOf } from '../../workbook/domain/workbook'
+import { invoiceOrder, newestBookingOf } from '../../workbook/domain/workbook'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { ageingOf, amountsOwed, daysPastDue } from '../domain/ageing'
 import { daysToPaid } from '../domain/daysToPaid'
@@ -75,7 +75,7 @@ function reexport(sheetRow: number): void {
 const invoiceDialog = computed(() => {
   const workbook = state.workbook
   if (workbook === null) return null
-  const latest = [...workbook.invoices].sort((upper, lower) => lower.issued.localeCompare(upper.issued) || lower.sheetRow - upper.sheetRow)[0]
+  const latest = [...workbook.invoices].sort((upper, lower) => invoiceOrder(lower, upper))[0]
   return {
     clients: workbook.clients.map((client) => ({ slug: client.slug, name: client.name })),
     defaultIssued: newestBookingOf(workbook.transactions) ?? latest?.issued,
@@ -152,7 +152,7 @@ const view = computed(() => {
 
   const listed = matched
     .filter(({ invoice }) => invoice.remaining > 0 || range === null || rangeContains(range, invoice.invoice.issued))
-    .sort((upper, lower) => lower.invoice.invoice.issued.localeCompare(upper.invoice.invoice.issued) || lower.invoice.invoice.sheetRow - upper.invoice.invoice.sheetRow)
+    .sort((upper, lower) => invoiceOrder(lower.invoice.invoice, upper.invoice.invoice))
     .map(({ entry, invoice }): InvoiceLine => {
       const days = daysPastDue(invoice, asOf)
       const { due } = invoice.invoice

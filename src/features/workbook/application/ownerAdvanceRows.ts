@@ -5,7 +5,7 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { cellText } from '../../../shared/text/cellText'
 import type { RowCells } from '../domain/rowChanges'
 import { definedCategories, readOwnerAdvanceRows } from '../infrastructure/workbookReader'
-import { TEMPLATE_COLUMNS } from '../infrastructure/workbookTemplate'
+import { contentColumns } from '../infrastructure/workbookTemplate'
 import type { TabRowRules } from './tabRowWrites'
 
 /** A cost the owner paid privately, as the Add advance form gives it. */
@@ -22,7 +22,7 @@ export function ownerAdvanceCellsOf(draft: OwnerAdvanceDraft): RowCells {
   return { date: serialFromCivilDate(draft.date), amount: amountOf(draft.amount), description: draft.description.trim(), category: draft.category.trim().toLowerCase() }
 }
 
-const COLUMNS = TEMPLATE_COLUMNS['owner-advances'].map((column) => column.name)
+const COLUMNS = contentColumns('owner-advances')
 
 /** The `owner-advances` tab, checked by its reader against the categories tab as it is now: an amount above zero, in an operating or taxes category. */
 export const OWNER_ADVANCE_ROWS: TabRowRules = {

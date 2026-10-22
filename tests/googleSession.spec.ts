@@ -8,7 +8,7 @@ import {
   loadAccountEmail,
   saveAccessToken,
   saveAccountEmail,
-} from '../src/features/workbook/infrastructure/googleSession'
+} from '../src/shared/google/googleSession'
 
 const ISSUED_AT = Date.parse('2026-10-16T09:00:00.000Z')
 const ONE_HOUR = 3_600_000

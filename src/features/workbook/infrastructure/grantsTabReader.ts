@@ -1,6 +1,7 @@
 import { addMoney, plainAmount } from '../../../shared/money/money'
 import { GRANT_RELEASES } from '../domain/grants'
 import type { Grant, GrantClawback, GrantParts, GrantRelease } from '../domain/grants'
+import { sharedKeys } from '../domain/sharedKeys'
 import {
   inTabOrder,
   isUnreadable,
@@ -21,23 +22,23 @@ import type { SheetRow } from './workbookSnapshot'
 
 const DEFAULT_RELEASE: GrantRelease = 'fixed-then-assets'
 
-/** The `grants` tab. A name used twice is left out the second time, since its income would count twice. */
+/** The `grants` tab. A name on more than one row leaves out every row of it, since its income would count twice. */
 export function readGrants(rows: readonly SheetRow[]): TabReading<Grant> {
-  const facts: Grant[] = []
+  const read: Grant[] = []
   const problems: RowProblem[] = []
-  const seen = new Set<string>()
   for (const row of inTabOrder(rows)) {
     const grant = readRow(() => readGrantRow(row))
     if (isUnreadable(grant)) {
       problems.push({ sheetRow: row.sheetRow, reason: grant.unreadable })
-    } else if (seen.has(grant.slug)) {
-      problems.push({ sheetRow: row.sheetRow, reason: `"${grant.slug}" is already listed above` })
     } else {
-      seen.add(grant.slug)
-      facts.push(grant)
+      read.push(grant)
     }
   }
-  return { facts, problems }
+  const shared = sharedKeys(read, (grant) => grant.slug)
+  for (const grant of read.filter((candidate) => shared.has(candidate.slug))) {
+    problems.push({ sheetRow: grant.sheetRow, reason: `"${grant.slug}" is listed on more than one row, so none of them counts` })
+  }
+  return { facts: read.filter((grant) => !shared.has(grant.slug)), problems }
 }
 
 function readGrantRow(row: SheetRow): Grant {

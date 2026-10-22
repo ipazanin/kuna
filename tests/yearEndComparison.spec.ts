@@ -93,20 +93,20 @@ describe('compareYearEnd', () => {
     expect(comparison.recorded[0]?.check?.holds).toBe(false)
   })
 
-  it('groups konto lines that share a category, beside our figure for those categories', () => {
+  it('groups konto lines that share a category by konto number, beside our figure for those categories', () => {
     const comparison = compared([
-      yearEndLine(2025, 'konto', '41800', 78, ['representation']),
       yearEndLine(2025, 'konto', '41801', 2, ['representation']),
+      yearEndLine(2025, 'konto', '41800', 78, ['representation']),
       yearEndLine(2025, 'konto', '41000', 150, ['software']),
       yearEndLine(2025, 'konto', '49000', 12),
     ])
 
     expect(comparison.konto.map((group) => [group.konto.map((entry) => entry.line), group.accountant, group.ours, group.difference])).toEqual([
-      [['41800', '41801'], euros(80), euros(80), euros(0)],
       // 100.00 of software without its VAT and the owner's 40.00 advance.
       [['41000'], euros(150), euros(140), euros(10)],
+      [['41800', '41801'], euros(80), euros(80), euros(0)],
     ])
-    expect(comparison.konto[1]?.categories[0]?.drill).not.toBeNull()
+    expect(comparison.konto[0]?.categories[0]?.drill).not.toBeNull()
     expect(comparison.unnamedKonto.map((entry) => entry.line)).toEqual(['49000'])
   })
 

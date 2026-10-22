@@ -4,39 +4,39 @@ import { monthNumber, monthOf } from '../../../shared/calendar/monthKey'
 import { ASSET_GROUPS } from '../domain/assets'
 import { PLAN_KEYWORDS } from '../domain/plan'
 import type { PlanLine } from '../domain/plan'
-import { inTabOrder, isUnreadable, optionalDate, positiveMoney, readRow, refuse, requiredChoice, requiredMoney, requiredYear, slugOf, textOf, wholeNumberOf } from './cellReading'
+import { sharedKeys } from '../domain/sharedKeys'
+import { idOf, inTabOrder, isUnreadable, optionalDate, positiveMoney, readRow, refuse, requiredChoice, requiredMoney, requiredYear, slugOf, textOf, wholeNumberOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 
 /**
  * The `plan` tab. A category or dividend row is listed once per year and month, and an
- * `owner_pay_scenario` row once per year and starting day. A purchase may repeat, since two
- * purchases can share a day. An item must be a keyword or a category on the categories tab, and an
+ * `owner_pay_scenario` row once per year and starting day, or every row of the key is left out. A
+ * purchase may repeat, since two purchases can share a day. An item must be a keyword or a category on the categories tab, and an
  * `owner_pay_scenario` row must name a scenario on the scenarios tab, or the row is left out.
  * Planned revenue lives on the `outgoing-plan` tab, so a `revenue` row is left out with a problem
  * that says to move it there. Rules across rows, such as one dividend a year, are the plan guards'.
  */
 export function readPlan(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>, scenarioSlugs: ReadonlySet<string>): TabReading<PlanLine> {
-  const facts: PlanLine[] = []
+  const read: PlanLine[] = []
   const problems: RowProblem[] = []
-  const seen = new Set<string>()
   for (const row of inTabOrder(rows)) {
-    const line = readRow(() => readPlanRow(row, categorySlugs, scenarioSlugs))
+    const line = readRow((): PlanLine => ({ ...readPlanRow(row, categorySlugs, scenarioSlugs), ...idOf(row.cells) }))
     if (isUnreadable(line)) {
       problems.push({ sheetRow: row.sheetRow, reason: line.unreadable })
-      continue
+    } else {
+      read.push(line)
     }
-    const key = keyOf(line)
-    if (key !== null && seen.has(key.text)) {
-      problems.push({ sheetRow: row.sheetRow, reason: `${key.words} is already listed above` })
-      continue
-    }
-    if (key !== null) {
-      seen.add(key.text)
-    }
-    facts.push(line)
   }
-  return { facts, problems }
+  const keyed = read.flatMap((line) => {
+    const key = keyOf(line)
+    return key === null ? [] : [{ line, key }]
+  })
+  const shared = sharedKeys(keyed, ({ key }) => key.text)
+  for (const { line, key } of keyed.filter((candidate) => shared.has(candidate.key.text))) {
+    problems.push({ sheetRow: line.sheetRow, reason: `${key.words} is listed on more than one row, so none of them counts` })
+  }
+  return { facts: read.filter((line) => !shared.has(keyOf(line)?.text ?? '')), problems }
 }
 
 function keyOf(line: PlanLine): { readonly text: string; readonly words: string } | null {

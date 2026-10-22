@@ -1,7 +1,7 @@
 import { RULE_COLUMNS } from '../../../rules/domain/rule'
 import type { WorkbookSource } from '../../domain/workbook'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../workbookSnapshot'
-import { TEMPLATE_COLUMNS } from '../workbookTemplate'
+import { ID_COLUMN, TABS_WITH_IDS, TEMPLATE_COLUMNS } from '../workbookTemplate'
 import { sheetRowsFromValues } from '../workbookSnapshot'
 
 /**
@@ -184,8 +184,8 @@ const LOSS_MONTH = '2025-11'
  * company, the way a template user would.
  * Rows the rules tab does not reproduce are flagged as a person's, so Review has coverage gaps to show.
  */
-export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 'google'): WorkbookSnapshot {
-  const values = fakeWorkbookValues(source)
+export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 'google', withIds = true): WorkbookSnapshot {
+  const values = fakeWorkbookValues(source, withIds)
   return {
     meta: {
       id: FAKE_SPREADSHEET_ID,
@@ -235,8 +235,22 @@ const FAKE_INVOICING: CellValue[][] = [
   ['invoice_signatory_title', 'director'],
 ]
 
-/** The tabs as the Sheets API returns them: header row first, dates as serial numbers. */
-export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<WorkbookTab, CellValue[][]> {
+/**
+ * The tabs as the Sheets API returns them: header row first, dates as serial numbers. The tabs
+ * whose rows carry ids end with the id column and a fixed id on each row, or, without `withIds`,
+ * lack the column, as a Sheet from before ids does.
+ */
+export function fakeWorkbookValues(source: WorkbookSource = 'google', withIds = true): Record<WorkbookTab, CellValue[][]> {
+  const values = fakeTabs(source)
+  return withIds ? { ...values, ...Object.fromEntries(TABS_WITH_IDS.map((tab, tabIndex) => [tab, withFixedIds(values[tab], tabIndex)])) } : values
+}
+
+/** The id column added to a tab, each row's id made from the tab's place and the row's, so every run gives the same ids. */
+function withFixedIds([header = [], ...rows]: readonly CellValue[][], tabIndex: number): CellValue[][] {
+  return [[...header, ID_COLUMN], ...rows.map((row, rowIndex) => [...row, `00000000-0000-4000-8000-${String(tabIndex + 1).padStart(4, '0')}${String(rowIndex + 1).padStart(8, '0')}`])]
+}
+
+function fakeTabs(source: WorkbookSource): Record<WorkbookTab, CellValue[][]> {
   const { bookings, invoices } = fakeBooks()
   const ledger = ledgerValues(bookings)
   return {

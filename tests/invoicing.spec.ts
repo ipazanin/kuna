@@ -170,16 +170,16 @@ describe('invoice settings and client details', () => {
     })
   })
 
-  it('takes each client’s invoice details from the first of its rows that gives them', () => {
+  it('reads each row’s invoice details, a blank reverse charge as unset', () => {
     const reading = readClientRows([
       { sheetRow: 2, cells: { client: 'north', name: 'North Ltd', iban: 'XX00FAKE0101' } },
       { sheetRow: 3, cells: { client: 'north', iban: 'XX00FAKE0102', address: '1 Road', invoice_mail: 'ap@north.example', mail_language: 'HR', reverse_charge: true } },
       { sheetRow: 4, cells: { client: 'south', iban: 'XX00FAKE0103', mail_language: 'not a language tag', reverse_charge: 'maybe' } },
     ])
     expect(reading.facts.map((row) => [row.slug, row.invoicing])).toEqual([
-      ['north', NO_CLIENT_INVOICING],
+      ['north', { ...NO_CLIENT_INVOICING, reverseCharge: null }],
       ['north', { ...NO_CLIENT_INVOICING, address: '1 Road', invoiceMail: 'ap@north.example', mailLanguage: 'hr', reverseCharge: true }],
-      ['south', NO_CLIENT_INVOICING],
+      ['south', { ...NO_CLIENT_INVOICING, reverseCharge: null }],
     ])
     expect(reading.problems).toEqual([
       { sheetRow: 4, reason: '"not a language tag" is not a language such as en or hr, so the mail is written in English' },

@@ -6,15 +6,16 @@ import UApp from '@nuxt/ui/components/App.vue'
 import WelcomeScreen from './features/data-source/presentation/WelcomeScreen.vue'
 import LocalWorkbookStatus from './features/excel/presentation/LocalWorkbookStatus.vue'
 import { bindFiltersToRouter } from './features/filters/application/filterStore'
+import { shownPack } from './features/packs/packContribution'
 import { useSettings } from './features/settings/application/useSettings'
 import { startAutoSync } from './features/workbook/application/autoSync'
 import { useWorkbook } from './features/workbook/application/workbookStore'
-import type { RedirectReturn } from './features/workbook/infrastructure/googleRedirect'
+import type { RedirectReturn } from './shared/google/googleRedirect'
 import { needsReview } from './features/workbook/domain/needsReview'
 import { syncStateOf } from './features/workbook/presentation/syncState'
 import { useGoogleReturn } from './features/workbook/presentation/useGoogleReturn'
 import { screenLoading } from './shared/routing/router'
-import { SCREENS } from './shared/routing/screens'
+import { screensWith } from './shared/routing/screens'
 import AppShell from './shared/ui/AppShell.vue'
 import ScreenSkeleton from './shared/ui/ScreenSkeleton.vue'
 import SyncStatus from './shared/ui/SyncStatus.vue'
@@ -32,7 +33,7 @@ const { state, sync } = store
 /** Review's menu item counts every row that waits, whatever the filters, since the queue has no period. */
 const rowsToReview = computed(() => state.workbook?.transactions.filter(needsReview).length ?? 0)
 const navigation = computed(() =>
-  SCREENS.filter((screen) => settings.value.ownerPayModule || screen.ownerPayPack !== true).map((screen) => ({
+  screensWith(shownPack(settings.value).screens).map((screen) => ({
     to: screen.path,
     label: screen.title,
     icon: screen.icon,

@@ -25,6 +25,20 @@ function billedBy(match: ClientBillingMatch): [string, string[], number][] {
 }
 
 describe('plannedAgainstInvoiced', () => {
+  it('takes the rows of one day by item, amount and description, wherever they sit on the tab', () => {
+    const plan = [
+      planRow('Monthly Fee', '2026-03-31', 5000, 'north', 'March fee'),
+      planRow('Hotel', '2026-03-31', 300, 'north', 'Second night'),
+      planRow('Hotel', '2026-03-31', 200, 'north', 'First night'),
+    ]
+
+    expect(billedBy(matchOf(plan, []))).toEqual([
+      ['First night', [], euros(200)],
+      ['Second night', [], euros(300)],
+      ['March fee', [], euros(5000)],
+    ])
+  })
+
   it('lets one invoice bill a month left over from before, the month it was issued in and a bonus', () => {
     const plan = [
       planRow('Hotel', '2025-12-10', 480.2, 'north', 'December hotel'),

@@ -20,6 +20,8 @@
 import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 
+import { installPack } from '../src/features/packs/packContribution.ts'
+import { hrDooPack } from '../src/packs/hr-doo/hrDooPack.ts'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear.ts'
 import { amountOnLine } from '../src/packs/hr-doo/domain/accrual/closedYear.ts'
 import { compareYearEnd } from '../src/packs/hr-doo/domain/yearEnd/yearEndComparison.ts'
@@ -36,6 +38,7 @@ if (options.workbook === undefined || !Number.isInteger(year)) {
   process.exit(2)
 }
 
+installPack(hrDooPack)
 const bytes = readFileSync(options.workbook)
 const { tabs, missingTabs } = await readWorkbookFile(bytes)
 const read = readWorkbook({

@@ -2,8 +2,10 @@ import { negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../shar
 import type { Money } from '../../../shared/money/money'
 import { YEAR_END_STATEMENTS, yearEndLineDefinition } from '../domain/yearEnd'
 import type { YearEndFigure, YearEndFigureKind, YearEndLine, YearEndLineDefinition } from '../domain/yearEnd'
+import { sharedKeys } from '../domain/sharedKeys'
 import {
   dateOf,
+  idOf,
   inTabOrder,
   isUnreadable,
   moneyOf,
@@ -20,8 +22,8 @@ import type { RowProblem, TabReading } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 
 /**
- * The `year-end` tab, one row per year, statement and line. A key used twice is left out the
- * second time. A category a konto row names that the categories tab lacks is reported and kept.
+ * The `year-end` tab, one row per year, statement and line. A key on more than one row leaves out
+ * every row of it. A category a konto row names that the categories tab lacks is reported and kept.
  * Where the figures of a year do not add up, as income less expenses against profit before tax or
  * assets against equity and liabilities, the total's row is reported and every line kept, since the
  * package itself can be wrong.
@@ -33,18 +35,25 @@ export function readYearEnd(rows: readonly SheetRow[], categorySlugs: ReadonlySe
 
 /** The lines and what is wrong with each row on its own, without the checks of the totals, which a package being typed in fails until its last line. */
 export function readYearEndLines(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>): TabReading<YearEndLine> {
-  const facts: YearEndLine[] = []
+  const read: { readonly row: SheetRow; readonly line: YearEndLine }[] = []
   const problems: RowProblem[] = []
-  const seen = new Set<string>()
   for (const row of inTabOrder(rows)) {
     const line = readRow(() => readYearEndRow(row))
     if (isUnreadable(line)) {
       problems.push({ sheetRow: row.sheetRow, reason: line.unreadable })
-      continue
+    } else {
+      read.push({ row, line })
     }
-    const key = `${line.year} ${line.statement} ${line.line}`
-    if (seen.has(key)) {
-      problems.push({ sheetRow: row.sheetRow, reason: `${line.year} ${line.statement} ${line.line} is already listed above` })
+  }
+  const keyOf = (line: YearEndLine): string => `${line.year} ${line.statement} ${line.line}`
+  const shared = sharedKeys(
+    read.map(({ line }) => line),
+    keyOf,
+  )
+  const facts: YearEndLine[] = []
+  for (const { row, line } of read) {
+    if (shared.has(keyOf(line))) {
+      problems.push({ sheetRow: row.sheetRow, reason: `${keyOf(line)} is listed on more than one row, so none of them counts` })
       continue
     }
     if (line.statement !== 'konto' && row.cells.categories !== undefined) {
@@ -54,7 +63,6 @@ export function readYearEndLines(rows: readonly SheetRow[], categorySlugs: Reado
     if (unknown.length > 0) {
       problems.push({ sheetRow: row.sheetRow, reason: `${unknown.map((category) => `"${category}"`).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} not on the categories tab` })
     }
-    seen.add(key)
     facts.push(line)
   }
   return { facts, problems }
@@ -79,6 +87,7 @@ function readYearEndRow(row: SheetRow): YearEndLine {
     source: textOf(cells.source),
     note: textOf(cells.note),
     sheetRow: row.sheetRow,
+    ...idOf(cells),
   }
 }
 

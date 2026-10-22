@@ -4,7 +4,7 @@ import { RECEIVABLE_ROLES } from '../../../../features/receivables/domain/invoic
 import type { Asset } from '../../../../features/workbook/domain/assets'
 import { PROFIT_AND_LOSS_BUCKETS } from '../../../../features/workbook/domain/bucket'
 import type { Bucket } from '../../../../features/workbook/domain/bucket'
-import { bookingOfAdvance } from '../../../../features/workbook/domain/workbook'
+import { bookingOfAdvance, ownerAdvanceOrder } from '../../../../features/workbook/domain/workbook'
 import type { Booking, Category, OwnerAdvance, Transaction, Workbook } from '../../../../features/workbook/domain/workbook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
@@ -176,7 +176,7 @@ function timed(
   return { timing: 'paid', shares: [{ month: monthOf(booking.date), amount: cost }] }
 }
 
-/** By day, bank rows in booking order before the advances in tab order. */
+/** By day, bank rows in booking order before the advances in their own order. */
 function oldestFirst(earlier: BookingSource, later: BookingSource): number {
   const byDate = dateOf(earlier).localeCompare(dateOf(later))
   if (byDate !== 0) {
@@ -186,7 +186,7 @@ function oldestFirst(earlier: BookingSource, later: BookingSource): number {
     return earlier.row.sequence - later.row.sequence
   }
   if (earlier.kind === 'owner-advance' && later.kind === 'owner-advance') {
-    return earlier.advance.sheetRow - later.advance.sheetRow
+    return ownerAdvanceOrder(earlier.advance, later.advance)
   }
   return earlier.kind === 'ledger' ? -1 : 1
 }

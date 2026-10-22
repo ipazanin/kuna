@@ -1,5 +1,5 @@
 import type { BillingItem } from '../domain/billingPlan'
-import { inTabOrder, isUnreadable, positiveMoney, readRow, refuse, requiredDate, slugOf, textOf } from './cellReading'
+import { idOf, inTabOrder, isUnreadable, positiveMoney, readRow, refuse, requiredDate, slugOf, textOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 
@@ -30,5 +30,5 @@ function readBillingPlanRow(row: SheetRow, clientSlugs: ReadonlySet<string>): Bi
   const client = slugOf(cells.client)
   if (client === '') refuse('no client')
   if (!clientSlugs.has(client)) refuse(`"${client}" is not on the clients tab`)
-  return { item, date, amount, client, description: textOf(cells.description), sheetRow: row.sheetRow }
+  return { item, date, amount, client, description: textOf(cells.description), sheetRow: row.sheetRow, ...idOf(cells) }
 }

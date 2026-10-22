@@ -8,7 +8,6 @@ import { rowCellsOf } from '../../../features/workbook/application/tabRowWrites'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../features/workbook/application/workbookStore'
 import type { RowChange } from '../../../features/workbook/domain/rowChanges'
-import type { Category } from '../../../features/workbook/domain/workbook'
 import { readCategoryRows } from '../../../features/workbook/infrastructure/workbookReader'
 import { useRowWrites } from '../../../features/workbook/presentation/useRowWrites'
 import { PACK_ROLES } from '../domain/packRoles'
@@ -18,16 +17,12 @@ import { PACK_ROLES } from '../domain/packRoles'
  * lives on the categories tab, in the bucket of the categories with the two loan roles, so the
  * switch writes those cells and reads them back.
  */
-const props = defineProps<{
-  categories: readonly Category[]
-}>()
-
 const store = useWorkbook()
 const names = useDisplayNames()
 const writes = useRowWrites(CATEGORY_ROWS)
 
 const loanCategories = computed(() =>
-  props.categories.filter((category) => category.roles.includes(PACK_ROLES.ownerLoanOut) || category.roles.includes(PACK_ROLES.ownerLoanRepaid)),
+  (store.state.workbook?.categories ?? []).filter((category) => category.roles.includes(PACK_ROLES.ownerLoanOut) || category.roles.includes(PACK_ROLES.ownerLoanRepaid)),
 )
 const countsAsPay = computed(() => loanCategories.value.length > 0 && loanCategories.value.every((category) => category.bucket === 'owner-pay'))
 const mixed = computed(() => !countsAsPay.value && !loanCategories.value.every((category) => category.bucket === 'financing'))

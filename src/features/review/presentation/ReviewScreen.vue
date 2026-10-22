@@ -7,16 +7,11 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { today } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
-import { sumMoney } from '../../../shared/money/money'
-import { formatMoney } from '../../../shared/money/moneyFormat'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../shared/ui/PageTabs.vue'
-import { ownerAdvances } from '../../../packs/hr-doo/domain/ownerAdvances'
-import AddAdvanceDialog from '../../../packs/hr-doo/presentation/AddAdvanceDialog.vue'
-import type { AdvancePrefill } from '../../../packs/hr-doo/presentation/AddAdvanceDialog.vue'
-import UnaccountedReimbursements from '../../../packs/hr-doo/presentation/UnaccountedReimbursements.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
+import { shownPack } from '../../packs/packContribution'
 import { categorise } from '../../rules/domain/categorise'
 import type { CoverageGroup } from '../../rules/domain/ruleCoverage'
 import { ruleCoverage } from '../../rules/domain/ruleCoverage'
@@ -36,7 +31,6 @@ import type { SessionWrite } from '../../workbook/application/workbookStore'
 import type { Dismissal, SuggestionKind } from '../../workbook/domain/dismissals'
 import { needsReview } from '../../workbook/domain/needsReview'
 import type { LedgerSplit } from '../../workbook/domain/splits'
-import { newestBookingOf } from '../../workbook/domain/workbook'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { sheetRowLink } from '../../workbook/infrastructure/sheetRowLink'
 import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
@@ -87,22 +81,9 @@ const tabs = computed(() => [
 ])
 
 const settings = useSettings()
-
-/** Payments to the owner that no cost the owner paid accounts for, which wait until a person adds the cost. */
-const unaccounted = computed(() => {
-  const current = ledger.value
-  if (current === null || !settings.value.ownerPayModule) return []
-  return ownerAdvances(current.scopedAdvances, current.scoped, current.workbook.categories).unaccounted
-})
-const unaccountedSummary = computed(() => `${formatMoney(sumMoney(unaccounted.value.map((payment) => payment.amount)))} in all, counted as paid to the owner`)
-const newestBooking = computed(() => newestBookingOf(ledger.value?.workbook.transactions ?? []))
-const addingCost = ref(false)
-const costPrefill = ref<AdvancePrefill | null>(null)
-
-function addCost(prefill: AdvancePrefill): void {
-  costPrefill.value = prefill
-  addingCost.value = true
-}
+const packCards = computed(() => shownPack(settings.value).reviewCards)
+/** Nothing waits when the queue is empty and no pack card has anything for the rows in view. */
+const nothingWaits = computed(() => queue.value.length === 0 && !packCards.value.some((card) => ledger.value !== null && card.shows(ledger.value)))
 
 /** The Rules tab has no filters, so the rows no rule repeats come from the whole ledger. */
 const coverage = computed(() => {
@@ -235,7 +216,7 @@ function restore(dismissal: Dismissal): void {
               <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
 
               <UEmpty
-                v-if="queue.length === 0 && unaccounted.length === 0"
+                v-if="nothingWaits"
                 icon="i-lucide-check-check"
                 title="Nothing waits for review"
                 description="Every row in view has a category a rule or a person set."
@@ -271,21 +252,7 @@ function restore(dismissal: Dismissal): void {
                 </ul>
               </AppCard>
 
-              <AppCard
-                v-if="unaccounted.length > 0"
-                :title="`${unaccounted.length} ${unaccounted.length === 1 ? 'reimbursement' : 'reimbursements'} with no cost on file`"
-                collapse-id="review.unaccounted"
-                :summary="unaccountedSummary"
-                data-testid="review-unaccounted"
-              >
-                <template #subtitle>
-                  Paid to the owner on a reimbursement category, with no cost on the owner-advances tab to repay. Net owed counts each as paid to the owner until its
-                  cost is added.
-                </template>
-                <div class="px-4 pt-1 pb-2 sm:px-5">
-                  <UnaccountedReimbursements :payments="unaccounted" :editable="!busy" @add-cost="addCost" />
-                </div>
-              </AppCard>
+              <component :is="card.component" v-for="(card, index) in packCards" :key="index" :busy="busy" />
 
               <SessionChanges
                 :writes="sessionWrites"
@@ -296,13 +263,6 @@ function restore(dismissal: Dismissal): void {
               />
 
               <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
-              <AddAdvanceDialog
-                v-if="newestBooking"
-                v-model:open="addingCost"
-                :categories="ledger.workbook.categories"
-                :default-date="newestBooking"
-                :prefill="costPrefill"
-              />
             </template>
           </LedgerGate>
         </div>

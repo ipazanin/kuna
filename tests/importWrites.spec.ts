@@ -266,7 +266,7 @@ describe.each([
     const later = creditStatement('1923.15', '2846.30').replace(/2031-03-12T/g, '2031-03-14T').replace(/<Dt>2031-03-11<\/Dt>/g, '<Dt>2031-03-13</Dt>').replace(/2031-74101882-00752204301/g, 'LATER-1').replace('<LglSeqNb>42</LglSeqNb>', '<LglSeqNb>43</LglSeqNb>')
     await store.changeRows(LEDGER_ROWS, { added: dryRun(store, later).added, changed: [], removed: [] })
 
-    await expect(store.undo(imported)).rejects.toThrow('Row 2 of main sits above the rows to take out, so its balance follows from them.')
+    await expect(store.undo(imported)).rejects.toThrow('Row 2 of main is booked after the rows to take out, so its balance follows from them.')
   })
 })
 

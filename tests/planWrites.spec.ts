@@ -10,7 +10,7 @@ import { PLAN_ROWS, categoryPlanCells, dividendPlanCells, ownerPayPlanCells, pur
 import { SCENARIO_ROWS, componentCells } from '../src/packs/hr-doo/application/scenarioRows'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { civil, euros } from './fixtures/ledger'
-import { excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { AN_ID, excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -51,13 +51,13 @@ describe('the plan tab on a Google Sheet without one', () => {
     await expect(store.changeRows(PLAN_ROWS, change)).rejects.toThrow(new WorkbookWriteRefused('The workbook has no plan tab, so nothing was written.'))
 
     await store.changeRows(PLAN_ROWS, change, true)
-    expect(writtenRanges()).toEqual(['plan!A1:G1'])
-    expect(sheets.grids.plan).toEqual([PLAN_HEADER, [2027, null, 'ai-services', 150, null, null, null]])
+    expect(writtenRanges()).toEqual(['plan!A1:H1'])
+    expect(sheets.grids.plan).toEqual([[...PLAN_HEADER, 'id'], [2027, null, 'ai-services', 150, null, null, null, AN_ID]])
     expect(lines(store)).toEqual(['ai-services every 15000'])
 
     await store.undo(store.state.writes[0]!)
     expect(lines(store)).toEqual([])
-    expect(sheets.grids.plan?.[0]).toEqual(PLAN_HEADER)
+    expect(sheets.grids.plan?.[0]).toEqual([...PLAN_HEADER, 'id'])
   })
 
   it('finds a plan row again by its cells after a row was inserted above it, and writes only the plan columns that change', async () => {

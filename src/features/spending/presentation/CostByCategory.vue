@@ -18,7 +18,7 @@ export interface CostSection {
   readonly key: string
   readonly title: string
   /** The page that breaks the group down further, such as Owner for owner pay. */
-  readonly link?: { readonly label: string; readonly to: RouteLocationRaw }
+  readonly link: { readonly label: string; readonly to: RouteLocationRaw } | null
   readonly total: number
   readonly priorTotal: number | null
   readonly change: CostChange | null

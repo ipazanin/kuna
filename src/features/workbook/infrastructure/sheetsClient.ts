@@ -1,4 +1,4 @@
-import { googleFetch } from './googleApi'
+import { googleFetch } from '../../../shared/google/googleApi'
 import type { CellValue } from './workbookSnapshot'
 
 const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets'
@@ -72,9 +72,10 @@ export interface NumberFormat {
   readonly pattern: string
 }
 
-/** The requests the app sends: a new tab, rows put in or taken out, the formats and dropdowns copied onto new rows, cell values and cell number formats. */
+/** The requests the app sends: a new tab, columns added to a tab's grid, rows put in or taken out, the formats and dropdowns copied onto new rows, cell values and cell number formats. */
 export type SpreadsheetRequest =
   | { readonly addSheet: { readonly properties: { readonly sheetId: number; readonly title: string } } }
+  | { readonly appendDimension: { readonly sheetId: number; readonly dimension: 'COLUMNS'; readonly length: number } }
   | { readonly insertDimension: { readonly range: RowSpan & { readonly dimension: 'ROWS' }; readonly inheritFromBefore: boolean } }
   | { readonly deleteDimension: { readonly range: RowSpan & { readonly dimension: 'ROWS' } } }
   | {
@@ -112,29 +113,35 @@ async function updateSpreadsheetOf(accessToken: string, spreadsheetId: string, r
   })
 }
 
-/** Each tab's numeric id by its title, which a link to a row on that tab needs as its `gid`. */
-async function getSheetIds(accessToken: string, spreadsheetId: string): Promise<ReadonlyMap<string, number>> {
-  const query = new URLSearchParams({ fields: 'sheets.properties(title,sheetId)' })
+/** A tab's numeric id, which a link to a row on the tab needs as its `gid`, and how many columns its grid has. */
+export interface SheetGrid {
+  readonly sheetId: number
+  readonly columnCount: number
+}
+
+/** Each tab's grid by its title. */
+async function getSheetGrids(accessToken: string, spreadsheetId: string): Promise<ReadonlyMap<string, SheetGrid>> {
+  const query = new URLSearchParams({ fields: 'sheets.properties(title,sheetId,gridProperties.columnCount)' })
   const response = await googleFetch(`${SHEETS_API}/${encodeURIComponent(spreadsheetId)}?${query}`, accessToken)
-  const body = (await response.json()) as { sheets?: { properties?: { title?: string; sheetId?: number } }[] }
+  const body = (await response.json()) as { sheets?: { properties?: { title?: string; sheetId?: number; gridProperties?: { columnCount?: number } } }[] }
   return new Map(
     (body.sheets ?? []).flatMap((sheet) => {
-      const { title, sheetId } = sheet.properties ?? {}
-      return title === undefined || sheetId === undefined ? [] : [[title, sheetId] as const]
+      const { title, sheetId, gridProperties } = sheet.properties ?? {}
+      return title === undefined || sheetId === undefined ? [] : [[title, { sheetId, columnCount: gridProperties?.columnCount ?? 0 }] as const]
     }),
   )
 }
 
 /** The Sheets API for one spreadsheet, as the read and write paths use it. */
 export interface SheetsValues {
-  sheetIds(): Promise<ReadonlyMap<string, number>>
+  sheetGrids(): Promise<ReadonlyMap<string, SheetGrid>>
   batchGet(ranges: readonly string[]): Promise<ValueRange[]>
   updateSpreadsheet(requests: readonly SpreadsheetRequest[]): Promise<void>
 }
 
 export function sheetsValuesFor(accessToken: string, spreadsheetId: string): SheetsValues {
   return {
-    sheetIds: () => getSheetIds(accessToken, spreadsheetId),
+    sheetGrids: () => getSheetGrids(accessToken, spreadsheetId),
     batchGet: (ranges) => batchGetValues(accessToken, spreadsheetId, ranges),
     updateSpreadsheet: (requests) => updateSpreadsheetOf(accessToken, spreadsheetId, requests),
   }

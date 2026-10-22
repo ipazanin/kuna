@@ -7,7 +7,7 @@ import { readPlan } from '../../../features/workbook/infrastructure/planTabReade
 import { readScenarios } from '../../../features/workbook/infrastructure/scenariosTabReader'
 import { definedCategorySlugs } from '../../../features/workbook/infrastructure/workbookReader'
 import type { SheetRow } from '../../../features/workbook/infrastructure/workbookSnapshot'
-import { TEMPLATE_COLUMNS } from '../../../features/workbook/infrastructure/workbookTemplate'
+import { contentColumns } from '../../../features/workbook/infrastructure/workbookTemplate'
 import { serialFromCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { amountOf } from '../../../shared/money/money'
@@ -15,7 +15,7 @@ import type { Money } from '../../../shared/money/money'
 import { cellText } from '../../../shared/text/cellText'
 import { planGuards } from '../domain/forecast/planGuards'
 
-const COLUMNS = TEMPLATE_COLUMNS.plan.map((column) => column.name)
+const COLUMNS = contentColumns('plan')
 
 /** A row of the plan tab as the tab holds it, every column given so a row is found again by all of them. */
 function cells(year: number, month: number | null, item: string, amount: number | string, note: string, date: CivilDate | null = null, group = ''): RowCells {

@@ -1,5 +1,4 @@
 import { RULE_COLUMNS } from '../../rules/domain/rule'
-import { BILLING_PLAN_COLUMNS } from '../infrastructure/billingPlanTabReader'
 import type { CellValue, SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
 import { TEMPLATE_COLUMNS } from '../infrastructure/workbookTemplate'
 
@@ -61,9 +60,16 @@ export interface NewTab {
   readonly header: readonly string[]
 }
 
+/** A template column the tab lacks, headed in row 1 after the last column in use before anything is written to it. */
+export interface NewColumn {
+  readonly tab: RowTab
+  readonly column: string
+}
+
 /**
- * One write, carried out in this order: the cells set on rows as the read numbers them, the rows
- * taken out, the rows put in on their `at` rows from the top down, then the rows added below the last one.
+ * One write, carried out in this order: the tabs added, the columns added, the cells set on rows as
+ * the read numbers them, the rows taken out, the rows put in on their `at` rows from the top down,
+ * then the rows added below the last one.
  */
 export interface TabEdits {
   readonly cells: readonly CellEdit[]
@@ -71,6 +77,7 @@ export interface TabEdits {
   readonly deletions?: readonly RowDeletion[]
   /** Only ever a tab the template defines, and only when the person asked for it. */
   readonly newTabs?: readonly NewTab[]
+  readonly newColumns?: readonly NewColumn[]
 }
 
 /** Where a write goes: the picked Google Sheet, or the workbook kept in this browser. */
@@ -95,7 +102,7 @@ function templateColumns(tab: WorkbookTab): ReadonlySet<string> {
 
 /** Whether the edits change anything at all. */
 export function hasEdits(edits: TabEdits): boolean {
-  return edits.cells.length > 0 || edits.appends.length > 0 || (edits.deletions ?? []).length > 0
+  return edits.cells.length > 0 || edits.appends.length > 0 || (edits.deletions ?? []).length > 0 || (edits.newColumns ?? []).length > 0
 }
 
 /** Of a ledger row already on the tab the app changes only its verdict. A new row it writes whole. */
@@ -115,7 +122,7 @@ export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>
   rules: new Set(RULE_COLUMNS),
   settings: new Set(['key', 'value']),
   'owner-advances': templateColumns('owner-advances'),
-  'outgoing-plan': new Set(BILLING_PLAN_COLUMNS),
+  'outgoing-plan': templateColumns('outgoing-plan'),
   categories: templateColumns('categories'),
   accounts: templateColumns('accounts'),
   clients: templateColumns('clients'),

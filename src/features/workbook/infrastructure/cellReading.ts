@@ -4,6 +4,7 @@ import type { DateRange } from '../../../shared/calendar/dateRange'
 import { moneyFromAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { CellValue, SheetRow } from './workbookSnapshot'
+import { ID_COLUMN } from './workbookTemplate'
 
 type Cells = SheetRow['cells']
 
@@ -47,6 +48,12 @@ export function textOf(cell: CellValue | undefined): string {
 
 export function slugOf(cell: CellValue | undefined): string {
   return textOf(cell).toLowerCase()
+}
+
+/** The row's id, to spread into its record. Empty on a row from before rows carried one. */
+export function idOf(cells: Cells): { readonly id?: string } {
+  const id = textOf(cells[ID_COLUMN])
+  return id === '' ? {} : { id }
 }
 
 /** A comma-separated list in lower case, such as `revenue, watched`. */

@@ -6,9 +6,9 @@ import type { TabRowRules } from '../../workbook/application/tabRowWrites'
 import type { SuggestionKind } from '../../workbook/domain/dismissals'
 import type { RowCells } from '../../workbook/domain/rowChanges'
 import { readDismissals } from '../../workbook/infrastructure/dismissedTabReader'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
+import { contentColumns } from '../../workbook/infrastructure/workbookTemplate'
 
-const COLUMNS = TEMPLATE_COLUMNS.dismissed.map((column) => column.name)
+const COLUMNS = contentColumns('dismissed')
 
 /** The `dismissed` tab, checked by its own reader. Nothing else reads it, so nothing else can refuse it. */
 export const DISMISSED_ROWS: TabRowRules = {

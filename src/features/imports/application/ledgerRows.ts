@@ -7,9 +7,9 @@ import type { Transaction } from '../../workbook/domain/workbook'
 import { dateOf, moneyOf, slugOf } from '../../workbook/infrastructure/cellReading'
 import { definedCategories, readLedgerTab } from '../../workbook/infrastructure/workbookReader'
 import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
+import { contentColumns } from '../../workbook/infrastructure/workbookTemplate'
 
-const COLUMNS = TEMPLATE_COLUMNS.ledger.map((column) => column.name)
+const COLUMNS = contentColumns('ledger')
 
 /**
  * Statement rows added to the `ledger` tab, and taken out again by Undo. The tab reads newest
@@ -20,8 +20,8 @@ const COLUMNS = TEMPLATE_COLUMNS.ledger.map((column) => column.name)
  *
  * Against the tab as it is right before the write, no added row may already be there by its
  * account and reference, each account's new rows must open at its newest balance and run on from
- * it, and no row may predate the account's newest row. A row taken out must have no newer row of
- * its account above it, since that row's balance follows from it.
+ * it, and no row may predate the account's newest row. A row taken out must have no row of its
+ * account booked after it left in, since that row's balance follows from it.
  */
 export const LEDGER_ROWS: TabRowRules = {
   tab: 'ledger',
@@ -42,7 +42,7 @@ export const LEDGER_ROWS: TabRowRules = {
   place: (rows, added, lastRow) => placeBlocks(rows, added, lastRow),
 }
 
-/** Each account's newest row on the tab, by day and then by tab position, as the readers take a closing balance. */
+/** Each account's newest row in booking order, as the readers take a closing balance. */
 function newestByAccount(transactions: readonly Transaction[]): Map<string, Transaction> {
   const newest = new Map<string, Transaction>()
   for (const transaction of transactions) {
@@ -90,14 +90,14 @@ function addedRefusals(check: RowsChangeCheck, before: readonly Transaction[]): 
 }
 
 function removedRefusals(check: RowsChangeCheck, before: readonly Transaction[]): string[] {
-  const removed = check.edits.filter((edit) => edit.after === null)
+  const removedRows = new Set(check.edits.filter((edit) => edit.after === null).map((edit) => edit.sheetRow))
+  const removed = before.filter((row) => removedRows.has(row.sheetRow))
   const refusals: string[] = []
-  for (const account of new Set(removed.map((edit) => slugOf(edit.before?.account)))) {
-    const rows = removed.filter((edit) => slugOf(edit.before?.account) === account).map((edit) => edit.sheetRow)
-    const lowest = Math.max(...rows)
-    const newer = before.find((row) => row.account === account && row.sheetRow < lowest && !rows.includes(row.sheetRow))
+  for (const account of new Set(removed.map((row) => row.account))) {
+    const oldest = Math.min(...removed.filter((row) => row.account === account).map((row) => row.sequence))
+    const newer = before.find((row) => row.account === account && row.sequence > oldest && !removedRows.has(row.sheetRow))
     if (newer !== undefined) {
-      refusals.push(`Row ${newer.sheetRow} of ${account} sits above the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`)
+      refusals.push(`Row ${newer.sheetRow} of ${account} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`)
     }
   }
   return refusals

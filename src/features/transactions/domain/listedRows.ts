@@ -1,5 +1,6 @@
 import { negateMoney } from '../../../shared/money/money'
 import { listedRowKey } from '../../workbook/domain/splits'
+import { ownerAdvanceOrder } from '../../workbook/domain/workbook'
 import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
 import { OWNER_COUNTERPARTY } from './filterTransactions'
 
@@ -53,13 +54,13 @@ export type ListedEntry =
       readonly whole: Transaction
       /** How many parts the row has, listed or not. */
       readonly count: number
-      /** The parts the filters select, in the order of the splits tab. */
+      /** The parts the filters select, larger first. */
       readonly parts: readonly ListedBankRow[]
     }
 
 /**
  * The rows with each split bank row heading its parts. The heading stands where the first of its
- * listed parts would, and the parts follow it in the order of the splits tab, so a sort by amount
+ * listed parts would, and the parts follow it larger first, so a sort by amount
  * still keeps a payment's parts together.
  */
 export function withSplitHeadings(rows: readonly ListedRow[]): ListedEntry[] {
@@ -83,12 +84,17 @@ export function withSplitHeadings(rows: readonly ListedRow[]): ListedEntry[] {
   })
 }
 
-/** Booking order: by date, then bank rows in the order the bank booked them, then advances in tab order. */
+/** Booking order: by date, then bank rows in the order the bank booked them, then advances in their own order. */
 export function inBookingOrder(earlier: ListedRow, later: ListedRow): number {
-  const advancesLast = Number(earlier.kind === 'owner-advance') - Number(later.kind === 'owner-advance')
-  return earlier.date.localeCompare(later.date) || advancesLast || positionOf(earlier) - positionOf(later)
+  return earlier.date.localeCompare(later.date) || sameDayOrder(earlier, later)
 }
 
-function positionOf(row: ListedRow): number {
-  return row.kind === 'bank' ? row.sequence : row.advance.sheetRow
+function sameDayOrder(earlier: ListedRow, later: ListedRow): number {
+  if (earlier.kind === 'bank' && later.kind === 'bank') {
+    return earlier.sequence - later.sequence
+  }
+  if (earlier.kind === 'owner-advance' && later.kind === 'owner-advance') {
+    return ownerAdvanceOrder(earlier.advance, later.advance)
+  }
+  return earlier.kind === 'bank' ? -1 : 1
 }

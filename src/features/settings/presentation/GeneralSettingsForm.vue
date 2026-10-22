@@ -1,26 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
-import { LOCAL_UNITS, findLocalUnit } from '../../../packs/hr-doo/ruleset/localUnits'
-import { parseCivilDate } from '../../../shared/calendar/civilDate'
-import { fold } from '../../../shared/text/fold'
 import AppCard from '../../../shared/ui/AppCard.vue'
+import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
-import type { CitReturn, CompanyFacts, Settings, SettingsField, VatPrinciple } from '../domain/settings'
+import type { Settings, SettingsField } from '../domain/settings'
 
 /**
- * The settings tab as three cards, the workbook's basics open and the rest collapsed, with one Save
- * under them. A card with a field in error opens, and so does the facts card when a link names one
- * of its fields, such as `#owner-loan-interest`.
+ * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
+ * them. A card with a field in error opens. While the owner-pay switch is on in the draft, the
+ * pack's facts card sits between the basics and the bucket labels, and its checks join the errors.
  */
 const props = defineProps<{
   settings: Settings
@@ -40,29 +36,13 @@ watch(
 )
 
 const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(props.settings))
-/** The workbook keeps the city as text, so a name typed there can be one the lookup refuses. Blank stays allowed. */
-const residenceCityError = computed(() => {
-  const city = draft.value.companyFacts.residenceCity.trim()
-  return draft.value.ownerPayModule && city !== '' ? findLocalUnit(city).problem : null
-})
-const errors = computed(() => {
-  const found = settingsErrors(draft.value)
-  return residenceCityError.value === null ? found : { ...found, residenceCity: residenceCityError.value }
-})
+const packFacts = computed(() => shownPack(draft.value).companyFacts)
+const errors = computed(() => ({ ...settingsErrors(draft.value), ...packFacts.value?.errors(draft.value.companyFacts) }))
 const valid = computed(() => Object.keys(errors.value).length === 0)
 
-/** The facts other screens link to, by the id their link's hash names. */
-const LINKED_FACTS = ['residence-city', 'company-registered', 'owner-loan-interest']
-
-const route = useRoute()
 const inError = (fields: readonly SettingsField[]): boolean => fields.some((field) => errors.value[field] !== undefined)
 const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'reviewLabel', 'cardSettlementIbans']))
-const factsRevealed = computed(() => LINKED_FACTS.includes(route.hash.slice(1)) || inError(['residenceCity', 'birthYear', 'dependants', 'ownerLoanInterest']))
 const labelsRevealed = computed(() => inError(BUCKETS))
-const factsSummary = computed(() => {
-  const { residenceCity, ownerLoanInterest } = props.settings.companyFacts
-  return `${residenceCity === '' ? 'Where the owner lives is not set' : `The owner lives in ${residenceCity}`}. Loans to the owner carry ${ownerLoanInterest / 100}%.`
-})
 const labelsSummary = computed(() => BUCKETS.map((bucket) => props.settings.bucketLabels[bucket]).join(', '))
 
 /** Every currency the browser knows that counts in at most hundredths, by name. */
@@ -70,13 +50,6 @@ const currencyNames = new Intl.DisplayNames('en', { type: 'currency' })
 const currencies = Intl.supportedValuesOf('currency')
   .filter((code) => currencyProblem(code) === null)
   .map((code) => ({ value: code, label: `${currencyNames.of(code) ?? code} (${code})` }))
-
-const unitItems = LOCAL_UNITS.map((unit) => ({ value: unit.label, label: unit.label, description: unit.county, searchText: fold(`${unit.label} ${unit.county}`) }))
-const unitSearch = ref('')
-const unitsFound = computed(() => {
-  const words = fold(unitSearch.value).split(' ').filter((word) => word !== '')
-  return unitItems.filter((item) => words.every((word) => item.searchText.includes(word)))
-})
 
 const preview = computed(() => {
   if (errors.value.currency !== undefined || errors.value.numberLocale !== undefined) return null
@@ -107,71 +80,6 @@ function updateCardIbans(text: string): void {
 function updateLabel(bucket: DefinedBucket, label: string): void {
   draft.value = { ...draft.value, bucketLabels: { ...draft.value.bucketLabels, [bucket]: label } }
 }
-
-function updateFact<Fact extends keyof CompanyFacts>(fact: Fact, value: CompanyFacts[Fact]): void {
-  draft.value = { ...draft.value, companyFacts: { ...draft.value.companyFacts, [fact]: value } }
-}
-
-/** The number fields as typed. Text that is not a number goes into the draft as NaN, so the field shows its error. */
-const birthYearText = ref(textOfBirthYear(props.settings.companyFacts.birthYear))
-const dependantsText = ref(String(props.settings.companyFacts.dependants))
-const loanInterestText = ref(textOfBasisPoints(props.settings.companyFacts.ownerLoanInterest))
-watch(
-  () => draft.value.companyFacts,
-  (facts) => {
-    if (!Object.is(numberOfBirthYear(birthYearText.value), facts.birthYear)) birthYearText.value = textOfBirthYear(facts.birthYear)
-    if (!Object.is(numberOfDependants(dependantsText.value), facts.dependants)) dependantsText.value = String(facts.dependants)
-    if (!Object.is(basisPointsOf(loanInterestText.value), facts.ownerLoanInterest)) loanInterestText.value = textOfBasisPoints(facts.ownerLoanInterest)
-  },
-)
-
-/** A rate typed as a percent, so 2.5 is 250 basis points. A blank field is 0%. */
-function basisPointsOf(text: string): number {
-  const typed = text.trim().replace(',', '.')
-  return typed === '' ? 0 : Math.round(Number(typed) * 100 * 1_000) / 1_000
-}
-
-function textOfBasisPoints(basisPoints: number): string {
-  return String(basisPoints / 100)
-}
-
-function updateLoanInterest(text: string): void {
-  loanInterestText.value = text
-  updateFact('ownerLoanInterest', basisPointsOf(text))
-}
-
-function textOfBirthYear(year: number | null): string {
-  return year === null ? '' : String(year)
-}
-
-/** A blank field is no birth year. */
-function numberOfBirthYear(text: string): number | null {
-  return text.trim() === '' ? null : Number(text.trim())
-}
-
-function numberOfDependants(text: string): number {
-  return text.trim() === '' ? 0 : Number(text.trim())
-}
-
-function updateBirthYear(text: string): void {
-  birthYearText.value = text
-  updateFact('birthYear', numberOfBirthYear(text))
-}
-
-function updateDependants(text: string): void {
-  dependantsText.value = text
-  updateFact('dependants', numberOfDependants(text))
-}
-
-const citReturnItems: { value: CitReturn; label: string }[] = [
-  { value: 'pd', label: 'PD, on the accrual profit' },
-  { value: 'pd-nn', label: 'PD-NN, on cash received and paid' },
-]
-
-const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
-  { value: 'invoice', label: 'On the invoice date' },
-  { value: 'cash', label: 'When it is paid' },
-]
 </script>
 
 <template>
@@ -226,83 +134,14 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
       </div>
     </AppCard>
 
-    <AppCard
-      v-if="draft.ownerPayModule"
-      title="Company and owner facts"
-      subtitle="What the tax and payroll figures need to know beyond the law. They stay in this workbook."
-      collapse-id="settings.facts"
-      start-collapsed
-      :summary="factsSummary"
-      :reveal="factsRevealed"
-      data-testid="company-facts"
-    >
-      <div class="flex flex-col gap-4 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField id="residence-city" label="Owner lives in" :error="errors.residenceCity ?? false" help="The city or municipality, which sets the local income tax rates.">
-            <USelectMenu
-              v-model:search-term="unitSearch"
-              :model-value="draft.companyFacts.residenceCity"
-              :items="unitsFound"
-              value-key="value"
-              ignore-filter
-              :search-input="{ placeholder: 'Search cities and municipalities' }"
-              placeholder="Not set"
-              clear
-              virtualize
-              class="w-full"
-              data-testid="residence-city"
-              @update:model-value="updateFact('residenceCity', String($event ?? ''))"
-            />
-          </UFormField>
-          <UFormField label="Owner's year of birth" :error="errors.birthYear ?? false" help="For the youth income tax relief. Blank assumes none.">
-            <UInput
-              :model-value="birthYearText"
-              inputmode="numeric"
-              placeholder="Not set"
-              class="w-full"
-              @update:model-value="updateBirthYear(String($event))"
-            />
-          </UFormField>
-          <UFormField label="Dependants" :error="errors.dependants ?? false" help="How many dependants raise the personal allowance.">
-            <UInput :model-value="dependantsText" inputmode="numeric" class="w-full" @update:model-value="updateDependants(String($event))" />
-          </UFormField>
-          <UFormField id="company-registered" label="Company registered on" help="Starts the first tax period.">
-            <UInput
-              :model-value="draft.companyFacts.companyRegistered ?? ''"
-              type="date"
-              class="w-full"
-              @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))"
-            />
-          </UFormField>
-          <UFormField
-            id="owner-loan-interest"
-            label="Interest the owner's loans carry, % a year"
-            :error="errors.ownerLoanInterest ?? false"
-            help="Below the income tax law's rate, the difference on each day's balance is a benefit in kind, which Owner and Year work out."
-          >
-            <UInput :model-value="loanInterestText" inputmode="decimal" class="w-full" data-testid="owner-loan-interest" @update:model-value="updateLoanInterest(String($event))" />
-          </UFormField>
-          <UFormField label="Corporate tax return">
-            <USelect :model-value="draft.companyFacts.citReturn" :items="citReturnItems" class="w-full" @update:model-value="updateFact('citReturn', $event as CitReturn)" />
-          </UFormField>
-          <UFormField label="VAT falls due">
-            <USelect :model-value="draft.companyFacts.vatPrinciple" :items="vatPrincipleItems" class="w-full" @update:model-value="updateFact('vatPrinciple', $event as VatPrinciple)" />
-          </UFormField>
-        </div>
-        <USwitch
-          :model-value="draft.companyFacts.pensionPillarTwo"
-          label="Owner pays into the second pension pillar"
-          description="Off sends the whole pension contribution to the first pillar."
-          @update:model-value="updateFact('pensionPillarTwo', $event)"
-        />
-        <USwitch
-          :model-value="draft.companyFacts.depreciationDoubled"
-          label="Depreciation rates are doubled"
-          description="The default for assets. An asset row can still say otherwise."
-          @update:model-value="updateFact('depreciationDoubled', $event)"
-        />
-      </div>
-    </AppCard>
+    <component
+      :is="packFacts.card"
+      v-if="packFacts"
+      :facts="draft.companyFacts"
+      :saved="settings.companyFacts"
+      :errors="errors"
+      @update="update('companyFacts', $event)"
+    />
 
     <AppCard
       title="Bucket labels"

@@ -7,7 +7,7 @@ import { slugOf } from '../../../features/workbook/infrastructure/cellReading'
 import { readPlan } from '../../../features/workbook/infrastructure/planTabReader'
 import { readScenarios } from '../../../features/workbook/infrastructure/scenariosTabReader'
 import { definedCategorySlugs } from '../../../features/workbook/infrastructure/workbookReader'
-import { TEMPLATE_COLUMNS } from '../../../features/workbook/infrastructure/workbookTemplate'
+import { contentColumns } from '../../../features/workbook/infrastructure/workbookTemplate'
 import { serialFromCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { amountOf } from '../../../shared/money/money'
@@ -16,7 +16,7 @@ import { planGuards } from '../domain/forecast/planGuards'
 import { scenarioGuards } from '../domain/scenarios/scenarioGuards'
 import type { ComponentDraft, ScenarioDraft } from '../domain/scenarios/startingScenarios'
 
-const COLUMNS = TEMPLATE_COLUMNS.scenarios.map((column) => column.name)
+const COLUMNS = contentColumns('scenarios')
 const SCENARIO_ON_PLAN = 'owner_pay_scenario'
 
 /** A component's row as the tab holds it: amounts as numbers, dates as serial days, a tax-free item as `nontaxable:<item>`. */

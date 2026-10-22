@@ -1,6 +1,6 @@
-import { googleFetch } from '../../workbook/infrastructure/googleApi'
-import { listChildren } from '../../workbook/infrastructure/driveClient'
-import { pickFromDrive } from '../../workbook/infrastructure/picker'
+import { googleFetch } from '../../../shared/google/googleApi'
+import { listChildren } from '../../../shared/google/driveClient'
+import { pickFromDrive } from '../../../shared/google/picker'
 import type { DriveEntry, InvoiceDrive, MailDrafts } from '../application/invoiceRun'
 import { rawInvoiceMessage } from './invoiceMessage'
 

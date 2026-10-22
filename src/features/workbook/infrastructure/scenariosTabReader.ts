@@ -1,5 +1,6 @@
 import { DIRECTOR_BASES, SCENARIO_COMPONENTS } from '../domain/ownerPayScenarios'
 import type { OwnerPayScenario, ScenarioComponent } from '../domain/ownerPayScenarios'
+import { sharedKeys } from '../domain/sharedKeys'
 import { inTabOrder, isUnreadable, moneyOf, optionalDate, readRow, refuse, requiredChoice, requiredYear, slugOf, textOf } from './cellReading'
 import type { RowProblem } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
@@ -18,34 +19,43 @@ interface ScenarioRow {
 }
 
 /**
- * The `scenarios` tab, its rows grouped by scenario name. A scenario is for one year, so a row
- * naming another year than the scenario's first row is left out. The same component with the same
- * span twice is left out the second time.
+ * The `scenarios` tab, its rows grouped by scenario name. A scenario is for one year, so one whose
+ * rows name two years is left out whole. The same component with the same span on more than one
+ * row is left out on every one. A label the rows give differently reads blank.
  */
 export function readScenarios(rows: readonly SheetRow[]): { readonly scenarios: readonly OwnerPayScenario[]; readonly problems: readonly RowProblem[] } {
-  const bySlug = new Map<string, { label: string; year: number; components: ScenarioComponent[]; keys: Set<string> }>()
+  const bySlug = new Map<string, { readonly row: SheetRow; readonly read: ScenarioRow }[]>()
   const problems: RowProblem[] = []
   for (const row of inTabOrder(rows)) {
     const read = readRow(() => readScenarioRow(row))
     if (isUnreadable(read)) {
       problems.push({ sheetRow: row.sheetRow, reason: read.unreadable })
-      continue
+    } else {
+      bySlug.set(read.slug, [...(bySlug.get(read.slug) ?? []), { row, read }])
     }
-    const scenario = bySlug.get(read.slug) ?? { label: '', year: read.year, components: [], keys: new Set<string>() }
-    if (scenario.year !== read.year) {
-      problems.push({ sheetRow: row.sheetRow, reason: `${read.slug} is a scenario for ${scenario.year} on an earlier row` })
-      continue
-    }
-    if (scenario.keys.has(read.key)) {
-      problems.push({ sheetRow: row.sheetRow, reason: `${read.slug} already has this component for the same days above` })
-      continue
-    }
-    scenario.label ||= read.label
-    scenario.keys.add(read.key)
-    scenario.components.push(read.component)
-    bySlug.set(read.slug, scenario)
   }
-  const scenarios = [...bySlug].map(([slug, scenario]) => ({ slug, label: scenario.label, year: scenario.year, components: scenario.components }))
+  const scenarios: OwnerPayScenario[] = []
+  for (const [slug, scenarioRows] of bySlug) {
+    const years = [...new Set(scenarioRows.map(({ read }) => read.year))].sort()
+    if (years.length > 1) {
+      const reason = `${slug} names the years ${years.join(' and ')}, and a scenario is for one year, so none of its rows counts`
+      problems.push(...scenarioRows.map(({ row }) => ({ sheetRow: row.sheetRow, reason })))
+      continue
+    }
+    const shared = sharedKeys(scenarioRows, ({ read }) => read.key)
+    const kept = scenarioRows.filter(({ read }) => !shared.has(read.key))
+    for (const { row } of scenarioRows.filter(({ read }) => shared.has(read.key))) {
+      problems.push({ sheetRow: row.sheetRow, reason: `${slug} has this component for the same days on more than one row, so none of them counts` })
+    }
+    const labels = [...new Set(scenarioRows.map(({ read }) => read.label).filter((label) => label !== ''))]
+    if (labels.length > 1) {
+      const reason = `the rows of ${slug} give its label differently, so it reads blank`
+      problems.push(...scenarioRows.filter(({ read }) => read.label !== '').map(({ row }) => ({ sheetRow: row.sheetRow, reason })))
+    }
+    if (kept.length > 0) {
+      scenarios.push({ slug, label: labels.length === 1 ? labels[0]! : '', year: years[0]!, components: kept.map(({ read }) => read.component) })
+    }
+  }
   return { scenarios, problems }
 }
 
