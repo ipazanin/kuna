@@ -251,7 +251,7 @@ function forecastOne(context: ForecastContext): YearForecast {
   const calendar = calendarOf(known, year)
   const plan = known.planLines.filter((line) => line.year === year)
   const guards = planGuards(plan, known.payScenarios, rules)
-  const guarded = (line: PlanLine) => guards.find((guard) => guard.sheetRows.includes(line.sheetRow)) ?? null
+  const guarded = (line: PlanLine) => guards.find((guard) => guard.ids.includes(line.id)) ?? null
   const usable = plan.filter((line) => guarded(line) === null || line.kind === 'owner-pay-scenario')
 
   const ownerPayChoice = ownerPayPlan(plan, known.payScenarios, rules)
@@ -528,7 +528,7 @@ function plannedAssetsOf(lines: readonly PlanLine[], calendar: ForecastCalendar)
             fundedBy: '',
             ledgerReference: '',
             note: line.note,
-            sheetRow: line.sheetRow,
+            id: line.id,
           },
         ],
   )
@@ -755,7 +755,7 @@ function unmodelled(
       }
       return ownerPay === null ? [{ line, reason: 'The payroll needs hr_residence_city for its income tax rates, so the owner pay categories follow their own plan rows or averages.' }] : []
     }
-    const guard = guards.find((candidate) => candidate.sheetRows.includes(line.sheetRow))
+    const guard = guards.find((candidate) => candidate.ids.includes(line.id))
     if (guard !== undefined) {
       return [{ line, reason: guard.reason }]
     }

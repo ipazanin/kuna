@@ -4,6 +4,8 @@ import type { Invoice } from '../src/features/workbook/domain/workbook'
 import { revenueByDelivery } from '../src/packs/hr-doo/domain/accrual/revenueByDelivery'
 import { addMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { INVOICE_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 interface InvoiceSpec {
   readonly number: string
@@ -21,7 +23,7 @@ function invoice(spec: InvoiceSpec, row: number): Invoice {
     issued: civil(spec.issued),
     due: null,
     deliveryPeriod: spec.delivered === undefined ? null : { from: civil(spec.delivered[0]), to: civil(spec.delivered[1]) },
-    sheetRow: row + 2,
+    id: recordIdOf(INVOICE_RECORDS, `row-${row + 2}`),
   }
 }
 

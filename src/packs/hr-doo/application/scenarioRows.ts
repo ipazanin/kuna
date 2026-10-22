@@ -1,7 +1,7 @@
 import { editsOf, untouchedOf } from '../../../features/workbook/application/tabRowWrites'
 import type { RowsChangeCheck, TabRowRules } from '../../../features/workbook/application/tabRowWrites'
-import type { FreshTabs } from '../../../features/workbook/application/workbookWriter'
-import type { RowAt, RowCells, TabRowsChange } from '../../../features/workbook/domain/rowChanges'
+import type { FreshTabs } from '../../../features/workbook/infrastructure/workbookWriter'
+import type { RowCells, TabRowsChange } from '../../../features/workbook/domain/rowChanges'
 import { slugChangeRefusals } from '../../../features/workbook/domain/slug'
 import { slugOf } from '../../../features/workbook/infrastructure/cellReading'
 import { readPlan } from '../../../features/workbook/infrastructure/planTabReader'
@@ -11,10 +11,10 @@ import { contentColumns } from '../../../features/workbook/infrastructure/workbo
 import { serialFromCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { amountOf } from '../../../shared/money/money'
-import { cellText } from '../../../shared/text/cellText'
 import { planGuards } from '../domain/forecast/planGuards'
 import { scenarioGuards } from '../domain/scenarios/scenarioGuards'
 import type { ComponentDraft, ScenarioDraft } from '../domain/scenarios/startingScenarios'
+import { SCENARIO_RECORDS } from '../../../features/workbook/domain/recordKind'
 
 const COLUMNS = contentColumns('scenarios')
 const SCENARIO_ON_PLAN = 'owner_pay_scenario'
@@ -45,17 +45,17 @@ export function scenarioCells(drafts: readonly ScenarioDraft[]): RowCells[] {
 }
 
 /** Every row of a scenario under a new name, the label on its first row only, so a blank label reads blank. */
-export function renamedScenario(rows: readonly RowAt[], slug: string, label: string): TabRowsChange {
+export function renamedScenario(rows: readonly RowCells[], slug: string, label: string): TabRowsChange {
   return {
     added: [],
-    changed: rows.map((row, index) => ({ sheetRow: row.sheetRow, before: row.cells, after: { ...row.cells, scenario: slug, label: index === 0 ? label : '' } })),
+    changed: rows.map((cells, index) => ({ before: cells, after: { ...cells, scenario: slug, label: index === 0 ? label : '' } })),
     removed: [],
   }
 }
 
 /** A copy of a scenario's rows below the last row, under a new name and label. */
-export function copiedScenario(rows: readonly RowAt[], slug: string, label: string): TabRowsChange {
-  return { added: rows.map((row, index) => ({ ...row.cells, scenario: slug, label: index === 0 ? label : '' })), changed: [], removed: [] }
+export function copiedScenario(rows: readonly RowCells[], slug: string, label: string): TabRowsChange {
+  return { added: rows.map((cells, index) => ({ ...cells, scenario: slug, label: index === 0 ? label : '' })), changed: [], removed: [] }
 }
 
 /** How many plan rows name each scenario. */
@@ -78,11 +78,11 @@ function planUses(fresh: FreshTabs): ReadonlyMap<string, readonly string[]> {
 function scenarioRefusals(check: RowsChangeCheck, fresh: FreshTabs): string[] {
   const edits = editsOf(check, (cells) => slugOf(cells.scenario))
   const untouched = untouchedOf(check, (cells) => ({ slug: slugOf(cells.scenario) })).filter((row) => row.slug !== '')
-  const refusals = slugChangeRefusals('scenario', { edits: edits.map((edit) => ({ sheetRow: edit.sheetRow, from: edit.before, to: edit.after })), untouched }, planUses(fresh), false)
+  const refusals = slugChangeRefusals('scenario', { edits: edits.map((edit) => ({ from: edit.before, to: edit.after })), untouched }, planUses(fresh), false)
   for (const edit of edits) {
     const holder = untouched.find((row) => row.slug === edit.after)
     if (edit.before !== null && edit.after !== null && edit.before !== edit.after && holder !== undefined) {
-      refusals.push(`"${edit.after}" is already a scenario, on row ${holder.sheetRow}. Pick another name.`)
+      refusals.push(`"${edit.after}" is already a scenario. Pick another name.`)
     }
   }
   if (refusals.length > 0) {
@@ -105,7 +105,7 @@ function scenarioRefusals(check: RowsChangeCheck, fresh: FreshTabs): string[] {
 /** The `scenarios` tab: the reader checks each row, then the scenario guards check each scenario the change touches. */
 export const SCENARIO_ROWS: TabRowRules = {
   tab: 'scenarios',
-  noun: { one: 'scenario row', many: 'scenario rows', article: 'a' },
+  kind: SCENARIO_RECORDS,
   columns: COLUMNS,
   required: ['scenario', 'year', 'component', 'amount'],
   caseless: ['scenario', 'component', 'amount'],
@@ -115,5 +115,4 @@ export const SCENARIO_ROWS: TabRowRules = {
     return { facts: scenarios.flatMap((scenario) => scenario.components), problems }
   },
   refusals: scenarioRefusals,
-  label: (cells) => [cellText(cells.scenario), cellText(cells.component)].filter((part) => part !== '').join(', ') || 'blank',
 }

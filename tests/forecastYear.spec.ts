@@ -9,6 +9,8 @@ import { planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
 import { STEADY_INVOICES, planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { INVOICE_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 function categoryLine(forecast: YearForecast, slug: string) {
   const found = forecast.categories.find((entry) => entry.category.slug === slug)
@@ -251,7 +253,7 @@ describe('forecastYear with a billing plan the invoices reach', () => {
 
   it('reads a month invoiced before the ledger closes it from its rows in full', () => {
     // October's invoice is issued on the 15th, so October is not an actual month yet and its invoice bills no row.
-    const october = { ...(STEADY_INVOICES[STEADY_INVOICES.length - 1] as (typeof STEADY_INVOICES)[number]), number: '22-1', amount: euros(6500), issued: civil('2026-10-15'), sheetRow: 99 }
+    const october = { ...(STEADY_INVOICES[STEADY_INVOICES.length - 1] as (typeof STEADY_INVOICES)[number]), number: '22-1', amount: euros(6500), issued: civil('2026-10-15'), id: recordIdOf(INVOICE_RECORDS, '22-1') }
     const forecast = forecastYear(steadyStudio({ invoices: [...STEADY_INVOICES, october], billingPlan: [...billed, octoberFee] }), 2026, civil('2026-10-19'))
 
     expect(forecast.revenue.months[8]?.bases).toEqual(['actual'])

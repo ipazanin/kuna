@@ -6,8 +6,8 @@ import type { Money } from '../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 
-/** A component before it has a row on the tab. */
-export type ComponentDraft = ScenarioComponent extends infer Each ? (Each extends ScenarioComponent ? Omit<Each, 'sheetRow'> : never) : never
+/** A component before it is on the tab. */
+export type ComponentDraft = ScenarioComponent extends infer Each ? (Each extends ScenarioComponent ? Omit<Each, 'id'> : never) : never
 
 export interface ScenarioDraft {
   readonly slug: string

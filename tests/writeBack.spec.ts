@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { confirmation, recategorisation, undoOf, waitingRowsSettledBy } from '../src/features/review/domain/verdictChanges'
 import { ruleTabCells } from '../src/features/rules/domain/rulesTabChange'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
+import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
 import { LEDGER_ROWS, cellData, excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
@@ -115,7 +115,7 @@ describe.each([
 
     await expect(
       store.changeRules({ appended: { rule: 'Merchant-Model', order: 200, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [] }),
-    ).rejects.toThrow('row 3: the id "Merchant-Model" is on more than one row, so none of them is tried')
+    ).rejects.toThrow('Merchant-Model: the id is on more than one row, so none of them is tried')
     await expect(
       store.changeRules({ appended: { rule: 'snacks', order: 200, enabled: true, description_contains: 'X', category: 'snacks', confidence: 'rule' }, edited: [] }),
     ).rejects.toThrow('the categories tab does not define it')
@@ -139,7 +139,7 @@ describe.each([
 
     await expect(
       store.changeRules({ appended: { rule: 'fine', order: 300, enabled: true, description_contains: 'Y', category: 'equipment', confidence: 'rule' }, edited: [] }),
-    ).rejects.toThrow('broken has the order "soon", which is not a number')
+    ).rejects.toThrow('broken: the order "soon" is not a number')
   })
 
   it('switches a rule off in place by its id', async () => {
@@ -157,7 +157,7 @@ describe.each([
 
     await expect(
       store.changeRules({ appended: null, edited: [{ id: 'merchant-model', expected: { ...read, note: 'typed meanwhile' }, cells: { ...read, enabled: false } }] }),
-    ).rejects.toThrow('Rule "merchant-model" on row 2 changed since the app last read it')
+    ).rejects.toThrow('Rule "merchant-model" changed since the app last read it')
   })
 
   it('sets a setting in place and adds a row for a key the tab lacks', async () => {
@@ -210,9 +210,8 @@ describe('writing to a Google Sheet', () => {
 
     await store.setVerdicts([recategorisation(target, 'equipment', settings(store))])
 
-    expect(target.sheetRow).toBe(3)
     expect(writtenRanges()).toEqual(['ledger!I5', 'ledger!J5'])
-    expect(row(store, 'MODEL API INC')).toMatchObject({ sheetRow: 5, category: 'equipment' })
+    expect(row(store, 'MODEL API INC')).toMatchObject({ category: 'equipment' })
   })
 
   it('says so loudly when rows moved between the read and the write', async () => {
@@ -224,7 +223,7 @@ describe('writing to a Google Sheet', () => {
     }
 
     await expect(store.setVerdicts([recategorisation(row(store, 'MODEL API INC'), 'equipment', settings(store))])).rejects.toThrow(
-      'row 3 does not read back as written. Rows may have moved while it was sent.',
+      'the main row with reference REF-3 does not read back as written. Rows may have moved while it was sent.',
     )
     expect(store.state.workbook!.transactions.map((transaction) => transaction.counterparty)).toContain('ARRIVED MEANWHILE')
     expect(store.state.writing).toBe(false)
@@ -248,7 +247,7 @@ describe('writing to a Google Sheet', () => {
     await expect(store.setVerdicts([recategorisation(gone, 'revenue', settings(store))])).rejects.toThrow(
       'No ledger row matches the main row with reference REF-2 any more.',
     )
-    await expect(store.setVerdicts([recategorisation(twice, 'revenue', settings(store))])).rejects.toThrow('2 ledger rows match the main row with reference REF-3 (rows 3, 5)')
+    await expect(store.setVerdicts([recategorisation(twice, 'revenue', settings(store))])).rejects.toThrow('2 ledger rows match the main row with reference REF-3, so the app cannot tell which to change.')
     expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
   })
 
@@ -257,7 +256,7 @@ describe('writing to a Google Sheet', () => {
     const target = row(store, 'GADGET CORNER')
     sheets.grids.ledger![1]![9] = 'ivan'
 
-    await expect(store.setVerdicts([recategorisation(target, 'equipment', settings(store))])).rejects.toThrow('Row 2 changed since the app read it')
+    await expect(store.setVerdicts([recategorisation(target, 'equipment', settings(store))])).rejects.toThrow('changed since the app read it: it now says')
     expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
   })
 
@@ -304,7 +303,7 @@ describe('writing to a Google Sheet', () => {
     const { store, sheets } = await googleHarness(used, grids)
 
     await expect(
-      store.changeRules({ appended: ruleTabCells({ id: 'x', order: 1, enabled: true, conditions: [{ column: 'is_card' }], category: 'equipment', confidence: 'rule', note: '', sheetRow: null }), edited: [] }),
+      store.changeRules({ appended: ruleTabCells({ id: 'x', order: 1, enabled: true, conditions: [{ column: 'is_card' }], category: 'equipment', confidence: 'rule', note: '' }), edited: [] }),
     ).rejects.toThrow('column V is headed "owner", which no rule can test')
     expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
   })
@@ -318,12 +317,11 @@ describe('writing to a Google Sheet', () => {
       category: 'revenue',
       confidence: 'rule',
       note: '',
-      sheetRow: null,
     })
     const withoutClients = await googleHarness(used)
     expect(withoutClients.store.state.workbook?.hasClientsTab).toBe(false)
     await expect(withoutClients.store.changeRules({ appended: asksForClients, edited: [] })).rejects.toThrow(
-      'client-pays tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it',
+      'client-pays: it tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it',
     )
 
     const headerless = workbookGrids()

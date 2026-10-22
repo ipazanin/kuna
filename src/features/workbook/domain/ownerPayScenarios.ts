@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
+import type { RecordId } from './recordId'
 
 /** The `component` names of the `scenarios` tab. A tax-free item is written `nontaxable:<item>`, such as `nontaxable:occasional-gift`. */
 export const SCENARIO_COMPONENTS = ['salary_gross', 'nontaxable', 'rent_monthly', 'dividend', 'director_basis'] as const
@@ -14,7 +15,8 @@ interface ComponentSpan {
   readonly from: CivilDate | null
   /** The last day it holds, or null for the end of the year. */
   readonly to: CivilDate | null
-  readonly sheetRow: number
+  /** By its scenario, component and days. */
+  readonly id: RecordId
 }
 
 /** One row of a scenario. */

@@ -12,10 +12,10 @@ import { formatMoney } from '../../../shared/money/moneyFormat'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { installedPack } from '../../packs/packContribution'
-import { rowCellsOf } from '../../workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../workbook/application/tabRowWrites'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { RowAt } from '../../workbook/domain/rowChanges'
+import type { RowCells } from '../../workbook/domain/rowChanges'
 import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
@@ -79,7 +79,7 @@ const remainder = computed(() => subtractMoney(whole.value, placed.value))
 
 const claimedBy = computed(() => {
   const workbook = store.state.workbook
-  return workbook === null ? [] : (installedPack().rowsKeptWhole(workbook).get(props.row.sheetRow) ?? [])
+  return workbook === null ? [] : (installedPack().rowsKeptWhole(workbook).get(props.row.id) ?? [])
 })
 
 const tabMissing = computed(() => store.state.choice?.source === 'google' && (store.state.snapshot?.meta.missingTabs.includes('splits') ?? false))
@@ -115,11 +115,11 @@ function takeRest(index: number): void {
 }
 
 /** The rows of the split as the app read them, raw, so a cell left alone is never rewritten. */
-function currentRows(): RowAt[] | null {
+function currentRows(): RowCells[] | null {
   const split = props.split
   if (split === null) return []
-  const rows = split.parts.map((part) => store.state.snapshot?.splits.find((candidate) => candidate.sheetRow === part.sheetRow))
-  return rows.every((read) => read !== undefined) ? rows.map((read) => ({ sheetRow: read!.sheetRow, cells: rowCellsOf(read!, SPLIT_ROWS.columns) })) : null
+  const rows = split.parts.map((part) => storedCellsOf(store.state.snapshot?.splits ?? [], SPLIT_ROWS, part.id))
+  return rows.every((cells) => cells !== null) ? (rows as RowCells[]) : null
 }
 
 async function save(): Promise<void> {
@@ -156,7 +156,7 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
   <UModal
     v-model:open="open"
     :title="split === null ? 'Split the payment' : 'Edit the split'"
-    :description="`${row.counterparty || 'No counterparty'}, ${dayFormat.format(new Date(row.date))}, ${names.account(row.account)}, ledger row ${row.sheetRow}. The ledger keeps the row as the bank booked it, and the parts count in its place.`"
+    :description="`${row.counterparty || 'No counterparty'}, ${dayFormat.format(new Date(row.date))}, ${names.account(row.account)}. The ledger keeps the row as the bank booked it, and the parts count in its place.`"
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6', content: 'sm:max-w-2xl' }"
   >

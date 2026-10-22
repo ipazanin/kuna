@@ -19,7 +19,7 @@ function ledgerRow(sheetRow: number, amount: number): SheetRow {
 
 function snapshotOf(workbookId: string, ledger: SheetRow[], syncedAt = '2026-10-15T08:00:00.000Z'): WorkbookSnapshot {
   return {
-    meta: { id: workbookId, source: 'google', title: 'Test workbook', syncedAt, ledgerSheetId: 7, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id: workbookId, source: 'google', title: 'Test workbook', syncedAt, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ledger,
     categories: [{ sheetRow: 2, cells: { category: 'revenue', bucket: 'income' } }],
     accounts: [{ sheetRow: 2, cells: { account: 'operating', currency: 'EUR' } }],
@@ -61,7 +61,6 @@ describe('workbook cache', () => {
       source: 'google',
       title: 'Test workbook',
       syncedAt: '2026-10-15T08:00:00.000Z',
-      ledgerSheetId: 7,
       lastExportedAt: null,
       unexportedSince: null,
       missingTabs: [],

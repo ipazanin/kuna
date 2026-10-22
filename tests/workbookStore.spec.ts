@@ -37,7 +37,7 @@ function tabsOf(amounts: number[]): WorkbookTabs {
 
 function snapshotOf(id: string, syncedAt: string, amounts: number[], title = 'Books'): WorkbookSnapshot {
   return {
-    meta: { id, source: 'google', title, syncedAt, ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id, source: 'google', title, syncedAt, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...tabsOf(amounts),
   }
 }
@@ -268,10 +268,10 @@ describe('workbook store in Excel mode', () => {
     const store = createWorkbookStore(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
-    const revenue = rowCellsOf(store.state.snapshot!.categories[0]!, CATEGORY_ROWS.columns)
+    const revenue = rowCellsOf(store.state.snapshot!.categories[0]!, CATEGORY_ROWS)
 
     setNow('2026-10-17T09:00:00.000Z')
-    await store.changeRows(CATEGORY_ROWS, { added: [], changed: [{ sheetRow: 2, before: revenue, after: { ...revenue, label: 'Sales' } }], removed: [] })
+    await store.changeRows(CATEGORY_ROWS, { added: [], changed: [{ before: revenue, after: { ...revenue, label: 'Sales' } }], removed: [] })
     setNow('2026-10-18T09:00:00.000Z')
     await store.changeRows(ACCOUNT_ROWS, { added: [{ account: 'savings', iban: '' }], changed: [], removed: [] })
 

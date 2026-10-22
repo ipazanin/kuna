@@ -29,12 +29,10 @@ const emit = defineEmits<{
 }>()
 
 function draftsOf(rows: readonly SheetRow[]): CategoryDraft[] {
-  return [...rows]
-    .sort((upper, lower) => upper.sheetRow - lower.sheetRow)
-    .map((row) => {
-      const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
-      return { sheetRow: row.sheetRow, savedName: text('category'), category: text('category'), label: text('label'), family: text('family'), bucket: text('bucket').toLowerCase(), colour: text('colour'), roles: text('roles'), vat: text('vat').toLowerCase() }
-    })
+  return rows.map((row, saved) => {
+    const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
+    return { saved, savedName: text('category'), category: text('category'), label: text('label'), family: text('family'), bucket: text('bucket').toLowerCase(), colour: text('colour'), roles: text('roles'), vat: text('vat').toLowerCase() }
+  })
 }
 
 const drafts = ref<CategoryDraft[]>(draftsOf(props.rows))
@@ -52,7 +50,7 @@ const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value)
 const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: bucket }))
 const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: treatment }))
 
-function update(index: number, field: keyof Omit<CategoryDraft, 'sheetRow' | 'savedName'>, text: string): void {
+function update(index: number, field: keyof Omit<CategoryDraft, 'saved' | 'savedName'>, text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
 }
 
@@ -65,7 +63,7 @@ function inUse(draft: CategoryDraft): string {
 }
 
 function addCategory(): void {
-  drafts.value = [...drafts.value, { sheetRow: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '', vat: '' }]
+  drafts.value = [...drafts.value, { saved: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '', vat: '' }]
 }
 
 function remove(index: number): void {
@@ -73,7 +71,7 @@ function remove(index: number): void {
 }
 
 function save(): void {
-  const savedCells = new Map(props.rows.map((row) => [row.sheetRow, row.cells]))
+  const savedCells = new Map(props.rows.map((row, saved) => [saved, row.cells]))
   const opened = draftsOf(props.rows)
   const openedCells = categoryCellsOf(opened, savedCells)
   const draftedCells = categoryCellsOf(drafts.value, savedCells)
@@ -82,8 +80,8 @@ function save(): void {
     rowsChangeOf(
       props.rows,
       CATEGORY_ROWS.columns,
-      drafts.value.map((draft, index) => ({ sheetRow: draft.sheetRow, cells: draftedCells[index]! })),
-      new Map(opened.map((draft, index) => [draft.sheetRow!, openedCells[index]!])),
+      drafts.value.map((draft, index) => ({ saved: draft.saved, cells: draftedCells[index]! })),
+      new Map(opened.map((_, saved) => [saved, openedCells[saved]!])),
     ),
   )
 }
@@ -105,7 +103,7 @@ function save(): void {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(draft, index) in drafts" :key="draft.sheetRow ?? `new-${index}`" data-testid="category-row">
+        <tr v-for="(draft, index) in drafts" :key="draft.saved ?? `new-${index}`" data-testid="category-row">
           <td>
             <UInput
               :model-value="draft.category"
@@ -187,7 +185,7 @@ function save(): void {
               size="xs"
               :disabled="locked(draft)"
               :title="locked(draft) ? inUse(draft) : undefined"
-              :aria-label="draft.sheetRow === null ? 'Remove this new category' : `Delete ${draft.savedName || 'this category'}`"
+              :aria-label="draft.saved === null ? 'Remove this new category' : `Delete ${draft.savedName || 'this category'}`"
               data-testid="remove-category"
               @click="remove(index)"
             />

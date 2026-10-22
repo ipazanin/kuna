@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { rowsWithoutIds } from '../src/features/workbook/application/rowIds'
+import { rowsWithoutIds } from '../src/features/workbook/infrastructure/rowIds'
 import { canUndo } from '../src/features/workbook/application/workbookStore'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import { OWNER_ADVANCE_ROWS } from '../src/features/workbook/application/ownerAdvanceRows'
@@ -11,17 +11,14 @@ import type { CellValue } from '../src/features/workbook/infrastructure/workbook
 import { TABS_WITH_IDS } from '../src/features/workbook/infrastructure/workbookTemplate'
 import { AN_ID, cellData, excelHarness, forgetCaches, googleHarness, sentRequests } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const used = new Set<string>()
 
 afterEach(async () => {
   await forgetCaches(used)
 })
-
-/** The fake workbook as a Sheet from before ids: the seven tabs without the id column. */
-function oldTabs(): Record<string, CellValue[][]> {
-  return fakeWorkbookValues('google', false)
-}
 
 /** A grid without one column, a blank cell as '' and no blanks at the end of a row, as Google returns it. */
 function withoutColumn(grid: readonly (readonly (CellValue | null)[])[], column: number): CellValue[][] {
@@ -30,6 +27,13 @@ function withoutColumn(grid: readonly (readonly (CellValue | null)[])[], column:
     while (cells.at(-1) === '') cells.pop()
     return cells
   })
+}
+
+/** The fake workbook as a Sheet from before ids: the seven tabs without the id column. */
+function oldTabs(): Record<string, CellValue[][]> {
+  return Object.fromEntries(
+    Object.entries(fakeWorkbookValues('google')).map(([tab, grid]) => [tab, (TABS_WITH_IDS as readonly string[]).includes(tab) ? withoutColumn(grid, grid[0]!.indexOf('id')) : grid]),
+  )
 }
 
 /** Every id the rows of the seven tabs hold on screen, a row without one as a blank. */
@@ -41,23 +45,29 @@ describe.each([
   ['a Google Sheet', googleHarness],
   ['a workbook kept in this browser', excelHarness],
 ] as const)('ids added to %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
-  it('reads rows without an id, then gives each a distinct one, which the records read, and then nothing lacks one', async () => {
-    const { store } = await harnessOf(used, oldTabs())
-    expect(store.state.workbook!.problems).toEqual([])
-    expect(store.state.workbook!.ownerAdvances.map((advance) => advance.id)).toEqual([undefined, undefined, undefined])
+  it('leaves out rows added by hand without an id, then gives each a distinct one, after which they read and nothing lacks one', async () => {
+    const { store } = await harnessOf(used, fakeWorkbookValues('google', false))
+    const advances = store.state.snapshot!['owner-advances'].length
+    expect(store.state.workbook!.ownerAdvances).toHaveLength(advances - 1)
+    expect(store.state.workbook!.problems.map((problem) => [problem.tab, problem.reason])).toEqual([
+      ['owner-advances', 'no id, so it is left out until "Add ids" on Overview gives it one'],
+      ['outgoing-plan', 'no id, so it is left out until "Add ids" on Overview gives it one'],
+    ])
     const lacking = rowsWithoutIds(store.state.snapshot!)
-    expect(lacking.map((tab) => tab.tab)).toEqual(['outgoing-plan', 'owner-advances', 'assets', 'year-end', 'plan', 'splits'])
+    expect(lacking).toEqual([
+      { tab: 'outgoing-plan', rows: 1 },
+      { tab: 'owner-advances', rows: 1 },
+    ])
 
     const given = await store.addMissingIds()
 
     expect(given).toEqual(lacking)
     const ids = idsOnScreen(store)
-    expect(ids).toHaveLength(lacking.reduce((sum, tab) => sum + tab.rows, 0))
-    expect(ids.every((id) => AN_ID.asymmetricMatch(id))).toBe(true)
+    expect(ids.every((id) => id !== '')).toBe(true)
     expect(new Set(ids).size).toBe(ids.length)
     expect(rowsWithoutIds(store.state.snapshot!)).toEqual([])
-    expect(store.state.workbook!.ownerAdvances.map((advance) => advance.id)).toEqual(store.state.snapshot!['owner-advances'].map((row) => row.cells.id))
-    expect(store.state.workbook!.splits.flatMap((split) => split.parts).every((part) => part.id !== undefined)).toBe(true)
+    expect(store.state.workbook!.ownerAdvances.map((advance) => advance.id).sort()).toEqual(store.state.snapshot!['owner-advances'].map((row) => recordIdOf(OWNER_ADVANCE_RECORDS, String(row.cells.id))).sort())
+    expect(store.state.snapshot!['owner-advances'].at(-1)!.cells.id).toEqual(AN_ID)
     expect(store.state.workbook!.problems).toEqual([])
     expect(store.state.writes).toMatchObject([{ kind: 'ids', given: lacking }])
     expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(false)
@@ -133,11 +143,24 @@ describe('a deleted row of a tab that carries ids', () => {
     const [first] = store.state.snapshot!['owner-advances']
     const id = first!.cells.id
 
-    const receipt = await store.changeRows(OWNER_ADVANCE_ROWS, { added: [], changed: [], removed: [{ sheetRow: first!.sheetRow, cells: rowCellsOf(first!, OWNER_ADVANCE_ROWS.columns) }] })
-    expect(receipt?.removed[0]?.cells.id).toBe(id)
+    const receipt = await store.changeRows(OWNER_ADVANCE_ROWS, { added: [], changed: [], removed: [rowCellsOf(first!, OWNER_ADVANCE_ROWS)] })
+    expect(receipt?.removed[0]?.id).toBe(id)
     await store.undo(store.state.writes[0]!)
 
-    expect(store.state.snapshot!['owner-advances'].find((row) => row.sheetRow === first!.sheetRow)?.cells.id).toBe(id)
+    expect(store.state.snapshot!['owner-advances'].filter((row) => row.cells.id === id)).toHaveLength(1)
     expect(rowsWithoutIds(store.state.snapshot!)).toEqual([])
+  })
+
+  it('stays out while the tab holds its id again, so Undo makes no copy', async () => {
+    const { store, sheets } = await googleHarness(used, fakeWorkbookValues('google'))
+    const [first] = store.state.snapshot!['owner-advances']
+    const copy = [...sheets.grids['owner-advances']![1]!]
+
+    await store.changeRows(OWNER_ADVANCE_ROWS, { added: [], changed: [], removed: [rowCellsOf(first!, OWNER_ADVANCE_ROWS)] })
+    sheets.grids['owner-advances']!.push(copy)
+    const grid = structuredClone(sheets.grids['owner-advances'])
+
+    await expect(store.undo(store.state.writes[0]!)).rejects.toThrow('would be left out: the same id as another row')
+    expect(sheets.grids['owner-advances']).toEqual(grid)
   })
 })

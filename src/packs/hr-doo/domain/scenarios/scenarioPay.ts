@@ -1,3 +1,4 @@
+import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
 import { firstDayOf, lastDayOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
@@ -70,19 +71,18 @@ export function scenarioPay(scenario: OwnerPayScenario, facts: EmployeeFacts, ru
   const split = splitAtCaps(schedule, usage)
   for (const entry of usage) {
     if (entry.cap !== null && entry.excess.amount > 0) {
-      const sheetRows = schedule.nontaxable.filter((plan) => plan.item.item === entry.payment).map((plan) => plan.item.sheetRow)
-      warnings.push({ kind: 'cap-exceeded', item: entry.payment, sheetRows, paid: entry.paid, cap: entry.cap, excess: entry.excess })
+      warnings.push({ kind: 'cap-exceeded', item: entry.payment, paid: entry.paid, cap: entry.cap, excess: entry.excess })
     }
   }
 
-  const floors = new Set<number>()
+  const floors = new Set<RecordId>()
   const payroll = schedule.salaryMonths.map((salaryMonth) => {
     const { month, salary } = salaryMonth
     const floorRule = rules('hr.contrib.director-floor', firstDayOf(month))
     const floor = floorRule.value.monthlyFloor.cents
-    if (salary.gross !== 'floor' && salary.gross < floor && !floors.has(salary.sheetRow)) {
-      floors.add(salary.sheetRow)
-      warnings.push({ kind: 'below-floor', sheetRow: salary.sheetRow, agreed: salary.gross, floor: tracedFigure('Director floor for a full month', floor, BASIS, [floorRule.citation]) })
+    if (salary.gross !== 'floor' && salary.gross < floor && !floors.has(salary.id)) {
+      floors.add(salary.id)
+      warnings.push({ kind: 'below-floor', agreed: salary.gross, floor: tracedFigure('Director floor for a full month', floor, BASIS, [floorRule.citation]) })
     }
     const paid = split.filter((part) => part.month === month)
     const nontaxablePayments: NontaxablePayment[] = paid.filter((part) => part.within > 0).map((part) => ({ payment: part.item, amount: part.within }))

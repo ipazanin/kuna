@@ -7,6 +7,8 @@ import type { DoubledRatesEffect } from '../src/packs/hr-doo/domain/assets/asset
 import { ZERO } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { ASSET_RECORDS, GRANT_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 interface AssetSpec {
   readonly name: string
@@ -29,7 +31,7 @@ function asset(spec: AssetSpec): Asset {
     fundedBy: spec.fundedBy ?? '',
     ledgerReference: '',
     note: '',
-    sheetRow: 2,
+    id: recordIdOf(ASSET_RECORDS, 'row-2'),
   }
 }
 
@@ -45,7 +47,7 @@ function grant(fixed: number, variable: number): Grant {
     clawbackSecondYear: null,
     employmentRequiredUntil: null,
     note: '',
-    sheetRow: 2,
+    id: recordIdOf(GRANT_RECORDS, 'example-grant'),
   }
 }
 

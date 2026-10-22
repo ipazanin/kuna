@@ -11,7 +11,6 @@ interface ClientCells {
 
 /** One clients row before and after a change. `before` is null for an added row, `after` for a deleted one. */
 export interface ClientEdit {
-  readonly sheetRow: number | null
   readonly before: ClientCells | null
   readonly after: ClientCells | null
 }
@@ -32,12 +31,12 @@ export interface ClientChecks {
  */
 export function clientChangeRefusals(
   edits: readonly ClientEdit[],
-  untouched: readonly ({ readonly sheetRow: number } & ClientCells)[],
+  untouched: readonly ClientCells[],
   checks: ClientChecks,
 ): string[] {
   const refusals = slugChangeRefusals(
     'client',
-    { edits: edits.map((edit) => ({ sheetRow: edit.sheetRow, from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
+    { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
     checks.named,
     false,
   )
@@ -48,7 +47,7 @@ export function clientChangeRefusals(
     }
     const others = [
       ...untouched,
-      ...edits.flatMap((other) => (other === edit || other.after === null ? [] : [{ sheetRow: other.sheetRow, ...other.after }])),
+      ...edits.flatMap((other) => (other === edit || other.after === null ? [] : [other.after])),
     ]
     if (after.iban !== '' && after.iban !== edit.before?.iban) {
       const holder = others.find((row) => row.iban === after.iban)
@@ -56,14 +55,14 @@ export function clientChangeRefusals(
       if (!isIban(after.iban)) {
         refusals.push(`"${after.iban}" is not a valid IBAN.`)
       } else if (holder !== undefined) {
-        refusals.push(`${after.iban} is already on the clients tab for ${holder.slug}${holder.sheetRow === null ? '' : `, on row ${holder.sheetRow}`}.`)
+        refusals.push(`${after.iban} is already on the clients tab for ${holder.slug}.`)
       } else if (account !== undefined) {
         refusals.push(`${after.iban} is the IBAN of your ${account} account, so a transfer between your own accounts would read as a payment from a client.`)
       }
     }
     const named = others.find((row) => row.slug === after.slug && row.name !== '')
     if (after.name !== '' && named !== undefined && named.name.toLowerCase() !== after.name.toLowerCase() && (edit.before === null || edit.before.name !== after.name || edit.before.slug !== after.slug)) {
-      refusals.push(`${after.slug} is called "${named.name}"${named.sheetRow === null ? '' : ` on row ${named.sheetRow}`}. Give this row the same name, or leave it blank.`)
+      refusals.push(`${after.slug} is called "${named.name}" on another row. Give this row the same name, or leave it blank.`)
     }
   }
   return refusals

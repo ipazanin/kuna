@@ -19,7 +19,7 @@ if (options.workbook === undefined) {
   process.exit(2)
 }
 
-const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt: '2026-01-01T00:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] }
+const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt: '2026-01-01T00:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] }
 
 const SECTIONS = ['transactions', 'categories', 'accounts', 'rules', 'invoices', 'clients', 'billingPlan', 'ownerAdvances', 'splits', 'assets', 'grants', 'yearEndLines', 'planLines', 'payScenarios', 'dismissals', 'problems']
 

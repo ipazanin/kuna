@@ -27,12 +27,12 @@ export interface RulesTabAfter {
 }
 
 /**
- * The tab's rows with the change made, the new row numbered below the last one. Each edited row is
- * found by its id, once, and must still hold what the app read.
+ * The tab's rows with the change made, the new row below the last one. Each edited row is found by
+ * its id, once, and must still hold what the app read.
  */
-export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChange, lastRow: number): RulesTabAfter {
+export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChange): RulesTabAfter {
   const refusals: string[] = []
-  const replaced = new Map<number, RuleCells>()
+  const replaced = new Map<RuleTabRow, RuleCells>()
   for (const edit of change.edited) {
     const matches = rows.filter((row) => sameId(row.cells.rule, edit.id))
     if (matches.length !== 1) {
@@ -45,16 +45,16 @@ export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChang
     }
     const [row] = matches as [RuleTabRow]
     if (!sameCells(row.cells, edit.expected)) {
-      refusals.push(`rule "${edit.id}" on row ${row.sheetRow} changed since the app last read it`)
+      refusals.push(`rule "${edit.id}" changed since the app last read it`)
       continue
     }
-    replaced.set(row.sheetRow, withoutBlanks(edit.cells))
+    replaced.set(row, withoutBlanks(edit.cells))
   }
   const changed = rows.map((row) => {
-    const cells = replaced.get(row.sheetRow)
-    return cells === undefined ? row : { sheetRow: row.sheetRow, cells }
+    const cells = replaced.get(row)
+    return cells === undefined ? row : { cells }
   })
-  const appended = change.appended === null ? [] : [{ sheetRow: lastRow + 1, cells: withoutBlanks(change.appended) }]
+  const appended = change.appended === null ? [] : [{ cells: withoutBlanks(change.appended) }]
   return { rows: [...changed, ...appended], refusals }
 }
 
@@ -105,7 +105,8 @@ export function sameCells(left: RuleCells, right: RuleCells): boolean {
   return [...columns].every((column) => cellText(left[column]) === cellText(right[column]))
 }
 
-function sameId(cell: string | number | boolean | undefined, id: string): boolean {
+/** Whether the cell holds this rule id, compared without regard to case as `Rules.gs` does. */
+export function sameId(cell: string | number | boolean | undefined, id: string): boolean {
   return cellText(cell).toLowerCase() === id.trim().toLowerCase()
 }
 

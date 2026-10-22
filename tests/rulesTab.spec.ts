@@ -15,7 +15,7 @@ function ruleRow(cells: Partial<Record<(typeof RULE_COLUMNS)[number], CellValue>
 
 function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'account', 'amount', 'balance']], missingTabs: WorkbookTab[] = []): WorkbookSnapshot {
   return {
-    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null, missingTabs },
+    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs },
     ledger: sheetRowsFromValues(ledger),
     categories: sheetRowsFromValues([
       ['category', 'family', 'bucket'],
@@ -91,7 +91,6 @@ describe('reading the rules tab', () => {
       category: 'travel',
       confidence: 'rule',
       note: 'Why.',
-      sheetRow: 3,
     })
   })
 
@@ -106,9 +105,9 @@ describe('reading the rules tab', () => {
     )
 
     expect(workbook.rules.map((rule) => rule.id)).toEqual(['parked', 'rule-9', 'rule-10'])
-    expect(workbook.problems.map((problem) => [problem.sheetRow, problem.reason])).toEqual([
-      [2, 'rule-9 and rule-10 share the order 100, so the app tries them by id and the Apps Script by row. Give each its own order'],
-      [3, 'rule-9 and rule-10 share the order 100, so the app tries them by id and the Apps Script by row. Give each its own order'],
+    expect(workbook.problems.map((problem) => [problem.label, problem.reason])).toEqual([
+      ['rule-9', 'shares the order 100 with rule-10, so the app tries them by id and the Apps Script by row. Give each its own order'],
+      ['rule-10', 'shares the order 100 with rule-9, so the app tries them by id and the Apps Script by row. Give each its own order'],
     ])
   })
 
@@ -133,20 +132,20 @@ describe('reading the rules tab', () => {
     )
 
     expect(workbook.rules.map((rule) => rule.id)).toEqual(['kept'])
-    expect(workbook.problems.map((problem) => [problem.tab, problem.sheetRow, problem.reason])).toEqual([
-      ['rules', 2, '"colour" is not a column a rule can test'],
-      ['rules', 3, 'no rule id'],
-      ['rules', 4, 'the id "same" is on more than one row, so none of them is tried'],
-      ['rules', 5, 'the id "SAME" is on more than one row, so none of them is tried'],
-      ['rules', 6, 'first has the order "first", which is not a number'],
-      ['rules', 7, 'maybe has the enabled cell "yes", and it is TRUE or FALSE'],
-      ['rules', 8, 'sure has the confidence "certain", and it is rule or review'],
-      ['rules', 9, 'nope files rows as "nope" at rule confidence, and the categories tab does not define it'],
-      ['rules', 10, 'bare has no condition, so it would match every row'],
-      ['rules', 11, 'client tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban'],
-      ['rules', 12, 'code: revenue_code is "651", and it is four digits'],
-      ['rules', 13, 'side: direction is "out", and it is credit, debit or blank'],
-      ['rules', 13, 'side: is_card is "FALSE", and it is TRUE or blank'],
+    expect(workbook.problems.map((problem) => [problem.tab, problem.label, problem.reason])).toEqual([
+      ['rules', 'odd', '"colour" is not a column a rule can test'],
+      ['rules', 'unnamed', 'a row without a rule id'],
+      ['rules', 'same', 'the id is on more than one row, so none of them is tried'],
+      ['rules', 'SAME', 'the id is on more than one row, so none of them is tried'],
+      ['rules', 'first', 'the order "first" is not a number'],
+      ['rules', 'maybe', 'the enabled cell "yes" is neither TRUE nor FALSE'],
+      ['rules', 'sure', 'the confidence "certain" is neither rule nor review'],
+      ['rules', 'nope', 'it files rows as "nope" at rule confidence, and the categories tab does not define it'],
+      ['rules', 'bare', 'no condition, so it would match every row'],
+      ['rules', 'client', 'it tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban'],
+      ['rules', 'code', 'revenue_code is "651", and it is four digits'],
+      ['rules', 'side', 'direction is "out", and it is credit, debit or blank'],
+      ['rules', 'side', 'is_card is "FALSE", and it is TRUE or blank'],
     ])
   })
 

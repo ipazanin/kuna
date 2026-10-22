@@ -8,7 +8,7 @@ import { billingItemOrder } from '../../workbook/domain/billingPlan'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
 
 /** A plan row before it is on the tab. */
-export type BillingItemDraft = Omit<BillingItem, 'sheetRow'>
+export type BillingItemDraft = Omit<BillingItem, 'id'>
 
 export type RestOfYearFill =
   | { readonly kind: 'rows'; readonly rows: readonly BillingItemDraft[] }

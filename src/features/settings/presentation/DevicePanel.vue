@@ -13,7 +13,7 @@ import { exportReminderDue } from '../../excel/domain/exportReminder'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useExport } from '../../excel/presentation/useExport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { spreadsheetLink } from '../../workbook/infrastructure/sheetRowLink'
+import { spreadsheetLink } from '../../workbook/infrastructure/spreadsheetLink'
 import { XLSX_MIME_TYPE } from '../../workbook/infrastructure/workbookFile'
 
 /** Where the ledger comes from, and how the app looks on this device. */

@@ -13,6 +13,9 @@ import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/wor
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { DESK_IBAN, LEDGER_ROWS, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
+import { withIds } from './fixtures/rowIds'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { DISMISSAL_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const used = new Set<string>()
 
@@ -41,24 +44,26 @@ function deskGroup(store: WorkbookStore) {
 describe('the dismissed tab', () => {
   it('reads one row per dismissal, and reports a row it cannot use and every row of a suggestion dismissed twice', () => {
     const reading = readDismissals(
-      sheetRowsFromValues([
-        HEADER,
-        ['not-covered', DESK_KEY, 'Equipment', 46316],
-        ['exception', 'name:corner shop', '', ''],
-        ['not-covered', DESK_KEY, 'equipment', 46317],
-        ['rule', 'name:kiosk'],
-        ['not-covered', '', 'travel'],
-        ['exception', 'name:bakery', '', 'Tuesday'],
-      ]),
+      sheetRowsFromValues(
+        withIds('dismissal', [
+          HEADER,
+          ['not-covered', DESK_KEY, 'Equipment', 46316],
+          ['exception', 'name:corner shop', '', ''],
+          ['not-covered', DESK_KEY, 'equipment', 46317],
+          ['rule', 'name:kiosk'],
+          ['not-covered', '', 'travel'],
+          ['exception', 'name:bakery', '', 'Tuesday'],
+        ]),
+      ),
     )
 
-    expect(reading.facts).toEqual([{ kind: 'exception', key: 'name:corner shop', category: '', dismissedOn: null, sheetRow: 3 }])
-    expect(reading.problems.map((problem) => [problem.sheetRow, problem.reason])).toEqual([
-      [5, '"rule" is not a kind of suggestion. Use not-covered, exception'],
-      [6, 'no key'],
-      [7, 'dismissed_on "Tuesday" is not a date cell'],
-      [2, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
-      [4, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
+    expect(reading.facts).toEqual([{ kind: 'exception', key: 'name:corner shop', category: '', dismissedOn: null, id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-3') }])
+    expect(reading.problems.map((problem) => [problem.label, problem.reason])).toEqual([
+      [`${DESK_KEY}, 2026-10-21`, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
+      [`${DESK_KEY}, 2026-10-22`, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
+      ['name:kiosk', '"rule" is not a kind of suggestion. Use not-covered, exception'],
+      ['unnamed', 'no key'],
+      ['name:bakery, Tuesday', 'dismissed_on "Tuesday" is not a date cell'],
     ])
   })
 
@@ -67,7 +72,7 @@ describe('the dismissed tab', () => {
     const { store } = await excelHarness(used, {
       ...grids(),
       ledger: [workbookGrids().ledger![0]!, newDesk, ...LEDGER_ROWS.map((row) => [...row])],
-      dismissed: [HEADER, ['not-covered', DESK_KEY, 'equipment', 46316]],
+      dismissed: withIds('dismissal', [HEADER, ['not-covered', DESK_KEY, 'equipment', 46316]]),
     })
 
     const { coverage, dismissed } = coverageOf(store)
@@ -85,7 +90,7 @@ describe('the dismissed tab', () => {
   it('hides only the exception to the rule it names, not the same counterparty’s exception to another rule', () => {
     const exception = (ruleId: string) => ({ key: `${DESK_KEY}|${ruleId}`, name: 'Desk Co', iban: DESK_IBAN, rows: [], categories: [], ruleId, ruleCategory: 'equipment' })
     const coverage = { notCovered: [], exceptions: [exception('desk-rent'), exception('desk-chairs')] }
-    const dismissal = { kind: 'exception' as const, key: dismissalCells('exception', exception('desk-rent'), DAY).key as string, category: '', dismissedOn: DAY, sheetRow: 2 }
+    const dismissal = { kind: 'exception' as const, key: dismissalCells('exception', exception('desk-rent'), DAY).key as string, category: '', dismissedOn: DAY, id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-2') }
 
     const shown = withoutDismissed(coverage, [dismissal])
 
@@ -106,7 +111,7 @@ describe.each([
     expect(store.state.workbook?.dismissals.map((dismissal) => [dismissal.key, dismissal.dismissedOn])).toEqual([[DESK_KEY, DAY]])
 
     const row = store.state.snapshot!.dismissed[0]!
-    await store.changeRows(DISMISSED_ROWS, { added: [], changed: [], removed: [{ sheetRow: row.sheetRow, cells: rowCellsOf(row, DISMISSED_ROWS.columns) }] })
+    await store.changeRows(DISMISSED_ROWS, { added: [], changed: [], removed: [rowCellsOf(row, DISMISSED_ROWS)] })
     expect(coverageOf(store).coverage.notCovered.map((group) => group.key)).toContain(DESK_KEY)
     expect(store.state.snapshot?.dismissed).toEqual([])
 

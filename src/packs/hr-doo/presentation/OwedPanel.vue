@@ -130,7 +130,7 @@ const owed = computed(() => {
     loansSummary: `${loans.loans.length} ${loans.loans.length === 1 ? 'loan' : 'loans'}, ${loans.openCount === 0 ? 'none open' : `${loans.openCount} open`}`,
     advances: [...advances.advances].reverse().map(
       (line): AdvanceLine => ({
-        key: `${line.advance.sheetRow}`,
+        key: line.advance.id,
         paidOn: day(line.advance.date),
         description: line.advance.description,
         category: names.value.category(line.advance.category),

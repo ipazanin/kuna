@@ -14,6 +14,8 @@ import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 import { readClientRows } from '../src/features/workbook/infrastructure/workbookReader'
 import { invoiceOf, planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { CLIENT_RECORDS, SETTING_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 /** An invented register of the same shape as a real one: a first part month, one invoice a month, a bonus month, and one issued early for the next month's work. */
 const REGISTER = [
@@ -148,12 +150,12 @@ describe('the invoice mail', () => {
 describe('invoice settings and client details', () => {
   it('reads the invoice keys, with the generator’s defaults for a blank value', () => {
     const { settings, problems } = parseSettings([
-      { key: 'invoice_company_name', value: 'Example Studio d.o.o.', sheetRow: 2 },
-      { key: 'invoice_iban', value: 'hr62 1234 5670 0000 0000 1', sheetRow: 3 },
-      { key: 'invoice_number_pattern', value: '', sheetRow: 4 },
-      { key: 'invoice_mail_body', value: 'Hello,\r\n\r\n{month}', sheetRow: 5 },
-      { key: 'invoice_file_path', value: '{yyyy}/{client}.txt', sheetRow: 6 },
-      { key: 'invoice_mail_subject', value: 'Invoice\n {month}', sheetRow: 7 },
+      { key: 'invoice_company_name', value: 'Example Studio d.o.o.' },
+      { key: 'invoice_iban', value: 'hr62 1234 5670 0000 0000 1' },
+      { key: 'invoice_number_pattern', value: '' },
+      { key: 'invoice_mail_body', value: 'Hello,\r\n\r\n{month}' },
+      { key: 'invoice_file_path', value: '{yyyy}/{client}.txt' },
+      { key: 'invoice_mail_subject', value: 'Invoice\n {month}' },
     ])
     expect(settings.invoicing).toMatchObject({
       name: 'Example Studio d.o.o.',
@@ -163,7 +165,7 @@ describe('invoice settings and client details', () => {
       filePath: DEFAULT_FILE_PATH,
       mailSubject: 'Invoice {month}',
     })
-    expect(problems).toEqual([{ sheetRow: 6, reason: 'invoice_file_path: the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf, so the default is used' }])
+    expect(problems).toEqual([{ id: recordIdOf(SETTING_RECORDS, 'invoice_file_path'), label: 'invoice_file_path', reason: 'the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf, so the default is used' }])
     expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, iban: 'HR00', numberPattern: '{yy}' } })).toEqual({
       iban: '"HR00" is not an IBAN',
       numberPattern: 'the pattern needs {n}, the sequence, exactly once',
@@ -182,8 +184,8 @@ describe('invoice settings and client details', () => {
       ['south', { ...NO_CLIENT_INVOICING, reverseCharge: null }],
     ])
     expect(reading.problems).toEqual([
-      { sheetRow: 4, reason: '"not a language tag" is not a language such as en or hr, so the mail is written in English' },
-      { sheetRow: 4, reason: 'reverse_charge "maybe" is neither TRUE nor FALSE, so it reads as FALSE' },
+      { id: recordIdOf(CLIENT_RECORDS, 'XX00FAKE0103'), label: 'south, XX00FAKE0103', reason: '"not a language tag" is not a language such as en or hr, so the mail is written in English' },
+      { id: recordIdOf(CLIENT_RECORDS, 'XX00FAKE0103'), label: 'south, XX00FAKE0103', reason: 'reverse_charge "maybe" is neither TRUE nor FALSE, so it reads as FALSE' },
     ])
   })
 })

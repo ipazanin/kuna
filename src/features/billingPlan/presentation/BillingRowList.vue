@@ -30,7 +30,7 @@ function day(date: string): string {
 
 <template>
   <ul v-if="phone" class="flex flex-col gap-2" data-testid="billing-rows">
-    <li v-for="row in rows" :key="row.key" class="rounded-control border border-default px-3 py-2.5" data-testid="billing-row">
+    <li v-for="row in rows" :key="row.id" class="rounded-control border border-default px-3 py-2.5" data-testid="billing-row">
       <div class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-start gap-2">
           <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
@@ -74,7 +74,7 @@ function day(date: string): string {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in rows" :key="row.key" data-testid="billing-row">
+        <tr v-for="row in rows" :key="row.id" data-testid="billing-row">
           <td class="figure whitespace-nowrap text-toned">{{ day(row.date) }}</td>
           <th scope="row" class="cell-wraps text-start font-normal">
             <span class="inline-flex items-center gap-2 text-highlighted">

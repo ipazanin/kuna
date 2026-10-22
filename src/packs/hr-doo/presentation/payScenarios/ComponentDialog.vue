@@ -7,7 +7,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { rowCellsOf } from '../../../../features/workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../../../features/workbook/application/tabRowWrites'
 import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
 import { DIRECTOR_BASES } from '../../../../features/workbook/domain/ownerPayScenarios'
 import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from '../../../../features/workbook/domain/ownerPayScenarios'
@@ -21,6 +21,7 @@ import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { SCENARIO_ROWS, componentCells } from '../../application/scenarioRows'
+import { componentInWords } from '../../domain/scenarios/scenarioGuards'
 import type { ComponentDraft } from '../../domain/scenarios/startingScenarios'
 import { BASIS_WORDS, yearlyItems } from './scenarioWording'
 
@@ -146,9 +147,8 @@ function draft(): ComponentDraft | null {
   }
 }
 
-function readCells(sheetRow: number): RowCells | null {
-  const read = store.state.snapshot?.scenarios.find((candidate) => candidate.sheetRow === sheetRow)
-  return read === undefined ? null : rowCellsOf(read, SCENARIO_ROWS.columns)
+function readCells(component: ScenarioComponent): RowCells | null {
+  return storedCellsOf(store.state.snapshot?.scenarios ?? [], SCENARIO_ROWS, component.id)
 }
 
 async function save(): Promise<void> {
@@ -161,12 +161,12 @@ async function save(): Promise<void> {
     if (await writes.write({ added: [cells], changed: [], removed: [] }, { title: 'Component added' }, 'Not added')) open.value = false
     return
   }
-  const before = readCells(component.sheetRow)
+  const before = readCells(component)
   if (before === null) return
   const after: RowCells = { ...before, component: cells.component ?? '', amount: cells.amount ?? '', from: cells.from ?? '', to: cells.to ?? '' }
   const saved = await writes.write(
-    { added: [], changed: [{ sheetRow: component.sheetRow, before, after }], removed: [] },
-    { title: 'Component saved', description: `Written to row ${component.sheetRow} of ${writes.where()}.` },
+    { added: [], changed: [{ before, after }], removed: [] },
+    { title: 'Component saved', description: `Written to ${writes.where()}: ${componentInWords(component)}.` },
     'Not saved',
   )
   if (saved) open.value = false
@@ -174,11 +174,11 @@ async function save(): Promise<void> {
 
 async function remove(): Promise<void> {
   const component = props.component
-  const cells = component === null ? null : readCells(component.sheetRow)
+  const cells = component === null ? null : readCells(component)
   if (component === null || cells === null) return
   const deleted = await writes.write(
-    { added: [], changed: [], removed: [{ sheetRow: component.sheetRow, cells }] },
-    { title: 'Component deleted', description: `Row ${component.sheetRow} of ${writes.where()} is taken out.` },
+    { added: [], changed: [], removed: [cells] },
+    { title: 'Component deleted', description: `Taken out of ${writes.where()}: ${componentInWords(component)}.` },
     'Not deleted',
   )
   if (deleted) open.value = false
@@ -189,7 +189,7 @@ async function remove(): Promise<void> {
   <UModal
     v-model:open="open"
     :title="component === null ? 'Add a component' : 'Edit the component'"
-    :description="component === null ? `To ${scenario.label || scenario.slug}, for ${scenario.year}.` : `Row ${component.sheetRow} of the scenarios tab. Only the cells you change are written.`"
+    :description="component === null ? `To ${scenario.label || scenario.slug}, for ${scenario.year}.` : `On the scenarios tab: ${componentInWords(component)}. Only the cells you change are written.`"
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"
   >

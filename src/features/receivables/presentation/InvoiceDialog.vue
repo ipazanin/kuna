@@ -12,7 +12,8 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { amountOf, moneyFromAmount } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import { cellText } from '../../../shared/text/cellText'
-import { rowCellsOf } from '../../workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../workbook/application/tabRowWrites'
+import type { RecordId } from '../../workbook/domain/recordId'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RowCells } from '../../workbook/domain/rowChanges'
 import { useRowWrites } from '../../workbook/presentation/useRowWrites'
@@ -23,12 +24,12 @@ const open = defineModel<boolean>('open', { required: true })
 
 const emit = defineEmits<{
   /** Draw the invoice's PDF again, file it over the old one and save a fresh draft. */
-  reexport: [sheetRow: number]
+  reexport: [id: RecordId]
 }>()
 
 const props = defineProps<{
-  /** The row of the invoice to edit, or null to add one. */
-  sheetRow: number | null
+  /** The invoice to edit, or null to add one. */
+  id: RecordId | null
   clients: readonly { readonly slug: string; readonly name: string }[]
   /** Where a new invoice starts: the newest booking. */
   defaultIssued: CivilDate
@@ -52,8 +53,7 @@ function blankFields(): Record<Field, string> {
 
 /** The row's cells as the app read them, raw, so a formula left alone is never rewritten. */
 const readCells = computed((): RowCells | null => {
-  const row = props.sheetRow === null ? undefined : store.state.snapshot?.invoices.find((candidate) => candidate.sheetRow === props.sheetRow)
-  return row === undefined ? null : rowCellsOf(row, INVOICE_ROWS.columns)
+  return props.id === null ? null : storedCellsOf(store.state.snapshot?.invoices ?? [], INVOICE_ROWS, props.id)
 })
 
 function dateText(cell: RowCells[string] | undefined): string {
@@ -138,7 +138,7 @@ async function save(): Promise<void> {
     periodTo: optionalDate(fields.value.period_to) ?? null,
   })
   const before = readCells.value
-  if (props.sheetRow === null || before === null) {
+  if (props.id === null || before === null) {
     if (await writes.write({ added: [typed], changed: [], removed: [] }, { title: 'Invoice added' }, 'Not added')) open.value = false
     return
   }
@@ -146,8 +146,8 @@ async function save(): Promise<void> {
     INVOICE_ROWS.columns.map((column) => [column, (fields.value[column as Field] === opened.value[column as Field] ? before[column] : typed[column]) ?? '']),
   )
   const saved = await writes.write(
-    { added: [], changed: [{ sheetRow: props.sheetRow, before, after }], removed: [] },
-    { title: 'Invoice saved', description: `Written to row ${props.sheetRow} of ${writes.where()}.` },
+    { added: [], changed: [{ before, after }], removed: [] },
+    { title: 'Invoice saved', description: `Invoice ${opened.value.number}, written to ${writes.where()}.` },
     'Not saved',
   )
   if (saved) open.value = false
@@ -155,10 +155,10 @@ async function save(): Promise<void> {
 
 async function remove(): Promise<void> {
   const cells = readCells.value
-  if (props.sheetRow === null || cells === null) return
+  if (props.id === null || cells === null) return
   const deleted = await writes.write(
-    { added: [], changed: [], removed: [{ sheetRow: props.sheetRow, cells }] },
-    { title: 'Invoice deleted', description: `Row ${props.sheetRow} of ${writes.where()} is taken out.` },
+    { added: [], changed: [], removed: [cells] },
+    { title: 'Invoice deleted', description: `Invoice ${opened.value.number} is taken out of ${writes.where()}.` },
     'Not deleted',
   )
   if (deleted) open.value = false
@@ -168,14 +168,14 @@ async function remove(): Promise<void> {
 <template>
   <UModal
     v-model:open="open"
-    :title="sheetRow === null ? 'Add an invoice' : `Edit invoice ${opened.number}`"
-    :description="sheetRow === null ? 'One row of the invoices tab, for an invoice made elsewhere. Make invoice draws, files and records a new one.' : `Row ${sheetRow} of the invoices tab. Only the cells you change are written.`"
+    :title="id === null ? 'Add an invoice' : `Edit invoice ${opened.number}`"
+    :description="id === null ? 'One row of the invoices tab, for an invoice made elsewhere. Make invoice draws, files and records a new one.' : 'On the invoices tab. Only the cells you change are written.'"
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"
   >
     <template #body>
       <form id="invoice-row" class="grid gap-4 sm:grid-cols-2" data-testid="invoice-form" @submit.prevent="save">
-        <UFormField label="Number" :error="(tried && errors.number) || false" :help="sheetRow === null && latestNumber ? `Each once. The newest is ${latestNumber}.` : 'Each number once.'">
+        <UFormField label="Number" :error="(tried && errors.number) || false" :help="id === null && latestNumber ? `Each once. The newest is ${latestNumber}.` : 'Each number once.'">
           <UInput v-model="fields.number" class="w-full" data-testid="invoice-number" />
         </UFormField>
         <UFormField label="Client" :error="(tried && errors.client) || false" help="From Invoicing, Clients.">
@@ -205,7 +205,7 @@ async function remove(): Promise<void> {
     <template #footer>
       <div class="flex w-full flex-wrap items-center gap-2">
         <UButton
-          v-if="sheetRow !== null"
+          v-if="id !== null"
           label="Delete invoice"
           icon="i-lucide-trash-2"
           color="error"
@@ -215,7 +215,7 @@ async function remove(): Promise<void> {
           @click="remove"
         />
         <UButton
-          v-if="sheetRow !== null"
+          v-if="id !== null"
           label="Re-export"
           icon="i-lucide-file-output"
           color="neutral"
@@ -223,15 +223,15 @@ async function remove(): Promise<void> {
           title="Draw the PDF again, replace it in Drive and save a fresh mail draft"
           :disabled="writes.busy.value"
           data-testid="invoice-reexport"
-          @click="emit('reexport', sheetRow)"
+          @click="emit('reexport', id)"
         />
         <div class="ms-auto flex flex-wrap gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
           <UButton
             type="submit"
             form="invoice-row"
-            :label="sheetRow === null ? 'Add invoice' : 'Save invoice'"
-            :icon="sheetRow === null ? 'i-lucide-plus' : 'i-lucide-save'"
+            :label="id === null ? 'Add invoice' : 'Save invoice'"
+            :icon="id === null ? 'i-lucide-plus' : 'i-lucide-save'"
             :loading="writes.busy.value"
             :disabled="writes.busy.value"
             data-testid="invoice-save"

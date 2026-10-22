@@ -7,11 +7,12 @@ import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
 import type { TabRowRules } from '../src/features/workbook/application/tabRowWrites'
 import { canUndo, wasUndone } from '../src/features/workbook/application/workbookStore'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
-import type { RowAt, RowCells } from '../src/features/workbook/domain/rowChanges'
+import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
+import type { RowCells } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { civil, euros } from './fixtures/ledger'
-import { cellData, dateFormat, excelHarness, forgetCaches, googleHarness, ruleRow, sentRequests, textFormat, workbookGrids } from './fixtures/writeBack'
+import { withIds } from './fixtures/rowIds'
+import { cellData, dateFormat, excelHarness, forgetCaches, googleHarness, ruleRow, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 
@@ -47,39 +48,40 @@ function everyTab(): Record<string, CellValue[][]> {
       ['number', 'client', 'item', 'amount', 'issued', 'due', 'period_from', 'period_to'],
       ['1-1-26', 'acme', 'September work', 4000, 46295, 46325, 46266, 46295],
     ],
-    'outgoing-plan': [
+    'outgoing-plan': withIds('item', [
       ['item', 'date', 'amount', 'client', 'description'],
       ['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026'],
-    ],
-    'owner-advances': [
+    ]),
+    'owner-advances': withIds('advance', [
       ['date', 'amount', 'description', 'category'],
       [46200, 12.5, 'Stamps', 'printing'],
-    ],
-    assets: [
+    ]),
+    assets: withIds('asset', [
       ['asset', 'bought', 'in_use', 'cost_net', 'group', 'doubled', 'disposed', 'funded_by', 'ledger_reference', 'note'],
       ['Laptop', 45809, '', 1519.2, 'computers', '', '', 'startup', '', ''],
-    ],
+    ]),
     grants: [
       ['grant', 'received', 'amount', 'fixed_part', 'variable_part', 'period_from', 'period_to', 'release', 'clawback_year1', 'clawback_year2', 'employment_required_until', 'note'],
       ['startup', 45915, 5000, 2000, 3000, '', '', 'fixed-then-assets', '', '', '', ''],
       ['innovation', 45915, 1000, 400, 600, '', '', 'fixed-then-assets', '', '', '', ''],
     ],
-    'year-end': [
+    'year-end': withIds('line', [
       ['year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note'],
       [2025, 'pl', 'sales', 'Sales', 46800, '', '', '', ''],
       [2025, 'konto', '41850', 'Software', 435.87, 'ai-services', '', '', ''],
-    ],
-    plan: [
+    ]),
+    plan: withIds('plan', [
       ['year', 'month', 'item', 'amount', 'note'],
       [2027, '', 'postage', 10, ''],
-    ],
+    ]),
   }
 }
 
-function rowOf(store: WorkbookStore, rules: TabRowRules, sheetRow: number): RowAt {
+/** The cells of the row the tab holds at this place in the copy on screen. */
+function rowOf(store: WorkbookStore, rules: TabRowRules, sheetRow: number): RowCells {
   const row = store.state.snapshot?.[rules.tab].find((candidate) => candidate.sheetRow === sheetRow)
   if (row === undefined) throw new Error(`No row ${sheetRow} on ${rules.tab}`)
-  return { sheetRow, cells: rowCellsOf(row, rules.columns) }
+  return rowCellsOf(row, rules)
 }
 
 function add(store: WorkbookStore, rules: TabRowRules, ...added: RowCells[]) {
@@ -87,8 +89,8 @@ function add(store: WorkbookStore, rules: TabRowRules, ...added: RowCells[]) {
 }
 
 function edit(store: WorkbookStore, rules: TabRowRules, sheetRow: number, cells: RowCells) {
-  const { cells: before } = rowOf(store, rules, sheetRow)
-  return store.changeRows(rules, { added: [], changed: [{ sheetRow, before, after: { ...before, ...cells } }], removed: [] })
+  const before = rowOf(store, rules, sheetRow)
+  return store.changeRows(rules, { added: [], changed: [{ before, after: { ...before, ...cells } }], removed: [] })
 }
 
 function remove(store: WorkbookStore, rules: TabRowRules, sheetRow: number) {
@@ -125,7 +127,7 @@ describe.each([
     expect(store.state.workbook?.problems).toEqual([])
   })
 
-  it('deletes rows, changes a row below them and adds one in a single write, and Undo puts each deleted row back on its own row', async () => {
+  it('deletes rows, changes a row below them and adds one in a single write, and Undo puts each deleted row back at the foot', async () => {
     const { store } = await harnessOf(used, everyTab())
     const rows = () => store.state.workbook?.categories.map((category) => category.slug) ?? []
     await add(store, CATEGORY_ROWS, STATIONERY, { ...STATIONERY, category: 'paper' })
@@ -133,65 +135,56 @@ describe.each([
 
     const receipt = await store.changeRows(CATEGORY_ROWS, {
       added: [{ ...STATIONERY, category: 'ink' }],
-      changed: [{ sheetRow: 9, before: paper.cells, after: { ...paper.cells, colour: '#ffffff' } }],
+      changed: [{ before: paper, after: { ...paper, colour: '#ffffff' } }],
       removed: [rowOf(store, CATEGORY_ROWS, 7), rowOf(store, CATEGORY_ROWS, 8)],
     })
 
     expect(rows()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing', 'paper', 'ink'])
-    expect(store.state.snapshot?.categories.map((row) => row.sheetRow)).toEqual([2, 3, 4, 5, 6, 7, 8])
-    expect(receipt?.changed.map((change) => change.sheetRow)).toEqual([7])
-    expect(receipt?.removed.map((row) => [row.sheetRow, row.cells.category])).toEqual([
-      [7, 'courier'],
-      [8, 'stationery'],
-    ])
+    expect(receipt?.changed.map((change) => change.after.category)).toEqual(['paper'])
+    expect(receipt?.removed.map((cells) => cells.category)).toEqual(['courier', 'stationery'])
 
     await store.undo(store.state.writes[0]!)
 
-    expect(store.state.snapshot?.categories.map((row) => [row.sheetRow, row.cells.category, row.cells.colour ?? ''])).toEqual([
-      [2, 'equipment', '#dce9f9'],
-      [3, 'ai-services', ''],
-      [4, 'revenue', ''],
-      [5, 'postage', ''],
-      [6, 'printing', ''],
-      [7, 'courier', ''],
-      [8, 'stationery', ''],
-      [9, 'paper', ''],
+    expect(store.state.snapshot?.categories.map((row) => [row.cells.category, row.cells.colour ?? ''])).toEqual([
+      ['equipment', '#dce9f9'],
+      ['ai-services', ''],
+      ['revenue', ''],
+      ['postage', ''],
+      ['printing', ''],
+      ['paper', ''],
+      ['courier', ''],
+      ['stationery', ''],
     ])
     expect(store.state.workbook?.problems).toEqual([])
   })
 
-  it('refuses to put a deleted row back while a later change deleted a row above it, until that change is undone', async () => {
+  it('puts deleted rows back by their name, whatever the session deleted or added since', async () => {
     const { store } = await harnessOf(used, everyTab())
     const slugs = () => store.state.snapshot?.categories.map((row) => row.cells.category)
 
     await add(store, CATEGORY_ROWS, STATIONERY)
     await remove(store, CATEGORY_ROWS, 8)
     await remove(store, CATEGORY_ROWS, 7)
-    const [above, first] = store.state.writes
+    const [later, first] = store.state.writes
 
-    await expect(store.undo(first!)).rejects.toThrow(
-      new WorkbookWriteRefused('A later change to the categories tab added or deleted rows above the ones this would put back, so they would land on the wrong rows. Undo the later change first.'),
-    )
-    expect(slugs()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing'])
-
-    await store.undo(above!)
     await store.undo(first!)
-    expect(slugs()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing', 'courier', 'stationery'])
+    expect(slugs()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing', 'stationery'])
+    await store.undo(later!)
+    expect(slugs()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing', 'stationery', 'courier'])
   })
 
-  it('refuses for good once the row above came from undoing an earlier change', async () => {
+  it('refuses to put a row back while the tab holds its name again', async () => {
     const { store } = await harnessOf(used, everyTab())
 
     await add(store, CATEGORY_ROWS, STATIONERY)
-    await remove(store, CATEGORY_ROWS, 7)
-    await remove(store, CATEGORY_ROWS, 7)
-    const [second, earlier] = store.state.writes
-    await store.undo(earlier!)
+    await remove(store, CATEGORY_ROWS, 8)
+    const removal = store.state.writes[0]!
+    await add(store, CATEGORY_ROWS, STATIONERY)
 
-    await expect(store.undo(second!)).rejects.toThrow('Put them back in the workbook by hand.')
+    await expect(store.undo(removal)).rejects.toThrow('"stationery" is already a category.')
   })
 
-  it('puts a deleted row back on its own row when rows below it were deleted since', async () => {
+  it('puts a deleted row back at the foot of its tab when rows below it were deleted since', async () => {
     const { store } = await harnessOf(used, everyTab())
     await add(store, CATEGORY_ROWS, STATIONERY)
 
@@ -199,10 +192,7 @@ describe.each([
     await remove(store, CATEGORY_ROWS, 7)
     await store.undo(store.state.writes.find((write) => write.kind === 'rows' && write.receipt === first)!)
 
-    expect(store.state.snapshot?.categories.slice(-2).map((row) => [row.sheetRow, row.cells.category])).toEqual([
-      [6, 'printing'],
-      [7, 'courier'],
-    ])
+    expect(store.state.snapshot?.categories.slice(-2).map((row) => row.cells.category)).toEqual(['printing', 'courier'])
   })
 
   it('refuses to rename or delete a category the ledger, the rules, the advances, the year-end or the plan tab names', async () => {
@@ -218,10 +208,10 @@ describe.each([
   it('refuses a category name in use, one outside the slug format, a half-filled row and a bucket the advances cannot count in', async () => {
     const { store } = await harnessOf(used, everyTab())
 
-    await expect(add(store, CATEGORY_ROWS, { ...STATIONERY, category: 'postage' })).rejects.toThrow('"postage" is already a category, on row 5.')
+    await expect(add(store, CATEGORY_ROWS, { ...STATIONERY, category: 'postage' })).rejects.toThrow('"postage" is already a category.')
     await expect(add(store, CATEGORY_ROWS, { ...STATIONERY, category: 'Office Supplies' })).rejects.toThrow('is not a category name the app can use')
-    await expect(add(store, CATEGORY_ROWS, { category: 'stationery', family: 'operating' })).rejects.toThrow('The new category would be left out: category, family and bucket are not all filled.')
-    await expect(edit(store, CATEGORY_ROWS, 2, { vat: 'half' })).rejects.toThrow('Row 2 would read with a problem: vat "half" is not a VAT treatment')
+    await expect(add(store, CATEGORY_ROWS, { category: 'stationery', family: 'operating' })).rejects.toThrow('The new category "stationery" would be left out: category, family and bucket are not all filled.')
+    await expect(edit(store, CATEGORY_ROWS, 2, { vat: 'half' })).rejects.toThrow('The category "equipment" would read with a problem: vat "half" is not a VAT treatment')
     await expect(edit(store, CATEGORY_ROWS, 6, { bucket: 'income' })).rejects.toThrow('"printing" stays in the operating or taxes bucket, since an owner advance carries it')
     expect(store.state.writes).toEqual([])
   })
@@ -236,9 +226,9 @@ describe.each([
       ['savings', SAVINGS_IBAN],
     ])
     await expect(add(store, ACCOUNT_ROWS, { account: 'spare', iban: 'XX24FAKE0000000097' })).rejects.toThrow('"XX24FAKE0000000097" is not a valid IBAN.')
-    await expect(add(store, ACCOUNT_ROWS, { account: 'spare', iban: SAVINGS_IBAN })).rejects.toThrow(`${SAVINGS_IBAN} is already the IBAN of the savings account, on row 3`)
+    await expect(add(store, ACCOUNT_ROWS, { account: 'spare', iban: SAVINGS_IBAN })).rejects.toThrow(`${SAVINGS_IBAN} is already the IBAN of the savings account`)
     await expect(add(store, ACCOUNT_ROWS, { account: 'spare', iban: ACME_IBAN })).rejects.toThrow(`${ACME_IBAN} is the IBAN of the client acme`)
-    await expect(add(store, ACCOUNT_ROWS, { account: 'main', iban: '' })).rejects.toThrow('"main" is already an account, on row 2.')
+    await expect(add(store, ACCOUNT_ROWS, { account: 'main', iban: '' })).rejects.toThrow('"main" is already an account.')
     await expect(remove(store, ACCOUNT_ROWS, 2)).rejects.toThrow('"main" cannot be deleted, since it is used by 4 ledger rows.')
   })
 
@@ -248,9 +238,9 @@ describe.each([
     await add(store, CLIENT_ROWS, { client: 'acme', name: '', iban: SECOND_ACME_IBAN })
 
     expect(store.state.workbook?.clients).toEqual([{ slug: 'acme', name: 'Acme Studio', ibans: [ACME_IBAN, SECOND_ACME_IBAN], invoicing: NO_CLIENT_INVOICING }])
-    await expect(add(store, CLIENT_ROWS, { client: 'globex', name: 'Globex', iban: ACME_IBAN })).rejects.toThrow(`${ACME_IBAN} is already on the clients tab for acme, on row 2.`)
+    await expect(add(store, CLIENT_ROWS, { client: 'globex', name: 'Globex', iban: ACME_IBAN })).rejects.toThrow(`${ACME_IBAN} is already on the clients tab for acme.`)
     await expect(add(store, CLIENT_ROWS, { client: 'globex', name: 'Globex', iban: 'XX00FAKE0000000001' })).rejects.toThrow('is not a valid IBAN')
-    await expect(add(store, CLIENT_ROWS, { client: 'acme', name: 'Acme Ltd', iban: 'XX50FAKE0000000096' })).rejects.toThrow('acme is called "Acme Studio" on row 2.')
+    await expect(add(store, CLIENT_ROWS, { client: 'acme', name: 'Acme Ltd', iban: 'XX50FAKE0000000096' })).rejects.toThrow('acme is called "Acme Studio" on another row.')
     await remove(store, CLIENT_ROWS, 3)
     await expect(remove(store, CLIENT_ROWS, 2)).rejects.toThrow('"acme" cannot be deleted, since it is used by 1 invoice and 1 billing plan row.')
     await expect(edit(store, CLIENT_ROWS, 2, { client: 'acme-studio' })).rejects.toThrow('"acme" cannot be renamed')
@@ -271,12 +261,12 @@ describe.each([
 
     const receipt = await add(store, INVOICE_ROWS, october)
 
-    expect(receipt?.added).toEqual([{ sheetRow: 3, cells: { number: '2-1-26', client: 'acme', item: 'October work', amount: 4200, issued: 46326, due: 46356, period_from: 46296, period_to: 46326 } }])
+    expect(receipt?.added).toEqual([{ number: '2-1-26', client: 'acme', item: 'October work', amount: 4200, issued: 46326, due: 46356, period_from: 46296, period_to: 46326 }])
     expect(store.state.workbook?.invoices.map((invoice) => [invoice.number, invoice.amount, invoice.deliveryPeriod])).toEqual([
       ['1-1-26', euros(4000), { from: '2026-09-01', to: '2026-09-30' }],
       ['2-1-26', euros(4200), { from: '2026-10-01', to: '2026-10-31' }],
     ])
-    await expect(add(store, INVOICE_ROWS, { ...october, client: 'globex' })).rejects.toThrow('Invoice 2-1-26 is already on the invoices tab, on row 3, and each number is used once.')
+    await expect(add(store, INVOICE_ROWS, { ...october, client: 'globex' })).rejects.toThrow('Invoice 2-1-26 is already on the invoices tab, and each number is used once.')
     await expect(add(store, INVOICE_ROWS, { ...october, number: '3-1-26', client: 'globex' })).rejects.toThrow('globex is not on the clients tab')
     await expect(add(store, INVOICE_ROWS, { ...october, number: '3-1-26', period_to: '' })).rejects.toThrow('period_from and period_to go together')
     await expect(add(store, INVOICE_ROWS, { ...october, number: '3-1-26', amount: 0 })).rejects.toThrow('an invoice is for an amount above zero')
@@ -286,10 +276,7 @@ describe.each([
 
     expect(store.state.workbook?.invoices.map((invoice) => [invoice.number, invoice.amount])).toEqual([['2-1-26', euros(4300)]])
     await store.undo(store.state.writes[0]!)
-    expect(store.state.workbook?.invoices.map((invoice) => [invoice.number, invoice.sheetRow])).toEqual([
-      ['1-1-26', 2],
-      ['2-1-26', 3],
-    ])
+    expect(store.state.workbook?.invoices.map((invoice) => invoice.number)).toEqual(['2-1-26', '1-1-26'])
   })
 
   it('adds and changes assets, grants and year-end lines through their readers, and keeps a grant an asset is funded by', async () => {
@@ -307,7 +294,7 @@ describe.each([
     expect(store.state.workbook?.yearEndLines).toHaveLength(3)
     await expect(remove(store, GRANT_ROWS, 2)).rejects.toThrow('"startup" cannot be deleted, since it is used by 1 asset.')
     await expect(edit(store, GRANT_ROWS, 3, { grant: 'innovation-2026' })).rejects.toThrow('"innovation" cannot be renamed, since it is used by 1 asset.')
-    await expect(add(store, ASSET_ROWS, { asset: 'Laptop', bought: 46296, cost_net: 420, group: 'computers' })).rejects.toThrow('The new asset would be left out: "Laptop" is listed on more than one row, so none of them counts. Row 2 would then be left out: "Laptop" is listed on more than one row, so none of them counts.')
+    await expect(add(store, ASSET_ROWS, { asset: 'Laptop', bought: 46296, cost_net: 420, group: 'computers' })).rejects.toThrow('The new asset "Laptop" would be left out: "Laptop" is listed on more than one row, so none of them counts. The asset "Laptop" would then be left out: "Laptop" is listed on more than one row, so none of them counts.')
     await expect(add(store, ASSET_ROWS, { asset: 'Desk', bought: 46296, cost_net: 300, group: 'furniture' })).rejects.toThrow('"furniture" is not a group')
     await expect(add(store, ASSET_ROWS, { asset: 'Desk', bought: 46296, cost_net: 300, group: 'equipment', funded_by: 'lottery' })).rejects.toThrow('lottery is not on the grants tab')
     await expect(add(store, YEAR_END_ROWS, { year: 2025, statement: 'konto', line: '41200', amount: 82.04, categories: 'phones' })).rejects.toThrow('"phones" is not on the categories tab')
@@ -320,11 +307,10 @@ describe.each([
     const grids = everyTab()
     const [header, startup, innovation] = grids.grants as [CellValue[], CellValue[], CellValue[]]
     const { store } = await harnessOf(used, { ...grids, grants: [header, startup, ['spare', ...startup.slice(1)], innovation] })
-    const { cells: innovationCells } = rowOf(store, GRANT_ROWS, 4)
+    const innovationCells = rowOf(store, GRANT_ROWS, 4)
 
-    // Taking out row 3 puts the new row on row 4, where innovation stands today.
     await expect(store.changeRows(GRANT_ROWS, { added: [innovationCells], changed: [], removed: [rowOf(store, GRANT_ROWS, 3)] })).rejects.toThrow(
-      '"innovation" is already a grant, on row 4.',
+      '"innovation" is already a grant.',
     )
   })
 
@@ -335,12 +321,27 @@ describe.each([
     await edit(store, ACCOUNT_ROWS, 2, { iban: SAVINGS_IBAN })
 
     await expect(
-      store.changeRows(ACCOUNT_ROWS, { added: [], changed: [{ sheetRow: 2, before: stale.cells, after: { ...stale.cells, iban: 'XX50FAKE0000000096' } }], removed: [] }),
+      store.changeRows(ACCOUNT_ROWS, { added: [], changed: [{ before: stale, after: { ...stale, iban: 'XX50FAKE0000000096' } }], removed: [] }),
     ).rejects.toThrow('The account "main" is no longer on the accounts tab as the app read it.')
   })
 })
 
 describe('row writes to a Google Sheet', () => {
+  it('finds a category by its name after rows were inserted above it from outside, and refuses when two rows hold the name', async () => {
+    const { store, sheets, writtenRanges } = await googleHarness(used, everyTab())
+    const courier = rowOf(store, CATEGORY_ROWS, 7)
+    sheets.grids.categories!.splice(1, 0, ['parcels', 'operating', 'operating'], ['stamps', 'operating', 'operating'])
+
+    await store.changeRows(CATEGORY_ROWS, { added: [], changed: [{ before: courier, after: { ...courier, colour: '#ffffff' } }], removed: [] })
+
+    expect(writtenRanges()).toEqual(['categories!D9'])
+    const changed = rowOf(store, CATEGORY_ROWS, 9)
+    sheets.grids.categories!.push(['courier', 'operating', 'operating', '#ffffff'])
+    await expect(store.changeRows(CATEGORY_ROWS, { added: [], changed: [], removed: [changed] })).rejects.toThrow(
+      '2 rows of the categories tab hold the category "courier", so the app cannot tell which one is meant.',
+    )
+  })
+
   it('writes only the cells that changed, by header, and appends a new category under every header', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, everyTab())
     const categories = (await sheets.sheetGrids()).get('categories')!.sheetId
@@ -395,7 +396,7 @@ describe('row writes to a Google Sheet', () => {
 
     await store.changeRows(CATEGORY_ROWS, {
       added: [{ ...STATIONERY, category: 'ink' }],
-      changed: [{ sheetRow: 9, before: paper.cells, after: { ...paper.cells, colour: '#ffffff' } }],
+      changed: [{ before: paper, after: { ...paper, colour: '#ffffff' } }],
       removed: [rowOf(store, CATEGORY_ROWS, 7), rowOf(store, CATEGORY_ROWS, 8)],
     })
 
@@ -411,10 +412,8 @@ describe('row writes to a Google Sheet', () => {
     sheets.requests.length = 0
     await store.undo(store.state.writes[0]!)
 
-    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['updateCells', 'deleteDimension', 'insertDimension', 'copyPaste', 'copyPaste', 'updateCells', 'repeatCell', 'repeatCell', 'repeatCell'])
-    expect(sentRequests(sheets).slice(6)).toEqual([0, 1, 2].map((column) => textFormat(categories, 6, column, 2)))
-    expect(sentRequests(sheets)[2]).toEqual({ insertDimension: { range: { sheetId: categories, dimension: 'ROWS', startIndex: 6, endIndex: 8 }, inheritFromBefore: false } })
-    expect(sheets.grids.categories?.map((row) => row[0])).toEqual(['category', 'equipment', 'ai-services', 'revenue', 'postage', 'printing', 'courier', 'stationery', 'paper'])
+    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['updateCells', 'deleteDimension', 'appendCells'])
+    expect(sheets.grids.categories?.map((row) => row[0])).toEqual(['category', 'equipment', 'ai-services', 'revenue', 'postage', 'printing', 'paper', 'courier', 'stationery'])
   })
 
   it('changes nothing in the Sheet when one request of the write is refused', async () => {

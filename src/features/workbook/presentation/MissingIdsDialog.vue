@@ -5,14 +5,15 @@ import UModal from '@nuxt/ui/components/Modal.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { usePhoneLayout } from '../../../shared/layout/viewport'
-import { rowsWithoutIds } from '../application/rowIds'
+import { rowsWithoutIds } from '../infrastructure/rowIds'
 import { useWorkbook } from '../application/workbookStore'
 import { ID_COLUMN } from '../infrastructure/workbookTemplate'
 import { rowsWithoutIdsInWords } from './rowsInWords'
 
 /**
  * Gives every row of the tabs that carry ids, and that has none, its id in one write, after
- * listing the tabs and how many rows each. A Google Sheet tab without the id column gets it first.
+ * listing the tabs and how many rows each, such as rows added by hand. A Google Sheet tab without
+ * the id column gets it first.
  */
 const open = defineModel<boolean>('open', { required: true })
 
@@ -55,7 +56,7 @@ async function add(): Promise<void> {
     <template #body>
       <div class="flex flex-col gap-4" data-testid="missing-ids">
         <p class="text-sm text-toned">
-          Each row of these tabs gets an id: a code in a column of its own that names the row whatever else changes in it or wherever it moves.
+          A row added by hand has no id, and the app leaves it out until it gets one. Each of these rows gets a code of its own that names it wherever it moves.
         </p>
         <ul class="ids-list">
           <li v-for="tab in lacking" :key="tab.tab" class="ids-line">

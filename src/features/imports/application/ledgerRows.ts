@@ -1,21 +1,18 @@
-import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
 import { addMoney, plainAmount, subtractMoney } from '../../../shared/money/money'
 import { cellText } from '../../../shared/text/cellText'
-import type { AddedPlace, RowsChangeCheck, TabRowRules } from '../../workbook/application/tabRowWrites'
+import type { RowsChangeCheck, TabRowRules } from '../../workbook/application/tabRowWrites'
 import type { RowCells } from '../../workbook/domain/rowChanges'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { dateOf, moneyOf, slugOf } from '../../workbook/infrastructure/cellReading'
 import { definedCategories, readLedgerTab } from '../../workbook/infrastructure/workbookReader'
-import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
 import { contentColumns } from '../../workbook/infrastructure/workbookTemplate'
+import { LEDGER_RECORDS } from '../../workbook/domain/recordKind'
 
 const COLUMNS = contentColumns('ledger')
 
 /**
- * Statement rows added to the `ledger` tab, and taken out again by Undo. The tab reads newest
- * first, so each statement goes in as one block where the shadow-accounting Apps Script inserts a
- * batch: above the first row that is not newer than the batch's newest day. The Apps Script reads
- * each account's balance off its topmost row, so a block at the foot would break its next morning.
+ * Statement rows added to the `ledger` tab, and taken out again by Undo. The write places them
+ * where the shadow-accounting Apps Script inserts a batch, so the tab keeps reading newest first.
  * Undo takes the rows out, since a blank row in the ledger stops the Apps Script too.
  *
  * Against the tab as it is right before the write, no added row may already be there by its
@@ -25,7 +22,7 @@ const COLUMNS = contentColumns('ledger')
  */
 export const LEDGER_ROWS: TabRowRules = {
   tab: 'ledger',
-  noun: { one: 'ledger row', many: 'ledger rows', article: 'a' },
+  kind: LEDGER_RECORDS,
   columns: COLUMNS,
   required: ['date', 'account', 'amount', 'balance'],
   caseless: [],
@@ -35,11 +32,6 @@ export const LEDGER_ROWS: TabRowRules = {
     const before = readLedgerTab(check.before, definedCategories(fresh.categories?.rows ?? [])).facts
     return [...addedRefusals(check, before), ...removedRefusals(check, before)]
   },
-  label: (cells) => {
-    const date = typeof cells.date === 'number' && Number.isFinite(cells.date) ? civilDateFromSerial(cells.date) : cellText(cells.date)
-    return [date, cellText(cells.counterparty) || cellText(cells.description), cellText(cells.amount)].filter((part) => part !== '').join(', ') || 'blank'
-  },
-  place: (rows, added, lastRow) => placeBlocks(rows, added, lastRow),
 }
 
 /** Each account's newest row in booking order, as the readers take a closing balance. */
@@ -90,14 +82,14 @@ function addedRefusals(check: RowsChangeCheck, before: readonly Transaction[]): 
 }
 
 function removedRefusals(check: RowsChangeCheck, before: readonly Transaction[]): string[] {
-  const removedRows = new Set(check.edits.filter((edit) => edit.after === null).map((edit) => edit.sheetRow))
-  const removed = before.filter((row) => removedRows.has(row.sheetRow))
+  const removedRows = new Set(check.edits.filter((edit) => edit.after === null).map((edit) => edit.id))
+  const removed = before.filter((row) => removedRows.has(row.id))
   const refusals: string[] = []
   for (const account of new Set(removed.map((row) => row.account))) {
     const oldest = Math.min(...removed.filter((row) => row.account === account).map((row) => row.sequence))
-    const newer = before.find((row) => row.account === account && row.sequence > oldest && !removedRows.has(row.sheetRow))
+    const newer = before.find((row) => row.account === account && row.sequence > oldest && !removedRows.has(row.id))
     if (newer !== undefined) {
-      refusals.push(`Row ${newer.sheetRow} of ${account} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`)
+      refusals.push(`The ${account} row of ${newer.date} with the balance ${plainAmount(newer.balance)} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`)
     }
   }
   return refusals
@@ -115,38 +107,4 @@ function inBookingOrder(added: readonly RowCells[]): RowCells[] {
     }
   }
   return blocks.flatMap((block) => [...block].reverse())
-}
-
-/**
- * Where each added row goes, as the Apps Script's `insertPositionFor` places a batch: a statement's
- * rows go in together above the first row whose day is not after the statement's newest day, the
- * statements one after another, each placed among the rows the ones before it put in.
- */
-export function placeBlocks(rows: readonly SheetRow[], added: readonly RowCells[], lastRow: number): AddedPlace[] {
-  const slots: { readonly readAs: number | null; readonly date: number; readonly index: number }[] = [...rows]
-    .sort((upper, lower) => upper.sheetRow - lower.sheetRow)
-    .map((row) => ({ readAs: row.sheetRow, date: typeof row.cells.date === 'number' ? row.cells.date : Number.NEGATIVE_INFINITY, index: -1 }))
-  let start = 0
-  while (start < added.length) {
-    const statement = cellText(added[start]!.statement)
-    const account = slugOf(added[start]!.account)
-    let end = start
-    while (end < added.length && cellText(added[end]!.statement) === statement && slugOf(added[end]!.account) === account) end += 1
-    const block = added.slice(start, end).map((cells, offset) => ({ readAs: null, date: typeof cells.date === 'number' ? cells.date : 0, index: start + offset }))
-    const newest = Math.max(...block.map((slot) => slot.date))
-    const position = slots.findIndex((slot) => slot.date <= newest)
-    slots.splice(position < 0 ? slots.length : position, 0, ...block)
-    start = end
-  }
-  const places: AddedPlace[] = []
-  let before = lastRow + 1
-  for (let index = slots.length - 1; index >= 0; index -= 1) {
-    const slot = slots[index]!
-    if (slot.readAs === null) {
-      places.unshift({ index: slot.index, before })
-    } else {
-      before = slot.readAs
-    }
-  }
-  return places
 }

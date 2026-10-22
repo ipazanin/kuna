@@ -2,14 +2,15 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
+import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
-import type { RowAt } from '../src/features/workbook/domain/rowChanges'
+import type { RowCells } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { PLAN_ROWS, categoryPlanCells, dividendPlanCells, ownerPayPlanCells, purchasePlanCells, replacedPlanRows } from '../src/packs/hr-doo/application/planRows'
 import { SCENARIO_ROWS, componentCells } from '../src/packs/hr-doo/application/scenarioRows'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { civil, euros } from './fixtures/ledger'
+import { withIds } from './fixtures/rowIds'
 import { AN_ID, excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
@@ -30,12 +31,12 @@ function grids(plan: CellValue[][] = [PLAN_HEADER]): Record<string, CellValue[][
       ['board', 'Board only', 2027, 'director_basis', 'board-only'],
       ['old', '', 2026, 'salary_gross', 'floor'],
     ],
-    plan,
+    plan: withIds('plan', plan),
   }
 }
 
-function rows(store: WorkbookStore): RowAt[] {
-  return (store.state.snapshot?.plan ?? []).map((row) => ({ sheetRow: row.sheetRow, cells: rowCellsOf(row, PLAN_ROWS.columns) }))
+function rows(store: WorkbookStore): RowCells[] {
+  return (store.state.snapshot?.plan ?? []).map((row) => rowCellsOf(row, PLAN_ROWS))
 }
 
 function lines(store: WorkbookStore): string[] {
@@ -60,7 +61,7 @@ describe('the plan tab on a Google Sheet without one', () => {
     expect(sheets.grids.plan?.[0]).toEqual([...PLAN_HEADER, 'id'])
   })
 
-  it('finds a plan row again by its cells after a row was inserted above it, and writes only the plan columns that change', async () => {
+  it('finds a plan row again by its id after a row was inserted above it, and writes only the plan columns that change', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, grids([[...PLAN_HEADER, 'source'], [2027, '', 'ai-services', 150, '', '', '', 'Quote 12']]))
     const held = rows(store).map((row) => ({ key: 'every', cells: row }))
     sheets.grids.plan!.splice(1, 0, [2027, 3, 'consulting', 400, 'Inserted in the Sheet', '', '', ''])
@@ -68,7 +69,7 @@ describe('the plan tab on a Google Sheet without one', () => {
     await store.changeRows(PLAN_ROWS, replacedPlanRows(held, [{ key: 'every', cells: categoryPlanCells(2027, null, 'ai-services', euros(175)) }]))
 
     expect(writtenRanges()).toEqual(['plan!D3'])
-    expect(sheets.grids.plan![2]).toEqual([2027, '', 'ai-services', 175, '', '', '', 'Quote 12'])
+    expect(sheets.grids.plan![2]).toEqual([2027, '', 'ai-services', 175, '', '', '', 'Quote 12', 'plan-2'])
     expect(sheets.grids.plan![1]?.[2]).toBe('consulting')
   })
 
@@ -92,11 +93,11 @@ describe.each([
     ]))
     expect(lines(store)).toEqual(['ai-services every 15000', 'ai-services 1 90000'])
 
-    const held = rows(store).map((row) => ({ key: row.cells.month === '' ? 'every' : String(row.cells.month), cells: row }))
+    const held = rows(store).map((row) => ({ key: row.month === '' ? 'every' : String(row.month), cells: row }))
     const change = replacedPlanRows(held, [{ key: 'every', cells: categoryPlanCells(2027, null, 'ai-services', euros(175)) }])
     // The every-month row changes its amount only, and January's row goes.
     expect(change.changed.map((entry) => entry.after.amount)).toEqual([175])
-    expect(change.removed.map((entry) => entry.cells.month)).toEqual([1])
+    expect(change.removed.map((entry) => entry.month)).toEqual([1])
     await store.changeRows(PLAN_ROWS, change)
     expect(lines(store)).toEqual(['ai-services every 17500'])
 
@@ -117,20 +118,20 @@ describe.each([
       removed: [],
     })
     expect(lines(store)).toEqual(['owner pay floor from January', 'owner pay board from 2027-06-05', 'purchase Laptop on 2027-03-10', 'dividend 6 500000'])
-    expect(rows(store)[2]?.cells.date).toBe(serialFromCivilDate(civil('2027-03-10')))
+    expect(rows(store)[2]?.date).toBe(serialFromCivilDate(civil('2027-03-10')))
   })
 
   it('refuses what the plan guards stop, naming why', async () => {
     const { store } = await harnessOf(used, grids())
     await expect(store.changeRows(PLAN_ROWS, { added: [ownerPayPlanCells(2027, 'board', civil('2027-06-05'))], changed: [], removed: [] })).rejects.toThrow(
-      'Nothing was written. Row 2 switches the owner pay on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.',
+      'Nothing was written. The owner pay switches to board on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.',
     )
-    await expect(store.changeRows(PLAN_ROWS, { added: [ownerPayPlanCells(2027, 'old', null)], changed: [], removed: [] })).rejects.toThrow('Row 2 names old, a scenario for 2026, in the plan for 2027.')
+    await expect(store.changeRows(PLAN_ROWS, { added: [ownerPayPlanCells(2027, 'old', null)], changed: [], removed: [] })).rejects.toThrow('The owner pay of 2027 names old, a scenario for 2026.')
     await expect(store.changeRows(PLAN_ROWS, { added: [dividendPlanCells(2027, 6, euros(5000)), dividendPlanCells(2027, 9, euros(1000))], changed: [], removed: [] })).rejects.toThrow(
-      'Rows 2 and 3 each plan a dividend for 2027. Plan one payout a year.',
+      'The plan for 2027 pays a dividend in month 6 and month 9. Plan one payout a year.',
     )
     await expect(store.changeRows(PLAN_ROWS, { added: [{ ...purchasePlanCells(2027, civil('2027-03-10'), euros(1600), 'computers', 'Laptop'), group: '' }], changed: [], removed: [] })).rejects.toThrow(
-      'The new plan row would be left out: no asset group.',
+      'The new plan row "purchase, 2027, 1600" would be left out: no asset group.',
     )
     expect(lines(store)).toEqual([])
   })
@@ -142,7 +143,7 @@ describe.each([
     // June, so the year would pay two salaries in June.
     const salary = componentCells('board', 2027, { component: 'salary_gross', gross: euros(2000), from: null, to: civil('2027-06-30') })
     await expect(store.changeRows(SCENARIO_ROWS, { added: [salary], changed: [], removed: [] })).rejects.toThrow(
-      'The plan tab: The owner pay of rows 2 and 3: Rows 2 and 5 both pay a salary in 2027-06. A salary can change only from the first of a month.',
+      'The plan tab: The owner pay of 2027: The floor salary to 2027-06-14 and the salary of 2000.00 from 2027-06-15 to 2027-06-30 both pay a salary in 2027-06. A salary can change only from the first of a month.',
     )
   })
 })

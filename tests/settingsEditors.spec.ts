@@ -14,11 +14,11 @@ import { rowsFrom } from '../src/features/workbook/infrastructure/workbookTempla
 import { readYearEnd } from '../src/features/workbook/infrastructure/yearEndTabReader'
 
 function category(name: string, overrides: Partial<CategoryDraft> = {}): CategoryDraft {
-  return { sheetRow: 2, savedName: name, category: name, label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', vat: '', ...overrides }
+  return { saved: 0, savedName: name, category: name, label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', vat: '', ...overrides }
 }
 
 function account(name: string, overrides: Partial<AccountDraft> = {}): AccountDraft {
-  return { sheetRow: 2, savedName: name, account: name, label: '', iban: '', currency: '', ...overrides }
+  return { saved: 0, savedName: name, account: name, label: '', iban: '', currency: '', ...overrides }
 }
 
 describe('the categories editor', () => {
@@ -28,16 +28,16 @@ describe('the categories editor', () => {
 
   it('needs category, family and a bucket from the six, and each category once', () => {
     const errors = categoryDraftErrors(
-      [category('software'), category('Software', { sheetRow: null, savedName: '' }), category('', { family: ' ', bucket: 'expenses' })],
+      [category('software'), category('Software', { saved: null, savedName: '' }), category('', { family: ' ', bucket: 'expenses' })],
       new Set(),
     )
 
-    expect(errors.get(1)).toEqual({ category: 'Already on row 1' })
+    expect(errors.get(1)).toEqual({ category: 'Already used above' })
     expect(errors.get(2)).toEqual({ category: 'Required', family: 'Required', bucket: 'Not one of the six buckets' })
   })
 
   it('keeps the name of a category the ledger uses, but lets a later duplicate of it be renamed', () => {
-    const drafts = [category('tools', { savedName: 'software' }), category('software-copy', { sheetRow: 3, savedName: 'software' })]
+    const drafts = [category('tools', { savedName: 'software' }), category('software-copy', { saved: 1, savedName: 'software' })]
 
     const errors = categoryDraftErrors(drafts, new Set(['software']))
 
@@ -46,7 +46,7 @@ describe('the categories editor', () => {
   })
 
   it('writes the cells in lower case and keeps other columns of a saved row', () => {
-    const cells = categoryCellsOf([category(' Software ', { roles: 'Revenue,  watched ,' })], new Map([[2, { category: 'software', note: 'mine' }]]))
+    const cells = categoryCellsOf([category(' Software ', { roles: 'Revenue,  watched ,' })], new Map([[0, { category: 'software', note: 'mine' }]]))
 
     expect(cells).toEqual([{ category: 'software', label: '', family: 'operating', bucket: 'operating', colour: '', roles: 'revenue, watched', vat: '', note: 'mine' }])
   })
@@ -85,7 +85,7 @@ describe('the assets, grants and year-end editors', () => {
       [snapshot.grants, GRANT_COLUMNS],
       [snapshot['year-end'], YEAR_END_COLUMNS],
     ] as const) {
-      const saved = new Map(rows.map((row) => [row.sheetRow, row.cells]))
+      const saved = new Map(rows.map((row, place) => [place, row.cells]))
       expect(rowsFrom(cellsOfDrafts(draftsOfRows(rows, columns), columns, saved))).toEqual(rows)
     }
   })
@@ -103,18 +103,20 @@ describe('the assets, grants and year-end editors', () => {
 
   it('check a draft with the tab reader, so a row the workbook would leave out cannot be saved', () => {
     const drafts = [
-      { sheetRow: null, fields: { asset: 'Laptop', bought: '2026-01-09', cost_net: '749.50', group: 'computers' } },
-      { sheetRow: null, fields: { asset: 'Lamp', bought: '2026-01-09', cost_net: '-1', group: 'other' } },
+      { saved: null, fields: { asset: 'Laptop', bought: '2026-01-09', cost_net: '749.50', group: 'computers' } },
+      { saved: null, fields: { asset: 'Lamp', bought: '2026-01-09', cost_net: '-1', group: 'other' } },
     ]
     const columns = assetColumns([])
-    const reading = readAssets(rowsFrom(cellsOfDrafts(drafts, columns, new Map())), new Set())
+    // A new row gets its id when it is saved, so the editor reads it with one.
+    const reading = readAssets(rowsFrom(cellsOfDrafts(drafts, columns, new Map()).map((cells, index) => ({ ...cells, id: `new-${index}` }))), new Set())
 
     expect(reading.facts.map((asset) => [asset.name, asset.inUse, asset.costNet])).toEqual([['Laptop', '2026-01-09', 74950]])
-    expect(reading.problems).toEqual([{ sheetRow: 3, reason: 'cost_net must be more than zero' }])
-    expect(readGrants(rowsFrom(cellsOfDrafts([{ sheetRow: null, fields: { grant: 'Startup', received: '2026-01-09', amount: '100', release: 'fixed-then-assets' } }], GRANT_COLUMNS, new Map()))).problems).toEqual([
-      { sheetRow: 2, reason: 'a fixed-then-assets release needs fixed_part and variable_part' },
+    expect(reading.problems.map((problem) => [problem.label, problem.reason])).toEqual([['Lamp', 'cost_net must be more than zero']])
+    expect(readGrants(rowsFrom(cellsOfDrafts([{ saved: null, fields: { grant: 'Startup', received: '2026-01-09', amount: '100', release: 'fixed-then-assets' } }], GRANT_COLUMNS, new Map()))).problems.map((problem) => [problem.label, problem.reason])).toEqual([
+      ['startup', 'a fixed-then-assets release needs fixed_part and variable_part'],
     ])
-    expect(readYearEnd(rowsFrom(cellsOfDrafts([{ sheetRow: null, fields: { year: '2025', statement: 'tax', line: 'rate', amount: '10' } }], YEAR_END_COLUMNS, new Map())), new Set()).facts[0]?.figure).toEqual({
+    const yearEndCells = cellsOfDrafts([{ saved: null, fields: { year: '2025', statement: 'tax', line: 'rate', amount: '10' } }], YEAR_END_COLUMNS, new Map())
+    expect(readYearEnd(rowsFrom(yearEndCells.map((cells) => ({ ...cells, id: 'new-0' }))), new Set()).facts[0]?.figure).toEqual({
       kind: 'rate',
       basisPoints: 1000,
     })
@@ -124,11 +126,11 @@ describe('the assets, grants and year-end editors', () => {
 describe('the accounts editor', () => {
   it('needs a name, each once, keeps a used name and checks a currency if one is given', () => {
     const errors = accountDraftErrors(
-      [account('main'), account('Main', { sheetRow: null, savedName: '' }), account('savings', { savedName: 'old' }), account('cards', { currency: 'EURO' })],
+      [account('main'), account('Main', { saved: null, savedName: '' }), account('savings', { savedName: 'old' }), account('cards', { currency: 'EURO' })],
       new Set(['old']),
     )
 
-    expect(errors.get(1)).toEqual({ account: 'Already on row 1' })
+    expect(errors.get(1)).toEqual({ account: 'Already used above' })
     expect(errors.get(2)?.account).toMatch(/keeps its name/)
     expect(errors.get(3)?.currency).toMatch(/three-letter/)
     expect(errors.has(0)).toBe(false)

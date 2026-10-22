@@ -137,7 +137,7 @@ const splitting = ref<{ readonly row: Transaction; readonly split: LedgerSplit |
 const splitOpen = ref(false)
 
 function splitOf(row: Transaction): LedgerSplit | null {
-  return ledger.value?.workbook.splits.find((split) => split.row.sheetRow === row.sheetRow) ?? null
+  return ledger.value?.workbook.splits.find((split) => split.row.id === row.id) ?? null
 }
 
 function openSplit(row: Transaction): void {
@@ -153,7 +153,7 @@ const changeOpen = ref(false)
 function changeCategory(row: ListedBankRow): void {
   const change = categoryChangeOf(row)
   if (change === 'split') {
-    const whole = state.workbook?.transactions.find((transaction) => transaction.sheetRow === row.sheetRow)
+    const whole = state.workbook?.transactions.find((transaction) => transaction.id === row.id)
     if (whole !== undefined) openSplit(whole)
   } else if (change === 'ledger') {
     changing.value = row

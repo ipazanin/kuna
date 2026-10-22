@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 
+import type { RecordId } from '../../workbook/domain/recordId'
 import type { InvoiceStatus } from '../domain/invoiceMatching'
 
 export interface InvoicePaymentLine {
@@ -11,9 +12,7 @@ export interface InvoicePaymentLine {
 }
 
 export interface InvoiceLine {
-  readonly key: string
-  /** The invoice's row on the invoices tab. */
-  readonly sheetRow: number
+  readonly id: RecordId
   readonly number: string
   readonly client: string
   readonly item: string
@@ -47,7 +46,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  edit: [sheetRow: number]
+  edit: [id: RecordId]
 }>()
 
 const STATUS = {
@@ -59,7 +58,7 @@ const STATUS = {
 
 <template>
   <ul class="flex flex-col" data-testid="invoice-list">
-    <li v-for="invoice in invoices" :key="invoice.key" class="invoice-row">
+    <li v-for="invoice in invoices" :key="invoice.id" class="invoice-row">
       <div class="invoice-head">
         <div class="invoice-id min-w-0">
           <p class="flex min-w-0 items-baseline gap-2">
@@ -87,7 +86,7 @@ const STATUS = {
           :disabled="!editable"
           :aria-label="`Edit invoice ${invoice.number}`"
           data-testid="invoice-edit"
-          @click="emit('edit', invoice.sheetRow)"
+          @click="emit('edit', invoice.id)"
         />
       </div>
       <ol

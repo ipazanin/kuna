@@ -210,7 +210,7 @@ function assetsView(workbook: Workbook, window: LedgerWindow, year: number) {
         charges: entry.byAsset.map((charge, index) => {
           const months = charge.schedule.months.filter((month) => month.month.startsWith(`${entry.year}-`)).length
           return {
-            key: `${charge.schedule.asset.sheetRow}-${index}`,
+            key: `${charge.schedule.asset.id}-${index}`,
             asset: charge.schedule.asset.name,
             basis: `${months} ${months === 1 ? 'month' : 'months'} at ${percentText(charge.year.rate)}${charge.year.doubled ? ', doubled' : ''}`,
             amount: charge.year.charge.amount,
@@ -252,7 +252,7 @@ function assetsView(workbook: Workbook, window: LedgerWindow, year: number) {
           ? `Written off by ${monthLabel(lastMonth)}`
           : null
     return {
-      key: `${asset.sheetRow}`,
+      key: asset.id,
       name: asset.name,
       payment: paymentDrill === null ? null : drillLocation(paymentDrill),
       bought: dayLabel(asset.bought),

@@ -6,6 +6,9 @@ import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { isIban } from '../../workbook/domain/iban'
+import { recordIdOf } from '../../workbook/domain/recordId'
+import { SETTING_RECORDS } from '../../workbook/domain/recordKind'
+import type { RecordProblem } from '../../workbook/domain/workbook'
 import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
@@ -224,12 +227,6 @@ export type SettingCell = string | number | boolean
 export interface SettingRow {
   readonly key: string
   readonly value: SettingCell | undefined
-  readonly sheetRow: number
-}
-
-export interface SettingProblem {
-  readonly sheetRow: number
-  readonly reason: string
 }
 
 type BucketLabelKey = `label_${string}`
@@ -541,27 +538,28 @@ const DEFINITION_BY_KEY = new Map(SETTING_DEFINITIONS.map((definition) => [defin
  * the default and is reported. A key set on more than one row is used from none of them, so it
  * takes its default, since where a row sits decides nothing.
  */
-export function parseSettings(rows: readonly SettingRow[]): { readonly settings: Settings; readonly problems: SettingProblem[] } {
-  const problems: SettingProblem[] = []
+export function parseSettings(rows: readonly SettingRow[]): { readonly settings: Settings; readonly problems: RecordProblem[] } {
+  const problems: RecordProblem[] = []
   const keyOf = (row: SettingRow): string => row.key.trim().toLowerCase()
   const shared = sharedKeys(rows, keyOf)
   let settings = DEFAULT_SETTINGS
   for (const row of rows) {
     const key = keyOf(row)
     if (key === '') {
-      problems.push({ sheetRow: row.sheetRow, reason: 'a value without a key' })
+      problems.push({ id: null, label: 'unnamed', reason: 'a value without a key' })
       continue
     }
+    const named = { id: recordIdOf(SETTING_RECORDS, key), label: key }
     const known = key.startsWith(IMPORT_PROFILE_PREFIX) || DEFINITION_BY_KEY.has(key)
     if (known && shared.has(key)) {
-      problems.push({ sheetRow: row.sheetRow, reason: `"${key}" is set on more than one row, so ${key.startsWith(IMPORT_PROFILE_PREFIX) ? 'the profile is not offered' : 'the default is used'}` })
+      problems.push({ ...named, reason: `set on more than one row, so ${key.startsWith(IMPORT_PROFILE_PREFIX) ? 'the profile is not offered' : 'the default is used'}` })
       continue
     }
     if (key.startsWith(IMPORT_PROFILE_PREFIX)) {
       if (row.value === undefined || String(row.value).trim() === '') continue
       const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), String(row.value))
       if (typeof profile === 'string') {
-        problems.push({ sheetRow: row.sheetRow, reason: `${key}: ${profile}, so the profile is not offered` })
+        problems.push({ ...named, reason: `${profile}, so the profile is not offered` })
       } else {
         settings = { ...settings, importProfiles: [...settings.importProfiles, profile] }
       }
@@ -569,7 +567,7 @@ export function parseSettings(rows: readonly SettingRow[]): { readonly settings:
     }
     const definition = DEFINITION_BY_KEY.get(key)
     if (definition === undefined) {
-      problems.push({ sheetRow: row.sheetRow, reason: `"${key}" is not a setting this app knows, so it is kept but not used` })
+      problems.push({ ...named, reason: 'not a setting this app knows, so it is kept but not used' })
       continue
     }
     if (row.value === undefined || String(row.value).trim() === '') {
@@ -577,15 +575,15 @@ export function parseSettings(rows: readonly SettingRow[]): { readonly settings:
     }
     const applied = definition.apply(settings, row.value)
     if (typeof applied === 'string') {
-      problems.push({ sheetRow: row.sheetRow, reason: `${key}: ${applied}, so the default is used` })
+      problems.push({ ...named, reason: `${applied}, so the default is used` })
     } else {
       settings = applied
     }
   }
   const clash = labelClash(settings.bucketLabels)
   if (clash !== null) {
-    const sheetRow = rows.find((row) => row.key.trim().toLowerCase().startsWith('label_'))?.sheetRow ?? 0
-    problems.push({ sheetRow, reason: `${clash}, so every bucket label is back to its default` })
+    const key = rows.map(keyOf).find((candidate) => candidate.startsWith('label_')) ?? null
+    problems.push({ id: key === null ? null : recordIdOf(SETTING_RECORDS, key), label: key ?? 'label_', reason: `${clash}, so every bucket label is back to its default` })
     settings = { ...settings, bucketLabels: DEFAULT_BUCKET_LABELS }
   }
   return { settings, problems }

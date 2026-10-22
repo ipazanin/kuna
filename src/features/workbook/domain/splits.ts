@@ -2,6 +2,7 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
 import { naturalOrder } from '../../../shared/text/naturalOrder'
 import type { Bucket } from './bucket'
+import type { RecordId } from './recordId'
 import type { Transaction } from './workbook'
 
 /**
@@ -23,10 +24,8 @@ export interface SplitPart {
   readonly family: string
   readonly bucket: Bucket
   readonly note: string
-  /** The part's row on the splits tab. */
-  readonly sheetRow: number
-  /** Absent on a row from before rows carried an id. */
-  readonly id?: string
+  /** Held by no other row of its tab. */
+  readonly id: RecordId
 }
 
 /** A bank row and the parts that count in its place, which add up to it. */
@@ -58,9 +57,9 @@ export function splitLedger(transactions: readonly Transaction[], splits: readon
   if (splits.length === 0) {
     return transactions
   }
-  const splitOf = new Map(splits.map((split) => [split.row.sheetRow, split]))
+  const splitOf = new Map(splits.map((split) => [split.row.id, split]))
   return transactions.flatMap((row) => {
-    const split = splitOf.get(row.sheetRow)
+    const split = splitOf.get(row.id)
     if (split === undefined) {
       return [row]
     }
@@ -71,13 +70,13 @@ export function splitLedger(transactions: readonly Transaction[], splits: readon
         category: part.category,
         family: part.family,
         bucket: part.bucket,
-        split: { whole: row, index, count: split.parts.length, note: part.note, sheetRow: part.sheetRow },
+        split: { whole: row, index, count: split.parts.length, note: part.note, id: part.id },
       }),
     )
   })
 }
 
-/** A key for a row as a screen lists it, which tells the parts of one bank row apart. */
-export function listedRowKey(row: Pick<Transaction, 'sheetRow' | 'split'>): string {
-  return row.split === undefined ? String(row.sheetRow) : `${row.sheetRow}.${row.split.index}`
+/** A key for a row as a screen lists it: the bank row's, or for a part of a split row the part's own. */
+export function listedRowKey(row: Pick<Transaction, 'id' | 'split'>): RecordId {
+  return row.split?.id ?? row.id
 }

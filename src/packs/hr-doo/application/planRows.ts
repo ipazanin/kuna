@@ -1,7 +1,7 @@
 import type { RowsChangeCheck, TabRowRules } from '../../../features/workbook/application/tabRowWrites'
-import type { FreshTabs } from '../../../features/workbook/application/workbookWriter'
+import type { FreshTabs } from '../../../features/workbook/infrastructure/workbookWriter'
 import type { AssetGroup } from '../../../features/workbook/domain/assets'
-import type { RowAt, RowCells, TabRowsChange } from '../../../features/workbook/domain/rowChanges'
+import type { RowCells, TabRowsChange } from '../../../features/workbook/domain/rowChanges'
 import { wholeNumberOf } from '../../../features/workbook/infrastructure/cellReading'
 import { readPlan } from '../../../features/workbook/infrastructure/planTabReader'
 import { readScenarios } from '../../../features/workbook/infrastructure/scenariosTabReader'
@@ -14,6 +14,7 @@ import { amountOf } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { cellText } from '../../../shared/text/cellText'
 import { planGuards } from '../domain/forecast/planGuards'
+import { PLAN_RECORDS } from '../../../features/workbook/domain/recordKind'
 
 const COLUMNS = contentColumns('plan')
 
@@ -52,13 +53,13 @@ export interface KeyedRow<Cells> {
  * changes its row only where the cells differ, a key only on the tab is deleted and a key only
  * wanted is added. Nothing changes when they already agree.
  */
-export function replacedPlanRows(held: readonly KeyedRow<RowAt>[], wanted: readonly KeyedRow<RowCells>[]): TabRowsChange {
+export function replacedPlanRows(held: readonly KeyedRow<RowCells>[], wanted: readonly KeyedRow<RowCells>[]): TabRowsChange {
   const same = (first: RowCells, second: RowCells) => COLUMNS.every((column) => cellText(first[column]) === cellText(second[column]))
   return {
     added: wanted.filter((row) => !held.some((entry) => entry.key === row.key)).map((row) => row.cells),
     changed: held.flatMap((entry) => {
       const after = wanted.find((row) => row.key === entry.key)?.cells
-      return after === undefined || same(entry.cells.cells, after) ? [] : [{ sheetRow: entry.cells.sheetRow, before: entry.cells.cells, after }]
+      return after === undefined || same(entry.cells, after) ? [] : [{ before: entry.cells, after }]
     }),
     removed: held.filter((entry) => !wanted.some((row) => row.key === entry.key)).map((entry) => entry.cells),
   }
@@ -80,12 +81,11 @@ function planRefusals(check: RowsChangeCheck, fresh: FreshTabs): string[] {
 /** The `plan` tab: the reader checks each row against the categories and scenarios, then the plan guards check each year the change touches. */
 export const PLAN_ROWS: TabRowRules = {
   tab: 'plan',
-  noun: { one: 'plan row', many: 'plan rows', article: 'a' },
+  kind: PLAN_RECORDS,
   columns: COLUMNS,
   required: ['year', 'month', 'item', 'amount'],
   caseless: ['item', 'amount', 'group'],
   reads: ['categories', 'scenarios'],
   read: readFresh,
   refusals: planRefusals,
-  label: (row) => [cellText(row.item), cellText(row.year), cellText(row.month) === '' ? '' : `month ${cellText(row.month)}`].filter((part) => part !== '').join(', ') || 'blank',
 }

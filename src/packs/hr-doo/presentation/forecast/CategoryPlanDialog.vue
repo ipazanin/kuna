@@ -6,7 +6,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
 import type { PlanLine } from '../../../../features/workbook/domain/plan'
-import type { RowAt } from '../../../../features/workbook/domain/rowChanges'
+import type { RowCells } from '../../../../features/workbook/domain/rowChanges'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
@@ -62,7 +62,7 @@ const errors = computed(() => ({ every: wrong(every.value), months: months.value
 const valid = computed(() => !errors.value.every && !errors.value.months.some((error) => error))
 const placeholder = computed(() => (every.value.trim() !== '' && !errors.value.every ? every.value : props.average === null ? '0.00' : fieldAmount(props.average)))
 
-function held(): KeyedRow<RowAt>[] {
+function held(): KeyedRow<RowCells>[] {
   return props.lines.flatMap((line) => {
     const row = writes.rowOf(line)
     return row === null ? [] : [{ key: line.month === null ? 'every' : String(line.month), cells: row }]

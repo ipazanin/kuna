@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
 import type { AssetGroup } from './assets'
+import type { RecordId } from './recordId'
 
 /** The `item` keywords of the `plan` tab. Any other item is a category from the categories tab. */
 export const PLAN_KEYWORDS = ['owner_pay_scenario', 'dividend', 'purchase'] as const
@@ -10,9 +11,8 @@ interface PlanLineTiming {
   /** 1 to 12, or null for a line that holds for every month of the year. A purchase takes the month of its date. */
   readonly month: number | null
   readonly note: string
-  readonly sheetRow: number
-  /** Absent on a row from before rows carried an id. */
-  readonly id?: string
+  /** Held by no other row of its tab. */
+  readonly id: RecordId
 }
 
 /**

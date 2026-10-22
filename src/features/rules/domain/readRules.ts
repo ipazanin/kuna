@@ -1,24 +1,22 @@
 import { normaliseIban } from '../../../shared/text/fold'
+import { recordIdOf } from '../../workbook/domain/recordId'
+import { RULE_RECORDS } from '../../workbook/domain/recordKind'
 import { sharedKeys } from '../../workbook/domain/sharedKeys'
+import type { RecordProblem } from '../../workbook/domain/workbook'
 import { CONDITION_COLUMNS, RULE_COLUMNS, inTryingOrder } from './rule'
 import type { Rule, RuleCondition, RuleConfidence } from './rule'
 import { foldRuleText } from './transactionFacts'
 
 /** One data row of the `rules` tab, keyed by header, with blank cells left out. */
 export interface RuleTabRow {
-  readonly sheetRow: number
   readonly cells: Readonly<Record<string, string | number | boolean>>
-}
-
-export interface RuleTabProblem {
-  readonly sheetRow: number
-  readonly reason: string
 }
 
 export interface RulesRead {
   /** In the order they are tried. */
   readonly rules: readonly Rule[]
-  readonly problems: readonly RuleTabProblem[]
+  /** Each names its rule by its id. */
+  readonly problems: readonly RecordProblem[]
 }
 
 type ConditionColumnName = (typeof CONDITION_COLUMNS)[number]
@@ -36,15 +34,16 @@ type ConditionColumnName = (typeof CONDITION_COLUMNS)[number]
  * disabled rule is checked for its id and order only, and keeps the conditions that read.
  */
 export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>, hasClientsTab: boolean): RulesRead {
-  const problems: RuleTabProblem[] = []
+  const problems: RecordProblem[] = []
   const shared = sharedKeys(
     rows.filter((row) => textOf(row.cells.rule) !== ''),
     (row) => textOf(row.cells.rule).toLowerCase(),
   )
   const rules: Rule[] = []
-  for (const row of [...rows].sort((upper, lower) => upper.sheetRow - lower.sheetRow)) {
+  for (const row of rows) {
+    const named = textOf(row.cells.rule)
     const refuse = (reason: string): void => {
-      problems.push({ sheetRow: row.sheetRow, reason })
+      problems.push({ id: named === '' ? null : recordIdOf(RULE_RECORDS, named.toLowerCase()), label: named || 'unnamed', reason })
     }
     const unknownColumns = Object.keys(row.cells).filter((column) => !(RULE_COLUMNS as readonly string[]).includes(column))
     if (unknownColumns.length > 0) {
@@ -53,43 +52,42 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
     }
     const id = textOf(row.cells.rule)
     if (id === '') {
-      refuse('no rule id')
+      refuse('a row without a rule id')
       continue
     }
     if (shared.has(id.toLowerCase())) {
-      refuse(`the id "${id}" is on more than one row, so none of them is tried`)
+      refuse('the id is on more than one row, so none of them is tried')
       continue
     }
     const orderCell = row.cells.order
     const order = Number(orderCell)
     if (textOf(orderCell) === '' || !Number.isFinite(order)) {
-      refuse(`${id} has the order "${textOf(orderCell)}", which is not a number`)
+      refuse(`the order "${textOf(orderCell)}" is not a number`)
       continue
     }
     const enabled = booleanCell(row.cells.enabled)
     if (enabled === 'unreadable' || enabled === null) {
-      refuse(`${id} has the enabled cell "${textOf(row.cells.enabled)}", and it is TRUE or FALSE`)
+      refuse(`the enabled cell "${textOf(row.cells.enabled)}" is neither TRUE nor FALSE`)
       continue
     }
     const read = conditionsOf(row.cells)
     const category = textOf(row.cells.category).toLowerCase()
     const confidenceText = textOf(row.cells.confidence).toLowerCase()
     if (enabled) {
-      const reasons = enabledRuleRefusals(id, confidenceText, category, read, definedCategories, hasClientsTab)
+      const reasons = enabledRuleRefusals(confidenceText, category, read, definedCategories, hasClientsTab)
       if (reasons.length > 0) {
         reasons.forEach(refuse)
         continue
       }
     }
     const confidence: RuleConfidence = confidenceText === 'rule' ? 'rule' : 'review'
-    rules.push({ id, order, enabled, conditions: read.conditions, category, confidence, note: textOf(row.cells.note), sheetRow: row.sheetRow })
+    rules.push({ id, order, enabled, conditions: read.conditions, category, confidence, note: textOf(row.cells.note) })
   }
   return { rules: inTryingOrder(rules), problems }
 }
 
 /** Why an enabled rule cannot be tried, the first check that fails, or none. */
 function enabledRuleRefusals(
-  id: string,
   confidence: string,
   category: string,
   read: ReturnType<typeof conditionsOf>,
@@ -97,19 +95,19 @@ function enabledRuleRefusals(
   hasClientsTab: boolean,
 ): string[] {
   if (confidence !== 'rule' && confidence !== 'review') {
-    return [`${id} has the confidence "${confidence}", and it is rule or review`]
+    return [`the confidence "${confidence}" is neither rule nor review`]
   }
   if (confidence === 'rule' && !definedCategories.has(category)) {
-    return [`${id} files rows as "${category}" at rule confidence, and the categories tab does not define it`]
+    return [`it files rows as "${category}" at rule confidence, and the categories tab does not define it`]
   }
   if (read.unreadable.length > 0) {
-    return read.unreadable.map((reason) => `${id}: ${reason}`)
+    return read.unreadable
   }
   if (read.conditions.length === 0) {
-    return [`${id} has no condition, so it would match every row`]
+    return ['no condition, so it would match every row']
   }
   if (!hasClientsTab && read.conditions.some((condition) => condition.column === 'counterparty_is_client')) {
-    return [`${id} tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban`]
+    return [`it tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban`]
   }
   return []
 }

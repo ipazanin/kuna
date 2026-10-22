@@ -69,7 +69,7 @@ function toggle(month: MonthKey): void {
           <span><MoneyText :cents="month.open" /> of the month's rows is not invoiced yet.</span>
         </p>
         <ul v-if="month.rows.length > 0" class="flex flex-col">
-          <li v-for="row in month.rows" :key="row.key" class="plan-line" data-testid="billing-month-row">
+          <li v-for="row in month.rows" :key="row.id" class="plan-line" data-testid="billing-month-row">
             <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
             <span class="min-w-0">
               <span class="block truncate text-sm text-toned">{{ row.item }}<span v-if="row.description" class="text-muted">, {{ row.description }}</span></span>

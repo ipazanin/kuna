@@ -5,16 +5,17 @@ import type { YearEndFigure, YearEndFigureKind, YearEndLine, YearEndLineDefiniti
 import { sharedKeys } from '../domain/sharedKeys'
 import {
   dateOf,
-  idOf,
-  inTabOrder,
   isUnreadable,
   moneyOf,
+  ownIdOf,
   readRow,
   refuse,
   requiredChoice,
   requiredYear,
+  sharedIds,
   slugListOf,
   slugOf,
+  tabReading,
   textOf,
   wholeNumberOf,
 } from './cellReading'
@@ -29,16 +30,37 @@ import type { SheetRow } from './workbookSnapshot'
  * package itself can be wrong.
  */
 export function readYearEnd(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>): TabReading<YearEndLine> {
-  const lines = readYearEndLines(rows, categorySlugs)
-  return { facts: lines.facts, problems: [...lines.problems, ...tieProblems(lines.facts)] }
+  const lines = yearEndRows(rows, categorySlugs)
+  return tabReading(
+    'year-end',
+    rows,
+    lines.kept.map(({ line }) => line),
+    [...lines.problems, ...tieProblems(lines.kept)],
+  )
 }
 
 /** The lines and what is wrong with each row on its own, without the checks of the totals, which a package being typed in fails until its last line. */
 export function readYearEndLines(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>): TabReading<YearEndLine> {
-  const read: { readonly row: SheetRow; readonly line: YearEndLine }[] = []
+  const lines = yearEndRows(rows, categorySlugs)
+  return tabReading(
+    'year-end',
+    rows,
+    lines.kept.map(({ line }) => line),
+    lines.problems,
+  )
+}
+
+interface ReadLine {
+  readonly row: SheetRow
+  readonly line: YearEndLine
+}
+
+function yearEndRows(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>): { readonly kept: readonly ReadLine[]; readonly problems: readonly RowProblem[] } {
+  const read: ReadLine[] = []
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
-    const line = readRow(() => readYearEndRow(row))
+  const sharedId = sharedIds(rows)
+  for (const row of rows) {
+    const line = readRow(() => readYearEndRow(row, sharedId))
     if (isUnreadable(line)) {
       problems.push({ sheetRow: row.sheetRow, reason: line.unreadable })
     } else {
@@ -46,13 +68,13 @@ export function readYearEndLines(rows: readonly SheetRow[], categorySlugs: Reado
     }
   }
   const keyOf = (line: YearEndLine): string => `${line.year} ${line.statement} ${line.line}`
-  const shared = sharedKeys(
+  const twice = sharedKeys(
     read.map(({ line }) => line),
     keyOf,
   )
-  const facts: YearEndLine[] = []
+  const kept: ReadLine[] = []
   for (const { row, line } of read) {
-    if (shared.has(keyOf(line))) {
+    if (twice.has(keyOf(line))) {
       problems.push({ sheetRow: row.sheetRow, reason: `${keyOf(line)} is listed on more than one row, so none of them counts` })
       continue
     }
@@ -63,12 +85,12 @@ export function readYearEndLines(rows: readonly SheetRow[], categorySlugs: Reado
     if (unknown.length > 0) {
       problems.push({ sheetRow: row.sheetRow, reason: `${unknown.map((category) => `"${category}"`).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} not on the categories tab` })
     }
-    facts.push(line)
+    kept.push({ row, line })
   }
-  return { facts, problems }
+  return { kept, problems }
 }
 
-function readYearEndRow(row: SheetRow): YearEndLine {
+function readYearEndRow(row: SheetRow, shared: ReadonlySet<string>): YearEndLine {
   const { cells } = row
   const year = requiredYear(cells, 'year')
   const statement = requiredChoice(cells, 'statement', YEAR_END_STATEMENTS)
@@ -86,8 +108,7 @@ function readYearEndRow(row: SheetRow): YearEndLine {
     aop: textOf(cells.aop),
     source: textOf(cells.source),
     note: textOf(cells.note),
-    sheetRow: row.sheetRow,
-    ...idOf(cells),
+    id: ownIdOf('year-end', row, shared),
   }
 }
 
@@ -116,8 +137,9 @@ function figureOf(cell: SheetRow['cells'][string] | undefined, kind: YearEndFigu
 }
 
 /** The checks the package's own figures should pass, as warnings on the total's row. */
-function tieProblems(lines: readonly YearEndLine[]): RowProblem[] {
+function tieProblems(read: readonly ReadLine[]): RowProblem[] {
   const problems: RowProblem[] = []
+  const lines = read.map(({ line }) => line)
   for (const year of [...new Set(lines.map((line) => line.year))]) {
     const ofYear = lines.filter((line) => line.year === year)
     const side = (tie: NonNullable<YearEndLineDefinition['tie']>): Money[] =>
@@ -129,7 +151,7 @@ function tieProblems(lines: readonly YearEndLine[]): RowProblem[] {
       const stated = total.figure.amount
       if (computed !== stated) {
         const apart = plainAmount(Math.abs(subtractMoney(computed, stated)) as Money)
-        problems.push({ sheetRow: total.sheetRow, reason: `${year}: ${partsInWords} ${plainAmount(computed)}, but ${totalLine} is ${plainAmount(stated)}, ${apart} apart` })
+        problems.push({ sheetRow: read.find(({ line }) => line === total)!.row.sheetRow, reason: `${year}: ${partsInWords} ${plainAmount(computed)}, but ${totalLine} is ${plainAmount(stated)}, ${apart} apart` })
       }
     }
     const expenses = side('expense')

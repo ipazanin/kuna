@@ -26,7 +26,7 @@ import { ROLLING_3_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSe
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { rowsWithoutIds } from '../../workbook/application/rowIds'
+import { rowsWithoutIds } from '../../workbook/infrastructure/rowIds'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import MissingIdsDialog from '../../workbook/presentation/MissingIdsDialog.vue'
 import { rowsWithoutIdsInWords } from '../../workbook/presentation/rowsInWords'

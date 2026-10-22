@@ -6,6 +6,8 @@ import { PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 function rows(specs: readonly RowSpec[]) {
   return listedRows(ledger(specs), [])
@@ -20,7 +22,7 @@ describe('transactionsCsv', () => {
   })
 
   it('writes an owner advance as the cost it books, with no account, balance or flag, from the owner-advances tab', () => {
-    const advance = { date: civil('2026-08-10'), amount: euros(45), description: 'Train ticket', category: 'travel', family: 'operating', bucket: 'operating' as const, sheetRow: 4 }
+    const advance = { date: civil('2026-08-10'), amount: euros(45), description: 'Train ticket', category: 'travel', family: 'operating', bucket: 'operating' as const, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-4') }
     const [, row] = transactionsCsv(listedRows([], [advance])).split('\r\n')
 
     expect(row).toBe('2026-08-10,,Owner,,Train ticket,-45.00,,travel,operating,,,,owner-advances')

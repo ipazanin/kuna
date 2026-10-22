@@ -24,7 +24,8 @@ import { useSettings } from '../../settings/application/useSettings'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { scopeTransactions } from '../../transactions/domain/filterTransactions'
 import SplitDialog from '../../transactions/presentation/SplitDialog.vue'
-import { rowCellsOf } from '../../workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../workbook/application/tabRowWrites'
+import type { RecordId } from '../../workbook/domain/recordId'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { SessionWrite } from '../../workbook/application/workbookStore'
@@ -32,7 +33,6 @@ import type { Dismissal, SuggestionKind } from '../../workbook/domain/dismissals
 import { needsReview } from '../../workbook/domain/needsReview'
 import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
-import { sheetRowLink } from '../../workbook/infrastructure/sheetRowLink'
 import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
 import AddTabNotice from '../../workbook/presentation/AddTabNotice.vue'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
@@ -71,7 +71,6 @@ const queue = computed(() => {
   return bankRows.value.filter(needsReview).map((transaction) => ({
     transaction,
     verdict: categorise(transaction, workbook.rules, context.value!),
-    link: sheetRowLink(workbook.id, workbook.ledgerSheetId, transaction.sheetRow),
   }))
 })
 
@@ -105,10 +104,10 @@ async function undoSessionWrite(write: SessionWrite): Promise<void> {
   }
 }
 
-const expandedRow = ref<number | null>(null)
+const expandedRow = ref<RecordId | null>(null)
 
-function toggle(sheetRow: number): void {
-  expandedRow.value = expandedRow.value === sheetRow ? null : sheetRow
+function toggle(id: RecordId): void {
+  expandedRow.value = expandedRow.value === id ? null : id
 }
 
 const description = computed(() =>
@@ -156,7 +155,7 @@ const splitting = ref<{ readonly row: Transaction; readonly split: LedgerSplit |
 const splitOpen = ref(false)
 
 function splitOf(row: Transaction): LedgerSplit | null {
-  return state.workbook?.splits.find((split) => split.row.sheetRow === row.sheetRow) ?? null
+  return state.workbook?.splits.find((split) => split.row.id === row.id) ?? null
 }
 
 function openSplit(row: Transaction): void {
@@ -195,10 +194,10 @@ function dismiss(kind: SuggestionKind, group: CoverageGroup<Transaction>): void 
 }
 
 function restore(dismissal: Dismissal): void {
-  const row = state.snapshot?.dismissed.find((candidate) => candidate.sheetRow === dismissal.sheetRow)
-  if (row === undefined) return
+  const cells = storedCellsOf(state.snapshot?.dismissed ?? [], DISMISSED_ROWS, dismissal.id)
+  if (cells === null) return
   void dismissWrites.write(
-    { added: [], changed: [], removed: [{ sheetRow: row.sheetRow, cells: rowCellsOf(row, DISMISSED_ROWS.columns) }] },
+    { added: [], changed: [], removed: [cells] },
     { title: 'Suggestion restored' },
     'Not restored',
   )
@@ -235,15 +234,14 @@ function restore(dismissal: Dismissal): void {
                 <ul class="mt-3 border-t border-default">
                   <ReviewQueueItem
                     v-for="entry in queue"
-                    :key="entry.transaction.sheetRow"
+                    :key="entry.transaction.id"
                     :transaction="entry.transaction"
                     :verdict="entry.verdict"
                     :categories="ledger.workbook.categories"
-                    :expanded="expandedRow === entry.transaction.sheetRow"
-                    :link="entry.link"
+                    :expanded="expandedRow === entry.transaction.id"
                     :split="splitOf(entry.transaction) !== null"
                     :busy="busy"
-                    @toggle="toggle(entry.transaction.sheetRow)"
+                    @toggle="toggle(entry.transaction.id)"
                     @confirm="confirm(entry.transaction)"
                     @recategorise="recategorise(entry.transaction, $event)"
                     @make-rule="makeRule(entry.transaction)"

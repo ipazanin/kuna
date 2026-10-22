@@ -3,7 +3,6 @@ import { GRANT_RELEASES } from '../domain/grants'
 import type { Grant, GrantClawback, GrantParts, GrantRelease } from '../domain/grants'
 import { sharedKeys } from '../domain/sharedKeys'
 import {
-  inTabOrder,
   isUnreadable,
   moneyOf,
   optionalDate,
@@ -15,30 +14,40 @@ import {
   requiredChoice,
   requiredDate,
   slugOf,
+  tabReading,
   textOf,
 } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
+import { readRecordId } from './tabRecords'
 import type { SheetRow } from './workbookSnapshot'
 
 const DEFAULT_RELEASE: GrantRelease = 'fixed-then-assets'
 
 /** The `grants` tab. A name on more than one row leaves out every row of it, since its income would count twice. */
 export function readGrants(rows: readonly SheetRow[]): TabReading<Grant> {
-  const read: Grant[] = []
+  const read: { readonly row: SheetRow; readonly grant: Grant }[] = []
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
+  for (const row of rows) {
     const grant = readRow(() => readGrantRow(row))
     if (isUnreadable(grant)) {
       problems.push({ sheetRow: row.sheetRow, reason: grant.unreadable })
     } else {
-      read.push(grant)
+      read.push({ row, grant })
     }
   }
-  const shared = sharedKeys(read, (grant) => grant.slug)
-  for (const grant of read.filter((candidate) => shared.has(candidate.slug))) {
-    problems.push({ sheetRow: grant.sheetRow, reason: `"${grant.slug}" is listed on more than one row, so none of them counts` })
+  const twice = sharedKeys(
+    read.map(({ grant }) => grant),
+    (grant) => grant.slug,
+  )
+  for (const { row, grant } of read.filter((candidate) => twice.has(candidate.grant.slug))) {
+    problems.push({ sheetRow: row.sheetRow, reason: `"${grant.slug}" is listed on more than one row, so none of them counts` })
   }
-  return { facts: read.filter((grant) => !shared.has(grant.slug)), problems }
+  return tabReading(
+    'grants',
+    rows,
+    read.map(({ grant }) => grant).filter((grant) => !twice.has(grant.slug)),
+    problems,
+  )
 }
 
 function readGrantRow(row: SheetRow): Grant {
@@ -63,7 +72,7 @@ function readGrantRow(row: SheetRow): Grant {
     clawbackSecondYear: clawbackOf(cells, 'clawback_year2'),
     employmentRequiredUntil: optionalDate(cells, 'employment_required_until'),
     note: textOf(cells.note),
-    sheetRow: row.sheetRow,
+    id: readRecordId('grants', cells),
   }
 }
 

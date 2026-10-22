@@ -12,6 +12,8 @@ import type { OwnerAdvance } from '../src/features/workbook/domain/workbook'
 import { STUDIO_CATEGORIES } from './fixtures/exampleStudio'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const ROWS = ledger([
   { date: '2026-09-02', amount: -40, category: 'travel', counterparty: 'Rail', flaggedBy: 'ivan' },
@@ -29,7 +31,7 @@ const ADVANCE: OwnerAdvance = {
   family: 'operating',
   bucket: 'operating',
   description: 'Taxi',
-  sheetRow: 2,
+  id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2'),
 }
 
 describe('categoryChangeOf', () => {
@@ -63,7 +65,6 @@ describe('changing the category of a settled row', () => {
     category: 'travel',
     confidence: 'rule',
     note: '',
-    sheetRow: 2,
   }
   const context = categorisationContextOf({ accounts: [], clients: [], settings: DEFAULT_SETTINGS })
 

@@ -5,6 +5,8 @@ import { accumulatedDepreciationOn, bookValueOn, depreciationSchedule } from '..
 import type { DepreciationSchedule } from '../src/packs/hr-doo/domain/assets/depreciationSchedule'
 import { sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { ASSET_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 interface AssetSpec {
   readonly cost: number
@@ -28,7 +30,7 @@ function asset(spec: AssetSpec): Asset {
     fundedBy: '',
     ledgerReference: '',
     note: '',
-    sheetRow: 2,
+    id: recordIdOf(ASSET_RECORDS, 'row-2'),
   }
 }
 

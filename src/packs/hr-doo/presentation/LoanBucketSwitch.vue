@@ -4,11 +4,11 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
 import { CATEGORY_ROWS } from '../../../features/settings/application/workbookTabRows'
-import { rowCellsOf } from '../../../features/workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../../features/workbook/application/tabRowWrites'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../features/workbook/application/workbookStore'
 import type { RowChange } from '../../../features/workbook/domain/rowChanges'
-import { readCategoryRows } from '../../../features/workbook/infrastructure/workbookReader'
+import { categoryIdOf } from '../../../features/workbook/domain/workbook'
 import { useRowWrites } from '../../../features/workbook/presentation/useRowWrites'
 import { PACK_ROLES } from '../domain/packRoles'
 
@@ -32,12 +32,9 @@ const listed = computed(() => loanCategories.value.map((category) => `${names.va
 async function choose(asPay: boolean): Promise<void> {
   const bucket = asPay ? 'owner-pay' : 'financing'
   const rows = store.state.snapshot?.categories ?? []
-  const defining = new Map(readCategoryRows(rows).facts.map((category) => [category.slug, category.sheetRow]))
   const changed = loanCategories.value.flatMap((category): RowChange[] => {
-    const row = rows.find((candidate) => candidate.sheetRow === defining.get(category.slug))
-    if (row === undefined) return []
-    const before = rowCellsOf(row, CATEGORY_ROWS.columns)
-    return [{ sheetRow: row.sheetRow, before, after: { ...before, bucket } }]
+    const before = storedCellsOf(rows, CATEGORY_ROWS, categoryIdOf(category))
+    return before === null ? [] : [{ before, after: { ...before, bucket } }]
   })
   await writes.write(
     { added: [], changed, removed: [] },

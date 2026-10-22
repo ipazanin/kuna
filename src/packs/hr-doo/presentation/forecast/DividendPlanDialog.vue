@@ -57,14 +57,14 @@ async function save(): Promise<void> {
   const cells = dividendPlanCells(props.year, month.value, gross.value as Money, note.value)
   const before = props.dividend === null ? null : writes.rowOf(props.dividend)
   if (props.dividend !== null && before === null) return
-  const change = before === null ? { added: [cells], changed: [], removed: [] } : { added: [], changed: [{ sheetRow: before.sheetRow, before: before.cells, after: cells }], removed: [] }
+  const change = before === null ? { added: [cells], changed: [], removed: [] } : { added: [], changed: [{ before, after: cells }], removed: [] }
   if (await writes.write(change, { title: 'Dividend planned', description: `For ${props.year}, written to ${writes.where()}.` }, 'Not saved')) open.value = false
 }
 
 async function remove(): Promise<void> {
   const row = props.dividend === null ? null : writes.rowOf(props.dividend)
   if (row === null) return
-  if (await writes.write({ added: [], changed: [], removed: [row] }, { title: 'Dividend deleted', description: `Row ${row.sheetRow} of ${writes.where()} is taken out.` }, 'Not deleted')) open.value = false
+  if (await writes.write({ added: [], changed: [], removed: [row] }, { title: 'Dividend deleted', description: `The dividend of ${props.year} is taken out of ${writes.where()}.` }, 'Not deleted')) open.value = false
 }
 </script>
 

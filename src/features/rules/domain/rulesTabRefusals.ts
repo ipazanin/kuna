@@ -33,5 +33,5 @@ export function rulesTabRefusals(header: readonly string[], rows: readonly RuleT
   if (refusals.length > 0) {
     return refusals
   }
-  return readRules(rows, definedCategories, hasClientsTab).problems.map((problem) => `row ${problem.sheetRow}: ${problem.reason}`)
+  return readRules(rows, definedCategories, hasClientsTab).problems.map((problem) => `${problem.label}: ${problem.reason}`)
 }

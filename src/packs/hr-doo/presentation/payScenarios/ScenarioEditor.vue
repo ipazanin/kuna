@@ -87,11 +87,11 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
           </li>
         </ul>
         <ul class="mt-2 flex flex-col">
-          <li v-for="component in scenario.components" :key="component.sheetRow">
-            <button type="button" class="component-row" :aria-label="`${componentText(component)}, ${spanText(component)}, row ${component.sheetRow}: edit`" data-testid="scenario-component" @click="editComponent(scenario, component)">
+          <li v-for="component in scenario.components" :key="component.id">
+            <button type="button" class="component-row" :aria-label="`${componentText(component)}, ${spanText(component)}: edit`" data-testid="scenario-component" @click="editComponent(scenario, component)">
               <span class="min-w-0 text-start">
                 <span class="block text-sm text-toned">{{ componentText(component) }}</span>
-                <span class="block text-xs text-muted">{{ spanText(component) }}, row {{ component.sheetRow }}</span>
+                <span class="block text-xs text-muted">{{ spanText(component) }}</span>
               </span>
               <UIcon name="i-lucide-pencil" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />
             </button>

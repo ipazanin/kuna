@@ -27,12 +27,10 @@ const emit = defineEmits<{
 }>()
 
 function draftsOf(rows: readonly SheetRow[]): AccountDraft[] {
-  return [...rows]
-    .sort((upper, lower) => upper.sheetRow - lower.sheetRow)
-    .map((row) => {
-      const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
-      return { sheetRow: row.sheetRow, savedName: text('account'), account: text('account'), label: text('label'), iban: text('iban'), currency: text('currency') }
-    })
+  return rows.map((row, saved) => {
+    const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
+    return { saved, savedName: text('account'), account: text('account'), label: text('label'), iban: text('iban'), currency: text('currency') }
+  })
 }
 
 const drafts = ref<AccountDraft[]>(draftsOf(props.rows))
@@ -60,7 +58,7 @@ function inUse(draft: AccountDraft): string {
 }
 
 function addAccount(): void {
-  drafts.value = [...drafts.value, { sheetRow: null, savedName: '', account: '', label: '', iban: '', currency: '' }]
+  drafts.value = [...drafts.value, { saved: null, savedName: '', account: '', label: '', iban: '', currency: '' }]
 }
 
 function remove(index: number): void {
@@ -68,7 +66,7 @@ function remove(index: number): void {
 }
 
 function save(): void {
-  const savedCells = new Map(props.rows.map((row) => [row.sheetRow, row.cells]))
+  const savedCells = new Map(props.rows.map((row, saved) => [saved, row.cells]))
   const opened = draftsOf(props.rows)
   const openedCells = accountCellsOf(opened, savedCells)
   const draftedCells = accountCellsOf(drafts.value, savedCells)
@@ -77,8 +75,8 @@ function save(): void {
     rowsChangeOf(
       props.rows,
       ACCOUNT_ROWS.columns,
-      drafts.value.map((draft, index) => ({ sheetRow: draft.sheetRow, cells: draftedCells[index]! })),
-      new Map(opened.map((draft, index) => [draft.sheetRow!, openedCells[index]!])),
+      drafts.value.map((draft, index) => ({ saved: draft.saved, cells: draftedCells[index]! })),
+      new Map(opened.map((_, saved) => [saved, openedCells[saved]!])),
     ),
   )
 }
@@ -100,7 +98,7 @@ function save(): void {
         <tr v-if="drafts.length === 0">
           <td colspan="5" class="text-muted">No accounts yet. Add the accounts your ledger rows name.</td>
         </tr>
-        <tr v-for="(draft, index) in drafts" :key="draft.sheetRow ?? `new-${index}`" data-testid="account-row">
+        <tr v-for="(draft, index) in drafts" :key="draft.saved ?? `new-${index}`" data-testid="account-row">
           <td>
             <UInput
               :model-value="draft.account"
@@ -149,7 +147,7 @@ function save(): void {
               size="xs"
               :disabled="locked(draft)"
               :title="locked(draft) ? inUse(draft) : undefined"
-              :aria-label="draft.sheetRow === null ? 'Remove this new account' : `Delete ${draft.savedName || 'this account'}`"
+              :aria-label="draft.saved === null ? 'Remove this new account' : `Delete ${draft.savedName || 'this account'}`"
               @click="remove(index)"
             />
           </td>

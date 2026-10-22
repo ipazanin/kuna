@@ -5,7 +5,7 @@ import { ASSET_GROUPS } from '../domain/assets'
 import { PLAN_KEYWORDS } from '../domain/plan'
 import type { PlanLine } from '../domain/plan'
 import { sharedKeys } from '../domain/sharedKeys'
-import { idOf, inTabOrder, isUnreadable, optionalDate, positiveMoney, readRow, refuse, requiredChoice, requiredMoney, requiredYear, slugOf, textOf, wholeNumberOf } from './cellReading'
+import { isUnreadable, optionalDate, ownIdOf, positiveMoney, readRow, refuse, requiredChoice, requiredMoney, requiredYear, sharedIds, slugOf, tabReading, textOf, wholeNumberOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 
@@ -18,25 +18,32 @@ import type { SheetRow } from './workbookSnapshot'
  * that says to move it there. Rules across rows, such as one dividend a year, are the plan guards'.
  */
 export function readPlan(rows: readonly SheetRow[], categorySlugs: ReadonlySet<string>, scenarioSlugs: ReadonlySet<string>): TabReading<PlanLine> {
-  const read: PlanLine[] = []
+  const keyed: { readonly row: SheetRow; readonly line: PlanLine; readonly key: { readonly text: string; readonly words: string } | null }[] = []
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
-    const line = readRow((): PlanLine => ({ ...readPlanRow(row, categorySlugs, scenarioSlugs), ...idOf(row.cells) }))
+  const shared = sharedIds(rows)
+  for (const row of rows) {
+    const line = readRow(() => readPlanRow(row, categorySlugs, scenarioSlugs, shared))
     if (isUnreadable(line)) {
       problems.push({ sheetRow: row.sheetRow, reason: line.unreadable })
     } else {
-      read.push(line)
+      keyed.push({ row, line, key: keyOf(line) })
     }
   }
-  const keyed = read.flatMap((line) => {
-    const key = keyOf(line)
-    return key === null ? [] : [{ line, key }]
-  })
-  const shared = sharedKeys(keyed, ({ key }) => key.text)
-  for (const { line, key } of keyed.filter((candidate) => shared.has(candidate.key.text))) {
-    problems.push({ sheetRow: line.sheetRow, reason: `${key.words} is listed on more than one row, so none of them counts` })
+  const twice = sharedKeys(
+    keyed.flatMap(({ key }) => (key === null ? [] : [key.text])),
+    (text) => text,
+  )
+  for (const { row, key } of keyed) {
+    if (key !== null && twice.has(key.text)) {
+      problems.push({ sheetRow: row.sheetRow, reason: `${key.words} is listed on more than one row, so none of them counts` })
+    }
   }
-  return { facts: read.filter((line) => !shared.has(keyOf(line)?.text ?? '')), problems }
+  return tabReading(
+    'plan',
+    rows,
+    keyed.filter(({ key }) => key === null || !twice.has(key.text)).map(({ line }) => line),
+    problems,
+  )
 }
 
 function keyOf(line: PlanLine): { readonly text: string; readonly words: string } | null {
@@ -50,7 +57,7 @@ function keyOf(line: PlanLine): { readonly text: string; readonly words: string 
   }
 }
 
-function readPlanRow(row: SheetRow, categorySlugs: ReadonlySet<string>, scenarioSlugs: ReadonlySet<string>): PlanLine {
+function readPlanRow(row: SheetRow, categorySlugs: ReadonlySet<string>, scenarioSlugs: ReadonlySet<string>, shared: ReadonlySet<string>): PlanLine {
   const { cells } = row
   const year = requiredYear(cells, 'year')
   const month = cells.month === undefined ? null : wholeNumberOf(cells.month)
@@ -65,22 +72,26 @@ function readPlanRow(row: SheetRow, categorySlugs: ReadonlySet<string>, scenario
     if (scenario === '') refuse('no scenario in amount')
     if (!scenarioSlugs.has(scenario)) refuse(`"${scenario}" is not a scenario on the scenarios tab`)
     const from = optionalDate(cells, 'date')
-    return { year, month: null, note, sheetRow: row.sheetRow, kind: 'owner-pay-scenario', scenario, from: from === null ? null : inYear(from, year) }
+    return { year, month: null, note, id: ownIdOf('plan', row, shared), kind: 'owner-pay-scenario', scenario, from: from === null ? null : inYear(from, year) }
   }
   if (item === 'purchase') {
     const date = inYear(optionalDate(cells, 'date') ?? refuse('a purchase needs the day it is bought in date'), year)
     const dateMonth = monthNumber(monthOf(date))
     if (month !== null && month !== dateMonth) refuse(`month ${month} is not the month of date ${date}, so leave month blank`)
-    return { year, month: dateMonth, note, sheetRow: row.sheetRow, kind: 'purchase', date, amount: positiveMoney(cells, 'amount'), group: requiredChoice(cells, 'group', ASSET_GROUPS, 'asset group') }
+    const amount = positiveMoney(cells, 'amount')
+    const group = requiredChoice(cells, 'group', ASSET_GROUPS, 'asset group')
+    return { year, month: dateMonth, note, id: ownIdOf('plan', row, shared), kind: 'purchase', date, amount, group }
   }
   if (!(PLAN_KEYWORDS as readonly string[]).includes(item) && !categorySlugs.has(item)) {
     refuse(`"${item}" is neither ${PLAN_KEYWORDS.join(', ')} nor a category on the categories tab`)
   }
   if (item === 'dividend') {
     if (month === null) refuse('a dividend is paid in one month, so give its month')
-    return { year, month, note, sheetRow: row.sheetRow, kind: 'amount', item, amount: positiveMoney(cells, 'amount') }
+    const amount = positiveMoney(cells, 'amount')
+    return { year, month, note, id: ownIdOf('plan', row, shared), kind: 'amount', item, amount }
   }
-  return { year, month, note, sheetRow: row.sheetRow, kind: 'amount', item, amount: requiredMoney(cells, 'amount') }
+  const amount = requiredMoney(cells, 'amount')
+  return { year, month, note, id: ownIdOf('plan', row, shared), kind: 'amount', item, amount }
 }
 
 function inYear(day: CivilDate, year: number): CivilDate {

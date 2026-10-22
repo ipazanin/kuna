@@ -6,6 +6,9 @@ import { readSnapshotFrom } from '../src/features/workbook/infrastructure/google
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { withIds } from './fixtures/rowIds'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { BILLING_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 /** Serial numbers of the date cells the rows below use. */
 const DAY = {
@@ -22,10 +25,10 @@ const CLIENTS: CellValue[][] = [
 
 function workbookWith(plan: CellValue[][], clients: CellValue[][] = CLIENTS) {
   return readWorkbook({
-    meta: { id: 'sheet', source: 'excel', title: 'Books', syncedAt: '2026-10-19T08:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id: 'sheet', source: 'excel', title: 'Books', syncedAt: '2026-10-19T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...EMPTY_TABS,
     clients: sheetRowsFromValues(clients),
-    'outgoing-plan': sheetRowsFromValues(plan),
+    'outgoing-plan': sheetRowsFromValues(withIds('item', plan)),
   })
 }
 
@@ -41,9 +44,9 @@ describe('the outgoing-plan tab', () => {
     ])
 
     expect(workbook.billingPlan).toEqual([
-      { item: 'Hotel', date: '2025-12-10', amount: 48020, client: 'north', description: 'Hotel for the client visit', sheetRow: 2 },
-      { item: 'Bonus', date: '2026-01-01', amount: 416667, client: 'north', description: 'Bonus for five months', sheetRow: 3 },
-      { item: 'Monthly Fee', date: '2026-01-31', amount: 500000, client: 'north', description: '', sheetRow: 4 },
+      { item: 'Hotel', date: '2025-12-10', amount: 48020, client: 'north', description: 'Hotel for the client visit', id: recordIdOf(BILLING_RECORDS, 'item-2') },
+      { item: 'Bonus', date: '2026-01-01', amount: 416667, client: 'north', description: 'Bonus for five months', id: recordIdOf(BILLING_RECORDS, 'item-3') },
+      { item: 'Monthly Fee', date: '2026-01-31', amount: 500000, client: 'north', description: '', id: recordIdOf(BILLING_RECORDS, 'item-4') },
     ])
     expect(workbook.problems).toEqual([])
   })
@@ -61,14 +64,14 @@ describe('the outgoing-plan tab', () => {
     ])
 
     expect(workbook.billingPlan).toEqual([])
-    expect(workbook.problems.map((problem) => [problem.tab, problem.sheetRow, problem.reason])).toEqual([
-      ['outgoing-plan', 2, 'no item'],
-      ['outgoing-plan', 3, 'date "December" is not a date cell'],
-      ['outgoing-plan', 4, 'amount "five thousand" is not a number'],
-      ['outgoing-plan', 5, 'amount must be more than zero'],
-      ['outgoing-plan', 6, 'no client'],
-      ['outgoing-plan', 7, '"south" is not on the clients tab'],
-      ['outgoing-plan', 8, 'no date'],
+    expect(workbook.problems.map((problem) => [problem.tab, problem.label, problem.reason])).toEqual([
+      ['outgoing-plan', 'north, 2025-12-31, 5000', 'no item'],
+      ['outgoing-plan', 'Monthly Fee, north, December, 5000', 'date "December" is not a date cell'],
+      ['outgoing-plan', 'Monthly Fee, north, 2025-12-31, five thousand', 'amount "five thousand" is not a number'],
+      ['outgoing-plan', 'Monthly Fee, north, 2025-12-31, 0', 'amount must be more than zero'],
+      ['outgoing-plan', 'Monthly Fee, 2025-12-31, 5000', 'no client'],
+      ['outgoing-plan', 'Monthly Fee, south, 2025-12-31, 5000', '"south" is not on the clients tab'],
+      ['outgoing-plan', 'Monthly Fee, north, 5000', 'no date'],
     ])
   })
 

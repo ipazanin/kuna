@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
 import type { TabRowRules } from '../../workbook/application/tabRowWrites'
+import type { RecordId } from '../../workbook/domain/recordId'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { TabRowsChange } from '../../workbook/domain/rowChanges'
 import type { TabReading } from '../../workbook/infrastructure/cellReading'
@@ -21,7 +22,7 @@ const props = withDefaults(
     description: string
     collapseId: string
     columns: readonly EditorColumn[]
-    read: (rows: readonly SheetRow[]) => TabReading<{ readonly sheetRow: number }>
+    read: (rows: readonly SheetRow[]) => TabReading<{ readonly id: RecordId }>
     newRow?: () => Readonly<Record<string, string>>
     /** Such as `asset`, for "Add asset" and "2 assets". */
     rowNoun: string
@@ -65,6 +66,7 @@ function save(change: TabRowsChange): void {
       </span>
     </template>
     <FactTabEditor
+      :tab="tab"
       :rows="rows"
       :columns="columns"
       :read="read"

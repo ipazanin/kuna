@@ -1,7 +1,7 @@
 import { ASSET_GROUPS } from '../domain/assets'
 import type { Asset } from '../domain/assets'
 import { sharedKeys } from '../domain/sharedKeys'
-import { booleanOf, idOf, inTabOrder, isUnreadable, optionalDate, positiveMoney, readRow, refuse, requiredChoice, requiredDate, slugOf, textOf } from './cellReading'
+import { booleanOf, isUnreadable, optionalDate, ownIdOf, positiveMoney, readRow, refuse, requiredChoice, requiredDate, sharedIds, slugOf, tabReading, textOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 
@@ -10,33 +10,37 @@ import type { SheetRow } from './workbookSnapshot'
  * would count the asset twice. A grant the grants tab does not hold is reported and the asset kept.
  */
 export function readAssets(rows: readonly SheetRow[], grantSlugs: ReadonlySet<string>): TabReading<Asset> {
-  const read: Asset[] = []
+  const read: { readonly row: SheetRow; readonly asset: Asset }[] = []
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
-    const asset = readRow(() => readAssetRow(row))
+  const shared = sharedIds(rows)
+  for (const row of rows) {
+    const asset = readRow(() => readAssetRow(row, shared))
     if (isUnreadable(asset)) {
       problems.push({ sheetRow: row.sheetRow, reason: asset.unreadable })
     } else {
-      read.push(asset)
+      read.push({ row, asset })
     }
   }
   const keyOf = (asset: Asset): string => asset.name.toLowerCase()
-  const shared = sharedKeys(read, keyOf)
+  const listedTwice = sharedKeys(
+    read.map(({ asset }) => asset),
+    keyOf,
+  )
   const facts: Asset[] = []
-  for (const asset of read) {
-    if (shared.has(keyOf(asset))) {
-      problems.push({ sheetRow: asset.sheetRow, reason: `"${asset.name}" is listed on more than one row, so none of them counts` })
+  for (const { row, asset } of read) {
+    if (listedTwice.has(keyOf(asset))) {
+      problems.push({ sheetRow: row.sheetRow, reason: `"${asset.name}" is listed on more than one row, so none of them counts` })
       continue
     }
     if (asset.fundedBy !== '' && !grantSlugs.has(asset.fundedBy)) {
-      problems.push({ sheetRow: asset.sheetRow, reason: `${asset.fundedBy} is not on the grants tab, so the asset's depreciation releases no grant` })
+      problems.push({ sheetRow: row.sheetRow, reason: `${asset.fundedBy} is not on the grants tab, so the asset's depreciation releases no grant` })
     }
     facts.push(asset)
   }
-  return { facts, problems }
+  return tabReading('assets', rows, facts, problems)
 }
 
-function readAssetRow(row: SheetRow): Asset {
+function readAssetRow(row: SheetRow, shared: ReadonlySet<string>): Asset {
   const { cells } = row
   const name = textOf(cells.asset)
   if (name === '') refuse('no asset name')
@@ -59,7 +63,6 @@ function readAssetRow(row: SheetRow): Asset {
     fundedBy: slugOf(cells.funded_by),
     ledgerReference: textOf(cells.ledger_reference),
     note: textOf(cells.note),
-    sheetRow: row.sheetRow,
-    ...idOf(cells),
+    id: ownIdOf('assets', row, shared),
   }
 }

@@ -19,7 +19,7 @@ import { TERMS_LINK } from '../../invoicing/presentation/invoicingLinks'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import { BILLING_PLAN_COLUMNS } from '../../workbook/infrastructure/billingPlanTabReader'
-import { spreadsheetLink } from '../../workbook/infrastructure/sheetRowLink'
+import { spreadsheetLink } from '../../workbook/infrastructure/spreadsheetLink'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useBillingPlan } from '../application/useBillingPlan'
 import { fillRestOfYear } from '../domain/fillRestOfYear'
@@ -239,7 +239,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               <div class="min-w-0">
                 <p>{{ problems.length === 1 ? 'One row of the tab is' : `${problems.length} rows of the tab are` }} left out until it is fixed:</p>
                 <ul class="text-xs text-muted">
-                  <li v-for="problem in problems" :key="problem.sheetRow">Row {{ problem.sheetRow }}: {{ problem.reason }}</li>
+                  <li v-for="(problem, index) in problems" :key="index">{{ problem.label }}: {{ problem.reason }}</li>
                 </ul>
               </div>
             </div>

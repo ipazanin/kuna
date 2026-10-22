@@ -1,8 +1,10 @@
 import { DIRECTOR_BASES, SCENARIO_COMPONENTS } from '../domain/ownerPayScenarios'
 import type { OwnerPayScenario, ScenarioComponent } from '../domain/ownerPayScenarios'
 import { sharedKeys } from '../domain/sharedKeys'
-import { inTabOrder, isUnreadable, moneyOf, optionalDate, readRow, refuse, requiredChoice, requiredYear, slugOf, textOf } from './cellReading'
+import { isUnreadable, moneyOf, optionalDate, readRow, recordProblems, refuse, requiredChoice, requiredYear, slugOf, textOf } from './cellReading'
 import type { RowProblem } from './cellReading'
+import type { RecordProblem } from '../domain/workbook'
+import { readRecordId } from './tabRecords'
 import type { SheetRow } from './workbookSnapshot'
 import type { Money } from '../../../shared/money/money'
 
@@ -23,10 +25,10 @@ interface ScenarioRow {
  * rows name two years is left out whole. The same component with the same span on more than one
  * row is left out on every one. A label the rows give differently reads blank.
  */
-export function readScenarios(rows: readonly SheetRow[]): { readonly scenarios: readonly OwnerPayScenario[]; readonly problems: readonly RowProblem[] } {
+export function readScenarios(rows: readonly SheetRow[]): { readonly scenarios: readonly OwnerPayScenario[]; readonly problems: readonly RecordProblem[] } {
   const bySlug = new Map<string, { readonly row: SheetRow; readonly read: ScenarioRow }[]>()
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
+  for (const row of rows) {
     const read = readRow(() => readScenarioRow(row))
     if (isUnreadable(read)) {
       problems.push({ sheetRow: row.sheetRow, reason: read.unreadable })
@@ -56,7 +58,7 @@ export function readScenarios(rows: readonly SheetRow[]): { readonly scenarios: 
       scenarios.push({ slug, label: labels.length === 1 ? labels[0]! : '', year: years[0]!, components: kept.map(({ read }) => read.component) })
     }
   }
-  return { scenarios, problems }
+  return { scenarios, problems: recordProblems('scenarios', rows, problems) }
 }
 
 function readScenarioRow(row: SheetRow): ScenarioRow {
@@ -70,7 +72,7 @@ function readScenarioRow(row: SheetRow): ScenarioRow {
     if (date !== null && Number(date.slice(0, 4)) !== year) refuse(`${column} ${date} is outside ${year}`)
   }
   if (from !== null && to !== null && to < from) refuse(`to ${to} is before from ${from}`)
-  const span = { from, to, sheetRow: row.sheetRow }
+  const span = { from, to, id: readRecordId('scenarios', cells) }
   const written = slugOf(cells.component)
   const component = written.startsWith(NONTAXABLE_PREFIX)
     ? nontaxableComponent(written.slice(NONTAXABLE_PREFIX.length).trim(), cells, span)
@@ -78,7 +80,7 @@ function readScenarioRow(row: SheetRow): ScenarioRow {
   return { slug, label: textOf(cells.label), year, component, key: `${written} ${from ?? ''} ${to ?? ''}` }
 }
 
-type Span = Pick<ScenarioComponent, 'from' | 'to' | 'sheetRow'>
+type Span = Pick<ScenarioComponent, 'from' | 'to' | 'id'>
 
 function nontaxableComponent(item: string, cells: SheetRow['cells'], span: Span): ScenarioComponent {
   if (!ITEM_SHAPE.test(item)) refuse(`"${item}" is not a tax-free item name, such as nontaxable:occasional-gift`)

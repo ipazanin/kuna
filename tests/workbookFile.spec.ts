@@ -12,7 +12,7 @@ import { readWorkbook } from '../src/features/workbook/infrastructure/workbookRe
 import type { CellValue, WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { emptyWorkbookTabs } from '../src/features/workbook/infrastructure/workbookTemplate'
 
-const META = { id: 'file', source: 'excel', title: 'File', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] } as const
+const META = { id: 'file', source: 'excel', title: 'File', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] } as const
 
 function workbookOf(tabs: WorkbookTabs): Workbook {
   return readWorkbook({ meta: META, ...tabs })
@@ -132,9 +132,9 @@ describe('reading an xlsx file', () => {
       defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'splits', 'dismissed'],
       refusal: null,
     })
-    expect(preview.summary.problems.map((problem) => [problem.tab, problem.sheetRow])).toEqual([
-      ['settings', 3],
-      ['ledger', 4],
+    expect(preview.summary.problems.map((problem) => [problem.tab, problem.label])).toEqual([
+      ['settings', 'colour'],
+      ['ledger', 'yesterday, 1, balance 1'],
     ])
     expect(refused.summary.refusal).toMatch(/no tab called "ledger"/)
   })

@@ -9,7 +9,7 @@ const BOOKS: GoogleSheet = { id: 'sheet-1', name: 'Books' }
 
 function snapshotOf(sheet: GoogleSheet): WorkbookSnapshot {
   return {
-    meta: { id: sheet.id, source: 'google', title: sheet.name, syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: 0, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id: sheet.id, source: 'google', title: sheet.name, syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...EMPTY_TABS,
   }
 }

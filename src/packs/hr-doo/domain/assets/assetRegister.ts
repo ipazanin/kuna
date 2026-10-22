@@ -1,6 +1,7 @@
 import { rowDrill } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import type { Asset } from '../../../../features/workbook/domain/assets'
+import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import type { Category, Transaction } from '../../../../features/workbook/domain/workbook'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import { addMoney, negateMoney, sumMoney } from '../../../../shared/money/money'
@@ -93,7 +94,7 @@ export function assetRegister(
 }
 
 /**
- * The names of the assets that claim each bank row, by the row's place on the ledger, as the
+ * The names of the assets that claim each bank row, by the row's record id, as the
  * register matches them. A split of such a row is refused, so the row counts whole.
  */
 export function assetsClaimingRows(
@@ -101,11 +102,11 @@ export function assetsClaimingRows(
   transactions: readonly Transaction[],
   categories: readonly Category[],
   rules: RuleSource = ruleValue,
-): ReadonlyMap<number, readonly string[]> {
-  const claiming = new Map<number, string[]>()
+): ReadonlyMap<RecordId, readonly string[]> {
+  const claiming = new Map<RecordId, string[]>()
   for (const { asset, payment } of assetRegister(assets, transactions, categories, rules).assets) {
     if (payment !== null) {
-      claiming.set(payment.row.sheetRow, [...(claiming.get(payment.row.sheetRow) ?? []), asset.name])
+      claiming.set(payment.row.id, [...(claiming.get(payment.row.id) ?? []), asset.name])
     }
   }
   return claiming

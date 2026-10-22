@@ -6,10 +6,12 @@ import { ownerPayPlan, planGuards } from '../src/packs/hr-doo/domain/forecast/pl
 import { switchedScenario } from '../src/packs/hr-doo/domain/scenarios/switchedScenario'
 import { civil, euros } from './fixtures/ledger'
 import { planLine, planOwnerPay } from './fixtures/steadyStudio'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { PLAN_RECORDS, SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
 
-/** A scenario whose rows start on `firstRow` of the scenarios tab. */
-function scenario(slug: string, year: number, components: readonly ComponentDraft[], firstRow = 2): OwnerPayScenario {
-  return { slug, label: '', year, components: components.map((component, index) => ({ ...component, sheetRow: firstRow + index }) as ScenarioComponent) }
+/** A scenario, each component's id made from its scenario and place. */
+function scenario(slug: string, year: number, components: readonly ComponentDraft[]): OwnerPayScenario {
+  return { slug, label: '', year, components: components.map((component, index) => ({ ...component, id: recordIdOf(SCENARIO_RECORDS, `${slug}-${index}`) }) as ScenarioComponent) }
 }
 
 const FLOOR = scenario('floor', 2027, [
@@ -22,7 +24,7 @@ const BOARD = scenario('board', 2027, [
   { component: 'director_basis', basis: 'board-only', from: civil('2027-06-05'), to: null },
   { component: 'rent_monthly', amount: euros(300), from: null, to: null },
 ])
-const RAISED = scenario('raised', 2027, [{ component: 'salary_gross', gross: euros(2500), from: null, to: null }], 9)
+const RAISED = scenario('raised', 2027, [{ component: 'salary_gross', gross: euros(2500), from: null, to: null }])
 
 describe('switchedScenario', () => {
   it('cuts each scenario to its part of the year and leaves the dividend out', () => {
@@ -66,14 +68,14 @@ describe('ownerPayPlan', () => {
   })
 
   it.each([
-    ['two switches', [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'board', '2027-06-05', 3), planOwnerPay(2027, 'raised', '2027-09-01', 4)], "Rows 3 and 4 each switch the owner pay of 2027. A year's plan switches once, from one scenario to another."],
-    ['a switch with nothing before it', [planOwnerPay(2027, 'board', '2027-06-05', 3)], 'Row 3 switches the owner pay on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.'],
-    ['a switch on 1 January', [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'board', '2027-01-01', 3)], 'Row 3 switches the owner pay on 1 January, which leaves the first scenario no day. Leave its date blank instead.'],
-    ['a scenario of another year', [planOwnerPay(2027, 'old', null, 2)], 'Row 2 names old, a scenario for 2026, in the plan for 2027.'],
+    ['two switches', [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'board', '2027-06-05', 3), planOwnerPay(2027, 'raised', '2027-09-01', 4)], "The owner pay of 2027 switches on 2027-06-05 and 2027-09-01. A year's plan switches once, from one scenario to another."],
+    ['a switch with nothing before it', [planOwnerPay(2027, 'board', '2027-06-05', 3)], 'The owner pay switches to board on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.'],
+    ['a switch on 1 January', [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'board', '2027-01-01', 3)], 'The switch to board is dated 1 January 2027, which leaves the first scenario no day. Leave its date blank instead.'],
+    ['a scenario of another year', [planOwnerPay(2027, 'old', null, 2)], 'The owner pay of 2027 names old, a scenario for 2026.'],
     [
       'two salaries in the switch month',
       [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'raised', '2027-06-15', 3)],
-      'The owner pay of rows 2 and 3: Rows 2 and 9 both pay a salary in 2027-06. A salary can change only from the first of a month.',
+      'The owner pay of 2027: The floor salary to 2027-06-14 and the salary of 2500.00 from 2027-06-15 both pay a salary in 2027-06. A salary can change only from the first of a month.',
     ],
   ])('refuses %s', (_case, lines, reason) => {
     const plan = ownerPayPlan(lines, scenarios)
@@ -84,8 +86,9 @@ describe('ownerPayPlan', () => {
 describe('planGuards', () => {
   it('allows one dividend a year and refuses a second', () => {
     expect(planGuards([planLine(6, 'dividend', 5000, '', 2027)], [])).toEqual([])
-    const two = { ...planLine(9, 'dividend', 1000, '', 2027), sheetRow: 5 }
-    expect(planGuards([planLine(6, 'dividend', 5000, '', 2027), two], [])).toEqual([{ sheetRows: [2, 5], reason: 'Rows 2 and 5 each plan a dividend for 2027. Plan one payout a year.' }])
+    const one = planLine(6, 'dividend', 5000, '', 2027)
+    const two = { ...planLine(9, 'dividend', 1000, '', 2027), id: recordIdOf(PLAN_RECORDS, 'row-5') }
+    expect(planGuards([one, two], [])).toEqual([{ ids: [one.id, two.id], reason: 'The plan for 2027 pays a dividend in month 6 and month 9. Plan one payout a year.' }])
     expect(planGuards([planLine(6, 'dividend', 5000, '', 2026), planLine(6, 'dividend', 5000, '', 2027)], [])).toEqual([])
   })
 })

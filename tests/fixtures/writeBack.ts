@@ -150,7 +150,7 @@ export async function excelHarness(used: Set<string>, grids = workbookGrids()): 
   const id = 'local-under-test'
   const tabs = Object.fromEntries(Object.entries(grids).map(([tab, values]) => [tab, sheetRowsFromValues(values)]))
   const snapshot = {
-    meta: { id, source: 'excel', title: 'Books', syncedAt: '2026-10-16T09:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id, source: 'excel', title: 'Books', syncedAt: '2026-10-16T09:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...EMPTY_TABS,
     ...tabs,
   } as WorkbookSnapshot

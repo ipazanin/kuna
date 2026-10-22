@@ -10,6 +10,8 @@ import type { CellGrid } from '../src/features/imports/domain/tabularStatement'
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
 import { parseSettings, settingsTabEntries } from '../src/features/settings/domain/settings'
 import { moneyFromCents } from '../src/shared/money/money'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { SETTING_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 /** The shape of a Croatian bank's xlsx export, every value invented: a title, the header, rows newest first, a total. */
 const HEADER = ['Datum valute', 'Datum knjiženja', 'Naziv primatelja / platitelja', 'IBAN primatelja / platitelja', 'Opis plaćanja', 'Isplata', 'Uplata', 'Stanje']
@@ -196,11 +198,11 @@ describe('import profiles', () => {
   })
 
   it('follows the workbook on its settings tab, and an export writes it back', () => {
-    const rows = [{ key: 'import_profile_primjer-banka', value: profileValue(PROFILE), sheetRow: 2 }, { key: 'import_profile_broken', value: 'date=D', sheetRow: 3 }]
+    const rows = [{ key: 'import_profile_primjer-banka', value: profileValue(PROFILE) }, { key: 'import_profile_broken', value: 'date=D' }]
     const { settings, problems } = parseSettings(rows)
 
     expect(settings.importProfiles).toEqual([PROFILE])
-    expect(problems).toEqual([{ sheetRow: 3, reason: 'import_profile_broken: the profile names no account, so the profile is not offered' }])
+    expect(problems).toEqual([{ id: recordIdOf(SETTING_RECORDS, 'import_profile_broken'), label: 'import_profile_broken', reason: 'the profile names no account, so the profile is not offered' }])
     expect(settingsTabEntries(settings).at(-1)).toEqual({ key: 'import_profile_primjer-banka', value: profileValue(PROFILE) })
   })
 

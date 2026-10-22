@@ -239,7 +239,7 @@ function forecastView(workbook: Workbook, year: number, asOf: CivilDate, context
       months: line.months.map((entry) => ({ key: entry.month, month: monthLabel(entry.month), plan: entry.plan.amount, actual: entry.actual.amount, difference: entry.difference.amount })),
     }),
   )
-  const notCounted = new Map(forecast.notModelled.map((entry) => [entry.line.sheetRow, entry.reason]))
+  const notCounted = new Map(forecast.notModelled.map((entry) => [entry.line.id, entry.reason]))
   const employment = workbook.grants.flatMap((grant): string[] => {
     const until = grant.employmentRequiredUntil
     if (until === null || yearOf(until) !== year) {

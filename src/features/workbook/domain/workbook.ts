@@ -14,6 +14,9 @@ import type { Dismissal } from './dismissals'
 import type { Grant } from './grants'
 import type { OwnerPayScenario } from './ownerPayScenarios'
 import type { PlanLine } from './plan'
+import { recordIdOf } from './recordId'
+import type { RecordId } from './recordId'
+import { CATEGORY_RECORDS } from './recordKind'
 import type { VatTreatment } from './vatTreatment'
 import type { LedgerSplit } from './splits'
 import type { YearEndLine } from './yearEnd'
@@ -29,6 +32,11 @@ export interface Category {
   readonly roles: readonly string[]
   /** How a purchase in it splits into cost and VAT. */
   readonly vat: VatTreatment
+}
+
+/** A category's record id, which its slug makes. */
+export function categoryIdOf(category: Pick<Category, 'slug'>): RecordId {
+  return recordIdOf(CATEGORY_RECORDS, category.slug)
 }
 
 export interface Account {
@@ -82,8 +90,8 @@ export interface Transaction {
   readonly signals: TransactionSignals
   /** Why the statement parser wants a person to look at the row, such as `reversal`. Column U. */
   readonly reviewReasons: readonly string[]
-  /** The 1-based row on the tab when it was read. */
-  readonly sheetRow: number
+  /** By its `LedgerRowKey`. */
+  readonly id: RecordId
   /** Set on a part of a split bank row, which the screens count in the row's place. */
   readonly split?: SplitPartOf
 }
@@ -95,8 +103,8 @@ export interface SplitPartOf {
   readonly index: number
   readonly count: number
   readonly note: string
-  /** The part's row on the splits tab. */
-  readonly sheetRow: number
+  /** The part's own id. */
+  readonly id: RecordId
 }
 
 /** What profit and loss counts of a row: a bank transaction, or a cost the owner paid privately. */
@@ -115,8 +123,8 @@ export interface Invoice {
   readonly due: CivilDate | null
   /** The period the work was delivered in, or null when the tab leaves it blank and the issue date stands for it. */
   readonly deliveryPeriod: DateRange | null
-  /** The 1-based row on the tab when it was read. */
-  readonly sheetRow: number
+  /** By its client and number. */
+  readonly id: RecordId
 }
 
 /** The order invoices were issued in: by issue date, then by number, with the numbers inside it compared as numbers. */
@@ -159,9 +167,8 @@ export interface OwnerAdvance {
   readonly category: string
   readonly family: string
   readonly bucket: Bucket
-  readonly sheetRow: number
-  /** Absent on a row from before rows carried an id. */
-  readonly id?: string
+  /** Held by no other row of its tab. */
+  readonly id: RecordId
 }
 
 /** Costs the owner paid, oldest first, and on one day by amount, description and category. */
@@ -182,8 +189,17 @@ export function bookingOfAdvance(advance: OwnerAdvance): Booking {
   return { date: advance.date, amount: negateMoney(advance.amount), category: advance.category, family: advance.family, bucket: advance.bucket }
 }
 
-/** A row the reader could not turn into a fact, kept so the screen can say what was left out. */
-export interface WorkbookProblem {
+/** Why a stored record was left out or is doubted, with what names it for a person. */
+export interface RecordProblem {
+  /** Null when the record lacks its key or id. */
+  readonly id: RecordId | null
+  /** Such as an invoice's number or an asset's name. */
+  readonly label: string
+  readonly reason: string
+}
+
+/** A record the reader could not turn into a fact, or doubts, kept so the screen can say what was left out. */
+export interface WorkbookProblem extends RecordProblem {
   readonly tab:
     | 'ledger'
     | 'categories'
@@ -201,8 +217,6 @@ export interface WorkbookProblem {
     | 'scenarios'
     | 'splits'
     | 'dismissed'
-  readonly sheetRow: number
-  readonly reason: string
 }
 
 export interface Workbook {
@@ -210,8 +224,6 @@ export interface Workbook {
   readonly id: string
   readonly source: WorkbookSource
   readonly title: string
-  /** The `ledger` tab's numeric id, for links to its rows. Null for a copy cached without it. */
-  readonly ledgerSheetId: number | null
   /** ISO timestamp of the read this copy came from, or of the last change kept in this browser. */
   readonly syncedAt: string
   /** In the order the tab holds them, which the Apps Script keeps newest first. `sequence` gives the booking order. */

@@ -34,7 +34,6 @@ export async function readSnapshotFrom(sheets: SheetsValues, sheet: GoogleSheet)
       source: 'google',
       title: sheet.name,
       syncedAt,
-      ledgerSheetId: grids.get('ledger')?.sheetId ?? null,
       lastExportedAt: null,
       unexportedSince: null,
       missingTabs: WORKBOOK_TABS.filter((tab) => !grids.has(tab)),

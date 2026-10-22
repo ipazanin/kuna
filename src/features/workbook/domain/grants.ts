@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../shared/calendar/dateRange'
 import type { Money } from '../../../shared/money/money'
+import type { RecordId } from './recordId'
 
 /**
  * How a grant counts as income. `fixed-then-assets` releases the fixed part when it is received and
@@ -37,5 +38,6 @@ export interface Grant {
   /** The day until which the grant requires the owner's employment, or null. */
   readonly employmentRequiredUntil: CivilDate | null
   readonly note: string
-  readonly sheetRow: number
+  /** By its name. */
+  readonly id: RecordId
 }

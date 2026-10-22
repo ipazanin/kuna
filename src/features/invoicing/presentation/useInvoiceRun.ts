@@ -10,7 +10,8 @@ import type { Money } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
 import { INVOICE_ROWS, invoiceCellsOf } from '../../receivables/application/invoiceRows'
-import { rowCellsOf } from '../../workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../workbook/application/tabRowWrites'
+import type { RecordId } from '../../workbook/domain/recordId'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RowCells, TabRowsChange } from '../../workbook/domain/rowChanges'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
@@ -28,7 +29,7 @@ import type { InvoiceLine } from '../domain/invoiceLines'
 import { nextInvoiceNumber, numberTaken } from '../domain/invoiceNumber'
 
 /** A new invoice, or the PDF and draft of one on the register made again. */
-export type InvoiceRunMode = { readonly kind: 'new'; readonly client: string | null } | { readonly kind: 'reexport'; readonly sheetRow: number }
+export type InvoiceRunMode = { readonly kind: 'new'; readonly client: string | null } | { readonly kind: 'reexport'; readonly id: RecordId }
 
 /** A line as typed, the amount as text until it reads as money. */
 export interface LineDraft {
@@ -103,7 +104,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
 
   const reexported = computed((): Invoice | null => {
     const current = mode.value
-    return current.kind === 'reexport' ? (workbook.value?.invoices.find((invoice) => invoice.sheetRow === current.sheetRow) ?? null) : null
+    return current.kind === 'reexport' ? (workbook.value?.invoices.find((invoice) => invoice.id === current.id) ?? null) : null
   })
 
   const expected = computed(() => (workbook.value === null ? [] : expectedInvoices(workbook.value.billingPlan, workbook.value.invoices)))
@@ -363,13 +364,12 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     })
     const current = mode.value
     if (current.kind === 'new') return { added: [cells], changed: [], removed: [] }
-    const row = store.state.snapshot?.invoices.find((candidate) => candidate.sheetRow === current.sheetRow)
-    if (row === undefined) return null
-    const before = rowCellsOf(row, INVOICE_ROWS.columns)
+    const before = storedCellsOf(store.state.snapshot?.invoices ?? [], INVOICE_ROWS, current.id)
+    if (before === null) return null
     const after: RowCells = { ...before, item: cells.item!, amount: cells.amount! }
     return String(after.item) === String(before.item) && Number(after.amount) === Number(before.amount)
       ? null
-      : { added: [], changed: [{ sheetRow: row.sheetRow, before, after }], removed: [] }
+      : { added: [], changed: [{ before, after }], removed: [] }
   }
 
   async function writeRegister(change: TabRowsChange): Promise<void> {

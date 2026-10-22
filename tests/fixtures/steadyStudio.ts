@@ -11,6 +11,8 @@ import { withPackBuckets } from './hrDooCategories'
 import { civil, euros, ledger } from './ledger'
 import type { RowSpec } from './ledger'
 import { NO_CLIENT_INVOICING } from '../../src/features/workbook/domain/workbook'
+import { recordIdOf } from '../../src/features/workbook/domain/recordId'
+import { ASSET_RECORDS, GRANT_RECORDS, INVOICE_RECORDS, PLAN_RECORDS } from '../../src/features/workbook/domain/recordKind'
 
 // Steady Studio d.o.o., registered on 2 January 2025, with synthetic figures. It invoices its one
 // client on the last day of each month and is paid on the 20th of the next. Pay and payroll tax
@@ -68,7 +70,7 @@ export const STEADY_INVOICES: readonly Invoice[] = monthsTo(9).map((month, index
   issued: civil(lastDay(month)),
   due: null,
   deliveryPeriod: null,
-  sheetRow: index + 2,
+  id: recordIdOf(INVOICE_RECORDS, `${index + 1}-1`),
 }))
 
 /** Bank rows oldest first. The September 2026 invoice is paid after the ledger ends. */
@@ -108,7 +110,7 @@ export const STEADY_LAPTOP: Asset = {
   fundedBy: '',
   ledgerReference: 'Order 2001',
   note: '',
-  sheetRow: 2,
+  id: recordIdOf(ASSET_RECORDS, 'row-2'),
 }
 
 /** A fixed grant, so its release falls in 2025 and only its clawback terms reach 2026. */
@@ -123,7 +125,7 @@ export const STEADY_GRANT: Grant = {
   clawbackSecondYear: euros(500),
   employmentRequiredUntil: civil('2027-05-31'),
   note: '',
-  sheetRow: 2,
+  id: recordIdOf(GRANT_RECORDS, 'example-grant'),
 }
 
 /** The accountant's 2025 figures as the forecast reads them: the return and the equity carried into 2026. */
@@ -137,16 +139,16 @@ export const STEADY_YEAR_END_2025: readonly YearEndLine[] = [
 ]
 
 export function planLine(month: number | null, item: string, amount: number, note = '', year = 2026): PlanLine {
-  return { year, month, note, sheetRow: 2, kind: 'amount', item, amount: euros(amount) }
+  return { year, month, note, id: recordIdOf(PLAN_RECORDS, 'row-2'), kind: 'amount', item, amount: euros(amount) }
 }
 
-export function planPurchase(date: string, amount: number, group: AssetGroup, note = '', sheetRow = 2): PlanLine {
+export function planPurchase(date: string, amount: number, group: AssetGroup, note = '', row = 2): PlanLine {
   const day = civil(date)
-  return { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)), note, sheetRow, kind: 'purchase', date: day, amount: euros(amount), group }
+  return { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)), note, id: recordIdOf(PLAN_RECORDS, `row-${row}`), kind: 'purchase', date: day, amount: euros(amount), group }
 }
 
-export function planOwnerPay(year: number, scenario: string, from: string | null = null, sheetRow = 2): PlanLine {
-  return { year, month: null, note: '', sheetRow, kind: 'owner-pay-scenario', scenario, from: from === null ? null : civil(from) }
+export function planOwnerPay(year: number, scenario: string, from: string | null = null, row = 2): PlanLine {
+  return { year, month: null, note: '', id: recordIdOf(PLAN_RECORDS, `row-${row}`), kind: 'owner-pay-scenario', scenario, from: from === null ? null : civil(from) }
 }
 
 export function steadyStudio(changes: Partial<Workbook> = {}): Workbook {

@@ -14,13 +14,15 @@ import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 let nextRow = 1
 
 function advance(date: string, amount: number, category = 'travel', description = 'Paid privately'): OwnerAdvance {
   nextRow += 1
   const defined = PACK_CATEGORIES.find((candidate) => candidate.slug === category)!
-  return { date: civil(date), amount: euros(amount), description, category, family: defined.family, bucket: defined.bucket, sheetRow: nextRow }
+  return { date: civil(date), amount: euros(amount), description, category, family: defined.family, bucket: defined.bucket, id: recordIdOf(OWNER_ADVANCE_RECORDS, `row-${nextRow}`) }
 }
 
 function rows(specs: readonly RowSpec[]) {

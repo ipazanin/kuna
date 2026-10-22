@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RowTab } from '../application/workbookWriter'
+import type { RowTab } from '../infrastructure/workbookWriter'
 
 /** Says, before a dialog saves, that the write adds the tab to a Google Sheet without one. */
 defineProps<{

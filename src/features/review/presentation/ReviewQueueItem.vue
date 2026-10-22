@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import type { Verdict } from '../../rules/domain/categorise'
@@ -20,8 +19,6 @@ const props = defineProps<{
   verdict: Verdict
   categories: readonly Category[]
   expanded: boolean
-  /** A link to the row in the Sheet, or null in Excel mode or before the tab's id is known. */
-  link: string | null
   /** True when the splits tab already splits the row, so Split edits its parts. */
   split: boolean
   busy: boolean
@@ -121,12 +118,6 @@ function recategorise(category: string | undefined): void {
           <dd>{{ transaction.reviewReasons.join(', ') }}</dd>
         </div>
       </dl>
-
-      <a v-if="link" :href="link" target="_blank" rel="noopener noreferrer" class="sheet-link inline-target inline-flex items-center gap-1 text-sm text-toned">
-        Row {{ transaction.sheetRow }} in the Sheet
-        <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
-        <span class="sr-only">(opens the Google Sheet in a new tab)</span>
-      </a>
 
       <p v-if="!confirmable" class="text-xs text-muted">
         Its category is not on the categories tab, so it cannot be confirmed as it is. Recategorise it, and the toast offers to make a rule
@@ -236,18 +227,5 @@ function recategorise(category: string | undefined): void {
   .facts {
     grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
   }
-}
-
-.sheet-link {
-  width: fit-content;
-  text-decoration-line: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 3px;
-  transition: text-decoration-color 120ms ease;
-}
-
-.sheet-link:hover {
-  color: var(--ink-strong);
-  text-decoration-color: var(--accent);
 }
 </style>

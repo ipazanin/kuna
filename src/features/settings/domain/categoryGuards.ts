@@ -9,7 +9,6 @@ interface CategoryCells {
 
 /** One categories row before and after a change. `before` is null for an added row, `after` for a deleted one. */
 export interface CategoryEdit {
-  readonly sheetRow: number | null
   readonly before: CategoryCells | null
   readonly after: CategoryCells | null
 }
@@ -29,12 +28,12 @@ export interface CategoryUses {
  */
 export function categoryChangeRefusals(
   edits: readonly CategoryEdit[],
-  untouched: readonly { readonly sheetRow: number; readonly slug: string }[],
+  untouched: readonly { readonly slug: string }[],
   uses: CategoryUses,
 ): string[] {
   const refusals = slugChangeRefusals(
     'category',
-    { edits: edits.map((edit) => ({ sheetRow: edit.sheetRow, from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
+    { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
     uses.named,
     true,
   )

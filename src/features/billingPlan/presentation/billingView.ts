@@ -8,6 +8,7 @@ import type { Money } from '../../../shared/money/money'
 import { formatPercent, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import { billingItemOrder } from '../../workbook/domain/billingPlan'
+import type { RecordId } from '../../workbook/domain/recordId'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
 import type { BillingPlanFigures } from '../application/useBillingPlan'
 import type { MatchedBillingItem } from '../domain/plannedAgainstInvoiced'
@@ -30,8 +31,7 @@ export interface BillingInvoiceShare {
 
 /** One plan row with what the invoices billed of it. */
 export interface BillingRowLine {
-  readonly key: string
-  readonly sheetRow: number
+  readonly id: RecordId
   readonly item: string
   readonly colour: string
   readonly date: CivilDate
@@ -46,7 +46,7 @@ export interface BillingRowLine {
 
 /** What an invoice issued in a month billed above the plan rows it could reach. */
 export interface WithoutPlanLine {
-  readonly key: string
+  readonly key: RecordId
   readonly number: string
   readonly clientName: string
   readonly issued: CivilDate
@@ -90,8 +90,7 @@ export function billingView(
     tokens,
   )
   const rowLine = (matched: MatchedBillingItem): BillingRowLine => ({
-    key: `${matched.row.client}-${matched.row.sheetRow}`,
-    sheetRow: matched.row.sheetRow,
+    id: matched.row.id,
     item: matched.row.item,
     colour: colours.get(matched.row.item) ?? tokens.deemphasis,
     date: matched.row.date,
@@ -101,7 +100,7 @@ export function billingView(
     amount: matched.row.amount,
     open: matched.open,
     status: statusOf(matched.row.amount, matched.open),
-    invoices: matched.invoices.map((share, index) => ({ key: `${share.invoice.client}-${share.invoice.sheetRow}-${index}`, number: share.invoice.number, amount: share.amount })),
+    invoices: matched.invoices.map((share, index) => ({ key: `${share.invoice.id}-${index}`, number: share.invoice.number, amount: share.amount })),
   })
 
   const matchedRows = figures.matches
@@ -114,7 +113,7 @@ export function billingView(
     .filter((share) => yearOf(share.invoice.issued) === year)
     .map(
       (share): WithoutPlanLine => ({
-        key: `${share.invoice.client}-${share.invoice.sheetRow}`,
+        key: share.invoice.id,
         number: share.invoice.number,
         clientName: nameOf(share.invoice.client),
         issued: share.invoice.issued,

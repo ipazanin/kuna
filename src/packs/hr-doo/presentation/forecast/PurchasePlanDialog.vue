@@ -68,14 +68,14 @@ async function save(): Promise<void> {
   const cells = purchasePlanCells(props.year, day.value, cost.value as Money, group.value, name.value)
   const before = props.purchase === null ? null : writes.rowOf(props.purchase)
   if (props.purchase !== null && before === null) return
-  const change = before === null ? { added: [cells], changed: [], removed: [] } : { added: [], changed: [{ sheetRow: before.sheetRow, before: before.cells, after: cells }], removed: [] }
+  const change = before === null ? { added: [cells], changed: [], removed: [] } : { added: [], changed: [{ before, after: cells }], removed: [] }
   if (await writes.write(change, { title: props.purchase === null ? 'Purchase planned' : 'Purchase saved', description: `${name.value.trim()}, written to ${writes.where()}.` }, 'Not saved')) open.value = false
 }
 
 async function remove(): Promise<void> {
   const row = props.purchase === null ? null : writes.rowOf(props.purchase)
   if (row === null) return
-  if (await writes.write({ added: [], changed: [], removed: [row] }, { title: 'Purchase deleted', description: `Row ${row.sheetRow} of ${writes.where()} is taken out.` }, 'Not deleted')) open.value = false
+  if (await writes.write({ added: [], changed: [], removed: [row] }, { title: 'Purchase deleted', description: `${name.value.trim() || 'The purchase'} is taken out of ${writes.where()}.` }, 'Not deleted')) open.value = false
 }
 </script>
 

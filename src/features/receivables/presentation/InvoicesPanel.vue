@@ -29,6 +29,7 @@ import { CLIENTS_LINK } from '../../invoicing/presentation/invoicingLinks'
 import type { InvoiceRunMode } from '../../invoicing/presentation/useInvoiceRun'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import type { RecordId } from '../../workbook/domain/recordId'
 import { listedRowKey } from '../../workbook/domain/splits'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { invoiceOrder, newestBookingOf } from '../../workbook/domain/workbook'
@@ -59,17 +60,17 @@ const phone = usePhoneLayout()
 const { state } = useWorkbook()
 
 /** The invoice the dialog edits, or null to add one. */
-const editing = ref<number | null>(null)
+const editing = ref<RecordId | null>(null)
 const dialogOpen = ref(false)
 
-function openInvoice(sheetRow: number | null): void {
-  editing.value = sheetRow
+function openInvoice(id: RecordId | null): void {
+  editing.value = id
   dialogOpen.value = true
 }
 
-function reexport(sheetRow: number): void {
+function reexport(id: RecordId): void {
   dialogOpen.value = false
-  emit('run', { kind: 'reexport', sheetRow })
+  emit('run', { kind: 'reexport', id })
 }
 
 const invoiceDialog = computed(() => {
@@ -168,8 +169,7 @@ const view = computed(() => {
               ? 'due today'
               : `${days} ${days === 1 ? 'day' : 'days'} past due`
       return {
-        key: `${entry.client.slug}-${invoice.invoice.sheetRow}`,
-        sheetRow: invoice.invoice.sheetRow,
+        id: invoice.invoice.id,
         number: invoice.invoice.number,
         client: clientName(entry),
         item: invoice.invoice.item,
@@ -372,7 +372,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
     <InvoiceDialog
       v-if="invoiceDialog && invoiceDialog.defaultIssued"
       v-model:open="dialogOpen"
-      :sheet-row="editing"
+      :id="editing"
       :clients="invoiceDialog.clients"
       :default-issued="invoiceDialog.defaultIssued"
       :latest-number="invoiceDialog.latestNumber"

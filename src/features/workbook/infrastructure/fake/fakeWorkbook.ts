@@ -184,15 +184,14 @@ const LOSS_MONTH = '2025-11'
  * company, the way a template user would.
  * Rows the rules tab does not reproduce are flagged as a person's, so Review has coverage gaps to show.
  */
-export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 'google', withIds = true): WorkbookSnapshot {
-  const values = fakeWorkbookValues(source, withIds)
+export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 'google', idOnEveryRow = true): WorkbookSnapshot {
+  const values = fakeWorkbookValues(source, idOnEveryRow)
   return {
     meta: {
       id: FAKE_SPREADSHEET_ID,
       source,
       title: FAKE_WORKBOOK_TITLE,
       syncedAt,
-      ledgerSheetId: source === 'google' ? 0 : null,
       lastExportedAt: null,
       unexportedSince: null,
       missingTabs: source === 'google' ? FAKE_SHEET_LACKS : [],
@@ -235,19 +234,27 @@ const FAKE_INVOICING: CellValue[][] = [
   ['invoice_signatory_title', 'director'],
 ]
 
+/** The tabs whose last row has no id without `idOnEveryRow`, as a row added by hand in the Sheet. */
+const ADDED_BY_HAND: readonly WorkbookTab[] = ['outgoing-plan', 'owner-advances']
+
 /**
  * The tabs as the Sheets API returns them: header row first, dates as serial numbers. The tabs
- * whose rows carry ids end with the id column and a fixed id on each row, or, without `withIds`,
- * lack the column, as a Sheet from before ids does.
+ * whose rows carry ids end with the id column and a fixed id on each row. Without `idOnEveryRow`
+ * the last row of two of them has none.
  */
-export function fakeWorkbookValues(source: WorkbookSource = 'google', withIds = true): Record<WorkbookTab, CellValue[][]> {
+export function fakeWorkbookValues(source: WorkbookSource = 'google', idOnEveryRow = true): Record<WorkbookTab, CellValue[][]> {
   const values = fakeTabs(source)
-  return withIds ? { ...values, ...Object.fromEntries(TABS_WITH_IDS.map((tab, tabIndex) => [tab, withFixedIds(values[tab], tabIndex)])) } : values
+  return { ...values, ...Object.fromEntries(TABS_WITH_IDS.map((tab, tabIndex) => [tab, withFixedIds(values[tab], tabIndex, !idOnEveryRow && ADDED_BY_HAND.includes(tab))])) }
 }
 
 /** The id column added to a tab, each row's id made from the tab's place and the row's, so every run gives the same ids. */
-function withFixedIds([header = [], ...rows]: readonly CellValue[][], tabIndex: number): CellValue[][] {
-  return [[...header, ID_COLUMN], ...rows.map((row, rowIndex) => [...row, `00000000-0000-4000-8000-${String(tabIndex + 1).padStart(4, '0')}${String(rowIndex + 1).padStart(8, '0')}`])]
+function withFixedIds([header = [], ...rows]: readonly CellValue[][], tabIndex: number, lastWithout: boolean): CellValue[][] {
+  return [
+    [...header, ID_COLUMN],
+    ...rows.map((row, rowIndex) =>
+      lastWithout && rowIndex === rows.length - 1 ? [...row] : [...row, `00000000-0000-4000-8000-${String(tabIndex + 1).padStart(4, '0')}${String(rowIndex + 1).padStart(8, '0')}`],
+    ),
+  ]
 }
 
 function fakeTabs(source: WorkbookSource): Record<WorkbookTab, CellValue[][]> {

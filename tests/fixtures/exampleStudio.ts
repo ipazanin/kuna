@@ -8,6 +8,8 @@ import type { YearEndFigure, YearEndLine, YearEndStatement } from '../../src/fea
 import { withPackBuckets } from './hrDooCategories'
 import { civil, euros, ledger } from './ledger'
 import type { RowSpec } from './ledger'
+import { recordIdOf } from '../../src/features/workbook/domain/recordId'
+import { ASSET_RECORDS, GRANT_RECORDS, INVOICE_RECORDS, OWNER_ADVANCE_RECORDS, YEAR_END_RECORDS } from '../../src/features/workbook/domain/recordKind'
 
 // Example Studio d.o.o., registered on 3 March 2025, with synthetic figures. Its first tax period
 // runs from March to December 2025, ten months.
@@ -90,7 +92,7 @@ export const STUDIO_GRANT: Grant = {
   clawbackSecondYear: euros(8000),
   employmentRequiredUntil: civil('2027-03-02'),
   note: '',
-  sheetRow: 2,
+  id: recordIdOf(GRANT_RECORDS, 'example-grant'),
 }
 
 export const STUDIO_ASSETS: readonly Asset[] = [
@@ -101,7 +103,7 @@ export const STUDIO_ASSETS: readonly Asset[] = [
 
 /** Software the owner paid for privately: 40.00 of cost and 10.00 of input VAT. */
 export const STUDIO_ADVANCES: readonly OwnerAdvance[] = [
-  { date: civil('2025-06-20'), amount: euros(50), description: 'Software bought privately', category: 'software', family: 'operating', bucket: 'operating', sheetRow: 2 },
+  { date: civil('2025-06-20'), amount: euros(50), description: 'Software bought privately', category: 'software', family: 'operating', bucket: 'operating', id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') },
 ]
 
 export function exampleStudio(changes: Partial<Workbook> = {}): Workbook {
@@ -110,7 +112,6 @@ export function exampleStudio(changes: Partial<Workbook> = {}): Workbook {
     id: 'example-studio',
     source: 'excel',
     title: 'Example Studio d.o.o.',
-    ledgerSheetId: null,
     syncedAt: '2026-10-18T00:00:00.000Z',
     transactions: withPackBuckets(ledger(STUDIO_ROWS), categories),
     categories,
@@ -134,7 +135,7 @@ export function exampleStudio(changes: Partial<Workbook> = {}): Workbook {
   }
 }
 
-let nextSheetRow = 2
+let nextRow = 2
 
 export function yearEndLine(
   year: number,
@@ -143,7 +144,7 @@ export function yearEndLine(
   figure: number | YearEndFigure,
   categories: readonly string[] = [],
 ): YearEndLine {
-  nextSheetRow += 1
+  nextRow += 1
   return {
     year,
     statement,
@@ -154,7 +155,7 @@ export function yearEndLine(
     aop: '',
     source: 'example-notes.pdf',
     note: '',
-    sheetRow: nextSheetRow,
+    id: recordIdOf(YEAR_END_RECORDS, `row-${nextRow}`),
   }
 }
 
@@ -167,7 +168,7 @@ function invoice(number: string, amount: number, issued: string, delivered: read
     issued: civil(issued),
     due: null,
     deliveryPeriod: delivered === null ? null : { from: civil(delivered[0]), to: civil(delivered[1]) },
-    sheetRow: 2,
+    id: recordIdOf(INVOICE_RECORDS, number),
   }
 }
 
@@ -183,6 +184,6 @@ function asset(name: string, cost: number, inUse: string, group: AssetGroup, led
     fundedBy: 'example-grant',
     ledgerReference,
     note: '',
-    sheetRow: 2,
+    id: recordIdOf(ASSET_RECORDS, name),
   }
 }

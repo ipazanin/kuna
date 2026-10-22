@@ -8,6 +8,8 @@ import type { Category, Client, Invoice } from '../src/features/workbook/domain/
 import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { INVOICE_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const NORTH = 'XX00FAKE0000000000000101'
 const NORTH_SECOND = 'XX00FAKE0000000000000102'
@@ -30,7 +32,7 @@ let nextRow = 2
 
 function invoice(number: string, amount: number, issued: string, due: string | null = null, client = 'north'): Invoice {
   nextRow += 1
-  return { number, client, item: '', amount: euros(amount), issued: civil(issued), due: due === null ? null : civil(due), deliveryPeriod: null, sheetRow: nextRow }
+  return { number, client, item: '', amount: euros(amount), issued: civil(issued), due: due === null ? null : civil(due), deliveryPeriod: null, id: recordIdOf(INVOICE_RECORDS, `row-${nextRow}`) }
 }
 
 function paid(date: string, amount: number, iban = NORTH): RowSpec {

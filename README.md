@@ -215,17 +215,30 @@ take their defaults.
 The rows of `outgoing-plan`, `owner-advances`, `assets`, `year-end`, `plan`, `splits` and
 `dismissed` carry an `id`, the tab's last column: a version 4 UUID the app makes, written as text.
 Every row the app adds there gets one, and a tab without the column gets it in the same write. A
-row without an id still reads. Overview's Waiting for you then says how many rows lack one, and
-"Add ids" opens a dialog that lists the tabs and their counts and writes every missing id, with the
-`id` header of each tab that lacks it, in one write. The line is gone once no row lacks an id, and
-it comes back for a row added by hand. The records read the id, and nothing finds a row by it yet.
+row without an id is reported by its label and left out, and so is every row of an id that more
+than one row holds, as a copied row does until its id cell is cleared. A split part left out this
+way leaves out its whole split. Overview's Waiting for you says how many rows lack an id, such as
+rows added by hand, and "Add ids" opens a dialog that lists the tabs and their counts and writes
+every missing id, with the `id` header of each tab that lacks it, in one write. The line is gone
+once no row lacks an id.
+
+Every record is known by its key or its id, never by its row: a ledger row by its account and
+reference, or for a row without a reference by its account, day, amount, balance and description,
+a category, an account, a grant or a setting by its name, a rule by its id, an invoice by its client
+and number, a `clients` row by its IBAN, a `scenarios` row by its scenario, component and days, and
+a row of the seven tabs above by its id. A write finds its rows that way, lists and links key on it,
+and a problem names its record by a label, such as an invoice's number, an asset's name, a plan
+row's item, client, day and amount, or a ledger row's day, counterparty, amount and balance. The
+Settings screen and an import list problems by tab and label. Two ledger rows that share their key
+both still count, each with a problem, and a split on either of them is left out, so the row counts
+whole.
 
 Nothing depends on where a row sits on its tab, so moving rows changes no figure. The ledger's
 booking order comes from the balances: within one account and day each entry's balance is the one
 before plus its amount, and the first opens at the account's closing balance of the day before
 where it can. When the balances allow two orders the reference decides, and accounts that share a
 day follow each other by name. A day whose balances do not chain is ordered by reference and
-reported on the row it then closes with, since its closing balance is a guess. Other ties go by
+reported on the entry it then closes with, since its closing balance is a guess. Other ties go by
 fields too: invoices of one day by number, billing plan rows of one day by item, amount and
 description, owner advances of one day by amount and description, the parts of a split larger
 first, and konto lines by their number. A key used on more than one row of a tab is never read
@@ -242,7 +255,7 @@ reversal, also waits for review until a person confirms it.
 ### Settings keys
 
 A blank value means the default. An unknown key is kept and reported. A value that does not hold
-falls back to the default and is reported with its row, in the import summary and on Settings,
+falls back to the default and is reported with its key, in the import summary and on Settings,
 General. The
 defaults are how the app behaved before settings existed, so a Sheet without a `settings` tab reads
 as before.
@@ -408,7 +421,7 @@ one part: the ledger row's `date`, `account`, `row_amount` and `row_balance`, th
 chain makes them unique. Copy the balance from the ledger row when typing a split in the Sheet.
 
 The reader checks each split and refuses it whole, every one of its tab rows reported, when one of
-these holds. The bank row then counts whole.
+these holds, each part named by its category, amount and day. The bank row then counts whole.
 
 | Guard | Refused when |
 |---|---|
@@ -905,9 +918,9 @@ The rows of the year can be added, edited and deleted in both modes. "Fill the r
 "Fill 2027" on the year after, previews the rows `fillRestOfYear` would add, with each description in a field to edit, and appends
 them. An edit writes only the cells that
 changed, so a formula amount left alone stays a formula. A delete takes the row out, so the rows
-below it move up. Both find the row as the app read it, on its own row or on the one row that holds
-it, and refuse when none or several do. Undo takes an addition back, puts a deleted row back on the
-row it stood on and an edited row back as it was. Without the tab the Plan tab names the headers to
+below it move up. Both find the row by its id, wherever it now stands, and refuse when no row or
+several rows hold it or it changed since. Undo takes an addition back, adds a deleted row again at the
+foot of the tab with its id, and puts an edited row back as it was. Without the tab the Plan tab names the headers to
 add, and in Excel mode starts one from its first row.
 
 **Clients** holds the clients tab as an editor, as *Settings screen* describes for a tab, and "Billing and
@@ -1184,8 +1197,8 @@ scenarios adds the tab, and `?fake=excel-no-scenarios` starts a workbook kept in
 scenario rows. `?fake=no-plan` and `?fake=excel-no-plan` do the same for the `plan` tab, so the plan
 editor's first save adds it, and `?fake=no-splits` and `?fake=excel-no-splits` the same for the
 `splits` tab and the split editor. The rows of the tabs that carry ids have fixed ids, and
-`?fake=no-ids` and `?fake=excel-no-ids` leave them out, with the column, so Overview offers to add
-them. The visual check covers all eight, and the import summary of an xlsx it writes from the fake
+`?fake=no-ids` and `?fake=excel-no-ids` leave the id out of the last row of `outgoing-plan` and of
+`owner-advances`, as rows added by hand, so Overview offers to add them. The visual check covers all eight, and the import summary of an xlsx it writes from the fake
 workbook. It and the touch check run against a preview of the fake build, so start one first:
 
 ```sh
@@ -1235,6 +1248,13 @@ naming the file, the line and the import:
 - Core, which is `src/features`, `src/shared` and `src/App.vue`, imports nothing from `src/packs`.
   Only `main.ts` does.
 
+It also fails on a line of `src` outside `src/features/workbook/infrastructure`, the spreadsheet
+adapter, that names `sheetRow`, so row numbers stay with the grid, and on `as RecordId` outside
+`src/features/workbook/domain/recordId.ts`. Elsewhere a record is known by its `RecordId`: its kind and its
+key or id, which `recordIdOf` makes and nothing reads apart. The adapter gives each record read from
+a row its id (`tabRecords.ts`), and a record's own domain makes one where it states identity, such
+as `categoryIdOf`.
+
 Google sign-in, the redirect, the session, Drive, the Picker and the script loader are in
 `src/shared/google/`. The Sheets client stays with the workbook, in
 `src/features/workbook/infrastructure/`.
@@ -1245,8 +1265,10 @@ Review, Transactions, Owner, Invoicing, Year and Settings write through one path
 touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
 what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
 In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
-write is complete. The plans live in `src/features/workbook/application/writePlans.ts`, the Google
-side in `googleWorkbookWriter.ts`.
+write is complete. The plans that find rows and place them are the spreadsheet adapter's, in
+`src/features/workbook/infrastructure/` (`tabRowPlans.ts`, `writePlans.ts` and `rowIds.ts`), and the
+Google side is `googleWorkbookWriter.ts` there. Every message names a record by its label, such as an
+invoice's number or an asset's name, and never by its row.
 
 - **Ledger rows.** A row is found again by (account, reference), or for a blank reference by
   (account, date, amount, balance, description), so rows the ingest inserted since the last sync do
@@ -1280,18 +1302,20 @@ side in `googleWorkbookWriter.ts`.
   reader would not use is refused.
 - **Rows of a tab.** `categories`, `accounts`, `clients`, `invoices`, `owner-advances`, `assets`,
   `grants`, `year-end`, `outgoing-plan`, `plan`, `scenarios`, `splits`, `dismissed` and the imported
-  rows of `ledger` share one plan, `src/features/workbook/application/tabRowWrites.ts`,
-  with each tab's rules beside its feature or pack. One write adds rows below the last one, changes rows in
-  place and deletes rows. A tab kept in an order of its own, which only the ledger is, places its
-  added rows above a row instead. A row to change or delete is found on its own row if that still holds what
-  the app read, else on the one row that does, and the write is refused when none or several do. A
-  change writes only the cells that differ. A delete takes the row out whole, so the rows below move
+  rows of `ledger` share one plan, `tabRowPlans.ts`, with each tab's rules
+  (`TabRowRules` in `src/features/workbook/application/tabRowWrites.ts`) beside its feature or pack.
+  One write adds rows below the last one, changes rows in place and deletes rows. A tab kept in an
+  order of its own, which only the ledger is, places its added rows where the Apps Script inserts a
+  batch instead. A row to change or delete is found by the key or id it held when the app read it,
+  wherever it now stands, as *The workbook format* lists them, and must still hold what the app
+  read. A row without its key, such as a category row with no name, is found by what it held. The
+  write is refused when none or several rows hold it, when the row changed since, and on a tab whose
+  rows carry ids when the id is blank or two rows hold it. A change writes only the cells that differ. A delete takes the row out whole, so the rows below move
   up and no blank row is left, on every tab. Dates go in as serial numbers and amounts as numbers. Before anything is written,
   the tab as the change would leave it is read by the tab's own reader: a row the change writes may
   not be left out or gain a problem, and a row it leaves alone may not drop out. Then the tab's
-  checks run, each with its reason. On a tab whose rows carry ids, an added row gets a new id, a
-  row is still found again by its other cells, and a deleted row keeps its id, so Undo puts it back
-  with the same one. A Google Sheet tab without the `id` column gets it in the same write, its header
+  checks run, each with its reason. On a tab whose rows carry ids, an added row gets a new id, and
+  a changed or deleted row keeps its id, so Undo finds it or puts it back with the same one. A Google Sheet tab without the `id` column gets it in the same write, its header
   after the last column with anything in it.
 
   | Tab | Refused, with the reason given |
@@ -1315,13 +1339,13 @@ side in `googleWorkbookWriter.ts`.
   nothing is added.
 
   The loan switch on Settings, General is a change to the `bucket` cells of the loan categories.
-  Undo writes the change back the other way through the same plan: added rows taken out, changed
-  rows put back, and each deleted row put back on the row it stood on, with its cells, the rows
-  from there down moving down again. The ledger's category dropdown is never touched.
+  Undo writes the change back the other way through the same plan: added rows taken out by their
+  key or id, changed rows put back, and each deleted row added again with the cells it held, so with
+  the same key or id. It lands below the last row of its tab, and a ledger row where its date puts
+  it, newest first. Nothing reads where a row sits, so the figures after Undo are those before the
+  delete. Undo is refused when the tab holds the key or id of the row it would put back again, as
+  the tab's reader would leave both out. The ledger's category dropdown is never touched.
   It takes its options from the categories tab's category column, a rule set up by hand in the Sheet.
-  Undo puts a deleted row back on the row it stood on, which is right only while the rows above it
-  are the same. So it is refused while a later write of the session, still in place, added or
-  deleted a row of the tab above it, and the refusal says to undo that later write first.
 
 Every write to a Google Sheet is one `spreadsheets.batchUpdate`, which Sheets applies in order and,
 when any of its requests is not valid, not at all. So a write that fails leaves the Sheet as it was,
@@ -1379,7 +1403,7 @@ batchUpdate and again after it:
 Run this on a copy (File, Make a copy in Google Sheets, then pick the copy in "Switch data source").
 Never run it first on the original.
 
-1. Pick the copy and sync. Note the row number of one `ai` row on Review.
+1. Pick the copy and sync. Note one `ai` row on Review and find it on `ledger` in the copy.
 2. Open the row and Confirm it. In the copy, only J on that row changed to your review label. I is
    as before. Press Undo in the toast and check J is back.
 3. Recategorise the same row. I and J change, nothing else. Wait for the toast to close, open
@@ -1397,7 +1421,7 @@ Never run it first on the original.
    categories changed.
    On Transactions, split a payment in two, check its two rows on `splits`, change a part, then
    delete the split. Check its rows are gone with no blank row left, press Undo and check they are
-   back on the rows they stood on, with the rows below them moved down again.
+   back at the foot of `splits` with the ids they had.
 9. On Invoicing, Clients, fill the invoice terms and give the client its address, invoice mail and
    reverse charge. On Invoicing, press "Make invoice" with a test
    number agreed beforehand, open the PDF, press Check and pick the invoice folder, the year folder
@@ -1419,10 +1443,10 @@ Never run it first on the original.
    Undo the import under "Changes in this session" and check the rows are gone with no blank row
    left, then import it once more. Run "Preview camt ingest (writes nothing)" from the Shadow
    Accounting menu and check it reports that statement as already filed.
-12. On Overview, the last line of Waiting for you says how many rows have no id yet. Press Add ids,
-   read the tabs and counts, and add them. In the copy, check each tab named has an `id` header after
-   its last column and an id on every row, and that no other cell changed. Sync and check the line
-   is gone.
+12. In the copy, add a row to `owner-advances` by hand and leave its `id` cell blank, then sync. On
+   Overview, the last line of Waiting for you says 1 row has no id, so it is left out. Press Add ids,
+   read the tab and count, and add it. In the copy, check that row now has an id and that no other
+   cell changed. Sync and check the line is gone and the advance counts on Owner.
 13. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
    reads the rules and settings tabs the way the morning ingest does, so it must finish without an
    error. Then repeat steps 2, 3 and 5 on the original, and check the next 06:00 run in Executions.
@@ -1434,7 +1458,7 @@ Never run it first on the original.
 `node:vm` and runs their categoriser and the app's rules engine over every ledger row, with the
 export's `rules` tab. An export without its `rules`, `settings` or `clients` tab is refused. It
 prints counts and every row where the two differ in category, `flagged_by` or deciding rule, by
-sheet row and rule id only, and exits non-zero on any.
+account, day and rule id only, and exits non-zero on any.
 
 Each side reads `card_settlement_ibans` from the export's `settings` tab with its own reader, and
 the script fails when the two lists differ or the Apps Script refuses the tab. The client IBANs

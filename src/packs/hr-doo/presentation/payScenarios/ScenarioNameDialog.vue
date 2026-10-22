@@ -5,10 +5,10 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
-import { rowCellsOf } from '../../../../features/workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../../../features/workbook/application/tabRowWrites'
 import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
 import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
-import type { RowAt } from '../../../../features/workbook/domain/rowChanges'
+import type { RowCells } from '../../../../features/workbook/domain/rowChanges'
 import { slugProblem } from '../../../../features/workbook/domain/slug'
 import { useRowWrites } from '../../../../features/workbook/presentation/useRowWrites'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
@@ -46,10 +46,11 @@ const nameError = computed(() => {
   return slug !== props.scenario.slug && props.taken.includes(slug) ? `${slug} is already a scenario` : props.mode === 'copy' && slug === props.scenario.slug ? 'A copy needs a name of its own' : null
 })
 
-function rows(): RowAt[] {
-  return (store.state.snapshot?.scenarios ?? [])
-    .filter((row) => props.scenario.components.some((component) => component.sheetRow === row.sheetRow))
-    .map((row) => ({ sheetRow: row.sheetRow, cells: rowCellsOf(row, SCENARIO_ROWS.columns) }))
+function rows(): RowCells[] {
+  return props.scenario.components.flatMap((component) => {
+    const cells = storedCellsOf(store.state.snapshot?.scenarios ?? [], SCENARIO_ROWS, component.id)
+    return cells === null ? [] : [cells]
+  })
 }
 
 async function save(): Promise<void> {

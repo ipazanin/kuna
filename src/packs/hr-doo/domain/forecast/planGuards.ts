@@ -1,5 +1,6 @@
 import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
 import type { PlanLine } from '../../../../features/workbook/domain/plan'
+import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ruleValue } from '../../ruleset/ruleset'
@@ -7,9 +8,9 @@ import type { RuleSource } from '../payroll/payrollArithmetic'
 import { scenarioGuards } from '../scenarios/scenarioGuards'
 import { payOnly, switchedScenario } from '../scenarios/switchedScenario'
 
-/** Why rows of the plan tab cannot be planned with as they stand, naming the rows. */
+/** Why lines of the plan tab cannot be planned with as they stand, and which lines. */
 export interface PlanGuard {
-  readonly sheetRows: readonly number[]
+  readonly ids: readonly RecordId[]
   readonly reason: string
 }
 
@@ -43,10 +44,11 @@ export function planGuards(lines: readonly PlanLine[], scenarios: readonly Owner
   return years.flatMap((year) => {
     const inYear = lines.filter((line) => line.year === year)
     const ownerPay = ownerPayPlan(inYear, scenarios, rules)
-    const dividends = inYear.filter((line) => line.kind === 'amount' && line.item === 'dividend').map((line) => line.sheetRow)
+    const dividends = inYear.filter((line) => line.kind === 'amount' && line.item === 'dividend')
+    const months = dividends.map((line) => `month ${line.month}`)
     return [
       ...(ownerPay.kind === 'refused' ? ownerPay.guards : []),
-      ...(dividends.length > 1 ? [{ sheetRows: dividends, reason: `Rows ${listed(dividends)} each plan a dividend for ${year}. Plan one payout a year.` }] : []),
+      ...(dividends.length > 1 ? [{ ids: dividends.map((line) => line.id), reason: `The plan for ${year} pays a dividend in ${listed(months)}. Plan one payout a year.` }] : []),
     ]
   })
 }
@@ -60,27 +62,27 @@ export function ownerPayPlan(yearLines: readonly PlanLine[], scenarios: readonly
   }
   const { year } = any
   const refused = (guards: readonly PlanGuard[]): OwnerPayPlan => ({ kind: 'refused', lines, guards })
-  const rows = lines.map((line) => line.sheetRow)
+  const ids = lines.map((line) => line.id)
   const undated = lines.filter((line) => line.from === null)
   const dated = lines.filter((line) => line.from !== null)
   if (dated.length > 1) {
-    return refused([{ sheetRows: dated.map((line) => line.sheetRow), reason: `Rows ${listed(dated.map((line) => line.sheetRow))} each switch the owner pay of ${year}. A year's plan switches once, from one scenario to another.` }])
+    return refused([{ ids: dated.map((line) => line.id), reason: `The owner pay of ${year} switches on ${listed(dated.map((line) => line.from ?? ''))}. A year's plan switches once, from one scenario to another.` }])
   }
   const [switching] = dated
   if (switching !== undefined && switching.from === civilDate(year, 1, 1)) {
-    return refused([{ sheetRows: [switching.sheetRow], reason: `Row ${switching.sheetRow} switches the owner pay on 1 January, which leaves the first scenario no day. Leave its date blank instead.` }])
+    return refused([{ ids: [switching.id], reason: `The switch to ${switching.scenario} is dated 1 January ${year}, which leaves the first scenario no day. Leave its date blank instead.` }])
   }
   const [opening] = undated
   if (opening === undefined) {
-    return refused([{ sheetRows: rows, reason: `Row ${switching?.sheetRow} switches the owner pay on ${switching?.from}, but no row without a date sets it before then. Add the scenario ${year} starts with.` }])
+    return refused([{ ids, reason: `The owner pay switches to ${switching?.scenario} on ${switching?.from}, but no row without a date sets it before then. Add the scenario ${year} starts with.` }])
   }
   const named = lines.map((line) => ({ line, scenario: scenarios.find((candidate) => candidate.slug === line.scenario) }))
   const wrongYear = named.flatMap(({ line, scenario }): PlanGuard[] =>
     scenario === undefined
-      ? [{ sheetRows: [line.sheetRow], reason: `Row ${line.sheetRow} names ${line.scenario}, which is not on the scenarios tab.` }]
+      ? [{ ids: [line.id], reason: `The owner pay of ${year} names ${line.scenario}, which is not on the scenarios tab.` }]
       : scenario.year === year
         ? []
-        : [{ sheetRows: [line.sheetRow], reason: `Row ${line.sheetRow} names ${line.scenario}, a scenario for ${scenario.year}, in the plan for ${year}.` }],
+        : [{ ids: [line.id], reason: `The owner pay of ${year} names ${line.scenario}, a scenario for ${scenario.year}.` }],
   )
   if (wrongYear.length > 0) {
     return refused(wrongYear)
@@ -90,12 +92,12 @@ export function ownerPayPlan(yearLines: readonly PlanLine[], scenarios: readonly
   const scenario = second === null || switching?.from == null ? payOnly(first) : switchedScenario(first, second, switching.from)
   const stopped = scenarioGuards(scenario, rules)
   if (stopped.length > 0) {
-    return refused(stopped.map((guard) => ({ sheetRows: rows, reason: `The owner pay of ${rows.length === 1 ? `row ${rows[0]}` : `rows ${listed(rows)}`}: ${guard.reason}` })))
+    return refused(stopped.map((guard) => ({ ids, reason: `The owner pay of ${year}: ${guard.reason}` })))
   }
   return { kind: 'planned', pay: { year, scenario, first, second, switchOn: switching?.from ?? null, lines } }
 }
 
-/** Row numbers as a sentence lists them: "3 and 4", "3, 4 and 7". */
-function listed(rows: readonly number[]): string {
-  return rows.length < 2 ? rows.join('') : `${rows.slice(0, -1).join(', ')} and ${rows[rows.length - 1]}`
+/** Words as a sentence lists them: "a and b", "a, b and c". */
+function listed(words: readonly string[]): string {
+  return words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
 }

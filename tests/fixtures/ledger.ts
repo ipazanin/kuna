@@ -6,6 +6,8 @@ import { moneyFromAmount, moneyFromCents } from '../../src/shared/money/money'
 import type { Money } from '../../src/shared/money/money'
 import type { Bucket } from '../../src/features/workbook/domain/bucket'
 import type { Transaction, TransactionSignals } from '../../src/features/workbook/domain/workbook'
+import { recordIdOf } from '../../src/features/workbook/domain/recordId'
+import { LEDGER_RECORDS } from '../../src/features/workbook/domain/recordKind'
 
 /** Buckets and families of the categories the specs use, as the Sheet's seed defines them. */
 const SEED: Readonly<Record<string, { readonly family: string; readonly bucket: Bucket }>> = {
@@ -84,7 +86,7 @@ export function ledger(rows: readonly RowSpec[]): Transaction[] {
         reference: `REF-${position + 1}`,
         signals: NO_SIGNALS,
         reviewReasons: row.reviewReasons ?? [],
-        sheetRow: rows.length - position + 1,
+        id: recordIdOf(LEDGER_RECORDS, `REF-${position + 1}`),
       }
     })
     .reverse()

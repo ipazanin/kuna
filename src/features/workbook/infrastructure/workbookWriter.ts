@@ -1,6 +1,6 @@
 import { RULE_COLUMNS } from '../../rules/domain/rule'
-import type { CellValue, SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
-import { TEMPLATE_COLUMNS } from '../infrastructure/workbookTemplate'
+import type { CellValue, SheetRow, WorkbookTab } from './workbookSnapshot'
+import { TEMPLATE_COLUMNS } from './workbookTemplate'
 
 /** One tab as it stands right before or right after a write. */
 export interface TabRead {
@@ -86,14 +86,6 @@ export interface WorkbookWriter {
   read(tabs: readonly WorkbookTab[]): Promise<FreshTabs>
   /** Writes the edits. `before` is the read the edits were planned on, whose headers place them. */
   write(edits: TabEdits, before: FreshTabs): Promise<void>
-}
-
-/** A write the app will not make, with the reason in words a person can act on. Nothing was written. */
-export class WorkbookWriteRefused extends Error {
-  constructor(reason: string) {
-    super(reason)
-    this.name = 'WorkbookWriteRefused'
-  }
 }
 
 function templateColumns(tab: WorkbookTab): ReadonlySet<string> {

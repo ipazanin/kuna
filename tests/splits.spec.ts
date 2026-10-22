@@ -17,7 +17,10 @@ import { compareYearEnd } from '../src/packs/hr-doo/domain/yearEnd/yearEndCompar
 import { STUDIO_CATEGORIES, STUDIO_ROWS, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
+import { withIds } from './fixtures/rowIds'
 import { splitOf } from './fixtures/splits'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { OWNER_ADVANCE_RECORDS, SPLIT_PART_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const ROWS = withPackBuckets(
   ledger([
@@ -41,16 +44,16 @@ describe('splitLedger', () => {
       [civil('2026-03-01'), euros(1000), 'revenue', 'income'],
     ])
     const [paper, pens] = presented.filter((row) => row.split !== undefined)
-    expect([paper!.balance, paper!.sequence, paper!.sheetRow, paper!.reference, paper!.counterparty, paper!.description]).toEqual([
+    expect([paper!.balance, paper!.sequence, paper!.id, paper!.reference, paper!.counterparty, paper!.description]).toEqual([
       ORDER.balance,
       ORDER.sequence,
-      ORDER.sheetRow,
+      ORDER.id,
       ORDER.reference,
       'Paper shop',
       'Order 77',
     ])
-    expect(pens!.split).toEqual({ whole: ORDER, index: 1, count: 2, note: 'The owner’s pens', sheetRow: 3 })
-    expect(presented.map(listedRowKey)).toEqual(['2', '3.0', '3.1', '4'])
+    expect(pens!.split).toEqual({ whole: ORDER, index: 1, count: 2, note: 'The owner’s pens', id: split.parts[1]!.id })
+    expect(presented.map(listedRowKey)).toEqual([ROWS[0]!.id, split.parts[0]!.id, split.parts[1]!.id, ROWS[2]!.id])
   })
 
   it('leaves balances and the totals of the row alone, and moves only what the parts move between buckets', () => {
@@ -72,11 +75,11 @@ const SPLIT_HEADER = ['date', 'account', 'row_amount', 'row_balance', 'amount', 
 const KEY: CellValue[] = [46090, 'main', -60, 940]
 
 function read(...rows: CellValue[][]) {
-  return readSplits(sheetRowsFromValues([SPLIT_HEADER, ...rows]), ROWS, CATEGORIES)
+  return readSplits(sheetRowsFromValues(withIds('split', [SPLIT_HEADER, ...rows])), ROWS, CATEGORIES)
 }
 
 function reasons(reading: ReturnType<typeof read>): string[] {
-  return reading.problems.map((problem) => `${problem.sheetRow}: ${problem.reason}`)
+  return reading.problems.map((problem) => `${problem.label}: ${problem.reason}`)
 }
 
 describe('readSplits', () => {
@@ -88,8 +91,8 @@ describe('readSplits', () => {
       {
         row: ORDER,
         parts: [
-          { amount: euros(-45), category: 'office-supplies', family: 'operating', bucket: 'operating', note: 'Paper', sheetRow: 2 },
-          { amount: euros(-15), category: 'owner-loan-out', family: 'owner-pay', bucket: 'owner-pay', note: '', sheetRow: 3 },
+          { amount: euros(-45), category: 'office-supplies', family: 'operating', bucket: 'operating', note: 'Paper', id: recordIdOf(SPLIT_PART_RECORDS, 'split-2') },
+          { amount: euros(-15), category: 'owner-loan-out', family: 'owner-pay', bucket: 'owner-pay', note: '', id: recordIdOf(SPLIT_PART_RECORDS, 'split-3') },
         ],
       },
     ])
@@ -110,9 +113,19 @@ describe('readSplits', () => {
 
     expect(reading.splits).toEqual([])
     expect(reasons(reading)).toEqual([
-      '2: the ledger holds no main row of 2026-03-09 with the amount -60.00 and the balance 900.00, so the ledger row counts whole',
-      '3: the ledger holds no main row of 2026-03-09 with the amount -60.00 and the balance 900.00, so the ledger row counts whole',
+      'office-supplies, -45, 2026-03-09: the ledger holds no main row of 2026-03-09 with the amount -60.00 and the balance 900.00, so the ledger row counts whole',
+      'travel, -15, 2026-03-09: the ledger holds no main row of 2026-03-09 with the amount -60.00 and the balance 900.00, so the ledger row counts whole',
     ])
+  })
+
+  it('refuses a split on a ledger row whose key another row shares, since the split would land on both', () => {
+    const rows = ROWS.map((row) => (row.amount === euros(-25) ? { ...row, id: ORDER.id } : row))
+    const reading = readSplits(sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']])), rows, CATEGORIES)
+
+    expect(reading.splits).toEqual([])
+    expect(reading.problems[0]?.reason).toBe(
+      'the main row of 2026-03-09 with the amount -60.00 and the balance 940.00 shares its key with another ledger row, so the ledger row counts whole',
+    )
   })
 
   it('refuses a key that finds two ledger rows', () => {
@@ -122,42 +135,42 @@ describe('readSplits', () => {
         { date: '2026-03-09', amount: -60, balance: 940, category: 'office-supplies' },
       ]),
     )
-    const reading = readSplits(sheetRowsFromValues([SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']]), twins, CATEGORIES)
+    const reading = readSplits(sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']])), twins, CATEGORIES)
 
     expect(reading.splits).toEqual([])
     expect(reading.problems[0]?.reason).toBe(
-      '2 ledger rows are the main row of 2026-03-09 with the amount -60.00 and the balance 940.00 (rows 2, 3), so the ledger row counts whole',
+      '2 ledger rows are the main row of 2026-03-09 with the amount -60.00 and the balance 940.00, so the ledger row counts whole',
     )
   })
 
   it('refuses a split with one part, a part of zero and a part with the other sign', () => {
-    expect(reasons(read([...KEY, -60, 'office-supplies']))).toEqual(['2: a split has at least two parts, and this one has one, so the ledger row counts whole'])
-    expect(reasons(read([...KEY, -60, 'office-supplies'], [...KEY, 0, 'travel']))[0]).toBe('2: the part on row 3 is zero, so the ledger row counts whole')
+    expect(reasons(read([...KEY, -60, 'office-supplies']))).toEqual(['office-supplies, -60, 2026-03-09: a split has at least two parts, and this one has one, so the ledger row counts whole'])
+    expect(reasons(read([...KEY, -60, 'office-supplies'], [...KEY, 0, 'travel']))[0]).toBe('office-supplies, -60, 2026-03-09: the part "travel, 0, 2026-03-09" is zero, so the ledger row counts whole')
     expect(reasons(read([...KEY, -70, 'office-supplies'], [...KEY, 10, 'travel']))[1]).toBe(
-      '3: the part on row 3 has the other sign to the row, so the ledger row counts whole',
+      'travel, 10, 2026-03-09: the part "travel, 10, 2026-03-09" has the other sign to the row, so the ledger row counts whole',
     )
   })
 
   it('refuses parts that do not add up to the row', () => {
     expect(reasons(read([...KEY, -45, 'office-supplies'], [...KEY, -10, 'travel']))).toEqual([
-      '2: the parts add up to -55.00 and the row is -60.00, so the ledger row counts whole',
-      '3: the parts add up to -55.00 and the row is -60.00, so the ledger row counts whole',
+      'office-supplies, -45, 2026-03-09: the parts add up to -55.00 and the row is -60.00, so the ledger row counts whole',
+      'travel, -10, 2026-03-09: the parts add up to -55.00 and the row is -60.00, so the ledger row counts whole',
     ])
   })
 
   it('refuses a part whose category is blank or not on the categories tab', () => {
     expect(reasons(read([...KEY, -45, 'office-supplies'], [...KEY, -15, 'snacks']))[0]).toBe(
-      '2: "snacks" on row 3 is not on the categories tab, so the ledger row counts whole',
+      'office-supplies, -45, 2026-03-09: "snacks" of the part "snacks, -15, 2026-03-09" is not on the categories tab, so the ledger row counts whole',
     )
-    expect(reasons(read([...KEY, -45, 'office-supplies'], [...KEY, -15, '']))[0]).toBe('2: the part on row 3 has no category, so the ledger row counts whole')
+    expect(reasons(read([...KEY, -45, 'office-supplies'], [...KEY, -15, '']))[0]).toBe('office-supplies, -45, 2026-03-09: the part "-15, 2026-03-09" has no category, so the ledger row counts whole')
   })
 
   it('reports a row it cannot read, and refuses the rest of its split for it', () => {
     expect(reasons(read([...KEY, -45, 'office-supplies'], [...KEY, 'fifteen', 'travel']))).toEqual([
-      '2: row 3 of this split cannot be read, so the ledger row counts whole',
-      '3: amount "fifteen" is not a number',
+      'office-supplies, -45, 2026-03-09: a part of this split cannot be read, so the ledger row counts whole',
+      'travel, fifteen, 2026-03-09: amount "fifteen" is not a number',
     ])
-    expect(reasons(read(['yesterday', 'main', -60, 940, -45, 'travel']))).toEqual(['2: date "yesterday" is not a date cell'])
+    expect(reasons(read(['yesterday', 'main', -60, 940, -45, 'travel']))).toEqual(['travel, -45, yesterday: date "yesterday" is not a date cell'])
   })
 
   it('counts a refused split’s row whole in the workbook, and keeps the splits that pass', () => {
@@ -165,9 +178,9 @@ describe('readSplits', () => {
     const presented = presentedWorkbook(workbook)
 
     expect(workbook.splits.map((split) => split.row.amount)).toEqual([euros(-25)])
-    expect(workbook.problems.map((problem) => [problem.tab, problem.sheetRow])).toEqual([
-      ['splits', 2],
-      ['splits', 3],
+    expect(workbook.problems.map((problem) => [problem.tab, problem.label])).toEqual([
+      ['splits', 'office-supplies, -45, 2026-03-09'],
+      ['splits', 'travel, -10, 2026-03-09'],
     ])
     expect(presented.transactions.map((row) => row.amount)).toEqual([euros(-20), euros(-5), euros(-60), euros(1000)])
   })
@@ -175,7 +188,7 @@ describe('readSplits', () => {
 
 function snapshotOf(splits: CellValue[][], assets: CellValue[][] = []): WorkbookSnapshot {
   return {
-    meta: { id: 'books', source: 'excel', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id: 'books', source: 'excel', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...EMPTY_TABS,
     ledger: sheetRowsFromValues([
       ['date', 'account', 'description', 'amount', 'balance', 'category'],
@@ -188,8 +201,8 @@ function snapshotOf(splits: CellValue[][], assets: CellValue[][] = []): Workbook
       ...CATEGORIES.map((category): CellValue[] => [category.slug, category.family, category.bucket, category.roles.join(', ')]),
       ['equipment', 'operating', 'operating', 'capital-purchase'],
     ]),
-    assets: sheetRowsFromValues(assets),
-    splits: sheetRowsFromValues([SPLIT_HEADER, ...splits]),
+    assets: sheetRowsFromValues(withIds('asset', assets)),
+    splits: sheetRowsFromValues(withIds('split', [SPLIT_HEADER, ...splits])),
   }
 }
 
@@ -209,8 +222,8 @@ describe('countedSplits', () => {
     expect(workbook.splits).toHaveLength(1)
     expect(counted.splits).toEqual([])
     expect(counted.problems).toEqual([
-      { tab: 'splits', sheetRow: 2, reason: '"Shredder" on the assets tab claims ledger row 3 as payment, so the row counts whole' },
-      { tab: 'splits', sheetRow: 3, reason: '"Shredder" on the assets tab claims ledger row 3 as payment, so the row counts whole' },
+      { tab: 'splits', id: recordIdOf(SPLIT_PART_RECORDS, 'split-2'), label: 'office-supplies, -45, 2026-03-09', reason: '"Shredder" on the assets tab claims the main row of 2026-03-09 as payment, so the row counts whole' },
+      { tab: 'splits', id: recordIdOf(SPLIT_PART_RECORDS, 'split-3'), label: 'travel, -15, 2026-03-09', reason: '"Shredder" on the assets tab claims the main row of 2026-03-09 as payment, so the row counts whole' },
     ])
     expect(presentedWorkbook(workbook).transactions.map((row) => row.amount)).toEqual([euros(-25), euros(-60), euros(1000)])
   })
@@ -256,7 +269,7 @@ describe('the split of a salary, on a company with a private share split off', (
 
 describe('withSplitHeadings', () => {
   const presented = splitLedger(ROWS, [splitOf(ORDER, [[-45, 'office-supplies'], [-15, 'owner-loan-out']], PACK_CATEGORIES)])
-  const advance = { date: civil('2026-03-09'), amount: euros(30), description: 'Train', category: 'travel', family: 'operating', bucket: 'operating' as const, sheetRow: 2 }
+  const advance = { date: civil('2026-03-09'), amount: euros(30), description: 'Train', category: 'travel', family: 'operating', bucket: 'operating' as const, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') }
 
   it('lists a split row as the bank row with its parts under it, where its first part stood', () => {
     const listed = listedRows(presented, [advance])

@@ -5,12 +5,15 @@ import { BILLING_PLAN_ROWS, billingCellsOf } from '../src/features/billingPlan/a
 import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
 import { canUndo, wasUndone } from '../src/features/workbook/application/workbookStore'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
-import type { RowAt, RowCells, RowChange } from '../src/features/workbook/domain/rowChanges'
+import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
+import type { RowCells, RowChange } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { civil, euros } from './fixtures/ledger'
+import { withIds } from './fixtures/rowIds'
 import { AN_ID, cellData, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { BILLING_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const used = new Set<string>()
 
@@ -26,22 +29,22 @@ function gridsWithBillingPlan(): Record<string, CellValue[][]> {
       ['client', 'name', 'iban'],
       ['acme', 'Acme Studio', 'XX00FAKE0000000099'],
     ],
-    'outgoing-plan': [
+    'outgoing-plan': withIds('item', [
       ['item', 'date', 'amount', 'client', 'description'],
       ['Monthly Fee', 46295, 4000, 'acme', 'Sep 2026'],
       ['Bonus', 46300, 833.333333, 'acme', 'Bonus share'],
-    ],
+    ]),
   }
 }
 
 const OCTOBER_FEE = billingCellsOf({ item: 'Monthly Fee', date: civil('2026-10-31'), amount: euros(4000), client: 'Acme', description: 'Oct 2026 ' })
 
-function planRowAt(store: WorkbookStore, sheetRow: number): RowAt {
+function planRowAt(store: WorkbookStore, sheetRow: number): RowCells {
   const row = store.state.snapshot?.['outgoing-plan'].find((candidate) => candidate.sheetRow === sheetRow)
   if (row === undefined) {
     throw new Error(`No plan row ${sheetRow}`)
   }
-  return { sheetRow, cells: rowCellsOf(row, BILLING_PLAN_ROWS.columns) }
+  return rowCellsOf(row, BILLING_PLAN_ROWS)
 }
 
 function addRows(store: WorkbookStore, added: readonly RowCells[]) {
@@ -52,7 +55,7 @@ function changeRow(store: WorkbookStore, change: RowChange) {
   return store.changeRows(BILLING_PLAN_ROWS, { added: [], changed: [change], removed: [] })
 }
 
-function removeRow(store: WorkbookStore, row: RowAt) {
+function removeRow(store: WorkbookStore, row: RowCells) {
   return store.changeRows(BILLING_PLAN_ROWS, { added: [], changed: [], removed: [row] })
 }
 
@@ -71,8 +74,8 @@ describe.each([
     const receipt = await addRows(store, [OCTOBER_FEE, november])
 
     expect(receipt?.added).toEqual([
-      { sheetRow: 4, cells: { item: 'Monthly Fee', date: 46326, amount: 4000, client: 'acme', description: 'Oct 2026', id: AN_ID } },
-      { sheetRow: 5, cells: { ...november, id: AN_ID } },
+      { item: 'Monthly Fee', date: 46326, amount: 4000, client: 'acme', description: 'Oct 2026', id: AN_ID },
+      { ...november, id: AN_ID },
     ])
     expect(plan(store)).toEqual([
       ['Monthly Fee', '2026-09-30', euros(4000)],
@@ -106,15 +109,15 @@ describe.each([
     const { store } = await harnessOf(used, gridsWithBillingPlan())
     const before = planRowAt(store, 3)
 
-    await changeRow(store, { sheetRow: 3, before: before.cells, after: { ...before.cells, item: 'Yearly Bonus', description: '' } })
+    await changeRow(store, { before, after: { ...before, item: 'Yearly Bonus', description: '' } })
 
-    expect(store.state.workbook?.billingPlan[1]).toMatchObject({ item: 'Yearly Bonus', amount: euros(833.33), description: '', sheetRow: 3 })
+    expect(store.state.workbook?.billingPlan[1]).toMatchObject({ item: 'Yearly Bonus', amount: euros(833.33), description: '' })
     const [changed] = store.state.writes
-    expect(changed).toMatchObject({ kind: 'rows', receipt: { changed: [{ sheetRow: 3, before: before.cells }] } })
+    expect(changed).toMatchObject({ kind: 'rows', receipt: { changed: [{ before }] } })
 
     await store.undo(changed!)
 
-    expect(store.state.workbook?.billingPlan[1]).toMatchObject({ item: 'Bonus', description: 'Bonus share', sheetRow: 3 })
+    expect(store.state.workbook?.billingPlan[1]).toMatchObject({ item: 'Bonus', description: 'Bonus share' })
     expect(wasUndone(changed!, store.state.writes)).toBe(true)
   })
 
@@ -122,50 +125,51 @@ describe.each([
     const { store } = await harnessOf(used, gridsWithBillingPlan())
     const before = planRowAt(store, 2)
 
-    await changeRow(store, { sheetRow: 2, before: before.cells, after: { ...before.cells, amount: 4100 } })
+    await changeRow(store, { before, after: { ...before, amount: 4100 } })
 
-    await expect(changeRow(store, { sheetRow: 2, before: before.cells, after: { ...before.cells, amount: 4200 } })).rejects.toThrow(
+    await expect(changeRow(store, { before, after: { ...before, amount: 4200 } })).rejects.toThrow(
       'is no longer on the outgoing-plan tab as the app read it',
     )
     expect(store.state.workbook?.billingPlan[0]?.amount).toBe(euros(4100))
   })
 
-  it('deletes a row by taking it out, so the rows below move up, and Undo puts it back on its own row', async () => {
+  it('deletes a row by taking it out, so the rows below move up, and Undo puts it back at the foot with its id', async () => {
     const { store } = await harnessOf(used, gridsWithBillingPlan())
 
     const receipt = await removeRow(store, planRowAt(store, 2))
 
-    expect(receipt?.removed).toEqual([{ sheetRow: 2, cells: { item: 'Monthly Fee', date: 46295, amount: 4000, client: 'acme', description: 'Sep 2026', id: '' } }])
-    expect(store.state.workbook?.billingPlan.map((row) => [row.item, row.sheetRow])).toEqual([['Bonus', 2]])
+    expect(receipt?.removed).toEqual([{ item: 'Monthly Fee', date: 46295, amount: 4000, client: 'acme', description: 'Sep 2026', id: 'item-2' }])
+    expect(store.state.workbook?.billingPlan.map((row) => row.item)).toEqual(['Bonus'])
     await expect(removeRow(store, planRowAt(store, 2))).resolves.toBeDefined()
     expect(plan(store)).toEqual([])
 
     const deleted = store.state.writes.find((write) => write.kind === 'rows' && write.receipt === receipt)
     await store.undo(deleted!)
 
-    expect(store.state.workbook?.billingPlan.map((row) => [row.item, row.sheetRow])).toEqual([['Monthly Fee', 2]])
+    expect(store.state.workbook?.billingPlan.map((row) => [row.item, row.id])).toEqual([['Monthly Fee', recordIdOf(BILLING_RECORDS, 'item-2')]])
     expect(store.state.writes[0]).toMatchObject({ kind: 'rows', undid: receipt })
     await expect(store.undo(deleted!)).rejects.toThrow(WorkbookWriteRefused)
   })
 })
 
 describe('billing plan writes to a Google Sheet', () => {
-  it('finds a row again after rows were inserted above it, and refuses when two rows hold it', async () => {
+  it('finds a row again by its id after rows were inserted above it, and refuses when copies hold its id', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, gridsWithBillingPlan())
     const fee = planRowAt(store, 2)
-    sheets.grids['outgoing-plan']!.splice(1, 0, ['Hotel', 46290, 120, 'acme', 'Inserted in the Sheet'])
+    sheets.grids['outgoing-plan']!.splice(1, 0, ['Hotel', 46290, 120, 'acme', 'Inserted in the Sheet', 'hotel-id'])
 
     await removeRow(store, fee)
 
     expect(writtenRanges()).toEqual([])
     expect(sheets.grids['outgoing-plan']!.map((row) => row[4])).toEqual(['description', 'Inserted in the Sheet', 'Bonus share'])
 
-    sheets.grids['outgoing-plan']!.push(['Bonus', 46300, 833.333333, 'acme', 'Bonus share'], ['Bonus', 46300, 833.333333, 'acme', 'Bonus share'])
-    await expect(removeRow(store, { sheetRow: 99, cells: planRowAt(store, 3).cells })).rejects.toThrow('3 rows of the outgoing-plan tab hold')
+    const bonus = sheets.grids['outgoing-plan']![2]!
+    sheets.grids['outgoing-plan']!.push([...bonus], [...bonus])
+    await expect(removeRow(store, planRowAt(store, 3))).rejects.toThrow('3 rows of the outgoing-plan tab hold the id of the plan row "Bonus, acme, 2026-10-05, 833.333333"')
   })
 
   it('appends below the last row, the date as a serial number, with a new id under an id header the tab lacked', async () => {
-    const { store, sheets } = await googleHarness(used, gridsWithBillingPlan())
+    const { store, sheets } = await googleHarness(used, { ...gridsWithBillingPlan(), 'outgoing-plan': [['item', 'date', 'amount', 'client', 'description']] })
 
     await addRows(store, [OCTOBER_FEE])
 
@@ -199,7 +203,7 @@ describe('billing plan writes to a Google Sheet', () => {
     const { store, writtenRanges } = await googleHarness(used, gridsWithBillingPlan())
     const bonus = planRowAt(store, 3)
 
-    await changeRow(store, { sheetRow: 3, before: bonus.cells, after: { ...bonus.cells, date: 46310 } })
+    await changeRow(store, { before: bonus, after: { ...bonus, date: 46310 } })
 
     expect(writtenRanges()).toEqual(["'outgoing-plan'!B3"])
   })

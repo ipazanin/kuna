@@ -18,6 +18,7 @@ import { useFilteredLedger } from '../../../../features/transactions/application
 import { newestBookingOf } from '../../../../features/workbook/domain/workbook'
 import LedgerGate from '../../../../features/workbook/presentation/LedgerGate.vue'
 import { useDisplayNames } from '../../../../features/workbook/application/useDisplayNames'
+import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import ConfidenceBadge from '../../ruleset/presentation/ConfidenceBadge.vue'
 import { RULESET_CHECKED_ON } from '../../ruleset/ruleset'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
@@ -157,7 +158,7 @@ const plan = computed(() => {
     defaults: planDefaults(workbook, year, day),
     categories: workbook.categories,
     scenarios: workbook.payScenarios.filter((scenario) => scenario.year === year),
-    notCounted: forecast.value?.state === 'ready' ? forecast.value.view.notCounted : new Map<number, string>(),
+    notCounted: forecast.value?.state === 'ready' ? forecast.value.view.notCounted : new Map<RecordId, string>(),
     suggestedSwitch: switchOn === null || switchOn === `${year}-01-01` ? null : switchOn,
   }
 })

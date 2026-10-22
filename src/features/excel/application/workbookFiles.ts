@@ -75,7 +75,7 @@ export function exportFileName(workbook: Pick<Workbook, 'title' | 'settings'>, d
 
 function workbookOf(tabs: WorkbookTabs, title: string): Workbook {
   return readWorkbook({
-    meta: { id: 'preview', source: 'excel', title, syncedAt: new Date().toISOString(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id: 'preview', source: 'excel', title, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...tabs,
   })
 }

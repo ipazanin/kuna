@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
+import type { RecordId } from './recordId'
 
 /** The parts of the accountant's year-end package a `year-end` row comes from. `konto` lines are free account numbers. */
 export const YEAR_END_STATEMENTS = ['pl', 'balance', 'tax', 'distribution', 'grant', 'konto'] as const
@@ -119,9 +120,8 @@ export interface YearEndLine {
   /** The file the figure was read from. */
   readonly source: string
   readonly note: string
-  readonly sheetRow: number
-  /** Absent on a row from before rows carried an id. */
-  readonly id?: string
+  /** Held by no other row of its tab. */
+  readonly id: RecordId
 }
 
 export function yearEndLineDefinition(statement: YearEndStatement, line: string): YearEndLineDefinition | null {

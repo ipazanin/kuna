@@ -18,8 +18,8 @@ import { ledger } from './fixtures/ledger'
 
 const CATEGORIES = new Set(['equipment', 'travel', 'ai-services', 'revenue'])
 
-function rule(id: string, order: number, conditions: RuleCondition[], category = 'equipment', sheetRow: number | null = null): Rule {
-  return { id, order, enabled: true, conditions, category, confidence: 'rule', note: '', sheetRow }
+function rule(id: string, order: number, conditions: RuleCondition[], category = 'equipment'): Rule {
+  return { id, order, enabled: true, conditions, category, confidence: 'rule', note: '' }
 }
 
 const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], clients: [], settings: DEFAULT_SETTINGS })
@@ -46,19 +46,19 @@ describe('newOrderTies', () => {
 
 describe('rulesTabRefusals, the mirror of parseRules in Rules.gs', () => {
   const header = [...RULE_COLUMNS]
-  const good = { sheetRow: 2, cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
+  const good = { cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
 
   it('passes a tab the Apps Script reads', () => {
     expect(rulesTabRefusals(header, [good], CATEGORIES, false)).toEqual([])
   })
 
   it('refuses an enabled rule that tests counterparty_is_client only while the clients tab is missing, as categorisationContext does', () => {
-    const asksForClients = { sheetRow: 3, cells: { rule: 'client-pays', order: 200, enabled: true, direction: 'credit', counterparty_is_client: true, category: 'equipment', confidence: 'rule' } }
-    const parked = { sheetRow: 4, cells: { ...asksForClients.cells, rule: 'parked', enabled: false } }
+    const asksForClients = { cells: { rule: 'client-pays', order: 200, enabled: true, direction: 'credit', counterparty_is_client: true, category: 'equipment', confidence: 'rule' } }
+    const parked = { cells: { ...asksForClients.cells, rule: 'parked', enabled: false } }
 
     expect(rulesTabRefusals(header, [good, asksForClients, parked], CATEGORIES, true)).toEqual([])
     expect(rulesTabRefusals(header, [good, asksForClients, parked], CATEGORIES, false)).toEqual([
-      'row 3: client-pays tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban',
+      'client-pays: it tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban',
     ])
   })
 
@@ -72,32 +72,32 @@ describe('rulesTabRefusals, the mirror of parseRules in Rules.gs', () => {
   it('refuses each row the Apps Script refuses, and leaves a disabled half-written rule alone', () => {
     const rows = [
       good,
-      { sheetRow: 3, cells: { rule: 'A', order: 200, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
-      { sheetRow: 4, cells: { rule: 'b', order: 'x', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
-      { sheetRow: 5, cells: { rule: 'c', order: 300, enabled: 'maybe', is_card: true, category: 'equipment', confidence: 'rule' } },
-      { sheetRow: 6, cells: { rule: 'd', order: 400, enabled: true, category: 'equipment', confidence: 'rule' } },
-      { sheetRow: 7, cells: { rule: 'e', order: 500, enabled: true, is_card: true, category: 'snacks', confidence: 'rule' } },
-      { sheetRow: 8, cells: { rule: 'f', order: 600, enabled: true, revenue_code: '123', category: 'equipment', confidence: 'rule' } },
-      { sheetRow: 9, cells: { rule: 'g', order: 700, enabled: true, counterparty_is_client: true, category: 'equipment', confidence: 'rule' } },
-      { sheetRow: 10, cells: { rule: 'h', order: 800, enabled: true, is_card: false, category: 'equipment', confidence: 'rule' } },
-      { sheetRow: 11, cells: { rule: 'i', order: 900, enabled: true, is_card: true, category: 'equipment', confidence: 'sure' } },
-      { sheetRow: 12, cells: { order: 1000, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
-      { sheetRow: 13, cells: { rule: 'parked', order: 1100, enabled: false, revenue_code: '1', category: 'snacks' } },
-      { sheetRow: 14, cells: { rule: 'guard', order: 1200, enabled: true, is_card: true, confidence: 'review' } },
+      { cells: { rule: 'A', order: 200, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
+      { cells: { rule: 'b', order: 'x', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
+      { cells: { rule: 'c', order: 300, enabled: 'maybe', is_card: true, category: 'equipment', confidence: 'rule' } },
+      { cells: { rule: 'd', order: 400, enabled: true, category: 'equipment', confidence: 'rule' } },
+      { cells: { rule: 'e', order: 500, enabled: true, is_card: true, category: 'snacks', confidence: 'rule' } },
+      { cells: { rule: 'f', order: 600, enabled: true, revenue_code: '123', category: 'equipment', confidence: 'rule' } },
+      { cells: { rule: 'g', order: 700, enabled: true, counterparty_is_client: true, category: 'equipment', confidence: 'rule' } },
+      { cells: { rule: 'h', order: 800, enabled: true, is_card: false, category: 'equipment', confidence: 'rule' } },
+      { cells: { rule: 'i', order: 900, enabled: true, is_card: true, category: 'equipment', confidence: 'sure' } },
+      { cells: { order: 1000, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } },
+      { cells: { rule: 'parked', order: 1100, enabled: false, revenue_code: '1', category: 'snacks' } },
+      { cells: { rule: 'guard', order: 1200, enabled: true, is_card: true, confidence: 'review' } },
     ]
 
     expect(rulesTabRefusals(header, rows, CATEGORIES, false).map((refusal) => refusal.split(':')[0])).toEqual([
-      'row 2',
-      'row 3',
-      'row 4',
-      'row 5',
-      'row 6',
-      'row 7',
-      'row 8',
-      'row 9',
-      'row 10',
-      'row 11',
-      'row 12',
+      'a',
+      'A',
+      'b',
+      'c',
+      'd',
+      'e',
+      'f',
+      'g',
+      'h',
+      'i',
+      'unnamed',
     ])
   })
 })
@@ -122,26 +122,24 @@ describe('rule cells', () => {
       { column: 'foreign_currency' },
     ])
 
-    const [read] = readRules([{ sheetRow: 7, cells: ruleTabCells(written) }], CATEGORIES, true).rules
+    const [read] = readRules([{ cells: ruleTabCells(written) }], CATEGORIES, true).rules
 
-    expect(read).toEqual({ ...written, sheetRow: 7 })
+    expect(read).toEqual(written)
   })
 
   it('applies an edit to the row with that id only when the row still holds what was read', () => {
-    const rows = [{ sheetRow: 2, cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }]
+    const rows = [{ cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }]
     const expected = rows[0]!.cells
 
-    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'A', expected, cells: { ...expected, enabled: false } }] }, 2).rows).toEqual([
-      { sheetRow: 2, cells: { ...expected, enabled: false } },
-    ])
-    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: '100 ' }, cells: expected }] }, 2).refusals).toEqual([])
-    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: 200 }, cells: expected }] }, 2).refusals).toHaveLength(1)
-    expect(rulesTabAfter(rows, { appended: { rule: 'b', note: '' }, edited: [] }, 9).rows[1]).toEqual({ sheetRow: 10, cells: { rule: 'b' } })
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'A', expected, cells: { ...expected, enabled: false } }] }).rows).toEqual([{ cells: { ...expected, enabled: false } }])
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: '100 ' }, cells: expected }] }).refusals).toEqual([])
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: 200 }, cells: expected }] }).refusals).toHaveLength(1)
+    expect(rulesTabAfter(rows, { appended: { rule: 'b', note: '' }, edited: [] }).rows[1]).toEqual({ cells: { rule: 'b' } })
   })
 })
 
 describe('rule placement', () => {
-  const rules = [rule('a', 100, [], 'equipment', 2), rule('b', 200, [], 'equipment', 3), rule('c', 300, [], 'equipment', 4)]
+  const rules = [rule('a', 100, [], 'equipment'), rule('b', 200, [], 'equipment'), rule('c', 300, [], 'equipment')]
 
   it('goes halfway between its new neighbours, or a step past either end', () => {
     expect(placeBefore(rules, null, 'b')).toEqual({ order: 150, renumbered: new Map() })
@@ -151,7 +149,7 @@ describe('rule placement', () => {
   })
 
   it('renumbers in steps of 100 when two neighbours share an order', () => {
-    const tied = [rule('a', 100, [], 'equipment', 2), rule('b', 100, [], 'equipment', 3)]
+    const tied = [rule('a', 100, [], 'equipment'), rule('b', 100, [], 'equipment')]
 
     expect(placeBefore(tied, null, 'b')).toEqual({ order: 200, renumbered: new Map([['b', 300]]) })
   })
@@ -160,7 +158,7 @@ describe('rule placement', () => {
     expect(swapWithNeighbour(rules, 'b', 'earlier')).toEqual(new Map([['b', 100], ['a', 200]]))
     expect(swapWithNeighbour(rules, 'b', 'later')).toEqual(new Map([['b', 300], ['c', 200]]))
     expect(swapWithNeighbour(rules, 'a', 'earlier')).toBeNull()
-    const tied = [rule('a', 100, [], 'equipment', 2), rule('b', 100, [], 'equipment', 3)]
+    const tied = [rule('a', 100, [], 'equipment'), rule('b', 100, [], 'equipment')]
     expect(swapWithNeighbour(tied, 'b', 'earlier')).toEqual(new Map([['a', 200]]))
   })
 })
@@ -175,7 +173,7 @@ describe('rule coverage', () => {
       { date: '2026-09-05', amount: -7, counterparty: 'Unknown Ltd', category: 'nope', flaggedBy: 'ivan' },
       { date: '2026-09-06', amount: -8, counterparty: 'Corner Shop', category: 'equipment', flaggedBy: 'ai' },
     ])
-    const rules = [rule('airline', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'travel', 2)]
+    const rules = [rule('airline', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'travel')]
 
     const { notCovered, exceptions } = ruleCoverage(rows, rules, context)
 
@@ -193,7 +191,7 @@ describe('rule coverage', () => {
       { date: '2026-09-21', amount: -900, counterparty: 'Ledger & Co', iban: accountant, description: 'Tax advice', category: 'consulting', flaggedBy: 'ivan' },
       { date: '2026-09-22', amount: -40, counterparty: 'Desk Co', iban: 'XX00FAKE0000000013', category: 'equipment', flaggedBy: 'ivan' },
     ])
-    const rules = [rule('accountant', 100, [{ column: 'counterparty_iban', iban: accountant }], 'accounting', 2)]
+    const rules = [rule('accountant', 100, [{ column: 'counterparty_iban', iban: accountant }], 'accounting')]
 
     const { notCovered, exceptions } = ruleCoverage(rows, rules, context)
 
@@ -205,7 +203,7 @@ describe('rule coverage', () => {
 
   it('counts a row a review rule sends to a person as not covered, since no rule settles it', () => {
     const rows = ledger([{ date: '2026-09-01', amount: -30, counterparty: 'Laptop Store', description: 'CARD PURCHASE', category: 'equipment', flaggedBy: 'ivan' }])
-    const rules = [{ ...rule('card-review', 100, [{ column: 'description_starts_with', fragment: 'CARD PURCHASE' }], 'equipment', 2), confidence: 'review' as const }]
+    const rules = [{ ...rule('card-review', 100, [{ column: 'description_starts_with', fragment: 'CARD PURCHASE' }], 'equipment'), confidence: 'review' as const }]
 
     const { notCovered, exceptions } = ruleCoverage(rows, rules, context)
 
@@ -236,7 +234,7 @@ describe('rule coverage', () => {
 
   it('leaves out a confirmed row a rule already files the same way', () => {
     const rows = ledger([{ date: '2026-09-01', amount: -20, counterparty: 'AIRLINE CO', category: 'travel', flaggedBy: 'ivan' }])
-    const rules = [rule('airline', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'travel', 2)]
+    const rules = [rule('airline', 100, [{ column: 'counterparty_contains', fragment: 'AIRLINE' }], 'travel')]
 
     expect(ruleCoverage(rows, rules, context)).toEqual({ notCovered: [], exceptions: [] })
   })

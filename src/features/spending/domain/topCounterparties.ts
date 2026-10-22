@@ -9,6 +9,7 @@ import { periodRange, transactionsInPeriod } from '../../filters/domain/filterSt
 import type { Period } from '../../filters/domain/filterState'
 import type { Bucket } from '../../workbook/domain/bucket'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
+import type { RecordId } from '../../workbook/domain/recordId'
 import type { Transaction } from '../../workbook/domain/workbook'
 
 /** What one counterparty was paid under one category. */
@@ -75,8 +76,8 @@ export function topCounterparties(
     {
       readonly spellings: Map<string, number>
       total: Money
-      readonly payments: Set<number>
-      readonly byCategory: Map<string, { readonly bucket: Bucket; paid: Money; readonly payments: Set<number> }>
+      readonly payments: Set<RecordId>
+      readonly byCategory: Map<string, { readonly bucket: Bucket; paid: Money; readonly payments: Set<RecordId> }>
     }
   >()
   for (const transaction of transactionsInPeriod(transactions, period, window)) {
@@ -84,13 +85,13 @@ export function topCounterparties(
       continue
     }
     const identity = counterpartyIdentity(transaction)
-    const group = groups.get(identity.key) ?? { spellings: new Map<string, number>(), total: ZERO, payments: new Set<number>(), byCategory: new Map() }
+    const group = groups.get(identity.key) ?? { spellings: new Map<string, number>(), total: ZERO, payments: new Set<RecordId>(), byCategory: new Map() }
     group.spellings.set(identity.writtenName, (group.spellings.get(identity.writtenName) ?? 0) + 1)
     group.total = subtractMoney(group.total, transaction.amount)
-    group.payments.add(transaction.sheetRow)
-    const underCategory = group.byCategory.get(transaction.category) ?? { bucket: transaction.bucket, paid: ZERO, payments: new Set<number>() }
+    group.payments.add(transaction.id)
+    const underCategory = group.byCategory.get(transaction.category) ?? { bucket: transaction.bucket, paid: ZERO, payments: new Set<RecordId>() }
     underCategory.paid = subtractMoney(underCategory.paid, transaction.amount)
-    underCategory.payments.add(transaction.sheetRow)
+    underCategory.payments.add(transaction.id)
     group.byCategory.set(transaction.category, underCategory)
     groups.set(identity.key, group)
   }

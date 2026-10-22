@@ -52,7 +52,6 @@ function rule(conditions: RuleCondition[], outcome: Partial<Rule> = {}): Rule {
     category: outcome.category ?? 'matched',
     confidence: outcome.confidence ?? 'rule',
     note: '',
-    sheetRow: outcome.sheetRow ?? nextOrder / 100,
   }
 }
 
@@ -135,9 +134,9 @@ describe('categorise', () => {
     expect(categorise(fee, [later, earlier], context)).toEqual({ category: 'bank-fees', flaggedBy: 'rule', ruleId: 'earlier' })
   })
 
-  it('breaks a tie between equal orders by id, wherever the rows sit', () => {
-    const upperRow = rule([{ column: 'description_contains', fragment: 'NAKNADA' }], { id: 'rule-10', order: 100, sheetRow: 3, category: 'second' })
-    const lowerRow = rule([{ column: 'description_contains', fragment: 'NAKNADA' }], { id: 'rule-9', order: 100, sheetRow: 9, category: 'first' })
+  it('breaks a tie between equal orders by id', () => {
+    const upperRow = rule([{ column: 'description_contains', fragment: 'NAKNADA' }], { id: 'rule-10', order: 100, category: 'second' })
+    const lowerRow = rule([{ column: 'description_contains', fragment: 'NAKNADA' }], { id: 'rule-9', order: 100, category: 'first' })
 
     expect(categorise(fee, [upperRow, lowerRow], context).ruleId).toBe('rule-9')
   })

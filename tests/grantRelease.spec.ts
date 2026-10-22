@@ -7,6 +7,8 @@ import { depreciationSchedule } from '../src/packs/hr-doo/domain/assets/deprecia
 import { clawbackExposure, deferredOn, grantRelease, grantResiduals } from '../src/packs/hr-doo/domain/grants/grantRelease'
 import type { GrantReleaseSchedule } from '../src/packs/hr-doo/domain/grants/grantRelease'
 import { civil, euros } from './fixtures/ledger'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { ASSET_RECORDS, GRANT_RECORDS, YEAR_END_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const GRANT: Grant = {
   slug: 'example-grant',
@@ -19,7 +21,7 @@ const GRANT: Grant = {
   clawbackSecondYear: euros(7000),
   employmentRequiredUntil: civil('2027-02-28'),
   note: '',
-  sheetRow: 2,
+  id: recordIdOf(GRANT_RECORDS, 'example-grant'),
 }
 
 interface AssetSpec {
@@ -43,7 +45,7 @@ function asset(spec: AssetSpec): Asset {
     fundedBy: spec.fundedBy ?? 'example-grant',
     ledgerReference: '',
     note: '',
-    sheetRow: 2,
+    id: recordIdOf(ASSET_RECORDS, 'row-2'),
   }
 }
 
@@ -71,7 +73,7 @@ function grantLine(year: number, line: string, amount: number): YearEndLine {
     aop: '',
     source: 'example-notes.pdf',
     note: '',
-    sheetRow: 2,
+    id: recordIdOf(YEAR_END_RECORDS, 'row-2'),
   }
 }
 

@@ -19,16 +19,17 @@ import { readWorkbook } from '../infrastructure/workbookReader'
 import { WORKBOOK_TABS } from '../infrastructure/workbookSnapshot'
 import type { WorkbookSnapshot, WorkbookTab, WorkbookTabs } from '../infrastructure/workbookSnapshot'
 import { TABS_WITH_IDS } from '../infrastructure/workbookTemplate'
+import { planMissingIds, verifyMissingIds } from '../infrastructure/rowIds'
+import type { RowsWithoutIds } from '../infrastructure/rowIds'
+import { planRowsChange, verifyRowsChange } from '../infrastructure/tabRowPlans'
+import { hasEdits } from '../infrastructure/workbookWriter'
+import type { FreshTabs, TabEdits, WorkbookWriter } from '../infrastructure/workbookWriter'
+import { planRulesChange, planSettingsChange, planVerdicts, verifyRulesChange, verifySettingsChange, verifyVerdicts } from '../infrastructure/writePlans'
+import type { SettingChange } from '../infrastructure/writePlans'
 import { readFromGoogle } from './readFromGoogle'
 import type { GoogleSheet } from './readFromGoogle'
-import { planMissingIds, verifyMissingIds } from './rowIds'
-import type { RowsWithoutIds } from './rowIds'
-import { planRowsChange, verifyRowsChange } from './tabRowWrites'
 import type { TabRowRules } from './tabRowWrites'
-import { WorkbookWriteRefused, hasEdits } from './workbookWriter'
-import type { FreshTabs, TabEdits, WorkbookWriter } from './workbookWriter'
-import { planRulesChange, planSettingsChange, planVerdicts, verifyRulesChange, verifySettingsChange, verifyVerdicts } from './writePlans'
-import type { SettingChange } from './writePlans'
+import { WorkbookWriteRefused } from './workbookWriteRefused'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
 
@@ -98,35 +99,6 @@ export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]):
  */
 export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): boolean {
   return (write.kind === 'ledger' || write.kind === 'rows') && !isUndo(write) && !wasUndone(write, writes)
-}
-
-/**
- * Why Undo would put a write's deleted rows back on the wrong row, or null when it would not. Undo
- * puts each one back on the row it stood on, which is only right while every row above it is the
- * same, so a later write of the session that added or deleted a row above them, and is still in
- * place, stops it. A later write and its own undo cancel out.
- */
-function undoOrderRefusal(write: SessionWrite, writes: readonly SessionWrite[]): string | null {
-  if (write.kind !== 'rows' || write.receipt.removed.length === 0) {
-    return null
-  }
-  const tab = write.rules.tab
-  const deleted = write.receipt.removed.map((row) => row.sheetRow)
-  // Where the first row below every deleted row stands once they are gone. A row deleted from there
-  // down leaves the places alone, and so does one added further down. One added on that very row
-  // may belong above a deleted row, so it counts.
-  const firstBelow = Math.max(...deleted) - deleted.length + 1
-  const later = writes.find((other) => {
-    if (other.id <= write.id || other.workbookId !== write.workbookId || other.kind !== 'rows' || other.rules.tab !== tab || wasUndone(other, writes)) return false
-    const undid = other.undid === null ? undefined : writes.find((candidate) => candidate.kind === 'rows' && candidate.receipt === other.undid)
-    if (undid !== undefined && undid.id > write.id) return false
-    return other.receipt.added.some((row) => row.sheetRow <= firstBelow) || other.receipt.removed.some((row) => row.sheetRow < firstBelow)
-  })
-  if (later === undefined) {
-    return null
-  }
-  const reason = `A later change to the ${tab} tab added or deleted rows above the ones this would put back, so they would land on the wrong rows.`
-  return canUndo(later, writes) ? `${reason} Undo the later change first.` : `${reason} Put them back in the workbook by hand.`
 }
 
 export interface WorkbookState {
@@ -207,8 +179,8 @@ export interface WorkbookStore {
   /** Sets settings rows by key, adding a row for a key the tab lacks. */
   changeSettings(changes: readonly SettingChange[]): Promise<void>
   /**
-   * Adds, changes and deletes rows of one tab in one write, each row found again as the app read
-   * it and the tab checked by its rules. With `addMissingTab`, once the person agreed, a Google
+   * Adds, changes and deletes rows of one tab in one write, each row found again by the key or id
+   * it held when the app read it and the tab checked by its rules. With `addMissingTab`, once the person agreed, a Google
    * Sheet without the tab gets it with the template's header first. Returns what Undo puts back,
    * or null when nothing differed.
    */
@@ -218,7 +190,11 @@ export interface WorkbookStore {
    * adding the id column to a tab without it. Returns how many rows of each tab got one.
    */
   addMissingIds(): Promise<readonly RowsWithoutIds[]>
-  /** Puts back what a write of this session changed, through that write's own checks. Refused for a write `canUndo` rules out, and while `undoOrderRefusal` gives a reason. */
+  /**
+   * Puts back what a write of this session changed, through that write's own checks. A deleted row
+   * comes back with the same key or id, below the last row of its tab, or on the ledger where its
+   * date puts it. Refused for a write `canUndo` rules out.
+   */
   undo(write: SessionWrite): Promise<void>
 }
 
@@ -451,7 +427,7 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
     replaceLocalWorkbook(tabs, title) {
       return underLocalWork(async () => {
         const id = state.choice?.source === 'excel' ? state.choice.id : ports.newLocalId()
-        const meta = { id, source: 'excel' as const, title, syncedAt: ports.now(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: [] }
+        const meta = { id, source: 'excel' as const, title, syncedAt: ports.now(), lastExportedAt: null, unexportedSince: null, missingTabs: [] }
         await keep({ meta, ...tabs })
         choose({ source: 'excel', id, name: title })
         ports.forgetGoogleSignIn()
@@ -511,14 +487,9 @@ export function createWorkbookStore(ports: WorkbookStorePorts): WorkbookStore {
         case 'ledger':
           await writeVerdicts(undoOf(write.receipt), write.receipt)
           return
-        case 'rows': {
-          const refusal = undoOrderRefusal(write, state.writes)
-          if (refusal !== null) {
-            throw new WorkbookWriteRefused(refusal)
-          }
+        case 'rows':
           await writeRows(write.rules, undoOfRows(write.receipt), write.receipt)
           return
-        }
       }
     },
   }

@@ -10,18 +10,22 @@ import { sharedKeys } from '../domain/sharedKeys'
 import { UNCLASSIFIED, isDefinedBucket } from '../domain/bucket'
 import { ledgerRowKeyOf } from '../domain/ledgerRowKey'
 import type { LedgerRowKey } from '../domain/ledgerRowKey'
+import { recordIdOf } from '../domain/recordId'
+import type { RecordId } from '../domain/recordId'
+import { RULE_RECORDS } from '../domain/recordKind'
 import { isVatTreatment } from '../domain/vatTreatment'
 import { ADVANCE_BUCKETS, NO_CLIENT_INVOICING } from '../domain/workbook'
-import type { Account, Category, Client, ClientInvoicing, Invoice, OwnerAdvance, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
+import type { Account, Category, Client, ClientInvoicing, Invoice, OwnerAdvance, RecordProblem, Transaction, Workbook, WorkbookProblem } from '../domain/workbook'
 import { readAssets } from './assetsTabReader'
 import { readBillingPlan } from './billingPlanTabReader'
-import { booleanOf, dateOf, idOf, inTabOrder, isUnreadable, moneyOf, optionalPeriod, readRow, slugListOf, slugOf, textOf } from './cellReading'
+import { booleanOf, dateOf, isUnreadable, moneyOf, optionalPeriod, ownIdOf, readRow, sharedIds, slugListOf, slugOf, tabReading, textOf } from './cellReading'
 import type { RowProblem, TabReading } from './cellReading'
 import { readDismissals } from './dismissedTabReader'
 import { readGrants } from './grantsTabReader'
 import { readPlan } from './planTabReader'
 import { readScenarios } from './scenariosTabReader'
 import { readSplits } from './splitsTabReader'
+import { readRecordId } from './tabRecords'
 import type { CellValue, SheetRow, WorkbookSnapshot } from './workbookSnapshot'
 import { readYearEnd } from './yearEndTabReader'
 
@@ -35,7 +39,7 @@ import { readYearEnd } from './yearEndTabReader'
 export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
   const problems: WorkbookProblem[] = []
   const settings = readSettings(snapshot.settings, problems)
-  const categories = withoutRows(keep('categories', readCategoryRows(snapshot.categories), problems))
+  const categories = withoutIds(keep('categories', readCategoryRows(snapshot.categories), problems))
   const clients = clientsOf(keep('clients', readClientRows(snapshot.clients), problems))
   const hasClientsTab = !snapshot.meta.missingTabs.includes('clients')
   const categorySlugs = new Set(categories.map((category) => category.slug))
@@ -51,11 +55,10 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
     id: snapshot.meta.id,
     source: snapshot.meta.source,
     title: snapshot.meta.title,
-    ledgerSheetId: snapshot.meta.ledgerSheetId,
     syncedAt: snapshot.meta.syncedAt,
     transactions,
     categories,
-    accounts: withoutRows(keep('accounts', readAccountRows(snapshot.accounts, settings.currency), problems)),
+    accounts: withoutIds(keep('accounts', readAccountRows(snapshot.accounts, settings.currency), problems)),
     rules: readRulesTab(snapshot.rules, categories, hasClientsTab, problems),
     invoices: keep('invoices', readInvoiceRows(snapshot.invoices, new Set(clients.map((client) => client.slug))), problems),
     clients,
@@ -75,23 +78,18 @@ export function readWorkbook(snapshot: WorkbookSnapshot): Workbook {
 }
 
 /** The facts of one tab reader, its problems added to the workbook's under the tab's name. */
-function keep<Fact extends { readonly sheetRow: number }>(
-  tab: WorkbookProblem['tab'],
-  reading: { readonly facts: readonly Fact[]; readonly problems: readonly RowProblem[] },
-  problems: WorkbookProblem[],
-): readonly Fact[] {
+function keep<Fact>(tab: WorkbookProblem['tab'], reading: TabReading<Fact>, problems: WorkbookProblem[]): readonly Fact[] {
   problems.push(...tabProblems(tab, reading.problems))
   return reading.facts
 }
 
-/** A tab's facts without the row each came from, for a fact the rest of the app knows by its name. */
-function withoutRows<Fact extends { readonly sheetRow: number }>(facts: readonly Fact[]): Omit<Fact, 'sheetRow'>[] {
-  return facts.map(({ sheetRow: _row, ...fact }) => fact)
+/** A tab's facts without their record id, for a fact the rest of the app knows by its name. */
+function withoutIds<Fact extends { readonly id: RecordId }>(facts: readonly Fact[]): Omit<Fact, 'id'>[] {
+  return facts.map(({ id: _id, ...fact }) => fact)
 }
 
-/** A tab's problems in the order of its rows, so a problem a reader finds across rows is listed with the rest. */
-function tabProblems(tab: WorkbookProblem['tab'], rowProblems: readonly RowProblem[]): WorkbookProblem[] {
-  return [...rowProblems].sort((upper, lower) => upper.sheetRow - lower.sheetRow).map((problem) => ({ tab, ...problem }))
+function tabProblems(tab: WorkbookProblem['tab'], problems: readonly RecordProblem[]): WorkbookProblem[] {
+  return problems.map((problem) => ({ tab, ...problem }))
 }
 
 /** The key that finds a ledger row again, read as the ledger reader reads it, or null for a row it leaves out. */
@@ -107,7 +105,7 @@ export function definedTransactions(ledgerRows: readonly SheetRow[], categoryRow
 
 /** The categories a `categories` tab defines, by the same rule the reader applies. */
 export function definedCategories(rows: readonly SheetRow[]): readonly Category[] {
-  return withoutRows(readCategoryRows(rows).facts)
+  return withoutIds(readCategoryRows(rows).facts)
 }
 
 export function definedCategorySlugs(rows: readonly SheetRow[]): ReadonlySet<string> {
@@ -120,9 +118,7 @@ export function definedClientSlugs(rows: readonly SheetRow[]): ReadonlySet<strin
 }
 
 function readSettings(rows: readonly SheetRow[], problems: WorkbookProblem[]): Settings {
-  const parsed = parseSettings(
-    rows.map((row) => ({ key: textOf(row.cells.key), value: row.cells.value, sheetRow: row.sheetRow })),
-  )
+  const parsed = parseSettings(rows.map((row) => ({ key: textOf(row.cells.key), value: row.cells.value })))
   problems.push(...parsed.problems.map((problem) => ({ tab: 'settings' as const, ...problem })))
   return parsed.settings
 }
@@ -134,10 +130,10 @@ function readSettings(rows: readonly SheetRow[], problems: WorkbookProblem[]): S
  * unclassified. A VAT treatment the app does not know is reported and read as none, so the category
  * still counts.
  */
-export function readCategoryRows(rows: readonly SheetRow[]): TabReading<Category & { readonly sheetRow: number }> {
-  const definitions: (Category & { readonly sheetRow: number })[] = []
+export function readCategoryRows(rows: readonly SheetRow[]): TabReading<Category & { readonly id: RecordId }> {
+  const definitions: { readonly row: SheetRow; readonly category: Category & { readonly id: RecordId } }[] = []
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
+  for (const row of rows) {
     const slug = slugOf(row.cells.category)
     const family = slugOf(row.cells.family)
     const bucket = slugOf(row.cells.bucket)
@@ -154,21 +150,29 @@ export function readCategoryRows(rows: readonly SheetRow[]): TabReading<Category
       problems.push({ sheetRow: row.sheetRow, reason: `vat "${vat}" is not a VAT treatment, so ${slug} reads as none` })
     }
     definitions.push({
-      slug,
-      label: textOf(row.cells.label),
-      family,
-      bucket,
-      colour: textOf(row.cells.colour),
-      roles: slugListOf(row.cells.roles),
-      vat: isVatTreatment(vat) ? vat : 'none',
-      sheetRow: row.sheetRow,
+      row,
+      category: {
+        slug,
+        label: textOf(row.cells.label),
+        family,
+        bucket,
+        colour: textOf(row.cells.colour),
+        roles: slugListOf(row.cells.roles),
+        vat: isVatTreatment(vat) ? vat : 'none',
+        id: readRecordId('categories', row.cells),
+      },
     })
   }
-  const shared = sharedKeys(definitions, (category) => category.slug)
-  for (const category of definitions.filter((definition) => shared.has(definition.slug))) {
-    problems.push({ sheetRow: category.sheetRow, reason: `"${category.slug}" is defined on more than one row, so none of them counts` })
+  const shared = sharedKeys(definitions, ({ category }) => category.slug)
+  for (const { row, category } of definitions.filter((definition) => shared.has(definition.category.slug))) {
+    problems.push({ sheetRow: row.sheetRow, reason: `"${category.slug}" is defined on more than one row, so none of them counts` })
   }
-  return { facts: definitions.filter((category) => !shared.has(category.slug)), problems }
+  return tabReading(
+    'categories',
+    rows,
+    definitions.map(({ category }) => category).filter((category) => !shared.has(category.slug)),
+    problems,
+  )
 }
 
 /**
@@ -176,10 +180,10 @@ export function readCategoryRows(rows: readonly SheetRow[]): TabReading<Category
  * workbook's. With no workbook currency given, only a currency that is not one is reported. An
  * account named on more than one row is read from none of them.
  */
-export function readAccountRows(rows: readonly SheetRow[], workbookCurrency: string | null): TabReading<Account & { readonly sheetRow: number }> {
-  const facts: (Account & { readonly sheetRow: number })[] = []
+export function readAccountRows(rows: readonly SheetRow[], workbookCurrency: string | null): TabReading<Account & { readonly id: RecordId }> {
+  const read: { readonly row: SheetRow; readonly account: Account & { readonly id: RecordId } }[] = []
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
+  for (const row of rows) {
     const slug = slugOf(row.cells.account)
     if (slug === '') {
       problems.push({ sheetRow: row.sheetRow, reason: 'no account name' })
@@ -192,22 +196,30 @@ export function readAccountRows(rows: readonly SheetRow[], workbookCurrency: str
     } else if (currency !== '' && workbookCurrency !== null && currency !== workbookCurrency) {
       problems.push({ sheetRow: row.sheetRow, reason: `${slug} is in ${currency} but the workbook counts in ${workbookCurrency}, so its amounts read as ${workbookCurrency}` })
     }
-    facts.push({ slug, label: textOf(row.cells.label), iban: normaliseIban(textOf(row.cells.iban)), currency, sheetRow: row.sheetRow })
+    read.push({ row, account: { slug, label: textOf(row.cells.label), iban: normaliseIban(textOf(row.cells.iban)), currency, id: readRecordId('accounts', row.cells) } })
   }
-  const shared = sharedKeys(facts, (account) => account.slug)
-  for (const account of facts.filter((fact) => shared.has(fact.slug))) {
-    problems.push({ sheetRow: account.sheetRow, reason: `${account.slug} is named on more than one row, so none of them counts` })
+  const shared = sharedKeys(read, ({ account }) => account.slug)
+  for (const { row, account } of read.filter((fact) => shared.has(fact.account.slug))) {
+    problems.push({ sheetRow: row.sheetRow, reason: `${account.slug} is named on more than one row, so none of them counts` })
   }
-  return { facts: facts.filter((account) => !shared.has(account.slug)), problems }
+  return tabReading(
+    'accounts',
+    rows,
+    read.map(({ account }) => account).filter((account) => !shared.has(account.slug)),
+    problems,
+  )
 }
 
 /** The rules as `readRules` reads them, with enabled rules that share an order reported, since the app and `Rules.gs` break that tie differently. */
 function readRulesTab(rows: readonly SheetRow[], categories: readonly Category[], hasClientsTab: boolean, problems: WorkbookProblem[]): readonly Rule[] {
   const read = readRules(rows, new Set(categories.map((category) => category.slug)), hasClientsTab)
-  const ties = orderTies(read.rules).flatMap((tie) => {
-    const reason = `${tie.map((rule) => rule.id).join(' and ')} share the order ${tie[0]!.order}, so the app tries them by id and the Apps Script by row. Give each its own order`
-    return tie.map((rule) => ({ sheetRow: rule.sheetRow ?? 0, reason }))
-  })
+  const ties = orderTies(read.rules).flatMap((tie) =>
+    tie.map((rule): RecordProblem => {
+      const others = tie.filter((other) => other !== rule).map((other) => other.id)
+      const reason = `shares the order ${rule.order} with ${others.join(' and ')}, so the app tries them by id and the Apps Script by row. Give each its own order`
+      return { id: recordIdOf(RULE_RECORDS, rule.id.toLowerCase()), label: rule.id, reason }
+    }),
+  )
   problems.push(...tabProblems('rules', [...read.problems, ...ties]))
   return read.rules
 }
@@ -218,7 +230,7 @@ export interface ClientRow {
   readonly name: string
   readonly iban: string
   readonly invoicing: ClientRowInvoicing
-  readonly sheetRow: number
+  readonly id: RecordId
 }
 
 /** The invoice columns of one clients row, with `reverseCharge` null where the cell is blank. */
@@ -260,30 +272,31 @@ function knownLanguage(tag: string): boolean {
  * reported on each of its rows, and reads blank.
  */
 export function readClientRows(rows: readonly SheetRow[]): TabReading<ClientRow> {
-  const read: ClientRow[] = []
+  const read: { readonly row: SheetRow; readonly client: ClientRow }[] = []
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
+  for (const row of rows) {
     const slug = slugOf(row.cells.client)
     const iban = normaliseIban(textOf(row.cells.iban))
     if (slug === '' || iban === '') {
       problems.push({ sheetRow: row.sheetRow, reason: slug === '' ? 'no client name' : 'no IBAN' })
       continue
     }
-    read.push({ slug, name: textOf(row.cells.name), iban, invoicing: clientInvoicingOf(row, problems), sheetRow: row.sheetRow })
+    read.push({ row, client: { slug, name: textOf(row.cells.name), iban, invoicing: clientInvoicingOf(row, problems), id: readRecordId('clients', row.cells) } })
   }
-  const shared = sharedKeys(read, (row) => row.iban)
-  for (const row of read.filter((candidate) => shared.has(candidate.iban))) {
-    problems.push({ sheetRow: row.sheetRow, reason: `${row.iban} is on more than one row, so none of them counts` })
+  const shared = sharedKeys(read, ({ client }) => client.iban)
+  for (const { row, client } of read.filter((candidate) => shared.has(candidate.client.iban))) {
+    problems.push({ sheetRow: row.sheetRow, reason: `${client.iban} is on more than one row, so none of them counts` })
   }
-  const facts = read.filter((row) => !shared.has(row.iban))
+  const kept = read.filter(({ client }) => !shared.has(client.iban))
+  const facts = kept.map(({ client }) => client)
   for (const [slug, ofClient] of rowsByClient(facts)) {
     const { differing } = clientOf(slug, ofClient)
     if (differing.length > 0) {
       const reason = `the rows of ${slug} give ${differing.join(', ')} differently, so ${differing.length === 1 ? 'it reads' : 'they read'} blank`
-      problems.push(...ofClient.map((row) => ({ sheetRow: row.sheetRow, reason })))
+      problems.push(...kept.filter(({ client }) => client.slug === slug).map(({ row }) => ({ sheetRow: row.sheetRow, reason })))
     }
   }
-  return { facts, problems }
+  return tabReading('clients', rows, facts, problems)
 }
 
 function clientsOf(rows: readonly ClientRow[]): Client[] {
@@ -332,7 +345,7 @@ function clientOf(slug: string, rows: readonly ClientRow[]): { readonly client: 
 export function readInvoiceRows(rows: readonly SheetRow[], clientSlugs: ReadonlySet<string>): TabReading<Invoice> {
   const invoices: Invoice[] = []
   const problems: RowProblem[] = []
-  const read = inTabOrder(rows).map((row) => ({ row, invoice: readInvoiceRow(row) }))
+  const read = rows.map((row) => ({ row, invoice: readInvoiceRow(row) }))
   const keyOf = (invoice: Omit<Invoice, 'deliveryPeriod'>): string => `${invoice.client} ${invoice.number}`
   const shared = sharedKeys(
     read.flatMap(({ invoice }) => (typeof invoice === 'string' ? [] : [invoice])),
@@ -356,7 +369,7 @@ export function readInvoiceRows(rows: readonly SheetRow[], clientSlugs: Readonly
     }
     invoices.push({ ...invoice, deliveryPeriod: isUnreadable(deliveryPeriod) ? null : deliveryPeriod })
   }
-  return { facts: invoices, problems }
+  return tabReading('invoices', rows, invoices, problems)
 }
 
 function readInvoiceRow(row: SheetRow): Omit<Invoice, 'deliveryPeriod'> | string {
@@ -381,7 +394,7 @@ function readInvoiceRow(row: SheetRow): Omit<Invoice, 'deliveryPeriod'> | string
   if (due === null && cells.due !== undefined) {
     return `the due date "${textOf(cells.due)}" is not a date cell`
   }
-  return { number, client, item: textOf(cells.item), amount, issued, due, sheetRow: row.sheetRow }
+  return { number, client, item: textOf(cells.item), amount, issued, due, id: readRecordId('invoices', cells) }
 }
 
 /**
@@ -391,20 +404,26 @@ function readInvoiceRow(row: SheetRow): Omit<Invoice, 'deliveryPeriod'> | string
  */
 export function readOwnerAdvanceRows(rows: readonly SheetRow[], categories: readonly Category[]): TabReading<OwnerAdvance> {
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
-  const facts: OwnerAdvance[] = []
+  const read: OwnerAdvance[] = []
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
+  const shared = sharedIds(rows)
+  for (const row of rows) {
     const advance = readOwnerAdvanceRow(row, categoryBySlug)
     if (typeof advance === 'string') {
       problems.push({ sheetRow: row.sheetRow, reason: advance })
-    } else {
-      facts.push(advance)
+      continue
     }
+    const id = readRow(() => ownIdOf('owner-advances', row, shared))
+    if (isUnreadable(id)) {
+      problems.push({ sheetRow: row.sheetRow, reason: id.unreadable })
+      continue
+    }
+    read.push({ ...advance, id })
   }
-  return { facts, problems }
+  return tabReading('owner-advances', rows, read, problems)
 }
 
-function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, Category>): OwnerAdvance | string {
+function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, Category>): Omit<OwnerAdvance, 'id'> | string {
   const { cells } = row
   const date = dateOf(cells.date)
   if (date === null) {
@@ -428,35 +447,47 @@ function readOwnerAdvanceRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, 
   if (!(ADVANCE_BUCKETS as readonly string[]).includes(category.bucket)) {
     return `"${slug}" is in the ${category.bucket} bucket, and an advance counts as an operating cost or a tax`
   }
-  return { date, amount, description: textOf(cells.description), category: slug, family: category.family, bucket: category.bucket, sheetRow: row.sheetRow, ...idOf(cells) }
+  return { date, amount, description: textOf(cells.description), category: slug, family: category.family, bucket: category.bucket }
 }
 
 /**
  * The transactions a `ledger` tab holds against these categories, each numbered in booking order,
  * and why the other rows were left out. A day whose balances do not chain is reported on the row
- * the guessed order closes it with.
+ * the guessed order closes it with. Rows that share their key still count, each with a problem.
  */
 export function readLedgerTab(rows: readonly SheetRow[], categories: readonly Category[]): TabReading<Transaction> {
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
   const entries: Omit<Transaction, 'sequence'>[] = []
+  const rowOf = new Map<Omit<Transaction, 'sequence'>, SheetRow>()
   const problems: RowProblem[] = []
-  for (const row of inTabOrder(rows)) {
+  for (const row of rows) {
     const entry = readLedgerRow(row, categoryBySlug)
     if (typeof entry === 'string') {
       problems.push({ sheetRow: row.sheetRow, reason: entry })
     } else {
       entries.push(entry)
+      rowOf.set(entry, row)
     }
+  }
+  const shared = sharedKeys(entries, (entry) => entry.id)
+  for (const entry of entries.filter((candidate) => shared.has(candidate.id))) {
+    const same = entry.reference === '' ? 'the same account, day, amount, balance and description' : `the same account and reference ${entry.reference}`
+    problems.push({ sheetRow: rowOf.get(entry)!.sheetRow, reason: `another ledger row has ${same}, so the app cannot tell the two apart` })
   }
   const order = bookingOrder(entries)
   const sequenceOf = new Map(order.entries.map((entry, index) => [entry, index + 1]))
   for (const day of order.unchained) {
     problems.push({
-      sheetRow: day.closing.sheetRow,
+      sheetRow: rowOf.get(day.closing)!.sheetRow,
       reason: `the balances of the ${day.account} rows of ${day.date} do not follow from one another, so they are ordered by reference and this row's balance closing the day is a guess`,
     })
   }
-  return { facts: entries.map((entry): Transaction => ({ ...entry, sequence: sequenceOf.get(entry)! })), problems }
+  return tabReading(
+    'ledger',
+    rows,
+    entries.map((entry): Transaction => ({ ...entry, sequence: sequenceOf.get(entry)! })),
+    problems,
+  )
 }
 
 function readLedger(rows: readonly SheetRow[], categories: readonly Category[], problems: WorkbookProblem[]): Transaction[] {
@@ -507,7 +538,7 @@ function readLedgerRow(row: SheetRow, categoryBySlug: ReadonlyMap<string, Catego
       instructedCurrency: textOf(cells.instructed_currency),
     },
     reviewReasons: reviewReasonsOf(cells.review_reasons),
-    sheetRow: row.sheetRow,
+    id: readRecordId('ledger', cells),
   }
 }
 

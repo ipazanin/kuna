@@ -25,8 +25,8 @@ export interface DraftColumn {
 
 /** One row of a tab editor, as the text in its fields. */
 export interface TabRowDraft {
-  /** The row number this draft was read from, or null for a row added in the editor. */
-  readonly sheetRow: number | null
+  /** Where the row this draft was read from stands among the rows the editor opened with, or null for a row added in the editor. */
+  readonly saved: number | null
   readonly fields: Readonly<Record<string, string>>
 }
 
@@ -34,15 +34,13 @@ export function kindOfColumn(column: DraftColumn, fieldOf: FieldReader): DraftCe
   return column.kindOf?.(fieldOf) ?? column.kind
 }
 
-/** The drafts of a tab's rows, in tab order. */
-export function draftsOfRows(rows: readonly { readonly sheetRow: number; readonly cells: Cells }[], columns: readonly DraftColumn[]): TabRowDraft[] {
-  return [...rows]
-    .sort((upper, lower) => upper.sheetRow - lower.sheetRow)
-    .map((row) => {
-      const fieldOf: FieldReader = (column) => String(row.cells[column] ?? '').trim().toLowerCase()
-      const fields = Object.fromEntries(columns.map((column) => [column.name, draftTextOf(row.cells[column.name], kindOfColumn(column, fieldOf))]))
-      return { sheetRow: row.sheetRow, fields }
-    })
+/** The drafts of a tab's rows, in the order the rows are given. */
+export function draftsOfRows(rows: readonly { readonly cells: Cells }[], columns: readonly DraftColumn[]): TabRowDraft[] {
+  return rows.map((row, saved) => {
+    const fieldOf: FieldReader = (column) => String(row.cells[column] ?? '').trim().toLowerCase()
+    const fields = Object.fromEntries(columns.map((column) => [column.name, draftTextOf(row.cells[column.name], kindOfColumn(column, fieldOf))]))
+    return { saved, fields }
+  })
 }
 
 /** The tab's cells for the drafts. Cells of other columns on a saved row are kept, and a blank field clears its cell. */
@@ -50,7 +48,7 @@ export function cellsOfDrafts(drafts: readonly TabRowDraft[], columns: readonly 
   return drafts.map((draft) => {
     const fieldOf: FieldReader = (column) => (draft.fields[column] ?? '').trim().toLowerCase()
     return {
-      ...(draft.sheetRow === null ? {} : (savedCells.get(draft.sheetRow) ?? {})),
+      ...(draft.saved === null ? {} : (savedCells.get(draft.saved) ?? {})),
       ...Object.fromEntries(columns.map((column) => [column.name, cellOfDraftText(draft.fields[column.name] ?? '', kindOfColumn(column, fieldOf))])),
     }
   })
@@ -104,27 +102,28 @@ export function cellOfDraftText(text: string, kind: DraftCellKind): Cell {
 /**
  * The change an editor's drafts make to the tab's rows. A field left as it was keeps the cell the
  * tab holds, so a formula is never written over with its own value. A draft without a row is added
- * at the foot, and a row no draft holds any more is deleted. `opened` is the cells each row's draft
- * gave when the editor opened, by row.
+ * at the foot, and a row no draft holds any more is deleted. A changed or deleted row carries every
+ * cell it was read with, its id among them, so the write finds it by its key or id. `opened` is the
+ * cells each row's draft gave when the editor opened, by the row's place among `rows`.
  */
 export function rowsChangeOf(
-  rows: readonly { readonly sheetRow: number; readonly cells: Cells }[],
+  rows: readonly { readonly cells: Cells }[],
   columns: readonly string[],
-  drafted: readonly { readonly sheetRow: number | null; readonly cells: Cells }[],
+  drafted: readonly { readonly saved: number | null; readonly cells: Cells }[],
   opened: ReadonlyMap<number, Cells>,
 ): TabRowsChange {
   const inColumns = (cells: Cells): RowCells => Object.fromEntries(columns.map((column) => [column, cells[column] ?? '']))
-  const kept = new Set(drafted.flatMap((draft) => (draft.sheetRow === null ? [] : [draft.sheetRow])))
+  const kept = new Set(drafted.flatMap((draft) => (draft.saved === null ? [] : [draft.saved])))
   return {
-    added: drafted.filter((draft) => draft.sheetRow === null).map((draft) => inColumns(draft.cells)),
+    added: drafted.filter((draft) => draft.saved === null).map((draft) => inColumns(draft.cells)),
     changed: drafted.flatMap((draft) => {
-      const row = draft.sheetRow === null ? undefined : rows.find((candidate) => candidate.sheetRow === draft.sheetRow)
-      if (row === undefined) return []
-      const before = inColumns(row.cells)
-      const original = opened.get(row.sheetRow) ?? {}
+      const row = draft.saved === null ? undefined : rows[draft.saved]
+      if (row === undefined || draft.saved === null) return []
+      const before = { ...row.cells, ...inColumns(row.cells) }
+      const original = opened.get(draft.saved) ?? {}
       const after = Object.fromEntries(columns.map((column) => [column, cellText(draft.cells[column]) === cellText(original[column]) ? before[column]! : (draft.cells[column] ?? '')]))
-      return columns.some((column) => cellText(after[column]) !== cellText(before[column])) ? [{ sheetRow: row.sheetRow, before, after }] : []
+      return columns.some((column) => cellText(after[column]) !== cellText(before[column])) ? [{ before, after }] : []
     }),
-    removed: rows.filter((row) => !kept.has(row.sheetRow)).map((row) => ({ sheetRow: row.sheetRow, cells: inColumns(row.cells) })),
+    removed: rows.filter((_, saved) => !kept.has(saved)).map((row) => ({ ...row.cells, ...inColumns(row.cells) })),
   }
 }

@@ -8,8 +8,10 @@ import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { STEADY_CATEGORIES, STEADY_ROWS, planLine, planOwnerPay, steadyStudio } from './fixtures/steadyStudio'
 import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
 
-const FLOOR_2026: OwnerPayScenario = { slug: 'floor-2026', label: 'Floor salary', year: 2026, components: [{ component: 'salary_gross', gross: 'floor', from: null, to: null, sheetRow: 2 }] }
+const FLOOR_2026: OwnerPayScenario = { slug: 'floor-2026', label: 'Floor salary', year: 2026, components: [{ component: 'salary_gross', gross: 'floor', from: null, to: null, id: recordIdOf(SCENARIO_RECORDS, 'row-2') }] }
 
 /** Steady Studio's 2026 with a plan made in January: the tool at 150.00, the floor salary, and a fee of 6,000.00 a month but 5,500.00 in March. */
 function plannedIn2026() {

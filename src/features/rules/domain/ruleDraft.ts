@@ -6,7 +6,7 @@ import type { RuleTabRow } from './readRules'
 import { CONDITION_COLUMNS, inTryingOrder } from './rule'
 import type { Rule, RuleConfidence } from './rule'
 import { placeBefore } from './rulePlacement'
-import { ruleTabCells } from './rulesTabChange'
+import { ruleTabCells, sameId } from './rulesTabChange'
 import type { RuleCells, RuleRowEdit, RulesTabChange } from './rulesTabChange'
 import type { CategorisableTransaction, CategorisationContext } from './transactionFacts'
 
@@ -71,7 +71,7 @@ export function draftChange(draft: RuleDraft, rules: readonly Rule[], rows: read
   const placement = stays ? { order: edited.order, renumbered: new Map<string, number>() } : placeBefore(rules, edited?.id ?? null, draft.before)
   const cells: RuleCells = { ...cellsOf(draft), order: placement.order }
   const renumbered = [...placement.renumbered].flatMap(([id, order]): RuleRowEdit[] => {
-    const row = rows.find((candidate) => cellText(candidate.cells.rule).toLowerCase() === id.toLowerCase())
+    const row = rows.find((candidate) => sameId(candidate.cells.rule, id))
     return row === undefined ? [] : [{ id, expected: row.cells, cells: { ...row.cells, order } }]
   })
   return edited === null
@@ -113,7 +113,7 @@ export function blankDraft(rules: readonly Rule[]): RuleDraft {
 
 /** The draft and the tab row of a rule on the tab, or null when the copy on screen has no row for it. */
 export function draftOfRule(rule: Rule, rows: readonly RuleTabRow[], rules: readonly Rule[]): { readonly draft: RuleDraft; readonly edited: EditedRule } | null {
-  const row = rows.find((candidate) => candidate.sheetRow === rule.sheetRow)
+  const row = rows.find((candidate) => sameId(candidate.cells.rule, rule.id))
   if (row === undefined) {
     return null
   }

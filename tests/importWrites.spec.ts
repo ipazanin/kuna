@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { LEDGER_ROWS, placeBlocks } from '../src/features/imports/application/ledgerRows'
+import { LEDGER_ROWS } from '../src/features/imports/application/ledgerRows'
 import { dryRunFor, statementReadings } from '../src/features/imports/application/importStatements'
 import type { ImportDryRun } from '../src/features/imports/domain/importDryRun'
 import type { ImportProfile } from '../src/features/imports/domain/importProfile'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { RowCells } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { placeLedgerRows } from '../src/features/workbook/infrastructure/ledgerPlacement'
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { moneyFromCents } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
@@ -156,13 +157,13 @@ describe('placing statement rows where the Apps Script inserts a batch', () => {
   const cells = (date: number, statement: string, account = 'main'): RowCells => ({ date, statement, account })
 
   it('puts a newer statement on top and an older one above the first row not newer than its newest day', () => {
-    expect(placeBlocks(rows, [cells(46310, 'new'), cells(46309, 'new')], 5)).toEqual([{ index: 0, before: 2 }, { index: 1, before: 2 }])
-    expect(placeBlocks(rows, [cells(46299, 'mid', 'other')], 5)).toEqual([{ index: 0, before: 3 }])
-    expect(placeBlocks(rows, [cells(46000, 'old', 'other')], 5)).toEqual([{ index: 0, before: 6 }])
+    expect(placeLedgerRows(rows, [cells(46310, 'new'), cells(46309, 'new')], 5)).toEqual([{ index: 0, before: 2 }, { index: 1, before: 2 }])
+    expect(placeLedgerRows(rows, [cells(46299, 'mid', 'other')], 5)).toEqual([{ index: 0, before: 3 }])
+    expect(placeLedgerRows(rows, [cells(46000, 'old', 'other')], 5)).toEqual([{ index: 0, before: 6 }])
   })
 
   it('places each statement among the rows the ones before it put in, so the block of a later one lands above', () => {
-    expect(placeBlocks(rows, [cells(46301, 'first'), cells(46302, 'second')], 5)).toEqual([{ index: 1, before: 2 }, { index: 0, before: 2 }])
+    expect(placeLedgerRows(rows, [cells(46301, 'first'), cells(46302, 'second')], 5)).toEqual([{ index: 1, before: 2 }, { index: 0, before: 2 }])
   })
 })
 
@@ -176,7 +177,7 @@ describe.each([
 
     const receipt = await store.changeRows(LEDGER_ROWS, { added: dryRun(store, creditStatement()).added, changed: [], removed: [] })
 
-    expect(receipt?.added.map((row) => row.sheetRow)).toEqual([2])
+    expect(receipt?.added).toHaveLength(1)
     expect(ledgerCells(store)[0]).toMatchObject({ date: 47918, account: 'main', amount: 923.15, balance: 1923.15, category: 'revenue', flagged_by: 'rule' })
     expect(ledgerCells(store).slice(1)).toEqual(before)
     expect(store.state.workbook?.transactions.find((row) => row.reference === '2031-74101882-00752204301')?.sequence).toBe(5)
@@ -256,7 +257,8 @@ describe.each([
     const run = dryRun(store, savings, new Map([['savings', moneyFromCents(25_000)]]))
 
     await store.changeRows(LEDGER_ROWS, { added: run.added, changed: [], removed: [] })
-    expect(store.state.workbook?.transactions.filter((row) => row.account === 'savings').map((row) => [row.sheetRow, row.balance])).toEqual([[2, moneyFromCents(117_315)]])
+    expect(ledgerCells(store)[0]).toMatchObject({ account: 'savings', balance: 1173.15 })
+    expect(store.state.workbook?.transactions.filter((row) => row.account === 'savings').map((row) => row.balance)).toEqual([moneyFromCents(117_315)])
   })
 
   it('refuses to take out rows a newer row of the account follows', async () => {
@@ -266,7 +268,7 @@ describe.each([
     const later = creditStatement('1923.15', '2846.30').replace(/2031-03-12T/g, '2031-03-14T').replace(/<Dt>2031-03-11<\/Dt>/g, '<Dt>2031-03-13</Dt>').replace(/2031-74101882-00752204301/g, 'LATER-1').replace('<LglSeqNb>42</LglSeqNb>', '<LglSeqNb>43</LglSeqNb>')
     await store.changeRows(LEDGER_ROWS, { added: dryRun(store, later).added, changed: [], removed: [] })
 
-    await expect(store.undo(imported)).rejects.toThrow('Row 2 of main is booked after the rows to take out, so its balance follows from them.')
+    await expect(store.undo(imported)).rejects.toThrow('The main row of 2031-03-13 with the balance 2846.30 is booked after the rows to take out, so its balance follows from them.')
   })
 })
 

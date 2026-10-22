@@ -9,6 +9,7 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
 import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
 import type { PlanLine } from '../../../../features/workbook/domain/plan'
+import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import type { Category } from '../../../../features/workbook/domain/workbook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthKey } from '../../../../shared/calendar/monthKey'
@@ -38,7 +39,7 @@ const props = defineProps<{
   /** The scenarios of the year, to choose the owner pay from. */
   scenarios: readonly OwnerPayScenario[]
   /** Why the forecast does not count a row, by its row on the tab. */
-  notCounted: ReadonlyMap<number, string>
+  notCounted: ReadonlyMap<RecordId, string>
   suggestedSwitch: CivilDate | null
   categoryName: (slug: string) => string
 }>()
@@ -48,7 +49,7 @@ const store = useWorkbook()
 const ownerPayLines = computed(() => props.lines.filter((line): line is OwnerPayLine => line.kind === 'owner-pay-scenario'))
 const purchases = computed(() => props.lines.filter((line): line is PurchaseLine => line.kind === 'purchase').sort((earlier, later) => earlier.date.localeCompare(later.date)))
 const dividend = computed(() => props.lines.find((line): line is AmountLine => line.kind === 'amount' && line.item === 'dividend') ?? null)
-const ownerPaySet = computed(() => ownerPayLines.value.some((line) => line.from === null) && ownerPayLines.value.every((line) => !props.notCounted.has(line.sheetRow)))
+const ownerPaySet = computed(() => ownerPayLines.value.some((line) => line.from === null) && ownerPayLines.value.every((line) => !props.notCounted.has(line.id)))
 
 const scenarioName = (slug: string) => {
   const scenario = props.scenarios.find((candidate) => candidate.slug === slug)
@@ -62,7 +63,7 @@ const ownerPayWords = computed(() => {
   const start = opening === undefined ? 'No scenario from 1 January' : `${scenarioName(opening.scenario)} from 1 January`
   return switched === undefined || switched.from === null ? start : `${start}, then ${scenarioName(switched.scenario)} from ${dayLabel(switched.from)}`
 })
-const ownerPayReasons = computed(() => [...new Set(ownerPayLines.value.flatMap((line) => props.notCounted.get(line.sheetRow) ?? []))])
+const ownerPayReasons = computed(() => [...new Set(ownerPayLines.value.flatMap((line) => props.notCounted.get(line.id) ?? []))])
 
 interface CategoryEntry {
   readonly category: Category
@@ -90,7 +91,7 @@ const entries = computed((): CategoryEntry[] => {
         average,
         averageWords: fallback?.average.label ?? null,
         caption: captionOf(category, lines, average, fallback?.lastMonth ?? false),
-        reasons: [...new Set(lines.flatMap((line) => props.notCounted.get(line.sheetRow) ?? []))],
+        reasons: [...new Set(lines.flatMap((line) => props.notCounted.get(line.id) ?? []))],
       }
     })
 })
@@ -202,12 +203,12 @@ function editPurchase(purchase: PurchaseLine | null): void {
         </div>
         <p v-if="purchases.length === 0" class="py-2 text-sm text-muted">None planned.</p>
         <ul v-else class="flex flex-col">
-          <li v-for="purchase in purchases" :key="purchase.sheetRow">
+          <li v-for="purchase in purchases" :key="purchase.id">
             <button type="button" class="plan-row" :aria-label="`${purchase.note || 'Purchase'}, ${dayLabel(purchase.date)}: edit`" :disabled="store.state.writing" data-testid="plan-purchase" @click="editPurchase(purchase)">
               <span class="min-w-0 text-start">
                 <span class="block text-sm text-toned">{{ purchase.note || 'Purchase' }}</span>
                 <span class="block text-xs text-muted">{{ dayLabel(purchase.date) }}, {{ GROUP_WORDS[purchase.group].toLowerCase() }}</span>
-                <span v-if="notCounted.get(purchase.sheetRow)" class="mt-0.5 block text-xs text-[var(--tone-warning)]">Not counted. {{ notCounted.get(purchase.sheetRow) }}</span>
+                <span v-if="notCounted.get(purchase.id)" class="mt-0.5 block text-xs text-[var(--tone-warning)]">Not counted. {{ notCounted.get(purchase.id) }}</span>
               </span>
               <MoneyText :cents="purchase.amount" class="shrink-0 text-sm text-toned" />
             </button>
@@ -235,7 +236,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
           <span class="min-w-0 text-start">
             <span class="block text-sm text-toned">Paid in {{ dividend.month === null ? year : monthLabel(monthKey(year, dividend.month)) }}</span>
             <span v-if="dividend.note" class="block text-xs text-muted">{{ dividend.note }}</span>
-            <span v-if="notCounted.get(dividend.sheetRow)" class="mt-0.5 block text-xs text-[var(--tone-warning)]">Not counted. {{ notCounted.get(dividend.sheetRow) }}</span>
+            <span v-if="notCounted.get(dividend.id)" class="mt-0.5 block text-xs text-[var(--tone-warning)]">Not counted. {{ notCounted.get(dividend.id) }}</span>
           </span>
           <MoneyText :cents="dividend.amount" class="shrink-0 text-sm text-toned" />
         </button>

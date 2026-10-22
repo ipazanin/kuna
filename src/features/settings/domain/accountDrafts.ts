@@ -4,8 +4,8 @@ import { currencyProblem } from './settings'
 
 /** One row of the accounts editor, as text. */
 export interface AccountDraft {
-  /** The row number this draft was read from, or null for a row added in the editor. */
-  readonly sheetRow: number | null
+  /** Where the row this draft was read from stands among the rows the editor opened with, or null for a row added in the editor. */
+  readonly saved: number | null
   /** The name the row had when the editor opened, which ledger rows may use. */
   readonly savedName: string
   readonly account: string
@@ -22,22 +22,22 @@ export type AccountDraftErrors = ReadonlyMap<number, Partial<Record<AccountField
 /** Each account once, by name, a new name in the slug format. An account in use keeps its name. A currency, if given, is a real one. */
 export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: ReadonlySet<string>): AccountDraftErrors {
   const errors = new Map<number, Partial<Record<AccountField, string>>>()
-  const firstAt = new Map<string, number>()
+  const named = new Set<string>()
   drafts.forEach((draft, index) => {
     const found: Partial<Record<AccountField, string>> = {}
     const name = draft.account.trim().toLowerCase()
     const saved = draft.savedName.trim().toLowerCase()
     if (name === '') {
       found.account = 'Required'
-    } else if (firstAt.has(name)) {
-      found.account = `Already on row ${(firstAt.get(name) ?? 0) + 1}`
+    } else if (named.has(name)) {
+      found.account = 'Already used above'
     } else if (saved !== '' && saved !== name && usedNames.has(saved)) {
       found.account = `${draft.savedName} is in use, so it keeps its name`
     } else if (name !== saved && slugProblem(name, 'account') !== null) {
       found.account = 'Lower-case letters, digits and single hyphens'
     }
-    if (name !== '' && !firstAt.has(name)) {
-      firstAt.set(name, index)
+    if (name !== '') {
+      named.add(name)
     }
     const currency = draft.currency.trim().toUpperCase()
     const problem = currency === '' ? null : currencyProblem(currency)
@@ -56,7 +56,7 @@ export function accountCellsOf(
   savedCells: ReadonlyMap<number, Readonly<Record<string, string | number | boolean>>>,
 ): Record<string, string | number | boolean>[] {
   return drafts.map((draft) => ({
-    ...(draft.sheetRow === null ? {} : (savedCells.get(draft.sheetRow) ?? {})),
+    ...(draft.saved === null ? {} : (savedCells.get(draft.saved) ?? {})),
     account: draft.account.trim().toLowerCase(),
     label: draft.label.trim(),
     iban: normaliseIban(draft.iban),

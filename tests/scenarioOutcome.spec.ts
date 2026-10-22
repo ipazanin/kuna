@@ -17,6 +17,8 @@ import { addMoney, subtractMoney, sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
 import { STEADY_GRANT, steadyStudio } from './fixtures/steadyStudio'
 import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 function figure(label: string, amount: number): TracedFigure {
   return tracedFigure(label, euros(amount), 'ledger', [])
@@ -56,10 +58,10 @@ function company(changes: Partial<ScenarioCompany> = {}): ScenarioCompany {
   }
 }
 
-type Draft = ScenarioComponent extends infer Each ? (Each extends ScenarioComponent ? Omit<Each, 'sheetRow' | 'from' | 'to'> & { from?: string; to?: string } : never) : never
+type Draft = ScenarioComponent extends infer Each ? (Each extends ScenarioComponent ? Omit<Each, 'id' | 'from' | 'to'> & { from?: string; to?: string } : never) : never
 
 function scenario(year: number, drafts: readonly Draft[]): OwnerPayScenario {
-  const components = drafts.map((draft, index) => ({ ...draft, from: draft.from === undefined ? null : civil(draft.from), to: draft.to === undefined ? null : civil(draft.to), sheetRow: index + 2 }) as ScenarioComponent)
+  const components = drafts.map((draft, index) => ({ ...draft, from: draft.from === undefined ? null : civil(draft.from), to: draft.to === undefined ? null : civil(draft.to), id: recordIdOf(SCENARIO_RECORDS, `row-${index + 2}`) }) as ScenarioComponent)
   return { slug: 'test', label: 'Test', year, components }
 }
 
@@ -243,14 +245,14 @@ describe('scenarioOutcome, tax-free items, rent and a salary below the floor', (
 
   it('pays the floor and says the agreed salary is below it', () => {
     const below = result.warnings.find((warning) => warning.kind === 'below-floor')
-    expect(below).toMatchObject({ sheetRow: 2, agreed: euros(1000) })
+    expect(below).toMatchObject({ agreed: euros(1000) })
     expect(below?.kind === 'below-floor' ? below.floor.amount : null).toBe(euros(1295.45))
     expect(result.payroll[0]?.gross.amount).toBe(euros(1295.45))
   })
 
   it('taxes the part of a tax-free item over its cap as salary in the month it is paid', () => {
     const over = result.warnings.find((warning) => warning.kind === 'cap-exceeded')
-    expect(over).toMatchObject({ item: 'occasional-gift', sheetRows: [4] })
+    expect(over).toMatchObject({ item: 'occasional-gift' })
     expect(over?.kind === 'cap-exceeded' ? [over.cap.amount, over.excess.amount] : null).toEqual([euros(700), euros(200)])
     // March: 1,295.45 + 200.00 = 1,495.45, above 1,300.00, so no relief. Pillar I 15% = 224.3175,
     // pillar II 5% = 74.7725, income 1,196.36, taxable 596.36, tax 23% = 137.1628, net 1,059.20.
@@ -307,7 +309,7 @@ describe('scenarioOutcome on a year the ruleset only estimates', () => {
 
 describe('scenarioOutcome refuses what a guard stops', () => {
   it('names the rows', () => {
-    expect(() => outcome([FLOOR, { ...FLOOR, from: '2026-06-01' }])).toThrow('Rows 2 and 3 both set the salary on 2026-06-01.')
+    expect(() => outcome([FLOOR, { ...FLOOR, from: '2026-06-01' }])).toThrow('The floor salary and the floor salary from 2026-06-01 both set the salary on 2026-06-01.')
   })
 })
 

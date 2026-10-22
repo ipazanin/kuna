@@ -16,7 +16,7 @@ const CLIENT_IBAN = 'XX00FAKE0000000012'
 const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], clients: [], settings: DEFAULT_SETTINGS })
 
 function rule(id: string, order: number, conditions: RuleCondition[], category: string, confidence: Rule['confidence'] = 'rule'): Rule {
-  return { id, order, enabled: true, conditions, category, confidence, note: '', sheetRow: order / 100 + 1 }
+  return { id, order, enabled: true, conditions, category, confidence, note: '' }
 }
 
 const RULES: readonly Rule[] = [
@@ -112,7 +112,6 @@ describe('proposeRule', () => {
       category: 'equipment',
       confidence: 'rule',
       note: 'A counterparty whose account settles the category on its own.',
-      sheetRow: null,
     })
   })
 

@@ -17,6 +17,7 @@ import { isSameLedgerRow, ledgerRowKeyOf } from '../../workbook/domain/ledgerRow
 import type { LedgerRowKey } from '../../workbook/domain/ledgerRowKey'
 import type { TabRowsReceipt } from '../../workbook/domain/rowChanges'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
+import { labelOfRow } from '../../workbook/infrastructure/tabRecords'
 import { changedCellsInWords, rowsChangeInWords } from '../../workbook/presentation/rowsInWords'
 import type { LedgerVerdictChange, VerdictReceipt } from '../domain/verdictChanges'
 
@@ -179,11 +180,11 @@ function quoted(cell: string | number | boolean | null): string {
             <li v-for="tab in write.given" :key="tab.tab" class="text-xs text-muted">{{ rows(tab.rows) }} of <span class="identifier text-toned">{{ tab.tab }}</span></li>
           </ul>
           <ul v-else-if="write.kind === 'rows'" class="detail-list">
-            <li v-for="row in [...write.receipt.added, ...write.receipt.removed].slice(0, SHOWN_ROWS)" :key="`row-${row.sheetRow}`" class="text-xs text-muted">
-              <span class="text-toned">{{ write.rules.label(row.cells) }}</span>, row {{ row.sheetRow }} of {{ write.rules.tab }}
+            <li v-for="(cells, index) in [...write.receipt.added, ...write.receipt.removed].slice(0, SHOWN_ROWS)" :key="`row-${index}`" class="text-xs text-muted">
+              <span class="text-toned">{{ labelOfRow(write.rules.tab, cells) }}</span>, on {{ write.rules.tab }}
             </li>
-            <li v-for="change in write.receipt.changed.slice(0, SHOWN_ROWS)" :key="`changed-${change.sheetRow}`" class="flex flex-col gap-1 text-xs text-muted">
-              <span><span class="text-toned">{{ write.rules.label(change.after) }}</span>, row {{ change.sheetRow }} of {{ write.rules.tab }}</span>
+            <li v-for="(change, index) in write.receipt.changed.slice(0, SHOWN_ROWS)" :key="`changed-${index}`" class="flex flex-col gap-1 text-xs text-muted">
+              <span><span class="text-toned">{{ labelOfRow(write.rules.tab, change.after) }}</span>, on {{ write.rules.tab }}</span>
               <span v-for="cell in changedCellsInWords(write.rules, change.before, change.after)" :key="cell.column">
                 <span class="identifier text-toned">{{ cell.column }}</span> from {{ cell.from }} to {{ cell.to }}
               </span>

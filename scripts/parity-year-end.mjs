@@ -42,7 +42,7 @@ installPack(hrDooPack)
 const bytes = readFileSync(options.workbook)
 const { tabs, missingTabs } = await readWorkbookFile(bytes)
 const read = readWorkbook({
-  meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs },
+  meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null, missingTabs },
   ...tabs,
 })
 const workbook = presentedWorkbook(read)
@@ -52,7 +52,7 @@ if (accountant.length === 0) {
   process.exit(2)
 }
 for (const problem of workbook.problems) {
-  console.log(`problem  ${problem.tab} row ${problem.sheetRow}: ${problem.reason}`)
+  console.log(`problem  ${problem.tab}: ${problem.reason}`)
 }
 
 const accrual = accrualYear(workbook, year, { depreciation: workbook.settings.companyFacts, citAdvancesPaid: null }, ruleValue)

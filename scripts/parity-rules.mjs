@@ -20,7 +20,7 @@
  * export's tab. Both engines run over every row with it, and both must refuse it without a clients
  * tab.
  *
- * The output names rows by sheet row, rule id and category only. The export holds real bank data,
+ * The output names rows by account and day, rule id and category only. The export holds real bank data,
  * so keep it outside the repository.
  */
 
@@ -36,6 +36,7 @@ import { RULE_COLUMNS } from '../src/features/rules/domain/rule.ts'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts.ts'
 import { readWorkbookFile, workbookGrids } from '../src/features/workbook/infrastructure/workbookFile.ts'
 import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
+import { recordIdOfRow } from '../src/features/workbook/infrastructure/tabRecords.ts'
 
 const { values: options } = parseArgs({
   options: {
@@ -109,18 +110,18 @@ function compareEngines(caseTabs, caseSpreadsheet, caseWorkbook) {
     return null
   }
   const ruleProblems = caseWorkbook.problems.filter((problem) => problem.tab === 'rules')
-  ruleProblems.forEach((problem) => console.log(`app refuses rules row ${problem.sheetRow}: ${redact(problem.reason)}`))
+  ruleProblems.forEach((problem) => console.log(`app refuses the rule ${problem.label}: ${redact(problem.reason)}`))
   const clients = clientIbansOf(appsScriptRules, caseSpreadsheet, caseWorkbook)
   if (clients === null) {
     return null
   }
   const appsScriptContext = { ownIbans, clientIbans: clients.appsScript, cardSettlementIbans: cardAccounts.appsScript }
   const context = categorisationContextOf({ ...caseWorkbook, settings: { ...caseWorkbook.settings, cardSettlementIbans: cardAccounts.app } })
-  const cellsByRow = new Map(caseTabs.ledger.map((row) => [row.sheetRow, row.cells]))
+  const cellsOf = new Map(caseTabs.ledger.map((row) => [recordIdOfRow('ledger', row.cells), row.cells]))
   const result = { context, withSignals: 0, agreesWithLedger: 0, unmatched: 0, differences: [], decidedBy: new Map(), appsScriptRuleCount: appsScriptRules.length, ruleProblems: ruleProblems.length, clientsAgree: clients.agree }
   const deciding = new Set()
   for (const transaction of caseWorkbook.transactions) {
-    const signals = callAppsScript('ledgerRowSignals', cellsByRow.get(transaction.sheetRow), appsScriptContext)
+    const signals = callAppsScript('ledgerRowSignals', cellsOf.get(transaction.id), appsScriptContext)
     if (signals.txDomain || signals.txFamily || signals.txSubFamily) {
       result.withSignals += 1
     }
@@ -138,7 +139,7 @@ function compareEngines(caseTabs, caseSpreadsheet, caseWorkbook) {
     const appsScriptVerdict = `${String(byAppsScript.category).toLowerCase()} (${byAppsScript.flaggedBy}, ${byAppsScript.rule || 'no rule'})`
     const appVerdict = `${byApp.category} (${byApp.flaggedBy}, ${byApp.ruleId ?? 'no rule'})`
     if (appsScriptVerdict !== appVerdict) {
-      result.differences.push(`row ${transaction.sheetRow}: Apps Script ${appsScriptVerdict}, app ${appVerdict}`)
+      result.differences.push(`${transaction.account} row of ${transaction.date}: Apps Script ${appsScriptVerdict}, app ${appVerdict}`)
     }
   }
   return { ...result, decidingRules: deciding.size }
@@ -193,7 +194,7 @@ function compareClientRule() {
 
   const withoutClients = { ...withRule, clients: [] }
   const missing = [...missingTabs, 'clients']
-  const appRefuses = workbookOver(withoutClients, missing).problems.some((problem) => problem.tab === 'rules' && problem.reason.startsWith('parity-synthetic-client tests counterparty_is_client'))
+  const appRefuses = workbookOver(withoutClients, missing).problems.some((problem) => problem.tab === 'rules' && problem.label === 'parity-synthetic-client' && problem.reason.startsWith('it tests counterparty_is_client'))
   let appsScriptRefuses = false
   try {
     const rules = callAppsScript('readRules', spreadsheetOver(withoutClients, missing, ruleHeader))
@@ -208,7 +209,7 @@ function compareClientRule() {
 
 function workbookOver(caseTabs, caseMissingTabs) {
   return readWorkbook({
-    meta: { id: 'parity', source: 'google', title: options.workbook, syncedAt: new Date().toISOString(), ledgerSheetId: null, lastExportedAt: null, unexportedSince: null, missingTabs: caseMissingTabs },
+    meta: { id: 'parity', source: 'google', title: options.workbook, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null, missingTabs: caseMissingTabs },
     ...caseTabs,
   })
 }

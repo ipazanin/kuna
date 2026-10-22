@@ -5,10 +5,12 @@ import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
+import type { RecordId } from '../../workbook/domain/recordId'
 import type { TabRowsChange } from '../../workbook/domain/rowChanges'
+import { recordOutcome } from '../../workbook/infrastructure/cellReading'
 import type { TabReading } from '../../workbook/infrastructure/cellReading'
-import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { rowsFrom } from '../../workbook/infrastructure/workbookTemplate'
+import type { SheetRow, WorkbookTab } from '../../workbook/infrastructure/workbookSnapshot'
+import { ID_COLUMN, rowsFrom } from '../../workbook/infrastructure/workbookTemplate'
 import { cellsOfDrafts, draftsOfRows, kindOfColumn, rowsChangeOf } from '../domain/tabRowDrafts'
 import type { DraftCellKind, FieldReader, TabRowDraft } from '../domain/tabRowDrafts'
 import type { ChoiceItem, EditorColumn } from './factTabColumns'
@@ -17,11 +19,12 @@ import type { ChoiceItem, EditorColumn } from './factTabColumns'
 const BLANK_CHOICE = '-'
 
 const props = defineProps<{
+  tab: WorkbookTab
   /** The tab as stored, rows the reader leaves out included, so they can be fixed here. */
   rows: readonly SheetRow[]
   columns: readonly EditorColumn[]
   /** The tab's own reader, so the editor reports exactly what reading the workbook would. */
-  read: (rows: readonly SheetRow[]) => TabReading<{ readonly sheetRow: number }>
+  read: (rows: readonly SheetRow[]) => TabReading<{ readonly id: RecordId }>
   saving: boolean
   /** Such as `asset`, for "Add asset". */
   rowNoun: string
@@ -43,24 +46,19 @@ watch(
   },
 )
 
-const savedCells = computed(() => new Map(props.rows.map((row) => [row.sheetRow, row.cells])))
+const savedCells = computed(() => new Map(props.rows.map((row, saved) => [saved, row.cells])))
 const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(draftsOfRows(props.rows, props.columns)))
 
-/** What the reader says of each draft, by position, the drafts read as the rows they would be saved as. */
+/** What the reader says of each draft, by position, the drafts read as the rows they would be saved as. A new row gets its id when it is saved, so it reads with one here. */
 const reading = computed(() => {
-  const rows = rowsFrom(cellsOfDrafts(drafts.value, props.columns, savedCells.value))
-  const positionOf = new Map(drafts.value.map((_, index) => [index + 2, index]))
-  const read = props.read(rows)
-  const kept = new Set(read.facts.map((fact) => positionOf.get(fact.sheetRow)))
-  const reasons = new Map<number, string[]>()
-  for (const problem of read.problems) {
-    const index = positionOf.get(problem.sheetRow)
-    if (index !== undefined) reasons.set(index, [...(reasons.get(index) ?? []), problem.reason])
-  }
-  return { kept, reasons }
+  const cells = cellsOfDrafts(drafts.value, props.columns, savedCells.value).map((rowCells, index) =>
+    drafts.value[index]!.saved === null ? { ...rowCells, [ID_COLUMN]: `new-${index}` } : rowCells,
+  )
+  const read = props.read(rowsFrom(cells))
+  return cells.map((rowCells) => recordOutcome(props.tab, read, rowCells))
 })
 
-const leftOut = computed(() => drafts.value.some((_, index) => !reading.value.kept.has(index)))
+const leftOut = computed(() => reading.value.some((outcome) => !outcome.kept))
 
 function fieldReader(draft: TabRowDraft): FieldReader {
   return (column) => (draft.fields[column] ?? '').trim().toLowerCase()
@@ -94,7 +92,7 @@ function choose(index: number, column: string, choice: unknown): void {
 }
 
 function addRow(): void {
-  drafts.value = [...drafts.value, { sheetRow: null, fields: props.newRow() }]
+  drafts.value = [...drafts.value, { saved: null, fields: props.newRow() }]
 }
 
 function removeRow(index: number): void {
@@ -110,8 +108,8 @@ function save(): void {
     rowsChangeOf(
       props.rows,
       props.columns.map((column) => column.name),
-      drafts.value.map((draft, index) => ({ sheetRow: draft.sheetRow, cells: draftedCells[index]! })),
-      new Map(opened.map((draft, index) => [draft.sheetRow!, openedCells[index]!])),
+      drafts.value.map((draft, index) => ({ saved: draft.saved, cells: draftedCells[index]! })),
+      new Map(opened.map((_, saved) => [saved, openedCells[saved]!])),
     ),
   )
 }
@@ -130,7 +128,7 @@ function save(): void {
         <tr v-if="drafts.length === 0">
           <td :colspan="columns.length + 1" class="text-muted">No {{ tabNoun }} yet.</td>
         </tr>
-        <template v-for="(draft, index) in drafts" :key="draft.sheetRow ?? `new-${index}`">
+        <template v-for="(draft, index) in drafts" :key="draft.saved ?? `new-${index}`">
           <tr data-testid="fact-row">
             <td v-for="column in columns" :key="column.name">
               <USelect
@@ -172,20 +170,20 @@ function save(): void {
                 color="neutral"
                 variant="ghost"
                 size="xs"
-                :aria-label="draft.sheetRow === null ? `Remove this new ${rowNoun}` : `Delete this ${rowNoun}`"
+                :aria-label="draft.saved === null ? `Remove this new ${rowNoun}` : `Delete this ${rowNoun}`"
                 data-testid="remove-row"
                 @click="removeRow(index)"
               />
             </td>
           </tr>
-          <tr v-if="reading.reasons.has(index)" class="problem-row">
+          <tr v-if="reading[index]!.reasons.length > 0" class="problem-row">
             <td :colspan="columns.length + 1">
               <p
-                v-for="reason in reading.reasons.get(index)"
+                v-for="reason in reading[index]!.reasons"
                 :key="reason"
-                :class="reading.kept.has(index) ? 'row-warning' : 'row-error'"
+                :class="reading[index]!.kept ? 'row-warning' : 'row-error'"
               >
-                {{ reading.kept.has(index) ? reason : `Left out: ${reason}` }}
+                {{ reading[index]!.kept ? reason : `Left out: ${reason}` }}
               </p>
             </td>
           </tr>

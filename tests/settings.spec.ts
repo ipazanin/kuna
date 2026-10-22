@@ -17,9 +17,15 @@ import {
 } from '../src/features/settings/domain/profitAndLossLabels'
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
 import { euros, ledger } from './fixtures/ledger'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { SETTING_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 function rows(...entries: [string, SettingRow['value']][]): SettingRow[] {
-  return entries.map(([key, value], index) => ({ key, value, sheetRow: index + 2 }))
+  return entries.map(([key, value]) => ({ key, value }))
+}
+
+function settingProblem(key: string, reason: string) {
+  return { id: recordIdOf(SETTING_RECORDS, key), label: key, reason }
 }
 
 describe('parseSettings', () => {
@@ -53,16 +59,16 @@ describe('parseSettings', () => {
     })
   })
 
-  it('falls back to the default for a value that does not hold, and says which row', () => {
+  it('falls back to the default for a value that does not hold, and says which key', () => {
     const { settings, problems } = parseSettings(
       rows(['currency', 'EURO'], ['currency', 'USD'], ['number_locale', 'not a locale!'], ['owner_pay_module', 'maybe'], ['review_label', 'ai']),
     )
 
     expect(settings).toEqual(DEFAULT_SETTINGS)
-    expect(problems.map((problem) => problem.sheetRow)).toEqual([2, 3, 4, 5, 6])
+    expect(problems.map((problem) => problem.label)).toEqual(['currency', 'currency', 'number_locale', 'owner_pay_module', 'review_label'])
     expect(problems.slice(0, 2).map((problem) => problem.reason)).toEqual([
-      '"currency" is set on more than one row, so the default is used',
-      '"currency" is set on more than one row, so the default is used',
+      'set on more than one row, so the default is used',
+      'set on more than one row, so the default is used',
     ])
   })
 
@@ -70,9 +76,9 @@ describe('parseSettings', () => {
     const { settings, problems } = parseSettings(rows(['import_profile_bank', 'account=main; date=1; amount=2'], ['import_profile_bank', 'account=main; date=1; amount=3']))
 
     expect(settings.importProfiles).toEqual([])
-    expect(problems.map((problem) => [problem.sheetRow, problem.reason])).toEqual([
-      [2, '"import_profile_bank" is set on more than one row, so the profile is not offered'],
-      [3, '"import_profile_bank" is set on more than one row, so the profile is not offered'],
+    expect(problems.map((problem) => [problem.label, problem.reason])).toEqual([
+      ['import_profile_bank', 'set on more than one row, so the profile is not offered'],
+      ['import_profile_bank', 'set on more than one row, so the profile is not offered'],
     ])
   })
 
@@ -85,7 +91,7 @@ describe('parseSettings', () => {
 
   it('keeps an unknown key out of the settings and reports it', () => {
     expect(parseSettings(rows(['theme', 'dark'])).problems).toEqual([
-      { sheetRow: 2, reason: '"theme" is not a setting this app knows, so it is kept but not used' },
+      settingProblem('theme', 'not a setting this app knows, so it is kept but not used'),
     ])
   })
 
@@ -109,7 +115,7 @@ describe('parseSettings', () => {
 
   it('reads back what it writes', () => {
     const custom = { ...DEFAULT_SETTINGS, companyName: 'Studio', currency: 'CHF', ownerPayModule: false }
-    const written = settingsTabEntries(custom).map((entry, index) => ({ ...entry, sheetRow: index + 2 }))
+    const written = settingsTabEntries(custom)
 
     expect(parseSettings(written)).toEqual({ settings: custom, problems: [] })
     expect(written.map((entry) => entry.key)).toEqual(SETTING_DEFINITIONS.map((definition) => definition.key))
@@ -129,7 +135,7 @@ describe('card_settlement_ibans', () => {
     const { settings, problems } = parseSettings(rows(['card_settlement_ibans', 'XX66FAKE0000000099, card account, XX00FAKE0000000098']))
 
     expect(settings.cardSettlementIbans).toEqual([])
-    expect(problems).toEqual([{ sheetRow: 2, reason: 'card_settlement_ibans: "CARDACCOUNT", "XX00FAKE0000000098" are not IBANs, so the default is used' }])
+    expect(problems).toEqual([settingProblem('card_settlement_ibans', '"CARDACCOUNT", "XX00FAKE0000000098" are not IBANs, so the default is used')])
     expect(settingsErrors({ ...DEFAULT_SETTINGS, cardSettlementIbans: ['NOPE'] }).cardSettlementIbans).toBe('"NOPE" is not an IBAN')
   })
 
@@ -185,7 +191,7 @@ describe('company facts', () => {
     expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
   })
 
-  it('fall back to the default for a value that does not hold, and say which row', () => {
+  it('fall back to the default for a value that does not hold, and say which key', () => {
     const { settings, problems } = parseSettings(
       rows(
         ['hr_birth_year', 'nineteen ninety'],
@@ -199,12 +205,12 @@ describe('company facts', () => {
 
     expect(settings.companyFacts).toEqual(DEFAULT_SETTINGS.companyFacts)
     expect(problems).toEqual([
-      { sheetRow: 2, reason: 'hr_birth_year: use a year of birth such as 1990, so the default is used' },
-      { sheetRow: 3, reason: 'hr_dependants: use a whole number from 0 to 20, so the default is used' },
-      { sheetRow: 4, reason: 'hr_company_registered: "12.05.2025." is not a date such as 2025-05-12, so the default is used' },
-      { sheetRow: 5, reason: 'hr_cit_return: "cash" is neither pd nor pd-nn, so the default is used' },
-      { sheetRow: 6, reason: 'hr_vat_principle: "monthly" is neither invoice nor cash, so the default is used' },
-      { sheetRow: 7, reason: 'hr_pension_pillar_2: "perhaps" is neither TRUE nor FALSE, so the default is used' },
+      settingProblem('hr_birth_year', 'use a year of birth such as 1990, so the default is used'),
+      settingProblem('hr_dependants', 'use a whole number from 0 to 20, so the default is used'),
+      settingProblem('hr_company_registered', '"12.05.2025." is not a date such as 2025-05-12, so the default is used'),
+      settingProblem('hr_cit_return', '"cash" is neither pd nor pd-nn, so the default is used'),
+      settingProblem('hr_vat_principle', '"monthly" is neither invoice nor cash, so the default is used'),
+      settingProblem('hr_pension_pillar_2', '"perhaps" is neither TRUE nor FALSE, so the default is used'),
     ])
   })
 
@@ -216,11 +222,11 @@ describe('company facts', () => {
     expect(rate('0.0265').settings.companyFacts.ownerLoanInterest).toBe(265)
     expect(rate(0).settings.companyFacts.ownerLoanInterest).toBe(0)
     expect(rate(2).problems).toEqual([
-      { sheetRow: 2, reason: 'hr_owner_loan_interest: 2 reads as 200%. Enter the rate as a percentage cell, such as 2%, so the default is used' },
+      settingProblem('hr_owner_loan_interest', '2 reads as 200%. Enter the rate as a percentage cell, such as 2%, so the default is used'),
     ])
-    expect(rate('two').problems[0]?.reason).toBe('hr_owner_loan_interest: "two" is not a rate such as 2%, so the default is used')
-    expect(rate(-0.01).problems[0]?.reason).toBe('hr_owner_loan_interest: use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
-    expect(rate('2.345%').problems[0]?.reason).toBe('hr_owner_loan_interest: use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
+    expect(rate('two').problems[0]?.reason).toBe('"two" is not a rate such as 2%, so the default is used')
+    expect(rate(-0.01).problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
+    expect(rate('2.345%').problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
     expect(settingsErrors({ ...DEFAULT_SETTINGS, companyFacts: { ...DEFAULT_SETTINGS.companyFacts, ownerLoanInterest: Number.NaN } }).ownerLoanInterest).toBe(
       'use a rate from 0% to 100% with at most two decimals, such as 2%',
     )
@@ -289,14 +295,14 @@ describe('billing terms', () => {
     expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
   })
 
-  it('fall back to blank for an amount that is not above zero, and say which row', () => {
+  it('fall back to blank for an amount that is not above zero, and say which key', () => {
     const { settings, problems } = parseSettings(rows(['billing_monthly_amount', 'a lot'], ['billing_bonus_amount', -10], ['billing_monthly_item', 'x'.repeat(61)]))
 
     expect(settings.billing).toEqual(DEFAULT_SETTINGS.billing)
     expect(problems).toEqual([
-      { sheetRow: 2, reason: 'billing_monthly_amount: use an amount above zero, such as 7200, so the default is used' },
-      { sheetRow: 3, reason: 'billing_bonus_amount: use an amount above zero, such as 7200, so the default is used' },
-      { sheetRow: 4, reason: 'billing_monthly_item: an item can be at most 60 characters, so the default is used' },
+      settingProblem('billing_monthly_amount', 'use an amount above zero, such as 7200, so the default is used'),
+      settingProblem('billing_bonus_amount', 'use an amount above zero, such as 7200, so the default is used'),
+      settingProblem('billing_monthly_item', 'an item can be at most 60 characters, so the default is used'),
     ])
   })
 

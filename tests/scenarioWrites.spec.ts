@@ -2,9 +2,9 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
+import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
-import type { RowAt } from '../src/features/workbook/domain/rowChanges'
+import type { RowCells } from '../src/features/workbook/domain/rowChanges'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { SCENARIO_ROWS, componentCells, copiedScenario, renamedScenario, scenarioCells } from '../src/packs/hr-doo/application/scenarioRows'
 import { startingScenarios } from '../src/packs/hr-doo/domain/scenarios/startingScenarios'
@@ -35,8 +35,8 @@ function gridsWithScenarios(): Record<string, CellValue[][]> {
   }
 }
 
-function rowsOf(store: WorkbookStore, slug: string): RowAt[] {
-  return (store.state.snapshot?.scenarios ?? []).filter((row) => row.cells.scenario === slug).map((row) => ({ sheetRow: row.sheetRow, cells: rowCellsOf(row, SCENARIO_ROWS.columns) }))
+function rowsOf(store: WorkbookStore, slug: string): RowCells[] {
+  return (store.state.snapshot?.scenarios ?? []).filter((row) => row.cells.scenario === slug).map((row) => rowCellsOf(row, SCENARIO_ROWS))
 }
 
 function scenarios(store: WorkbookStore): [string, string, string[]][] {
@@ -90,10 +90,10 @@ describe.each([
     expect(scenarios(store)).toEqual([['floor', 'Floor salary', ['salary_gross', 'dividend', 'rent_monthly']]])
 
     const [salary] = rowsOf(store, 'floor')
-    await store.changeRows(SCENARIO_ROWS, { added: [], changed: [{ sheetRow: salary!.sheetRow, before: salary!.cells, after: { ...salary!.cells, amount: 1800 } }], removed: [] })
+    await store.changeRows(SCENARIO_ROWS, { added: [], changed: [{ before: salary!, after: { ...salary!, amount: 1800 } }], removed: [] })
     expect(store.state.workbook?.payScenarios[0]?.components[0]).toMatchObject({ component: 'salary_gross', gross: euros(1800) })
 
-    const rent = rowsOf(store, 'floor').find((row) => row.cells.component === 'rent_monthly')!
+    const rent = rowsOf(store, 'floor').find((row) => row.component === 'rent_monthly')!
     await store.changeRows(SCENARIO_ROWS, { added: [], changed: [], removed: [rent] })
     expect(scenarios(store)).toEqual([['floor', 'Floor salary', ['salary_gross', 'dividend']]])
 
@@ -132,17 +132,17 @@ describe.each([
     await expect(store.changeRows(SCENARIO_ROWS, renamedScenario(rowsOf(store, 'floor'), 'floor-all-year', ''))).rejects.toThrow(
       'Nothing was written. "floor" cannot be renamed, since it is used by 1 plan tab row.',
     )
-    await expect(store.changeRows(SCENARIO_ROWS, renamedScenario(rowsOf(store, 'other'), 'floor', ''))).rejects.toThrow('"floor" is already a scenario, on row 2. Pick another name.')
+    await expect(store.changeRows(SCENARIO_ROWS, renamedScenario(rowsOf(store, 'other'), 'floor', ''))).rejects.toThrow('"floor" is already a scenario. Pick another name.')
     await expect(store.changeRows(SCENARIO_ROWS, renamedScenario(rowsOf(store, 'other'), 'Other Mix', ''))).rejects.toThrow('is not a scenario name the app can use')
   })
 
   it('refuses a component a scenario guard or the reader stops', async () => {
     const { store } = await harnessOf(used, gridsWithScenarios())
     await expect(store.changeRows(SCENARIO_ROWS, { added: [componentCells('floor', 2027, { component: 'dividend', amount: euros(1000), from: civil('2027-07-01'), to: null })], changed: [], removed: [] })).rejects.toThrow(
-      "Nothing was written. Floor salary: Rows 3 and 4 each set a dividend. A scenario pays one, out of the year's profit.",
+      "Nothing was written. Floor salary: The scenario sets 2 dividends. A scenario pays one, out of the year's profit.",
     )
     await expect(store.changeRows(SCENARIO_ROWS, { added: [{ ...componentCells('floor', 2027, { component: 'rent_monthly', amount: euros(250), from: null, to: null }), amount: -5 }], changed: [], removed: [] })).rejects.toThrow(
-      'The new scenario row would be left out: amount "-5" is not an amount above zero.',
+      'The new scenario row "floor, rent_monthly" would be left out: amount "-5" is not an amount above zero.',
     )
   })
 })

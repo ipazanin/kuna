@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
+import type { RecordId } from './recordId'
 
 /** The depreciation groups of the `group` column. */
 export const ASSET_GROUPS = ['computers', 'equipment', 'car', 'building', 'other'] as const
@@ -25,7 +26,6 @@ export interface Asset {
   /** Text that finds the purchase on the ledger, such as its bank reference. */
   readonly ledgerReference: string
   readonly note: string
-  readonly sheetRow: number
-  /** Absent on a row from before rows carried an id. */
-  readonly id?: string
+  /** Held by no other row of its tab. */
+  readonly id: RecordId
 }

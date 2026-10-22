@@ -3,20 +3,53 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../shared/calendar/dateRange'
 import { moneyFromAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
-import type { CellValue, SheetRow } from './workbookSnapshot'
+import type { RecordId } from '../domain/recordId'
+import { sharedKeys } from '../domain/sharedKeys'
+import type { RecordProblem } from '../domain/workbook'
+import { labelOfRow, readRecordId, recordIdOfRow } from './tabRecords'
+import type { CellValue, SheetRow, WorkbookTab } from './workbookSnapshot'
 import { ID_COLUMN } from './workbookTemplate'
+import type { TABS_WITH_IDS } from './workbookTemplate'
 
 type Cells = SheetRow['cells']
 
+/** Why a reader left out or doubts a row, by the row it was found on. */
 export interface RowProblem {
   readonly sheetRow: number
   readonly reason: string
 }
 
-/** What a tab reader made of its rows: the facts it could read, and why it left out or doubted the rest. */
-export interface TabReading<Fact extends { readonly sheetRow: number }> {
+/** What a tab reader made of its rows: the facts it could read, and why it left out or doubted the rest, each by its record. */
+export interface TabReading<Fact> {
   readonly facts: readonly Fact[]
-  readonly problems: readonly RowProblem[]
+  readonly problems: readonly RecordProblem[]
+}
+
+/** The reading of a tab, each problem naming the record of the row it was found on, in the order the rows are given. */
+export function tabReading<Fact>(tab: WorkbookTab, rows: readonly SheetRow[], facts: readonly Fact[], problems: readonly RowProblem[]): TabReading<Fact> {
+  return { facts, problems: recordProblems(tab, rows, problems) }
+}
+
+/** Row problems as problems of the records the rows hold, in the order the rows are given. */
+export function recordProblems(tab: WorkbookTab, rows: readonly SheetRow[], problems: readonly RowProblem[]): RecordProblem[] {
+  const placeOf = new Map(rows.map((row, place) => [row.sheetRow, place]))
+  return [...problems]
+    .sort((upper, lower) => (placeOf.get(upper.sheetRow) ?? 0) - (placeOf.get(lower.sheetRow) ?? 0))
+    .map((problem) => {
+      const cells = rows[placeOf.get(problem.sheetRow) ?? -1]?.cells ?? {}
+      return { id: recordIdOfRow(tab, cells), label: labelOfRow(tab, cells), reason: problem.reason }
+    })
+}
+
+/**
+ * What a reading says of the record a row's cells hold: whether it was read, and every reason given
+ * for it. A record is found by its key or id, and one without either by its label.
+ */
+export function recordOutcome(tab: WorkbookTab, reading: TabReading<{ readonly id: RecordId }>, cells: Cells): { readonly kept: boolean; readonly reasons: readonly string[] } {
+  const id = recordIdOfRow(tab, cells)
+  const label = labelOfRow(tab, cells)
+  const ofRecord = reading.problems.filter((problem) => (id === null ? problem.id === null && problem.label === label : problem.id === id))
+  return { kept: id !== null && reading.facts.some((fact) => fact.id === id), reasons: [...new Set(ofRecord.map((problem) => problem.reason))] }
 }
 
 /** Why a row cannot be read. The cell helpers below throw it, and `readRow` turns it into the reason. */
@@ -50,10 +83,27 @@ export function slugOf(cell: CellValue | undefined): string {
   return textOf(cell).toLowerCase()
 }
 
-/** The row's id, to spread into its record. Empty on a row from before rows carried one. */
-export function idOf(cells: Cells): { readonly id?: string } {
-  const id = textOf(cells[ID_COLUMN])
-  return id === '' ? {} : { id }
+/** The ids more than one row of the tab holds, whether or not those rows read. */
+export function sharedIds(rows: readonly SheetRow[]): ReadonlySet<string> {
+  return sharedKeys(
+    rows.map((row) => textOf(row.cells[ID_COLUMN])).filter((id) => id !== ''),
+    (id) => id,
+  )
+}
+
+/**
+ * The row's record id, once the rest of the row has read. Refused when the row has no id, or holds
+ * one another row of the tab holds too, as a copied row does.
+ */
+export function ownIdOf(tab: (typeof TABS_WITH_IDS)[number], row: SheetRow, shared: ReadonlySet<string>): RecordId {
+  const id = textOf(row.cells[ID_COLUMN])
+  if (id === '') {
+    refuse('no id, so it is left out until "Add ids" on Overview gives it one')
+  }
+  if (shared.has(id)) {
+    refuse('the same id as another row, so it is left out. Clear the id cell of the copied row, and "Add ids" on Overview gives it its own')
+  }
+  return readRecordId(tab, row.cells)
 }
 
 /** A comma-separated list in lower case, such as `revenue, watched`. */
@@ -86,10 +136,6 @@ export function booleanOf(cell: CellValue): boolean | null {
   if (['true', 'yes', 'on', '1'].includes(text)) return true
   if (['false', 'no', 'off', '0'].includes(text)) return false
   return null
-}
-
-export function inTabOrder(rows: readonly SheetRow[]): SheetRow[] {
-  return [...rows].sort((upper, lower) => upper.sheetRow - lower.sheetRow)
 }
 
 export function optionalDate(cells: Cells, column: string): CivilDate | null {

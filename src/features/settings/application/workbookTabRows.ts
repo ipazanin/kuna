@@ -1,8 +1,7 @@
-import { cellText } from '../../../shared/text/cellText'
 import { normaliseIban } from '../../../shared/text/fold'
 import { editsOf, untouchedOf } from '../../workbook/application/tabRowWrites'
-import type { RowNoun, TabRowRules } from '../../workbook/application/tabRowWrites'
-import type { FreshTabs } from '../../workbook/application/workbookWriter'
+import type { TabRowRules } from '../../workbook/application/tabRowWrites'
+import type { FreshTabs } from '../../workbook/infrastructure/workbookWriter'
 import type { RowCells } from '../../workbook/domain/rowChanges'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
@@ -16,6 +15,7 @@ import { readYearEndLines } from '../../workbook/infrastructure/yearEndTabReader
 import { accountChangeRefusals } from '../domain/accountGuards'
 import { categoryChangeRefusals } from '../domain/categoryGuards'
 import { clientChangeRefusals } from '../domain/clientGuards'
+import { ACCOUNT_RECORDS, ASSET_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, GRANT_RECORDS, YEAR_END_RECORDS } from '../../workbook/domain/recordKind'
 
 /** A tab's rows, from a fresh read or from the copy on screen. */
 export type RowsOf = (tab: WorkbookTab) => readonly SheetRow[]
@@ -55,7 +55,7 @@ function rulesNaming(rows: readonly SheetRow[]): ReadonlyMap<string, string> {
   const ids = new Map<string, string[]>()
   for (const row of rows) {
     const category = slugOf(row.cells.category)
-    if (category !== '') ids.set(category, [...(ids.get(category) ?? []), textOf(row.cells.rule) || `on row ${row.sheetRow}`])
+    if (category !== '') ids.set(category, [...(ids.get(category) ?? []), textOf(row.cells.rule) || 'one without an id'])
   }
   return new Map([...ids].map(([slug, named]) => [slug, named.length === 1 ? `the rule ${named[0]}` : `the rules ${named.join(', ')}`]))
 }
@@ -92,13 +92,9 @@ export function grantUses(rowsOf: RowsOf): SlugUses {
   return usesOf([countedBy(rowsOf('assets'), (row) => [slugOf(row.cells.funded_by)], 'asset', 'assets')])
 }
 
-function noun(one: string, many: string, article: RowNoun['article'] = 'a'): RowNoun {
-  return { one, many, article }
-}
-
 export const CATEGORY_ROWS: TabRowRules = {
   tab: 'categories',
-  noun: noun('category', 'categories'),
+  kind: CATEGORY_RECORDS,
   columns: contentColumns('categories'),
   required: ['category', 'family', 'bucket'],
   caseless: ['category', 'family', 'bucket', 'vat'],
@@ -116,7 +112,6 @@ export const CATEGORY_ROWS: TabRowRules = {
       { named: categoryUses(rowsOfFresh(fresh)), advances },
     )
   },
-  label: (cells) => cellText(cells.category) || 'blank',
 }
 
 function clientIbansOf(rows: readonly SheetRow[]): ReadonlyMap<string, string> {
@@ -125,7 +120,7 @@ function clientIbansOf(rows: readonly SheetRow[]): ReadonlyMap<string, string> {
 
 export const ACCOUNT_ROWS: TabRowRules = {
   tab: 'accounts',
-  noun: noun('account', 'accounts', 'an'),
+  kind: ACCOUNT_RECORDS,
   columns: contentColumns('accounts'),
   required: ['account', 'iban'],
   caseless: ['account', 'iban', 'currency'],
@@ -137,12 +132,11 @@ export const ACCOUNT_ROWS: TabRowRules = {
       untouchedOf(check, (cells) => ({ slug: slugOf(cells.account), iban: normaliseIban(textOf(cells.iban)) })).filter((row) => row.slug !== ''),
       { named: accountUses(rowsOfFresh(fresh)), clientIbans: clientIbansOf(fresh.clients?.rows ?? []) },
     ),
-  label: (cells) => cellText(cells.account) || 'blank',
 }
 
 export const CLIENT_ROWS: TabRowRules = {
   tab: 'clients',
-  noun: noun('client row', 'client rows'),
+  kind: CLIENT_RECORDS,
   columns: contentColumns('clients'),
   required: ['client', 'iban'],
   caseless: ['client', 'iban'],
@@ -155,24 +149,22 @@ export const CLIENT_ROWS: TabRowRules = {
       accountIbans: new Map(readAccountRows(fresh.accounts?.rows ?? [], null).facts.flatMap((account) => (account.iban === '' ? [] : [[account.iban, account.slug] as const]))),
     })
   },
-  label: (cells) => [cellText(cells.client), cellText(cells.iban)].filter((part) => part !== '').join(', ') || 'blank',
 }
 
 export const ASSET_ROWS: TabRowRules = {
   tab: 'assets',
-  noun: noun('asset', 'assets', 'an'),
+  kind: ASSET_RECORDS,
   columns: contentColumns('assets'),
   required: ['asset', 'bought', 'cost_net', 'group'],
   caseless: ['group', 'funded_by'],
   reads: ['grants'],
   read: (rows, fresh) => readAssets(rows, new Set(readGrants(fresh.grants?.rows ?? []).facts.map((grant) => grant.slug))),
   refusals: () => [],
-  label: (cells) => cellText(cells.asset) || 'blank',
 }
 
 export const GRANT_ROWS: TabRowRules = {
   tab: 'grants',
-  noun: noun('grant', 'grants'),
+  kind: GRANT_RECORDS,
   columns: contentColumns('grants'),
   required: ['grant', 'received', 'amount'],
   caseless: ['grant', 'release', 'clawback_year1', 'clawback_year2'],
@@ -182,23 +174,21 @@ export const GRANT_ROWS: TabRowRules = {
     slugChangeRefusals(
       'grant',
       {
-        edits: editsOf(check, (cells) => slugOf(cells.grant)).map((edit) => ({ sheetRow: edit.sheetRow, from: edit.before, to: edit.after })),
+        edits: editsOf(check, (cells) => slugOf(cells.grant)).map((edit) => ({ from: edit.before, to: edit.after })),
         untouched: untouchedOf(check, (cells) => ({ slug: slugOf(cells.grant) })).filter((row) => row.slug !== ''),
       },
       grantUses(rowsOfFresh(fresh)),
       true,
     ),
-  label: (cells) => cellText(cells.grant) || 'blank',
 }
 
 export const YEAR_END_ROWS: TabRowRules = {
   tab: 'year-end',
-  noun: noun('year-end line', 'year-end lines'),
+  kind: YEAR_END_RECORDS,
   columns: contentColumns('year-end'),
   required: ['year', 'statement', 'line', 'amount'],
   caseless: ['statement', 'line'],
   reads: ['categories'],
   read: (rows, fresh) => readYearEndLines(rows, definedCategorySlugs(fresh.categories?.rows ?? [])),
   refusals: () => [],
-  label: (cells) => [cells.year, cells.statement, cells.line].map((cell) => cellText(cell)).filter((part) => part !== '').join(' ') || 'blank',
 }

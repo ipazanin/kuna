@@ -1,9 +1,9 @@
 import { cellText } from '../../../shared/text/cellText'
-import { WRITABLE_COLUMNS, editableColumns } from '../application/workbookWriter'
-import type { TabRead, WorkbookWriter } from '../application/workbookWriter'
 import { TEMPLATE_COLUMNS } from './workbookTemplate'
 import { WORKBOOK_TABS } from './workbookSnapshot'
 import type { SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
+import { WRITABLE_COLUMNS, editableColumns } from './workbookWriter'
+import type { TabRead, WorkbookWriter } from './workbookWriter'
 
 /**
  * Writes to a working copy of the workbook kept in this browser. Its rows carry no header row, so

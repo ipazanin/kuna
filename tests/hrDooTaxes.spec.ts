@@ -7,6 +7,8 @@ import { taxByType, typicalMonthlyAmount } from '../src/packs/hr-doo/domain/taxB
 import { withPackBuckets, PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import type { Period } from '../src/features/filters/domain/filterState'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const transactions = withPackBuckets(
   ledger([
@@ -83,7 +85,7 @@ describe('payroll cadence', () => {
   })
 
   it('counts a month paid when the owner paid the tax privately', () => {
-    const paidPrivately = bookingOfAdvance({ date: civil('2026-07-15'), amount: euros(90), description: 'Paid privately', category: 'payroll-contributions', family: 'taxes', bucket: 'taxes', sheetRow: 2 })
+    const paidPrivately = bookingOfAdvance({ date: civil('2026-07-15'), amount: euros(90), description: 'Paid privately', category: 'payroll-contributions', family: 'taxes', bucket: 'taxes', id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') })
     const [cadence] = payrollCadence([...transactions, paidPrivately], PACK_CATEGORIES, window)
 
     expect(cadence?.months.find((month) => month.month === '2026-07')?.state).toBe('paid')

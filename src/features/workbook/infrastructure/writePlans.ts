@@ -2,15 +2,16 @@ import { cellText } from '../../../shared/text/cellText'
 import type { LedgerVerdictChange, VerdictReceipt } from '../../review/domain/verdictChanges'
 import { readRules } from '../../rules/domain/readRules'
 import { newOrderTies } from '../../rules/domain/rule'
-import { rulesTabAfter, sameCells } from '../../rules/domain/rulesTabChange'
+import { rulesTabAfter, sameCells, sameId } from '../../rules/domain/rulesTabChange'
 import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import { rulesTabRefusals } from '../../rules/domain/rulesTabRefusals'
 import { parseSettings } from '../../settings/domain/settings'
 import { isSameLedgerRow } from '../domain/ledgerRowKey'
 import type { LedgerRowKey } from '../domain/ledgerRowKey'
-import { definedCategorySlugs, ledgerRowKeyOfRow } from '../infrastructure/workbookReader'
-import type { CellValue, SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
-import { WorkbookWriteRefused } from './workbookWriter'
+import { WorkbookWriteRefused } from '../application/workbookWriteRefused'
+import { labelOfRow } from './tabRecords'
+import { definedCategorySlugs, ledgerRowKeyOfRow } from './workbookReader'
+import type { CellValue, SheetRow, WorkbookTab } from './workbookSnapshot'
 import type { CellEdit, FreshTabs, RowAppend, TabEdits, TabRead } from './workbookWriter'
 
 /** A ledger write planned on a read taken just before it, the same way for a Google Sheet and for the workbook kept in this browser. */
@@ -47,13 +48,13 @@ export function planVerdicts(fresh: FreshTabs, changes: readonly LedgerVerdictCh
       continue
     }
     if (sheetRows.includes(located.sheetRow)) {
-      refusals.push(`Row ${located.sheetRow} is asked to change twice in one write.`)
+      refusals.push(`The ledger row "${labelOfRow('ledger', located.cells)}" is asked to change twice in one write.`)
       continue
     }
     const current = { category: cellText(located.cells.category), flaggedBy: cellText(located.cells.flagged_by) }
     if (comparable(current.category) !== comparable(change.from.category) || comparable(current.flaggedBy) !== comparable(change.from.flaggedBy)) {
       refusals.push(
-        `Row ${located.sheetRow} changed since the app read it: it now says ${current.category || 'no category'}, flagged by ${current.flaggedBy || 'nobody'}.`,
+        `The ledger row "${labelOfRow('ledger', located.cells)}" changed since the app read it: it now says ${current.category || 'no category'}, flagged by ${current.flaggedBy || 'nobody'}.`,
       )
       continue
     }
@@ -87,7 +88,7 @@ export function verifyVerdicts(after: FreshTabs, plan: VerdictPlan): void {
       comparable(cellText(located.cells.flagged_by)) === comparable(change.to.flaggedBy)
     if (!holds) {
       throw new Error(
-        `The write reached the workbook, but row ${written} does not read back as written. Rows may have moved while it was sent. Check row ${written} and the version history.`,
+        `The write reached the workbook, but ${describedRow(change.key)} does not read back as written. Rows may have moved while it was sent. Check the ledger tab and its version history.`,
       )
     }
   })
@@ -102,7 +103,7 @@ export function verifyVerdicts(after: FreshTabs, plan: VerdictPlan): void {
 export function planRulesChange(fresh: FreshTabs, change: RulesTabChange): TabEdits {
   const rules = requireTab(fresh, 'rules')
   const header = rules.header.map((name) => name.trim())
-  const after = rulesTabAfter(rules.rows, change, rules.lastRow)
+  const after = rulesTabAfter(rules.rows, change)
   refuseOn(after.refusals.map(sentence))
   const missing = [change.appended, ...change.edited.map((edit) => edit.cells)]
     .flatMap((cells) => (cells === null ? [] : Object.keys(cells)))
@@ -119,7 +120,7 @@ export function planRulesChange(fresh: FreshTabs, change: RulesTabChange): TabEd
   refuseOn(newOrderTies(readRules(rules.rows, definedCategories, hasClientsTab).rules, readRules(after.rows, definedCategories, hasClientsTab).rules).map(sentence))
   const cells: CellEdit[] = []
   for (const edit of change.edited) {
-    const row = rules.rows.find((candidate) => cellText(candidate.cells.rule).toLowerCase() === edit.id.trim().toLowerCase())
+    const row = rules.rows.find((candidate) => sameId(candidate.cells.rule, edit.id))
     if (row === undefined) {
       continue
     }
@@ -147,7 +148,7 @@ export function verifyRulesChange(after: FreshTabs, change: RulesTabChange): voi
       continue
     }
     const id = cellText(cells.rule)
-    const matches = rows.filter((row) => cellText(row.cells.rule).toLowerCase() === id.toLowerCase())
+    const matches = rows.filter((row) => sameId(row.cells.rule, id))
     if (matches.length !== 1 || !sameCells(matches[0]!.cells, cells)) {
       throw new Error(`The write reached the workbook, but rule "${id}" does not read back as written. Check the rules tab and its version history.`)
     }
@@ -174,8 +175,8 @@ export function planSettingsChange(fresh: FreshTabs, changes: readonly SettingCh
   const refusals: string[] = []
   const cells: CellEdit[] = []
   const appends: RowAppend[] = []
-  const values = new Map<number, CellValue>()
-  const added: SheetRow[] = []
+  const values = new Map<SheetRow, CellValue>()
+  const added: { readonly key: string; readonly value: CellValue }[] = []
   for (const change of changes) {
     const key = change.key.trim().toLowerCase()
     const matches = settings.rows.filter((row) => cellText(row.cells.key).toLowerCase() === key)
@@ -189,7 +190,7 @@ export function planSettingsChange(fresh: FreshTabs, changes: readonly SettingCh
         refusals.push(`The "${key}" row left the settings tab since the app read it.`)
       } else if (cellText(change.value) !== '') {
         appends.push({ tab: 'settings', cells: { key, value: change.value } })
-        added.push({ sheetRow: settings.lastRow + 1 + added.length, cells: { key, value: change.value } })
+        added.push({ key, value: change.value })
       }
       continue
     }
@@ -199,19 +200,13 @@ export function planSettingsChange(fresh: FreshTabs, changes: readonly SettingCh
     }
     if (cellText(row.cells.value) !== cellText(change.value)) {
       cells.push({ tab: 'settings', sheetRow: row.sheetRow, column: 'value', value: change.value })
-      values.set(row.sheetRow, change.value)
+      values.set(row, change.value)
     }
   }
   refuseOn(refusals)
-  const before = new Set(settingProblems(settings.rows))
-  const afterRows = [
-    ...settings.rows.map((row) => {
-      const value = values.get(row.sheetRow)
-      return value === undefined ? row : { sheetRow: row.sheetRow, cells: { ...row.cells, value } }
-    }),
-    ...added,
-  ]
-  const introduced = settingProblems(afterRows).filter((problem) => !before.has(problem))
+  const before = settingProblems(settings.rows.map((row) => ({ key: cellText(row.cells.key), value: row.cells.value })))
+  const afterRows = [...settings.rows.map((row) => ({ key: cellText(row.cells.key), value: values.get(row) ?? row.cells.value })), ...added]
+  const introduced = settingProblems(afterRows).filter((problem) => !before.includes(problem))
   if (introduced.length > 0) {
     throw new WorkbookWriteRefused(`The settings would not read cleanly, so nothing was written: ${introduced.join('. ')}.`)
   }
@@ -231,10 +226,8 @@ export function verifySettingsChange(after: FreshTabs, changes: readonly Setting
   }
 }
 
-function settingProblems(rows: readonly SheetRow[]): string[] {
-  return parseSettings(rows.map((row) => ({ key: cellText(row.cells.key), value: row.cells.value, sheetRow: row.sheetRow }))).problems.map(
-    (problem) => problem.reason,
-  )
+function settingProblems(rows: readonly { readonly key: string; readonly value: CellValue | undefined }[]): string[] {
+  return parseSettings(rows).problems.map((problem) => `${problem.label}: ${problem.reason}`)
 }
 
 interface KeyedLedgerRow extends SheetRow {
@@ -248,14 +241,17 @@ function keyedLedgerRows(rows: readonly SheetRow[]): KeyedLedgerRow[] {
 /** The one row the key names, or why there is not exactly one. */
 function locate(rows: readonly KeyedLedgerRow[], key: LedgerRowKey): KeyedLedgerRow | string {
   const matches = rows.filter((row) => row.key !== null && isSameLedgerRow(key, row.key))
-  const described = key.reference === '' ? `the ${key.account} row of ${key.date} without a reference` : `the ${key.account} row with reference ${key.reference}`
   if (matches.length === 0) {
-    return `No ledger row matches ${described} any more. Sync and look again.`
+    return `No ledger row matches ${describedRow(key)} any more. Sync and look again.`
   }
   if (matches.length > 1) {
-    return `${matches.length} ledger rows match ${described} (rows ${matches.map((row) => row.sheetRow).join(', ')}), so the app cannot tell which to change. Set it in the Sheet.`
+    return `${matches.length} ledger rows match ${describedRow(key)}, so the app cannot tell which to change. Set it in the Sheet.`
   }
   return matches[0]!
+}
+
+function describedRow(key: LedgerRowKey): string {
+  return key.reference === '' ? `the ${key.account} row of ${key.date} without a reference` : `the ${key.account} row with reference ${key.reference}`
 }
 
 function requireTab(fresh: FreshTabs, tab: WorkbookTab): TabRead {

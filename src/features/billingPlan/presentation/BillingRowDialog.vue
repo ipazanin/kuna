@@ -12,7 +12,7 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { amountOf } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
-import { rowCellsOf } from '../../workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../workbook/application/tabRowWrites'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RowCells } from '../../workbook/domain/rowChanges'
 import { useRowWrites } from '../../workbook/presentation/useRowWrites'
@@ -82,9 +82,15 @@ const errors = computed(() => ({
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
 /** The row's cells as the app read them, raw, so a formula amount left alone is never rewritten. */
-function readCells(sheetRow: number): RowCells | null {
-  const read = store.state.snapshot?.['outgoing-plan'].find((candidate) => candidate.sheetRow === sheetRow)
-  return read === undefined ? null : rowCellsOf(read, BILLING_PLAN_ROWS.columns)
+function readCells(row: BillingRowLine): RowCells | null {
+  return storedCellsOf(store.state.snapshot?.['outgoing-plan'] ?? [], BILLING_PLAN_ROWS, row.id)
+}
+
+const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+/** "Monthly Fee for Northwind, 31 Oct 2026", as the dialog and its toasts name the row. */
+function named(row: BillingRowLine): string {
+  return `${row.item} for ${row.clientName}, ${dayFormat.format(new Date(row.date))}`
 }
 
 async function save(): Promise<void> {
@@ -99,7 +105,7 @@ async function save(): Promise<void> {
     if (await writes.write({ added: [typed], changed: [], removed: [] }, { title: 'Plan row added' }, 'Not added')) open.value = false
     return
   }
-  const before = readCells(row.sheetRow)
+  const before = readCells(row)
   if (before === null) return
   const unchanged: Readonly<Record<string, boolean>> = {
     item: typed.item === row.item,
@@ -110,8 +116,8 @@ async function save(): Promise<void> {
   }
   const after: RowCells = Object.fromEntries(BILLING_PLAN_ROWS.columns.map((column) => [column, (unchanged[column] ? before[column] : typed[column]) ?? '']))
   const saved = await writes.write(
-    { added: [], changed: [{ sheetRow: row.sheetRow, before, after }], removed: [] },
-    { title: 'Plan row saved', description: `Written to row ${row.sheetRow} of ${writes.where()}.` },
+    { added: [], changed: [{ before, after }], removed: [] },
+    { title: 'Plan row saved', description: `${named(row)}, written to ${writes.where()}.` },
     'Not saved',
   )
   if (saved) open.value = false
@@ -119,11 +125,11 @@ async function save(): Promise<void> {
 
 async function remove(): Promise<void> {
   const row = props.row
-  const cells = row === null ? null : readCells(row.sheetRow)
+  const cells = row === null ? null : readCells(row)
   if (row === null || cells === null) return
   const deleted = await writes.write(
-    { added: [], changed: [], removed: [{ sheetRow: row.sheetRow, cells }] },
-    { title: 'Plan row deleted', description: `Row ${row.sheetRow} of ${writes.where()} is taken out.` },
+    { added: [], changed: [], removed: [cells] },
+    { title: 'Plan row deleted', description: `${named(row)} is taken out of ${writes.where()}.` },
     'Not deleted',
   )
   if (deleted) open.value = false
@@ -134,7 +140,7 @@ async function remove(): Promise<void> {
   <UModal
     v-model:open="open"
     :title="row === null ? 'Add a plan row' : 'Edit the plan row'"
-    :description="row === null ? 'Something to invoice a client, from the day it becomes billable.' : `Row ${row.sheetRow} of the outgoing-plan tab. Only the cells you change are written.`"
+    :description="row === null ? 'Something to invoice a client, from the day it becomes billable.' : `${named(row)}, on the outgoing-plan tab. Only the cells you change are written.`"
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"
   >

@@ -1,9 +1,9 @@
 import { computed } from 'vue'
 
-import { rowCellsOf } from '../../../../features/workbook/application/tabRowWrites'
+import { storedCellsOf } from '../../../../features/workbook/application/tabRowWrites'
 import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
 import type { PlanLine } from '../../../../features/workbook/domain/plan'
-import type { RowAt, TabRowsChange } from '../../../../features/workbook/domain/rowChanges'
+import type { RowCells, TabRowsChange } from '../../../../features/workbook/domain/rowChanges'
 import { TEMPLATE_COLUMNS } from '../../../../features/workbook/infrastructure/workbookTemplate'
 import { useRowWrites } from '../../../../features/workbook/presentation/useRowWrites'
 import type { RowWriteToast } from '../../../../features/workbook/presentation/useRowWrites'
@@ -20,10 +20,9 @@ export function usePlanWrites() {
   const tabMissing = computed(() => store.state.choice?.source === 'google' && (store.state.snapshot?.meta.missingTabs.includes('plan') ?? false))
   const headers = TEMPLATE_COLUMNS.plan.map((column) => column.name).join(', ')
 
-  /** The row a plan line was read from, as the tab holds it, or null when the copy on screen has moved on. */
-  function rowOf(line: PlanLine): RowAt | null {
-    const read = store.state.snapshot?.plan.find((candidate) => candidate.sheetRow === line.sheetRow)
-    return read === undefined ? null : { sheetRow: line.sheetRow, cells: rowCellsOf(read, PLAN_ROWS.columns) }
+  /** The cells a plan line was read from, as the tab holds them, or null when the copy on screen has moved on. */
+  function rowOf(line: PlanLine): RowCells | null {
+    return storedCellsOf(store.state.snapshot?.plan ?? [], PLAN_ROWS, line.id)
   }
 
   function write(change: TabRowsChange, done: RowWriteToast, failedTitle: string): Promise<boolean> {

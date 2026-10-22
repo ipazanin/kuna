@@ -53,7 +53,6 @@ export function proposeRule(
         ? 'A counterparty whose account settles the category on its own.'
         : 'A merchant, by the name the bank puts in the counterparty field.') +
       (directionPaired ? ` Only ${direction === 'credit' ? 'credits' : 'debits'}, since the category is one side of a pair.` : ''),
-    sheetRow: null,
   }
 }
 

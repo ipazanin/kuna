@@ -16,6 +16,7 @@ import { inTryingOrder } from '../domain/rule'
 import type { Rule } from '../domain/rule'
 import { blankDraft, draftOfRule } from '../domain/ruleDraft'
 import { swapWithNeighbour } from '../domain/rulePlacement'
+import { sameId } from '../domain/rulesTabChange'
 import type { RuleRowEdit } from '../domain/rulesTabChange'
 import { conditionInWords } from '../domain/ruleSummary'
 import { categorisationContextOf } from '../domain/transactionFacts'
@@ -71,7 +72,7 @@ const dialogOpen = ref(false)
 const pending = ref<PendingRulesChange | null>(null)
 
 function rowOf(rule: Rule): RuleRowEdit['expected'] | null {
-  return state.snapshot?.rules.find((row) => row.sheetRow === rule.sheetRow)?.cells ?? null
+  return state.snapshot?.rules.find((row) => sameId(row.cells.rule, rule.id))?.cells ?? null
 }
 
 function addRule(): void {

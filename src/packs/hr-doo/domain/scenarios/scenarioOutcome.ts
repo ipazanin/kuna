@@ -25,8 +25,8 @@ import type { ScenarioSchedule } from './scenarioSchedule'
 
 /** Something about a scenario to weigh before choosing it. Each carries the figures it rests on. */
 export type ScenarioWarning =
-  | { readonly kind: 'below-floor'; readonly sheetRow: number; readonly agreed: Money; readonly floor: TracedFigure }
-  | { readonly kind: 'cap-exceeded'; readonly item: string; readonly sheetRows: readonly number[]; readonly paid: TracedFigure; readonly cap: TracedFigure; readonly excess: TracedFigure }
+  | { readonly kind: 'below-floor'; readonly agreed: Money; readonly floor: TracedFigure }
+  | { readonly kind: 'cap-exceeded'; readonly item: string; readonly paid: TracedFigure; readonly cap: TracedFigure; readonly excess: TracedFigure }
   | { readonly kind: 'salary-dropped'; readonly grant: string; readonly from: CivilDate; readonly requiredUntil: CivilDate; readonly atRisk: TracedFigure | null }
   | { readonly kind: 'dividend-above-capacity'; readonly dividend: TracedFigure; readonly distributable: TracedFigure }
   | { readonly kind: 'net-assets-below-capital'; readonly netAssetsAfter: TracedFigure; readonly shareCapital: TracedFigure }
@@ -34,7 +34,7 @@ export type ScenarioWarning =
 
 /** What a scenario rests on that the figures cannot show, so a person can check it holds. */
 export type ScenarioNote =
-  | { readonly kind: 'tax-free-basis'; readonly item: string; readonly sheetRow: number }
+  | { readonly kind: 'tax-free-basis'; readonly item: string }
   | { readonly kind: 'rent-basis' }
   | { readonly kind: 'board-only' }
   | { readonly kind: 'insured-elsewhere' }
@@ -214,7 +214,7 @@ export function scenarioOutcome(scenario: OwnerPayScenario, company: ScenarioCom
   warnings.push(...salaryDropped(schedule, company.grants))
 
   const notes: ScenarioNote[] = [
-    ...schedule.nontaxable.map((plan): ScenarioNote => ({ kind: 'tax-free-basis', item: plan.item.item, sheetRow: plan.item.sheetRow })),
+    ...schedule.nontaxable.map((plan): ScenarioNote => ({ kind: 'tax-free-basis', item: plan.item.item })),
     ...(rent.amount > 0 ? [{ kind: 'rent-basis' } as const] : []),
     ...(schedule.insurance.some((month) => month.boardOnly > 0) ? [{ kind: 'board-only' } as const] : []),
     ...(schedule.insurance.some((month) => month.elsewhere > 0) ? [{ kind: 'insured-elsewhere' } as const] : []),

@@ -1,4 +1,5 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
+import type { RecordId } from './recordId'
 
 /** The suggestions a person can dismiss: confirmed rows no rule settles, and confirmed rows a rule files in another category. */
 export const SUGGESTION_KINDS = ['not-covered', 'exception'] as const
@@ -14,7 +15,6 @@ export interface Dismissal {
   readonly category: string
   /** Null when the cell is blank. */
   readonly dismissedOn: CivilDate | null
-  readonly sheetRow: number
-  /** Absent on a row from before rows carried an id. */
-  readonly id?: string
+  /** Held by no other row of its tab. */
+  readonly id: RecordId
 }

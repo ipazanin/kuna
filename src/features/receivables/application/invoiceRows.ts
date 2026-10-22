@@ -9,6 +9,7 @@ import type { RowCells } from '../../workbook/domain/rowChanges'
 import { definedClientSlugs, readInvoiceRows } from '../../workbook/infrastructure/workbookReader'
 import { contentColumns } from '../../workbook/infrastructure/workbookTemplate'
 import { invoiceChangeRefusals } from '../domain/invoiceGuards'
+import { INVOICE_RECORDS } from '../../workbook/domain/recordKind'
 
 /** The eight columns the invoice generator writes. It refuses a tab whose header lacks one or names another, so the app needs all eight too. */
 const INVOICE_COLUMNS = contentColumns('invoices')
@@ -42,7 +43,7 @@ export function invoiceCellsOf(draft: InvoiceDraft): RowCells {
 
 export const INVOICE_ROWS: TabRowRules = {
   tab: 'invoices',
-  noun: { one: 'invoice', many: 'invoices', article: 'an' },
+  kind: INVOICE_RECORDS,
   columns: INVOICE_COLUMNS,
   required: INVOICE_COLUMNS,
   caseless: ['client'],
@@ -53,5 +54,4 @@ export const INVOICE_ROWS: TabRowRules = {
       editsOf(check, (cells) => ({ number: cellText(cells.number), amount: cells.amount ?? '' })),
       untouchedOf(check, (cells) => ({ number: cellText(cells.number) })),
     ),
-  label: (cells) => cellText(cells.number) || 'without a number',
 }

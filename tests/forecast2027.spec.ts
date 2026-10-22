@@ -8,9 +8,11 @@ import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import { civil, euros } from './fixtures/ledger'
 import { planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
 import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 function scenario(slug: string, components: readonly ComponentDraft[]): OwnerPayScenario {
-  return { slug, label: slug, year: 2027, components: components.map((component, index) => ({ ...component, sheetRow: index + 2 }) as ScenarioComponent) }
+  return { slug, label: slug, year: 2027, components: components.map((component, index) => ({ ...component, id: recordIdOf(SCENARIO_RECORDS, `${slug}-${index}`) }) as ScenarioComponent) }
 }
 
 const FLOOR = scenario('floor', [

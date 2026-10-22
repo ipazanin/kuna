@@ -52,7 +52,8 @@ export function readTabularStatement(grid: CellGrid, profile: ImportProfile, fil
 }
 
 interface ReadRow {
-  readonly sheetRow: number
+  /** The row of the bank's own file, numbered as a spreadsheet numbers it, for the notes about it. */
+  readonly fileRow: number
   readonly date: CivilDate
   readonly amount: Money
   readonly balance: Money | null
@@ -77,38 +78,38 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
   const problems: string[] = []
   const rows: ReadRow[] = []
   grid.slice(headerIndex + 1).forEach((cells, offset) => {
-    const sheetRow = headerIndex + 2 + offset
+    const fileRow = headerIndex + 2 + offset
     if (cells.every((cell) => cellString(cell) === '')) return
     const dateCell = cellAt(cells, profile.date)
     if (cellString(dateCell) === '') {
-      notes.push(`Row ${sheetRow} has no date, so it is skipped.`)
+      notes.push(`Row ${fileRow} has no date, so it is skipped.`)
       return
     }
     const date = dateOf(dateCell, profile.dateFormat)
     if (date === null) {
       // A label such as a total holds no digit where the date goes. Anything else is a date the profile misreads.
       if (typeof dateCell === 'string' && !/\d/.test(dateCell)) {
-        notes.push(`Row ${sheetRow} reads "${cellString(dateCell)}" where the date goes, so it is skipped.`)
+        notes.push(`Row ${fileRow} reads "${cellString(dateCell)}" where the date goes, so it is skipped.`)
       } else {
-        problems.push(`row ${sheetRow}: "${cellString(dateCell)}" is not a ${profile.dateFormat} date`)
+        problems.push(`row ${fileRow}: "${cellString(dateCell)}" is not a ${profile.dateFormat} date`)
       }
       return
     }
     const amount = amountOfRow(cells, profile, cellAt)
     if (typeof amount === 'string') {
-      problems.push(`row ${sheetRow}: ${amount}`)
+      problems.push(`row ${fileRow}: ${amount}`)
       return
     }
     let balance: Money | null = null
     if (profile.balance !== '') {
       balance = moneyOf(cellAt(cells, profile.balance), profile.decimal)
       if (balance === null) {
-        problems.push(`row ${sheetRow}: the balance "${cellString(cellAt(cells, profile.balance))}" is not an amount`)
+        problems.push(`row ${fileRow}: the balance "${cellString(cellAt(cells, profile.balance))}" is not an amount`)
         return
       }
     }
     rows.push({
-      sheetRow,
+      fileRow,
       date,
       amount,
       balance,
@@ -211,7 +212,7 @@ function checkBalances(rows: readonly ReadRow[]): void {
     const expected = addMoney(previous.balance, row.amount)
     if (expected !== row.balance) {
       throw new StatementRefused(
-        `Row ${row.sheetRow} says the balance is ${plainAmount(row.balance)}, but row ${previous.sheetRow}'s ${plainAmount(previous.balance)} plus ${plainAmount(row.amount)} is ${plainAmount(expected)}. The rows may be out of order or one may be missing.`,
+        `Row ${row.fileRow} says the balance is ${plainAmount(row.balance)}, but row ${previous.fileRow}'s ${plainAmount(previous.balance)} plus ${plainAmount(row.amount)} is ${plainAmount(expected)}. The rows may be out of order or one may be missing.`,
       )
     }
   })

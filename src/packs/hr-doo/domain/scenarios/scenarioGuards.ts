@@ -1,15 +1,17 @@
 import type { OwnerPayScenario, ScenarioComponent } from '../../../../features/workbook/domain/ownerPayScenarios'
+import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
+import { plainAmount } from '../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { componentsOf, overlapOf, scenarioSchedule, spanOf } from './scenarioSchedule'
 import type { DaySpan, ScenarioSchedule } from './scenarioSchedule'
 
-/** Why a scenario cannot be worked out as its rows stand, naming the rows. */
+/** Why a scenario cannot be worked out as its rows stand, and which rows. */
 export interface ScenarioGuard {
-  readonly sheetRows: readonly number[]
+  readonly ids: readonly RecordId[]
   readonly reason: string
 }
 
@@ -39,7 +41,7 @@ export function scenarioGuards(scenario: OwnerPayScenario, rules: RuleSource = r
       for (const second of rows.slice(index + 1)) {
         const shared = overlapOf(spanOf(first, year), spanOf(second, year))
         if (shared !== null) {
-          guards.push({ sheetRows: [first.sheetRow, second.sheetRow], reason: `Rows ${first.sheetRow} and ${second.sheetRow} both ${sets} on ${shared.from}.` })
+          guards.push({ ids: [first.id, second.id], reason: `${capitalised(componentInWords(first))} and ${componentInWords(second)} both ${sets} on ${shared.from}.` })
         }
       }
     })
@@ -51,8 +53,8 @@ export function scenarioGuards(scenario: OwnerPayScenario, rules: RuleSource = r
       const month = sharedMonth(spanOf(first, year), spanOf(second, year))
       if (month !== null && overlapOf(spanOf(first, year), spanOf(second, year)) === null) {
         guards.push({
-          sheetRows: [first.sheetRow, second.sheetRow],
-          reason: `Rows ${first.sheetRow} and ${second.sheetRow} both pay a salary in ${month}. A salary can change only from the first of a month.`,
+          ids: [first.id, second.id],
+          reason: `${capitalised(componentInWords(first))} and ${componentInWords(second)} both pay a salary in ${month}. A salary can change only from the first of a month.`,
         })
       }
     }
@@ -60,8 +62,7 @@ export function scenarioGuards(scenario: OwnerPayScenario, rules: RuleSource = r
 
   const dividends = componentsOf(scenario, 'dividend')
   if (dividends.length > 1) {
-    const rows = dividends.map((dividend) => dividend.sheetRow)
-    guards.push({ sheetRows: rows, reason: `Rows ${listed(rows)} each set a dividend. A scenario pays one, out of the year's profit.` })
+    guards.push({ ids: dividends.map((dividend) => dividend.id), reason: `The scenario sets ${dividends.length} dividends. A scenario pays one, out of the year's profit.` })
   }
 
   for (const basis of componentsOf(scenario, 'director_basis')) {
@@ -69,7 +70,7 @@ export function scenarioGuards(scenario: OwnerPayScenario, rules: RuleSource = r
     if (basis.basis === 'employee') {
       const day = firstDay(span, (candidate) => schedule.salaryOn(candidate) === null)
       if (day !== null) {
-        guards.push({ sheetRows: [basis.sheetRow], reason: `Row ${basis.sheetRow} makes the director an employee on ${day}, a day no salary row covers. Add the salary, or end the row earlier.` })
+        guards.push({ ids: [basis.id], reason: `${capitalised(componentInWords(basis))} makes the director an employee on ${day}, a day no salary row covers. Add the salary, or end the row earlier.` })
       }
       continue
     }
@@ -77,8 +78,8 @@ export function scenarioGuards(scenario: OwnerPayScenario, rules: RuleSource = r
     const salary = day === null ? null : schedule.salaryOn(day)
     if (day !== null && salary !== null) {
       guards.push({
-        sheetRows: [basis.sheetRow, salary.sheetRow],
-        reason: `Row ${basis.sheetRow} sets ${basis.basis} on ${day}, a day row ${salary.sheetRow} pays a salary. A director paid a salary is insured as an employee.`,
+        ids: [basis.id, salary.id],
+        reason: `${capitalised(componentInWords(basis))} holds on ${day}, a day ${componentInWords(salary)} pays. A director paid a salary is insured as an employee.`,
       })
     }
   }
@@ -93,19 +94,35 @@ function nontaxableGuards(schedule: ScenarioSchedule, rules: RuleSource): Scenar
     const yearly = [...new Set(caps.filter((row) => row.period.text === YEARLY).map((row) => row.payment.text))]
     const capRow = caps.find((row) => row.payment.text === item.item)
     if (capRow === undefined || capRow.period.text !== YEARLY) {
-      const why = capRow === undefined ? `${item.item} is not a tax-free payment the ruleset lists for ${schedule.year}` : `${item.item} has no yearly cap to check a year's amount against`
-      return [{ sheetRows: [item.sheetRow], reason: `Row ${item.sheetRow}: ${why}. Use one with a yearly cap: ${yearly.join(', ')}.` }]
+      const why = capRow === undefined ? `is not a tax-free payment the ruleset lists for ${schedule.year}` : `has no yearly cap to check a year's amount against`
+      return [{ ids: [item.id], reason: `The item ${item.item} ${why}. Use one with a yearly cap: ${yearly.join(', ')}.` }]
     }
     if (!schedule.salaryMonths.some((salary) => salary.month === month)) {
-      return [{ sheetRows: [item.sheetRow], reason: `Row ${item.sheetRow} pays ${item.item} in ${month}, a month with no salary. A tax-free payment goes only to an employee.` }]
+      return [{ ids: [item.id], reason: `The item ${item.item} is paid in ${month}, a month with no salary. A tax-free payment goes only to an employee.` }]
     }
     return []
   })
 }
 
-/** Row numbers as a sentence lists them: "3 and 4", "3, 4 and 7". */
-function listed(rows: readonly number[]): string {
-  return rows.length < 2 ? rows.join('') : `${rows.slice(0, -1).join(', ')} and ${rows[rows.length - 1]}`
+/** A scenario row as a guard names it, such as "the salary of 3000.00 from 2027-07-01". */
+export function componentInWords(component: ScenarioComponent): string {
+  const days = `${component.from === null ? '' : ` from ${component.from}`}${component.to === null ? '' : ` to ${component.to}`}`
+  switch (component.component) {
+    case 'salary_gross':
+      return `the ${component.gross === 'floor' ? 'floor salary' : `salary of ${plainAmount(component.gross)}`}${days}`
+    case 'director_basis':
+      return `the ${component.basis} director basis${days}`
+    case 'rent_monthly':
+      return `the rent of ${plainAmount(component.amount)}${days}`
+    case 'dividend':
+      return `the ${component.amount === 'max' ? 'largest dividend' : `dividend of ${plainAmount(component.amount)}`}`
+    case 'nontaxable':
+      return `${component.item}${days}`
+  }
+}
+
+function capitalised(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 }
 
 /** The first month two spans both touch, or null. */

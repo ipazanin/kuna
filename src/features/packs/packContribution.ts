@@ -5,6 +5,7 @@ import type { CivilDate } from '../../shared/calendar/civilDate'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { CompanyFacts, Settings, SettingsField } from '../settings/domain/settings'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
+import type { RecordId } from '../workbook/domain/recordId'
 import type { Workbook } from '../workbook/domain/workbook'
 
 /** A screen of its own, with its menu item after the core screens and before Settings. */
@@ -43,8 +44,8 @@ export interface PackCompanyFacts {
 
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
 export interface PackContribution {
-  /** The ledger rows the pack keeps whole, by their row, with the names that claim them. Applies whatever the owner-pay switch says. */
-  rowsKeptWhole(workbook: Pick<Workbook, 'assets' | 'transactions' | 'categories'>): ReadonlyMap<number, readonly string[]>
+  /** The ledger rows the pack keeps whole, by their record id, with the names that claim them. Applies whatever the owner-pay switch says. */
+  rowsKeptWhole(workbook: Pick<Workbook, 'assets' | 'transactions' | 'categories'>): ReadonlyMap<RecordId, readonly string[]>
   /** The routes exist whatever the switch says. Their menu items show only while it is on, like the slots below. */
   readonly screens: readonly PackScreen[]
   /** Jobs for Overview's Waiting for you, listed after the core jobs. */

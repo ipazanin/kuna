@@ -10,7 +10,6 @@ interface AccountCells {
 
 /** One accounts row before and after a change. `before` is null for an added row, `after` for a deleted one. */
 export interface AccountEdit {
-  readonly sheetRow: number | null
   readonly before: AccountCells | null
   readonly after: AccountCells | null
 }
@@ -32,18 +31,18 @@ export interface AccountChecks {
  */
 export function accountChangeRefusals(
   edits: readonly AccountEdit[],
-  untouched: readonly { readonly sheetRow: number; readonly slug: string; readonly iban: string }[],
+  untouched: readonly AccountCells[],
   checks: AccountChecks,
 ): string[] {
   const refusals = slugChangeRefusals(
     'account',
-    { edits: edits.map((edit) => ({ sheetRow: edit.sheetRow, from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
+    { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
     checks.named,
     true,
   )
   const others = (edit: AccountEdit) => [
     ...untouched,
-    ...edits.flatMap((other) => (other === edit || other.after === null ? [] : [{ sheetRow: other.sheetRow, slug: other.after.slug, iban: other.after.iban }])),
+    ...edits.flatMap((other) => (other === edit || other.after === null ? [] : [other.after])),
   ]
   for (const edit of edits) {
     const after = edit.after
@@ -58,7 +57,7 @@ export function accountChangeRefusals(
     if (!isIban(after.iban)) {
       refusals.push(`"${after.iban}" is not a valid IBAN.`)
     } else if (holder !== undefined) {
-      refusals.push(`${after.iban} is already the IBAN of the ${holder.slug} account${holder.sheetRow === null ? '' : `, on row ${holder.sheetRow}`}, and the Apps Script stops on an IBAN the tab names twice.`)
+      refusals.push(`${after.iban} is already the IBAN of the ${holder.slug} account, and the Apps Script stops on an IBAN the tab names twice.`)
     } else if (client !== undefined) {
       refusals.push(`${after.iban} is the IBAN of the client ${client}, so the rules would read its payments as transfers between your own accounts.`)
     }

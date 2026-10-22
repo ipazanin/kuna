@@ -29,8 +29,6 @@ export interface Rule {
   readonly category: string
   readonly confidence: RuleConfidence
   readonly note: string
-  /** The tab row it was read from. Null for a rule not on the tab yet. */
-  readonly sheetRow: number | null
 }
 
 /** The tab's condition columns, in the tab's order. */

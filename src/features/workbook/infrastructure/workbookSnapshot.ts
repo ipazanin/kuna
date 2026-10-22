@@ -40,8 +40,6 @@ export interface WorkbookMeta {
   readonly title: string
   /** ISO timestamp of the read that produced this copy, or of the last change kept in this browser. */
   readonly syncedAt: string
-  /** The `ledger` tab's numeric id, for links to its rows. Null when Google did not say, and in Excel mode. */
-  readonly ledgerSheetId: number | null
   /** ISO timestamp of the last export to an xlsx file, or null. */
   readonly lastExportedAt: string | null
   /** When the oldest change not yet in an exported file was made. Null when every change is exported. */

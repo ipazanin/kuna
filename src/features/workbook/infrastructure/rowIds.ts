@@ -1,7 +1,8 @@
 import { cellText } from '../../../shared/text/cellText'
 import { newRecordId } from '../domain/recordId'
-import type { SheetRow, WorkbookTab } from '../infrastructure/workbookSnapshot'
-import { ID_COLUMN, TABS_WITH_IDS } from '../infrastructure/workbookTemplate'
+import { labelOfRow } from './tabRecords'
+import type { SheetRow, WorkbookTab } from './workbookSnapshot'
+import { ID_COLUMN, TABS_WITH_IDS } from './workbookTemplate'
 import type { CellEdit, FreshTabs, NewColumn, TabEdits } from './workbookWriter'
 
 /** How many rows of one tab have no id yet. */
@@ -44,7 +45,8 @@ export function verifyMissingIds(after: FreshTabs, plan: IdsPlan): void {
   for (const edit of plan.given) {
     const row = after[edit.tab]?.rows.find((candidate) => candidate.sheetRow === edit.sheetRow)
     if (row === undefined || cellText(row.cells[ID_COLUMN]) !== edit.value) {
-      throw new Error(`The write reached the workbook, but row ${edit.sheetRow} of the ${edit.tab} tab does not hold the id written to it. Check the tab and its version history.`)
+      const label = row === undefined ? 'a row' : `"${labelOfRow(edit.tab, row.cells)}"`
+      throw new Error(`The write reached the workbook, but ${label} on the ${edit.tab} tab does not hold the id written to it. Check the tab and its version history.`)
     }
   }
 }

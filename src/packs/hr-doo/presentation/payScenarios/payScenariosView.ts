@@ -158,7 +158,7 @@ export function itemWords(item: string): string {
 export function warningText(warning: ScenarioWarning): string {
   switch (warning.kind) {
     case 'below-floor':
-      return `The salary on row ${warning.sheetRow} is ${formatMoney(warning.agreed)} a month, below the director floor of ${formatMoney(warning.floor.amount)}, so the payroll pays the floor.`
+      return `The salary of ${formatMoney(warning.agreed)} a month is below the director floor of ${formatMoney(warning.floor.amount)}, so the payroll pays the floor.`
     case 'cap-exceeded':
       return `${itemWords(warning.item)} of ${formatMoney(warning.paid.amount)} is over its yearly cap of ${formatMoney(warning.cap.amount)}. The ${formatMoney(warning.excess.amount)} over it is taxed as salary.`
     case 'salary-dropped':
@@ -177,7 +177,7 @@ export function warningText(warning: ScenarioWarning): string {
 export function noteText(note: ScenarioNote): string {
   switch (note.kind) {
     case 'tax-free-basis':
-      return `${itemWords(note.item)} on row ${note.sheetRow} needs a real basis, such as a written decision or the invoices, before it is paid tax free.`
+      return `${itemWords(note.item)} needs a real basis, such as a written decision or the invoices, before it is paid tax free.`
     case 'rent-basis':
       return 'Rent needs real business space at a market rent, and one story with any commuting or work-from-home allowance.'
     case 'board-only':

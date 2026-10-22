@@ -9,7 +9,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
 import type { PlanLine } from '../../../../features/workbook/domain/plan'
-import type { RowAt } from '../../../../features/workbook/domain/rowChanges'
+import type { RowCells } from '../../../../features/workbook/domain/rowChanges'
 import { civilDate, parseCivilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
@@ -67,7 +67,7 @@ const errors = computed(() => ({
 }))
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
-function held(): KeyedRow<RowAt>[] {
+function held(): KeyedRow<RowCells>[] {
   return props.lines.flatMap((line) => {
     const row = writes.rowOf(line)
     return row === null ? [] : [{ key: line.from === null ? 'opening' : 'switch', cells: row }]

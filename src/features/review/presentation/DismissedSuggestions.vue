@@ -52,7 +52,7 @@ function rowsOf(entry: DismissedSuggestion<Transaction>): string {
     data-testid="dismissed-suggestions"
   >
     <ul class="mt-3 border-t border-default">
-      <li v-for="entry in dismissed" :key="entry.dismissal.sheetRow" class="dismissed-row" data-testid="dismissed-suggestion">
+      <li v-for="entry in dismissed" :key="entry.dismissal.id" class="dismissed-row" data-testid="dismissed-suggestion">
         <div class="min-w-0">
           <p class="flex flex-wrap items-baseline gap-x-2">
             <span class="font-medium break-words text-highlighted">{{ nameOf(entry) }}</span>

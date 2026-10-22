@@ -3,13 +3,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { SPLIT_ROWS, splitCellsOf, splitRowsChange } from '../src/features/transactions/application/splitRows'
 import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriter'
-import type { RowAt } from '../src/features/workbook/domain/rowChanges'
+import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
+import type { RowCells } from '../src/features/workbook/domain/rowChanges'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
 import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { euros } from './fixtures/ledger'
 import { AN_ID, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { withIds } from './fixtures/rowIds'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -30,10 +31,10 @@ function grids(withSplitsTab = true): Record<string, CellValue[][]> {
       ['revenue', 'income', 'income', 'revenue'],
       ['owner-loan-out', 'owner', 'owner-pay', 'owner-loan-out'],
     ],
-    assets: [
+    assets: withIds('asset', [
       ['asset', 'bought', 'cost_net', 'group', 'ledger_reference'],
       ['Desk', 46298, 80, 'equipment', 'Desk'],
-    ],
+    ]),
     ...(withSplitsTab ? { splits: [SPLIT_HEADER] } : {}),
   }
 }
@@ -42,8 +43,8 @@ function rowOf(store: WorkbookStore, counterparty: string): Transaction {
   return store.state.workbook!.transactions.find((row) => row.counterparty === counterparty)!
 }
 
-function currentRows(store: WorkbookStore): RowAt[] {
-  return store.state.snapshot!.splits.map((row) => ({ sheetRow: row.sheetRow, cells: rowCellsOf(row, SPLIT_ROWS.columns) }))
+function currentRows(store: WorkbookStore): RowCells[] {
+  return store.state.snapshot!.splits.map((row) => rowCellsOf(row, SPLIT_ROWS))
 }
 
 function writeSplit(store: WorkbookStore, row: Transaction, parts: readonly (readonly [number, string, string?])[], addMissingTab = false) {
@@ -61,13 +62,13 @@ describe.each([
 
     const receipt = await writeSplit(store, model, [[-12, 'ai-services', 'Seats'], [-8, 'owner-loan-out', 'The owner’s seat']])
 
-    expect(receipt?.added.map((row) => row.cells)).toEqual([
+    expect(receipt?.added).toEqual([
       { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -12, category: 'ai-services', note: 'Seats', id: AN_ID },
       { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -8, category: 'owner-loan-out', note: 'The owner’s seat', id: AN_ID },
     ])
-    expect(store.state.workbook?.splits.map((split) => [split.row.sheetRow, split.parts.map((part) => [part.amount, part.category])])).toEqual([
+    expect(store.state.workbook?.splits.map((split) => [split.row.id, split.parts.map((part) => [part.amount, part.category])])).toEqual([
       [
-        model.sheetRow,
+        model.id,
         [
           [euros(-12), 'ai-services'],
           [euros(-8), 'owner-loan-out'],
@@ -88,7 +89,7 @@ describe.each([
 
     const edited = await writeSplit(store, model, [[-10, 'ai-services', 'Seats'], [-6, 'owner-loan-out'], [-4, 'equipment', 'A cable']])
 
-    expect(edited?.changed.map((change) => [change.sheetRow, change.after.amount, change.after.note])).toEqual([[2, -10, 'Seats'], [3, -6, '']])
+    expect(edited?.changed.map((change) => [change.after.category, change.after.amount, change.after.note])).toEqual([['ai-services', -10, 'Seats'], ['owner-loan-out', -6, '']])
     expect(store.state.workbook?.splits[0]?.parts.map((part) => [part.amount, part.category, part.note])).toEqual([
       [euros(-10), 'ai-services', 'Seats'],
       [euros(-6), 'owner-loan-out', ''],
@@ -111,7 +112,7 @@ describe.each([
       'the parts add up to -18.00 and the row is -20.00',
     )
     await expect(writeSplit(store, rowOf(store, 'Desk Co'), [[-80, 'equipment'], [-20, 'ai-services']])).rejects.toThrow(
-      '"Desk" on the assets tab claims ledger row 4 as payment, so the row stays whole.',
+      '"Desk" on the assets tab claims the main row of 2026-10-03 for -100.00 as payment, so the row stays whole.',
     )
     await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'snacks']])).rejects.toThrow(WorkbookWriteRefused)
     expect(store.state.snapshot?.splits).toEqual([])

@@ -4,8 +4,8 @@ import { isVatTreatment } from '../../workbook/domain/vatTreatment'
 
 /** One row of the categories editor, as text, the way the tab holds it. */
 export interface CategoryDraft {
-  /** The row number this draft was read from, or null for a row added in the editor. */
-  readonly sheetRow: number | null
+  /** Where the row this draft was read from stands among the rows the editor opened with, or null for a row added in the editor. */
+  readonly saved: number | null
   /** The name the row had when the editor opened, which ledger rows may use. */
   readonly savedName: string
   readonly category: string
@@ -31,21 +31,21 @@ export type CategoryDraftErrors = ReadonlyMap<number, Partial<Record<CategoryFie
  */
 export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>): CategoryDraftErrors {
   const errors = new Map<number, Partial<Record<CategoryField, string>>>()
-  const firstAt = new Map<string, number>()
+  const named = new Set<string>()
   drafts.forEach((draft, index) => {
     const found: Partial<Record<CategoryField, string>> = {}
     const name = draft.category.trim().toLowerCase()
     if (name === '') {
       found.category = 'Required'
-    } else if (firstAt.has(name)) {
-      found.category = `Already on row ${(firstAt.get(name) ?? 0) + 1}`
+    } else if (named.has(name)) {
+      found.category = 'Already used above'
     } else if (renamesUsed(draft, drafts, usedNames)) {
       found.category = `${draft.savedName} is in use, so it keeps its name`
     } else if (name !== draft.savedName.trim().toLowerCase() && slugProblem(name, 'category') !== null) {
       found.category = 'Lower-case letters, digits and single hyphens'
     }
-    if (name !== '' && !firstAt.has(name)) {
-      firstAt.set(name, index)
+    if (name !== '') {
+      named.add(name)
     }
     if (draft.family.trim() === '') {
       found.family = 'Required'
@@ -83,7 +83,7 @@ export function categoryCellsOf(
   savedCells: ReadonlyMap<number, Readonly<Record<string, string | number | boolean>>>,
 ): Record<string, string | number | boolean>[] {
   return drafts.map((draft) => ({
-    ...(draft.sheetRow === null ? {} : (savedCells.get(draft.sheetRow) ?? {})),
+    ...(draft.saved === null ? {} : (savedCells.get(draft.saved) ?? {})),
     category: draft.category.trim().toLowerCase(),
     label: draft.label.trim(),
     family: draft.family.trim().toLowerCase(),

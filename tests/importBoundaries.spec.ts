@@ -52,6 +52,19 @@ function resolvedFile(directory: string, specifier: string): string {
 
 const IMPORTS = importsInSource()
 
+const SOURCE_FILES = readdirSync(join(ROOT, 'src'), { recursive: true, encoding: 'utf8' })
+  .filter((name) => /\.(ts|vue)$/.test(name))
+  .map((name) => join('src', name))
+
+/** Each line of `src`, templates included, that holds the pattern, as `file:line`, outside the files `allowed` keeps. */
+function linesHolding(pattern: RegExp, allowed: (file: string) => boolean): string[] {
+  return SOURCE_FILES.filter((file) => !allowed(file)).flatMap((file) =>
+    readFileSync(join(ROOT, file), 'utf8')
+      .split('\n')
+      .flatMap((line, index) => (pattern.test(line) ? [`${file}:${index + 1}`] : [])),
+  )
+}
+
 /** Domain code: a `domain` folder, and a pack's ruleset outside its presentation, which holds the law the domain computes with. */
 function isDomain(file: string): boolean {
   return /\/domain\//.test(file) || (/^src\/packs\/[^/]+\/ruleset\//.test(file) && !/\/presentation\//.test(file))
@@ -76,6 +89,12 @@ describe('import boundaries', () => {
 
   it('keeps domain code to domain code and the calendar, money and text helpers', () => {
     expect(broken((entry) => !isDomain(entry.from) || (entry.target !== null && (isDomain(entry.target) || DOMAIN_SHARED.some((folder) => entry.target!.startsWith(folder)))))).toEqual([])
+  })
+
+  it('leaves row numbers to the spreadsheet adapter, and record ids to their maker', () => {
+    expect(linesHolding(/\bsheetRow\b/, () => false).length).toBeGreaterThan(0)
+    expect(linesHolding(/\bsheetRows?\b/, (file) => file.startsWith('src/features/workbook/infrastructure/'))).toEqual([])
+    expect(linesHolding(/\bas RecordId\b/, (file) => file === 'src/features/workbook/domain/recordId.ts')).toEqual([])
   })
 
   it('keeps core free of pack code, which only main.ts installs', () => {

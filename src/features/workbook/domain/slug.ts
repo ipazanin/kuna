@@ -27,15 +27,14 @@ export type SlugUses = ReadonlyMap<string, readonly string[]>
 
 /** One row's name before and after a change. `from` is null for an added row, `to` for a deleted one. */
 export interface SlugEdit {
-  readonly sheetRow: number | null
   readonly from: string | null
   readonly to: string | null
 }
 
 export interface SlugChange {
   readonly edits: readonly SlugEdit[]
-  /** The names of the rows the change leaves alone, with their rows. */
-  readonly untouched: readonly { readonly sheetRow: number; readonly slug: string }[]
+  /** The names of the rows the change leaves alone. */
+  readonly untouched: readonly { readonly slug: string }[]
 }
 
 /**
@@ -46,8 +45,12 @@ export interface SlugChange {
  */
 export function slugChangeRefusals(noun: string, change: SlugChange, uses: SlugUses, oneRowEach: boolean): string[] {
   const refusals: string[] = []
-  const named = (slug: string, skip: SlugEdit): number | null | undefined =>
-    change.untouched.find((row) => row.slug === slug)?.sheetRow ?? change.edits.find((edit) => edit !== skip && edit.to === slug)?.sheetRow
+  /** Whether another row holds the name: one already on the tab, or one this change adds. */
+  const holder = (slug: string, skip: SlugEdit): 'saved' | 'added' | null => {
+    if (change.untouched.some((row) => row.slug === slug)) return 'saved'
+    const edit = change.edits.find((other) => other !== skip && other.to === slug)
+    return edit === undefined ? null : edit.from === null ? 'added' : 'saved'
+  }
   for (const edit of change.edits) {
     if (edit.to === null || edit.to === edit.from) {
       continue
@@ -57,9 +60,9 @@ export function slugChangeRefusals(noun: string, change: SlugChange, uses: SlugU
       refusals.push(`${problem}.`)
       continue
     }
-    const holder = named(edit.to, edit)
-    if (oneRowEach && holder !== undefined) {
-      refusals.push(holder === null ? `"${edit.to}" is added twice.` : `"${edit.to}" is already ${withArticle(noun)}, on row ${holder}.`)
+    const held = holder(edit.to, edit)
+    if (oneRowEach && held !== null) {
+      refusals.push(held === 'added' ? `"${edit.to}" is added twice.` : `"${edit.to}" is already ${withArticle(noun)}.`)
     }
   }
   const remaining = new Set([...change.untouched.map((row) => row.slug), ...change.edits.flatMap((edit) => (edit.to === null ? [] : [edit.to]))])

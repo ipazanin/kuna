@@ -5,6 +5,8 @@ import type { Category } from '../src/features/workbook/domain/workbook'
 import { assetRegister } from '../src/packs/hr-doo/domain/assets/assetRegister'
 import { PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
+import { recordIdOf } from '../src/features/workbook/domain/recordId'
+import { ASSET_RECORDS } from '../src/features/workbook/domain/recordKind'
 
 const EQUIPMENT: Category = {
   slug: 'equipment',
@@ -29,7 +31,7 @@ function asset(name: string, cost: number, bought: string, ledgerReference = '')
     fundedBy: '',
     ledgerReference,
     note: '',
-    sheetRow: 2,
+    id: recordIdOf(ASSET_RECORDS, 'row-2'),
   }
 }
 
