@@ -507,7 +507,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     const errors = watchForErrors(page)
     const foreignRequests = watchForForeignRequests(page)
 
-    if (visit.linkedRule) await slowWebFonts(page)
+    if (visit.linkedRule || visit.linkedPart) await slowWebFonts(page)
     if (visit.collapsedBefore) {
       await page.evaluateOnNewDocument((cards) => {
         for (const card of cards) localStorage.setItem(`ledgerboard.card.${card}`, 'collapsed')
@@ -549,6 +549,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (drawsCharts && rendered) await new Promise((resolve) => setTimeout(resolve, 1500))
 
     if (visit.linkedPart && rendered) {
+      await page.evaluate(() => document.fonts.ready.then(() => undefined))
       const landed = await page
         .waitForFunction(linkedPartLanded, { timeout: 5_000 }, visit.linkedPart)
         .then(() => true)

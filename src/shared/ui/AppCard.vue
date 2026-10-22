@@ -44,14 +44,15 @@ watch(
 
 /**
  * A card that first renders once its data has loaded comes after the router's scroll, so a deep link
- * into it scrolls to its target itself.
+ * into it scrolls to its target itself. Web fonts that swap in later move every card, so it scrolls
+ * once they have loaded.
  */
 const root = useTemplateRef<HTMLElement>('root')
-onMounted(() => {
+onMounted(async () => {
   const target = props.reveal && route.hash !== '' ? document.getElementById(route.hash.slice(1)) : null
-  if (target !== null && root.value?.contains(target)) {
-    target.scrollIntoView({ block: 'start' })
-  }
+  if (target === null || root.value?.contains(target) !== true) return
+  await document.fonts.ready
+  target.scrollIntoView({ block: 'start' })
 })
 
 function toggle(): void {
