@@ -131,6 +131,8 @@ export interface CompanyFacts {
   readonly vatPrinciple: VatPrinciple
   /** The default for assets: whether the accountant doubles depreciation rates. */
   readonly depreciationDoubled: boolean
+  /** The yearly interest rate the owner's loans carry, in basis points, so 200 is 2%. */
+  readonly ownerLoanInterest: number
 }
 
 export const DEFAULT_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = {
@@ -192,6 +194,7 @@ export const DEFAULT_SETTINGS: Settings = {
     citReturn: 'pd',
     vatPrinciple: 'invoice',
     depreciationDoubled: false,
+    ownerLoanInterest: 0,
   },
   importProfiles: [],
 }
@@ -212,6 +215,8 @@ const EARLIEST_BIRTH_YEAR = 1900
 const LATEST_BIRTH_YEAR = 2100
 
 const MOST_DEPENDANTS = 20
+
+const BASIS_POINTS_PER_WHOLE = 10_000
 
 export type SettingCell = string | number | boolean
 
@@ -438,6 +443,15 @@ const COMPANY_FACT_DEFINITIONS: readonly SettingDefinition[] = [
       return doubled === null ? `"${String(cell)}" is neither TRUE nor FALSE` : withFacts(settings, { depreciationDoubled: doubled })
     },
   },
+  {
+    key: 'hr_owner_loan_interest',
+    note: "The yearly interest rate the owner's loans from the company carry, as a percentage cell such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
+    valueOf: (settings) => settings.companyFacts.ownerLoanInterest / BASIS_POINTS_PER_WHOLE,
+    apply: (settings, cell) => {
+      const rate = rateOfCell(cell)
+      return typeof rate === 'string' ? rate : (ownerLoanInterestProblem(rate) ?? withFacts(settings, { ownerLoanInterest: rate }))
+    },
+  },
 ]
 
 /** Every key the app reads, in the order the template lists them. */
@@ -606,6 +620,7 @@ export type SettingsField =
   | 'residenceCity'
   | 'birthYear'
   | 'dependants'
+  | 'ownerLoanInterest'
   | DefinedBucket
 
 /**
@@ -627,13 +642,15 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
     const problem = invoicingProblem(field, value)
     if (problem !== null) errors[field] = problem
   }
-  const { residenceCity, birthYear, dependants } = settings.companyFacts
+  const { residenceCity, birthYear, dependants, ownerLoanInterest } = settings.companyFacts
   const city = residenceCityProblem(residenceCity)
   if (city !== null) errors.residenceCity = city
   const born = birthYear === null ? null : birthYearProblem(birthYear)
   if (born !== null) errors.birthYear = born
   const dependantCount = dependantsProblem(dependants)
   if (dependantCount !== null) errors.dependants = dependantCount
+  const loanInterest = ownerLoanInterestProblem(ownerLoanInterest)
+  if (loanInterest !== null) errors.ownerLoanInterest = loanInterest
   const seen = new Map<string, DefinedBucket>()
   for (const bucket of BUCKETS) {
     const label = settings.bucketLabels[bucket]
@@ -742,6 +759,23 @@ function birthYearProblem(year: number): string | null {
 
 function dependantsProblem(dependants: number): string | null {
   return Number.isInteger(dependants) && dependants >= 0 && dependants <= MOST_DEPENDANTS ? null : `use a whole number from 0 to ${MOST_DEPENDANTS}`
+}
+
+/**
+ * A rate in basis points from a percentage cell, which holds 2% as 0.02, or from text such as 2%,
+ * 2,5 % or 0.025. A number above 1 is refused, as the year-end tab refuses it, since 2 would read as 200%.
+ */
+function rateOfCell(cell: SettingCell): number | string {
+  const text = String(cell).trim().replace(/\s+/g, '').replace(',', '.')
+  const percent = text.endsWith('%')
+  const number = typeof cell === 'number' ? cell : Number(percent ? text.slice(0, -1) : text)
+  if (typeof cell === 'boolean' || !Number.isFinite(number) || text === '' || text === '%') return `"${String(cell)}" is not a rate such as 2%`
+  if (!percent && number > 1) return `${number} reads as ${number * 100}%. Enter the rate as a percentage cell, such as 2%`
+  return Math.round((percent ? number / 100 : number) * BASIS_POINTS_PER_WHOLE * 1_000) / 1_000
+}
+
+function ownerLoanInterestProblem(basisPoints: number): string | null {
+  return Number.isInteger(basisPoints) && basisPoints >= 0 && basisPoints <= BASIS_POINTS_PER_WHOLE ? null : 'use a rate from 0% to 100% with at most two decimals, such as 2%'
 }
 
 function isOneOf<Word extends string>(text: string, words: readonly Word[]): text is Word {

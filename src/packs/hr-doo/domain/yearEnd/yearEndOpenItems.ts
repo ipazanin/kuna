@@ -11,6 +11,8 @@ import type { AccrualAdjustment, AdjustmentId } from '../accrual/accrualAdjustme
 import { withDrill } from '../accrual/accrualAdjustment'
 import { bookingFigure } from '../accrual/accrualBookings'
 import type { AccrualYear } from '../accrual/accrualYear'
+import { loanBenefit } from '../ownerLoanInterest'
+import type { LoanBenefit } from '../ownerLoanInterest'
 import { ownerLoans } from '../ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { atRate, percentText, summed, tracedFigure } from '../payroll/payrollArithmetic'
@@ -168,19 +170,10 @@ function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSo
         categories: [...categoriesWithRole(workbook.categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(workbook.categories, PACK_ROLES.ownerLoanRepaid)],
       }),
     )
-    const floor = rules('hr.pit.loan-benefit', lastDay).value.minimumInterestRate.basisPoints
     const report = rules('hr.cit.related-party-report', firstDay).value.reportForm.text
+    const benefit = loanBenefit(workbook, year, lastDay, rules)
     loanItems.push(
-      {
-        key: 'loan-benefit',
-        group: 'compliance',
-        title: `Loans to the owner below ${percentText(floor)} interest a year`,
-        on: null,
-        settledBy: `The accountant confirms the benefit of interest below ${percentText(floor)} was taxed through payroll, or the loans carry that interest.`,
-        figure: lent,
-        rules: ['hr.pit.loan-benefit'],
-        settled: false,
-      },
+      ...(benefit === null ? [] : [loanBenefitItem(benefit)]),
       {
         key: 'related-party-report',
         group: 'compliance',
@@ -204,6 +197,34 @@ function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSo
     )
   }
   return [...loanItems, ...assetDecisionItems(workbook, accrual, rules)]
+}
+
+/** What the loans give as a benefit in kind, or that they carry enough interest to give none. */
+function loanBenefitItem(benefit: LoanBenefit): YearEndOpenItem {
+  const prescribed = percentText(benefit.prescribed)
+  const carried = percentText(benefit.carried)
+  if (benefit.carried >= benefit.prescribed) {
+    return {
+      key: 'loan-benefit',
+      group: 'compliance',
+      title: `Loans to the owner carry ${carried}, at least the ${prescribed} a year the income tax law sets`,
+      on: null,
+      settledBy: `the loans carry less than ${prescribed} a year, as hr_owner_loan_interest says.`,
+      figure: null,
+      rules: ['hr.pit.loan-benefit'],
+      settled: true,
+    }
+  }
+  return {
+    key: 'loan-benefit',
+    group: 'compliance',
+    title: `Benefit in kind on loans to the owner at ${carried}, below ${prescribed} a year`,
+    on: null,
+    settledBy: `The accountant confirms the benefit was taxed through payroll as pay in kind, or the loans carry ${prescribed} a year.`,
+    figure: benefit.figure,
+    rules: ['hr.pit.loan-benefit'],
+    settled: false,
+  }
 }
 
 /** Purchases kept as assets within the years after registration whose price is above the share of the capital that needs the members' decision. */

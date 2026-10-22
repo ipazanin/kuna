@@ -59,9 +59,17 @@ describe('yearEndOpenItems', () => {
     const items = openItems(exampleStudio())
 
     expect(keys(items, 'compliance')).toEqual(['loan-benefit', 'related-party-report', 'sole-member-deals', 'asset-purchase-decision'])
-    expect(items.find((item) => item.key === 'loan-benefit')).toMatchObject({ figure: { amount: euros(1000) }, rules: ['hr.pit.loan-benefit'] })
+    // 1,000.00 owed for the 60 days from 1 November to 31 December, at 2% a year: 1,000.00 × 2% × 60 / 365 = 3.29.
+    expect(items.find((item) => item.key === 'loan-benefit')).toMatchObject({ figure: { amount: euros(3.29) }, rules: ['hr.pit.loan-benefit'], settled: false })
     // Lent in November 2025 and repaid in February 2026, so 2026 has it too.
     expect(keys(openItems(exampleStudio(), 2026), 'compliance')).toContain('loan-benefit')
+  })
+
+  it('settles the loan benefit when the loans carry the income tax law’s rate', () => {
+    const workbook = exampleStudio()
+    const carried = exampleStudio({ settings: { ...workbook.settings, companyFacts: { ...workbook.settings.companyFacts, ownerLoanInterest: 200 } } })
+
+    expect(openItems(carried).find((item) => item.key === 'loan-benefit')).toMatchObject({ figure: null, settled: true })
   })
 
   it('asks for the members’ decision on a purchase above a fifth of the share capital in the first two years', () => {

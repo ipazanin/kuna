@@ -10,11 +10,9 @@ import type { ScreenPath } from './screens'
 const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, () => Promise<RouteComponent>>> = {
   '/': () => import('../../features/overview/presentation/OverviewScreen.vue'),
   '/transactions': () => import('../../features/transactions/presentation/TransactionsScreen.vue'),
-  '/trends': () => import('../../features/trends/presentation/TrendsScreen.vue'),
-  '/spending': () => import('../../features/spending/presentation/SpendingScreen.vue'),
-  '/period-review': () => import('../../features/period-review/presentation/PeriodReviewScreen.vue'),
-  '/receivables': () => import('../../features/receivables/presentation/ReceivablesScreen.vue'),
-  '/billing': () => import('../../features/billingPlan/presentation/BillingScreen.vue'),
+  '/review': () => import('../../features/review/presentation/ReviewScreen.vue'),
+  '/invoicing': () => import('../../features/invoicing/presentation/InvoicingScreen.vue'),
+  '/analysis': () => import('../../features/analysis/presentation/AnalysisScreen.vue'),
   '/taxes': () => import('../../packs/hr-doo/presentation/TaxesScreen.vue'),
   '/assets': () => import('../../packs/hr-doo/presentation/assets/AssetsScreen.vue'),
   '/year-end': () => import('../../packs/hr-doo/presentation/yearEnd/YearEndScreen.vue'),
@@ -22,7 +20,6 @@ const SCREEN_COMPONENTS: Readonly<Record<ScreenPath, () => Promise<RouteComponen
   '/pay-scenarios': () => import('../../packs/hr-doo/presentation/payScenarios/PayScenariosScreen.vue'),
   '/owner': () => import('../../packs/hr-doo/presentation/OwnerScreen.vue'),
   '/ruleset': () => import('../../packs/hr-doo/ruleset/presentation/RulesetScreen.vue'),
-  '/review': () => import('../../features/review/presentation/ReviewScreen.vue'),
   '/workbook': () => import('../../features/settings/presentation/WorkbookScreen.vue'),
   '/settings': () => import('../../features/settings/presentation/SettingsScreen.vue'),
 }

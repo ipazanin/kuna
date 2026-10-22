@@ -3,11 +3,11 @@ import type { DrillTarget } from '../../../../features/filters/domain/drillTarge
 import { isDefinedBucket } from '../../../../features/workbook/domain/bucket'
 import type { Category, Workbook } from '../../../../features/workbook/domain/workbook'
 import type { YearEndStatement } from '../../../../features/workbook/domain/yearEnd'
-import { civilDate, daysBetween, yearOf } from '../../../../shared/calendar/civilDate'
+import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { yearOfMonth } from '../../../../shared/calendar/monthKey'
-import { ZERO, addMoney, moneyFromCents, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleId } from '../../ruleset/ruleset'
@@ -17,12 +17,12 @@ import type { DepreciationSettings } from '../assets/depreciationSchedule'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import type { CitLiability, TaxPeriod } from '../cit/citLiability'
 import { lossesCarriedInto, taxBase } from '../cit/taxBase'
-import type { CarriedLoss, TaxBase } from '../cit/taxBase'
+import type { TaxBase } from '../cit/taxBase'
 import { grantResiduals } from '../grants/grantRelease'
-import { ownerLoans } from '../ownerLoans'
+import { relatedPartyInterest } from '../ownerLoanInterest'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import type { PackRole } from '../packRoles'
-import { deducted, dividedRounded, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { withDrill } from './accrualAdjustment'
 import type { AccrualAdjustment, AdjustmentId } from './accrualAdjustment'
@@ -101,8 +101,6 @@ export interface AccrualYear {
   readonly uninvoicedMonths: readonly UninvoicedMonth[]
   readonly purchasesWithoutAsset: readonly PurchaseWithoutAsset[]
 }
-
-const BASIS_POINTS_PER_WHOLE = 10_000
 
 /**
  * The accrual profit and loss, balance sheet and PD build-up of a year, from the cash ledger, the
@@ -484,42 +482,4 @@ function isShown(step: TracedFigure): boolean {
 function rangeOf(dates: readonly CivilDate[]): DateRange {
   const sorted = [...dates].sort()
   return { from: sorted[0] as CivilDate, to: sorted[sorted.length - 1] as CivilDate }
-}
-
-/**
- * Interest the owner loans would carry at the related-party rate, from the day after each loan to
- * its repayment or to 31 December, with none charged. The rule reaches a resident owner only while
- * the company has a tax loss, so without one it is not worked out.
- */
-export function relatedPartyInterest(workbook: Workbook, year: number, profitBeforeTax: Money, losses: readonly CarriedLoss[], rules: RuleSource): TracedFigure {
-  if (profitBeforeTax >= 0 && losses.length === 0) {
-    return tracedFigure('Not worked out: the company has no tax loss', ZERO, 'ledger', [])
-  }
-  const dayBefore = civilDate(year - 1, 12, 31)
-  const yearEnd = civilDate(year, 12, 31)
-  const centDays = ownerLoans(workbook.transactions, workbook.categories).loans.reduce((total, loan) => {
-    let balance: number = loan.amount
-    let from = loan.lentOn
-    let sum = 0
-    for (const repayment of loan.repayments) {
-      sum += balance * daysWithin(from, repayment.repaidOn, dayBefore, yearEnd)
-      balance -= repayment.applied
-      from = repayment.repaidOn
-    }
-    return total + sum + balance * daysWithin(from, yearEnd, dayBefore, yearEnd)
-  }, 0)
-  const rate = rules('hr.cit.related-party-rate', civilDate(year, 1, 1))
-  return tracedFigure(
-    'Interest on the owner loans at the related-party rate, none charged',
-    moneyFromCents(dividedRounded(centDays * rate.value.rate.basisPoints, BASIS_POINTS_PER_WHOLE * daysBetween(dayBefore, yearEnd))),
-    'ledger',
-    [rate.citation],
-  )
-}
-
-/** Days from `from` to `to` that fall after `after` and on or before `through`. */
-function daysWithin(from: CivilDate, to: CivilDate, after: CivilDate, through: CivilDate): number {
-  const start = from > after ? from : after
-  const end = to < through ? to : through
-  return end > start ? daysBetween(start, end) : 0
 }

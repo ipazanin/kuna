@@ -1,5 +1,3 @@
-import type { RouteLocationRaw } from 'vue-router'
-
 import { yearOf } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { monthKey, monthOf, monthsFrom } from '../../../shared/calendar/monthKey'
@@ -7,7 +5,7 @@ import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../shared/calendar/monthLabel'
 import { ZERO, subtractMoney, sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
-import { formatWholeMoney } from '../../../shared/money/moneyFormat'
+import { formatPercent, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
 import type { BillingPlanFigures } from '../application/useBillingPlan'
@@ -67,24 +65,9 @@ export interface BillingMonthLine {
   readonly withoutPlanLines: readonly WithoutPlanLine[]
 }
 
-export interface BillingTile {
-  readonly label: string
-  readonly value: string
-  readonly caption: string
-  readonly definition: string
-  readonly to: RouteLocationRaw | null
-}
-
 export interface BillingCheckLine {
   readonly label: string
   readonly amount: Money
-}
-
-export interface BillingLinks {
-  /** A month in the list of months, opened. */
-  month(month: MonthKey): RouteLocationRaw
-  readonly rows: RouteLocationRaw
-  readonly months: RouteLocationRaw
 }
 
 /** Every year a plan row or an invoice falls in, the year of the newest booking and the year after, which the forecast reaches, oldest first. */
@@ -92,12 +75,11 @@ export function billingYears(figures: BillingPlanFigures, asOf: CivilDate): numb
   return [...new Set([...figures.totals.years.map((entry) => entry.year), yearOf(asOf), yearOf(asOf) + 1])].sort((earlier, later) => earlier - later)
 }
 
-/** What the Billing plan screen shows for one year, seen on `asOf`. */
+/** What the Plan tab of Invoicing shows for one year. */
 export function billingView(
   figures: BillingPlanFigures,
   register: { readonly clients: readonly Client[]; readonly invoices: readonly Invoice[] },
   year: number,
-  links: BillingLinks,
   tokens: ChartTokens,
 ) {
   const { clients, invoices } = register
@@ -161,68 +143,49 @@ export function billingView(
   const yearTotals = figures.totals.years.find((entry) => entry.year === year) ?? { year, planned: ZERO, invoiced: ZERO }
   const openRows = rows.filter((row) => row.open > 0)
   const openInYear = sumMoney(openRows.map((row) => row.open))
-  const next = figures.expected[0] ?? null
   const issuedInYear = invoices.filter((invoice) => yearOf(invoice.issued) === year).length
-
-  const tiles: BillingTile[] = [
-    {
-      label: `Planned in ${year}`,
-      value: formatWholeMoney(yearTotals.planned),
-      caption: rows.length === 0 ? 'No plan rows in the year' : `${rows.length} ${rows.length === 1 ? 'plan row' : 'plan rows'}`,
-      definition: 'Every row of the outgoing-plan tab dated in the year, by the day it becomes billable.',
-      to: links.rows,
-    },
-    {
-      label: `Invoiced in ${year}`,
-      value: formatWholeMoney(yearTotals.invoiced),
-      caption: `${issuedInYear} ${issuedInYear === 1 ? 'invoice' : 'invoices'} issued in the year`,
-      definition: 'Every invoice on the invoices tab issued in the year, whether it billed plan rows of this year, of last year, or none.',
-      to: links.months,
-    },
-    {
-      label: 'Not yet invoiced',
-      value: formatWholeMoney(openInYear),
-      caption: openRows.length === 0 ? `Every ${year} plan row is invoiced` : `${openRows.length} ${openRows.length === 1 ? 'row' : 'rows'} of ${year} still open`,
-      definition:
-        'What the invoices have not billed of the plan rows dated in the year. Each client’s invoices bill its rows oldest first, up to the end of the month they were issued in, and the next month’s rows with €1 or more left.',
-      to: links.months,
-    },
-    {
-      label: 'Next expected invoice',
-      value: next === null ? '–' : formatWholeMoney(next.amount),
-      caption: next === null ? 'Every plan row is invoiced' : `${monthLabel(next.month)}, ${nameOf(next.client)}`,
-      definition: 'The oldest month with plan rows no invoice has billed yet, for one client. Months after it follow in the list.',
-      to: next === null ? null : links.month(next.month),
-    },
-  ]
 
   const all = figures.totals
   const yearStatistics = figures.statistics.years.find((entry) => entry.year === year)
+  const items =
+    yearStatistics?.items.map((entry) => ({
+      item: entry.item,
+      colour: colours.get(entry.item) ?? tokens.deemphasis,
+      amount: entry.amount,
+      share: yearStatistics.total === 0 ? 0 : entry.amount / yearStatistics.total,
+    })) ?? []
+  const largest = items[0]
   return {
-    tiles,
+    yearLine: {
+      planned: yearTotals.planned,
+      invoiced: yearTotals.invoiced,
+      notInvoiced: openInYear,
+      rowCount: rows.length,
+      openRowCount: openRows.length,
+      issuedInYear,
+    },
     months: listedMonths,
     monthsSummary:
       listedMonths.length === 0
         ? 'No month with plan rows'
-        : `${listedMonths.length} ${listedMonths.length === 1 ? 'month' : 'months'}, ${formatWholeMoney(yearTotals.planned)} planned, ${formatWholeMoney(openInYear)} not invoiced yet`,
+        : `${listedMonths.filter((month) => month.status === 'invoiced').length} of ${listedMonths.filter((month) => month.status !== null).length} months invoiced, ${formatWholeMoney(openInYear)} not invoiced yet`,
     rowsSummary:
       rows.length === 0
         ? 'No plan rows in the year'
         : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}, ${openRows.length === 0 ? 'every one invoiced' : `${openRows.length} not invoiced yet`}`,
     rows: [...rows].sort((earlier, later) => later.date.localeCompare(earlier.date) || earlier.sheetRow - later.sheetRow),
-    items:
-      yearStatistics?.items.map((entry) => ({
-        item: entry.item,
-        colour: colours.get(entry.item) ?? tokens.deemphasis,
-        amount: entry.amount,
-        share: yearStatistics.total === 0 ? 0 : entry.amount / yearStatistics.total,
-      })) ?? [],
+    items,
+    itemsSummary:
+      largest === undefined
+        ? `No plan row is dated in ${year}`
+        : `${items.length} ${items.length === 1 ? 'item' : 'items'} in ${year}, ${largest.item} the largest at ${formatPercent(largest.share)}`,
     itemsChart: itemYearsChart(
       figures.statistics.years,
       figures.statistics.items.map((total) => total.item),
       tokens,
     ),
     itemYears: figures.statistics.years.length,
+    totalsSummary: `${formatWholeMoney(all.planned)} planned, ${formatWholeMoney(all.invoiced)} invoiced, over every year`,
     check: {
       sums: [
         { label: 'Total amount', amount: all.planned },

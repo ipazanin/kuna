@@ -1,11 +1,9 @@
 export type ScreenPath =
   | '/'
   | '/transactions'
-  | '/trends'
-  | '/spending'
-  | '/period-review'
-  | '/receivables'
-  | '/billing'
+  | '/review'
+  | '/invoicing'
+  | '/analysis'
   | '/taxes'
   | '/assets'
   | '/year-end'
@@ -13,7 +11,6 @@ export type ScreenPath =
   | '/pay-scenarios'
   | '/owner'
   | '/ruleset'
-  | '/review'
   | '/workbook'
   | '/settings'
 
@@ -29,11 +26,9 @@ export interface Screen {
 export const SCREENS: readonly Screen[] = [
   { path: '/', title: 'Overview', icon: 'i-lucide-layout-dashboard' },
   { path: '/transactions', title: 'Transactions', icon: 'i-lucide-list' },
-  { path: '/trends', title: 'Trends', icon: 'i-lucide-trending-up' },
-  { path: '/spending', title: 'Spending', icon: 'i-lucide-chart-bar' },
-  { path: '/period-review', title: 'Period review', icon: 'i-lucide-calendar-range' },
-  { path: '/receivables', title: 'Receivables', icon: 'i-lucide-receipt-text' },
-  { path: '/billing', title: 'Billing plan', icon: 'i-lucide-calendar-clock' },
+  { path: '/review', title: 'Review', icon: 'i-lucide-inbox' },
+  { path: '/invoicing', title: 'Invoicing', icon: 'i-lucide-receipt-text' },
+  { path: '/analysis', title: 'Analysis', icon: 'i-lucide-chart-bar' },
   { path: '/taxes', title: 'Taxes', icon: 'i-lucide-landmark', ownerPayPack: true },
   { path: '/assets', title: 'Assets', icon: 'i-lucide-package', ownerPayPack: true },
   { path: '/year-end', title: 'Year end', icon: 'i-lucide-calendar-check', ownerPayPack: true },
@@ -41,7 +36,6 @@ export const SCREENS: readonly Screen[] = [
   { path: '/pay-scenarios', title: 'Pay scenarios', icon: 'i-lucide-split', ownerPayPack: true },
   { path: '/owner', title: 'Owner', icon: 'i-lucide-user-round', ownerPayPack: true },
   { path: '/ruleset', title: 'Ruleset', icon: 'i-lucide-scale' },
-  { path: '/review', title: 'Review', icon: 'i-lucide-inbox' },
   { path: '/workbook', title: 'Workbook', icon: 'i-lucide-book-open' },
   { path: '/settings', title: 'Settings', icon: 'i-lucide-settings' },
 ]

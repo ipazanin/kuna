@@ -6,26 +6,18 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
-import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
 import { LOCAL_UNITS, findLocalUnit } from '../../../packs/hr-doo/ruleset/localUnits'
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
-import { amountOf } from '../../../shared/money/money'
-import type { Money } from '../../../shared/money/money'
-import { typedAmount } from '../../../shared/money/typedAmount'
 import { fold } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
-import type { BillingAmountField, BillingItemField, BillingTerms, CitReturn, CompanyFacts, InvoicingField, Settings, VatPrinciple } from '../domain/settings'
+import type { CitReturn, CompanyFacts, Settings, VatPrinciple } from '../domain/settings'
 
 const props = defineProps<{
   settings: Settings
   saving: boolean
-  /** The clients the billing plan can fill rows for. */
-  clients: readonly { readonly slug: string; readonly name: string }[]
-  /** The item kinds the outgoing-plan tab already uses, so a term names one exactly as the tab writes it. */
-  billingItems: readonly string[]
 }>()
 
 const emit = defineEmits<{
@@ -99,16 +91,33 @@ function updateFact<Fact extends keyof CompanyFacts>(fact: Fact, value: CompanyF
   draft.value = { ...draft.value, companyFacts: { ...draft.value.companyFacts, [fact]: value } }
 }
 
-/** The two number fields as typed. Text that is not a number goes into the draft as NaN, so the field shows its error. */
+/** The number fields as typed. Text that is not a number goes into the draft as NaN, so the field shows its error. */
 const birthYearText = ref(textOfBirthYear(props.settings.companyFacts.birthYear))
 const dependantsText = ref(String(props.settings.companyFacts.dependants))
+const loanInterestText = ref(textOfBasisPoints(props.settings.companyFacts.ownerLoanInterest))
 watch(
   () => draft.value.companyFacts,
   (facts) => {
     if (!Object.is(numberOfBirthYear(birthYearText.value), facts.birthYear)) birthYearText.value = textOfBirthYear(facts.birthYear)
     if (!Object.is(numberOfDependants(dependantsText.value), facts.dependants)) dependantsText.value = String(facts.dependants)
+    if (!Object.is(basisPointsOf(loanInterestText.value), facts.ownerLoanInterest)) loanInterestText.value = textOfBasisPoints(facts.ownerLoanInterest)
   },
 )
+
+/** A rate typed as a percent, so 2.5 is 250 basis points. A blank field is 0%. */
+function basisPointsOf(text: string): number {
+  const typed = text.trim().replace(',', '.')
+  return typed === '' ? 0 : Math.round(Number(typed) * 100 * 1_000) / 1_000
+}
+
+function textOfBasisPoints(basisPoints: number): string {
+  return String(basisPoints / 100)
+}
+
+function updateLoanInterest(text: string): void {
+  loanInterestText.value = text
+  updateFact('ownerLoanInterest', basisPointsOf(text))
+}
 
 function textOfBirthYear(year: number | null): string {
   return year === null ? '' : String(year)
@@ -133,90 +142,6 @@ function updateDependants(text: string): void {
   updateFact('dependants', numberOfDependants(text))
 }
 
-const BILLING_TERMS: readonly { readonly label: string; readonly amount: BillingAmountField; readonly item: BillingItemField; readonly help: string }[] = [
-  { label: 'Monthly fee', amount: 'monthlyAmount', item: 'monthlyItem', help: 'Filled for every month to December.' },
-  { label: 'Monthly subscriptions', amount: 'subscriptionAmount', item: 'subscriptionItem', help: 'Re-billed every month, filled the same way.' },
-  { label: 'Yearly bonus', amount: 'bonusAmount', item: 'bonusItem', help: 'Shown for reference, never filled.' },
-]
-
-function updateBilling<Field extends keyof BillingTerms>(field: Field, value: BillingTerms[Field]): void {
-  draft.value = { ...draft.value, billing: { ...draft.value.billing, [field]: value } }
-}
-
-function textOfAmount(amount: Money | null): string {
-  return amount === null ? '' : String(amountOf(amount))
-}
-
-/** The amounts as typed. Text that is not an amount goes into the draft as NaN, so the field shows its error. */
-const billingAmountTexts = ref<Record<BillingAmountField, string>>({
-  monthlyAmount: textOfAmount(props.settings.billing.monthlyAmount),
-  subscriptionAmount: textOfAmount(props.settings.billing.subscriptionAmount),
-  bonusAmount: textOfAmount(props.settings.billing.bonusAmount),
-})
-watch(
-  () => draft.value.billing,
-  (terms) => {
-    for (const { amount } of BILLING_TERMS) {
-      if (!Object.is(amountOfText(billingAmountTexts.value[amount]), terms[amount])) {
-        billingAmountTexts.value = { ...billingAmountTexts.value, [amount]: textOfAmount(terms[amount]) }
-      }
-    }
-  },
-)
-
-/** A blank field is no amount. */
-function amountOfText(text: string): BillingTerms[BillingAmountField] {
-  if (text.trim() === '') return null
-  return typedAmount(text) ?? (Number.NaN as Money)
-}
-
-function updateBillingAmount(field: BillingAmountField, text: string): void {
-  billingAmountTexts.value = { ...billingAmountTexts.value, [field]: text }
-  updateBilling(field, amountOfText(text))
-}
-
-const billingItemChoices = ref<string[]>([])
-const itemChoices = computed(() => [...new Set([...props.billingItems, ...BILLING_TERMS.map(({ item }) => draft.value.billing[item]), ...billingItemChoices.value])].filter((item) => item !== ''))
-
-function createBillingItem(field: BillingItemField, text: string): void {
-  const typed = text.trim()
-  if (typed !== '') {
-    billingItemChoices.value = [...billingItemChoices.value, typed]
-    updateBilling(field, typed)
-  }
-}
-
-const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
-
-/** A field with `lines` is a text box that grows, so a long path or subject wraps instead of scrolling inside the card. */
-const INVOICING_FIELDS: readonly { readonly field: InvoicingField; readonly label: string; readonly help?: string; readonly lines?: number; readonly wide?: boolean }[] = [
-  { field: 'name', label: 'Company name on the invoice' },
-  { field: 'address', label: 'Address', help: 'Street and town.' },
-  { field: 'country', label: 'Country' },
-  { field: 'vatId', label: 'VAT ID' },
-  { field: 'phone', label: 'Phone' },
-  { field: 'mail', label: 'Mail' },
-  { field: 'iban', label: 'IBAN', help: 'The account the client pays into.' },
-  { field: 'swift', label: 'SWIFT' },
-  { field: 'bank', label: 'Bank', help: 'For the footer, such as Example Bank d.d.' },
-  { field: 'courtRegister', label: 'Court register number' },
-  { field: 'shareCapital', label: 'Share capital', help: 'As the footer prints it, such as EUR 2,500.00 (fully paid-up).' },
-  { field: 'place', label: 'Place of issue', help: 'Printed before the date.' },
-  { field: 'issueTime', label: 'Issuing time', help: 'Such as 17:00h. Blank leaves the line out.' },
-  { field: 'signatory', label: 'Signatory', help: 'Prepares and signs the invoice.' },
-  { field: 'signatoryTitle', label: 'Signatory’s role', help: 'Such as director.' },
-  { field: 'numberPattern', label: 'Number pattern', help: '{n} is the sequence, which restarts each year. {yy} and {yyyy} are the year.' },
-  { field: 'filePath', label: 'File path', help: 'Under the invoice folder, with {yyyy}, {yy}, {mm}, {client} and {number}.', lines: 1, wide: true },
-  { field: 'folderId', label: 'Invoice folder', help: 'The Drive folder id. Make invoice asks you to pick it the first time.', lines: 1, wide: true },
-  { field: 'mailSubject', label: 'Mail subject', help: 'With {month}, {number}, {client}, {company} and {signatory}.', lines: 1, wide: true },
-  { field: 'mailBody', label: 'Mail text', lines: 6, wide: true },
-  { field: 'reverseChargeNote', label: 'Reverse-charge note', help: 'Printed under the totals, after an asterisk.', lines: 2, wide: true },
-]
-
-function updateInvoicing(field: InvoicingField, value: string): void {
-  draft.value = { ...draft.value, invoicing: { ...draft.value.invoicing, [field]: value } }
-}
-
 const citReturnItems: { value: CitReturn; label: string }[] = [
   { value: 'pd', label: 'PD, on the accrual profit' },
   { value: 'pd-nn', label: 'PD-NN, on cash received and paid' },
@@ -226,7 +151,6 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
   { value: 'invoice', label: 'On the invoice date' },
   { value: 'cash', label: 'When it is paid' },
 ]
-
 </script>
 
 <template>
@@ -317,6 +241,13 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
             @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))"
           />
         </UFormField>
+        <UFormField
+          label="Interest the owner's loans carry, % a year"
+          :error="errors.ownerLoanInterest ?? false"
+          help="Below the income tax law's rate, the difference on each day's balance is a benefit in kind, which Owner and Year end work out."
+        >
+          <UInput :model-value="loanInterestText" inputmode="decimal" class="w-full" data-testid="owner-loan-interest" @update:model-value="updateLoanInterest(String($event))" />
+        </UFormField>
         <UFormField label="Corporate tax return">
           <USelect :model-value="draft.companyFacts.citReturn" :items="citReturnItems" class="w-full" @update:model-value="updateFact('citReturn', $event as CitReturn)" />
         </UFormField>
@@ -336,87 +267,6 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
         description="The default for assets. An asset row can still say otherwise."
         @update:model-value="updateFact('depreciationDoubled', $event)"
       />
-    </fieldset>
-
-    <fieldset class="flex flex-col gap-3" data-testid="billing-terms">
-      <legend class="text-sm font-medium text-highlighted">Billing plan</legend>
-      <p class="-mt-1 text-xs text-muted">
-        What a client is billed on terms. "Fill the rest of the year" on Billing plan adds the monthly rows from them. Name each item exactly as the
-        outgoing-plan tab writes it, or the fill adds a second row in a month that already has one.
-      </p>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <template v-for="term in BILLING_TERMS" :key="term.amount">
-          <UFormField :label="term.label" :error="errors[term.amount] ?? false" :help="term.help">
-            <UInput
-              :model-value="billingAmountTexts[term.amount]"
-              inputmode="decimal"
-              placeholder="Not set"
-              class="w-full"
-              @update:model-value="updateBillingAmount(term.amount, String($event))"
-            />
-          </UFormField>
-          <UFormField :label="`${term.label}, item`" :error="errors[term.item] ?? false">
-            <USelectMenu
-              :model-value="draft.billing[term.item]"
-              :items="itemChoices"
-              create-item
-              placeholder="Not set"
-              :search-input="{ placeholder: 'Search or type an item' }"
-              class="w-full"
-              @update:model-value="updateBilling(term.item, String($event ?? ''))"
-              @create="createBillingItem(term.item, $event)"
-            />
-          </UFormField>
-        </template>
-        <UFormField label="Client the rows are for" help="Its name on the clients tab." class="sm:col-span-2">
-          <USelectMenu
-            :model-value="draft.billing.client"
-            :items="clientItems"
-            value-key="value"
-            placeholder="Not set"
-            clear
-            class="w-full"
-            @update:model-value="updateBilling('client', String($event ?? ''))"
-          />
-        </UFormField>
-      </div>
-    </fieldset>
-
-    <fieldset class="flex flex-col gap-3" data-testid="invoicing-terms">
-      <legend class="text-sm font-medium text-highlighted">Invoices</legend>
-      <p class="-mt-1 text-xs text-muted">
-        What an invoice made on Receivables or Billing plan prints about your company, and how it is numbered, filed and mailed. The client’s address and
-        mail are on Workbook, Clients.
-      </p>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField
-          v-for="entry in INVOICING_FIELDS"
-          :key="entry.field"
-          :label="entry.label"
-          :help="entry.help ?? ''"
-          :error="errors[entry.field] ?? false"
-          :class="{ 'sm:col-span-2': entry.wide }"
-        >
-          <UTextarea
-            v-if="entry.lines"
-            :model-value="draft.invoicing[entry.field]"
-            :rows="entry.lines"
-            autoresize
-            placeholder="Not set"
-            class="w-full"
-            :class="{ identifier: entry.field === 'folderId' }"
-            @update:model-value="updateInvoicing(entry.field, String($event))"
-          />
-          <UInput
-            v-else
-            :model-value="draft.invoicing[entry.field]"
-            placeholder="Not set"
-            class="w-full"
-            :class="{ identifier: entry.field === 'iban' }"
-            @update:model-value="updateInvoicing(entry.field, String($event))"
-          />
-        </UFormField>
-      </div>
     </fieldset>
 
     <fieldset class="flex flex-col gap-3">

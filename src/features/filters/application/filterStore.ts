@@ -13,9 +13,9 @@ import type { FilterState } from '../domain/filterState'
 const ROUTE_PATHS: Readonly<Record<DrillRoute, { readonly path: string; readonly tab?: string }>> = {
   overview: { path: '/' },
   transactions: { path: '/transactions' },
-  trends: { path: '/trends' },
-  spending: { path: '/spending' },
-  'period-review': { path: '/period-review' },
+  breakdown: { path: '/analysis' },
+  'over-time': { path: '/analysis', tab: 'over-time' },
+  compare: { path: '/analysis', tab: 'compare' },
 }
 
 // One filter state for the whole app, mirrored into the route query so every view is linkable.
@@ -45,7 +45,7 @@ export function bindFiltersToRouter(router: Router): () => void {
     }
     const encoded = encodeFilters(filters.value)
     if (Object.keys(encoded).length > 0) {
-      void router.replace({ query: { ...route.query, ...encoded } })
+      void router.replace({ query: { ...route.query, ...encoded }, hash: route.hash })
     }
   }
   follow(router.currentRoute.value)

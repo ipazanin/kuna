@@ -6,10 +6,11 @@
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar, the
  * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a line's build-up, a
- * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, the Add advance form,
+ * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, the build-up of
+ * the loans' benefit in kind, the owner take under the ring against its tile, the Add advance form from Owner's header,
  * the cost of a reimbursement with no cost on file added from Review,
- * the billing plan's next expected invoice opening its month, the rest of the year filled from a preview with a description edited, a plan row edited and
- * deleted, and the first row added to an empty billing plan, each with Undo where it has one, a category, an asset and an
+ * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
+ * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, an asset and an
  * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a payment split, edited, deleted and
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused,
@@ -59,6 +60,7 @@ import {
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
+import { screenshotWholePage } from './support/wholePage.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUTPUT_DIR = process.env.TOUCH_OUTPUT_DIR ?? join(ROOT, 'visual-check', 'touch')
@@ -76,11 +78,8 @@ const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview' }
  */
 const SCREENS = [
   { hash: '#/transactions?tab=import', title: 'Transactions', ready: '[data-testid="import-file"]', cards: false },
-  { hash: '#/trends?p=all', title: 'Trends', ready: '.chart-body canvas', cards: false },
-  { hash: '#/spending?p=all', title: 'Spending', ready: '[data-testid="cost-line"]' },
-  { hash: '#/period-review?p=all', title: 'Period review', ready: '.chart-body canvas' },
-  { hash: '#/receivables?p=all', title: 'Receivables', ready: '[data-testid="invoice-list"]' },
-  { hash: '#/billing?p=all', title: 'Billing plan', ready: '[data-testid="billing-rows"]' },
+  { hash: '#/analysis?p=all', title: 'Analysis', ready: '[data-testid="cost-line"]' },
+  { hash: '#/invoicing?p=all', title: 'Invoicing', ready: '[data-testid="invoice-list"]' },
   { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
   { hash: '#/assets?p=all', title: 'Assets', ready: '[data-testid="asset-register"]' },
   { hash: '#/year-end?year=2025&p=all', title: 'Year end', ready: '[data-testid="bridge-steps"]' },
@@ -316,7 +315,13 @@ async function checkWidth(width) {
   })
 
   await step('payee-breakdown', async () => {
-    await open(page, '#/spending?p=l12', 'Spending')
+    await open(page, '#/analysis?p=l12', 'Analysis')
+    const payeesToggle = await page.waitForSelector('[data-testid="top-payees"] [data-testid="card-toggle"]')
+    if ((await payeesToggle.evaluate((toggle) => toggle.getAttribute('aria-expanded'))) === 'false') {
+      await payeesToggle.evaluate((toggle) => toggle.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await payeesToggle.tap()
+    }
     const several = await page.waitForFunction(
       () => [...document.querySelectorAll('[data-testid="payee-categories"]')].find((trigger) => trigger.textContent?.includes('+')) ?? null,
       { timeout: 10_000 },
@@ -335,10 +340,16 @@ async function checkWidth(width) {
       (placed) => placed,
       'the breakdown leaves the window or covers the row it belongs to',
     )
-    await inspect(page, `${width}px payee breakdown open`)
     await shoot('payee-breakdown')
-    const firstLine = await page.$('[data-testid="payee-breakdown"] a')
-    await firstLine.tap()
+    await inspect(page, `${width}px payee breakdown open`)
+    // Measuring the links of the cost headings scrolls the page, which closes the breakdown, so it opens again.
+    await delay(500)
+    if ((await page.$('[data-testid="payee-breakdown"] a')) === null) {
+      await several.asElement().evaluate((trigger) => trigger.scrollIntoView({ block: 'center' }))
+      await several.asElement().tap()
+      await delay(300)
+    }
+    await page.tap('[data-testid="payee-breakdown"] a')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 2, 'the breakdown line did not narrow to its counterparty and category')
   })
@@ -369,7 +380,7 @@ async function checkWidth(width) {
     await open(page, '#/taxes?p=all', 'Taxes')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="cadence-paid"]')
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-taxes.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes.png`))
     await page.tap('[data-testid="cadence-paid"]')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the cadence cell opened Transactions without its filters')
@@ -378,12 +389,12 @@ async function checkWidth(width) {
   await step('assets-doubled-and-drill', async () => {
     await open(page, '#/assets?p=all', 'Assets')
     await settleCharts(page)
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-assets.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-assets.png`))
     await page.tap('[role="switch"][data-testid="doubled-rates-switch"]')
     await page.waitForSelector('[data-testid="doubled-rates-changes"]')
     await expect(hashOf(page), (hash) => hash.includes('rates=doubled'), 'the switch did not put the doubled rates in the address')
     await inspect(page, `${width}px assets at doubled rates`)
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-assets-doubled.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-assets-doubled.png`))
     const year = await page.waitForSelector('[data-testid="depreciation-year-toggle"][aria-expanded="false"]')
     await year.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -402,7 +413,7 @@ async function checkWidth(width) {
     await open(page, '#/year-end?year=2025&p=all', 'Year end')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="comparison-pl"]')
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-year-end.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-year-end.png`))
     const toggle = await page.waitForSelector('[data-testid="comparison-pl"] [data-testid="comparison-toggle"][aria-expanded="false"]')
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -424,7 +435,7 @@ async function checkWidth(width) {
     await openFreshExcel(page, '#/forecast?year=2026&p=all', 'Forecast')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="forecast-obligations"]')
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-forecast.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-forecast.png`))
     const toggle = await page.waitForSelector('[data-testid="forecast-profit-and-loss"] [data-testid="build-up-toggle"][aria-expanded="false"]')
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -447,7 +458,7 @@ async function checkWidth(width) {
     await expect(hashOf(page), (hash) => hash.includes('year=2027'), 'the year picker did not put the year in the address')
     await waitForText(page, '[data-testid="plan-editor"] h2', 'Plan for 2027')
     await inspect(page, `${width}px forecast for 2027`)
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-forecast-2027.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-forecast-2027.png`))
     await (await waitForText(page, '[data-testid="year-picker"] button', '2026')).tap()
     const paid = await page.waitForSelector('[data-testid="forecast-obligations"] a[aria-label$="paid, open the rows"]')
     await paid.evaluate((element) => element.scrollIntoView({ block: 'center' }))
@@ -461,7 +472,7 @@ async function checkWidth(width) {
     await openFreshExcel(page, '#/taxes?p=all', 'Taxes')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="corporate-tax-2026"]')
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-taxes-corporate-tax.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes-corporate-tax.png`))
     const paid = await page.waitForSelector('[data-testid="corporate-tax-2026"] a[aria-label$="paid, open the rows"]')
     await paid.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -474,17 +485,52 @@ async function checkWidth(width) {
     await open(page, '#/owner?p=all', 'Owner')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="loan-list"]')
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-owner.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-owner.png`))
     await page.tap('[data-testid="loan-list"] ol a')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the repayment opened Transactions without its filters')
   })
 
-  await step('receivables-payment-drill', async () => {
-    await open(page, '#/receivables?p=all', 'Receivables')
+  await step('owner-benefit-build-up', async () => {
+    await open(page, '#/owner?p=all', 'Owner')
+    const benefit = await page.waitForSelector('[data-testid="owner-loan-benefit"] [data-testid="build-up-button"]')
+    await benefit.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await benefit.tap()
+    await page.waitForSelector('[data-testid="figure-detail"]')
+    await delay(400)
+    await expect(
+      page.$$eval('[data-testid="figure-detail"] a', (links) => links.some((link) => link.getAttribute('href')?.includes('hr.pit.loan-benefit'))),
+      (linked) => linked,
+      'the loan benefit build-up does not link its rule',
+    )
+    await inspect(page, `${width}px owner loan benefit build-up`)
+    await shoot('owner-loan-benefit')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="figure-detail"]'))
+  })
+
+  await step('owner-taken', async () => {
+    await open(page, '#/owner?tab=taken&p=all', 'Owner')
+    await settleCharts(page)
+    await page.waitForSelector('[data-testid="owner-take-total"]')
+    await expect(
+      page.evaluate(() => [
+        document.querySelector('[data-testid="owner-taken-tiles"] .text-figure-lg')?.textContent?.trim(),
+        document.querySelector('[data-testid="owner-take-total"]')?.textContent?.trim(),
+      ]),
+      ([tile, ring]) => tile !== undefined && tile === ring,
+      'the owner take under the ring does not add up to the Owner take tile',
+    )
+    await inspect(page, `${width}px owner, taken`)
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-owner-taken.png`))
+  })
+
+  await step('invoices-payment-drill', async () => {
+    await open(page, '#/invoicing?p=all', 'Invoicing')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="invoice-list"]')
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-receivables.png`), fullPage: true })
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-invoicing.png`))
     await page.tap('[data-testid="invoice-list"] ol a')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the payment opened Transactions without its filters')
@@ -551,26 +597,29 @@ async function checkWidth(width) {
   }
 
   await step('billing-month-link', async () => {
-    await open(page, '#/billing?p=all', 'Billing plan')
-    await settleCharts(page)
-    await page.screenshot({ path: join(OUTPUT_DIR, `${width}-billing.png`), fullPage: true })
-    await (await waitForText(page, '[data-testid="billing-tiles"] .kpi-link', 'Next expected invoice')).tap()
-    await page.waitForFunction(() => window.location.hash.includes('month='))
+    await open(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
+    await page.waitForSelector('[data-testid="billing-rows"]')
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-invoicing-plan.png`))
+    await open(page, '#/invoicing?p=all', 'Invoicing')
+    await (await waitForText(page, '[data-testid="invoicing-tiles"] .kpi-link', 'Next invoice')).tap()
+    await page.waitForFunction(() => window.location.hash.includes('tab=plan') && window.location.hash.includes('month='))
     await page.waitForSelector('[data-testid="billing-months"] li[data-selected] [data-testid="billing-month-toggle"][aria-expanded="true"]')
     await delay(300)
     await expect(
       page.evaluate(() => {
         const box = document.querySelector('[data-testid="billing-months"] li[data-selected]').getBoundingClientRect()
-        return box.top >= document.querySelector('header').getBoundingClientRect().bottom && box.top < window.innerHeight / 2
+        const band = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-band')) || 0
+        const atFoot = window.scrollY >= document.documentElement.scrollHeight - window.innerHeight - 1
+        return box.top >= band && (box.top <= band + 40 || (atFoot && box.top < window.innerHeight))
       }),
       (inView) => inView,
-      'the tile did not scroll its month to just below the top bar',
+      'the tile did not bring its month to just below the tab row',
     )
     await shoot('billing-month')
   })
 
   await step('billing-fill-write-undo', async () => {
-    await openFreshExcel(page, '#/billing?p=all', 'Billing plan')
+    await openFreshExcel(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
     const before = await rows()
@@ -597,7 +646,7 @@ async function checkWidth(width) {
   })
 
   await step('billing-edit-delete', async () => {
-    await openFreshExcel(page, '#/billing?p=all', 'Billing plan')
+    await openFreshExcel(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
     const before = await rows()
@@ -618,7 +667,7 @@ async function checkWidth(width) {
     await waitForText(page, '[data-slot="title"]', 'Plan row saved')
     await waitForText(page, '[data-testid="billing-row"] p', 'Seat for the model API, adjusted')
     // A fresh load drops the toast, so the Undo below is the deletion's own.
-    await openFreshExcel(page, '#/billing?p=all', 'Billing plan')
+    await openFreshExcel(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     await openLastRow()
     await page.tap('[data-testid="billing-row-delete"]')
@@ -631,8 +680,8 @@ async function checkWidth(width) {
   })
 
   await step('billing-start-excel', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=excel-no-billing-plan&load=${Date.now()}#/billing`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'Billing plan')
+    await page.goto(`${BASE}?theme=dark&fake=excel-no-billing-plan&load=${Date.now()}#/invoicing?tab=plan`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Invoicing')
     await page.waitForSelector('[data-testid="billing-empty"]')
     await shoot('billing-empty')
     await page.tap('[data-testid="billing-start"]')
@@ -676,8 +725,8 @@ async function checkWidth(width) {
     for (const [name, hash, title, run, variant] of [
       ['categories', '#/workbook?tab=categories', 'Workbook', categoryFlow],
       ['assets', '#/workbook?tab=assets', 'Workbook', assetFlow],
-      ['invoices', '#/receivables?p=all', 'Receivables', invoiceFlow],
-      ['invoice-run', '#/receivables?p=all', 'Receivables', invoiceRunFlow],
+      ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],
+      ['invoice-run', '#/invoicing?p=all', 'Invoicing', invoiceRunFlow],
       ['scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', scenarioFlow],
       ['starting-scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', startingScenariosFlow, mode === 'google' ? '&fake=no-scenarios' : '&fake=excel-no-scenarios'],
       ['plan', '#/forecast?year=2027', 'Forecast', planFlow],
@@ -801,7 +850,6 @@ async function checkWidth(width) {
     for (const [label, query, ready] of [
       ['Categories', 'tab=categories', 'Save categories'],
       ['Accounts', 'tab=accounts', 'Save accounts'],
-      ['Clients', 'tab=clients', 'Save clients'],
       ['Assets', 'tab=assets', 'Save assets'],
       ['Grants', 'tab=grants', 'Save grants'],
       ['Year end', 'tab=year-end', 'Save year-end lines'],
@@ -814,6 +862,20 @@ async function checkWidth(width) {
       if (label === 'Assets' || label === 'Year end') await shoot(`workbook-${query.slice(4)}`)
     }
     await shoot('workbook-accounts')
+  })
+
+  await step('invoicing-clients', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=excel#/invoicing?tab=clients`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Invoicing')
+    await waitForText(page, 'button', 'Save clients')
+    await inspect(page, `${width}px invoicing clients`)
+    const termsToggle = await page.waitForSelector('[data-testid="invoicing-terms-card"] [data-testid="card-toggle"]')
+    await termsToggle.evaluate((toggle) => toggle.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    if ((await termsToggle.evaluate((toggle) => toggle.getAttribute('aria-expanded'))) === 'false') await termsToggle.tap()
+    await page.waitForSelector('[data-testid="terms-save"]', { visible: true })
+    await inspect(page, `${width}px invoicing terms`)
+    await shoot('invoicing-terms')
   })
 
   await step('page-tabs', async () => {
@@ -1059,8 +1121,8 @@ async function checkWidth(width) {
     await expect(fragmentGone(), (gone) => gone, 'the forged token stayed in the address')
     await expect(keptToken(), (token) => token === null, 'a token with the wrong state was kept')
 
-    await comeBack('google', { state: 'touch-check', grant: 'gmail', resume: 'none', route: '#/receivables' }, 'error=access_denied&state=touch-check')
-    await waitForTitle(page, 'Receivables')
+    await comeBack('google', { state: 'touch-check', grant: 'gmail', resume: 'none', route: '#/invoicing' }, 'error=access_denied&state=touch-check')
+    await waitForTitle(page, 'Invoicing')
     await waitForText(page, 'li[data-slot="base"]', 'No Gmail access')
     await expect(fragmentGone(), (gone) => gone, 'the error stayed in the address')
   })

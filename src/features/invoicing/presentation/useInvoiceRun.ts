@@ -242,7 +242,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     if (number.value.trim() === '') found.push('The invoice needs a number.')
     else if (mode.value.kind === 'new' && numberTaken(number.value, current.invoices)) found.push(`Invoice ${number.value.trim()} is already on the invoices tab, and each number is used once.`)
     if (mailDraft.value && google.value && chosenClient.value !== null && chosenClient.value.invoicing.invoiceMail === '') {
-      found.push(`Workbook, Clients needs the invoice mail for ${chosenClient.value.name || chosenClient.value.slug}, or leave the mail draft off.`)
+      found.push(`Invoicing, Clients needs the invoice mail for ${chosenClient.value.name || chosenClient.value.slug}, or leave the mail draft off.`)
     }
     return found
   })

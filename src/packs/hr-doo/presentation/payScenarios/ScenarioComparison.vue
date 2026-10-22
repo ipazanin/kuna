@@ -5,7 +5,8 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { useMediaQuery } from '../../../../shared/layout/viewport'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { GROUP_LABELS } from './payScenariosView'
-import type { ComparedCell, ComparedLine, FigureDetail, LineGroup, ScenarioColumn } from './payScenariosView'
+import type { FigureDetail } from '../tracedFigureView'
+import type { ComparedCell, ComparedLine, LineGroup, ScenarioColumn } from './payScenariosView'
 
 /**
  * The lines of each scenario side by side: a table on a wide screen, one card per line below the

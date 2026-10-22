@@ -38,7 +38,7 @@ export interface CashMonth {
   readonly closing: TracedFigure
 }
 
-/** How long clients take to pay, from Receivables: the median days from issue to payment. */
+/** How long clients take to pay, from the invoice matching: the median days from issue to payment. */
 export interface PaymentLag {
   readonly days: number
   readonly label: string
@@ -98,13 +98,13 @@ export function paymentLagOf(known: Workbook): PaymentLag {
   const median = daysToPaid(receivables.clients.flatMap((client) => client.invoices), null).median
   return median === null
     ? { days: 1, label: 'No invoice is paid yet, so revenue comes in the month after' }
-    : { days: Math.round(median), label: `Clients pay ${Math.round(median)} days after the invoice, the median on Receivables` }
+    : { days: Math.round(median), label: `Clients pay ${Math.round(median)} days after the invoice, the median on Invoicing` }
 }
 
 /**
  * Cash at the end of each month of the year. A month the ledger has passed reads its bank balance.
  * The rest starts from cash on the newest booking, or from the year before's projection, and adds
- * each forecast month as it is paid: revenue when the client pays, its lag from Receivables
+ * each forecast month as it is paid: revenue when the client pays, its lag from the invoice matching
  * counted from the end of the month delivered, open invoices from their issue day, costs in their
  * month, costs paid in arrears in the month after, the VAT position the month after the newest
  * booking, planned purchases at their net cost, the planned dividend, and the corporate tax by its

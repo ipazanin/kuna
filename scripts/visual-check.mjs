@@ -67,6 +67,7 @@ import {
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { runSelection } from './support/runSelection.mjs'
+import { screenshotWholePage } from './support/wholePage.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
@@ -105,27 +106,46 @@ const SCREENS = [
   { name: 'overview', hash: '#/', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
   { name: 'transactions', hash: '#/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics', cards: false },
   { name: 'import', hash: '#/transactions?tab=import', title: 'Transactions', charts: 0, shows: 'Drop a statement file here', cards: false },
-  { name: 'trends', hash: '#/trends', title: 'Trends', charts: 3, shows: 'Cumulative net', cards: false },
-  { name: 'spending', hash: '#/spending', title: 'Spending', charts: 0, shows: 'Northwind' },
-  { name: 'period-review', hash: '#/period-review', title: 'Period review', charts: 1, shows: 'Revenue' },
-  { name: 'receivables', hash: '#/receivables', title: 'Receivables', charts: 1, shows: 'Every invoice' },
-  { name: 'billing', hash: '#/billing', title: 'Billing plan', charts: 1, shows: ['Month by month, 2026', 'Totals over every client'] },
+  { name: 'analysis', hash: '#/analysis', title: 'Analysis', charts: 0, shows: ['External contractors', 'Who the company paid most'] },
+  { name: 'analysis-over-time', hash: '#/analysis?tab=over-time', title: 'Analysis', charts: 2, shows: ['Rolling net', 'Cumulative net'] },
+  { name: 'analysis-compare', hash: '#/analysis?tab=compare', title: 'Analysis', charts: 0, shows: ['Revenue', 'Show all'] },
+  { name: 'invoicing', hash: '#/invoicing', title: 'Invoicing', charts: 1, shows: ['Next invoice', 'Every invoice', 'Show all'] },
+  { name: 'invoicing-plan', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: ['Plan rows, 2026', 'Month by month, 2026', 'Totals over every client'] },
   {
-    name: 'billing-month',
-    hash: '#/billing?year=2026&month=2026-10#billing-month-2026-10',
-    title: 'Billing plan',
-    charts: 1,
+    name: 'invoicing-month',
+    hash: '#/invoicing?tab=plan&year=2026&month=2026-10#billing-month-2026-10',
+    title: 'Invoicing',
+    charts: 0,
     shows: "of the month's rows is not invoiced yet",
     linkedPart: 'billing-month-2026-10',
   },
-  { name: 'billing-2025', hash: '#/billing?year=2025', title: 'Billing plan', charts: 1, shows: 'Month by month, 2025' },
+  { name: 'invoicing-plan-2025', hash: '#/invoicing?tab=plan&year=2025', title: 'Invoicing', charts: 0, shows: 'Month by month, 2025' },
+  { name: 'invoicing-clients', hash: '#/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Add client row' },
+  {
+    name: 'invoicing-terms',
+    hash: '#/invoicing?tab=clients#invoicing-terms',
+    title: 'Invoicing',
+    charts: 0,
+    shows: 'Save terms',
+    linkedPart: 'invoicing-terms',
+  },
   { name: 'taxes', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'Payroll cadence' },
   { name: 'assets', hash: '#/assets', title: 'Assets', charts: 1, shows: 'Workstation' },
   { name: 'assets-doubled', hash: '#/assets?rates=doubled', title: 'Assets', charts: 1, shows: 'What doubled rates would change' },
   { name: 'year-end', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'From the cash net to profit, 2025' },
   { name: 'forecast', hash: '#/forecast', title: 'Forecast', charts: 0, shows: ['The forecast needs the day the company was registered', 'Plan for 2026'] },
   { name: 'pay-scenarios', hash: '#/pay-scenarios', title: 'Pay scenarios', charts: 0, shows: 'The figures need hr_company_registered' },
-  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review'] },
+  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'Benefit in kind on the loans'] },
+  { name: 'owner-taken', hash: '#/owner?tab=taken', title: 'Owner', charts: 1, shows: ['Owner take by type', 'Loans, net'], cards: false },
+  {
+    name: 'owner-benefit',
+    hash: '#/owner#owner-loan-benefit',
+    title: 'Owner',
+    charts: 0,
+    shows: '3 loans with a balance',
+    collapsedBefore: ['owner.loan-benefit'],
+    linkedPart: 'owner-loan-benefit',
+  },
   { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
   {
     name: 'ruleset-linked',
@@ -156,7 +176,6 @@ const SCREENS = [
     collapsedBefore: ['workbook.categories'],
     linkedCard: 'workbook.categories',
   },
-  { name: 'workbook-clients', hash: '#/workbook?tab=clients', title: 'Workbook', charts: 0, shows: 'Add client row' },
   { name: 'workbook-assets', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
   { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Fake workbook', cards: false },
 ]
@@ -174,20 +193,29 @@ const SOURCE_SCREENS = [
   { name: 'workbook-excel', query: 'fake=excel', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Save settings' },
   { name: 'workbook-categories-excel', query: 'fake=excel', hash: '#/workbook?tab=categories', title: 'Workbook', charts: 0, shows: 'Save categories' },
   { name: 'workbook-accounts-excel', query: 'fake=excel', hash: '#/workbook?tab=accounts', title: 'Workbook', charts: 0, shows: 'Save accounts' },
-  { name: 'workbook-clients-excel', query: 'fake=excel', hash: '#/workbook?tab=clients', title: 'Workbook', charts: 0, shows: 'Save clients' },
   { name: 'workbook-assets-excel', query: 'fake=excel', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
   { name: 'workbook-grants-excel', query: 'fake=excel', hash: '#/workbook?tab=grants', title: 'Workbook', charts: 0, shows: 'Save grants' },
   { name: 'workbook-year-end-excel', query: 'fake=excel', hash: '#/workbook?tab=year-end', title: 'Workbook', charts: 0, shows: 'Save year-end lines' },
-  { name: 'year-end-excel', query: 'fake=excel', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'Balance paid on' },
+  { name: 'year-end-excel', query: 'fake=excel', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: ['Balance paid on', 'Loans to the owner carry 2.5%'] },
+  { name: 'owner-excel', query: 'fake=excel', hash: '#/owner', title: 'Owner', charts: 0, shows: 'so they give no benefit in kind' },
   { name: 'forecast-excel', query: 'fake=excel', hash: '#/forecast?year=2026', title: 'Forecast', charts: 1, shows: 'Corporate tax payments, expected against paid' },
   { name: 'forecast-2027-excel', query: 'fake=excel', hash: '#/forecast?year=2027&payout=interim', title: 'Forecast', charts: 1, shows: 'An interim payout in 2027' },
   { name: 'pay-scenarios-excel', query: 'fake=excel', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', charts: 1, shows: 'Side by side' },
   { name: 'pay-scenarios-2026-excel', query: 'fake=excel', hash: '#/pay-scenarios?year=2026', title: 'Pay scenarios', charts: 0, shows: 'No scenario for 2026 to compare yet' },
   { name: 'pay-scenarios-no-tab', query: 'fake=no-scenarios', hash: '#/pay-scenarios', title: 'Pay scenarios', charts: 0, shows: 'No scenario is for 2027 yet' },
   { name: 'taxes-excel', query: 'fake=excel', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'For 2026' },
-  { name: 'billing-excel', query: 'fake=excel', hash: '#/billing', title: 'Billing plan', charts: 1, shows: 'Terms on Workbook, General' },
-  { name: 'billing-no-tab', query: 'fake=no-billing-plan', hash: '#/billing', title: 'Billing plan', charts: 0, shows: 'The Sheet has no outgoing-plan tab yet', cards: false },
-  { name: 'billing-empty-excel', query: 'fake=excel-no-billing-plan', hash: '#/billing', title: 'Billing plan', charts: 0, shows: 'Add the first row', cards: false },
+  { name: 'invoicing-plan-excel', query: 'fake=excel', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Fill the rest of 2026' },
+  { name: 'invoicing-clients-excel', query: 'fake=excel', hash: '#/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Save clients' },
+  {
+    name: 'invoicing-no-plan-tab',
+    query: 'fake=no-billing-plan',
+    hash: '#/invoicing?tab=plan',
+    title: 'Invoicing',
+    charts: 0,
+    shows: 'The Sheet has no outgoing-plan tab yet',
+    cards: false,
+  },
+  { name: 'invoicing-empty-plan-excel', query: 'fake=excel-no-billing-plan', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Add the first row', cards: false },
   { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'rows the app could not use', upload: true, cards: false },
 ]
 
@@ -217,7 +245,7 @@ const SIDEWAYS_SCROLL_ALLOWED = [
     reason: 'Seven input columns at their narrowest are wider than the 100rem measure the Workbook screen keeps.',
   },
   { card: 'workbook.accounts', upTo: 1024, reason: 'Every column is an input, and they fit beside each other only from 1280 px.' },
-  { card: 'workbook.clients', upTo: Infinity, reason: 'Nine input columns, with the invoice details, are wider than the 100rem measure the Workbook screen keeps.' },
+  { card: 'invoicing.clients', upTo: Infinity, reason: 'Nine input columns, with the invoice details, are wider than any card.' },
   { card: 'workbook.assets', upTo: Infinity, reason: 'Ten input columns are wider than the 100rem measure the Workbook screen keeps.' },
   { card: 'workbook.grants', upTo: Infinity, reason: 'Twelve input columns are wider than the 100rem measure the Workbook screen keeps.' },
   { card: 'workbook.year-end', upTo: Infinity, reason: 'Nine input columns are wider than the 100rem measure the Workbook screen keeps.' },
@@ -264,7 +292,7 @@ function readPage(page) {
       clientWidth: doc.clientWidth,
       overflowing: [...new Set(overflowing)].slice(0, 6),
       title: document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() ?? null,
-      chartHeights: [...document.querySelectorAll('.chart-body canvas')].map((canvas) => canvas.getBoundingClientRect().height),
+      chartHeights: [...document.querySelectorAll('.chart-body canvas')].filter((canvas) => canvas.closest('.chart-body').getClientRects().length > 0).map((canvas) => canvas.getBoundingClientRect().height),
       donutHeights: [...document.querySelectorAll('[data-testid="donut-card"] canvas')].map((canvas) => canvas.getBoundingClientRect().height),
       iconCount: document.querySelectorAll('svg.iconify').length,
       unrenderedIcons: [...document.querySelectorAll('.iconify')].filter((icon) => icon.tagName.toLowerCase() !== 'svg').length,
@@ -420,8 +448,8 @@ const FLOWS = [
   { name: 'page-tabs', hash: '#/workbook', title: 'Workbook', run: pageTabsFlow },
   { name: 'categories', hash: '#/workbook?tab=categories', title: 'Workbook', run: categoryFlow },
   { name: 'assets', hash: '#/workbook?tab=assets', title: 'Workbook', run: assetFlow },
-  { name: 'invoices', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceFlow },
-  { name: 'invoice-run', hash: '#/receivables?p=all', title: 'Receivables', run: invoiceRunFlow },
+  { name: 'invoices', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceFlow },
+  { name: 'invoice-run', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceRunFlow },
   { name: 'scenarios', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   {
     name: 'starting-scenarios',
@@ -565,7 +593,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
     if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, `${viewport.name}-${visit.file}.png`), fullPage: true })
+    await screenshotWholePage(page, join(SCREENSHOT_DIR, `${viewport.name}-${visit.file}.png`))
     if (visit.gallery && viewport.name === 'desktop') {
       const firstChart = await page.$('[data-testid="chart-card"]')
       await firstChart?.screenshot({ path: join(SCREENSHOT_DIR, `${viewport.name}-${visit.file}-chart.png`) })

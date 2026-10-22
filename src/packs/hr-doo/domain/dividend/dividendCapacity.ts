@@ -19,6 +19,7 @@ import { forecastYear } from '../forecast/forecastYear'
 import type { YearForecast } from '../forecast/forecastYear'
 import { clawbackExposure } from '../grants/grantRelease'
 import { owedByOwnerOn } from './owedByOwner'
+import { carriedRate, shortfallRate } from '../ownerLoanInterest'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
@@ -258,6 +259,8 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
   const cashOut = summed('Paid out in cash, the tax included', [dividendTax, net, deducted(setOff)], 'ledger')
   const owedAfter = summed('Owed by the owner after the payout', [owedByOwner, deducted(setOff)], 'ledger')
   const benefitRule = rules('hr.pit.loan-benefit', ruleDay)
+  const prescribed = benefitRule.value.minimumInterestRate.basisPoints
+  const carried = carriedRate(context.workbook)
   const netAssetsAfter = summed('Net assets after the payout', [context.netAssetsAtYearEnd, deducted(gross)], 'ledger')
   return {
     id: choice.id,
@@ -273,8 +276,10 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
     cashNow: choice.cashNow,
     owedByOwnerAfter: owedAfter,
     loanBenefitPerYear: tracedFigure(
-      `A year of benefit in kind at ${percentText(benefitRule.value.minimumInterestRate.basisPoints)} on what stays owed, with no interest charged`,
-      atRate(owedAfter.amount, benefitRule.value.minimumInterestRate.basisPoints),
+      carried === 0
+        ? `A year of benefit in kind at ${percentText(prescribed)} on what stays owed, with no interest charged`
+        : `A year of benefit in kind at ${percentText(prescribed)} less the ${percentText(carried)} the loans carry, on what stays owed`,
+      atRate(owedAfter.amount, shortfallRate(prescribed, carried)),
       'ledger',
       [benefitRule.citation],
       [owedAfter],

@@ -47,7 +47,7 @@ export interface ClientBillingMatch {
  * invoice belongs to one row. Instead each client's invoices, in issue order, take the client's
  * rows. An invoice first fills the rows dated up to the end of the month it was issued in: the
  * fewest open rows it equals exactly, or else the rows oldest first, by date and then tab order,
- * the way Receivables lets payments fill invoices. What is left, when it is a fee billed ahead of
+ * the way the invoice matching lets payments fill invoices. What is left, when it is a fee billed ahead of
  * at least one euro, reaches on to the rows of the next month in the same way. A smaller remainder
  * is a rounding difference, invoiced above the plan, so a cent never part fills a later month.
  * What an invoice cannot place is invoiced with no plan row and is not carried to later rows, and

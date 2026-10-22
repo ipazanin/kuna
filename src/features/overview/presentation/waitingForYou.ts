@@ -9,7 +9,8 @@ import { formatMoney } from '../../../shared/money/moneyFormat'
 import { forecastYear } from '../../../packs/hr-doo/domain/forecast/forecastYear'
 import { ownerAdvances } from '../../../packs/hr-doo/domain/ownerAdvances'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
-import { daysPastDue } from '../../receivables/domain/ageing'
+import { planMonthLink } from '../../invoicing/presentation/invoicingLinks'
+import { amountsOwed } from '../../receivables/domain/ageing'
 import { receivablesOf } from '../../receivables/domain/invoiceMatching'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { newestBookingOf } from '../../workbook/domain/workbook'
@@ -93,24 +94,19 @@ function invoiceJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
     key: 'invoice',
     text,
     tone: oldest.month < thisMonth ? 'negative' : 'warning',
-    link: {
-      label: 'Billing plan',
-      to: { path: '/billing', query: { year: String(yearOfMonth(oldest.month)), month: oldest.month }, hash: `#billing-month-${oldest.month}` },
-    },
+    link: { label: 'Invoicing', to: planMonthLink(oldest.month) },
   }
 }
 
 function overdueJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
-  const late = receivablesOf(workbook.transactions, workbook.categories, workbook.invoices, workbook.clients)
-    .clients.flatMap((entry) => entry.invoices)
-    .filter((invoice) => invoice.remaining > 0 && daysPastDue(invoice, asOf) > 0)
-  if (late.length === 0) return null
-  const owed = sumMoney(late.map((invoice) => invoice.remaining))
+  const invoices = receivablesOf(workbook.transactions, workbook.categories, workbook.invoices, workbook.clients).clients.flatMap((entry) => entry.invoices)
+  const { overdue, overdueCount } = amountsOwed(invoices, asOf)
+  if (overdueCount === 0) return null
   return {
     key: 'overdue',
-    text: `${counted(late.length, 'An invoice is', 'invoices are')} past the due date, ${formatMoney(owed)} still owed`,
+    text: `${counted(overdueCount, 'An invoice is', 'invoices are')} past the due date, ${formatMoney(overdue)} still owed`,
     tone: 'negative',
-    link: { label: 'Receivables', to: '/receivables' },
+    link: { label: 'Invoices', to: '/invoicing' },
   }
 }
 

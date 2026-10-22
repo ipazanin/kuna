@@ -12,7 +12,7 @@ export type QueryValue = string | null | readonly (string | null)[] | undefined
 export type FilterQuery = Readonly<Record<string, QueryValue>>
 
 /**
- * The query keys the filters own, for example `#/spending?p=l12&acc=erste&b=operating`. A list
+ * The query keys the filters own, for example `#/analysis?p=l12&acc=erste&b=operating`. A list
  * repeats its key rather than joining values, because a counterparty key may hold a comma.
  */
 const KEYS = {

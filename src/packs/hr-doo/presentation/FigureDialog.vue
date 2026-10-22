@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import UModal from '@nuxt/ui/components/Modal.vue'
 
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import DrillLink from '../../../../shared/ui/DrillLink.vue'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import ConfidenceBadge from '../../ruleset/presentation/ConfidenceBadge.vue'
-import { WATCHED_WORDING } from './payScenariosView'
-import type { FigureDetail } from './payScenariosView'
+import { usePhoneLayout } from '../../../shared/layout/viewport'
+import DrillLink from '../../../shared/ui/DrillLink.vue'
+import MoneyText from '../../../shared/ui/MoneyText.vue'
+import ConfidenceBadge from '../ruleset/presentation/ConfidenceBadge.vue'
+import { WATCHED_WORDING } from './tracedFigureView'
+import type { FigureDetail } from './tracedFigureView'
 
-/** One figure of a scenario opened on its build-up, the rows behind its steps and the rules it rests on. */
+/** One figure opened on its build-up, the rows behind its steps and the rules it rests on. */
 const open = defineModel<boolean>('open', { required: true })
 
 defineProps<{

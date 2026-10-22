@@ -29,7 +29,7 @@ const props = withDefaults(
     workbook: Workbook
     window: LedgerWindow
     presets?: readonly PeriodPreset[]
-    /** The period the screen shows, when it reads the shared one differently, as Period review does. */
+    /** The period the screen shows, when it reads the shared one differently, as Analysis, Compare does. */
     shownPeriod?: Period
     showPeriod?: boolean
   }>(),
@@ -87,7 +87,7 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
     <Teleport :to="tabActions" :disabled="tabActions === null" defer>
       <USlideover v-model:open="sheetOpen" side="bottom" title="Filters" :ui="{ content: 'phone-sheet' }">
         <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" :class="{ 'ms-2': tabActions !== null }" data-testid="open-filters">
-          <span>Filters</span>
+          <span class="filters-label">Filters</span>
           <UBadge v-if="activeCount > 0" :label="String(activeCount)" size="sm" class="rounded-full" data-testid="filter-count" />
           <span class="sr-only">, {{ activeCount }} active</span>
         </UButton>

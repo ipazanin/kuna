@@ -34,8 +34,8 @@ export function recipientOf(client: Client): InvoiceRecipient {
   return { name: client.name || client.slug, address: client.invoicing.address, country: client.invoicing.country, taxId: client.invoicing.taxId }
 }
 
-/** The settings an invoice cannot do without, with the words the Workbook screen gives them. */
-const REQUIRED_ISSUER: readonly (readonly [keyof InvoicingTerms, string])[] = [
+/** The settings an invoice cannot do without, with the words the invoice terms give them. */
+export const REQUIRED_ISSUER: readonly (readonly [keyof InvoicingTerms, string])[] = [
   ['name', 'your company name'],
   ['address', 'your address'],
   ['vatId', 'your VAT ID'],
@@ -49,17 +49,17 @@ export function invoiceProblems(issuer: InvoicingTerms, client: Client | null, l
   const problems: string[] = []
   const missing = REQUIRED_ISSUER.filter(([field]) => issuer[field].trim() === '').map(([, words]) => words)
   if (missing.length > 0) {
-    problems.push(`Workbook, General needs ${missing.join(', ')} under Invoices.`)
+    problems.push(`The invoice terms on Invoicing, Clients need ${missing.join(', ')}.`)
   }
   if (client === null) {
     problems.push('Choose the client.')
   } else {
     if (client.invoicing.address === '') {
-      problems.push(`Workbook, Clients needs an address for ${client.name || client.slug}.`)
+      problems.push(`Invoicing, Clients needs an address for ${client.name || client.slug}.`)
     }
     if (!client.invoicing.reverseCharge) {
       problems.push(
-        `The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for ${client.name || client.slug} on Workbook, Clients if it accounts for the VAT, or make this invoice elsewhere.`,
+        `The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for ${client.name || client.slug} on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.`,
       )
     }
   }

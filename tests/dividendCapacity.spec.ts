@@ -129,6 +129,14 @@ describe('dividendCapacity, after a payout already made in the year', () => {
     expect(kept.loanBenefitPerYear.amount).toBe(euros(60))
     expect(kept.clawbackExposure.amount).toBe(euros(0))
   })
+
+  it('takes the rate the owner loans carry off the yearly benefit in kind', () => {
+    const workbook = steadyStudio()
+    const carried = { ...workbook, settings: { ...workbook.settings, companyFacts: { ...workbook.settings.companyFacts, ownerLoanInterest: 50 } } }
+
+    // 2% less the 0.5% the loans carry, on the 3,000.00 that stays lent: 3,000.00 × 1.5% = 45.00.
+    expect(option(capacity(2026, carried), 'keep').loanBenefitPerYear.amount).toBe(euros(45))
+  })
 })
 
 describe('dividendCapacity of an interim payout the cash does not cover', () => {

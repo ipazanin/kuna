@@ -15,9 +15,8 @@ import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
-import KpiTile from '../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
-import PageHeader from '../../../shared/ui/PageHeader.vue'
+import ShowAllButton, { FIRST_SHOWN } from '../../../shared/ui/ShowAllButton.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
@@ -26,7 +25,7 @@ import type { FilterState, Period } from '../../filters/domain/filterState'
 import { periodInWords } from '../../filters/domain/periodInWords'
 import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import PeriodBar from '../../filters/presentation/PeriodBar.vue'
-import InvoiceRunDialog from '../../invoicing/presentation/InvoiceRunDialog.vue'
+import { CLIENTS_LINK } from '../../invoicing/presentation/invoicingLinks'
 import type { InvoiceRunMode } from '../../invoicing/presentation/useInvoiceRun'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -34,16 +33,22 @@ import { listedRowKey } from '../../workbook/domain/splits'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
-import { ageingOf, daysPastDue } from '../domain/ageing'
+import { ageingOf, amountsOwed, daysPastDue } from '../domain/ageing'
 import { daysToPaid } from '../domain/daysToPaid'
 import { RECEIVABLE_ROLES, receivablesOf } from '../domain/invoiceMatching'
-import type { ClientReceivables, MatchedInvoice, PaymentRow } from '../domain/invoiceMatching'
+import type { ClientReceivables, PaymentRow } from '../domain/invoiceMatching'
 import DaysToPaidStrip from './DaysToPaidStrip.vue'
 import type { DaysToPaidRow } from './DaysToPaidStrip.vue'
 import InvoiceDialog from './InvoiceDialog.vue'
 import InvoiceList from './InvoiceList.vue'
 import type { InvoiceLine, InvoicePaymentLine } from './InvoiceList.vue'
 import { ageingChart, ageingLegend } from './receivablesCharts'
+
+/** Every invoice and what is owed on it, matched against the revenue credits client by client. */
+const emit = defineEmits<{
+  /** Make an invoice, or export a recorded one again. */
+  run: [mode: InvoiceRunMode]
+}>()
 
 const ledger = useFilteredLedger()
 const { filters: shared, setFilters, drillLocation } = useFilters()
@@ -62,13 +67,9 @@ function openInvoice(sheetRow: number | null): void {
   dialogOpen.value = true
 }
 
-const runMode = ref<InvoiceRunMode>({ kind: 'new', client: null })
-const runOpen = ref(false)
-
-function openRun(mode: InvoiceRunMode): void {
+function reexport(sheetRow: number): void {
   dialogOpen.value = false
-  runMode.value = mode
-  runOpen.value = true
+  emit('run', { kind: 'reexport', sheetRow })
 }
 
 const invoiceDialog = computed(() => {
@@ -86,6 +87,7 @@ const ALL_CLIENTS = 'all'
 const PRESETS = ['l3', 'l12', 'year', 'all'] as const
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+const decimal = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 })
 
 function day(date: CivilDate): string {
   return dayFormat.format(new Date(date))
@@ -105,6 +107,8 @@ const chosenClient = computed({
   },
 })
 
+const showAllInvoices = ref(false)
+
 function clientName(entry: ClientReceivables): string {
   return entry.client.name || entry.client.slug
 }
@@ -115,14 +119,6 @@ function paymentsDrill(entries: readonly ClientReceivables[], revenue: readonly 
     period: range === null ? { preset: 'all' } : { preset: 'custom', range },
     categories: [...revenue],
     counterparties: entries.flatMap((entry) => entry.client.ibans.map((iban) => counterpartyIdentity({ counterparty: '', counterpartyIban: iban }).key)),
-  })
-}
-
-function rowsDrill(rows: readonly PaymentRow[]): DrillTarget {
-  return drillToTransactions({
-    period: { preset: 'all' },
-    categories: [...new Set(rows.map((row) => row.transaction.category))],
-    counterparties: [...new Set(rows.map((row) => counterpartyIdentity(row.transaction).key))],
   })
 }
 
@@ -139,16 +135,12 @@ const view = computed(() => {
   const range = periodRange(period.value, window)
   const inView = receivables.clients.filter((entry) => chosenClient.value === ALL_CLIENTS || entry.client.slug === chosenClient.value)
   const matched = inView.flatMap((entry) => entry.invoices.map((invoice) => ({ entry, invoice })))
-  const owed = (invoices: readonly MatchedInvoice[], late: boolean): Money =>
-    sumMoney(invoices.filter((invoice) => invoice.remaining > 0 && (!late || daysPastDue(invoice, asOf) > 0)).map((invoice) => invoice.remaining))
   const everyInvoice = matched.map(({ invoice }) => invoice)
   const paid = daysToPaid(everyInvoice, range)
-  const outstanding = owed(everyInvoice, false)
-  const overdue = owed(everyInvoice, true)
-  const openCount = everyInvoice.filter((invoice) => invoice.remaining > 0).length
+  const { outstanding } = amountsOwed(everyInvoice, asOf)
   const unattributed = receivables.unattributedCredits
   const unattributedTotal = sumMoney(unattributed.map((credit) => credit.transaction.amount))
-  const decimal = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 })
+  const payers = new Set(unattributed.map((credit) => counterpartyIdentity(credit.transaction).key)).size
   const tokens = chartTokens()
 
   const paymentLine = (prefix: string) => (allocation: { payment: PaymentRow; amount: Money }, index: number): InvoicePaymentLine => ({
@@ -218,45 +210,17 @@ const view = computed(() => {
     clientItems: [{ label: 'All clients', value: ALL_CLIENTS }, ...receivables.clients.map((entry) => ({ label: clientName(entry), value: entry.client.slug }))],
     showClientPicker: receivables.clients.length > 1,
     showClient: inView.length > 1,
-    tiles: [
-      {
-        label: 'Outstanding',
-        value: formatWholeMoney(outstanding),
-        to: drillLocation(paymentsDrill(inView, revenue, null)),
-        caption: openCount === 0 ? 'Every invoice is paid' : `${openCount} ${openCount === 1 ? 'invoice' : 'invoices'} open on ${day(asOf)}`,
-        definition: 'What every invoice still has unpaid, after the payments matched to it oldest first. An overpayment never makes it negative. The rows are the client’s payments.',
-      },
-      {
-        label: 'Overdue',
-        value: formatWholeMoney(overdue),
-        to: drillLocation(paymentsDrill(inView, revenue, null)),
-        caption: overdue === 0 ? 'Nothing past its due date' : 'Past the due date',
-        definition: 'The part of what is outstanding whose due date has passed, as of the newest booking in the ledger. An invoice with no due date is not counted here.',
-      },
-      {
-        label: 'Days to get paid',
-        value: paid.median === null ? '–' : `${decimal.format(paid.median)} days`,
-        to: drillLocation(paymentsDrill(inView, revenue, range)),
-        caption: paid.mean === null ? 'No invoice paid in the period' : `Mean ${decimal.format(paid.mean)} days over ${paid.days.length} paid`,
-        definition: 'The median of the days from an invoice’s issue date to the payment that settled it, over the invoices settled in the period. The median, because one invoice paid months late moves a mean a long way.',
-      },
-      {
-        label: 'Paid by no client',
-        value: formatWholeMoney(unattributedTotal),
-        to: unattributed.length === 0 ? null : drillLocation(rowsDrill(unattributed)),
-        caption: unattributed.length === 0 ? 'Every revenue credit has a client' : `${unattributed.length} ${unattributed.length === 1 ? 'credit' : 'credits'} from an IBAN no client names`,
-        definition: 'Revenue credits from an IBAN the clients tab does not name. They are never matched to anyone’s invoices. Add the IBAN to the clients tab to match them.',
-      },
-    ],
     ageing: ageingChart(ageingClients, tokens),
     ageingEmpty: ageingClients.length === 0,
     ageingLegend: ageingLegend(tokens),
     ageingHeight: Math.max(140, ageingClients.length * 48 + 56),
     daysRows,
+    daysSummary:
+      paid.median === null ? 'No invoice paid in the period' : `Median ${decimal.format(paid.median)} days, mean ${decimal.format(paid.mean ?? 0)} over ${paid.days.length} paid`,
     invoices: listed,
     invoicesSummary: `${listed.length} ${listed.length === 1 ? 'invoice' : 'invoices'}, ${formatWholeMoney(outstanding)} outstanding`,
     sums,
-    unattributedSummary: `${unattributed.length} ${unattributed.length === 1 ? 'credit' : 'credits'}, ${formatWholeMoney(unattributedTotal)}`,
+    unattributedSummary: `${formatWholeMoney(unattributedTotal)} from ${payers} ${payers === 1 ? 'payer' : 'payers'}`,
     unattributed: unattributed.map((credit) => ({
       key: listedRowKey(credit.transaction),
       date: day(credit.transaction.date),
@@ -266,27 +230,34 @@ const view = computed(() => {
     })),
   }
 })
+
+const shownInvoices = computed(() => {
+  const invoices = view.value?.invoices ?? []
+  return showAllInvoices.value ? invoices : invoices.slice(0, FIRST_SHOWN)
+})
+
+const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 0)
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
-    <PageHeader title="Receivables" description="Who owes the company what, how late it is, and how fast each client pays." />
+  <div class="flex flex-col gap-6">
     <LedgerGate>
       <template v-if="view">
         <UEmpty
           v-if="!view.hasInvoices"
           icon="i-lucide-receipt-text"
           title="No invoices yet"
-          description="Receivables matches the invoices tab against the revenue credits, client by client. Add the clients on Workbook, Clients, one row per IBAN they pay from, then the invoices here."
+          :description="
+            noClients
+              ? 'Invoices are matched against the revenue credits, client by client. Add the clients first, one row per IBAN they pay from.'
+              : 'Invoices are matched against the revenue credits, client by client. Make the first one with Make invoice, or record one made elsewhere.'
+          "
           variant="outline"
           class="rounded-card border-dashed bg-raised/40"
           :actions="
-            (invoiceDialog?.clients.length ?? 0) > 0
-              ? [
-                  { label: 'Make an invoice', icon: 'i-lucide-file-plus-2', onClick: () => openRun({ kind: 'new', client: null }) },
-                  { label: 'Record one made elsewhere', icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => openInvoice(null) },
-                ]
-              : [{ label: 'Add a client', icon: 'i-lucide-users', color: 'neutral', variant: 'outline', to: '/workbook?tab=clients' }]
+            noClients
+              ? [{ label: 'Add a client', icon: 'i-lucide-users', color: 'neutral', variant: 'outline', to: CLIENTS_LINK }]
+              : [{ label: 'Record one made elsewhere', icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => openInvoice(null) }]
           "
           data-testid="receivables-empty"
         />
@@ -303,52 +274,28 @@ const view = computed(() => {
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
-          </div>
-
           <div class="wide-pair">
-            <div class="grid gap-4 xl:grid-cols-2 3xl:grid-cols-1 3xl:content-start">
-              <DrillChartCard
-                :chart="view.ageing"
-                title="What is owed, by how late it is"
-                :subtitle="`On ${view.asOf}, the newest booking. Late counts from the due date, or from the issue date when an invoice has none.`"
-                :empty="view.ageingEmpty"
-                :height="view.ageingHeight"
-              >
-                <template #legend><ChartLegend :entries="view.ageingLegend" /></template>
-              </DrillChartCard>
-
-              <AppCard title="Days to get paid" :subtitle="`${view.periodText}. Each dot is an invoice settled in the period, the line its client’s median.`">
-                <p v-if="view.daysRows.length === 0" class="px-5 py-8 text-sm text-muted">No client has an invoice yet.</p>
-                <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-                  <DaysToPaidStrip :rows="view.daysRows" />
-                </div>
-              </AppCard>
-            </div>
-
-            <AppCard title="Every invoice, with the payments that settled it" collapse-id="receivables.invoices" :summary="view.invoicesSummary" data-testid="invoices">
+            <AppCard
+              id="invoices-card"
+              title="Every invoice, with the payments that settled it"
+              collapse-id="invoicing.invoices"
+              :summary="view.invoicesSummary"
+              :reveal="route.hash === '#invoices-card'"
+              data-testid="invoices"
+            >
               <template #subtitle>
                 The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already issued on
                 the day a payment arrives.
               </template>
               <template #actions>
                 <UButton
-                  label="Make invoice"
-                  icon="i-lucide-file-plus-2"
-                  size="sm"
-                  :disabled="state.writing || (invoiceDialog?.clients.length ?? 0) === 0"
-                  data-testid="invoice-make"
-                  @click="openRun({ kind: 'new', client: null })"
-                />
-                <UButton
                   label="Record invoice"
                   icon="i-lucide-plus"
                   color="neutral"
                   variant="outline"
                   size="sm"
-                  :disabled="state.writing || (invoiceDialog?.clients.length ?? 0) === 0"
-                  :title="(invoiceDialog?.clients.length ?? 0) === 0 ? 'Add the client on Workbook, Clients first' : 'Add the row of an invoice made elsewhere'"
+                  :disabled="state.writing || noClients"
+                  :title="noClients ? 'Add the client on the Clients tab first' : 'Add the row of an invoice made elsewhere'"
                   data-testid="invoice-add"
                   @click="openInvoice(null)"
                 />
@@ -362,30 +309,63 @@ const view = computed(() => {
                 </dl>
               </template>
               <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">No invoice was issued in this period, and none is open.</p>
-              <div v-else class="px-4 pt-1 pb-2 sm:px-5">
-                <InvoiceList :invoices="view.invoices" :show-client="view.showClient" :editable="!state.writing" @edit="openInvoice" />
-              </div>
+              <template v-else>
+                <div class="px-4 pt-1 pb-2 sm:px-5">
+                  <InvoiceList :invoices="shownInvoices" :show-client="view.showClient" :editable="!state.writing" @edit="openInvoice" />
+                </div>
+                <ShowAllButton v-if="view.invoices.length > FIRST_SHOWN" v-model:expanded="showAllInvoices" :total="view.invoices.length" class="px-4 pb-4 sm:px-5" />
+              </template>
             </AppCard>
-          </div>
 
-          <AppCard
-            v-if="view.unattributed.length > 0"
-            title="Revenue no client accounts for"
-            subtitle="From an IBAN the clients tab does not name, so it pays no invoice. Add the IBAN to the clients tab to match it."
-            collapse-id="receivables.unattributed"
-            :summary="view.unattributedSummary"
-            data-testid="unattributed-credits"
-          >
-            <ul class="flex flex-col px-4 pt-1 pb-2 sm:px-5">
-              <li v-for="credit in view.unattributed" :key="credit.key" class="credit-row">
-                <span class="figure text-xs text-muted">{{ credit.date }}</span>
-                <span class="min-w-0 truncate text-sm text-toned">{{ credit.counterparty }}</span>
-                <DrillLink :to="credit.to" :label="`Credit of ${credit.date} from ${credit.counterparty}, open the row`" class="justify-self-end">
-                  <MoneyText :cents="credit.amount" precision="whole" class="text-sm font-medium text-highlighted" />
-                </DrillLink>
-              </li>
-            </ul>
-          </AppCard>
+            <div class="grid gap-4 xl:grid-cols-2 3xl:grid-cols-1 3xl:content-start">
+              <DrillChartCard
+                id="invoices-ageing"
+                class="xl:col-span-2 3xl:col-span-1"
+                :chart="view.ageing"
+                title="What is owed, by how late it is"
+                :subtitle="`On ${view.asOf}, the newest booking. Late counts from the due date, or from the issue date when an invoice has none.`"
+                :empty="view.ageingEmpty"
+                :height="view.ageingHeight"
+              >
+                <template #legend><ChartLegend :entries="view.ageingLegend" /></template>
+              </DrillChartCard>
+
+              <AppCard
+                id="invoices-days"
+                title="Days to get paid"
+                :subtitle="`${view.periodText}. Each dot is an invoice settled in the period, the line its client’s median.`"
+                collapse-id="invoicing.days"
+                :summary="view.daysSummary"
+                start-collapsed
+                :reveal="route.hash === '#invoices-days'"
+              >
+                <p v-if="view.daysRows.length === 0" class="px-5 py-8 text-sm text-muted">No client has an invoice yet.</p>
+                <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+                  <DaysToPaidStrip :rows="view.daysRows" />
+                </div>
+              </AppCard>
+
+              <AppCard
+                v-if="view.unattributed.length > 0"
+                title="Revenue no client accounts for"
+                subtitle="From an IBAN the clients tab does not name, so it pays no invoice. Add the IBAN to the clients tab to match it."
+                collapse-id="invoicing.unattributed"
+                :summary="view.unattributedSummary"
+                start-collapsed
+                data-testid="unattributed-credits"
+              >
+                <ul class="flex flex-col px-4 pt-1 pb-2 sm:px-5">
+                  <li v-for="credit in view.unattributed" :key="credit.key" class="credit-row">
+                    <span class="figure text-xs text-muted">{{ credit.date }}</span>
+                    <span class="min-w-0 truncate text-sm text-toned">{{ credit.counterparty }}</span>
+                    <DrillLink :to="credit.to" :label="`Credit of ${credit.date} from ${credit.counterparty}, open the row`" class="justify-self-end">
+                      <MoneyText :cents="credit.amount" precision="whole" class="text-sm font-medium text-highlighted" />
+                    </DrillLink>
+                  </li>
+                </ul>
+              </AppCard>
+            </div>
+          </div>
         </template>
       </template>
     </LedgerGate>
@@ -396,10 +376,9 @@ const view = computed(() => {
       :clients="invoiceDialog.clients"
       :default-issued="invoiceDialog.defaultIssued"
       :latest-number="invoiceDialog.latestNumber"
-      @reexport="(sheetRow) => openRun({ kind: 'reexport', sheetRow })"
+      @reexport="reexport"
     />
-    <InvoiceRunDialog v-model:open="runOpen" :mode="runMode" />
-  </section>
+  </div>
 </template>
 
 <style scoped>

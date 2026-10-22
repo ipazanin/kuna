@@ -8,6 +8,7 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { sumMoney } from '../../../shared/money/money'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
+import { TERMS_LINK } from '../../invoicing/presentation/invoicingLinks'
 import { useRowWrites } from '../../workbook/presentation/useRowWrites'
 import { BILLING_PLAN_ROWS, billingCellsOf } from '../application/billingPlanRows'
 import type { BillingItemDraft, RestOfYearFill } from '../domain/fillRestOfYear'
@@ -66,7 +67,7 @@ async function write(): Promise<void> {
       <div class="flex flex-col gap-3" data-testid="fill-preview">
         <p v-if="fill.kind === 'refused'" class="text-sm text-toned">
           {{ fill.reason }} The terms are on
-          <DrillLink to="/workbook" in-prose class="text-highlighted">Workbook, General</DrillLink>.
+          <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">Invoicing, Clients</DrillLink>.
         </p>
         <p v-else-if="rows.length === 0" class="text-sm text-toned">Every month to December already has its rows for {{ clientName }}. Nothing to add.</p>
         <template v-else>

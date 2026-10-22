@@ -19,16 +19,16 @@ describe('waiting for you', () => {
     expect(jobsOf(fake('google'))).toEqual([
       ['review', '2 rows wait for a category check', 'warning', 'Review'],
       ['unaccounted', 'A reimbursement to the owner has no cost on file', 'warning', 'Review'],
-      ['invoice', "This month's invoice for Northwind Analytics is not made yet", 'warning', 'Billing plan'],
-      ['overdue', '2 invoices are past the due date, €4,200.00 still owed', 'negative', 'Receivables'],
+      ['invoice', "This month's invoice for Northwind Analytics is not made yet", 'warning', 'Invoicing'],
+      ['overdue', '2 invoices are past the due date, €4,200.00 still owed', 'negative', 'Invoices'],
     ])
   })
 
-  it('links the invoice to its month of the billing plan', () => {
+  it('links the invoice to its month on the Plan tab of Invoicing', () => {
     const workbook = fake('google')
     const invoice = waitingJobs(presentedWorkbook(workbook), workbook.transactions).find((job) => job.key === 'invoice')
 
-    expect(invoice?.link.to).toEqual({ path: '/billing', query: { year: '2026', month: '2026-10' }, hash: '#billing-month-2026-10' })
+    expect(invoice?.link.to).toEqual({ path: '/invoicing', query: { tab: 'plan', year: '2026', month: '2026-10' }, hash: '#billing-month-2026-10' })
   })
 
   it('holds the corporate tax against its schedule once the company has a registration day', () => {

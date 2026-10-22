@@ -135,7 +135,7 @@ const summary = computed(() => {
 <template>
   <AppCard
     :title="`Plan for ${year}`"
-    subtitle="Rows of the plan tab. A change is written at once, with Undo in the toast. Revenue is planned on the Billing plan."
+    subtitle="Rows of the plan tab. A change is written at once, with Undo in the toast. Revenue is planned on Invoicing, Plan."
     collapse-id="forecast.plan"
     :summary="summary"
     data-testid="plan-editor"

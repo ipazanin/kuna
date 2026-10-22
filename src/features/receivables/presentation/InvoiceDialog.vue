@@ -178,7 +178,7 @@ async function remove(): Promise<void> {
         <UFormField label="Number" :error="(tried && errors.number) || false" :help="sheetRow === null && latestNumber ? `Each once. The newest is ${latestNumber}.` : 'Each number once.'">
           <UInput v-model="fields.number" class="w-full" data-testid="invoice-number" />
         </UFormField>
-        <UFormField label="Client" :error="(tried && errors.client) || false" help="From Workbook, Clients.">
+        <UFormField label="Client" :error="(tried && errors.client) || false" help="From Invoicing, Clients.">
           <USelect v-model="fields.client" :items="clientItems" placeholder="Choose a client" class="w-full" data-testid="invoice-client" />
         </UFormField>
         <UFormField label="Item" help="What the invoice is for.">

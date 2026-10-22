@@ -28,7 +28,9 @@ import { nameTab } from '../routing/browserTitle'
 /**
  * The inner tabs of a page, kept in `?tab=` so a link opens the same tab and Back steps through
  * them. The first tab is the default and stays out of the address. Arrow keys move between the
- * tabs and Enter or Space opens one, so arrowing along never fills the history.
+ * tabs and Enter or Space opens one, so arrowing along never fills the history. The `above` slot
+ * holds what every tab follows, such as a filter bar, so a phone still finds its Filters button
+ * at the end of the tab row.
  */
 const props = defineProps<{
   tabs: readonly PageTab[]
@@ -48,6 +50,9 @@ const router = useRouter()
 
 const active = computed(() => props.tabs.find((tab) => tab.value === route.query.tab)?.value ?? props.tabs[0]?.value ?? '')
 const items = computed(() => props.tabs.map((tab) => ({ label: tab.label, value: tab.value, slot: tab.value, ...(tab.icon === undefined ? {} : { icon: tab.icon }) })))
+/** Labels this long leave a phone's tab row no room for the word on the Filters button. */
+const CROWDED_LABELS = 16
+const crowded = computed(() => props.tabs.reduce((length, tab) => length + tab.label.length, 0) > CROWDED_LABELS)
 const countOf = (value: string | number): number => props.tabs.find((tab) => tab.value === value)?.count ?? 0
 
 async function open(value: string | number): Promise<void> {
@@ -131,7 +136,8 @@ watch(
 </script>
 
 <template>
-  <div ref="frame" class="page-tabs-frame">
+  <div ref="frame" class="page-tabs-frame" :class="{ 'has-above': $slots.above, crowded }">
+    <slot name="above" />
     <!-- First in the page's order, so on a phone focus meets the Filters button just before the tabs it sits beside. -->
     <div :id="actionsId" class="page-tab-actions" data-testid="page-tab-actions" />
     <UTabs
@@ -142,7 +148,7 @@ watch(
       variant="link"
       color="neutral"
       class="page-tabs"
-      :class="{ 'equal-segments': tabs.length <= 4, 'fade-start': overflow.start, 'fade-end': overflow.end }"
+      :class="{ 'shared-width': tabs.length <= 4, 'fade-start': overflow.start, 'fade-end': overflow.end }"
       :ui="{ root: 'min-w-0 gap-5', list: 'page-tabs-list', indicator: 'bottom-0 h-0.5 bg-[var(--accent)]', trigger: 'page-tab shrink-0' }"
       data-testid="page-tabs"
       @update:model-value="open"
@@ -196,6 +202,10 @@ watch(
   display: none;
 }
 
+.page-tabs-frame.has-above > .page-tabs {
+  margin-top: 1rem;
+}
+
 /*
  * On a phone the strip and the actions cell make one row that sticks under the top bar, across the
  * whole width. The tabs root steps aside, so the strip, the cell and the open panel share one grid.
@@ -244,17 +254,50 @@ watch(
   .page-tabs :deep([data-slot='content']) {
     grid-column: 1 / -1;
   }
-}
 
-/* A phone shares its width between four tabs or fewer, which then need no icons. */
-@media (max-width: 639px) {
-  .page-tabs.equal-segments :deep(.page-tab) {
-    flex: 1 1 0;
-    min-width: 0;
-    justify-content: center;
+  .page-tabs-frame.has-above > .page-tabs {
+    margin-top: 0;
   }
 
-  .page-tabs.equal-segments :deep(.page-tab [data-slot='leadingIcon']) {
+  .page-tabs-frame.has-above > :slotted(*) {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .page-tabs-frame.has-above :deep(.page-tabs-list),
+  .page-tabs-frame.has-above .page-tab-actions {
+    grid-row: 2;
+  }
+}
+
+/*
+ * Long tab labels leave no room for the word on a phone, so the Filters button keeps its icon and
+ * count, and the word stays for a screen reader.
+ */
+@media (max-width: 639px) {
+  .page-tabs-frame.crowded .page-tab-actions :deep(.filters-label) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/*
+ * A phone shares its width between four tabs or fewer, which then need no icons. Each tab grows from
+ * its label's width, so a long label such as Breakdown is not cut short beside two short ones.
+ */
+@media (max-width: 639px) {
+  .page-tabs.shared-width :deep(.page-tab) {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 0.5rem;
+  }
+
+  .page-tabs.shared-width :deep(.page-tab [data-slot='leadingIcon']) {
     display: none;
   }
 }

@@ -41,3 +41,24 @@ export function ageingOf(invoices: readonly MatchedInvoice[], asOf: CivilDate): 
   }
   return totals
 }
+
+export interface AmountsOwed {
+  /** What the invoices still have unpaid. */
+  readonly outstanding: Money
+  /** The part of it past its due date, or past the issue date for an invoice without one. */
+  readonly overdue: Money
+  readonly openCount: number
+  readonly overdueCount: number
+}
+
+/** What the invoices still have unpaid on the given day, and how much of it is late. */
+export function amountsOwed(invoices: readonly MatchedInvoice[], asOf: CivilDate): AmountsOwed {
+  const open = invoices.filter((invoice) => invoice.remaining > 0)
+  const late = open.filter((invoice) => daysPastDue(invoice, asOf) > 0)
+  return {
+    outstanding: open.reduce((total, invoice) => addMoney(total, invoice.remaining), ZERO),
+    overdue: late.reduce((total, invoice) => addMoney(total, invoice.remaining), ZERO),
+    openCount: open.length,
+    overdueCount: late.length,
+  }
+}

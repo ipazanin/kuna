@@ -17,6 +17,8 @@ export interface CostLine {
 export interface CostSection {
   readonly key: string
   readonly title: string
+  /** The page that breaks the group down further, such as Owner for owner pay. */
+  readonly link?: { readonly label: string; readonly to: RouteLocationRaw }
   readonly total: number
   readonly priorTotal: number | null
   readonly change: CostChange | null
@@ -66,7 +68,7 @@ function changeText(change: CostChange | null): string {
 </script>
 
 <template>
-  <AppCard title="Cost by category" :subtitle="subtitle" :definition="definition" collapse-id="spending.categories" :summary="summary" data-testid="cost-by-category">
+  <AppCard title="Cost by category" :subtitle="subtitle" :definition="definition" collapse-id="analysis.categories" :summary="summary" data-testid="cost-by-category">
     <template #header>
       <ChartLegend :entries="legend" />
     </template>
@@ -75,7 +77,10 @@ function changeText(change: CostChange | null): string {
     <div v-else class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
       <section v-for="section in sections" :key="section.key" :aria-label="section.title">
         <h3 class="cost-row cost-heading">
-          <span class="cost-name">{{ section.title }}</span>
+          <span class="cost-name">
+            {{ section.title }}
+            <DrillLink v-if="section.link" :to="section.link.to" in-prose class="ms-1.5 text-xs font-normal text-muted">{{ section.link.label }}</DrillLink>
+          </span>
           <span class="cost-amount figure">{{ formatWholeMoney(section.total) }}</span>
           <span v-if="compared" class="cost-change figure">{{ changeText(section.change) }}</span>
         </h3>

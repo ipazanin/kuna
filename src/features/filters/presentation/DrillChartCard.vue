@@ -24,6 +24,10 @@ const props = defineProps<{
   empty?: boolean
   height?: number
   phoneHeight?: number
+  /** Makes the chart collapsible under this id, as ChartCard's collapse id does. */
+  collapseId?: string
+  summary?: string
+  startCollapsed?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -87,6 +91,7 @@ function select(selection: ChartPointSelection): void {
       ...(empty === undefined ? {} : { empty }),
       ...(height === undefined ? {} : { height }),
       ...(phoneHeight === undefined ? {} : { phoneHeight }),
+      ...(collapseId === undefined ? {} : { collapseId, summary, startCollapsed }),
     }"
     @select="select"
     @zoom="emit('zoom', $event)"

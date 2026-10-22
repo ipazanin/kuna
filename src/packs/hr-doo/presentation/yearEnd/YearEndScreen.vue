@@ -14,6 +14,7 @@ import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import { useFilters } from '../../../../features/filters/application/filterStore'
+import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import DrillChartCard from '../../../../features/filters/presentation/DrillChartCard.vue'
 import { useSettings } from '../../../../features/settings/application/useSettings'
 import { useFilteredLedger } from '../../../../features/transactions/application/useFilteredLedger'
@@ -35,7 +36,7 @@ import { yearEndOpenItems } from '../../domain/yearEnd/yearEndOpenItems'
 import MissingRoles from '../MissingRoles.vue'
 import OwnerPayOff from '../OwnerPayOff.vue'
 import { missingAccrualRoles } from '../accrualRoles'
-import { chipsOf, figureLabel, ruleChips, stepsOf } from '../tracedFigureView'
+import { chipsOf, figureDetail, figureLabel, ruleChips, stepsOf } from '../tracedFigureView'
 import { bridgeChart } from './bridgeChart'
 import type { BridgeBar } from './bridgeChart'
 import BridgeSteps from './BridgeSteps.vue'
@@ -187,6 +188,7 @@ function yearEndView(workbook: Workbook, shownYear: number) {
       settled: item.settled,
       cents: item.figure?.amount ?? null,
       to: drillOf(item.figure),
+      detail: item.figure !== null && item.figure.drill === null && item.figure.steps.length > 0 ? figureDetail(item.figure, item.title === figureLabel(item.figure) ? `An open item of year end ${shownYear}` : item.title, drillOfTarget) : null,
       rules: chipsOf(item.rules),
     })),
     openItemsSummary: `${openItems.filter((item) => !item.settled).length} to settle, ${openItems.filter((item) => item.settled).length} settled`,
@@ -231,7 +233,11 @@ function rowOf(compared: ComparedLine): ComparisonRow {
 }
 
 function drillOf(figure: TracedFigure | null): ReturnType<typeof drillLocation> {
-  return figure?.drill == null ? null : drillLocation(figure.drill)
+  return drillOfTarget(figure?.drill ?? null)
+}
+
+function drillOfTarget(drill: DrillTarget | null): ReturnType<typeof drillLocation> {
+  return drill === null ? null : drillLocation(drill)
 }
 
 function shownOf(figure: YearEndFigure): ShownValue {

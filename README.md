@@ -76,8 +76,9 @@ menu button, the screen's title and the sync or export control, a navigation dra
 from the left, filters in a bottom sheet behind a button that counts them,
 transactions as cards, and charts with fewer axis labels. A screen's inner tabs make one row that
 sticks under the top bar, with the Filters button at its right end when the tab has filters, and
-the row counts in the band a link lands below. Transactions and Review share the
-phone's width between their two tabs. A tap on a chart shows its tooltip and a
+the row counts in the band a link lands below. Transactions, Review, Invoicing, Analysis and Owner
+share the phone's width between their tabs. When the tab labels run past 16 characters together,
+the Filters button keeps its icon and its count, and the word stays for a screen reader. A tap on a chart shows its tooltip and a
 "View rows" action, and a second tap on the same mark drills. Every control there is at least 44 px
 square, and the installed app keeps clear of the system bars through the safe-area insets. From
 640 px up the layout is the desktop one.
@@ -91,13 +92,14 @@ rounded 44 px shape.
 The bars that stay at the top while a screen scrolls, the top bar below 1024 px and a screen's
 filter or search bar, are measured as one band, kept in the `--sticky-band` CSS variable. Every
 element with an id takes it as its `scroll-margin-top`, so a link to a part of a screen, such as a
-month of the billing plan, lands just below the band at any width.
+month on the Plan tab of Invoicing, lands just below the band at any width, or as high as the foot
+of a short page lets it.
 
 ## Wide screens
 
 From 1920 px (the `3xl` breakpoint) a dashboard screen sets related cards side by side, or a long
-list beside a column of the cards that sum it up: Overview, Period review, Receivables, Billing
-plan, Taxes and Owner. The content grows to 160rem beside the sidebar. A screen that is one table,
+list beside a column of the cards that sum it up: Overview, the Invoices and Plan tabs of Invoicing,
+the Compare tab of Analysis, Taxes and the Who owes whom tab of Owner. The content grows to 160rem beside the sidebar. A screen that is one table,
 one list, one form or a long report keeps a 100rem measure instead, so its rows stay readable:
 Transactions, Year end, Forecast, Pay scenarios, Ruleset, Review, Workbook and Settings. The other screens simply
 widen. `.wide-pair` in `src/shared/styles/app.css` does the pairing, and the widths are the
@@ -117,9 +119,10 @@ rank. A phone sets the ring above the list. A card with a long list or table, su
 as plan rows, invoices, rules or a Workbook editor, has a toggle at the end of its header. Collapsed,
 it shows its title and one summary line, such as the row count or a total. Each card opens
 expanded unless its screen says otherwise, and this device remembers the choice in `localStorage`
-under `ledgerboard.card.` and the card's id, such as `billing.months`. Without storage the card keeps
+under `ledgerboard.card.` and the card's id, such as `invoicing.months`. Without storage the card keeps
 its state until the page reloads. A link into a collapsed card, such as a tile that opens a month,
-opens it first and is not remembered. Tiles and short summaries do not collapse. A chart that is reference rather than the point of its
+opens it first and is not remembered. A long list, such as the invoices on Invoicing or the
+categories on Analysis, Compare, shows its first ten entries, then "Show all" with the count. Tiles and short summaries do not collapse. A chart that is reference rather than the point of its
 screen may.
 
 A card fits its content without sideways scroll. Where two cards would not fit side by side, they
@@ -130,13 +133,13 @@ the window's). Only the Workbook editors, where every column is an input, scroll
 `check:visual` fails on any other card that does. A popover stays inside the window and opens
 beside the row it belongs to, not over it, where there is room.
 
-## Overview, Transactions and Review
+## Overview, Transactions, Review and Analysis
 
 **Overview** says how the company is doing and what waits. The headline gives the newest complete
 month's income and costs. "Waiting for you" lists, across the whole workbook and whatever the
 filters, each job with something to do, with a link to the page that does it: rows to review and
 reimbursements with no cost on file (Review), invoices the billing plan expects by this month that
-are not made yet (Billing plan, on the oldest month), invoices past their due date (Receivables), and
+are not made yet (Invoicing, Plan, on the oldest month), invoices past their due date (Invoicing), and
 a corporate tax payment due this month or overdue (Taxes). The owner pay jobs need the
 `owner_pay_module`, and the tax one `hr_company_registered`. A job already late has a red dot, and the
 card is gone when nothing waits. `waitingJobs` in `src/features/overview/presentation/waitingForYou.ts`
@@ -160,6 +163,18 @@ be made a rule or dismissed. A dismissal is a row on the `dismissed` tab, so the
 as new rows join it, and "Dismissed suggestions (N)" lists each one with Restore, which deletes its
 row. Both write through the row write path with Undo, and the first dismissal in a Google Sheet
 without the tab asks before it adds the tab with the template's header.
+
+**Analysis** says where the money goes and whether it is getting better or worse. One filter bar sits
+above its three tabs, since each follows it, and on a phone its Filters button ends the tab row.
+Breakdown holds cost by category under the buckets against the period before, with the taxes and
+owner pay groups linking to the screens that break them down further in the Croatian pack, and "Who
+the company paid most", collapsed, with the top payee in its summary. Over time charts every month
+of the ledger with income above zero and costs below, its slider setting the period, then the
+rolling net and, collapsed, the cumulative net. Compare sets a year, quarter or custom range
+against the equal period before it, so its bar offers only those and reads a rolling period as the
+last complete quarter: profit and loss line by line, and each category's change, ten at a time.
+A drill to Analysis opens the tab its route names, `breakdown`, `over-time` or `compare` in
+`filterStore.ts`.
 
 ## The workbook format
 
@@ -239,6 +254,7 @@ as before.
 | `hr_cit_return` | `pd` | `pd` for the corporate tax return on the accrual profit, `pd-nn` for the one on cash. |
 | `hr_vat_principle` | `invoice` | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment. |
 | `hr_depreciation_doubled` | `FALSE` | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it. |
+| `hr_owner_loan_interest` | `0%` | The yearly interest rate the owner's loans from the company carry, as a percentage cell such as `2%`, or text such as `2%` or `0.02`. A number above 1, such as `2`, is refused, since it reads as 200%. Below the income tax law's rate the difference is a benefit in kind, as *Taxes and Owner* describes. |
 | `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves. A profile that cannot be read is reported and not offered. |
 
 The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack. Workbook,
@@ -251,8 +267,8 @@ Light or Dark is remembered on this device, and System forgets it.
 
 ## Taxes and Owner
 
-Two screens for a Croatian d.o.o., shown while `owner_pay_module` is on. Owner links to Pay
-scenarios from its header. They pick categories by the `roles` column, never by name:
+Two screens for a Croatian d.o.o., shown while `owner_pay_module` is on. They pick categories by
+the `roles` column, never by name:
 
 | Role | What it selects |
 |---|---|
@@ -261,7 +277,7 @@ scenarios from its header. They pick categories by the `roles` column, never by 
 | `owner-pay-tax` | Taxes owed because the owner was paid, added to the owner's gross cost |
 | `watched` | In the taxes bucket, a tax with a monthly payment calendar |
 | `reimbursement` | Reimbursements between owner and company, listed beside owner pay. A payment to the owner on one repays the owner's advances. A payment from the owner on one repays a private cost the company paid for the owner |
-| `client-refund` | Money paid back to a client, such as an overpayment, on Receivables |
+| `client-refund` | Money paid back to a client, such as an overpayment, on Invoicing |
 | `arrears` | Paid in the month after the work, such as salary, its taxes and rent |
 | `representation` | Representation, such as a client lunch |
 | `personal-transport` | Personal transport costs |
@@ -322,6 +338,34 @@ private costs and the owner's parts of split payments included. The company owes
 the owner paid, less what it reimbursed. Positive means the owner owes the company. A private cost
 the company paid in full counts as lent only when its row is in a category with the `owner-loan-out`
 role. Filed as an ordinary cost with no part split off, it counts in costs and not in net owed.
+
+**Owner** has Add advance and Compare pay mixes, which opens Pay scenarios, in its header, and two
+tabs. Who owes whom is all time over the whole ledger, so it has no filters: the Net owed tile, this
+year's benefit in kind when a loan had a balance this year, a line saying how many reimbursements with no cost on file wait on Review,
+the benefit in kind year by year, every loan with the repayments that closed it and every cost the
+owner paid privately, ten at a time, and the loans by month, collapsed. Taken follows the filter
+bar: the owner take, the gross cost of the owner and the cost per euro received, "Owner take by
+type" as a ring, and owner pay by month with the loans and their repayments as one "Loans, net" band.
+The ring holds each owner pay category paid out on balance, in the colour its band has in the
+chart. Loans can be negative, so "Loans, net" sits under the ring with any category that took back
+more than it paid, and the ring and those lines add up to the Owner take tile. `ownerTakeRing` in
+`packCharts.ts` builds it. Reimbursements stay outside the take and are named under it.
+
+A loan from the company to the owner, who is its employee, gives a benefit in kind when it carries
+less than the yearly rate the income tax law sets: 2% under Art. 21(3) of the Zakon o porezu na
+dohodak, the ruleset's `hr.pit.loan-benefit`. The benefit is the difference between that rate and
+the rate the loans carry, `hr_owner_loan_interest` (0% by default), on each day's balance of each
+loan, from the day after it was lent to the day it was repaid, a day being a 365th of the year, or a
+366th in a leap year. Each loan is rounded to the cent and the year adds them up. The law reaches a
+loan from the employer to the employee, so the benefit reads the loan book, what the owner owes the
+company, and never the costs the owner paid for the company. Owner shows it for each year a loan had
+a balance in, the current year up to the newest booking, and each figure opens its build-up: one
+line per loan with its days owed and its rows, and the rule. Year end shows the closed year's figure
+as an open item with the same build-up, and as settled when the loans carry at least the law's rate.
+Whether the benefit is grossed up through payroll is unconfirmed, as the rule's note says. The same
+rate the loans carry comes off the related-party rate of `hr.cit.related-party-rate`, the corporate
+tax adjustment that reaches a resident owner only while the company has a tax loss, and off the
+yearly benefit Dividend capacity shows on what stays owed.
 
 ## Split rows
 
@@ -559,7 +603,7 @@ end and December's arrears are paid in January.
 Cash is projected month by month. A month the ledger has passed reads its bank balances. The rest
 start from cash on the newest booking, or for a year the ledger has not reached from the year
 before's projection with what that year received and paid after its end. Revenue of a forecast
-month comes in when the client pays: the median days from issue to payment on Receivables, counted
+month comes in when the client pays: the median days from issue to payment on Invoicing, counted
 from the end of the month delivered, or the day after it when no invoice is paid yet. Open invoices
 come in that many days after their issue, never before the day after the forecast. Costs are paid
 in their month, costs on `arrears` categories in the month after, the VAT position on the forecast
@@ -616,7 +660,7 @@ both modes through the row write path, each change one write with Undo in the to
 
 A row the forecast does not count shows why under it. A Google Sheet without a `plan` tab gets it
 from the first save, each dialog saying beforehand that it adds the tab with the template's header.
-Revenue is planned on the Billing plan, whose "Fill 2027" writes a later year's fees. Taxes
+Revenue is planned on the Plan tab of Invoicing, whose "Fill 2027" writes a later year's fees. Taxes
 lists the same payments for every year from the first tax period, with overdue payments and payments
 no obligation takes called out above them. The figures are for planning with the accountant, never
 filing advice.
@@ -732,7 +776,7 @@ beside each one. The tax payment date is checked against a ledger payment of our
 balance due, and the distribution decision against our profit after tax. Open items list the
 accountant's choices, any gap to the accountant's profit, months no invoice delivers in, purchases
 with no asset row, and what loans to the owner and early asset purchases call for, each with what
-would settle it. The figures are for planning with the accountant, never filing advice.
+would settle it. The loans' benefit in kind opens its build-up, as *Taxes and Owner* describes. The figures are for planning with the accountant, never filing advice.
 
 ## Billing plan
 
@@ -746,7 +790,7 @@ services in `src/features/billingPlan/domain/` read it with the `invoices` tab:
   month's fee ahead, so no invoice belongs to one row. Each client's invoices, in issue order, take
   the client's rows. An invoice first fills the rows dated up to the end of the month it was issued
   in: the fewest open rows it equals exactly, or else the rows oldest first, by date and then tab
-  order, the way Receivables lets payments fill invoices. A remainder of €1 or more is a fee billed
+  order, the way the invoice matching lets payments fill invoices, as *Invoicing screen* describes. A remainder of €1 or more is a fee billed
   ahead and reaches on to the rows of the next month in the same way.
   A smaller one is a rounding difference, such as a row whose formula reads a cent below what was
   billed, and is invoiced above the plan on that invoice, so it never part fills a later month.
@@ -767,17 +811,32 @@ services in `src/features/billingPlan/domain/` read it with the `invoices` tab:
   "Oct 2026". The yearly bonus is never filled in. The rows stay the one source the forecast reads,
   so a filled row is adjusted on the tab.
 
-## Billing plan screen
+## Invoicing screen
 
-A core screen at `/billing?year=2026`, after Receivables, seen on the newest booking, for every
-year a row or an invoice falls in, the year of the newest booking and the year after. Tiles give the
-year's planned and invoiced amounts, what of the year's rows is not invoiced yet, and the next
-expected invoice, which opens its month in "Month by month" (`month=2026-10`). That list opens
-collapsed, since planned and invoiced mostly agree, and a link into it opens it. It calls out
-rows not invoiced yet and what invoices billed above the plan. "Totals over every client" gives
-everything planned, everything invoiced and the difference, and what was invoiced each year by issue
-date. Beside it are the items, each with one colour on every chart and list, and the year's plan
-rows, newest date first and in the tab's order within a date, as Receivables lists its invoices.
+`#/invoicing` answers what to bill this month and who still owes the company. "Make invoice" in its
+header is the one way to make an invoice, as *Invoices* describes, for the client of the next
+expected invoice. Four tiles above the tabs are figures as of the newest booking, whatever a tab's
+period, client or year says, and each opens the tab that holds it: the next invoice (the oldest
+month with plan rows no invoice billed yet, which opens that month on Plan), what is outstanding,
+what is overdue, and the median days to get paid over the invoices settled in the last 12 months.
+The tabs are Invoices, Plan and Clients, as `?tab=` says.
+
+**Invoices** holds a period bar and, with more than one client, a client picker (`client=`). "Every
+invoice, with the payments that settled it" lists the invoices issued in the period and every one
+still open, newest first, ten at a time, with "Record invoice". Below it are what is owed by how late
+it is, "Days to get paid", collapsed, with its median and mean, and "Revenue no client accounts
+for", collapsed, when there is any. With no invoices yet the tab offers to record one, or the clients
+tab when no client is on it.
+
+**Plan** shows the billing plan for one year (`year=2026`), seen on the newest booking, picked from
+every year a row or an invoice falls in, the year of the newest booking and the year after. One line
+gives the year's planned and invoiced amounts and what of the year's rows is not invoiced yet. "Plan
+rows" lists the year's rows, newest date first and in the tab's order within a date. "Month by month",
+collapsed, calls out rows not invoiced yet and what invoices billed above the plan, and
+`month=2026-10` with `#billing-month-2026-10` opens a month and scrolls to it. "By item", collapsed,
+lists the year's items with their shares and then charts every year by item, each item with one
+colour on every chart and list. "Totals over every client", collapsed, gives everything planned,
+everything invoiced and the difference, and what was invoiced each year by issue date.
 
 The rows of the year can be added, edited and deleted in both modes. "Fill the rest of 2026", or
 "Fill 2027" on the year after, previews the rows `fillRestOfYear` would add, with each description in a field to edit, and appends
@@ -785,13 +844,36 @@ them. An edit writes only the cells that
 changed, so a formula amount left alone stays a formula. A delete takes the row out, so the rows
 below it move up. Both find the row as the app read it, on its own row or on the one row that holds
 it, and refuse when none or several do. Undo takes an addition back, puts a deleted row back on the
-row it stood on and an edited row back as it was. The billing terms are on
-Workbook, General. Without the tab the screen names the headers to add, and in Excel mode starts one
-from its first row.
+row it stood on and an edited row back as it was. Without the tab the Plan tab names the headers to
+add, and in Excel mode starts one from its first row.
+
+**Clients** holds the clients tab as an editor, as the *Workbook screen* edits a tab, and "Billing and
+invoice terms", collapsed, the `billing_` and `invoice_` settings with their own Save, written as the
+settings are. `#invoicing-terms` opens the terms.
+
+"Record invoice", and the pencil on each invoice, add, edit and delete rows of the
+`invoices` tab in both modes, in the eight columns the invoice generator writes, for an invoice made
+elsewhere. The number is written as text, the amount as a number and each date as a date cell. A
+recorded invoice starts on the newest booking, due a month later, for the work of its month, as the
+generator set them.
+
+The invoice matching pairs the `invoices` tab with the revenue credits, client by client, the way the
+Sheet's `outgoing` tab does for its one client. A credit belongs to the client whose `clients` row
+names its IBAN, and one from an IBAN no client names is listed apart and never pays anyone's
+invoice. Invoices fill oldest first, by issue date and then by the order they were written. A
+payment can fill only invoices already issued on its day, so a credit that arrives before its
+invoice is a payment with no invoice on file, and a payment past what is owed is an overpayment on
+the newest invoice it reached. Nothing owed is ever negative. Revenue and client refunds are the
+categories with the `revenue` and `client-refund` roles.
+
+Ageing counts days past the due date, or past the issue date when an invoice has none, on the day
+of the newest booking. Days to get paid is the median over the invoices settled in the period,
+with the mean beside it. The matching always runs over the whole ledger. The period picks which
+invoices are listed (issued in it, or still open) and which payments count for days to get paid.
 
 ## Invoices
 
-"Make invoice" on Receivables and on the Billing plan makes an invoice the way the invoice generator
+"Make invoice" in the header of Invoicing makes an invoice the way the invoice generator
 did, and drafts its mail without sending it. The services are in `src/features/invoicing/`.
 
 - **The form.** The issue date is today. The number is the next one by `invoice_number_pattern`
@@ -827,7 +909,7 @@ did, and drafts its mail without sending it. The services are in `src/features/i
   time it runs, Google asks the user to allow `gmail.compose`. The draft goes to the client's
   `invoice_mail` with the PDF attached and is never sent. With it off, the PDF downloads and "Write
   the mail in Gmail" opens Gmail's compose window with the recipient, subject and text filled in.
-- **Re-export**, in the editor of an invoice on Receivables, draws the PDF again with the
+- **Re-export**, in the editor of an invoice on Invoicing, draws the PDF again with the
   register's number and dates, replaces the file of the same name in view, and saves a fresh draft.
   The old draft stays in Gmail until it is deleted there. The register row changes only when its
   item or amount do.
@@ -837,30 +919,6 @@ did, and drafts its mail without sending it. The services are in `src/features/i
 The register keeps one row per invoice: the lines' descriptions joined by `; ` as `item` and the
 total as `amount`, with the number, client, dates and delivery period, the eight columns the
 generator wrote.
-
-## Receivables
-
-"Record invoice" above the list, and the pencil on each invoice, add, edit and delete rows of the
-`invoices` tab in both modes, in the eight columns the invoice generator writes, for an invoice made
-elsewhere. "Make invoice" beside it makes one, as *Invoices* describes. The number is written as
-text, the amount as a number and each date as a date cell. A recorded invoice starts on the newest
-booking, due a month later, for the work of its month, as the generator set them. With no invoices
-yet, the empty screen offers to make the first one or record it, or the clients tab when no client
-is on it.
-
-Receivables matches the `invoices` tab against the revenue credits, client by client, the way the
-Sheet's `outgoing` tab does for its one client. A credit belongs to the client whose `clients` row
-names its IBAN, and one from an IBAN no client names is listed apart and never pays anyone's
-invoice. Invoices fill oldest first, by issue date and then by the order they were written. A
-payment can fill only invoices already issued on its day, so a credit that arrives before its
-invoice is a payment with no invoice on file, and a payment past what is owed is an overpayment on
-the newest invoice it reached. Nothing owed is ever negative. Revenue and client refunds are the
-categories with the `revenue` and `client-refund` roles.
-
-Ageing counts days past the due date, or past the issue date when an invoice has none, on the day
-of the newest booking. Days to get paid is the median over the invoices settled in the period,
-with the mean beside it. The matching always runs over the whole ledger. The period picks which
-invoices are listed (issued in it, or still open) and which payments count for days to get paid.
 
 ## Excel mode
 
@@ -975,13 +1033,15 @@ nothing, and the dry run says so.
 
 The screen at `#/workbook` holds one tab per part of the workbook a person keeps by hand, and
 `?tab=categories` links straight to one: General (the settings, the loan switch and the rows the app
-could not use), Categories, Accounts, Clients, Assets, Grants and Year end. The tabs are
+could not use), Categories, Accounts, Assets, Grants and Year end. The clients tab and the billing
+and invoice terms are on Invoicing, Clients. The tabs are
 `PageTabs` in `src/shared/ui/`, which any screen with inner tabs uses: the tab is `?tab=` in the
 address and the first tab stays out of it, picking a tab adds a step to the history so Back returns
 to the tab before, and the arrow keys move between tabs without opening them. The browser tab
 reads "Workbook, Categories – Ledgerboard". A strip wider than the screen scrolls inside itself, with
 its open tab brought into view and its cut edges faded, and a phone shares its width between four
-tabs or fewer. A drill always opens its screen on the tab its route names in `filterStore.ts`, so
+tabs or fewer. What every tab follows, such as the filter bar of Analysis, goes in its `above` slot,
+so a phone still finds the Filters button at the end of the tab row. A drill always opens its screen on the tab its route names in `filterStore.ts`, so
 the tab of the screen it starts from never carries over. It works the same
 for a Google Sheet and in Excel mode. Each tab is a table of fields: add a row, change any field,
 delete a row with its bin, then "Save" writes the whole change as one write with Undo in the toast
@@ -1008,7 +1068,7 @@ npm run build          # production build into dist/, then checks no dev-only co
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
 npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, Workbook's tabs with Back through them and a link to the last one, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, Workbook's tabs with Back, Overview's waiting card, drills, filter sheet, import, a card collapsed and expanded per screen, the row editors, the split editor on Transactions and Review, a dismissal and both statement imports in both modes, the way back from Google's sign-in page, 44 px targets, in visual-check/touch/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, Workbook's tabs with Back, Overview's waiting card, drills, filter sheet, import, the owner loans' benefit in kind with its build-up, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, the split editor on Transactions and Review, a dismissal and both statement imports in both modes, the way back from Google's sign-in page, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -1038,7 +1098,7 @@ picked, and the browser's confirm dialog stands in for the Picker, OK picking ev
 and Cancel none. Its settings carry made-up invoice details, and Northwind has an address, an
 invoice mail and reverse charge, while Lumen has none, so its invoice is refused.
 Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
-changes nine days past their last export, and `?fake=empty` starts with nothing, which is the first
+changes nine days past their last export and owner loans that carry 2.5%, so they give no benefit in kind, and `?fake=empty` starts with nothing, which is the first
 run. `?fake=no-scenarios` leaves the `scenarios` tab out of the Sheet, so adding the starting
 scenarios adds the tab, and `?fake=excel-no-scenarios` starts a workbook kept in this browser with no
 scenario rows. `?fake=no-plan` and `?fake=excel-no-plan` do the same for the `plan` tab, so the plan
@@ -1055,14 +1115,14 @@ npm run check:touch
 While working on a screen, both take `--only` and `--widths` to run a part of the check quickly:
 
 ```sh
-npm run check:visual -- --only billing,owner --widths 360,1440
+npm run check:visual -- --only invoicing,owner --widths 360,1440
 npm run check:touch -- --only billing,split --widths 430
 ```
 
-`--only` takes screen and flow names for the visual check, such as `billing`, `workbook-categories`
+`--only` takes screen and flow names for the visual check, such as `invoicing`, `workbook-categories`
 or `split`, and step names for the touch check, such as `billing-edit-delete` or `split-google`. A
-name also picks every name that starts with it and a hyphen, so `billing` takes `billing-2025` and
-`billing-excel` too. A touch step that carries on from the page of an earlier one runs that one as
+name also picks every name that starts with it and a hyphen, so `invoicing` takes `invoicing-plan-2025`
+and `invoicing-clients-excel` too. A touch step that carries on from the page of an earlier one runs that one as
 well. `--widths` takes widths the check already has. A name nothing is called fails with the names
 there are, and a run that would check nothing fails too. A limited run keeps the screenshots it does not
 take and says on its last line that it was limited. Only the full run, without options, is the check
@@ -1073,7 +1133,7 @@ needs no preview and makes no call to Google.
 
 ## Write-back
 
-Review, Transactions, Owner, Billing plan, Receivables, Forecast, Pay scenarios and the Workbook screen write through one path in both modes. Each write reads the tabs it
+Review, Transactions, Owner, Invoicing, Forecast, Pay scenarios and the Workbook screen write through one path in both modes. Each write reads the tabs it
 touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
 what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
 In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
@@ -1217,8 +1277,8 @@ Never run it first on the original.
    On Transactions, split a payment in two, check its two rows on `splits`, change a part, then
    delete the split. Check its rows are gone with no blank row left, press Undo and check they are
    back on the rows they stood on, with the rows below them moved down again.
-9. On Workbook, General, fill the Invoices fields. On Workbook, Clients, give the client its
-   address, invoice mail and reverse charge. On Receivables, press "Make invoice" with a test
+9. On Invoicing, Clients, fill the invoice terms and give the client its address, invoice mail and
+   reverse charge. On Invoicing, press "Make invoice" with a test
    number agreed beforehand, open the PDF, press Check and pick the invoice folder, the year folder
    and every month folder the Picker offers. Make the invoice with the mail draft on, then check the
    PDF in the month folder, the draft in Gmail (not sent) and the new row on `invoices`. Re-export
@@ -1227,7 +1287,7 @@ Never run it first on the original.
 10. On Workbook, Categories, add a category and save. Check the new row at the foot of `categories`
    and that the ledger's category dropdown offers it. Change its colour, check only that cell changed,
    then delete it and check the row is gone with no blank row left. Press Undo and check it is back
-   at the foot. Try to rename a category the ledger uses and read the refusal. On Receivables, add an
+   at the foot. Try to rename a category the ledger uses and read the refusal. On Invoicing, record an
    invoice, check its row on `invoices` with the dates shown as dates and the number as text, edit
    its amount, delete it and press Undo.
 11. In the copy, note the rows of the newest Erste statement on `ledger`, then delete them as whole

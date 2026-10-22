@@ -127,7 +127,7 @@ describe('card_settlement_ibans', () => {
 })
 
 describe('company facts', () => {
-  it('default to no city, no birth year, the second pillar, no dependants, the accrual return and the invoice principle', () => {
+  it('default to no city, no birth year, the second pillar, no dependants, the accrual return, the invoice principle and owner loans at 0%', () => {
     expect(DEFAULT_SETTINGS.companyFacts).toEqual({
       residenceCity: '',
       birthYear: null,
@@ -137,6 +137,7 @@ describe('company facts', () => {
       citReturn: 'pd',
       vatPrinciple: 'invoice',
       depreciationDoubled: false,
+      ownerLoanInterest: 0,
     })
   })
 
@@ -151,6 +152,7 @@ describe('company facts', () => {
         ['hr_cit_return', 'PD-NN'],
         ['hr_vat_principle', 'cash'],
         ['hr_depreciation_doubled', 'TRUE'],
+        ['hr_owner_loan_interest', 0.025],
       ),
     )
 
@@ -164,6 +166,7 @@ describe('company facts', () => {
       citReturn: 'pd-nn',
       vatPrinciple: 'cash',
       depreciationDoubled: true,
+      ownerLoanInterest: 250,
     })
     expect(parseSettings(rows(['hr_company_registered', '2025-05-12'])).settings.companyFacts.companyRegistered).toBe('2025-05-12')
     expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
@@ -192,6 +195,24 @@ describe('company facts', () => {
     ])
   })
 
+  it('read the owner loan interest as a percentage cell or as a percent typed as text', () => {
+    const rate = (cell: SettingRow['value']) => parseSettings(rows(['hr_owner_loan_interest', cell]))
+    expect(rate(0.02).settings.companyFacts.ownerLoanInterest).toBe(200)
+    expect(rate('2%').settings.companyFacts.ownerLoanInterest).toBe(200)
+    expect(rate('2,5 %').settings.companyFacts.ownerLoanInterest).toBe(250)
+    expect(rate('0.0265').settings.companyFacts.ownerLoanInterest).toBe(265)
+    expect(rate(0).settings.companyFacts.ownerLoanInterest).toBe(0)
+    expect(rate(2).problems).toEqual([
+      { sheetRow: 2, reason: 'hr_owner_loan_interest: 2 reads as 200%. Enter the rate as a percentage cell, such as 2%, so the default is used' },
+    ])
+    expect(rate('two').problems[0]?.reason).toBe('hr_owner_loan_interest: "two" is not a rate such as 2%, so the default is used')
+    expect(rate(-0.01).problems[0]?.reason).toBe('hr_owner_loan_interest: use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
+    expect(rate('2.345%').problems[0]?.reason).toBe('hr_owner_loan_interest: use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
+    expect(settingsErrors({ ...DEFAULT_SETTINGS, companyFacts: { ...DEFAULT_SETTINGS.companyFacts, ownerLoanInterest: Number.NaN } }).ownerLoanInterest).toBe(
+      'use a rate from 0% to 100% with at most two decimals, such as 2%',
+    )
+  })
+
   it('are listed in the template with their defaults, a blank birth year and registration day among them', () => {
     expect(settingsTabEntries(DEFAULT_SETTINGS).filter((entry) => entry.key.startsWith('hr_'))).toEqual([
       { key: 'hr_residence_city', value: '' },
@@ -202,6 +223,7 @@ describe('company facts', () => {
       { key: 'hr_cit_return', value: 'pd' },
       { key: 'hr_vat_principle', value: 'invoice' },
       { key: 'hr_depreciation_doubled', value: false },
+      { key: 'hr_owner_loan_interest', value: 0 },
     ])
   })
 })

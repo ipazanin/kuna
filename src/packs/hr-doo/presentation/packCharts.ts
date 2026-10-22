@@ -8,8 +8,10 @@ import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../shared/ui/ChartLegend.vue'
 import { drillToTransactions } from '../../../features/filters/domain/drillTarget'
 import type { DrillTarget, Figure } from '../../../features/filters/domain/drillTarget'
+import type { Period } from '../../../features/filters/domain/filterState'
 import type { DrillChart } from '../../../features/filters/presentation/chartDrill'
 import type { LoanMonth } from '../domain/ownerLoans'
+import type { OwnerTake } from '../domain/ownerTake'
 
 /** The categorical slots a chart may use before the rest fold into one series. */
 const SLOTS = 8
@@ -19,6 +21,14 @@ export interface CategorySeries {
   readonly name: string
   readonly categories: readonly string[]
   readonly colour: string
+  /** The colour token behind `colour`, such as `--series-2`, for a part drawn in HTML. */
+  readonly token: string
+}
+
+/** The categorical slot at a place in a list, as its token and its colour. Past the last slot it is the recessive grey. */
+function slotAt(index: number, tokens: ChartTokens): Pick<CategorySeries, 'colour' | 'token'> {
+  const colour = tokens.series[index]
+  return colour === undefined ? { colour: tokens.deemphasis, token: '--chart-deemphasis' } : { colour, token: `--series-${index + 1}` }
 }
 
 /**
@@ -27,13 +37,76 @@ export interface CategorySeries {
  */
 export function categorySeries(slugs: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): CategorySeries[] {
   if (slugs.length <= SLOTS) {
-    return slugs.map((slug, index) => ({ name: nameOf(slug), categories: [slug], colour: tokens.series[index] ?? tokens.ink }))
+    return slugs.map((slug, index) => ({ name: nameOf(slug), categories: [slug], ...slotAt(index, tokens) }))
   }
   const named = slugs.slice(0, SLOTS - 1)
   return [
-    ...named.map((slug, index) => ({ name: nameOf(slug), categories: [slug], colour: tokens.series[index] ?? tokens.ink })),
-    { name: 'Other categories', categories: slugs.slice(SLOTS - 1), colour: tokens.deemphasis },
+    ...named.map((slug, index) => ({ name: nameOf(slug), categories: [slug], ...slotAt(index, tokens) })),
+    { name: 'Other categories', categories: slugs.slice(SLOTS - 1), colour: tokens.deemphasis, token: '--chart-deemphasis' },
   ]
+}
+
+export const LOANS_NET_SERIES = 'Loans, net'
+
+/**
+ * The owner pay categories by category, with the loans to the owner and their repayments as one
+ * "Loans, net" series in the slot after the others, since a loan and its repayment are one story.
+ */
+export function ownerPaySeries(slugs: readonly string[], loanSlugs: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): CategorySeries[] {
+  const named = categorySeries(
+    slugs.filter((slug) => !loanSlugs.includes(slug)),
+    tokens,
+    nameOf,
+  )
+  const loans = slugs.filter((slug) => loanSlugs.includes(slug))
+  return loans.length === 0 ? named : [...named, { name: LOANS_NET_SERIES, categories: loans, ...slotAt(named.length, tokens) }]
+}
+
+/** One line of the owner take that a ring cannot hold, such as the loans, which can be negative. */
+export interface OwnerTakeAside {
+  readonly key: string
+  readonly label: string
+  readonly amount: number
+  readonly drill: DrillTarget
+}
+
+export interface OwnerTakeRing {
+  /** Each category paid to the owner on balance, in its series colour. */
+  readonly parts: readonly { readonly key: string; readonly label: string; readonly value: number; readonly colour: string; readonly drill: DrillTarget }[]
+  /** The ring's total, in its middle. */
+  readonly ringTotal: number
+  /** Loans, net, and any category that took back more than it paid, which with the ring make the owner take. */
+  readonly aside: readonly OwnerTakeAside[]
+  readonly total: number
+}
+
+/**
+ * The owner take as a ring of the categories paid out on balance, and beside it what a ring cannot
+ * hold: the loans as one net line, and any category that handed back more than it paid. The ring
+ * and the lines beside it add up to the owner take.
+ */
+export function ownerTakeRing(take: OwnerTake, period: Period, series: readonly CategorySeries[], nameOf: (slug: string) => string): OwnerTakeRing {
+  const loans = series.find((entry) => entry.name === LOANS_NET_SERIES)?.categories ?? []
+  const tokenOf = new Map(series.flatMap((entry) => entry.categories.map((category) => [category, entry.token])))
+  const others = take.byCategory.filter((line) => !loans.includes(line.category))
+  const parts = others
+    .filter((line) => line.amount.amount > 0)
+    .map((line) => ({ key: line.category, label: nameOf(line.category), value: line.amount.amount, colour: tokenOf.get(line.category) ?? '--chart-deemphasis', drill: line.amount.drill }))
+  const loanLines = take.byCategory.filter((line) => loans.includes(line.category))
+  const aside: OwnerTakeAside[] = [
+    ...(loanLines.length === 0
+      ? []
+      : [
+          {
+            key: 'loans',
+            label: LOANS_NET_SERIES,
+            amount: loanLines.reduce((sum, line) => sum + line.amount.amount, 0),
+            drill: drillToTransactions({ period, categories: loans }),
+          },
+        ]),
+    ...others.filter((line) => line.amount.amount < 0).map((line) => ({ key: line.category, label: nameOf(line.category), amount: line.amount.amount, drill: line.amount.drill })),
+  ]
+  return { parts, ringTotal: parts.reduce((sum, part) => sum + part.value, 0), aside, total: take.total.amount }
 }
 
 export function categoryLegend(series: readonly CategorySeries[]): LegendEntry[] {

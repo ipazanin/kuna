@@ -13,7 +13,7 @@ let unbind: () => void
 async function routerAt(location: string): Promise<Router> {
   const created = createRouter({
     history: createMemoryHistory(),
-    routes: ['/', '/transactions', '/spending', '/owner'].map((path) => ({ path, component: SCREEN })),
+    routes: ['/', '/transactions', '/analysis', '/invoicing', '/owner'].map((path) => ({ path, component: SCREEN })),
   })
   await created.push(location)
   await created.isReady()
@@ -33,7 +33,7 @@ afterEach(() => {
 describe('filter store', () => {
   it('takes its state from a shared link', async () => {
     unbind()
-    router = await routerAt('/spending?p=l3&acc=erste&b=operating')
+    router = await routerAt('/analysis?p=l3&acc=erste&b=operating')
     unbind = bindFiltersToRouter(router)
 
     expect(useFilters().filters.value).toMatchObject({ period: { preset: 'l3' }, accounts: ['erste'], buckets: ['operating'] })
@@ -67,24 +67,38 @@ describe('filter store', () => {
   })
 
   it('opens a drill on its page without the tab of the page it starts from', async () => {
-    await router.push('/spending?tab=over-time&year=2026')
+    await router.push('/invoicing?tab=plan&year=2026')
     await useFilters().setFilters(DEFAULT_FILTERS)
 
     expect(useFilters().drillLocation({ route: 'transactions', filters: { buckets: ['taxes'] } })).toEqual({
       path: '/transactions',
       query: { year: '2026', p: 'l12', b: 'taxes' },
     })
-    expect(useFilters().drillLocation({ route: 'spending', filters: { buckets: ['taxes'] } })).toEqual({
-      path: '/spending',
+    expect(useFilters().drillLocation({ route: 'breakdown', filters: { buckets: ['taxes'] } })).toEqual({
+      path: '/analysis',
       query: { year: '2026', p: 'l12', b: 'taxes' },
+    })
+  })
+
+  it('opens a drill to an Analysis tab on that tab, whatever tab it starts from', async () => {
+    await router.push('/analysis?tab=compare')
+    await useFilters().setFilters(DEFAULT_FILTERS)
+
+    expect(useFilters().drillLocation({ route: 'over-time', filters: { buckets: ['income'] } })).toEqual({
+      path: '/analysis',
+      query: { p: 'l12', b: 'income', tab: 'over-time' },
+    })
+    expect(useFilters().drillLocation({ route: 'compare', filters: { period: { preset: 'year', year: 2025 } } })).toEqual({
+      path: '/analysis',
+      query: { p: '2025', tab: 'compare' },
     })
   })
 
   it('writes the period into a drill link, so following it sets the filters even at their defaults', async () => {
     await useFilters().setFilters({ ...DEFAULT_FILTERS, period: { preset: 'l3' } })
 
-    expect(useFilters().drillLocation({ route: 'spending', filters: { period: { preset: 'l12' } } })).toEqual({
-      path: '/spending',
+    expect(useFilters().drillLocation({ route: 'breakdown', filters: { period: { preset: 'l12' } } })).toEqual({
+      path: '/analysis',
       query: { p: 'l12' },
     })
   })

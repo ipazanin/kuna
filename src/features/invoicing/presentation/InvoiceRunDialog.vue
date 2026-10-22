@@ -15,6 +15,7 @@ import DrillLink from '../../../shared/ui/DrillLink.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { pathInWords } from '../domain/invoiceFiling'
 import InvoiceLinesEditor from './InvoiceLinesEditor.vue'
+import { TERMS_LINK } from './invoicingLinks'
 import { useInvoiceRun } from './useInvoiceRun'
 import type { InvoiceRunMode } from './useInvoiceRun'
 
@@ -124,8 +125,8 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
               <li v-for="problem in run.problems.value" :key="problem">{{ problem }}</li>
             </ul>
             <p class="mt-1">
-              <DrillLink to="/workbook" in-prose class="text-highlighted">Workbook, General</DrillLink> and
-              <DrillLink to="/workbook?tab=clients" in-prose class="text-highlighted">Workbook, Clients</DrillLink> hold these.
+              The clients and the invoice terms are on
+              <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">Invoicing, Clients</DrillLink>.
             </p>
           </template>
         </UAlert>

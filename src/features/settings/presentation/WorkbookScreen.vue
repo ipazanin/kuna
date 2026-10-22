@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { useToast } from '@nuxt/ui/composables/useToast'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
@@ -15,26 +14,23 @@ import type { RowTab } from '../../workbook/application/workbookWriter'
 import type { TabRowsChange } from '../../workbook/domain/rowChanges'
 import { readAssets } from '../../workbook/infrastructure/assetsTabReader'
 import { readGrants } from '../../workbook/infrastructure/grantsTabReader'
-import { readClientRows } from '../../workbook/infrastructure/workbookReader'
 import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
 import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
 import { readYearEnd } from '../../workbook/infrastructure/yearEndTabReader'
 import { useRowWrites } from '../../workbook/presentation/useRowWrites'
-import { ACCOUNT_ROWS, ASSET_ROWS, CATEGORY_ROWS, CLIENT_ROWS, GRANT_ROWS, YEAR_END_ROWS, accountUses, categoryUses } from '../application/workbookTabRows'
+import { ACCOUNT_ROWS, ASSET_ROWS, CATEGORY_ROWS, GRANT_ROWS, YEAR_END_ROWS, accountUses, categoryUses } from '../application/workbookTabRows'
 import type { RowsOf } from '../application/workbookTabRows'
-import { DEFAULT_SETTINGS, changedSettings } from '../domain/settings'
-import type { Settings } from '../domain/settings'
 import AccountsEditor from './AccountsEditor.vue'
 import CategoriesEditor from './CategoriesEditor.vue'
 import FactTabEditor from './FactTabEditor.vue'
-import { CLIENT_COLUMNS, GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from './factTabColumns'
+import { GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from './factTabColumns'
 import GeneralSettingsForm from './GeneralSettingsForm.vue'
+import { useSettingsSave } from './useSettingsSave'
 
 const TABS: readonly PageTab[] = [
   { label: 'General', value: 'general', icon: 'i-lucide-sliders-horizontal' },
   { label: 'Categories', value: 'categories', icon: 'i-lucide-tags' },
   { label: 'Accounts', value: 'accounts', icon: 'i-lucide-landmark' },
-  { label: 'Clients', value: 'clients', icon: 'i-lucide-users' },
   { label: 'Assets', value: 'assets', icon: 'i-lucide-laptop' },
   { label: 'Grants', value: 'grants', icon: 'i-lucide-hand-coins' },
   { label: 'Year end', value: 'year-end', icon: 'i-lucide-book-check' },
@@ -42,12 +38,6 @@ const TABS: readonly PageTab[] = [
 
 /** The tabs edited as a table of fields, each with its section text. */
 const FACT_TABS = {
-  clients: {
-    title: 'Clients',
-    description: 'Who pays your invoices, one row per IBAN they pay from, so a client paying from two accounts has two rows under one name.',
-    rowNoun: 'client row',
-    tabNoun: 'clients',
-  },
   assets: {
     title: 'Assets',
     description: 'Purchases kept as fixed assets and depreciated, each once. The cost is without the VAT that was reclaimed.',
@@ -68,31 +58,24 @@ const FACT_TABS = {
   },
 } as const
 
-const store = useWorkbook()
-const { state } = store
-const toast = useToast()
+const { state } = useWorkbook()
 const route = useRoute()
+const { settings, saving: savingSettings, save: saveSettings } = useSettingsSave()
 
 /** The tab a link from another screen opened. Its card opens even when this device keeps it collapsed, until another tab is picked. */
 const linkedTab = ref(typeof route.query.tab === 'string' ? route.query.tab : null)
 
 const source = computed(() => state.choice?.source ?? state.workbook?.source ?? null)
-const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
 
 const rowsOfSnapshot: RowsOf = (tab) => state.snapshot?.[tab] ?? []
 const categoriesInUse = computed(() => categoryUses(rowsOfSnapshot))
 const accountsInUse = computed(() => accountUses(rowsOfSnapshot))
 /** The reader's problems and the splits the figures leave out, such as one of a row an asset claims. */
 const problems = computed(() => (state.workbook === null ? [] : presentedWorkbook(state.workbook).problems))
-const billingItems = computed(() => [...new Set(state.workbook?.billingPlan.map((row) => row.item) ?? [])])
-
-const savingSettings = ref(false)
-
 const grantSlugs = computed(() => state.workbook?.grants.map((grant) => grant.slug) ?? [])
 const categorySlugs = computed(() => new Set(state.workbook?.categories.map((category) => category.slug) ?? []))
 
 const factTabEditors = computed(() => ({
-  clients: { columns: CLIENT_COLUMNS, read: readClientRows, newRow: () => ({}) },
   assets: { columns: assetColumns(grantSlugs.value), read: (rows: readonly SheetRow[]) => readAssets(rows, new Set(grantSlugs.value)), newRow: () => ({}) },
   grants: { columns: GRANT_COLUMNS, read: readGrants, newRow: () => ({ release: 'fixed-then-assets' }) },
   'year-end': { columns: YEAR_END_COLUMNS, read: (rows: readonly SheetRow[]) => readYearEnd(rows, categorySlugs.value), newRow: newYearEndLine },
@@ -101,7 +84,6 @@ const factTabEditors = computed(() => ({
 const rowWrites = {
   categories: useRowWrites(CATEGORY_ROWS),
   accounts: useRowWrites(ACCOUNT_ROWS),
-  clients: useRowWrites(CLIENT_ROWS),
   assets: useRowWrites(ASSET_ROWS),
   grants: useRowWrites(GRANT_ROWS),
   'year-end': useRowWrites(YEAR_END_ROWS),
@@ -112,7 +94,6 @@ type RowSection = keyof typeof rowWrites
 const TITLES: Readonly<Record<RowSection, string>> = {
   categories: 'Categories',
   accounts: 'Accounts',
-  clients: 'Clients',
   assets: 'Assets',
   grants: 'Grants',
   'year-end': 'Year end',
@@ -143,24 +124,6 @@ function saving(tab: RowSection): boolean {
 function saveRows(tab: RowSection, change: TabRowsChange): void {
   void rowWrites[tab].write(change, { title: `${TITLES[tab]} saved` }, 'Not saved')
 }
-
-/** Only the keys that changed are written, each checked against the value the app read for it. */
-async function saveSettings(next: Settings): Promise<void> {
-  const rows = state.snapshot?.settings ?? []
-  const changes = changedSettings(settings.value, next).map(({ key, value }) => {
-    const row = rows.find((candidate: SheetRow) => String(candidate.cells.key ?? '').trim().toLowerCase() === key)
-    return { key, value, expected: row === undefined ? null : (row.cells.value ?? '') }
-  })
-  savingSettings.value = true
-  try {
-    await store.changeSettings(changes)
-    toast.add({ title: 'Settings saved', ...(source.value === 'google' ? { description: 'Written to the settings tab of the Sheet.' } : {}), icon: 'i-lucide-check', color: 'success' })
-  } catch (failure) {
-    toast.add({ title: 'Not saved', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
-  } finally {
-    savingSettings.value = false
-  }
-}
 </script>
 
 <template>
@@ -181,16 +144,10 @@ async function saveSettings(next: Settings): Promise<void> {
             title="Workbook settings"
             subtitle="From the settings tab. Theme is kept per device, on Settings."
             collapse-id="workbook.settings"
-            summary="The company and owner facts, the billing plan terms and the bucket labels"
+            summary="The company and owner facts and the bucket labels"
           >
             <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-              <GeneralSettingsForm
-                :settings="settings"
-                :saving="savingSettings || state.writing"
-                :clients="state.workbook.clients"
-                :billing-items="billingItems"
-                @save="saveSettings"
-              />
+              <GeneralSettingsForm :settings="settings" :saving="savingSettings || state.writing" @save="saveSettings" />
             </div>
           </AppCard>
           <LoanBucketSwitch v-if="settings.ownerPayModule" :categories="state.workbook.categories" />

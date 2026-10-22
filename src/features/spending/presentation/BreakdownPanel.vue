@@ -7,17 +7,14 @@ import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
-import PageHeader from '../../../shared/ui/PageHeader.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { priorEqualPeriod } from '../../filters/domain/periodComparison'
 import { periodInWords } from '../../filters/domain/periodInWords'
-import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { useSettings } from '../../settings/application/useSettings'
 import { costLabelsInSentence } from '../../settings/domain/profitAndLossLabels'
 import { profitAndLossLegend, profitAndLossSeries } from '../../trends/presentation/profitAndLossChart'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
-import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { categoryTotals } from '../domain/categoryTotals'
 import { costGroups } from '../domain/costGroups'
 import type { CostGroup } from '../domain/costGroups'
@@ -27,10 +24,17 @@ import type { CostSection } from './CostByCategory.vue'
 import MonthStrip from './MonthStrip.vue'
 import PayeeCategories from './PayeeCategories.vue'
 
+/** Where the money goes in the period: cost by category and who the company paid most. */
 const ledger = useFilteredLedger()
 const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
+
+/** The pages that break the taxes and the owner pay further down, in the Croatian pack. */
+const GROUP_LINKS = {
+  taxes: { label: 'Taxes screen', to: '/taxes' },
+  'owner-pay': { label: 'Owner, Taken', to: { path: '/owner', query: { tab: 'taken' } } },
+} as const
 
 const spending = computed(() => {
   const current = ledger.value
@@ -42,6 +46,7 @@ const spending = computed(() => {
   const groups = costGroups(categoryTotals(profitAndLossRows, filters.period, window), prior === null ? null : categoryTotals(profitAndLossRows, prior, window))
   const groupTitle = (key: CostGroup['key']): string =>
     key === 'money-back' ? 'Money back' : settings.value.bucketLabels[key]
+  const pack = settings.value.ownerPayModule
   const priorLabel = prior === null ? null : periodInWords(prior, window)
   const payees = topCounterparties(scoped, filters.period, window)
   const stripScale = Math.max(0, ...payees.flatMap((payee) => payee.strip.map((cell) => cell.amount)))
@@ -56,6 +61,7 @@ const spending = computed(() => {
       (group): CostSection => ({
         key: group.key,
         title: groupTitle(group.key),
+        ...(pack && group.key in GROUP_LINKS ? { link: GROUP_LINKS[group.key as keyof typeof GROUP_LINKS] } : {}),
         total: group.total,
         priorTotal: group.priorTotal,
         change: group.change,
@@ -75,7 +81,7 @@ const spending = computed(() => {
     payeesSummary:
       payees[0] === undefined
         ? 'Nothing left the company in this period'
-        : `${payees.length} ${payees.length === 1 ? 'counterparty' : 'counterparties'}, the most ${payees[0].label} at ${formatWholeMoney(payees[0].total.amount)}`,
+        : `Top: ${payees[0].label}, ${formatWholeMoney(payees[0].total.amount)}, of ${payees.length} ${payees.length === 1 ? 'counterparty' : 'counterparties'}`,
     payees: payees.map((payee) => ({
       key: payee.key,
       label: payee.label,
@@ -97,65 +103,57 @@ const spending = computed(() => {
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
-    <PageHeader title="Spending" description="Where the money goes, and who it goes to." />
-    <LedgerGate>
-      <template v-if="ledger && spending">
-        <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
+  <div v-if="spending" class="flex flex-col gap-6">
+    <CostByCategory
+      :sections="spending.sections"
+      :subtitle="spending.priorLabel === null ? 'No earlier period to compare' : `Against ${spending.priorLabel}`"
+      :definition="spending.definition"
+      :legend="spending.legend"
+      :compared="spending.priorLabel !== null"
+    />
 
-        <div class="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <CostByCategory
-            :sections="spending.sections"
-            :subtitle="spending.priorLabel === null ? 'No earlier period to compare' : `Against ${spending.priorLabel}`"
-            :definition="spending.definition"
-            :legend="spending.legend"
-            :compared="spending.priorLabel !== null"
-          />
-
-          <AppCard
-            title="Who the company paid most"
-            subtitle="Money out only, grouped by IBAN or name."
-            collapse-id="spending.payees"
-            :summary="spending.payeesSummary"
-            data-testid="top-payees"
-          >
-            <p v-if="spending.payees.length === 0" class="px-5 py-8 text-sm text-muted">Nothing left the company in this period.</p>
-            <div v-else class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-              <table class="data-table w-full text-sm">
-                <thead>
-                  <tr>
-                    <th scope="col" class="text-start">Counterparty</th>
-                    <th scope="col" class="hidden @lg:table-cell"><span class="sr-only">The last 12 months</span></th>
-                    <th scope="col" class="text-end">Rows</th>
-                    <th scope="col" class="text-end">Paid</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="payee in spending.payees" :key="payee.key">
-                    <th scope="row" class="cell-wraps w-full text-start font-normal">
-                      <div class="payee-cell flex flex-col gap-1">
-                        <DrillLink :to="payee.to" class="min-w-0 text-highlighted"><span class="block break-words">{{ payee.label }}</span></DrillLink>
-                        <PayeeCategories :payee="payee.label" :categories="payee.categories">
-                          <UBadge v-if="payee.rhythm" :label="payee.rhythm" color="neutral" variant="subtle" size="sm" class="shrink-0" />
-                        </PayeeCategories>
-                      </div>
-                    </th>
-                    <td class="hidden @lg:table-cell"><MonthStrip :cells="payee.strip" :scale="spending.stripScale" /></td>
-                    <td class="figure text-end text-muted">{{ payee.count }}</td>
-                    <td class="text-end">
-                      <DrillLink :to="payee.to" :label="`${payee.label}, open the rows`">
-                        <MoneyText :cents="payee.total" precision="whole" />
-                      </DrillLink>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </AppCard>
-        </div>
-      </template>
-    </LedgerGate>
-  </section>
+    <AppCard
+      title="Who the company paid most"
+      subtitle="Money out only, grouped by IBAN or name."
+      collapse-id="analysis.payees"
+      :summary="spending.payeesSummary"
+      start-collapsed
+      data-testid="top-payees"
+    >
+      <p v-if="spending.payees.length === 0" class="px-5 py-8 text-sm text-muted">Nothing left the company in this period.</p>
+      <div v-else class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+        <table class="data-table w-full text-sm">
+          <thead>
+            <tr>
+              <th scope="col" class="text-start">Counterparty</th>
+              <th scope="col" class="hidden @lg:table-cell"><span class="sr-only">The last 12 months</span></th>
+              <th scope="col" class="text-end">Rows</th>
+              <th scope="col" class="text-end">Paid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="payee in spending.payees" :key="payee.key">
+              <th scope="row" class="cell-wraps w-full text-start font-normal">
+                <div class="payee-cell flex flex-col gap-1">
+                  <DrillLink :to="payee.to" class="min-w-0 text-highlighted"><span class="block break-words">{{ payee.label }}</span></DrillLink>
+                  <PayeeCategories :payee="payee.label" :categories="payee.categories">
+                    <UBadge v-if="payee.rhythm" :label="payee.rhythm" color="neutral" variant="subtle" size="sm" class="shrink-0" />
+                  </PayeeCategories>
+                </div>
+              </th>
+              <td class="hidden @lg:table-cell"><MonthStrip :cells="payee.strip" :scale="spending.stripScale" /></td>
+              <td class="figure text-end text-muted">{{ payee.count }}</td>
+              <td class="text-end">
+                <DrillLink :to="payee.to" :label="`${payee.label}, open the rows`">
+                  <MoneyText :cents="payee.total" precision="whole" />
+                </DrillLink>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </AppCard>
+  </div>
 </template>
 
 <style scoped>

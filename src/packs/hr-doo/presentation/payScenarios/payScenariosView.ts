@@ -4,39 +4,11 @@ import type { DrillTarget } from '../../../../features/filters/domain/drillTarge
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
-import type { RuleId } from '../../ruleset/ruleset'
-import { isWatchedConfidence } from '../../ruleset/schema'
-import type { RuleCitation, WatchedConfidence } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { PayScenarios } from '../../domain/scenarios/payScenarios'
 import type { ScenarioNote, ScenarioOutcome, ScenarioWarning } from '../../domain/scenarios/scenarioOutcome'
-import { chipsOf, figureLabel, ruleChips, stepsOf } from '../tracedFigureView'
-import type { BuildUpStep, RuleChip } from '../yearEnd/LineBuildUp.vue'
-
-/** What a figure opens on: its steps, the rows behind them and the rules it rests on. */
-export interface FigureDetail {
-  readonly title: string
-  readonly subtitle: string
-  readonly cents: number
-  readonly to: RouteLocationRaw | null
-  readonly steps: readonly BuildUpStep[]
-  readonly rules: readonly RuleChip[]
-  /** Rules among them the ruleset marks estimated, pending or unconfirmed for the year. */
-  readonly watched: readonly WatchedRules[]
-}
-
-/** The rules a figure rests on that carry one watched mark. */
-export interface WatchedRules {
-  readonly confidence: WatchedConfidence
-  readonly rules: readonly RuleChip[]
-}
-
-/** What each watched mark says about the values, before the rules are named. */
-export const WATCHED_WORDING: Readonly<Record<WatchedConfidence, string>> = {
-  estimate: 'Values the ruleset only estimates',
-  pending: 'Values set by a bill or a draft that is not law yet',
-  unconfirmed: 'Values not yet confirmed against their source',
-}
+import { figureDetail, watchedGroups } from '../tracedFigureView'
+import type { FigureDetail, WatchedRules } from '../tracedFigureView'
 
 export interface ComparedCell {
   readonly cents: number
@@ -189,36 +161,6 @@ export function noteText(note: ScenarioNote): string {
   }
 }
 
-function citationsIn(figure: TracedFigure): RuleCitation[] {
-  return [...figure.rules, ...figure.steps.flatMap(citationsIn)]
-}
-
-/** Watched citations grouped by their mark, estimates first, each rule once. */
-function watchedGroups(citations: readonly RuleCitation[]): WatchedRules[] {
-  const order: readonly WatchedConfidence[] = ['estimate', 'pending', 'unconfirmed']
-  return order.flatMap((confidence) => {
-    const ids = citations.filter((citation) => citation.confidence === confidence).map((citation) => citation.ruleId as RuleId)
-    return ids.length === 0 ? [] : [{ confidence, rules: chipsOf(ids) }]
-  })
-}
-
-/** The watched rules anywhere in the figures' build-ups, grouped by their mark. */
-export function watchedIn(figures: readonly TracedFigure[]): WatchedRules[] {
-  return watchedGroups(figures.flatMap(citationsIn).filter((citation) => isWatchedConfidence(citation.confidence)))
-}
-
-/** A figure ready to open on its build-up. */
-export function figureDetail(figure: TracedFigure, subtitle: string, link: (drill: DrillTarget | null) => RouteLocationRaw | null): FigureDetail {
-  return {
-    title: figureLabel(figure),
-    subtitle,
-    cents: figure.amount,
-    to: link(figure.drill),
-    steps: stepsOf(figure, (step) => link(step.drill)),
-    rules: ruleChips(figure.rules),
-    watched: watchedIn([figure]),
-  }
-}
 
 export interface ShownScenarios {
   readonly columns: readonly ScenarioColumn[]

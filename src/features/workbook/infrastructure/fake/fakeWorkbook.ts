@@ -252,6 +252,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
             ['hr_birth_year', 1990],
             ['hr_pension_pillar_2', true],
             ['hr_company_registered', '2025-05-12'],
+            ['hr_owner_loan_interest', 0.025],
             ['billing_monthly_amount', 7200],
             ['billing_monthly_item', 'Monthly Fee'],
             ['billing_subscription_amount', 60],

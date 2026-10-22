@@ -107,10 +107,10 @@ describe('what keeps an invoice from being made', () => {
 
   it('needs the issuer’s details, the client’s address and reverse charge, and lines above zero', () => {
     expect(invoiceProblems(issuer, client, [line])).toEqual([])
-    expect(invoiceProblems({ ...issuer, vatId: '', place: '' }, client, [line])).toEqual(['Workbook, General needs your VAT ID, the place of issue under Invoices.'])
+    expect(invoiceProblems({ ...issuer, vatId: '', place: '' }, client, [line])).toEqual(['The invoice terms on Invoicing, Clients need your VAT ID, the place of issue.'])
     expect(invoiceProblems(issuer, { ...client, invoicing: { ...client.invoicing, address: '', reverseCharge: false } }, [{ description: '', amount: euros(0) }])).toEqual([
-      'Workbook, Clients needs an address for North Ltd.',
-      'The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for North Ltd on Workbook, Clients if it accounts for the VAT, or make this invoice elsewhere.',
+      'Invoicing, Clients needs an address for North Ltd.',
+      'The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for North Ltd on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.',
       'Every line needs a description.',
       'Every line needs an amount above zero.',
     ])

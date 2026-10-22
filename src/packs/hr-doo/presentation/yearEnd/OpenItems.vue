@@ -2,6 +2,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { OpenItemGroup } from '../../domain/yearEnd/yearEndOpenItems'
+import type { FigureDetail } from '../tracedFigureView'
 import type { RuleChip } from './LineBuildUp.vue'
 
 export interface OpenItemView {
@@ -12,16 +13,20 @@ export interface OpenItemView {
   readonly settled: boolean
   readonly cents: number | null
   readonly to: RouteLocationRaw | null
+  /** A figure with no rows of its own, such as interest worked out per loan, opens its build-up instead. */
+  readonly detail: FigureDetail | null
   readonly rules: readonly RuleChip[]
 }
 </script>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import BuildUpButton from '../BuildUpButton.vue'
+import FigureDialog from '../FigureDialog.vue'
 import { GROUP_WORDING } from './yearEndWording'
 
 /** The items to settle with the accountant, by group, each with what would settle it. */
@@ -30,6 +35,14 @@ const props = defineProps<{
 }>()
 
 const ORDER: readonly OpenItemGroup[] = ['unexplained', 'judgement', 'completeness', 'compliance']
+
+const opened = ref<FigureDetail | null>(null)
+const dialogOpen = ref(false)
+
+function openDetail(detail: FigureDetail): void {
+  opened.value = detail
+  dialogOpen.value = true
+}
 
 const groups = computed(() =>
   ORDER.map((group) => ({ group, wording: GROUP_WORDING[group], items: props.items.filter((item) => item.group === group) })).filter((entry) => entry.items.length > 0),
@@ -54,7 +67,8 @@ const groups = computed(() =>
           <div class="flex min-w-0 flex-1 flex-col gap-1">
             <div class="flex items-baseline justify-between gap-3">
               <p class="min-w-0 text-sm text-highlighted">{{ item.title }}</p>
-              <DrillLink v-if="item.cents !== null" :to="item.to" :label="`${item.title}, open the rows`" class="shrink-0">
+              <BuildUpButton v-if="item.detail !== null" :cents="item.detail.cents" :label="item.title" class="shrink-0 text-sm text-toned" @open="openDetail(item.detail)" />
+              <DrillLink v-else-if="item.cents !== null" :to="item.to" :label="`${item.title}, open the rows`" class="shrink-0">
                 <MoneyText :cents="item.cents" class="text-sm text-toned" />
               </DrillLink>
             </div>
@@ -68,6 +82,7 @@ const groups = computed(() =>
         </li>
       </ul>
     </section>
+    <FigureDialog v-model:open="dialogOpen" :detail="opened" />
   </div>
 </template>
 

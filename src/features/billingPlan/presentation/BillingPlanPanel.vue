@@ -6,7 +6,7 @@ import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { yearOf } from '../../../shared/calendar/civilDate'
-import { parseMonthKey, yearOfMonth } from '../../../shared/calendar/monthKey'
+import { parseMonthKey } from '../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { formatPercent } from '../../../shared/money/moneyFormat'
@@ -14,16 +14,15 @@ import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
-import KpiTile from '../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
-import PageHeader from '../../../shared/ui/PageHeader.vue'
-import InvoiceRunDialog from '../../invoicing/presentation/InvoiceRunDialog.vue'
+import { TERMS_LINK } from '../../invoicing/presentation/invoicingLinks'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import { BILLING_PLAN_COLUMNS } from '../../workbook/infrastructure/billingPlanTabReader'
 import { spreadsheetLink } from '../../workbook/infrastructure/sheetRowLink'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useBillingPlan } from '../application/useBillingPlan'
+import { fillRestOfYear } from '../domain/fillRestOfYear'
 import BillingMonthList from './BillingMonthList.vue'
 import BillingRowDialog from './BillingRowDialog.vue'
 import BillingRowList from './BillingRowList.vue'
@@ -31,8 +30,8 @@ import { billingYears, billingView } from './billingView'
 import type { BillingRowLine } from './billingView'
 import { itemColours } from './billingCharts'
 import FillYearDialog from './FillYearDialog.vue'
-import { fillRestOfYear } from '../domain/fillRestOfYear'
 
+/** What is to be invoiced in a year and what the invoices billed of it, the newest plan rows first. */
 const { state } = useWorkbook()
 const route = useRoute()
 const router = useRouter()
@@ -70,20 +69,7 @@ const view = computed(() => {
   const current = figures.value
   const workbook = state.workbook
   const shown = year.value
-  if (current === null || workbook === null || shown === null) return null
-  const { month: _month, ...others } = route.query
-  const query = { ...others, year: String(shown) }
-  return billingView(
-    current,
-    workbook,
-    shown,
-    {
-      month: (month) => ({ query: { ...query, year: String(yearOfMonth(month)), month }, hash: `#billing-month-${month}` }),
-      rows: { query, hash: '#billing-rows-card' },
-      months: { query, hash: '#billing-months-card' },
-    },
-    chartTokens(),
-  )
+  return current === null || workbook === null || shown === null ? null : billingView(current, workbook, shown, chartTokens())
 })
 
 const clients = computed(() => state.workbook?.clients ?? [])
@@ -111,7 +97,6 @@ const fill = computed(() => {
 const fillCount = computed(() => (fill.value?.kind === 'rows' ? fill.value.rows.length : 0))
 const fillLabel = computed(() => (asOf.value !== null && fillYear.value === yearOf(asOf.value) ? `Fill the rest of ${fillYear.value}` : `Fill ${fillYear.value}`))
 
-const runOpen = ref(false)
 const editing = ref<BillingRowLine | null>(null)
 const rowDialogOpen = ref(false)
 const fillDialogOpen = ref(false)
@@ -140,32 +125,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
-    <PageHeader title="Billing plan" description="What is to be invoiced and what the invoices billed of it, the newest plan rows first.">
-      <template v-if="tabState === 'rows'" #actions>
-        <UButton
-          v-if="(figures?.expected.length ?? 0) > 0"
-          label="Make invoice"
-          icon="i-lucide-file-plus-2"
-          size="sm"
-          :disabled="state.writing"
-          data-testid="billing-make-invoice"
-          @click="runOpen = true"
-        />
-        <div v-if="years.length > 1" class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">
-          <UButton
-            v-for="entry in years"
-            :key="entry"
-            :label="String(entry)"
-            size="sm"
-            color="neutral"
-            :variant="entry === year ? 'solid' : 'outline'"
-            :aria-pressed="entry === year"
-            @click="pickYear(entry)"
-          />
-        </div>
-      </template>
-    </PageHeader>
+  <div class="flex flex-col gap-6">
     <LedgerGate>
       <UEmpty
         v-if="tabState === 'missing'"
@@ -215,88 +175,45 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
         </template>
       </UEmpty>
       <template v-else-if="view && figures">
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="billing-tiles">
-          <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
+        <div v-if="years.length > 1" class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">
+          <UButton
+            v-for="entry in years"
+            :key="entry"
+            :label="String(entry)"
+            size="sm"
+            color="neutral"
+            :variant="entry === year ? 'solid' : 'outline'"
+            :aria-pressed="entry === year"
+            @click="pickYear(entry)"
+          />
         </div>
 
-        <AppCard
-          id="billing-months-card"
-          :title="`Month by month, ${year}`"
-          subtitle="Each client's invoices bill its rows oldest first: the rows up to the end of the month they were issued in, then, with €1 or more left, the next month's. Open a month for its rows and the invoices that billed them."
-          collapse-id="billing.months"
-          :summary="view.monthsSummary"
-          start-collapsed
-          :reveal="selectedMonth !== null || route.hash === '#billing-months-card'"
-        >
-          <p v-if="view.months.length === 0" class="px-5 py-8 text-sm text-muted">No plan row is dated in {{ year }}, and no invoice of it went above the plan.</p>
-          <div v-else class="px-4 pt-1 pb-2 sm:px-5">
-            <BillingMonthList :months="view.months" :selected="selectedMonth" :show-client="showClient" />
-          </div>
-        </AppCard>
+        <div data-testid="billing-year-line">
+          <dl class="year-line">
+            <div>
+              <dt>Planned in {{ year }}</dt>
+              <dd><MoneyText :cents="view.yearLine.planned" precision="whole" /></dd>
+            </div>
+            <div>
+              <dt>Invoiced in {{ year }}</dt>
+              <dd><MoneyText :cents="view.yearLine.invoiced" precision="whole" /></dd>
+            </div>
+            <div>
+              <dt>Not yet invoiced</dt>
+              <dd><MoneyText :cents="view.yearLine.notInvoiced" precision="whole" /></dd>
+            </div>
+          </dl>
+          <p class="mt-1 text-xs text-muted">
+            {{ view.yearLine.rowCount }} {{ view.yearLine.rowCount === 1 ? 'plan row' : 'plan rows' }}, {{ view.yearLine.openRowCount }} still open.
+            {{ view.yearLine.issuedInYear }} {{ view.yearLine.issuedInYear === 1 ? 'invoice' : 'invoices' }} issued in the year.
+          </p>
+        </div>
 
         <div class="wide-pair">
-          <div class="grid gap-4 xl:grid-cols-2 3xl:grid-cols-1 3xl:content-start">
-            <AppCard
-              class="xl:col-span-2 3xl:col-span-1"
-              title="Totals over every client"
-              subtitle="Every plan row and every invoice. Each year's invoiced amount goes by the invoice's issue date."
-              data-testid="billing-check"
-            >
-              <div class="check-groups max-w-3xl px-4 pt-3 pb-4 sm:px-5">
-                <dl class="check-group">
-                  <p class="check-heading">All time</p>
-                  <div v-for="line in view.check.sums" :key="line.label" class="check-line">
-                    <dt>{{ line.label }}</dt>
-                    <dd><MoneyText :cents="line.amount" /></dd>
-                  </div>
-                </dl>
-                <dl class="check-group">
-                  <p class="check-heading">Invoiced per year</p>
-                  <div v-for="line in view.check.actual" :key="line.label" class="check-line">
-                    <dt>{{ line.label }}</dt>
-                    <dd><MoneyText :cents="line.amount" /></dd>
-                  </div>
-                </dl>
-              </div>
-            </AppCard>
-
-            <ChartCard
-              title="By item, every year"
-              subtitle="What each kind of item adds up to, year by year. An item keeps its colour on every chart and list."
-              :option="view.itemsChart.option"
-              :description="view.itemsChart.description"
-              :height="Math.max(140, view.itemYears * 56 + 56)"
-            >
-              <template #legend><ChartLegend :entries="view.itemsChart.legend" /></template>
-            </ChartCard>
-
-            <AppCard :title="`By item, ${year}`" subtitle="The year's plan rows by kind, largest first." data-testid="billing-items">
-              <p v-if="view.items.length === 0" class="px-5 py-8 text-sm text-muted">No plan row is dated in {{ year }}.</p>
-              <ul v-else class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
-                <li v-for="entry in view.items" :key="entry.item" class="item-line">
-                  <span class="swatch" :style="{ background: entry.colour }" aria-hidden="true" />
-                  <span class="min-w-0 truncate text-sm text-toned">{{ entry.item }}</span>
-                  <span class="figure text-xs text-muted">{{ formatPercent(entry.share) }}</span>
-                  <MoneyText :cents="entry.amount" class="text-sm text-highlighted" />
-                  <span class="share-bar" aria-hidden="true"><span :style="{ width: `${entry.share * 100}%`, background: entry.colour }" /></span>
-                </li>
-              </ul>
-              <div v-if="references.length > 0" class="border-t border-default px-4 py-3 sm:px-5">
-                <p class="text-xs font-medium text-muted">Terms on Workbook, General</p>
-                <ul class="mt-1 flex flex-col gap-0.5">
-                  <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 text-xs text-muted">
-                    <span class="min-w-0 truncate">{{ entry.label }} as <span class="text-toned">{{ entry.item }}</span>, {{ entry.note }}</span>
-                    <MoneyText :cents="entry.amount!" class="text-toned" />
-                  </li>
-                </ul>
-              </div>
-            </AppCard>
-          </div>
-
           <AppCard
             id="billing-rows-card"
             :title="`Plan rows, ${year}`"
-            collapse-id="billing.rows"
+            collapse-id="invoicing.plan-rows"
             :summary="view.rowsSummary"
             :reveal="route.hash === '#billing-rows-card'"
           >
@@ -327,12 +244,95 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               </div>
             </div>
             <p v-if="view.rows.length === 0" class="px-5 py-8 text-sm text-muted">
-              No plan row is dated in {{ year }}. <DrillLink to="/workbook" in-prose class="text-highlighted">Set the terms</DrillLink> and fill the year, or add a row.
+              No plan row is dated in {{ year }}. <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted">Set the terms</DrillLink> and fill the year, or add a row.
             </p>
             <div v-else class="px-4 pt-2 pb-3 sm:px-5">
               <BillingRowList :rows="view.rows" :show-client="showClient" :editable="!state.writing" @edit="editRow" />
             </div>
           </AppCard>
+
+          <div class="grid gap-4 xl:grid-cols-2 3xl:grid-cols-1 3xl:content-start">
+            <AppCard
+              id="billing-months-card"
+              class="xl:col-span-2 3xl:col-span-1"
+              :title="`Month by month, ${year}`"
+              subtitle="Each client's invoices bill its rows oldest first: the rows up to the end of the month they were issued in, then, with €1 or more left, the next month's. Open a month for its rows and the invoices that billed them."
+              collapse-id="invoicing.months"
+              :summary="view.monthsSummary"
+              start-collapsed
+              :reveal="selectedMonth !== null || route.hash === '#billing-months-card'"
+            >
+              <p v-if="view.months.length === 0" class="px-5 py-8 text-sm text-muted">No plan row is dated in {{ year }}, and no invoice of it went above the plan.</p>
+              <div v-else class="px-4 pt-1 pb-2 sm:px-5">
+                <BillingMonthList :months="view.months" :selected="selectedMonth" :show-client="showClient" />
+              </div>
+            </AppCard>
+
+            <ChartCard
+              title="By item"
+              subtitle="The year's plan rows by kind, largest first, then what each kind adds up to year by year. An item keeps its colour on every chart and list."
+              :option="view.itemsChart.option"
+              :description="view.itemsChart.description"
+              :height="Math.max(140, view.itemYears * 56 + 56)"
+              collapse-id="invoicing.items"
+              :summary="view.itemsSummary"
+              start-collapsed
+              data-testid="billing-items"
+            >
+              <template #legend>
+                <p class="text-xs font-medium text-muted">{{ year }}</p>
+                <p v-if="view.items.length === 0" class="py-2 text-sm text-muted">No plan row is dated in {{ year }}.</p>
+                <ul v-else class="flex flex-col pb-2">
+                  <li v-for="entry in view.items" :key="entry.item" class="item-line">
+                    <span class="swatch" :style="{ background: entry.colour }" aria-hidden="true" />
+                    <span class="min-w-0 truncate text-sm text-toned">{{ entry.item }}</span>
+                    <span class="figure text-xs text-muted">{{ formatPercent(entry.share) }}</span>
+                    <MoneyText :cents="entry.amount" class="text-sm text-highlighted" />
+                    <span class="share-bar" aria-hidden="true"><span :style="{ width: `${entry.share * 100}%`, background: entry.colour }" /></span>
+                  </li>
+                </ul>
+                <div v-if="references.length > 0" class="border-t border-default py-3">
+                  <p class="text-xs font-medium text-muted">
+                    Terms on <DrillLink :to="TERMS_LINK" in-prose class="text-toned">the Clients tab</DrillLink>
+                  </p>
+                  <ul class="mt-1 flex flex-col gap-0.5">
+                    <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 text-xs text-muted">
+                      <span class="min-w-0 truncate">{{ entry.label }} as <span class="text-toned">{{ entry.item }}</span>, {{ entry.note }}</span>
+                      <MoneyText :cents="entry.amount!" class="text-toned" />
+                    </li>
+                  </ul>
+                </div>
+                <p class="border-t border-default pt-3 text-xs font-medium text-muted">Every year</p>
+                <ChartLegend :entries="view.itemsChart.legend" class="mt-2" />
+              </template>
+            </ChartCard>
+
+            <AppCard
+              title="Totals over every client"
+              subtitle="Every plan row and every invoice. Each year's invoiced amount goes by the invoice's issue date."
+              collapse-id="invoicing.totals"
+              :summary="view.totalsSummary"
+              start-collapsed
+              data-testid="billing-check"
+            >
+              <div class="check-groups max-w-3xl px-4 pt-3 pb-4 sm:px-5">
+                <dl class="check-group">
+                  <p class="check-heading">All time</p>
+                  <div v-for="line in view.check.sums" :key="line.label" class="check-line">
+                    <dt>{{ line.label }}</dt>
+                    <dd><MoneyText :cents="line.amount" /></dd>
+                  </div>
+                </dl>
+                <dl class="check-group">
+                  <p class="check-heading">Invoiced per year</p>
+                  <div v-for="line in view.check.actual" :key="line.label" class="check-line">
+                    <dt>{{ line.label }}</dt>
+                    <dd><MoneyText :cents="line.amount" /></dd>
+                  </div>
+                </dl>
+              </div>
+            </AppCard>
+          </div>
         </div>
       </template>
     </LedgerGate>
@@ -347,11 +347,30 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
       :default-client="terms?.client ?? ''"
     />
     <FillYearDialog v-if="fill" v-model:open="fillDialogOpen" :fill="fill" :title="fillLabel" :client-name="clientName" :colours="colours" />
-    <InvoiceRunDialog v-model:open="runOpen" :mode="{ kind: 'new', client: figures?.expected[0]?.client ?? null }" />
-  </section>
+  </div>
 </template>
 
 <style scoped>
+.year-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 2rem;
+  row-gap: 0.5rem;
+}
+
+.year-line dt {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.year-line dd {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ink-strong);
+  font-variant-numeric: tabular-nums;
+}
+
 .check-groups {
   display: grid;
   gap: 1rem;
