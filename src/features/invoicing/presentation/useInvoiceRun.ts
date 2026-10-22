@@ -186,7 +186,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   })
 
   const parsedLines = computed(() => linesOf(lines.value))
-  const total = computed(() => linesTotal(parsedLines.value))
+  const total = computed(() => linesTotal(parsedLines.value.filter((line) => !Number.isNaN(line.amount))))
 
   const document = computed((): InvoiceDocument | null => {
     const terms = settings.value

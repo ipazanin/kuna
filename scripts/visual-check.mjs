@@ -549,7 +549,10 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (drawsCharts && rendered) await new Promise((resolve) => setTimeout(resolve, 1500))
 
     if (visit.linkedPart && rendered) {
-      const landed = await page.evaluate(linkedPartLanded, visit.linkedPart)
+      const landed = await page
+        .waitForFunction(linkedPartLanded, { timeout: 5_000 }, visit.linkedPart)
+        .then(() => true)
+        .catch(() => false)
       if (!landed) fail(scope, `the deep link to #${visit.linkedPart} did not open its card and bring the part to just below the top`)
     }
     if (visit.linkedCard && rendered) {
