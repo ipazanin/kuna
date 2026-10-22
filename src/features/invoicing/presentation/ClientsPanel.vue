@@ -5,13 +5,10 @@ import { useRoute } from 'vue-router'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import { CLIENT_ROWS } from '../../settings/application/workbookTabRows'
 import { CLIENT_COLUMNS } from '../../settings/presentation/factTabColumns'
-import FactTabEditor from '../../settings/presentation/FactTabEditor.vue'
+import FactTabCard from '../../settings/presentation/FactTabCard.vue'
 import { useSettingsSave } from '../../settings/presentation/useSettingsSave'
-import type { TabRowsChange } from '../../workbook/domain/rowChanges'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { readClientRows } from '../../workbook/infrastructure/workbookReader'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
 import { REQUIRED_ISSUER } from '../domain/invoiceDocument'
 import InvoicingTermsForm from './InvoicingTermsForm.vue'
 
@@ -23,11 +20,8 @@ defineProps<{
 
 const { state } = useWorkbook()
 const route = useRoute()
-const clientWrites = useRowWrites(CLIENT_ROWS)
 const { settings, saving, save } = useSettingsSave()
 
-const rows = computed(() => state.snapshot?.clients ?? [])
-const sheetLacks = computed(() => (state.choice?.source ?? state.workbook?.source) === 'google' && (state.snapshot?.meta.missingTabs.includes('clients') ?? false))
 const billingItems = computed(() => [...new Set(state.workbook?.billingPlan.map((row) => row.item) ?? [])])
 
 const termsSummary = computed(() => {
@@ -37,38 +31,22 @@ const termsSummary = computed(() => {
   const billing = client === '' ? 'No client billed on terms' : `${billed?.name || client} billed on terms`
   return `${billing}. ${missing === 0 ? 'Every detail an invoice needs is set.' : `${missing} of the ${REQUIRED_ISSUER.length} details an invoice needs ${missing === 1 ? 'is' : 'are'} missing.`}`
 })
-
-function saveClients(change: TabRowsChange): void {
-  void clientWrites.write(change, { title: 'Clients saved' }, 'Not saved')
-}
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <AppCard
+    <FactTabCard
+      :rules="CLIENT_ROWS"
       title="Clients"
+      description="Who pays your invoices, one row per IBAN they pay from, so a client paying from two accounts has two rows under one name."
       collapse-id="invoicing.clients"
-      :summary="`${rows.length} ${rows.length === 1 ? 'client row' : 'client rows'}`"
+      :columns="CLIENT_COLUMNS"
+      :read="readClientRows"
+      row-noun="client row"
+      tab-noun="clients"
+      saved-title="Clients saved"
       :reveal="linked"
-    >
-      <template #subtitle>
-        Who pays your invoices, one row per IBAN they pay from, so a client paying from two accounts has two rows under one name.
-        <span v-if="sheetLacks" class="mt-2 block text-toned">
-          The Sheet has no clients tab yet. Add one named clients with these headers in row 1, then sync:
-          <span class="identifier">{{ TEMPLATE_COLUMNS.clients.map((column) => column.name).join(', ') }}</span>.
-        </span>
-      </template>
-      <FactTabEditor
-        :rows="rows"
-        :columns="CLIENT_COLUMNS"
-        :read="readClientRows"
-        :new-row="() => ({})"
-        row-noun="client row"
-        tab-noun="clients"
-        :saving="clientWrites.busy.value || state.writing"
-        @save="saveClients"
-      />
-    </AppCard>
+    />
 
     <AppCard
       id="invoicing-terms"

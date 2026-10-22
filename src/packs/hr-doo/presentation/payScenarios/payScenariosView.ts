@@ -1,14 +1,46 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
+import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
+import { payScenarios } from '../../domain/scenarios/payScenarios'
 import type { PayScenarios } from '../../domain/scenarios/payScenarios'
 import type { ScenarioNote, ScenarioOutcome, ScenarioWarning } from '../../domain/scenarios/scenarioOutcome'
-import { figureDetail, watchedGroups } from '../tracedFigureView'
-import type { FigureDetail, WatchedRules } from '../tracedFigureView'
+import { figureDetail } from '../tracedFigureView'
+import type { FigureDetail } from '../tracedFigureView'
+
+/** The pay scenarios of a year, the setting their figures wait for, or why they could not be worked out. */
+export type PayState =
+  | { readonly state: 'needs'; readonly key: string; readonly why: string; readonly setting: RouteLocationRaw }
+  | { readonly state: 'failed'; readonly failure: string }
+  | { readonly state: 'ready'; readonly figures: PayScenarios }
+
+export function payState(workbook: Workbook, year: number, asOf: CivilDate): PayState {
+  const facts = workbook.settings.companyFacts
+  if (facts.companyRegistered === null) {
+    return {
+      state: 'needs',
+      key: 'hr_company_registered',
+      why: 'The tax periods and the corporate tax count from the day the company was registered.',
+      setting: { path: '/settings', hash: '#company-registered' },
+    }
+  }
+  if (facts.residenceCity === '') {
+    return { state: 'needs', key: 'hr_residence_city', why: 'Your city of residence sets the income tax rates of the salary.', setting: { path: '/settings', hash: '#residence-city' } }
+  }
+  try {
+    return { state: 'ready', figures: payScenarios(workbook, year, asOf) }
+  } catch (failure) {
+    if (failure instanceof RangeError) {
+      return { state: 'failed', failure: failure.message }
+    }
+    throw failure
+  }
+}
 
 export interface ComparedCell {
   readonly cents: number
@@ -34,12 +66,6 @@ export interface ScenarioColumn {
   readonly isBase: boolean
   readonly warnings: readonly string[]
   readonly notes: readonly string[]
-}
-
-export interface RefusedScenario {
-  readonly slug: string
-  readonly label: string
-  readonly reasons: readonly string[]
 }
 
 /** One bar of the 100% split: each part of the profit before owner pay, in cents. */
@@ -161,12 +187,10 @@ export function noteText(note: ScenarioNote): string {
   }
 }
 
-
 export interface ShownScenarios {
   readonly columns: readonly ScenarioColumn[]
   readonly lines: readonly ComparedLine[]
   readonly splits: readonly ScenarioSplit[]
-  readonly refused: readonly RefusedScenario[]
 }
 
 /** The chosen scenarios side by side, the base first, each line with its one best value marked and every figure opening its build-up. */
@@ -231,13 +255,5 @@ export function comparedScenarios(result: PayScenarios, chosen: readonly string[
       ],
     }),
   )
-  const refused = result.entries.flatMap((entry): RefusedScenario[] =>
-    entry.kind === 'refused' ? [{ slug: entry.scenario.slug, label: entry.scenario.label || entry.scenario.slug, reasons: entry.guards.map((guard) => guard.reason) }] : [],
-  )
-  return { columns, lines, splits, refused }
-}
-
-/** The year's watched rules across every scenario worked out, grouped by their mark. */
-export function watchedRules(result: PayScenarios): readonly WatchedRules[] {
-  return watchedGroups(result.entries.flatMap((entry) => (entry.kind === 'outcome' ? entry.outcome.watched : [])))
+  return { columns, lines, splits }
 }

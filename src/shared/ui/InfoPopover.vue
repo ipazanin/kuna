@@ -2,10 +2,11 @@
 import UButton from '@nuxt/ui/components/Button.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 
+/** An info button with a definition, or with what the default slot holds, such as a legend. */
 defineProps<{
   /** What the definition is about, read out as "About {subject}". */
   subject: string
-  definition: string
+  definition?: string
 }>()
 </script>
 
@@ -20,7 +21,9 @@ defineProps<{
       class="text-dimmed hover:text-highlighted"
     />
     <template #content>
-      <p class="max-w-72 p-3 text-sm leading-relaxed text-toned">{{ definition }}</p>
+      <slot>
+        <p class="max-w-72 p-3 text-sm leading-relaxed text-toned">{{ definition }}</p>
+      </slot>
     </template>
   </UPopover>
 </template>

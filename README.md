@@ -20,7 +20,7 @@ invoices, and, only for a user who turns the mail draft on, asks for `gmail.comp
 Gmail draft. See *Invoices*.
 
 On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
-start from the empty template. Settings has "Switch data source" for the same three choices.
+start from the empty template. Settings, This device has "Switch data source" for the same three choices.
 
 ## Google sign-in
 
@@ -28,7 +28,7 @@ There is no backend, so there is no refresh token: Google issues those only thro
 code exchange. Instead the app keeps the access token in `localStorage` with its expiry, so a reload
 or a new tab within the hour syncs without a click. A token counts as expired a minute before Google
 says, and is then removed. Switching to a workbook kept in the browser removes it too, and "Sign out
-of Google" in Settings revokes it with `google.accounts.oauth2.revoke` and removes it.
+of Google" on Settings, This device revokes it with `google.accounts.oauth2.revoke` and removes it.
 
 While a token is good, the app syncs on open and whenever the tab becomes visible again, at most
 once every ten minutes after the last read or attempt. Without one, the Sync button works as before,
@@ -76,8 +76,8 @@ menu button, the screen's title and the sync or export control, a navigation dra
 from the left, filters in a bottom sheet behind a button that counts them,
 transactions as cards, and charts with fewer axis labels. A screen's inner tabs make one row that
 sticks under the top bar, with the Filters button at its right end when the tab has filters, and
-the row counts in the band a link lands below. Transactions, Review, Invoicing, Analysis and Owner
-share the phone's width between their tabs. When the tab labels run past 16 characters together,
+the row counts in the band a link lands below. Transactions, Review, Invoicing, Analysis, Owner and
+a closed or ended year on Year share the phone's width between their tabs. An open year and Settings have five, so their row scrolls inside itself. When the tab labels run past 16 characters together,
 the Filters button keeps its icon and its count, and the word stays for a screen reader. A tap on a chart shows its tooltip and a
 "View rows" action, and a second tap on the same mark drills. Every control there is at least 44 px
 square, and the installed app keeps clear of the system bars through the safe-area insets. From
@@ -99,9 +99,9 @@ of a short page lets it.
 
 From 1920 px (the `3xl` breakpoint) a dashboard screen sets related cards side by side, or a long
 list beside a column of the cards that sum it up: Overview, the Invoices and Plan tabs of Invoicing,
-the Compare tab of Analysis, Taxes and the Who owes whom tab of Owner. The content grows to 160rem beside the sidebar. A screen that is one table,
+the Compare tab of Analysis and the Who owes whom tab of Owner. The content grows to 160rem beside the sidebar. A screen that is one table,
 one list, one form or a long report keeps a 100rem measure instead, so its rows stay readable:
-Transactions, Year end, Forecast, Pay scenarios, Ruleset, Review, Workbook and Settings. The other screens simply
+Transactions, Year, Review and Settings. The other screens simply
 widen. `.wide-pair` in `src/shared/styles/app.css` does the pairing, and the widths are the
 `--container-shell`, `--container-measure` and `--breakpoint-3xl` tokens in `tokens.css`. Below
 1920 px nothing changes.
@@ -116,7 +116,7 @@ ring, 62 to 82% of its radius from 12 o'clock, with the total in the middle as p
 list beside it gives each part's value and share and opens its rows, so it is the chart's table
 too. Each part keeps the colour of what it stands for, such as its bucket, never one picked by its
 rank. A phone sets the ring above the list. A card with a long list or table, such
-as plan rows, invoices, rules or a Workbook editor, has a toggle at the end of its header. Collapsed,
+as plan rows, invoices, rules or a tab editor, has a toggle at the end of its header. Collapsed,
 it shows its title and one summary line, such as the row count or a total. Each card opens
 expanded unless its screen says otherwise, and this device remembers the choice in `localStorage`
 under `ledgerboard.card.` and the card's id, such as `invoicing.months`. Without storage the card keeps
@@ -129,7 +129,7 @@ A card fits its content without sideways scroll. Where two cards would not fit s
 stack. A table in a narrow card gives way first: names and descriptions wrap, a change, a category
 or a due date moves under its row's name, and a secondary column such as the account, the family or the month strip drops out
 below a container width (Tailwind's `@container` variants, so a card answers to its own width, not
-the window's). Only the Workbook editors, where every column is an input, scroll sideways, and
+the window's). Only the tab editors, where every column is an input, scroll sideways, and
 `check:visual` fails on any other card that does. A popover stays inside the window and opens
 beside the row it belongs to, not over it, where there is room.
 
@@ -140,8 +140,9 @@ month's income and costs. "Waiting for you" lists, across the whole workbook and
 filters, each job with something to do, with a link to the page that does it: rows to review and
 reimbursements with no cost on file (Review), invoices the billing plan expects by this month that
 are not made yet (Invoicing, Plan, on the oldest month), invoices past their due date (Invoicing), and
-a corporate tax payment due this month or overdue (Taxes). The owner pay jobs need the
-`owner_pay_module`, and the tax one `hr_company_registered`. A job already late has a red dot, and the
+a complete month in which a watched tax such as the payroll contributions had no payment, and a
+corporate tax payment due this month or overdue (both Year, Taxes, at their cards). The owner pay
+jobs need the `owner_pay_module`, and the corporate tax one `hr_company_registered`. A job already late has a red dot, and the
 card is gone when nothing waits. `waitingJobs` in `src/features/overview/presentation/waitingForYou.ts`
 builds it. Below it sit the tiles (cash on hand, net over
 the last 12 months, monthly costs, and runway at the last three months' cost with the twelve months'
@@ -152,7 +153,14 @@ spent and its middle says how much more went out than came in. "Accounts", colla
 account's newest balance.
 
 **Transactions** has two tabs. Rows is the filtered list of every row behind the figures, and Import
-adds a statement, as *Import* describes.
+adds a statement, as *Import* describes. A click on any figure opens Rows with the filters that
+reproduce it. "Change category" on a row a rule or a person settled files it in another category: it
+writes the row's `category` and `flagged_by` with the review label, as Review's Recategorise does,
+with Undo in the toast and under "Changes in this session". Before the write the dialog names the
+rule that files such rows elsewhere, since the row then shows on Review's Rules tab among that
+rule's exceptions, and the toast opens the rule. A row still waiting is settled on Review. On a
+part of a split row the action opens the split editor, since the `splits` tab holds the parts'
+categories.
 
 **Review** has two tabs. Queue, with its count, holds the filters, the rows that wait for a person,
 the reimbursements with no cost on file and "Changes in this session", collapsed. A row of the queue
@@ -173,8 +181,6 @@ of the ledger with income above zero and costs below, its slider setting the per
 rolling net and, collapsed, the cumulative net. Compare sets a year, quarter or custom range
 against the equal period before it, so its bar offers only those and reads a rolling period as the
 last complete quarter: profit and loss line by line, and each category's change, ten at a time.
-A drill to Analysis opens the tab its route names, `breakdown`, `over-time` or `compare` in
-`filterStore.ts`.
 
 ## The workbook format
 
@@ -196,7 +202,7 @@ take their defaults.
 | `owner-advances` | `date`, `amount` (above zero), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount, the owner's private share of a company payment, is reported and left out, since that share is a part on the `splits` tab, as *Split rows* describes. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
 | `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once. |
-| `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the Workbook editor, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
+| `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the editor on Year, Statements, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
 | `plan` | `year`, `month` (1 to 12, blank for every month), `item` (a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount`, `note`, and the optional `date` (a date cell) and `group`. `amount` is positive for income and costs alike, a cost without the VAT that is reclaimed. A category is listed once per year and month. A `dividend` needs its month. A `purchase` needs `date`, the day it is bought and put in use, and `group`, one of the `assets` tab's groups, and takes its month from the date. Its `note` says what it is, and two purchases may share a day. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount` and leaves `month` blank: without a `date` it holds from 1 January, and a second row with a `date` switches to another scenario from that day. Planned revenue belongs on `outgoing-plan`, so a `revenue` row is reported and left out. The rules across rows are the plan guards of *Forecast*. |
 | `splits` | `date` (a date cell), `account`, `row_amount` and `row_balance`, which find one ledger row, then the part's `amount`, `category` and the optional `note`: one row per part of a bank row that paid for more than one thing. The parts of a row share its four key cells, as *Split rows* describes. |
 | `dismissed` | `kind` (`not-covered` or `exception`), `key`, the optional `category` and the optional `dismissed_on` (a date cell): one row per group of "Confirmed rows no rule repeats" that a person dismissed on Review. `key` is the group's counterparty as counterparty filters key it, `iban:` and the IBAN or `name:` and the folded name, so the group stays hidden as new rows join it. An exception adds `|` and the id of the rule it differs from, so dismissing it leaves the same counterparty's exceptions to other rules in view. `category` is where most of its rows were on the day. A row without a kind or a key, or a second row for the same kind and key, is reported and left out. |
@@ -212,8 +218,8 @@ reversal, also waits for review until a person confirms it.
 ### Settings keys
 
 A blank value means the default. An unknown key is kept and reported. A value that does not hold
-falls back to the default and is reported with its row, in the import summary and on the Workbook
-screen. The
+falls back to the default and is reported with its row, in the import summary and on Settings,
+General. The
 defaults are how the app behaved before settings existed, so a Sheet without a `settings` tab reads
 as before.
 
@@ -229,7 +235,7 @@ as before.
 | `label_owner_pay` | `Owner pay` | Same for `owner-pay`. |
 | `label_financing` | `Financing` | Same for `financing`. |
 | `label_neutral` | `Neutral` | Same for `neutral`. |
-| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Taxes and Owner screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
+| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Owner and Year screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
 | `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. Review's rule coverage groups such a row by the merchant after ` · ` in its counterparty, and a rule made from it tests `counterparty_contains` on that merchant, since the IBAN is the bank's. An entry that is not an IBAN is reported and the list stays blank. |
 | `billing_monthly_amount` | blank | The fee invoiced for each worked month. "Fill the rest of the year" adds a row of it for every month to December. |
@@ -257,17 +263,17 @@ as before.
 | `hr_owner_loan_interest` | `0%` | The yearly interest rate the owner's loans from the company carry, as a percentage cell such as `2%`, or text such as `2%` or `0.02`. A number above 1, such as `2`, is refused, since it reads as 200%. Below the income tax law's rate the difference is a benefit in kind, as *Taxes and Owner* describes. |
 | `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves. A profile that cannot be read is reported and not offered. |
 
-The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack. Workbook,
+The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack. Settings,
 General shows them while `owner_pay_module` is on. They belong in the workbook and never in the app.
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
-Owner earns, Kept). The theme is a choice of this device on Settings, not a workbook setting:
+Owner earns, Kept). The theme is a choice of this device on Settings, This device, not a workbook setting:
 System, the default, follows the device's own setting, also when it changes while the app is open.
 Light or Dark is remembered on this device, and System forgets it.
 
 ## Taxes and Owner
 
-Two screens for a Croatian d.o.o., shown while `owner_pay_module` is on. They pick categories by
+Owner and the Year screen's Taxes tab serve a Croatian d.o.o., shown while `owner_pay_module` is on. They pick categories by
 the `roles` column, never by name:
 
 | Role | What it selects |
@@ -289,12 +295,12 @@ the `roles` column, never by name:
 | `prepaid-annual` | Paid once for a year ahead, such as an annual insurance policy |
 | `non-deductible` | Costs the corporate tax never allows, such as fines or private costs |
 
-Assets reads `capital-purchase` and `grant`. The accrual engine reads every role from `arrears`
-down, as *Accrual year* describes, and the Year end screen shows its figures.
+The Assets tab of Year reads `capital-purchase` and `grant`. The accrual engine reads every role from
+`arrears` down, as *Accrual year* describes, and the Year screen shows its figures.
 
 The effective tax rate is the taxes bucket, paid less refunded, over client revenue. A tax refund
 belongs in the taxes bucket. Whether loans count as owner pay is the bucket of the two loan
-categories on the `categories` tab, which "Loans to the owner count as owner pay" on Workbook,
+categories on the `categories` tab, which "Loans to the owner count as owner pay" on Settings,
 General switches between `owner-pay` and `financing`. The loan book holds everything the owner owes
 the company: loans and private costs on an `owner-loan-out` category, the owner's part of a split
 company payment among them. Credits on an `owner-loan-repaid` category repay them, and so does a
@@ -339,7 +345,7 @@ the owner paid, less what it reimbursed. Positive means the owner owes the compa
 the company paid in full counts as lent only when its row is in a category with the `owner-loan-out`
 role. Filed as an ordinary cost with no part split off, it counts in costs and not in net owed.
 
-**Owner** has Add advance and Compare pay mixes, which opens Pay scenarios, in its header, and two
+**Owner** has Add advance and Compare pay mixes, which opens Year, Pay for the year after the newest booking, in its header, and two
 tabs. Who owes whom is all time over the whole ledger, so it has no filters: the Net owed tile, this
 year's benefit in kind when a loan had a balance this year, a line saying how many reimbursements with no cost on file wait on Review,
 the benefit in kind year by year, every loan with the repayments that closed it and every cost the
@@ -360,8 +366,9 @@ loan, from the day after it was lent to the day it was repaid, a day being a 365
 loan from the employer to the employee, so the benefit reads the loan book, what the owner owes the
 company, and never the costs the owner paid for the company. Owner shows it for each year a loan had
 a balance in, the current year up to the newest booking, and each figure opens its build-up: one
-line per loan with its days owed and its rows, and the rule. Year end shows the closed year's figure
-as an open item with the same build-up, and as settled when the loans carry at least the law's rate.
+line per loan with its days owed and its rows, and the rule. Year, Accountant shows the closed year's figure
+as an open item with the same build-up, up to the newest booking as Owner counts it, and as settled
+when the loans carry at least the law's rate.
 Whether the benefit is grossed up through payroll is unconfirmed, as the rule's note says. The same
 rate the loans carry comes off the related-party rate of `hr.cit.related-party-rate`, the corporate
 tax adjustment that reaches a resident owner only while the company has a tax loss, and off the
@@ -398,7 +405,7 @@ balances and cash on hand stay as they were. A part takes its own category's tim
 never the row's, so a category with the `arrears` role moves its part to the month before it was
 paid. The review queue, rule coverage and the rules, the billing plan, the writes and the import
 summary keep the rows as read, since a person reviews and a rule files the row the bank booked.
-Workbook, General lists the reader's problems with the splits the figures leave out.
+Settings, General lists the reader's problems with the splits the figures leave out.
 
 Transactions lists a split row as the bank row, badged with its number of parts, with the parts
 under it, each one a row of its own that filters and drills like any other. A filter that keeps one
@@ -414,9 +421,10 @@ beforehand.
 
 ## Assets
 
-A pack screen, shown while `owner_pay_module` is on, over the `assets` and `grants` tabs. The
-register lists each asset with its yearly rate from `hr.cit.depreciation-rates`, this year's
-charge, the depreciation so far and the book value today. An asset's name opens the ledger debit
+The Assets tab of the Year screen, over the `assets` and `grants` tabs, which "Asset rows" and
+"Grant rows" at its foot edit as *Settings screen* describes for a tab. `#asset-rows` and `#grant-rows`
+open them. The register lists each asset with its yearly rate from `hr.cit.depreciation-rates`, the
+charge of the year picked, the depreciation so far and the book value today. An asset's name opens the ledger debit
 that paid for it: its `ledger_reference` found in a row's reference or description, or else a debit
 on a `capital-purchase` category of its net cost, with or without VAT at the standard rate. Assets
 with no payment, and capital purchases on no asset row, are listed under the register. So is a
@@ -426,13 +434,15 @@ written off when put in use. A split of a payment an asset claims is refused, so
 always matches whole bank rows.
 
 Depreciation is straight-line from the month after an asset is put in use, each year rounded to the
-cent. A chart draws each asset's book value by month until it reaches zero, and a list gives the
-depreciation of every year with each asset's charge behind it. Beside it, each grant shows what it
+cent. "Book value over time", collapsed, draws each asset's book value by month until it reaches
+zero, and "Depreciation per year", collapsed, gives every year with each asset's charge behind it.
+"The grant beside it", under the register, shows for each grant what it
 releases per year, what stays deferred, the day its employment condition ends, and what the
-clawback terms would take back if employment ended today. When the `year-end` tab has the
+clawback terms would take back if employment ended today. Book values, what stays deferred and the
+clawback are as of today in every year. The depreciation tile and the register's charge follow the year. When the `year-end` tab has the
 accountant's `grant` lines for a year, the residual against them is shown.
 
-"Show doubled rates" puts `rates=doubled` in the address and recomputes the screen at twice the
+"Show doubled rates" puts `rates=doubled` in the address and recomputes the tab at twice the
 group rates, which the law allows. Nothing is saved. A table then gives, per year, the change in
 depreciation, in the grant released with it, in profit before tax, and in profit tax at that year's
 `hr.cit.rate`. A grant released with the depreciation of the assets it paid for rises by the same
@@ -627,44 +637,6 @@ of the last complete month the ledger has not paid yet. When the payout and its 
 the option gives the largest payout the cash covers. The figures are for planning with the
 accountant, never filing advice.
 
-## Forecast screen
-
-A pack screen at `/forecast?year=2026`, shown while `owner_pay_module` is on, for the year of the
-newest booking and the one after, such as `/forecast?year=2027`. It is seen on the newest booking
-and needs `hr_company_registered` for the figures. The estimate and pending badges list the rules
-the ruleset only estimates for the year, as Pay scenarios does, and a line gives what the grants
-release in the year and whether the planned owner pay keeps a salary until an employment condition
-ends. A bar chart gives income, costs and profit before tax by month, with
-planned or averaged bars hatched and the running month shaded. The profit and loss and the PD return
-are lists whose lines open on their parts, the months a plan row, the billing plan or an average
-stands in for, their rows and their rules. The corporate tax card sets each payment the schedule expects beside what the
-bank rows paid, with the balance due and the new monthly advance. Dividend capacity switches between
-the three payout options with `payout=interim` or `payout=keep` in the address, warns when the cash
-on the newest booking does not cover the interim payout. "Cash by month" lists each month end, its
-build-up behind it, with the runway above. "Plan against actual" sets plan, actual and the
-difference per line, each opening on its months.
-
-"Plan for 2027", the plan editor, is there with or without the figures. It writes the `plan` tab in
-both modes through the row write path, each change one write with Undo in the toast:
-
-- Owner pay: a scenario of the year from 1 January, and optionally another from a day, which
-  starts on the day after the grants stop requiring the employment. "Stop planning it" deletes the
-  rows. Without a scenario for the year it links to Pay scenarios.
-- Costs and other income: each category with an average or a plan row, with what it takes now. A
-  dialog sets an amount for every month, which starts at the default, and any month of its own.
-  The save adds, changes and deletes rows so the tab holds what the dialog shows, and "Clear the
-  plan" deletes them. The owner pay categories are set by the scenario while one is planned.
-- Purchases: what it is, the day, the net cost and the depreciation group, added, edited and
-  deleted.
-- Dividend: the amount before tax and the month.
-
-A row the forecast does not count shows why under it. A Google Sheet without a `plan` tab gets it
-from the first save, each dialog saying beforehand that it adds the tab with the template's header.
-Revenue is planned on the Plan tab of Invoicing, whose "Fill 2027" writes a later year's fees. Taxes
-lists the same payments for every year from the first tax period, with overdue payments and payments
-no obligation takes called out above them. The figures are for planning with the accountant, never
-filing advice.
-
 ## Pay scenarios
 
 `payScenarios(workbook, year, asOf, rules)` in `src/packs/hr-doo/domain/scenarios/` works out every
@@ -672,9 +644,9 @@ scenario of a year from the `scenarios` tab on the same company figures, with
 `scenarioOutcome(scenario, company, facts, rules)` for each one.
 
 The company figures come from the forecast seen on `asOf`. The forecast reaches the year after the
-newest booking, as the Forecast screen does, so a scenario for that year takes the forecast of its
+newest booking, as the Year page does, so a scenario for that year takes the forecast of its
 own year, plan included, and one for a later year takes the year after the newest booking's
-figures, says so, and applies the rules of its own year. The owner pay the forecast counts, the `owner-pay` bucket and the taxes with
+figures and applies the rules of its own year. The owner pay the forecast counts, the `owner-pay` bucket and the taxes with
 the `owner-pay-tax` role, is taken back out of profit, cash and the PD build-up, so each scenario
 sets its own. Cash starts from cash at the year end with December settled, before the owner pay
 and the year's corporate tax. The owner's own facts are the `hr_` settings keys: city, birth year,
@@ -734,49 +706,115 @@ employment date, then board-only insurance or a job elsewhere. Each pays out the
 dividend, and the first is the base the others are compared with. When no day of the year is free
 of the employment condition, the last two are left out.
 
-## Pay scenarios screen
+## Year screen
 
-A pack screen at `/pay-scenarios?year=2027`, beside Forecast and Owner, shown while
-`owner_pay_module` is on, for the year of the newest booking, the year after, which it opens on,
-and any year a scenario is for. It needs `hr_company_registered` and `hr_residence_city` for the
-figures, and lets the scenarios be edited without them. A banner says the figures are for planning
-with the accountant, a line says when the company figures come from an earlier year, and the
-estimate badge lists the rules the ruleset only estimates for the year.
+A pack screen at `#/year`, shown while `owner_pay_module` is on. The year picker in its header holds
+every year the `year-end` tab has lines for, the year before the newest booking's while the ledger
+reaches into it, the newest booking's year and the one after, as `year=` in the address. Without
+`year=` it opens the newest booking's year. A year is seen one of three ways:
 
-Two to four scenarios are compared side by side, picked with `compare=` in the address, with
+| Year | Tabs |
+|---|---|
+| Closed, with the accountant's lines on the `year-end` tab | Accountant, Statements, Taxes and Assets |
+| Ended, without the accountant's lines yet, such as last year from January to April | Forecast, Statements, Taxes and Assets |
+| Open, the newest booking's year and the one after | Forecast, Plan, Pay, Taxes and Assets |
+
+An ended year's forecast has every month from the ledger, and its Statements tab holds only the
+accountant's lines, open, where the first ones go. A link to a tab its year lacks, such as
+`#/year?tab=accountant`, opens the latest year that has the tab, and picking a year that lacks the
+open tab opens its first one. Another year leaves out `compare=` and `base=`, since its scenarios
+are its own. The planning notice, the rules the forecast and the scenarios rest on that the ruleset
+only estimates for the year, the roles no category carries, a missing `vat` treatment and, for a
+closed year, a blank `hr_company_registered` are said once, under the header.
+
+**Accountant** opens on "Lines at a glance", a ring of the year's accountant lines by status, each
+status opening the Statements tab. A line is `matched` when ours agrees with no adjustment between
+the accrual and the cash view, `explained` when it agrees once the adjustments are made, `judgement`
+when it agrees because it takes the accountant's figure for a choice the ledger cannot show, and
+`open` otherwise. A waterfall leads from the cash net to profit before and after tax, one bar per
+adjustment, with what nothing explains last. Open items list the accountant's choices, any gap to
+the accountant's profit, months no invoice delivers in, purchases with no asset row, and what loans
+to the owner and early asset purchases call for, each with what would settle it. The loans' benefit
+in kind opens its build-up, as *Taxes and Owner* describes. "The bridge, step by step", collapsed,
+is the waterfall as a list with the rules behind each step.
+
+**Statements** sets the accountant's profit and loss, balance sheet and PD lines beside ours on the
+accrual view and on the cash view, the last two collapsed. The cash view puts each booking of the
+year on the line its category counts on, so its profit and loss lines add up to the cash net, and
+its balance sheet holds only cash. Each line opens on how ours is built, every step drilling to its
+rows, with the rules behind it. The tax payment date is checked against a ledger payment of our
+balance due, and the distribution decision against our profit after tax. "Konto lines", collapsed,
+compares the konto lines that share a category as one group beside our figure for those
+categories, with the small inventory their payments bought and the year wrote off beside each one.
+"The accountant's lines", collapsed, edits the `year-end` tab, every year of it, a new line
+starting in the year picked. `#accountant-lines` opens it.
+
+**Forecast** is the year as `forecastYear` sees it on the newest booking, and needs
+`hr_company_registered`. Lines above the tiles say whether the planned owner pay keeps a salary
+until a grant's employment condition ends, which months no invoice delivers in, and how many of the
+year's billing plan rows are not invoiced yet, with a link to Invoicing, Plan. Four tiles give profit
+before and after tax, the corporate tax and cash at the year end. A bar chart gives income, costs
+and profit before tax by month, with planned or averaged bars hatched and the running month shaded.
+The profit and loss and the PD return, both collapsed, are lists whose lines open on their parts,
+the months a plan row, the billing plan or an average stands in for, their rows and their rules.
+"Cash by month", collapsed, lists each month end with its build-up behind it, and the runway above
+them. "Plan against actual", collapsed, sets plan, actual and the difference per line, each opening
+on its months. The corporate tax payments are on the Taxes tab, and what the grants release in the
+year on the Assets tab.
+
+**Plan** is the plan editor for the year, with or without the figures. It writes the `plan` tab in
+both modes through the row write path, each change one write with Undo in the toast:
+
+- Owner pay: a scenario of the year from 1 January, and optionally another from a day, which
+  starts on the day after the grants stop requiring the employment. "Stop planning it" deletes the
+  rows. Without a scenario for the year it links to the Pay tab.
+- Costs and other income: each category with an average or a plan row, with what it takes now. A
+  dialog sets an amount for every month, which starts at the default, and any month of its own.
+  The save adds, changes and deletes rows so the tab holds what the dialog shows, and "Clear the
+  plan" deletes them. The owner pay categories are set by the scenario while one is planned.
+- Purchases: what it is, the day, the net cost and the depreciation group, added, edited and
+  deleted.
+- Dividend: the amount before tax and the month.
+
+A row the forecast does not count shows why under it. A Google Sheet without a `plan` tab gets it
+from the first save, each dialog saying beforehand that it adds the tab with the template's header.
+Revenue is planned on the Plan tab of Invoicing, which the editor links to for the same year, and
+whose "Fill 2027" writes a later year's fees.
+
+**Pay** compares the year's owner pay scenarios, as *Pay scenarios* works them out, and needs
+`hr_company_registered` and `hr_residence_city` for the figures. The scenarios can be edited
+without them. Two to four scenarios are compared, picked with `compare=` in the address, with
 `base=` the one the others are compared against, by default the starting floor salary scenario.
-One 100% bar per scenario splits the profit before owner pay into net to the owner, pillar II, each
-tax and contribution, and what the company keeps. Below it, the lines of each scenario sit side by
-side with the difference to the base, and the best value of a line with a better direction is
-ticked. Every figure, the company figures and the next-100.00 routes open their build-up and
-rules. Warnings and notes follow per scenario. Below the lg breakpoint the table turns into one card
-per line.
+"What the scenarios start from" opens the company figures, each on its build-up. Dividend capacity
+follows, switching between the three payout options with `payout=interim` or `payout=keep` in the
+address, and warning when the cash on the newest booking does not cover the interim payout. One
+100% bar per scenario splits the profit before owner pay into net to the owner, pillar II, each tax
+and contribution, and what the company keeps, and under the bars each scenario has a badge with its
+warnings, or its notes when it has no warning, which opens them. "Side by side", collapsed, sets the
+lines of each scenario beside the base's with the difference to it, and ticks the best value of a
+line with a better direction. Below the lg breakpoint it shows the base and one other scenario,
+picked above the table. "The next 100.00 of company money", collapsed, gives the routes, and every
+figure opens its build-up and rules. "Scenarios for 2027", collapsed unless the year has none, lists
+the year's scenarios as their rows. A component is added, edited or deleted in a dialog, a scenario
+is renamed or copied with all its rows, and "Add the starting scenarios" writes the four for the
+year, asking for the owner's rent. Every change is one write with Undo in the toast, in both modes.
+A Google Sheet without a `scenarios` tab gets it only from that dialog, which says it adds the tab
+with the template's header before it writes the rows.
 
-The editor lists the year's scenarios as their rows. A component is added, edited or deleted in a
-dialog, a scenario is renamed or copied with all its rows, and "Add the starting scenarios" writes
-the four for the year, asking for the owner's rent. Every change is one write with Undo in the
-toast, in both modes. A Google Sheet without a `scenarios` tab gets it only from that dialog, which
-says it adds the tab with the template's header before it writes the rows.
+**Taxes** holds the year's taxes paid and effective tax rate, then "Corporate income tax, expected
+against paid", the payroll cadence, collapsed, "Tax by type" as a ring and "Tax by type, by month",
+collapsed. The corporate tax lists every payment the schedule expects from the first tax period on,
+seen on the newest booking, as *Forecast* describes, with overdue payments and payments no
+obligation takes called out above them. The payroll cadence gives every watched tax month by month
+since its first payment. Both span every year, open themselves when a payment is overdue or a month
+was missed, and are `#corporate-tax` and `#payroll-cadence`. The ring holds each tax category that
+paid out more than it took back in the year, in the colour its band has in the chart, and a refund
+sits under it, so with the ring it makes the taxes paid. The year's figures count every bank row and
+advance, whatever the filters of other screens say.
 
-## Year end
+**Assets** is *Assets* above.
 
-A pack screen at `/year-end?year=2025`, shown while `owner_pay_module` is on, for the years the
-`year-end` tab holds. It sets the accountant's profit and loss, balance sheet and PD lines beside
-ours on the accrual view and on the cash view. The cash view puts each booking of the year on the
-line its category counts on, so its profit and loss lines add up to the cash net, and its balance
-sheet holds only cash. A line is `matched` when ours agrees with no adjustment between the two
-views, `explained` when it agrees once the adjustments are made, `judgement` when it agrees because
-it takes the accountant's figure for a choice the ledger cannot show, and `open` otherwise. Each line
-opens on how ours is built, every step drilling to its rows, with the rules behind it.
-
-A waterfall leads from the cash net to profit before and after tax, one bar per adjustment, with
-what nothing explains last. Konto lines that share a category are compared as one group beside our
-figure for those categories, with the small inventory their payments bought and the year wrote off
-beside each one. The tax payment date is checked against a ledger payment of our
-balance due, and the distribution decision against our profit after tax. Open items list the
-accountant's choices, any gap to the accountant's profit, months no invoice delivers in, purchases
-with no asset row, and what loans to the owner and early asset purchases call for, each with what
-would settle it. The loans' benefit in kind opens its build-up, as *Taxes and Owner* describes. The figures are for planning with the accountant, never filing advice.
+The figures are for planning with the accountant, never filing advice.
 
 ## Billing plan
 
@@ -847,7 +885,7 @@ it, and refuse when none or several do. Undo takes an addition back, puts a dele
 row it stood on and an edited row back as it was. Without the tab the Plan tab names the headers to
 add, and in Excel mode starts one from its first row.
 
-**Clients** holds the clients tab as an editor, as the *Workbook screen* edits a tab, and "Billing and
+**Clients** holds the clients tab as an editor, as *Settings screen* describes for a tab, and "Billing and
 invoice terms", collapsed, the `billing_` and `invoice_` settings with their own Save, written as the
 settings are. `#invoicing-terms` opens the terms.
 
@@ -937,9 +975,9 @@ deletes it, so the exported files are its only other copies.
   `ledgerboard-<company or sheet name>-<yyyy-mm-dd>.xlsx`. Importing an export gives the same
   workbook. When changes have gone a week or more without an export, the sidebar says so.
 - **Editing.** Every tab a person keeps by hand is edited the same way in both modes, as the
-  *Workbook screen* and *Write-back* describe. In Excel mode a change replaces the stored workbook
-  once it reads back, and counts towards the export reminder. Settings keeps what belongs to this
-  device: the data source, Google sign-out, the theme and the privacy notes.
+  *Settings screen* and *Write-back* describe. In Excel mode a change replaces the stored workbook
+  once it reads back, and counts towards the export reminder. Settings, This device keeps what
+  belongs to this device: the data source, Google sign-out, the theme and the privacy notes.
 
 Switching from Excel mode to another source deletes the workbook kept in the browser, once the new
 one has been read. SheetJS loads only on the first import, export or template download, as its own
@@ -1029,25 +1067,42 @@ In Google mode the Apps Script may file the same statements on its morning run. 
 same bank references, so whichever writes first, the other finds the rows on the ledger and writes
 nothing, and the dry run says so.
 
-## Workbook screen
+## Settings screen
 
-The screen at `#/workbook` holds one tab per part of the workbook a person keeps by hand, and
-`?tab=categories` links straight to one: General (the settings, the loan switch and the rows the app
-could not use), Categories, Accounts, Assets, Grants and Year end. The clients tab and the billing
-and invoice terms are on Invoicing, Clients. The tabs are
-`PageTabs` in `src/shared/ui/`, which any screen with inner tabs uses: the tab is `?tab=` in the
-address and the first tab stays out of it, picking a tab adds a step to the history so Back returns
-to the tab before, and the arrow keys move between tabs without opening them. The browser tab
-reads "Workbook, Categories – Ledgerboard". A strip wider than the screen scrolls inside itself, with
-its open tab brought into view and its cut edges faded, and a phone shares its width between four
-tabs or fewer. What every tab follows, such as the filter bar of Analysis, goes in its `above` slot,
-so a phone still finds the Filters button at the end of the tab row. A drill always opens its screen on the tab its route names in `filterStore.ts`, so
-the tab of the screen it starts from never carries over. It works the same
-for a Google Sheet and in Excel mode. Each tab is a table of fields: add a row, change any field,
-delete a row with its bin, then "Save" writes the whole change as one write with Undo in the toast
-and under "Changes in this session" on Review. Only the cells that changed are written, so a formula
-left alone stays a formula, and a deleted row is taken out, so the rows below it move up. "Discard changes" goes back to
-what the tab holds.
+The screen at `#/settings`, set apart at the foot of the menu, holds how the workbook and this device
+are set up, and the law behind the figures, one tab each:
+
+| Tab | What it holds |
+|---|---|
+| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs and the owner-pay module) open, then the company and owner facts and the bucket labels, collapsed, with one Save under them. Then the loan switch and the rows the app could not use, which opens itself while there are any |
+| Categories | The categories tab |
+| Accounts | The accounts tab |
+| Ruleset | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as *Ruleset* describes |
+| This device | The data source with export, import, switch and sign-out, and the theme and privacy notes |
+
+Without a workbook on screen only This device is there. A card with a field in error opens. A link
+that names a fact by its field, such as `#/settings#owner-loan-interest` from Owner or
+`#company-registered` from Year, opens the facts card and lands on the field. The clients tab and
+the billing and invoice terms are on Invoicing, Clients, the rules on Review, Rules, and the assets,
+grants and year-end tabs on the Year screen. Each of those is `FactTabCard` in
+`src/features/settings/presentation/`, a card that edits one tab as this screen does.
+
+The tabs are `PageTabs` in `src/shared/ui/`, which any screen with inner tabs uses: the tab is
+`?tab=` in the address and the first tab stays out of it, picking a tab adds a step to the history
+so Back returns to the tab before, and the arrow keys move between tabs without opening them. The
+browser tab reads "Settings, Categories – Ledgerboard". A strip wider than the screen scrolls inside
+itself, with its open tab brought into view and its cut edges faded, and a phone shares its width
+between four tabs or fewer. What every tab follows, such as the filter bar of Analysis, goes in its
+`above` slot, so a phone still finds the Filters button at the end of the tab row. A bar of one tab
+that sticks, such as the Ruleset search, sticks under a phone's tab row through `--page-tab-row`. A
+drill from a figure always opens Transactions on its Rows tab, so the tab of the screen it starts
+from never carries over.
+
+The editors work the same for a Google Sheet and in Excel mode. Each tab is a table of fields: add a
+row, change any field, delete a row with its bin, then "Save" writes the whole change as one write
+with Undo in the toast and under "Changes in this session" on Review. Only the cells that changed
+are written, so a formula left alone stays a formula, and a deleted row is taken out, so the rows
+below it move up. "Discard changes" goes back to what the tab holds.
 
 Each table checks its rows as the reader would before it lets a save go: a row the reader would
 leave out is marked and blocks the save. A category or account in use keeps its name, so its name
@@ -1067,8 +1122,8 @@ npm run check          # typecheck and unit tests
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, Workbook's tabs with Back through them and a link to the last one, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, Workbook's tabs with Back, Overview's waiting card, drills, filter sheet, import, the owner loans' benefit in kind with its build-up, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, the split editor on Transactions and Review, a dismissal and both statement imports in both modes, the way back from Google's sign-in page, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, the split editor on Transactions and Review, a category changed on Transactions, a dismissal and both statement imports in both modes, the way back from Google's sign-in page, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -1119,7 +1174,7 @@ npm run check:visual -- --only invoicing,owner --widths 360,1440
 npm run check:touch -- --only billing,split --widths 430
 ```
 
-`--only` takes screen and flow names for the visual check, such as `invoicing`, `workbook-categories`
+`--only` takes screen and flow names for the visual check, such as `invoicing`, `settings-categories`
 or `split`, and step names for the touch check, such as `billing-edit-delete` or `split-google`. A
 name also picks every name that starts with it and a hyphen, so `invoicing` takes `invoicing-plan-2025`
 and `invoicing-clients-excel` too. A touch step that carries on from the page of an earlier one runs that one as
@@ -1133,7 +1188,7 @@ needs no preview and makes no call to Google.
 
 ## Write-back
 
-Review, Transactions, Owner, Invoicing, Forecast, Pay scenarios and the Workbook screen write through one path in both modes. Each write reads the tabs it
+Review, Transactions, Owner, Invoicing, Year and Settings write through one path in both modes. Each write reads the tabs it
 touches again, plans on that read, writes, reads them back into the copy on screen, and checks that
 what was written is there. A plan that cannot be carried out exactly writes nothing and says why.
 In Excel mode the reads and writes go to a working copy that replaces the stored workbook when the
@@ -1146,13 +1201,13 @@ side in `googleWorkbookWriter.ts`.
   `flagged_by` changed since the app read it, or when the category is not on the categories tab.
   Only `category` and `flagged_by` are written, each found by its header (I and J in the
   shadow-accounting Sheet), and only where the value changes.
-  Confirm writes the `review_label` setting to `flagged_by`. Recategorise writes the category and the
-  label. Applying a new rule writes its category and `rule`, only to rows flagged `ai` or
+  Confirm writes the `review_label` setting to `flagged_by`. Recategorise, and Change category on
+  Transactions, write the category and the label. Applying a new rule writes its category and `rule`, only to rows flagged `ai` or
   unclassified. Undo writes the exact previous values back through the same checks. Review lists
   every write of the page's session under "Changes in this session", newest first: ledger rows,
   rules, settings, owner advances and rows of the other tabs. A ledger write, an added advance and a
   row change that have not been undone carry Undo there. Rules are changed back on Review, Rules,
-  and settings on Workbook. The list is held in memory, so a reload clears it.
+  and settings on Settings. The list is held in memory, so a reload clears it.
 - **Rules.** The tab after the change must pass every check of `parseRules` in the Apps Script's
   `Rules.gs` (mirrored in `rulesTabRefusals.ts`), against the categories tab as it is now, so a save
   is refused while the tab has any problem. An enabled rule that tests `counterparty_is_client`
@@ -1196,7 +1251,7 @@ side in `googleWorkbookWriter.ts`.
   header and the rows go in the same write. In Excel mode the workbook always holds every tab, so
   nothing is added.
 
-  The loan switch on Workbook, General is a change to the `bucket` cells of the loan categories.
+  The loan switch on Settings, General is a change to the `bucket` cells of the loan categories.
   Undo writes the change back the other way through the same plan: added rows taken out, changed
   rows put back, and each deleted row put back on the row it stood on, with its cells, the rows
   from there down moving down again. The ledger's category dropdown is never touched.
@@ -1248,7 +1303,7 @@ batchUpdate and again after it:
 | Save assets, grants or year-end | get, batchGet of `assets` and `grants`, or `grants` and `assets`, or `'year-end'` and `categories` |
 | Add or fill plan rows, edit or delete one | get, batchGet of `'outgoing-plan'` and `clients` |
 | Add, edit or delete a scenario component, rename or copy a scenario, add the starting scenarios | get, batchGet of `scenarios`, `plan` and `categories` (each when the Sheet has it) |
-| Plan the owner pay, a category, a purchase or the dividend on Forecast, change or clear it | get, batchGet of `plan`, `categories` and `scenarios` |
+| Plan the owner pay, a category, a purchase or the dividend on Year, Plan, change or clear it | get, batchGet of `plan`, `categories` and `scenarios` |
 | Import statements | get, batchGet of `ledger` and `categories` |
 | Dismiss a suggestion on Review, or restore one | get, batchGet of `dismissed` |
 | Undo any of these | the same reads, with the change turned around |
@@ -1269,9 +1324,9 @@ Never run it first on the original.
    `rules`. Press "Apply to the rows still waiting" and check only `ai` or unclassified rows changed.
 6. On Review, Rules, switch the new rule off and move it. Check `enabled` and `order` changed and no
    other cell did.
-7. On Workbook, General, change the company name. Check the `settings` tab.
+7. On Settings, General, change the company name. Check the `settings` tab.
 8. On Owner, add an advance. Check one new row at the foot of `owner-advances`, its date shown as a
-   date. Press Undo and check the row is gone, with no blank row left. On Workbook, General, switch
+   date. Press Undo and check the row is gone, with no blank row left. On Settings, General, switch
    "Loans to the owner count as owner pay" off and on. Check only the two `bucket` cells of the loan
    categories changed.
    On Transactions, split a payment in two, check its two rows on `splits`, change a part, then
@@ -1284,7 +1339,7 @@ Never run it first on the original.
    PDF in the month folder, the draft in Gmail (not sent) and the new row on `invoices`. Re-export
    it from its editor and check the PDF was replaced and a second draft saved. Delete the test row,
    the PDF and both drafts.
-10. On Workbook, Categories, add a category and save. Check the new row at the foot of `categories`
+10. On Settings, Categories, add a category and save. Check the new row at the foot of `categories`
    and that the ledger's category dropdown offers it. Change its colour, check only that cell changed,
    then delete it and check the row is gone with no blank row left. Press Undo and check it is back
    at the foot. Try to rename a category the ledger uses and read the refusal. On Invoicing, record an
@@ -1359,7 +1414,7 @@ verdict per line. `pass` means ours equals the accountant's to the cent with no 
 judgement with the difference it carries. `recorded` is a decision or a date the ledger cannot give,
 checked where it can be: `paid-on` needs a corporate tax payment of our balance due on that day, and
 the distribution lines must share out our profit after tax. The verdicts come from the same
-comparison the Year end screen shows. `FAIL` gives the residual. Konto rows are listed by the
+comparison the Statements tab of the Year screen shows. `FAIL` gives the residual. Konto rows are listed by the
 categories they share, with their differences and no verdict, since one category can sit on several
 of them.
 
@@ -1412,16 +1467,28 @@ dev server adds `ws://localhost:*` for hot reload.
 
 ## Ruleset
 
-The Ruleset screen shows the Croatian law the d.o.o. pack computes with, as `src/packs/hr-doo/ruleset/`
-holds it. It reads no workbook, so it stays in the navigation while `owner_pay_module` is off. Rules
-are grouped by area: profit tax, owner pay, accounting, VAT and company law. Each rule shows its
-value for every version, side by side on a wide screen and one under another on a phone. Rates read
-as percentages with up to two decimals, coefficients as factors such as 0.65, money in the app's
-money format, flags as yes or no, and table terms as tables (cards on a phone). A value that differs
-from the version before is set in bold with a brass mark. Every version carries its confidence mark.
-Estimate, pending and unconfirmed versions are coloured, and the Watch list at the top gathers them
-with the matters the ruleset has no value for yet. Each source links to the page that was loaded,
-in a new tab, with the act, the article, the NN issues and the day it was checked.
+The Ruleset tab of Settings shows the Croatian law the d.o.o. pack computes with, as
+`src/packs/hr-doo/ruleset/` holds it. Under the search sits the Watch list, collapsed, which
+gathers the estimate, pending and unconfirmed versions with the matters the ruleset has no value for
+yet, ten at a time. Then every rule is one line under its area (profit tax, owner pay, accounting,
+VAT and company law), whose heading stays in view as the list scrolls: its name, its id, the value
+of the version in force today and that version's confidence mark. The value is the version's first
+rate, amount or count, or its first rate for a rule named for a rate, with the term's name when the
+rule has more. An info button beside the list explains the marks. Estimate, pending and unconfirmed
+versions are coloured.
+
+A click on a line, or a link to `#/settings?tab=ruleset&rule=<id>`, opens the whole rule in a side
+panel, a full-height sheet on a phone. The panel holds its value for every version, side by side on
+a wide screen and one under another on a phone. Rates read as percentages with up to two decimals,
+coefficients as factors such as 0.65, money in the app's money format, flags as yes or no, and table
+terms as tables (cards on a phone). A value that differs from the version before is set in bold
+with a brass mark. Each source links to the page that was loaded, in a new tab, with the act, the
+article, the NN issues and the day it was checked. The rule's line is marked and scrolled to just
+below the search bar, clearing a search that hides it, and closing the panel takes `rule` out of
+the address. A rule opened from the list closes back to the list's own step in the history, so
+the next Back leaves the list. A link to an id the ruleset does not have says so above the list. `ruleLink(id)` in
+`ruleset/presentation/ruleWording.ts` builds the link, so a screen can send a figure to the rule it
+rests on.
 
 The search box matches every word typed against the rule id, title, values, notes, act names,
 articles and NN issues. The area buttons narrow the list further.
@@ -1453,11 +1520,6 @@ rates do not line up.
 2027 is a copy of 2026 marked unconfirmed until units adopt their 2027 rates by 30 November 2026.
 Once Porezna uprava publishes the 2027 table, rerun the script with it and give the 2027 version in
 `rules/owner-pay.ts` its rows.
-
-`#/ruleset?rule=<id>` opens the screen with that rule marked, scrolled just below the search bar
-and focused, and clears any search. `ruleLink(id)` in `ruleset/presentation/ruleWording.ts` builds
-the link, so a screen can send a figure to the rule it rests on. A link to an id the ruleset does
-not have says so above the list.
 
 ## Licence
 

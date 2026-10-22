@@ -6,21 +6,24 @@
  * request to another origin, that each screen rendered its title, and that it drew as many charts as
  * it has from the fake workbook. Every chart on the gallery must draw and every icon must come from
  * the bundle. From 768 px, cards whose tops line up in a row must end at the same height. A deep
- * link to a rule on Ruleset must bring that rule to just below the search bar, marked and focused,
- * and keep it there once slow web fonts swap in. Deep links into a collapsed card must open it and
- * land on their row. At 360, 430 and 1440 px each screen collapses and expands one card.
+ * link to a rule on Settings, Ruleset must open that rule in the side panel and bring its line to
+ * just below the search bar, marked, and keep it there once slow web fonts swap in. Deep links into
+ * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
+ * collapses and expands one card.
  *
  * Beyond the screens of the fake Google workbook, it renders the first-run welcome screen
- * (`?fake=empty`), Settings and each Workbook tab for a workbook kept in this browser (`?fake=excel`), and the import
+ * (`?fake=empty`), each Settings tab and the Year page's editors for a workbook kept in this browser (`?fake=excel`), and the import
  * summary for an xlsx file it writes from the fake workbook with two problems added.
  *
  * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
  * category, an asset and an invoice, and screenshots the editors and the invoice dialog on the way.
+ * On Transactions it changes the category of a settled row, which a rule files elsewhere, and undoes it.
+ * On Year a link to the Statements tab alone keeps the year it opened through two tabs and Back.
  * It also makes an invoice through the checks and every step, with the fake Picker picking the
  * invoice and year folders and the month folder made on request, then re-exports it.
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
  * adds the starting scenarios to a workbook without any, which adds the tab to a Sheet without it.
- * It plans a category for 2027 on Forecast, edits, clears and undoes it, and plans a purchase in a
+ * It plans a category for 2027 on Year, Plan, edits, clears and undoes it, and plans a purchase in a
  * workbook without plan rows, which adds the plan tab to a Sheet without it. On Transactions it
  * splits a payment, edits the split, deletes it and undoes the delete, and splits one in a workbook
  * without the splits tab. On Review it does the same from a row of the queue, and dismisses a group of
@@ -49,10 +52,11 @@ import * as XLSX from 'xlsx'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { pageTabsFlow } from './support/pageTabFlows.mjs'
+import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
   assetFlow,
   categoryFlow,
+  changeCategoryFlow,
   dismissFlow,
   importCamtFlow,
   importTableFlow,
@@ -100,7 +104,7 @@ const CARD_SELECTOR = '.rounded-card, .gallery-frame'
  * `linkedPart` is the element a deep link's hash names, and `linkedRow` the row a deep link's query
  * marks, each inside a card that has to open for it. `linkedCard` is a card a link from another
  * screen points at, which has to open. `collapsedBefore` names the cards this device
- * remembers as collapsed. `cards: false` marks a screen with no collapsible card.
+ * remembers as collapsed, and `expandedBefore` those it remembers as open. `cards: false` marks a screen with no collapsible card.
  */
 const SCREENS = [
   { name: 'overview', hash: '#/', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
@@ -129,12 +133,23 @@ const SCREENS = [
     shows: 'Save terms',
     linkedPart: 'invoicing-terms',
   },
-  { name: 'taxes', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'Payroll cadence' },
-  { name: 'assets', hash: '#/assets', title: 'Assets', charts: 1, shows: 'Workstation' },
-  { name: 'assets-doubled', hash: '#/assets?rates=doubled', title: 'Assets', charts: 1, shows: 'What doubled rates would change' },
-  { name: 'year-end', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: 'From the cash net to profit, 2025' },
-  { name: 'forecast', hash: '#/forecast', title: 'Forecast', charts: 0, shows: ['The forecast needs the day the company was registered', 'Plan for 2026'] },
-  { name: 'pay-scenarios', hash: '#/pay-scenarios', title: 'Pay scenarios', charts: 0, shows: 'The figures need hr_company_registered' },
+  { name: 'year', hash: '#/year?tab=taxes', title: 'Year', charts: 0, shows: ['Corporate income tax, expected against paid', 'Payroll cadence', 'Tax by type'] },
+  { name: 'year-forecast', hash: '#/year', title: 'Year', charts: 0, shows: 'The forecast needs the day the company was registered', cards: false },
+  { name: 'year-plan', hash: '#/year?tab=plan', title: 'Year', charts: 0, shows: ['Plan for 2026', 'Revenue comes from the billing plan'], cards: false },
+  { name: 'year-pay', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 0, shows: ['The figures need hr_company_registered', 'Scenarios for 2027'] },
+  { name: 'year-accountant', hash: '#/year?year=2025', title: 'Year', charts: 1, shows: ['Lines at a glance', 'From the cash net to profit, 2025'] },
+  { name: 'year-statements', hash: '#/year?tab=statements', title: 'Year', charts: 0, shows: ['Profit and loss', 'Konto lines', "The accountant's lines"] },
+  { name: 'year-assets', hash: '#/year?tab=assets', title: 'Year', charts: 0, shows: ['Workstation', 'Asset rows', 'Grant rows'] },
+  { name: 'year-assets-doubled', hash: '#/year?tab=assets&rates=doubled', title: 'Year', charts: 0, shows: 'What doubled rates would change' },
+  {
+    name: 'year-grant-rows',
+    hash: '#/year?tab=assets#grant-rows',
+    title: 'Year',
+    charts: 0,
+    shows: 'Save grants',
+    collapsedBefore: ['year.grant-rows'],
+    linkedPart: 'grant-rows',
+  },
   { name: 'owner', hash: '#/owner', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'Benefit in kind on the loans'] },
   { name: 'owner-taken', hash: '#/owner?tab=taken', title: 'Owner', charts: 1, shows: ['Owner take by type', 'Loans, net'], cards: false },
   {
@@ -145,15 +160,6 @@ const SCREENS = [
     shows: '3 loans with a balance',
     collapsedBefore: ['owner.loan-benefit'],
     linkedPart: 'owner-loan-benefit',
-  },
-  { name: 'ruleset', hash: '#/ruleset', title: 'Ruleset', charts: 0, shows: 'Watch list' },
-  {
-    name: 'ruleset-linked',
-    hash: '#/ruleset?rule=hr.contrib.director-floor',
-    title: 'Ruleset',
-    charts: 0,
-    shows: 'hr.contrib.director-floor',
-    linkedRule: 'hr.contrib.director-floor',
   },
   { name: 'review', hash: '#/review', title: 'Review', charts: 0, shows: ['GADGET CORNER', 'Refund of a parking fee'] },
   { name: 'review-rules', hash: '#/review?tab=rules', title: 'Review', charts: 0, shows: ['merchant-airline', 'Confirmed rows no rule repeats'] },
@@ -166,18 +172,36 @@ const SCREENS = [
     collapsedBefore: ['review.rules'],
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
-  { name: 'workbook', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Bucket labels' },
+  { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
   {
-    name: 'workbook-categories',
-    hash: '#/workbook?tab=categories',
-    title: 'Workbook',
+    name: 'settings-loan-rate',
+    hash: '#/settings#owner-loan-interest',
+    title: 'Settings',
+    charts: 0,
+    shows: "Interest the owner's loans carry",
+    collapsedBefore: ['settings.facts'],
+    linkedPart: 'owner-loan-interest',
+  },
+  {
+    name: 'settings-categories',
+    hash: '#/settings?tab=categories',
+    title: 'Settings',
     charts: 0,
     shows: "The ledger's category dropdown in the Sheet lists",
-    collapsedBefore: ['workbook.categories'],
-    linkedCard: 'workbook.categories',
+    collapsedBefore: ['settings.categories'],
+    linkedCard: 'settings.categories',
   },
-  { name: 'workbook-assets', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
-  { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Fake workbook', cards: false },
+  { name: 'settings-accounts', hash: '#/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Your bank accounts' },
+  { name: 'settings-ruleset', hash: '#/settings?tab=ruleset', title: 'Settings', charts: 0, shows: ['Watch list', 'Rules by area', 'hr.cit.rate'] },
+  {
+    name: 'settings-ruleset-linked',
+    hash: '#/settings?tab=ruleset&rule=hr.contrib.director-floor',
+    title: 'Settings',
+    charts: 0,
+    shows: 'Contribution base floor for an employed',
+    linkedRule: 'hr.contrib.director-floor',
+  },
+  { name: 'settings-device', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: 'Fake workbook', cards: false },
 ]
 
 /** The gallery's chart cards that draw a chart. The loading card counts, the empty one does not. */
@@ -189,21 +213,38 @@ const GALLERY_DONUTS = 2
 /** Screens outside the fake Google workbook. `query` picks the fake variant, `upload` drops the import file on the page. */
 const SOURCE_SCREENS = [
   { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'Where is your ledger?', cards: false },
-  { name: 'settings-excel', query: 'fake=excel', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Import a file', cards: false },
-  { name: 'workbook-excel', query: 'fake=excel', hash: '#/workbook', title: 'Workbook', charts: 0, shows: 'Save settings' },
-  { name: 'workbook-categories-excel', query: 'fake=excel', hash: '#/workbook?tab=categories', title: 'Workbook', charts: 0, shows: 'Save categories' },
-  { name: 'workbook-accounts-excel', query: 'fake=excel', hash: '#/workbook?tab=accounts', title: 'Workbook', charts: 0, shows: 'Save accounts' },
-  { name: 'workbook-assets-excel', query: 'fake=excel', hash: '#/workbook?tab=assets', title: 'Workbook', charts: 0, shows: 'Save assets' },
-  { name: 'workbook-grants-excel', query: 'fake=excel', hash: '#/workbook?tab=grants', title: 'Workbook', charts: 0, shows: 'Save grants' },
-  { name: 'workbook-year-end-excel', query: 'fake=excel', hash: '#/workbook?tab=year-end', title: 'Workbook', charts: 0, shows: 'Save year-end lines' },
-  { name: 'year-end-excel', query: 'fake=excel', hash: '#/year-end?year=2025', title: 'Year end', charts: 1, shows: ['Balance paid on', 'Loans to the owner carry 2.5%'] },
+  { name: 'settings-excel', query: 'fake=excel', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
+  { name: 'settings-categories-excel', query: 'fake=excel', hash: '#/settings?tab=categories', title: 'Settings', charts: 0, shows: 'Save categories' },
+  { name: 'settings-accounts-excel', query: 'fake=excel', hash: '#/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
+  { name: 'settings-device-excel', query: 'fake=excel', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: 'Import a file', cards: false },
+  { name: 'year-accountant-excel', query: 'fake=excel', hash: '#/year?year=2025', title: 'Year', charts: 1, shows: 'Loans to the owner carry 2.5%' },
+  { name: 'year-statements-excel', query: 'fake=excel', hash: '#/year?year=2025&tab=statements', title: 'Year', charts: 0, shows: 'Balance paid on', expandedBefore: ['year.tax'] },
+  {
+    name: 'year-accountant-lines-excel',
+    query: 'fake=excel',
+    hash: '#/year?year=2025&tab=statements#accountant-lines',
+    title: 'Year',
+    charts: 0,
+    shows: 'Save year-end lines',
+    linkedPart: 'accountant-lines',
+  },
+  { name: 'year-asset-rows-excel', query: 'fake=excel', hash: '#/year?tab=assets#asset-rows', title: 'Year', charts: 0, shows: 'Save assets', linkedPart: 'asset-rows' },
   { name: 'owner-excel', query: 'fake=excel', hash: '#/owner', title: 'Owner', charts: 0, shows: 'so they give no benefit in kind' },
-  { name: 'forecast-excel', query: 'fake=excel', hash: '#/forecast?year=2026', title: 'Forecast', charts: 1, shows: 'Corporate tax payments, expected against paid' },
-  { name: 'forecast-2027-excel', query: 'fake=excel', hash: '#/forecast?year=2027&payout=interim', title: 'Forecast', charts: 1, shows: 'An interim payout in 2027' },
-  { name: 'pay-scenarios-excel', query: 'fake=excel', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', charts: 1, shows: 'Side by side' },
-  { name: 'pay-scenarios-2026-excel', query: 'fake=excel', hash: '#/pay-scenarios?year=2026', title: 'Pay scenarios', charts: 0, shows: 'No scenario for 2026 to compare yet' },
-  { name: 'pay-scenarios-no-tab', query: 'fake=no-scenarios', hash: '#/pay-scenarios', title: 'Pay scenarios', charts: 0, shows: 'No scenario is for 2027 yet' },
-  { name: 'taxes-excel', query: 'fake=excel', hash: '#/taxes', title: 'Taxes', charts: 1, shows: 'For 2026' },
+  { name: 'year-forecast-excel', query: 'fake=excel', hash: '#/year?year=2026', title: 'Year', charts: 1, shows: ['Month by month, 2026', 'plan rows of 2026 are not invoiced yet', 'Plan against actual, 2026'] },
+  { name: 'year-forecast-2027-excel', query: 'fake=excel', hash: '#/year?year=2027', title: 'Year', charts: 1, shows: ['Month by month, 2027', 'Values the ruleset only estimates for 2027'] },
+  { name: 'year-pay-excel', query: 'fake=excel', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 1, shows: ['Dividend capacity', 'Where the profit before owner pay goes, 2027', '1 warning', 'Side by side'] },
+  {
+    name: 'year-pay-interim-excel',
+    query: 'fake=excel',
+    hash: '#/year?year=2027&tab=pay&payout=interim',
+    title: 'Year',
+    charts: 1,
+    shows: 'An interim payout in 2027',
+    expandedBefore: ['year.comparison'],
+  },
+  { name: 'year-pay-2026-excel', query: 'fake=excel', hash: '#/year?year=2026&tab=pay', title: 'Year', charts: 0, shows: ['No scenario for 2026 to compare yet', 'Dividend capacity'] },
+  { name: 'year-pay-no-tab', query: 'fake=no-scenarios', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 0, shows: 'No scenario is for 2027 yet' },
+  { name: 'year-taxes-excel', query: 'fake=excel', hash: '#/year?tab=taxes', title: 'Year', charts: 0, shows: ['For 2026', '1 payment is overdue', 'Less tax refund'] },
   { name: 'invoicing-plan-excel', query: 'fake=excel', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Fill the rest of 2026' },
   { name: 'invoicing-clients-excel', query: 'fake=excel', hash: '#/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Save clients' },
   {
@@ -240,15 +281,15 @@ const VISITS = [
  */
 const SIDEWAYS_SCROLL_ALLOWED = [
   {
-    card: 'workbook.categories',
+    card: 'settings.categories',
     upTo: Infinity,
-    reason: 'Seven input columns at their narrowest are wider than the 100rem measure the Workbook screen keeps.',
+    reason: 'Seven input columns at their narrowest are wider than the 100rem measure the Settings screen keeps.',
   },
-  { card: 'workbook.accounts', upTo: 1024, reason: 'Every column is an input, and they fit beside each other only from 1280 px.' },
+  { card: 'settings.accounts', upTo: 1024, reason: 'Every column is an input, and they fit beside each other only from 1280 px.' },
   { card: 'invoicing.clients', upTo: Infinity, reason: 'Nine input columns, with the invoice details, are wider than any card.' },
-  { card: 'workbook.assets', upTo: Infinity, reason: 'Ten input columns are wider than the 100rem measure the Workbook screen keeps.' },
-  { card: 'workbook.grants', upTo: Infinity, reason: 'Twelve input columns are wider than the 100rem measure the Workbook screen keeps.' },
-  { card: 'workbook.year-end', upTo: Infinity, reason: 'Nine input columns are wider than the 100rem measure the Workbook screen keeps.' },
+  { card: 'year.asset-rows', upTo: Infinity, reason: 'Ten input columns are wider than the 100rem measure the Year screen keeps.' },
+  { card: 'year.grant-rows', upTo: Infinity, reason: 'Twelve input columns are wider than the 100rem measure the Year screen keeps.' },
+  { card: 'year.accountant-lines', upTo: Infinity, reason: 'Nine input columns are wider than the 100rem measure the Year screen keeps.' },
 ]
 
 const failures = []
@@ -400,13 +441,18 @@ function linkedRowShown(selector) {
   return box.height > 0 && box.top >= 0 && box.bottom <= window.innerHeight
 }
 
-/** Runs in the page: the linked rule card is marked, has focus, and starts just below the sticky search bar. */
+/**
+ * Runs in the page: the side panel holds the linked rule, and its line in the list is marked and
+ * starts just below the sticky search bar and its area's heading.
+ */
 function linkedRuleInView(ruleId) {
-  const card = document.getElementById(`rule-${ruleId}`)
+  const line = document.getElementById(`rule-${ruleId}`)
   const bar = document.querySelector('[data-testid="ruleset-bar"]')
-  if (card === null || bar === null || card.dataset.linked !== 'true' || document.activeElement !== card) return false
-  const below = card.getBoundingClientRect().top - bar.getBoundingClientRect().bottom
-  return below >= -1 && below <= 24
+  const panel = document.querySelector('[role="dialog"] [data-testid="rule-detail"]')
+  const heading = line?.closest('section')?.querySelector('h3')
+  if (line === null || bar === null || panel === null || heading == null || line.getAttribute('aria-current') !== 'true') return false
+  const below = line.getBoundingClientRect().top - heading.getBoundingClientRect().bottom
+  return heading.getBoundingClientRect().top >= bar.getBoundingClientRect().bottom - 1 && below >= -1 && below <= 24
 }
 
 /** Holds back every web font, as a slow runner does, so text reflows after the screen's first frames. */
@@ -445,25 +491,26 @@ const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 
 /** The editors' flows, each on a fresh load, so the fake Sheet and the workbook kept in this browser start from their seed. */
 const FLOWS = [
-  { name: 'page-tabs', hash: '#/workbook', title: 'Workbook', run: pageTabsFlow },
-  { name: 'categories', hash: '#/workbook?tab=categories', title: 'Workbook', run: categoryFlow },
-  { name: 'assets', hash: '#/workbook?tab=assets', title: 'Workbook', run: assetFlow },
+  { name: 'page-tabs', hash: '#/settings', title: 'Settings', run: pageTabsFlow },
+  { name: 'year-tab-link', hash: '#/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
+  { name: 'categories', hash: '#/settings?tab=categories', title: 'Settings', run: categoryFlow },
+  { name: 'assets', hash: '#/year?tab=assets#asset-rows', title: 'Year', run: assetFlow },
   { name: 'invoices', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceFlow },
   { name: 'invoice-run', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceRunFlow },
-  { name: 'scenarios', hash: '#/pay-scenarios?year=2027', title: 'Pay scenarios', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'scenarios', hash: '#/year?year=2027&tab=pay', title: 'Year', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   {
     name: 'starting-scenarios',
-    hash: '#/pay-scenarios?year=2027',
-    title: 'Pay scenarios',
+    hash: '#/year?year=2027&tab=pay',
+    title: 'Year',
     run: startingScenariosFlow,
     viewports: ['phone', 'phone-large', 'desktop'],
     queries: { google: '&fake=no-scenarios', excel: '&fake=excel-no-scenarios' },
   },
-  { name: 'plan', hash: '#/forecast?year=2027', title: 'Forecast', run: planFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'plan', hash: '#/year?year=2027&tab=plan', title: 'Year', run: planFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   {
     name: 'plan-tab',
-    hash: '#/forecast?year=2027',
-    title: 'Forecast',
+    hash: '#/year?year=2027&tab=plan',
+    title: 'Year',
     run: planTabFlow,
     viewports: ['phone', 'phone-large', 'desktop'],
     queries: { google: '&fake=no-plan', excel: '&fake=excel-no-plan' },
@@ -478,6 +525,7 @@ const FLOWS = [
     queries: { google: '&fake=no-splits', excel: '&fake=excel-no-splits' },
   },
   { name: 'split-review', hash: '#/review', title: 'Review', run: reviewSplitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'change-category', hash: '#/transactions?p=all&q=CODE%20HOST', title: 'Transactions', run: changeCategoryFlow },
   { name: 'dismiss', hash: '#/review?tab=rules', title: 'Review', run: dismissFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'import-camt', hash: '#/transactions?tab=import', title: 'Transactions', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'import-table', hash: '#/transactions?tab=import', title: 'Transactions', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
@@ -508,10 +556,15 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     const foreignRequests = watchForForeignRequests(page)
 
     if (visit.linkedRule || visit.linkedPart) await slowWebFonts(page)
-    if (visit.collapsedBefore) {
-      await page.evaluateOnNewDocument((cards) => {
-        for (const card of cards) localStorage.setItem(`ledgerboard.card.${card}`, 'collapsed')
-      }, visit.collapsedBefore)
+    if (visit.collapsedBefore || visit.expandedBefore) {
+      await page.evaluateOnNewDocument(
+        (collapsed, expanded) => {
+          for (const card of collapsed) localStorage.setItem(`ledgerboard.card.${card}`, 'collapsed')
+          for (const card of expanded) localStorage.setItem(`ledgerboard.card.${card}`, 'expanded')
+        },
+        visit.collapsedBefore ?? [],
+        visit.expandedBefore ?? [],
+      )
     }
     await page.setViewport({ width: viewport.width, height: viewport.height })
     // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
@@ -542,7 +595,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
         .waitForFunction(linkedRuleInView, { timeout: 5_000 }, visit.linkedRule)
         .then(() => true)
         .catch(() => false)
-      if (!shown) fail(scope, `the deep link did not bring ${visit.linkedRule} to just below the search bar, marked and focused, once the fonts loaded`)
+      if (!shown) fail(scope, `the deep link did not open ${visit.linkedRule} in the side panel and bring its line to just below the search bar, marked, once the fonts loaded`)
     }
 
     // ECharts animates bars in. The screenshot should show where they land.
@@ -603,7 +656,8 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
       await firstChart?.screenshot({ path: join(SCREENSHOT_DIR, `${viewport.name}-${visit.file}-chart.png`) })
     }
 
-    if (viewport.cardFlow && rendered) {
+    // A linked rule opens its side panel over the screen, so the plain visit of that tab collapses its card instead.
+    if (viewport.cardFlow && rendered && !visit.linkedRule) {
       const collapsible = (await page.$('[data-card]')) !== null
       if (visit.cards === false) {
         if (collapsible) fail(scope, 'has a collapsible card, so it should not say cards: false')

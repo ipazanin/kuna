@@ -96,9 +96,18 @@ function measureOverflow(): void {
   overflow.value = strip === null ? { start: false, end: false } : { start: strip.scrollLeft > 1, end: strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1 }
 }
 
+/**
+ * The height of a strip that sticks, kept in `--page-tab-row` for the panels, so a bar of a panel
+ * that sticks too, such as a search, sticks under the tab row.
+ */
+function measureRow(strip: HTMLElement): void {
+  frame.value?.style.setProperty('--page-tab-row', getComputedStyle(strip).position === 'sticky' ? `${strip.offsetHeight}px` : '0px')
+}
+
 /** A strip wider than the page scrolls its open tab into the middle, so a link to the last tab shows it. */
 function centreActiveTab(): void {
   const strip = list()
+  if (strip) measureRow(strip)
   const trigger = strip?.querySelector<HTMLElement>('[role="tab"][data-state="active"]')
   if (strip && trigger && strip.scrollWidth > strip.clientWidth) {
     const stripBox = strip.getBoundingClientRect()
@@ -117,8 +126,9 @@ onMounted(() => {
   strip.value = mounted
   mounted.setAttribute('aria-label', props.label)
   mounted.addEventListener('scroll', measureOverflow, { passive: true })
+  // The tabs too, since a web font that swaps in widens them without resizing the strip.
   resizes = new ResizeObserver(centreActiveTab)
-  resizes.observe(mounted)
+  for (const watched of [mounted, ...mounted.querySelectorAll<HTMLElement>('[role="tab"]')]) resizes.observe(watched)
   centreActiveTab()
 })
 onBeforeUnmount(() => {

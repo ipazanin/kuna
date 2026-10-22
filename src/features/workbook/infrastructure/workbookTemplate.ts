@@ -50,7 +50,7 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'date', note: 'The booking date, as a date cell. Required.' },
     { name: 'account', note: 'Which of your accounts, by the name in the accounts tab. Required.' },
     { name: 'statement', note: 'The bank statement the row came from. Optional.' },
-    { name: 'counterparty', note: 'Who paid or was paid. Optional, but the spending screen groups by it.' },
+    { name: 'counterparty', note: 'Who paid or was paid. Optional, but Analysis groups by it.' },
     { name: 'counterparty_iban', note: 'Their IBAN, which groups a payee better than a name. Optional.' },
     { name: 'description', note: 'The payment description. Optional.' },
     { name: 'amount', note: 'The amount as a number, money in positive and money out negative. Required.' },

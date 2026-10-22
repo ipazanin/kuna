@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { yearOf } from '../../../shared/calendar/civilDate'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../shared/ui/PageTabs.vue'
@@ -30,6 +31,9 @@ const addingAdvance = ref(false)
 
 const asOf = computed(() => newestBookingOf(ledger.value?.workbook.transactions ?? []))
 
+/** The pay mixes look a year ahead, so the link opens the year after the newest booking. */
+const payMixes = computed(() => ({ path: '/year', query: { tab: 'pay', ...(asOf.value === null ? {} : { year: String(yearOf(asOf.value) + 1) }) } }))
+
 /** The roles both tabs read, said once under the header. */
 const missing = computed(() => {
   const categories = ledger.value?.workbook.categories ?? []
@@ -55,7 +59,7 @@ const missing = computed(() => {
           data-testid="open-add-advance"
           @click="addingAdvance = true"
         />
-        <UButton label="Compare pay mixes" icon="i-lucide-scale" to="/pay-scenarios" color="neutral" variant="outline" size="sm" data-testid="owner-pay-scenarios" />
+        <UButton label="Compare pay mixes" icon="i-lucide-scale" :to="payMixes" color="neutral" variant="outline" size="sm" data-testid="owner-pay-scenarios" />
       </template>
     </PageHeader>
     <OwnerPayOff v-if="!settings.ownerPayModule" />

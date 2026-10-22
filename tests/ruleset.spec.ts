@@ -22,6 +22,7 @@ import {
   watchItems,
 } from '../src/packs/hr-doo/ruleset/ruleset'
 import type { RuleId } from '../src/packs/hr-doo/ruleset/ruleset'
+import { ruleView, termFormat } from '../src/packs/hr-doo/ruleset/presentation/ruleWording'
 import { basisPoints, cents, count, day, flag, isWatchedConfidence, table, text } from '../src/packs/hr-doo/ruleset/schema'
 import type { GeneralRule, LegalSource, OpenItem, RuleArea, RuleTerms, RuleVersion, ScalarTerm, Term } from '../src/packs/hr-doo/ruleset/schema'
 
@@ -624,5 +625,36 @@ describe('the term constructors', () => {
     expect(() => text(' ')).toThrow(RangeError)
     expect(() => table([])).toThrow(RangeError)
     expect(() => day('2025-02-29')).toThrow('2025-02-29 is not a calendar day.')
+  })
+})
+
+describe('ruleView', () => {
+  const format = termFormat('en-GB')
+
+  it('picks out the version in force on the day, with its first figure', () => {
+    expect(ruleView(exampleRule, format, day('2026-10-22')).inForce).toEqual({
+      period: '1 Mar 2025 to 31 Dec 2026',
+      confidence: 'confirmed-consolidated',
+      headline: { label: null, wording: '12%' },
+    })
+  })
+
+  it('takes the first version before any applies and the last once all have ended', () => {
+    expect(ruleView(exampleRule, format, day('2024-06-01')).inForce.headline?.wording).toBe('10%')
+    expect(ruleView(exampleRule, format, day('2030-01-01')).inForce).toMatchObject({ period: '2027', confidence: 'estimate' })
+  })
+
+  it('names the figure when the version has other terms, and has none when it holds only flags and text', () => {
+    const mixed: GeneralRule = {
+      ...exampleRule,
+      versions: [{ ...earlyVersion, validTo: null, value: { allowed: flag(true), cap: cents(50_000), note: text('per item') } }],
+    }
+    expect(ruleView(mixed, format, day('2026-01-01')).inForce.headline).toEqual({ label: 'Cap', wording: '€500.00' })
+
+    const rateRule: GeneralRule = { ...mixed, title: 'Example tax rate', versions: [{ ...earlyVersion, validTo: null, value: { threshold: cents(100_000), lowerRate: basisPoints(1000) } }] }
+    expect(ruleView(rateRule, format, day('2026-01-01')).inForce.headline).toEqual({ label: 'Lower rate', wording: '10%' })
+
+    const flagsOnly: GeneralRule = { ...exampleRule, versions: [{ ...earlyVersion, validTo: null, value: { allowed: flag(true) } }] }
+    expect(ruleView(flagsOnly, format, day('2026-01-01')).inForce.headline).toBeNull()
   })
 })

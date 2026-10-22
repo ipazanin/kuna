@@ -37,7 +37,7 @@ function gridsWithOwnerTabs(): ReturnType<typeof workbookGrids> {
   }
 }
 
-/** The bucket cells of the loan categories set as the switch on Workbook, General sets them. */
+/** The bucket cells of the loan categories set as the switch on Settings, General sets them. */
 function switchLoans(store: WorkbookStore, bucket: string, categories = ['owner-loan-out', 'owner-loan-repaid']) {
   const changed = categories.map((category) => {
     const row = store.state.snapshot!.categories.find((candidate) => candidate.cells.category === category)!

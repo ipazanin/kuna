@@ -45,12 +45,14 @@ const props = withDefaults(
     /** What the middle figure is, such as "income, last 12 months". */
     totalLabel: string
     formatValue?: (value: number) => string
+    /** What a part's link opens, for a screen reader, such as "the statements". */
+    opens?: string
     collapseId?: string
     summary?: string
     startCollapsed?: boolean
     reveal?: boolean
   }>(),
-  { formatValue: (value: number) => formatWholeMoney(value), startCollapsed: false, reveal: false },
+  { formatValue: (value: number) => formatWholeMoney(value), opens: 'the rows', startCollapsed: false, reveal: false },
 )
 
 const router = useRouter()
@@ -128,7 +130,7 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
         <ul class="flex flex-col" data-testid="donut-legend">
           <li v-for="part in parts" :key="part.key" class="legend-row">
             <span class="swatch" :style="{ background: `var(${part.colour})` }" aria-hidden="true" />
-            <DrillLink :to="part.to" :label="`${part.label}, ${formatValue(part.value)}, open the rows`" class="min-w-0 text-toned">
+            <DrillLink :to="part.to" :label="`${part.label}, ${formatValue(part.value)}, open ${opens}`" class="min-w-0 text-toned">
               {{ part.label }}
             </DrillLink>
             <span class="figure text-end text-highlighted">{{ formatValue(part.value) }}</span>

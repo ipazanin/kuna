@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import ConfidenceBadge from './ConfidenceBadge.vue'
 import { AREA_WORDING, ruleLink } from './ruleWording'
 import type { WatchView } from './ruleWording'
@@ -18,18 +18,17 @@ const props = defineProps<{
   searching: boolean
 }>()
 
-const FOLDED_LENGTH = 4
-
 const expanded = ref(false)
-const folds = computed(() => !props.searching && props.items.length > FOLDED_LENGTH + 2)
-const shown = computed(() => (folds.value && !expanded.value ? props.items.slice(0, FOLDED_LENGTH) : props.items))
+const folds = computed(() => !props.searching && props.items.length > FIRST_SHOWN)
+const shown = computed(() => (folds.value && !expanded.value ? props.items.slice(0, FIRST_SHOWN) : props.items))
 </script>
 
 <template>
   <AppCard
     title="Watch list"
-    collapse-id="ruleset.watch-list"
-    :summary="`${items.length} ${items.length === 1 ? 'value' : 'values'} to look at again once the official text is out`"
+    collapse-id="settings.watch-list"
+    start-collapsed
+    :summary="`${items.length} ${items.length === 1 ? 'value' : 'values'} to watch`"
     data-testid="watch-list"
   >
     <template #title>
@@ -63,18 +62,7 @@ const shown = computed(() => (folds.value && !expanded.value ? props.items.slice
         </p>
       </li>
     </ul>
-    <div v-if="folds" class="px-4 pb-4 sm:px-5">
-      <UButton
-        :label="expanded ? 'Show fewer' : `Show all ${items.length}`"
-        :trailing-icon="expanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        :aria-expanded="expanded"
-        data-testid="watch-toggle"
-        @click="expanded = !expanded"
-      />
-    </div>
+    <ShowAllButton v-if="folds" v-model:expanded="expanded" :total="items.length" class="px-4 pb-4 sm:px-5" />
   </AppCard>
 </template>
 

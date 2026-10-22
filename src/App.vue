@@ -36,6 +36,7 @@ const navigation = computed(() =>
     to: screen.path,
     label: screen.title,
     icon: screen.icon,
+    ...(screen.setApart ? { setApart: true as const } : {}),
     ...(screen.path === '/review' ? { count: rowsToReview.value } : {}),
   })),
 )

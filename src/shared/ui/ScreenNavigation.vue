@@ -6,6 +6,8 @@ export interface NavigationEntry {
   readonly icon: string
   /** What waits on the screen, such as the rows to review, shown beside its name. Left out at zero. */
   readonly count?: number
+  /** A rule above it sets it apart from the entries before it. */
+  readonly setApart?: true
 }
 </script>
 
@@ -21,7 +23,7 @@ defineProps<{
 <template>
   <nav aria-label="Screens">
     <ul class="flex flex-col gap-0.5">
-      <li v-for="entry in navigation" :key="entry.to">
+      <li v-for="entry in navigation" :key="entry.to" :class="{ 'set-apart': entry.setApart }">
         <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
           <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
           <span>{{ entry.label }}</span>
@@ -36,6 +38,12 @@ defineProps<{
 </template>
 
 <style scoped>
+.set-apart {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-default);
+}
+
 .nav-link {
   position: relative;
   display: flex;

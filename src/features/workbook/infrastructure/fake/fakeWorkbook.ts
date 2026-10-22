@@ -308,7 +308,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
  * the ledger's months compare with, a 2027 plan whose owner pay switches from the floor salary to
  * board-only insurance the day after the grant's employment date, with a purchase and a dividend,
  * and four owner pay scenarios for 2027, two of them with warnings to show. The accountant's 2025 figures are made up to agree with the accrual view of
- * the ledger, except where the Year end screen needs something to show: the grant released, rent
+ * the ledger, except where the Accountant tab of Year needs something to show: the grant released, rent
  * placed on other costs, bank interest as financial income and 10.00 moved between two konto lines.
  */
 function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | 'grants' | 'year-end' | 'plan' | 'scenarios'> {

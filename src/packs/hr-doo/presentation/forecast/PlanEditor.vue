@@ -125,22 +125,22 @@ function editPurchase(purchase: PurchaseLine | null): void {
   editingPurchase.value = purchase
   purchaseOpen.value = true
 }
-
-const summary = computed(() => {
-  const count = props.lines.length
-  return count === 0 ? 'No plan row yet' : `${count} ${count === 1 ? 'row' : 'rows'}${ownerPayWords.value === null ? '' : `, ${ownerPayWords.value}`}`
-})
 </script>
 
 <template>
   <AppCard
     :title="`Plan for ${year}`"
-    subtitle="Rows of the plan tab. A change is written at once, with Undo in the toast. Revenue is planned on Invoicing, Plan."
-    collapse-id="forecast.plan"
-    :summary="summary"
+    subtitle="Rows of the plan tab. A change is written at once, with Undo in the toast."
     data-testid="plan-editor"
   >
     <div class="flex flex-col gap-5 px-4 pt-3 pb-4 sm:px-5">
+      <p class="flex items-start gap-2 text-sm text-toned" data-testid="plan-revenue">
+        <UIcon name="i-lucide-receipt-text" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+        <span>
+          Revenue comes from the billing plan, the rows still to invoice in each month.
+          <DrillLink :to="{ path: '/invoicing', query: { tab: 'plan', year: String(year) } }" in-prose class="text-highlighted">Invoicing, Plan {{ year }}</DrillLink>
+        </span>
+      </p>
       <section class="flex flex-col gap-2" data-testid="plan-owner-pay">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h3 class="text-sm font-medium text-highlighted">Owner pay</h3>
@@ -160,7 +160,7 @@ const summary = computed(() => {
           <template v-if="ownerPayWords">{{ ownerPayWords }}.</template>
           <template v-else-if="scenarios.length === 0">
             No scenario is for {{ year }} yet, so the owner pay categories take their averages. Add one on
-            <DrillLink :to="{ path: '/pay-scenarios', query: { year: String(year) } }" in-prose class="text-highlighted">Pay scenarios</DrillLink>.
+            <DrillLink :to="{ path: '/year', query: { year: String(year), tab: 'pay' } }" in-prose class="text-highlighted">the Pay tab</DrillLink>.
           </template>
           <template v-else>Not planned, so the owner pay categories take their averages.</template>
         </p>
@@ -230,7 +230,7 @@ const summary = computed(() => {
             @click="dividendOpen = true"
           />
         </div>
-        <p v-if="dividend === null" class="py-2 text-sm text-muted">None planned. Dividend capacity on this screen sets out what the year can pay.</p>
+        <p v-if="dividend === null" class="py-2 text-sm text-muted">None planned. Dividend capacity on the Pay tab sets out what the year can pay.</p>
         <button v-else type="button" class="plan-row" :aria-label="`Dividend: edit`" :disabled="store.state.writing" data-testid="plan-dividend-row" @click="dividendOpen = true">
           <span class="min-w-0 text-start">
             <span class="block text-sm text-toned">Paid in {{ dividend.month === null ? year : monthLabel(monthKey(year, dividend.month)) }}</span>

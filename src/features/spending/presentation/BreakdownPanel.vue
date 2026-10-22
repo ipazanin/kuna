@@ -32,7 +32,7 @@ const names = useDisplayNames()
 
 /** The pages that break the taxes and the owner pay further down, in the Croatian pack. */
 const GROUP_LINKS = {
-  taxes: { label: 'Taxes screen', to: '/taxes' },
+  taxes: { label: 'Year, Taxes', to: { path: '/year', query: { tab: 'taxes' } } },
   'owner-pay': { label: 'Owner, Taken', to: { path: '/owner', query: { tab: 'taken' } } },
 } as const
 

@@ -14,7 +14,7 @@ export interface TabRead {
 
 export type FreshTabs = Partial<Record<WorkbookTab, TabRead>>
 
-/** The tabs whose rows the Workbook, Transactions, Review, Owner, Invoicing, Forecast and Pay scenarios screens add, change and delete. */
+/** The tabs whose rows the Settings, Transactions, Review, Owner, Invoicing and Year screens add, change and delete. */
 export type RowTab =
   | 'ledger'
   | 'categories'

@@ -80,9 +80,14 @@ export function watchedGroups(citations: readonly RuleCitation[]): WatchedRules[
   })
 }
 
+/** The citations of watched rules anywhere in the figures' build-ups. */
+export function watchedCitations(figures: readonly TracedFigure[]): RuleCitation[] {
+  return figures.flatMap(citationsIn).filter((citation) => isWatchedConfidence(citation.confidence))
+}
+
 /** The watched rules anywhere in the figures' build-ups, grouped by their mark. */
 export function watchedIn(figures: readonly TracedFigure[]): WatchedRules[] {
-  return watchedGroups(figures.flatMap(citationsIn).filter((citation) => isWatchedConfidence(citation.confidence)))
+  return watchedGroups(watchedCitations(figures))
 }
 
 /** A figure ready to open on its build-up. */

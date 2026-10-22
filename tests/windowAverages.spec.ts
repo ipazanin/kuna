@@ -44,7 +44,7 @@ describe('windowAverages', () => {
   })
 
   it('links every figure to the rows that make it up', () => {
-    expect(averages.last3.lines.taxes.drill).toEqual({ route: 'transactions', filters: { period: { preset: 'l3' }, buckets: ['taxes'] } })
+    expect(averages.last3.lines.taxes.drill).toEqual({ filters: { period: { preset: 'l3' }, buckets: ['taxes'] } })
     expect(averages.allTime?.lines.net.drill.filters).toEqual({
       period: { preset: 'custom', range: { from: '2026-07-01', to: '2026-09-30' } },
       buckets: ['income', 'operating', 'taxes', 'owner-pay'],
@@ -98,7 +98,7 @@ describe('euroSplit', () => {
 
 describe('runway', () => {
   const averages = windowAverages(rows, window)
-  const cashOnHand = { amount: euros(10000), drill: { route: 'transactions' as const, filters: {} } }
+  const cashOnHand = { amount: euros(10000), drill: { filters: {} } }
 
   it('divides cash on hand by the last three months’ cost per month', () => {
     // 2500 of cost over three months

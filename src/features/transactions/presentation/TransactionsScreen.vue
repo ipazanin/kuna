@@ -34,13 +34,15 @@ import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useCollapsedGroups } from '../application/collapsedGroups'
 import { transactionsCsv } from '../application/transactionsCsv'
 import { useFilteredLedger } from '../application/useFilteredLedger'
+import { categoryChangeOf } from '../domain/categoryChange'
 import { advancesLeftOutByBankFilters } from '../domain/filterTransactions'
 import { OWNER_ADVANCE_LABEL, inBookingOrder, listedRows, withSplitHeadings } from '../domain/listedRows'
-import type { ListedEntry, ListedRow } from '../domain/listedRows'
+import type { ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
 import { groupTransactions } from '../domain/transactionGroups'
 import type { Grouping, TransactionGroup } from '../domain/transactionGroups'
 import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
+import ChangeCategoryDialog from './ChangeCategoryDialog.vue'
 import SplitDialog from './SplitDialog.vue'
 import TransactionCards from './TransactionCards.vue'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
@@ -141,6 +143,22 @@ function splitOf(row: Transaction): LedgerSplit | null {
 function openSplit(row: Transaction): void {
   splitting.value = { row, split: splitOf(row) }
   splitOpen.value = true
+}
+
+/** The settled row whose category is being changed. */
+const changing = ref<Transaction | null>(null)
+const changeOpen = ref(false)
+
+/** A part of a split row opens the split editor on the row as booked, since its category lives on the splits tab. */
+function changeCategory(row: ListedBankRow): void {
+  const change = categoryChangeOf(row)
+  if (change === 'split') {
+    const whole = state.workbook?.transactions.find((transaction) => transaction.sheetRow === row.sheetRow)
+    if (whole !== undefined) openSplit(whole)
+  } else if (change === 'ledger') {
+    changing.value = row
+    changeOpen.value = true
+  }
 }
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -332,18 +350,35 @@ const columns: TableColumn<TableEntry>[] = [
           onClick: () => openSplit(entry.whole),
         })
       }
-      if (entry.kind !== 'row' || entry.row.kind !== 'bank' || entry.row.split !== undefined || entry.row.amount === 0) return ''
+      if (entry.kind !== 'row' || entry.row.kind !== 'bank') return ''
       const listed = entry.row
-      return h(UButton, {
-        icon: 'i-lucide-split',
-        color: 'neutral',
-        variant: 'ghost',
-        size: 'xs',
-        'aria-label': `Split the payment of ${listed.counterparty || 'this row'}`,
-        'data-testid': 'split-row',
-        disabled: state.writing,
-        onClick: () => openSplit(listed),
-      })
+      const named = listed.split === undefined ? listed.counterparty || 'this row' : `part ${listed.split.index + 1} of ${listed.counterparty || 'the payment'}`
+      return h('span', { class: 'flex justify-end' }, [
+        categoryChangeOf(listed) === null
+          ? null
+          : h(UButton, {
+              icon: 'i-lucide-tag',
+              color: 'neutral',
+              variant: 'ghost',
+              size: 'xs',
+              'aria-label': `Change the category of ${named}`,
+              'data-testid': 'change-category-row',
+              disabled: state.writing,
+              onClick: () => changeCategory(listed),
+            }),
+        listed.split !== undefined || listed.amount === 0
+          ? null
+          : h(UButton, {
+              icon: 'i-lucide-split',
+              color: 'neutral',
+              variant: 'ghost',
+              size: 'xs',
+              'aria-label': `Split the payment of ${named}`,
+              'data-testid': 'split-row',
+              disabled: state.writing,
+              onClick: () => openSplit(listed),
+            }),
+      ])
     },
   },
 ]
@@ -434,6 +469,7 @@ function exportCsv(): void {
                 :writing="state.writing"
                 @toggle="collapsed.toggle"
                 @split="openSplit"
+                @change-category="changeCategory"
               />
               <AppCard v-else as="div" class="@container overflow-hidden">
                 <UTable
@@ -448,6 +484,7 @@ function exportCsv(): void {
                 />
               </AppCard>
               <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
+              <ChangeCategoryDialog v-if="changing" v-model:open="changeOpen" :row="changing" />
             </template>
           </LedgerGate>
         </div>

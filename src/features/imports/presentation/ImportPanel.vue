@@ -220,7 +220,7 @@ const summary = computed(() => {
       v-if="workbook === null"
       icon="i-lucide-book-open"
       title="Open a workbook first"
-      description="Statements go into the ledger of the workbook on screen. Choose one in Settings."
+      description="Statements go into the ledger of the workbook on screen. Choose one on Settings, This device."
       variant="outline"
       class="rounded-card border-dashed bg-raised/40"
     />

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
+import { newestBookingOf } from '../src/features/workbook/domain/workbook'
 import type { Workbook } from '../src/features/workbook/domain/workbook'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
+import { loanBenefitByYear } from '../src/packs/hr-doo/domain/ownerLoanInterest'
 import { yearEndOpenItems } from '../src/packs/hr-doo/domain/yearEnd/yearEndOpenItems'
+import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset'
 import type { YearEndOpenItem } from '../src/packs/hr-doo/domain/yearEnd/yearEndOpenItems'
 import { STUDIO_ROWS, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
 import { withPackBuckets } from './fixtures/hrDooCategories'
-import { euros, ledger } from './fixtures/ledger'
+import { civil, euros, ledger } from './fixtures/ledger'
 
 function openItems(workbook: Workbook, year = 2025): YearEndOpenItem[] {
   return yearEndOpenItems(workbook, accrualYear(workbook, year, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null }))
@@ -63,6 +66,19 @@ describe('yearEndOpenItems', () => {
     expect(items.find((item) => item.key === 'loan-benefit')).toMatchObject({ figure: { amount: euros(3.29) }, rules: ['hr.pit.loan-benefit'], settled: false })
     // Lent in November 2025 and repaid in February 2026, so 2026 has it too.
     expect(keys(openItems(exampleStudio(), 2026), 'compliance')).toContain('loan-benefit')
+  })
+
+  it('counts the loan benefit of a year the ledger has not finished up to the newest booking, as Owner does', () => {
+    const workbook = exampleStudio()
+    const stillOwed = exampleStudio({
+      transactions: withPackBuckets(ledger(STUDIO_ROWS.filter((row) => row.category !== 'owner-loan-repaid')), workbook.categories),
+    })
+    const newest = newestBookingOf(stillOwed.transactions) ?? civil('2026-04-30')
+    const onOwner = loanBenefitByYear(stillOwed, newest, ruleValue).find((benefit) => benefit.year === 2026)
+
+    // 1,000.00 still owed on 30 April 2026, the newest booking: 1,000.00 × 2% × 120 / 365 = 6.58, not the 20.00 of a whole year.
+    expect(onOwner?.figure.amount).toBe(euros(6.58))
+    expect(openItems(stillOwed, 2026).find((item) => item.key === 'loan-benefit')?.figure?.amount).toBe(euros(6.58))
   })
 
   it('settles the loan benefit when the loans carry the income tax law’s rate', () => {

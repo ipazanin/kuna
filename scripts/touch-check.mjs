@@ -1,23 +1,25 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
- * with its one-line Sync button and its navigation drawer, Workbook's tabs with Back through them, the review line of Overview's waiting card, a chart's tap-then-drill, the filter sheet with a
+ * with its one-line Sync button and its navigation drawer, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
- * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the Taxes calendar, the
- * doubled rates, a year's build-up and a payment on Assets, a line's build-up and its rows on Year end, a line's build-up, a
- * payout option, the next year and a paid advance on Forecast, a paid corporate tax advance on Taxes, a repayment on the Owner loan list, the build-up of
- * the loans' benefit in kind, the owner take under the ring against its tile, the Add advance form from Owner's header,
+ * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the payroll calendar of Year, Taxes, the
+ * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
+ * asset rows and grant rows on Year, a line's build-up on Year, Forecast, a payout option, the next year and the Plan tab from Year, Pay,
+ * a pay scenario's figure, warnings and starting figures on Year, Pay, a paid corporate tax advance on Year, Taxes, a repayment on the Owner loan list, the build-up of
+ * the loans' benefit in kind and its link to the rate on Settings, the owner take under the ring against its tile, Compare pay mixes and the Add advance form from Owner's header,
  * the cost of a reimbursement with no cost on file added from Review,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, an asset and an
  * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a payment split, edited, deleted and
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused,
+ * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
  * with a profile made for it, each confirmed and undone, an invoice made and re-exported, a rule made from a row and applied to
- * the rows still waiting, a rule edited and switched off on Review's Rules tab, the Ruleset search, a
- * watch list link that opens its rule, the local income tax rates searched and shown in full, and every screen. The
+ * the rows still waiting, a rule edited and switched off on Review's Rules tab, the Ruleset search on Settings, a
+ * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
@@ -41,10 +43,11 @@ import { launch } from 'puppeteer-core'
 
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { pageTabsFlow } from './support/pageTabFlows.mjs'
+import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
   assetFlow,
   categoryFlow,
+  changeCategoryFlow,
   dismissFlow,
   importCamtFlow,
   importTableFlow,
@@ -73,23 +76,25 @@ const BASE = selection.base
 const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview' }
 
 /**
- * `ready` appears once the screen drew the fake workbook. `p=all` resets the filters the drills left
+ * `ready` appears once the screen drew the fake workbook. `name` names the step of a screen with tabs. `p=all` resets the filters the drills left
  * behind. A screen collapses and expands its first collapsible card, unless `cards: false` says it has none.
  */
 const SCREENS = [
   { hash: '#/transactions?tab=import', title: 'Transactions', ready: '[data-testid="import-file"]', cards: false },
   { hash: '#/analysis?p=all', title: 'Analysis', ready: '[data-testid="cost-line"]' },
   { hash: '#/invoicing?p=all', title: 'Invoicing', ready: '[data-testid="invoice-list"]' },
-  { hash: '#/taxes?p=all', title: 'Taxes', ready: '[data-testid="cadence-paid"]' },
-  { hash: '#/assets?p=all', title: 'Assets', ready: '[data-testid="asset-register"]' },
-  { hash: '#/year-end?year=2025&p=all', title: 'Year end', ready: '[data-testid="bridge-steps"]' },
-  { hash: '#/forecast?p=all', title: 'Forecast', ready: '[data-testid="forecast-unregistered"]', cards: false },
-  { hash: '#/pay-scenarios?p=all', title: 'Pay scenarios', ready: '[data-testid="scenario-editor"]' },
+  { name: 'year-accountant', hash: '#/year?year=2025&p=all', title: 'Year', ready: '[data-testid="line-statuses"]' },
+  { name: 'year-statements', hash: '#/year?year=2025&tab=statements&p=all', title: 'Year', ready: '[data-testid="comparison-pl"]' },
+  { name: 'year-taxes', hash: '#/year?tab=taxes&p=all', title: 'Year', ready: '[data-testid="corporate-tax"]' },
+  { name: 'year-assets', hash: '#/year?tab=assets&p=all', title: 'Year', ready: '[data-testid="asset-register"]' },
+  { name: 'year-forecast', hash: '#/year?p=all', title: 'Year', ready: '[data-testid="forecast-unregistered"]', cards: false },
+  { name: 'year-plan', hash: '#/year?tab=plan&p=all', title: 'Year', ready: '[data-testid="plan-editor"]', cards: false },
+  { name: 'year-pay', hash: '#/year?year=2027&tab=pay&p=all', title: 'Year', ready: '[data-testid="scenario-editor"]' },
   { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
-  { hash: '#/ruleset', title: 'Ruleset', ready: '[data-testid="rule-card"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
-  { hash: '#/workbook', title: 'Workbook', ready: '[data-testid="workbook-tabs"]' },
-  { hash: '#/settings', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
+  { name: 'settings', hash: '#/settings', title: 'Settings', ready: '[data-testid="settings-tabs"]' },
+  { name: 'settings-ruleset', hash: '#/settings?tab=ruleset', title: 'Settings', ready: '[data-testid="rule-row"]' },
+  { name: 'settings-device', hash: '#/settings?tab=device', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
 ]
 
 mkdirSync(OUTPUT_DIR, { recursive: true })
@@ -230,6 +235,19 @@ async function checkWidth(width) {
     await reviewLink.tap()
     await waitForTitle(page, 'Review')
     await expect(reviewCount(page), (count) => count === 2, 'the waiting line did not open the queue with its two rows')
+  })
+
+  await step('waiting-corporate-tax', async () => {
+    await openFreshExcel(page, '#/', 'Overview')
+    const taxLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="corporate-tax"] a', 'Year, Taxes')
+    await taxLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await taxLink.tap()
+    await waitForTitle(page, 'Year')
+    await expect(hashOf(page), (hash) => hash.includes('tab=taxes') && hash.endsWith('#corporate-tax'), 'the waiting line did not open the Taxes tab at the corporate tax')
+    await page.waitForSelector('[data-testid="corporate-tax-overdue"]', { visible: true })
+    await inspect(page, `${width}px year taxes from the waiting card`)
+    await shoot('year-taxes-overdue')
   })
 
   await step('filter-sheet', async () => {
@@ -377,7 +395,7 @@ async function checkWidth(width) {
   })
 
   await step('taxes-cadence-drill', async () => {
-    await open(page, '#/taxes?p=all', 'Taxes')
+    await open(page, '#/year?tab=taxes&p=all#payroll-cadence', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="cadence-paid"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes.png`))
@@ -387,7 +405,7 @@ async function checkWidth(width) {
   })
 
   await step('assets-doubled-and-drill', async () => {
-    await open(page, '#/assets?p=all', 'Assets')
+    await open(page, '#/year?tab=assets&p=all', 'Year')
     await settleCharts(page)
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-assets.png`))
     await page.tap('[role="switch"][data-testid="doubled-rates-switch"]')
@@ -395,6 +413,10 @@ async function checkWidth(width) {
     await expect(hashOf(page), (hash) => hash.includes('rates=doubled'), 'the switch did not put the doubled rates in the address')
     await inspect(page, `${width}px assets at doubled rates`)
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-assets-doubled.png`))
+    const years = await page.waitForSelector('[data-card="year.depreciation"] [data-testid="card-toggle"][aria-expanded="false"]')
+    await years.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await years.tap()
     const year = await page.waitForSelector('[data-testid="depreciation-year-toggle"][aria-expanded="false"]')
     await year.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -410,8 +432,7 @@ async function checkWidth(width) {
   })
 
   await step('year-end-build-up-and-drill', async () => {
-    await open(page, '#/year-end?year=2025&p=all', 'Year end')
-    await settleCharts(page)
+    await open(page, '#/year?year=2025&tab=statements&p=all', 'Year')
     await page.waitForSelector('[data-testid="comparison-pl"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-year-end.png`))
     const toggle = await page.waitForSelector('[data-testid="comparison-pl"] [data-testid="comparison-toggle"][aria-expanded="false"]')
@@ -432,10 +453,14 @@ async function checkWidth(width) {
   })
 
   await step('forecast-build-up-and-switch', async () => {
-    await openFreshExcel(page, '#/forecast?year=2026&p=all', 'Forecast')
+    await openFreshExcel(page, '#/year?year=2026&p=all', 'Year')
     await settleCharts(page)
-    await page.waitForSelector('[data-testid="forecast-obligations"]')
+    await page.waitForSelector('[data-testid="forecast-tiles"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-forecast.png`))
+    const card = await page.waitForSelector('[data-card="year.forecast-pl"] [data-testid="card-toggle"]')
+    await card.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    if ((await card.evaluate((element) => element.getAttribute('aria-expanded'))) === 'false') await card.tap()
     const toggle = await page.waitForSelector('[data-testid="forecast-profit-and-loss"] [data-testid="build-up-toggle"][aria-expanded="false"]')
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -443,33 +468,30 @@ async function checkWidth(width) {
     await page.waitForSelector('[data-testid="forecast-profit-and-loss"] [data-testid="build-up-detail"]')
     await inspect(page, `${width}px forecast, a line opened`)
     await shoot('forecast-line')
+    await (await waitForText(page, '[role="tab"]', 'Pay')).tap()
+    await expect(hashOf(page), (hash) => hash.includes('tab=pay'), 'the Pay tab did not put itself in the address')
     const interim = await waitForText(page, '[data-testid="payout-switch"] button', 'Interim payout now')
     await interim.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
     await interim.tap()
     await expect(hashOf(page), (hash) => hash.includes('payout=interim'), 'the payout switch did not put the option in the address')
     await waitForText(page, '[data-testid="dividend-capacity"] p', 'An interim payout in 2026')
-    await inspect(page, `${width}px forecast, interim payout`)
-    await shoot('forecast-interim')
+    await inspect(page, `${width}px pay, interim payout`)
+    await shoot('pay-interim')
     const next = await waitForText(page, '[data-testid="year-picker"] button', '2027')
     await next.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
     await next.tap()
-    await expect(hashOf(page), (hash) => hash.includes('year=2027'), 'the year picker did not put the year in the address')
+    await expect(hashOf(page), (hash) => hash.includes('year=2027') && hash.includes('tab=pay'), 'the year picker did not keep the Pay tab for the next year')
+    await waitForText(page, '[data-testid="dividend-capacity"] p', 'An interim payout in 2027')
+    await (await waitForText(page, '[role="tab"]', 'Plan')).tap()
     await waitForText(page, '[data-testid="plan-editor"] h2', 'Plan for 2027')
-    await inspect(page, `${width}px forecast for 2027`)
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-forecast-2027.png`))
-    await (await waitForText(page, '[data-testid="year-picker"] button', '2026')).tap()
-    const paid = await page.waitForSelector('[data-testid="forecast-obligations"] a[aria-label$="paid, open the rows"]')
-    await paid.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await paid.tap()
-    await waitForTitle(page, 'Transactions')
-    await expect(filterCount(page), (count) => Number(count) >= 1, 'the paid advance opened Transactions without its filters')
+    await inspect(page, `${width}px plan for 2027`)
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-plan-2027.png`))
   })
 
   await step('taxes-corporate-tax-drill', async () => {
-    await openFreshExcel(page, '#/taxes?p=all', 'Taxes')
+    await openFreshExcel(page, '#/year?tab=taxes&p=all', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="corporate-tax-2026"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes-corporate-tax.png`))
@@ -534,6 +556,14 @@ async function checkWidth(width) {
     await page.tap('[data-testid="invoice-list"] ol a')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the payment opened Transactions without its filters')
+  })
+
+  await step('owner-pay-mixes', async () => {
+    await openFreshExcel(page, '#/owner?p=all', 'Owner')
+    await page.tap('[data-testid="owner-pay-scenarios"]')
+    await waitForTitle(page, 'Year')
+    await expect(hashOf(page), (hash) => hash.includes('tab=pay') && hash.includes('year=2027'), 'Compare pay mixes did not open Year, Pay for the next year')
+    await page.waitForSelector('[data-testid="scenario-picker"]')
   })
 
   await step('owner-advance-undo', async () => {
@@ -701,9 +731,30 @@ async function checkWidth(width) {
   })
 
   await step('pay-scenarios-figures', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=excel&load=${Date.now()}#/pay-scenarios?year=2027`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'Pay scenarios')
+    await openFreshExcel(page, '#/year?year=2027&tab=pay&p=all', 'Year')
+    await settleCharts(page)
+    await inspect(page, `${width}px pay`)
+    const badge = await page.waitForSelector('[data-testid="scenario-warning-badge"]')
+    await badge.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await badge.tap()
+    // The popover holds text only, and it can lie over a link the size check scrolls to, so the page is checked before it opens.
+    await page.waitForSelector('[data-testid="scenario-warning-list"]', { visible: true })
+    await delay(300)
+    await shoot('pay-scenario-warnings')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="scenario-warning-list"]'))
+    const comparison = await page.waitForSelector('[data-card="year.comparison"] [data-testid="card-toggle"]')
+    await comparison.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    if ((await comparison.evaluate((element) => element.getAttribute('aria-expanded'))) === 'false') await comparison.tap()
     await page.waitForSelector('[data-testid="scenario-comparison"]')
+    const columns = () => page.$$eval('[data-testid="scenario-comparison"] thead th.figure-head', (heads) => heads.length)
+    await expect(columns(), (count) => count === 2, 'the phone comparison does not set the base beside one scenario')
+    const other = await page.waitForSelector('[data-testid="comparison-against"] button[aria-pressed="false"]')
+    const picked = await other.evaluate((element) => element.textContent.trim())
+    await other.tap()
+    await page.waitForFunction((wanted) => document.querySelectorAll('[data-testid="scenario-comparison"] thead th.figure-head')[1]?.textContent.includes(wanted), {}, picked)
     await inspect(page, `${width}px pay scenarios`)
     await shoot('pay-scenarios')
     const figure = await page.waitForSelector('[data-line="net"] button')
@@ -716,6 +767,21 @@ async function checkWidth(width) {
     await shoot('pay-scenarios-build-up')
     await page.keyboard.press('Escape')
     await page.waitForFunction(() => !document.querySelector('[data-testid="figure-detail"]'))
+    const starting = await page.waitForSelector('[data-testid="open-starting-figures"]')
+    await starting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await starting.tap()
+    await page.waitForSelector('[data-testid="starting-figures"]')
+    await delay(400)
+    await inspect(page, `${width}px what the scenarios start from`)
+    await shoot('pay-starting-figures')
+    await (await page.waitForSelector('[data-testid="starting-figures"] [data-testid="build-up-button"]')).tap()
+    await page.waitForSelector('[data-testid="figure-detail"]')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="starting-figures"]'), { timeout: 5_000 }).catch(() => {
+      throw new Error('the starting figures stayed open under the build-up')
+    })
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="figure-detail"]'))
   })
 
   for (const [mode, query] of [
@@ -723,17 +789,18 @@ async function checkWidth(width) {
     ['excel', '&fake=excel'],
   ]) {
     for (const [name, hash, title, run, variant] of [
-      ['categories', '#/workbook?tab=categories', 'Workbook', categoryFlow],
-      ['assets', '#/workbook?tab=assets', 'Workbook', assetFlow],
+      ['categories', '#/settings?tab=categories', 'Settings', categoryFlow],
+      ['assets', '#/year?tab=assets#asset-rows', 'Year', assetFlow],
       ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],
       ['invoice-run', '#/invoicing?p=all', 'Invoicing', invoiceRunFlow],
-      ['scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', scenarioFlow],
-      ['starting-scenarios', '#/pay-scenarios?year=2027', 'Pay scenarios', startingScenariosFlow, mode === 'google' ? '&fake=no-scenarios' : '&fake=excel-no-scenarios'],
-      ['plan', '#/forecast?year=2027', 'Forecast', planFlow],
-      ['plan-tab', '#/forecast?year=2027', 'Forecast', planTabFlow, mode === 'google' ? '&fake=no-plan' : '&fake=excel-no-plan'],
+      ['scenarios', '#/year?year=2027&tab=pay', 'Year', scenarioFlow],
+      ['starting-scenarios', '#/year?year=2027&tab=pay', 'Year', startingScenariosFlow, mode === 'google' ? '&fake=no-scenarios' : '&fake=excel-no-scenarios'],
+      ['plan', '#/year?year=2027&tab=plan', 'Year', planFlow],
+      ['plan-tab', '#/year?year=2027&tab=plan', 'Year', planTabFlow, mode === 'google' ? '&fake=no-plan' : '&fake=excel-no-plan'],
       ['split', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow],
       ['split-tab', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow, mode === 'google' ? '&fake=no-splits' : '&fake=excel-no-splits'],
       ['split-review', '#/review', 'Review', reviewSplitFlow],
+      ['change-category', '#/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
       ['dismiss', '#/review?tab=rules', 'Review', dismissFlow],
       ['import-camt', '#/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
       ['import-table', '#/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
@@ -754,12 +821,12 @@ async function checkWidth(width) {
   }
 
   for (const screen of SCREENS) {
-    const name = screen.title.toLowerCase().replace(' ', '-')
+    const name = screen.name ?? screen.title.toLowerCase().replace(' ', '-')
     await step(name, async () => {
       await open(page, screen.hash, screen.title)
       await page.waitForSelector(screen.ready)
       await expect(topBarTitle(page), (title) => title === screen.title, 'the top bar does not name the screen')
-      if (screen.title === 'Settings') await shoot('settings')
+      if (screen.title === 'Settings') await shoot(name)
       if (screen.cards !== false) {
         await collapseAndExpand(
           page,
@@ -774,19 +841,21 @@ async function checkWidth(width) {
   }
 
   await step('ruleset-deep-link', async () => {
-    await open(page, '#/ruleset', 'Ruleset')
-    await page.waitForSelector('[data-testid="rule-card"]')
-    const ruleCards = () => page.evaluate(() => document.querySelectorAll('[data-testid="rule-card"]').length)
-    const everyRule = await ruleCards()
+    await open(page, '#/settings?tab=ruleset', 'Settings')
+    await page.waitForSelector('[data-testid="rule-row"]')
+    const ruleRows = () => page.evaluate(() => document.querySelectorAll('[data-testid="rule-row"]').length)
+    const everyRule = await ruleRows()
     await page.tap('input[data-testid="ruleset-search"]')
     await page.keyboard.type('director floor')
-    await expect(ruleCards(), (shown) => shown >= 1 && shown < everyRule, 'the search did not narrow the rules')
+    await expect(ruleRows(), (shown) => shown >= 1 && shown < everyRule, 'the search did not narrow the rules')
     await inspect(page, `${width}px ruleset search`)
     await shoot('ruleset-search')
     await page.tap('[data-testid="ruleset-bar"] button[aria-label="Clear the search"]')
-    await expect(ruleCards(), (shown) => shown === everyRule, 'clearing the search did not bring every rule back')
+    await expect(ruleRows(), (shown) => shown === everyRule, 'clearing the search did not bring every rule back')
 
-    const link = await page.waitForSelector('[data-testid="watch-rule-link"]')
+    const watchToggle = await page.waitForSelector('[data-testid="watch-list"] [data-testid="card-toggle"]')
+    if ((await watchToggle.evaluate((toggle) => toggle.getAttribute('aria-expanded'))) === 'false') await watchToggle.tap()
+    const link = await page.waitForSelector('[data-testid="watch-rule-link"]', { visible: true })
     const ruleId = await link.evaluate((element) => new URLSearchParams(element.getAttribute('href').split('?')[1]).get('rule'))
     await link.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -795,29 +864,43 @@ async function checkWidth(width) {
     await page
       .waitForFunction(
         (wanted) => {
-          const card = document.getElementById(`rule-${wanted}`)
-          const bar = document.querySelector('[data-testid="ruleset-bar"]')
-          if (card === null || bar === null || card.dataset.linked !== 'true' || document.activeElement !== card) return false
-          const top = card.getBoundingClientRect().top
-          return top >= bar.getBoundingClientRect().bottom - 1 && top < window.innerHeight / 2
+          const panel = document.querySelector('[role="dialog"]')
+          const panelBox = panel?.getBoundingClientRect()
+          const line = document.getElementById(`rule-${wanted}`)
+          return (
+            panel?.querySelector('[data-testid="rule-detail"]') != null &&
+            panel.textContent.includes(wanted) &&
+            panelBox.left <= 1 &&
+            panelBox.top <= 1 &&
+            panelBox.bottom >= window.innerHeight - 1 &&
+            line?.getAttribute('aria-current') === 'true'
+          )
         },
         { timeout: 5_000 },
         ruleId,
       )
       .catch(() => {
-        throw new Error(`the watch list link did not bring ${ruleId} into view below the search bar, marked and focused`)
+        throw new Error(`the watch list link did not open ${ruleId} in a full-height sheet with its line marked`)
       })
+    await delay(400)
+    await inspect(page, `${width}px rule detail`)
     await shoot('ruleset-linked')
+    await (await page.waitForSelector('[role="dialog"] button[aria-label="Close"]')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]') && !window.location.hash.includes('rule='), { timeout: 5_000 }).catch(() => {
+      throw new Error('closing the rule did not take it out of the address')
+    })
+    const list = page.url()
+    await page.goBack({ waitUntil: 'networkidle0' })
+    await expect(page.url(), (address) => address !== list, 'Back after closing the rule showed the same list again')
   })
 
   await step('ruleset-local-rates', async () => {
-    await open(page, '#/ruleset?rule=hr.pit.local-rates', 'Ruleset')
-    const card = '[id="rule-hr.pit.local-rates"]'
+    await open(page, '#/settings?tab=ruleset&rule=hr.pit.local-rates', 'Settings')
+    const card = '[role="dialog"] [data-testid="rule-detail"]'
     const tableCount = () => page.$eval(`${card} [data-testid="table-count"]`, (element) => element.textContent.trim())
     const rowsShown = (text) => Number(text.split(' ')[0])
     await page.waitForSelector(`${card} [data-testid="table-count"]`)
-    // The deep link scrolls to the card and focuses it a frame or two after the screen renders.
-    await page.waitForFunction(() => document.activeElement?.id === 'rule-hr.pit.local-rates', { timeout: 5_000 })
+    await delay(400)
     await expect(tableCount(), (text) => rowsShown(text) <= 8, "the local rates opened on more than the owner's unit")
     await inspect(page, `${width}px local rates, folded`)
     await shoot('ruleset-local-rates')
@@ -838,30 +921,64 @@ async function checkWidth(width) {
   })
 
   await step('settings-excel', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=excel#/settings`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=excel#/settings?tab=device`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
+    await waitForText(page, 'button', 'Import a file')
   })
 
-  await step('workbook-tabs', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=excel#/workbook`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'Workbook')
+  await step('settings-tabs', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=excel#/settings`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Settings')
     await waitForText(page, 'button', 'Save settings')
-    await shoot('workbook')
+    await shoot('settings-general')
     for (const [label, query, ready] of [
       ['Categories', 'tab=categories', 'Save categories'],
       ['Accounts', 'tab=accounts', 'Save accounts'],
-      ['Assets', 'tab=assets', 'Save assets'],
-      ['Grants', 'tab=grants', 'Save grants'],
-      ['Year end', 'tab=year-end', 'Save year-end lines'],
     ]) {
       const tab = await waitForText(page, '[role="tab"]', label)
       await tab.tap()
       await page.waitForFunction((wanted) => window.location.hash.includes(wanted), {}, query)
       await waitForText(page, 'button', ready)
-      await inspect(page, `${width}px workbook ${label.toLowerCase()}`)
-      if (label === 'Assets' || label === 'Year end') await shoot(`workbook-${query.slice(4)}`)
+      await inspect(page, `${width}px settings ${label.toLowerCase()}`)
     }
-    await shoot('workbook-accounts')
+    await shoot('settings-accounts')
+  })
+
+  await step('owner-loan-rate', async () => {
+    await open(page, '#/owner?p=all#owner-loan-benefit', 'Owner')
+    const link = await page.waitForSelector('[data-testid="loan-rate-setting"]', { visible: true })
+    await link.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await link.tap()
+    await waitForTitle(page, 'Settings')
+    await page
+      .waitForFunction(
+        () => {
+          const field = document.getElementById('owner-loan-interest')
+          const band = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-band')) || 0
+          const top = field?.getBoundingClientRect().top ?? -1
+          return field?.closest('[data-card]')?.dataset.collapsed === 'false' && top >= band - 1 && top < window.innerHeight / 2
+        },
+        { timeout: 5_000 },
+      )
+      .catch(() => {
+        throw new Error('the link from Owner did not open the facts card at the loan rate')
+      })
+    await shoot('owner-loan-rate')
+  })
+
+  await step('year-editors', async () => {
+    for (const [hash, ready, name] of [
+      ['#/year?year=2025&tab=statements#accountant-lines', 'Save year-end lines', 'year-accountant-lines'],
+      ['#/year?tab=assets#asset-rows', 'Save assets', 'year-asset-rows'],
+      ['#/year?tab=assets#grant-rows', 'Save grants', 'year-grant-rows'],
+    ]) {
+      await page.goto(`${BASE}?theme=dark&fake=excel&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+      await waitForTitle(page, 'Year')
+      await waitForText(page, 'button', ready)
+      await inspect(page, `${width}px ${name}`)
+      await shoot(name)
+    }
   })
 
   await step('invoicing-clients', async () => {
@@ -879,8 +996,13 @@ async function checkWidth(width) {
   })
 
   await step('page-tabs', async () => {
-    await open(page, '#/workbook', 'Workbook')
+    await open(page, '#/settings', 'Settings')
     await pageTabsFlow(page, { press: (handle) => handle.tap(), shoot })
+  })
+
+  await step('year-tab-link', async () => {
+    await open(page, '#/year?tab=statements', 'Year')
+    await yearTabLinkFlow(page, { press: (handle) => handle.tap(), shoot })
   })
 
   await step('review-confirm-undo', async () => {

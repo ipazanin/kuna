@@ -6,12 +6,8 @@ import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
 import { EVERY_OWNER_ADVANCE } from './filterState'
 import type { AmountRange, FilterState, Period } from './filterState'
 
-/** The pages a drill opens: Overview, Transactions, and the three tabs of Analysis. */
-export type DrillRoute = 'overview' | 'transactions' | 'breakdown' | 'over-time' | 'compare'
-
-/** Where a click on a figure leads, and the filters that reproduce the rows behind it. */
+/** The filters that reproduce the rows behind a figure, which a click on it opens on Transactions. */
 export interface DrillTarget {
-  readonly route: DrillRoute
   readonly filters: Partial<FilterState>
 }
 
@@ -22,7 +18,7 @@ export interface Figure {
 }
 
 export function drillToTransactions(filters: Partial<FilterState>): DrillTarget {
-  return { route: 'transactions', filters }
+  return { filters }
 }
 
 export function monthPeriod(month: MonthKey): Period {

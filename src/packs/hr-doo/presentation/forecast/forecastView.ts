@@ -1,5 +1,6 @@
 import type { RouteLocationRaw } from 'vue-router'
 
+import { expectedInvoices } from '../../../../features/billingPlan/domain/expectedInvoices'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import { runwayInWords } from '../../../../features/overview/domain/headline'
 import type { Workbook } from '../../../../features/workbook/domain/workbook'
@@ -19,10 +20,7 @@ import type { ForecastLine, ForecastMonth, LinePart, MonthBasis } from '../../do
 import { forecastYear } from '../../domain/forecast/forecastYear'
 import { planAgainstActual } from '../../domain/forecast/planAgainstActual'
 import { percentText } from '../../domain/payroll/payrollArithmetic'
-import { citObligationLine } from '../CitObligationList.vue'
-import type { CitObligationLine } from '../CitObligationList.vue'
-import { missingAccrualRoles } from '../accrualRoles'
-import { figureLabel, ruleChips, stepsOf, watchedIn } from '../tracedFigureView'
+import { figureLabel, ruleChips, stepsOf, watchedCitations } from '../tracedFigureView'
 import type { BuildUpStep, RuleChip } from '../yearEnd/LineBuildUp.vue'
 import { lineLabel } from '../yearEnd/yearEndWording'
 import type { BuildUpLine } from './BuildUpList.vue'
@@ -81,11 +79,34 @@ const BASIS_WORDS: readonly (readonly [MonthBasis, string])[] = [
 
 const SHORT_MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
 
-/** Everything the Forecast screen shows for one year, seen on `asOf`. */
-export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, context: ForecastViewContext) {
+/** The forecast of a year as the Year page shows it, or why it could not be made. */
+export type ForecastState =
+  | { readonly state: 'unregistered' }
+  | { readonly state: 'failed'; readonly failure: string }
+  | { readonly state: 'ready'; readonly view: ForecastView }
+
+export type ForecastView = ReturnType<typeof forecastView>
+
+/** The forecast needs the day the company was registered, since the tax periods count from it. */
+export function forecastState(workbook: Workbook, year: number, asOf: CivilDate, context: ForecastViewContext): ForecastState {
+  if (workbook.settings.companyFacts.companyRegistered === null) {
+    return { state: 'unregistered' }
+  }
+  try {
+    return { state: 'ready', view: forecastView(workbook, year, asOf, context) }
+  } catch (failure) {
+    if (failure instanceof RangeError) {
+      return { state: 'failed', failure: failure.message }
+    }
+    throw failure
+  }
+}
+
+/** Everything the Forecast tab of the Year page shows for one year, seen on `asOf`, and the dividend capacity its Pay tab shows. */
+function forecastView(workbook: Workbook, year: number, asOf: CivilDate, context: ForecastViewContext) {
   const forecast = forecastYear(workbook, year, asOf)
   const capacity = dividendCapacity(year, forecast, workbook)
-  const { calendar, taxBase: base, liability, cit } = forecast
+  const { calendar, taxBase: base, liability } = forecast
   const linkOf = (figure: TracedFigure | null): RouteLocationRaw | null => (figure === null ? null : context.link(figure.drill))
   const running = calendar.running !== null && yearOfMonth(calendar.running) === year ? calendar.running : null
   const forecastMonths = forecast.profitBeforeTax.months.filter(isGuessed).length
@@ -121,7 +142,7 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
           value: { cents: entry.forecast.total.amount },
           to: context.link(rowsBehind(entry.parts.flatMap((part) => part.line.months.flatMap((_, index) => knownFigures([part], index))))),
           total: false,
-          steps: entry.parts.flatMap((part, index) => partSteps(part, `${index}`, context)),
+          steps: entry.parts.flatMap((part, index) => partSteps(part, `${index}`, year, context)),
           rules: ruleChips(entry.forecast.total.rules),
         }),
       ),
@@ -263,8 +284,8 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
         label: 'Cash at the year end',
         value: formatWholeMoney(forecast.cashAtYearEnd.amount),
         to: null,
-        caption: runway.months === null ? `Projected for 31 Dec ${year}` : `Lasts ${runwayInWords(runway.months)} at the cost of Oct to Dec`,
-        definition: `Cash on the newest booking, then each month as it would be paid: revenue when the client pays, open invoices, the VAT position, costs, purchases, the dividend and the corporate tax. ${forecast.paymentLag.label}. Runway is this cash over the average monthly cost of the year's last three months, corporate tax included and depreciation left out, as Overview counts it. A planning projection, not a bank balance.`,
+        caption: `Projected for 31 Dec ${year}`,
+        definition: `Cash on the newest booking, then each month as it would be paid: revenue when the client pays, open invoices, the VAT position, costs, purchases, the dividend and the corporate tax. ${forecast.paymentLag.label}. A planning projection, not a bank balance.`,
       },
     ],
     chartMonths,
@@ -272,22 +293,14 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
     profitAndLossSummary: `Profit before tax ${formatWholeMoney(forecast.profitBeforeTax.total.amount)}`,
     pdReturn,
     pdReturnSummary: `Tax ${formatWholeMoney(liability.liability.amount)}, a monthly advance of ${formatWholeMoney(liability.monthlyAdvance.amount)}`,
-    obligations: cit.obligations.map((entry): CitObligationLine => citObligationLine(entry, linkOf)),
-    obligationsSummary: `${formatWholeMoney(cit.advancesPaid.amount)} paid, ${formatWholeMoney(cit.advancesToCome.amount)} still to come`,
-    advancesPaid: cit.advancesPaid,
-    advancesToCome: cit.advancesToCome,
-    balanceDue: cit.balanceDue === null ? null : { label: cit.balanceDue.expected.label, cents: cit.balanceDue.expected.amount, dueOn: dayLabel(cit.balanceDue.dueOn), rules: ruleChips(cit.balanceDue.expected.rules) },
-    refund: liability.refund !== null && liability.refund.amount > 0 ? liability.refund.amount : null,
-    newAdvance:
-      cit.newAdvance === null || cit.newAdvance.month === null
-        ? null
-        : { month: monthLabel(cit.newAdvance.month), cents: cit.newAdvance.expected.amount, dueOn: dayLabel(cit.newAdvance.dueOn), rules: ruleChips(cit.newAdvance.expected.rules) },
-    unmatched: cit.unmatched.map((figure, index): ShownFigure => ({ key: `${index}`, label: figureLabel(figure), cents: figure.amount, to: linkOf(figure) })),
-    capacityLines,
-    prudenceLines,
-    deterioration: ruleChips([prudence.deterioration]),
-    decideBy: dayLabel(capacity.decideBy),
-    payouts: capacity.options.map((option) => payoutView(option, linkOf)),
+    dividend: {
+      capacity: capacityLines,
+      prudence: prudenceLines,
+      deterioration: ruleChips([prudence.deterioration]),
+      decideBy: dayLabel(capacity.decideBy),
+      payouts: capacity.options.map((option) => payoutView(option, linkOf)),
+      summary: `${formatWholeMoney(capacity.maxPayout.amount)} could be paid out`,
+    },
     cashMonths,
     cashSummary: `${formatWholeMoney(forecast.cashAtYearEnd.amount)} on 31 Dec ${year}`,
     paymentLag: forecast.paymentLag.label,
@@ -296,10 +309,11 @@ export function forecastView(workbook: Workbook, year: number, asOf: CivilDate, 
     planActualSummary: compared.length === 0 ? 'Nothing to compare yet' : `${compared.length} ${compared.length === 1 ? 'line' : 'lines'}`,
     notCounted,
     employment,
-    grantReleased: forecast.grantRelease.total.amount,
-    watched: watchedIn([base.base, liability.liability, forecast.profitAfterTax, forecast.cashAtYearEnd, ...(forecast.ownerPay?.lines.map((entry) => entry.forecast.total) ?? [])]),
+    watched: watchedCitations([base.base, liability.liability, forecast.profitAfterTax, forecast.cashAtYearEnd, ...(forecast.ownerPay?.lines.map((entry) => entry.forecast.total) ?? [])]),
     uninvoiced: forecast.uninvoicedMonths.map((entry) => ({ month: monthLabel(entry.month), next: entry.nextInvoice.number })),
-    missingRoles: missingAccrualRoles(workbook.categories),
+    rowsToInvoice: expectedInvoices(workbook.billingPlan, workbook.invoices)
+      .filter((entry) => yearOfMonth(entry.month) === year)
+      .reduce((count, entry) => count + entry.items.length, 0),
   }
 }
 
@@ -345,7 +359,7 @@ function basisCaption(line: ForecastLine): string {
 }
 
 /** A part of a profit and loss line, with the months a plan row or an average stands in for under it. */
-function partSteps(part: LinePart, key: string, context: ForecastViewContext): BuildUpStep[] {
+function partSteps(part: LinePart, key: string, year: number, context: ForecastViewContext): BuildUpStep[] {
   const { line, sign } = part
   if (line.total.amount === 0) {
     return []
@@ -354,7 +368,7 @@ function partSteps(part: LinePart, key: string, context: ForecastViewContext): B
   const rows = rowsBehind(line.months.flatMap((_, index) => knownFigures([part], index)))
   const guessed = line.months.filter(isGuessed)
   return [
-    { key, label: line.label, cents: sign * line.total.amount, to: rows === null ? (scheduled ? { path: '/assets' } : null) : context.link(rows), depth: 0 },
+    { key, label: line.label, cents: sign * line.total.amount, to: rows === null ? (scheduled ? { path: '/year', query: { year: String(year), tab: 'assets' } } : null) : context.link(rows), depth: 0 },
     ...guessed.map(
       (entry): BuildUpStep => ({ key: `${key}-${entry.month}`, label: `${monthLabel(entry.month)}, ${basisWords(entry.bases)}`, cents: sign * entry.figure.amount, to: null, depth: 1 }),
     ),

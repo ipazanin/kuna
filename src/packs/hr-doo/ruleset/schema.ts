@@ -114,7 +114,7 @@ export type Confidence =
 
 export type WatchedConfidence = Extract<Confidence, 'estimate' | 'pending' | 'unconfirmed'>
 
-/** Versions with these marks are due to change or to be checked, so the Ruleset screen lists them. */
+/** Versions with these marks are due to change or to be checked, so the Ruleset tab lists them. */
 export function isWatchedConfidence(confidence: Confidence): confidence is WatchedConfidence {
   return confidence === 'estimate' || confidence === 'pending' || confidence === 'unconfirmed'
 }

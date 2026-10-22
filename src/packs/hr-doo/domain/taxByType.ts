@@ -17,8 +17,6 @@ export interface TaxTypeTotal {
   readonly category: string
   /** Paid over the period, net of refunds, read positive. */
   readonly total: Figure
-  /** The median of the complete charted months that saw a payment. Null when none did. */
-  readonly typicalMonth: Money | null
 }
 
 export interface TaxMonth {
@@ -73,7 +71,6 @@ export function taxByType(bookings: readonly Booking[], categories: readonly Cat
         amount: paidOut(inPeriod.filter((booking) => booking.category === category)),
         drill: drillToTransactions({ period, categories: [category] }),
       },
-      typicalMonth: typicalMonthlyAmount(taxMonths.filter((month) => month.complete).map((month) => month.byCategory[category]!.amount)),
     })),
     months: taxMonths,
   }

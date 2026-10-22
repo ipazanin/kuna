@@ -95,7 +95,7 @@ function open(detail: FigureDetail): void {
       </ul>
       <p class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <DrillLink :to="ruleLink(RULE)" class="text-highlighted" data-testid="loan-benefit-rule">The rule and its source</DrillLink>
-        <DrillLink to="/workbook" class="text-highlighted">Set the rate the loans carry</DrillLink>
+        <DrillLink :to="{ path: '/settings', hash: '#owner-loan-interest' }" class="text-highlighted" data-testid="loan-rate-setting">Set the rate the loans carry</DrillLink>
       </p>
     </div>
     <FigureDialog v-model:open="dialogOpen" :detail="opened" />

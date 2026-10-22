@@ -1,8 +1,8 @@
 <script lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 
-import type { MonthKey } from '../../../shared/calendar/monthKey'
-import type { CadenceState } from '../domain/payrollCadence'
+import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import type { CadenceState } from '../../domain/payrollCadence'
 
 export interface CadenceCell {
   readonly month: MonthKey
@@ -16,11 +16,11 @@ export interface CadenceCell {
 import { computed } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { monthKey } from '../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../shared/calendar/monthLabel'
-import { usePhoneLayout } from '../../../shared/layout/viewport'
-import { formatCompactMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
-import DrillLink from '../../../shared/ui/DrillLink.vue'
+import { monthKey } from '../../../../shared/calendar/monthKey'
+import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { usePhoneLayout } from '../../../../shared/layout/viewport'
+import { formatCompactMoney, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import DrillLink from '../../../../shared/ui/DrillLink.vue'
 
 /**
  * One watched tax as a calendar: a row per year and a column per month, each month paid, missed

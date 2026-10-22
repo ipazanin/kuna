@@ -15,8 +15,9 @@ import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { bucketTone } from '../../../shared/charts/chartTokens'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
+import { categoryChangeOf } from '../domain/categoryChange'
 import { OWNER_ADVANCE_LABEL, withSplitHeadings } from '../domain/listedRows'
-import type { ListedRow } from '../domain/listedRows'
+import type { ListedBankRow, ListedRow } from '../domain/listedRows'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { TransactionGroup } from '../domain/transactionGroups'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
@@ -39,6 +40,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   toggle: [key: string]
   split: [row: Transaction]
+  changeCategory: [row: ListedBankRow]
 }>()
 
 const { drillLocation } = useFilters()
@@ -157,6 +159,17 @@ function accountOf(row: ListedRow): string {
               >
                 Every row in {{ names.category(entry.row.category) }}
               </DrillLink>
+              <UButton
+                v-if="entry.row.kind === 'bank' && categoryChangeOf(entry.row) !== null"
+                label="Change category"
+                icon="i-lucide-tag"
+                color="neutral"
+                variant="link"
+                class="inline-target px-0 text-sm"
+                :disabled="writing"
+                data-testid="change-category-row"
+                @click="entry.row.kind === 'bank' && emit('changeCategory', entry.row)"
+              />
               <UButton
                 v-if="entry.row.kind === 'bank' && !entry.row.split && entry.row.amount !== 0"
                 label="Split"

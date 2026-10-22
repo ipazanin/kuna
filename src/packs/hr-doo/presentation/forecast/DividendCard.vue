@@ -20,6 +20,8 @@ const props = defineProps<{
   deterioration: readonly RuleChip[]
   decideBy: string
   payouts: readonly PayoutView[]
+  /** The one line the collapsed card shows, such as what could be paid out. */
+  summary: string
   chosen: PayoutOptionId
 }>()
 
@@ -34,9 +36,10 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
   <AppCard
     title="Dividend capacity"
     :subtitle="`What the ${year} profit leaves to pay out, and what each way of paying it does to cash, tax and what the owner owes. The members decide on the ${year} statements by ${decideBy}.`"
+    collapse-id="year.dividend"
+    :summary="summary"
     data-testid="dividend-capacity"
   >
-
     <div class="grid gap-x-8 gap-y-5 px-4 pt-3 pb-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div class="flex min-w-0 flex-col gap-4">
         <section aria-label="What can be paid out">

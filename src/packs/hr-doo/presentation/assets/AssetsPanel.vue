@@ -7,6 +7,7 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { civilDate, daysBetween, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
@@ -17,16 +18,18 @@ import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import { useFilters } from '../../../../features/filters/application/filterStore'
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import { useSettings } from '../../../../features/settings/application/useSettings'
-import { useFilteredLedger } from '../../../../features/transactions/application/useFilteredLedger'
-import type { FilteredLedger } from '../../../../features/transactions/application/useFilteredLedger'
+import { ASSET_ROWS, GRANT_ROWS } from '../../../../features/settings/application/workbookTabRows'
+import { GRANT_COLUMNS, assetColumns } from '../../../../features/settings/presentation/factTabColumns'
+import FactTabCard from '../../../../features/settings/presentation/FactTabCard.vue'
 import type { AssetGroup } from '../../../../features/workbook/domain/assets'
 import type { Grant } from '../../../../features/workbook/domain/grants'
-import LedgerGate from '../../../../features/workbook/presentation/LedgerGate.vue'
+import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import { readAssets } from '../../../../features/workbook/infrastructure/assetsTabReader'
+import { readGrants } from '../../../../features/workbook/infrastructure/grantsTabReader'
+import type { SheetRow } from '../../../../features/workbook/infrastructure/workbookSnapshot'
 import { ruleValue } from '../../ruleset/ruleset'
 import { dayLabel, ruleLink } from '../../ruleset/presentation/ruleWording'
 import { assetBooks, depreciationByYear, doubledRatesEffect } from '../../domain/assets/assetBooks'
@@ -38,8 +41,6 @@ import { clawbackExposure, deferredOn, grantResiduals } from '../../domain/grant
 import type { GrantReleaseSchedule } from '../../domain/grants/grantRelease'
 import { PACK_ROLES, categoriesWithRole } from '../../domain/packRoles'
 import { percentText } from '../../domain/payroll/payrollArithmetic'
-import MissingRoles from '../MissingRoles.vue'
-import OwnerPayOff from '../OwnerPayOff.vue'
 import { bookValueChart } from './assetCharts'
 import AssetRegister from './AssetRegister.vue'
 import type { AssetLine } from './AssetRegister.vue'
@@ -49,8 +50,17 @@ import DoubledRatesChanges from './DoubledRatesChanges.vue'
 import GrantPanel from './GrantPanel.vue'
 import type { GrantComparisonLine, GrantLine } from './GrantPanel.vue'
 
-const ledger = useFilteredLedger()
-const settings = useSettings()
+/**
+ * What the company owns, what it is worth today and what it costs in the year, with any grant that
+ * paid for it, and the assets and grants tabs to edit. Book values and the grant still deferred are
+ * as of today, whatever the year.
+ */
+const props = defineProps<{
+  workbook: Workbook
+  window: LedgerWindow
+  year: number
+}>()
+
 const { drillLocation } = useFilters()
 const route = useRoute()
 const router = useRouter()
@@ -62,6 +72,9 @@ const GROUPS: Readonly<Record<AssetGroup, string>> = {
   building: 'Building',
   other: 'Other',
 }
+
+const grantSlugs = computed(() => props.workbook.grants.map((grant) => grant.slug))
+const readAssetRows = (rows: readonly SheetRow[]) => readAssets(rows, new Set(grantSlugs.value))
 
 const now = new Date()
 const today = civilDate(now.getFullYear(), now.getMonth() + 1, now.getDate())
@@ -76,12 +89,11 @@ function showDoubled(on: boolean): void {
 }
 
 const view = computed(() => {
-  const current = ledger.value
-  if (current === null || current.workbook.assets.length === 0) {
+  if (props.workbook.assets.length === 0) {
     return null
   }
   try {
-    return { failure: null, ...assetsView(current) }
+    return { failure: null, ...assetsView(props.workbook, props.window, props.year) }
   } catch (failure) {
     if (failure instanceof RangeError) {
       return { failure: failure.message }
@@ -94,10 +106,9 @@ function when(year: number): 'past' | 'current' | 'ahead' {
   return year < thisYear ? 'past' : year === thisYear ? 'current' : 'ahead'
 }
 
-function assetsView(current: FilteredLedger) {
-  const { workbook, window } = current
+function assetsView(workbook: Workbook, window: LedgerWindow, year: number) {
   const { assets, grants, categories, transactions } = workbook
-  const asWorkbook = assetBooks(assets, grants, settings.value.companyFacts)
+  const asWorkbook = assetBooks(assets, grants, workbook.settings.companyFacts)
   const revenueOf = (year: number) =>
     effectiveTaxRate(transactions, categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
   const effect = doubledRatesEffect(assets, grants, asWorkbook, revenueOf)
@@ -109,11 +120,11 @@ function assetsView(current: FilteredLedger) {
 
   const lines = shown.schedules.map((schedule, index) => assetLine(schedule, register.assets[index]?.payment?.drill ?? null))
   const years = depreciationByYear(shown.schedules)
-  const thisYearsDepreciation = years.find((entry) => entry.year === thisYear)?.total.amount ?? 0
+  const yearsDepreciation = years.find((entry) => entry.year === year)?.total.amount ?? 0
   const bookValue = lines.reduce((total, line) => total + line.bookValue, 0)
   const grantLines = shown.grants.map(grantLine)
   const deferredToday = shown.grants.reduce((total, schedule) => total + deferredOn(schedule, today).amount, 0)
-  const releasedThisYear = shown.grants.reduce((total, schedule) => total + (schedule.years.find((entry) => entry.year === thisYear)?.released.amount ?? 0), 0)
+  const releasedInYear = shown.grants.reduce((total, schedule) => total + (schedule.years.find((entry) => entry.year === year)?.released.amount ?? 0), 0)
   const exposures = grants.flatMap((grant) => {
     const exposure = clawbackExposure(grant, today)
     return exposure === null ? [] : [exposure.amount.amount]
@@ -127,10 +138,6 @@ function assetsView(current: FilteredLedger) {
     doubled,
     changesAnything: effect.changesAnything,
     doublingAllowed,
-    missing:
-      register.capitalPurchaseCategories.length === 0
-        ? [{ role: PACK_ROLES.capitalPurchase, leftOut: 'an asset finds its payment only by its ledger_reference, and no purchase is listed as missing from the assets tab' }]
-        : [],
     tiles: [
       {
         label: 'Book value',
@@ -140,8 +147,8 @@ function assetsView(current: FilteredLedger) {
         definition: 'Cost without VAT less the depreciation of every month that has ended. Small inventory is written off when put in use, so it carries no book value.',
       },
       {
-        label: `Depreciation in ${thisYear}`,
-        value: formatWholeMoney(thisYearsDepreciation),
+        label: `Depreciation in ${year}`,
+        value: formatWholeMoney(yearsDepreciation),
         to: ruleLink('hr.cit.depreciation-rates'),
         caption: doubled ? 'At doubled rates' : 'At the rates the workbook asks for',
         definition: 'Straight-line from the month after an asset is put in use, at its group rate. Opens the rule with the rates.',
@@ -153,7 +160,7 @@ function assetsView(current: FilteredLedger) {
               label: 'Deferred',
               value: formatWholeMoney(deferredToday),
               to: null,
-              caption: `Grant not yet income today. ${formatWholeMoney(releasedThisYear)} released in ${thisYear}`,
+              caption: `Grant not yet income today. ${formatWholeMoney(releasedInYear)} released in ${year}`,
               definition: 'Grant money received and not yet counted as income, as of the last month that has ended.',
             },
             {
@@ -193,6 +200,7 @@ function assetsView(current: FilteredLedger) {
     })),
     threshold: formatMoney(threshold),
     chart,
+    bookValueSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatWholeMoney(bookValue)} today`,
     yearsSummary: years.length === 0 ? 'No asset is depreciated' : `${years.length} ${years.length === 1 ? 'year' : 'years'}, ${years[0]!.year} to ${years[years.length - 1]!.year}`,
     years: years.map(
       (entry): DepreciationYearLine => ({
@@ -233,7 +241,7 @@ function assetsView(current: FilteredLedger) {
 
   function assetLine(schedule: DepreciationSchedule, paymentDrill: DrillTarget | null): AssetLine {
     const { asset } = schedule
-    const yearNow = schedule.years.find((entry) => entry.year === thisYear)
+    const yearNow = schedule.years.find((entry) => entry.year === year)
     const rateYear = yearNow ?? schedule.years.at(-1)
     const bookValueToday = bookValueOn(schedule, today).amount
     const lastMonth = schedule.months.at(-1)?.month
@@ -306,173 +314,196 @@ function employmentState(until: CivilDate | null): string | null {
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
-    <PageHeader title="Assets" description="What the company owns, what it is worth now, and what it costs each year, with any grant that paid for it." />
-    <OwnerPayOff v-if="!settings.ownerPayModule" />
-    <LedgerGate v-else>
-      <UEmpty
-        v-if="ledger && ledger.workbook.assets.length === 0"
-        icon="i-lucide-package"
-        title="No assets on the assets tab"
-        description="The assets tab lists what the company bought to keep, such as a laptop or a car: its cost without VAT, its depreciation group and the day it was put in use. Each row is depreciated here, and a grant that paid for it is released beside it."
-        :actions="[{ label: 'Open the Assets tab', to: '/workbook?tab=assets', color: 'neutral', variant: 'outline' }]"
-        variant="outline"
-        class="rounded-card border-dashed bg-raised/40"
-        data-testid="assets-empty"
-      />
-      <UEmpty
-        v-else-if="view && view.failure !== null"
-        icon="i-lucide-triangle-alert"
-        title="The assets could not be depreciated"
-        :description="view.failure"
-        :actions="[{ label: 'Open the Assets tab', to: '/workbook?tab=assets', color: 'neutral', variant: 'outline' }]"
-        variant="outline"
-        class="rounded-card border-error/40 bg-raised"
-        :ui="{ avatar: 'text-error' }"
-      />
-      <template v-else-if="view && view.failure === null">
-        <MissingRoles :missing="view.missing" />
+  <div class="flex flex-col gap-6">
+    <UEmpty
+      v-if="workbook.assets.length === 0"
+      icon="i-lucide-package"
+      title="No assets on the assets tab"
+      description="The assets tab lists what the company bought to keep, such as a laptop or a car: its cost without VAT, its depreciation group and the day it was put in use. Each row is depreciated here, and a grant that paid for it is released beside it. Add the first one under Asset rows."
+      variant="outline"
+      class="rounded-card border-dashed bg-raised/40"
+      data-testid="assets-empty"
+    />
+    <UEmpty
+      v-else-if="view && view.failure !== null"
+      icon="i-lucide-triangle-alert"
+      title="The assets could not be depreciated"
+      :description="view.failure"
+      variant="outline"
+      class="rounded-card border-error/40 bg-raised"
+      :ui="{ avatar: 'text-error' }"
+    />
+    <template v-else-if="view && view.failure === null">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-8" data-testid="doubled-rates">
+        <USwitch
+          :model-value="view.doubled"
+          :disabled="!view.changesAnything"
+          label="Show doubled rates"
+          :description="
+            view.changesAnything
+              ? 'Every figure on this tab at twice the group rate. Nothing is saved, and the workbook keeps its own setting.'
+              : view.doublingAllowed
+                ? 'Every asset already depreciates at the doubled rate, from its doubled column or hr_depreciation_doubled.'
+                : 'The depreciation rates in force do not allow doubling.'
+          "
+          data-testid="doubled-rates-switch"
+          @update:model-value="showDoubled($event)"
+        />
+        <p v-if="view.doublingAllowed" class="max-w-[60ch] text-xs text-muted">
+          The profit tax act allows each depreciation rate to be doubled. Whether to do it is a choice to discuss with the accountant.
+          <DrillLink :to="ruleLink('hr.cit.depreciation-rates')" in-prose class="text-highlighted">Open the rule</DrillLink>
+        </p>
+      </div>
 
-        <AppCard class="p-4 sm:p-5" data-testid="doubled-rates">
-          <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-            <USwitch
-              :model-value="view.doubled"
-              :disabled="!view.changesAnything"
-              label="Show doubled rates"
-              :description="
-                view.changesAnything
-                  ? 'Every figure on this screen at twice the group rate. Nothing is saved, and the workbook keeps its own setting.'
-                  : view.doublingAllowed
-                    ? 'Every asset already depreciates at the doubled rate, from its doubled column or hr_depreciation_doubled.'
-                    : 'The depreciation rates in force do not allow doubling.'
-              "
-              data-testid="doubled-rates-switch"
-              @update:model-value="showDoubled($event)"
-            />
-            <p v-if="view.doublingAllowed" class="max-w-[60ch] text-xs text-muted">
-              The profit tax act allows each depreciation rate to be doubled. Whether to do it is a choice to discuss with the accountant.
-              <DrillLink :to="ruleLink('hr.cit.depreciation-rates')" in-prose class="text-highlighted">Open the rule</DrillLink>
-            </p>
-          </div>
-          <div v-if="view.doubled" class="mt-4 flex flex-col gap-2 border-t border-default pt-4">
-            <h2 class="text-sm font-medium text-highlighted">What doubled rates would change</h2>
-            <p class="max-w-[75ch] text-xs text-muted">
-              Against the rates the workbook asks for, year by year. More depreciation lowers profit before tax.
-              <template v-if="view.changesGrant">A grant released with the depreciation of the assets it paid for rises with it, so those assets change profit only once the grant's variable part runs out.</template>
-              The profit tax change is the profit change at the corporate tax rate of the year.
-            </p>
-            <DoubledRatesChanges :lines="view.changes" :show-grant="view.changesGrant" />
-          </div>
-        </AppCard>
-
-        <div class="grid grid-cols-2 gap-3" :class="view.tiles.length === 4 ? 'lg:grid-cols-4' : ''">
-          <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
+      <AppCard
+        v-if="view.doubled"
+        title="What doubled rates would change"
+        subtitle="Against the rates the workbook asks for, year by year. More depreciation lowers profit before tax. The profit tax change is the profit change at the corporate tax rate of the year."
+      >
+        <div class="flex flex-col gap-2 px-4 pt-2 pb-4 sm:px-5">
+          <p v-if="view.changesGrant" class="max-w-[75ch] text-xs text-muted">
+            A grant released with the depreciation of the assets it paid for rises with it, so those assets change profit only once the grant's variable part runs out.
+          </p>
+          <DoubledRatesChanges :lines="view.changes" :show-grant="view.changesGrant" />
         </div>
+      </AppCard>
 
-        <AppCard
-          title="Asset register"
-          subtitle="From the assets tab. An asset's name opens the ledger payment that bought it, and its rate opens the rule."
-          collapse-id="assets.register"
-          :summary="view.registerSummary"
+      <div class="grid grid-cols-2 gap-3" :class="view.tiles.length === 4 ? 'lg:grid-cols-4' : ''">
+        <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
+      </div>
+
+      <AppCard
+        title="Asset register"
+        subtitle="From the assets tab. An asset's name opens the ledger payment that bought it, and its rate opens the rule."
+        collapse-id="year.asset-register"
+        :summary="view.registerSummary"
+      >
+        <div class="px-4 pt-3 pb-3 sm:px-3">
+          <AssetRegister :lines="view.lines" :totals="view.totals" :year="year" :today="dayLabel(today)" />
+        </div>
+        <div
+          v-if="view.unmatchedAssets.length > 0 || view.unmatchedPurchases.length > 0 || view.mismatchedPayments.length > 0"
+          class="flex flex-col gap-3 border-t border-default px-4 py-3 sm:px-5"
+          data-testid="asset-notices"
         >
-          <div class="px-4 pt-3 pb-3 sm:px-3">
-            <AssetRegister :lines="view.lines" :totals="view.totals" :year="thisYear" :today="dayLabel(today)" />
+          <div v-if="view.unmatchedAssets.length > 0" class="flex items-start gap-2 text-sm text-toned">
+            <UIcon name="i-lucide-search-x" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <p>
+              No ledger payment found for {{ view.unmatchedAssets.join(', ') }}. Put the bank reference, or words from the bank description, in its
+              <span class="identifier">ledger_reference</span> under Asset rows.
+            </p>
           </div>
-          <div
-            v-if="view.unmatchedAssets.length > 0 || view.unmatchedPurchases.length > 0 || view.mismatchedPayments.length > 0"
-            class="flex flex-col gap-3 border-t border-default px-4 py-3 sm:px-5"
-            data-testid="asset-notices"
-          >
-            <div v-if="view.unmatchedAssets.length > 0" class="flex items-start gap-2 text-sm text-toned">
-              <UIcon name="i-lucide-search-x" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+          <div v-if="view.unmatchedPurchases.length > 0" class="flex items-start gap-2 text-sm text-toned">
+            <UIcon name="i-lucide-package-search" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
-                No ledger payment found for {{ view.unmatchedAssets.join(', ') }}. Put the bank reference, or words from the bank description, in its
-                <span class="identifier">ledger_reference</span> on the assets tab.
+                {{ view.unmatchedPurchases.length }} {{ view.unmatchedPurchases.length === 1 ? 'purchase' : 'purchases' }} on a capital-purchase category
+                {{ view.unmatchedPurchases.length === 1 ? 'is' : 'are' }} on no asset row. Up to {{ view.threshold }} without VAT an item is small inventory,
+                written off when put in use. Above that it belongs on the assets tab.
               </p>
+              <ul class="flex flex-col" data-testid="unmatched-purchases">
+                <li v-for="purchase in view.unmatchedPurchases" :key="purchase.key">
+                  <DrillLink :to="purchase.to" :label="`${purchase.counterparty} on ${purchase.date}, open the row`" class="purchase-link">
+                    <span class="figure shrink-0 text-xs text-muted">{{ purchase.date }}</span>
+                    <span class="min-w-0 flex-1 truncate">{{ purchase.counterparty }}</span>
+                    <MoneyText :cents="purchase.amount" class="text-toned" />
+                  </DrillLink>
+                </li>
+              </ul>
             </div>
-            <div v-if="view.unmatchedPurchases.length > 0" class="flex items-start gap-2 text-sm text-toned">
-              <UIcon name="i-lucide-package-search" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
-              <div class="flex min-w-0 flex-1 flex-col gap-2">
-                <p>
-                  {{ view.unmatchedPurchases.length }} {{ view.unmatchedPurchases.length === 1 ? 'purchase' : 'purchases' }} on a capital-purchase category
-                  {{ view.unmatchedPurchases.length === 1 ? 'is' : 'are' }} on no asset row. Up to {{ view.threshold }} without VAT an item is small inventory,
-                  written off when put in use. Above that it belongs on the assets tab.
-                </p>
-                <ul class="flex flex-col" data-testid="unmatched-purchases">
-                  <li v-for="purchase in view.unmatchedPurchases" :key="purchase.key">
-                    <DrillLink :to="purchase.to" :label="`${purchase.counterparty} on ${purchase.date}, open the row`" class="purchase-link">
-                      <span class="figure shrink-0 text-xs text-muted">{{ purchase.date }}</span>
-                      <span class="min-w-0 flex-1 truncate">{{ purchase.counterparty }}</span>
-                      <MoneyText :cents="purchase.amount" class="text-toned" />
-                    </DrillLink>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div v-if="view.mismatchedPayments.length > 0" class="flex items-start gap-2 text-sm text-toned">
-              <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
-              <div class="flex min-w-0 flex-1 flex-col gap-2">
-                <p>
-                  {{ view.mismatchedPayments.length }} {{ view.mismatchedPayments.length === 1 ? 'payment' : 'payments' }} found by a
-                  <span class="identifier">ledger_reference</span> {{ view.mismatchedPayments.length === 1 ? 'is' : 'are' }} not what the assets that claim
-                  {{ view.mismatchedPayments.length === 1 ? 'it' : 'them' }} cost, with or without VAT at the standard rate. Check each asset's reference and its
-                  <span class="identifier">cost_net</span>.
-                </p>
-                <ul class="flex flex-col" data-testid="mismatched-payments">
-                  <li v-for="payment in view.mismatchedPayments" :key="payment.key">
-                    <DrillLink :to="payment.to" :label="`Payment of ${payment.date}, open the row`" class="purchase-link">
-                      <span class="figure shrink-0 text-xs text-muted">{{ payment.date }}</span>
-                      <span class="min-w-0 flex-1 truncate">{{ payment.claimedBy }}</span>
-                      <MoneyText :cents="payment.amount" class="text-toned" />
-                    </DrillLink>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <DrillLink to="/workbook?tab=assets" in-prose class="self-start text-sm text-highlighted">Open the Assets tab</DrillLink>
           </div>
-        </AppCard>
-
-        <div class="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-          <ChartCard
-            title="Book value over time"
-            :subtitle="`Each asset at the end of every month, until it is written off. Months from ${thisMonth} on follow the schedule.`"
-            definition="Cost without VAT less the depreciation of every month so far. A line ends in the month the asset reaches zero or leaves the books."
-            :option="view.chart.option"
-            :description="view.chart.description"
-            :empty="view.chart.empty"
-            empty-title="No asset is depreciated"
-            empty-description="Every asset on the tab is small inventory, written off when put in use."
-            :height="300"
-            :phone-height="240"
-          >
-            <template #legend><ChartLegend :entries="view.chart.legend" /></template>
-          </ChartCard>
-
-          <AppCard
-            title="Depreciation per year"
-            subtitle="Every year the assets cover. Open a year for the charge of each asset."
-            collapse-id="assets.years"
-            :summary="view.yearsSummary"
-          >
-            <div class="px-4 pt-2 pb-2 sm:px-5">
-              <p v-if="view.years.length === 0" class="py-6 text-sm text-muted">No asset is depreciated. Small inventory is written off when put in use.</p>
-              <DepreciationYears v-else :key="String(view.doubled)" :years="view.years" />
+          <div v-if="view.mismatchedPayments.length > 0" class="flex items-start gap-2 text-sm text-toned">
+            <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <div class="flex min-w-0 flex-1 flex-col gap-2">
+              <p>
+                {{ view.mismatchedPayments.length }} {{ view.mismatchedPayments.length === 1 ? 'payment' : 'payments' }} found by a
+                <span class="identifier">ledger_reference</span> {{ view.mismatchedPayments.length === 1 ? 'is' : 'are' }} not what the assets that claim
+                {{ view.mismatchedPayments.length === 1 ? 'it' : 'them' }} cost, with or without VAT at the standard rate. Check each asset's reference and its
+                <span class="identifier">cost_net</span>.
+              </p>
+              <ul class="flex flex-col" data-testid="mismatched-payments">
+                <li v-for="payment in view.mismatchedPayments" :key="payment.key">
+                  <DrillLink :to="payment.to" :label="`Payment of ${payment.date}, open the row`" class="purchase-link">
+                    <span class="figure shrink-0 text-xs text-muted">{{ payment.date }}</span>
+                    <span class="min-w-0 flex-1 truncate">{{ payment.claimedBy }}</span>
+                    <MoneyText :cents="payment.amount" class="text-toned" />
+                  </DrillLink>
+                </li>
+              </ul>
             </div>
-          </AppCard>
+          </div>
+          <DrillLink :to="{ query: route.query, hash: '#asset-rows' }" in-prose class="self-start text-sm text-highlighted">Open the asset rows</DrillLink>
         </div>
+      </AppCard>
 
-        <AppCard
-          title="The grant beside it"
-          subtitle="From the grants tab: what is counted as income each year, what waits as deferred income, and the employment condition."
-        >
-          <div class="px-4 pt-3 pb-4 sm:px-5">
-            <GrantPanel :grants="view.grants" :comparisons="view.comparisons" />
-          </div>
-        </AppCard>
-      </template>
-    </LedgerGate>
-  </section>
+      <AppCard title="The grant beside it" subtitle="From the grants tab: what is counted as income each year, what waits as deferred income, and the employment condition.">
+        <div class="px-4 pt-3 pb-4 sm:px-5">
+          <GrantPanel :grants="view.grants" :comparisons="view.comparisons" />
+        </div>
+      </AppCard>
+
+      <ChartCard
+        title="Book value over time"
+        :subtitle="`Each asset at the end of every month, until it is written off. Months from ${thisMonth} on follow the schedule.`"
+        definition="Cost without VAT less the depreciation of every month so far. A line ends in the month the asset reaches zero or leaves the books."
+        :option="view.chart.option"
+        :description="view.chart.description"
+        :empty="view.chart.empty"
+        empty-title="No asset is depreciated"
+        empty-description="Every asset on the tab is small inventory, written off when put in use."
+        :height="300"
+        :phone-height="240"
+        collapse-id="year.book-value"
+        :summary="view.bookValueSummary"
+        start-collapsed
+      >
+        <template #legend><ChartLegend :entries="view.chart.legend" /></template>
+      </ChartCard>
+
+      <AppCard
+        title="Depreciation per year"
+        subtitle="Every year the assets cover. Open a year for the charge of each asset."
+        collapse-id="year.depreciation"
+        :summary="view.yearsSummary"
+        start-collapsed
+      >
+        <div class="px-4 pt-2 pb-2 sm:px-5">
+          <p v-if="view.years.length === 0" class="py-6 text-sm text-muted">No asset is depreciated. Small inventory is written off when put in use.</p>
+          <DepreciationYears v-else :key="String(view.doubled)" :years="view.years" />
+        </div>
+      </AppCard>
+    </template>
+
+    <FactTabCard
+      id="asset-rows"
+      :rules="ASSET_ROWS"
+      title="Asset rows"
+      description="Purchases kept as fixed assets and depreciated, each once. The cost is without the VAT that was reclaimed."
+      collapse-id="year.asset-rows"
+      :columns="assetColumns(grantSlugs)"
+      :read="readAssetRows"
+      row-noun="asset"
+      tab-noun="assets"
+      saved-title="Assets saved"
+      :start-collapsed="workbook.assets.length > 0"
+      :reveal="route.hash === '#asset-rows'"
+    />
+    <FactTabCard
+      id="grant-rows"
+      :rules="GRANT_ROWS"
+      title="Grant rows"
+      description="The terms of each grant. The fixed and variable parts add up to the amount."
+      collapse-id="year.grant-rows"
+      :columns="GRANT_COLUMNS"
+      :read="readGrants"
+      :new-row="() => ({ release: 'fixed-then-assets' })"
+      row-noun="grant"
+      tab-noun="grants"
+      saved-title="Grants saved"
+      start-collapsed
+      :reveal="route.hash === '#grant-rows'"
+    />
+  </div>
 </template>
 
 <style scoped>

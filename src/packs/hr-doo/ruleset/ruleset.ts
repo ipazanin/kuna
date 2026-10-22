@@ -112,7 +112,7 @@ export function rulesFor(year: number, rules: readonly GeneralRule[] = RULES): r
   return inForce
 }
 
-/** Every estimate, pending or unconfirmed version, then every open item, for the Ruleset screen's watch list. */
+/** Every estimate, pending or unconfirmed version, then every open item, for the Ruleset tab's watch list. */
 export function watchItems(rules: readonly GeneralRule[] = RULES, openItems: readonly OpenItem[] = OPEN_ITEMS): readonly WatchItem[] {
   const watchedVersions = rules.flatMap((rule) =>
     rule.versions

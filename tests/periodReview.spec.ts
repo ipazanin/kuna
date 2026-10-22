@@ -46,7 +46,6 @@ describe('periodReview', () => {
     expect([review.partOfPeriod, review.current.partial, review.prior?.partial]).toEqual([false, false, false])
     expect(income).toMatchObject({ current: { amount: euros(5000) }, prior: { amount: euros(7000) }, change: euros(-2000) })
     expect(income?.current.drill).toEqual({
-      route: 'transactions',
       filters: { period: { preset: 'quarter', year: 2026, quarter: 2 }, buckets: ['income'] },
     })
   })

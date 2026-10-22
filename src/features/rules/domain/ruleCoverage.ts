@@ -41,6 +41,21 @@ export interface RuleCoverage<Row> {
   readonly exceptions: readonly CoverageException<Row>[]
 }
 
+/** A rule that settles a row in another category than the one it is filed in. */
+export interface RuleAgainst {
+  readonly ruleId: string
+  readonly category: string
+}
+
+/**
+ * The rule that would settle the row in another category than the one a person files it in, so
+ * the row becomes one of the exceptions Review lists. Null when no rule settles it or one agrees.
+ */
+export function ruleAgainst(transaction: CategorisableTransaction, category: string, rules: readonly Rule[], context: CategorisationContext): RuleAgainst | null {
+  const verdict = categorise(transaction, rules, context)
+  return verdict.flaggedBy === 'rule' && verdict.ruleId !== null && verdict.category !== category ? { ruleId: verdict.ruleId, category: verdict.category } : null
+}
+
 /**
  * Human-confirmed rows in a defined category that the rules would not file the same way at rule
  * confidence, grouped by counterparty IBAN, else by name, and split by whether a rule settles them

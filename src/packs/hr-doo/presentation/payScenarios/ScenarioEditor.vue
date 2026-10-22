@@ -49,8 +49,10 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
   <AppCard
     :title="`Scenarios for ${year}`"
     subtitle="Rows of the scenarios tab. A change is written at once, with Undo in the toast."
-    collapse-id="pay-scenarios.editor"
+    collapse-id="year.scenarios"
     :summary="scenarios.length === 0 ? 'No scenario yet' : scenarios.map((scenario) => scenario.label || scenario.slug).join(', ')"
+    start-collapsed
+    :reveal="scenarios.length === 0"
     data-testid="scenario-editor"
   >
     <template v-if="!startingTaken" #actions>

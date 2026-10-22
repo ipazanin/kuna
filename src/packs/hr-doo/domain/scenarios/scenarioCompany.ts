@@ -36,7 +36,7 @@ export interface ScenarioCompany {
 
 /**
  * The company figures a pay scenario for `year` runs on, from the forecast seen on `asOf`. The
- * forecast reaches the year after the newest booking, as the Forecast screen does, so a later
+ * forecast reaches the year after the newest booking, as the Forecast tab of Year does, so a later
  * scenario year takes that year's figures and `takenFrom` says so. The owner pay the forecast
  * counts, a plan's scenarios included, is taken back out, so each scenario sets its own.
  */

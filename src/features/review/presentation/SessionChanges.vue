@@ -121,7 +121,7 @@ function quoted(cell: string | number | boolean | null): string {
       <UBadge :label="String(writes.length)" color="neutral" variant="subtle" size="sm" class="figure" data-testid="session-count" />
     </template>
     <div class="mt-3 border-t border-default">
-      <p class="px-4 pt-3 text-xs text-muted sm:px-5">Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules and settings are changed back on Workbook.</p>
+      <p class="px-4 pt-3 text-xs text-muted sm:px-5">Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules are changed back on the Rules tab, and settings on Settings.</p>
       <ol class="mt-2">
         <li v-for="write in writes" :key="write.id" class="session-write" data-testid="session-write">
           <span class="flex items-start justify-between gap-3">

@@ -1,178 +1,172 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
-import UAlert from '@nuxt/ui/components/Alert.vue'
-import UButton from '@nuxt/ui/components/Button.vue'
-import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
-import { useToast } from '@nuxt/ui/composables/useToast'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
-import { chooseTheme, themeChoice } from '../../../shared/theme/theme'
-import type { ThemeChoice } from '../../../shared/theme/theme'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
-import SwitchSourceDialog from '../../data-source/presentation/SwitchSourceDialog.vue'
-import { exportReminderDue } from '../../excel/domain/exportReminder'
-import ImportDialog from '../../excel/presentation/ImportDialog.vue'
-import { useExport } from '../../excel/presentation/useExport'
+import PageTabs from '../../../shared/ui/PageTabs.vue'
+import type { PageTab } from '../../../shared/ui/PageTabs.vue'
+import LoanBucketSwitch from '../../../packs/hr-doo/presentation/LoanBucketSwitch.vue'
+import RulesetPanel from '../../../packs/hr-doo/ruleset/presentation/RulesetPanel.vue'
+import ProblemList from '../../excel/presentation/ProblemList.vue'
+import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { spreadsheetLink } from '../../workbook/infrastructure/sheetRowLink'
-import { XLSX_MIME_TYPE } from '../../workbook/infrastructure/workbookFile'
+import type { RowTab } from '../../workbook/application/workbookWriter'
+import type { TabRowsChange } from '../../workbook/domain/rowChanges'
+import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
+import { useRowWrites } from '../../workbook/presentation/useRowWrites'
+import { ACCOUNT_ROWS, CATEGORY_ROWS, accountUses, categoryUses } from '../application/workbookTabRows'
+import type { RowsOf } from '../application/workbookTabRows'
+import AccountsEditor from './AccountsEditor.vue'
+import CategoriesEditor from './CategoriesEditor.vue'
+import DevicePanel from './DevicePanel.vue'
+import GeneralSettingsForm from './GeneralSettingsForm.vue'
+import { useSettingsSave } from './useSettingsSave'
 
-const store = useWorkbook()
-const { state } = store
-const toast = useToast()
-const { exporting, exportNow } = useExport()
+const { state } = useWorkbook()
+const route = useRoute()
+const { settings, saving: savingSettings, save: saveSettings } = useSettingsSave()
 
-const stamp = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
-const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
+/** The workbook's tabs need a workbook on screen. This device's tab is there before one is. */
+const tabs = computed((): PageTab[] => [
+  ...(state.workbook === null
+    ? []
+    : [
+        { label: 'General', value: 'general', icon: 'i-lucide-sliders-horizontal' },
+        { label: 'Categories', value: 'categories', icon: 'i-lucide-tags' },
+        { label: 'Accounts', value: 'accounts', icon: 'i-lucide-landmark' },
+        ...(settings.value.ownerPayModule ? [{ label: 'Ruleset', value: 'ruleset', icon: 'i-lucide-scale' }] : []),
+      ]),
+  { label: 'This device', value: 'device', icon: 'i-lucide-monitor-smartphone' },
+])
+
+/** The tab a link from another screen opened. Its card opens even when this device keeps it collapsed, until another tab is picked. */
+const linkedTab = ref(typeof route.query.tab === 'string' ? route.query.tab : null)
 
 const source = computed(() => state.choice?.source ?? state.workbook?.source ?? null)
-const meta = computed(() => state.snapshot?.meta ?? null)
 
-const workbookName = computed(() => state.choice?.name ?? state.workbook?.title ?? null)
-const changedAt = computed(() => (state.syncedAt === null ? null : stamp.format(new Date(state.syncedAt))))
-const exportedAt = computed(() => (meta.value?.lastExportedAt ? day.format(new Date(meta.value.lastExportedAt)) : null))
-const reminderDue = computed(() => exportReminderDue(meta.value?.unexportedSince ?? null, new Date()))
-const sheetLink = computed(() => (source.value === 'google' && state.workbook !== null ? spreadsheetLink(state.workbook.id) : null))
+const rowsOfSnapshot: RowsOf = (tab) => state.snapshot?.[tab] ?? []
+const categoriesInUse = computed(() => categoryUses(rowsOfSnapshot))
+const accountsInUse = computed(() => accountUses(rowsOfSnapshot))
+/** The reader's problems and the splits the figures leave out, such as one of a row an asset claims. */
+const problems = computed(() => (state.workbook === null ? [] : presentedWorkbook(state.workbook).problems))
 
-const switching = ref(false)
-
-const signingOut = ref(false)
-
-async function signOut(): Promise<void> {
-  signingOut.value = true
-  await store.signOutOfGoogle()
-  signingOut.value = false
-  toast.add({ title: 'Signed out of Google', description: 'The next sync asks Google to sign you in again.', icon: 'i-lucide-log-out', color: 'success' })
-}
-const pickedFile = ref<File | null>(null)
-const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
-
-function takeFile(event: Event): void {
-  const input = event.target as HTMLInputElement
-  pickedFile.value = input.files?.[0] ?? null
-  input.value = ''
+const rowWrites = {
+  categories: useRowWrites(CATEGORY_ROWS),
+  accounts: useRowWrites(ACCOUNT_ROWS),
 }
 
-const THEME_CHOICES: { label: string; value: ThemeChoice }[] = [
-  { label: 'System', value: 'system' },
-  { label: 'Light', value: 'light' },
-  { label: 'Dark', value: 'dark' },
-]
+type RowSection = keyof typeof rowWrites
+
+const TITLES: Readonly<Record<RowSection, string>> = {
+  categories: 'Categories',
+  accounts: 'Accounts',
+}
+
+function sheetLacks(tab: RowTab): boolean {
+  return source.value === 'google' && (state.snapshot?.meta.missingTabs.includes(tab) ?? false)
+}
+
+function rowsInWords(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`
+}
+
+function columnsOf(tab: RowTab): string {
+  return TEMPLATE_COLUMNS[tab].map((column) => column.name).join(', ')
+}
+
+function saving(tab: RowSection): boolean {
+  return rowWrites[tab].busy.value || state.writing
+}
+
+function saveRows(tab: RowSection, change: TabRowsChange): void {
+  void rowWrites[tab].write(change, { title: `${TITLES[tab]} saved` }, 'Not saved')
+}
 </script>
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader title="Settings" description="Where the ledger comes from, and how the app behaves on this device." />
+    <PageHeader
+      title="Settings"
+      :description="
+        source === 'excel'
+          ? 'How the workbook and this device are set up, and the law behind the figures. Changes are kept in this browser, and an export writes them into the file.'
+          : 'How the workbook and this device are set up, and the law behind the figures. A save writes only the cells you changed to the Sheet, checks they read back, and offers Undo.'
+      "
+    />
 
-    <div class="grid gap-4 lg:grid-cols-2">
-      <AppCard title="Data source" data-testid="data-source-card">
-        <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-          <template v-if="source === 'excel'">
-            <p class="text-base text-highlighted">{{ workbookName }}</p>
-            <p class="text-sm text-muted">Kept in this browser. Your exported files are its only other copies.</p>
-            <p class="figure text-xs text-muted">
-              <span v-if="changedAt">Last changed {{ changedAt }}. </span>{{ exportedAt ? `Last exported ${exportedAt}.` : 'Not exported yet.' }}
-            </p>
-            <UAlert
-              v-if="reminderDue"
-              icon="i-lucide-clock-alert"
-              color="warning"
-              variant="subtle"
-              title="Some changes are in no exported file yet"
-              description="They live only in this browser, which can lose them if its site data is cleared. Export to keep a copy."
-            />
-          </template>
-          <template v-else-if="source === 'google'">
-            <p class="text-base text-highlighted">{{ workbookName }}</p>
-            <p class="text-sm text-muted">
-              A Google Sheet, read with your Google sign-in. A copy is kept in this browser, and so is the sign-in until it expires, about an hour
-              later.
-            </p>
-            <p v-if="changedAt" class="figure text-xs text-muted">Last synced {{ changedAt }}</p>
-          </template>
-          <div class="flex flex-wrap gap-2">
-            <UButton
-              icon="i-lucide-download"
-              label="Export to Excel"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :loading="exporting"
-              :disabled="exporting || state.workbook === null"
-              @click="exportNow"
-            />
-            <UButton
-              v-if="source === 'excel'"
-              icon="i-lucide-file-input"
-              label="Import a file"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              @click="fileInput?.click()"
-            />
-            <UButton icon="i-lucide-arrow-left-right" label="Switch data source" color="neutral" variant="outline" size="sm" @click="switching = true" />
-            <UButton
-              v-if="source === 'google'"
-              icon="i-lucide-log-out"
-              label="Sign out of Google"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :loading="signingOut"
-              @click="signOut"
-            />
-            <UButton
-              v-if="sheetLink"
-              :to="sheetLink"
-              target="_blank"
-              icon="i-lucide-external-link"
-              label="Open the Sheet"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-            />
-          </div>
-          <input ref="fileInput" type="file" :accept="`.xlsx,${XLSX_MIME_TYPE}`" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
+    <PageTabs :tabs="tabs" label="Parts of the settings" data-testid="settings-tabs" @select="linkedTab = null">
+      <template #general>
+        <div v-if="state.workbook" class="flex flex-col gap-6">
+          <GeneralSettingsForm :settings="settings" :saving="savingSettings || state.writing" @save="saveSettings" />
+          <LoanBucketSwitch v-if="settings.ownerPayModule" :categories="state.workbook.categories" />
+          <AppCard
+            title="Rows the app could not use as written"
+            :subtitle="problems.length > 0 ? 'Each is left out, or read with its default, until it is fixed in the workbook.' : undefined"
+            collapse-id="settings.problems"
+            :start-collapsed="problems.length === 0"
+            :reveal="problems.length > 0"
+            :summary="problems.length > 0 ? rowsInWords(problems.length, 'row', 'rows') : 'None, every row reads as written'"
+          >
+            <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
+              <ProblemList v-if="problems.length > 0" :problems="problems" />
+              <p v-else class="text-sm text-muted">Every row of the workbook reads as written.</p>
+            </div>
+          </AppCard>
         </div>
-      </AppCard>
+      </template>
 
-      <AppCard title="Appearance and privacy">
-        <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-          <URadioGroup
-            :model-value="themeChoice"
-            :items="THEME_CHOICES"
-            legend="Theme"
-            orientation="horizontal"
-            variant="table"
-            :ui="{ item: 'flex-1' }"
-            data-testid="theme-choice"
-            @update:model-value="chooseTheme($event as ThemeChoice)"
+      <template #categories>
+        <AppCard
+          title="Categories"
+          collapse-id="settings.categories"
+          :summary="rowsInWords(state.snapshot?.categories.length ?? 0, 'category', 'categories')"
+          :reveal="linkedTab === 'categories'"
+        >
+          <template #subtitle>
+            The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name and its
+            row.
+            <span v-if="source === 'google'" class="mt-1 block" data-testid="dropdown-note">The ledger's category dropdown in the Sheet lists this tab's categories.</span>
+            <span v-if="sheetLacks('categories')" class="mt-2 block text-toned">
+              The Sheet has no categories tab yet. Add one named categories with these headers in row 1, then sync:
+              <span class="identifier">{{ columnsOf('categories') }}</span>.
+            </span>
+          </template>
+          <CategoriesEditor :rows="state.snapshot?.categories ?? []" :uses="categoriesInUse" :saving="saving('categories')" @save="saveRows('categories', $event)" />
+        </AppCard>
+      </template>
+
+      <template #accounts>
+        <AppCard
+          title="Accounts"
+          collapse-id="settings.accounts"
+          :summary="rowsInWords(state.snapshot?.accounts.length ?? 0, 'account', 'accounts')"
+          :reveal="linkedTab === 'accounts'"
+        >
+          <template #subtitle>
+            Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}.
+            <span v-if="sheetLacks('accounts')" class="mt-2 block text-toned">
+              The Sheet has no accounts tab yet. Add one named accounts with these headers in row 1, then sync:
+              <span class="identifier">{{ columnsOf('accounts') }}</span>.
+            </span>
+          </template>
+          <AccountsEditor
+            :rows="state.snapshot?.accounts ?? []"
+            :uses="accountsInUse"
+            :currency="settings.currency"
+            :saving="saving('accounts')"
+            @save="saveRows('accounts', $event)"
           />
-          <p class="text-xs text-muted">System follows this device's setting as it changes. Light or Dark is remembered on this device.</p>
-          <p class="text-sm text-muted">
-            There is no server. Nothing leaves this browser except calls to Google's APIs for a Sheet you picked.
-            <a :href="privacyPage" class="settings-link inline-target">Read the privacy notes</a>
-          </p>
-        </div>
-      </AppCard>
-    </div>
+        </AppCard>
+      </template>
 
-    <SwitchSourceDialog v-model:open="switching" />
-    <ImportDialog v-model:file="pickedFile" />
+      <template #ruleset>
+        <RulesetPanel />
+      </template>
+
+      <template #device>
+        <DevicePanel />
+      </template>
+    </PageTabs>
   </section>
 </template>
-
-<style scoped>
-.settings-link {
-  color: var(--ink-secondary);
-  text-decoration: underline;
-  text-decoration-color: var(--border-strong);
-  text-underline-offset: 3px;
-}
-
-.settings-link:hover {
-  color: var(--ink-strong);
-  text-decoration-color: var(--accent);
-}
-</style>

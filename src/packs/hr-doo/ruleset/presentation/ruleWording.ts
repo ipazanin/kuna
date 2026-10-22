@@ -3,12 +3,13 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { fold } from '../../../../shared/text/fold'
 import { ACTS } from '../acts'
+import { versionOn } from '../ruleset'
 import type { RuleId } from '../ruleset'
 import type { AppliesBy, Confidence, GeneralRule, LegalSource, OpenItem, RuleArea, RuleTerms, RuleVersion, ScalarTerm, TableTerm, Term } from '../schema'
 
 /** Where a figure links to show the rule it rests on. */
 export function ruleLink(ruleId: RuleId): RouteLocationRaw {
-  return { path: '/ruleset', query: { rule: ruleId } }
+  return { path: '/settings', query: { tab: 'ruleset', rule: ruleId } }
 }
 
 export const AREA_WORDING: Readonly<Record<RuleArea, { readonly label: string; readonly description: string }>> = {
@@ -255,11 +256,27 @@ export interface SourceView {
   readonly quote: string | null
 }
 
+/** A figure of the version in force, which the compact list shows beside the rule's name. */
+export interface Headline {
+  /** The term's name, null when the rule has only that term. */
+  readonly label: string | null
+  readonly wording: string
+}
+
+/** The version in force on the day the view is made for. */
+export interface InForceView {
+  readonly period: string
+  readonly confidence: Confidence
+  /** Its first rate, amount or count, or its first rate for a rule named for a rate. Null when it holds only flags, text and tables. */
+  readonly headline: Headline | null
+}
+
 export interface RuleView {
   readonly id: string
   readonly area: RuleArea
   readonly title: string
   readonly appliesBy: string
+  readonly inForce: InForceView
   readonly columns: readonly ValueColumn[]
   readonly rows: readonly ValueRow[]
   readonly tables: readonly TableView[]
@@ -358,7 +375,24 @@ function isTable(term: Term): term is TableTerm {
   return term.kind === 'table'
 }
 
-export function ruleView(rule: GeneralRule, format: TermFormat): RuleView {
+/** The version in force on the day. Before the first starts it is the first, and after the last ends the last. */
+function inForceView(rule: GeneralRule, day: CivilDate, format: TermFormat): InForceView {
+  const first = rule.versions[0]?.validFrom ?? day
+  const last = rule.versions.at(-1)?.validTo ?? null
+  const version = versionOn(rule, day < first ? first : last !== null && day > last ? last : day)
+  const terms = Object.entries(version.value)
+  const figures = terms.filter((entry): entry is [string, ScalarTerm] => ['rate', 'money', 'count'].includes(entry[1].kind))
+  // A rule named for a rate, such as the corporate income tax rate, leads with the rate rather than a threshold listed before it.
+  const headline = (/\brates?\b/i.test(rule.title) ? figures.find(([, term]) => term.kind === 'rate') : undefined) ?? figures[0]
+  return {
+    period: periodLabel(version.validFrom, version.validTo),
+    confidence: version.confidence,
+    headline: headline === undefined ? null : { label: terms.length === 1 ? null : termLabel(headline[0]), wording: scalarWording(headline[0], headline[1], format) },
+  }
+}
+
+/** The rule as the ruleset shows it, with the version in force on the day picked out. */
+export function ruleView(rule: GeneralRule, format: TermFormat, day: CivilDate): RuleView {
   const { versions } = rule
   const periods = versions.map((version) => periodLabel(version.validFrom, version.validTo))
   const firstValue = versions[0]?.value ?? {}
@@ -415,7 +449,19 @@ export function ruleView(rule: GeneralRule, format: TermFormat): RuleView {
     ].join(' '),
   )
 
-  return { id: rule.id, area: rule.area, title: rule.title, appliesBy: appliesByWording(rule.appliesBy), columns, rows, tables, notes, sources, searchText }
+  return {
+    id: rule.id,
+    area: rule.area,
+    title: rule.title,
+    appliesBy: appliesByWording(rule.appliesBy),
+    inForce: inForceView(rule, day, format),
+    columns,
+    rows,
+    tables,
+    notes,
+    sources,
+    searchText,
+  }
 }
 
 export interface WatchView {

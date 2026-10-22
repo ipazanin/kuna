@@ -51,7 +51,6 @@ describe('monthlyProfitAndLoss', () => {
 
   it('links each month’s lines to that month’s rows', () => {
     expect(series[2].lines.ownerPay.drill).toEqual({
-      route: 'transactions',
       filters: { period: { preset: 'custom', range: { from: '2025-11-01', to: '2025-11-30' } }, buckets: ['owner-pay'] },
     })
   })

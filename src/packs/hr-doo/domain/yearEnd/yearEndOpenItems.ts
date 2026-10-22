@@ -1,4 +1,5 @@
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
+import { newestBookingOf } from '../../../../features/workbook/domain/workbook'
 import type { Workbook } from '../../../../features/workbook/domain/workbook'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -73,7 +74,7 @@ const JUDGEMENTS: Readonly<Record<JudgementId, { readonly settledBy: string; rea
 }
 
 /**
- * What the Year end screen lists beside the comparison: the accountant's choices the figures rest
+ * What the Accountant tab of Year lists beside the comparison: the accountant's choices the figures rest
  * on, any gap nothing explains, whether the workbook holds everything for the year, and what the
  * year's loans and purchases call for. Each says what would settle it.
  */
@@ -171,7 +172,9 @@ function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSo
       }),
     )
     const report = rules('hr.cit.related-party-report', firstDay).value.reportForm.text
-    const benefit = loanBenefit(workbook, year, lastDay, rules)
+    // Owner shows a year's benefit up to the newest booking, so a year the ledger has not finished counts the same days here.
+    const newest = newestBookingOf(workbook.transactions)
+    const benefit = loanBenefit(workbook, year, newest !== null && newest < lastDay ? newest : lastDay, rules)
     loanItems.push(
       ...(benefit === null ? [] : [loanBenefitItem(benefit)]),
       {

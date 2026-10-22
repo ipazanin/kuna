@@ -10,6 +10,10 @@ function fake(source: 'google' | 'excel'): Workbook {
   return readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', source))
 }
 
+function withoutContributions(workbook: Workbook, months: readonly string[]): Workbook {
+  return { ...workbook, transactions: workbook.transactions.filter((row) => row.category !== 'payroll-contributions' || !months.includes(row.date.slice(0, 7))) }
+}
+
 function jobsOf(workbook: Workbook) {
   return waitingJobs(presentedWorkbook(workbook), workbook.transactions).map((job) => [job.key, job.text, job.tone, job.link.label])
 }
@@ -32,7 +36,41 @@ describe('waiting for you', () => {
   })
 
   it('holds the corporate tax against its schedule once the company has a registration day', () => {
-    expect(jobsOf(fake('excel')).at(-1)).toEqual(['corporate-tax', 'A corporate tax payment is overdue, €447.50 still owed', 'negative', 'Taxes'])
+    expect(jobsOf(fake('excel')).at(-1)).toEqual(['corporate-tax', 'A corporate tax payment is overdue, €447.50 still owed', 'negative', 'Year, Taxes'])
+  })
+
+  it('links the corporate tax to its card on the Taxes tab of Year', () => {
+    const workbook = fake('excel')
+    const tax = waitingJobs(presentedWorkbook(workbook), workbook.transactions).find((job) => job.key === 'corporate-tax')
+
+    expect(tax?.link.to).toEqual({ path: '/year', query: { tab: 'taxes' }, hash: '#corporate-tax' })
+  })
+
+  it('flags a complete month with no payroll contribution, linking to the payroll cadence', () => {
+    const workbook = withoutContributions(fake('google'), ['2026-03'])
+    const payroll = waitingJobs(presentedWorkbook(workbook), workbook.transactions).find((job) => job.key === 'payroll')
+
+    expect(payroll).toEqual({
+      key: 'payroll',
+      text: 'Payroll contributions: no payment landed in March',
+      tone: 'negative',
+      link: { label: 'Year, Taxes', to: { path: '/year', query: { tab: 'taxes' }, hash: '#payroll-cadence' } },
+    })
+  })
+
+  it('counts every missed payroll month and names the latest, last year with its year', () => {
+    const workbook = withoutContributions(fake('google'), ['2025-11', '2025-12'])
+
+    expect(jobsOf(workbook).find(([key]) => key === 'payroll')).toEqual([
+      'payroll',
+      'Payroll contributions: no payment landed in 2 months, the latest December 2025',
+      'negative',
+      'Year, Taxes',
+    ])
+  })
+
+  it('says nothing of the payroll while every complete month has a payment', () => {
+    expect(jobsOf(fake('google')).map(([key]) => key)).not.toContain('payroll')
   })
 
   it('leaves the owner pay jobs out while the module is off', () => {

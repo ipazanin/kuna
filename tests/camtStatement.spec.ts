@@ -195,7 +195,7 @@ describe('reading a camt.053 statement', () => {
   })
 
   it('refuses a statement whose IBAN the accounts tab does not name', () => {
-    expect(refusalOf(CREDIT, new Map())).toBe(`The accounts tab names no account for IBAN ${OWN_IBAN}, so the statement cannot be filed. Add the account on Workbook, Accounts first.`)
+    expect(refusalOf(CREDIT, new Map())).toBe(`The accounts tab names no account for IBAN ${OWN_IBAN}, so the statement cannot be filed. Add the account on Settings, Accounts first.`)
   })
 
   it('throws for a document with no statement in it', () => {

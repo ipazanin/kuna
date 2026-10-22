@@ -50,11 +50,7 @@ describe('tax by type', () => {
     expect(taxes.months.map((month) => month.month)).toEqual(['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'])
   })
 
-  it('takes the typical month as the median of complete months with a payment', () => {
-    const contributions = taxByType(transactions, PACK_CATEGORIES, allTime, window).types[0]
-
-    // The ledger opens part-way through May, so June 500 and August 480 count. July is a gap, not a zero.
-    expect(contributions?.typicalMonth).toBe(euros(490))
+  it('takes the typical month as the median of the months with a payment', () => {
     expect(typicalMonthlyAmount([euros(100), euros(0), euros(301)])).toBe(euros(200.5))
     expect(typicalMonthlyAmount([euros(0)])).toBeNull()
   })

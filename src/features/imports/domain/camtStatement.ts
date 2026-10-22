@@ -74,7 +74,7 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
   const account = accountsByIban.get(iban)
   // A statement filed under the wrong account corrupts that account's balance chain from that row down.
   if (account === undefined) {
-    throw new StatementRefused(`The accounts tab names no account for IBAN ${iban || '(none)'}, so the statement cannot be filed. Add the account on Workbook, Accounts first.`)
+    throw new StatementRefused(`The accounts tab names no account for IBAN ${iban || '(none)'}, so the statement cannot be filed. Add the account on Settings, Accounts first.`)
   }
   const currency = textAt(statement, ['Acct', 'Ccy'])
   if (currency === '') {

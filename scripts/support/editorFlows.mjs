@@ -141,30 +141,30 @@ export async function categoryFlow(page, { press, shoot }) {
 
 /** Assets: add a monitor, note it, delete it, and Undo the delete. */
 export async function assetFlow(page, { press, shoot }) {
-  await pressSelector(page, press, '[data-testid="add-row"]')
-  const added = (await page.$$('[data-testid="fact-row"]')).at(-1)
+  await pressSelector(page, press, '#asset-rows [data-testid="add-row"]')
+  const added = (await page.$$('#asset-rows [data-testid="fact-row"]')).at(-1)
   await setField(await fieldIn(added, 'Asset'), 'Monitor')
   await setField(await fieldIn(added, 'Bought'), '2026-10-01')
   await setField(await fieldIn(added, 'Cost without VAT'), '420')
   await choose(page, press, await added.$('[aria-label="Group"]'), 'computers')
   await shoot('assets-draft')
-  await pressSelector(page, press, '[data-testid="save-rows"]')
+  await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
   await toast(page, 'Assets saved')
   await dismissToasts(page)
 
-  await setField(await fieldIn(await rowNamed(page, '[data-testid="fact-row"]', 'Monitor'), 'Note'), 'Second screen')
-  await pressSelector(page, press, '[data-testid="save-rows"]')
+  await setField(await fieldIn(await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor'), 'Note'), 'Second screen')
+  await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
   await toast(page, 'Assets saved')
   await shoot('assets-saved')
   await dismissToasts(page)
 
-  const row = await rowNamed(page, '[data-testid="fact-row"]', 'Monitor')
+  const row = await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
   await press(await row.$('[data-testid="remove-row"]'))
-  await pressSelector(page, press, '[data-testid="save-rows"]')
+  await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
   await toast(page, 'Assets saved')
-  await rowGone(page, '[data-testid="fact-row"]', 'Monitor')
+  await rowGone(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
   await undo(page, press)
-  await rowNamed(page, '[data-testid="fact-row"]', 'Monitor')
+  await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
   await dismissToasts(page)
 }
 
@@ -352,9 +352,10 @@ async function openComponent(page, press, scenario, text) {
   await delay(400)
 }
 
-/** Pay scenarios: add rent to the floor salary scenario, raise it, delete it, Undo the delete, then copy the scenario and Undo the copy. */
+/** Year, Pay: open the scenarios, add rent to the floor salary scenario, raise it, delete it, Undo the delete, then copy the scenario and Undo the copy. */
 export async function scenarioFlow(page, { press, shoot, inspect }) {
   const scenario = 'floor-salary'
+  await openCard(page, press, 'scenario-editor')
   await pressSelector(page, press, `[data-scenario="${scenario}"] [data-testid="scenario-add-component"]`)
   await page.waitForSelector('[data-testid="scenario-component-form"]')
   await delay(400)
@@ -407,7 +408,7 @@ export async function scenarioFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 }
 
-/** Pay scenarios with no scenarios yet: add the starting four, which adds the tab to a Sheet without one, and Undo them. */
+/** Year, Pay with no scenarios yet, where the scenarios card opens itself: add the starting four, which adds the tab to a Sheet without one, and Undo them. */
 export async function startingScenariosFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="scenario-editor"]')
   if (await page.$('[data-scenario]')) throw new Error('a scenario is on the screen before the flow adds the starting ones')
@@ -450,7 +451,7 @@ async function openPlanCategory(page, press, slug) {
   await delay(400)
 }
 
-/** Forecast for 2027: plan a category for every month and one month of its own, raise it, clear it, Undo the clear, then clear it again. */
+/** Year, Plan for 2027: plan a category for every month and one month of its own, raise it, clear it, Undo the clear, then clear it again. */
 export async function planFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="plan-editor"]')
   const slug = await page.evaluate(
@@ -495,7 +496,7 @@ export async function planFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 }
 
-/** Forecast for 2027 with no plan rows: plan a purchase, which adds the plan tab to a Sheet without one, and Undo it. */
+/** Year, Plan for 2027 with no plan rows: plan a purchase, which adds the plan tab to a Sheet without one, and Undo it. */
 export async function planTabFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="plan-editor"]')
   if (await page.$('[data-testid="plan-purchase"]')) throw new Error('a purchase is planned before the flow adds one')
@@ -607,6 +608,68 @@ export async function splitFlow(page, { press, shoot, inspect }) {
   await waitForSplit(page, true)
   await shoot('split-undone')
   await dismissToasts(page)
+}
+
+/**
+ * The Change category action of the first row in view, or of the first part of a split row: in the
+ * table's last column, or inside its card on a phone once the card is open.
+ */
+async function openChangeOfRow(page, press, part = false) {
+  const button = part ? '[data-testid="change-category-row"][aria-label^="Change the category of part"]' : '[data-testid="change-category-row"]'
+  const card = part ? '[data-testid="transaction-card"].part' : '[data-testid="transaction-card"]'
+  const found = await page.waitForSelector(`${button}, ${card}`, { timeout: 10_000 })
+  const visible = await found.evaluate((element, wanted) => element.matches(wanted) && element.getBoundingClientRect().width > 0, button)
+  if (!visible) {
+    await pressSelector(page, press, `${card} .card-summary`)
+    await pressSelector(page, press, `${card} [data-testid="change-category-row"]`)
+  } else {
+    await pressSelector(page, press, button)
+  }
+}
+
+async function pageSays(page, text, says) {
+  await page.waitForFunction((wanted, shown) => document.body.innerText.includes(wanted) === shown, { timeout: 10_000 }, text, says).catch(() => {
+    throw new Error(says ? `"${text}" is not on the page` : `"${text}" is still on the page`)
+  })
+}
+
+/**
+ * Transactions: the newest code host plan, which a rule files as a software subscription, filed as
+ * office supplies with the rule named first, then undone. A part of a split row opens the split
+ * editor instead, since the splits tab holds its category.
+ */
+export async function changeCategoryFlow(page, { press, shoot, inspect }) {
+  await pageSays(page, 'Office supplies', false)
+  await openChangeOfRow(page, press)
+  await page.waitForSelector('[data-testid="change-category"]')
+  await delay(400)
+  await chooseCategory(page, press, await page.$('[data-testid="change-category-picker"]'), 'Office supplies')
+  await page.waitForSelector('[data-testid="rule-against"]', { timeout: 5_000 }).catch(() => {
+    throw new Error('the dialog does not name the rule that files the row elsewhere')
+  })
+  await inspect?.('change a category')
+  await shoot('change-category')
+  await pressSelector(page, press, '[data-testid="change-category-save"]')
+  await toast(page, 'Filed as Office supplies')
+  await dialogGone(page, '[data-testid="change-category"]')
+  await pageSays(page, 'Office supplies', true)
+  await shoot('change-category-filed')
+  await undo(page, press)
+  await pageSays(page, 'Office supplies', false)
+  await dismissToasts(page)
+
+  await page.evaluate(() => {
+    window.location.hash = '#/transactions?p=all&q=PAPER'
+  })
+  await waitForSplit(page, true)
+  await openChangeOfRow(page, press, true)
+  await page.waitForSelector('[data-testid="split-form"]', { timeout: 5_000 }).catch(() => {
+    throw new Error('Change category on a part of a split row did not open the split editor')
+  })
+  await delay(400)
+  await shoot('change-category-part')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[data-testid="split-form"]')
 }
 
 async function dropFile(page, path) {

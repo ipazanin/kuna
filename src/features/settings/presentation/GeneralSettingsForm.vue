@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -10,11 +11,17 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 import { LOCAL_UNITS, findLocalUnit } from '../../../packs/hr-doo/ruleset/localUnits'
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import { fold } from '../../../shared/text/fold'
+import AppCard from '../../../shared/ui/AppCard.vue'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
-import type { CitReturn, CompanyFacts, Settings, VatPrinciple } from '../domain/settings'
+import type { CitReturn, CompanyFacts, Settings, SettingsField, VatPrinciple } from '../domain/settings'
 
+/**
+ * The settings tab as three cards, the workbook's basics open and the rest collapsed, with one Save
+ * under them. A card with a field in error opens, and so does the facts card when a link names one
+ * of its fields, such as `#owner-loan-interest`.
+ */
 const props = defineProps<{
   settings: Settings
   saving: boolean
@@ -43,6 +50,20 @@ const errors = computed(() => {
   return residenceCityError.value === null ? found : { ...found, residenceCity: residenceCityError.value }
 })
 const valid = computed(() => Object.keys(errors.value).length === 0)
+
+/** The facts other screens link to, by the id their link's hash names. */
+const LINKED_FACTS = ['residence-city', 'company-registered', 'owner-loan-interest']
+
+const route = useRoute()
+const inError = (fields: readonly SettingsField[]): boolean => fields.some((field) => errors.value[field] !== undefined)
+const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'reviewLabel', 'cardSettlementIbans']))
+const factsRevealed = computed(() => LINKED_FACTS.includes(route.hash.slice(1)) || inError(['residenceCity', 'birthYear', 'dependants', 'ownerLoanInterest']))
+const labelsRevealed = computed(() => inError(BUCKETS))
+const factsSummary = computed(() => {
+  const { residenceCity, ownerLoanInterest } = props.settings.companyFacts
+  return `${residenceCity === '' ? 'Where the owner lives is not set' : `The owner lives in ${residenceCity}`}. Loans to the owner carry ${ownerLoanInterest / 100}%.`
+})
+const labelsSummary = computed(() => BUCKETS.map((bucket) => props.settings.bucketLabels[bucket]).join(', '))
 
 /** Every currency the browser knows that counts in at most hundredths, by name. */
 const currencyNames = new Intl.DisplayNames('en', { type: 'currency' })
@@ -155,124 +176,143 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
 
 <template>
   <form class="flex flex-col gap-6" @submit.prevent="valid && dirty && emit('save', draft)">
-    <div class="grid gap-4 sm:grid-cols-2">
-      <UFormField label="Company name" help="Shown under the app name and used in the name of an exported file.">
-        <UInput :model-value="draft.companyName" placeholder="Not set" class="w-full" @update:model-value="update('companyName', String($event))" />
-      </UFormField>
-      <UFormField label="Currency" :error="errors.currency ?? false" help="The money in the ledger. One currency per workbook.">
-        <USelectMenu
-          :model-value="draft.currency"
-          :items="currencies"
-          value-key="value"
-          :search-input="{ placeholder: 'Search currencies' }"
-          virtualize
-          class="w-full"
-          @update:model-value="update('currency', String($event))"
+    <AppCard title="The workbook" subtitle="Its name, money and review label, from the settings tab." collapse-id="settings.workbook" summary="The company, the currency and the review label" :reveal="basicsRevealed">
+      <div class="flex flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UFormField label="Company name" help="Shown under the app name and used in the name of an exported file.">
+            <UInput :model-value="draft.companyName" placeholder="Not set" class="w-full" @update:model-value="update('companyName', String($event))" />
+          </UFormField>
+          <UFormField label="Currency" :error="errors.currency ?? false" help="The money in the ledger. One currency per workbook.">
+            <USelectMenu
+              :model-value="draft.currency"
+              :items="currencies"
+              value-key="value"
+              :search-input="{ placeholder: 'Search currencies' }"
+              virtualize
+              class="w-full"
+              @update:model-value="update('currency', String($event))"
+            />
+          </UFormField>
+          <UFormField
+            label="Number locale"
+            :error="errors.numberLocale ?? false"
+            :help="preview ? `Amounts read ${preview}. Dates and text stay in English.` : 'A tag such as en-GB, de-DE or en-US.'"
+          >
+            <UInput :model-value="draft.numberLocale" class="w-full" @update:model-value="update('numberLocale', String($event).trim())" />
+          </UFormField>
+          <UFormField
+            label="Review label"
+            :error="errors.reviewLabel ?? false"
+            help="What flagged_by will say on a row a person confirms in the app. rule and ai are the categoriser's."
+          >
+            <UInput :model-value="draft.reviewLabel" class="w-full" @update:model-value="update('reviewLabel', String($event).trim().toLowerCase())" />
+          </UFormField>
+          <UFormField
+            label="Card settlement IBANs"
+            :error="errors.cardSettlementIbans ?? false"
+            help="The bank's card settlement accounts, comma separated. A row paid to one of them reads as a card purchase."
+            class="sm:col-span-2"
+          >
+            <UInput :model-value="cardIbansText" placeholder="None" class="identifier w-full" @update:model-value="updateCardIbans(String($event))" />
+          </UFormField>
+        </div>
+
+        <USwitch
+          :model-value="draft.ownerPayModule"
+          label="Owner-pay module"
+          description="Shows owner pay and owner earns. Off hides them, and rows in the owner-pay bucket then count as operating cost, so every total stays the same."
+          @update:model-value="update('ownerPayModule', $event)"
         />
-      </UFormField>
-      <UFormField
-        label="Number locale"
-        :error="errors.numberLocale ?? false"
-        :help="preview ? `Amounts read ${preview}. Dates and text stay in English.` : 'A tag such as en-GB, de-DE or en-US.'"
-      >
-        <UInput :model-value="draft.numberLocale" class="w-full" @update:model-value="update('numberLocale', String($event).trim())" />
-      </UFormField>
-      <UFormField
-        label="Review label"
-        :error="errors.reviewLabel ?? false"
-        help="What flagged_by will say on a row a person confirms in the app. rule and ai are the categoriser's."
-      >
-        <UInput :model-value="draft.reviewLabel" class="w-full" @update:model-value="update('reviewLabel', String($event).trim().toLowerCase())" />
-      </UFormField>
-      <UFormField
-        label="Card settlement IBANs"
-        :error="errors.cardSettlementIbans ?? false"
-        help="The bank's card settlement accounts, comma separated. A row paid to one of them reads as a card purchase."
-        class="sm:col-span-2"
-      >
-        <UInput :model-value="cardIbansText" placeholder="None" class="identifier w-full" @update:model-value="updateCardIbans(String($event))" />
-      </UFormField>
-    </div>
-
-    <USwitch
-      :model-value="draft.ownerPayModule"
-      label="Owner-pay module"
-      description="Shows owner pay and owner earns. Off hides them, and rows in the owner-pay bucket then count as operating cost, so every total stays the same."
-      @update:model-value="update('ownerPayModule', $event)"
-    />
-
-    <fieldset v-if="draft.ownerPayModule" class="flex flex-col gap-3" data-testid="company-facts">
-      <legend class="text-sm font-medium text-highlighted">Company and owner facts</legend>
-      <p class="-mt-1 text-xs text-muted">What the tax and payroll figures need to know beyond the law. They stay in this workbook.</p>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField label="Owner lives in" :error="errors.residenceCity ?? false" help="The city or municipality, which sets the local income tax rates.">
-          <USelectMenu
-            v-model:search-term="unitSearch"
-            :model-value="draft.companyFacts.residenceCity"
-            :items="unitsFound"
-            value-key="value"
-            ignore-filter
-            :search-input="{ placeholder: 'Search cities and municipalities' }"
-            placeholder="Not set"
-            clear
-            virtualize
-            class="w-full"
-            data-testid="residence-city"
-            @update:model-value="updateFact('residenceCity', String($event ?? ''))"
-          />
-        </UFormField>
-        <UFormField label="Owner's year of birth" :error="errors.birthYear ?? false" help="For the youth income tax relief. Blank assumes none.">
-          <UInput
-            :model-value="birthYearText"
-            inputmode="numeric"
-            placeholder="Not set"
-            class="w-full"
-            @update:model-value="updateBirthYear(String($event))"
-          />
-        </UFormField>
-        <UFormField label="Dependants" :error="errors.dependants ?? false" help="How many dependants raise the personal allowance.">
-          <UInput :model-value="dependantsText" inputmode="numeric" class="w-full" @update:model-value="updateDependants(String($event))" />
-        </UFormField>
-        <UFormField label="Company registered on" help="Starts the first tax period.">
-          <UInput
-            :model-value="draft.companyFacts.companyRegistered ?? ''"
-            type="date"
-            class="w-full"
-            @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))"
-          />
-        </UFormField>
-        <UFormField
-          label="Interest the owner's loans carry, % a year"
-          :error="errors.ownerLoanInterest ?? false"
-          help="Below the income tax law's rate, the difference on each day's balance is a benefit in kind, which Owner and Year end work out."
-        >
-          <UInput :model-value="loanInterestText" inputmode="decimal" class="w-full" data-testid="owner-loan-interest" @update:model-value="updateLoanInterest(String($event))" />
-        </UFormField>
-        <UFormField label="Corporate tax return">
-          <USelect :model-value="draft.companyFacts.citReturn" :items="citReturnItems" class="w-full" @update:model-value="updateFact('citReturn', $event as CitReturn)" />
-        </UFormField>
-        <UFormField label="VAT falls due">
-          <USelect :model-value="draft.companyFacts.vatPrinciple" :items="vatPrincipleItems" class="w-full" @update:model-value="updateFact('vatPrinciple', $event as VatPrinciple)" />
-        </UFormField>
       </div>
-      <USwitch
-        :model-value="draft.companyFacts.pensionPillarTwo"
-        label="Owner pays into the second pension pillar"
-        description="Off sends the whole pension contribution to the first pillar."
-        @update:model-value="updateFact('pensionPillarTwo', $event)"
-      />
-      <USwitch
-        :model-value="draft.companyFacts.depreciationDoubled"
-        label="Depreciation rates are doubled"
-        description="The default for assets. An asset row can still say otherwise."
-        @update:model-value="updateFact('depreciationDoubled', $event)"
-      />
-    </fieldset>
+    </AppCard>
 
-    <fieldset class="flex flex-col gap-3">
-      <legend class="text-sm font-medium text-highlighted">Bucket labels</legend>
-      <p class="-mt-1 text-xs text-muted">What each bucket is called on screen. The categories tab keeps the bucket names on the right.</p>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <AppCard
+      v-if="draft.ownerPayModule"
+      title="Company and owner facts"
+      subtitle="What the tax and payroll figures need to know beyond the law. They stay in this workbook."
+      collapse-id="settings.facts"
+      start-collapsed
+      :summary="factsSummary"
+      :reveal="factsRevealed"
+      data-testid="company-facts"
+    >
+      <div class="flex flex-col gap-4 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UFormField id="residence-city" label="Owner lives in" :error="errors.residenceCity ?? false" help="The city or municipality, which sets the local income tax rates.">
+            <USelectMenu
+              v-model:search-term="unitSearch"
+              :model-value="draft.companyFacts.residenceCity"
+              :items="unitsFound"
+              value-key="value"
+              ignore-filter
+              :search-input="{ placeholder: 'Search cities and municipalities' }"
+              placeholder="Not set"
+              clear
+              virtualize
+              class="w-full"
+              data-testid="residence-city"
+              @update:model-value="updateFact('residenceCity', String($event ?? ''))"
+            />
+          </UFormField>
+          <UFormField label="Owner's year of birth" :error="errors.birthYear ?? false" help="For the youth income tax relief. Blank assumes none.">
+            <UInput
+              :model-value="birthYearText"
+              inputmode="numeric"
+              placeholder="Not set"
+              class="w-full"
+              @update:model-value="updateBirthYear(String($event))"
+            />
+          </UFormField>
+          <UFormField label="Dependants" :error="errors.dependants ?? false" help="How many dependants raise the personal allowance.">
+            <UInput :model-value="dependantsText" inputmode="numeric" class="w-full" @update:model-value="updateDependants(String($event))" />
+          </UFormField>
+          <UFormField id="company-registered" label="Company registered on" help="Starts the first tax period.">
+            <UInput
+              :model-value="draft.companyFacts.companyRegistered ?? ''"
+              type="date"
+              class="w-full"
+              @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))"
+            />
+          </UFormField>
+          <UFormField
+            id="owner-loan-interest"
+            label="Interest the owner's loans carry, % a year"
+            :error="errors.ownerLoanInterest ?? false"
+            help="Below the income tax law's rate, the difference on each day's balance is a benefit in kind, which Owner and Year work out."
+          >
+            <UInput :model-value="loanInterestText" inputmode="decimal" class="w-full" data-testid="owner-loan-interest" @update:model-value="updateLoanInterest(String($event))" />
+          </UFormField>
+          <UFormField label="Corporate tax return">
+            <USelect :model-value="draft.companyFacts.citReturn" :items="citReturnItems" class="w-full" @update:model-value="updateFact('citReturn', $event as CitReturn)" />
+          </UFormField>
+          <UFormField label="VAT falls due">
+            <USelect :model-value="draft.companyFacts.vatPrinciple" :items="vatPrincipleItems" class="w-full" @update:model-value="updateFact('vatPrinciple', $event as VatPrinciple)" />
+          </UFormField>
+        </div>
+        <USwitch
+          :model-value="draft.companyFacts.pensionPillarTwo"
+          label="Owner pays into the second pension pillar"
+          description="Off sends the whole pension contribution to the first pillar."
+          @update:model-value="updateFact('pensionPillarTwo', $event)"
+        />
+        <USwitch
+          :model-value="draft.companyFacts.depreciationDoubled"
+          label="Depreciation rates are doubled"
+          description="The default for assets. An asset row can still say otherwise."
+          @update:model-value="updateFact('depreciationDoubled', $event)"
+        />
+      </div>
+    </AppCard>
+
+    <AppCard
+      title="Bucket labels"
+      subtitle="What each bucket is called on screen. The categories tab keeps the bucket names on the right."
+      collapse-id="settings.bucket-labels"
+      start-collapsed
+      :summary="labelsSummary"
+      :reveal="labelsRevealed"
+    >
+      <div class="grid gap-3 px-4 pt-4 pb-4 sm:grid-cols-2 sm:px-5 sm:pb-5 lg:grid-cols-3">
         <UFormField v-for="bucket in BUCKETS" :key="bucket" :error="errors[bucket] ?? false">
           <template #label>
             <span class="inline-flex items-center gap-1.5">
@@ -283,7 +323,7 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
           <UInput :model-value="draft.bucketLabels[bucket]" class="w-full" @update:model-value="updateLabel(bucket, String($event))" />
         </UFormField>
       </div>
-    </fieldset>
+    </AppCard>
 
     <div class="flex flex-wrap items-center gap-2">
       <UButton type="submit" label="Save settings" icon="i-lucide-save" :loading="saving" :disabled="!dirty || !valid || saving" />

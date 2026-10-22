@@ -40,7 +40,7 @@ describe('categoryTotals', () => {
   })
 
   it('links each category to its rows in the period', () => {
-    expect(totals[4].amount.drill).toEqual({ route: 'transactions', filters: { period: { preset: 'l3' }, categories: ['equipment'] } })
+    expect(totals[4].amount.drill).toEqual({ filters: { period: { preset: 'l3' }, categories: ['equipment'] } })
   })
 })
 
