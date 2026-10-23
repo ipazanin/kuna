@@ -1,8 +1,8 @@
+import { FOLDER_MIME_TYPE } from './driveClient'
 import { googleConfig } from './googleConfig'
 import { loadScript } from './loadScript'
 
 const GOOGLE_API_LOADER_SRC = 'https://apis.google.com/js/api.js'
-const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 
 export type PickerKind = 'spreadsheet' | 'folder'
 

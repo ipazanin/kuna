@@ -1,22 +1,29 @@
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useWorkbook } from '../application/workbookStore'
-import type { RedirectReturn } from '../../../shared/google/googleRedirect'
+import type { RedirectGrant, RedirectReturn } from '../../../shared/google/googleRedirect'
+
+const REFUSED_TITLES: Readonly<Record<RedirectGrant, string>> = {
+  'sign-in': 'Not signed in to Google',
+  gmail: 'No Gmail access',
+  'drive-read': 'No Drive read access',
+}
 
 /**
- * Picks up after a redirect sign-in: reads the Sheet again or opens the Picker when that is what the
- * person tapped, and otherwise says what happened, since anything else they started did not run
- * while the tab was at Google. Call it before auto-sync starts, so a Picker to open goes first.
+ * Picks up after a redirect sign-in: runs `sync` or opens the Picker when that is what the person
+ * tapped, and otherwise says what happened, since anything else they started did not run while the
+ * tab was at Google. The silent ask for the Drive read token as the app opened shows nothing either
+ * way, and auto-sync carries on. Call it before auto-sync starts, so a Picker to open goes first.
  */
-export function useGoogleReturn(answer: RedirectReturn | null): void {
-  if (answer === null) {
+export function useGoogleReturn(answer: RedirectReturn | null, sync: () => Promise<void>): void {
+  if (answer === null || answer.silent) {
     return
   }
   const toast = useToast()
   const store = useWorkbook()
   if (answer.kind === 'refused') {
     toast.add({
-      title: answer.grant === 'gmail' ? 'No Gmail access' : 'Not signed in to Google',
+      title: REFUSED_TITLES[answer.grant ?? 'sign-in'],
       description: answer.message,
       icon: 'i-lucide-triangle-alert',
       color: 'error',
@@ -36,7 +43,7 @@ export function useGoogleReturn(answer: RedirectReturn | null): void {
   }
   switch (answer.resume) {
     case 'sync':
-      void store.open().then(() => store.sync())
+      void store.open().then(sync)
       return
     case 'pick':
       void store.open().then(() => store.chooseGoogleSheet())

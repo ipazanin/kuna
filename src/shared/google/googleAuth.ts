@@ -10,10 +10,14 @@ import {
 } from './googleSession'
 import type { StoredAccessToken } from './googleSession'
 import {
+  DRIVE_READONLY,
+  DRIVE_READ_NOT_GRANTED,
   GMAIL_COMPOSE,
   GMAIL_NOT_GRANTED,
   REDIRECT_SIGN_IN_QUERY,
   authorizationUrl,
+  driveReadRefusedInThisTab,
+  noteDriveReadRefused,
   redirectFragmentOf,
   savePendingRedirect,
   settleRedirect,
@@ -50,21 +54,28 @@ export function signsInByRedirect(): boolean {
 
 /**
  * Moves the tab to Google, remembering a one-time `state`, the grant, what to do once back and the
- * hash route to return to. The promise never settles, since the page goes away.
+ * hash route to return to. The promise never settles, since the page goes away. Throws before the
+ * tab moves when the Google variables are missing or the browser keeps no site storage.
  */
-function redirectToGoogle(grant: RedirectGrant, scope: string, resume: RedirectResume): Promise<never> {
+function redirectToGoogle(grant: RedirectGrant, scope: string, resume: RedirectResume, silent: boolean): Promise<never> {
+  const { clientId } = googleConfig()
   const state = crypto.randomUUID()
-  savePendingRedirect({ state, grant, resume, route: window.location.hash.startsWith('#/') ? window.location.hash : '#/' })
-  window.location.assign(
-    authorizationUrl({
-      clientId: googleConfig().clientId,
-      redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}`,
-      scope,
-      state,
-      includeGrantedScopes: grant === 'gmail',
-      loginHint: loadAccountEmail(),
-    }),
-  )
+  savePendingRedirect({ state, grant, resume, route: window.location.hash.startsWith('#/') ? window.location.hash : '#/', silent })
+  const url = authorizationUrl({
+    clientId,
+    redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}`,
+    scope,
+    state,
+    includeGrantedScopes: grant === 'gmail',
+    loginHint: loadAccountEmail(),
+    silent,
+  })
+  // The silent ask replaces the page it leaves, so Back from the app goes where the person came from instead of to a page that asks again.
+  if (silent) {
+    window.location.replace(url)
+  } else {
+    window.location.assign(url)
+  }
   return new Promise<never>(() => {})
 }
 
@@ -80,10 +91,21 @@ export function takeGoogleRedirect(): RedirectReturn | null {
   }
   const answer = settleRedirect(fragment, takePendingRedirect(), Date.now())
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${answer.route}`)
-  if (answer.kind === 'granted' && answer.grant === 'gmail') {
-    gmailToken = { value: answer.token.value, expiresAt: answer.token.expiresAt }
-  } else if (answer.kind === 'granted') {
-    keepSignIn(answer.token)
+  if (answer.grant === 'drive-read') {
+    noteDriveReadRefused(answer.kind === 'refused')
+  }
+  if (answer.kind === 'granted') {
+    const pageToken = { value: answer.token.value, expiresAt: answer.token.expiresAt }
+    switch (answer.grant) {
+      case 'gmail':
+        gmailToken = pageToken
+        break
+      case 'drive-read':
+        driveReadToken = pageToken
+        break
+      case 'sign-in':
+        keepSignIn(answer.token)
+    }
   }
   return answer
 }
@@ -97,7 +119,7 @@ export function takeGoogleRedirect(): RedirectReturn | null {
  */
 export async function requestToken(resume: RedirectResume): Promise<StoredAccessToken> {
   if (signsInByRedirect()) {
-    return redirectToGoogle('sign-in', SCOPES, resume)
+    return redirectToGoogle('sign-in', SCOPES, resume, false)
   }
   const { clientId } = googleConfig()
   await prepareGoogleIdentity()
@@ -136,7 +158,15 @@ function keepSignIn(token: StoredAccessToken): void {
   }
 }
 
-let gmailToken: { readonly value: string; readonly expiresAt: number } | null = null
+/** A token held in this page's memory only, never stored, so a reload starts without it. */
+interface PageToken {
+  readonly value: string
+  /** Epoch milliseconds. */
+  readonly expiresAt: number
+}
+
+let gmailToken: PageToken | null = null
+let driveReadToken: PageToken | null = null
 
 /** The Gmail token of this page while it is still good. It is never stored, so a reload asks again. */
 export function currentGmailToken(): string | null {
@@ -151,30 +181,94 @@ export function currentGmailToken(): string | null {
  */
 export async function requestGmailToken(): Promise<string> {
   if (signsInByRedirect()) {
-    return redirectToGoogle('gmail', GMAIL_COMPOSE, 'none')
+    return redirectToGoogle('gmail', GMAIL_COMPOSE, 'none', false)
   }
+  gmailToken = await tokenFromPopup(GMAIL_COMPOSE, true, 'Gmail access', GMAIL_NOT_GRANTED)
+  return gmailToken.value
+}
+
+/**
+ * The Drive read token of this page while it is still good. It is never stored, since it reads every
+ * file in Drive, so each open of the app asks Google for it again.
+ */
+export function currentDriveReadToken(): string | null {
+  return driveReadToken !== null && driveReadToken.expiresAt - EXPIRY_MARGIN_MS > Date.now() ? driveReadToken.value : null
+}
+
+/**
+ * Whether this page can read Drive: it holds the token, it has not asked Google for one or the one it
+ * had ran out, or Google gave none on this tab's last ask, so only an ask that can show Google's
+ * consent screen gets one.
+ */
+export type DriveReadAccess = 'held' | 'not-asked' | 'needs-consent'
+
+export function driveReadAccess(): DriveReadAccess {
+  if (currentDriveReadToken() !== null) {
+    return 'held'
+  }
+  return driveReadRefusedInThisTab() ? 'needs-consent' : 'not-asked'
+}
+
+/**
+ * Moves the tab to Google for the Drive read token with `prompt=none`, so Google shows no screen and
+ * sends the tab straight back. Returns false and stays when this tab's last ask brought no token, so
+ * a refusal never sends it round again, or when the ask could not be noted or made.
+ */
+export function askForDriveReadSilently(): boolean {
+  if (driveReadRefusedInThisTab() || !noteDriveReadRefused(true)) {
+    return false
+  }
+  try {
+    void redirectToGoogle('drive-read', DRIVE_READONLY, 'none', true)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Asks Google for `drive.readonly` alone, with the consent screen when Google needs one. Call it from
+ * a click handler, as `requestToken`. The token covers no other scope, so it can neither write the
+ * Sheet nor send mail, and it stays in this page's memory only. On a phone the tab goes to Google,
+ * and the sync starts by itself once back.
+ */
+export async function requestDriveReadToken(): Promise<string> {
+  if (signsInByRedirect()) {
+    return redirectToGoogle('drive-read', DRIVE_READONLY, 'sync', false)
+  }
+  try {
+    driveReadToken = await tokenFromPopup(DRIVE_READONLY, false, 'Drive read access', DRIVE_READ_NOT_GRANTED)
+  } catch (failure) {
+    noteDriveReadRefused(true)
+    throw failure
+  }
+  noteDriveReadRefused(false)
+  return driveReadToken.value
+}
+
+/** Asks for one scope in Google's popup, with `prompt: ''` so the consent screen shows only the first time, and checks the scope came back. */
+async function tokenFromPopup(scope: string, includeGrantedScopes: boolean, access: string, notGranted: string): Promise<PageToken> {
   const { clientId } = googleConfig()
   await prepareGoogleIdentity()
   const requestedAt = Date.now()
   const loginHint = loadAccountEmail()
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<PageToken>((resolve, reject) => {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: GMAIL_COMPOSE,
+      scope,
       prompt: '',
-      include_granted_scopes: true,
+      include_granted_scopes: includeGrantedScopes,
       ...(loginHint === null ? {} : { login_hint: loginHint }),
       callback: (response) => {
         if (response.error) {
-          reject(new Error(`Google refused Gmail access: ${response.error} ${response.error_description ?? ''}`.trim()))
+          reject(new Error(`Google refused ${access}: ${response.error} ${response.error_description ?? ''}`.trim()))
           return
         }
-        if (!google.accounts.oauth2.hasGrantedAllScopes(response, GMAIL_COMPOSE)) {
-          reject(new Error(GMAIL_NOT_GRANTED))
+        if (!google.accounts.oauth2.hasGrantedAllScopes(response, scope)) {
+          reject(new Error(notGranted))
           return
         }
-        gmailToken = { value: response.access_token, expiresAt: requestedAt + Number(response.expires_in) * 1000 }
-        resolve(response.access_token)
+        resolve({ value: response.access_token, expiresAt: requestedAt + Number(response.expires_in) * 1000 })
       },
       error_callback: (failure) => {
         reject(new Error(`The Google popup did not complete: ${failure.type} ${failure.message}`.trim()))
@@ -189,6 +283,7 @@ export function forgetGoogleSignIn(): void {
   forgetAccessToken()
   forgetAccountEmail()
   gmailToken = null
+  driveReadToken = null
 }
 
 /** Revokes the app's access with Google when a token is still good, then forgets the sign-in here. */

@@ -31,7 +31,12 @@ export interface LedgerKeyParts {
  * account, day, amount, balance and description.
  */
 export function ledgerKeyOf(parts: LedgerKeyParts): string {
-  return parts.reference === '' ? JSON.stringify([parts.account, parts.date, parts.amount, parts.balance, parts.description]) : JSON.stringify([parts.account, parts.reference])
+  return parts.reference === '' ? JSON.stringify([parts.account, parts.date, parts.amount, parts.balance, parts.description]) : referencedLedgerKey(parts.account, parts.reference)
+}
+
+/** The key of a row that names its reference, whatever else the row holds, so a row the reader refuses keeps its identity too. */
+export function referencedLedgerKey(account: string, reference: string): string {
+  return JSON.stringify([account, reference])
 }
 
 /** The id of a ledger entry the app makes, by its key. */

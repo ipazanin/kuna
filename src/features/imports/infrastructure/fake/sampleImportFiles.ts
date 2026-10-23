@@ -38,10 +38,27 @@ interface SampleEntry {
   readonly instructedCurrency?: string
 }
 
-/** A camt.053.001.08 statement booked four days after the main account's newest row. */
-export function sampleCamtXml(): string {
-  const main = mainAccount()
+/** The camt statement's booking day four days after the main account's newest row, the day after that it is made, and its number, the account's next. */
+function sampleCamtShape(main: MainAccount): { readonly booked: CivilDate; readonly created: CivilDate; readonly sequence: number } {
   const booked = addDays(main.date, 4)
+  return { booked, created: addDays(booked, 1), sequence: main.sequence + 1 }
+}
+
+/** The camt statement's label, as the reader names it from the day it was made and its number, the main account's next unless given. */
+export function sampleCamtLabel(sequence?: number): string {
+  const shape = sampleCamtShape(mainAccount())
+  return `${shape.created}-statement-${String(sequence ?? shape.sequence).padStart(3, '0')}`
+}
+
+/**
+ * A camt.053.001.08 statement booked four days after the main account's newest row, of the main
+ * account, or of another IBAN as that account's statement with the given number.
+ */
+export function sampleCamtXml(other?: { readonly iban: string; readonly sequence: number }): string {
+  const main = mainAccount()
+  const shape = sampleCamtShape(main)
+  const { booked, created } = shape
+  const sequence = other?.sequence ?? shape.sequence
   const client = 'XX00FAKE0000000000000010'
   const entries: SampleEntry[] = [
     {
@@ -78,8 +95,6 @@ export function sampleCamtXml(): string {
   const sum = (side: readonly SampleEntry[]): number => side.reduce((total, entry) => total + entry.cents, 0)
   const closing = opening + sum(credits) - sum(debits)
   const money = (cents: number): string => (cents / 100).toFixed(2)
-  const created = addDays(booked, 1)
-  const sequence = main.sequence + 1
   const entryXml = (entry: SampleEntry): string => `
       <Ntry>
         <NtryRef>${entry.reference}</NtryRef>
@@ -114,7 +129,7 @@ export function sampleCamtXml(): string {
       <LglSeqNb>${sequence}</LglSeqNb>
       <CreDtTm>${created}T06:00:00.000</CreDtTm>
       <Acct>
-        <Id><IBAN>${main.iban}</IBAN></Id>
+        <Id><IBAN>${other?.iban ?? main.iban}</IBAN></Id>
         <Ccy>EUR</Ccy>
         <Nm>Example Studio d.o.o.</Nm>
         <Svcr><FinInstnId><BICFI>EXMPHR22</BICFI><Nm>Example Bank d.d.</Nm></FinInstnId></Svcr>

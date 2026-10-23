@@ -5,6 +5,7 @@ import UApp from '@nuxt/ui/components/App.vue'
 
 import WelcomeScreen from './features/data-source/presentation/WelcomeScreen.vue'
 import LocalWorkbookStatus from './features/excel/presentation/LocalWorkbookStatus.vue'
+import { useStatementSync } from './features/imports/presentation/useStatementSync'
 import { bindFiltersToRouter } from './features/filters/application/filterStore'
 import { shownPack } from './features/packs/packContribution'
 import { useSettings } from './features/settings/application/useSettings'
@@ -28,7 +29,8 @@ const props = defineProps<{
 
 const settings = useSettings()
 const store = useWorkbook()
-const { state, sync } = store
+const { state } = store
+const statements = useStatementSync()
 
 /** Review's menu item counts every row that waits, whatever the filters, since the queue has no period. */
 const rowsToReview = computed(() => state.workbook?.transactions.filter(needsReview).length ?? 0)
@@ -43,9 +45,10 @@ const navigation = computed(() =>
 )
 
 bindFiltersToRouter(useRouter())
-useGoogleReturn(props.googleReturn)
+useGoogleReturn(props.googleReturn, statements.sync)
 const stopAutoSync = startAutoSync({
   store,
+  sync: statements.sync,
   now: () => Date.now(),
   online: () => navigator.onLine,
   onVisible(callback) {
@@ -58,7 +61,9 @@ const stopAutoSync = startAutoSync({
 })
 onBeforeUnmount(stopAutoSync)
 
-const syncState = computed(() => syncStateOf(state))
+/** A sync reads the Sheet, then looks for new statements in Drive, and the control says which. */
+const syncState = computed(() => (statements.state.step === null ? syncStateOf(state) : 'syncing'))
+const syncStep = computed(() => statements.state.step ?? { kind: 'reading' as const })
 
 /** Nothing chosen and nothing kept: the first run, which asks where the ledger lives. */
 const firstRun = computed(() => state.status !== 'opening' && state.choice === null && state.workbook === null)
@@ -84,7 +89,8 @@ const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))
           :synced-at="state.syncedAt"
           :error-message="state.error ?? ''"
           :compact="compact"
-          @sync="sync"
+          :step="syncStep"
+          @sync="statements.syncByHand"
         />
       </template>
     </AppShell>

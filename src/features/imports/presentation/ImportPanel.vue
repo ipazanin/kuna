@@ -9,9 +9,6 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { negateMoney } from '../../../shared/money/money'
-import type { Money } from '../../../shared/money/money'
-import { typedAmount } from '../../../shared/money/typedAmount'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
@@ -21,7 +18,7 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { NO_RECORDS } from '../../workbook/domain/recordsRead'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
-import { dryRunFor, fittingProfiles, statementReadings } from '../application/importStatements'
+import { fittingProfiles, statementReadings } from '../application/importStatements'
 import { LEDGER_WRITES } from '../application/ledgerWrites'
 import { profileDraftProblem, profileKey, profileValue } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
@@ -30,6 +27,8 @@ import { loadImportFile } from '../infrastructure/importFiles'
 import type { LoadedImportFile } from '../application/importStatements'
 import DryRunStatementCard from './DryRunStatementCard.vue'
 import ProfileEditor from './ProfileEditor.vue'
+import StatementFolderCard from './StatementFolderCard.vue'
+import { useDryRun } from './useDryRun'
 
 const store = useWorkbook()
 const toast = useToast()
@@ -93,8 +92,7 @@ const rowKey = (account: string, reference: string): string => `${account}|${ref
 function takeFile(file: LoadedImportFile): void {
   loaded.value = file
   imported.value = null
-  started.value = {}
-  typedOpenings.value = {}
+  starts.reset()
   editing.value = false
   const fit = file.kind === 'table' ? fittingProfiles(file.grid, savedProfiles.value)[0] : undefined
   profileChoice.value = fit?.name ?? NEW_PROFILE
@@ -159,29 +157,8 @@ async function deleteProfile(): Promise<void> {
 
 const readings = computed(() => (loaded.value === null || workbook.value === null ? [] : statementReadings(loaded.value, workbook.value, activeProfile.value)))
 
-const started = ref<Record<string, boolean>>({})
-const typedOpenings = ref<Record<string, string>>({})
-
-/** An opening as typed, a leading minus for an overdrawn account. */
-function openingOf(text: string): Money | null {
-  const trimmed = text.trim()
-  const amount = typedAmount(trimmed.replace(/^-/, ''))
-  return amount === null ? null : trimmed.startsWith('-') ? negateMoney(amount) : amount
-}
-
-const dryRun = computed(() => {
-  const current = workbook.value
-  if (current === null || readings.value.length === 0) return null
-  const waiting = dryRunFor(readings.value, current, new Map())
-  const starts = new Map<string, Money>()
-  for (const statement of waiting.statements) {
-    const start = statement.start
-    if (start === null) continue
-    const opening = start.opening === null ? openingOf(typedOpenings.value[start.account] ?? '') : started.value[start.account] ? start.opening : null
-    if (opening !== null) starts.set(start.account, opening)
-  }
-  return starts.size === 0 ? waiting : dryRunFor(readings.value, current, starts)
-})
+const starts = useDryRun(readings)
+const { dryRun, started, typedOpenings } = starts
 
 const refused = computed(() => dryRun.value?.statements.filter((statement) => statement.refusal !== null).length ?? 0)
 const waitingStart = computed(() => dryRun.value?.statements.filter((statement) => statement.start !== null && !statement.rows.some((row) => row.verdict !== null)).length ?? 0)
@@ -238,6 +215,8 @@ const summary = computed(() => {
       <p class="max-w-[65ch] text-sm text-muted">
         Add a bank statement to the ledger: a camt.053 file, or a bank's spreadsheet export read by a saved profile. Nothing is written until you confirm.
       </p>
+
+      <StatementFolderCard />
 
       <AppCard title="Statement file" subtitle="A camt.053 statement (.xml), or an export as .xlsx, .xls, .ods or .csv.">
         <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5" data-testid="import-file">
@@ -304,11 +283,11 @@ const summary = computed(() => {
           v-for="(statement, index) in dryRun.statements"
           :key="`${statement.fileName}-${statement.label}`"
           :statement="statement"
-          :position="index + 1"
+          :collapse-id="`import.statement-${index + 1}`"
           :started="started[statement.account] === true"
           :typed-opening="typedOpenings[statement.account] ?? ''"
-          @update:started="started = { ...started, [statement.account]: $event }"
-          @update:typed-opening="typedOpenings = { ...typedOpenings, [statement.account]: $event }"
+          @update:started="starts.start(statement.account, $event)"
+          @update:typed-opening="starts.typeOpening(statement.account, $event)"
         />
 
         <AppCard title="Dry run" data-testid="dry-run">

@@ -871,6 +871,115 @@ export function importTableFlow(path) {
   }
 }
 
+const SYNC_BUTTON = '[data-testid="sync-status"] button'
+
+/** Waits for a toast whose title matches the pattern, which must be the only one, since earlier ones were dismissed. Returns its text. */
+async function toastMatching(page, pattern) {
+  const shown = await page
+    .waitForFunction(
+      (selector, source) => [...document.querySelectorAll(selector)].find((element) => new RegExp(source).test(element.querySelector('[data-slot="title"]')?.textContent?.trim() ?? ''))?.textContent ?? null,
+      { timeout: 10_000 },
+      TOAST,
+      pattern.source,
+    )
+    .catch(async () => {
+      const said = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((element) => element.textContent?.trim()).join(' | '), TOAST)
+      throw new Error(`no toast matching ${pattern} within 10 s, the toasts say: ${said || 'nothing'}`)
+    })
+  await delay(600)
+  return shown.jsonValue()
+}
+
+/** Presses the Sync button on screen, the top bar's or the sidebar's, and waits until the sync and its statements step are done. */
+async function syncAndSettle(page, press) {
+  const button = await page
+    .waitForFunction((selector) => [...document.querySelectorAll(selector)].find((element) => element.offsetParent !== null) ?? null, { timeout: 10_000 }, SYNC_BUTTON)
+    .then((handle) => handle.asElement())
+    .catch(() => {
+      throw new Error('no Sync button on screen')
+    })
+  await press(button)
+  await page
+    .waitForFunction((selector) => [...document.querySelectorAll(selector)].some((element) => element.offsetParent !== null && !element.disabled), { timeout: 10_000, polling: 100 }, SYNC_BUTTON)
+    .catch(() => {
+      throw new Error('the sync did not finish within 10 s')
+    })
+}
+
+const FILED = /^Filed statement \d+, 4 rows$/
+
+/**
+ * Sync files the sample statement from the fake statements folder with Undo, files it again once
+ * undone, and Import lists it. A last sync finds nothing new, so it writes nothing and says nothing.
+ */
+export async function statementSyncFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  await toastMatching(page, FILED)
+  await inspect?.('the statements filed')
+  await shoot('statements-filed')
+  await undo(page, press)
+  await dismissToasts(page)
+
+  await syncAndSettle(page, press)
+  await toastMatching(page, FILED)
+  await dismissToasts(page)
+  await page.evaluate(() => {
+    window.location.hash = '#/transactions?tab=import'
+  })
+  await page.waitForSelector('[data-testid="statement-folder-filed"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Import does not list the statement the sync filed')
+  })
+  await delay(300)
+  await shoot('statements-folder-filed')
+
+  await syncAndSettle(page, press)
+  await delay(1_500)
+  const toasts = await page.evaluate((selector) => document.querySelectorAll(selector).length, TOAST)
+  if (toasts > 0) throw new Error('a sync that found nothing new showed a toast')
+  if (await page.$('[data-testid="statement-folder"]')) throw new Error('the folder card stayed after a sync that found nothing new')
+}
+
+/** With a statement of an account the accounts tab lacks in the folder, Sync files the sample, holds the other, and Overview links to Import, which says why. */
+export async function heldStatementFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  const said = await toastMatching(page, FILED)
+  if (!said.includes('1 statement was not filed')) throw new Error(`the toast does not say a statement was not filed, it says: ${said}`)
+  await dismissToasts(page)
+  const job = await page.waitForSelector('[data-job="statements"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Overview has no line for the statement the sync held')
+  })
+  const text = await job.evaluate((element) => element.textContent ?? '')
+  if (!text.includes('1 statement was not filed')) throw new Error(`the held statement's line says: ${text}`)
+  await inspect?.('the held statement on Overview')
+  await shoot('statements-held-overview')
+  await pressSelector(page, press, '[data-job="statements"] a')
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="statement-folder"] [data-testid="dry-run-refusal"]')?.textContent?.includes('names no account for IBAN') ?? false, { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('Import does not show why the statement was held')
+    })
+  await delay(300)
+  await inspect?.('the held statement on Import')
+  await shoot('statements-held-import')
+}
+
+/** A tab Google gave no Drive read token: Overview offers to check for new statements, and the check files the sample. */
+export async function statementCheckFlow(page, { press, shoot, inspect }) {
+  await page.evaluate(() => sessionStorage.setItem('ledgerboard.drive-read-refused', 'true'))
+  await page.reload({ waitUntil: 'networkidle0' })
+  await page.waitForSelector('[data-job="check-statements"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Overview does not offer to check for new statements')
+  })
+  await inspect?.('the offer to check for new statements')
+  await shoot('statements-check')
+  await pressSelector(page, press, '[data-testid="check-statements"]')
+  await toastMatching(page, FILED)
+  await page.waitForFunction(() => !document.querySelector('[data-job="check-statements"]'), { timeout: 5_000 }).catch(() => {
+    throw new Error('the offer to check stayed after the check')
+  })
+  await dismissToasts(page)
+}
+
 /** Review: open the gadget purchase in the queue, then split it, edit and delete the split and Undo, as on Transactions. */
 export async function reviewSplitFlow(page, context) {
   const summary = await page

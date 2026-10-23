@@ -9,7 +9,7 @@ import type { RulesTabChange } from '../src/features/rules/domain/rulesTabChange
 import { ruleTabCells } from '../src/features/rules/domain/rulesTabChange'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 import { removeSettings, setSettings } from '../src/features/settings/application/settingWrites'
-import { removableSettingKeys } from '../src/features/settings/domain/settings'
+import { unreadSettingKeys } from '../src/features/settings/domain/settings'
 import { installedPack } from '../src/features/packs/packContribution'
 import { recordsOf } from '../src/features/workbook/domain/recordsRead'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
@@ -223,16 +223,29 @@ describe.each([
       ...grids,
       settings: [...grids.settings!, ['import_profile_old-bank', 'date=Datum; amount=Iznos; account=main'], ['import_profile_broken', 'nonsense'], ['old_switch', 'TRUE']],
     })
-    const removable = removableSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)
-    expect(removable).toEqual(['import_profile_old-bank', 'import_profile_broken', 'old_switch'])
+    const unread = unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)
+    expect(unread).toEqual(new Map([['import_profile_old-bank', 1], ['import_profile_broken', 1], ['old_switch', 1]]))
     expect(settings(store).importProfiles.map((profile) => profile.name)).toEqual(['old-bank'])
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings').map((problem) => problem.label)).toEqual(['import_profile_broken', 'old_switch'])
 
-    await store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, removable))
+    await store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, [...unread.keys()]))
 
     expect(settings(store).importProfiles).toEqual([])
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
     expect(store.state.records!.settings.records.map((stored) => stored.record.key)).toEqual(['card_settlement_ibans', 'review_label'])
+  })
+
+  it('counts an unknown key or a profile on two rows, which a write refuses to remove until one row holds it', async () => {
+    const grids = workbookGrids()
+    const { store } = await harnessOf(used, {
+      ...grids,
+      settings: [...grids.settings!, ['old_switch', 'TRUE'], ['old_switch', 'FALSE'], ['import_profile_twice', 'nonsense'], ['import_profile_twice', 'nonsense']],
+    })
+
+    expect(unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)).toEqual(new Map([['old_switch', 2], ['import_profile_twice', 2]]))
+    await expect(store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, ['old_switch']))).rejects.toThrow(
+      'The settings tab sets "old_switch" on 2 rows. Keep one of them in the Sheet first.',
+    )
   })
 
   it('refuses a setting the reader would not use', async () => {

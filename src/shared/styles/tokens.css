@@ -168,7 +168,11 @@
   --bucket-financing: var(--series-5);
   --bucket-neutral: var(--chart-deemphasis);
 
-  /* Text inside a filled mark. Every series step is light enough for dark ink in both themes. */
+  /*
+   * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an
+   * icon or large text. Small text needs 4.5:1, which Blue (4.1:1), Dark green (3.7:1) and Violet
+   * (3.2:1) miss in the light theme and Dark green misses in the dark one.
+   */
   --chart-on-fill: #0c1622;
 }
 

@@ -247,8 +247,8 @@ export interface Workbook {
    * screens count a split row through its parts, and the ledger and its readers keep the row whole.
    */
   readonly splits: readonly LedgerSplit[]
-  /** The ledger rows a pack keeps whole, such as one an asset claims as its payment, by record id with the names that claim them. */
-  readonly rowsKeptWhole: ReadonlyMap<RecordId, readonly string[]>
+  /** The ledger rows a pack keeps whole, by record id, each with why in the pack's words. */
+  readonly rowsKeptWhole: ReadonlyMap<RecordId, string>
   /** The suggestions on Review a person dismissed, in the order the tab holds them. */
   readonly dismissals: readonly Dismissal[]
   readonly settings: Settings

@@ -75,10 +75,8 @@ const typed = computed(() => parts.value.map((part) => typedAmount(part.amount))
 const placed = computed(() => sumMoney(typed.value.map((amount) => amount ?? ZERO)))
 const remainder = computed(() => subtractMoney(whole.value, placed.value))
 
-const claimedBy = computed(() => {
-  const workbook = store.state.workbook
-  return workbook?.rowsKeptWhole.get(props.row.id) ?? []
-})
+/** Why a pack keeps the row whole, or null when it may be split. */
+const keptWhole = computed(() => store.state.workbook?.rowsKeptWhole.get(props.row.id) ?? null)
 
 const tabMissing = computed(() => store.state.choice?.source === 'google' && (store.state.snapshot?.meta.missingTabs.includes('splits') ?? false))
 
@@ -157,9 +155,8 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
           <span class="text-toned">The payment, {{ direction }}</span>
           <MoneyText :cents="row.amount" tone="flow" class="font-medium text-highlighted" />
         </p>
-        <div v-if="claimedBy.length > 0" class="rounded-[var(--radius-control)] border border-default px-3 py-2 text-sm text-toned" data-testid="split-claimed">
-          {{ claimedBy.map((name) => `"${name}"`).join(' and ') }} on the assets tab {{ claimedBy.length === 1 ? 'claims' : 'claim' }} this row as payment, so the row stays whole. The
-          assets tab already holds what it bought.
+        <div v-if="keptWhole !== null" class="rounded-[var(--radius-control)] border border-default px-3 py-2 text-sm text-toned" data-testid="split-claimed">
+          This row stays whole, since {{ keptWhole }}.
         </div>
         <AddTabNotice v-else-if="tabMissing" tab="splits" />
 
@@ -230,7 +227,7 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
             :label="split === null ? 'Split' : 'Save split'"
             icon="i-lucide-save"
             :loading="writes.busy.value"
-            :disabled="writes.busy.value || claimedBy.length > 0"
+            :disabled="writes.busy.value || keptWhole !== null"
             data-testid="split-save"
           />
         </div>

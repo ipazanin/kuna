@@ -117,7 +117,7 @@ describe.each([
       'the parts add up to -18.00 and the row is -20.00',
     )
     await expect(writeSplit(store, rowOf(store, 'Desk Co'), [[-80, 'equipment'], [-20, 'ai-services']])).rejects.toThrow(
-      '"Desk" on the assets tab claims the main row of 2026-10-03 for -100.00 as payment, so the row stays whole.',
+      'The main row of 2026-10-03 for -100.00 stays whole, since the asset "Desk" claims it as payment.',
     )
     await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'snacks']])).rejects.toThrow(WorkbookWriteRefused)
     expect(store.state.snapshot?.splits).toEqual([])

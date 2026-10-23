@@ -9,18 +9,15 @@ export interface CountedSplits {
   readonly problems: readonly WorkbookProblem[]
 }
 
-/**
- * The splits of the `splits` tab less those of a row kept whole, such as one an asset claims as
- * its whole payment. `rowsKeptWhole` names what claims each such row, by the row.
- */
-export function countedSplits(splits: readonly LedgerSplit[], rowsKeptWhole: ReadonlyMap<RecordId, readonly string[]>): CountedSplits {
+/** The splits of the `splits` tab less those of a row a pack keeps whole. `rowsKeptWhole` says why it keeps each such row, by the row. */
+export function countedSplits(splits: readonly LedgerSplit[], rowsKeptWhole: ReadonlyMap<RecordId, string>): CountedSplits {
   const problems: WorkbookProblem[] = []
   const counted = splits.filter((split) => {
-    const claimedBy = rowsKeptWhole.get(split.row.id)
-    if (claimedBy === undefined) {
+    const why = rowsKeptWhole.get(split.row.id)
+    if (why === undefined) {
       return true
     }
-    const reason = `${claimedBy.map((name) => `"${name}"`).join(' and ')} on the assets tab ${claimedBy.length === 1 ? 'claims' : 'claim'} the ${split.row.account} row of ${split.row.date} as payment, so the row counts whole`
+    const reason = `the ${split.row.account} row of ${split.row.date} stays whole, since ${why}`
     problems.push(...split.parts.map((part) => ({ tab: 'splits' as const, id: part.id, label: partLabel(split, part), reason })))
     return false
   })

@@ -28,7 +28,9 @@ export function autoSyncDue(moment: AutoSyncMoment): boolean {
 }
 
 export interface AutoSyncPorts {
-  readonly store: Pick<WorkbookStore<WorkbookCopy>, 'state' | 'open' | 'sync' | 'canSyncSilently'>
+  readonly store: Pick<WorkbookStore<WorkbookCopy>, 'state' | 'open' | 'canSyncSilently'>
+  /** The whole sync: the Sheet read and whatever follows it. */
+  sync(): Promise<void>
   now(): number
   online(): boolean
   /** Calls back whenever the page becomes visible again. Returns the function that stops it. */
@@ -55,7 +57,7 @@ export function startAutoSync(ports: AutoSyncPorts): () => void {
       return
     }
     lastAttemptAt = now
-    await store.sync()
+    await ports.sync()
   }
 
   void store.open().then(syncWhenDue)

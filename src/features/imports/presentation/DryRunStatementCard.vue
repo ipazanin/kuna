@@ -14,8 +14,8 @@ import type { DryRunStatement } from '../domain/importDryRun'
 
 const props = defineProps<{
   statement: DryRunStatement
-  /** Its place among the statements of the file, for the card's id on this device. */
-  position: number
+  /** The card's id, under which this device keeps it collapsed or expanded. */
+  collapseId: string
   /** Whether the person agreed to start the account at the statement's opening. */
   started: boolean
   /** The opening typed for an account a file without balances starts. */
@@ -59,7 +59,7 @@ function day(date: string): string {
   <AppCard
     :title="statement.label"
     :subtitle="subtitle"
-    :collapse-id="`import.statement-${position}`"
+    :collapse-id="collapseId"
     :summary="summary"
     data-testid="dry-run-statement"
   >

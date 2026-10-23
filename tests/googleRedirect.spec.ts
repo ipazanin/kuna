@@ -1,8 +1,19 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { currentGmailToken, signsInByRedirect, takeGoogleRedirect } from '../src/shared/google/googleAuth'
 import {
+  askForDriveReadSilently,
+  currentAccessToken,
+  currentDriveReadToken,
+  currentGmailToken,
+  driveReadAccess,
+  forgetGoogleSignIn,
+  signsInByRedirect,
+  takeGoogleRedirect,
+} from '../src/shared/google/googleAuth'
+import {
+  DRIVE_READONLY,
+  DRIVE_READ_NOT_GRANTED,
   GMAIL_COMPOSE,
   GMAIL_NOT_GRANTED,
   REDIRECT_SIGN_IN_QUERY,
@@ -16,16 +27,25 @@ import type { PendingRedirect } from '../src/shared/google/googleRedirect'
 import { loadAccessToken } from '../src/shared/google/googleSession'
 
 const SIGN_IN_SCOPE = 'https://www.googleapis.com/auth/drive.file openid email'
-const PENDING: PendingRedirect = { state: 'one-time-state', grant: 'sign-in', resume: 'sync', route: '#/review?tab=rules' }
+const PENDING: PendingRedirect = { state: 'one-time-state', grant: 'sign-in', resume: 'sync', route: '#/review?tab=rules', silent: false }
+const SILENT_DRIVE_READ: PendingRedirect = { ...PENDING, grant: 'drive-read', resume: 'none', route: '#/', silent: true }
 const BACK_AT = Date.parse('2026-10-21T09:00:00.000Z')
 
 afterEach(() => {
+  forgetGoogleSignIn()
   localStorage.clear()
   sessionStorage.clear()
   window.history.replaceState(null, '', '/ledgerboard/')
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+  vi.restoreAllMocks()
   vi.useRealTimers()
 })
+
+/** Loads the app as Google sends the tab back to it with this fragment. */
+function comeBackWith(fragment: string): void {
+  window.history.replaceState(null, '', `/ledgerboard/#${fragment}`)
+}
 
 describe('the address the tab goes to', () => {
   it('asks Google for a token in the fragment of the app address, with the state and the login hint', () => {
@@ -37,6 +57,7 @@ describe('the address the tab goes to', () => {
         state: 'one-time-state',
         includeGrantedScopes: false,
         loginHint: 'owner@example.com',
+        silent: false,
       }),
     )
 
@@ -54,12 +75,38 @@ describe('the address the tab goes to', () => {
 
   it('leaves the login hint out when no account is remembered, and adds Gmail on top of what was granted', () => {
     const url = new URL(
-      authorizationUrl({ clientId: 'client', redirectUri: 'http://localhost:5173/ledgerboard/', scope: GMAIL_COMPOSE, state: 's', includeGrantedScopes: true, loginHint: null }),
+      authorizationUrl({
+        clientId: 'client',
+        redirectUri: 'http://localhost:5173/ledgerboard/',
+        scope: GMAIL_COMPOSE,
+        state: 's',
+        includeGrantedScopes: true,
+        loginHint: null,
+        silent: false,
+      }),
     )
 
     expect(url.searchParams.has('login_hint')).toBe(false)
     expect(url.searchParams.get('include_granted_scopes')).toBe('true')
     expect(url.searchParams.has('prompt')).toBe(false)
+  })
+
+  it('asks for Drive read alone with no screen at Google when the ask is silent', () => {
+    const url = new URL(
+      authorizationUrl({
+        clientId: 'client',
+        redirectUri: 'https://ipazanin.github.io/ledgerboard/',
+        scope: DRIVE_READONLY,
+        state: 's',
+        includeGrantedScopes: false,
+        loginHint: 'owner@example.com',
+        silent: true,
+      }),
+    )
+
+    expect(url.searchParams.get('scope')).toBe(DRIVE_READONLY)
+    expect(url.searchParams.get('include_granted_scopes')).toBe('false')
+    expect(url.searchParams.get('prompt')).toBe('none')
   })
 })
 
@@ -117,6 +164,7 @@ describe('checking the answer against the request', () => {
       token: { value: 'ya29.a0', grantedScope: SIGN_IN_SCOPE, expiresAt: BACK_AT + 3_599_000 },
       resume: 'sync',
       route: '#/review?tab=rules',
+      silent: false,
     })
   })
 
@@ -154,6 +202,21 @@ describe('checking the answer against the request', () => {
     expect(settleRedirect({ ...token, scope: `${SIGN_IN_SCOPE} ${GMAIL_COMPOSE}` }, gmail, BACK_AT)).toMatchObject({ kind: 'granted', grant: 'gmail' })
   })
 
+  it('refuses a Drive read token that does not carry drive.readonly, and keeps one that does', () => {
+    const driveRead: PendingRedirect = { ...PENDING, grant: 'drive-read' }
+
+    expect(settleRedirect(token, driveRead, BACK_AT)).toMatchObject({ kind: 'refused', grant: 'drive-read', message: DRIVE_READ_NOT_GRANTED })
+    expect(settleRedirect({ ...token, scope: DRIVE_READONLY }, driveRead, BACK_AT)).toMatchObject({ kind: 'granted', grant: 'drive-read' })
+  })
+
+  it('tells a silent ask from one the person made, whatever Google answers', () => {
+    const consentRequired = { kind: 'error', error: 'consent_required', description: null, state: 'one-time-state' } as const
+
+    expect(settleRedirect(consentRequired, SILENT_DRIVE_READ, BACK_AT)).toMatchObject({ kind: 'refused', grant: 'drive-read', silent: true })
+    expect(settleRedirect({ ...token, scope: DRIVE_READONLY }, SILENT_DRIVE_READ, BACK_AT)).toMatchObject({ kind: 'granted', silent: true })
+    expect(settleRedirect(consentRequired, { ...SILENT_DRIVE_READ, silent: false }, BACK_AT)).toMatchObject({ silent: false })
+  })
+
   it('refuses a token with no usable lifetime', () => {
     expect(settleRedirect({ ...token, expiresIn: Number.NaN }, PENDING, BACK_AT).kind).toBe('refused')
   })
@@ -164,6 +227,20 @@ describe('the pending redirect', () => {
     savePendingRedirect(PENDING)
 
     expect(takePendingRedirect()).toEqual(PENDING)
+    expect(takePendingRedirect()).toBeNull()
+  })
+
+  it('remembers a silent Drive read ask', () => {
+    savePendingRedirect(SILENT_DRIVE_READ)
+
+    expect(takePendingRedirect()).toEqual(SILENT_DRIVE_READ)
+  })
+
+  it('reads one saved without the silent flag as asked by the person, and refuses an unknown grant', () => {
+    localStorage.setItem('ledgerboard.google-redirect', JSON.stringify({ state: 's', grant: 'drive-read', resume: 'sync', route: '#/' }))
+    expect(takePendingRedirect()).toEqual({ state: 's', grant: 'drive-read', resume: 'sync', route: '#/', silent: false })
+
+    localStorage.setItem('ledgerboard.google-redirect', JSON.stringify({ state: 's', grant: 'drive', resume: 'sync', route: '#/', silent: true }))
     expect(takePendingRedirect()).toBeNull()
   })
 })
@@ -190,6 +267,34 @@ describe('coming back to the app', () => {
     expect(loadAccessToken(Date.now())).toBeNull()
   })
 
+  it('keeps a Drive read token in page memory only, apart from the sign-in that reads and writes the Sheet, and forgets it on sign-out', () => {
+    savePendingRedirect(SILENT_DRIVE_READ)
+    comeBackWith(`access_token=ya29.drive&expires_in=3599&scope=${encodeURIComponent(DRIVE_READONLY)}&state=one-time-state`)
+
+    expect(takeGoogleRedirect()).toMatchObject({ kind: 'granted', grant: 'drive-read', silent: true })
+    expect(currentDriveReadToken()).toBe('ya29.drive')
+    expect(driveReadAccess()).toBe('held')
+    expect(currentAccessToken()).toBeNull()
+    expect(loadAccessToken(Date.now())).toBeNull()
+    expect(JSON.stringify({ ...localStorage, ...sessionStorage })).not.toContain('ya29.drive')
+
+    forgetGoogleSignIn()
+
+    expect(currentDriveReadToken()).toBeNull()
+  })
+
+  it('lets the Drive read token run out a minute early, like the others', () => {
+    vi.useFakeTimers({ now: BACK_AT })
+    savePendingRedirect(SILENT_DRIVE_READ)
+    comeBackWith(`access_token=ya29.drive&expires_in=3599&scope=${encodeURIComponent(DRIVE_READONLY)}&state=one-time-state`)
+    takeGoogleRedirect()
+
+    vi.setSystemTime(BACK_AT + 3_599_000 - 60_000)
+
+    expect(currentDriveReadToken()).toBeNull()
+    expect(driveReadAccess()).toBe('not-asked')
+  })
+
   it('keeps nothing from a forged answer and still clears the address', () => {
     savePendingRedirect(PENDING)
     window.history.replaceState(null, '', '/ledgerboard/#access_token=ya29.forged&expires_in=3599&scope=email&state=forged')
@@ -204,5 +309,81 @@ describe('coming back to the app', () => {
 
     expect(takeGoogleRedirect()).toBeNull()
     expect(window.location.hash).toBe('#/transactions')
+  })
+})
+
+describe('the silent Drive read ask as the app opens', () => {
+  function configureGoogle(): void {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client.apps.googleusercontent.com')
+    vi.stubEnv('VITE_GOOGLE_API_KEY', 'key')
+    vi.stubEnv('VITE_GOOGLE_PROJECT_NUMBER', '1')
+  }
+
+  /** The ask the tab left with, left in place for the return to take. */
+  function askLeftWith(): PendingRedirect | null {
+    const ask = takePendingRedirect()
+    if (ask !== null) {
+      savePendingRedirect(ask)
+    }
+    return ask
+  }
+
+  it('starts not asked, and goes to Google with a silent Drive read ask', () => {
+    configureGoogle()
+    window.history.replaceState(null, '', '/ledgerboard/#/review')
+
+    expect(driveReadAccess()).toBe('not-asked')
+    expect(askForDriveReadSilently()).toBe(true)
+    expect(askLeftWith()).toMatchObject({ grant: 'drive-read', resume: 'none', route: '#/review', silent: true })
+  })
+
+  it('never goes round again in the same tab once Google answered with no token', () => {
+    for (const error of ['consent_required', 'interaction_required', 'login_required', 'server_error']) {
+      sessionStorage.clear()
+      configureGoogle()
+      expect(askForDriveReadSilently()).toBe(true)
+      comeBackWith(`error=${error}&state=${askLeftWith()!.state}`)
+
+      expect(takeGoogleRedirect()).toMatchObject({ kind: 'refused', grant: 'drive-read', silent: true })
+      expect(askForDriveReadSilently()).toBe(false)
+      expect(takePendingRedirect()).toBeNull()
+      expect(driveReadAccess()).toBe('needs-consent')
+    }
+  })
+
+  it('never goes round again when the tab came back without an answer from Google', () => {
+    configureGoogle()
+    expect(askForDriveReadSilently()).toBe(true)
+    takePendingRedirect()
+
+    expect(askForDriveReadSilently()).toBe(false)
+    expect(takePendingRedirect()).toBeNull()
+    expect(driveReadAccess()).toBe('needs-consent')
+  })
+
+  it('asks again on the next open once a token came back', () => {
+    configureGoogle()
+    expect(askForDriveReadSilently()).toBe(true)
+    comeBackWith(`access_token=ya29.drive&expires_in=3599&scope=${encodeURIComponent(DRIVE_READONLY)}&state=${askLeftWith()!.state}`)
+    takeGoogleRedirect()
+
+    expect(driveReadAccess()).toBe('held')
+    expect(askForDriveReadSilently()).toBe(true)
+  })
+
+  it('stays when the browser keeps no session storage, since the ask could not be noted', () => {
+    configureGoogle()
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('denied')
+    })
+
+    expect(askForDriveReadSilently()).toBe(false)
+  })
+
+  it('stays when the Google variables are missing', () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '')
+
+    expect(askForDriveReadSilently()).toBe(false)
+    expect(takePendingRedirect()).toBeNull()
   })
 })

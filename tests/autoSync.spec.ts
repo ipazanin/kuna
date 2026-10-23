@@ -47,9 +47,9 @@ describe('startAutoSync', () => {
       store: {
         state: state as AutoSyncPorts['store']['state'],
         open: async () => {},
-        sync,
         canSyncSilently: () => silent,
       },
+      sync,
       now: () => now,
       online: () => true,
       onVisible: (callback) => {

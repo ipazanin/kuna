@@ -52,6 +52,17 @@ export function waitingJobs(workbook: Workbook, bankRows: readonly Transaction[]
   return [...core, ...shownPack(workbook.settings).waitingJobs(workbook, asOf)]
 }
 
+/** The statements the last sync held, or why it could not read the folder, with the Import tab that shows them. */
+export function statementsJob(notFiled: number, problem: string | null): WaitingJob | null {
+  if (notFiled === 0 && problem === null) return null
+  return {
+    key: 'statements',
+    text: notFiled > 0 ? `${counted(notFiled, '1 statement was', 'statements were')} not filed` : 'The statements folder could not be read',
+    tone: 'warning',
+    link: { label: 'Import', to: { path: '/transactions', query: { tab: 'import' } } },
+  }
+}
+
 function reviewJob(bankRows: readonly Transaction[]): WaitingJob | null {
   const count = bankRows.filter(needsReview).length
   if (count === 0) return null

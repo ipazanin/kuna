@@ -32,7 +32,11 @@
  * confirmed rows no rule repeats, which adds the dismissed tab to a Sheet without it, restores it and
  * undoes the restore. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
- * new rows wait on Review and undoes it, then deletes the profile, at 360, 430 and 1440 px.
+ * new rows wait on Review and undoes it, then deletes the profile, at 360, 430 and 1440 px. In Google
+ * mode, from Overview, Sync files the fake statements folder's sample statement, which Undo takes out
+ * and Import lists, and a last sync finds nothing new and shows no toast. With a held statement in the
+ * folder, Overview links to Import, which says why. A tab Google gave no Drive read token is offered
+ * the check for new statements, which files the sample.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -61,6 +65,7 @@ import {
   categoryFlow,
   changeCategoryFlow,
   dismissFlow,
+  heldStatementFlow,
   importCamtFlow,
   importTableFlow,
   invoiceFlow,
@@ -71,6 +76,8 @@ import {
   scenarioFlow,
   splitFlow,
   startingScenariosFlow,
+  statementCheckFlow,
+  statementSyncFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -533,6 +540,9 @@ const FLOWS = [
   { name: 'dismiss', hash: '#/review?tab=rules', title: 'Review', run: dismissFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'import-camt', hash: '#/transactions?tab=import', title: 'Transactions', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'import-table', hash: '#/transactions?tab=import', title: 'Transactions', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'statements-sync', hash: '#/', title: 'Overview', run: statementSyncFlow, modes: ['google'] },
+  { name: 'statements-held', hash: '#/', title: 'Overview', run: heldStatementFlow, modes: ['google'], queries: { google: '&fake=held-statement' } },
+  { name: 'statements-check', hash: '#/', title: 'Overview', run: statementCheckFlow, modes: ['google'] },
 ]
 const MODES = [
   { name: 'google', query: '' },
@@ -693,7 +703,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
 for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 'desktop'].includes(candidate.name) && selection.takesWidth(candidate.width))) {
   for (const mode of MODES) {
     for (const theme of THEMES) {
-      for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name))) {
+      for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name) && (candidate.modes ?? ['google', 'excel']).includes(mode.name))) {
         const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
         const context = await browser.createBrowserContext()
         const page = await context.newPage()

@@ -11,7 +11,6 @@ import { readSplits } from '../src/features/workbook/domain/splitsReading'
 import { CORE_TABS, readSnapshot, recordsOfRows } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { assetsClaimingRows } from '../src/packs/hr-doo/domain/assets/assetRegister'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
 import { compareYearEnd } from '../src/packs/hr-doo/domain/yearEnd/yearEndComparison'
 import { STUDIO_CATEGORIES, STUDIO_ROWS, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
@@ -220,15 +219,34 @@ describe('countedSplits', () => {
         ],
       ),
     ).workbook
-    const counted = countedSplits(workbook.splits, assetsClaimingRows(hrDooWorkbook(workbook).assets, workbook.transactions, workbook.categories))
+    const counted = countedSplits(workbook.splits, workbook.rowsKeptWhole)
 
     expect(workbook.splits).toHaveLength(1)
     expect(counted.splits).toEqual([])
     expect(counted.problems).toEqual([
-      { tab: 'splits', id: recordIdOf(SPLIT_PART_RECORDS, 'split-2'), label: 'office-supplies, -45, 2026-03-09', reason: '"Shredder" on the assets tab claims the main row of 2026-03-09 as payment, so the row counts whole' },
-      { tab: 'splits', id: recordIdOf(SPLIT_PART_RECORDS, 'split-3'), label: 'travel, -15, 2026-03-09', reason: '"Shredder" on the assets tab claims the main row of 2026-03-09 as payment, so the row counts whole' },
+      { tab: 'splits', id: recordIdOf(SPLIT_PART_RECORDS, 'split-2'), label: 'office-supplies, -45, 2026-03-09', reason: 'the main row of 2026-03-09 stays whole, since the asset "Shredder" claims it as payment' },
+      { tab: 'splits', id: recordIdOf(SPLIT_PART_RECORDS, 'split-3'), label: 'travel, -15, 2026-03-09', reason: 'the main row of 2026-03-09 stays whole, since the asset "Shredder" claims it as payment' },
     ])
     expect(presentedWorkbook(workbook).transactions.map((row) => row.amount)).toEqual([euros(-25), euros(-60), euros(1000)])
+  })
+
+  it('names every asset that claims a row kept whole, in the pack\'s words', () => {
+    const workbook = readSnapshot(
+      snapshotOf(
+        [[...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']],
+        [
+          ['asset', 'bought', 'cost_net', 'group', 'ledger_reference'],
+          ['Shredder', 46090, 30, 'equipment', 'Order 77'],
+          ['Bin', 46090, 18, 'equipment', 'Order 77'],
+        ],
+      ),
+    ).workbook
+
+    expect([...workbook.rowsKeptWhole.values()]).toEqual(['the assets "Shredder" and "Bin" claim it as payment'])
+    expect(presentedWorkbook(workbook).problems.filter((problem) => problem.tab === 'splits').map((problem) => problem.reason)).toEqual([
+      'the main row of 2026-03-09 stays whole, since the assets "Shredder" and "Bin" claim it as payment',
+      'the main row of 2026-03-09 stays whole, since the assets "Shredder" and "Bin" claim it as payment',
+    ])
   })
 })
 

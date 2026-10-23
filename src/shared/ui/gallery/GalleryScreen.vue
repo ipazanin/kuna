@@ -275,7 +275,7 @@ const columns: TableColumn<SampleTransaction>[] = [
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div class="gallery-frame"><SyncStatus state="first-run" /></div>
         <div class="gallery-frame"><SyncStatus state="ready" synced-at="2026-10-16T06:04:00Z" /></div>
-        <div class="gallery-frame"><SyncStatus state="syncing" synced-at="2026-10-15T06:04:00Z" /></div>
+        <div class="gallery-frame"><SyncStatus state="syncing" synced-at="2026-10-15T06:04:00Z" :step="{ kind: 'looking' }" /></div>
         <div class="gallery-frame">
           <SyncStatus state="error" synced-at="2026-10-15T06:04:00Z" error-message="Google did not answer. Check the connection and try again." />
         </div>
@@ -285,6 +285,7 @@ const columns: TableColumn<SampleTransaction>[] = [
         <div class="gallery-frame"><SyncStatus state="first-run" compact /></div>
         <div class="gallery-frame"><SyncStatus state="ready" synced-at="2026-10-16T06:04:00Z" compact /></div>
         <div class="gallery-frame"><SyncStatus state="syncing" synced-at="2026-10-16T06:04:00Z" compact /></div>
+        <div class="gallery-frame"><SyncStatus state="syncing" synced-at="2026-10-16T06:04:00Z" :step="{ kind: 'filing', rows: 3 }" compact /></div>
         <div class="gallery-frame"><SyncStatus state="error" error-message="Google did not answer." compact /></div>
       </div>
     </section>

@@ -1,5 +1,5 @@
 import { googleFetch } from '../../../shared/google/googleApi'
-import { listChildren } from '../../../shared/google/driveClient'
+import { FOLDER_MIME_TYPE, listChildren, queryLiteral } from '../../../shared/google/driveClient'
 import { pickFromDrive } from '../../../shared/google/picker'
 import type { DriveEntry, InvoiceDrive, MailDrafts } from '../application/invoiceRun'
 import { rawInvoiceMessage } from './invoiceMessage'
@@ -7,7 +7,6 @@ import { rawInvoiceMessage } from './invoiceMessage'
 const DRIVE_FILES_API = 'https://www.googleapis.com/drive/v3/files'
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
 const GMAIL_DRAFTS_API = 'https://gmail.googleapis.com/gmail/v1/users/me/drafts'
-const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 
 function entryOf(file: { readonly id: string; readonly name: string; readonly mimeType: string }): DriveEntry {
   return { id: file.id, name: file.name, folder: file.mimeType === FOLDER_MIME_TYPE }
@@ -17,7 +16,7 @@ function entryOf(file: { readonly id: string; readonly name: string; readonly mi
 export function googleInvoiceDrive(accessToken: string): InvoiceDrive {
   return {
     async children(folderId) {
-      return (await listChildren(accessToken, folderId)).map(entryOf)
+      return (await listChildren(accessToken, `${queryLiteral(folderId)} in parents and trashed = false`, ['id', 'name', 'mimeType'])).map(entryOf)
     },
 
     async pickFolders(parentId, title) {

@@ -10,7 +10,7 @@ import { categoryOf } from '../domain/categoriesReading'
 import { clientRowOf } from '../domain/clientsReading'
 import { dismissalOf } from '../domain/dismissalsReading'
 import { invoiceKeyOf, invoiceOf } from '../domain/invoicesReading'
-import { ledgerEntryOf, ledgerKeyOf } from '../domain/ledgerReading'
+import { ledgerEntryOf, ledgerKeyOf, referencedLedgerKey } from '../domain/ledgerReading'
 import type { PackRecords } from '../domain/packPart'
 import type { WorkbookRecordTypes, WorkbookRecords } from '../domain/readWorkbook'
 import { readWorkbook } from '../domain/readWorkbook'
@@ -121,13 +121,21 @@ export function byId<R extends { readonly id: RecordId }, Tab extends WorkbookTa
   }
 }
 
-/** The ledger row's key, or null for a row the ledger's factory refuses. */
+/**
+ * The ledger row's key. A row with a reference is known by it even when the ledger's factory refuses
+ * the row, so a statement carrying that reference is never added beside it. Null for a refused row
+ * without one.
+ */
 function ledgerKey(cells: Cells): string | null {
   const account = slugText(cells.account)
+  const reference = cellText(cells.reference)
+  if (account !== '' && reference !== '') {
+    return referencedLedgerKey(account, reference)
+  }
   if (typeof cells.date !== 'number' || !Number.isFinite(cells.date) || account === '' || typeof cells.amount !== 'number' || typeof cells.balance !== 'number') {
     return null
   }
-  return ledgerKeyOf({ account, reference: cellText(cells.reference), date: civilDateFromSerial(cells.date), amount: cells.amount, balance: cells.balance, description: cellText(cells.description) })
+  return ledgerKeyOf({ account, reference, date: civilDateFromSerial(cells.date), amount: cells.amount, balance: cells.balance, description: cellText(cells.description) })
 }
 
 /** The records of each core tab, each by its tab's mapping. */

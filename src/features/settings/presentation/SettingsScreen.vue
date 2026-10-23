@@ -22,7 +22,7 @@ import MissingTabHint from '../../workbook/presentation/MissingTabHint.vue'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
 import { removeSettings } from '../application/settingWrites'
-import { removableSettingKeys } from '../domain/settings'
+import { unreadSettingKeys } from '../domain/settings'
 import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryUses } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import { storedOf } from '../../workbook/domain/recordsRead'
@@ -68,8 +68,8 @@ const problems = computed(() => (state.workbook === null ? [] : presentedWorkboo
 const writes = useRecordWrites()
 
 const settingRecords = computed(() => state.records?.settings ?? NO_RECORDS)
-/** The keys the settings tab holds that no setting reads, unknown keys and import profiles, which a person may take off it. */
-const removableKeys = computed(() => removableSettingKeys(recordsOf(settingRecords.value), installedPack().workbook?.settings ?? null))
+/** The keys the settings tab holds that no setting reads, unknown keys and import profiles, with how many rows hold each. */
+const unreadKeys = computed(() => unreadSettingKeys(recordsOf(settingRecords.value), installedPack().workbook?.settings ?? null))
 
 function removeKey(key: string): void {
   void writes.write('Setting removed', (unit) => removeSettings(unit, settingRecords.value, [key]), {
@@ -135,7 +135,7 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
               <ProblemList v-if="problems.length > 0" :problems="problems">
                 <template #action="{ problem }">
                   <UButton
-                    v-if="problem.tab === 'settings' && removableKeys.includes(problem.label)"
+                    v-if="problem.tab === 'settings' && unreadKeys.get(problem.label) === 1"
                     label="Remove the key"
                     icon="i-lucide-trash-2"
                     color="neutral"
@@ -147,6 +147,9 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
                     data-testid="remove-setting"
                     @click="removeKey(problem.label)"
                   />
+                  <p v-else-if="problem.tab === 'settings' && (unreadKeys.get(problem.label) ?? 0) > 1" class="text-xs text-muted sm:max-w-56" data-testid="setting-on-rows">
+                    Set on {{ unreadKeys.get(problem.label) }} rows. Keep one in the workbook, then remove it here.
+                  </p>
                 </template>
               </ProblemList>
               <p v-else class="text-sm text-muted">Every row of the workbook reads as written.</p>

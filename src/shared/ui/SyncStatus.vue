@@ -1,5 +1,8 @@
 <script lang="ts">
 export type SyncState = 'first-run' | 'ready' | 'syncing' | 'error'
+
+/** What a running sync is doing: reading the Sheet, looking for new bank statements, or filing their rows. */
+export type SyncStep = { readonly kind: 'reading' } | { readonly kind: 'looking' } | { readonly kind: 'filing'; readonly rows: number }
 </script>
 
 <script setup lang="ts">
@@ -17,8 +20,10 @@ const props = withDefaults(
     errorMessage?: string
     /** The top bar's form: one button with how long ago, the full time and any error in what a screen reader hears. */
     compact?: boolean
+    /** What the sync is doing while it runs. */
+    step?: SyncStep
   }>(),
-  { syncedAt: null, errorMessage: '', compact: false },
+  { syncedAt: null, errorMessage: '', compact: false, step: () => ({ kind: 'reading' }) },
 )
 
 const emit = defineEmits<{
@@ -39,6 +44,21 @@ const ticking = setInterval(() => {
 }, 60_000)
 onBeforeUnmount(() => clearInterval(ticking))
 
+/** The step in words, and the shorter words of the top bar's button. */
+const stepWords = computed(() => {
+  const { step } = props
+  switch (step.kind) {
+    case 'reading':
+      return { long: 'Reading the Sheet', short: 'Syncing…' }
+    case 'looking':
+      return { long: 'Looking for new statements', short: 'Checking Drive…' }
+    case 'filing': {
+      const rows = step.rows === 1 ? '1 row' : `${step.rows} rows`
+      return { long: `Filing ${rows}`, short: `Filing ${rows}…` }
+    }
+  }
+})
+
 const syncLabel = computed(() => (props.state === 'syncing' ? 'Syncing' : props.state === 'error' ? 'Try again' : 'Sync'))
 
 const asOfText = computed(() => {
@@ -50,7 +70,7 @@ const asOfText = computed(() => {
 
 /** The top bar's one button: how long ago on one line, or what it is doing. */
 const compactLabel = computed(() => {
-  if (props.state === 'syncing') return 'Syncing…'
+  if (props.state === 'syncing') return stepWords.value.short
   if (props.state === 'error') return 'Try again'
   return syncedAtDate.value === null ? 'Sync' : syncAge(syncedAtDate.value, now.value)
 })
@@ -58,7 +78,7 @@ const compactLabel = computed(() => {
 /** What a screen reader hears for that button: its visible words first, then the full time of the last sync. */
 const compactName = computed(() => {
   const synced = syncedAtDate.value
-  if (props.state === 'syncing') return 'Syncing'
+  if (props.state === 'syncing') return stepWords.value.long
   const last = synced === null ? 'not synced yet' : `last synced ${fullStamp.format(synced)}`
   if (props.state === 'error') return `Try again. Sync failed, ${last}`
   return synced === null ? 'Sync. Not synced yet' : `Synced ${syncAge(synced, now.value)}, ${fullStamp.format(synced)}. Sync now`
@@ -104,7 +124,8 @@ const errorDetailId = useId()
           <span>Sync failed</span>
         </p>
         <p v-else class="min-w-0 truncate text-xs text-muted" role="status">
-          <time v-if="syncedAtDate" :datetime="syncedAt ?? undefined" :title="fullStamp.format(syncedAtDate)" class="figure">
+          <span v-if="state === 'syncing'" data-testid="sync-step">{{ stepWords.long }}</span>
+          <time v-else-if="syncedAtDate" :datetime="syncedAt ?? undefined" :title="fullStamp.format(syncedAtDate)" class="figure">
             {{ asOfText }}
           </time>
           <span v-else>{{ asOfText }}</span>

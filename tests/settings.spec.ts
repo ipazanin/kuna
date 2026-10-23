@@ -148,6 +148,29 @@ describe('card_settlement_ibans', () => {
   })
 })
 
+describe('statements_folder', () => {
+  it('reads a path from My Drive as folder names, without blank ones, and writes it back with slashes', () => {
+    const { settings, problems } = parseSettings(rows(['statements_folder', ' /finance / bank statements//erste/ ']))
+
+    expect(problems).toEqual([])
+    expect(settings.statementsFolder).toEqual(['finance', 'bank statements', 'erste'])
+    expect(settingsTabEntries(settings, null)).toContainEqual({ key: 'statements_folder', value: 'finance/bank statements/erste' })
+    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+  })
+
+  it('reports a path that names no folder and keeps the default', () => {
+    const { settings, problems } = parseSettings(rows(['statements_folder', ' / ']))
+
+    expect(settings.statementsFolder).toEqual(DEFAULT_SETTINGS.statementsFolder)
+    expect(problems).toEqual([settingProblem('statements_folder', '" / " names no folder, so the default is used')])
+  })
+
+  it('is the Erste archive by default and listed in the template', () => {
+    expect(DEFAULT_SETTINGS.statementsFolder).toEqual(['work', 'dss', 'business-bank-account', 'erste', 'statements'])
+    expect(settingsTabEntries(DEFAULT_SETTINGS, null)).toContainEqual({ key: 'statements_folder', value: 'work/dss/business-bank-account/erste/statements' })
+  })
+})
+
 describe('company facts', () => {
   it('default to no city, no birth year, the second pillar, no dependants, the accrual return, the invoice principle and owner loans at 0%', () => {
     expect(COMPANY_FACT_SETTINGS.defaults).toEqual({

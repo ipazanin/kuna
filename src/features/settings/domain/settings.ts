@@ -11,6 +11,7 @@ import type { RecordProblem } from '../../workbook/domain/workbook'
 import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
+import { DEFAULT_STATEMENTS_FOLDER, statementsFolderOf } from '../../imports/domain/statementFiles'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
@@ -43,6 +44,8 @@ export interface Settings {
   readonly invoicing: InvoicingTerms
   /** How each bank's spreadsheet export reads, from the `import_profile_<name>` keys, in tab order. */
   readonly importProfiles: readonly ImportProfile[]
+  /** The Drive folder the bank's camt statements are filed in, as folder names from My Drive down. */
+  readonly statementsFolder: readonly string[]
 }
 
 /**
@@ -155,6 +158,7 @@ export const DEFAULT_SETTINGS: Settings = {
     reverseChargeNote: DEFAULT_REVERSE_CHARGE_NOTE,
   },
   importProfiles: [],
+  statementsFolder: DEFAULT_STATEMENTS_FOLDER,
 }
 
 /** `flagged_by` values the categoriser writes, which a person's label must not reuse. */
@@ -390,6 +394,15 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   ...BILLING_DEFINITIONS,
   ...INVOICING_DEFINITIONS,
+  {
+    key: 'statements_folder',
+    note: `The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside. Blank means ${DEFAULT_STATEMENTS_FOLDER.join('/')}.`,
+    valueOf: (settings) => settings.statementsFolder.join('/'),
+    apply: (settings, cell) => {
+      const folders = statementsFolderOf(String(cell))
+      return folders.length === 0 ? `"${String(cell)}" names no folder` : { ...settings, statementsFolder: folders }
+    },
+  },
 ]
 
 const DEFINITION_BY_KEY = new Map(SETTING_DEFINITIONS.map((definition) => [definition.key, definition]))
@@ -471,10 +484,18 @@ function isUnknownSettingKey(key: string, packKeys: ReadonlySet<string>): boolea
   return key !== '' && !packKeys.has(key) && !DEFINITION_BY_KEY.has(key) && !key.startsWith(IMPORT_PROFILE_PREFIX)
 }
 
-/** The keys of the settings that no setting of core or the pack reads, unknown keys and import profiles, which a person may take off the tab. */
-export function removableSettingKeys(rows: readonly SettingRow[], pack: PackSettings<unknown> | null): string[] {
+/**
+ * The keys of the settings that no setting of core or the pack reads, unknown keys and import
+ * profiles, each with how many rows hold it. A person may take one off the tab while one row holds it,
+ * since a write refuses a key on two rows.
+ */
+export function unreadSettingKeys(rows: readonly SettingRow[], pack: PackSettings<unknown> | null): ReadonlyMap<string, number> {
   const packKeys = new Set(pack?.definitions.map((definition) => definition.key))
-  return [...new Set(rows.map(keyOfRow).filter((key) => key !== '' && !packKeys.has(key) && !DEFINITION_BY_KEY.has(key)))]
+  const holding = new Map<string, number>()
+  for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
+    holding.set(key, (holding.get(key) ?? 0) + 1)
+  }
+  return holding
 }
 
 /** The values a pack's settings keys hold, read the way `parseSettings` reads core's, and what in them could not be used. */

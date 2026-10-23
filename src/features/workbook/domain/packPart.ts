@@ -3,6 +3,7 @@ import type { RecordId } from './recordId'
 import type { RecordKind } from './recordKind'
 import { NO_RECORDS } from './recordsRead'
 import type { RecordsRead } from './recordsRead'
+import type { StoredFields } from './storedFields'
 import type { OwnerAdvance, Workbook, WorkbookProblem } from './workbook'
 import type { WriteRules } from './writeRules'
 
@@ -20,6 +21,16 @@ export function recordsOfKind<R>(records: PackRecords, kind: RecordKind<R>): Rec
   return (records.get(kind.name) ?? NO_RECORDS) as RecordsRead<R>
 }
 
+/** A kind of a pack whose records name categories, so a category they name keeps its name and its row. */
+export interface CategoryNaming {
+  readonly kind: RecordKind<unknown>
+  /** What one record and several are called in a refusal, such as "owner advance" and "owner advances". */
+  readonly one: string
+  readonly many: string
+  /** The categories a record names, from its fields as stored, refused records included. */
+  categoriesOf(fields: StoredFields): readonly string[]
+}
+
 /**
  * How a pack makes its part of the workbook: the settings keys it reads, which core leaves to it,
  * and the part made from its records once core's records are read.
@@ -29,14 +40,21 @@ export interface PackPart<Part, Values> {
   /** The pack's kinds, each with how its records are written. */
   readonly kinds: readonly WriteRules<unknown>[]
   readonly settings: PackSettings<Values>
+  /** The pack's kinds whose records name categories. */
+  readonly categoryNaming: readonly CategoryNaming[]
+  /** Which of them holds the costs the owner paid privately, whose categories stay in a bucket an advance counts in. */
+  readonly ownerAdvanceNaming: CategoryNaming
   /** The roles the pack picks categories by, as the `roles` column spells them. */
   readonly categoryRoles: readonly string[]
   /** The part, from the pack's records, the values its settings keys hold and core's workbook, with the problems of its records and its keys. */
   assemble(records: PackRecords, values: Values, core: Workbook): { readonly part: Part; readonly problems: readonly WorkbookProblem[] }
   /** The costs the owner paid privately that the part holds, which profit and loss, Transactions and the filters count beside the bank rows. */
   ownerAdvances(part: Part): readonly OwnerAdvance[]
-  /** The ledger rows the pack keeps whole, by their record id, with the names that claim them. Applies whatever the owner-pay switch says. */
-  rowsKeptWhole(records: PackRecords, ledger: Pick<Workbook, 'transactions' | 'categories'>): ReadonlyMap<RecordId, readonly string[]>
+  /**
+   * The ledger rows the pack keeps whole, by their record id, each with why as a clause that follows
+   * "since", such as `the asset "Desk" claims it as payment`. Applies whatever the owner-pay switch says.
+   */
+  rowsKeptWhole(records: PackRecords, ledger: Pick<Workbook, 'transactions' | 'categories'>): ReadonlyMap<RecordId, string>
   /** The pack's kinds `rowsKeptWhole` reads, which a write that splits a ledger row reads too. */
   readonly keptWholeReads: readonly RecordKind<unknown>[]
 }

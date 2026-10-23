@@ -6,7 +6,6 @@ import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
 import type { PackPart } from '../workbook/domain/packPart'
-import type { RecordKind } from '../workbook/domain/recordKind'
 import type { Workbook } from '../workbook/domain/workbook'
 
 /** A screen of its own, with its menu item after the core screens and before Settings. */
@@ -86,11 +85,6 @@ export function installPack(pack: PackContribution): void {
 /** The installed pack, for its routes and its part of the workbook. */
 export function installedPack(): PackContribution {
   return installed
-}
-
-/** The installed pack's kind of this name, or null. Core names a pack's kind only where it counts what the pack's records name. */
-export function installedPackKind(name: string): RecordKind<unknown> | null {
-  return installed.workbook?.kinds.find((rules) => rules.kind.name === name)?.kind ?? null
 }
 
 /** The installed pack while the owner-pay switch is on, and no pack while it is off. */

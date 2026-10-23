@@ -66,16 +66,14 @@ export const SPLIT_WRITES: WriteRules<SplitTabRow> = {
   refusals: (change, fresh) => {
     const pack = installedPack().workbook
     const { transactions, categories } = ledgerOfRecords(fresh)
-    const claiming = pack?.rowsKeptWhole(packRecordsOf(pack.keptWholeReads, (kind) => fresh.of(kind)), { transactions, categories }) ?? new Map<RecordId, readonly string[]>()
+    const keptWhole = pack?.rowsKeptWhole(packRecordsOf(pack.keptWholeReads, (kind) => fresh.of(kind)), { transactions, categories }) ?? new Map<RecordId, string>()
     const written = change.edits.flatMap((edit) => (edit.after === null ? [] : [edit.after.fields]))
-    const claimed = transactions.filter(
-      (row) =>
-        claiming.has(row.id) &&
-        written.some((fields) => fields.date?.date === row.date && slugOfField(fields.account) === row.account && fields.row_amount?.money === row.amount && fields.row_balance?.money === row.balance),
-    )
-    return claimed.map((row) => {
-      const claimedBy = claiming.get(row.id)!
-      return `${claimedBy.map((name) => `"${name}"`).join(' and ')} on the assets tab ${claimedBy.length === 1 ? 'claims' : 'claim'} the ${row.account} row of ${row.date} for ${plainAmount(row.amount)} as payment, so the row stays whole.`
+    return transactions.flatMap((row) => {
+      const why = keptWhole.get(row.id)
+      const splitHere = written.some(
+        (fields) => fields.date?.date === row.date && slugOfField(fields.account) === row.account && fields.row_amount?.money === row.amount && fields.row_balance?.money === row.balance,
+      )
+      return why !== undefined && splitHere ? [`The ${row.account} row of ${row.date} for ${plainAmount(row.amount)} stays whole, since ${why}.`] : []
     })
   },
 }

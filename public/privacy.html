@@ -140,15 +140,22 @@
         </svg>
         <h1>Privacy</h1>
       </header>
-      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 17 October 2026.</p>
+      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 23 October 2026.</p>
 
       <article>
         <section>
           <h2>What the app reads</h2>
           <p>
-            Only files you choose. With Google, it asks for the <code>drive.file</code> permission, which covers only the Sheet you pick in
-            Google's file picker. It reads that Sheet's ledger, categories, accounts, settings and rules tabs. It cannot see the rest of your
-            Drive.
+            Files you choose, and your bank statements. With Google, it asks for the <code>drive.file</code> permission, which covers only
+            the Sheet you pick in Google's file picker and the files the app makes. It reads that Sheet's ledger, categories, accounts,
+            settings and rules tabs.
+          </p>
+          <p>
+            It also asks for <code>drive.readonly</code>, which lets it read any file in your Drive and change none. It uses it only to find
+            the bank statements in your statements folder that are not on the ledger yet, since
+            <code>drive.file</code> cannot see files another app filed there. Google's wording for this permission covers your whole Drive.
+            The app reads nothing else with it. Each time the app opens, it asks Google for this permission again, and Google shows you a
+            screen only when it needs your consent.
           </p>
           <p>
             It also asks for <code>openid email</code>, which tells it the email address of the Google account you signed in with. That is
@@ -180,7 +187,7 @@
         <section>
           <h2>Where your data goes</h2>
           <p>
-            There is no server. The page talks only to Google's own APIs, and only to read and write the Sheet you picked, file the invoices you make and save their drafts. No analytics, no tracking, no
+            There is no server. The page talks only to Google's own APIs, and only to read and write the Sheet you picked, read your bank statements, file the invoices you make and save their drafts. No analytics, no tracking, no
             third-party scripts beyond Google's sign-in and file picker.
           </p>
         </section>
@@ -192,8 +199,8 @@
           <p>
             Google's access token is kept in this browser until it expires, about an hour after you sign in, so a reload or a new tab can
             sync without asking again. Your email address is stored only to skip Google's account chooser the next time you sign in. Sign out
-            of Google in Settings removes both and revokes the token. The Gmail permission's token is kept only in the open page and is
-            gone when you close or reload it.
+            of Google in Settings removes both and revokes the token. The tokens of the Gmail and the <code>drive.readonly</code>
+            permissions are kept only in the open page and are gone when you close or reload it, or sign out.
           </p>
           <p>
             In Excel mode, the workbook lives in this browser's storage and in the files you export. Clearing this site's data in the browser

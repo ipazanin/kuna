@@ -7,19 +7,21 @@ browser (Excel mode). There is no backend. It deploys to GitHub Pages at
 
 With a Google Sheet, the app asks Google for `drive.file`, which covers files the user picks in the
 Google Picker or that the app creates, and for `openid email`, which tells it which account signed
-in. The app reads the Sheet and keeps a copy in IndexedDB. It writes only what the user saves, and
-only in the Sheet the user picked: `category` and `flagged_by` on ledger rows the user acts on, the
-rows of a bank statement the user imports, and rows of the tabs a person keeps by hand: `rules`,
-`settings`, `owner-advances`, `outgoing-plan`, `categories`, `accounts`, `clients`, `invoices`,
-`assets`, `grants`, `year-end`, `plan`, `scenarios`, `splits` and `dismissed`. It never writes a
-formula a change leaves alone. It writes data validation only by copying a ledger row's dropdowns
-onto the rows an import puts in above it. It writes a header only when the user agrees to add the
-`plan`, `scenarios`, `splits` or `dismissed` tab to a Sheet without one, or an optional column such
-as `label` to the categories or accounts tab when a save fills it, and an `id` header after the last
-column of a tab whose rows carry ids, when it adds a row there.
-See *Write-back* below. Making an invoice also files its PDF in the Drive folder the user picks for
-invoices, and, only for a user who turns the mail draft on, asks for `gmail.compose` to save a
-Gmail draft. See *Invoices*.
+in. To find new bank statements in Drive it also asks for `drive.readonly`, whose token it holds in
+the page's memory only. See *Google sign-in*. The app reads the Sheet and keeps a copy in IndexedDB.
+It writes only in the Sheet the user picked, and only what the user saves or a sync files:
+`category` and `flagged_by` on ledger rows the user acts on, the rows of the bank statements a sync
+finds in the statements folder or the user imports, and rows of the tabs a person keeps by hand:
+`rules`, `settings`, `owner-advances`, `outgoing-plan`, `categories`, `accounts`, `clients`,
+`invoices`, `assets`, `grants`, `year-end`, `plan`, `scenarios`, `splits` and `dismissed`. It never
+writes a formula a change leaves alone. It writes data validation only by copying a ledger row's
+dropdowns onto the rows an import puts in above it. It writes a header only when the user agrees to
+add the `plan`, `scenarios`, `splits` or `dismissed` tab to a Sheet without one, or an optional
+column such as `label` to the categories or accounts tab when a save fills it, and an `id` header
+after the last column of a tab whose rows carry ids, when it adds a row there. See *Write-back*
+below. Making an invoice also files its PDF in the Drive folder the user picks for invoices, and,
+only for a user who turns the mail draft on, asks for `gmail.compose` to save a Gmail draft. See
+*Invoices*.
 
 On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
 start from the empty template. Settings, This device has "Switch data source" for the same three choices.
@@ -41,6 +43,26 @@ off. The `gmail.compose` grant of *Invoices* comes as a second token, which live
 memory for its hour and is never stored, because it can send mail as well as save drafts. Sign out
 forgets it too.
 
+The Drive read grant is a third token. The Apps Script files the bank statements in a Drive folder,
+and `drive.file` cannot see files another app made, so the app asks for `drive.readonly` to find the
+new ones. That token can read every file in Drive. It is asked for alone, with
+`include_granted_scopes` off, so it can neither write the Sheet nor send mail, and it lives only in
+the page's memory. Each open of a Google Sheet while online first sends the tab to Google with
+`prompt=none`, which shows no screen there and comes straight back with the token. The tab leaves
+by replacing the page, so Back from the app does not land on a page that asks again. The token only
+lists and downloads the statements. The Sheet is read and written with the kept `drive.file` token
+alone, so a sync that files statements always holds a token that can write them, and a sync after
+the kept token ran out still needs the tap that asks for it. A load that is Google's answer never
+asks again. When Google answers with an error instead, such as `consent_required` before the first
+consent, the tab notes it in session storage and opens without going to Google until the tab is
+closed. Then only "Check for new statements" asks, with Google's consent screen if it needs one: in
+the popup on a desktop, by the redirect on a phone. Overview offers it, and so does a toast after a
+tap on Sync, while the page holds no Drive read token. A token that ran out after an hour is offered
+again the same way, since a silent ask in the middle of a session would reload the page. Excel mode,
+the fake build and an offline open never go to Google, and sign out forgets this token too.
+`driveReadAccess()` in `src/shared/google/googleAuth.ts` says where the page stands: the token
+held, not asked yet (or run out), or consent needed.
+
 On a phone or in the installed app, the rule being the media query `(pointer: coarse), (display-mode:
 standalone)`, the app signs in without the popup. Google's popup opened its cookie screen zoomed out
 there, so the whole tab goes to Google with the OAuth 2.0 implicit flow (`response_type=token`) and
@@ -51,12 +73,51 @@ keeps no token and says so. After the sign-in a Sync carries on, and so does Con
 the Picker. Anything else that needed the token, such as a write, did not run and is tapped again.
 The Gmail grant goes the same way with `include_granted_scopes=true`. The invoice dialog is gone
 once back, so a toast asks to make the invoice again, which then uses the Gmail token this page
-now holds. Nothing is filed or written before the grant is asked for.
+now holds. Nothing is filed or written before the grant is asked for. The Drive read grant asked
+from "Check for new statements" goes the same way with `include_granted_scopes=false`, and the sync
+starts by itself once back. The silent ask on open shows no message either way.
 
 The token model returns no ID token, so after the first sign-in the app reads the email address
 once from the OpenID Connect userinfo endpoint (`https://openidconnect.googleapis.com/v1/userinfo`,
 the `userinfo_endpoint` of Google's discovery document) and keeps it. It is passed as `login_hint`,
 so an expired token renews with one click and no account chooser. Sign out forgets it.
+
+## Sync
+
+A sync reads the Sheet, then files the new bank statements of the statements folder in Drive. The
+Sync button, the sync on open and on a return to the tab, and the way back from Google run both
+steps, through `useStatementSync` in `src/features/imports/presentation/`. The workbook store reads
+the Sheet and knows nothing of statements. Excel mode has no sync, and its statements come in on
+the Import tab.
+
+The statements step runs for a Google Sheet after a read that went through, while the page holds
+the Drive read token of *Google sign-in*. `fileNewStatements` in
+`src/features/imports/application/statementSync.ts`:
+
+1. Finds the folder the `statements_folder` setting names, a path from My Drive, one folder name at
+   a time, and lists the files of the folders inside it, one per year. A missing folder, or two
+   folders of one name, stop the step with the folder named. The app never makes or changes a
+   folder there.
+2. Skips each file the ledger holds by its name. The fetch names a statement `<label>-<account>.xml`,
+   and a file whose label the ledger holds for that account is never downloaded. A file named by its
+   label alone, or another way, is read every time. So a sync with nothing new downloads nothing.
+3. Downloads the rest, reads each as Import reads a camt.053 file, and runs one dry run over all of
+   them against the ledger just read. A file that does not read is held with the reason.
+4. Adds every statement the dry run accepts, with no refusal and no account to start, in one write
+   through `LEDGER_WRITES`: the same path, the same checks and the same Undo as Import. A statement
+   it refuses, or that waits for its account to start, is held. The dry run leaves the account where
+   it was, so nothing after a held statement is filed for that account, and other accounts still are.
+5. When the write is refused, such as for rows the morning ingest filed since the read, reads the
+   Sheet again and runs the dry run once more. A second refusal is shown on Import, and nothing is
+   written.
+
+What the step did is page state and never stored: the statements it filed, the ones it held, and a
+folder it could not read. A sync that filed rows says so in a toast with Undo, such as "Filed
+statement 028, 2 rows" over "1 row waits on Review.", with Open Review. The toast carries the notes
+of each statement, such as a gap in the statement numbers whose balances still join, and how many
+statements were not filed. A sync that files nothing shows no toast and adds nothing to "Changes in
+this session". Overview then says how many statements were not filed and links to Import, which
+shows each one.
 
 ## Install and offline
 
@@ -87,7 +148,10 @@ square, and the installed app keeps clear of the system bars through the safe-ar
 
 The top bar's sync control is one rounded 44 px button with the icon and how long ago the last sync
 was, such as "3 h ago", on one line. A screen reader hears the full time of that sync with it.
-While a sync runs it reads "Syncing…" and its icon turns. The menu shows beside Review how many
+While a sync runs its icon turns and it says the step: "Syncing…" while it reads the Sheet,
+"Checking Drive…" while it looks for new statements, and "Filing 3 rows…" while it writes them. A
+screen reader hears the steps as "Reading the Sheet", "Looking for new statements" and "Filing 3
+rows", and so does the sidebar's status line from 1024 px up. The menu shows beside Review how many
 rows wait there, whatever the filters. In Excel mode the Export button in the top bar has the same
 rounded 44 px shape.
 
@@ -139,13 +203,16 @@ beside the row it belongs to, not over it, where there is room.
 
 **Overview** says how the company is doing and what waits. The headline gives the newest complete
 month's income and costs. "Waiting for you" lists, across the whole workbook and whatever the
-filters, each job with something to do, with a link to the page that does it: rows to review
+filters, each job with something to do, with a link to the page that does it: statements the last
+sync could not file, or a statements folder it could not read (Transactions, Import), rows to review
 (Review), invoices the billing plan expects by this month that are not made yet (Invoicing, Plan, on
 the oldest month) and invoices past their due date (Invoicing). The pack's jobs follow:
 reimbursements with no cost on file (Review), a complete month in which a watched tax such as the
 payroll contributions had no payment, and a corporate tax payment due this month or overdue (both
 Year, Taxes, at their cards). The pack's jobs need the `owner_pay_module`, and the corporate tax one
 `hr_company_registered`. A job already late has a red dot, and the card is gone when nothing waits.
+While the page of a Google Sheet holds no Drive read token, the card starts with "Check for new
+statements", as *Google sign-in* describes.
 `waitingJobs` in `src/features/overview/presentation/waitingForYou.ts` builds it, and the pack's
 jobs come from `src/packs/hr-doo/presentation/packWaitingJobs.ts`. Below it sit the tiles (cash on hand, net over
 the last 12 months, monthly costs, and runway at the last three months' cost with the twelve months'
@@ -265,7 +332,8 @@ reversal, also waits for review until a person confirms it.
 ### Settings keys
 
 A blank value means the default. An unknown key is kept and reported, and "Remove the key" beside it
-on Settings, General takes its row off the tab. A value that does not hold
+on Settings, General takes its row off the tab. A key on two rows has no Remove there, since a write
+refuses it, and the line says to keep one row in the workbook first. A value that does not hold
 falls back to the default and is reported with its key, in the import summary and on Settings,
 General. The
 defaults are how the app behaved before settings existed, so a Sheet without a `settings` tab reads
@@ -300,6 +368,7 @@ as before.
 | `invoice_file_path` | `{yyyy}/{yyyy}-{mm}/{yyyy}-{mm}-{client}-invoice.pdf` | Where under that folder each invoice is filed, with `{yyyy}`, `{yy}`, `{mm}` from the issue date, `{client}` and `{number}`. It must end in `.pdf`. |
 | `invoice_mail_subject`, `invoice_mail_body` | `Invoice {number}, {month}` and a short note signed `{signatory}` | The invoice mail, with `{month}` (the issue month in the client's `mail_language`), `{number}`, `{client}`, `{company}` and `{signatory}`. |
 | `invoice_reverse_charge_note` | the Croatian VAT law's Article 17 note | Printed under the totals, after an asterisk. |
+| `statements_folder` | `work/dss/business-bank-account/erste/statements` | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. The app reads it and never makes or changes a folder there. A path where a folder is missing, or where two folders share a name, is reported. |
 | `hr_residence_city` | blank | The city or municipality the owner lives in, such as `Grad Zagreb`, which sets the local income tax rates. Settings offers every unit to pick from. A name typed in the workbook is read regardless of case, diacritics and a leading `Grad` or `Općina`, and a name two units share takes the county in brackets, such as `Općina Privlaka (Zadarska)`. Payroll figures need it, so they stay empty while it is blank. |
 | `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
 | `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
@@ -1042,6 +1111,13 @@ in both modes. Drop or pick a file. Nothing is written until the dry run is conf
 the toast takes the rows out again. Once confirmed, the dry run says how many of the new rows wait
 on Review, with a link there. The services are in `src/features/imports/`.
 
+With a Google Sheet, "From the statements folder" sits above the file drop, `StatementFolderCard`
+beside `ImportPanel`. It shows what the last sync did with the folder, as *Sync* describes: the
+statements it filed, and each one it held with its dry run, the reason, and for an account with no
+rows yet the start at its opening. "Confirm and file" writes what the held statements' dry run then
+accepts, through the same path. While the page holds no Drive read token, the card offers "Check for
+new statements". The card is gone when there is nothing to say.
+
 **camt.053.** `readCamtDocument` is the shadow-accounting Apps Script's `ErsteCamt.gs` over the
 browser's `DOMParser`. It finds elements by local name, so any camt.053 version reads, takes booked
 entries only, and reads every amount in cents from its decimal text, refusing a negative one, one
@@ -1110,7 +1186,9 @@ newest one, the block newest first. The Apps Script reads each account's balance
 row, so a block at the foot would stop its next morning. Right before writing, the tab as it is
 then is checked again: a new row already on it by its account and reference is refused, as any
 record the workbook holds already is, which happens when the morning ingest filed the statement
-since the dry run. Each account's new rows must open at its newest balance and run on from it, and
+since the dry run. A row the reader refuses still holds its account and reference, so a new row
+with that reference is refused too, until the row is fixed in the Sheet. Each account's new rows
+must open at its newest balance and run on from it, and
 none may predate the account's newest row. The rows and
 their cells go in as one request, so a failed write leaves no empty row behind. Undo takes the rows
 out whole, since a blank row stops the Apps Script too, and is refused once a newer row of the
@@ -1119,7 +1197,8 @@ the signal columns of an older Sheet, is refused with the column to add.
 
 In Google mode the Apps Script may file the same statements on its morning run. Its rows carry the
 same bank references, so whichever writes first, the other finds the rows on the ledger and writes
-nothing, and the dry run says so.
+nothing, and the dry run says so. A sync that meets them as its write is refused reads the Sheet
+again and finds nothing left to file.
 
 ## Settings screen
 
@@ -1191,8 +1270,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal and both statement imports in both modes, the way back from Google's sign-in page, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, both statement imports with their dry run, confirm and undo at 430 too, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, and the check for new statements Overview offers, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal and both statement imports in both modes, statements filed, held and checked for on sync, the way back from Google's sign-in page and from the Drive read grant, silent or asked, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -1221,6 +1300,13 @@ year's and last year's folders with every month inside, made by another app and 
 picked, and the browser's confirm dialog stands in for the Picker, OK picking every folder it names
 and Cancel none. Its settings carry made-up invoice details, and Northwind has an address, an
 invoice mail and reverse charge, while Lumen has none, so its invoice is refused.
+The fake Drive's statements folder, at the default `statements_folder` path, names an XML file for
+every statement on the fake ledger and holds the sample camt statement with a PDF beside it, so the
+sample is the only file the app downloads from it. Sync files it, and a second sync finds nothing
+new. `?fake=held-statement` adds a statement of an account the accounts tab lacks, named by its
+label alone, which the sync holds. The fake build never goes to Google, so it reads this folder as
+if it held the Drive read token, unless the tab noted a refused ask, which offers "Check for new
+statements".
 Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
 changes nine days past their last export and owner loans that carry 2.5%, so they give no benefit in kind, and `?fake=empty` starts with nothing, which is the first
 run. `?fake=no-scenarios` leaves the `scenarios` tab out of the Sheet, so adding the starting
@@ -1282,7 +1368,10 @@ which `packPart(workbook, key)` reads, and the pack's screens read the workbook 
 `hrDooWorkbook`, core's records with the pack's part. When the workbook is read, the part hands
 core the two things core counts of it: the owner advances, as `ownerAdvances`, which profit and
 loss, Transactions and the filters count beside the bank rows, and `rowsKeptWhole`, the ledger rows
-the pack keeps whole. The `hr_` settings keys and `CompanyFacts` are the pack's too. The settings parser leaves the
+the pack keeps whole, each with why in the pack's words, which the split guard and the split editor
+quote. The part also lists in `categoryNaming` which of its kinds name a category, so the categories
+editor keeps a category they name, and points out the owner advances' kind, whose categories stay in
+the operating or taxes bucket. The `hr_` settings keys and `CompanyFacts` are the pack's too. The settings parser leaves the
 pack's keys to it, neither reading nor reporting them, and the pack reads them with
 `readPackSettings`. The facts card writes them with the rest of the settings in one Save.
 
@@ -1372,8 +1461,8 @@ no Undo, and neither does a write that repaired or discarded a refused record, s
 store that record as it was. Rules are changed back on Review, Rules, and settings on Settings. The
 session list is held in memory, so a reload clears it.
 
-- **Ledger rows.** A row is known by its account and reference, or for a blank reference by its
-  account, date, amount, balance and description, so rows the ingest inserted since the last sync do
+- **Ledger rows.** A row is known by its account and reference, even one the reader refuses, or for
+  a blank reference by its account, date, amount, balance and description, so rows the ingest inserted since the last sync do
   not matter. The app changes only a row's `category` and `flagged_by`, each found by its header (I
   and J in the shadow-accounting Sheet), and only where the value changes. A refused ledger row is
   fixed in the Sheet, never by the app. Confirm writes the `review_label` setting to `flagged_by`.
@@ -1489,6 +1578,7 @@ batchUpdate and again after it:
 | Add, edit or delete a scenario component, rename or copy a scenario, add the starting scenarios | get, batchGet of `scenarios`, `plan` and `categories` (each when the Sheet has it) |
 | Plan the owner pay, a category, a purchase or the dividend on Year, Plan, change or clear it | get, batchGet of `plan`, `categories` and `scenarios` |
 | Import statements | get, batchGet of `ledger` and `categories` |
+| File statements on sync | Drive `files.list` with the Drive read token for each folder of the `statements_folder` path (`'<parent>' in parents and name = '<folder>' and mimeType = '<folder type>' and trashed = false`), one of the year folders and one of their files, `files.get` with `alt=media` of each file the name test keeps, then the import's reads |
 | Dismiss a suggestion on Review, or restore one | get, batchGet of `dismissed` |
 | Undo any of these | the same reads, with the change turned around |
 
@@ -1643,7 +1733,7 @@ Picker and sign-in hosts, and requests go only to these hosts:
 | Host | What the app asks it |
 |---|---|
 | `sheets.googleapis.com` | Reads and writes of the picked Sheet |
-| `www.googleapis.com` | Drive: listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`) |
+| `www.googleapis.com` | Drive: listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), and listing and downloading the files of the statements folder |
 | `gmail.googleapis.com` | The invoice mail draft, only once the user turned it on |
 | `openidconnect.googleapis.com` | The userinfo endpoint |
 | `oauth2.googleapis.com` | Token revocation, where `google.accounts.oauth2.revoke` posts |

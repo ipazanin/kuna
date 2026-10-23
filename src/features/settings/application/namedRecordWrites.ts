@@ -18,13 +18,10 @@ import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { ClientRow } from '../../workbook/domain/clientsReading'
 import { pickedEdits, pickedUntouched } from '../../workbook/domain/writeRules'
 import type { WriteRules } from '../../workbook/domain/writeRules'
-import { installedPack, installedPackKind } from '../../packs/packContribution'
+import { installedPack } from '../../packs/packContribution'
 
 /** The records of a kind, from a fresh read or from the records on screen. */
 export type RecordsOfKind = (kind: RecordKind<unknown>) => RecordsRead<unknown>
-
-/** The fields of every stored record a tab holds, refused ones too, by the tab's name in the workbook format. */
-type FieldsOf = (tab: string) => readonly StoredFields[]
 
 /** The rules that file rows into each category, by id, as "the rule merchant-model". */
 function rulesNaming(rules: readonly StoredFields[]): ReadonlyMap<string, string> {
@@ -36,67 +33,45 @@ function rulesNaming(rules: readonly StoredFields[]): ReadonlyMap<string, string
   return new Map([...ids].map(([slug, named]) => [slug, named.length === 1 ? `the rule ${named[0]}` : `the rules ${named.join(', ')}`]))
 }
 
-/** What names each category outside its tab: ledger rows, rules, owner advances, split parts, year-end konto rows and plan rows. */
+/** What names each category outside its tab: ledger rows, rules, split parts and the pack's records that name one. */
 export function categoryUses(records: RecordsOfKind): SlugUses {
-  const fieldsOfKind = fieldsOfRecords(records)
   return usesOf([
-    countedBy(fieldsOfKind('ledger'), (fields) => [slugOf(fields.category)], 'ledger row', 'ledger rows'),
-    rulesNaming(fieldsOfKind('rules')),
-    countedBy(fieldsOfKind('owner-advances'), (fields) => [slugOf(fields.category)], 'owner advance', 'owner advances'),
-    countedBy(fieldsOfKind('splits'), (fields) => [slugOf(fields.category)], 'split part', 'split parts'),
-    countedBy(fieldsOfKind('year-end'), (fields) => slugListOf(fields.categories), 'year-end konto row', 'year-end konto rows'),
-    countedBy(fieldsOfKind('plan'), (fields) => [slugOf(fields.item)], 'plan tab row', 'plan tab rows'),
+    countedBy(storedFieldsOf(records(LEDGER_RECORDS)), (fields) => [slugOf(fields.category)], 'ledger row', 'ledger rows'),
+    rulesNaming(storedFieldsOf(records(RULE_RECORDS))),
+    countedBy(storedFieldsOf(records(SPLIT_PART_RECORDS)), (fields) => [slugOf(fields.category)], 'split part', 'split parts'),
+    ...(installedPack().workbook?.categoryNaming ?? []).map((naming) => countedBy(storedFieldsOf(records(naming.kind)), (fields) => naming.categoriesOf(fields), naming.one, naming.many)),
   ])
 }
 
 /** What names each account outside its tab, which is the ledger's rows. */
 export function accountUses(records: RecordsOfKind): SlugUses {
-  const fieldsOfKind = fieldsOfRecords(records)
-  return usesOf([countedBy(fieldsOfKind('ledger'), (fields) => [slugOf(fields.account)], 'ledger row', 'ledger rows')])
+  return usesOf([countedBy(storedFieldsOf(records(LEDGER_RECORDS)), (fields) => [slugOf(fields.account)], 'ledger row', 'ledger rows')])
 }
 
 /** What names each client outside its tab: invoices, billing plan rows and the billing_client setting. */
 function clientUses(records: RecordsOfKind): SlugUses {
-  const fieldsOfKind = fieldsOfRecords(records)
-  const billingClient = fieldsOfKind('settings').find((fields) => slugOf(fields.key) === 'billing_client')
+  const billingClient = storedFieldsOf(records(SETTING_RECORDS)).find((fields) => slugOf(fields.key) === 'billing_client')
   return usesOf([
-    countedBy(fieldsOfKind('invoices'), (fields) => [slugOf(fields.client)], 'invoice', 'invoices'),
-    countedBy(fieldsOfKind('outgoing-plan'), (fields) => [slugOf(fields.client)], 'billing plan row', 'billing plan rows'),
+    countedBy(storedFieldsOf(records(INVOICE_RECORDS)), (fields) => [slugOf(fields.client)], 'invoice', 'invoices'),
+    countedBy(storedFieldsOf(records(BILLING_RECORDS)), (fields) => [slugOf(fields.client)], 'billing plan row', 'billing plan rows'),
     new Map(billingClient === undefined || slugOf(billingClient.value) === '' ? [] : [[slugOf(billingClient.value), 'the billing_client setting']]),
   ])
 }
 
-/** The kind each tab a category, an account or a client is named on holds, the pack's by name since core imports nothing from the pack. */
-const NAMING_KINDS: Readonly<Record<string, RecordKind<unknown> | string>> = {
-  ledger: LEDGER_RECORDS,
-  rules: RULE_RECORDS,
-  splits: SPLIT_PART_RECORDS,
-  invoices: INVOICE_RECORDS,
-  'outgoing-plan': BILLING_RECORDS,
-  settings: SETTING_RECORDS,
-  'owner-advances': 'owner-advance',
-  'year-end': 'year-end-line',
-  plan: 'plan-line',
-}
-
-function namingKind(tab: string): RecordKind<unknown> | null {
-  const kind = NAMING_KINDS[tab]
-  return kind === undefined ? null : typeof kind === 'string' ? installedPackKind(kind) : kind
-}
-
-function namingKinds(tabs: readonly string[]): RecordKind<unknown>[] {
-  return tabs.map(namingKind).filter((kind) => kind !== null)
-}
-
-/** The fields of every stored record of the kinds, by the tab that holds them. */
-function fieldsOfRecords(records: RecordsOfKind): FieldsOf {
-  return (tab) => {
-    const kind = namingKind(tab)
-    return kind === null ? [] : storedFieldsOf(records(kind))
+/** How many owner advances carry each category, none without the pack. */
+function advancesByCategory(records: RecordsOfKind): ReadonlyMap<string, number> {
+  const naming = installedPack().workbook?.ownerAdvanceNaming
+  const advances = new Map<string, number>()
+  if (naming === undefined) {
+    return advances
   }
+  for (const fields of storedFieldsOf(records(naming.kind))) {
+    for (const slug of naming.categoriesOf(fields)) {
+      advances.set(slug, (advances.get(slug) ?? 0) + 1)
+    }
+  }
+  return advances
 }
-
-const TABS_NAMING_CATEGORIES = ['ledger', 'rules', 'owner-advances', 'splits', 'year-end', 'plan']
 
 /**
  * A category keeps to the slug format, once on its tab, keeps its name while anything names it, and
@@ -106,22 +81,17 @@ const TABS_NAMING_CATEGORIES = ['ledger', 'rules', 'owner-advances', 'splits', '
 export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
   kind: CATEGORY_RECORDS,
   get reads() {
-    return namingKinds(TABS_NAMING_CATEGORIES)
+    return [LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS, ...(installedPack().workbook?.categoryNaming.map((naming) => naming.kind) ?? [])]
   },
   undoable: true,
   read: (read) => readCategories(read),
   refusals: (change, fresh) => {
     const recordsOfKind: RecordsOfKind = (kind) => fresh.of(kind)
-    const advances = new Map<string, number>()
-    for (const fields of fieldsOfRecords(recordsOfKind)('owner-advances')) {
-      const slug = slugOf(fields.category)
-      advances.set(slug, (advances.get(slug) ?? 0) + 1)
-    }
     const edits = pickedEdits(change, (fields) => ({ slug: slugOf(fields.category), bucket: slugOf(fields.bucket), colour: textOf(fields.colour), roles: slugListOf(fields.roles) }))
     return [
       ...categoryChangeRefusals(edits, pickedUntouched(change, (fields) => ({ slug: slugOf(fields.category) })).filter((row) => row.slug !== ''), {
         named: categoryUses(recordsOfKind),
-        advances,
+        advances: advancesByCategory(recordsOfKind),
       }),
       ...(change.undoing ? [] : [...categoryColourRefusals(edits), ...categoryRoleRefusals(edits, knownRoles(installedPack().workbook?.categoryRoles ?? []))]),
     ]

@@ -6,7 +6,8 @@ import ui from '@nuxt/ui/vue-plugin'
 import App from './App.vue'
 import { installPack } from './features/packs/packContribution'
 import { installPackTabs } from './features/workbook/infrastructure/packTabs'
-import { takeGoogleRedirect } from './shared/google/googleAuth'
+import { loadWorkbookChoice } from './features/workbook/infrastructure/workbookChoice'
+import { askForDriveReadSilently, takeGoogleRedirect } from './shared/google/googleAuth'
 import { startServiceWorker } from './shared/pwa/appUpdate'
 import { createAppRouter } from './shared/routing/router'
 import { applyInitialTheme } from './shared/theme/theme'
@@ -24,6 +25,16 @@ async function start(): Promise<void> {
     await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'))
   }
   const googleReturn = takeGoogleRedirect()
+  // Each open of a Google Sheet online fetches the Drive read token first, with no screen at Google. A load that is Google's answer never asks again.
+  if (
+    googleReturn === null &&
+    import.meta.env.VITE_FAKE_WORKBOOK !== 'true' &&
+    navigator.onLine &&
+    loadWorkbookChoice()?.source === 'google' &&
+    askForDriveReadSilently()
+  ) {
+    return
+  }
   createApp(App, { googleReturn }).use(createAppRouter()).use(ui).mount('#app')
   // Inline, as above. Development and the fake build never cache the app.
   if (import.meta.env.PROD && import.meta.env.VITE_FAKE_WORKBOOK !== 'true') {

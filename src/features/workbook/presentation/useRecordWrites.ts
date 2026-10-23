@@ -4,6 +4,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { canUndo } from '../application/createWorkbookStore'
 import type { SessionWrite } from '../application/createWorkbookStore'
+import type { WriteReceipt } from '../application/recordWrites'
 import { useWorkbook } from '../application/workbookStore'
 import type { UnitOfWork } from '../application/repository'
 import { recordsChangeInWords } from './rowsInWords'
@@ -31,6 +32,8 @@ export interface RecordWrites {
    * whether it went through.
    */
   write(title: string, work: (unit: UnitOfWork) => void, options?: RecordWriteOptions): Promise<boolean>
+  /** Says in a toast what a write of this session did, under its title, with Undo where it keeps one. */
+  announce(receipt: WriteReceipt, options?: Pick<RecordWriteOptions, 'description' | 'follow'>): void
 }
 
 /** Record writes with their toasts: what was written with Undo beside it, or why nothing was. */
@@ -56,26 +59,31 @@ export function useRecordWrites(): RecordWrites {
     }
   }
 
+  function announce(receipt: WriteReceipt, options: Pick<RecordWriteOptions, 'description' | 'follow'> = {}): void {
+    const recorded = store.state.writes.find((written) => written.receipt === receipt)
+    if (recorded === undefined) return
+    toast.add({
+      title: receipt.title,
+      description: options.description ?? recordsChangeInWords(receipt, null),
+      icon: 'i-lucide-check',
+      color: 'success',
+      duration: UNDO_TOAST_DURATION,
+      actions: [
+        ...(canUndo(recorded, store.state.writes) ? [{ label: 'Undo', icon: 'i-lucide-undo-2', color: 'neutral' as const, variant: 'outline' as const, onClick: () => void undo(recorded) }] : []),
+        ...(options.follow === undefined ? [] : [{ label: options.follow.label, icon: options.follow.icon, color: 'neutral' as const, variant: 'ghost' as const, onClick: options.follow.run }]),
+      ],
+    })
+  }
+
   async function write(title: string, work: (unit: UnitOfWork) => void, options: RecordWriteOptions = {}): Promise<boolean> {
     busy.value = true
     try {
       const receipt = await store.write(title, work, { addMissingKinds: options.addMissingKinds ?? false })
-      const recorded = store.state.writes[0]
-      if (receipt === null || recorded?.receipt !== receipt) {
+      if (receipt === null || store.state.writes[0]?.receipt !== receipt) {
         toast.add({ title: 'Nothing changed', description: 'The workbook already holds this.', icon: 'i-lucide-info', color: 'neutral' })
         return true
       }
-      toast.add({
-        title,
-        description: options.description ?? recordsChangeInWords(receipt, null),
-        icon: 'i-lucide-check',
-        color: 'success',
-        duration: UNDO_TOAST_DURATION,
-        actions: [
-          ...(canUndo(recorded, store.state.writes) ? [{ label: 'Undo', icon: 'i-lucide-undo-2', color: 'neutral' as const, variant: 'outline' as const, onClick: () => void undo(recorded) }] : []),
-          ...(options.follow === undefined ? [] : [{ label: options.follow.label, icon: options.follow.icon, color: 'neutral' as const, variant: 'ghost' as const, onClick: options.follow.run }]),
-        ],
-      })
+      announce(receipt, options)
       return true
     } catch (failure) {
       refused(options.failedTitle ?? 'Nothing was written', failure)
@@ -85,5 +93,5 @@ export function useRecordWrites(): RecordWrites {
     }
   }
 
-  return { busy, write }
+  return { busy, write, announce }
 }

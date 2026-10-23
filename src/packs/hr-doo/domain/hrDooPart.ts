@@ -1,5 +1,7 @@
 import { packPart, recordsOfKind } from '../../../features/workbook/domain/packPart'
-import type { PackKey, PackPart } from '../../../features/workbook/domain/packPart'
+import type { CategoryNaming, PackKey, PackPart } from '../../../features/workbook/domain/packPart'
+import { listInWords } from '../../../features/workbook/domain/slug'
+import { slugListOf, slugOf } from '../../../features/workbook/domain/storedFields'
 import { tabProblems } from '../../../features/workbook/domain/workbook'
 import type { OwnerAdvance, Workbook } from '../../../features/workbook/domain/workbook'
 import { assetsClaimingRows, uncheckedClaimProblems } from './assets/assetRegister'
@@ -51,6 +53,14 @@ export function hrDooWorkbook(workbook: Workbook): HrDooWorkbook {
   return { ...workbook, ...part }
 }
 
+/** Why the register keeps a row whole, as `the assets "Desk" and "Lamp" claim it as payment`. */
+function assetsClaiming(names: readonly string[]): string {
+  const quoted = listInWords(names.map((name) => `"${name}"`))
+  return names.length === 1 ? `the asset ${quoted} claims it as payment` : `the assets ${quoted} claim it as payment`
+}
+
+const OWNER_ADVANCE_NAMING: CategoryNaming = { kind: OWNER_ADVANCE_RECORDS, one: 'owner advance', many: 'owner advances', categoriesOf: (fields) => [slugOf(fields.category)] }
+
 /**
  * The pack's part, read from its records against core's categories with the rules across them:
  * assets against the grants, plan lines against the categories and the scenarios, year-end konto
@@ -60,6 +70,12 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   key: HR_DOO,
   kinds: [OWNER_ADVANCE_WRITES, ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES, PLAN_WRITES, SCENARIO_WRITES],
   settings: COMPANY_FACT_SETTINGS,
+  categoryNaming: [
+    OWNER_ADVANCE_NAMING,
+    { kind: YEAR_END_RECORDS, one: 'year-end konto row', many: 'year-end konto rows', categoriesOf: (fields) => slugListOf(fields.categories) },
+    { kind: PLAN_RECORDS, one: 'plan tab row', many: 'plan tab rows', categoriesOf: (fields) => [slugOf(fields.item)] },
+  ],
+  ownerAdvanceNaming: OWNER_ADVANCE_NAMING,
   categoryRoles: Object.values(PACK_ROLES),
   assemble: (records, companyFacts, core) => {
     const categorySlugs = new Set(core.categories.map((category) => category.slug))
@@ -91,6 +107,9 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   },
   ownerAdvances: (part) => part.ownerAdvances,
   // An asset funded by a grant the grants tab lacks still claims its payment, so the grants need no read here.
-  rowsKeptWhole: (records, ledger) => assetsClaimingRows(readAssets(recordsOfKind(records, ASSET_RECORDS), new Set()).facts, ledger.transactions, ledger.categories),
+  rowsKeptWhole: (records, ledger) =>
+    new Map(
+      [...assetsClaimingRows(readAssets(recordsOfKind(records, ASSET_RECORDS), new Set()).facts, ledger.transactions, ledger.categories)].map(([row, names]) => [row, assetsClaiming(names)]),
+    ),
   keptWholeReads: [ASSET_RECORDS],
 }
