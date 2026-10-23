@@ -13,7 +13,7 @@ import { newestBookingOf } from '../../../features/workbook/domain/workbook'
 import LedgerGate from '../../../features/workbook/presentation/LedgerGate.vue'
 import { PACK_ROLES, categoriesWithRole } from '../domain/packRoles'
 import type { PackRole } from '../domain/packRoles'
-import AddAdvanceDialog from './AddAdvanceDialog.vue'
+import AdvanceDialog from './AdvanceDialog.vue'
 import MissingRoles from './MissingRoles.vue'
 import OwedPanel from './OwedPanel.vue'
 import OwnerPayOff from './OwnerPayOff.vue'
@@ -74,7 +74,7 @@ const missing = computed(() => {
             <TakenPanel :ledger="ledger" />
           </template>
         </PageTabs>
-        <AddAdvanceDialog v-model:open="addingAdvance" :categories="ledger.workbook.categories" :default-date="asOf" />
+        <AdvanceDialog v-model:open="addingAdvance" :categories="ledger.workbook.categories" :default-date="asOf" />
       </template>
     </LedgerGate>
   </section>

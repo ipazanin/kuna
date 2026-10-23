@@ -11,13 +11,14 @@
  * the loans' benefit in kind and its link to the rate on Settings, the owner take under the ring against its tile, Compare pay mixes and the Add advance form from Owner's header,
  * the cost of a reimbursement with no cost on file added from Review,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
- * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, an asset and an
- * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a payment split, edited, deleted and
+ * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
+ * its colour, a label and a role, an asset and an invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, an owner advance
+ * changed, deleted and brought back, a payment split, edited, deleted and
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
- * with a profile made for it, each confirmed and undone, an invoice made and re-exported, a rule made from a row and applied to
+ * with a profile made for it, each confirmed and undone, and the profile deleted, an invoice made and re-exported, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on Review's Rules tab, the Ruleset search on Settings, a
  * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
@@ -45,6 +46,7 @@ import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
+  advanceFlow,
   assetFlow,
   categoryFlow,
   changeCategoryFlow,
@@ -791,6 +793,7 @@ async function checkWidth(width) {
     for (const [name, hash, title, run, variant] of [
       ['categories', '#/settings?tab=categories', 'Settings', categoryFlow],
       ['assets', '#/year?tab=assets#asset-rows', 'Year', assetFlow],
+      ['advances', '#/owner', 'Owner', advanceFlow],
       ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],
       ['invoice-run', '#/invoicing?p=all', 'Invoicing', invoiceRunFlow],
       ['scenarios', '#/year?year=2027&tab=pay', 'Year', scenarioFlow],

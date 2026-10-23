@@ -90,16 +90,16 @@ describe.each([
     const slugs = () => store.state.workbook?.categories.map((category) => category.slug)
 
     await add(store, CATEGORY_WRITES, STATIONERY)
-    await edit(store, CATEGORY_WRITES, 2, { colour: '#ffffff', vat: 'none' })
+    await edit(store, CATEGORY_WRITES, 2, { colour: '#2a78d6', vat: 'none' })
     await remove(store, CATEGORY_WRITES, 7)
 
     expect(slugs()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing', 'stationery'])
-    expect(store.state.workbook?.categories[0]).toMatchObject({ colour: '#ffffff', vat: 'none' })
+    expect(store.state.workbook?.categories[0]).toMatchObject({ colour: { stored: '#2a78d6', swatch: { name: 'Blue' } }, vat: 'none' })
     const [removed, changed, added] = store.state.writes
     for (const write of [removed!, changed!, added!]) await store.undo(write)
 
     expect(slugs()).toEqual(['equipment', 'ai-services', 'revenue', 'postage', 'printing', 'courier'])
-    expect(store.state.workbook?.categories[0]).toMatchObject({ colour: '#dce9f9', vat: 'deductible-25' })
+    expect(store.state.workbook?.categories[0]).toMatchObject({ colour: { stored: '#dce9f9', swatch: null }, vat: 'deductible-25' })
     expect(store.state.writes.slice(0, 3).map((write) => wasUndone(write, store.state.writes))).toEqual([false, false, false])
     expect(store.state.writes.slice(3).map((write) => [wasUndone(write, store.state.writes), canUndo(write, store.state.writes)])).toEqual([
       [true, false],
@@ -116,7 +116,7 @@ describe.each([
 
     const receipt = await writeRows(store, CATEGORY_WRITES, {
       added: [{ ...STATIONERY, category: 'ink' }],
-      changed: [{ sheetRow: 9, cells: { colour: '#ffffff' } }],
+      changed: [{ sheetRow: 9, cells: { colour: '#2a78d6' } }],
       removed: [7, 8],
     })
 
@@ -295,10 +295,10 @@ describe('row writes to a Google Sheet', () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, everyTab())
     sheets.grids.categories!.splice(1, 0, ['parcels', 'operating', 'operating'], ['stamps', 'operating', 'operating'])
 
-    await edit(store, CATEGORY_WRITES, 7, { colour: '#ffffff' })
+    await edit(store, CATEGORY_WRITES, 7, { colour: '#2a78d6' })
 
     expect(writtenRanges()).toEqual(['categories!D9'])
-    sheets.grids.categories!.push(['courier', 'operating', 'operating', '#ffffff'])
+    sheets.grids.categories!.push(['courier', 'operating', 'operating', '#2a78d6'])
     await expect(remove(store, CATEGORY_WRITES, 9)).rejects.toThrow('2 records hold the category "courier", so the app cannot tell which one is meant.')
   })
 
@@ -306,7 +306,7 @@ describe('row writes to a Google Sheet', () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, everyTab())
     const categories = (await sheets.sheetGrids()).get('categories')!.sheetId
 
-    await edit(store, CATEGORY_WRITES, 2, { colour: '#ffffff' })
+    await edit(store, CATEGORY_WRITES, 2, { colour: '#2a78d6' })
     await add(store, CATEGORY_WRITES, STATIONERY)
 
     expect(writtenRanges()).toEqual(['categories!D2'])
@@ -355,13 +355,13 @@ describe('row writes to a Google Sheet', () => {
 
     await writeRows(store, CATEGORY_WRITES, {
       added: [{ ...STATIONERY, category: 'ink' }],
-      changed: [{ sheetRow: 9, cells: { colour: '#ffffff' } }],
+      changed: [{ sheetRow: 9, cells: { colour: '#2a78d6' } }],
       removed: [7, 8],
     })
 
     expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
     expect(sentRequests(sheets)).toEqual([
-      { updateCells: { start: { sheetId: categories, rowIndex: 8, columnIndex: 3 }, rows: [{ values: [cellData('#ffffff')] }], fields: 'userEnteredValue' } },
+      { updateCells: { start: { sheetId: categories, rowIndex: 8, columnIndex: 3 }, rows: [{ values: [cellData('#2a78d6')] }], fields: 'userEnteredValue' } },
       { deleteDimension: { range: { sheetId: categories, dimension: 'ROWS', startIndex: 7, endIndex: 8 } } },
       { deleteDimension: { range: { sheetId: categories, dimension: 'ROWS', startIndex: 6, endIndex: 7 } } },
       { appendCells: { sheetId: categories, rows: [{ values: ['ink', 'operating', 'operating', '', '', '', ''].map(cellData) }], fields: 'userEnteredValue' } },
@@ -405,6 +405,33 @@ describe('row writes to a Google Sheet', () => {
     await expect(add(store, INVOICE_WRITES, { number: '2-1-26', client: 'acme', amount: 4200, issued: 46326 })).rejects.toThrow('The invoices tab has no "period_from", "period_to" column')
     await add(store, CATEGORY_WRITES, STATIONERY)
     expect(store.state.workbook?.categories.map((category) => category.slug)).toContain('stationery')
+  })
+
+  it('adds the label column a categories tab lacks, once the person agreed, and the screen then knows the tab has it', async () => {
+    const grids = everyTab()
+    const { store, sheets } = await googleHarness(used, { ...grids, categories: grids.categories!.map((row) => row.slice(0, 5)) })
+    expect(store.state.snapshot?.meta.missingColumns?.categories).toEqual(['label', 'vat'])
+
+    await writeRows(store, CATEGORY_WRITES, { added: [{ ...STATIONERY, label: 'Paper and pens' }], changed: [{ sheetRow: 3, cells: { label: 'AI services' } }] }, true)
+
+    expect(sheets.grids.categories![0]).toEqual(['category', 'family', 'bucket', 'colour', 'roles', 'label'])
+    expect(sheets.grids.categories![2]![5]).toBe('AI services')
+    expect(sheets.grids.categories!.at(-1)).toEqual(['stationery', 'operating', 'operating', null, null, 'Paper and pens'])
+    expect(store.state.snapshot?.meta.missingColumns?.categories).toEqual(['vat'])
+    expect(store.state.workbook?.categories.find((category) => category.slug === 'stationery')?.label).toBe('Paper and pens')
+  })
+
+  it('adds two columns an accounts tab lacks side by side, past a grid with no free column', async () => {
+    const grids = everyTab()
+    const { store, sheets } = await googleHarness(used, { ...grids, accounts: grids.accounts!.map((row) => row.slice(0, 2)) })
+    sheets.columnCounts.accounts = 2
+
+    await writeRows(store, ACCOUNT_WRITES, { changed: [{ sheetRow: 2, cells: { label: 'Main', currency: 'EUR' } }] }, true)
+
+    expect(sheets.grids.accounts![0]).toEqual(['account', 'iban', 'currency', 'label'])
+    expect(sheets.grids.accounts![1]!.slice(2)).toEqual(['EUR', 'Main'])
+    expect(sheets.columnCounts.accounts).toBe(4)
+    expect(store.state.snapshot?.meta.missingColumns?.accounts).toBeUndefined()
   })
 
   it('refuses to leave the accounts tab without an IBAN, which the morning run needs', async () => {

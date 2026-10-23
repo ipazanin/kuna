@@ -171,7 +171,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
       category: category.slug,
       family: category.family,
       bucket: category.bucket,
-      colour: category.colour,
+      colour: category.colour.stored,
       roles: category.roles.join(', '),
       label: category.label ?? '',
       vat: category.vat === 'none' ? '' : category.vat,

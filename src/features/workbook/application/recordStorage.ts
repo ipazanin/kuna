@@ -40,7 +40,8 @@ export interface RecordStorage {
   /**
    * Applies every change on the last read, or none, finding each record by its identity. A change
    * writes only the fields it alters, so a field it leaves alone keeps what the storage holds.
-   * `addMissingKinds`, once the person agreed, gives the storage a place for a kind it lacks.
+   * `addMissingKinds`, once the person agreed, gives the storage a place for a kind it lacks, or
+   * for a field of a kind it holds.
    */
   apply(changes: readonly RecordChange[], addMissingKinds: boolean): Promise<void>
 }

@@ -66,6 +66,7 @@ const taxes = computed(() => {
   const byType = taxByType(bookings, categories, period, window)
   const rate = effectiveTaxRate(bookings, categories, period, window)
   const series = categorySeries(
+    categories.filter((category) => category.bucket === 'taxes'),
     byType.types.map((type) => type.category),
     tokens,
     categoryName,

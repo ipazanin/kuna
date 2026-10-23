@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { invoiceChangeRefusals } from '../src/features/receivables/domain/invoiceGuards'
 import { newInvoiceDates } from '../src/features/invoicing/domain/invoiceDates'
 import { accountChangeRefusals } from '../src/features/settings/domain/accountGuards'
-import { categoryChangeRefusals } from '../src/features/settings/domain/categoryGuards'
+import { categoryChangeRefusals, categoryRoleRefusals, knownRoles } from '../src/features/settings/domain/categoryGuards'
 import { clientChangeRefusals } from '../src/features/settings/domain/clientGuards'
 import { writeDrafts } from '../src/features/settings/application/draftWrites'
 import type { Repository } from '../src/features/workbook/application/repository'
@@ -78,6 +78,21 @@ describe('the categories tab', () => {
       '"postage" stays in the operating or taxes bucket, since 2 owner advances carry it and an advance counts only as an operating cost or a tax.',
     ])
     expect(categoryChangeRefusals([{ before: { slug: 'postage', bucket: 'operating' }, after: { slug: 'postage', bucket: 'taxes' } }], [], uses)).toEqual([])
+  })
+
+  it('refuses a role a change gives that the app does not know, and leaves one the row already held', () => {
+    const known = knownRoles(['watched'])
+
+    expect(known).toEqual(['revenue', 'client-refund', 'watched'])
+    expect(
+      categoryRoleRefusals(
+        [
+          { before: null, after: { slug: 'paper', roles: ['revenu'] } },
+          { before: { slug: 'travel', roles: ['old-role'] }, after: { slug: 'travel', roles: ['old-role', 'watched'] } },
+        ],
+        known,
+      ),
+    ).toEqual(['"paper" takes only roles the app knows, not "revenu".'])
   })
 })
 

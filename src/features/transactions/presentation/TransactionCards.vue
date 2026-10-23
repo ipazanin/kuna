@@ -11,9 +11,9 @@ import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
-import { bucketTone } from '../../../shared/charts/chartTokens'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { categoryChangeOf } from '../domain/categoryChange'
 import { OWNER_ADVANCE_LABEL, withSplitHeadings } from '../domain/listedRows'
@@ -45,6 +45,7 @@ const emit = defineEmits<{
 
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
+const colours = useCategoryColours()
 
 /** One untitled section when ungrouped, so both forms share the card markup. A split payment heads its parts. */
 const sections = computed(() =>
@@ -132,7 +133,7 @@ function accountOf(row: ListedRow): string {
             </span>
             <span class="flex items-center justify-between gap-3 text-xs text-muted">
               <span class="flex min-w-0 items-center gap-1.5">
-                <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(--bucket-${bucketTone(entry.row.bucket)})` }" aria-hidden="true" />
+                <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
                 <span class="truncate text-toned">{{ entry.row.category === '' ? 'No category' : names.category(entry.row.category) }}</span>
                 <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
               </span>

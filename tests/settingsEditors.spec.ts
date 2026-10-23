@@ -5,6 +5,8 @@ import { accountDraftErrors, accountsOfDrafts } from '../src/features/settings/d
 import type { AccountDraft } from '../src/features/settings/domain/accountDrafts'
 import { categoriesOfDrafts, categoryDraftErrors } from '../src/features/settings/domain/categoryDrafts'
 import type { CategoryDraft } from '../src/features/settings/domain/categoryDrafts'
+import { knownRoles } from '../src/features/settings/domain/categoryGuards'
+import { installedPack } from '../src/features/packs/packContribution'
 import { draftOutcomes, draftTextOf, draftsOfRecords, fieldsOfDrafts, madeOfDrafts, valueOfDraftText } from '../src/features/settings/domain/recordDrafts'
 import type { DraftColumn, DraftFactory, MadeDraft, RecordDraft } from '../src/features/settings/domain/recordDrafts'
 import { storedOf } from '../src/features/workbook/domain/recordsRead'
@@ -39,15 +41,19 @@ function account(name: string, overrides: Partial<AccountDraft> = {}): AccountDr
   return { saved: 0, savedName: name, account: name, label: '', iban: '', currency: '', ...overrides }
 }
 
+/** The roles core and the installed pack pick categories by. */
+const ROLES = knownRoles(installedPack().workbook?.categoryRoles ?? [])
+
 describe('the categories editor', () => {
   it('accepts a tab that follows the Sheet rules', () => {
-    expect(categoryDraftErrors([category('software'), category('travel', { roles: 'watched' })], new Set(['software']))).toEqual(new Map())
+    expect(categoryDraftErrors([category('software'), category('travel', { roles: 'watched' })], new Set(['software']), ROLES)).toEqual(new Map())
   })
 
   it('needs category, family and a bucket from the six, and each category once', () => {
     const errors = categoryDraftErrors(
       [category('software'), category('Software', { saved: null, savedName: '' }), category('', { family: ' ', bucket: 'expenses' })],
       new Set(),
+      ROLES,
     )
 
     expect(errors.get(1)).toEqual({ category: 'Already used above' })
@@ -57,24 +63,31 @@ describe('the categories editor', () => {
   it('keeps the name of a category the ledger uses, but lets a later duplicate of it be renamed', () => {
     const drafts = [category('tools', { savedName: 'software' }), category('software-copy', { saved: 1, savedName: 'software' })]
 
-    const errors = categoryDraftErrors(drafts, new Set(['software']))
+    const errors = categoryDraftErrors(drafts, new Set(['software']), ROLES)
 
     expect(errors.get(0)?.category).toMatch(/keeps its name/)
+    expect(errors.has(1)).toBe(false)
+  })
+
+  it('marks a role the app does not know, such as a typo, so the save waits until it is fixed', () => {
+    const errors = categoryDraftErrors([category('software', { roles: 'revenu, watched' }), category('travel', { roles: 'client-refund, non-deductible' })], new Set(), ROLES)
+
+    expect(errors.get(0)).toEqual({ roles: 'Not a role the app knows: revenu' })
     expect(errors.has(1)).toBe(false)
   })
 
   it('makes the category in lower case', () => {
     const [software] = categoriesOfDrafts([storedWith({ category: 'software', note: 'mine' })], [category(' Software ', { roles: 'Revenue,  watched ,' })])
 
-    expect(software).toMatchObject({ saved: 0, record: { slug: 'software', label: '', family: 'operating', bucket: 'operating', colour: '', roles: ['revenue', 'watched'], vat: 'none' } })
+    expect(software).toMatchObject({ saved: 0, record: { slug: 'software', label: '', family: 'operating', bucket: 'operating', colour: { swatch: null, stored: '' }, roles: ['revenue', 'watched'], vat: 'none' } })
   })
 })
 
 describe('the categories editor and VAT', () => {
   it('writes a VAT treatment in lower case and refuses one the app does not know', () => {
     expect(categoriesOfDrafts([], [category('software', { saved: null, vat: ' Reverse-Charge ' })])[0]).toMatchObject({ record: { vat: 'reverse-charge' } })
-    expect(categoryDraftErrors([category('software', { vat: 'half' })], new Set()).get(0)).toEqual({ vat: 'Not a VAT treatment the app knows' })
-    expect(categoryDraftErrors([category('software', { vat: '' })], new Set()).size).toBe(0)
+    expect(categoryDraftErrors([category('software', { vat: 'half' })], new Set(), ROLES).get(0)).toEqual({ vat: 'Not a VAT treatment the app knows' })
+    expect(categoryDraftErrors([category('software', { vat: '' })], new Set(), ROLES).size).toBe(0)
   })
 })
 

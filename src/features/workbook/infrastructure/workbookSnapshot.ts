@@ -42,6 +42,11 @@ export type WorkbookTabs = { readonly [tab in WorkbookTab]: readonly SheetRow[] 
 /** A workbook copy's meta, with the tabs a Google Sheet lacks. A workbook kept in this browser has every tab, since an export writes them all. */
 export interface WorkbookMeta extends CopyMeta {
   readonly missingTabs: readonly WorkbookTab[]
+  /**
+   * The template columns other than the id that a tab of a Google Sheet lacks, by tab. A tab
+   * missing here lacks none the app knows of, as every tab of a workbook kept in this browser.
+   */
+  readonly missingColumns?: Readonly<Partial<Record<WorkbookTab, readonly string[]>>>
 }
 
 export type WorkbookSnapshot = { readonly meta: WorkbookMeta } & WorkbookTabs

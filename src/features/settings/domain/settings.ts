@@ -441,7 +441,7 @@ export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet
       continue
     }
     const named = { id: recordIdOf(SETTING_RECORDS, key), label: key }
-    if (!key.startsWith(IMPORT_PROFILE_PREFIX)) {
+    if (isUnknownSettingKey(key, packKeys)) {
       problems.push({ ...named, reason: 'not a setting this app knows, so it is kept but not used' })
       continue
     }
@@ -464,6 +464,17 @@ export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet
     settings = { ...settings, bucketLabels: DEFAULT_BUCKET_LABELS }
   }
   return { settings, problems }
+}
+
+/** A key neither core, the pack nor an import profile reads, which the tab keeps and the app reports. */
+function isUnknownSettingKey(key: string, packKeys: ReadonlySet<string>): boolean {
+  return key !== '' && !packKeys.has(key) && !DEFINITION_BY_KEY.has(key) && !key.startsWith(IMPORT_PROFILE_PREFIX)
+}
+
+/** The keys of the settings that no setting of core or the pack reads, unknown keys and import profiles, which a person may take off the tab. */
+export function removableSettingKeys(rows: readonly SettingRow[], pack: PackSettings<unknown> | null): string[] {
+  const packKeys = new Set(pack?.definitions.map((definition) => definition.key))
+  return [...new Set(rows.map(keyOfRow).filter((key) => key !== '' && !packKeys.has(key) && !DEFINITION_BY_KEY.has(key)))]
 }
 
 /** The values a pack's settings keys hold, read the way `parseSettings` reads core's, and what in them could not be used. */

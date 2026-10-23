@@ -8,7 +8,7 @@ import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../../features/filters/application/filterStore'
 import { listedRowKey } from '../../../features/workbook/domain/splits'
 import type { UnaccountedReimbursement } from '../domain/ownerAdvances'
-import type { AdvancePrefill } from './AddAdvanceDialog.vue'
+import type { AdvancePrefill } from './AdvanceDialog.vue'
 
 /** Payments to the owner that no cost on the owner-advances tab accounts for, newest first, each with a way to add its cost. */
 const props = defineProps<{

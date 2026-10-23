@@ -2,10 +2,9 @@
 import { computed } from 'vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
-import { bucketTone } from '../../../shared/charts/chartTokens'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
-import type { Bucket } from '../../workbook/domain/bucket'
 import type { Category } from '../../workbook/domain/workbook'
+import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 
 /** A searchable list of the categories tab, by screen name and by slug. Nothing outside the tab can be picked. */
 const props = withDefaults(
@@ -33,17 +32,19 @@ const menuValue = computed({
 })
 
 const names = useDisplayNames()
+const colours = useCategoryColours()
 
 interface Choice {
   readonly label: string
   readonly value: string
-  readonly bucket: Bucket | null
+  /** The category's colour, null for "No category". */
+  readonly colour: string | null
 }
 
 const items = computed<Choice[]>(() => [
-  ...(props.allowNone ? [{ label: 'No category', value: NONE, bucket: null }] : []),
+  ...(props.allowNone ? [{ label: 'No category', value: NONE, colour: null }] : []),
   ...props.categories
-    .map((category): Choice => ({ label: names.value.category(category.slug), value: category.slug, bucket: category.bucket }))
+    .map((category): Choice => ({ label: names.value.category(category.slug), value: category.slug, colour: colours.value(category.slug, category.bucket) }))
     .sort((left, right) => left.label.localeCompare(right.label)),
 ])
 
@@ -66,14 +67,14 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
     class="min-w-48"
   >
     <span v-if="picked" class="flex min-w-0 items-center gap-1.5">
-      <span v-if="picked.bucket" class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(--bucket-${bucketTone(picked.bucket)})` }" aria-hidden="true" />
+      <span v-if="picked.colour" class="size-2 shrink-0 rounded-[2px]" :style="{ background: picked.colour }" aria-hidden="true" />
       <span class="truncate">{{ picked.label }}</span>
     </span>
     <span v-else class="text-dimmed">{{ placeholder }}</span>
     <template #item-leading="{ item }">
       <span
         class="size-2 shrink-0 rounded-[2px]"
-        :style="{ background: item.bucket ? `var(--bucket-${bucketTone(item.bucket)})` : 'transparent' }"
+        :style="{ background: item.colour ?? 'transparent' }"
         aria-hidden="true"
       />
     </template>

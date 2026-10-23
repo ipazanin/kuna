@@ -16,7 +16,9 @@
  * summary for an xlsx file it writes from the fake workbook with two problems added.
  *
  * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
- * category, an asset and an invoice, and screenshots the editors and the invoice dialog on the way.
+ * category, with its colour, a label the fake Sheet has no column for and a role, an asset and an
+ * invoice, changes and deletes an owner advance and undoes the delete, and screenshots the editors
+ * and the invoice dialog on the way.
  * On Transactions it changes the category of a settled row, which a rule files elsewhere, and undoes it.
  * On Year a link to the Statements tab alone keeps the year it opened through two tabs and Back.
  * It also makes an invoice through the checks and every step, with the fake Picker picking the
@@ -30,7 +32,7 @@
  * confirmed rows no rule repeats, which adds the dismissed tab to a Sheet without it, restores it and
  * undoes the restore. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
- * new rows wait on Review and undoes it, at 360, 430 and 1440 px.
+ * new rows wait on Review and undoes it, then deletes the profile, at 360, 430 and 1440 px.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -54,6 +56,7 @@ import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
+  advanceFlow,
   assetFlow,
   categoryFlow,
   changeCategoryFlow,
@@ -495,6 +498,7 @@ const FLOWS = [
   { name: 'year-tab-link', hash: '#/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
   { name: 'categories', hash: '#/settings?tab=categories', title: 'Settings', run: categoryFlow },
   { name: 'assets', hash: '#/year?tab=assets#asset-rows', title: 'Year', run: assetFlow },
+  { name: 'advances', hash: '#/owner', title: 'Owner', run: advanceFlow },
   { name: 'invoices', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceFlow },
   { name: 'invoice-run', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceRunFlow },
   { name: 'scenarios', hash: '#/year?year=2027&tab=pay', title: 'Year', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },

@@ -29,6 +29,8 @@ export interface PackPart<Part, Values> {
   /** The pack's kinds, each with how its records are written. */
   readonly kinds: readonly WriteRules<unknown>[]
   readonly settings: PackSettings<Values>
+  /** The roles the pack picks categories by, as the `roles` column spells them. */
+  readonly categoryRoles: readonly string[]
   /** The part, from the pack's records, the values its settings keys hold and core's workbook, with the problems of its records and its keys. */
   assemble(records: PackRecords, values: Values, core: Workbook): { readonly part: Part; readonly problems: readonly WorkbookProblem[] }
   /** The costs the owner paid privately that the part holds, which profit and loss, Transactions and the filters count beside the bank rows. */

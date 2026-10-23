@@ -5,9 +5,10 @@ import { serviceMonthOf } from '../src/packs/hr-doo/domain/accrual/serviceMonth'
 import { civil, euros } from './fixtures/ledger'
 import { COMPANY_FACT_SETTINGS } from '../src/packs/hr-doo/domain/companyFacts'
 import type { CompanyFacts } from '../src/packs/hr-doo/domain/companyFacts'
+import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 
 function category(slug: string, roles: readonly string[] = []): Category {
-  return { slug, family: 'operating', bucket: 'operating', colour: '', roles, vat: 'none' }
+  return { slug, family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles, vat: 'none' }
 }
 
 const CATEGORIES: readonly Category[] = [category('salary-net', ['arrears']), category('rent-owner', ['arrears']), category('software-subscriptions')]

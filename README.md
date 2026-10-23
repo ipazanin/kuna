@@ -14,8 +14,9 @@ rows of a bank statement the user imports, and rows of the tabs a person keeps b
 `assets`, `grants`, `year-end`, `plan`, `scenarios`, `splits` and `dismissed`. It never writes a
 formula a change leaves alone. It writes data validation only by copying a ledger row's dropdowns
 onto the rows an import puts in above it. It writes a header only when the user agrees to add the
-`plan`, `scenarios`, `splits` or `dismissed` tab to a Sheet without one, and an `id` header after
-the last column of a tab whose rows carry ids, when it adds a row there.
+`plan`, `scenarios`, `splits` or `dismissed` tab to a Sheet without one, or an optional column such
+as `label` to the categories or accounts tab when a save fills it, and an `id` header after the last
+column of a tab whose rows carry ids, when it adds a row there.
 See *Write-back* below. Making an invoice also files its PDF in the Drive folder the user picks for
 invoices, and, only for a user who turns the mail draft on, asks for `gmail.compose` to save a
 Gmail draft. See *Invoices*.
@@ -194,7 +195,7 @@ take their defaults.
 | Tab | Columns |
 |---|---|
 | `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`, in that order from A to R. |
-| `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour`, an optional comma-separated `roles`, an optional `label`, and an optional `vat`: how a purchase in the category splits into cost and VAT, one of `none`, `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `representation` and `car-50`. A blank `vat` is `none`, and an unknown one is reported and read as `none`. |
+| `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour` (a swatch of the palette as its light hex, such as `#2a78d6` for Blue, or blank for the bucket colour), an optional comma-separated `roles` from the roles core and the pack pick categories by (*Taxes and Owner* lists them), an optional `label`, and an optional `vat`: how a purchase in the category splits into cost and VAT, one of `none`, `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `representation` and `car-50`. A blank `vat` is `none`, and an unknown one is reported and read as `none`. |
 | `accounts` | `account`, `iban`, an optional `currency`, and an optional `label`. An account named on more than one row is reported on each and read from none. |
 | `settings` | `key`, `value`, one row per setting. A key on more than one row is reported on each and takes its default. |
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out, and so is every row of an id used on more than one row. Rules are tried by `order`, then by id. The Apps Script breaks a tie by the row instead, so two enabled rules that share an order are reported. |
@@ -244,13 +245,27 @@ from the first of them, as the table says for each tab. `bookingOrder` in
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
 and a capital first letter, so `ai-services` reads "AI services". Links and filters keep the name.
 
+A category wears its `colour` wherever one category is drawn: its chip and dot on Transactions and
+Review, the category picker, the Add filter menu, the bars of Cost by category and the payee strip on
+Analysis, and the charts by category on Year, Taxes and Owner, Taken, in light and dark. The palette
+is the eight chart slots and the recessive grey of `tokens.css`, each with its own dark step, named
+Green, Orange, Blue, Amber, Pink, Dark green, Violet, Red and Grey. A blank colour, or any other
+colour, reads as the bucket colour with no problem and stays in the tab as it is until a save picks
+a swatch. A chart by category gives such a category the next chart slot that no category of its
+bucket was given, in the order of the tab, so a category with nothing in the period never repaints
+the others. Charts of whole buckets, such as Overview's ring and the profit and loss, keep the
+bucket colours. `SWATCHES` in `src/features/workbook/domain/categoryColour.ts` lists the palette,
+and `tests/categoryPalette.spec.ts` fails when it and `tokens.css` disagree. The Apps Script colours
+the Sheet's category cells with the same value.
+
 `flagged_by` values `rule` and `ai` belong to the categoriser: `ai` marks a guess that waits for
 review. Any other value means a person set the category. A row with `review_reasons`, such as a
 reversal, also waits for review until a person confirms it.
 
 ### Settings keys
 
-A blank value means the default. An unknown key is kept and reported. A value that does not hold
+A blank value means the default. An unknown key is kept and reported, and "Remove the key" beside it
+on Settings, General takes its row off the tab. A value that does not hold
 falls back to the default and is reported with its key, in the import summary and on Settings,
 General. The
 defaults are how the app behaved before settings existed, so a Sheet without a `settings` tab reads
@@ -294,7 +309,7 @@ as before.
 | `hr_vat_principle` | `invoice` | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment. |
 | `hr_depreciation_doubled` | `FALSE` | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it. |
 | `hr_owner_loan_interest` | `0%` | The yearly interest rate the owner's loans from the company carry, as a percentage cell such as `2%`, or text such as `2%` or `0.02`. A number above 1, such as `2`, is refused, since it reads as 200%. Below the income tax law's rate the difference is a benefit in kind, as *Taxes and Owner* describes. |
-| `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves. A profile that cannot be read is reported and not offered. |
+| `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves and deletes. A profile that cannot be read is reported and not offered, and "Remove the key" beside it on Settings, General takes its row off the tab. |
 
 The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack, which reads
 and checks them itself, as *Core and the pack* describes. Settings, General shows them while
@@ -346,7 +361,7 @@ the whole ledger, signed. A screen says which role no category carries, and what
 because of that.
 
 Costs the owner paid privately go on the `owner-advances` tab, from the Sheet or from "Add advance"
-on Owner. Each counts as a cost on its date and in its category on every profit and loss figure:
+on Owner. The pencil beside each one on Owner opens it to change or delete it, by its id. Each counts as a cost on its date and in its category on every profit and loss figure:
 bucket totals, the monthly series, the window averages and runway, category totals, period review,
 tax by type, the effective tax rate and the payroll cadence. Transactions lists each one as an
 "Owner advance" row with no bank account, the owner as counterparty, and its category and amount as
@@ -1066,7 +1081,8 @@ the first saved profile whose columns head a row of the file. Otherwise it start
 the file: the header row, columns guessed from Croatian and English header words, the date format
 and decimal mark from the cells, and the account whose IBAN the title lines name. The dry run reads
 the file with the profile as it is edited, and "Save new profile" writes it to the settings tab
-through the settings write.
+through the settings write. "Delete" beside a saved profile takes its row off the settings tab, so no
+file is offered it again. Settings keep no Undo, so a deleted profile is saved again to bring it back.
 
 **The dry run** lists each statement's entries with the category the rules give them, as the
 ingest categorises, and checks them against the ledger as it is on screen:
@@ -1143,6 +1159,15 @@ are written, so a formula left alone stays a formula, and a deleted row is taken
 below it move up. "Discard changes" goes back to what the tab holds. A save that fixes a row the app
 could not read, or deletes one, keeps no Undo, since nothing could store that row as it was.
 
+On Categories the colour is a swatch button that opens a pop-up, `ColourSwatchPicker` in
+`src/shared/ui/`: Bucket colour first, then the nine swatches, each a 44 px target named for a
+screen reader, which the arrow keys move through. A line under them names the other categories of
+the bucket that wear the chosen swatch, since a repeat is allowed. A colour outside the palette
+shows as Bucket colour, and the line says the Sheet keeps it until a swatch is picked. Roles are a
+menu of the roles core and the pack pick categories by, shown as chips. A role the app does not
+know, such as `revenu` typed in the Sheet, shows as a red chip with the error under it and blocks the
+save until it is taken off.
+
 Each table checks its rows as the reader would before it lets a save go: a row the reader would
 leave out is marked and blocks the save. A row the tab holds that the app cannot read at all, such
 as a category with a misspelt bucket, is listed after the rows it reads, as stored, so it can be
@@ -1150,8 +1175,11 @@ fixed here. A category or account in use keeps its name, so its name
 field and its bin are locked, and the tooltip says what uses it. A client or grant in use is refused
 when the save renames or deletes it, with what uses it. Categories say that the
 ledger's dropdown in the Sheet lists the categories tab, so a category added here appears there. A
-field the Sheet has no column for, such as `label` on an older categories tab, is refused with the
-column to add. When the Sheet lacks a whole tab, the screen names the headers to add.
+field the Sheet has no column for, such as `label` on an older categories or accounts tab, gets a
+notice under the table once a row fills it, and the save adds the column after the last one, with its
+header in row 1, in the same write. The sync records which template columns each tab of the Sheet
+lacks, in `missingColumns` of the copy's meta. When the Sheet lacks a whole tab, the screen names the
+headers to add.
 
 ## Development
 
@@ -1163,8 +1191,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, the split editor on Transactions and Review, a category changed on Transactions, a dismissal and both statement imports in both modes, the way back from Google's sign-in page, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, and both statement imports with their dry run, confirm and undo at 430 too, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal and both statement imports in both modes, the way back from Google's sign-in page, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -1363,7 +1391,9 @@ session list is held in memory, so a reload clears it.
   neighbour's, so orders stay in steps of 100, and renumbers every rule in steps of 100 only when the
   two share an order.
 - **Settings.** Each changed key's value is set, or a `key`, `value` row is added when the tab lacks
-  the key. A key on two rows, or a value the settings reader would not use, is refused.
+  the key. A removed key, an import profile deleted on Import, or an unknown key or a profile it cannot
+  read removed on Settings, General, has its row taken out. A key on two rows, or a value the settings reader would not use, is
+  refused.
 - **Records of the other kinds.** Categories, accounts, clients, invoices, owner advances, assets,
   grants, year-end lines, billing plan rows, plan lines, pay scenario rows, split parts and
   dismissals are added below the last row of their tab, changed in place and removed as whole rows,
@@ -1373,12 +1403,12 @@ session list is held in memory, so a reload clears it.
 
   | Kind | Refused, with the reason given |
   |---|---|
-  | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. |
+  | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. A changed colour outside the palette, or a role the change gives that the app does not know, unless Undo puts it back. |
   | Accounts | A name outside the slug format. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the ingest refuses a statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. Leaving the tab with no IBAN, which stops the Apps Script's morning run. The tab needs its `account` and `iban` headers, as the Apps Script does. |
   | Clients | A name outside the slug format. A second row of a client under another name. Renaming or deleting the last row of a client that invoices, plan rows or `billing_client` name. A new or changed IBAN that is not valid, is on another client row, or is one of your accounts. |
   | Invoices | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. The tab needs all eight columns the generator writes, and the app never adds one. |
   | Grants | A name outside the slug format. Renaming or deleting a grant an asset is funded by. |
-  | Owner advances | What their reader refuses: an amount of zero or below, which for a negative one points to the `splits` tab, or a category the categories tab lacks or keeps outside the operating and taxes buckets. "Add advance" on Owner, and "Add the cost" on Review, add one. |
+  | Owner advances | What their reader refuses: an amount of zero or below, which for a negative one points to the `splits` tab, or a category the categories tab lacks or keeps outside the operating and taxes buckets. "Add advance" on Owner, and "Add the cost" on Review, add one, and the pencil beside an advance on Owner changes or deletes it. |
   | Split parts | What their reader refuses against the ledger and the categories as they are now, which are the guards of *Split rows*. A split of a row an asset claims, with the asset named. |
   | Assets, year-end lines, billing plan rows, dismissals | What their readers refuse, such as an asset listed twice, a grant the grants tab lacks, or a konto row naming an unknown category. |
   | Plan lines | What their reader refuses, such as a dividend without its month or a category twice in one month. Then every year the change touches must pass the plan guards of *Forecast*. A purchase or a switch day on an older tab without the `date` and `group` columns names the columns to add. |
@@ -1401,7 +1431,8 @@ formula or its own spelling, such as a capital the reader lowers. A tab or a col
 and the Sheet lacks is named in the refusal. The tab is added only when the person agreed, as the
 starting scenarios dialog, the plan editor's dialogs, the split editor and the first Dismiss on Review
 ask before they write, named as the template names it, with the template's header in row 1, in the
-same write. In Excel mode the workbook always holds every tab, so nothing is added.
+same write. A template column is added the same way, as the notice of the Categories and Accounts
+editors says before the save, after the last column in use. In Excel mode the workbook always holds every tab, so nothing is added.
 
 `tests/recordStorageContract.spec.ts` says what any storage must do, once for each storage and each
 kind, core's and the pack's: a record reads back as written, a change and a removal find the record
@@ -1415,9 +1446,10 @@ when any of its requests is not valid, not at all. So a write that fails leaves 
 and never an empty row the morning ingest would stop on. Its requests run in this order:
 
 1. `addSheet` for a tab the person agreed to add, with a sheet id the app picks, and `updateCells` of
-   its header in row 1. Then, for a tab that gets the `id` column, `appendDimension` of a column when
-   its grid has none free after the last column in use, and `updateCells` of the `id` header there.
-   The grid's width comes with the tab ids, from `spreadsheets.get`.
+   its header in row 1. Then, for each column a tab gets, its `id` column or a template column the
+   person agreed to add, `appendDimension` of a column when its grid has none free after the last
+   column in use, and `updateCells` of the header there, one column after another. The grid's width
+   comes with the tab ids, from `spreadsheets.get`.
 2. `updateCells` of each changed cell, such as `ledger!I57`, found by its header on the row as read.
 3. `deleteDimension` of each deleted row, the bottom row first.
 4. For rows put in at a place, the ledger's new statements and rows Undo puts back, per block of rows
@@ -1444,8 +1476,8 @@ batchUpdate and again after it:
 |---|---|
 | Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids and grid widths), `values.batchGet` of `ledger` and `categories` |
 | Add, edit, switch on or off, move a rule | get, batchGet of `rules`, `categories` and `clients` (when the Sheet has it) |
-| Save settings, or an import profile | get, batchGet of `settings` |
-| Add an advance, delete one | get, batchGet of `'owner-advances'` and `categories` |
+| Save settings, save or delete an import profile, remove a key | get, batchGet of `settings` |
+| Add, change or delete an advance | get, batchGet of `'owner-advances'` and `categories` |
 | Split a row, edit or delete a split | get, batchGet of `splits`, `ledger`, `categories` and `assets` (each when the Sheet has it) |
 | Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `splits`, `'year-end'` and `plan` (each when the Sheet has it) |
 | Save accounts | get, batchGet of `accounts`, `ledger` and `clients` |
@@ -1492,7 +1524,7 @@ Never run it first on the original.
    it from its editor and check the PDF was replaced and a second draft saved. Delete the test row,
    the PDF and both drafts.
 10. On Settings, Categories, add a category and save. Check the new row at the foot of `categories`
-   and that the ledger's category dropdown offers it. Change its colour, check only that cell changed,
+   and that the ledger's category dropdown offers it. Pick a colour for it, check only that cell changed,
    then delete it and check the row is gone with no blank row left. Press Undo and check it is back
    at the foot. Try to rename a category the ledger uses and read the refusal. On Invoicing, record an
    invoice, check its row on `invoices` with the dates shown as dates and the number as text, edit

@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 
-import { bucketTone } from '../../../shared/charts/chartTokens'
 import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
@@ -13,9 +12,9 @@ import { priorEqualPeriod } from '../../filters/domain/periodComparison'
 import { periodInWords } from '../../filters/domain/periodInWords'
 import { useSettings } from '../../settings/application/useSettings'
 import { costLabelsInSentence } from '../../settings/domain/profitAndLossLabels'
-import { profitAndLossLegend, profitAndLossSeries } from '../../trends/presentation/profitAndLossChart'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import { categoryTotals } from '../domain/categoryTotals'
 import { costGroups } from '../domain/costGroups'
 import type { CostGroup } from '../domain/costGroups'
@@ -30,6 +29,7 @@ const ledger = useFilteredLedger()
 const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
+const colours = useCategoryColours()
 
 const spending = computed(() => {
   const current = ledger.value
@@ -48,10 +48,7 @@ const spending = computed(() => {
   const costLabels = costLabelsInSentence(settings.value)
   return {
     definition: `${costLabels.charAt(0).toUpperCase()}${costLabels.slice(1)} by category. A refund in a cost category lowers its bar. Transfers and reimbursements are not costs, so they are left out.`,
-    legend: [
-      ...profitAndLossLegend(profitAndLossSeries(settings.value).filter((series) => series.line !== 'income')),
-      ...(priorLabel === null ? [] : [{ label: 'Period before', colour: 'var(--chart-ink-muted)', mark: 'outline' as const }]),
-    ],
+    legend: priorLabel === null ? [] : [{ label: 'Period before', colour: 'var(--chart-ink-muted)', mark: 'outline' as const }],
     sections: groups.map(
       (group): CostSection => ({
         key: group.key,
@@ -63,7 +60,7 @@ const spending = computed(() => {
         lines: group.rows.map((row) => ({
           key: row.category,
           name: names.value.category(row.category),
-          colour: `var(--bucket-${bucketTone(row.bucket)})`,
+          colour: colours.value(row.category, row.bucket),
           current: row.current?.amount ?? 0,
           prior: row.prior?.amount ?? null,
           change: row.change,

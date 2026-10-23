@@ -152,7 +152,7 @@ const FIXTURES: Readonly<Record<string, KindFixture>> = {
   },
   category: {
     records: [
-      { category: 'groceries', family: 'operating', bucket: 'operating', colour: '#aabbcc', roles: 'watched', label: 'Groceries', vat: 'deductible-25' },
+      { category: 'groceries', family: 'operating', bucket: 'operating', colour: '#2a78d6', roles: 'watched', label: 'Groceries', vat: 'deductible-25' },
       { category: 'rent', family: 'operating', bucket: 'operating' },
     ],
     outside: { category: 'travel', family: 'operating', bucket: 'operating' },
@@ -417,6 +417,21 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
       const both = fixture.records.map((cells) => recordOnScreen(store, kind, idOfCells(kind, cells)).record)
       await store.write('Removed', (unit) => both.forEach((record) => unit.of(rules).remove(record)))
       expect(recordsOnScreen(store, kind).records.map((stored) => stored.id)).toEqual([idOfCells(kind, fixture.outside)])
+    })
+
+    it('refuses work that awaits before it makes its changes, and writes nothing', async () => {
+      const storage = await withBoth()
+      const { store } = storage
+      const held = storage.held()
+      const changed = recordOf(kind, { ...first, [fixture.change.column]: fixture.change.value })
+
+      const awaiting = store.write('Changed', async (unit) => {
+        await Promise.resolve()
+        unit.of(rules).change(recordOnScreen(store, kind, firstId).record, changed)
+      })
+
+      await expect(awaiting).rejects.toThrow('before it returns')
+      expect(storage.held()).toBe(held)
     })
 
     it('refuses a change to a record that differs from what the app read, or is gone, and writes nothing', async () => {

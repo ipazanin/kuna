@@ -1,7 +1,7 @@
 import { RULE_COLUMNS } from '../../../rules/domain/rule'
 import type { WorkbookSource } from '../../domain/workbook'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../workbookSnapshot'
-import { ID_COLUMN, TABS_WITH_IDS, templateColumnNames } from '../workbookTemplate'
+import { ID_COLUMN, TABS_WITH_IDS, missingColumnsOf, templateColumnNames } from '../workbookTemplate'
 import { sheetRowsFromValues } from '../workbookSnapshot'
 
 /**
@@ -52,6 +52,27 @@ const CATEGORY_VAT: Readonly<Record<string, string>> = {
   'office-supplies': 'deductible-25',
   representation: 'representation',
   telecom: 'deductible-25',
+}
+
+/**
+ * Colours picked on Settings, Categories: every swatch once, Blue twice in one bucket, and a few
+ * blanks. The rest keep the seed's pastel, which reads as the bucket colour.
+ */
+const CATEGORY_COLOURS: Readonly<Record<string, string>> = {
+  consulting: '#1baf7a',
+  'external-contractors': '#eb6834',
+  'software-subscriptions': '#2a78d6',
+  travel: '#2a78d6',
+  telecom: '#eda100',
+  dividend: '#e87ba4',
+  equipment: '#008300',
+  'ai-services': '#e34948',
+  'corporate-income-tax': '#6250d6',
+  'bank-fees': '#a3adb9',
+  'office-supplies': '',
+  accounting: '',
+  'payroll-tax': '',
+  'rent-owner': '',
 }
 
 /** The categories seed of the shadow-accounting Sheet, as its `categories` tab starts out. */
@@ -195,6 +216,9 @@ export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 
       lastExportedAt: null,
       unexportedSince: null,
       missingTabs: source === 'google' ? FAKE_SHEET_LACKS : [],
+      ...(source === 'google'
+        ? { missingColumns: missingColumnsOf(Object.entries(values).flatMap(([tab, [header = []]]) => (FAKE_SHEET_LACKS.includes(tab as WorkbookTab) ? [] : [[tab as WorkbookTab, header.map(String)] as const]))) }
+        : {}),
     },
     ledger: sheetRowsFromValues(values.ledger),
     categories: sheetRowsFromValues(values.categories),
@@ -281,7 +305,7 @@ function fakeTabs(source: WorkbookSource): Record<WorkbookTab, CellValue[][]> {
     categories: [
       ['category', 'family', 'bucket', 'colour', 'roles', 'vat'],
       ...CATEGORY_SEED.flatMap((group) =>
-        group.categories.map(([category, bucket]) => [category, group.family, bucket, group.colour, CATEGORY_ROLES[category] ?? '', CATEGORY_VAT[category] ?? '']),
+        group.categories.map(([category, bucket]) => [category, group.family, bucket, CATEGORY_COLOURS[category] ?? group.colour, CATEGORY_ROLES[category] ?? '', CATEGORY_VAT[category] ?? '']),
       ),
     ],
     accounts: [['account', 'iban'], ...Object.entries(ACCOUNTS).map(([account, iban]) => [account, iban])],

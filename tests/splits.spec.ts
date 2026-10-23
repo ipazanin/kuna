@@ -23,6 +23,7 @@ import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { SPLIT_PART_RECORDS } from '../src/features/workbook/domain/recordKind'
 import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 
 const ROWS = withPackBuckets(
   ledger([
@@ -236,10 +237,10 @@ describe('the split of a salary, on a company with a private share split off', (
   // and a July salary of 2,000.00 for June with an 800.00 bonus in it.
   const categories: readonly Category[] = [
     ...STUDIO_CATEGORIES,
-    { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: '', roles: [], vat: 'deductible-25' },
-    { slug: 'private-cost-for-owner', family: 'owner-pay', bucket: 'owner-pay', colour: '', roles: ['owner-loan-out'], vat: 'none' },
-    { slug: 'reimbursement-from-owner', family: 'financing', bucket: 'financing', colour: '', roles: ['reimbursement'], vat: 'none' },
-    { slug: 'salary-bonus', family: 'owner-pay', bucket: 'owner-pay', colour: '', roles: [], vat: 'none' },
+    { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat: 'deductible-25' },
+    { slug: 'private-cost-for-owner', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-out'], vat: 'none' },
+    { slug: 'reimbursement-from-owner', family: 'financing', bucket: 'financing', colour: BUCKET_COLOUR, roles: ['reimbursement'], vat: 'none' },
+    { slug: 'salary-bonus', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
   ]
   const rows = withPackBuckets(
     ledger([

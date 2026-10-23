@@ -18,12 +18,12 @@ export interface PayeeCategoryLine {
 import { computed, useTemplateRef } from 'vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 
-import { bucketTone } from '../../../shared/charts/chartTokens'
 import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 
 /**
  * The categories one payee was paid under: the largest as a chip, the split as a bar, and every one
@@ -36,6 +36,7 @@ const props = defineProps<{
 }>()
 
 const names = useDisplayNames()
+const colours = useCategoryColours()
 const largest = computed(() => props.categories[0])
 const paid = computed(() => props.categories.reduce((sum, line) => sum + line.amount, 0))
 
@@ -83,7 +84,7 @@ const spokenBreakdown = computed(
         v-for="line in categories"
         :key="line.category"
         class="split-part"
-        :style="{ flexGrow: Math.max(0, line.amount) / paid, background: `var(--bucket-${bucketTone(line.bucket)})` }"
+        :style="{ flexGrow: Math.max(0, line.amount) / paid, background: colours(line.category, line.bucket) }"
       />
     </span>
   </div>
@@ -112,7 +113,7 @@ const spokenBreakdown = computed(
   outline-offset: 2px;
 }
 
-/* One part per category, in its bucket's colour, with a surface gap so parts of one bucket stay apart. */
+/* One part per category, in its colour, with a surface gap so parts of one colour stay apart. */
 .split {
   display: flex;
   min-width: 2.5rem;

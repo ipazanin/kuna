@@ -10,7 +10,6 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
-import { bucketTone } from '../../../shared/charts/chartTokens'
 import { downloadFile } from '../../../shared/files/downloadFile'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { sumMoney } from '../../../shared/money/money'
@@ -28,6 +27,7 @@ import FilterBar from '../../filters/presentation/FilterBar.vue'
 import ImportPanel from '../../imports/presentation/ImportPanel.vue'
 import { counterpartyIdentity, counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
@@ -106,6 +106,7 @@ const advancesLeftOut = computed(() => {
 
 const phone = usePhoneLayout()
 const names = useDisplayNames()
+const colours = useCategoryColours()
 
 /** The table sorts manually, so groups keep their own order and the cards follow the same sort. */
 const sortedRows = computed<ListedRow[]>(() => {
@@ -205,7 +206,7 @@ function reviewBadge(listed: ListedRow) {
 function categoryOf(listed: ListedRow) {
   return h('span', { class: 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-toned' }, [
     h('span', { class: 'inline-flex items-center gap-1.5' }, [
-      h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: `var(--bucket-${bucketTone(listed.bucket)})` }, 'aria-hidden': 'true' }),
+      h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: colours.value(listed.category, listed.bucket) }, 'aria-hidden': 'true' }),
       listed.category === ''
         ? h('span', { class: 'text-muted' }, 'No category')
         : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),

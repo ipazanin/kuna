@@ -3,13 +3,13 @@ import { computed } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { monthLabel } from '../../../shared/calendar/monthLabel'
-import { bucketTone } from '../../../shared/charts/chartTokens'
 import { formatPercent } from '../../../shared/money/moneyFormat'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { inSentence } from '../../settings/domain/profitAndLossLabels'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { isDefinedBucket } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
+import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import type { GroupShare, TransactionGroup } from '../domain/transactionGroups'
 import CategoryChip from './CategoryChip.vue'
 
@@ -25,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const names = useDisplayNames()
+const colours = useCategoryColours()
 
 const rowCount = computed(() => `${props.group.rows.length} ${props.group.rows.length === 1 ? 'row' : 'rows'}`)
 
@@ -49,10 +50,8 @@ const shareWhole = computed(() => {
   }
 })
 
-/** A category's bar wears its bucket's colour. A counterparty has no colour of its own. */
-const shareColour = computed(() =>
-  props.group.kind === 'category' ? `var(--bucket-${bucketTone(props.group.bucket)})` : 'var(--chart-deemphasis)',
-)
+/** A category's bar wears its colour, or its bucket's. A counterparty has no colour of its own. */
+const shareColour = computed(() => (props.group.kind === 'category' ? colours.value(props.group.category, props.group.bucket) : 'var(--chart-deemphasis)'))
 
 const groupName = computed(() => {
   const shown = props.group

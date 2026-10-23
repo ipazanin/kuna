@@ -115,7 +115,7 @@ export interface WorkbookStore<Copy extends WorkbookCopy> {
    * write: a fresh read of the kinds it touches and the kinds their checks read, each record found by
    * its identity and refused when it changed since the app read it, the domain checks of every kind,
    * one apply, and a read back that every record holds what was written. With `addMissingKinds`,
-   * once the person agreed, a storage without a place for a kind gets one. Returns what Undo puts
+   * once the person agreed, a storage without a place for a kind or a field gets one. Returns what Undo puts
    * back, or null when nothing differed. Throws `WorkbookWriteRefused` when it writes nothing.
    */
   write(title: string, work: (unit: UnitOfWork) => void, options?: { readonly addMissingKinds?: boolean }): Promise<WriteReceipt | null>
@@ -349,8 +349,8 @@ export function createWorkbookStore<Copy extends WorkbookCopy>(ports: WorkbookSt
       })
     },
 
-    write(title, work, options) {
-      return writeRecords(title, changesOf(work), null, options?.addMissingKinds ?? false)
+    async write(title, work, options) {
+      return await writeRecords(title, changesOf(work), null, options?.addMissingKinds ?? false)
     },
 
     async undo(write) {

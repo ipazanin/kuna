@@ -24,8 +24,9 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { amountOf } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import { formatMoney } from '../../../shared/money/moneyFormat'
-import { newOwnerAdvance } from '../application/ownerAdvanceWrites'
+import { ownerAdvanceOfDraft } from '../application/ownerAdvanceWrites'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
+import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { ADVANCE_BUCKETS } from '../../../features/workbook/domain/workbook'
 import type { Category } from '../../../features/workbook/domain/workbook'
@@ -40,8 +41,10 @@ const props = withDefaults(
     defaultDate: CivilDate
     /** A cost the form starts on instead of a blank one. */
     prefill?: AdvancePrefill | null
+    /** The advance the form changes, as the tab holds it. Null adds a new one. */
+    editing?: OwnerAdvanceEntry | null
   }>(),
-  { prefill: null },
+  { prefill: null, editing: null },
 )
 
 const writes = useRecordWrites()
@@ -56,10 +59,11 @@ const tried = ref(false)
 
 watch(open, (opened) => {
   if (opened) {
-    date.value = props.prefill?.date ?? props.defaultDate
-    amount.value = props.prefill === null ? '' : amountOf(props.prefill.amount).toFixed(2)
-    description.value = props.prefill?.description ?? ''
-    category.value = ''
+    const start = props.editing ?? props.prefill
+    date.value = start?.date ?? props.defaultDate
+    amount.value = start === null ? '' : amountOf(start.amount).toFixed(2)
+    description.value = start?.description ?? ''
+    category.value = props.editing?.category ?? ''
     tried.value = false
   }
 })
@@ -90,20 +94,40 @@ async function save(): Promise<void> {
   if (!valid.value || day === null || parsedAmount.value === null) {
     return
   }
-  const advance = newOwnerAdvance({ date: day, amount: parsedAmount.value, description: description.value, category: category.value })
-  const added = await writes.write('Advance added', (unit) => unit.of(OWNER_ADVANCE_WRITES).add(advance), {
-    description: `${formatMoney(advance.amount)} as ${names.value.category(advance.category)}.`,
-    failedTitle: 'Not added',
+  const draft = { date: day, amount: parsedAmount.value, description: description.value, category: category.value }
+  const before = props.editing
+  const advance = before === null ? ownerAdvanceOfDraft(draft) : ownerAdvanceOfDraft(draft, before.id)
+  const written = await writes.write(
+    before === null ? 'Advance added' : 'Advance changed',
+    (unit) => (before === null ? unit.of(OWNER_ADVANCE_WRITES).add(advance) : unit.of(OWNER_ADVANCE_WRITES).change(before, advance)),
+    {
+      description: `${formatMoney(advance.amount)} as ${names.value.category(advance.category)}.`,
+      failedTitle: before === null ? 'Not added' : 'Not changed',
+    },
+  )
+  if (written) open.value = false
+}
+
+async function remove(): Promise<void> {
+  const before = props.editing
+  if (before === null) return
+  const removed = await writes.write('Advance deleted', (unit) => unit.of(OWNER_ADVANCE_WRITES).remove(before), {
+    description: `${formatMoney(before.amount)} as ${names.value.category(before.category)}.`,
+    failedTitle: 'Not deleted',
   })
-  if (added) open.value = false
+  if (removed) open.value = false
 }
 </script>
 
 <template>
   <UModal
     v-model:open="open"
-    title="Add an advance"
-    description="A cost the owner paid privately for the company. It counts as a cost on its date, and reimbursements to the owner repay it."
+    :title="editing ? 'Change the advance' : 'Add an advance'"
+    :description="
+      editing
+        ? 'A cost the owner paid privately for the company, on the owner-advances tab. Only the cells you change are written.'
+        : 'A cost the owner paid privately for the company. It counts as a cost on its date, and reimbursements to the owner repay it.'
+    "
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"
   >
@@ -126,8 +150,26 @@ async function save(): Promise<void> {
     </template>
     <template #footer>
       <div class="flex w-full flex-wrap justify-end gap-2">
+        <UButton
+          v-if="editing"
+          label="Delete advance"
+          icon="i-lucide-trash-2"
+          color="error"
+          variant="ghost"
+          class="me-auto"
+          :disabled="writes.busy.value"
+          data-testid="advance-delete"
+          @click="remove"
+        />
         <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-        <UButton type="submit" form="add-advance" label="Add advance" icon="i-lucide-plus" :loading="writes.busy.value" :disabled="writes.busy.value" />
+        <UButton
+          type="submit"
+          form="add-advance"
+          :label="editing ? 'Save advance' : 'Add advance'"
+          :icon="editing ? 'i-lucide-save' : 'i-lucide-plus'"
+          :loading="writes.busy.value"
+          :disabled="writes.busy.value"
+        />
       </div>
     </template>
   </UModal>

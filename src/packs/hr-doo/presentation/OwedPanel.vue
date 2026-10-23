@@ -19,6 +19,10 @@ import { chartedMonths } from '../../../features/filters/domain/periodPresets'
 import DrillChartCard from '../../../features/filters/presentation/DrillChartCard.vue'
 import type { FilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
+import { useWorkbook } from '../../../features/workbook/application/workbookStore'
+import { recordsOfKindIn } from '../../../features/workbook/domain/readWorkbook'
+import type { RecordId } from '../../../features/workbook/domain/recordId'
+import { NO_RECORDS, recordWithId } from '../../../features/workbook/domain/recordsRead'
 import type { Transaction } from '../../../features/workbook/domain/workbook'
 import { netOwed, ownerAdvances } from '../domain/ownerAdvances'
 import { loanBenefitByYear } from '../domain/ownerLoanInterest'
@@ -33,6 +37,9 @@ import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import { LENT_SERIES, OUTSTANDING_SERIES, REPAID_SERIES, loanTimelineChart } from './packCharts'
 import { hrDooWorkbook } from '../domain/hrDooPart'
+import { OWNER_ADVANCE_RECORDS } from '../domain/hrDooKinds'
+import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
+import AdvanceDialog from './AdvanceDialog.vue'
 
 /**
  * Who owes whom between the owner and the company, over the whole ledger whatever the filters, since
@@ -48,6 +55,16 @@ const { drillLocation } = useFilters()
 const names = useDisplayNames()
 const showAllLoans = ref(false)
 const showAllAdvances = ref(false)
+const { state } = useWorkbook()
+
+/** The advance the dialog changes, as the tab holds it. */
+const editing = ref<OwnerAdvanceEntry | null>(null)
+const editingOpen = ref(false)
+
+function editAdvance(id: RecordId): void {
+  editing.value = recordWithId(state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, OWNER_ADVANCE_RECORDS), id)?.record ?? null
+  editingOpen.value = editing.value !== null
+}
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
@@ -132,7 +149,7 @@ const owed = computed(() => {
     loansSummary: `${loans.loans.length} ${loans.loans.length === 1 ? 'loan' : 'loans'}, ${loans.openCount === 0 ? 'none open' : `${loans.openCount} open`}`,
     advances: [...advances.advances].reverse().map(
       (line): AdvanceLine => ({
-        key: line.advance.id,
+        id: line.advance.id,
         paidOn: day(line.advance.date),
         description: line.advance.description,
         category: names.value.category(line.advance.category),
@@ -239,7 +256,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
           </dl>
         </template>
         <div class="px-4 pt-1 pb-2 sm:px-5">
-          <AdvanceList :advances="shownAdvances" />
+          <AdvanceList :advances="shownAdvances" :busy="state.writing" @edit="editAdvance" />
         </div>
         <ShowAllButton v-if="owed.advances.length > FIRST_SHOWN" v-model:expanded="showAllAdvances" :total="owed.advances.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>
@@ -259,5 +276,6 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
     >
       <template #legend><ChartLegend :entries="owed.timelineLegend" /></template>
     </DrillChartCard>
+    <AdvanceDialog v-model:open="editingOpen" :categories="ledger.workbook.categories" :default-date="asOf" :editing="editing" />
   </div>
 </template>

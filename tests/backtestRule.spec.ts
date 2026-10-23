@@ -9,6 +9,7 @@ import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import type { Category } from '../src/features/workbook/domain/workbook'
 import { isHumanConfirmed } from '../src/features/workbook/domain/needsReview'
 import { ledger } from './fixtures/ledger'
+import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 
 const SHOP_IBAN = 'XX00FAKE0000000011'
 const CLIENT_IBAN = 'XX00FAKE0000000012'
@@ -26,10 +27,10 @@ const RULES: readonly Rule[] = [
 ]
 
 const CATEGORIES: readonly Category[] = [
-  { slug: 'travel', family: 'operating', bucket: 'operating', colour: '', roles: [], vat: 'none' },
-  { slug: 'equipment', family: 'operating', bucket: 'operating', colour: '', roles: [], vat: 'none' },
-  { slug: 'ai-services', family: 'operating', bucket: 'operating', colour: '', roles: [], vat: 'none' },
-  { slug: 'revenue', family: 'income', bucket: 'income', colour: '', roles: ['revenue'], vat: 'none' },
+  { slug: 'travel', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
+  { slug: 'equipment', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
+  { slug: 'ai-services', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
+  { slug: 'revenue', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: ['revenue'], vat: 'none' },
 ]
 
 describe('backtestRuleChange', () => {

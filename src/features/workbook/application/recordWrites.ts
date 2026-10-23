@@ -39,7 +39,7 @@ export interface CheckedWrite {
 /** The changes a write's work makes through its repositories, in the order it makes them. */
 export function changesOf(work: (unit: UnitOfWork) => void): RuledChange[] {
   const changes: RuledChange[] = []
-  work({
+  const finished: unknown = work({
     of<R>(rules: WriteRules<R>): Repository<R> {
       const ruled = rules as WriteRules<unknown>
       const kind = rules.kind as RecordKind<unknown>
@@ -52,6 +52,9 @@ export function changesOf(work: (unit: UnitOfWork) => void): RuledChange[] {
       }
     },
   })
+  if (finished instanceof Promise) {
+    throw new Error('A write must make its changes before it returns. Changes made after an await would be lost.')
+  }
   return changes
 }
 

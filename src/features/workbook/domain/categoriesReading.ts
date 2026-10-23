@@ -1,4 +1,5 @@
 import { isDefinedBucket } from './bucket'
+import { categoryColourOf } from './categoryColour'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import { CATEGORY_RECORDS } from './recordKind'
@@ -16,7 +17,7 @@ export type CategoryRecord = Category & { readonly id: RecordId }
 /**
  * A category is matched case-insensitively. A record is a definition only when category, family and
  * bucket are all filled, and the bucket is one the analysis knows. A VAT treatment the app does not
- * know reads as none, so the category still counts.
+ * know reads as none, and a colour outside the palette as the bucket's, so the category still counts.
  */
 export function categoryOf(fields: StoredFields, id: RecordId | null): CategoryRecord {
   const slug = slugOf(fields.category)
@@ -34,7 +35,7 @@ export function categoryOf(fields: StoredFields, id: RecordId | null): CategoryR
     label: textOf(fields.label),
     family,
     bucket,
-    colour: textOf(fields.colour),
+    colour: categoryColourOf(textOf(fields.colour)),
     roles: slugListOf(fields.roles),
     vat: isVatTreatment(vat) ? vat : 'none',
     id: keyedId(id),

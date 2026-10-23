@@ -16,6 +16,7 @@ import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 
 let nextRow = 1
 
@@ -152,7 +153,7 @@ describe('owner advances', () => {
   describe('the owner’s part of a split company payment', () => {
     // The company paid an order of 52.30, 12.80 of it private, split on the splits tab. The owner
     // paid back twice the part by mistake and the company returned the extra 12.80.
-    const categories = [...PACK_CATEGORIES, { slug: 'private-cost-for-owner', family: 'owner', bucket: 'owner-pay' as const, colour: '', roles: ['owner-loan-out'], vat: 'none' as const }]
+    const categories = [...PACK_CATEGORIES, { slug: 'private-cost-for-owner', family: 'owner', bucket: 'owner-pay' as const, colour: BUCKET_COLOUR, roles: ['owner-loan-out'], vat: 'none' as const }]
     const ledgerRows = withSplit(
       withPackBuckets(
         ledger([

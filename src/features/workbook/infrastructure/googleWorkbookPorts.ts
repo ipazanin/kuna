@@ -5,6 +5,7 @@ import { sheetNameInRange, sheetsValuesFor } from './sheetsClient'
 import type { SheetsValues } from './sheetsClient'
 import { EMPTY_TABS, WORKBOOK_TABS, sheetRowsFromValues } from './workbookSnapshot'
 import type { WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
+import { missingColumnsOf } from './workbookTemplate'
 
 /** The real Google side of a sync: GIS for the token, the Picker, and one Sheets batchGet. */
 export const googleWorkbookPorts: GoogleWorkbookPorts<WorkbookSnapshot> = {
@@ -27,7 +28,8 @@ export async function readSnapshotFrom(sheets: SheetsValues, sheet: GoogleSheet)
   }
   const present: WorkbookTab[] = WORKBOOK_TABS.filter((tab) => grids.has(tab))
   const ranges = await sheets.batchGet(present.map(sheetNameInRange))
-  const tabs = Object.fromEntries(present.map((tab, index) => [tab, sheetRowsFromValues(ranges[index]?.values ?? [])]))
+  const values = present.map((_, index) => ranges[index]?.values ?? [])
+  const tabs = Object.fromEntries(present.map((tab, index) => [tab, sheetRowsFromValues(values[index]!)]))
   return {
     meta: {
       id: sheet.id,
@@ -37,6 +39,7 @@ export async function readSnapshotFrom(sheets: SheetsValues, sheet: GoogleSheet)
       lastExportedAt: null,
       unexportedSince: null,
       missingTabs: WORKBOOK_TABS.filter((tab) => !grids.has(tab)),
+      missingColumns: missingColumnsOf(present.map((tab, index) => [tab, (values[index]![0] ?? []).map((name) => String(name ?? ''))])),
     },
     ...EMPTY_TABS,
     ...tabs,

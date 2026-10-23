@@ -6,7 +6,7 @@ import type { CostChange } from '../domain/costGroups'
 export interface CostLine {
   readonly key: string
   readonly name: string
-  /** The bar's colour, the category's bucket. */
+  /** The bar's colour: the category's own, or its bucket's. */
   readonly colour: string
   readonly current: number
   readonly prior: number | null
@@ -70,7 +70,7 @@ function changeText(change: CostChange | null): string {
 <template>
   <AppCard title="Cost by category" :subtitle="subtitle" :definition="definition" collapse-id="analysis.categories" :summary="summary" data-testid="cost-by-category">
     <template #header>
-      <ChartLegend :entries="legend" />
+      <ChartLegend v-if="legend.length > 0" :entries="legend" />
     </template>
 
     <p v-if="sections.length === 0" class="px-5 py-8 text-sm text-muted">Nothing was spent in this period.</p>

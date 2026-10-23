@@ -13,12 +13,13 @@ import { PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { ASSET_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 
 const EQUIPMENT: Category = {
   slug: 'equipment',
   family: 'operating',
   bucket: 'operating',
-  colour: '',
+  colour: BUCKET_COLOUR,
   roles: ['capital-purchase'],
   vat: 'deductible-25',
 }

@@ -7,9 +7,10 @@ import { vatSplit } from '../src/packs/hr-doo/domain/vat/vatSplit'
 import type { VatSplit } from '../src/packs/hr-doo/domain/vat/vatSplit'
 import { addMoney, sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
+import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 
 function category(vat: VatTreatment): Category {
-  return { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: '', roles: [], vat }
+  return { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat }
 }
 
 function booking(amount: number, date = '2026-03-10'): Booking {

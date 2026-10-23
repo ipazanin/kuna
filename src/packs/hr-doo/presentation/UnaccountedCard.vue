@@ -6,8 +6,8 @@ import { formatMoney } from '../../../shared/money/moneyFormat'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import { useFilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
 import { newestBookingOf } from '../../../features/workbook/domain/workbook'
-import AddAdvanceDialog from './AddAdvanceDialog.vue'
-import type { AdvancePrefill } from './AddAdvanceDialog.vue'
+import AdvanceDialog from './AdvanceDialog.vue'
+import type { AdvancePrefill } from './AdvanceDialog.vue'
 import UnaccountedReimbursements from './UnaccountedReimbursements.vue'
 import { unaccountedInView } from './unaccountedInView'
 
@@ -46,5 +46,5 @@ function addCost(prefill: AdvancePrefill): void {
       <UnaccountedReimbursements :payments="unaccounted" :editable="!busy" @add-cost="addCost" />
     </div>
   </AppCard>
-  <AddAdvanceDialog v-if="ledger && newestBooking" v-model:open="addingCost" :categories="ledger.workbook.categories" :default-date="newestBooking" :prefill="costPrefill" />
+  <AdvanceDialog v-if="ledger && newestBooking" v-model:open="addingCost" :categories="ledger.workbook.categories" :default-date="newestBooking" :prefill="costPrefill" />
 </template>

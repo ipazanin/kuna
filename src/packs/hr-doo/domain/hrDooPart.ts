@@ -14,6 +14,7 @@ import { readGrants } from './grants/grantsReading'
 import { ASSET_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from './hrDooKinds'
 import { ASSET_WRITES, GRANT_WRITES, OWNER_ADVANCE_WRITES, PLAN_WRITES, SCENARIO_WRITES, YEAR_END_WRITES } from './hrDooWrites'
 import { readOwnerAdvances } from './ownerAdvancesReading'
+import { PACK_ROLES } from './packRoles'
 import type { OwnerPayScenario } from './scenarios/ownerPayScenarios'
 import { readScenarios } from './scenarios/scenariosReading'
 import type { YearEndLine } from './yearEnd/yearEnd'
@@ -59,6 +60,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   key: HR_DOO,
   kinds: [OWNER_ADVANCE_WRITES, ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES, PLAN_WRITES, SCENARIO_WRITES],
   settings: COMPANY_FACT_SETTINGS,
+  categoryRoles: Object.values(PACK_ROLES),
   assemble: (records, companyFacts, core) => {
     const categorySlugs = new Set(core.categories.map((category) => category.slug))
     const grants = readGrants(recordsOfKind(records, GRANT_RECORDS))

@@ -58,3 +58,15 @@ export function setSettings(unit: UnitOfWork, held: RecordsRead<SettingRow>, val
     }
   }
 }
+
+/** Takes each key off the settings, the record the app read for it removed. A key the settings lack is left alone. */
+export function removeSettings(unit: UnitOfWork, held: RecordsRead<SettingRow>, keys: readonly string[]): void {
+  const settings = unit.of(SETTING_WRITES)
+  for (const key of keys) {
+    const id = recordIdOf(SETTING_RECORDS, key.trim().toLowerCase())
+    const stored = held.records.find((candidate) => candidate.id === id)
+    if (stored !== undefined) {
+      settings.remove(stored.record)
+    }
+  }
+}

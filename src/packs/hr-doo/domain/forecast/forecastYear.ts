@@ -1,6 +1,7 @@
 import { expectedInvoices } from '../../../../features/billingPlan/domain/expectedInvoices'
 import type { ExpectedInvoice } from '../../../../features/billingPlan/domain/expectedInvoices'
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
+import { BUCKET_COLOUR } from '../../../../features/workbook/domain/categoryColour'
 import { displayName } from '../../../../features/workbook/domain/displayName'
 import type { Asset } from '../assets/assets'
 import { PLAN_KEYWORDS } from './plan'
@@ -489,7 +490,7 @@ function ownerPayForecast(plan: PlannedOwnerPay, known: HrDooWorkbook, calendar:
   const arrears = known.categories.some((category) => isOwnerPayCost(category) && category.roles.includes(PACK_ROLES.arrears))
   const scenarioName = plan.scenario.label || plan.scenario.slug
   const lineOf = (slug: string, label: string, line: CategoryForecast['line'], monthly: (month: MonthKey) => TracedFigure): CategoryForecast => ({
-    category: { slug, label, family: 'owner-pay', bucket: 'owner-pay', colour: '', roles: arrears ? [PACK_ROLES.arrears] : [], vat: 'none' },
+    category: { slug, label, family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: arrears ? [PACK_ROLES.arrears] : [], vat: 'none' },
     line,
     forecast: forecastLine(calendar, {
       label,

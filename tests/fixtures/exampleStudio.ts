@@ -14,12 +14,13 @@ import { civil, euros, ledger } from './ledger'
 import type { RowSpec } from './ledger'
 import { recordIdOf } from '../../src/features/workbook/domain/recordId'
 import { INVOICE_RECORDS } from '../../src/features/workbook/domain/recordKind'
+import { BUCKET_COLOUR } from '../../src/features/workbook/domain/categoryColour'
 
 // Example Studio d.o.o., registered on 3 March 2025, with synthetic figures. Its first tax period
 // runs from March to December 2025, ten months.
 
 function category(slug: string, bucket: DefinedBucket, roles: readonly string[] = [], vat: VatTreatment = 'none'): Category {
-  return { slug, family: bucket, bucket, colour: '', roles, vat }
+  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat }
 }
 
 export const STUDIO_CATEGORIES: readonly Category[] = [

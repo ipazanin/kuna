@@ -7,7 +7,7 @@ import { readClients } from '../../workbook/domain/clientsReading'
 import { slugListOf, slugOf, textOf } from '../../workbook/domain/storedFields'
 import type { StoredFields } from '../../workbook/domain/storedFields'
 import { accountChangeRefusals } from '../domain/accountGuards'
-import { categoryChangeRefusals } from '../domain/categoryGuards'
+import { categoryChangeRefusals, categoryColourRefusals, categoryRoleRefusals, knownRoles } from '../domain/categoryGuards'
 import { clientChangeRefusals } from '../domain/clientGuards'
 import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/recordKind'
 import type { RecordKind } from '../../workbook/domain/recordKind'
@@ -18,7 +18,7 @@ import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { ClientRow } from '../../workbook/domain/clientsReading'
 import { pickedEdits, pickedUntouched } from '../../workbook/domain/writeRules'
 import type { WriteRules } from '../../workbook/domain/writeRules'
-import { installedPackKind } from '../../packs/packContribution'
+import { installedPack, installedPackKind } from '../../packs/packContribution'
 
 /** The records of a kind, from a fresh read or from the records on screen. */
 export type RecordsOfKind = (kind: RecordKind<unknown>) => RecordsRead<unknown>
@@ -98,7 +98,11 @@ function fieldsOfRecords(records: RecordsOfKind): FieldsOf {
 
 const TABS_NAMING_CATEGORIES = ['ledger', 'rules', 'owner-advances', 'splits', 'year-end', 'plan']
 
-/** A category keeps to the slug format, once on its tab, keeps its name while anything names it, and keeps owner advances in an operating or taxes bucket. */
+/**
+ * A category keeps to the slug format, once on its tab, keeps its name while anything names it, and
+ * keeps owner advances in an operating or taxes bucket. Unless Undo puts them back, a colour it is
+ * given comes from the palette and a role it is given is one the app knows.
+ */
 export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
   kind: CATEGORY_RECORDS,
   get reads() {
@@ -113,11 +117,14 @@ export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
       const slug = slugOf(fields.category)
       advances.set(slug, (advances.get(slug) ?? 0) + 1)
     }
-    return categoryChangeRefusals(
-      pickedEdits(change, (fields) => ({ slug: slugOf(fields.category), bucket: slugOf(fields.bucket) })),
-      pickedUntouched(change, (fields) => ({ slug: slugOf(fields.category) })).filter((row) => row.slug !== ''),
-      { named: categoryUses(recordsOfKind), advances },
-    )
+    const edits = pickedEdits(change, (fields) => ({ slug: slugOf(fields.category), bucket: slugOf(fields.bucket), colour: textOf(fields.colour), roles: slugListOf(fields.roles) }))
+    return [
+      ...categoryChangeRefusals(edits, pickedUntouched(change, (fields) => ({ slug: slugOf(fields.category) })).filter((row) => row.slug !== ''), {
+        named: categoryUses(recordsOfKind),
+        advances,
+      }),
+      ...(change.undoing ? [] : [...categoryColourRefusals(edits), ...categoryRoleRefusals(edits, knownRoles(installedPack().workbook?.categoryRoles ?? []))]),
+    ]
   },
 }
 

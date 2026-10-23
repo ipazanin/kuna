@@ -32,7 +32,18 @@ export async function seedFakeWorkbook(variant: string | null): Promise<void> {
   const now = Date.now()
   const full = fakeWorkbookSnapshot(new Date(now).toISOString(), source)
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
-  const snapshot = missing === null ? full : { ...full, [missing]: [], meta: { ...full.meta, missingTabs: source === 'google' ? [...full.meta.missingTabs, missing] : [] } }
+  const snapshot =
+    missing === null
+      ? full
+      : {
+          ...full,
+          [missing]: [],
+          meta: {
+            ...full.meta,
+            missingTabs: source === 'google' ? [...full.meta.missingTabs, missing] : [],
+            missingColumns: Object.fromEntries(Object.entries(full.meta.missingColumns ?? {}).filter(([tab]) => tab !== missing)),
+          },
+        }
   if (source === 'google') {
     shapeFakeSheet(missing === null ? [] : [missing])
   }

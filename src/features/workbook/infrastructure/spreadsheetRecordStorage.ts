@@ -13,7 +13,7 @@ import { recordsOfRows, spreadsheetTabOfKind } from './spreadsheetTab'
 import type { Cells, SpreadsheetTab } from './spreadsheetTab'
 import { WORKBOOK_TABS } from './workbookSnapshot'
 import type { SheetRow, WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
-import { ID_COLUMN, TABS_WITH_IDS, contentColumns, templateColumnNames } from './workbookTemplate'
+import { ID_COLUMN, TABS_WITH_IDS, contentColumns, missingColumnsOf, templateColumnNames } from './workbookTemplate'
 import type { CellEdit, FreshTabs, NewColumn, NewTab, RowAppend, RowDeletion, RowTab, TabEdits, TabRead, WorkbookWriter } from './workbookWriter'
 
 /** What one write does to one tab: the edits that carry it out and the rows the tab is left with. */
@@ -25,7 +25,7 @@ interface TabPlan {
   readonly appends: readonly RowAppend[]
   readonly deletions: readonly RowDeletion[]
   readonly newTab: NewTab | null
-  readonly newColumn: NewColumn | null
+  readonly newColumns: readonly NewColumn[]
   readonly rowsAfter: readonly SheetRow[]
   /** The cells each change of the tab leaves its record in, null for a removal, in the order of the changes. */
   readonly written: readonly (Cells | null)[]
@@ -75,7 +75,9 @@ export function spreadsheetRecordStorage(writer: WorkbookWriter): CopyStorage<Wo
         return { ...copy, ...tabs }
       }
       const missingTabs = WORKBOOK_TABS.filter((tab) => read[tab] === undefined && (requested.includes(tab) || copy.meta.missingTabs.includes(tab)))
-      return { ...copy, ...tabs, meta: { ...copy.meta, missingTabs } }
+      const readHeaders = Object.entries(read).map(([tab, held]) => [tab as WorkbookTab, held.header] as const)
+      const missingColumns = { ...Object.fromEntries(Object.entries(copy.meta.missingColumns ?? {}).filter(([tab]) => read[tab as WorkbookTab] === undefined)), ...missingColumnsOf(readHeaders) }
+      return { ...copy, ...tabs, meta: { ...copy.meta, missingTabs, missingColumns } }
     },
 
     identify(kind, record) {
@@ -106,7 +108,7 @@ export function spreadsheetRecordStorage(writer: WorkbookWriter): CopyStorage<Wo
       const planned = plan(changes, addMissingKinds)
       const deletions = planned.flatMap((tab) => tab.deletions)
       const newTabs = planned.flatMap((tab) => (tab.newTab === null ? [] : [tab.newTab]))
-      const newColumns = planned.flatMap((tab) => (tab.newColumn === null ? [] : [tab.newColumn]))
+      const newColumns = planned.flatMap((tab) => tab.newColumns)
       const edits: TabEdits = {
         cells: planned.flatMap((tab) => tab.cells),
         appends: [...planned.flatMap((tab) => tab.appends.filter((append) => append.at !== undefined)), ...planned.flatMap((tab) => tab.appends.filter((append) => append.at === undefined))],
@@ -285,12 +287,15 @@ function planTab<R>(fresh: FreshTabs, mapping: SpreadsheetTab<R>, changes: reado
     }
   }
   const cellsWritten = [...added.flatMap((row) => Object.entries(row)), ...cells.map((edit): [string, Cells[string]] => [edit.column, edit.value])]
-  const missing = [...new Set(cellsWritten.filter(([column, cell]) => column !== ID_COLUMN && !header.has(column) && cellText(cell) !== '').map(([column]) => column))]
+  const unheaded = new Set(cellsWritten.filter(([column, cell]) => !header.has(column) && cellText(cell) !== '').map(([column]) => column))
+  // The id column comes with the first id written. Another template column the tab lacks comes only once the person agreed.
+  const lacking = columns.filter((column) => unheaded.has(column) && (column === ID_COLUMN || addMissingKinds))
+  const missing = [...unheaded].filter((column) => !lacking.includes(column))
   if (missing.length > 0) {
     refusals.push(`The ${tabName} tab has no ${quotedList(missing)} column for what this change writes. Add the column to row 1 in the Sheet, or leave the field blank.`)
   }
   refuseOn(refusals)
-  const newColumn = carriesIds(tabName) && !header.has(ID_COLUMN) && cellsWritten.some(([column, cell]) => column === ID_COLUMN && cellText(cell) !== '') ? { tab: tabName, column: ID_COLUMN } : null
+  const newColumns = lacking.map((column): NewColumn => ({ tab: tabName, column }))
 
   const foot = tab.lastRow + 1
   const placed = tabName === 'ledger' ? placeLedgerRows(tab.rows, added, tab.lastRow) : added.map((_, index) => ({ index, before: foot }))
@@ -303,7 +308,7 @@ function planTab<R>(fresh: FreshTabs, mapping: SpreadsheetTab<R>, changes: reado
   return {
     tab: tabName,
     changes,
-    header: tab.header,
+    header: [...tab.header, ...lacking],
     cells,
     appends: [
       ...inPlace.map(({ index }, order): RowAppend => ({ tab: tabName, cells: added[index]!, at: insertedAt[order]! })),
@@ -311,7 +316,7 @@ function planTab<R>(fresh: FreshTabs, mapping: SpreadsheetTab<R>, changes: reado
     ],
     deletions: deleted.map((sheetRow) => ({ tab: tabName, sheetRow })),
     newTab,
-    newColumn,
+    newColumns,
     rowsAfter: [
       ...tab.rows.filter((row) => !removed.includes(row)).map((row) => ({ sheetRow: row.sheetRow, cells: withCells(row.cells, edited.get(row) ?? []) })),
       ...added.map((row, index) => ({ sheetRow: foot + index, cells: row })),

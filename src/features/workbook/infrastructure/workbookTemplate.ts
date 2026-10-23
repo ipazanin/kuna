@@ -85,7 +85,12 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
         'owner-pay belongs to the owner-pay module: with owner_pay_module FALSE it counts as operating cost. ' +
         'financing and neutral never count as income or cost.',
     },
-    { name: 'colour', note: 'Your own note of a colour, such as #dce9f9. The app does not use it.' },
+    {
+      name: 'colour',
+      note:
+        'The colour the app paints the category with, one of the nine swatches on Settings, Categories, such as #2a78d6 for Blue. ' +
+        'Blank, or any other colour, paints it in its bucket colour.',
+    },
     { name: 'roles', note: 'Optional, comma separated, such as revenue or watched, for features that pick categories by role.' },
     { name: 'label', note: 'What the screens call the category, such as Software. Optional. Blank shows the category with spaces for hyphens.' },
     {
@@ -183,6 +188,17 @@ export function templateColumnNames(tab: WorkbookTab): string[] {
 /** The tab's columns other than its id, which a row the app writes is found again by. */
 export function contentColumns(tab: WorkbookTab): string[] {
   return contentColumnsOf(templateColumns(tab))
+}
+
+/** The tab's columns other than its id that a header row lacks, in template order. */
+function missingContentColumns(tab: WorkbookTab, header: readonly string[]): string[] {
+  const held = new Set(header.map((name) => name.trim()))
+  return contentColumns(tab).filter((column) => !held.has(column))
+}
+
+/** The columns other than the id that each tab's header lacks, for the tabs that lack any. */
+export function missingColumnsOf(headers: readonly (readonly [tab: WorkbookTab, header: readonly string[]])[]): Partial<Record<WorkbookTab, readonly string[]>> {
+  return Object.fromEntries(headers.map(([tab, header]) => [tab, missingContentColumns(tab, header)] as const).filter(([, columns]) => columns.length > 0))
 }
 
 /** The names of the columns other than the id, in template order. */

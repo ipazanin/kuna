@@ -14,7 +14,7 @@ import type { Money } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
-import { setSettings } from '../../settings/application/settingWrites'
+import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { heldSettingValue } from '../../settings/domain/settings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
@@ -81,7 +81,6 @@ const NEW_PROFILE = '+new'
 const profileChoice = ref<string>(NEW_PROFILE)
 const editing = ref(false)
 const draft = ref<ImportProfile | null>(null)
-const savingProfile = ref(false)
 
 const shape = computed(() => (loaded.value?.kind === 'table' ? fileShapeOf(loaded.value.grid) : null))
 const fitting = computed(() => (loaded.value?.kind === 'table' ? fittingProfiles(loaded.value.grid, savedProfiles.value) : []))
@@ -138,17 +137,24 @@ async function saveProfile(): Promise<void> {
     toast.add({ title: 'Not saved', description: `A profile called ${profile.name} is saved already. Pick it, or give this one another name.`, icon: 'i-lucide-triangle-alert', color: 'error' })
     return
   }
-  savingProfile.value = true
-  try {
-    await store.write('Profile saved', (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key, value: profileValue(profile) }]))
+  const saved = await writes.write('Profile saved', (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key, value: profileValue(profile) }]), {
+    description: `${profile.name} is on the settings tab now.`,
+    failedTitle: 'Not saved',
+  })
+  if (saved) {
     profileChoice.value = profile.name
     editing.value = false
-    toast.add({ title: 'Profile saved', description: `${profile.name} is on the settings tab now.`, icon: 'i-lucide-check', color: 'success' })
-  } catch (failure) {
-    toast.add({ title: 'Not saved', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
-  } finally {
-    savingProfile.value = false
   }
+}
+
+/** Takes the chosen profile off the settings tab, so no file is offered it again. Settings keep no Undo. */
+async function deleteProfile(): Promise<void> {
+  const name = profileChoice.value
+  const removed = await writes.write('Profile deleted', (unit) => removeSettings(unit, store.state.records?.settings ?? NO_RECORDS, [profileKey(name)]), {
+    description: `${name} is off the settings tab. Settings keep no Undo, so save it again to bring it back.`,
+    failedTitle: 'Not deleted',
+  })
+  if (removed) chooseProfile(NEW_PROFILE)
 }
 
 const readings = computed(() => (loaded.value === null || workbook.value === null ? [] : statementReadings(loaded.value, workbook.value, activeProfile.value)))
@@ -275,9 +281,21 @@ const summary = computed(() => {
             <UFormField label="Saved profile" class="min-w-56 flex-1">
               <USelect :model-value="profileChoice" :items="profileItems" class="w-full" data-testid="profile-choice" @update:model-value="chooseProfile(String($event))" />
             </UFormField>
-            <UButton v-if="profileChoice !== NEW_PROFILE && !editing" label="Edit" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="profile-edit" @click="editProfile" />
+            <template v-if="profileChoice !== NEW_PROFILE && !editing">
+              <UButton label="Edit" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="profile-edit" @click="editProfile" />
+              <UButton
+                label="Delete"
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                :disabled="writes.busy.value || store.state.writing"
+                :aria-label="`Delete the profile ${profileChoice}`"
+                data-testid="profile-delete"
+                @click="deleteProfile"
+              />
+            </template>
           </div>
-          <ProfileEditor v-if="showsEditor && draft && shape" v-model="draft" :headers="shape.headers" :accounts="accountItems" :editing="editing" :saving="savingProfile" @save="saveProfile" />
+          <ProfileEditor v-if="showsEditor && draft && shape" v-model="draft" :headers="shape.headers" :accounts="accountItems" :editing="editing" :saving="writes.busy.value" @save="saveProfile" />
         </div>
       </AppCard>
 

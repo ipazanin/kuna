@@ -10,13 +10,14 @@ import { drillToTransactions } from '../../../features/filters/domain/drillTarge
 import type { DrillTarget, Figure } from '../../../features/filters/domain/drillTarget'
 import type { Period } from '../../../features/filters/domain/filterState'
 import type { DrillChart } from '../../../features/filters/presentation/chartDrill'
+import type { Category } from '../../../features/workbook/domain/workbook'
 import type { LoanMonth } from '../domain/ownerLoans'
 import type { OwnerTake } from '../domain/ownerTake'
 
 /** The categorical slots a chart may use before the rest fold into one series. */
 const SLOTS = 8
 
-/** One series of a chart by category: a category, or the categories past the eighth slot together. */
+/** One series of a chart by category: a category, or the categories past the free slots together. */
 export interface CategorySeries {
   readonly name: string
   readonly categories: readonly string[]
@@ -25,41 +26,84 @@ export interface CategorySeries {
   readonly token: string
 }
 
-/** The categorical slot at a place in a list, as its token and its colour. Past the last slot it is the recessive grey. */
-function slotAt(index: number, tokens: ChartTokens): Pick<CategorySeries, 'colour' | 'token'> {
+type Paint = Pick<CategorySeries, 'colour' | 'token'>
+
+/** The recessive grey, for the categories past the free slots or a category given grey. */
+function greyOf(tokens: ChartTokens): Paint {
+  return { colour: tokens.deemphasis, token: '--chart-deemphasis' }
+}
+
+/** The categorical slot at a place in the palette, as its token and its colour. */
+function slotAt(index: number, tokens: ChartTokens): Paint {
   const colour = tokens.series[index]
-  return colour === undefined ? { colour: tokens.deemphasis, token: '--chart-deemphasis' } : { colour, token: `--series-${index + 1}` }
+  return colour === undefined ? greyOf(tokens) : { colour, token: `--series-${index + 1}` }
 }
 
 /**
- * A colour per category from its place in the tab's list, so a filter that hides one never
- * repaints the others. Past the eighth slot the rest share one grey series rather than a made-up hue.
+ * The colour of each listed category: the swatch it was given, else the next chart slot no listed
+ * category was given, in the order of the list. So a category with nothing in the period never
+ * repaints the others. A category past the free slots gets null, and `next` is the free slot after
+ * the categories, null when there is none.
  */
-export function categorySeries(slugs: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): CategorySeries[] {
-  if (slugs.length <= SLOTS) {
-    return slugs.map((slug, index) => ({ name: nameOf(slug), categories: [slug], ...slotAt(index, tokens) }))
+function listedPaints(listed: readonly Category[], tokens: ChartTokens): { readonly paints: ReadonlyMap<string, Paint | null>; readonly next: Paint | null } {
+  const given = new Set(listed.map((category) => category.colour.swatch?.slot))
+  const free = Array.from({ length: SLOTS }, (_, index) => index).filter((index) => !given.has(index + 1))
+  const paints = new Map<string, Paint | null>()
+  let used = 0
+  for (const category of listed) {
+    const { swatch } = category.colour
+    if (swatch !== null) {
+      paints.set(category.slug, swatch.slot === null ? greyOf(tokens) : slotAt(swatch.slot - 1, tokens))
+      continue
+    }
+    const index = free[used]
+    used += 1
+    paints.set(category.slug, index === undefined ? null : slotAt(index, tokens))
   }
-  const named = slugs.slice(0, SLOTS - 1)
-  return [
-    ...named.map((slug, index) => ({ name: nameOf(slug), categories: [slug], ...slotAt(index, tokens) })),
-    { name: 'Other categories', categories: slugs.slice(SLOTS - 1), colour: tokens.deemphasis, token: '--chart-deemphasis' },
-  ]
+  const after = free[used]
+  return { paints, next: after === undefined ? null : slotAt(after, tokens) }
+}
+
+/**
+ * A series for each listed category that moved, in its colour. The categories past the free slots
+ * share one grey series rather than a made-up hue.
+ */
+function seriesOf(listed: readonly Category[], moved: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): { readonly series: CategorySeries[]; readonly next: Paint | null } {
+  const { paints, next } = listedPaints(listed, tokens)
+  const shown = listed.map((category) => category.slug).filter((slug) => moved.includes(slug))
+  const others = shown.filter((slug) => paints.get(slug) === null)
+  return {
+    series: [
+      ...shown.flatMap((slug) => {
+        const paint = paints.get(slug)
+        return paint === null || paint === undefined ? [] : [{ name: nameOf(slug), categories: [slug], ...paint }]
+      }),
+      ...(others.length === 0 ? [] : [{ name: 'Other categories', categories: others, ...greyOf(tokens) }]),
+    ],
+    next,
+  }
+}
+
+/** The categories of a chart by category, each in its colour whatever the period shows. */
+export function categorySeries(listed: readonly Category[], moved: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): CategorySeries[] {
+  return seriesOf(listed, moved, tokens, nameOf).series
 }
 
 export const LOANS_NET_SERIES = 'Loans, net'
 
 /**
  * The owner pay categories by category, with the loans to the owner and their repayments as one
- * "Loans, net" series in the slot after the others, since a loan and its repayment are one story.
+ * "Loans, net" series in the free slot after the others, since a loan and its repayment are one story.
  */
-export function ownerPaySeries(slugs: readonly string[], loanSlugs: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): CategorySeries[] {
-  const named = categorySeries(
-    slugs.filter((slug) => !loanSlugs.includes(slug)),
+export function ownerPaySeries(listed: readonly Category[], moved: readonly string[], loanSlugs: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): CategorySeries[] {
+  const { series, next } = seriesOf(
+    listed.filter((category) => !loanSlugs.includes(category.slug)),
+    moved,
     tokens,
     nameOf,
   )
-  const loans = slugs.filter((slug) => loanSlugs.includes(slug))
-  return loans.length === 0 ? named : [...named, { name: LOANS_NET_SERIES, categories: loans, ...slotAt(named.length, tokens) }]
+  const loans = listed.map((category) => category.slug).filter((slug) => loanSlugs.includes(slug) && moved.includes(slug))
+  return loans.length === 0 ? series : [...series, { name: LOANS_NET_SERIES, categories: loans, ...(next ?? greyOf(tokens)) }]
 }
 
 /** One line of the owner take that a ring cannot hold, such as the loans, which can be negative. */

@@ -10,6 +10,7 @@ import type { RowSpec } from './fixtures/ledger'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { INVOICE_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 
 const NORTH = 'XX00FAKE0000000000000101'
 const NORTH_SECOND = 'XX00FAKE0000000000000102'
@@ -23,9 +24,9 @@ const CLIENTS: readonly Client[] = [
 
 /** Revenue is picked by its role, so the category here is named something else on purpose. */
 const CATEGORIES: readonly Category[] = [
-  { slug: 'fees', family: 'income', bucket: 'income', colour: '', roles: ['revenue'], vat: 'none' },
-  { slug: 'revenue', family: 'income', bucket: 'income', colour: '', roles: [], vat: 'none' },
-  { slug: 'money-back', family: 'income', bucket: 'income', colour: '', roles: ['client-refund'], vat: 'none' },
+  { slug: 'fees', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: ['revenue'], vat: 'none' },
+  { slug: 'revenue', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
+  { slug: 'money-back', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: ['client-refund'], vat: 'none' },
 ]
 
 let nextRow = 2

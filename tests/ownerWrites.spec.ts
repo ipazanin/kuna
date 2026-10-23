@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { CATEGORY_WRITES } from '../src/features/settings/application/namedRecordWrites'
-import { newOwnerAdvance } from '../src/packs/hr-doo/application/ownerAdvanceWrites'
+import { ownerAdvanceOfDraft } from '../src/packs/hr-doo/application/ownerAdvanceWrites'
 import type { OwnerAdvanceDraft } from '../src/packs/hr-doo/application/ownerAdvanceWrites'
 import { OWNER_ADVANCE_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
 import type { OwnerAdvanceEntry } from '../src/packs/hr-doo/domain/ownerAdvancesReading'
@@ -13,6 +13,8 @@ import { WorkbookWriteRefused } from '../src/features/workbook/application/workb
 import type { DefinedBucket } from '../src/features/workbook/domain/bucket'
 import type { CategoryRecord } from '../src/features/workbook/domain/categoriesReading'
 import { recordWithId } from '../src/features/workbook/domain/recordsRead'
+import { recordsOfKindIn } from '../src/features/workbook/domain/readWorkbook'
+import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 import { categoryIdOf } from '../src/features/workbook/domain/workbook'
 import { cellsOf } from './fixtures/recordWrites'
 import { civil, euros } from './fixtures/ledger'
@@ -59,7 +61,7 @@ const DESK = { date: civil('2026-10-10'), amount: euros(117.3), description: 'De
 
 /** An advance appended as Add advance appends it. */
 function addAdvance(store: WorkbookStore<WorkbookCopy>, draft: OwnerAdvanceDraft) {
-  return store.write('Advance added', (unit) => unit.of(OWNER_ADVANCE_WRITES).add(newOwnerAdvance(draft)))
+  return store.write('Advance added', (unit) => unit.of(OWNER_ADVANCE_WRITES).add(ownerAdvanceOfDraft(draft)))
 }
 
 describe.each([
@@ -83,6 +85,25 @@ describe.each([
     expect(store.state.workbook?.problems).toEqual([])
     const added = receipt!.records[0]!.change as { readonly after: OwnerAdvanceEntry }
     await expect(store.write('Removed', (unit) => unit.of(OWNER_ADVANCE_WRITES).remove(added.after))).rejects.toThrow('is no longer in the workbook')
+  })
+
+  it('changes an advance in place by its id, deletes it, and Undo of the delete brings it back with the same id', async () => {
+    const { store } = await harnessOf(used, gridsWithOwnerTabs())
+    const before = recordsOfKindIn(store.state.records!, OWNER_ADVANCE_RECORDS).records[0]!.record
+
+    const changed = await store.write('Advance changed', (unit) =>
+      unit.of(OWNER_ADVANCE_WRITES).change(before, ownerAdvanceOfDraft({ date: before.date, amount: euros(42.5), description: 'Printer paper and toner ', category: 'ai-services' }, before.id)),
+    )
+
+    expect(cellsOf(changed, 'change')).toEqual([expect.objectContaining({ date: 46200, amount: 42.5, description: 'Printer paper and toner', category: 'ai-services' })])
+    expect(store.state.workbook?.ownerAdvances.map((advance) => [advance.id, advance.amount, advance.category])).toEqual([[before.id, euros(42.5), 'ai-services']])
+
+    const after = (changed!.records[0]!.change as { readonly after: OwnerAdvanceEntry }).after
+    await store.write('Advance deleted', (unit) => unit.of(OWNER_ADVANCE_WRITES).remove(after))
+    expect(store.state.workbook?.ownerAdvances).toEqual([])
+
+    await store.undo(store.state.writes[0]!)
+    expect(store.state.workbook?.ownerAdvances.map((advance) => [advance.id, advance.amount, advance.description])).toEqual([[before.id, euros(42.5), 'Printer paper and toner']])
   })
 
   it('refuses a negative amount, which is a private share and belongs on the splits tab', async () => {

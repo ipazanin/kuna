@@ -109,7 +109,64 @@ async function undo(page, press) {
   await toast(page, 'Undone')
 }
 
-/** Categories: add stationery, give it a colour, delete it, and Undo the delete. */
+/**
+ * Opens the colour pop-up of a categories row, checks its nine 44 px swatches after Bucket colour,
+ * moves through them with the arrow keys, and picks `name`. Leaves the pop-up open.
+ */
+async function pickCategoryColour(page, press, row, name) {
+  await press(await row.$('[data-testid="colour-swatch-button"]'))
+  await page.waitForSelector('[data-testid="colour-swatch-picker"]', { visible: true })
+  await delay(300)
+  const radios = await page.$$eval('[data-testid="colour-swatch-picker"] [role="radio"]', (elements) =>
+    elements.map((element) => {
+      const box = element.getBoundingClientRect()
+      return { name: element.getAttribute('aria-label'), width: box.width, height: box.height, checked: element.getAttribute('aria-checked') === 'true' }
+    }),
+  )
+  const names = radios.map((radio) => radio.name).join(', ')
+  if (names !== 'Bucket colour, Green, Orange, Blue, Amber, Pink, Dark green, Violet, Red, Grey') throw new Error(`the colour pop-up offers ${names}`)
+  const small = radios.filter((radio) => radio.width < 43.5 || radio.height < 43.5)
+  if (small.length > 0) throw new Error(`swatches under 44 px: ${small.map((radio) => `${radio.name} ${Math.round(radio.width)}x${Math.round(radio.height)}`).join(', ')}`)
+  if (!radios[0].checked) throw new Error('a new category does not start on Bucket colour')
+
+  await page.focus('[data-testid="colour-swatch-picker"] [role="radio"][aria-checked="true"]')
+  // The radio group checks the radio an arrow focuses only while the key is still down, as a finger on a key holds it.
+  await page.keyboard.press('ArrowRight', { delay: 60 })
+  await page.keyboard.press('ArrowRight', { delay: 60 })
+  await page
+    .waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Orange' && document.activeElement?.getAttribute('aria-checked') === 'true', { timeout: 5_000 })
+    .catch(() => {
+      throw new Error('two presses of the right arrow from Bucket colour did not check Orange')
+    })
+
+  await press(await page.$(`[data-testid="colour-swatch-picker"] [role="radio"][aria-label="${name}"]`))
+  await page
+    .waitForFunction((wanted) => document.querySelector(`[data-testid="colour-swatch-picker"] [role="radio"][aria-label="${wanted}"]`)?.getAttribute('aria-checked') === 'true', { timeout: 5_000 }, name)
+    .catch(() => {
+      throw new Error(`pressing ${name} did not pick it`)
+    })
+}
+
+/** Picks a role in a categories row's menu of roles and checks it shows as a chip. */
+async function chooseRole(page, press, row, role) {
+  const trigger = await row.$('[data-testid="category-roles"]')
+  if (trigger === null) throw new Error('no roles menu in the row')
+  await trigger.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center' }))
+  await delay(150)
+  await press(trigger)
+  const option = await page
+    .waitForFunction((wanted) => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.trim() === wanted) ?? null, { timeout: 5_000 }, role)
+    .catch(() => {
+      throw new Error(`the roles menu offers no "${role}"`)
+    })
+  await press(option.asElement())
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  const chips = await trigger.evaluate((element) => element.textContent?.trim() ?? '')
+  if (chips !== role) throw new Error(`the roles menu shows "${chips}" after picking ${role}`)
+}
+
+/** Categories: add stationery, give it a colour from the pop-up, a label on a tab without the column and a role, delete it, and Undo the delete. */
 export async function categoryFlow(page, { press, shoot }) {
   await pressSelector(page, press, '[data-testid="add-category"]')
   const added = (await page.$$('[data-testid="category-row"]')).at(-1)
@@ -122,9 +179,32 @@ export async function categoryFlow(page, { press, shoot }) {
   await shoot('categories-saved')
   await dismissToasts(page)
 
-  await setField(await fieldIn(await rowNamed(page, '[data-testid="category-row"]', 'stationery'), 'Colour'), '#ffeedd')
+  await pickCategoryColour(page, press, await rowNamed(page, '[data-testid="category-row"]', 'stationery'), 'Blue')
+  const note = await page.$eval('[data-testid="colour-swatch-note"]', (element) => element.textContent?.trim() ?? '')
+  if (note !== 'Blue. Also used by Travel and Software subscriptions.') throw new Error(`the colour pop-up says "${note}"`)
+  await shoot('categories-colour')
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('[data-testid="colour-swatch-picker"]'), { timeout: 5_000 })
   await pressSelector(page, press, '[data-testid="save-categories"]')
   await toast(page, 'Categories saved')
+  await dismissToasts(page)
+
+  const named = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
+  await setField(await fieldIn(named, 'Shown as'), 'Paper and pens')
+  const inGoogle = !page.url().includes('fake=excel')
+  const notice = await page
+    .waitForSelector('[data-testid="add-column-notice"]', { visible: true, timeout: inGoogle ? 5_000 : 1_000 })
+    .then((handle) => handle.evaluate((element) => element.textContent?.replace(/\s+/g, ' ').trim() ?? ''))
+    .catch(() => null)
+  if (inGoogle && !notice?.startsWith("The Sheet's categories tab has no label column.")) throw new Error(`a label on the fake Sheet, which lacks the column, says "${notice}"`)
+  if (!inGoogle && notice !== null) throw new Error('a workbook kept in this browser says it lacks the label column')
+  await chooseRole(page, press, named, 'representation')
+  await shoot('categories-label-and-role')
+  await pressSelector(page, press, '[data-testid="save-categories"]')
+  await toast(page, 'Categories saved')
+  await page.waitForFunction(() => !document.querySelector('[data-testid="add-column-notice"]'), { timeout: 5_000 }).catch(() => {
+    throw new Error('the notice about the label column stayed once the save added it')
+  })
   await dismissToasts(page)
 
   const row = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
@@ -134,8 +214,35 @@ export async function categoryFlow(page, { press, shoot }) {
   await rowGone(page, '[data-testid="category-row"]', 'stationery')
   await undo(page, press)
   const back = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
-  const colour = await (await fieldIn(back, 'Colour')).evaluate((input) => input.value)
-  if (colour !== '#ffeedd') throw new Error(`Undo brought stationery back with the colour "${colour}"`)
+  const colour = await (await back.$('[data-testid="colour-swatch-button"]')).evaluate((button) => button.getAttribute('aria-label'))
+  if (colour !== 'Colour of Paper and pens: Blue') throw new Error(`Undo brought stationery back as "${colour}"`)
+  await dismissToasts(page)
+}
+
+/** Owner: change the newest advance's description, delete it, and Undo the delete. */
+export async function advanceFlow(page, { press, shoot }) {
+  const first = async () => (await page.waitForSelector('[data-testid="advance-list"] li', { visible: true, timeout: 10_000 })).evaluate((element) => element.textContent ?? '')
+  await pressSelector(page, press, '[data-testid="advance-edit"]')
+  await page.waitForSelector('[data-testid="add-advance"]', { visible: true })
+  const description = await page.waitForSelector('[data-testid="add-advance"] input[placeholder="Train tickets to the client"]')
+  await setField(description, 'Train tickets, changed')
+  await delay(200)
+  await shoot('advance-edit')
+  await pressSelector(page, press, 'button[form="add-advance"]')
+  await toast(page, 'Advance changed')
+  await dialogGone(page, '[data-testid="add-advance"]')
+  if (!(await first()).includes('Train tickets, changed')) throw new Error('the changed advance does not show its new description')
+  await dismissToasts(page)
+
+  await pressSelector(page, press, '[data-testid="advance-edit"]')
+  await pressSelector(page, press, '[data-testid="advance-delete"]')
+  await toast(page, 'Advance deleted')
+  await dialogGone(page, '[data-testid="add-advance"]')
+  if ((await first()).includes('Train tickets, changed')) throw new Error('the deleted advance is still listed')
+  await undo(page, press)
+  await page.waitForFunction(() => document.querySelector('[data-testid="advance-list"] li')?.textContent?.includes('Train tickets, changed') ?? false, { timeout: 10_000 }).catch(() => {
+    throw new Error('Undo did not bring the advance back')
+  })
   await dismissToasts(page)
 }
 
@@ -752,6 +859,14 @@ export function importTableFlow(path) {
     await undo(page, press)
     await dryRunSays(page, 'Confirming adds 4 rows')
     await shoot('import-table-undone')
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="profile-delete"]')
+    await toast(page, 'Profile deleted')
+    await page.waitForSelector('[data-testid="profile-editor"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the deleted profile is still the one picked')
+    })
+    if (await page.$('[data-testid="profile-choice"]')) throw new Error('the saved profile menu stayed after its only profile was deleted')
     await dismissToasts(page)
   }
 }

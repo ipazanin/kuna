@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { bucketTone } from '../../../shared/charts/chartTokens'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import type { Bucket } from '../../workbook/domain/bucket'
+import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 
-/** A category as rows and groups show it: its bucket's colour and its name. */
+/** A category as rows and groups show it: its colour, or its bucket's, and its name. */
 defineProps<{
   /** Empty for a row with no category. */
   category: string
@@ -11,11 +11,12 @@ defineProps<{
 }>()
 
 const names = useDisplayNames()
+const colours = useCategoryColours()
 </script>
 
 <template>
   <span class="category-chip" :class="{ uncategorised: category === '' }">
-    <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(--bucket-${bucketTone(bucket)})` }" aria-hidden="true" />
+    <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(category, bucket) }" aria-hidden="true" />
     <span class="truncate">{{ category === '' ? 'No category' : names.category(category) }}</span>
   </span>
 </template>

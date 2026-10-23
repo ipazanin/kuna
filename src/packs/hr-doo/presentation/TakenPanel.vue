@@ -19,7 +19,7 @@ import type { FilteredLedger } from '../../../features/transactions/application/
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { ownerCost } from '../domain/ownerCost'
 import { ownerTake, ownerTakeByMonth } from '../domain/ownerTake'
-import { PACK_ROLES, categoriesInBucket, categoriesWithRole } from '../domain/packRoles'
+import { PACK_ROLES, categoriesWithRole } from '../domain/packRoles'
 import { categoryLegend, ownerDrawsChart, ownerPaySeries, ownerTakeRing } from './packCharts'
 
 /** What the owner took out over the period in view, what it cost the company, and how it was paid. */
@@ -41,11 +41,13 @@ const taken = computed(() => {
   const take = ownerTake(profitAndLossRows, categories, filters.period, window)
   const cost = ownerCost(profitAndLossRows, categories, filters.period, window)
   const takeMonths = ownerTakeByMonth(profitAndLossRows, categories, chartedMonths(filters.period, window), window)
-  const pay = categoriesInBucket(categories, 'owner-pay')
-  const loanSlugs = [...categoriesWithRole(categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)].filter((slug) => pay.includes(slug))
+  const pay = categories.filter((category) => category.bucket === 'owner-pay')
+  const loanSlugs = [...categoriesWithRole(categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)].filter((slug) =>
+    pay.some((category) => category.slug === slug),
+  )
   const loansArePay = loanSlugs.length > 0
-  const moved = pay.filter((category) => takeMonths.some((month) => month.byCategory[category]?.amount !== 0))
-  const series = ownerPaySeries(moved, loanSlugs, tokens, categoryName)
+  const moved = pay.map((category) => category.slug).filter((slug) => takeMonths.some((month) => month.byCategory[slug]?.amount !== 0))
+  const series = ownerPaySeries(pay, moved, loanSlugs, tokens, categoryName)
   const ring = ownerTakeRing(take, filters.period, series, categoryName)
   const times = new Intl.NumberFormat(settings.value.numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const parts = ring.parts.map((part): DonutPart => ({ ...part, to: drillLocation(part.drill) }))

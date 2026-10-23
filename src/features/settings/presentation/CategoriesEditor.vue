@@ -4,22 +4,31 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
+import { bucketTone } from '../../../shared/charts/chartTokens'
+import ColourSwatchPicker from '../../../shared/ui/ColourSwatchPicker.vue'
 import { BUCKETS } from '../../workbook/domain/bucket'
+import { SWATCHES, swatchOf } from '../../workbook/domain/categoryColour'
 import { listInWords } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { VAT_TREATMENTS } from '../../workbook/domain/vatTreatment'
 import { displayName } from '../../workbook/domain/displayName'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { RecordsRead } from '../../workbook/domain/recordsRead'
-import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName } from '../domain/categoryDrafts'
+import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName, pickedColour } from '../domain/categoryDrafts'
 import type { CategoryDraft } from '../domain/categoryDrafts'
 import { storedOf } from '../../workbook/domain/recordsRead'
+import { CATEGORY_RECORDS } from '../../workbook/domain/recordKind'
+import AddColumnNotice from '../../workbook/presentation/AddColumnNotice.vue'
+import { swatchToken } from '../../workbook/presentation/categoryColours'
+import RolesSelect from './RolesSelect.vue'
 
 const props = defineProps<{
   /** The categories as stored, refused ones included, so they can be fixed here. */
   records: RecordsRead<CategoryRecord>
   /** What names each category outside the tab. A category in use keeps its name and its row. */
   uses: SlugUses
+  /** The roles core and the pack pick categories by. */
+  roles: readonly string[]
   saving: boolean
 }>()
 
@@ -36,13 +45,30 @@ watch(stored, (records) => {
 
 const usedNames = computed(() => new Set(props.uses.keys()))
 const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(categoryDraftsOf(stored.value)))
-const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value))
+const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value, props.roles))
 
 const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: bucket }))
 const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: treatment }))
 
 function update(index: number, field: keyof Omit<CategoryDraft, 'saved' | 'savedName'>, text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
+}
+
+const swatchChoices = SWATCHES.map((swatch) => ({ value: swatch.hex, name: swatch.name, token: swatchToken(swatch) }))
+
+function shownName(draft: CategoryDraft): string {
+  return displayName(draft.category.trim().toLowerCase(), draft.label)
+}
+
+/** The other categories of the row's bucket that wear the colour it now has, named so a repeat is a choice. */
+function colourNote(index: number): string {
+  const draft = drafts.value[index]!
+  const swatch = swatchOf(draft.colour)
+  if (swatch === null) {
+    return draft.colour.trim() === '' ? `The ${draft.bucket} bucket's colour.` : `The ${draft.bucket} bucket's colour. The Sheet keeps its own colour unless a swatch is picked.`
+  }
+  const others = drafts.value.filter((other, position) => position !== index && other.bucket === draft.bucket && swatchOf(other.colour) === swatch).map(shownName)
+  return others.length === 0 ? `${swatch.name}. No other ${draft.bucket} category uses it.` : `${swatch.name}. Also used by ${listInWords(others)}.`
 }
 
 function locked(draft: CategoryDraft): boolean {
@@ -137,14 +163,18 @@ function save(): void {
             <p v-if="errors.get(index)?.bucket" class="field-error">{{ errors.get(index)?.bucket }}</p>
           </td>
           <td>
-            <UInput :model-value="draft.colour" placeholder="#hex" aria-label="Colour" size="sm" class="w-28" @update:model-value="update(index, 'colour', String($event))">
-              <template #leading>
-                <span class="size-3 rounded-[2px] border border-default" :style="{ background: draft.colour || 'transparent' }" aria-hidden="true" />
-              </template>
-            </UInput>
+            <ColourSwatchPicker
+              :model-value="draft.colour"
+              :title="`Colour of ${shownName(draft) || 'this category'}`"
+              :blank="{ name: 'Bucket colour', token: `--bucket-${bucketTone(draft.bucket)}` }"
+              :swatches="swatchChoices"
+              :note="colourNote(index)"
+              @update:model-value="update(index, 'colour', pickedColour(draft, $event, stored))"
+            />
           </td>
           <td>
-            <UInput :model-value="draft.roles" aria-label="Roles, comma separated" size="sm" class="w-40" @update:model-value="update(index, 'roles', String($event))" />
+            <RolesSelect :model-value="draft.roles" :known="roles" :error="errors.get(index)?.roles" @update:model-value="update(index, 'roles', $event)" />
+            <p v-if="errors.get(index)?.roles" class="field-error">{{ errors.get(index)?.roles }}</p>
           </td>
           <td>
             <USelect
@@ -176,6 +206,7 @@ function save(): void {
       </tbody>
     </table>
   </div>
+  <AddColumnNotice :kind="CATEGORY_RECORDS" :drafts="drafts" class="mx-4 mb-3 sm:mx-5" />
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton label="Add category" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-category" @click="addCategory" />
     <span class="flex-1" />

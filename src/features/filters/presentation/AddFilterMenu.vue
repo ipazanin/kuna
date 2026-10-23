@@ -6,6 +6,7 @@ import type { SelectMenuItem } from '@nuxt/ui/components/SelectMenu.vue'
 import { bucketTone } from '../../../shared/charts/chartTokens'
 import { useSettings } from '../../settings/application/useSettings'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import type { Workbook } from '../../workbook/domain/workbook'
@@ -21,12 +22,13 @@ const chosen = defineModel<string[]>({ required: true })
 
 const settings = useSettings()
 const names = useDisplayNames()
+const colours = useCategoryColours()
 
 interface Choice {
   readonly label: string
   readonly value: string
-  /** The bucket whose colour marks the choice. Counterparties have none. */
-  readonly bucket?: string
+  /** The colour that marks the choice: a bucket's, or a category's own. Counterparties have none. */
+  readonly colour?: string
 }
 
 const groups = computed<SelectMenuItem[][]>(() => {
@@ -35,11 +37,11 @@ const groups = computed<SelectMenuItem[][]>(() => {
   return [
     [
       { type: 'label' as const, label: 'Buckets' },
-      ...buckets.map((bucket): Choice => ({ label: settings.value.bucketLabels[bucket], value: `buckets:${bucket}`, bucket })),
+      ...buckets.map((bucket): Choice => ({ label: settings.value.bucketLabels[bucket], value: `buckets:${bucket}`, colour: `var(--bucket-${bucketTone(bucket)})` })),
     ],
     [
       { type: 'label' as const, label: 'Categories' },
-      ...props.workbook.categories.map((category): Choice => ({ label: names.value.category(category.slug), value: `categories:${category.slug}`, bucket: category.bucket })),
+      ...props.workbook.categories.map((category): Choice => ({ label: names.value.category(category.slug), value: `categories:${category.slug}`, colour: colours.value(category.slug, category.bucket) })),
       ...(props.workbook.ownerAdvances.length === 0 ? [] : [{ label: EVERY_OWNER_ADVANCE_LABEL, value: `categories:${EVERY_OWNER_ADVANCE}` }]),
     ],
     [
@@ -71,9 +73,9 @@ const groups = computed<SelectMenuItem[][]>(() => {
     <template #trailing />
     <template #item-leading="{ item }">
       <span
-        v-if="typeof item === 'object' && item !== null && 'bucket' in item && item.bucket"
+        v-if="typeof item === 'object' && item !== null && 'colour' in item && item.colour"
         class="size-2 shrink-0 rounded-[2px]"
-        :style="{ background: `var(--bucket-${bucketTone(item.bucket)})` }"
+        :style="{ background: item.colour }"
         aria-hidden="true"
       />
     </template>

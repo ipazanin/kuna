@@ -8,12 +8,15 @@ import { writeRulesChange } from '../src/features/rules/application/ruleWrites'
 import type { RulesTabChange } from '../src/features/rules/domain/rulesTabChange'
 import { ruleTabCells } from '../src/features/rules/domain/rulesTabChange'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
-import { setSettings } from '../src/features/settings/application/settingWrites'
+import { removeSettings, setSettings } from '../src/features/settings/application/settingWrites'
+import { removableSettingKeys } from '../src/features/settings/domain/settings'
+import { installedPack } from '../src/features/packs/packContribution'
+import { recordsOf } from '../src/features/workbook/domain/recordsRead'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
 import type { WriteReceipt } from '../src/features/workbook/application/recordWrites'
 import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
-import type { SettingCell } from '../src/features/settings/domain/settings'
+import type { SettingCell, Settings } from '../src/features/settings/domain/settings'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
 import type { WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { LEDGER_ROWS, cellData, excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
@@ -34,7 +37,7 @@ function row(store: WorkbookStore<WorkbookCopy>, counterparty: string): Transact
   return found
 }
 
-function settings(store: WorkbookStore<WorkbookCopy>): { reviewLabel: string } {
+function settings(store: WorkbookStore<WorkbookCopy>): Settings {
   return store.state.workbook!.settings
 }
 
@@ -212,6 +215,24 @@ describe.each([
     expect(hrDooWorkbook(store.state.workbook!).companyFacts.ownerLoanInterest).toBe(200)
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
     await expect(changeSettings(store, [{ key: 'hr_birth_year', value: 'soon' }])).rejects.toThrow('use a year of birth such as 1990')
+  })
+
+  it('takes import profiles, one it cannot read among them, and a key the app does not know off the settings, so none is offered or reported again', async () => {
+    const grids = workbookGrids()
+    const { store } = await harnessOf(used, {
+      ...grids,
+      settings: [...grids.settings!, ['import_profile_old-bank', 'date=Datum; amount=Iznos; account=main'], ['import_profile_broken', 'nonsense'], ['old_switch', 'TRUE']],
+    })
+    const removable = removableSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)
+    expect(removable).toEqual(['import_profile_old-bank', 'import_profile_broken', 'old_switch'])
+    expect(settings(store).importProfiles.map((profile) => profile.name)).toEqual(['old-bank'])
+    expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings').map((problem) => problem.label)).toEqual(['import_profile_broken', 'old_switch'])
+
+    await store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, removable))
+
+    expect(settings(store).importProfiles).toEqual([])
+    expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
+    expect(store.state.records!.settings.records.map((stored) => stored.record.key)).toEqual(['card_settlement_ibans', 'review_label'])
   })
 
   it('refuses a setting the reader would not use', async () => {

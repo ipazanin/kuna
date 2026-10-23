@@ -1,8 +1,9 @@
 import type { Category, Transaction } from '../../src/features/workbook/domain/workbook'
 import type { DefinedBucket } from '../../src/features/workbook/domain/bucket'
+import { BUCKET_COLOUR } from '../../src/features/workbook/domain/categoryColour'
 
 function category(slug: string, bucket: DefinedBucket, roles: readonly string[] = []): Category {
-  return { slug, family: bucket, bucket, colour: '', roles, vat: 'none' }
+  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat: 'none' }
 }
 
 /** A d.o.o. category set with the pack's roles, tax refunds in the taxes bucket as the owner decided. */

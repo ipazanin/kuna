@@ -1,24 +1,28 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import UButton from '@nuxt/ui/components/Button.vue'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../shared/ui/PageTabs.vue'
 import ProblemList from '../../excel/presentation/ProblemList.vue'
-import { shownPack } from '../../packs/packContribution'
+import { installedPack, shownPack } from '../../packs/packContribution'
 import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../../workbook/domain/recordKind'
-import { NO_RECORDS } from '../../workbook/domain/recordsRead'
+import { NO_RECORDS, recordsOf } from '../../workbook/domain/recordsRead'
 import type { RecordsRead } from '../../workbook/domain/recordsRead'
+import { useMissingColumns } from '../../workbook/presentation/missingColumns'
 import MissingTabHint from '../../workbook/presentation/MissingTabHint.vue'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
+import { removeSettings } from '../application/settingWrites'
+import { removableSettingKeys } from '../domain/settings'
 import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryUses } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import { storedOf } from '../../workbook/domain/recordsRead'
@@ -26,6 +30,7 @@ import AccountsEditor from './AccountsEditor.vue'
 import CategoriesEditor from './CategoriesEditor.vue'
 import DevicePanel from './DevicePanel.vue'
 import GeneralSettingsForm from './GeneralSettingsForm.vue'
+import { knownRoles } from '../domain/categoryGuards'
 import { useSettingsSave } from './useSettingsSave'
 
 const { state } = useWorkbook()
@@ -53,6 +58,7 @@ const source = computed(() => state.choice?.source ?? state.workbook?.source ?? 
 
 const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, kind))
 const categoriesInUse = computed(() => categoryUses(recordsOnScreen))
+const roles = knownRoles(installedPack().workbook?.categoryRoles ?? [])
 const accountsInUse = computed(() => accountUses(recordsOnScreen))
 const categories = computed(() => state.records?.categories ?? NO_RECORDS)
 const accounts = computed(() => state.records?.accounts ?? NO_RECORDS)
@@ -60,6 +66,17 @@ const accounts = computed(() => state.records?.accounts ?? NO_RECORDS)
 const problems = computed(() => (state.workbook === null ? [] : presentedWorkbook(state.workbook).problems))
 
 const writes = useRecordWrites()
+
+const settingRecords = computed(() => state.records?.settings ?? NO_RECORDS)
+/** The keys the settings tab holds that no setting reads, unknown keys and import profiles, which a person may take off it. */
+const removableKeys = computed(() => removableSettingKeys(recordsOf(settingRecords.value), installedPack().workbook?.settings ?? null))
+
+function removeKey(key: string): void {
+  void writes.write('Setting removed', (unit) => removeSettings(unit, settingRecords.value, [key]), {
+    description: `${key} is off the settings tab. Settings keep no Undo, so add it in the Sheet again to bring it back.`,
+    failedTitle: 'Not removed',
+  })
+}
 
 function rowsInWords(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`
@@ -71,12 +88,22 @@ function storedCount(read: RecordsRead<unknown>): number {
 
 const saving = computed(() => writes.busy.value || state.writing)
 
+/** A save that fills a column the Sheet lacks adds it, as the editor's notice says before the save. */
+const categoryColumnsMissing = useMissingColumns(CATEGORY_RECORDS)
+const accountColumnsMissing = useMissingColumns(ACCOUNT_RECORDS)
+
 function saveCategories(made: readonly { readonly saved: number | null; readonly record: CategoryRecord }[]): void {
-  void writes.write('Categories saved', (unit) => writeDrafts(unit.of(CATEGORY_WRITES), storedOf(categories.value), made), { failedTitle: 'Not saved' })
+  void writes.write('Categories saved', (unit) => writeDrafts(unit.of(CATEGORY_WRITES), storedOf(categories.value), made), {
+    failedTitle: 'Not saved',
+    addMissingKinds: categoryColumnsMissing.value.length > 0,
+  })
 }
 
 function saveAccounts(made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]): void {
-  void writes.write('Accounts saved', (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), { failedTitle: 'Not saved' })
+  void writes.write('Accounts saved', (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), {
+    failedTitle: 'Not saved',
+    addMissingKinds: accountColumnsMissing.value.length > 0,
+  })
 }
 </script>
 
@@ -105,7 +132,23 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
             :summary="problems.length > 0 ? rowsInWords(problems.length, 'row', 'rows') : 'None, every row reads as written'"
           >
             <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-              <ProblemList v-if="problems.length > 0" :problems="problems" />
+              <ProblemList v-if="problems.length > 0" :problems="problems">
+                <template #action="{ problem }">
+                  <UButton
+                    v-if="problem.tab === 'settings' && removableKeys.includes(problem.label)"
+                    label="Remove the key"
+                    icon="i-lucide-trash-2"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="self-start sm:self-auto"
+                    :disabled="saving"
+                    :aria-label="`Remove ${problem.label} from the settings tab`"
+                    data-testid="remove-setting"
+                    @click="removeKey(problem.label)"
+                  />
+                </template>
+              </ProblemList>
               <p v-else class="text-sm text-muted">Every row of the workbook reads as written.</p>
             </div>
           </AppCard>
@@ -125,7 +168,7 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
             <span v-if="source === 'google'" class="mt-1 block" data-testid="dropdown-note">The ledger's category dropdown in the Sheet lists this tab's categories.</span>
             <MissingTabHint :kind="CATEGORY_RECORDS" />
           </template>
-          <CategoriesEditor :records="categories" :uses="categoriesInUse" :saving="saving" @save="saveCategories" />
+          <CategoriesEditor :records="categories" :uses="categoriesInUse" :roles="roles" :saving="saving" @save="saveCategories" />
         </AppCard>
       </template>
 

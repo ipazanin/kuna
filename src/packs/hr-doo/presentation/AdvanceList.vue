@@ -1,6 +1,8 @@
 <script lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 
+import type { RecordId } from '../../../features/workbook/domain/recordId'
+
 export interface AdvanceRepaymentLine {
   readonly key: string
   readonly date: string
@@ -9,7 +11,8 @@ export interface AdvanceRepaymentLine {
 }
 
 export interface AdvanceLine {
-  readonly key: string
+  /** The advance's own id on its tab. */
+  readonly id: RecordId
   readonly paidOn: string
   readonly description: string
   readonly category: string
@@ -25,6 +28,7 @@ export interface AdvanceLine {
 
 <script setup lang="ts">
 import UBadge from '@nuxt/ui/components/Badge.vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
@@ -32,13 +36,19 @@ import MoneyText from '../../../shared/ui/MoneyText.vue'
 /** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it. */
 defineProps<{
   advances: readonly AdvanceLine[]
+  /** True while another write runs. */
+  busy: boolean
+}>()
+
+const emit = defineEmits<{
+  edit: [id: RecordId]
 }>()
 </script>
 
 <template>
   <p v-if="advances.length === 0" class="py-6 text-sm text-muted">No cost the owner paid is on the owner-advances tab yet.</p>
   <ul v-else class="flex flex-col" data-testid="advance-list">
-    <li v-for="advance in advances" :key="advance.key" class="advance-row">
+    <li v-for="advance in advances" :key="advance.id" class="advance-row">
       <div class="advance-head">
         <div class="min-w-0">
           <p class="truncate text-sm text-highlighted">{{ advance.description || advance.category }}</p>
@@ -52,6 +62,18 @@ defineProps<{
           <template v-if="advance.open"><MoneyText :cents="advance.remaining" precision="whole" class="text-toned" /> still owed</template>
           <template v-else-if="advance.repaidOn">Reimbursed {{ advance.repaidOn }}</template>
         </p>
+        <UButton
+          icon="i-lucide-pencil"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          square
+          class="advance-edit"
+          :disabled="busy"
+          :aria-label="`Change or delete the advance of ${advance.paidOn}`"
+          data-testid="advance-edit"
+          @click="emit('edit', advance.id)"
+        />
       </div>
       <ol v-if="advance.repayments.length > 0" class="advance-trail" :aria-label="`Reimbursements matched to the advance of ${advance.paidOn}`">
         <li v-for="repayment in advance.repayments" :key="repayment.key">
@@ -79,7 +101,7 @@ defineProps<{
 
 .advance-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 5.5rem 8.5rem minmax(0, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) 5.5rem 8.5rem minmax(0, 0.8fr) auto;
   align-items: center;
   column-gap: 0.75rem;
 }
@@ -106,11 +128,20 @@ defineProps<{
 
 @media (max-width: 639px) {
   .advance-head {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     row-gap: 0.25rem;
   }
 
+  .advance-edit {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    justify-content: center;
+  }
+
   .advance-remaining {
+    grid-column: 1 / span 2;
     text-align: start;
   }
 }

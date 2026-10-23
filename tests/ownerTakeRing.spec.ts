@@ -8,6 +8,7 @@ import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const TOKENS = { series: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'], deemphasis: 'grey' } as unknown as ChartTokens
 const LOANS = ['owner-loan-out', 'owner-loan-repaid']
+const PAY = PACK_CATEGORIES.filter((category) => category.bucket === 'owner-pay')
 const name = (slug: string) => slug
 
 const rows = withPackBuckets(
@@ -23,21 +24,22 @@ const period = { preset: 'l3' } as const
 const take = ownerTake(rows, PACK_CATEGORIES, period, windowOf('2026-07-01', '2026-10-01'))
 
 describe('ownerPaySeries', () => {
-  it('puts the loans and their repayments in one series after the others, in the next slot', () => {
-    const series = ownerPaySeries(['salary-net', 'dividend', 'owner-loan-out', 'owner-loan-repaid'], LOANS, TOKENS, name)
+  it('puts the loans and their repayments in one series in the slot after every other owner pay category', () => {
+    const series = ownerPaySeries(PAY, ['salary-net', 'dividend', 'owner-loan-out', 'owner-loan-repaid'], LOANS, TOKENS, name)
 
+    // rent-owner did not move, but keeps the third slot, so the loans take the fourth.
     expect(series.map((entry) => [entry.name, entry.categories, entry.token, entry.colour])).toEqual([
       ['salary-net', ['salary-net'], '--series-1', 's1'],
       ['dividend', ['dividend'], '--series-2', 's2'],
-      [LOANS_NET_SERIES, LOANS, '--series-3', 's3'],
+      [LOANS_NET_SERIES, LOANS, '--series-4', 's4'],
     ])
-    expect(ownerPaySeries(['salary-net'], LOANS, TOKENS, name).map((entry) => entry.name)).toEqual(['salary-net'])
+    expect(ownerPaySeries(PAY, ['salary-net'], LOANS, TOKENS, name).map((entry) => entry.name)).toEqual(['salary-net'])
   })
 })
 
 describe('ownerTakeRing', () => {
   it('rings what was paid out, sets the loans and money handed back beside it, and adds up to the owner take', () => {
-    const series = ownerPaySeries(['salary-net', 'dividend', 'rent-owner', ...LOANS], LOANS, TOKENS, name)
+    const series = ownerPaySeries(PAY, ['salary-net', 'dividend', 'rent-owner', ...LOANS], LOANS, TOKENS, name)
     const ring = ownerTakeRing(take, period, series, name)
 
     expect(ring.parts.map((part) => [part.key, part.value, part.colour])).toEqual([

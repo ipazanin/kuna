@@ -14,8 +14,8 @@ import type { CellEdit, FreshTabs, RowAppend, TabRead, WorkbookWriter, WritableT
  * before it is sent. A cell edit names one cell by its header's column and its row, so nothing else
  * on the row is touched.
  *
- * The requests run in the order `TabEdits` gives: a new tab with its header, a new column's header
- * after the last column in use, with columns added to the grid first when it has none free, the
+ * The requests run in the order `TabEdits` gives: a new tab with its header, each new column's
+ * header after the last column in use, with columns added to the grid first when it has none free, the
  * cell edits, the rows taken out from the bottom up, the rows put in from the top down, each block
  * with the format and the dropdowns of the row below copied onto it the way the shadow-accounting
  * Apps Script inserts a batch, and last the rows added below the last one. Every date the write
@@ -49,22 +49,27 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
         }
         ids.set(tab, unusedSheetId(ids))
       }
-      const newColumns = (edits.newColumns ?? []).map((added) => {
+      const requested = edits.newColumns ?? []
+      const newColumns = requested.map((added, order) => {
         const header = headerOf(before, added.tab)
-        if (header.some((name) => name.trim() === added.column)) {
+        if (header.some((name) => name.trim() === added.column) || requested.findIndex((other) => other.tab === added.tab && other.column === added.column) !== order) {
           throw new Error(`The ${added.tab} tab already has a ${added.column} column, so it is not added again.`)
         }
-        return { ...added, header, index: Math.max(header.length, widths.get(added.tab) ?? 0) }
+        const earlier = requested.slice(0, order).filter((other) => other.tab === added.tab).length
+        return { ...added, index: Math.max(header.length, widths.get(added.tab) ?? 0) + earlier }
       })
-      if (new Set(newColumns.map((added) => added.tab)).size < newColumns.length) {
-        throw new Error('A write adds at most one column to a tab.')
-      }
       // A tab or a column added here reads as part of the header, so the edits below place their cells the same way.
       const read: FreshTabs = {
         ...before,
         ...Object.fromEntries(newTabs.map(({ tab, header }) => [tab, { header, rows: [], lastRow: 1 }])),
         ...Object.fromEntries(
-          newColumns.map(({ tab, column, header, index }) => [tab, { ...before[tab]!, header: [...header, ...Array<string>(index - header.length).fill(''), column] }]),
+          [...new Set(newColumns.map((added) => added.tab))].map((tab) => {
+            const header = [...headerOf(before, tab)]
+            for (const added of newColumns.filter((other) => other.tab === tab)) {
+              header.push(...Array<string>(added.index - header.length).fill(''), added.column)
+            }
+            return [tab, { ...before[tab]!, header }]
+          }),
         ),
       }
       const sheetIdOf = (tab: WritableTab): number => {
@@ -77,6 +82,8 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
       const deletions = edits.deletions ?? []
       const placed = edits.appends.filter((append) => append.at !== undefined)
       const atFoot = edits.appends.filter((append) => append.at === undefined)
+      /** Each grid's width as the columns added so far leave it. */
+      const gridWidths = new Map<string, number>()
       const requests: SpreadsheetRequest[] = [
         ...newTabs.flatMap(({ tab, header }): SpreadsheetRequest[] => [
           { addSheet: { properties: { sheetId: sheetIdOf(tab), title: tab } } },
@@ -84,7 +91,9 @@ export function googleWorkbookWriter(sheets: SheetsValues): WorkbookWriter {
         ]),
         ...newColumns.flatMap(({ tab, column, index }): SpreadsheetRequest[] => {
           const sheetId = sheetIdOf(tab)
-          const lacking = index + 1 - grids!.get(tab)!.columnCount
+          const width = gridWidths.get(tab) ?? grids!.get(tab)!.columnCount
+          const lacking = index + 1 - width
+          gridWidths.set(tab, Math.max(width, index + 1))
           return [
             ...(lacking > 0 ? [{ appendDimension: { sheetId, dimension: 'COLUMNS', length: lacking } } as const] : []),
             { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: index }, rows: [{ values: [cellData(column)] }], fields: 'userEnteredValue' } },

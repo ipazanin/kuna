@@ -15,6 +15,7 @@ import { NO_CLIENT_INVOICING } from '../../src/features/workbook/domain/workbook
 import { recordIdOf } from '../../src/features/workbook/domain/recordId'
 import { INVOICE_RECORDS } from '../../src/features/workbook/domain/recordKind'
 import { ASSET_RECORDS, GRANT_RECORDS, PLAN_RECORDS } from '../../src/packs/hr-doo/domain/hrDooKinds'
+import { BUCKET_COLOUR } from '../../src/features/workbook/domain/categoryColour'
 
 // Steady Studio d.o.o., registered on 2 January 2025, with synthetic figures. It invoices its one
 // client on the last day of each month and is paid on the 20th of the next. Pay and payroll tax
@@ -22,7 +23,7 @@ import { ASSET_RECORDS, GRANT_RECORDS, PLAN_RECORDS } from '../../src/packs/hr-d
 // The ledger runs from 5 January 2025 to 10 October 2026.
 
 function category(slug: string, bucket: DefinedBucket, roles: readonly string[] = [], vat: VatTreatment = 'none'): Category {
-  return { slug, family: bucket, bucket, colour: '', roles, vat }
+  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat }
 }
 
 export const STEADY_CATEGORIES: readonly Category[] = [

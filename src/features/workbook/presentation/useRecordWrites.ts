@@ -18,7 +18,7 @@ export interface RecordWriteOptions {
   readonly follow?: { readonly label: string; readonly icon: string; readonly run: () => void }
   /** The toast's title when nothing was written. */
   readonly failedTitle?: string
-  /** Gives a storage without a place for a kind one, once the person agreed. */
+  /** Gives a storage without a place for a kind or a field one, once the person agreed. */
   readonly addMissingKinds?: boolean
 }
 

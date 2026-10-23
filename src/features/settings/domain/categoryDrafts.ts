@@ -1,5 +1,6 @@
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { categoryOfFields } from '../../workbook/domain/categoriesReading'
+import { swatchOf } from '../../workbook/domain/categoryColour'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { slugProblem } from '../../workbook/domain/slug'
 import { slugOf, storedFieldOf, textOf } from '../../workbook/domain/storedFields'
@@ -34,23 +35,29 @@ export function categoryDraftsOf(stored: readonly StoredRecord<unknown>[]): Cate
   })
 }
 
+/** The colour a draft takes from the picker. Bucket colour on a row stored with a colour outside the palette keeps that colour, since it draws in the bucket's colour too. */
+export function pickedColour(draft: CategoryDraft, picked: string, stored: readonly StoredRecord<unknown>[]): string {
+  const storedColour = draft.saved === null ? '' : textOf(stored[draft.saved]?.fields.colour)
+  return picked.trim() === '' && swatchOf(storedColour) === null ? storedColour : picked
+}
+
 /** The categories the drafts make, each over the fields its stored record holds. */
 export function categoriesOfDrafts(stored: readonly StoredRecord<unknown>[], drafts: readonly CategoryDraft[]): MadeDraft<CategoryRecord>[] {
   const fields = drafts.map((draft) => categoryFieldsOf(draft, draft.saved === null ? {} : (stored[draft.saved]?.fields ?? {})))
   return madeOfDrafts(drafts, fields, stored, categoryOfFields)
 }
 
-export type CategoryField = 'category' | 'family' | 'bucket' | 'vat'
+export type CategoryField = 'category' | 'family' | 'bucket' | 'roles' | 'vat'
 
 export type CategoryDraftErrors = ReadonlyMap<number, Partial<Record<CategoryField, string>>>
 
 /**
  * The rules of the Sheet's categories tab: every row names a category once, and fills category,
  * family and a bucket from the six. A new name keeps to the slug format. A category in use keeps
- * its name, or the rows that name it would lose their category. A VAT treatment, if given, is one
- * the app knows. Errors are keyed by the draft's position.
+ * its name, or the rows that name it would lose their category. Each role and a VAT treatment, if
+ * given, is one the app knows. Errors are keyed by the draft's position.
  */
-export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>): CategoryDraftErrors {
+export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>, knownRoles: readonly string[]): CategoryDraftErrors {
   const errors = new Map<number, Partial<Record<CategoryField, string>>>()
   const named = new Set<string>()
   drafts.forEach((draft, index) => {
@@ -73,6 +80,10 @@ export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames:
     }
     if (!(BUCKETS as readonly string[]).includes(draft.bucket.trim().toLowerCase())) {
       found.bucket = draft.bucket.trim() === '' ? 'Required' : 'Not one of the six buckets'
+    }
+    const unknownRoles = rolesOfText(draft.roles).filter((role) => !knownRoles.includes(role))
+    if (unknownRoles.length > 0) {
+      found.roles = `Not ${unknownRoles.length === 1 ? 'a role' : 'roles'} the app knows: ${unknownRoles.join(', ')}`
     }
     const vat = draft.vat.trim().toLowerCase()
     if (vat !== '' && !isVatTreatment(vat)) {
@@ -106,11 +117,7 @@ function categoryFieldsOf(draft: CategoryDraft, stored: StoredFields): StoredFie
     family: draft.family.trim().toLowerCase(),
     bucket: draft.bucket.trim().toLowerCase(),
     colour: draft.colour.trim(),
-    roles: draft.roles
-      .split(',')
-      .map((role) => role.trim().toLowerCase())
-      .filter((role) => role !== '')
-      .join(', '),
+    roles: rolesOfText(draft.roles).join(', '),
     vat: draft.vat.trim().toLowerCase(),
   }
   const fields: Record<string, StoredField> = { ...stored }
@@ -122,4 +129,12 @@ function categoryFieldsOf(draft: CategoryDraft, stored: StoredFields): StoredFie
     }
   }
   return fields
+}
+
+/** The roles a draft's comma-separated text names, in lower case. */
+export function rolesOfText(text: string): string[] {
+  return text
+    .split(',')
+    .map((role) => role.trim().toLowerCase())
+    .filter((role) => role !== '')
 }

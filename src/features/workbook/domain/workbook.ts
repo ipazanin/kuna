@@ -9,6 +9,7 @@ import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
 import type { BillingItem } from './billingPlan'
 import type { Bucket, DefinedBucket } from './bucket'
+import type { CategoryColour } from './categoryColour'
 import type { Dismissal } from './dismissals'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
@@ -22,7 +23,7 @@ export interface Category {
   readonly label?: string
   readonly family: string
   readonly bucket: DefinedBucket
-  readonly colour: string
+  readonly colour: CategoryColour
   /** What code may select the category for, such as `revenue` or `watched`. Lower case. */
   readonly roles: readonly string[]
   /** How a purchase in it splits into cost and VAT. */
