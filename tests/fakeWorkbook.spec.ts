@@ -10,15 +10,16 @@ import { latestBalances } from '../src/features/cash/domain/balances'
 import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfitAndLoss'
 import { ledgerWindowOf, newestBookingOf } from '../src/features/workbook/domain/workbook'
 import { fakeWorkbookSnapshot, fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
 import { categorise } from '../src/features/rules/domain/categorise'
 import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import { planAgainstActual } from '../src/packs/hr-doo/domain/forecast/planAgainstActual'
 import { ruleCoverage } from '../src/features/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
-const workbook = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
+const workbook = hrDooWorkbook(readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')).workbook)
 const window = ledgerWindowOf(workbook.transactions)
 
 describe('fake workbook', () => {
@@ -100,7 +101,7 @@ describe('fake workbook', () => {
 
   it('holds a billing plan that Northwind’s invoices bill in full up to October, and none for Lumen’s invoices', () => {
     const [lumen, northwind] = plannedAgainstInvoiced(workbook.billingPlan, workbook.invoices)
-    const excel = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel'))
+    const excel = hrDooWorkbook(readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')).workbook)
 
     expect(new Set(workbook.billingPlan.map((row) => row.item))).toEqual(
       new Set(['Part Time Fee', 'Monthly Fee', 'Bonus', 'Plane Tickets', 'Hotel', 'External Contractor', 'Subscription']),
@@ -117,7 +118,7 @@ describe('fake workbook', () => {
   })
 
   it('plans 2027 so the forecast switches the owner pay to board-only the day after the grant’s employment date, with a purchase and a dividend', () => {
-    const excel = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel'))
+    const excel = hrDooWorkbook(readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')).workbook)
     const asOf = newestBookingOf(excel.transactions) as CivilDate
     const forecast = forecastYear(excel, 2027, asOf)
 
@@ -131,11 +132,11 @@ describe('fake workbook', () => {
   })
 
   it('names a Zagreb resident in the company facts of its Excel variant, and leaves the Google one on the defaults', () => {
-    const excel = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel'))
+    const excel = hrDooWorkbook(readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')).workbook)
 
     expect(excel.problems).toEqual([])
-    expect(excel.settings.companyFacts).toMatchObject({ residenceCity: 'Zagreb', companyRegistered: '2025-05-12' })
-    expect(workbook.settings.companyFacts.residenceCity).toBe('')
+    expect(excel.companyFacts).toMatchObject({ residenceCity: 'Zagreb', companyRegistered: '2025-05-12' })
+    expect(workbook.companyFacts.residenceCity).toBe('')
   })
 
   it('uses no real IBAN, only the fake ones', () => {

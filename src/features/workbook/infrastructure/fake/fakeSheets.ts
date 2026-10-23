@@ -178,16 +178,14 @@ export const fakeGoogleSheet: GoogleSheet = { id: FAKE_SPREADSHEET_ID, name: FAK
 
 let session: FakeSheets | null = null
 let leftOut: readonly WorkbookTab[] = []
-let idOnEveryRow = true
 
-/** The tabs the fake build's Google Sheet lacks for this page, and whether every row carries its id, as its `?fake=` variant says. Set before the first sync or write. */
-export function shapeFakeSheet(tabs: readonly WorkbookTab[], everyRowWithId: boolean): void {
+/** The tabs the fake build's Google Sheet lacks for this page, as its `?fake=` variant says. Set before the first sync or write. */
+export function shapeFakeSheet(tabs: readonly WorkbookTab[]): void {
   leftOut = tabs
-  idOnEveryRow = everyRowWithId
 }
 
 /** The fake build's Google Sheet, the same one for every sync and write until the page reloads. */
 export function fakeSheetsSession(): FakeSheets {
-  session ??= createFakeSheets(Object.fromEntries(Object.entries(fakeWorkbookValues('google', idOnEveryRow)).filter(([tab]) => ![...FAKE_SHEET_LACKS, ...leftOut].includes(tab as WorkbookTab))))
+  session ??= createFakeSheets(Object.fromEntries(Object.entries(fakeWorkbookValues('google')).filter(([tab]) => ![...FAKE_SHEET_LACKS, ...leftOut].includes(tab as WorkbookTab))))
   return session
 }

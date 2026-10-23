@@ -7,12 +7,12 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useMediaQuery } from '../../../shared/layout/viewport'
 import AppCard from '../../../shared/ui/AppCard.vue'
-import { downloadTemplate, emptyLocalWorkbook } from '../../excel/application/workbookFiles'
+import { downloadTemplate, emptyLocalWorkbook } from '../../workbook/presentation/workbookFiles'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { WorkbookSource } from '../../workbook/domain/workbook'
 import { REDIRECT_SIGN_IN_QUERY } from '../../../shared/google/googleRedirect'
-import { XLSX_MIME_TYPE } from '../../workbook/infrastructure/workbookFile'
+import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 
 /** The three places a workbook can come from. Each action changes the workbook on screen. */
 defineProps<{
@@ -101,7 +101,7 @@ async function getTemplate(): Promise<void> {
         </p>
         <UFileUpload
           v-model="pickedFile"
-          :accept="`.xlsx,${XLSX_MIME_TYPE}`"
+          :accept="WORKBOOK_FILE_TYPES"
           :preview="false"
           reset
           icon="i-lucide-file-up"

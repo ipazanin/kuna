@@ -32,6 +32,7 @@ import LoanBenefitCard from './LoanBenefitCard.vue'
 import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
 import { LENT_SERIES, OUTSTANDING_SERIES, REPAID_SERIES, loanTimelineChart } from './packCharts'
+import { hrDooWorkbook } from '../domain/hrDooPart'
 
 /**
  * Who owes whom between the owner and the company, over the whole ledger whatever the filters, since
@@ -61,7 +62,8 @@ function partOfPayment(whole: Transaction, note: string): string {
 }
 
 const owed = computed(() => {
-  const { workbook, window } = props.ledger
+  const { window } = props.ledger
+  const workbook = hrDooWorkbook(props.ledger.workbook)
   const { categories, transactions } = workbook
   const tokens = chartTokens()
   const loans = ownerLoans(transactions, categories)

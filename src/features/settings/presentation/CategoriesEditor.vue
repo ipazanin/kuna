@@ -5,46 +5,37 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { BUCKETS } from '../../workbook/domain/bucket'
-import type { TabRowsChange } from '../../workbook/domain/rowChanges'
 import { listInWords } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { VAT_TREATMENTS } from '../../workbook/domain/vatTreatment'
 import { displayName } from '../../workbook/domain/displayName'
-import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { CATEGORY_ROWS } from '../application/workbookTabRows'
-import { categoryCellsOf, categoryDraftErrors, keepsItsName } from '../domain/categoryDrafts'
+import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
+import type { RecordsRead } from '../../workbook/domain/recordsRead'
+import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName } from '../domain/categoryDrafts'
 import type { CategoryDraft } from '../domain/categoryDrafts'
-import { rowsChangeOf } from '../domain/tabRowDrafts'
+import { storedOf } from '../../workbook/domain/recordsRead'
 
 const props = defineProps<{
-  /** The categories tab as stored, broken rows included, so they can be fixed here. */
-  rows: readonly SheetRow[]
+  /** The categories as stored, refused ones included, so they can be fixed here. */
+  records: RecordsRead<CategoryRecord>
   /** What names each category outside the tab. A category in use keeps its name and its row. */
   uses: SlugUses
   saving: boolean
 }>()
 
 const emit = defineEmits<{
-  save: [change: TabRowsChange]
+  save: [made: readonly { readonly saved: number | null; readonly record: CategoryRecord }[]]
 }>()
 
-function draftsOf(rows: readonly SheetRow[]): CategoryDraft[] {
-  return rows.map((row, saved) => {
-    const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
-    return { saved, savedName: text('category'), category: text('category'), label: text('label'), family: text('family'), bucket: text('bucket').toLowerCase(), colour: text('colour'), roles: text('roles'), vat: text('vat').toLowerCase() }
-  })
-}
 
-const drafts = ref<CategoryDraft[]>(draftsOf(props.rows))
-watch(
-  () => props.rows,
-  (rows) => {
-    drafts.value = draftsOf(rows)
-  },
-)
+const stored = computed(() => storedOf(props.records))
+const drafts = ref<CategoryDraft[]>(categoryDraftsOf(stored.value))
+watch(stored, (records) => {
+  drafts.value = categoryDraftsOf(records)
+})
 
 const usedNames = computed(() => new Set(props.uses.keys()))
-const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(draftsOf(props.rows)))
+const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(categoryDraftsOf(stored.value)))
 const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value))
 
 const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: bucket }))
@@ -71,19 +62,10 @@ function remove(index: number): void {
 }
 
 function save(): void {
-  const savedCells = new Map(props.rows.map((row, saved) => [saved, row.cells]))
-  const opened = draftsOf(props.rows)
-  const openedCells = categoryCellsOf(opened, savedCells)
-  const draftedCells = categoryCellsOf(drafts.value, savedCells)
-  emit(
-    'save',
-    rowsChangeOf(
-      props.rows,
-      CATEGORY_ROWS.columns,
-      drafts.value.map((draft, index) => ({ saved: draft.saved, cells: draftedCells[index]! })),
-      new Map(opened.map((_, saved) => [saved, openedCells[saved]!])),
-    ),
-  )
+  const made = categoriesOfDrafts(stored.value, drafts.value)
+  const records = made.flatMap((draft) => ('record' in draft ? [draft] : []))
+  // A draft its kind refuses is shown with its error, so a save never leaves it out.
+  if (records.length === made.length) emit('save', records)
 }
 </script>
 
@@ -197,7 +179,7 @@ function save(): void {
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton label="Add category" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-category" @click="addCategory" />
     <span class="flex-1" />
-    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = draftsOf(rows)" />
+    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = categoryDraftsOf(stored)" />
     <UButton label="Save categories" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" data-testid="save-categories" @click="save" />
   </div>
 </template>

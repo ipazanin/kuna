@@ -1,18 +1,20 @@
-import { DEFAULT_SETTINGS } from '../../src/features/settings/domain/settings'
-import type { Asset, AssetGroup } from '../../src/features/workbook/domain/assets'
+import type { Asset, AssetGroup } from '../../src/packs/hr-doo/domain/assets/assets'
 import type { DefinedBucket } from '../../src/features/workbook/domain/bucket'
-import type { Grant } from '../../src/features/workbook/domain/grants'
-import type { PlanLine } from '../../src/features/workbook/domain/plan'
+import type { Grant } from '../../src/packs/hr-doo/domain/grants/grants'
+import type { PlanLine } from '../../src/packs/hr-doo/domain/forecast/plan'
 import type { VatTreatment } from '../../src/features/workbook/domain/vatTreatment'
-import type { Category, Invoice, Workbook } from '../../src/features/workbook/domain/workbook'
-import type { YearEndLine } from '../../src/features/workbook/domain/yearEnd'
+import type { Category, Invoice } from '../../src/features/workbook/domain/workbook'
+import { COMPANY_FACT_SETTINGS } from '../../src/packs/hr-doo/domain/companyFacts'
+import type { HrDooWorkbook } from '../../src/packs/hr-doo/domain/hrDooPart'
+import type { YearEndLine } from '../../src/packs/hr-doo/domain/yearEnd/yearEnd'
 import { exampleStudio, yearEndLine } from './exampleStudio'
 import { withPackBuckets } from './hrDooCategories'
 import { civil, euros, ledger } from './ledger'
 import type { RowSpec } from './ledger'
 import { NO_CLIENT_INVOICING } from '../../src/features/workbook/domain/workbook'
 import { recordIdOf } from '../../src/features/workbook/domain/recordId'
-import { ASSET_RECORDS, GRANT_RECORDS, INVOICE_RECORDS, PLAN_RECORDS } from '../../src/features/workbook/domain/recordKind'
+import { INVOICE_RECORDS } from '../../src/features/workbook/domain/recordKind'
+import { ASSET_RECORDS, GRANT_RECORDS, PLAN_RECORDS } from '../../src/packs/hr-doo/domain/hrDooKinds'
 
 // Steady Studio d.o.o., registered on 2 January 2025, with synthetic figures. It invoices its one
 // client on the last day of each month and is paid on the 20th of the next. Pay and payroll tax
@@ -151,7 +153,7 @@ export function planOwnerPay(year: number, scenario: string, from: string | null
   return { year, month: null, note: '', id: recordIdOf(PLAN_RECORDS, `row-${row}`), kind: 'owner-pay-scenario', scenario, from: from === null ? null : civil(from) }
 }
 
-export function steadyStudio(changes: Partial<Workbook> = {}): Workbook {
+export function steadyStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbook {
   const categories = changes.categories ?? STEADY_CATEGORIES
   return exampleStudio({
     title: 'Steady Studio d.o.o.',
@@ -163,7 +165,7 @@ export function steadyStudio(changes: Partial<Workbook> = {}): Workbook {
     assets: [STEADY_LAPTOP],
     grants: [STEADY_GRANT],
     yearEndLines: STEADY_YEAR_END_2025,
-    settings: { ...DEFAULT_SETTINGS, companyFacts: { ...DEFAULT_SETTINGS.companyFacts, companyRegistered: civil('2025-01-02') } },
+    companyFacts: { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: civil('2025-01-02') },
     ...changes,
   })
 }

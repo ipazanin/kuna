@@ -1,13 +1,17 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { ACCOUNT_ROWS, ASSET_ROWS, CATEGORY_ROWS, GRANT_ROWS, YEAR_END_ROWS } from '../src/features/settings/application/workbookTabRows'
-import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
-import { createWorkbookStore } from '../src/features/workbook/application/workbookStore'
-import type { WorkbookStorePorts } from '../src/features/workbook/application/workbookStore'
+import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/features/settings/application/namedRecordWrites'
+import { ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
+import { createWorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookChoice } from '../src/features/workbook/application/workbookPorts'
+import { spreadsheetStorePorts } from '../src/features/workbook/application/workbookStore'
+import type { SpreadsheetStorePorts } from '../src/features/workbook/application/workbookStore'
 import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
-import type { WorkbookChoice } from '../src/features/workbook/infrastructure/workbookChoice'
+import { addRows, editRow } from './fixtures/recordWrites'
 import type { WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
 const used = new Set<string>()
 
@@ -42,14 +46,19 @@ function snapshotOf(id: string, syncedAt: string, amounts: number[], title = 'Bo
   }
 }
 
+/** A store over the spreadsheet adapters and these ports. */
+function storeOf(ports: SpreadsheetStorePorts): WorkbookStore<WorkbookSnapshot> {
+  return createWorkbookStore(spreadsheetStorePorts(ports))
+}
+
 interface Harness {
-  readonly ports: WorkbookStorePorts
+  readonly ports: SpreadsheetStorePorts
   readonly chosen: () => WorkbookChoice | null
   /** Moves the clock the store reads. */
   readonly setNow: (iso: string) => void
 }
 
-function harness(initial: WorkbookChoice | null, fetchFromGoogle: WorkbookStorePorts['fetchFromGoogle'] = async () => null): Harness {
+function harness(initial: WorkbookChoice | null, fetchFromGoogle: SpreadsheetStorePorts['fetchFromGoogle'] = async () => null): Harness {
   let remembered = initial
   let now = '2026-10-16T09:00:00.000Z'
   let nextLocal = 0
@@ -113,7 +122,7 @@ const BOOKS: WorkbookChoice = { source: 'google', id: 'books', name: 'Books' }
 describe('workbook store with a Google Sheet', () => {
   it('shows the cached copy on open, with the time it was synced, before any sync', async () => {
     await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [7200, -150]))
-    const store = createWorkbookStore(
+    const store = storeOf(
       harness(BOOKS, async () => {
         throw new Error('open must not sync')
       }).ports,
@@ -127,7 +136,7 @@ describe('workbook store with a Google Sheet', () => {
   })
 
   it('opens empty when this browser has never chosen a workbook', async () => {
-    const store = createWorkbookStore(harness(null).ports)
+    const store = storeOf(harness(null).ports)
 
     await store.open()
 
@@ -137,7 +146,7 @@ describe('workbook store with a Google Sheet', () => {
   it('opens once however many screens ask', async () => {
     let reads = 0
     const { ports } = harness(null)
-    const store = createWorkbookStore({
+    const store = storeOf({
       ...ports,
       loadChoice: () => {
         reads += 1
@@ -153,7 +162,7 @@ describe('workbook store with a Google Sheet', () => {
   it('replaces the cache and the screen wholesale on sync, keeping the export history', async () => {
     const cached = snapshotOf('books', '2026-10-15T06:00:00.000Z', [1, 2, 3])
     await seedCache({ ...cached, meta: { ...cached.meta, lastExportedAt: '2026-10-10T12:00:00.000Z' } })
-    const store = createWorkbookStore(harness(BOOKS, async () => snapshotOf('books', '2026-10-16T06:00:00.000Z', [9])).ports)
+    const store = storeOf(harness(BOOKS, async () => snapshotOf('books', '2026-10-16T06:00:00.000Z', [9])).ports)
     await store.open()
 
     await store.sync()
@@ -166,7 +175,7 @@ describe('workbook store with a Google Sheet', () => {
   })
 
   it('keeps what is on screen when the Picker is cancelled on the first run', async () => {
-    const store = createWorkbookStore(harness(null).ports)
+    const store = storeOf(harness(null).ports)
     await store.open()
 
     await store.sync()
@@ -176,7 +185,7 @@ describe('workbook store with a Google Sheet', () => {
 
   it('reports a failed sync and keeps the cached copy on screen', async () => {
     await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [5]))
-    const store = createWorkbookStore(
+    const store = storeOf(
       harness(BOOKS, async () => {
         throw new Error('403 from /v4/spreadsheets: The caller does not have permission')
       }).ports,
@@ -193,7 +202,7 @@ describe('workbook store with a Google Sheet', () => {
   it('keeps the chosen Sheet when choosing another one is cancelled', async () => {
     await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [5]))
     const { ports, chosen } = harness(BOOKS)
-    const store = createWorkbookStore(ports)
+    const store = storeOf(ports)
     await store.open()
 
     await store.chooseGoogleSheet()
@@ -205,7 +214,7 @@ describe('workbook store with a Google Sheet', () => {
 
   it('shows the newly chosen Sheet once the Picker returns one', async () => {
     const pickedFor: (string | null)[] = []
-    const store = createWorkbookStore(
+    const store = storeOf(
       harness(BOOKS, async (sheet) => {
         pickedFor.push(sheet?.id ?? null)
         return snapshotOf('new', '2026-10-16T06:00:00.000Z', [1, 2], 'New books')
@@ -224,14 +233,14 @@ describe('workbook store with a Google Sheet', () => {
 describe('workbook store in Excel mode', () => {
   it('keeps an imported workbook under its own id and reads it back on the next start', async () => {
     const first = harness(null)
-    const store = createWorkbookStore(first.ports)
+    const store = storeOf(first.ports)
     await store.open()
 
     await store.replaceLocalWorkbook(tabsOf([10, 20]), 'Studio')
 
     expect(store.state.choice).toEqual({ source: 'excel', id: 'local-1', name: 'Studio' })
     expect(store.state.workbook).toMatchObject({ source: 'excel', id: 'local-1', title: 'Studio' })
-    const reopened = createWorkbookStore(harness(first.chosen()).ports)
+    const reopened = storeOf(harness(first.chosen()).ports)
     await reopened.open()
     expect(reopened.state.workbook?.transactions).toHaveLength(2)
     expect(reopened.state.snapshot?.meta).toMatchObject({ source: 'excel', lastExportedAt: null, unexportedSince: null, missingTabs: [] })
@@ -241,7 +250,7 @@ describe('workbook store in Excel mode', () => {
     await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [7200]))
     const { ports } = harness(BOOKS)
     let forgotten = 0
-    const store = createWorkbookStore({ ...ports, hasLiveAccessToken: () => true, forgetGoogleSignIn: () => (forgotten += 1) })
+    const store = storeOf({ ...ports, hasLiveAccessToken: () => true, forgetGoogleSignIn: () => (forgotten += 1) })
     await store.open()
     expect(store.canSyncSilently()).toBe(true)
 
@@ -253,7 +262,7 @@ describe('workbook store in Excel mode', () => {
 
   it('replaces the workbook it keeps rather than adding a second one', async () => {
     const { ports } = harness(null)
-    const store = createWorkbookStore(ports)
+    const store = storeOf(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10, 20]), 'Studio')
 
@@ -265,15 +274,13 @@ describe('workbook store in Excel mode', () => {
 
   it('saves row changes, marks them unexported from the first one, and clears that on export', async () => {
     const { ports, setNow } = harness(null)
-    const store = createWorkbookStore(ports)
+    const store = storeOf(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
-    const revenue = rowCellsOf(store.state.snapshot!.categories[0]!, CATEGORY_ROWS)
-
     setNow('2026-10-17T09:00:00.000Z')
-    await store.changeRows(CATEGORY_ROWS, { added: [], changed: [{ before: revenue, after: { ...revenue, label: 'Sales' } }], removed: [] })
+    await editRow(store, CATEGORY_WRITES, 2, { label: 'Sales' })
     setNow('2026-10-18T09:00:00.000Z')
-    await store.changeRows(ACCOUNT_ROWS, { added: [{ account: 'savings', iban: '' }], changed: [], removed: [] })
+    await addRows(store, ACCOUNT_WRITES, { account: 'savings', iban: '' })
 
     expect(store.state.workbook?.categories[0]?.label).toBe('Sales')
     expect(store.state.workbook?.accounts.map((account) => account.slug)).toEqual(['main', 'savings'])
@@ -287,17 +294,17 @@ describe('workbook store in Excel mode', () => {
 
   it('adds grants, assets and year-end lines in Excel mode, and keeps them in this browser', async () => {
     const { ports } = harness(null)
-    const store = createWorkbookStore(ports)
+    const store = storeOf(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
 
-    await store.changeRows(GRANT_ROWS, { added: [{ grant: 'startup', received: 45809, amount: 5000, fixed_part: 2000, variable_part: 3000 }], changed: [], removed: [] })
-    await store.changeRows(ASSET_ROWS, { added: [{ asset: 'Laptop', bought: 45809, cost_net: 1519.2, group: 'computers', funded_by: 'startup' }], changed: [], removed: [] })
-    await store.changeRows(YEAR_END_ROWS, { added: [{ year: 2025, statement: 'pl', line: 'sales', amount: 46800 }], changed: [], removed: [] })
+    await addRows(store, GRANT_WRITES, { grant: 'startup', received: 45809, amount: 5000, fixed_part: 2000, variable_part: 3000 })
+    await addRows(store, ASSET_WRITES, { asset: 'Laptop', bought: 45809, cost_net: 1519.2, group: 'computers', funded_by: 'startup' })
+    await addRows(store, YEAR_END_WRITES, { year: 2025, statement: 'pl', line: 'sales', amount: 46800 })
 
-    expect(store.state.workbook?.assets.map((asset) => asset.fundedBy)).toEqual(['startup'])
-    expect(store.state.workbook?.grants).toHaveLength(1)
-    expect(store.state.workbook?.yearEndLines).toHaveLength(1)
+    expect(hrDooWorkbook(store.state.workbook!).assets.map((asset) => asset.fundedBy)).toEqual(['startup'])
+    expect(hrDooWorkbook(store.state.workbook!).grants).toHaveLength(1)
+    expect(hrDooWorkbook(store.state.workbook!).yearEndLines).toHaveLength(1)
     expect(store.state.workbook?.problems).toEqual([])
     expect((await storedCopy('local-1'))?.assets).toHaveLength(1)
   })
@@ -308,7 +315,7 @@ describe('workbook store in Excel mode', () => {
       fetched = true
       return null
     })
-    const store = createWorkbookStore(ports)
+    const store = storeOf(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
 
@@ -320,7 +327,7 @@ describe('workbook store in Excel mode', () => {
   it('deletes the local workbook once a Google Sheet replaces it, and only then', async () => {
     let answer: WorkbookSnapshot | null = null
     const { ports } = harness(null, async () => answer)
-    const store = createWorkbookStore(ports)
+    const store = storeOf(ports)
     await store.open()
     await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
 

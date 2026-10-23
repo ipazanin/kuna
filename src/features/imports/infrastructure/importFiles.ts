@@ -1,10 +1,6 @@
-import { readFirstSheet } from '../../workbook/infrastructure/workbookFile'
+import { readFirstSheet } from '../../../shared/files/sheetJs'
+import type { LoadedImportFile } from '../application/importStatements'
 import type { CellGrid } from '../domain/tabularStatement'
-
-/** A file dropped on Import, as far as reading it goes: a camt document, or a spreadsheet's first sheet as cells. */
-export type LoadedImportFile =
-  | { readonly kind: 'camt'; readonly fileName: string; readonly document: Document }
-  | { readonly kind: 'table'; readonly fileName: string; readonly fileHash: string; readonly grid: CellGrid }
 
 /**
  * Reads the bytes of a statement file. XML is parsed as a camt document. Anything else goes to

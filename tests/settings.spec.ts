@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_SETTINGS,
   SETTING_DEFINITIONS,
+  changedPackSettings,
   parseSettings,
+  readPackSettings,
   settingsErrors,
   settingsTabEntries,
 } from '../src/features/settings/domain/settings'
@@ -19,6 +21,7 @@ import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
 import { euros, ledger } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { SETTING_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { COMPANY_FACT_SETTINGS, companyFactsErrors } from '../src/packs/hr-doo/domain/companyFacts'
 
 function rows(...entries: [string, SettingRow['value']][]): SettingRow[] {
   return entries.map(([key, value]) => ({ key, value }))
@@ -115,7 +118,7 @@ describe('parseSettings', () => {
 
   it('reads back what it writes', () => {
     const custom = { ...DEFAULT_SETTINGS, companyName: 'Studio', currency: 'CHF', ownerPayModule: false }
-    const written = settingsTabEntries(custom)
+    const written = settingsTabEntries(custom, null)
 
     expect(parseSettings(written)).toEqual({ settings: custom, problems: [] })
     expect(written.map((entry) => entry.key)).toEqual(SETTING_DEFINITIONS.map((definition) => definition.key))
@@ -128,7 +131,7 @@ describe('card_settlement_ibans', () => {
 
     expect(problems).toEqual([])
     expect(settings.cardSettlementIbans).toEqual(['XX66FAKE0000000099', 'XX93FAKE0000000098'])
-    expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
   })
 
   it('reports an entry that is not an IBAN, or whose check digits do not hold, and keeps the default', () => {
@@ -141,13 +144,13 @@ describe('card_settlement_ibans', () => {
 
   it('is empty by default and listed in the template', () => {
     expect(DEFAULT_SETTINGS.cardSettlementIbans).toEqual([])
-    expect(settingsTabEntries(DEFAULT_SETTINGS)).toContainEqual({ key: 'card_settlement_ibans', value: '' })
+    expect(settingsTabEntries(DEFAULT_SETTINGS, null)).toContainEqual({ key: 'card_settlement_ibans', value: '' })
   })
 })
 
 describe('company facts', () => {
   it('default to no city, no birth year, the second pillar, no dependants, the accrual return, the invoice principle and owner loans at 0%', () => {
-    expect(DEFAULT_SETTINGS.companyFacts).toEqual({
+    expect(COMPANY_FACT_SETTINGS.defaults).toEqual({
       residenceCity: '',
       birthYear: null,
       pensionPillarTwo: true,
@@ -161,7 +164,7 @@ describe('company facts', () => {
   })
 
   it('read every key, a registration day from a date cell or from text, and write them back the same way', () => {
-    const { settings, problems } = parseSettings(
+    const { values, problems } = readPackSettings(
       rows(
         ['hr_residence_city', ' Zagreb '],
         ['hr_birth_year', '1990'],
@@ -173,10 +176,11 @@ describe('company facts', () => {
         ['hr_depreciation_doubled', 'TRUE'],
         ['hr_owner_loan_interest', 0.025],
       ),
+      COMPANY_FACT_SETTINGS,
     )
 
     expect(problems).toEqual([])
-    expect(settings.companyFacts).toEqual({
+    expect(values).toEqual({
       residenceCity: 'Zagreb',
       birthYear: 1990,
       pensionPillarTwo: false,
@@ -187,12 +191,29 @@ describe('company facts', () => {
       depreciationDoubled: true,
       ownerLoanInterest: 250,
     })
-    expect(parseSettings(rows(['hr_company_registered', '2025-05-12'])).settings.companyFacts.companyRegistered).toBe('2025-05-12')
-    expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+    expect(readPackSettings(rows(['hr_company_registered', '2025-05-12']), COMPANY_FACT_SETTINGS).values.companyRegistered).toBe('2025-05-12')
+    const written = settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values })
+    expect(readPackSettings(rows(...written.map(({ key, value }) => [key, value] as [string, SettingRow['value']])), COMPANY_FACT_SETTINGS).values).toEqual(values)
+  })
+
+  it('are left to the pack by the core parser, which neither reads nor reports them', () => {
+    const packKeys = new Set(COMPANY_FACT_SETTINGS.definitions.map((definition) => definition.key))
+
+    expect(parseSettings(rows(['hr_residence_city', 'Zagreb'], ['hr_birth_year', 'unknown']), packKeys)).toEqual({ settings: DEFAULT_SETTINGS, problems: [] })
+    expect(parseSettings(rows(['hr_residence_city', 'Zagreb'])).problems).toEqual([settingProblem('hr_residence_city', 'not a setting this app knows, so it is kept but not used')])
+  })
+
+  it('change only the keys whose value differs, in template order', () => {
+    const before = COMPANY_FACT_SETTINGS.defaults
+
+    expect(changedPackSettings(COMPANY_FACT_SETTINGS, before, { ...before, ownerLoanInterest: 200, residenceCity: 'Zagreb' })).toEqual([
+      { key: 'hr_residence_city', value: 'Zagreb' },
+      { key: 'hr_owner_loan_interest', value: 0.02 },
+    ])
   })
 
   it('fall back to the default for a value that does not hold, and say which key', () => {
-    const { settings, problems } = parseSettings(
+    const { values, problems } = readPackSettings(
       rows(
         ['hr_birth_year', 'nineteen ninety'],
         ['hr_dependants', -1],
@@ -201,9 +222,10 @@ describe('company facts', () => {
         ['hr_vat_principle', 'monthly'],
         ['hr_pension_pillar_2', 'perhaps'],
       ),
+      COMPANY_FACT_SETTINGS,
     )
 
-    expect(settings.companyFacts).toEqual(DEFAULT_SETTINGS.companyFacts)
+    expect(values).toEqual(COMPANY_FACT_SETTINGS.defaults)
     expect(problems).toEqual([
       settingProblem('hr_birth_year', 'use a year of birth such as 1990, so the default is used'),
       settingProblem('hr_dependants', 'use a whole number from 0 to 20, so the default is used'),
@@ -215,25 +237,25 @@ describe('company facts', () => {
   })
 
   it('read the owner loan interest as a percentage cell or as a percent typed as text', () => {
-    const rate = (cell: SettingRow['value']) => parseSettings(rows(['hr_owner_loan_interest', cell]))
-    expect(rate(0.02).settings.companyFacts.ownerLoanInterest).toBe(200)
-    expect(rate('2%').settings.companyFacts.ownerLoanInterest).toBe(200)
-    expect(rate('2,5 %').settings.companyFacts.ownerLoanInterest).toBe(250)
-    expect(rate('0.0265').settings.companyFacts.ownerLoanInterest).toBe(265)
-    expect(rate(0).settings.companyFacts.ownerLoanInterest).toBe(0)
+    const rate = (cell: SettingRow['value']) => readPackSettings(rows(['hr_owner_loan_interest', cell]), COMPANY_FACT_SETTINGS)
+    expect(rate(0.02).values.ownerLoanInterest).toBe(200)
+    expect(rate('2%').values.ownerLoanInterest).toBe(200)
+    expect(rate('2,5 %').values.ownerLoanInterest).toBe(250)
+    expect(rate('0.0265').values.ownerLoanInterest).toBe(265)
+    expect(rate(0).values.ownerLoanInterest).toBe(0)
     expect(rate(2).problems).toEqual([
       settingProblem('hr_owner_loan_interest', '2 reads as 200%. Enter the rate as a percentage cell, such as 2%, so the default is used'),
     ])
     expect(rate('two').problems[0]?.reason).toBe('"two" is not a rate such as 2%, so the default is used')
     expect(rate(-0.01).problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
     expect(rate('2.345%').problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
-    expect(settingsErrors({ ...DEFAULT_SETTINGS, companyFacts: { ...DEFAULT_SETTINGS.companyFacts, ownerLoanInterest: Number.NaN } }).ownerLoanInterest).toBe(
+    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: Number.NaN }).ownerLoanInterest).toBe(
       'use a rate from 0% to 100% with at most two decimals, such as 2%',
     )
   })
 
   it('are listed in the template with their defaults, a blank birth year and registration day among them', () => {
-    expect(settingsTabEntries(DEFAULT_SETTINGS).filter((entry) => entry.key.startsWith('hr_'))).toEqual([
+    expect(settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values: COMPANY_FACT_SETTINGS.defaults }).filter((entry) => entry.key.startsWith('hr_'))).toEqual([
       { key: 'hr_residence_city', value: '' },
       { key: 'hr_birth_year', value: '' },
       { key: 'hr_pension_pillar_2', value: true },
@@ -258,7 +280,7 @@ describe('billing terms', () => {
       bonusItem: '',
       client: '',
     })
-    expect(settingsTabEntries(DEFAULT_SETTINGS).filter((entry) => entry.key.startsWith('billing_'))).toEqual([
+    expect(settingsTabEntries(DEFAULT_SETTINGS, null).filter((entry) => entry.key.startsWith('billing_'))).toEqual([
       { key: 'billing_monthly_amount', value: '' },
       { key: 'billing_monthly_item', value: '' },
       { key: 'billing_subscription_amount', value: '' },
@@ -292,7 +314,7 @@ describe('billing terms', () => {
       bonusItem: 'Bonus',
       client: 'north',
     })
-    expect(parseSettings(rows(...settingsTabEntries(settings).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
   })
 
   it('fall back to blank for an amount that is not above zero, and say which key', () => {
@@ -335,10 +357,7 @@ describe('settingsErrors', () => {
   })
 
   it('names the company facts the editor must not save', () => {
-    const errors = settingsErrors({
-      ...DEFAULT_SETTINGS,
-      companyFacts: { ...DEFAULT_SETTINGS.companyFacts, residenceCity: 'x'.repeat(61), birthYear: Number.NaN, dependants: 1.5 },
-    })
+    const errors = companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, residenceCity: 'x'.repeat(61), birthYear: Number.NaN, dependants: 1.5 })
 
     expect(errors).toEqual({
       residenceCity: 'a city name can be at most 60 characters',

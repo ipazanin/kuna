@@ -1,6 +1,7 @@
 import Dexie from 'dexie'
 import type { EntityTable } from 'dexie'
 
+import type { WorkbookCache } from '../application/workbookPorts'
 import { WORKBOOK_TABS } from './workbookSnapshot'
 import type { SheetRow, WorkbookMeta, WorkbookSnapshot, WorkbookTabs } from './workbookSnapshot'
 
@@ -25,18 +26,8 @@ function openDatabase(workbookId: string): WorkbookDatabase {
   return database
 }
 
-/**
- * One workbook in this browser: a copy of a Google Sheet, or in Excel mode the workbook itself.
- * Every write replaces it whole, since the workbook is small.
- */
-export interface WorkbookCache {
-  replace(snapshot: WorkbookSnapshot): Promise<void>
-  read(): Promise<WorkbookSnapshot | null>
-  delete(): Promise<void>
-  close(): void
-}
-
-export function openWorkbookCache(workbookId: string): WorkbookCache {
+/** One workbook in this browser, as Dexie keeps it: a table per tab, keyed by its sheet row. */
+export function openWorkbookCache(workbookId: string): WorkbookCache<WorkbookSnapshot> {
   const database = openDatabase(workbookId)
   const tabTables = WORKBOOK_TABS.map((tab) => database.table<SheetRow, number>(tab))
   const tables = [database.meta, ...tabTables]

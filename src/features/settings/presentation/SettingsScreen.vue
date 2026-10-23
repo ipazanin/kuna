@@ -10,12 +10,18 @@ import ProblemList from '../../excel/presentation/ProblemList.vue'
 import { shownPack } from '../../packs/packContribution'
 import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { RowTab } from '../../workbook/infrastructure/workbookWriter'
-import type { TabRowsChange } from '../../workbook/domain/rowChanges'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
-import { ACCOUNT_ROWS, CATEGORY_ROWS, accountUses, categoryUses } from '../application/workbookTabRows'
-import type { RowsOf } from '../application/workbookTabRows'
+import type { AccountRecord } from '../../workbook/domain/accountsReading'
+import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
+import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../../workbook/domain/recordKind'
+import { NO_RECORDS } from '../../workbook/domain/recordsRead'
+import type { RecordsRead } from '../../workbook/domain/recordsRead'
+import MissingTabHint from '../../workbook/presentation/MissingTabHint.vue'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { writeDrafts } from '../application/draftWrites'
+import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryUses } from '../application/namedRecordWrites'
+import type { RecordsOfKind } from '../application/namedRecordWrites'
+import { storedOf } from '../../workbook/domain/recordsRead'
 import AccountsEditor from './AccountsEditor.vue'
 import CategoriesEditor from './CategoriesEditor.vue'
 import DevicePanel from './DevicePanel.vue'
@@ -24,7 +30,7 @@ import { useSettingsSave } from './useSettingsSave'
 
 const { state } = useWorkbook()
 const route = useRoute()
-const { settings, saving: savingSettings, save: saveSettings } = useSettingsSave()
+const { settings, facts: packFacts, saving: savingSettings, save: saveSettings } = useSettingsSave()
 const pack = computed(() => shownPack(settings.value))
 
 /** The workbook's tabs need a workbook on screen. This device's tab is there before one is. */
@@ -45,42 +51,32 @@ const linkedTab = ref(typeof route.query.tab === 'string' ? route.query.tab : nu
 
 const source = computed(() => state.choice?.source ?? state.workbook?.source ?? null)
 
-const rowsOfSnapshot: RowsOf = (tab) => state.snapshot?.[tab] ?? []
-const categoriesInUse = computed(() => categoryUses(rowsOfSnapshot))
-const accountsInUse = computed(() => accountUses(rowsOfSnapshot))
+const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, kind))
+const categoriesInUse = computed(() => categoryUses(recordsOnScreen))
+const accountsInUse = computed(() => accountUses(recordsOnScreen))
+const categories = computed(() => state.records?.categories ?? NO_RECORDS)
+const accounts = computed(() => state.records?.accounts ?? NO_RECORDS)
 /** The reader's problems and the splits the figures leave out, such as one of a row an asset claims. */
 const problems = computed(() => (state.workbook === null ? [] : presentedWorkbook(state.workbook).problems))
 
-const rowWrites = {
-  categories: useRowWrites(CATEGORY_ROWS),
-  accounts: useRowWrites(ACCOUNT_ROWS),
-}
-
-type RowSection = keyof typeof rowWrites
-
-const TITLES: Readonly<Record<RowSection, string>> = {
-  categories: 'Categories',
-  accounts: 'Accounts',
-}
-
-function sheetLacks(tab: RowTab): boolean {
-  return source.value === 'google' && (state.snapshot?.meta.missingTabs.includes(tab) ?? false)
-}
+const writes = useRecordWrites()
 
 function rowsInWords(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`
 }
 
-function columnsOf(tab: RowTab): string {
-  return TEMPLATE_COLUMNS[tab].map((column) => column.name).join(', ')
+function storedCount(read: RecordsRead<unknown>): number {
+  return read.records.length + read.refused.length
 }
 
-function saving(tab: RowSection): boolean {
-  return rowWrites[tab].busy.value || state.writing
+const saving = computed(() => writes.busy.value || state.writing)
+
+function saveCategories(made: readonly { readonly saved: number | null; readonly record: CategoryRecord }[]): void {
+  void writes.write('Categories saved', (unit) => writeDrafts(unit.of(CATEGORY_WRITES), storedOf(categories.value), made), { failedTitle: 'Not saved' })
 }
 
-function saveRows(tab: RowSection, change: TabRowsChange): void {
-  void rowWrites[tab].write(change, { title: `${TITLES[tab]} saved` }, 'Not saved')
+function saveAccounts(made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]): void {
+  void writes.write('Accounts saved', (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), { failedTitle: 'Not saved' })
 }
 </script>
 
@@ -98,7 +94,7 @@ function saveRows(tab: RowSection, change: TabRowsChange): void {
     <PageTabs :tabs="tabs" label="Parts of the settings" data-testid="settings-tabs" @select="linkedTab = null">
       <template #general>
         <div v-if="state.workbook" class="flex flex-col gap-6">
-          <GeneralSettingsForm :settings="settings" :saving="savingSettings || state.writing" @save="saveSettings" />
+          <GeneralSettingsForm :settings="settings" :facts="packFacts" :saving="savingSettings || state.writing" @save="saveSettings" />
           <component :is="card" v-for="(card, index) in pack.settingsCards" :key="index" />
           <AppCard
             title="Rows the app could not use as written"
@@ -120,19 +116,16 @@ function saveRows(tab: RowSection, change: TabRowsChange): void {
         <AppCard
           title="Categories"
           collapse-id="settings.categories"
-          :summary="rowsInWords(state.snapshot?.categories.length ?? 0, 'category', 'categories')"
+          :summary="rowsInWords(storedCount(categories), 'category', 'categories')"
           :reveal="linkedTab === 'categories'"
         >
           <template #subtitle>
             The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name and its
             row.
             <span v-if="source === 'google'" class="mt-1 block" data-testid="dropdown-note">The ledger's category dropdown in the Sheet lists this tab's categories.</span>
-            <span v-if="sheetLacks('categories')" class="mt-2 block text-toned">
-              The Sheet has no categories tab yet. Add one named categories with these headers in row 1, then sync:
-              <span class="identifier">{{ columnsOf('categories') }}</span>.
-            </span>
+            <MissingTabHint :kind="CATEGORY_RECORDS" />
           </template>
-          <CategoriesEditor :rows="state.snapshot?.categories ?? []" :uses="categoriesInUse" :saving="saving('categories')" @save="saveRows('categories', $event)" />
+          <CategoriesEditor :records="categories" :uses="categoriesInUse" :saving="saving" @save="saveCategories" />
         </AppCard>
       </template>
 
@@ -140,22 +133,19 @@ function saveRows(tab: RowSection, change: TabRowsChange): void {
         <AppCard
           title="Accounts"
           collapse-id="settings.accounts"
-          :summary="rowsInWords(state.snapshot?.accounts.length ?? 0, 'account', 'accounts')"
+          :summary="rowsInWords(storedCount(accounts), 'account', 'accounts')"
           :reveal="linkedTab === 'accounts'"
         >
           <template #subtitle>
             Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}.
-            <span v-if="sheetLacks('accounts')" class="mt-2 block text-toned">
-              The Sheet has no accounts tab yet. Add one named accounts with these headers in row 1, then sync:
-              <span class="identifier">{{ columnsOf('accounts') }}</span>.
-            </span>
+            <MissingTabHint :kind="ACCOUNT_RECORDS" />
           </template>
           <AccountsEditor
-            :rows="state.snapshot?.accounts ?? []"
+            :records="accounts"
             :uses="accountsInUse"
             :currency="settings.currency"
-            :saving="saving('accounts')"
-            @save="saveRows('accounts', $event)"
+            :saving="saving"
+            @save="saveAccounts"
           />
         </AppCard>
       </template>

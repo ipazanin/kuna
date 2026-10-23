@@ -1,9 +1,11 @@
-import type { CellObject, WorkSheet } from 'xlsx'
+import type { CellObject } from 'xlsx'
 
+import { gridOf, sheetJs } from '../../../shared/files/sheetJs'
+import { installedPack } from '../../packs/packContribution'
 import { settingNote } from '../../settings/domain/settings'
 import type { Workbook } from '../domain/workbook'
 import { numberFormatOf } from './cellFormats'
-import { TEMPLATE_COLUMNS, settingsTabRows } from './workbookTemplate'
+import { settingsTabRows, templateColumnNames, templateColumns } from './workbookTemplate'
 import { EMPTY_TABS, WORKBOOK_TABS, sheetRowsFromValues } from './workbookSnapshot'
 import type { CellValue, SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
 
@@ -21,14 +23,6 @@ export interface WorkbookFileContents {
   readonly tabs: WorkbookTabs
   /** Tabs the file does not have. A file without `ledger` is not a workbook. */
   readonly missingTabs: readonly WorkbookTab[]
-}
-
-/**
- * SheetJS is loaded on the first import or export, never with the app, because it is larger than
- * everything else on the first screen together.
- */
-async function sheetJs(): Promise<typeof import('xlsx')> {
-  return import('xlsx')
 }
 
 /** Reads the workbook tabs of an xlsx file, by tab name in any letter case. Other tabs are ignored. */
@@ -50,29 +44,6 @@ export async function readWorkbookFile(bytes: ArrayBuffer | Uint8Array): Promise
 }
 
 /**
- * The first sheet of a file SheetJS reads, xlsx, xls or ods as bytes, or a csv's text, whose cells
- * stay as written so `1.234,56` is not read as a number. The cells start from A1.
- */
-export async function readFirstSheet(contents: ArrayBuffer | string): Promise<(CellValue | undefined)[][]> {
-  const XLSX = await sheetJs()
-  const book = typeof contents === 'string' ? XLSX.read(contents, { type: 'string', raw: true }) : XLSX.read(contents, { type: 'array', cellText: false })
-  const sheet = book.Sheets[book.SheetNames[0] ?? '']
-  return sheet === undefined ? [] : gridOf(XLSX, sheet)
-}
-
-/** The cells from A1, so row numbers match the sheet's even when its used range starts lower. */
-function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet): (CellValue | undefined)[][] {
-  const reference = sheet['!ref']
-  if (reference === undefined) {
-    return []
-  }
-  const range = XLSX.utils.decode_range(reference)
-  range.s.r = 0
-  range.s.c = 0
-  return XLSX.utils.sheet_to_json<(CellValue | undefined)[]>(sheet, { header: 1, raw: true, blankrows: true, range })
-}
-
-/**
  * Writes the tabs in the template format: known columns in template order, then any other columns
  * the tabs carry, every row at its own row number, a note on each header. A workbook without a
  * settings tab gets one with the settings it was read with.
@@ -81,10 +52,11 @@ export async function writeWorkbookFile(tabs: WorkbookTabs, workbook: Workbook):
   const XLSX = await sheetJs()
   const book = XLSX.utils.book_new()
   const grids = workbookGrids(tabs, workbook)
+  const packSettings = installedPack().workbook?.settings ?? null
   for (const tab of WORKBOOK_TABS) {
     const grid = grids[tab]
     const sheet = XLSX.utils.aoa_to_sheet([[...grid.header], ...grid.rows.map((cells) => [...cells])])
-    const notes = new Map(TEMPLATE_COLUMNS[tab].map((column) => [column.name, column.note]))
+    const notes = new Map(templateColumns(tab).map((column) => [column.name, column.note]))
     grid.header.forEach((name, column) => {
       const note = notes.get(name)
       if (note !== undefined) {
@@ -96,7 +68,7 @@ export async function writeWorkbookFile(tabs: WorkbookTabs, workbook: Workbook):
         const format = numberFormatOf(tab, name, (column) => grid.rows[row - 1]?.[grid.header.indexOf(column)])
         if (format !== null && cell.t === 'n') cell.z = format
         if (tab === 'settings' && name === 'key') {
-          const keyNote = settingNote(String(cell.v))
+          const keyNote = settingNote(String(cell.v), packSettings)
           if (keyNote !== null) attachNote(cell, keyNote)
         }
       }
@@ -144,7 +116,7 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
 }
 
 function gridFor(tab: WorkbookTab, rows: readonly SheetRow[]): TabGrid {
-  const known = TEMPLATE_COLUMNS[tab].map((column) => column.name)
+  const known = templateColumnNames(tab)
   const ordered = [...rows].sort((upper, lower) => upper.sheetRow - lower.sheetRow)
   const extra = [...new Set(ordered.flatMap((row) => Object.keys(row.cells)))].filter((name) => !known.includes(name))
   const header = [...known, ...extra]

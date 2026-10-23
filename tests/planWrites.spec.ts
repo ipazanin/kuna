@@ -1,18 +1,24 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
-import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
-import type { RowCells } from '../src/features/workbook/domain/rowChanges'
+import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
+import { recordsOfKindIn } from '../src/features/workbook/domain/readWorkbook'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { PLAN_ROWS, categoryPlanCells, dividendPlanCells, ownerPayPlanCells, purchasePlanCells, replacedPlanRows } from '../src/packs/hr-doo/application/planRows'
-import { SCENARIO_ROWS, componentCells } from '../src/packs/hr-doo/application/scenarioRows'
+import { categoryPlanLine, dividendPlanLine, ownerPayPlanLine, purchasePlanLine, replacePlanLines } from '../src/packs/hr-doo/application/planWrites'
+import type { KeyedLine, PlanLineDraft } from '../src/packs/hr-doo/application/planWrites'
+import type { PlanLine } from '../src/packs/hr-doo/domain/forecast/plan'
+import { PLAN_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { PLAN_WRITES, SCENARIO_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
+import { scenarioRowOfComponent } from '../src/packs/hr-doo/domain/scenarios/scenariosReading'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { civil, euros } from './fixtures/ledger'
+import { cellsOf } from './fixtures/recordWrites'
 import { withIds } from './fixtures/rowIds'
 import { AN_ID, excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
 const used = new Set<string>()
 
@@ -35,12 +41,23 @@ function grids(plan: CellValue[][] = [PLAN_HEADER]): Record<string, CellValue[][
   }
 }
 
-function rows(store: WorkbookStore): RowCells[] {
-  return (store.state.snapshot?.plan ?? []).map((row) => rowCellsOf(row, PLAN_ROWS))
+/** The plan lines as stored, in the order of the tab. */
+function stored(store: WorkbookStore<WorkbookCopy>): PlanLine[] {
+  return recordsOfKindIn(store.state.records!, PLAN_RECORDS).records.map((read) => read.record)
 }
 
-function lines(store: WorkbookStore): string[] {
-  return (store.state.workbook?.planLines ?? []).map((line) =>
+/** Writes the plan as the plan dialogs do. */
+function writePlan(store: WorkbookStore<WorkbookCopy>, held: readonly KeyedLine<PlanLine>[], wanted: readonly KeyedLine<PlanLineDraft>[], addMissingKinds = false) {
+  return store.write('Plan saved', (unit) => replacePlanLines(unit.of(PLAN_WRITES), held, wanted), { addMissingKinds })
+}
+
+/** Adds the lines, each under a key of its own. */
+function addLines(store: WorkbookStore<WorkbookCopy>, drafts: readonly PlanLineDraft[], addMissingKinds = false) {
+  return writePlan(store, [], drafts.map((line, index) => ({ key: String(index), line })), addMissingKinds)
+}
+
+function lines(store: WorkbookStore<WorkbookCopy>): string[] {
+  return (hrDooWorkbook(store.state.workbook!).planLines ?? []).map((line) =>
     line.kind === 'owner-pay-scenario' ? `owner pay ${line.scenario} from ${line.from ?? 'January'}` : line.kind === 'purchase' ? `purchase ${line.note} on ${line.date}` : `${line.item} ${line.month ?? 'every'} ${line.amount}`,
   )
 }
@@ -48,10 +65,10 @@ function lines(store: WorkbookStore): string[] {
 describe('the plan tab on a Google Sheet without one', () => {
   it('refuses until the person agrees, then adds the tab with the template header and the row', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, { ...workbookGrids(), scenarios: grids().scenarios! })
-    const change = { added: [categoryPlanCells(2027, null, 'ai-services', euros(150))], changed: [], removed: [] }
-    await expect(store.changeRows(PLAN_ROWS, change)).rejects.toThrow(new WorkbookWriteRefused('The workbook has no plan tab, so nothing was written.'))
+    const line = categoryPlanLine(2027, null, 'ai-services', euros(150))
+    await expect(addLines(store, [line])).rejects.toThrow(new WorkbookWriteRefused('The workbook has no plan tab, so nothing was written.'))
 
-    await store.changeRows(PLAN_ROWS, change, true)
+    await addLines(store, [line], true)
     expect(writtenRanges()).toEqual(['plan!A1:H1'])
     expect(sheets.grids.plan).toEqual([[...PLAN_HEADER, 'id'], [2027, null, 'ai-services', 150, null, null, null, AN_ID]])
     expect(lines(store)).toEqual(['ai-services every 15000'])
@@ -63,10 +80,10 @@ describe('the plan tab on a Google Sheet without one', () => {
 
   it('finds a plan row again by its id after a row was inserted above it, and writes only the plan columns that change', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used, grids([[...PLAN_HEADER, 'source'], [2027, '', 'ai-services', 150, '', '', '', 'Quote 12']]))
-    const held = rows(store).map((row) => ({ key: 'every', cells: row }))
+    const held = stored(store).map((line) => ({ key: 'every', line }))
     sheets.grids.plan!.splice(1, 0, [2027, 3, 'consulting', 400, 'Inserted in the Sheet', '', '', ''])
 
-    await store.changeRows(PLAN_ROWS, replacedPlanRows(held, [{ key: 'every', cells: categoryPlanCells(2027, null, 'ai-services', euros(175)) }]))
+    await writePlan(store, held, [{ key: 'every', line: categoryPlanLine(2027, null, 'ai-services', euros(175)) }])
 
     expect(writtenRanges()).toEqual(['plan!D3'])
     expect(sheets.grids.plan![2]).toEqual([2027, '', 'ai-services', 175, '', '', '', 'Quote 12', 'plan-2'])
@@ -75,7 +92,7 @@ describe('the plan tab on a Google Sheet without one', () => {
 
   it('refuses a purchase on an older plan tab with no date or group column', async () => {
     const { store } = await googleHarness(used, grids([['year', 'month', 'item', 'amount', 'note']]))
-    await expect(store.changeRows(PLAN_ROWS, { added: [purchasePlanCells(2027, civil('2027-03-10'), euros(1600), 'computers', 'Laptop')], changed: [], removed: [] })).rejects.toThrow(
+    await expect(addLines(store, [purchasePlanLine(2027, civil('2027-03-10'), euros(1600), 'computers', 'Laptop')])).rejects.toThrow(
       'The plan tab has no "date", "group" column for what this change writes.',
     )
   })
@@ -87,18 +104,17 @@ describe.each([
 ] as const)('plan writes to %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('plans a category for every month and a month of its own, changes it and clears it', async () => {
     const { store } = await harnessOf(used, grids())
-    await store.changeRows(PLAN_ROWS, replacedPlanRows([], [
-      { key: 'every', cells: categoryPlanCells(2027, null, 'ai-services', euros(150)) },
-      { key: '1', cells: categoryPlanCells(2027, 1, 'ai-services', euros(900), 'Yearly seats') },
-    ]))
+    await writePlan(store, [], [
+      { key: 'every', line: categoryPlanLine(2027, null, 'ai-services', euros(150)) },
+      { key: '1', line: categoryPlanLine(2027, 1, 'ai-services', euros(900), 'Yearly seats') },
+    ])
     expect(lines(store)).toEqual(['ai-services every 15000', 'ai-services 1 90000'])
 
-    const held = rows(store).map((row) => ({ key: row.month === '' ? 'every' : String(row.month), cells: row }))
-    const change = replacedPlanRows(held, [{ key: 'every', cells: categoryPlanCells(2027, null, 'ai-services', euros(175)) }])
+    const held = stored(store).map((line) => ({ key: line.month === null ? 'every' : String(line.month), line }))
+    const receipt = await writePlan(store, held, [{ key: 'every', line: categoryPlanLine(2027, null, 'ai-services', euros(175)) }])
     // The every-month row changes its amount only, and January's row goes.
-    expect(change.changed.map((entry) => entry.after.amount)).toEqual([175])
-    expect(change.removed.map((entry) => entry.month)).toEqual([1])
-    await store.changeRows(PLAN_ROWS, change)
+    expect(cellsOf(receipt, 'change').map((cells) => cells.amount)).toEqual([175])
+    expect(cellsOf(receipt, 'remove').map((cells) => cells.month)).toEqual([1])
     expect(lines(store)).toEqual(['ai-services every 17500'])
 
     await store.undo(store.state.writes[0]!)
@@ -107,31 +123,24 @@ describe.each([
 
   it('writes the owner pay with a switch day, a purchase and a dividend', async () => {
     const { store } = await harnessOf(used, grids())
-    await store.changeRows(PLAN_ROWS, {
-      added: [
-        ownerPayPlanCells(2027, 'floor', null),
-        ownerPayPlanCells(2027, 'board', civil('2027-06-05')),
-        purchasePlanCells(2027, civil('2027-03-10'), euros(1600), 'computers', 'Laptop'),
-        dividendPlanCells(2027, 6, euros(5000)),
-      ],
-      changed: [],
-      removed: [],
-    })
+    await addLines(store, [
+      ownerPayPlanLine(2027, 'floor', null),
+      ownerPayPlanLine(2027, 'board', civil('2027-06-05')),
+      purchasePlanLine(2027, civil('2027-03-10'), euros(1600), 'computers', 'Laptop'),
+      dividendPlanLine(2027, 6, euros(5000)),
+    ])
     expect(lines(store)).toEqual(['owner pay floor from January', 'owner pay board from 2027-06-05', 'purchase Laptop on 2027-03-10', 'dividend 6 500000'])
-    expect(rows(store)[2]?.date).toBe(serialFromCivilDate(civil('2027-03-10')))
+    expect(store.state.snapshot?.plan[2]?.cells.date).toBe(serialFromCivilDate(civil('2027-03-10')))
   })
 
   it('refuses what the plan guards stop, naming why', async () => {
     const { store } = await harnessOf(used, grids())
-    await expect(store.changeRows(PLAN_ROWS, { added: [ownerPayPlanCells(2027, 'board', civil('2027-06-05'))], changed: [], removed: [] })).rejects.toThrow(
+    await expect(addLines(store, [ownerPayPlanLine(2027, 'board', civil('2027-06-05'))])).rejects.toThrow(
       'Nothing was written. The owner pay switches to board on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.',
     )
-    await expect(store.changeRows(PLAN_ROWS, { added: [ownerPayPlanCells(2027, 'old', null)], changed: [], removed: [] })).rejects.toThrow('The owner pay of 2027 names old, a scenario for 2026.')
-    await expect(store.changeRows(PLAN_ROWS, { added: [dividendPlanCells(2027, 6, euros(5000)), dividendPlanCells(2027, 9, euros(1000))], changed: [], removed: [] })).rejects.toThrow(
+    await expect(addLines(store, [ownerPayPlanLine(2027, 'old', null)])).rejects.toThrow('The owner pay of 2027 names old, a scenario for 2026.')
+    await expect(addLines(store, [dividendPlanLine(2027, 6, euros(5000)), dividendPlanLine(2027, 9, euros(1000))])).rejects.toThrow(
       'The plan for 2027 pays a dividend in month 6 and month 9. Plan one payout a year.',
-    )
-    await expect(store.changeRows(PLAN_ROWS, { added: [{ ...purchasePlanCells(2027, civil('2027-03-10'), euros(1600), 'computers', 'Laptop'), group: '' }], changed: [], removed: [] })).rejects.toThrow(
-      'The new plan row "purchase, 2027, 1600" would be left out: no asset group.',
     )
     expect(lines(store)).toEqual([])
   })
@@ -141,8 +150,8 @@ describe.each([
     const { store } = await harnessOf(used, { ...base, scenarios: base.scenarios!.map((row) => (row[0] === 'board' ? [...row, serialFromCivilDate(civil('2027-07-01'))] : row)) })
     // The board scenario may pay a salary to June on its own, but the plan switches to it on 15
     // June, so the year would pay two salaries in June.
-    const salary = componentCells('board', 2027, { component: 'salary_gross', gross: euros(2000), from: null, to: civil('2027-06-30') })
-    await expect(store.changeRows(SCENARIO_ROWS, { added: [salary], changed: [], removed: [] })).rejects.toThrow(
+    const salary = scenarioRowOfComponent('board', '', 2027, { component: 'salary_gross', gross: euros(2000), from: null, to: civil('2027-06-30') })
+    await expect(store.write('Component added', (unit) => unit.of(SCENARIO_WRITES).add(salary))).rejects.toThrow(
       'The plan tab: The owner pay of 2027: The floor salary to 2027-06-14 and the salary of 2000.00 from 2027-06-15 to 2027-06-30 both pay a salary in 2027-06. A salary can change only from the first of a month.',
     )
   })

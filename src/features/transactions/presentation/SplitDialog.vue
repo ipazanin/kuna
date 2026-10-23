@@ -11,17 +11,15 @@ import type { Money } from '../../../shared/money/money'
 import { formatMoney } from '../../../shared/money/moneyFormat'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
-import { installedPack } from '../../packs/packContribution'
-import { storedCellsOf } from '../../workbook/application/tabRowWrites'
+import { NO_RECORDS, recordWithId } from '../../workbook/domain/recordsRead'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { RowCells } from '../../workbook/domain/rowChanges'
+import type { SplitTabRow } from '../../workbook/domain/splitsReading'
 import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
 import AddTabNotice from '../../workbook/presentation/AddTabNotice.vue'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
-import { SPLIT_ROWS, splitRowsChange } from '../application/splitRows'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { writeSplit } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -35,7 +33,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useRowWrites(SPLIT_ROWS)
+const writes = useRecordWrites()
 const names = useDisplayNames()
 const phone = usePhoneLayout()
 
@@ -79,11 +77,10 @@ const remainder = computed(() => subtractMoney(whole.value, placed.value))
 
 const claimedBy = computed(() => {
   const workbook = store.state.workbook
-  return workbook === null ? [] : (installedPack().rowsKeptWhole(workbook).get(props.row.id) ?? [])
+  return workbook?.rowsKeptWhole.get(props.row.id) ?? []
 })
 
 const tabMissing = computed(() => store.state.choice?.source === 'google' && (store.state.snapshot?.meta.missingTabs.includes('splits') ?? false))
-const headers = TEMPLATE_COLUMNS.splits.map((column) => column.name).join(', ')
 
 function amountError(index: number): string | null {
   const amount = typed.value[index]
@@ -114,38 +111,32 @@ function takeRest(index: number): void {
   part.amount = amountOf(addMoney(typed.value[index] ?? ZERO, remainder.value)).toFixed(2)
 }
 
-/** The rows of the split as the app read them, raw, so a cell left alone is never rewritten. */
-function currentRows(): RowCells[] | null {
+/** The parts of the split as the app read them, larger first. A change writes only the fields that differ, so a field left alone is never rewritten. */
+function currentParts(): SplitTabRow[] | null {
   const split = props.split
   if (split === null) return []
-  const rows = split.parts.map((part) => storedCellsOf(store.state.snapshot?.splits ?? [], SPLIT_ROWS, part.id))
-  return rows.every((cells) => cells !== null) ? (rows as RowCells[]) : null
+  const parts = split.parts.map((part) => recordWithId(store.state.records?.splits ?? NO_RECORDS, part.id)?.record ?? null)
+  return parts.every((part) => part !== null) ? (parts as SplitTabRow[]) : null
 }
 
 async function save(): Promise<void> {
   tried.value = true
-  const current = currentRows()
+  const current = currentParts()
   if (!valid.value || current === null) return
   const signed = (amount: Money): Money => (props.row.amount < 0 ? negateMoney(amount) : amount)
   const drafts = parts.value.map((part, index) => ({ amount: signed(typed.value[index]!), category: part.category, note: part.note }))
-  const change = splitRowsChange(props.row, current, drafts)
-  const saved = await writes.write(
-    change,
-    { title: props.split === null ? `Split in ${drafts.length} parts` : 'Split saved', description: `${props.row.counterparty || 'The payment'} of ${formatMoney(props.row.amount)}, written to ${writes.where()}.` },
-    'Not saved',
-    tabMissing.value,
-  )
+  const saved = await writes.write(props.split === null ? `Split in ${drafts.length} parts` : 'Split saved', (unit) => writeSplit(unit, props.row, current, drafts), {
+    description: `${props.row.counterparty || 'The payment'} of ${formatMoney(props.row.amount)}.`,
+    failedTitle: 'Not saved',
+    addMissingKinds: tabMissing.value,
+  })
   if (saved) open.value = false
 }
 
 async function remove(): Promise<void> {
-  const current = currentRows()
+  const current = currentParts()
   if (current === null || current.length === 0) return
-  const deleted = await writes.write(
-    { added: [], changed: [], removed: current },
-    { title: 'Split deleted', description: `The payment counts whole again. Its rows on ${writes.where()} are taken out.` },
-    'Not deleted',
-  )
+  const deleted = await writes.write('Split deleted', (unit) => writeSplit(unit, props.row, current, []), { description: 'The payment counts whole again.', failedTitle: 'Not deleted' })
   if (deleted) open.value = false
 }
 
@@ -170,7 +161,7 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
           {{ claimedBy.map((name) => `"${name}"`).join(' and ') }} on the assets tab {{ claimedBy.length === 1 ? 'claims' : 'claim' }} this row as payment, so the row stays whole. The
           assets tab already holds what it bought.
         </div>
-        <AddTabNotice v-else-if="tabMissing" tab="splits" :headers="headers" />
+        <AddTabNotice v-else-if="tabMissing" tab="splits" />
 
         <ol class="flex flex-col gap-3" aria-label="Parts">
           <li v-for="(part, index) in parts" :key="part.id" class="part" data-testid="split-part">

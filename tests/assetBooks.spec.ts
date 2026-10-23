@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Asset, AssetGroup } from '../src/features/workbook/domain/assets'
-import type { Grant } from '../src/features/workbook/domain/grants'
+import type { Asset, AssetGroup } from '../src/packs/hr-doo/domain/assets/assets'
+import type { Grant } from '../src/packs/hr-doo/domain/grants/grants'
 import { assetBooks, depreciationByYear, doubledRatesEffect } from '../src/packs/hr-doo/domain/assets/assetBooks'
 import type { DoubledRatesEffect } from '../src/packs/hr-doo/domain/assets/assetBooks'
 import { ZERO } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { ASSET_RECORDS, GRANT_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { ASSET_RECORDS, GRANT_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 interface AssetSpec {
   readonly name: string

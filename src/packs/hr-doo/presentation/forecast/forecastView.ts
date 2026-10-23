@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { expectedInvoices } from '../../../../features/billingPlan/domain/expectedInvoices'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import { runwayInWords } from '../../../../features/overview/domain/headline'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthKey, yearOfMonth } from '../../../../shared/calendar/monthKey'
@@ -88,8 +88,8 @@ export type ForecastState =
 export type ForecastView = ReturnType<typeof forecastView>
 
 /** The forecast needs the day the company was registered, since the tax periods count from it. */
-export function forecastState(workbook: Workbook, year: number, asOf: CivilDate, context: ForecastViewContext): ForecastState {
-  if (workbook.settings.companyFacts.companyRegistered === null) {
+export function forecastState(workbook: HrDooWorkbook, year: number, asOf: CivilDate, context: ForecastViewContext): ForecastState {
+  if (workbook.companyFacts.companyRegistered === null) {
     return { state: 'unregistered' }
   }
   try {
@@ -103,7 +103,7 @@ export function forecastState(workbook: Workbook, year: number, asOf: CivilDate,
 }
 
 /** Everything the Forecast tab of the Year page shows for one year, seen on `asOf`, and the dividend capacity its Pay tab shows. */
-function forecastView(workbook: Workbook, year: number, asOf: CivilDate, context: ForecastViewContext) {
+function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, context: ForecastViewContext) {
   const forecast = forecastYear(workbook, year, asOf)
   const capacity = dividendCapacity(year, forecast, workbook)
   const { calendar, taxBase: base, liability } = forecast

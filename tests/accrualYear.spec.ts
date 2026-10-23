@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import type { YearEndLine } from '../src/features/workbook/domain/yearEnd'
+import type { YearEndLine } from '../src/packs/hr-doo/domain/yearEnd/yearEnd'
 import type { AccrualAdjustment, AdjustmentId } from '../src/packs/hr-doo/domain/accrual/accrualAdjustment'
 import { accrualLine, accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
 import type { AccrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import { sumMoney } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import { STUDIO_CATEGORIES, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
 import { euros } from './fixtures/ledger'
 
-function accrual(year: number, workbook: Workbook = exampleStudio()): AccrualYear {
+function accrual(year: number, workbook: HrDooWorkbook = exampleStudio()): AccrualYear {
   return accrualYear(workbook, year, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null })
 }
 

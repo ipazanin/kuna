@@ -1,7 +1,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
@@ -19,8 +19,8 @@ export type PayState =
   | { readonly state: 'failed'; readonly failure: string }
   | { readonly state: 'ready'; readonly figures: PayScenarios }
 
-export function payState(workbook: Workbook, year: number, asOf: CivilDate): PayState {
-  const facts = workbook.settings.companyFacts
+export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate): PayState {
+  const facts = workbook.companyFacts
   if (facts.companyRegistered === null) {
     return {
       state: 'needs',

@@ -3,14 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { createFakeSheets } from '../src/features/workbook/infrastructure/fake/fakeSheets'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { readSnapshotFrom } from '../src/features/workbook/infrastructure/googleWorkbookPorts'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { TABS_WITH_IDS } from '../src/features/workbook/infrastructure/workbookTemplate'
 import { civilDate, serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { withIds } from './fixtures/rowIds'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { ASSET_RECORDS, GRANT_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { ASSET_RECORDS, GRANT_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
 /** Serial numbers of the date cells the rows below use. */
 const DAY = {
@@ -44,7 +45,7 @@ function workbookWith(tabs: Partial<Record<WorkbookTab, CellValue[][]>>) {
     categories: sheetRowsFromValues(CATEGORIES),
     ...Object.fromEntries(Object.entries(tabs).map(([tab, values]) => [tab, sheetRowsFromValues((TABS_WITH_IDS as readonly string[]).includes(tab) ? withIds(tab, values) : values)])),
   }
-  return readWorkbook(snapshot)
+  return hrDooWorkbook(readSnapshot(snapshot).workbook)
 }
 
 /** A scenario row's record id: its scenario, component and days. */
@@ -360,11 +361,7 @@ describe('the plan tab', () => {
     expect(workbook.planLines).toEqual([])
     expect(problemsOn(workbook, 'plan')).toEqual([
       ['software, 2027, month 13, 1', 'month "13" is not a month from 1 to 12'],
-      ['snacks, 2027, 1', '"snacks" is neither owner_pay_scenario, dividend, purchase nor a category on the categories tab'],
-      ['owner_pay_scenario, 2027, missing', '"missing" is not a scenario on the scenarios tab'],
       ['software, 2027, a lot', 'amount "a lot" is not a number'],
-      ['software, 2027, 1', 'software for every month of 2027 is listed on more than one row, so none of them counts'],
-      ['software, 2027, 2', 'software for every month of 2027 is listed on more than one row, so none of them counts'],
       ['Revenue, 2027, 7400', 'revenue is planned on the outgoing-plan tab, one row per item to invoice, so move this row there'],
       ['purchase, 2027, 900', 'a purchase needs the day it is bought in date'],
       ['purchase, 2027, 900', 'date 2026-12-30 is not in 2027'],
@@ -373,6 +370,10 @@ describe('the plan tab', () => {
       ['dividend, 2027, 8000', 'a dividend is paid in one month, so give its month'],
       ['dividend, 2027, month 6, 0', 'amount must be more than zero'],
       ['owner_pay_scenario, 2027, month 2, floor', 'an owner pay scenario holds from its date, so leave month blank'],
+      ['snacks, 2027, 1', '"snacks" is neither owner_pay_scenario, dividend, purchase nor a category on the categories tab'],
+      ['owner_pay_scenario, 2027, missing', '"missing" is not a scenario on the scenarios tab'],
+      ['software, 2027, 1', 'software for every month of 2027 is listed on more than one row, so none of them counts'],
+      ['software, 2027, 2', 'software for every month of 2027 is listed on more than one row, so none of them counts'],
       ['owner_pay_scenario, 2027, floor', 'An owner pay scenario from 1 January 2027 is listed on more than one row, so none of them counts'],
       ['owner_pay_scenario, 2027, floor', 'An owner pay scenario from 1 January 2027 is listed on more than one row, so none of them counts'],
     ])
@@ -440,8 +441,6 @@ describe('the scenarios tab', () => {
 
     expect(workbook.payScenarios.map((scenario) => scenario.components.map((component) => component.component))).toEqual([['salary_gross']])
     expect(problemsOn(workbook, 'scenarios')).toEqual([
-      ['mix, rent_monthly', 'mix has this component for the same days on more than one row, so none of them counts'],
-      ['mix, rent_monthly', 'mix has this component for the same days on more than one row, so none of them counts'],
       ['mix, bonus', '"bonus" is not a component. Use salary_gross, rent_monthly, dividend, director_basis'],
       ['mix, nontaxable:', '"" is not a tax-free item name, such as nontaxable:occasional-gift'],
       ['mix, salary_months', '"salary_months" is not a component. Use salary_gross, rent_monthly, dividend, director_basis'],
@@ -450,6 +449,8 @@ describe('the scenarios tab', () => {
       ['mix, rent_monthly, from 2028-01-10', 'from 2028-01-10 is outside 2027'],
       ['mix, rent_monthly, from 2027-07-01', 'to 2027-01-15 is before from 2027-07-01'],
       ['rent_monthly', 'no scenario name'],
+      ['mix, rent_monthly', 'mix has this component for the same days on more than one row, so none of them counts'],
+      ['mix, rent_monthly', 'mix has this component for the same days on more than one row, so none of them counts'],
     ])
   })
 
@@ -486,6 +487,6 @@ describe('a Google Sheet', () => {
     expect(sheets.requests.find((request) => request.kind === 'batchGet')).toMatchObject({ ranges: expect.arrayContaining(['assets', "'year-end'"]) })
     expect(snapshot.meta.missingTabs).toEqual(['grants', 'plan', 'scenarios'])
     expect(snapshot.assets).toHaveLength(2)
-    expect(readWorkbook(snapshot).yearEndLines.length).toBeGreaterThan(40)
+    expect(hrDooWorkbook(readSnapshot(snapshot).workbook).yearEndLines.length).toBeGreaterThan(40)
   })
 })

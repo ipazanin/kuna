@@ -7,19 +7,14 @@ import type { Money } from '../../../shared/money/money'
 import { naturalOrder } from '../../../shared/text/naturalOrder'
 import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
-import type { Asset } from './assets'
 import type { BillingItem } from './billingPlan'
 import type { Bucket, DefinedBucket } from './bucket'
 import type { Dismissal } from './dismissals'
-import type { Grant } from './grants'
-import type { OwnerPayScenario } from './ownerPayScenarios'
-import type { PlanLine } from './plan'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import { CATEGORY_RECORDS } from './recordKind'
 import type { VatTreatment } from './vatTreatment'
 import type { LedgerSplit } from './splits'
-import type { YearEndLine } from './yearEnd'
 
 export interface Category {
   readonly slug: string
@@ -90,7 +85,7 @@ export interface Transaction {
   readonly signals: TransactionSignals
   /** Why the statement parser wants a person to look at the row, such as `reversal`. Column U. */
   readonly reviewReasons: readonly string[]
-  /** By its `LedgerRowKey`. */
+  /** By its key: its account and reference, or for a row without a reference its account, day, amount, balance and description. */
   readonly id: RecordId
   /** Set on a part of a split bank row, which the screens count in the row's place. */
   readonly split?: SplitPartOf
@@ -157,7 +152,7 @@ export interface ClientInvoicing {
 
 export const NO_CLIENT_INVOICING: ClientInvoicing = { address: '', country: '', taxId: '', invoiceMail: '', mailLanguage: '', reverseCharge: false }
 
-/** A row of the `owner-advances` tab: a cost the owner paid privately for the company. */
+/** A cost the owner paid privately for the company, as profit and loss counts it. A pack reads them. */
 export interface OwnerAdvance {
   readonly date: CivilDate
   /** Above zero. */
@@ -219,6 +214,11 @@ export interface WorkbookProblem extends RecordProblem {
     | 'dismissed'
 }
 
+/** A tab's record problems as the workbook lists them. */
+export function tabProblems(tab: WorkbookProblem['tab'], problems: readonly RecordProblem[]): WorkbookProblem[] {
+  return problems.map((problem) => ({ tab, ...problem }))
+}
+
 export interface Workbook {
   /** The Google spreadsheet id, or the id of the workbook kept in this browser. */
   readonly id: string
@@ -239,26 +239,20 @@ export interface Workbook {
   readonly hasClientsTab: boolean
   /** What is to be invoiced, in the order the tab holds it. */
   readonly billingPlan: readonly BillingItem[]
-  /** In the order the tab holds them. */
+  /** The costs the owner paid privately, which a pack hands core, in the order its tab holds them. */
   readonly ownerAdvances: readonly OwnerAdvance[]
   /**
    * The bank rows split into parts on the `splits` tab, each split once the tab's guards pass. The
    * screens count a split row through its parts, and the ledger and its readers keep the row whole.
    */
   readonly splits: readonly LedgerSplit[]
-  /** In the order the tab holds them. */
-  readonly assets: readonly Asset[]
-  /** In the order the tab holds them. */
-  readonly grants: readonly Grant[]
-  /** The accountant's figures, in the order the tab holds them. */
-  readonly yearEndLines: readonly YearEndLine[]
-  /** In the order the tab holds them. */
-  readonly planLines: readonly PlanLine[]
-  /** In the order their first rows appear on the tab. */
-  readonly payScenarios: readonly OwnerPayScenario[]
+  /** The ledger rows a pack keeps whole, such as one an asset claims as its payment, by record id with the names that claim them. */
+  readonly rowsKeptWhole: ReadonlyMap<RecordId, readonly string[]>
   /** The suggestions on Review a person dismissed, in the order the tab holds them. */
   readonly dismissals: readonly Dismissal[]
   readonly settings: Settings
+  /** Each pack's part, by its key's name, which `packPart` reads. */
+  readonly packParts: Readonly<Record<string, unknown>>
   readonly problems: readonly WorkbookProblem[]
 }
 

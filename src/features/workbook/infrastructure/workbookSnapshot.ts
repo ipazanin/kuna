@@ -1,4 +1,4 @@
-import type { WorkbookSource } from '../domain/workbook'
+import type { CopyMeta } from '../application/workbookPorts'
 
 /** A cell as the Sheets API returns it with UNFORMATTED_VALUE and SERIAL_NUMBER dates, and as an xlsx holds it. */
 export type CellValue = string | number | boolean
@@ -31,20 +31,16 @@ export const WORKBOOK_TABS = [
 
 export type WorkbookTab = (typeof WORKBOOK_TABS)[number]
 
+/** The tabs the pack's records live on, which the pack maps and core keeps in the workbook format. */
+export type PackTab = Extract<WorkbookTab, 'owner-advances' | 'assets' | 'grants' | 'year-end' | 'plan' | 'scenarios'>
+
+/** The tabs core maps itself. */
+export type CoreTab = Exclude<WorkbookTab, PackTab>
+
 export type WorkbookTabs = { readonly [tab in WorkbookTab]: readonly SheetRow[] }
 
-export interface WorkbookMeta {
-  /** The Google spreadsheet id, or the id of the workbook kept in this browser. */
-  readonly id: string
-  readonly source: WorkbookSource
-  readonly title: string
-  /** ISO timestamp of the read that produced this copy, or of the last change kept in this browser. */
-  readonly syncedAt: string
-  /** ISO timestamp of the last export to an xlsx file, or null. */
-  readonly lastExportedAt: string | null
-  /** When the oldest change not yet in an exported file was made. Null when every change is exported. */
-  readonly unexportedSince: string | null
-  /** The tabs a Google Sheet lacks. A workbook kept in this browser has every tab, since an export writes them all. */
+/** A workbook copy's meta, with the tabs a Google Sheet lacks. A workbook kept in this browser has every tab, since an export writes them all. */
+export interface WorkbookMeta extends CopyMeta {
   readonly missingTabs: readonly WorkbookTab[]
 }
 

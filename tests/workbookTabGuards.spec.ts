@@ -5,7 +5,9 @@ import { newInvoiceDates } from '../src/features/invoicing/domain/invoiceDates'
 import { accountChangeRefusals } from '../src/features/settings/domain/accountGuards'
 import { categoryChangeRefusals } from '../src/features/settings/domain/categoryGuards'
 import { clientChangeRefusals } from '../src/features/settings/domain/clientGuards'
-import { rowsChangeOf } from '../src/features/settings/domain/tabRowDrafts'
+import { writeDrafts } from '../src/features/settings/application/draftWrites'
+import type { Repository } from '../src/features/workbook/application/repository'
+import type { ReadRecord, RefusedRecord } from '../src/features/workbook/domain/recordsRead'
 import { isIban } from '../src/features/workbook/domain/iban'
 import { slugChangeRefusals, slugProblem } from '../src/features/workbook/domain/slug'
 import { civil } from './fixtures/ledger'
@@ -169,22 +171,29 @@ describe('the invoices tab', () => {
 })
 
 describe('an editor save', () => {
-  const rows = [
-    { cells: { asset: 'Laptop', cost_net: 1519.199999, note: 'Office' } },
-    { cells: { asset: 'Desk', cost_net: 300 } },
-  ]
-  const opened = new Map([
-    [0, { asset: 'Laptop', cost_net: 1519.2, note: 'Office' }],
-    [1, { asset: 'Desk', cost_net: 300 }],
-  ])
+  interface Item {
+    readonly name: string
+  }
+  const read = (name: string): ReadRecord<Item> => ({ record: { name }, id: null, label: name, fields: {} })
+  const refused = (label: string): RefusedRecord => ({ id: null, label, fields: {}, reason: 'broken' })
 
-  it('changes the fields that changed, keeps the cell of a field left alone, adds new drafts and deletes rows no draft holds', () => {
-    const change = rowsChangeOf(rows, ['asset', 'cost_net', 'note'], [{ saved: 0, cells: { asset: 'Laptop', cost_net: 1519.2, note: 'Home' } }, { saved: null, cells: { asset: 'Chair', cost_net: 90 } }], opened)
+  it('changes the records whose drafts differ, repairs a refused one, adds new drafts, and takes out what no draft holds', () => {
+    const calls: string[] = []
+    const items: Repository<Item> = {
+      add: (record) => calls.push(`add ${record.name}`),
+      change: (before, after) => calls.push(`change ${before.name} to ${after.name}`),
+      remove: (record) => calls.push(`remove ${record.name}`),
+      repair: (held, after) => calls.push(`repair ${held.label} as ${after.name}`),
+      discard: (held) => calls.push(`discard ${held.label}`),
+    }
 
-    expect(change).toEqual({
-      added: [{ asset: 'Chair', cost_net: 90, note: '' }],
-      changed: [{ before: { asset: 'Laptop', cost_net: 1519.199999, note: 'Office' }, after: { asset: 'Laptop', cost_net: 1519.199999, note: 'Home' } }],
-      removed: [{ asset: 'Desk', cost_net: 300, note: '' }],
-    })
+    writeDrafts(items, [read('laptop'), read('desk'), read('lamp'), refused('chair'), refused('stool')], [
+      { saved: 0, record: { name: 'laptop' } },
+      { saved: 1, record: { name: 'standing desk' } },
+      { saved: 3, record: { name: 'chair' } },
+      { saved: null, record: { name: 'shelf' } },
+    ])
+
+    expect(calls).toEqual(['change desk to standing desk', 'repair chair as chair', 'add shelf', 'remove lamp', 'discard stool'])
   })
 })

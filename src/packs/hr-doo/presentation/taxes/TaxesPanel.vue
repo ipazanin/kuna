@@ -25,7 +25,7 @@ import DrillChartCard from '../../../../features/filters/presentation/DrillChart
 import { useSettings } from '../../../../features/settings/application/useSettings'
 import { useDisplayNames } from '../../../../features/workbook/application/useDisplayNames'
 import { bookingOfAdvance } from '../../../../features/workbook/domain/workbook'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { effectiveTaxRate } from '../../domain/effectiveTaxRate'
@@ -40,7 +40,7 @@ import CadenceCalendar from './CadenceCalendar.vue'
 
 /** What the state took in a year, by type, and whether every payroll month and corporate tax payment landed. */
 const props = defineProps<{
-  workbook: Workbook
+  workbook: HrDooWorkbook
   window: LedgerWindow
   year: number
   /** The newest booking, which the corporate tax schedule is seen on. */
@@ -150,7 +150,7 @@ const taxes = computed(() => {
  */
 const corporateTax = computed(() => {
   const { workbook, asOf } = props
-  if (workbook.settings.companyFacts.companyRegistered === null) {
+  if (workbook.companyFacts.companyRegistered === null) {
     return { state: 'unregistered' as const }
   }
   try {

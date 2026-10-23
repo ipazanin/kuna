@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { waitingJobs } from '../src/features/overview/presentation/waitingForYou'
 import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
 import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import type { Workbook } from '../src/features/workbook/domain/workbook'
 
 function fake(source: 'google' | 'excel'): Workbook {
-  return readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', source))
+  return readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', source)).workbook
 }
 
 function withoutContributions(workbook: Workbook, months: readonly string[]): Workbook {

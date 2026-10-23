@@ -12,11 +12,11 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { amountOf } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
-import { storedCellsOf } from '../../workbook/application/tabRowWrites'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { RowCells } from '../../workbook/domain/rowChanges'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
-import { BILLING_PLAN_ROWS, billingCellsOf } from '../application/billingPlanRows'
+import type { BillingItem } from '../../workbook/domain/billingPlan'
+import { NO_RECORDS, recordWithId } from '../../workbook/domain/recordsRead'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingRowLine } from './billingView'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -33,7 +33,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useRowWrites(BILLING_PLAN_ROWS)
+const writes = useRecordWrites()
 const phone = usePhoneLayout()
 
 const item = ref('')
@@ -81,9 +81,9 @@ const errors = computed(() => ({
 
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
-/** The row's cells as the app read them, raw, so a formula amount left alone is never rewritten. */
-function readCells(row: BillingRowLine): RowCells | null {
-  return storedCellsOf(store.state.snapshot?.['outgoing-plan'] ?? [], BILLING_PLAN_ROWS, row.id)
+/** The item as the app read it. A change writes only the fields that differ, so a formula amount left alone is never rewritten. */
+function readItem(row: BillingRowLine): BillingItem | null {
+  return recordWithId(store.state.records?.['outgoing-plan'] ?? NO_RECORDS, row.id)?.record ?? null
 }
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -99,40 +99,23 @@ async function save(): Promise<void> {
   if (!valid.value || day === null || parsedAmount.value === null) {
     return
   }
-  const typed = billingCellsOf({ item: item.value, date: day, amount: parsedAmount.value, client: client.value, description: description.value })
+  const typed = newBillingItem({ item: item.value, date: day, amount: parsedAmount.value, client: client.value, description: description.value })
   const row = props.row
   if (row === null) {
-    if (await writes.write({ added: [typed], changed: [], removed: [] }, { title: 'Plan row added' }, 'Not added')) open.value = false
+    if (await writes.write('Plan row added', (unit) => unit.of(BILLING_WRITES).add(typed), { failedTitle: 'Not added' })) open.value = false
     return
   }
-  const before = readCells(row)
+  const before = readItem(row)
   if (before === null) return
-  const unchanged: Readonly<Record<string, boolean>> = {
-    item: typed.item === row.item,
-    date: day === row.date,
-    amount: parsedAmount.value === row.amount,
-    client: typed.client === row.client,
-    description: typed.description === row.description,
-  }
-  const after: RowCells = Object.fromEntries(BILLING_PLAN_ROWS.columns.map((column) => [column, (unchanged[column] ? before[column] : typed[column]) ?? '']))
-  const saved = await writes.write(
-    { added: [], changed: [{ before, after }], removed: [] },
-    { title: 'Plan row saved', description: `${named(row)}, written to ${writes.where()}.` },
-    'Not saved',
-  )
-  if (saved) open.value = false
+  const after: BillingItem = { ...typed, id: before.id }
+  if (await writes.write('Plan row saved', (unit) => unit.of(BILLING_WRITES).change(before, after), { description: named(row), failedTitle: 'Not saved' })) open.value = false
 }
 
 async function remove(): Promise<void> {
   const row = props.row
-  const cells = row === null ? null : readCells(row)
-  if (row === null || cells === null) return
-  const deleted = await writes.write(
-    { added: [], changed: [], removed: [cells] },
-    { title: 'Plan row deleted', description: `${named(row)} is taken out of ${writes.where()}.` },
-    'Not deleted',
-  )
-  if (deleted) open.value = false
+  const before = row === null ? null : readItem(row)
+  if (row === null || before === null) return
+  if (await writes.write('Plan row deleted', (unit) => unit.of(BILLING_WRITES).remove(before), { description: named(row), failedTitle: 'Not deleted' })) open.value = false
 }
 </script>
 

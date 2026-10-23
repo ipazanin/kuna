@@ -1,20 +1,38 @@
 import { describe, expect, it } from 'vitest'
 
 import { exportReminderDue } from '../src/features/excel/domain/exportReminder'
-import { accountCellsOf, accountDraftErrors } from '../src/features/settings/domain/accountDrafts'
+import { accountDraftErrors, accountsOfDrafts } from '../src/features/settings/domain/accountDrafts'
 import type { AccountDraft } from '../src/features/settings/domain/accountDrafts'
-import { categoryCellsOf, categoryDraftErrors } from '../src/features/settings/domain/categoryDrafts'
+import { categoriesOfDrafts, categoryDraftErrors } from '../src/features/settings/domain/categoryDrafts'
 import type { CategoryDraft } from '../src/features/settings/domain/categoryDrafts'
-import { cellOfDraftText, cellsOfDrafts, draftTextOf, draftsOfRows } from '../src/features/settings/domain/tabRowDrafts'
-import { GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from '../src/features/settings/presentation/factTabColumns'
+import { draftOutcomes, draftTextOf, draftsOfRecords, fieldsOfDrafts, madeOfDrafts, valueOfDraftText } from '../src/features/settings/domain/recordDrafts'
+import type { DraftColumn, DraftFactory, MadeDraft, RecordDraft } from '../src/features/settings/domain/recordDrafts'
+import { storedOf } from '../src/features/workbook/domain/recordsRead'
+import type { RecordId } from '../src/features/workbook/domain/recordId'
+import type { RecordsRead, RefusedRecord } from '../src/features/workbook/domain/recordsRead'
+import { storedFieldOf } from '../src/features/workbook/domain/storedFields'
+import { GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from '../src/packs/hr-doo/presentation/editorColumns'
 import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
-import { readAssets } from '../src/features/workbook/infrastructure/assetsTabReader'
-import { readGrants } from '../src/features/workbook/infrastructure/grantsTabReader'
-import { rowsFrom } from '../src/features/workbook/infrastructure/workbookTemplate'
-import { readYearEnd } from '../src/features/workbook/infrastructure/yearEndTabReader'
+import { assetOfFields, readAssets } from '../src/packs/hr-doo/domain/assets/assetsReading'
+import { grantOfFields, readGrants } from '../src/packs/hr-doo/domain/grants/grantsReading'
+import { readYearEnd, yearEndLineOfFields } from '../src/packs/hr-doo/domain/yearEnd/yearEndReading'
+import { recordsOfRows } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import type { SpreadsheetTab } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import { ASSETS_TAB, GRANTS_TAB, YEAR_END_TAB } from '../src/packs/hr-doo/infrastructure/hrDooTabs'
+import type { SheetRow } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
 function category(name: string, overrides: Partial<CategoryDraft> = {}): CategoryDraft {
   return { saved: 0, savedName: name, category: name, label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', vat: '', ...overrides }
+}
+
+/** A stored record the editor opened with: the fields given, refused, as a row with other columns would be. */
+function storedWith(fields: Readonly<Record<string, string>>): RefusedRecord {
+  return { id: null, label: 'stored', fields: Object.fromEntries(Object.entries(fields).map(([name, text]) => [name, storedFieldOf(text)])), reason: 'stored' }
+}
+
+/** The records the drafts make, each refused one as its reason. */
+function made<R>(drafts: readonly RecordDraft[], columns: readonly DraftColumn[], make: DraftFactory<R>): MadeDraft<R>[] {
+  return madeOfDrafts(drafts, fieldsOfDrafts(drafts, columns, []), [], make)
 }
 
 function account(name: string, overrides: Partial<AccountDraft> = {}): AccountDraft {
@@ -45,54 +63,54 @@ describe('the categories editor', () => {
     expect(errors.has(1)).toBe(false)
   })
 
-  it('writes the cells in lower case and keeps other columns of a saved row', () => {
-    const cells = categoryCellsOf([category(' Software ', { roles: 'Revenue,  watched ,' })], new Map([[0, { category: 'software', note: 'mine' }]]))
+  it('makes the category in lower case', () => {
+    const [software] = categoriesOfDrafts([storedWith({ category: 'software', note: 'mine' })], [category(' Software ', { roles: 'Revenue,  watched ,' })])
 
-    expect(cells).toEqual([{ category: 'software', label: '', family: 'operating', bucket: 'operating', colour: '', roles: 'revenue, watched', vat: '', note: 'mine' }])
+    expect(software).toMatchObject({ saved: 0, record: { slug: 'software', label: '', family: 'operating', bucket: 'operating', colour: '', roles: ['revenue', 'watched'], vat: 'none' } })
   })
 })
 
 describe('the categories editor and VAT', () => {
   it('writes a VAT treatment in lower case and refuses one the app does not know', () => {
-    expect(categoryCellsOf([category('software', { vat: ' Reverse-Charge ' })], new Map())[0]?.vat).toBe('reverse-charge')
+    expect(categoriesOfDrafts([], [category('software', { saved: null, vat: ' Reverse-Charge ' })])[0]).toMatchObject({ record: { vat: 'reverse-charge' } })
     expect(categoryDraftErrors([category('software', { vat: 'half' })], new Set()).get(0)).toEqual({ vat: 'Not a VAT treatment the app knows' })
     expect(categoryDraftErrors([category('software', { vat: '' })], new Set()).size).toBe(0)
   })
 })
 
 describe('the assets, grants and year-end editors', () => {
-  it('turn field text into the cells the tab holds: dates as date cells, a percent as a fraction, a flag as TRUE', () => {
-    expect(cellOfDraftText('2025-06-01', 'date')).toBe(45809)
-    expect(cellOfDraftText('1.6.2025', 'date')).toBe('1.6.2025')
-    expect(cellOfDraftText('10', 'percent')).toBe(0.1)
-    expect(cellOfDraftText(' 1519.20 ', 'amount')).toBe(1519.2)
-    expect(cellOfDraftText('lots', 'amount')).toBe('lots')
-    expect(cellOfDraftText('TRUE', 'flag')).toBe(true)
-    expect(cellOfDraftText('Whole', 'amount-or-word')).toBe('whole')
-    expect(cellOfDraftText('2500', 'amount-or-word')).toBe(2500)
-    expect(cellOfDraftText(' Computers ', 'word')).toBe('computers')
-    expect(cellOfDraftText('   ', 'text')).toBe('')
-    expect(draftTextOf(45809, 'date')).toBe('2025-06-01')
-    expect(draftTextOf(0.1, 'percent')).toBe('10')
-    expect(draftTextOf(0.125, 'percent')).toBe('12.5')
-    expect(draftTextOf(true, 'flag')).toBe('TRUE')
+  it('turn field text into the values the workbook holds: dates as dates, a percent as a fraction, a flag as TRUE', () => {
+    expect(valueOfDraftText('2025-06-01', 'date')).toBe(45809)
+    expect(valueOfDraftText('1.6.2025', 'date')).toBe('1.6.2025')
+    expect(valueOfDraftText('10', 'percent')).toBe(0.1)
+    expect(valueOfDraftText(' 1519.20 ', 'amount')).toBe(1519.2)
+    expect(valueOfDraftText('lots', 'amount')).toBe('lots')
+    expect(valueOfDraftText('TRUE', 'flag')).toBe(true)
+    expect(valueOfDraftText('Whole', 'amount-or-word')).toBe('whole')
+    expect(valueOfDraftText('2500', 'amount-or-word')).toBe(2500)
+    expect(valueOfDraftText(' Computers ', 'word')).toBe('computers')
+    expect(valueOfDraftText('   ', 'text')).toBe('')
+    expect(draftTextOf(storedFieldOf(45809), 'date')).toBe('2025-06-01')
+    expect(draftTextOf(storedFieldOf(0.1), 'percent')).toBe('10')
+    expect(draftTextOf(storedFieldOf(0.125), 'percent')).toBe('12.5')
+    expect(draftTextOf(storedFieldOf(true), 'flag')).toBe('TRUE')
   })
 
-  it('read the fake workbook into fields and write the same cells back, so an unchanged tab saves as it was', () => {
+  it('draft the fake workbook and make the same records back, so an unchanged tab saves nothing', () => {
     const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
-    for (const [rows, columns] of [
-      [snapshot.assets, assetColumns(['startup-grant'])],
-      [snapshot.grants, GRANT_COLUMNS],
-      [snapshot['year-end'], YEAR_END_COLUMNS],
-    ] as const) {
-      const saved = new Map(rows.map((row, place) => [place, row.cells]))
-      expect(rowsFrom(cellsOfDrafts(draftsOfRows(rows, columns), columns, saved))).toEqual(rows)
+    const sameBack = <R extends { readonly id: RecordId }>(tab: SpreadsheetTab<R>, rows: readonly SheetRow[], columns: readonly DraftColumn[], make: DraftFactory<R>) => {
+      const stored = storedOf(recordsOfRows(tab, rows))
+      const drafts = draftsOfRecords(stored, columns)
+      expect(madeOfDrafts(drafts, fieldsOfDrafts(drafts, columns, stored), stored, make)).toEqual(stored.map((read, saved) => ({ saved, record: (read as { readonly record: R }).record })))
     }
+    sameBack(ASSETS_TAB, snapshot.assets, assetColumns(['startup-grant']), assetOfFields)
+    sameBack(GRANTS_TAB, snapshot.grants, GRANT_COLUMNS, grantOfFields)
+    sameBack(YEAR_END_TAB, snapshot['year-end'], YEAR_END_COLUMNS, yearEndLineOfFields)
   })
 
   it('give each year-end amount the field its line needs', () => {
     const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
-    const drafts = draftsOfRows(snapshot['year-end'], YEAR_END_COLUMNS)
+    const drafts = draftsOfRecords(storedOf(recordsOfRows(YEAR_END_TAB, snapshot['year-end'])), YEAR_END_COLUMNS)
     const amountOf = (line: string): string | undefined => drafts.find((draft) => draft.fields.line === line)?.fields.amount
 
     expect(amountOf('rate')).toBe('10')
@@ -101,25 +119,27 @@ describe('the assets, grants and year-end editors', () => {
     expect(amountOf('sales')).toBe('57147.33')
   })
 
-  it('check a draft with the tab reader, so a row the workbook would leave out cannot be saved', () => {
+  it('check a draft with the kind’s reader, so a record the workbook would leave out cannot be saved', () => {
     const drafts = [
       { saved: null, fields: { asset: 'Laptop', bought: '2026-01-09', cost_net: '749.50', group: 'computers' } },
       { saved: null, fields: { asset: 'Lamp', bought: '2026-01-09', cost_net: '-1', group: 'other' } },
     ]
     const columns = assetColumns([])
-    // A new row gets its id when it is saved, so the editor reads it with one.
-    const reading = readAssets(rowsFrom(cellsOfDrafts(drafts, columns, new Map()).map((cells, index) => ({ ...cells, id: `new-${index}` }))), new Set())
+    const assets = made(drafts, columns, assetOfFields)
+    const fields = fieldsOfDrafts(drafts, columns, [])
 
-    expect(reading.facts.map((asset) => [asset.name, asset.inUse, asset.costNet])).toEqual([['Laptop', '2026-01-09', 74950]])
-    expect(reading.problems.map((problem) => [problem.label, problem.reason])).toEqual([['Lamp', 'cost_net must be more than zero']])
-    expect(readGrants(rowsFrom(cellsOfDrafts([{ saved: null, fields: { grant: 'Startup', received: '2026-01-09', amount: '100', release: 'fixed-then-assets' } }], GRANT_COLUMNS, new Map()))).problems.map((problem) => [problem.label, problem.reason])).toEqual([
-      ['startup', 'a fixed-then-assets release needs fixed_part and variable_part'],
+    expect(assets.map((draft) => ('record' in draft ? [draft.record.name, draft.record.inUse, draft.record.costNet] : draft.refused))).toEqual([['Laptop', '2026-01-09', 74950], 'cost_net must be more than zero'])
+    expect(draftOutcomes(assets, fields, (records) => readAssets(records, new Set()))).toEqual([
+      { kept: true, reasons: [] },
+      { kept: false, reasons: ['cost_net must be more than zero'] },
     ])
-    const yearEndCells = cellsOfDrafts([{ saved: null, fields: { year: '2025', statement: 'tax', line: 'rate', amount: '10' } }], YEAR_END_COLUMNS, new Map())
-    expect(readYearEnd(rowsFrom(yearEndCells.map((cells) => ({ ...cells, id: 'new-0' }))), new Set()).facts[0]?.figure).toEqual({
-      kind: 'rate',
-      basisPoints: 1000,
-    })
+    const grant = [{ saved: null, fields: { grant: 'Startup', received: '2026-01-09', amount: '100', release: 'fixed-then-assets' } }]
+    expect(draftOutcomes(made(grant, GRANT_COLUMNS, grantOfFields), fieldsOfDrafts(grant, GRANT_COLUMNS, []), (records: RecordsRead<ReturnType<typeof grantOfFields>>) => readGrants(records))).toEqual([
+      { kept: false, reasons: ['a fixed-then-assets release needs fixed_part and variable_part'] },
+    ])
+    const [rate] = made([{ saved: null, fields: { year: '2025', statement: 'tax', line: 'rate', amount: '10' } }], YEAR_END_COLUMNS, yearEndLineOfFields)
+    expect(rate).toMatchObject({ record: { figure: { kind: 'rate', basisPoints: 1000 } } })
+    expect(draftOutcomes([rate!], [{}], (records) => readYearEnd(records, new Set())).map((outcome) => outcome.kept)).toEqual([true])
   })
 })
 
@@ -136,9 +156,9 @@ describe('the accounts editor', () => {
     expect(errors.has(0)).toBe(false)
   })
 
-  it('writes a normalised IBAN and an upper-case currency', () => {
-    expect(accountCellsOf([account('Main', { iban: 'xx00 fake 0001', currency: 'eur' })], new Map())).toEqual([
-      { account: 'main', label: '', iban: 'XX00FAKE0001', currency: 'EUR' },
+  it('makes the account with a normalised IBAN and an upper-case currency', () => {
+    expect(accountsOfDrafts([], [account('Main', { saved: null, iban: 'xx00 fake 0001', currency: 'eur' })])).toMatchObject([
+      { saved: null, record: { slug: 'main', label: '', iban: 'XX00FAKE0001', currency: 'EUR' } },
     ])
   })
 })

@@ -1,13 +1,11 @@
-import type { WorkbookSnapshot } from '../infrastructure/workbookSnapshot'
-
 /** A spreadsheet in the user's Drive, as the Picker returns it. */
 export interface GoogleSheet {
   readonly id: string
   readonly name: string
 }
 
-/** What a sync needs from Google. */
-export interface GoogleWorkbookPorts {
+/** What a sync needs from Google, which reads a Sheet into a copy of this type. */
+export interface GoogleWorkbookPorts<Copy> {
   /** A token that has not expired yet, or null. */
   liveAccessToken(): string | null
   /**
@@ -18,7 +16,7 @@ export interface GoogleWorkbookPorts {
   /** Opens the Picker. Null when the user cancels. */
   pickSpreadsheet(accessToken: string): Promise<GoogleSheet | null>
   /** Reads the workbook tabs the Sheet has in one call. Never writes. */
-  readSnapshot(accessToken: string, sheet: GoogleSheet): Promise<WorkbookSnapshot>
+  readSnapshot(accessToken: string, sheet: GoogleSheet): Promise<Copy>
 }
 
 /**
@@ -26,7 +24,7 @@ export interface GoogleWorkbookPorts {
  * user cancels the Picker. The token comes first: Firefox opens Google's popup only while the click
  * that started the sync is recent.
  */
-export async function readFromGoogle(ports: GoogleWorkbookPorts, sheet: GoogleSheet | null): Promise<WorkbookSnapshot | null> {
+export async function readFromGoogle<Copy>(ports: GoogleWorkbookPorts<Copy>, sheet: GoogleSheet | null): Promise<Copy | null> {
   const accessToken = ports.liveAccessToken() ?? (await ports.requestAccessToken(sheet === null ? 'pick' : 'sync'))
   const chosen = sheet ?? (await ports.pickSpreadsheet(accessToken))
   return chosen === null ? null : ports.readSnapshot(accessToken, chosen)

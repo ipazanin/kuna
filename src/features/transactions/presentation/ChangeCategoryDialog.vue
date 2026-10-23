@@ -7,14 +7,16 @@ import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
-import { useLedgerWrites } from '../../review/application/useLedgerWrites'
+import { fileRows } from '../../review/application/fileRows'
 import { recategorisation } from '../../review/domain/verdictChanges'
 import { ruleAgainst } from '../../rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../../rules/domain/transactionFacts'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { NO_RECORDS } from '../../workbook/domain/recordsRead'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import type { Transaction } from '../../workbook/domain/workbook'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import CategoryChip from './CategoryChip.vue'
 import CategoryPicker from './CategoryPicker.vue'
 
@@ -31,7 +33,7 @@ const props = defineProps<{
 
 const { state } = useWorkbook()
 const router = useRouter()
-const writes = useLedgerWrites()
+const writes = useRecordWrites()
 const names = useDisplayNames()
 const phone = usePhoneLayout()
 
@@ -57,8 +59,9 @@ async function change(): Promise<void> {
   const category = picked.value
   if (workbook === null || category === undefined || !changed.value) return
   const contradicting = against.value
-  const written = await writes.write([recategorisation(props.row, category, workbook.settings)], {
-    title: `Filed as ${names.value.category(category)}`,
+  const verdict = recategorisation(props.row, category, workbook.settings)
+  const written = await writes.write(`Filed as ${names.value.category(category)}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict]), {
+    failedTitle: 'Not written',
     description: props.row.counterparty || 'A row with no counterparty',
     ...(contradicting === null
       ? {}

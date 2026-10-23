@@ -8,7 +8,7 @@ import { counted, monthName } from '../../../features/overview/presentation/wait
 import type { WaitingJob } from '../../../features/overview/presentation/waitingForYou'
 import { displayNamesOf } from '../../../features/workbook/domain/displayName'
 import { bookingOfAdvance, ledgerWindowOf } from '../../../features/workbook/domain/workbook'
-import type { Workbook } from '../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../domain/hrDooPart'
 import { forecastYear } from '../domain/forecast/forecastYear'
 import { ownerAdvances } from '../domain/ownerAdvances'
 import { payrollCadence } from '../domain/payrollCadence'
@@ -21,11 +21,11 @@ function taxesTab(card: string): RouteLocationRaw {
 }
 
 /** Reimbursements with no cost on file, a payroll month with no payment, and corporate tax due this month or overdue. */
-export function packWaitingJobs(workbook: Workbook, asOf: CivilDate): WaitingJob[] {
+export function packWaitingJobs(workbook: HrDooWorkbook, asOf: CivilDate): WaitingJob[] {
   return [unaccountedJob(workbook), payrollJob(workbook, asOf), corporateTaxJob(workbook, asOf)].flatMap((job) => (job === null ? [] : [job]))
 }
 
-function unaccountedJob(workbook: Workbook): WaitingJob | null {
+function unaccountedJob(workbook: HrDooWorkbook): WaitingJob | null {
   const { unaccounted } = ownerAdvances(workbook.ownerAdvances, workbook.transactions, workbook.categories)
   if (unaccounted.length === 0) return null
   return {
@@ -40,7 +40,7 @@ function unaccountedJob(workbook: Workbook): WaitingJob | null {
  * A complete month in which a watched tax, such as the payroll contributions, had no payment. The
  * owner's advances count, as on the payroll cadence.
  */
-function payrollJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
+function payrollJob(workbook: HrDooWorkbook, asOf: CivilDate): WaitingJob | null {
   const window = ledgerWindowOf(workbook.transactions)
   if (window === null) return null
   const bookings = [...workbook.transactions, ...workbook.ownerAdvances.map(bookingOfAdvance)]
@@ -61,8 +61,8 @@ function payrollJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
 }
 
 /** Without the registration day there is no tax schedule to hold the payments against, so nothing is said. */
-function corporateTaxJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
-  if (workbook.settings.companyFacts.companyRegistered === null) return null
+function corporateTaxJob(workbook: HrDooWorkbook, asOf: CivilDate): WaitingJob | null {
+  if (workbook.companyFacts.companyRegistered === null) return null
   let history
   try {
     history = forecastYear(workbook, yearOf(asOf), asOf).cit.history

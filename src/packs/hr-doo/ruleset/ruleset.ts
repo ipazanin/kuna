@@ -62,23 +62,35 @@ export type WatchItem =
  * for an annual settlement.
  */
 export function ruleValue<Id extends RuleId>(id: Id, on: CivilDate): RuleLookup<RuleValues[Id]> {
+  const rule = ruleOf(id)
+  const version = versionOn(rule, on) as RuleVersion<RuleValues[Id]>
+  return { value: version.value, version, citation: citationOf(rule, version) }
+}
+
+/** Whether the rule has a version in force on the day, so `ruleValue` gives its value then. */
+export function hasVersionOn(id: RuleId, on: CivilDate): boolean {
+  return versionInForce(ruleOf(id), on) !== undefined
+}
+
+export function versionOn<Value>(rule: Rule<string, Value>, on: CivilDate): RuleVersion<Value> {
+  const version = versionInForce(rule, on)
+  if (version === undefined) {
+    throw new RangeError(`${rule.id} has no version in force on ${on}.`)
+  }
+  return version
+}
+
+function ruleOf(id: RuleId): GeneralRule {
   const rules: readonly GeneralRule[] = RULES
   const rule = rules.find((candidate) => candidate.id === id)
   if (rule === undefined) {
     throw new RangeError(`The ruleset has no rule ${id}.`)
   }
-  const version = versionOn(rule, on) as RuleVersion<RuleValues[Id]>
-  return { value: version.value, version, citation: citationOf(rule, version) }
+  return rule
 }
 
-export function versionOn<Value>(rule: Rule<string, Value>, on: CivilDate): RuleVersion<Value> {
-  const version = rule.versions.find(
-    (candidate) => candidate.validFrom <= on && (candidate.validTo === null || on <= candidate.validTo),
-  )
-  if (version === undefined) {
-    throw new RangeError(`${rule.id} has no version in force on ${on}.`)
-  }
-  return version
+function versionInForce<Value>(rule: Rule<string, Value>, on: CivilDate): RuleVersion<Value> | undefined {
+  return rule.versions.find((candidate) => candidate.validFrom <= on && (candidate.validTo === null || on <= candidate.validTo))
 }
 
 export function citationOf<Value>(rule: Rule<string, Value>, version: RuleVersion<Value>): RuleCitation {

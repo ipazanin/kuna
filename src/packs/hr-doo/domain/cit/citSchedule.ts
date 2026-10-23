@@ -1,4 +1,4 @@
-import type { CompanyFacts } from '../../../../features/settings/domain/settings'
+import type { CompanyFacts } from '../companyFacts'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, lastDayOf, monthKey, monthOf } from '../../../../shared/calendar/monthKey'

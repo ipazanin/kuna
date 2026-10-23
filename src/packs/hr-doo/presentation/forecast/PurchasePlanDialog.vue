@@ -6,13 +6,13 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { ASSET_GROUPS } from '../../../../features/workbook/domain/assets'
-import type { AssetGroup } from '../../../../features/workbook/domain/assets'
-import type { PlanLine } from '../../../../features/workbook/domain/plan'
+import { ASSET_GROUPS } from '../../domain/assets/assets'
+import type { AssetGroup } from '../../domain/assets/assets'
+import type { PlanLine } from '../../domain/forecast/plan'
 import { parseCivilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import type { Money } from '../../../../shared/money/money'
-import { purchasePlanCells } from '../../application/planRows'
+import { purchasePlanLine, replacePlanLines } from '../../application/planWrites'
 import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { GROUP_WORDS, fieldAmount } from './planWording'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -65,17 +65,18 @@ const valid = computed(() => Object.values(errors.value).every((error) => error 
 async function save(): Promise<void> {
   tried.value = true
   if (!valid.value || day.value === null) return
-  const cells = purchasePlanCells(props.year, day.value, cost.value as Money, group.value, name.value)
-  const before = props.purchase === null ? null : writes.rowOf(props.purchase)
+  const line = purchasePlanLine(props.year, day.value, cost.value as Money, group.value, name.value)
+  const before = props.purchase === null ? null : writes.stored(props.purchase)
   if (props.purchase !== null && before === null) return
-  const change = before === null ? { added: [cells], changed: [], removed: [] } : { added: [], changed: [{ before, after: cells }], removed: [] }
-  if (await writes.write(change, { title: props.purchase === null ? 'Purchase planned' : 'Purchase saved', description: `${name.value.trim()}, written to ${writes.where()}.` }, 'Not saved')) open.value = false
+  const held = before === null ? [] : [{ key: 'purchase', line: before }]
+  const title = props.purchase === null ? 'Purchase planned' : 'Purchase saved'
+  if (await writes.write(title, (lines) => replacePlanLines(lines, held, [{ key: 'purchase', line }]), { description: `${name.value.trim()}.`, failedTitle: 'Not saved' })) open.value = false
 }
 
 async function remove(): Promise<void> {
-  const row = props.purchase === null ? null : writes.rowOf(props.purchase)
-  if (row === null) return
-  if (await writes.write({ added: [], changed: [], removed: [row] }, { title: 'Purchase deleted', description: `${name.value.trim() || 'The purchase'} is taken out of ${writes.where()}.` }, 'Not deleted')) open.value = false
+  const before = props.purchase === null ? null : writes.stored(props.purchase)
+  if (before === null) return
+  if (await writes.write('Purchase deleted', (lines) => lines.remove(before), { description: `${name.value.trim() || 'The purchase'} is taken out of the plan.`, failedTitle: 'Not deleted' })) open.value = false
 }
 </script>
 
@@ -101,7 +102,7 @@ async function remove(): Promise<void> {
         <UFormField label="Depreciation group" class="sm:col-span-2">
           <USelect v-model="group" :items="groups" class="w-full" data-testid="purchase-group" />
         </UFormField>
-        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" :headers="writes.headers" class="sm:col-span-2" />
+        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" class="sm:col-span-2" />
       </form>
     </template>
     <template #footer>

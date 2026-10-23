@@ -1,5 +1,5 @@
-import type { CompanyFacts } from '../../../../features/settings/domain/settings'
-import type { Asset } from '../../../../features/workbook/domain/assets'
+import type { CompanyFacts } from '../companyFacts'
+import type { Asset } from './assets'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, lastDayOf, monthNumber, monthOf, yearOfMonth } from '../../../../shared/calendar/monthKey'

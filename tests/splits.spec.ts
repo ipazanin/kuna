@@ -7,8 +7,8 @@ import { listedRows, withSplitHeadings } from '../src/features/transactions/doma
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
 import { listedRowKey, splitLedger } from '../src/features/workbook/domain/splits'
 import type { Category } from '../src/features/workbook/domain/workbook'
-import { readSplits } from '../src/features/workbook/infrastructure/splitsTabReader'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSplits } from '../src/features/workbook/domain/splitsReading'
+import { CORE_TABS, readSnapshot, recordsOfRows } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { assetsClaimingRows } from '../src/packs/hr-doo/domain/assets/assetRegister'
@@ -20,7 +20,9 @@ import { civil, euros, ledger } from './fixtures/ledger'
 import { withIds } from './fixtures/rowIds'
 import { splitOf } from './fixtures/splits'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { OWNER_ADVANCE_RECORDS, SPLIT_PART_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { SPLIT_PART_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
 const ROWS = withPackBuckets(
   ledger([
@@ -75,7 +77,7 @@ const SPLIT_HEADER = ['date', 'account', 'row_amount', 'row_balance', 'amount', 
 const KEY: CellValue[] = [46090, 'main', -60, 940]
 
 function read(...rows: CellValue[][]) {
-  return readSplits(sheetRowsFromValues(withIds('split', [SPLIT_HEADER, ...rows])), ROWS, CATEGORIES)
+  return readSplits(recordsOfRows(CORE_TABS.splits, sheetRowsFromValues(withIds('split', [SPLIT_HEADER, ...rows]))), ROWS, CATEGORIES)
 }
 
 function reasons(reading: ReturnType<typeof read>): string[] {
@@ -120,7 +122,7 @@ describe('readSplits', () => {
 
   it('refuses a split on a ledger row whose key another row shares, since the split would land on both', () => {
     const rows = ROWS.map((row) => (row.amount === euros(-25) ? { ...row, id: ORDER.id } : row))
-    const reading = readSplits(sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']])), rows, CATEGORIES)
+    const reading = readSplits(recordsOfRows(CORE_TABS.splits, sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']]))), rows, CATEGORIES)
 
     expect(reading.splits).toEqual([])
     expect(reading.problems[0]?.reason).toBe(
@@ -135,7 +137,7 @@ describe('readSplits', () => {
         { date: '2026-03-09', amount: -60, balance: 940, category: 'office-supplies' },
       ]),
     )
-    const reading = readSplits(sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']])), twins, CATEGORIES)
+    const reading = readSplits(recordsOfRows(CORE_TABS.splits, sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']]))), twins, CATEGORIES)
 
     expect(reading.splits).toEqual([])
     expect(reading.problems[0]?.reason).toBe(
@@ -167,14 +169,14 @@ describe('readSplits', () => {
 
   it('reports a row it cannot read, and refuses the rest of its split for it', () => {
     expect(reasons(read([...KEY, -45, 'office-supplies'], [...KEY, 'fifteen', 'travel']))).toEqual([
-      'office-supplies, -45, 2026-03-09: a part of this split cannot be read, so the ledger row counts whole',
       'travel, fifteen, 2026-03-09: amount "fifteen" is not a number',
+      'office-supplies, -45, 2026-03-09: a part of this split cannot be read, so the ledger row counts whole',
     ])
     expect(reasons(read(['yesterday', 'main', -60, 940, -45, 'travel']))).toEqual(['travel, -45, yesterday: date "yesterday" is not a date cell'])
   })
 
   it('counts a refused split’s row whole in the workbook, and keeps the splits that pass', () => {
-    const workbook = readWorkbook(snapshotOf([[...KEY, -45, 'office-supplies'], [...KEY, -10, 'travel'], [46091, 'main', -25, 915, -20, 'travel'], [46091, 'main', -25, 915, -5, 'office-supplies']]))
+    const workbook = readSnapshot(snapshotOf([[...KEY, -45, 'office-supplies'], [...KEY, -10, 'travel'], [46091, 'main', -25, 915, -20, 'travel'], [46091, 'main', -25, 915, -5, 'office-supplies']])).workbook
     const presented = presentedWorkbook(workbook)
 
     expect(workbook.splits.map((split) => split.row.amount)).toEqual([euros(-25)])
@@ -208,7 +210,7 @@ function snapshotOf(splits: CellValue[][], assets: CellValue[][] = []): Workbook
 
 describe('countedSplits', () => {
   it('refuses a split of a row an asset claims, so the row counts whole and the asset keeps its payment', () => {
-    const workbook = readWorkbook(
+    const workbook = readSnapshot(
       snapshotOf(
         [[...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']],
         [
@@ -216,8 +218,8 @@ describe('countedSplits', () => {
           ['Shredder', 46090, 48, 'equipment', 'Order 77'],
         ],
       ),
-    )
-    const counted = countedSplits(workbook.splits, assetsClaimingRows(workbook.assets, workbook.transactions, workbook.categories))
+    ).workbook
+    const counted = countedSplits(workbook.splits, assetsClaimingRows(hrDooWorkbook(workbook).assets, workbook.transactions, workbook.categories))
 
     expect(workbook.splits).toHaveLength(1)
     expect(counted.splits).toEqual([])
@@ -253,13 +255,13 @@ describe('the split of a salary, on a company with a private share split off', (
   const moved = splitOf(order, [[-47.5, 'office-supplies'], [-12.5, 'private-cost-for-owner', 'Private item']], categories)
   const bonus = splitOf(salary, [[-1200, 'salary-net'], [-800, 'salary-bonus']], categories)
 
-  const after = presentedWorkbook(exampleStudio({ categories, transactions: rows, splits: [moved] }))
-  const withBonus = presentedWorkbook(exampleStudio({ categories, transactions: rows, splits: [moved, bonus] }))
-  const profitBeforeTax = (workbook: typeof after) => accrualYear(workbook, 2025, { depreciation: workbook.settings.companyFacts, citAdvancesPaid: null }).bridge.profitBeforeTax.amount
+  const after = hrDooWorkbook(presentedWorkbook(exampleStudio({ categories, transactions: rows, splits: [moved] })))
+  const withBonus = hrDooWorkbook(presentedWorkbook(exampleStudio({ categories, transactions: rows, splits: [moved, bonus] })))
+  const profitBeforeTax = (workbook: typeof after) => accrualYear(workbook, 2025, { depreciation: workbook.companyFacts, citAdvancesPaid: null }).bridge.profitBeforeTax.amount
 
   it('still closes the year with the salary split, since a bonus paid in July for June stays in the year', () => {
     const pbt = profitBeforeTax(withBonus)
-    const comparison = compareYearEnd(exampleStudio({ categories, transactions: withBonus.transactions, yearEndLines: [yearEndLine(2025, 'pl', 'profit-before-tax', pbt / 100)] }), accrualYear(withBonus, 2025, { depreciation: withBonus.settings.companyFacts, citAdvancesPaid: null }))
+    const comparison = compareYearEnd(exampleStudio({ categories, transactions: withBonus.transactions, yearEndLines: [yearEndLine(2025, 'pl', 'profit-before-tax', pbt / 100)] }), accrualYear(withBonus, 2025, { depreciation: withBonus.companyFacts, citAdvancesPaid: null }))
 
     expect(pbt).toBe(profitBeforeTax(after))
     expect(comparison.lines.find((line) => line.line === 'profit-before-tax')?.status).not.toBe('open')

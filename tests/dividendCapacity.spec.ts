@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { dividendCapacity } from '../src/packs/hr-doo/domain/dividend/dividendCapacity'
 import type { DividendCapacity, PayoutOption, PayoutOptionId } from '../src/packs/hr-doo/domain/dividend/dividendCapacity'
 import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import { subtractMoney } from '../src/shared/money/money'
 import { yearEndLine } from './fixtures/exampleStudio'
 import { withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { STEADY_CATEGORIES, STEADY_ROWS, STEADY_YEAR_END_2025, planLine, steadyStudio } from './fixtures/steadyStudio'
 
-function capacity(year: number, workbook: Workbook = steadyStudio(), asOf = '2026-10-19'): DividendCapacity {
+function capacity(year: number, workbook: HrDooWorkbook = steadyStudio(), asOf = '2026-10-19'): DividendCapacity {
   return dividendCapacity(year, forecastYear(workbook, year, civil(asOf)), workbook)
 }
 
@@ -132,7 +132,7 @@ describe('dividendCapacity, after a payout already made in the year', () => {
 
   it('takes the rate the owner loans carry off the yearly benefit in kind', () => {
     const workbook = steadyStudio()
-    const carried = { ...workbook, settings: { ...workbook.settings, companyFacts: { ...workbook.settings.companyFacts, ownerLoanInterest: 50 } } }
+    const carried = { ...workbook, companyFacts: { ...workbook.companyFacts, ownerLoanInterest: 50 } }
 
     // 2% less the 0.5% the loans carry, on the 3,000.00 that stays lent: 3,000.00 × 1.5% = 45.00.
     expect(option(capacity(2026, carried), 'keep').loanBenefitPerYear.amount).toBe(euros(45))
@@ -235,7 +235,7 @@ describe('dividendCapacity, a dividend planned in the running month the ledger h
   const rows = [...STEADY_ROWS, { date: '2026-10-08', amount: -5280, category: 'dividend' }, { date: '2026-10-08', amount: -720, category: 'dividend-tax' }].sort((earlier, later) =>
     earlier.date.localeCompare(later.date),
   )
-  const paidOut = (planLines: Workbook['planLines']) => steadyStudio({ transactions: withPackBuckets(ledger(rows), STEADY_CATEGORIES), planLines })
+  const paidOut = (planLines: HrDooWorkbook['planLines']) => steadyStudio({ transactions: withPackBuckets(ledger(rows), STEADY_CATEGORIES), planLines })
 
   it('counts the payout from the ledger and adds nothing from the plan', () => {
     const workbook = paidOut([planLine(10, 'dividend', 6000)])

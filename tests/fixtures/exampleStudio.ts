@@ -1,15 +1,19 @@
 import { DEFAULT_SETTINGS } from '../../src/features/settings/domain/settings'
-import type { Asset, AssetGroup } from '../../src/features/workbook/domain/assets'
+import type { Asset, AssetGroup } from '../../src/packs/hr-doo/domain/assets/assets'
 import type { DefinedBucket } from '../../src/features/workbook/domain/bucket'
-import type { Grant } from '../../src/features/workbook/domain/grants'
+import type { Grant } from '../../src/packs/hr-doo/domain/grants/grants'
 import type { VatTreatment } from '../../src/features/workbook/domain/vatTreatment'
-import type { Category, Invoice, OwnerAdvance, Workbook } from '../../src/features/workbook/domain/workbook'
-import type { YearEndFigure, YearEndLine, YearEndStatement } from '../../src/features/workbook/domain/yearEnd'
+import type { Category, Invoice, OwnerAdvance } from '../../src/features/workbook/domain/workbook'
+import { COMPANY_FACT_SETTINGS } from '../../src/packs/hr-doo/domain/companyFacts'
+import { ASSET_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, YEAR_END_RECORDS } from '../../src/packs/hr-doo/domain/hrDooKinds'
+import { HR_DOO } from '../../src/packs/hr-doo/domain/hrDooPart'
+import type { HrDooPart, HrDooWorkbook } from '../../src/packs/hr-doo/domain/hrDooPart'
+import type { YearEndFigure, YearEndLine, YearEndStatement } from '../../src/packs/hr-doo/domain/yearEnd/yearEnd'
 import { withPackBuckets } from './hrDooCategories'
 import { civil, euros, ledger } from './ledger'
 import type { RowSpec } from './ledger'
 import { recordIdOf } from '../../src/features/workbook/domain/recordId'
-import { ASSET_RECORDS, GRANT_RECORDS, INVOICE_RECORDS, OWNER_ADVANCE_RECORDS, YEAR_END_RECORDS } from '../../src/features/workbook/domain/recordKind'
+import { INVOICE_RECORDS } from '../../src/features/workbook/domain/recordKind'
 
 // Example Studio d.o.o., registered on 3 March 2025, with synthetic figures. Its first tax period
 // runs from March to December 2025, ten months.
@@ -106,9 +110,9 @@ export const STUDIO_ADVANCES: readonly OwnerAdvance[] = [
   { date: civil('2025-06-20'), amount: euros(50), description: 'Software bought privately', category: 'software', family: 'operating', bucket: 'operating', id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') },
 ]
 
-export function exampleStudio(changes: Partial<Workbook> = {}): Workbook {
+export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbook {
   const categories = changes.categories ?? STUDIO_CATEGORIES
-  return {
+  return withPart({
     id: 'example-studio',
     source: 'excel',
     title: 'Example Studio d.o.o.',
@@ -123,16 +127,26 @@ export function exampleStudio(changes: Partial<Workbook> = {}): Workbook {
     billingPlan: [],
     ownerAdvances: STUDIO_ADVANCES,
     splits: [],
+    rowsKeptWhole: new Map(),
     assets: STUDIO_ASSETS,
     grants: [STUDIO_GRANT],
     yearEndLines: [],
     planLines: [],
     payScenarios: [],
     dismissals: [],
-    settings: { ...DEFAULT_SETTINGS, companyFacts: { ...DEFAULT_SETTINGS.companyFacts, companyRegistered: civil('2025-03-03') } },
+    settings: DEFAULT_SETTINGS,
+    companyFacts: { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: civil('2025-03-03') },
+    packParts: {},
     problems: [],
     ...changes,
-  }
+  })
+}
+
+/** The workbook with its pack part made of its pack fields, as a read gives it. */
+function withPart(workbook: HrDooWorkbook): HrDooWorkbook {
+  const { ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, companyFacts } = workbook
+  const part: HrDooPart = { ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, companyFacts }
+  return { ...workbook, packParts: { [HR_DOO.name]: part } }
 }
 
 let nextRow = 2

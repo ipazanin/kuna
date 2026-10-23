@@ -2,27 +2,28 @@ import * as XLSX from 'xlsx'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FOREIGN_WORKBOOK_FILES, foreignWorkbookBytes } from '../scripts/support/foreignWorkbookFiles.mjs'
-import { exportFileName, previewImport } from '../src/features/excel/application/workbookFiles'
+import { exportFileName, previewImport } from '../src/features/workbook/presentation/workbookFiles'
 import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
 import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { readWorkbookFile, workbookGrids, writeWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import type { CellValue, WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { emptyWorkbookTabs } from '../src/features/workbook/infrastructure/workbookTemplate'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
 const META = { id: 'file', source: 'excel', title: 'File', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] } as const
 
-function workbookOf(tabs: WorkbookTabs): Workbook {
-  return readWorkbook({ meta: META, ...tabs })
+function workbookOf(tabs: WorkbookTabs): HrDooWorkbook {
+  return hrDooWorkbook(readSnapshot({ meta: META, ...tabs }).workbook)
 }
 
 /** What two reads of the same tabs must agree on. The meta differs by design. */
-function contentOf(workbook: Workbook) {
-  const { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, problems } =
+function contentOf(workbook: HrDooWorkbook) {
+  const { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, companyFacts, problems } =
     workbook
-  return { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, problems }
+  return { transactions, categories, accounts, rules, invoices, clients, billingPlan, ownerAdvances, splits, assets, grants, yearEndLines, planLines, payScenarios, settings, companyFacts, problems }
 }
 
 function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
@@ -177,7 +178,7 @@ describe('exporting', () => {
       ...original,
       ledger: original.ledger.map((row, index) => (index === 3 ? { ...row, cells: { ...row.cells, receipt: 'R-17' } } : row)),
     }
-    const workbook = readWorkbook(withExtra)
+    const workbook = hrDooWorkbook(readSnapshot(withExtra).workbook)
 
     const imported = await readWorkbookFile(await writeWorkbookFile(withExtra, workbook))
     const reimported = await readWorkbookFile(await writeWorkbookFile(imported.tabs, workbookOf(imported.tabs)))
@@ -225,7 +226,7 @@ describe('exporting', () => {
         { sheetRow: 4, cells: { rule: 'parked', order: 300, enabled: false, has_counterparty_iban: false, is_card: true, confidence: 'review' } },
       ],
     }
-    const workbook = readWorkbook(withRules)
+    const workbook = hrDooWorkbook(readSnapshot(withRules).workbook)
 
     const imported = await readWorkbookFile(await writeWorkbookFile(withRules, workbook))
 
@@ -242,7 +243,7 @@ describe('exporting', () => {
 
   it('keeps the Sheet’s column order, A to R, and writes dates as dates', () => {
     const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')
-    const grids = workbookGrids(snapshot, readWorkbook(snapshot))
+    const grids = workbookGrids(snapshot, readSnapshot(snapshot).workbook)
     const header = grids.ledger.header
 
     expect(header).toEqual([
@@ -283,7 +284,7 @@ describe('exporting', () => {
 
   it('writes the year-end amount as a date, a rate or an amount by its line, and the planning dates as dates', async () => {
     const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
-    const book = XLSX.read(await writeWorkbookFile(snapshot, readWorkbook(snapshot)), { type: 'array' })
+    const book = XLSX.read(await writeWorkbookFile(snapshot, readSnapshot(snapshot).workbook), { type: 'array' })
     const yearEnd = XLSX.utils.sheet_to_json<Record<string, CellValue>>(book.Sheets['year-end']!, { raw: false })
 
     expect(yearEnd.find((row) => row.line === 'rate')?.amount).toBe('10.00%')

@@ -1,5 +1,5 @@
-import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
-import type { PlanLine } from '../../../../features/workbook/domain/plan'
+import type { OwnerPayScenario } from '../scenarios/ownerPayScenarios'
+import type { PlanLine } from './plan'
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'

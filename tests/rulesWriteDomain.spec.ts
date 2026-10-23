@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { confirmation, recategorisation, undoOf } from '../src/features/review/domain/verdictChanges'
+import { confirmation } from '../src/features/review/domain/verdictChanges'
 import { readRules } from '../src/features/rules/domain/readRules'
 import { RULE_COLUMNS, newOrderTies } from '../src/features/rules/domain/rule'
 import type { Rule, RuleCondition } from '../src/features/rules/domain/rule'
@@ -11,10 +11,10 @@ import { rulesTabRefusals } from '../src/features/rules/domain/rulesTabRefusals'
 import { rulesChangeInWords } from '../src/features/rules/domain/ruleSummary'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import { isSameLedgerRow, ledgerRowKeyOf } from '../src/features/workbook/domain/ledgerRowKey'
+import { ledgerKeyOf } from '../src/features/workbook/domain/ledgerReading'
 import { needsReview } from '../src/features/workbook/domain/needsReview'
 import { columnLetter } from '../src/shared/text/columnLetter'
-import { ledger } from './fixtures/ledger'
+import { civil, ledger } from './fixtures/ledger'
 
 const CATEGORIES = new Set(['equipment', 'travel', 'ai-services', 'revenue'])
 
@@ -270,15 +270,7 @@ describe('verdict changes', () => {
 
   it('confirms only a row whose category is defined, under the review label', () => {
     expect(confirmation(unclassified!, DEFAULT_SETTINGS)).toBeNull()
-    expect(confirmation(guessed!, DEFAULT_SETTINGS)).toMatchObject({ from: { category: 'equipment', flaggedBy: 'ai' }, to: { category: 'equipment', flaggedBy: 'human' }, undoes: false })
-  })
-
-  it('undoes by swapping what was written with what was there, which may be undefined', () => {
-    const change = recategorisation(unclassified!, 'equipment', { reviewLabel: 'ivan' })
-
-    expect(undoOf({ changes: [{ ...change, from: { category: 'Nope', flaggedBy: 'ai' } }] })).toEqual([
-      { key: change.key, from: { category: 'equipment', flaggedBy: 'ivan' }, to: { category: 'Nope', flaggedBy: 'ai' }, undoes: true },
-    ])
+    expect(confirmation(guessed!, DEFAULT_SETTINGS)).toEqual({ id: guessed!.id, verdict: { category: 'equipment', flaggedBy: 'human' } })
   })
 
   it('takes a confirmed row with review reasons out of the queue', () => {
@@ -287,18 +279,13 @@ describe('verdict changes', () => {
   })
 })
 
-describe('ledger row key', () => {
-  const [first, second] = ledger([
-    { date: '2026-09-01', amount: -10, description: 'Desk' },
-    { date: '2026-09-01', amount: -10, description: 'Desk', balance: 50 },
-  ])
+describe('ledger key', () => {
+  const desk = { account: 'main', reference: '', date: civil('2026-09-01'), amount: -10, balance: 40, description: 'Desk' }
 
-  it('matches by reference when there is one, else by the booking', () => {
-    const blank = ledgerRowKeyOf({ ...first!, reference: '' })
-    expect(isSameLedgerRow(blank, ledgerRowKeyOf({ ...second!, reference: '' }))).toBe(false)
-    expect(isSameLedgerRow(blank, ledgerRowKeyOf({ ...first!, reference: 'R1' }))).toBe(true)
-    expect(isSameLedgerRow(ledgerRowKeyOf({ ...first!, reference: 'R1' }), ledgerRowKeyOf({ ...second!, reference: 'R1' }))).toBe(true)
-    expect(isSameLedgerRow(ledgerRowKeyOf({ ...first!, reference: 'R1' }), ledgerRowKeyOf({ ...first!, reference: 'R2' }))).toBe(false)
+  it('keys by account and reference when there is one, else by the booking', () => {
+    expect(ledgerKeyOf(desk)).not.toBe(ledgerKeyOf({ ...desk, balance: 50 }))
+    expect(ledgerKeyOf({ ...desk, reference: 'R1' })).toBe(ledgerKeyOf({ ...desk, balance: 50, reference: 'R1' }))
+    expect(ledgerKeyOf({ ...desk, reference: 'R1' })).not.toBe(ledgerKeyOf({ ...desk, reference: 'R2' }))
   })
 })
 

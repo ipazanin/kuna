@@ -1,5 +1,5 @@
-import type { Grant, GrantClawback, GrantRelease } from '../../../../features/workbook/domain/grants'
-import type { YearEndLine } from '../../../../features/workbook/domain/yearEnd'
+import type { Grant, GrantClawback, GrantRelease } from './grants'
+import type { YearEndLine } from '../yearEnd/yearEnd'
 import { addDays, civilDate, daysBetween, parseCivilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'

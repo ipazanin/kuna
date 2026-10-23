@@ -8,8 +8,8 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { previewImport } from '../application/workbookFiles'
-import type { ImportPreview } from '../application/workbookFiles'
+import { previewImport } from '../../workbook/presentation/workbookFiles'
+import type { ImportPreview } from '../../workbook/presentation/workbookFiles'
 import ProblemList from './ProblemList.vue'
 
 /** The file to import. Setting it opens the dialog, and the dialog sets it back to null when it closes. */

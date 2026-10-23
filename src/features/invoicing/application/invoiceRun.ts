@@ -1,4 +1,4 @@
-import type { TabRowsChange } from '../../workbook/domain/rowChanges'
+import type { Invoice } from '../../workbook/domain/workbook'
 import type { FilingPath } from '../domain/invoiceFiling'
 import type { InvoiceMail } from '../domain/invoiceMail'
 
@@ -82,6 +82,13 @@ export interface RunStep {
 }
 
 /** What one run writes, worked out before anything is written. */
+/** What the run writes to the register: a new invoice, or one changed from what the app read. */
+export interface RegisterChange {
+  /** Null for a new invoice. */
+  readonly before: Invoice | null
+  readonly after: Invoice
+}
+
 export interface RunPlan {
   readonly pdf: Uint8Array
   readonly fileName: string
@@ -92,14 +99,14 @@ export interface RunPlan {
   /** The draft's mail. Null when the person left the draft off. */
   readonly draft: InvoiceMail | null
   /** The register change, or null when a re-export changed nothing the register holds. */
-  readonly register: TabRowsChange | null
+  readonly register: RegisterChange | null
 }
 
 export interface RunPorts {
   readonly drive: InvoiceDrive | null
   readonly drafts: MailDrafts | null
   download(pdf: Uint8Array, fileName: string): void
-  writeRegister(change: TabRowsChange): Promise<void>
+  writeRegister(change: RegisterChange): Promise<void>
 }
 
 /**

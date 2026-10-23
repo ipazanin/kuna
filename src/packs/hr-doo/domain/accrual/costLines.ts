@@ -1,5 +1,5 @@
 import type { Category } from '../../../../features/workbook/domain/workbook'
-import type { YearEndLine } from '../../../../features/workbook/domain/yearEnd'
+import type { YearEndLine } from '../yearEnd/yearEnd'
 import { ZERO, addMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { isOwnerPayCost } from '../packRoles'

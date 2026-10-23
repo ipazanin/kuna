@@ -1,54 +1,30 @@
-import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
-import { cellText } from '../../../shared/text/cellText'
-import type { TabRowRules } from '../application/tabRowWrites'
+import type { WriteReceipt } from '../application/recordWrites'
 import type { RecordNoun } from '../domain/recordKind'
-import type { RowCells, TabRowsReceipt } from '../domain/rowChanges'
-import { isDateCell } from '../infrastructure/cellFormats'
-import type { RowsWithoutIds } from '../infrastructure/rowIds'
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 function counted(noun: RecordNoun, count: number): string {
   return count === 1 ? `${noun.article} ${noun.one}` : `${count} ${noun.many}`
 }
 
-const VERBS = {
-  added: { done: 'added', undone: 'adding' },
-  changed: { done: 'changed', undone: 'changing' },
-  removed: { done: 'deleted', undone: 'deleting' },
+const RECORD_VERBS = {
+  add: { done: 'added', undone: 'adding' },
+  change: { done: 'changed', undone: 'changing' },
+  repair: { done: 'changed', undone: 'changing' },
+  remove: { done: 'deleted', undone: 'deleting' },
+  discard: { done: 'deleted', undone: 'deleting' },
 } as const
 
-/** "Added 3 plan rows", "Changed a category and deleted an asset", or for an undo "Undid adding an invoice". */
-export function rowsChangeInWords(rules: TabRowRules, receipt: TabRowsReceipt, undid: TabRowsReceipt | null): string {
+/** "Added the invoice "1-1-26"", "Changed 2 categories and deleted an asset", or for an undo "Undid adding the invoice "1-1-26"". */
+export function recordsChangeInWords(receipt: WriteReceipt, undid: WriteReceipt | null): string {
   const described = undid ?? receipt
-  const parts = (['added', 'changed', 'removed'] as const)
-    .filter((part) => described[part].length > 0)
-    .map((part) => `${undid === null ? VERBS[part].done : VERBS[part].undone} ${counted(rules.kind.noun, described[part].length)}`)
-  const sentence = parts.length <= 1 ? (parts[0] ?? `changed the ${rules.tab} tab`) : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
+  const groups = new Map<string, { readonly verb: (typeof RECORD_VERBS)[keyof typeof RECORD_VERBS]; readonly noun: RecordNoun; readonly labels: string[] }>()
+  for (const { change, label } of described.records) {
+    const key = `${RECORD_VERBS[change.verb].done} ${change.kind.name}`
+    const group = groups.get(key) ?? { verb: RECORD_VERBS[change.verb], noun: change.kind.noun, labels: [] }
+    group.labels.push(label)
+    groups.set(key, group)
+  }
+  const parts = [...groups.values()].map(({ verb, noun, labels }) => `${undid === null ? verb.done : verb.undone} ${labels.length === 1 ? `the ${noun.one} "${labels[0]}"` : counted(noun, labels.length)}`)
+  const sentence = parts.length <= 1 ? (parts[0] ?? 'changed nothing') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
   const said = undid === null ? sentence : `undid ${sentence}`
   return `${said.charAt(0).toUpperCase()}${said.slice(1)}`
-}
-
-/** A cell of the row as a person reads it: a date's serial number as a day, a blank as "blank", text in quotes. */
-function cellInWords(rules: TabRowRules, column: string, cells: RowCells): string {
-  const cell = cells[column]
-  if (typeof cell === 'number' && Number.isFinite(cell) && isDateCell(rules.tab, column, (name) => cells[name])) {
-    return dayFormat.format(new Date(civilDateFromSerial(cell)))
-  }
-  const text = cellText(cell)
-  return text === '' ? 'blank' : `"${text}"`
-}
-
-/** The cells a change wrote, each from what it held to what it holds. */
-export function changedCellsInWords(rules: TabRowRules, before: RowCells, after: RowCells): { readonly column: string; readonly from: string; readonly to: string }[] {
-  return rules.columns
-    .filter((column) => cellText(before[column]) !== cellText(after[column]))
-    .map((column) => ({ column, from: cellInWords(rules, column, before), to: cellInWords(rules, column, after) }))
-}
-
-/** "1 row on the splits tab has no id, so it is left out", or "3 rows on 2 tabs have no id, so they are left out". */
-export function rowsWithoutIdsInWords(lacking: readonly RowsWithoutIds[]): string {
-  const rows = lacking.reduce((sum, tab) => sum + tab.rows, 0)
-  const where = lacking.length === 1 ? `on the ${lacking[0]!.tab} tab` : `on ${lacking.length} tabs`
-  return rows === 1 ? `1 row ${where} has no id, so it is left out` : `${rows} rows ${where} have no id, so they are left out`
 }

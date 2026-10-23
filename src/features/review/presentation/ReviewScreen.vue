@@ -24,23 +24,24 @@ import { useSettings } from '../../settings/application/useSettings'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { scopeTransactions } from '../../transactions/domain/filterTransactions'
 import SplitDialog from '../../transactions/presentation/SplitDialog.vue'
-import { storedCellsOf } from '../../workbook/application/tabRowWrites'
 import type { RecordId } from '../../workbook/domain/recordId'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { SessionWrite } from '../../workbook/application/workbookStore'
+import type { SessionWrite } from '../../workbook/application/createWorkbookStore'
 import type { Dismissal, SuggestionKind } from '../../workbook/domain/dismissals'
 import { needsReview } from '../../workbook/domain/needsReview'
 import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
 import AddTabNotice from '../../workbook/presentation/AddTabNotice.vue'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
-import { DISMISSED_ROWS, dismissalCells } from '../application/dismissedRows'
-import { useLedgerWrites } from '../application/useLedgerWrites'
+import { NO_RECORDS, recordWithId } from '../../workbook/domain/recordsRead'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import type { RecordWriteOptions } from '../../workbook/presentation/useRecordWrites'
+import { DISMISSAL_WRITES, dismissalOfGroup } from '../application/dismissalWrites'
+import { fileRows } from '../application/fileRows'
 import { withoutDismissed } from '../domain/dismissedSuggestions'
 import { confirmation, recategorisation } from '../domain/verdictChanges'
+import type { RowVerdict } from '../domain/verdictChanges'
 import DismissedSuggestions from './DismissedSuggestions.vue'
 import ReviewQueueItem from './ReviewQueueItem.vue'
 import RuleCoverage from './RuleCoverage.vue'
@@ -51,12 +52,11 @@ const store = useWorkbook()
 const { state } = store
 const toast = useToast()
 const names = useDisplayNames()
-const writes = useLedgerWrites()
-const dismissWrites = useRowWrites(DISMISSED_ROWS)
+const writes = useRecordWrites()
 const phone = usePhoneLayout()
 
 const context = computed(() => (ledger.value === null ? null : categorisationContextOf(ledger.value.workbook)))
-const busy = computed(() => writes.busy.value || dismissWrites.busy.value || state.writing)
+const busy = computed(() => writes.busy.value || state.writing)
 
 /** The bank rows the filters select, split rows whole, since a person reviews and a rule files the row the bank booked. */
 const bankRows = computed(() => (ledger.value === null || state.workbook === null ? [] : scopeTransactions(state.workbook.transactions, ledger.value.filters)))
@@ -116,18 +116,21 @@ const description = computed(() =>
     : 'Rows that wait for a person, and the rules that decide the rest. Confirm or recategorise a row and the app keeps its category and flagged_by in this browser.',
 )
 
+function file(title: string, verdict: RowVerdict, options: RecordWriteOptions = {}): Promise<boolean> {
+  return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict]), { failedTitle: 'Not written', ...options })
+}
+
 async function confirm(transaction: Transaction): Promise<void> {
   const workbook = ledger.value?.workbook
-  const change = workbook === undefined ? null : confirmation(transaction, workbook.settings)
-  if (change === null) return
-  await writes.write([change], { title: `Confirmed ${names.value.category(transaction.category)}`, description: transaction.counterparty || 'A row with no counterparty' })
+  const verdict = workbook === undefined ? null : confirmation(transaction, workbook.settings)
+  if (verdict === null) return
+  await file(`Confirmed ${names.value.category(transaction.category)}`, verdict, { description: transaction.counterparty || 'A row with no counterparty' })
 }
 
 async function recategorise(transaction: Transaction, category: string): Promise<void> {
   const workbook = ledger.value?.workbook
   if (workbook === undefined) return
-  await writes.write([recategorisation(transaction, category, workbook.settings)], {
-    title: `Filed as ${names.value.category(category)}`,
+  await file(`Filed as ${names.value.category(category)}`, recategorisation(transaction, category, workbook.settings), {
     description: transaction.counterparty || 'A row with no counterparty',
     follow: { label: 'Make a rule', icon: 'i-lucide-list-plus', run: () => makeRule({ ...transaction, category }) },
   })
@@ -164,7 +167,6 @@ function openSplit(row: Transaction): void {
 }
 
 const dismissedTabMissing = computed(() => state.choice?.source === 'google' && (state.snapshot?.meta.missingTabs.includes('dismissed') ?? false))
-const dismissedHeaders = TEMPLATE_COLUMNS.dismissed.map((column) => column.name).join(', ')
 
 /** A dismissal waiting for the person to agree that the Sheet gets a dismissed tab. */
 const asking = ref<{ readonly kind: SuggestionKind; readonly group: CoverageGroup<Transaction> } | null>(null)
@@ -176,12 +178,10 @@ const askingOpen = computed({
 })
 
 async function writeDismissal(kind: SuggestionKind, group: CoverageGroup<Transaction>, addTab: boolean): Promise<void> {
-  const written = await dismissWrites.write(
-    { added: [dismissalCells(kind, group, today())], changed: [], removed: [] },
-    { title: `Dismissed ${group.name || 'the rows with no counterparty'}` },
-    'Not dismissed',
-    addTab,
-  )
+  const written = await writes.write(`Dismissed ${group.name || 'the rows with no counterparty'}`, (unit) => unit.of(DISMISSAL_WRITES).add(dismissalOfGroup(kind, group, today())), {
+    failedTitle: 'Not dismissed',
+    addMissingKinds: addTab,
+  })
   if (written) asking.value = null
 }
 
@@ -194,13 +194,9 @@ function dismiss(kind: SuggestionKind, group: CoverageGroup<Transaction>): void 
 }
 
 function restore(dismissal: Dismissal): void {
-  const cells = storedCellsOf(state.snapshot?.dismissed ?? [], DISMISSED_ROWS, dismissal.id)
-  if (cells === null) return
-  void dismissWrites.write(
-    { added: [], changed: [], removed: [cells] },
-    { title: 'Suggestion restored' },
-    'Not restored',
-  )
+  const stored = recordWithId(state.records?.dismissed ?? NO_RECORDS, dismissal.id)
+  if (stored === null) return
+  void writes.write('Suggestion restored', (unit) => unit.of(DISMISSAL_WRITES).remove(stored.record), { failedTitle: 'Not restored' })
 }
 </script>
 
@@ -254,7 +250,6 @@ function restore(dismissal: Dismissal): void {
 
               <SessionChanges
                 :writes="sessionWrites"
-                :transactions="state.workbook?.transactions ?? []"
                 :categories="ledger.workbook.categories"
                 :busy="busy"
                 @undo="undoSessionWrite"
@@ -291,16 +286,16 @@ function restore(dismissal: Dismissal): void {
       :ui="{ header: 'pe-16 sm:pe-6' }"
     >
       <template #body>
-        <AddTabNotice tab="dismissed" :headers="dismissedHeaders" />
+        <AddTabNotice tab="dismissed" />
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="dismissWrites.busy.value" @click="asking = null" />
+          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="asking = null" />
           <UButton
             label="Add the tab and dismiss"
             icon="i-lucide-eye-off"
-            :loading="dismissWrites.busy.value"
-            :disabled="dismissWrites.busy.value"
+            :loading="writes.busy.value"
+            :disabled="writes.busy.value"
             data-testid="dismiss-add-tab"
             @click="asking && writeDismissal(asking.kind, asking.group, true)"
           />

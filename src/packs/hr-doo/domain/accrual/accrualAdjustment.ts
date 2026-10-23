@@ -1,5 +1,5 @@
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import type { YearEndStatement } from '../../../../features/workbook/domain/yearEnd'
+import type { YearEndStatement } from '../yearEnd/yearEnd'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 
 /**

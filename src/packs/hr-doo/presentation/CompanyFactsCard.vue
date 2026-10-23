@@ -10,7 +10,7 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import { fold } from '../../../shared/text/fold'
 import AppCard from '../../../shared/ui/AppCard.vue'
-import type { CitReturn, CompanyFacts, SettingsField, VatPrinciple } from '../../../features/settings/domain/settings'
+import type { CitReturn, CompanyFacts, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
 import { LOCAL_UNITS } from '../ruleset/localUnits'
 
 /**
@@ -23,7 +23,7 @@ const props = defineProps<{
   facts: CompanyFacts
   /** The facts as the workbook holds them, which the collapsed card sums up. */
   saved: CompanyFacts
-  errors: Partial<Record<SettingsField, string>>
+  errors: Partial<Record<CompanyFactsField, string>>
 }>()
 
 const emit = defineEmits<{

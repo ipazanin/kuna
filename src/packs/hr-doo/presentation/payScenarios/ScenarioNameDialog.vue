@@ -5,14 +5,17 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
-import { storedCellsOf } from '../../../../features/workbook/application/tabRowWrites'
+import { recordsOfKindIn } from '../../../../features/workbook/domain/readWorkbook'
+import { NO_RECORDS, recordWithId } from '../../../../features/workbook/domain/recordsRead'
+import { SCENARIO_RECORDS } from '../../domain/hrDooKinds'
 import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
-import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
-import type { RowCells } from '../../../../features/workbook/domain/rowChanges'
+import type { OwnerPayScenario } from '../../domain/scenarios/ownerPayScenarios'
 import { slugProblem } from '../../../../features/workbook/domain/slug'
-import { useRowWrites } from '../../../../features/workbook/presentation/useRowWrites'
+import { useRecordWrites } from '../../../../features/workbook/presentation/useRecordWrites'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { SCENARIO_ROWS, copiedScenario, renamedScenario } from '../../application/scenarioRows'
+import { copyScenario, renameScenario } from '../../application/scenarioWrites'
+import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
+import type { ScenarioRow } from '../../domain/scenarios/scenariosReading'
 
 /** Renames a scenario, or copies it under a new name, every row of it in one write. */
 const open = defineModel<boolean>('open', { required: true })
@@ -25,7 +28,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useRowWrites(SCENARIO_ROWS)
+const writes = useRecordWrites()
 const phone = usePhoneLayout()
 
 const name = ref('')
@@ -46,11 +49,10 @@ const nameError = computed(() => {
   return slug !== props.scenario.slug && props.taken.includes(slug) ? `${slug} is already a scenario` : props.mode === 'copy' && slug === props.scenario.slug ? 'A copy needs a name of its own' : null
 })
 
-function rows(): RowCells[] {
-  return props.scenario.components.flatMap((component) => {
-    const cells = storedCellsOf(store.state.snapshot?.scenarios ?? [], SCENARIO_ROWS, component.id)
-    return cells === null ? [] : [cells]
-  })
+/** The scenario's records as the app read them. */
+function storedRows(): ScenarioRow[] {
+  const read = store.state.records === null ? NO_RECORDS : recordsOfKindIn(store.state.records, SCENARIO_RECORDS)
+  return props.scenario.components.flatMap((component) => recordWithId(read, component.id)?.record ?? [])
 }
 
 async function save(): Promise<void> {
@@ -59,8 +61,8 @@ async function save(): Promise<void> {
   const slug = name.value.trim()
   const written =
     props.mode === 'copy'
-      ? await writes.write(copiedScenario(rows(), slug, label.value.trim()), { title: 'Scenario copied' }, 'Not copied')
-      : await writes.write(renamedScenario(rows(), slug, label.value.trim()), { title: 'Scenario renamed' }, 'Not renamed')
+      ? await writes.write('Scenario copied', (unit) => copyScenario(unit.of(SCENARIO_WRITES), storedRows(), slug, label.value.trim()), { failedTitle: 'Not copied' })
+      : await writes.write('Scenario renamed', (unit) => renameScenario(unit.of(SCENARIO_WRITES), storedRows(), slug, label.value.trim()), { failedTitle: 'Not renamed' })
   if (written) open.value = false
 }
 </script>

@@ -2,8 +2,9 @@ import { latestBalances } from '../../../../features/cash/domain/balances'
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import { RECEIVABLE_ROLES } from '../../../../features/receivables/domain/invoiceMatching'
 import type { DefinedBucket } from '../../../../features/workbook/domain/bucket'
-import type { YearEndLine } from '../../../../features/workbook/domain/yearEnd'
-import type { Transaction, Workbook } from '../../../../features/workbook/domain/workbook'
+import type { YearEndLine } from '../yearEnd/yearEnd'
+import type { Transaction } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../hrDooPart'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import { monthKey, monthOf, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
@@ -31,7 +32,7 @@ import { placementJudgement } from './closedYear'
 import { revenueByDelivery } from './revenueByDelivery'
 
 export interface BalanceSheetContext {
-  readonly workbook: Workbook
+  readonly workbook: HrDooWorkbook
   readonly year: number
   /** With any cut-off already applied. */
   readonly bookings: readonly AccrualBooking[]
@@ -223,7 +224,7 @@ function vatMonthOf(entry: CountedBooking | CapitalisedBooking): MonthKey {
 /** Corporate tax of every year to this one, less what was paid on it by the year end. */
 function citOwedAt(context: BalanceSheetContext, rows: readonly Transaction[], paidRows: readonly Transaction[]): TracedFigure {
   const { workbook, year, liability } = context
-  const registered = workbook.settings.companyFacts.companyRegistered
+  const registered = workbook.companyFacts.companyRegistered
   const firstYear = registered !== null ? yearOf(registered) : Math.min(year, ...rows.map((row) => yearOf(row.date)))
   const earlier = Array.from({ length: year - firstYear }, (_, offset) => firstYear + offset).map((taxYear) => {
     const line = workbook.yearEndLines.find((candidate) => candidate.year === taxYear && candidate.statement === 'tax' && candidate.line === 'liability')

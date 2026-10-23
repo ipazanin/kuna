@@ -1,14 +1,12 @@
 import { RULE_COLUMNS } from '../../rules/domain/rule'
+import { installedPack } from '../../packs/packContribution'
 import { DEFAULT_SETTINGS, settingsTabEntries } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
-import { ASSET_GROUPS } from '../domain/assets'
 import type { DefinedBucket } from '../domain/bucket'
-import { GRANT_RELEASES } from '../domain/grants'
 import { SUGGESTION_KINDS } from '../domain/dismissals'
-import { DIRECTOR_BASES } from '../domain/ownerPayScenarios'
 import { VAT_TREATMENTS } from '../domain/vatTreatment'
-import { YEAR_END_STATEMENTS } from '../domain/yearEnd'
-import type { CellValue, SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
+import { packTabOf } from './packTabs'
+import type { CellValue, CoreTab, SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
 
 export interface TemplateColumn {
   readonly name: string
@@ -46,17 +44,17 @@ export const TABS_WITH_IDS = ['outgoing-plan', 'owner-advances', 'assets', 'year
 /** The column that holds a row's id on the tabs that carry one. */
 export const ID_COLUMN = 'id'
 
-const ID_TEMPLATE_COLUMN: TemplateColumn = {
+export const ID_TEMPLATE_COLUMN: TemplateColumn = {
   name: ID_COLUMN,
   note: 'A code the app gives each row so it can find the row again. Leave it as it is. On a copied row, clear it, and the app gives the copy its own.',
 }
 
 /**
- * The columns of each tab, in the order the template and an export write them. The ledger keeps
- * the Google Sheet's own order, A to R, so an export lines up with the Sheet column for column.
- * The reader finds every column by name, so a file may order them as it likes and add its own.
+ * The columns of each core tab, in the order the template and an export write them. The ledger
+ * keeps the Google Sheet's own order, A to R, so an export lines up with the Sheet column for
+ * column. The reader finds every column by name, so a file may order them as it likes and add its own.
  */
-export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateColumn[]>> = {
+const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
   ledger: [
     { name: 'date', note: 'The booking date, as a date cell. Required.' },
     { name: 'account', note: 'Which of your accounts, by the name in the accounts tab. Required.' },
@@ -137,105 +135,6 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
     { name: 'description', note: 'What the invoice line says, such as October fee. Optional.' },
     ID_TEMPLATE_COLUMN,
   ],
-  'owner-advances': [
-    { name: 'date', note: 'When the owner paid, as a date cell. Required.' },
-    {
-      name: 'amount',
-      note: "What the owner paid for the company, as a number above zero. Required. The owner's private share of a company payment goes on the splits tab.",
-    },
-    { name: 'description', note: 'What it was for. Optional.' },
-    { name: 'category', note: 'A category from the categories tab in the operating or taxes bucket. The cost counts there on its date. Required.' },
-    ID_TEMPLATE_COLUMN,
-  ],
-  assets: [
-    { name: 'asset', note: 'What was bought, such as Laptop 14 inch. Each asset once. Required.' },
-    { name: 'bought', note: 'The purchase date, as a date cell. Required.' },
-    { name: 'in_use', note: 'The day it was put in use, as a date cell. Depreciation starts the month after. Blank means the day it was bought.' },
-    { name: 'cost_net', note: 'The cost without the VAT that was reclaimed, as a number above zero. Required.' },
-    { name: 'group', note: `The depreciation group: ${ASSET_GROUPS.join(', ')}. Required.` },
-    { name: 'doubled', note: 'TRUE when the depreciation rate is doubled for this asset. Blank or FALSE uses the single rate.' },
-    { name: 'disposed', note: 'The day it was sold or written off, as a date cell. Blank while you still have it.' },
-    { name: 'funded_by', note: 'The grant that paid for it, by the name in the grants tab. Optional.' },
-    { name: 'ledger_reference', note: 'Text that finds the purchase on the ledger, such as its bank reference. Optional.' },
-    { name: 'note', note: 'Anything worth keeping with it. Optional.' },
-    ID_TEMPLATE_COLUMN,
-  ],
-  grants: [
-    { name: 'grant', note: 'A short name in lower case, such as startup-grant. Each grant once. Required.' },
-    { name: 'received', note: 'The day the money arrived, as a date cell. Required.' },
-    { name: 'amount', note: 'The whole grant, as a number above zero. Required.' },
-    { name: 'fixed_part', note: 'The part that is income when received, as a number. Fill it with variable_part, and the two add up to amount.' },
-    { name: 'variable_part', note: 'The part that pays for assets and counts as income with their depreciation, as a number.' },
-    { name: 'period_from', note: 'The first day the grant covers, as a date cell. Optional, with period_to.' },
-    { name: 'period_to', note: 'The last day the grant covers, as a date cell. Optional, with period_from.' },
-    {
-      name: 'release',
-      note:
-        `How the grant counts as income: ${GRANT_RELEASES.join(' or ')}. Blank means fixed-then-assets, which needs both parts. ` +
-        'straight-line spreads the amount over the period and needs both period dates.',
-    },
-    { name: 'clawback_year1', note: 'What the grantor can claim back in the first year: whole, or an amount. Optional.' },
-    { name: 'clawback_year2', note: 'What the grantor can claim back in the second year: whole, or an amount. Optional.' },
-    { name: 'employment_required_until', note: 'The day until which the grant requires your employment, as a date cell. Optional.' },
-    { name: 'note', note: 'Anything worth keeping with it. Optional.' },
-  ],
-  'year-end': [
-    { name: 'year', note: 'The financial year, such as 2025. Required.' },
-    { name: 'statement', note: `Where the figure comes from: ${YEAR_END_STATEMENTS.join(', ')}. Required.` },
-    {
-      name: 'line',
-      note: 'The line id, such as sales, total-assets or liability. On a konto row, the account number, such as 41110. Each year, statement and line once. Required.',
-    },
-    { name: 'label', note: 'The line as the accountant printed it. Optional.' },
-    {
-      name: 'amount',
-      note:
-        'The figure as printed, costs as positive numbers. A date line such as filed-on takes a date cell, rate a percentage cell such as 10%, and months-of-operation a whole number. Required.',
-    },
-    { name: 'categories', note: 'On a konto row, the app categories the account matches, comma separated. Optional, and ignored on other rows.' },
-    { name: 'aop', note: 'The AOP code of the line on the official form, when the package has one. Optional.' },
-    { name: 'source', note: 'The file the figure was read from. Optional.' },
-    { name: 'note', note: 'Anything worth keeping with it. Optional.' },
-    ID_TEMPLATE_COLUMN,
-  ],
-  plan: [
-    { name: 'year', note: 'The year planned, such as 2027. Required.' },
-    {
-      name: 'month',
-      note: 'The month from 1 to 12. Blank means every month of the year. A dividend needs its month, and owner_pay_scenario and purchase rows leave it blank, since their date sets it.',
-    },
-    {
-      name: 'item',
-      note: 'A category from the categories tab, owner_pay_scenario, dividend or purchase. A category or a dividend once per year and month, and one dividend a year. Planned revenue goes on the outgoing-plan tab. Required.',
-    },
-    {
-      name: 'amount',
-      note: 'The amount planned for the month as a positive number, a cost without the VAT that is reclaimed. On a purchase, its net cost. On an owner_pay_scenario row, the name of a scenario of the same year from the scenarios tab. Required.',
-    },
-    { name: 'note', note: 'Why you expect it, or what a purchase is. Optional.' },
-    {
-      name: 'date',
-      note: 'On a purchase, the day it is bought and put in use, as a date cell. Required there. On an owner_pay_scenario row, the day a second scenario takes over from the one without a date.',
-    },
-    { name: 'group', note: `On a purchase, its depreciation group: ${ASSET_GROUPS.join(', ')}. Required there.` },
-    ID_TEMPLATE_COLUMN,
-  ],
-  scenarios: [
-    { name: 'scenario', note: 'A short name in lower case. The rows that share it make one owner pay scenario. Required.' },
-    { name: 'label', note: 'What the screens call the scenario. Optional. Rows of one scenario that give it differently read blank.' },
-    { name: 'year', note: 'The year the scenario is for. Every row of a scenario has the same year. Required.' },
-    {
-      name: 'component',
-      note: 'salary_gross, nontaxable:<item> such as nontaxable:occasional-gift, rent_monthly, dividend or director_basis. Required.',
-    },
-    {
-      name: 'amount',
-      note:
-        `A number above zero: a month's gross salary or rent, or a year's tax-free item or dividend. salary_gross also takes floor, dividend also takes max, and director_basis takes ${DIRECTOR_BASES.join(', ')}. Required.`,
-    },
-    { name: 'from', note: 'The first day it holds, as a date cell in the scenario year. Blank means the start of the year.' },
-    { name: 'to', note: 'The last day it holds, as a date cell in the scenario year. Blank means the end of the year.' },
-  ],
   splits: [
     { name: 'date', note: 'The booking date of the ledger row the part belongs to, as a date cell. Required.' },
     { name: 'account', note: 'The account of that ledger row. Required.' },
@@ -264,9 +163,31 @@ export const TEMPLATE_COLUMNS: Readonly<Record<WorkbookTab, readonly TemplateCol
   ],
 }
 
+/** The columns of a tab, core's or the installed pack's, in template order. Throws for a pack tab no installed pack maps. */
+export function templateColumns(tab: WorkbookTab): readonly TemplateColumn[] {
+  if (tab in TEMPLATE_COLUMNS) {
+    return TEMPLATE_COLUMNS[tab as CoreTab]
+  }
+  const mapping = packTabOf(tab)
+  if (mapping === null) {
+    throw new Error(`The ${tab} tab belongs to a pack that is not installed.`)
+  }
+  return mapping.columns
+}
+
+/** The names of a tab's columns, in template order. */
+export function templateColumnNames(tab: WorkbookTab): string[] {
+  return templateColumns(tab).map((column) => column.name)
+}
+
 /** The tab's columns other than its id, which a row the app writes is found again by. */
 export function contentColumns(tab: WorkbookTab): string[] {
-  return TEMPLATE_COLUMNS[tab].map((column) => column.name).filter((name) => name !== ID_COLUMN)
+  return contentColumnsOf(templateColumns(tab))
+}
+
+/** The names of the columns other than the id, in template order. */
+export function contentColumnsOf(columns: readonly TemplateColumn[]): string[] {
+  return columns.map((column) => column.name).filter((name) => name !== ID_COLUMN)
 }
 
 interface CategorySeed {
@@ -333,13 +254,15 @@ const DEFAULT_CATEGORIES: readonly CategorySeed[] = [
 ]
 
 /** Rows numbered from 2, under the header, as a tab holds them. */
-export function rowsFrom(cellsOfRows: readonly Readonly<Record<string, CellValue>>[]): SheetRow[] {
+function rowsFrom(cellsOfRows: readonly Readonly<Record<string, CellValue>>[]): SheetRow[] {
   return cellsOfRows.map((cells, index) => ({ sheetRow: index + 2, cells: withoutBlanks(cells) }))
 }
 
+/** A settings tab of core's settings and the installed pack's defaults, with any rows to keep below them. */
 export function settingsTabRows(settings: Settings, keptRows: readonly SheetRow[] = []): SheetRow[] {
+  const pack = installedPack().workbook
   return rowsFrom([
-    ...settingsTabEntries(settings).map(({ key, value }) => ({ key, value })),
+    ...settingsTabEntries(settings, pack === null ? null : { settings: pack.settings, values: pack.settings.defaults }).map(({ key, value }) => ({ key, value })),
     ...keptRows.map((row) => row.cells),
   ])
 }

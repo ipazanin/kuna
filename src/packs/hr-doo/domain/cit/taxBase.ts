@@ -1,4 +1,4 @@
-import type { YearEndLine } from '../../../../features/workbook/domain/yearEnd'
+import type { YearEndLine } from '../yearEnd/yearEnd'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO, addMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'

@@ -24,11 +24,12 @@ import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { amountOf } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import { formatMoney } from '../../../shared/money/moneyFormat'
-import { OWNER_ADVANCE_ROWS, ownerAdvanceCellsOf } from '../../../features/workbook/application/ownerAdvanceRows'
+import { newOwnerAdvance } from '../application/ownerAdvanceWrites'
+import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { ADVANCE_BUCKETS } from '../../../features/workbook/domain/workbook'
 import type { Category } from '../../../features/workbook/domain/workbook'
-import { useRowWrites } from '../../../features/workbook/presentation/useRowWrites'
+import { useRecordWrites } from '../../../features/workbook/presentation/useRecordWrites'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -43,7 +44,7 @@ const props = withDefaults(
   { prefill: null },
 )
 
-const writes = useRowWrites(OWNER_ADVANCE_ROWS)
+const writes = useRecordWrites()
 const names = useDisplayNames()
 const phone = usePhoneLayout()
 
@@ -89,12 +90,11 @@ async function save(): Promise<void> {
   if (!valid.value || day === null || parsedAmount.value === null) {
     return
   }
-  const cells = ownerAdvanceCellsOf({ date: day, amount: parsedAmount.value, description: description.value, category: category.value })
-  const added = await writes.write(
-    { added: [cells], changed: [], removed: [] },
-    { title: 'Advance added', description: `${formatMoney(parsedAmount.value)} as ${names.value.category(category.value)}, written to ${writes.where()}.` },
-    'Not added',
-  )
+  const advance = newOwnerAdvance({ date: day, amount: parsedAmount.value, description: description.value, category: category.value })
+  const added = await writes.write('Advance added', (unit) => unit.of(OWNER_ADVANCE_WRITES).add(advance), {
+    description: `${formatMoney(advance.amount)} as ${names.value.category(advance.category)}.`,
+    failedTitle: 'Not added',
+  })
   if (added) open.value = false
 }
 </script>

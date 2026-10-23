@@ -2,11 +2,12 @@ import { expectedInvoices } from '../../../../features/billingPlan/domain/expect
 import type { ExpectedInvoice } from '../../../../features/billingPlan/domain/expectedInvoices'
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import { displayName } from '../../../../features/workbook/domain/displayName'
-import type { Asset } from '../../../../features/workbook/domain/assets'
-import { PLAN_KEYWORDS } from '../../../../features/workbook/domain/plan'
-import type { PlanLine } from '../../../../features/workbook/domain/plan'
+import type { Asset } from '../assets/assets'
+import { PLAN_KEYWORDS } from './plan'
+import type { PlanLine } from './plan'
 import { ledgerWindowOf } from '../../../../features/workbook/domain/workbook'
-import type { Category, Invoice, Workbook } from '../../../../features/workbook/domain/workbook'
+import type { Category, Invoice } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../hrDooPart'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthKey, monthNumber, monthOf, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
@@ -171,8 +172,8 @@ export interface YearForecast {
  * before the forecast year's schedule needs its return from the year-end tab, or else from its own
  * forecast.
  */
-export function forecastYear(workbook: Workbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): YearForecast {
-  const registered = workbook.settings.companyFacts.companyRegistered
+export function forecastYear(workbook: HrDooWorkbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): YearForecast {
+  const registered = workbook.companyFacts.companyRegistered
   if (registered === null) {
     throw new RangeError('The forecast needs hr_company_registered, the day the first tax period starts.')
   }
@@ -202,7 +203,7 @@ export interface PlanDefault {
  * average runs against its bucket, such as refunds on a taxes category, is left out, since a plan
  * row reads income and costs both positive and would turn it around.
  */
-export function planDefaults(workbook: Workbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): PlanDefault[] {
+export function planDefaults(workbook: HrDooWorkbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): PlanDefault[] {
   const known = knownOn(workbook, asOf)
   return categoryForecasts(known, year, calendarOf(known, year), [], null, categoryShares(known, year, rules)).flatMap(({ category, forecast }) => {
     const { average } = forecast
@@ -211,7 +212,7 @@ export function planDefaults(workbook: Workbook, year: number, asOf: CivilDate, 
   })
 }
 
-function knownOn(workbook: Workbook, asOf: CivilDate): Workbook {
+function knownOn(workbook: HrDooWorkbook, asOf: CivilDate): HrDooWorkbook {
   return {
     ...workbook,
     transactions: workbook.transactions.filter((row) => row.date <= asOf),
@@ -220,7 +221,7 @@ function knownOn(workbook: Workbook, asOf: CivilDate): Workbook {
   }
 }
 
-function calendarOf(known: Workbook, year: number): ForecastCalendar {
+function calendarOf(known: HrDooWorkbook, year: number): ForecastCalendar {
   const window = ledgerWindowOf(known.transactions)
   return {
     months: monthsFrom(monthKey(year, 1), monthKey(year, 12)),
@@ -231,7 +232,7 @@ function calendarOf(known: Workbook, year: number): ForecastCalendar {
 }
 
 interface ForecastContext {
-  readonly known: Workbook
+  readonly known: HrDooWorkbook
   readonly year: number
   readonly asOf: CivilDate
   readonly registered: CivilDate
@@ -255,7 +256,7 @@ function forecastOne(context: ForecastContext): YearForecast {
   const usable = plan.filter((line) => guarded(line) === null || line.kind === 'owner-pay-scenario')
 
   const ownerPayChoice = ownerPayPlan(plan, known.payScenarios, rules)
-  const facts = known.settings.companyFacts
+  const facts = known.companyFacts
   const shares = categoryShares(known, year, rules)
   const handover: OwnerPayHandover | null = ownerPayChoice.kind === 'planned' && facts.residenceCity !== '' ? { lastActual: ownerPayLastActual(known, calendar, shares) } : null
   const ownerPay = handover === null || ownerPayChoice.kind !== 'planned' ? null : ownerPayForecast(ownerPayChoice.pay, known, calendar, handover, rules)
@@ -411,7 +412,7 @@ function forecastOne(context: ForecastContext): YearForecast {
  * the scenarios' lines take the later months.
  */
 function categoryForecasts(
-  known: Workbook,
+  known: HrDooWorkbook,
   year: number,
   calendar: ForecastCalendar,
   plan: readonly PlanLine[],
@@ -453,7 +454,7 @@ function categoryForecasts(
 
 type MonthShares = readonly { readonly entry: CountedBooking; readonly amount: Money }[]
 
-function categoryShares(known: Workbook, year: number, rules: RuleSource): ReadonlyMap<string, MonthShares> {
+function categoryShares(known: HrDooWorkbook, year: number, rules: RuleSource): ReadonlyMap<string, MonthShares> {
   const byPolicy = accrualBookings(known, rules)
   const bookings = bookingsAfterCutOff(byPolicy, arrearsCutOff(byPolicy, year, known.yearEndLines, known.categories))
   return sharesByCategoryMonth(bookings.filter(isCounted))
@@ -469,7 +470,7 @@ function categoryLastActual(category: Category, calendar: ForecastCalendar, shar
 }
 
 /** The earliest last actual month of the owner pay categories, so no month counts both the ledger's pay and a scenario's. */
-function ownerPayLastActual(known: Workbook, calendar: ForecastCalendar, shares: ReadonlyMap<string, MonthShares>): MonthKey | null {
+function ownerPayLastActual(known: HrDooWorkbook, calendar: ForecastCalendar, shares: ReadonlyMap<string, MonthShares>): MonthKey | null {
   const months = known.categories
     .filter((category) => isOwnerPayCost(category) && countsInProfit(category))
     .map((category) => categoryLastActual(category, calendar, shares))
@@ -483,8 +484,8 @@ function ownerPayLastActual(known: Workbook, calendar: ForecastCalendar, shares:
  * last actual month: the salary with health on top and the tax-free items within their caps, and
  * the rent. Paid in arrears when the owner pay categories are.
  */
-function ownerPayForecast(plan: PlannedOwnerPay, known: Workbook, calendar: ForecastCalendar, handover: OwnerPayHandover, rules: RuleSource): OwnerPayForecast {
-  const pay = scenarioPay(plan.scenario, known.settings.companyFacts, rules)
+function ownerPayForecast(plan: PlannedOwnerPay, known: HrDooWorkbook, calendar: ForecastCalendar, handover: OwnerPayHandover, rules: RuleSource): OwnerPayForecast {
+  const pay = scenarioPay(plan.scenario, known.companyFacts, rules)
   const arrears = known.categories.some((category) => isOwnerPayCost(category) && category.roles.includes(PACK_ROLES.arrears))
   const scenarioName = plan.scenario.label || plan.scenario.slug
   const lineOf = (slug: string, label: string, line: CategoryForecast['line'], monthly: (month: MonthKey) => TracedFigure): CategoryForecast => ({
@@ -539,7 +540,7 @@ function plannedAssetsOf(lines: readonly PlanLine[], calendar: ForecastCalendar)
  * net set off against what the owner owes on the day of the forecast before any of it is paid out.
  * In the running month it is only what the plan has beyond the profit the ledger has paid out so far.
  */
-function plannedDividendOf(plan: readonly PlanLine[], calendar: ForecastCalendar, known: Workbook, asOf: CivilDate, rules: RuleSource): PlannedDividend | null {
+function plannedDividendOf(plan: readonly PlanLine[], calendar: ForecastCalendar, known: HrDooWorkbook, asOf: CivilDate, rules: RuleSource): PlannedDividend | null {
   const line = plan.find((candidate) => candidate.kind === 'amount' && candidate.item === 'dividend' && candidate.month !== null)
   if (line === undefined || line.kind !== 'amount' || line.month === null) {
     return null
@@ -594,7 +595,7 @@ function citOf(
   base: TaxBase,
 ): { readonly liability: CitLiability; readonly forecast: CitForecast } {
   const { known, year, asOf, registered, rules } = context
-  const facts = known.settings.companyFacts
+  const facts = known.companyFacts
   const firstYear = yearOf(registered)
   const returnOf = (taxYear: number): PriorReturn => closedYearReturn(known.yearEndLines, taxYear, registered, rules) ?? context.forecastOf(taxYear).liability
   const returnsBefore = (taxYear: number) => [taxYear - 1, taxYear - 2].filter((prior) => prior >= firstYear).map(returnOf)
@@ -727,7 +728,7 @@ function planRow(plan: readonly PlanLine[], item: string, month: MonthKey): Amou
 }
 
 /** The billing plan's rows dated in a month, all of them, as the plan a month the ledger settles is compared with. Null when it has none. */
-function billedPlan(known: Workbook, month: MonthKey, clientName: (slug: string) => string): TracedFigure | null {
+function billedPlan(known: HrDooWorkbook, month: MonthKey, clientName: (slug: string) => string): TracedFigure | null {
   const rows = known.billingPlan.filter((row) => monthOf(row.date) === month)
   if (rows.length === 0) {
     return null
@@ -744,7 +745,7 @@ function unmodelled(
   guards: readonly PlanGuard[],
   ownerPayChoice: ReturnType<typeof ownerPayPlan>,
   ownerPay: OwnerPayForecast | null,
-  known: Workbook,
+  known: HrDooWorkbook,
   calendar: ForecastCalendar,
 ): UnmodelledPlanLine[] {
   const settled = (month: MonthKey) => calendar.lastComplete !== null && month <= calendar.lastComplete

@@ -1,5 +1,5 @@
-import type { Asset } from '../../../../features/workbook/domain/assets'
-import type { Grant } from '../../../../features/workbook/domain/grants'
+import type { Asset } from './assets'
+import type { Grant } from '../grants/grants'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import { subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'

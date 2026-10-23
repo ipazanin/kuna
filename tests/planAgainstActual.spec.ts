@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { OwnerPayScenario } from '../src/features/workbook/domain/ownerPayScenarios'
+import type { OwnerPayScenario } from '../src/packs/hr-doo/domain/scenarios/ownerPayScenarios'
 import { forecastYear, planDefaults } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import { planAgainstActual } from '../src/packs/hr-doo/domain/forecast/planAgainstActual'
 import { planRow } from './fixtures/billingPlan'
@@ -9,7 +9,7 @@ import { civil, euros, ledger } from './fixtures/ledger'
 import { STEADY_CATEGORIES, STEADY_ROWS, planLine, planOwnerPay, steadyStudio } from './fixtures/steadyStudio'
 import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 const FLOOR_2026: OwnerPayScenario = { slug: 'floor-2026', label: 'Floor salary', year: 2026, components: [{ component: 'salary_gross', gross: 'floor', from: null, to: null, id: recordIdOf(SCENARIO_RECORDS, 'row-2') }] }
 
@@ -18,7 +18,7 @@ function plannedIn2026() {
   const base = steadyStudio()
   const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09']
   return steadyStudio({
-    settings: { ...base.settings, companyFacts: { ...base.settings.companyFacts, ...ZAGREB_RESIDENT } },
+    companyFacts: { ...base.companyFacts, ...ZAGREB_RESIDENT },
     payScenarios: [FLOOR_2026],
     planLines: [planLine(null, 'ai-services', 150), planOwnerPay(2026, 'floor-2026', null, 3)],
     billingPlan: months.map((month) => planRow('Monthly fee', `2026-${month}-28`, month === '03' ? 5500 : 6000, 'example-client')),
@@ -92,7 +92,7 @@ describe('planDefaults', () => {
 
   it('needs no registration day', () => {
     const base = steadyStudio()
-    const unregistered = steadyStudio({ settings: { ...base.settings, companyFacts: { ...base.settings.companyFacts, companyRegistered: null } } })
+    const unregistered = steadyStudio({ companyFacts: { ...base.companyFacts, companyRegistered: null } })
     expect(planDefaults(unregistered, 2027, civil('2026-10-19')).length).toBeGreaterThan(0)
   })
 })

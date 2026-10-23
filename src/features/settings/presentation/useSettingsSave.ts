@@ -1,47 +1,41 @@
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
-import { useToast } from '@nuxt/ui/composables/useToast'
 
+import { installedPack } from '../../packs/packContribution'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { DEFAULT_SETTINGS, changedSettings } from '../domain/settings'
+import { NO_RECORDS } from '../../workbook/domain/recordsRead'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { setSettings } from '../application/settingWrites'
+import { DEFAULT_SETTINGS, changedPackSettings, changedSettings } from '../domain/settings'
 import type { Settings } from '../domain/settings'
 
 export interface SettingsSave {
   /** The settings as the workbook holds them. */
   readonly settings: ComputedRef<Settings>
+  /** The installed pack's facts as the workbook holds them, or null without a pack that keeps any. */
+  readonly facts: ComputedRef<unknown>
   readonly saving: Readonly<Ref<boolean>>
-  save(next: Settings): Promise<void>
+  /** Writes the settings, and the pack's facts when given. */
+  save(next: Settings, nextFacts?: unknown): Promise<void>
 }
 
 /**
- * Writes the settings a form changed. Only the keys that changed are written, each checked against
- * the value the app read for it, and a toast says how it went.
+ * Writes the settings a form changed, core's keys and then the pack's. Only the keys that changed
+ * are written, each checked against the value the app read for it, and a toast says how it went.
  */
 export function useSettingsSave(): SettingsSave {
-  const store = useWorkbook()
-  const { state } = store
-  const toast = useToast()
-  const saving = ref(false)
+  const { state } = useWorkbook()
+  const writes = useRecordWrites()
   const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
+  const facts = computed(() => installedPack().companyFacts?.factsOf(state.workbook) ?? null)
 
-  async function save(next: Settings): Promise<void> {
-    const rows = state.snapshot?.settings ?? []
-    const changes = changedSettings(settings.value, next).map(({ key, value }) => {
-      const row = rows.find((candidate: SheetRow) => String(candidate.cells.key ?? '').trim().toLowerCase() === key)
-      return { key, value, expected: row === undefined ? null : (row.cells.value ?? '') }
-    })
-    saving.value = true
-    try {
-      await store.changeSettings(changes)
-      const google = (state.choice?.source ?? state.workbook?.source) === 'google'
-      toast.add({ title: 'Settings saved', ...(google ? { description: 'Written to the settings tab of the Sheet.' } : {}), icon: 'i-lucide-check', color: 'success' })
-    } catch (failure) {
-      toast.add({ title: 'Not saved', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
-    } finally {
-      saving.value = false
-    }
+  async function save(next: Settings, nextFacts?: unknown): Promise<void> {
+    const held = state.records?.settings ?? NO_RECORDS
+    const packSettings = installedPack().workbook?.settings ?? null
+    const packChanges = packSettings === null || nextFacts === undefined ? [] : changedPackSettings(packSettings, facts.value, nextFacts)
+    const changes = [...changedSettings(settings.value, next), ...packChanges]
+    await writes.write('Settings saved', (unit) => setSettings(unit, held, changes), { failedTitle: 'Not saved' })
   }
 
-  return { settings, saving, save }
+  return { settings, facts, saving: writes.busy, save }
 }

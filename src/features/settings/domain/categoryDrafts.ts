@@ -1,6 +1,13 @@
 import { BUCKETS } from '../../workbook/domain/bucket'
+import { categoryOfFields } from '../../workbook/domain/categoriesReading'
+import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { slugProblem } from '../../workbook/domain/slug'
+import { slugOf, storedFieldOf, textOf } from '../../workbook/domain/storedFields'
+import type { StoredField, StoredFields } from '../../workbook/domain/storedFields'
 import { isVatTreatment } from '../../workbook/domain/vatTreatment'
+import type { StoredRecord } from '../../workbook/domain/recordsRead'
+import { madeOfDrafts } from './recordDrafts'
+import type { MadeDraft } from './recordDrafts'
 
 /** One row of the categories editor, as text, the way the tab holds it. */
 export interface CategoryDraft {
@@ -17,6 +24,20 @@ export interface CategoryDraft {
   readonly roles: string
   /** Blank means none. */
   readonly vat: string
+}
+
+/** The drafts of the stored categories, as the workbook holds their text. */
+export function categoryDraftsOf(stored: readonly StoredRecord<unknown>[]): CategoryDraft[] {
+  return stored.map(({ fields }, saved) => {
+    const text = (name: string): string => textOf(fields[name])
+    return { saved, savedName: text('category'), category: text('category'), label: text('label'), family: text('family'), bucket: slugOf(fields.bucket), colour: text('colour'), roles: text('roles'), vat: slugOf(fields.vat) }
+  })
+}
+
+/** The categories the drafts make, each over the fields its stored record holds. */
+export function categoriesOfDrafts(stored: readonly StoredRecord<unknown>[], drafts: readonly CategoryDraft[]): MadeDraft<CategoryRecord>[] {
+  const fields = drafts.map((draft) => categoryFieldsOf(draft, draft.saved === null ? {} : (stored[draft.saved]?.fields ?? {})))
+  return madeOfDrafts(drafts, fields, stored, categoryOfFields)
 }
 
 export type CategoryField = 'category' | 'family' | 'bucket' | 'vat'
@@ -77,13 +98,9 @@ function renamesUsed(draft: CategoryDraft, drafts: readonly CategoryDraft[], use
   return keepsItsName(draft, drafts, usedNames) && draft.category.trim().toLowerCase() !== draft.savedName.trim().toLowerCase()
 }
 
-/** The tab's cells for the drafts. Cells of other columns on a saved row are kept. */
-export function categoryCellsOf(
-  drafts: readonly CategoryDraft[],
-  savedCells: ReadonlyMap<number, Readonly<Record<string, string | number | boolean>>>,
-): Record<string, string | number | boolean>[] {
-  return drafts.map((draft) => ({
-    ...(draft.saved === null ? {} : (savedCells.get(draft.saved) ?? {})),
+/** The draft's fields, over the fields of the category it was read from. A blank field is absent. */
+function categoryFieldsOf(draft: CategoryDraft, stored: StoredFields): StoredFields {
+  const typed: Readonly<Record<string, string>> = {
     category: draft.category.trim().toLowerCase(),
     label: draft.label.trim(),
     family: draft.family.trim().toLowerCase(),
@@ -95,5 +112,14 @@ export function categoryCellsOf(
       .filter((role) => role !== '')
       .join(', '),
     vat: draft.vat.trim().toLowerCase(),
-  }))
+  }
+  const fields: Record<string, StoredField> = { ...stored }
+  for (const [name, text] of Object.entries(typed)) {
+    if (text === '') {
+      delete fields[name]
+    } else {
+      fields[name] = storedFieldOf(text)
+    }
+  }
+  return fields
 }

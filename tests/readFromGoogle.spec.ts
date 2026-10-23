@@ -14,7 +14,7 @@ function snapshotOf(sheet: GoogleSheet): WorkbookSnapshot {
   }
 }
 
-function portsWith(overrides: Partial<GoogleWorkbookPorts>): GoogleWorkbookPorts {
+function portsWith(overrides: Partial<GoogleWorkbookPorts<WorkbookSnapshot>>): GoogleWorkbookPorts<WorkbookSnapshot> {
   return {
     liveAccessToken: () => null,
     requestAccessToken: vi.fn(async () => 'new-token'),

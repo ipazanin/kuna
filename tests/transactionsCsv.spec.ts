@@ -7,7 +7,7 @@ import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { OWNER_ADVANCE_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 function rows(specs: readonly RowSpec[]) {
   return listedRows(ledger(specs), [])

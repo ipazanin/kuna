@@ -3,9 +3,10 @@ import type { RouteComponent, RouteLocationRaw } from 'vue-router'
 
 import type { CivilDate } from '../../shared/calendar/civilDate'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
-import type { CompanyFacts, Settings, SettingsField } from '../settings/domain/settings'
+import type { Settings } from '../settings/domain/settings'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
-import type { RecordId } from '../workbook/domain/recordId'
+import type { PackPart } from '../workbook/domain/packPart'
+import type { RecordKind } from '../workbook/domain/recordKind'
 import type { Workbook } from '../workbook/domain/workbook'
 
 /** A screen of its own, with its menu item after the core screens and before Settings. */
@@ -34,18 +35,23 @@ export interface PackSettingsTab {
   readonly component: Component
 }
 
-/** The facts card of Settings, General, saved with the rest of the settings by one Save. */
-export interface PackCompanyFacts {
+/**
+ * The facts card of Settings, General, saved with the rest of the settings by one Save. The facts
+ * are the values of the pack's settings keys, which its part of the workbook holds.
+ */
+export interface PackCompanyFacts<Facts> {
   /** Takes `facts`, `saved` and `errors`, and emits `update` with the edited facts. */
   readonly card: Component
-  /** Checks only the pack can make, such as whether its tax tables know the owner's city. */
-  errors(facts: CompanyFacts): Partial<Record<SettingsField, string>>
+  /** The facts as the workbook holds them, or their defaults before there is a workbook. */
+  factsOf(workbook: Workbook | null): Facts
+  /** What is wrong with the drafted facts, by field. Empty when they may be saved. */
+  errors(facts: Facts): Readonly<Record<string, string>>
 }
 
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
 export interface PackContribution {
-  /** The ledger rows the pack keeps whole, by their record id, with the names that claim them. Applies whatever the owner-pay switch says. */
-  rowsKeptWhole(workbook: Pick<Workbook, 'assets' | 'transactions' | 'categories'>): ReadonlyMap<RecordId, readonly string[]>
+  /** The pack's part of the workbook, read whatever the owner-pay switch says. */
+  readonly workbook: PackPart<unknown, unknown> | null
   /** The routes exist whatever the switch says. Their menu items show only while it is on, like the slots below. */
   readonly screens: readonly PackScreen[]
   /** Jobs for Overview's Waiting for you, listed after the core jobs. */
@@ -54,13 +60,13 @@ export interface PackContribution {
   readonly settingsTabs: readonly PackSettingsTab[]
   /** Cards on Settings, General, under the settings form. */
   readonly settingsCards: readonly Component[]
-  readonly companyFacts: PackCompanyFacts | null
+  readonly companyFacts: PackCompanyFacts<unknown> | null
   /** Where the spending breakdown links a cost group the pack breaks down further. */
   costGroupLinks(group: string): { readonly label: string; readonly to: RouteLocationRaw } | null
 }
 
 const NO_PACK: PackContribution = {
-  rowsKeptWhole: () => new Map(),
+  workbook: null,
   screens: [],
   waitingJobs: () => [],
   reviewCards: [],
@@ -77,9 +83,14 @@ export function installPack(pack: PackContribution): void {
   installed = pack
 }
 
-/** The installed pack, for its routes and its data slots. */
+/** The installed pack, for its routes and its part of the workbook. */
 export function installedPack(): PackContribution {
   return installed
+}
+
+/** The installed pack's kind of this name, or null. Core names a pack's kind only where it counts what the pack's records name. */
+export function installedPackKind(name: string): RecordKind<unknown> | null {
+  return installed.workbook?.kinds.find((rules) => rules.kind.name === name)?.kind ?? null
 }
 
 /** The installed pack while the owner-pay switch is on, and no pack while it is off. */

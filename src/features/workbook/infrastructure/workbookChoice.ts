@@ -1,11 +1,4 @@
-import type { WorkbookSource } from '../domain/workbook'
-
-/** The workbook this browser shows: a picked Google Sheet, or one kept here in Excel mode. Never data. */
-export interface WorkbookChoice {
-  readonly source: WorkbookSource
-  readonly id: string
-  readonly name: string
-}
+import type { WorkbookChoice } from '../application/workbookPorts'
 
 const WORKBOOK_CHOICE_KEY = 'ledgerboard.workbook'
 

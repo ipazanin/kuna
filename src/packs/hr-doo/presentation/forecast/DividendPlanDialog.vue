@@ -6,10 +6,10 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import type { PlanLine } from '../../../../features/workbook/domain/plan'
+import type { PlanLine } from '../../domain/forecast/plan'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import type { Money } from '../../../../shared/money/money'
-import { dividendPlanCells } from '../../application/planRows'
+import { dividendPlanLine, replacePlanLines } from '../../application/planWrites'
 import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { fieldAmount, monthsOf } from './planWording'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -54,17 +54,17 @@ const invalid = computed(() => gross.value === null || gross.value <= 0)
 async function save(): Promise<void> {
   tried.value = true
   if (invalid.value) return
-  const cells = dividendPlanCells(props.year, month.value, gross.value as Money, note.value)
-  const before = props.dividend === null ? null : writes.rowOf(props.dividend)
+  const line = dividendPlanLine(props.year, month.value, gross.value as Money, note.value)
+  const before = props.dividend === null ? null : writes.stored(props.dividend)
   if (props.dividend !== null && before === null) return
-  const change = before === null ? { added: [cells], changed: [], removed: [] } : { added: [], changed: [{ before, after: cells }], removed: [] }
-  if (await writes.write(change, { title: 'Dividend planned', description: `For ${props.year}, written to ${writes.where()}.` }, 'Not saved')) open.value = false
+  const held = before === null ? [] : [{ key: 'dividend', line: before }]
+  if (await writes.write('Dividend planned', (lines) => replacePlanLines(lines, held, [{ key: 'dividend', line }]), { description: `For ${props.year}.`, failedTitle: 'Not saved' })) open.value = false
 }
 
 async function remove(): Promise<void> {
-  const row = props.dividend === null ? null : writes.rowOf(props.dividend)
-  if (row === null) return
-  if (await writes.write({ added: [], changed: [], removed: [row] }, { title: 'Dividend deleted', description: `The dividend of ${props.year} is taken out of ${writes.where()}.` }, 'Not deleted')) open.value = false
+  const before = props.dividend === null ? null : writes.stored(props.dividend)
+  if (before === null) return
+  if (await writes.write('Dividend deleted', (lines) => lines.remove(before), { description: `The dividend of ${props.year} is taken out of the plan.`, failedTitle: 'Not deleted' })) open.value = false
 }
 </script>
 
@@ -87,7 +87,7 @@ async function remove(): Promise<void> {
         <UFormField label="Note" class="sm:col-span-2">
           <UInput v-model="note" placeholder="After the statements are adopted" class="w-full" data-testid="dividend-note" />
         </UFormField>
-        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" :headers="writes.headers" class="sm:col-span-2" />
+        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" class="sm:col-span-2" />
       </form>
     </template>
     <template #footer>

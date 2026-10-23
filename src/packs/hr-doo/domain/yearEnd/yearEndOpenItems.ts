@@ -1,6 +1,6 @@
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import { newestBookingOf } from '../../../../features/workbook/domain/workbook'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../hrDooPart'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
@@ -78,7 +78,7 @@ const JUDGEMENTS: Readonly<Record<JudgementId, { readonly settledBy: string; rea
  * on, any gap nothing explains, whether the workbook holds everything for the year, and what the
  * year's loans and purchases call for. Each says what would settle it.
  */
-export function yearEndOpenItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSource = ruleValue): YearEndOpenItem[] {
+export function yearEndOpenItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules: RuleSource = ruleValue): YearEndOpenItem[] {
   return [...judgementItems(accrual), ...unexplainedItems(accrual), ...completenessItems(accrual), ...complianceItems(workbook, accrual, rules)]
 }
 
@@ -155,7 +155,7 @@ function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
   return [...(months.length === 0 ? [everyMonth] : months), ...purchases]
 }
 
-function complianceItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSource): YearEndOpenItem[] {
+function complianceItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules: RuleSource): YearEndOpenItem[] {
   const { year } = accrual
   const firstDay = civilDate(year, 1, 1)
   const lastDay = civilDate(year, 12, 31)
@@ -231,8 +231,8 @@ function loanBenefitItem(benefit: LoanBenefit): YearEndOpenItem {
 }
 
 /** Purchases kept as assets within the years after registration whose price is above the share of the capital that needs the members' decision. */
-function assetDecisionItems(workbook: Workbook, accrual: AccrualYear, rules: RuleSource): YearEndOpenItem[] {
-  const registered = workbook.settings.companyFacts.companyRegistered
+function assetDecisionItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules: RuleSource): YearEndOpenItem[] {
+  const registered = workbook.companyFacts.companyRegistered
   if (registered === null) {
     return []
   }

@@ -25,6 +25,28 @@ function capitalised(text: string): string {
 /** Where something outside its own tab names a slug, such as "3 ledger rows" or "the rule merchant-model". */
 export type SlugUses = ReadonlyMap<string, readonly string[]>
 
+/** Each slug with what names it, in the order the kinds are given. */
+export function usesOf(kinds: readonly ReadonlyMap<string, string>[]): SlugUses {
+  const uses = new Map<string, string[]>()
+  for (const kind of kinds) {
+    for (const [slug, use] of kind) {
+      uses.set(slug, [...(uses.get(slug) ?? []), use])
+    }
+  }
+  return uses
+}
+
+/** How many of these records name each slug, as "3 ledger rows". */
+export function countedBy<Named>(records: readonly Named[], slugsOf: (record: Named) => readonly string[], one: string, many: string): ReadonlyMap<string, string> {
+  const counts = new Map<string, number>()
+  for (const record of records) {
+    for (const slug of new Set(slugsOf(record))) {
+      if (slug !== '') counts.set(slug, (counts.get(slug) ?? 0) + 1)
+    }
+  }
+  return new Map([...counts].map(([slug, count]) => [slug, count === 1 ? `1 ${one}` : `${count} ${many}`]))
+}
+
 /** One row's name before and after a change. `from` is null for an added row, `to` for a deleted one. */
 export interface SlugEdit {
   readonly from: string | null

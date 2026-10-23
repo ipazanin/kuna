@@ -76,6 +76,19 @@ function isCore(file: string): boolean {
   return file.startsWith('src/features/') || file.startsWith('src/shared/') || file === 'src/App.vue'
 }
 
+const WORKBOOK_INFRASTRUCTURE = 'src/features/workbook/infrastructure/'
+
+/** The spreadsheet adapter's mapping of kinds to tabs, which a pack's own mappings build on. */
+const SPREADSHEET_MAPPING = ['spreadsheetTab.ts', 'packTabs.ts', 'workbookTemplate.ts', 'cellFormats.ts'].map((file) => `${WORKBOOK_INFRASTRUCTURE}${file}`)
+
+/** The files that wire adapters to the application: the workbook store's, and the invoice run's Google ports. */
+const ADAPTER_WIRING = ['src/features/workbook/application/workbookStore.ts', 'src/features/invoicing/application/invoiceGoogle.ts']
+
+/** Data of the fake build, which only the fake build loads. */
+function isFakeSeed(file: string): boolean {
+  return /\/infrastructure\/fake\//.test(file)
+}
+
 function broken(rule: (entry: Import) => boolean): string[] {
   return IMPORTS.filter((entry) => !rule(entry)).map((entry) => `${entry.at} imports ${entry.specifier}`)
 }
@@ -95,6 +108,24 @@ describe('import boundaries', () => {
     expect(linesHolding(/\bsheetRow\b/, () => false).length).toBeGreaterThan(0)
     expect(linesHolding(/\bsheetRows?\b/, (file) => file.startsWith('src/features/workbook/infrastructure/'))).toEqual([])
     expect(linesHolding(/\bas RecordId\b/, (file) => file === 'src/features/workbook/domain/recordId.ts')).toEqual([])
+  })
+
+  it('keeps the spreadsheet adapter inside the workbook feature, which main.ts wires in and a pack maps its tabs with', () => {
+    expect(
+      broken(
+        (entry) =>
+          entry.target === null ||
+          !entry.target.startsWith(WORKBOOK_INFRASTRUCTURE) ||
+          entry.from.startsWith('src/features/workbook/') ||
+          entry.from === 'src/main.ts' ||
+          isFakeSeed(entry.from) ||
+          (/^src\/packs\/[^/]+\/infrastructure\//.test(entry.from) && SPREADSHEET_MAPPING.includes(entry.target)),
+      ),
+    ).toEqual([])
+  })
+
+  it('keeps application code off infrastructure, but for the files that wire the adapters', () => {
+    expect(broken((entry) => !/\/application\//.test(entry.from) || entry.target === null || !/\/infrastructure\//.test(entry.target) || ADAPTER_WIRING.includes(entry.from))).toEqual([])
   })
 
   it('keeps core free of pack code, which only main.ts installs', () => {

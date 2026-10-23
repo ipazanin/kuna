@@ -15,6 +15,7 @@ import type { PageTab } from '../../../../shared/ui/PageTabs.vue'
 import { useFilters } from '../../../../features/filters/application/filterStore'
 import { useSettings } from '../../../../features/settings/application/useSettings'
 import { useFilteredLedger } from '../../../../features/transactions/application/useFilteredLedger'
+import { hrDooWorkbook } from '../../domain/hrDooPart'
 import { newestBookingOf } from '../../../../features/workbook/domain/workbook'
 import LedgerGate from '../../../../features/workbook/presentation/LedgerGate.vue'
 import { useDisplayNames } from '../../../../features/workbook/application/useDisplayNames'
@@ -52,7 +53,12 @@ const TAB_LABELS: Readonly<Record<YearTab, Omit<PageTab, 'value'>>> = {
   assets: { label: 'Assets', icon: 'i-lucide-package' },
 }
 
-const ledger = useFilteredLedger()
+const filteredLedger = useFilteredLedger()
+/** The filtered ledger with the pack's part of the workbook, which every tab reads. */
+const ledger = computed(() => {
+  const filtered = filteredLedger.value
+  return filtered === null ? null : { ...filtered, workbook: hrDooWorkbook(filtered.workbook) }
+})
 const settings = useSettings()
 const names = useDisplayNames()
 const { drillLocation } = useFilters()

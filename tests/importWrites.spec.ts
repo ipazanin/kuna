@@ -4,12 +4,16 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { LEDGER_ROWS } from '../src/features/imports/application/ledgerRows'
+import { LEDGER_WRITES } from '../src/features/imports/application/ledgerWrites'
 import { dryRunFor, statementReadings } from '../src/features/imports/application/importStatements'
 import type { ImportDryRun } from '../src/features/imports/domain/importDryRun'
 import type { ImportProfile } from '../src/features/imports/domain/importProfile'
-import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
-import type { RowCells } from '../src/features/workbook/domain/rowChanges'
+import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
+import type { LedgerEntry } from '../src/features/workbook/domain/ledgerReading'
+import { CORE_TABS } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import type { WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { cellsOf } from './fixtures/recordWrites'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { placeLedgerRows } from '../src/features/workbook/infrastructure/ledgerPlacement'
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
@@ -49,12 +53,22 @@ function camtFile(xml: string, fileName = 'statement.xml') {
   return { kind: 'camt' as const, fileName, document: new DOMParser().parseFromString(xml, 'application/xml') }
 }
 
-function dryRun(store: WorkbookStore, xml: string, starts: ReadonlyMap<string, Money> = new Map()): ImportDryRun {
+function dryRun(store: WorkbookStore<WorkbookCopy>, xml: string, starts: ReadonlyMap<string, Money> = new Map()): ImportDryRun {
   const workbook = store.state.workbook!
   return dryRunFor(statementReadings(camtFile(xml), workbook, null), workbook, starts)
 }
 
-function ledgerCells(store: WorkbookStore): Record<string, CellValue>[] {
+/** The ledger rows confirming would write, as the tab holds them. */
+function rowsOf(run: ImportDryRun): Record<string, CellValue>[] {
+  return run.added.map((entry) => ({ ...CORE_TABS.ledger.cells(entry) }))
+}
+
+/** Imports the entries, as Confirm import does. */
+function importRows(store: WorkbookStore<WorkbookCopy>, added: readonly LedgerEntry[]) {
+  return store.write('Imported', (unit) => added.forEach((entry) => unit.of(LEDGER_WRITES).add(entry)))
+}
+
+function ledgerCells(store: WorkbookStore<WorkbookSnapshot>): Record<string, CellValue>[] {
   return [...store.state.snapshot!.ledger].sort((upper, lower) => upper.sheetRow - lower.sheetRow).map((row) => row.cells)
 }
 
@@ -66,7 +80,7 @@ describe('the import dry run', () => {
     expect(run.newRows).toBe(1)
     expect(run.statements[0]).toMatchObject({ account: 'main', label: '2031-03-12-statement-042', refusal: null, start: null })
     expect(run.statements[0]?.rows[0]).toMatchObject({ inLedger: false, balance: moneyFromCents(192_315), verdict: { category: 'revenue', flaggedBy: 'rule', ruleId: 'client-northwind' } })
-    expect(run.added).toEqual([
+    expect(rowsOf(run)).toEqual([
       {
         date: 47918,
         account: 'main',
@@ -148,13 +162,13 @@ describe('the import dry run', () => {
     expect(run.statements[1]?.notes).toEqual([
       'It is statement 44, and the newest on the ledger for main is 42, so one statement is not on the ledger. The balances still join, so it may have held no entries.',
     ])
-    expect(run.added.map((cells) => cells.statement)).toEqual(['2031-03-12-statement-042', '2031-03-14-statement-044'])
+    expect(run.added.map((entry) => entry.statement)).toEqual(['2031-03-12-statement-042', '2031-03-14-statement-044'])
   })
 })
 
 describe('placing statement rows where the Apps Script inserts a batch', () => {
   const rows = sheetRowsFromValues([LEDGER_HEADER, ...LEDGER_VALUES])
-  const cells = (date: number, statement: string, account = 'main'): RowCells => ({ date, statement, account })
+  const cells = (date: number, statement: string, account = 'main'): Record<string, CellValue> => ({ date, statement, account })
 
   it('puts a newer statement on top and an older one above the first row not newer than its newest day', () => {
     expect(placeLedgerRows(rows, [cells(46310, 'new'), cells(46309, 'new')], 5)).toEqual([{ index: 0, before: 2 }, { index: 1, before: 2 }])
@@ -175,9 +189,9 @@ describe.each([
     const { store, sheets, writtenRanges } = await harnessOf(used, grids())
     const before = ledgerCells(store)
 
-    const receipt = await store.changeRows(LEDGER_ROWS, { added: dryRun(store, creditStatement()).added, changed: [], removed: [] })
+    const receipt = await importRows(store, dryRun(store, creditStatement()).added)
 
-    expect(receipt?.added).toHaveLength(1)
+    expect(cellsOf(receipt, 'add')).toHaveLength(1)
     expect(ledgerCells(store)[0]).toMatchObject({ date: 47918, account: 'main', amount: 923.15, balance: 1923.15, category: 'revenue', flagged_by: 'rule' })
     expect(ledgerCells(store).slice(1)).toEqual(before)
     expect(store.state.workbook?.transactions.find((row) => row.reference === '2031-74101882-00752204301')?.sequence).toBe(5)
@@ -219,7 +233,7 @@ describe.each([
     const { store, sheets } = await googleHarness(used, grids(), { ledger: [[], ...LEDGER_VALUES.map(() => [...below])] })
     const run = dryRun(store, creditStatement())
 
-    await store.changeRows(LEDGER_ROWS, { added: run.added, changed: [], removed: [] })
+    await importRows(store, run.added)
 
     const inserted = sheets.formats.ledger![1]!
     expect(inserted[LEDGER_HEADER.indexOf('date')]).toBe('yyyy-mm-dd')
@@ -233,11 +247,11 @@ describe.each([
   it('refuses rows the ingest filed since the dry run, and writes nothing', async () => {
     const { store, sheets } = await harnessOf(used, grids())
     const run = dryRun(store, creditStatement())
-    await store.changeRows(LEDGER_ROWS, { added: run.added, changed: [], removed: [] })
+    await importRows(store, run.added)
     const after = ledgerCells(store)
 
-    await expect(store.changeRows(LEDGER_ROWS, { added: run.added, changed: [], removed: [] })).rejects.toThrow(
-      'One of these rows is on the ledger tab already, such as the main row with reference 2031-74101882-00752204301. The morning ingest may have filed it since the dry run. Look at the dry run again.',
+    await expect(importRows(store, run.added)).rejects.toThrow(
+      'The ledger row "2031-03-11, Northwind Analytics Ltd, 923.15, balance 1923.15" is in the workbook already, so it is not added again.',
     )
     expect(ledgerCells(store)).toEqual(after)
     expect(name === 'a Google Sheet' ? sheets.grids.ledger?.length : after.length).toBe(name === 'a Google Sheet' ? 6 : 5)
@@ -246,9 +260,9 @@ describe.each([
   it('refuses rows that no longer open where the tab leaves the account', async () => {
     const { store } = await harnessOf(used, grids())
     const run = dryRun(store, creditStatement())
-    const moved = run.added.map((cells) => ({ ...cells, balance: 1923.16 }))
+    const moved = run.added.map((entry) => ({ ...entry, balance: moneyFromCents(192_316) }))
 
-    await expect(store.changeRows(LEDGER_ROWS, { added: moved, changed: [], removed: [] })).rejects.toThrow('The new main rows open at 1000.01, but the tab now leaves main at 1000.00.')
+    await expect(importRows(store, moved)).rejects.toThrow('The new main rows open at 1000.01, but the tab now leaves main at 1000.00.')
   })
 
   it('starts an account the ledger had no row of and puts its rows by date', async () => {
@@ -256,17 +270,17 @@ describe.each([
     const savings = creditStatement('250.00', '1173.15').replace(MAIN_IBAN, SAVINGS_IBAN)
     const run = dryRun(store, savings, new Map([['savings', moneyFromCents(25_000)]]))
 
-    await store.changeRows(LEDGER_ROWS, { added: run.added, changed: [], removed: [] })
+    await importRows(store, run.added)
     expect(ledgerCells(store)[0]).toMatchObject({ account: 'savings', balance: 1173.15 })
     expect(store.state.workbook?.transactions.filter((row) => row.account === 'savings').map((row) => row.balance)).toEqual([moneyFromCents(117_315)])
   })
 
   it('refuses to take out rows a newer row of the account follows', async () => {
     const { store } = await harnessOf(used, grids())
-    await store.changeRows(LEDGER_ROWS, { added: dryRun(store, creditStatement()).added, changed: [], removed: [] })
+    await importRows(store, dryRun(store, creditStatement()).added)
     const imported = store.state.writes[0]!
     const later = creditStatement('1923.15', '2846.30').replace(/2031-03-12T/g, '2031-03-14T').replace(/<Dt>2031-03-11<\/Dt>/g, '<Dt>2031-03-13</Dt>').replace(/2031-74101882-00752204301/g, 'LATER-1').replace('<LglSeqNb>42</LglSeqNb>', '<LglSeqNb>43</LglSeqNb>')
-    await store.changeRows(LEDGER_ROWS, { added: dryRun(store, later).added, changed: [], removed: [] })
+    await importRows(store, dryRun(store, later).added)
 
     await expect(store.undo(imported)).rejects.toThrow('The main row of 2031-03-13 with the balance 2846.30 is booked after the rows to take out, so its balance follows from them.')
   })
@@ -279,7 +293,7 @@ describe('an import into a Google Sheet', () => {
     const send = sheets.updateSpreadsheet.bind(sheets)
     sheets.updateSpreadsheet = (requests) => send([...requests, { deleteDimension: { range: { sheetId: 999, dimension: 'ROWS', startIndex: 1, endIndex: 2 } } }])
 
-    await expect(store.changeRows(LEDGER_ROWS, { added: dryRun(store, creditStatement()).added, changed: [], removed: [] })).rejects.toThrow('No grid with id: 999')
+    await expect(importRows(store, dryRun(store, creditStatement()).added)).rejects.toThrow('No grid with id: 999')
 
     expect(sheets.grids.ledger).toEqual(before)
     expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
@@ -296,7 +310,7 @@ describe('a tabular import through its profile', () => {
     const run = dryRunFor(statementReadings(file, workbook, profile), workbook, new Map())
 
     expect(run.statements[0]?.notes).toEqual(['The file gives no balances, so they are worked out from 1000.00, where the ledger leaves main on 2026-10-05.'])
-    expect(run.added.map((cells) => [cells.date, cells.amount, cells.balance, cells.statement])).toEqual([
+    expect(rowsOf(run).map((cells) => [cells.date, cells.amount, cells.balance, cells.statement])).toEqual([
       [46312, -3.4, 8146.6, 'promet (ffffffff)'],
       [46311, 7150, 8150, 'promet (ffffffff)'],
     ])
@@ -309,7 +323,7 @@ describe('a tabular import through its profile', () => {
     const grid = [['Datum', 'Naziv', 'Opis', 'Iznos'], ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'], ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00']]
     const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), grid }
     const runOf = (read: ImportProfile) => dryRunFor(statementReadings(file, store.state.workbook!, read), store.state.workbook!, new Map())
-    await store.changeRows(LEDGER_ROWS, { added: runOf(profile).added, changed: [], removed: [] })
+    await importRows(store, runOf(profile).added)
 
     expect(runOf(profile)).toMatchObject({ newRows: 0, inLedger: 2 })
     const changed = runOf({ ...profile, description: 'Naziv' })

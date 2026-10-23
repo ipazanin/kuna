@@ -16,29 +16,34 @@ import type { Settings, SettingsField } from '../domain/settings'
 /**
  * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
  * them. A card with a field in error opens. While the owner-pay switch is on in the draft, the
- * pack's facts card sits between the basics and the bucket labels, and its checks join the errors.
+ * pack's facts card sits between the basics and the bucket labels, and Save waits for its checks too.
  */
 const props = defineProps<{
   settings: Settings
+  /** The pack's facts as the workbook holds them, which its card edits. */
+  facts: unknown
   saving: boolean
 }>()
 
 const emit = defineEmits<{
-  save: [settings: Settings]
+  save: [settings: Settings, facts: unknown]
 }>()
 
 const draft = ref<Settings>(props.settings)
+const factsDraft = ref<unknown>(props.facts)
 watch(
-  () => props.settings,
-  (saved) => {
+  () => [props.settings, props.facts] as const,
+  ([saved, facts]) => {
     draft.value = saved
+    factsDraft.value = facts
   },
 )
 
-const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(props.settings))
+const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(props.settings) || JSON.stringify(factsDraft.value) !== JSON.stringify(props.facts))
 const packFacts = computed(() => shownPack(draft.value).companyFacts)
-const errors = computed(() => ({ ...settingsErrors(draft.value), ...packFacts.value?.errors(draft.value.companyFacts) }))
-const valid = computed(() => Object.keys(errors.value).length === 0)
+const errors = computed(() => settingsErrors(draft.value))
+const factErrors = computed(() => packFacts.value?.errors(factsDraft.value) ?? {})
+const valid = computed(() => Object.keys(errors.value).length === 0 && Object.keys(factErrors.value).length === 0)
 
 const inError = (fields: readonly SettingsField[]): boolean => fields.some((field) => errors.value[field] !== undefined)
 const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'reviewLabel', 'cardSettlementIbans']))
@@ -83,7 +88,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
 </script>
 
 <template>
-  <form class="flex flex-col gap-6" @submit.prevent="valid && dirty && emit('save', draft)">
+  <form class="flex flex-col gap-6" @submit.prevent="valid && dirty && emit('save', draft, factsDraft)">
     <AppCard title="The workbook" subtitle="Its name, money and review label, from the settings tab." collapse-id="settings.workbook" summary="The company, the currency and the review label" :reveal="basicsRevealed">
       <div class="flex flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
         <div class="grid gap-4 sm:grid-cols-2">
@@ -137,10 +142,10 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
     <component
       :is="packFacts.card"
       v-if="packFacts"
-      :facts="draft.companyFacts"
-      :saved="settings.companyFacts"
-      :errors="errors"
-      @update="update('companyFacts', $event)"
+      :facts="factsDraft"
+      :saved="facts"
+      :errors="factErrors"
+      @update="factsDraft = $event"
     />
 
     <AppCard

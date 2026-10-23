@@ -1,5 +1,4 @@
 import { cellText } from '../../../shared/text/cellText'
-import type { RowCells } from '../domain/rowChanges'
 import { slugOf } from './cellReading'
 import type { SheetRow } from './workbookSnapshot'
 
@@ -17,7 +16,7 @@ export interface AddedPlace {
  * Script reads each account's balance off its topmost row, so a block at the foot would break its
  * next morning.
  */
-export function placeLedgerRows(rows: readonly SheetRow[], added: readonly RowCells[], lastRow: number): AddedPlace[] {
+export function placeLedgerRows(rows: readonly SheetRow[], added: readonly SheetRow['cells'][], lastRow: number): AddedPlace[] {
   const slots: { readonly readAs: number | null; readonly date: number; readonly index: number }[] = [...rows]
     .sort((upper, lower) => upper.sheetRow - lower.sheetRow)
     .map((row) => ({ readAs: row.sheetRow, date: typeof row.cells.date === 'number' ? row.cells.date : Number.NEGATIVE_INFINITY, index: -1 }))
@@ -44,4 +43,9 @@ export function placeLedgerRows(rows: readonly SheetRow[], added: readonly RowCe
     }
   }
   return places
+}
+
+/** The row each row put in lands on once all of them are in, given the row each goes above. Rows sharing a place keep their order. */
+export function insertedRowNumbers(befores: readonly number[]): number[] {
+  return befores.map((before, index) => before + befores.filter((other, otherIndex) => other < before || (other === before && otherIndex < index)).length)
 }

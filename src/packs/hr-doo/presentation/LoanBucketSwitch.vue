@@ -3,13 +3,12 @@ import { computed } from 'vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
-import { CATEGORY_ROWS } from '../../../features/settings/application/workbookTabRows'
-import { storedCellsOf } from '../../../features/workbook/application/tabRowWrites'
+import { CATEGORY_WRITES } from '../../../features/settings/application/namedRecordWrites'
+import { NO_RECORDS, recordWithId } from '../../../features/workbook/domain/recordsRead'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../features/workbook/application/workbookStore'
-import type { RowChange } from '../../../features/workbook/domain/rowChanges'
 import { categoryIdOf } from '../../../features/workbook/domain/workbook'
-import { useRowWrites } from '../../../features/workbook/presentation/useRowWrites'
+import { useRecordWrites } from '../../../features/workbook/presentation/useRecordWrites'
 import { PACK_ROLES } from '../domain/packRoles'
 
 /**
@@ -19,7 +18,7 @@ import { PACK_ROLES } from '../domain/packRoles'
  */
 const store = useWorkbook()
 const names = useDisplayNames()
-const writes = useRowWrites(CATEGORY_ROWS)
+const writes = useRecordWrites()
 
 const loanCategories = computed(() =>
   (store.state.workbook?.categories ?? []).filter((category) => category.roles.includes(PACK_ROLES.ownerLoanOut) || category.roles.includes(PACK_ROLES.ownerLoanRepaid)),
@@ -28,21 +27,17 @@ const countsAsPay = computed(() => loanCategories.value.length > 0 && loanCatego
 const mixed = computed(() => !countsAsPay.value && !loanCategories.value.every((category) => category.bucket === 'financing'))
 const listed = computed(() => loanCategories.value.map((category) => `${names.value.category(category.slug)} (${category.bucket})`).join(' and '))
 
-/** Writes the bucket of each loan category on the row that defines it, the one the reader takes. */
+/** Writes the bucket of each loan category, as the app read it. */
 async function choose(asPay: boolean): Promise<void> {
   const bucket = asPay ? 'owner-pay' : 'financing'
-  const rows = store.state.snapshot?.categories ?? []
-  const changed = loanCategories.value.flatMap((category): RowChange[] => {
-    const before = storedCellsOf(rows, CATEGORY_ROWS, categoryIdOf(category))
-    return before === null ? [] : [{ before, after: { ...before, bucket } }]
-  })
+  const stored = loanCategories.value.flatMap((category) => recordWithId(store.state.records?.categories ?? NO_RECORDS, categoryIdOf(category)) ?? [])
   await writes.write(
-    { added: [], changed, removed: [] },
+    asPay ? 'Loans count as owner pay' : 'Loans count as financing',
+    (unit) => stored.forEach(({ record }) => unit.of(CATEGORY_WRITES).change(record, { ...record, bucket })),
     {
-      title: asPay ? 'Loans count as owner pay' : 'Loans count as financing',
       description: `The categories tab now puts ${loanCategories.value.map((category) => category.slug).join(' and ')} in the ${bucket} bucket.`,
+      failedTitle: 'Not changed',
     },
-    'Not changed',
   )
 }
 </script>

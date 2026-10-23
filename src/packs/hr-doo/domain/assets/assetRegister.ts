@@ -1,12 +1,13 @@
 import { rowDrill } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import type { Asset } from '../../../../features/workbook/domain/assets'
+import type { Asset } from './assets'
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
-import type { Category, Transaction } from '../../../../features/workbook/domain/workbook'
+import { problemOf } from '../../../../features/workbook/domain/recordsRead'
+import type { Category, RecordProblem, Transaction } from '../../../../features/workbook/domain/workbook'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import { addMoney, negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { ruleValue } from '../../ruleset/ruleset'
+import { hasVersionOn, ruleValue } from '../../ruleset/ruleset'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { atRate } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
@@ -41,9 +42,18 @@ export interface MismatchedPayment {
   readonly drill: DrillTarget
 }
 
+/** A bank row an asset would claim, left unclaimed since no standard VAT rate is in force on its day to check its amount against. */
+export interface UncheckedClaim {
+  readonly asset: Asset
+  readonly row: Transaction
+  readonly matchedBy: AssetMatch
+}
+
 export interface AssetRegister {
   /** In the order of the assets tab. */
   readonly assets: readonly RegisteredAsset[]
+  /** In the order of the assets tab. */
+  readonly uncheckedClaims: readonly UncheckedClaim[]
   /** Debits on a `capital-purchase` category that no asset claims, such as small inventory, oldest first. */
   readonly unmatchedPurchases: readonly UnmatchedPurchase[]
   /** Oldest first. */
@@ -57,7 +67,9 @@ export interface AssetRegister {
  * debit, first as the row's reference and then inside its description, because older rows carry no
  * reference. An asset left over takes an unclaimed `capital-purchase` debit of its net cost, or of
  * its net cost with VAT at the standard rate, nearest to the day it was bought. A payment the
- * references claim is reported when it is not what the claiming assets cost in the same way.
+ * references claim is reported when it is not what the claiming assets cost in the same way. A row
+ * dated before the ruleset knows a standard VAT rate is never claimed, and the asset that would
+ * claim it says so.
  */
 export function assetRegister(
   assets: readonly Asset[],
@@ -67,18 +79,28 @@ export function assetRegister(
 ): AssetRegister {
   const capitalPurchaseCategories = categoriesWithRole(categories, PACK_ROLES.capitalPurchase)
   const debits = oldestFirst(transactions.filter((row) => row.amount < 0))
-  const byReference = assets.map((asset) => referenceMatch(asset, debits))
+  const found = assets.map((asset) => referenceMatch(asset, debits))
+  const byReference = found.map((payment) => (payment !== null && vatRateKnown(payment.row) ? payment : null))
+  const uncheckedClaims: UncheckedClaim[] = []
 
   const claimed = new Set(byReference.flatMap((payment) => (payment === null ? [] : [payment.row])))
   const purchases = debits.filter((row) => capitalPurchaseCategories.includes(row.category))
   const registered = assets.map((asset, position): RegisteredAsset => {
-    const known = byReference[position] ?? null
-    if (known !== null) {
+    const referenced = found[position] ?? null
+    if (referenced !== null) {
+      const known = byReference[position] ?? null
+      if (known === null) {
+        uncheckedClaims.push({ asset, row: referenced.row, matchedBy: referenced.matchedBy })
+      }
       return { asset, payment: known }
     }
-    const fitting = purchases.filter((row) => !claimed.has(row) && paysFor(row, asset.costNet, rules))
-    const row = nearestTo(asset, fitting)
+    const open = purchases.filter((row) => !claimed.has(row))
+    const row = nearestTo(asset, open.filter((candidate) => vatRateKnown(candidate) && paysFor(candidate, asset.costNet, rules)))
     if (row === null) {
+      const unchecked = nearestTo(asset, open.filter((candidate) => !vatRateKnown(candidate)))
+      if (unchecked !== null) {
+        uncheckedClaims.push({ asset, row: unchecked, matchedBy: 'date-and-amount' })
+      }
       return { asset, payment: null }
     }
     claimed.add(row)
@@ -87,6 +109,7 @@ export function assetRegister(
 
   return {
     assets: registered,
+    uncheckedClaims,
     unmatchedPurchases: purchases.filter((row) => !claimed.has(row)).map((row) => ({ row, drill: rowDrill(row) })),
     mismatchedPayments: mismatchedPayments(assets, byReference, debits, rules),
     capitalPurchaseCategories,
@@ -112,6 +135,14 @@ export function assetsClaimingRows(
   return claiming
 }
 
+/** A problem on each asset that claims no row it would otherwise claim, naming the row's day and the VAT rate the ruleset lacks for it. */
+export function uncheckedClaimProblems(assets: readonly Asset[], transactions: readonly Transaction[], categories: readonly Category[]): RecordProblem[] {
+  return assetRegister(assets, transactions, categories).uncheckedClaims.map(({ asset, row, matchedBy }) => {
+    const found = matchedBy === 'date-and-amount' ? `the capital purchase of ${row.date} may pay for it` : `its ledger_reference finds the bank row of ${row.date}`
+    return problemOf({ id: asset.id, label: asset.name }, `${found}, but the app has no standard VAT rate for that day to check the amount against, so the row is left unclaimed`)
+  })
+}
+
 function mismatchedPayments(assets: readonly Asset[], byReference: readonly (AssetPayment | null)[], debits: readonly Transaction[], rules: RuleSource): MismatchedPayment[] {
   return debits.flatMap((row) => {
     const claiming = assets.filter((_, position) => byReference[position]?.row === row)
@@ -134,6 +165,10 @@ function referenceMatch(asset: Asset, debits: readonly Transaction[]): AssetPaym
   }
   const described = nearestTo(asset, debits.filter((row) => normalised(row.description).includes(reference)))
   return described === null ? null : { row: described, matchedBy: 'description', drill: rowDrill(described) }
+}
+
+function vatRateKnown(row: Transaction): boolean {
+  return hasVersionOn('hr.vat.rates', row.date)
 }
 
 /** Whether the row paid the net cost, or the net cost with VAT at the standard rate. */

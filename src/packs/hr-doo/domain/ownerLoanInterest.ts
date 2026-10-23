@@ -1,4 +1,4 @@
-import type { Workbook } from '../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from './hrDooPart'
 import { civilDate, daysBetween, yearOf } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { ZERO, moneyFromCents, sumMoney } from '../../../shared/money/money'
@@ -19,8 +19,8 @@ export function shortfallRate(prescribed: Rate, carried: Rate): Rate {
 }
 
 /** The yearly interest rate the workbook says the owner's loans carry. */
-export function carriedRate(workbook: Workbook): Rate {
-  return workbook.settings.companyFacts.ownerLoanInterest as Rate
+export function carriedRate(workbook: HrDooWorkbook): Rate {
+  return workbook.companyFacts.ownerLoanInterest as Rate
 }
 
 /** Days from `from` to `to` that fall after `after` and on or before `through`. */
@@ -96,7 +96,7 @@ export interface LoanBenefit {
  * loan from the employer to the employee, so it reads the loan book, what the owner owes the company,
  * and never the costs the owner paid for the company. Null when no loan had a balance in the year.
  */
-export function loanBenefit(workbook: Workbook, year: number, through: CivilDate, rules: RuleSource): LoanBenefit | null {
+export function loanBenefit(workbook: HrDooWorkbook, year: number, through: CivilDate, rules: RuleSource): LoanBenefit | null {
   const yearEnd = civilDate(year, 12, 31)
   const end = through < yearEnd ? through : yearEnd
   const rule = rules('hr.pit.loan-benefit', end)
@@ -119,7 +119,7 @@ export function loanBenefit(workbook: Workbook, year: number, through: CivilDate
  * Interest the owner loans would carry at the related-party rate, less the rate they carry. The rule
  * reaches a resident owner only while the company has a tax loss, so without one it is not worked out.
  */
-export function relatedPartyInterest(workbook: Workbook, year: number, profitBeforeTax: Money, losses: readonly CarriedLoss[], rules: RuleSource): TracedFigure {
+export function relatedPartyInterest(workbook: HrDooWorkbook, year: number, profitBeforeTax: Money, losses: readonly CarriedLoss[], rules: RuleSource): TracedFigure {
   if (profitBeforeTax >= 0 && losses.length === 0) {
     return tracedFigure('Not worked out: the company has no tax loss', ZERO, 'ledger', [])
   }
@@ -136,7 +136,7 @@ export function relatedPartyInterest(workbook: Workbook, year: number, profitBef
 }
 
 /** The benefit of each year a loan had a balance in, newest first, the year of `asOf` up to that day. */
-export function loanBenefitByYear(workbook: Workbook, asOf: CivilDate, rules: RuleSource): LoanBenefit[] {
+export function loanBenefitByYear(workbook: HrDooWorkbook, asOf: CivilDate, rules: RuleSource): LoanBenefit[] {
   const first = ownerLoans(workbook.transactions, workbook.categories).loans[0]
   if (first === undefined) return []
   const years = Array.from({ length: yearOf(asOf) - yearOf(first.lentOn) + 1 }, (_, offset) => yearOf(asOf) - offset)

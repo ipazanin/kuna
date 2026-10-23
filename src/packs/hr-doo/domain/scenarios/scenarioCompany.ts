@@ -1,6 +1,6 @@
 import { displayName } from '../../../../features/workbook/domain/displayName'
-import type { Grant } from '../../../../features/workbook/domain/grants'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { Grant } from '../grants/grants'
+import type { HrDooWorkbook } from '../hrDooPart'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
@@ -40,8 +40,8 @@ export interface ScenarioCompany {
  * scenario year takes that year's figures and `takenFrom` says so. The owner pay the forecast
  * counts, a plan's scenarios included, is taken back out, so each scenario sets its own.
  */
-export function scenarioCompany(workbook: Workbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): ScenarioCompany {
-  const registered = workbook.settings.companyFacts.companyRegistered
+export function scenarioCompany(workbook: HrDooWorkbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): ScenarioCompany {
+  const registered = workbook.companyFacts.companyRegistered
   if (registered === null) {
     throw new RangeError('A pay scenario needs hr_company_registered, the day the first tax period starts.')
   }

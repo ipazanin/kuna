@@ -1,14 +1,15 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { DISMISSED_ROWS, dismissalCells } from '../src/features/review/application/dismissedRows'
+import { DISMISSAL_WRITES, dismissalOfGroup } from '../src/features/review/application/dismissalWrites'
 import { withoutDismissed } from '../src/features/review/domain/dismissedSuggestions'
 import { ruleCoverage } from '../src/features/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
-import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
-import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
+import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
-import { readDismissals } from '../src/features/workbook/infrastructure/dismissedTabReader'
+import { readDismissals } from '../src/features/workbook/domain/dismissalsReading'
+import { CORE_TABS, recordsOfRows } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { DESK_IBAN, LEDGER_ROWS, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
@@ -31,12 +32,12 @@ function grids(withTab = true): Record<string, CellValue[][]> {
   return { ...workbookGrids(), ...(withTab ? { dismissed: [HEADER] } : {}) }
 }
 
-function coverageOf(store: WorkbookStore) {
+function coverageOf(store: WorkbookStore<WorkbookCopy>) {
   const workbook = store.state.workbook!
   return withoutDismissed(ruleCoverage(workbook.transactions, workbook.rules, categorisationContextOf(workbook)), workbook.dismissals)
 }
 
-function deskGroup(store: WorkbookStore) {
+function deskGroup(store: WorkbookStore<WorkbookCopy>) {
   const workbook = store.state.workbook!
   return ruleCoverage(workbook.transactions, workbook.rules, categorisationContextOf(workbook)).notCovered.find((group) => group.key === DESK_KEY)!
 }
@@ -44,7 +45,9 @@ function deskGroup(store: WorkbookStore) {
 describe('the dismissed tab', () => {
   it('reads one row per dismissal, and reports a row it cannot use and every row of a suggestion dismissed twice', () => {
     const reading = readDismissals(
-      sheetRowsFromValues(
+      recordsOfRows(
+        CORE_TABS.dismissed,
+        sheetRowsFromValues(
         withIds('dismissal', [
           HEADER,
           ['not-covered', DESK_KEY, 'Equipment', 46316],
@@ -55,15 +58,16 @@ describe('the dismissed tab', () => {
           ['exception', 'name:bakery', '', 'Tuesday'],
         ]),
       ),
+      ),
     )
 
     expect(reading.facts).toEqual([{ kind: 'exception', key: 'name:corner shop', category: '', dismissedOn: null, id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-3') }])
     expect(reading.problems.map((problem) => [problem.label, problem.reason])).toEqual([
-      [`${DESK_KEY}, 2026-10-21`, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
-      [`${DESK_KEY}, 2026-10-22`, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
       ['name:kiosk', '"rule" is not a kind of suggestion. Use not-covered, exception'],
       ['unnamed', 'no key'],
       ['name:bakery, Tuesday', 'dismissed_on "Tuesday" is not a date cell'],
+      [`${DESK_KEY}, 2026-10-21`, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
+      [`${DESK_KEY}, 2026-10-22`, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
     ])
   })
 
@@ -84,13 +88,13 @@ describe('the dismissed tab', () => {
   it('names the group by its counterparty, its most common category and the day', () => {
     const group = { key: DESK_KEY, name: 'Desk Co', iban: DESK_IBAN, rows: [], categories: [{ category: 'equipment', count: 2 }] }
 
-    expect(dismissalCells('not-covered', group, DAY)).toEqual({ kind: 'not-covered', key: DESK_KEY, category: 'equipment', dismissed_on: 46316 })
+    expect(dismissalOfGroup('not-covered', group, DAY)).toMatchObject({ kind: 'not-covered', key: DESK_KEY, category: 'equipment', dismissedOn: DAY })
   })
 
   it('hides only the exception to the rule it names, not the same counterparty’s exception to another rule', () => {
     const exception = (ruleId: string) => ({ key: `${DESK_KEY}|${ruleId}`, name: 'Desk Co', iban: DESK_IBAN, rows: [], categories: [], ruleId, ruleCategory: 'equipment' })
     const coverage = { notCovered: [], exceptions: [exception('desk-rent'), exception('desk-chairs')] }
-    const dismissal = { kind: 'exception' as const, key: dismissalCells('exception', exception('desk-rent'), DAY).key as string, category: '', dismissedOn: DAY, id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-2') }
+    const dismissal = { kind: 'exception' as const, key: dismissalOfGroup('exception', exception('desk-rent'), DAY).key, category: '', dismissedOn: DAY, id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-2') }
 
     const shown = withoutDismissed(coverage, [dismissal])
 
@@ -106,12 +110,12 @@ describe.each([
   it('dismisses a group, restores it, and Undo puts the dismissal back', async () => {
     const { store } = await harnessOf(used, grids())
 
-    await store.changeRows(DISMISSED_ROWS, { added: [dismissalCells('not-covered', deskGroup(store), DAY)], changed: [], removed: [] })
+    await store.write('Dismissed', (unit) => unit.of(DISMISSAL_WRITES).add(dismissalOfGroup('not-covered', deskGroup(store), DAY)))
     expect(coverageOf(store).coverage.notCovered.map((group) => group.key)).not.toContain(DESK_KEY)
     expect(store.state.workbook?.dismissals.map((dismissal) => [dismissal.key, dismissal.dismissedOn])).toEqual([[DESK_KEY, DAY]])
 
-    const row = store.state.snapshot!.dismissed[0]!
-    await store.changeRows(DISMISSED_ROWS, { added: [], changed: [], removed: [rowCellsOf(row, DISMISSED_ROWS)] })
+    const [dismissal] = store.state.records!.dismissed.records
+    await store.write('Restored', (unit) => unit.of(DISMISSAL_WRITES).remove(dismissal!.record))
     expect(coverageOf(store).coverage.notCovered.map((group) => group.key)).toContain(DESK_KEY)
     expect(store.state.snapshot?.dismissed).toEqual([])
 
@@ -123,10 +127,10 @@ describe.each([
 describe('dismissals written to a Google Sheet without the tab', () => {
   it('adds the dismissed tab with the template’s header once the person agreed, the day as a date cell', async () => {
     const { store, sheets } = await googleHarness(used, grids(false))
-    const change = { added: [dismissalCells('not-covered', deskGroup(store), DAY)], changed: [], removed: [] }
+    const dismissal = dismissalOfGroup('not-covered', deskGroup(store), DAY)
 
-    await expect(store.changeRows(DISMISSED_ROWS, change)).rejects.toThrow('The workbook has no dismissed tab')
-    await store.changeRows(DISMISSED_ROWS, change, true)
+    await expect(store.write('Dismissed', (unit) => unit.of(DISMISSAL_WRITES).add(dismissal))).rejects.toThrow('The workbook has no dismissed tab')
+    await store.write('Dismissed', (unit) => unit.of(DISMISSAL_WRITES).add(dismissal), { addMissingKinds: true })
 
     const dismissed = (await sheets.sheetGrids()).get('dismissed')!.sheetId
     expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells', 'repeatCell'])

@@ -13,8 +13,8 @@ import { exportReminderDue } from '../../excel/domain/exportReminder'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useExport } from '../../excel/presentation/useExport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { spreadsheetLink } from '../../workbook/infrastructure/spreadsheetLink'
-import { XLSX_MIME_TYPE } from '../../workbook/infrastructure/workbookFile'
+import { useSheetLink } from '../../workbook/presentation/useSheetLink'
+import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 
 /** Where the ledger comes from, and how the app looks on this device. */
 const store = useWorkbook()
@@ -33,7 +33,7 @@ const workbookName = computed(() => state.choice?.name ?? state.workbook?.title 
 const changedAt = computed(() => (state.syncedAt === null ? null : stamp.format(new Date(state.syncedAt))))
 const exportedAt = computed(() => (meta.value?.lastExportedAt ? day.format(new Date(meta.value.lastExportedAt)) : null))
 const reminderDue = computed(() => exportReminderDue(meta.value?.unexportedSince ?? null, new Date()))
-const sheetLink = computed(() => (source.value === 'google' && state.workbook !== null ? spreadsheetLink(state.workbook.id) : null))
+const sheetLink = useSheetLink()
 
 const switching = ref(false)
 
@@ -131,7 +131,7 @@ const THEME_CHOICES: { label: string; value: ThemeChoice }[] = [
               size="sm"
             />
           </div>
-          <input ref="fileInput" type="file" :accept="`.xlsx,${XLSX_MIME_TYPE}`" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
+          <input ref="fileInput" type="file" :accept="WORKBOOK_FILE_TYPES" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
         </div>
       </AppCard>
 

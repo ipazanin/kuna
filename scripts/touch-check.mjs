@@ -14,7 +14,6 @@
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, an asset and an
  * invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, a payment split, edited, deleted and
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
- * ids given from Overview to the rows of a workbook from before ids,
  * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
@@ -54,7 +53,6 @@ import {
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
-  missingIdsFlow,
   planFlow,
   planTabFlow,
   reviewSplitFlow,
@@ -804,7 +802,6 @@ async function checkWidth(width) {
       ['split-review', '#/review', 'Review', reviewSplitFlow],
       ['change-category', '#/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
       ['dismiss', '#/review?tab=rules', 'Review', dismissFlow],
-      ['ids', '#/', 'Overview', missingIdsFlow, mode === 'google' ? '&fake=no-ids' : '&fake=excel-no-ids'],
       ['import-camt', '#/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
       ['import-table', '#/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
     ]) {

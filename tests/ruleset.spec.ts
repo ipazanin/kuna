@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { addDays, parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
-import { ASSET_GROUPS } from '../src/features/workbook/domain/assets'
+import { ASSET_GROUPS } from '../src/packs/hr-doo/domain/assets/assets'
 import { FORECAST_RULE_IDS } from '../src/packs/hr-doo/domain/forecast/forecastRules'
 import { ACTS } from '../src/packs/hr-doo/ruleset/acts'
 import { accountingOpenItems, accountingRules } from '../src/packs/hr-doo/ruleset/rules/accounting'

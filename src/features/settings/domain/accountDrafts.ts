@@ -1,5 +1,12 @@
 import { normaliseIban } from '../../../shared/text/fold'
+import { accountOfFields } from '../../workbook/domain/accountsReading'
+import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import { slugProblem } from '../../workbook/domain/slug'
+import { storedFieldOf, textOf } from '../../workbook/domain/storedFields'
+import type { StoredField, StoredFields } from '../../workbook/domain/storedFields'
+import type { StoredRecord } from '../../workbook/domain/recordsRead'
+import { madeOfDrafts } from './recordDrafts'
+import type { MadeDraft } from './recordDrafts'
 import { currencyProblem } from './settings'
 
 /** One row of the accounts editor, as text. */
@@ -13,6 +20,20 @@ export interface AccountDraft {
   readonly label: string
   readonly iban: string
   readonly currency: string
+}
+
+/** The drafts of the stored accounts, as the workbook holds their text. */
+export function accountDraftsOf(stored: readonly StoredRecord<unknown>[]): AccountDraft[] {
+  return stored.map(({ fields }, saved) => {
+    const text = (name: string): string => textOf(fields[name])
+    return { saved, savedName: text('account'), account: text('account'), label: text('label'), iban: text('iban'), currency: text('currency') }
+  })
+}
+
+/** The accounts the drafts make, each over the fields its stored record holds. */
+export function accountsOfDrafts(stored: readonly StoredRecord<unknown>[], drafts: readonly AccountDraft[]): MadeDraft<AccountRecord>[] {
+  const fields = drafts.map((draft) => accountFieldsOf(draft, draft.saved === null ? {} : (stored[draft.saved]?.fields ?? {})))
+  return madeOfDrafts(drafts, fields, stored, accountOfFields)
 }
 
 export type AccountField = 'account' | 'currency'
@@ -51,15 +72,21 @@ export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: R
   return errors
 }
 
-export function accountCellsOf(
-  drafts: readonly AccountDraft[],
-  savedCells: ReadonlyMap<number, Readonly<Record<string, string | number | boolean>>>,
-): Record<string, string | number | boolean>[] {
-  return drafts.map((draft) => ({
-    ...(draft.saved === null ? {} : (savedCells.get(draft.saved) ?? {})),
+/** The draft's fields, over the fields of the account it was read from. A blank field is absent. */
+function accountFieldsOf(draft: AccountDraft, stored: StoredFields): StoredFields {
+  const typed: Readonly<Record<string, string>> = {
     account: draft.account.trim().toLowerCase(),
     label: draft.label.trim(),
     iban: normaliseIban(draft.iban),
     currency: draft.currency.trim().toUpperCase(),
-  }))
+  }
+  const fields: Record<string, StoredField> = { ...stored }
+  for (const [name, text] of Object.entries(typed)) {
+    if (text === '') {
+      delete fields[name]
+    } else {
+      fields[name] = storedFieldOf(text)
+    }
+  }
+  return fields
 }

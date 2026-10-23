@@ -7,13 +7,12 @@ import { categorisationContextOf } from '../src/features/rules/domain/transactio
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import { categoryChangeOf } from '../src/features/transactions/domain/categoryChange'
 import { listedRows } from '../src/features/transactions/domain/listedRows'
-import { ledgerRowKeyOf } from '../src/features/workbook/domain/ledgerRowKey'
 import type { OwnerAdvance } from '../src/features/workbook/domain/workbook'
 import { STUDIO_CATEGORIES } from './fixtures/exampleStudio'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { OWNER_ADVANCE_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 const ROWS = ledger([
   { date: '2026-09-02', amount: -40, category: 'travel', counterparty: 'Rail', flaggedBy: 'ivan' },
@@ -71,12 +70,7 @@ describe('changing the category of a settled row', () => {
   it('writes the new category with the review label, as a confirmation on Review does', () => {
     const rail = named('Rail')
 
-    expect(recategorisation(rail, 'consulting', { reviewLabel: 'ivan' })).toEqual({
-      key: ledgerRowKeyOf(rail),
-      from: { category: 'travel', flaggedBy: 'ivan' },
-      to: { category: 'consulting', flaggedBy: 'ivan' },
-      undoes: false,
-    })
+    expect(recategorisation(rail, 'consulting', { reviewLabel: 'ivan' })).toEqual({ id: rail.id, verdict: { category: 'consulting', flaggedBy: 'ivan' } })
   })
 
   it('names the rule that files such rows elsewhere', () => {

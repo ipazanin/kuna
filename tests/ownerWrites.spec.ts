@@ -1,13 +1,20 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { CATEGORY_ROWS } from '../src/features/settings/application/workbookTabRows'
-import { OWNER_ADVANCE_ROWS, ownerAdvanceCellsOf } from '../src/features/workbook/application/ownerAdvanceRows'
-import type { OwnerAdvanceDraft } from '../src/features/workbook/application/ownerAdvanceRows'
-import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
-import { canUndo, wasUndone } from '../src/features/workbook/application/workbookStore'
-import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
+import { CATEGORY_WRITES } from '../src/features/settings/application/namedRecordWrites'
+import { newOwnerAdvance } from '../src/packs/hr-doo/application/ownerAdvanceWrites'
+import type { OwnerAdvanceDraft } from '../src/packs/hr-doo/application/ownerAdvanceWrites'
+import { OWNER_ADVANCE_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
+import type { OwnerAdvanceEntry } from '../src/packs/hr-doo/domain/ownerAdvancesReading'
+import { canUndo, wasUndone } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
+import type { DefinedBucket } from '../src/features/workbook/domain/bucket'
+import type { CategoryRecord } from '../src/features/workbook/domain/categoriesReading'
+import { recordWithId } from '../src/features/workbook/domain/recordsRead'
+import { categoryIdOf } from '../src/features/workbook/domain/workbook'
+import { cellsOf } from './fixtures/recordWrites'
 import { civil, euros } from './fixtures/ledger'
 import { withIds } from './fixtures/rowIds'
 import { AN_ID, cellData, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
@@ -38,21 +45,21 @@ function gridsWithOwnerTabs(): ReturnType<typeof workbookGrids> {
   }
 }
 
-/** The bucket cells of the loan categories set as the switch on Settings, General sets them. */
-function switchLoans(store: WorkbookStore, bucket: string, categories = ['owner-loan-out', 'owner-loan-repaid']) {
-  const changed = categories.map((category) => {
-    const row = store.state.snapshot!.categories.find((candidate) => candidate.cells.category === category)!
-    const before = rowCellsOf(row, CATEGORY_ROWS)
-    return { before, after: { ...before, bucket } }
-  })
-  return store.changeRows(CATEGORY_ROWS, { added: [], changed, removed: [] })
+function loanCategory(store: WorkbookStore<WorkbookCopy>, slug: string): CategoryRecord {
+  return recordWithId(store.state.records!.categories, categoryIdOf({ slug }))!.record
+}
+
+/** The bucket of the loan categories set as the switch on Settings, General sets it. */
+function switchLoans(store: WorkbookStore<WorkbookCopy>, bucket: DefinedBucket, categories = ['owner-loan-out', 'owner-loan-repaid']) {
+  const before = categories.map((slug) => loanCategory(store, slug))
+  return store.write('Loans switched', (unit) => before.forEach((category) => unit.of(CATEGORY_WRITES).change(category, { ...category, bucket })))
 }
 
 const DESK = { date: civil('2026-10-10'), amount: euros(117.3), description: 'Desk lamp ', category: 'Equipment' }
 
 /** An advance appended as Add advance appends it. */
-function addAdvance(store: WorkbookStore, draft: OwnerAdvanceDraft) {
-  return store.changeRows(OWNER_ADVANCE_ROWS, { added: [ownerAdvanceCellsOf(draft)], changed: [], removed: [] })
+function addAdvance(store: WorkbookStore<WorkbookCopy>, draft: OwnerAdvanceDraft) {
+  return store.write('Advance added', (unit) => unit.of(OWNER_ADVANCE_WRITES).add(newOwnerAdvance(draft)))
 }
 
 describe.each([
@@ -64,7 +71,7 @@ describe.each([
 
     const receipt = await addAdvance(store, DESK)
 
-    expect(receipt?.added).toEqual([{ date: 46305, amount: 117.3, description: 'Desk lamp', category: 'equipment', id: AN_ID }])
+    expect(cellsOf(receipt, 'add')).toEqual([{ date: 46305, amount: 117.3, description: 'Desk lamp', category: 'equipment', id: AN_ID }])
     expect(store.state.workbook?.ownerAdvances.map((advance) => [advance.date, advance.amount, advance.category, advance.bucket])).toEqual([
       ['2026-06-27', euros(40), 'equipment', 'operating'],
       ['2026-10-10', euros(117.3), 'equipment', 'operating'],
@@ -74,7 +81,8 @@ describe.each([
 
     expect(store.state.workbook?.ownerAdvances).toHaveLength(1)
     expect(store.state.workbook?.problems).toEqual([])
-    await expect(store.changeRows(OWNER_ADVANCE_ROWS, { added: [], changed: [], removed: receipt!.added })).rejects.toThrow('is no longer on the owner-advances tab')
+    const added = receipt!.records[0]!.change as { readonly after: OwnerAdvanceEntry }
+    await expect(store.write('Removed', (unit) => unit.of(OWNER_ADVANCE_WRITES).remove(added.after))).rejects.toThrow('is no longer in the workbook')
   })
 
   it('refuses a negative amount, which is a private share and belongs on the splits tab', async () => {
@@ -95,7 +103,7 @@ describe.each([
 
   it('moves both loan categories between owner pay and financing, and refuses once a bucket changed since the read', async () => {
     const { store } = await harnessOf(used, gridsWithOwnerTabs())
-    const stale = store.state.snapshot!.categories.find((row) => row.cells.category === 'owner-loan-out')!
+    const stale = loanCategory(store, 'owner-loan-out')
 
     await switchLoans(store, 'financing')
 
@@ -103,10 +111,9 @@ describe.each([
       'financing',
       'financing',
     ])
-    const before = rowCellsOf(stale, CATEGORY_ROWS)
-    await expect(
-      store.changeRows(CATEGORY_ROWS, { added: [], changed: [{ before, after: { ...before, bucket: 'financing' } }], removed: [] }),
-    ).rejects.toThrow('The category "owner-loan-out" is no longer on the categories tab as the app read it')
+    await expect(store.write('Switched', (unit) => unit.of(CATEGORY_WRITES).change(stale, { ...stale, bucket: 'financing' }))).rejects.toThrow(
+      'The category "owner-loan-out" changed since the app read it',
+    )
   })
 
   it('lists an advance, its undo and the loan switch among the session writes, and undoes them from there', async () => {
@@ -115,7 +122,7 @@ describe.each([
     await switchLoans(store, 'financing')
     const [switched, added] = store.state.writes
 
-    expect(store.state.writes.map((write) => (write.kind === 'rows' ? write.rules.tab : write.kind))).toEqual(['categories', 'owner-advances'])
+    expect(store.state.writes.map((write) => write.receipt.records[0]!.change.kind.name)).toEqual(['category', 'owner-advance'])
     expect(canUndo(switched!, store.state.writes)).toBe(true)
 
     await store.undo(switched!)
@@ -166,6 +173,6 @@ describe('owner writes to a Google Sheet', () => {
     sheets.grids.categories!.push(['owner-loan-out', 'owner', 'owner-pay', 'owner-loan-out'])
 
     await expect(addAdvance(store, DESK)).rejects.toThrow('The workbook has no owner-advances tab')
-    await expect(switchLoans(store, 'financing', ['owner-loan-out'])).rejects.toThrow('2 rows of the categories tab hold the category "owner-loan-out"')
+    await expect(switchLoans(store, 'financing', ['owner-loan-out'])).rejects.toThrow('2 records hold the category "owner-loan-out"')
   })
 })

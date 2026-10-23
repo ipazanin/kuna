@@ -8,7 +8,7 @@ import { withPackBuckets, PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import type { Period } from '../src/features/filters/domain/filterState'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { OWNER_ADVANCE_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 const transactions = withPackBuckets(
   ledger([

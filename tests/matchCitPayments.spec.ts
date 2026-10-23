@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import type { Category } from '../src/features/workbook/domain/workbook'
 import { citLiability } from '../src/packs/hr-doo/domain/cit/citLiability'
 import { citSchedule } from '../src/packs/hr-doo/domain/cit/citSchedule'
@@ -13,8 +12,9 @@ import { tracedFigure } from '../src/packs/hr-doo/domain/payroll/payrollArithmet
 import { yearEndLine } from './fixtures/exampleStudio'
 import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
+import { COMPANY_FACT_SETTINGS } from '../src/packs/hr-doo/domain/companyFacts'
 
-const FACTS = { ...DEFAULT_SETTINGS.companyFacts, companyRegistered: civil('2025-06-16') }
+const FACTS = { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: civil('2025-06-16') }
 
 const CATEGORIES: readonly Category[] = [
   { slug: 'profit-tax', family: 'taxes', bucket: 'taxes', colour: '', roles: ['corporate-income-tax'], vat: 'none' },

@@ -2,8 +2,11 @@ import { expect } from 'vitest'
 
 import { columnLetter } from '../../src/shared/text/columnLetter'
 import { RULE_COLUMNS } from '../../src/features/rules/domain/rule'
-import { createWorkbookStore } from '../../src/features/workbook/application/workbookStore'
-import type { WorkbookStore, WorkbookStorePorts } from '../../src/features/workbook/application/workbookStore'
+import { createWorkbookStore } from '../../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookChoice } from '../../src/features/workbook/application/workbookPorts'
+import { spreadsheetStorePorts } from '../../src/features/workbook/application/workbookStore'
+import type { SpreadsheetStorePorts } from '../../src/features/workbook/application/workbookStore'
 import { createFakeSheets } from '../../src/features/workbook/infrastructure/fake/fakeSheets'
 import type { FakeSheets } from '../../src/features/workbook/infrastructure/fake/fakeSheets'
 import { readSnapshotFrom } from '../../src/features/workbook/infrastructure/googleWorkbookPorts'
@@ -11,7 +14,6 @@ import { sheetNameInRange } from '../../src/features/workbook/infrastructure/she
 import type { CellData, SpreadsheetRequest } from '../../src/features/workbook/infrastructure/sheetsClient'
 import { googleWorkbookWriter } from '../../src/features/workbook/infrastructure/googleWorkbookWriter'
 import { openWorkbookCache } from '../../src/features/workbook/infrastructure/workbookCache'
-import type { WorkbookChoice } from '../../src/features/workbook/infrastructure/workbookChoice'
 import type { CellValue, WorkbookSnapshot } from '../../src/features/workbook/infrastructure/workbookSnapshot'
 import { EMPTY_TABS, sheetRowsFromValues } from '../../src/features/workbook/infrastructure/workbookSnapshot'
 
@@ -101,7 +103,7 @@ export function workbookGrids(): Record<string, CellValue[][]> {
 }
 
 export interface WriteBackHarness {
-  readonly store: WorkbookStore
+  readonly store: WorkbookStore<WorkbookSnapshot>
   readonly sheets: FakeSheets
   /** Every range an updateCells request wrote, in order, in A1 notation. */
   readonly writtenRanges: () => string[]
@@ -109,7 +111,7 @@ export interface WriteBackHarness {
 
 const SHEET = { id: 'sheet-under-test', name: 'Books' }
 
-function ports(choice: WorkbookChoice, sheets: FakeSheets, used: Set<string>): WorkbookStorePorts {
+function ports(choice: WorkbookChoice, sheets: FakeSheets, used: Set<string>): SpreadsheetStorePorts {
   return {
     loadChoice: () => choice,
     saveChoice: () => {},
@@ -134,7 +136,7 @@ export async function googleHarness(used: Set<string>, grids = workbookGrids(), 
   const sheets = createFakeSheets(grids, numberFormats)
   const snapshot = await readSnapshotFrom(sheets, SHEET)
   await keepInCache(snapshot, used)
-  const store = createWorkbookStore(ports({ source: 'google', id: SHEET.id, name: SHEET.name }, sheets, used))
+  const store = createWorkbookStore(spreadsheetStorePorts(ports({ source: 'google', id: SHEET.id, name: SHEET.name }, sheets, used)))
   await store.open()
   sheets.requests.length = 0
   return {
@@ -155,7 +157,7 @@ export async function excelHarness(used: Set<string>, grids = workbookGrids()): 
     ...tabs,
   } as WorkbookSnapshot
   await keepInCache(snapshot, used)
-  const store = createWorkbookStore(ports({ source: 'excel', id, name: 'Books' }, sheets, used))
+  const store = createWorkbookStore(spreadsheetStorePorts(ports({ source: 'excel', id, name: 'Books' }, sheets, used)))
   await store.open()
   return { store, sheets, writtenRanges: () => [] }
 }

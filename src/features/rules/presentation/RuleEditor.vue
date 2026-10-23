@@ -5,12 +5,14 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { usePhoneLayout } from '../../../shared/layout/viewport'
-import { useLedgerWrites } from '../../review/application/useLedgerWrites'
+import { fileRows } from '../../review/application/fileRows'
 import { waitingRowsSettledBy } from '../../review/domain/verdictChanges'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
+import { NO_RECORDS, recordsOf } from '../../workbook/domain/recordsRead'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { useRulesChangePreview, useRulesWrites } from '../application/useRulesChange'
 import type { CategoryCount } from '../domain/ruleCoverage'
 import { draftChange } from '../domain/ruleDraft'
@@ -43,7 +45,7 @@ const { state } = store
 const phone = usePhoneLayout()
 const names = useDisplayNames()
 const rulesWrites = useRulesWrites()
-const ledgerWrites = useLedgerWrites()
+const ledgerWrites = useRecordWrites()
 
 const draft = ref<RuleDraft | null>(props.source?.draft ?? null)
 const accepted = ref(false)
@@ -60,9 +62,9 @@ watch(
 
 const change = computed(() => {
   const workbook = state.workbook
-  const rows = state.snapshot?.rules
-  if (draft.value === null || workbook === null || rows === undefined) return null
-  return draftChange(draft.value, workbook.rules, rows, props.source?.edited ?? null)
+  const records = state.records
+  if (draft.value === null || workbook === null || records === null) return null
+  return draftChange(draft.value, workbook.rules, recordsOf(records.rules), props.source?.edited ?? null)
 })
 
 const preview = useRulesChangePreview(() => (open.value && savedId.value === null ? change.value : null))
@@ -104,8 +106,9 @@ const inSheet = computed(() => state.workbook?.source === 'google')
 
 async function applyToWaiting(): Promise<void> {
   const count = waiting.value.length
-  const written = await ledgerWrites.write(waiting.value, {
-    title: `Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`,
+  const verdicts = waiting.value
+  const written = await ledgerWrites.write(`Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, verdicts), {
+    failedTitle: 'Not written',
     description: 'Only rows that were waiting for review. Confirmed rows kept their category.',
   })
   if (written) open.value = false

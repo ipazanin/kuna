@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import type { OwnerPayScenario, ScenarioComponent } from '../src/features/workbook/domain/ownerPayScenarios'
+import type { OwnerPayScenario, ScenarioComponent } from '../src/packs/hr-doo/domain/scenarios/ownerPayScenarios'
 import type { ComponentDraft } from '../src/packs/hr-doo/domain/scenarios/startingScenarios'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import { dividendCapacity } from '../src/packs/hr-doo/domain/dividend/dividendCapacity'
 import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import { civil, euros } from './fixtures/ledger'
 import { planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
 import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 function scenario(slug: string, components: readonly ComponentDraft[]): OwnerPayScenario {
   return { slug, label: slug, year: 2027, components: components.map((component, index) => ({ ...component, id: recordIdOf(SCENARIO_RECORDS, `${slug}-${index}`) }) as ScenarioComponent) }
@@ -30,10 +30,10 @@ const BOARD = scenario('board', [
  * member basis from 1 June, a laptop of 1,600.00 bought on 10 March and a dividend of 5,000.00 in
  * June. Revenue and the other costs take their averages.
  */
-function planned(): Workbook {
+function planned(): HrDooWorkbook {
   const base = steadyStudio()
   return steadyStudio({
-    settings: { ...base.settings, companyFacts: { ...base.settings.companyFacts, ...ZAGREB_RESIDENT } },
+    companyFacts: { ...base.companyFacts, ...ZAGREB_RESIDENT },
     payScenarios: [FLOOR, BOARD],
     planLines: [
       planOwnerPay(2027, 'floor', null, 2),

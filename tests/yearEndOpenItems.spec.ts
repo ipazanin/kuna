@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { newestBookingOf } from '../src/features/workbook/domain/workbook'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
 import { loanBenefitByYear } from '../src/packs/hr-doo/domain/ownerLoanInterest'
 import { yearEndOpenItems } from '../src/packs/hr-doo/domain/yearEnd/yearEndOpenItems'
@@ -11,7 +11,7 @@ import { STUDIO_ROWS, exampleStudio, yearEndLine } from './fixtures/exampleStudi
 import { withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 
-function openItems(workbook: Workbook, year = 2025): YearEndOpenItem[] {
+function openItems(workbook: HrDooWorkbook, year = 2025): YearEndOpenItem[] {
   return yearEndOpenItems(workbook, accrualYear(workbook, year, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null }))
 }
 
@@ -83,7 +83,7 @@ describe('yearEndOpenItems', () => {
 
   it('settles the loan benefit when the loans carry the income tax law’s rate', () => {
     const workbook = exampleStudio()
-    const carried = exampleStudio({ settings: { ...workbook.settings, companyFacts: { ...workbook.settings.companyFacts, ownerLoanInterest: 200 } } })
+    const carried = exampleStudio({ companyFacts: { ...workbook.companyFacts, ownerLoanInterest: 200 } })
 
     expect(openItems(carried).find((item) => item.key === 'loan-benefit')).toMatchObject({ figure: null, settled: true })
   })

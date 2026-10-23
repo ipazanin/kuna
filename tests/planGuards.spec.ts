@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import type { OwnerPayScenario, ScenarioComponent } from '../src/features/workbook/domain/ownerPayScenarios'
+import type { OwnerPayScenario, ScenarioComponent } from '../src/packs/hr-doo/domain/scenarios/ownerPayScenarios'
 import type { ComponentDraft } from '../src/packs/hr-doo/domain/scenarios/startingScenarios'
 import { ownerPayPlan, planGuards } from '../src/packs/hr-doo/domain/forecast/planGuards'
 import { switchedScenario } from '../src/packs/hr-doo/domain/scenarios/switchedScenario'
 import { civil, euros } from './fixtures/ledger'
 import { planLine, planOwnerPay } from './fixtures/steadyStudio'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { PLAN_RECORDS, SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { PLAN_RECORDS, SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 /** A scenario, each component's id made from its scenario and place. */
 function scenario(slug: string, year: number, components: readonly ComponentDraft[]): OwnerPayScenario {

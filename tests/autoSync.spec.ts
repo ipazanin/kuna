@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { AUTO_SYNC_INTERVAL_MS, autoSyncDue, startAutoSync } from '../src/features/workbook/application/autoSync'
 import type { AutoSyncMoment, AutoSyncPorts } from '../src/features/workbook/application/autoSync'
-import type { WorkbookStatus } from '../src/features/workbook/application/workbookStore'
+import type { WorkbookStatus } from '../src/features/workbook/application/createWorkbookStore'
 
 const NOW = Date.parse('2026-10-16T09:00:00.000Z')
 const MINUTE = 60_000

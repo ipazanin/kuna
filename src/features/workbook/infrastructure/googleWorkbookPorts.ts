@@ -7,7 +7,7 @@ import { EMPTY_TABS, WORKBOOK_TABS, sheetRowsFromValues } from './workbookSnapsh
 import type { WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
 
 /** The real Google side of a sync: GIS for the token, the Picker, and one Sheets batchGet. */
-export const googleWorkbookPorts: GoogleWorkbookPorts = {
+export const googleWorkbookPorts: GoogleWorkbookPorts<WorkbookSnapshot> = {
   liveAccessToken: () => currentAccessToken()?.value ?? null,
   requestAccessToken: async (then) => (await requestToken(then)).value,
   async pickSpreadsheet(accessToken) {

@@ -1,5 +1,5 @@
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
-import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
+import type { OwnerPayScenario } from './ownerPayScenarios'
 import { firstDayOf, lastDayOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'

@@ -1,5 +1,6 @@
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
-import type { Transaction, Workbook } from '../../../../features/workbook/domain/workbook'
+import type { Transaction } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../hrDooPart'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, lastDayOf, monthKey, monthOf } from '../../../../shared/calendar/monthKey'
@@ -115,7 +116,7 @@ export interface DividendCapacity {
  * year's profit after tax plus retained earnings, less losses brought forward and what the year has
  * paid out already. Planning figures only.
  */
-export function dividendCapacity(year: number, forecast: YearForecast, workbook: Workbook, rules: RuleSource = ruleValue): DividendCapacity {
+export function dividendCapacity(year: number, forecast: YearForecast, workbook: HrDooWorkbook, rules: RuleSource = ruleValue): DividendCapacity {
   if (forecast.year !== year) {
     throw new RangeError(`The forecast is for ${forecast.year}, not ${year}.`)
   }
@@ -225,7 +226,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
 interface PayoutContext {
   readonly year: number
   readonly yearEnd: CivilDate
-  readonly workbook: Workbook
+  readonly workbook: HrDooWorkbook
   readonly rules: RuleSource
   readonly netAssetsAtYearEnd: TracedFigure
   readonly shareCapital: TracedFigure
@@ -370,7 +371,7 @@ function interimCash(forecast: YearForecast, rows: readonly Transaction[], lastC
  * tab's figures when it holds the year before, or else the year before's own opening, less what it
  * paid out, plus its forecast profit after tax.
  */
-function openingEquity(year: number, forecast: YearForecast, workbook: Workbook, rules: RuleSource): { readonly reserves: TracedFigure; readonly retained: TracedFigure } {
+function openingEquity(year: number, forecast: YearForecast, workbook: HrDooWorkbook, rules: RuleSource): { readonly reserves: TracedFigure; readonly retained: TracedFigure } {
   if (forecast.period.first) {
     return { reserves: tracedFigure('No reserves in a first period', ZERO, 'ledger', []), retained: tracedFigure('Nothing retained in a first period', ZERO, 'ledger', []) }
   }
@@ -388,7 +389,7 @@ function openingEquity(year: number, forecast: YearForecast, workbook: Workbook,
 }
 
 /** Profit paid out in the year and the tax on it, read positive, with the dividend the plan still has to come in it. */
-function paidOutIn(year: number, rows: readonly Transaction[], workbook: Workbook, forecast: YearForecast): TracedFigure {
+function paidOutIn(year: number, rows: readonly Transaction[], workbook: HrDooWorkbook, forecast: YearForecast): TracedFigure {
   const slugs = categoriesWithRole(workbook.categories, PACK_ROLES.profitDistribution)
   const paid = rows.filter((row) => slugs.includes(row.category) && yearOf(row.date) === year)
   const fromLedger = withDrill(
@@ -400,7 +401,7 @@ function paidOutIn(year: number, rows: readonly Transaction[], workbook: Workboo
 }
 
 /** The share capital from the latest year-end tab before the year, else the statutory minimum. */
-function shareCapitalOf(workbook: Workbook, year: number, rules: RuleSource): TracedFigure {
+function shareCapitalOf(workbook: HrDooWorkbook, year: number, rules: RuleSource): TracedFigure {
   const lines = workbook.yearEndLines.filter((line) => line.year < year && line.statement === 'balance' && line.line === 'share-capital')
   const latest = lines.reduce<(typeof lines)[number] | null>((found, line) => (found === null || line.year > found.year ? line : found), null)
   if (latest !== null && latest.figure.kind === 'money') {
@@ -411,7 +412,7 @@ function shareCapitalOf(workbook: Workbook, year: number, rules: RuleSource): Tr
 }
 
 /** What the grants' clawback terms put at risk on a day, each grant with the last day its amount applies. */
-function clawbackOn(workbook: Workbook, on: CivilDate): TracedFigure {
+function clawbackOn(workbook: HrDooWorkbook, on: CivilDate): TracedFigure {
   const steps = workbook.grants.flatMap((grant) => {
     const exposure = clawbackExposure(grant, on)
     if (exposure === null) {

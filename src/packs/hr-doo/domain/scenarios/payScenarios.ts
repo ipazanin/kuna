@@ -1,5 +1,5 @@
-import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { OwnerPayScenario } from './ownerPayScenarios'
+import type { HrDooWorkbook } from '../hrDooPart'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ruleValue } from '../../ruleset/ruleset'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
@@ -28,9 +28,9 @@ export interface PayScenarios {
 }
 
 /** The year's scenarios worked out on the forecast seen on `asOf` and the owner's facts from the settings. A scenario a guard stops is listed with why. */
-export function payScenarios(workbook: Workbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): PayScenarios {
+export function payScenarios(workbook: HrDooWorkbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): PayScenarios {
   const company = scenarioCompany(workbook, year, asOf, rules)
-  const facts = workbook.settings.companyFacts
+  const facts = workbook.companyFacts
   const entries = workbook.payScenarios
     .filter((scenario) => scenario.year === year)
     .map((scenario): ScenarioEntry => {

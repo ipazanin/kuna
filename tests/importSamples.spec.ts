@@ -5,9 +5,9 @@ import { dryRunFor, statementReadings } from '../src/features/imports/applicatio
 import { accountNamedIn, fileShapeOf } from '../src/features/imports/domain/profileGuess'
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtXml, sampleTableGrid } from '../src/features/imports/infrastructure/fake/sampleImportFiles'
 import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 
-const workbook = readWorkbook(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
+const workbook = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')).workbook
 const camt = { kind: 'camt' as const, fileName: SAMPLE_CAMT_FILE_NAME, document: new DOMParser().parseFromString(sampleCamtXml(), 'application/xml') }
 const grid = sampleTableGrid()
 const guess = fileShapeOf(grid)!.guess

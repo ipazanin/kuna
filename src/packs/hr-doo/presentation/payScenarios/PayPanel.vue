@@ -17,7 +17,7 @@ import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../../../features/filters/application/filterStore'
 import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
 import { scenarioGuards } from '../../domain/scenarios/scenarioGuards'
 import BuildUpButton from '../BuildUpButton.vue'
@@ -34,7 +34,7 @@ import ScenarioEditor from './ScenarioEditor.vue'
 
 /** Which owner pay mix leaves the owner the most, at what cost to the company and with what risk, and what the year can pay out. */
 const props = defineProps<{
-  workbook: Workbook
+  workbook: HrDooWorkbook
   year: number
   pay: PayState
   /** Null while the year cannot be forecast. */

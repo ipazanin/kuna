@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
 import { needsReview } from '../src/features/workbook/domain/needsReview'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
@@ -41,7 +41,7 @@ function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'a
 
 describe('reading the rules tab', () => {
   it('reads every condition kind into its folded or normalised form, in trying order', () => {
-    const workbook = readWorkbook(
+    const workbook = readSnapshot(
       snapshotWith([
         HEADER,
         ruleRow({ rule: 'b', order: 200, enabled: 'TRUE', description_starts_with: 'naknad', tx_sub_family: 'chrg', category: 'bank-fees', confidence: 'rule' }),
@@ -66,7 +66,7 @@ describe('reading the rules tab', () => {
           note: 'Why.',
         }),
       ]),
-    )
+    ).workbook
 
     expect(workbook.problems).toEqual([])
     expect(workbook.rules.map((rule) => rule.id)).toEqual(['a', 'b'])
@@ -95,14 +95,14 @@ describe('reading the rules tab', () => {
   })
 
   it('tries enabled rules that share an order by id, and reports the tie on each of them', () => {
-    const workbook = readWorkbook(
+    const workbook = readSnapshot(
       snapshotWith([
         HEADER,
         ruleRow({ rule: 'rule-10', order: 100, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
         ruleRow({ rule: 'rule-9', order: 100, enabled: true, is_card: true, category: 'bank-fees', confidence: 'rule' }),
         ruleRow({ rule: 'parked', order: 100, enabled: false, is_card: true, category: 'travel', confidence: 'rule' }),
       ]),
-    )
+    ).workbook
 
     expect(workbook.rules.map((rule) => rule.id)).toEqual(['parked', 'rule-9', 'rule-10'])
     expect(workbook.problems.map((problem) => [problem.label, problem.reason])).toEqual([
@@ -112,7 +112,7 @@ describe('reading the rules tab', () => {
   })
 
   it('reports each refusal on its row instead of failing the workbook', () => {
-    const workbook = readWorkbook(
+    const workbook = readSnapshot(
       snapshotWith([
         [...HEADER, 'colour'],
         [...ruleRow({ rule: 'odd', order: 1, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }), 'red'],
@@ -129,7 +129,7 @@ describe('reading the rules tab', () => {
         ruleRow({ rule: 'side', order: 12, enabled: true, direction: 'out', is_card: 'FALSE', category: 'travel', confidence: 'rule' }),
         ruleRow({ rule: 'kept', order: 13, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
       ], undefined, ['clients']),
-    )
+    ).workbook
 
     expect(workbook.rules.map((rule) => rule.id)).toEqual(['kept'])
     expect(workbook.problems.map((problem) => [problem.tab, problem.label, problem.reason])).toEqual([
@@ -150,14 +150,14 @@ describe('reading the rules tab', () => {
   })
 
   it('keeps a disabled rule after checking its id and order only, and lets a review rule name any category or none', () => {
-    const workbook = readWorkbook(
+    const workbook = readSnapshot(
       snapshotWith([
         HEADER,
         ruleRow({ rule: 'parked', order: 5, enabled: false, revenue_code: 'x', category: 'nope', confidence: 'rule' }),
         ruleRow({ rule: 'card-review', order: 1, enabled: true, is_card: true, category: 'card-purchase-unknown', confidence: 'review' }),
         ruleRow({ rule: 'guard', order: 2, enabled: true, counterparty_iban: 'XX00FAKE0002', confidence: 'review' }),
       ]),
-    )
+    ).workbook
 
     expect(workbook.problems).toEqual([])
     expect(workbook.rules.map((rule) => [rule.id, rule.enabled, rule.category, rule.confidence, rule.conditions.length])).toEqual([
@@ -168,12 +168,12 @@ describe('reading the rules tab', () => {
   })
 
   it('reads no rules from a workbook without the tab', () => {
-    expect(readWorkbook(snapshotWith([])).rules).toEqual([])
+    expect(readSnapshot(snapshotWith([])).workbook.rules).toEqual([])
   })
 })
 
 describe('the ledger signal columns', () => {
-  const workbook = readWorkbook(
+  const workbook = readSnapshot(
     snapshotWith(
       [],
       [
@@ -182,7 +182,7 @@ describe('the ledger signal columns', () => {
         [46299, 'main', 100, 100, 'travel', 'rule'],
       ],
     ),
-  )
+  ).workbook
 
   it('carries O to T into the signals and U into the review reasons', () => {
     expect(workbook.transactions[0]).toMatchObject({

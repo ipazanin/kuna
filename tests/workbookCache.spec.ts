@@ -2,12 +2,12 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
-import type { WorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
+import type { WorkbookCache } from '../src/features/workbook/application/workbookPorts'
 import type { SheetRow, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
-const opened: WorkbookCache[] = []
+const opened: WorkbookCache<WorkbookSnapshot>[] = []
 
-function cacheFor(spreadsheetId: string): WorkbookCache {
+function cacheFor(spreadsheetId: string): WorkbookCache<WorkbookSnapshot> {
   const cache = openWorkbookCache(spreadsheetId)
   opened.push(cache)
   return cache

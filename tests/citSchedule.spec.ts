@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import type { CompanyFacts } from '../src/features/settings/domain/settings'
+import type { CompanyFacts } from '../src/packs/hr-doo/domain/companyFacts'
 import { citLiability } from '../src/packs/hr-doo/domain/cit/citLiability'
 import { citSchedule } from '../src/packs/hr-doo/domain/cit/citSchedule'
 import type { CitSchedule } from '../src/packs/hr-doo/domain/cit/citSchedule'
@@ -12,11 +11,12 @@ import { tracedFigure } from '../src/packs/hr-doo/domain/payroll/payrollArithmet
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { yearEndLine } from './fixtures/exampleStudio'
 import { civil, euros } from './fixtures/ledger'
+import { COMPANY_FACT_SETTINGS } from '../src/packs/hr-doo/domain/companyFacts'
 
 const REGISTERED = civil('2025-06-16')
 
 function facts(registered: CivilDate | null = REGISTERED): CompanyFacts {
-  return { ...DEFAULT_SETTINGS.companyFacts, companyRegistered: registered }
+  return { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: registered }
 }
 
 /** The accountant's 2025 return: a first period of seven months with 1,400.00 of tax and no advances. */

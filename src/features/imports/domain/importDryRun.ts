@@ -1,13 +1,13 @@
-import { serialFromCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
-import { addMoney, amountOf, plainAmount, subtractMoney } from '../../../shared/money/money'
+import { addMoney, plainAmount, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
 import { categorise } from '../../rules/domain/categorise'
 import type { Verdict } from '../../rules/domain/categorise'
 import type { Rule } from '../../rules/domain/rule'
 import type { CategorisationContext } from '../../rules/domain/transactionFacts'
-import type { RowCells } from '../../workbook/domain/rowChanges'
+import { ledgerIdOf } from '../../workbook/domain/ledgerReading'
+import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 
@@ -45,8 +45,8 @@ export interface DryRunStatement {
 
 export interface ImportDryRun {
   readonly statements: readonly DryRunStatement[]
-  /** The ledger rows confirming would write, one statement after another, each newest first as the tab holds them. */
-  readonly added: readonly RowCells[]
+  /** The ledger entries confirming would write, one statement after another, each newest first as the tab holds them. */
+  readonly added: readonly LedgerEntry[]
   readonly newRows: number
   readonly inLedger: number
 }
@@ -90,7 +90,7 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
     return state
   }
   const statements: DryRunStatement[] = []
-  const added: RowCells[] = []
+  const added: LedgerEntry[] = []
   for (const reading of inBookingOrder(readings)) {
     if (!('statement' in reading)) {
       statements.push({ fileName: reading.fileName, label: reading.label, account: '', rows: [], refusal: reading.refusal, start: null, notes: [], opening: null, closing: null })
@@ -104,7 +104,7 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
   return { statements, added, newRows: added.length, inLedger: rows.filter((row) => row.inLedger).length }
 }
 
-function planStatement(statement: ImportedStatement, state: AccountState, inputs: DryRunInputs): { readonly statement: DryRunStatement; readonly added: readonly RowCells[] } {
+function planStatement(statement: ImportedStatement, state: AccountState, inputs: DryRunInputs): { readonly statement: DryRunStatement; readonly added: readonly LedgerEntry[] } {
   const { account } = statement
   const notes = [...statement.notes]
   const inLedger = statement.rows.map((row) => row.reference !== '' && state.references.has(row.reference))
@@ -204,32 +204,28 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   for (const row of fresh) state.references.add(row.reference)
   state.labels.add(statement.label)
   if (statement.source.kind === 'camt') state.lastSequence = Math.max(state.lastSequence ?? 0, statement.source.sequence)
-  const cells = rows.filter((row) => !row.inLedger).map((row) => ledgerCellsOf(statement, row))
-  return { statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, notes }, added: cells.reverse() }
+  const entries = balanced.map((row, index) => ledgerEntryOfImport(statement, { ...row, verdict: rows[firstNew + index]!.verdict }))
+  return { statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, notes }, added: entries.reverse() }
 }
 
-/** The ledger row the Apps Script's `ledgerRowFor` writes for an entry, with its verdict. */
-export function ledgerCellsOf(statement: Pick<ImportedStatement, 'account' | 'label'>, row: DryRunRow): RowCells {
-  return {
-    date: serialFromCivilDate(row.date),
+/** The ledger entry the Apps Script's `ledgerRowFor` writes for a new entry of a statement, with its verdict. */
+function ledgerEntryOfImport(statement: Pick<ImportedStatement, 'account' | 'label'>, row: ImportedRow & { readonly balance: Money; readonly verdict: Verdict | null }): LedgerEntry {
+  const entry = {
     account: statement.account,
+    date: row.date,
     statement: statement.label,
     counterparty: row.counterparty,
-    counterparty_iban: row.counterpartyIban,
+    counterpartyIban: row.counterpartyIban,
     description: row.description,
-    amount: amountOf(row.amount),
-    balance: row.balance === null ? '' : amountOf(row.balance),
+    amount: row.amount,
+    balance: row.balance,
     category: row.verdict?.category ?? '',
-    flagged_by: row.verdict?.flaggedBy ?? '',
+    flaggedBy: row.verdict?.flaggedBy ?? '',
     reference: row.reference,
-    purpose: row.signals.purpose,
-    tx_domain: row.signals.txDomain,
-    tx_family: row.signals.txFamily,
-    tx_sub_family: row.signals.txSubFamily,
-    creditor_reference: row.signals.creditorReference,
-    instructed_currency: row.signals.instructedCurrency,
-    review_reasons: row.reviewReasons.join(' | '),
+    signals: row.signals,
+    reviewReasons: row.reviewReasons,
   }
+  return { ...entry, id: ledgerIdOf(entry) }
 }
 
 /** Each row with its balance: the file's own, or worked out from `from` when the file gives none. */

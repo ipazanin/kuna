@@ -20,16 +20,16 @@
 import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 
-import { installPack } from '../src/features/packs/packContribution.ts'
-import { hrDooPack } from '../src/packs/hr-doo/hrDooPack.ts'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear.ts'
 import { amountOnLine } from '../src/packs/hr-doo/domain/accrual/closedYear.ts'
 import { compareYearEnd } from '../src/packs/hr-doo/domain/yearEnd/yearEndComparison.ts'
 import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset.ts'
 import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook.ts'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab.ts'
 import { readWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile.ts'
 import { amountOf, sumMoney } from '../src/shared/money/money.ts'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart.ts'
+import { installHrDooPack } from './support/installPack.mjs'
 
 const { values: options } = parseArgs({ options: { workbook: { type: 'string' }, year: { type: 'string' } } })
 const year = Number(options.year)
@@ -38,14 +38,14 @@ if (options.workbook === undefined || !Number.isInteger(year)) {
   process.exit(2)
 }
 
-installPack(hrDooPack)
+installHrDooPack()
 const bytes = readFileSync(options.workbook)
 const { tabs, missingTabs } = await readWorkbookFile(bytes)
-const read = readWorkbook({
+const read = readSnapshot({
   meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null, missingTabs },
   ...tabs,
-})
-const workbook = presentedWorkbook(read)
+}).workbook
+const workbook = hrDooWorkbook(presentedWorkbook(read))
 const accountant = workbook.yearEndLines.filter((line) => line.year === year)
 if (accountant.length === 0) {
   console.error(`The year-end tab has no rows for ${year}.`)
@@ -55,7 +55,7 @@ for (const problem of workbook.problems) {
   console.log(`problem  ${problem.tab}: ${problem.reason}`)
 }
 
-const accrual = accrualYear(workbook, year, { depreciation: workbook.settings.companyFacts, citAdvancesPaid: null }, ruleValue)
+const accrual = accrualYear(workbook, year, { depreciation: workbook.companyFacts, citAdvancesPaid: null }, ruleValue)
 const comparison = compareYearEnd(workbook, accrual)
 const adjustments = new Map(accrual.adjustments.map((adjustment) => [adjustment.id, adjustment]))
 const difference = (cents) => {

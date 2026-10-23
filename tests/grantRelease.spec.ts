@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Asset, AssetGroup } from '../src/features/workbook/domain/assets'
-import type { Grant } from '../src/features/workbook/domain/grants'
-import type { YearEndLine } from '../src/features/workbook/domain/yearEnd'
+import type { Asset, AssetGroup } from '../src/packs/hr-doo/domain/assets/assets'
+import type { Grant } from '../src/packs/hr-doo/domain/grants/grants'
+import type { YearEndLine } from '../src/packs/hr-doo/domain/yearEnd/yearEnd'
 import { depreciationSchedule } from '../src/packs/hr-doo/domain/assets/depreciationSchedule'
 import { clawbackExposure, deferredOn, grantRelease, grantResiduals } from '../src/packs/hr-doo/domain/grants/grantRelease'
 import type { GrantReleaseSchedule } from '../src/packs/hr-doo/domain/grants/grantRelease'
 import { civil, euros } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { ASSET_RECORDS, GRANT_RECORDS, YEAR_END_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { ASSET_RECORDS, GRANT_RECORDS, YEAR_END_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 const GRANT: Grant = {
   slug: 'example-grant',

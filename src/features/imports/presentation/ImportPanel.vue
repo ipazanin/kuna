@@ -12,28 +12,29 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 import { negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
-import { cellText } from '../../../shared/text/cellText'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
+import { setSettings } from '../../settings/application/settingWrites'
+import { heldSettingValue } from '../../settings/domain/settings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { needsReview } from '../../workbook/domain/needsReview'
-import { slugOf } from '../../workbook/infrastructure/cellReading'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
+import { NO_RECORDS } from '../../workbook/domain/recordsRead'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { dryRunFor, fittingProfiles, statementReadings } from '../application/importStatements'
-import { LEDGER_ROWS } from '../application/ledgerRows'
+import { LEDGER_WRITES } from '../application/ledgerWrites'
 import { profileDraftProblem, profileKey, profileValue } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
 import { accountNamedIn, fileShapeOf } from '../domain/profileGuess'
 import { loadImportFile } from '../infrastructure/importFiles'
-import type { LoadedImportFile } from '../infrastructure/importFiles'
+import type { LoadedImportFile } from '../application/importStatements'
 import DryRunStatementCard from './DryRunStatementCard.vue'
 import ProfileEditor from './ProfileEditor.vue'
 
 const store = useWorkbook()
 const toast = useToast()
 const names = useDisplayNames()
-const writes = useRowWrites(LEDGER_ROWS)
+const writes = useRecordWrites()
 
 const pickedFile = ref<File | null>(null)
 // Shallow, so the parsed document and the cells stay plain objects.
@@ -132,14 +133,14 @@ async function saveProfile(): Promise<void> {
   const profile = draft.value
   if (profile === null) return
   const key = profileKey(profile.name)
-  const held = store.state.snapshot?.settings.find((row) => String(row.cells.key ?? '').trim().toLowerCase() === key)
-  if (!editing.value && (held !== undefined || savedProfiles.value.some((saved) => saved.name === profile.name))) {
+  const held = heldSettingValue(store.state.records?.settings ?? NO_RECORDS, key)
+  if (!editing.value && (held !== null || savedProfiles.value.some((saved) => saved.name === profile.name))) {
     toast.add({ title: 'Not saved', description: `A profile called ${profile.name} is saved already. Pick it, or give this one another name.`, icon: 'i-lucide-triangle-alert', color: 'error' })
     return
   }
   savingProfile.value = true
   try {
-    await store.changeSettings([{ key, expected: held === undefined ? null : (held.cells.value ?? ''), value: profileValue(profile) }])
+    await store.write('Profile saved', (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key, value: profileValue(profile) }]))
     profileChoice.value = profile.name
     editing.value = false
     toast.add({ title: 'Profile saved', description: `${profile.name} is on the settings tab now.`, icon: 'i-lucide-check', color: 'success' })
@@ -184,8 +185,10 @@ const inGoogle = computed(() => store.state.choice?.source === 'google')
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
-  const written = await writes.write({ added: run.added, changed: [], removed: [] }, { title: run.newRows === 1 ? 'Imported 1 row' : `Imported ${run.newRows} rows` }, 'Not imported')
-  if (written) imported.value = new Set(run.added.map((cells) => rowKey(slugOf(cells.account), cellText(cells.reference))))
+  const written = await writes.write(run.newRows === 1 ? 'Imported 1 row' : `Imported ${run.newRows} rows`, (unit) => run.added.forEach((entry) => unit.of(LEDGER_WRITES).add(entry)), {
+    failedTitle: 'Not imported',
+  })
+  if (written) imported.value = new Set(run.added.map((entry) => rowKey(entry.account, entry.reference)))
 }
 
 /** How the imported rows stand on the ledger now. Once Undo took them out again, there is nothing to say. */
@@ -204,7 +207,7 @@ const summary = computed(() => {
   const run = dryRun.value
   if (run === null) return ''
   return [
-    run.newRows > 0 ? `Confirming adds ${rowsInWords(run.newRows)} to ${writes.where()}, each statement where its dates belong.` : 'Confirming would write nothing.',
+    run.newRows > 0 ? `Confirming adds ${rowsInWords(run.newRows)} to ${inGoogle.value ? 'the ledger tab of the Sheet' : 'the ledger tab'}, each statement where its dates belong.` : 'Confirming would write nothing.',
     run.inLedger > 0 ? `${rowsInWords(run.inLedger)} ${run.inLedger === 1 ? 'is' : 'are'} on the ledger already, found by account and bank reference.` : '',
     refused.value > 0 ? `${refused.value === 1 ? 'One statement is' : `${refused.value} statements are`} refused and not written.` : '',
     waitingStart.value > 0 ? `${waitingStart.value === 1 ? 'One statement waits' : `${waitingStart.value} statements wait`} for you to start its account.` : '',

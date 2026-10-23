@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { YearEndLine } from '../src/features/workbook/domain/yearEnd'
+import type { YearEndLine } from '../src/packs/hr-doo/domain/yearEnd/yearEnd'
 import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
 import { compareYearEnd } from '../src/packs/hr-doo/domain/yearEnd/yearEndComparison'
 import type { ComparedLine, YearEndComparison } from '../src/packs/hr-doo/domain/yearEnd/yearEndComparison'

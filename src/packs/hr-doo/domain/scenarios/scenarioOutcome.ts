@@ -1,5 +1,5 @@
-import type { Grant } from '../../../../features/workbook/domain/grants'
-import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
+import type { Grant } from '../grants/grants'
+import type { OwnerPayScenario } from './ownerPayScenarios'
 import { addDays, civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'

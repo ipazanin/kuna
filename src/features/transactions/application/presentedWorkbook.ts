@@ -1,4 +1,3 @@
-import { installedPack } from '../../packs/packContribution'
 import { presentedTransactions } from '../../settings/domain/profitAndLossLabels'
 import { splitLedger } from '../../workbook/domain/splits'
 import type { Workbook } from '../../workbook/domain/workbook'
@@ -10,7 +9,7 @@ import { countedSplits } from '../domain/countedSplits'
  * left out. The ledger, the review queue, the rules and the writes keep the workbook as read.
  */
 export function presentedWorkbook(workbook: Workbook): Workbook {
-  const counted = countedSplits(workbook.splits, installedPack().rowsKeptWhole(workbook))
+  const counted = countedSplits(workbook.splits, workbook.rowsKeptWhole)
   return {
     ...workbook,
     transactions: presentedTransactions(splitLedger(workbook.transactions, counted.splits), workbook.settings),

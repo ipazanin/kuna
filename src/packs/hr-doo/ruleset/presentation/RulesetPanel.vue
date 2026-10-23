@@ -12,6 +12,8 @@ import { fold } from '../../../../shared/text/fold'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import InfoPopover from '../../../../shared/ui/InfoPopover.vue'
 import { useSettings } from '../../../../features/settings/application/useSettings'
+import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
+import { hrDooWorkbook } from '../../domain/hrDooPart'
 import { findLocalUnit } from '../localUnits'
 import { RULES, RULESET_CHECKED_ON, watchItems } from '../ruleset'
 import type { RuleId } from '../ruleset'
@@ -27,6 +29,7 @@ type AreaChoice = RuleArea | 'all'
 const route = useRoute()
 const router = useRouter()
 const settings = useSettings()
+const { state } = useWorkbook()
 const phone = usePhoneLayout()
 
 const generalRules: readonly GeneralRule[] = RULES
@@ -41,7 +44,7 @@ const rules = computed(() => {
 
 /** The local rates open on the unit the owner lives in, found by its name and its county. */
 const localRatesFocus = computed((): TableFocus => {
-  const { unit } = findLocalUnit(settings.value.companyFacts.residenceCity)
+  const { unit } = findLocalUnit(state.workbook === null ? '' : hrDooWorkbook(state.workbook).companyFacts.residenceCity)
   return unit === null
     ? { cells: null, hint: 'Search for a city or municipality, or show them all. Set where the owner lives on the General tab to open on that one.' }
     : { cells: [unit.unit, unit.county], hint: '' }

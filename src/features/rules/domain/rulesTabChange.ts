@@ -100,7 +100,7 @@ function conditionCell(condition: RuleCondition): string | boolean {
   }
 }
 
-export function sameCells(left: RuleCells, right: RuleCells): boolean {
+function sameCells(left: RuleCells, right: RuleCells): boolean {
   const columns = new Set([...Object.keys(left), ...Object.keys(right)])
   return [...columns].every((column) => cellText(left[column]) === cellText(right[column]))
 }

@@ -11,7 +11,8 @@ import { rawInvoiceMessage } from '../src/features/invoicing/infrastructure/invo
 import { DEFAULT_SETTINGS, parseSettings, settingsErrors } from '../src/features/settings/domain/settings'
 import type { Client } from '../src/features/workbook/domain/workbook'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
-import { readClientRows } from '../src/features/workbook/infrastructure/workbookReader'
+import { readClients } from '../src/features/workbook/domain/clientsReading'
+import { CORE_TABS, recordsOfRows } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { invoiceOf, planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
@@ -173,11 +174,13 @@ describe('invoice settings and client details', () => {
   })
 
   it('reads each row’s invoice details, a blank reverse charge as unset', () => {
-    const reading = readClientRows([
-      { sheetRow: 2, cells: { client: 'north', name: 'North Ltd', iban: 'XX00FAKE0101' } },
-      { sheetRow: 3, cells: { client: 'north', iban: 'XX00FAKE0102', address: '1 Road', invoice_mail: 'ap@north.example', mail_language: 'HR', reverse_charge: true } },
-      { sheetRow: 4, cells: { client: 'south', iban: 'XX00FAKE0103', mail_language: 'not a language tag', reverse_charge: 'maybe' } },
-    ])
+    const reading = readClients(
+      recordsOfRows(CORE_TABS.clients, [
+        { sheetRow: 2, cells: { client: 'north', name: 'North Ltd', iban: 'XX00FAKE0101' } },
+        { sheetRow: 3, cells: { client: 'north', iban: 'XX00FAKE0102', address: '1 Road', invoice_mail: 'ap@north.example', mail_language: 'HR', reverse_charge: true } },
+        { sheetRow: 4, cells: { client: 'south', iban: 'XX00FAKE0103', mail_language: 'not a language tag', reverse_charge: 'maybe' } },
+      ]),
+    )
     expect(reading.facts.map((row) => [row.slug, row.invoicing])).toEqual([
       ['north', { ...NO_CLIENT_INVOICING, reverseCharge: null }],
       ['north', { ...NO_CLIENT_INVOICING, address: '1 Road', invoiceMail: 'ap@north.example', mailLanguage: 'hr', reverseCharge: true }],

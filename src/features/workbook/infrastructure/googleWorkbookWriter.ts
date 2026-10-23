@@ -5,7 +5,7 @@ import { sheetNameInRange } from './sheetsClient'
 import type { CellData, NumberFormat, RowData, SheetGrid, SheetsValues, SpreadsheetRequest } from './sheetsClient'
 import { sheetRowsFromValues } from './workbookSnapshot'
 import type { CellValue } from './workbookSnapshot'
-import { WRITABLE_COLUMNS, editableColumns } from './workbookWriter'
+import { editableColumns, writableColumns } from './workbookWriter'
 import type { CellEdit, FreshTabs, RowAppend, TabRead, WorkbookWriter, WritableTab } from './workbookWriter'
 
 /**
@@ -254,7 +254,7 @@ function headerOf(before: FreshTabs, tab: WritableTab): readonly string[] {
 
 /** The 1-based column of a header that appears exactly once, and only for a column the app may write. */
 function columnOf(before: FreshTabs, tab: WritableTab, column: string): number {
-  if (!WRITABLE_COLUMNS[tab].has(column)) {
+  if (!writableColumns(tab).has(column)) {
     throw new Error(`The app never writes the ${column} column of the ${tab} tab.`)
   }
   const positions = headerOf(before, tab).flatMap((name, index) => (name.trim() === column ? [index + 1] : []))

@@ -18,8 +18,9 @@ import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { TERMS_LINK } from '../../invoicing/presentation/invoicingLinks'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { newestBookingOf } from '../../workbook/domain/workbook'
-import { BILLING_PLAN_COLUMNS } from '../../workbook/infrastructure/billingPlanTabReader'
-import { spreadsheetLink } from '../../workbook/infrastructure/spreadsheetLink'
+import { BILLING_RECORDS } from '../../workbook/domain/recordKind'
+import { columnsInWords } from '../../workbook/presentation/tabWords'
+import { useSheetLink } from '../../workbook/presentation/useSheetLink'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useBillingPlan } from '../application/useBillingPlan'
 import { fillRestOfYear } from '../domain/fillRestOfYear'
@@ -54,7 +55,7 @@ function pickYear(picked: number): void {
   void router.replace({ query: { ...others, year: String(picked) } })
 }
 
-const columns = BILLING_PLAN_COLUMNS.join(', ')
+const columns = columnsInWords(BILLING_RECORDS)
 
 const tabState = computed(() => {
   const workbook = state.workbook
@@ -63,7 +64,7 @@ const tabState = computed(() => {
   return workbook.billingPlan.length === 0 ? ('empty' as const) : ('rows' as const)
 })
 
-const sheetLink = computed(() => (state.workbook?.source === 'google' ? spreadsheetLink(state.workbook.id) : null))
+const sheetLink = useSheetLink()
 
 const view = computed(() => {
   const current = figures.value

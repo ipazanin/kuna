@@ -1,6 +1,6 @@
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import type { Category } from '../../../../features/workbook/domain/workbook'
-import type { YearEndLine } from '../../../../features/workbook/domain/yearEnd'
+import type { YearEndLine } from '../yearEnd/yearEnd'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import { yearOfMonth } from '../../../../shared/calendar/monthKey'
 import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'

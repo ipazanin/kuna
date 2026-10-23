@@ -1,28 +1,32 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="R extends { readonly id: RecordId }">
 import { computed } from 'vue'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
-import type { TabRowRules } from '../../workbook/application/tabRowWrites'
-import type { RecordId } from '../../workbook/domain/recordId'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { TabRowsChange } from '../../workbook/domain/rowChanges'
-import type { TabReading } from '../../workbook/infrastructure/cellReading'
-import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { TEMPLATE_COLUMNS } from '../../workbook/infrastructure/workbookTemplate'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
+import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
+import type { RecordId } from '../../workbook/domain/recordId'
+import { NO_RECORDS } from '../../workbook/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../workbook/domain/recordsRead'
+import { storedOf } from '../../workbook/domain/recordsRead'
+import type { WriteRules } from '../../workbook/domain/writeRules'
+import MissingTabHint from '../../workbook/presentation/MissingTabHint.vue'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { writeDrafts } from '../application/draftWrites'
+import type { DraftFactory } from '../domain/recordDrafts'
 import type { EditorColumn } from './factTabColumns'
 import FactTabEditor from './FactTabEditor.vue'
 
-/** A tab a person keeps by hand, as a card with its editor, on the page that reads the tab. */
+/** A kind a person keeps by hand, as a card with its editor, on the page that reads the kind. */
 const props = withDefaults(
   defineProps<{
-    rules: TabRowRules
+    rules: WriteRules<R>
     title: string
-    /** What the tab holds, under the title. */
+    /** What the kind holds, under the title. */
     description: string
     collapseId: string
     columns: readonly EditorColumn[]
-    read: (rows: readonly SheetRow[]) => TabReading<{ readonly id: RecordId }>
+    read: (records: RecordsRead<R>) => Reading<{ readonly id: RecordId }>
+    make: DraftFactory<R>
     newRow?: () => Readonly<Record<string, string>>
     /** Such as `asset`, for "Add asset" and "2 assets". */
     rowNoun: string
@@ -38,15 +42,14 @@ const props = withDefaults(
 )
 
 const { state } = useWorkbook()
-const writes = useRowWrites(props.rules)
+const writes = useRecordWrites()
 
-const tab = computed(() => props.rules.tab)
-const rows = computed(() => state.snapshot?.[tab.value] ?? [])
-const sheetLacks = computed(() => (state.choice?.source ?? state.workbook?.source) === 'google' && (state.snapshot?.meta.missingTabs.includes(tab.value) ?? false))
-const headers = computed(() => TEMPLATE_COLUMNS[tab.value].map((column) => column.name).join(', '))
+const records = computed(() => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, props.rules.kind)))
+const count = computed(() => records.value.records.length + records.value.refused.length)
 
-function save(change: TabRowsChange): void {
-  void writes.write(change, { title: props.savedTitle }, 'Not saved')
+function save(made: readonly { readonly saved: number | null; readonly record: R }[]): void {
+  const stored = storedOf(records.value)
+  void writes.write(props.savedTitle, (unit) => writeDrafts(unit.of(props.rules), stored, made), { failedTitle: 'Not saved' })
 }
 </script>
 
@@ -54,22 +57,19 @@ function save(change: TabRowsChange): void {
   <AppCard
     :title="title"
     :collapse-id="collapseId"
-    :summary="`${rows.length} ${rows.length === 1 ? rowNoun : `${rowNoun}s`}`"
+    :summary="`${count} ${count === 1 ? rowNoun : `${rowNoun}s`}`"
     :start-collapsed="startCollapsed"
     :reveal="reveal"
   >
     <template #subtitle>
       {{ description }}
-      <span v-if="sheetLacks" class="mt-2 block text-toned">
-        The Sheet has no {{ tab }} tab yet. Add one named {{ tab }} with these headers in row 1, then sync:
-        <span class="identifier">{{ headers }}</span>.
-      </span>
+      <MissingTabHint :kind="rules.kind" />
     </template>
     <FactTabEditor
-      :tab="tab"
-      :rows="rows"
+      :records="records"
       :columns="columns"
       :read="read"
+      :make="make"
       :new-row="newRow"
       :row-noun="rowNoun"
       :tab-noun="tabNoun"

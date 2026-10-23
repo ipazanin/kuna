@@ -1,8 +1,8 @@
 import { cellText } from '../../../shared/text/cellText'
-import { TEMPLATE_COLUMNS } from './workbookTemplate'
+import { templateColumnNames } from './workbookTemplate'
 import { WORKBOOK_TABS } from './workbookSnapshot'
 import type { SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
-import { WRITABLE_COLUMNS, editableColumns } from './workbookWriter'
+import { editableColumns, writableColumns } from './workbookWriter'
 import type { TabRead, WorkbookWriter } from './workbookWriter'
 
 /**
@@ -32,7 +32,7 @@ export function localWorkbookWriter(tabs: WorkbookTabs): WorkbookWriter {
       }
       for (const append of edits.appends) {
         for (const column of Object.keys(append.cells)) {
-          if (!WRITABLE_COLUMNS[append.tab].has(column)) {
+          if (!writableColumns(append.tab).has(column)) {
             throw new Error(`The app never writes the ${column} column of the ${append.tab} tab.`)
           }
         }
@@ -74,7 +74,7 @@ function filled(cells: SheetRow['cells']): SheetRow['cells'] {
 }
 
 function tabReadOf(tab: keyof WorkbookTabs, rows: readonly SheetRow[]): TabRead {
-  const template = TEMPLATE_COLUMNS[tab].map((column) => column.name)
+  const template = templateColumnNames(tab)
   const others = [...new Set(rows.flatMap((row) => Object.keys(row.cells)))].filter((column) => !template.includes(column))
   return { header: [...template, ...others], rows, lastRow: lastRowOf(rows) }
 }

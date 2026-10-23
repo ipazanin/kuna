@@ -383,7 +383,7 @@ describe('forecastYear, a year the ledger has not reached', () => {
 describe('forecastYear without a registration day', () => {
   it('refuses, since the tax periods start from it', () => {
     const workbook = steadyStudio()
-    const unregistered = { ...workbook, settings: { ...workbook.settings, companyFacts: { ...workbook.settings.companyFacts, companyRegistered: null } } }
+    const unregistered = { ...workbook, companyFacts: { ...workbook.companyFacts, companyRegistered: null } }
 
     expect(() => forecastYear(unregistered, 2026, civil('2026-10-19'))).toThrow('hr_company_registered')
   })

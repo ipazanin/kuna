@@ -6,25 +6,20 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
-import { cellText } from '../../../shared/text/cellText'
-import { rulesChangeInWords } from '../../rules/domain/ruleSummary'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
-import { canUndo, isUndo, wasUndone } from '../../workbook/application/workbookStore'
-import type { SessionWrite } from '../../workbook/application/workbookStore'
+import { canUndo, isUndo, wasUndone } from '../../workbook/application/createWorkbookStore'
+import type { SessionWrite } from '../../workbook/application/createWorkbookStore'
+import type { WriteReceipt, WrittenRecord } from '../../workbook/application/recordWrites'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
-import { isSameLedgerRow, ledgerRowKeyOf } from '../../workbook/domain/ledgerRowKey'
-import type { LedgerRowKey } from '../../workbook/domain/ledgerRowKey'
-import type { TabRowsReceipt } from '../../workbook/domain/rowChanges'
-import type { Category, Transaction } from '../../workbook/domain/workbook'
-import { labelOfRow } from '../../workbook/infrastructure/tabRecords'
-import { changedCellsInWords, rowsChangeInWords } from '../../workbook/presentation/rowsInWords'
-import type { LedgerVerdictChange, VerdictReceipt } from '../domain/verdictChanges'
+import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
+import { LEDGER_RECORDS } from '../../workbook/domain/recordKind'
+import type { Category } from '../../workbook/domain/workbook'
+import { recordsChangeInWords } from '../../workbook/presentation/rowsInWords'
 
 /** Every write this page made to the workbook, newest first, with Undo on each one that can still be put back. */
 const props = defineProps<{
   writes: readonly SessionWrite[]
-  transactions: readonly Transaction[]
   categories: readonly Category[]
   busy: boolean
 }>()
@@ -44,68 +39,50 @@ function bucketOf(category: string): Bucket {
   return bucketBySlug.value.get(category) ?? UNCLASSIFIED
 }
 
-function counterpartyOf(key: LedgerRowKey): string {
-  const row = props.transactions.find((transaction) => isSameLedgerRow(key, ledgerRowKeyOf(transaction)))
-  return row?.counterparty || 'No counterparty'
-}
-
 function rows(count: number): string {
   return `${count} ${count === 1 ? 'row' : 'rows'}`
 }
 
-function ledgerTitle(changes: readonly LedgerVerdictChange[], undid: VerdictReceipt | null): string {
+/** A ledger row's verdict as one change of a write gave it: the row before and after. */
+interface VerdictChange {
+  readonly before: LedgerEntry
+  readonly after: LedgerEntry
+}
+
+/** The verdicts a write changed, or null for a write that did anything else. */
+function verdictsOf(receipt: WriteReceipt): VerdictChange[] | null {
+  const verdicts = receipt.records.flatMap(({ change }) => (change.kind.name === LEDGER_RECORDS.name && change.verb === 'change' ? [{ before: change.before as LedgerEntry, after: change.after as LedgerEntry }] : []))
+  return verdicts.length === receipt.records.length && verdicts.length > 0 ? verdicts : null
+}
+
+function verdictsTitle(verdicts: readonly VerdictChange[], undid: WriteReceipt | null): string {
   if (undid !== null) {
-    return changes.length === 1 ? 'Undid a change' : `Undid a change to ${rows(changes.length)}`
+    return verdicts.length === 1 ? 'Undid a change' : `Undid a change to ${rows(verdicts.length)}`
   }
-  if (changes.every((change) => change.to.flaggedBy === 'rule')) {
-    return `Filed ${rows(changes.length)} by a rule`
+  if (verdicts.every((verdict) => verdict.after.flaggedBy === 'rule')) {
+    return `Filed ${rows(verdicts.length)} by a rule`
   }
-  const [only] = changes
-  if (changes.length === 1 && only !== undefined) {
-    return only.from.category.toLowerCase() === only.to.category.toLowerCase() ? 'Confirmed a row' : 'Recategorised a row'
+  const [only] = verdicts
+  if (verdicts.length === 1 && only !== undefined) {
+    return only.before.category === only.after.category ? 'Confirmed a row' : 'Recategorised a row'
   }
-  return `Changed ${rows(changes.length)}`
+  return `Changed ${rows(verdicts.length)}`
 }
 
 function titleOf(write: SessionWrite): string {
-  switch (write.kind) {
-    case 'ledger':
-      return ledgerTitle(write.receipt.changes, write.undid)
-    case 'rules':
-      return rulesChangeInWords(write.change)
-    case 'settings':
-      return write.changes.length === 1 ? `Set ${write.changes[0]!.key}` : `Changed ${write.changes.length} settings`
-    case 'rows':
-      return rowsChangeInWords(write.rules, write.receipt, write.undid)
-    case 'ids':
-      return `Gave ${rows(write.given.reduce((sum, tab) => sum + tab.rows, 0))} an id`
-  }
-}
-
-const ICONS: Readonly<Record<SessionWrite['kind'], string>> = {
-  ledger: 'i-lucide-tag',
-  rules: 'i-lucide-list-ordered',
-  settings: 'i-lucide-sliders-horizontal',
-  rows: 'i-lucide-table-properties',
-  ids: 'i-lucide-key-round',
+  const verdicts = verdictsOf(write.receipt)
+  return verdicts === null ? recordsChangeInWords(write.receipt, write.undid) : verdictsTitle(verdicts, write.undid)
 }
 
 function iconOf(write: SessionWrite): string {
-  return isUndo(write) ? 'i-lucide-undo-2' : ICONS[write.kind]
+  if (isUndo(write)) return 'i-lucide-undo-2'
+  return verdictsOf(write.receipt) === null ? 'i-lucide-table-properties' : 'i-lucide-tag'
 }
 
-/** The rows of a write beyond the ones listed: up to three added or deleted, and up to three changed. */
-function rowsNotShown(receipt: TabRowsReceipt): number {
-  return Math.max(0, receipt.added.length + receipt.removed.length - SHOWN_ROWS) + Math.max(0, receipt.changed.length - SHOWN_ROWS)
-}
+const VERBS: Readonly<Record<WrittenRecord['change']['verb'], string>> = { add: 'Added', change: 'Changed', repair: 'Fixed', remove: 'Deleted', discard: 'Deleted' }
 
 function flaggedByInWords(flaggedBy: string): string {
   return flaggedBy === '' ? 'flagged by nobody' : `by ${flaggedBy}`
-}
-
-function quoted(cell: string | number | boolean | null): string {
-  const text = cellText(cell)
-  return text === '' ? 'blank' : `"${text}"`
 }
 </script>
 
@@ -151,45 +128,31 @@ function quoted(cell: string | number | boolean | null): string {
             />
           </span>
 
-          <ul v-if="write.kind === 'ledger'" class="detail-list">
-            <li v-for="change in write.receipt.changes.slice(0, SHOWN_ROWS)" :key="`${change.key.account}-${change.key.reference}-${change.key.date}-${change.key.amount}`" class="flex flex-col gap-1">
+          <ul v-if="verdictsOf(write.receipt) !== null" class="detail-list">
+            <li v-for="verdict in verdictsOf(write.receipt)!.slice(0, SHOWN_ROWS)" :key="verdict.after.id" class="flex flex-col gap-1">
               <span class="flex min-w-0 items-baseline justify-between gap-3 text-xs">
-                <span class="min-w-0 truncate text-toned">{{ counterpartyOf(change.key) }}</span>
-                <span class="figure shrink-0 text-muted">{{ dayFormat.format(new Date(change.key.date)) }}, <MoneyText :cents="change.key.amount" tone="flow" /></span>
+                <span class="min-w-0 truncate text-toned">{{ verdict.after.counterparty || 'No counterparty' }}</span>
+                <span class="figure shrink-0 text-muted">{{ dayFormat.format(new Date(verdict.after.date)) }}, <MoneyText :cents="verdict.after.amount" tone="flow" /></span>
               </span>
               <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
                 <span class="verdict">
-                  <CategoryChip :category="change.from.category" :bucket="bucketOf(change.from.category)" />
-                  <span>{{ flaggedByInWords(change.from.flaggedBy) }}</span>
+                  <CategoryChip :category="verdict.before.category" :bucket="bucketOf(verdict.before.category)" />
+                  <span>{{ flaggedByInWords(verdict.before.flaggedBy) }}</span>
                 </span>
                 <UIcon name="i-lucide-arrow-right" class="size-3.5 shrink-0" aria-label="became" />
                 <span class="verdict">
-                  <CategoryChip :category="change.to.category" :bucket="bucketOf(change.to.category)" />
-                  <span>{{ flaggedByInWords(change.to.flaggedBy) }}</span>
+                  <CategoryChip :category="verdict.after.category" :bucket="bucketOf(verdict.after.category)" />
+                  <span>{{ flaggedByInWords(verdict.after.flaggedBy) }}</span>
                 </span>
               </span>
             </li>
-            <li v-if="write.receipt.changes.length > SHOWN_ROWS" class="text-xs text-muted">and {{ rows(write.receipt.changes.length - SHOWN_ROWS) }} more</li>
+            <li v-if="write.receipt.records.length > SHOWN_ROWS" class="text-xs text-muted">and {{ rows(write.receipt.records.length - SHOWN_ROWS) }} more</li>
           </ul>
-          <ul v-else-if="write.kind === 'settings'" class="detail-list">
-            <li v-for="change in write.changes" :key="change.key" class="text-xs text-muted">
-              <span class="identifier text-toned">{{ change.key }}</span> from {{ quoted(change.expected) }} to {{ quoted(change.value) }}
+          <ul v-else class="detail-list">
+            <li v-for="(record, index) in write.receipt.records.slice(0, SHOWN_ROWS)" :key="`record-${index}`" class="text-xs text-muted">
+              {{ VERBS[record.change.verb] }} <span class="text-toned">{{ record.label }}</span>, {{ record.change.kind.noun.article }} {{ record.change.kind.noun.one }}
             </li>
-          </ul>
-          <ul v-else-if="write.kind === 'ids'" class="detail-list">
-            <li v-for="tab in write.given" :key="tab.tab" class="text-xs text-muted">{{ rows(tab.rows) }} of <span class="identifier text-toned">{{ tab.tab }}</span></li>
-          </ul>
-          <ul v-else-if="write.kind === 'rows'" class="detail-list">
-            <li v-for="(cells, index) in [...write.receipt.added, ...write.receipt.removed].slice(0, SHOWN_ROWS)" :key="`row-${index}`" class="text-xs text-muted">
-              <span class="text-toned">{{ labelOfRow(write.rules.tab, cells) }}</span>, on {{ write.rules.tab }}
-            </li>
-            <li v-for="(change, index) in write.receipt.changed.slice(0, SHOWN_ROWS)" :key="`changed-${index}`" class="flex flex-col gap-1 text-xs text-muted">
-              <span><span class="text-toned">{{ labelOfRow(write.rules.tab, change.after) }}</span>, on {{ write.rules.tab }}</span>
-              <span v-for="cell in changedCellsInWords(write.rules, change.before, change.after)" :key="cell.column">
-                <span class="identifier text-toned">{{ cell.column }}</span> from {{ cell.from }} to {{ cell.to }}
-              </span>
-            </li>
-            <li v-if="rowsNotShown(write.receipt) > 0" class="text-xs text-muted">and {{ rows(rowsNotShown(write.receipt)) }} more</li>
+            <li v-if="write.receipt.records.length > SHOWN_ROWS" class="text-xs text-muted">and {{ write.receipt.records.length - SHOWN_ROWS }} more</li>
           </ul>
         </li>
       </ol>

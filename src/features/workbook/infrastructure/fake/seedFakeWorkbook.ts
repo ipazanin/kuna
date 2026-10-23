@@ -20,8 +20,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, tab: WorkbookTab])[] = [
  * export, and `?fake=empty` keeps nothing, which is a first run. `?fake=no-billing-plan` and
  * `?fake=excel-no-billing-plan` leave out the outgoing-plan tab, `?fake=no-scenarios` the
  * scenarios tab, `?fake=no-plan` the plan tab and `?fake=no-splits` the splits tab, from the Sheet too, so a write can add it.
- * `?fake=no-ids` and `?fake=excel-no-ids` leave the id out of a row of two tabs, as a row added by
- * hand would be, so Overview offers to add it. Only main.ts imports this, behind
+ * Only main.ts imports this, behind
  * an inline VITE_FAKE_WORKBOOK comparison, so the module and its fixture never reach a production chunk.
  */
 export async function seedFakeWorkbook(variant: string | null): Promise<void> {
@@ -31,12 +30,11 @@ export async function seedFakeWorkbook(variant: string | null): Promise<void> {
   }
   const source = variant?.startsWith('excel') ? 'excel' : 'google'
   const now = Date.now()
-  const idOnEveryRow = !(variant?.endsWith('no-ids') ?? false)
-  const full = fakeWorkbookSnapshot(new Date(now).toISOString(), source, idOnEveryRow)
+  const full = fakeWorkbookSnapshot(new Date(now).toISOString(), source)
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const snapshot = missing === null ? full : { ...full, [missing]: [], meta: { ...full.meta, missingTabs: source === 'google' ? [...full.meta.missingTabs, missing] : [] } }
   if (source === 'google') {
-    shapeFakeSheet(missing === null ? [] : [missing], idOnEveryRow)
+    shapeFakeSheet(missing === null ? [] : [missing])
   }
   const seeded =
     source === 'excel'

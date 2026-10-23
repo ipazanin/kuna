@@ -6,8 +6,8 @@ import type { FakeInvoiceGoogle } from '../src/features/invoicing/infrastructure
 import type { InvoiceRunMode } from '../src/features/invoicing/presentation/useInvoiceRun'
 import { useInvoiceRun } from '../src/features/invoicing/presentation/useInvoiceRun'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import type { TabRowsChange } from '../src/features/workbook/domain/rowChanges'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
+import type { UnitOfWork } from '../src/features/workbook/application/repository'
+import type { Invoice, Workbook } from '../src/features/workbook/domain/workbook'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 import { invoiceOf } from './fixtures/billingPlan'
 import { exampleStudio } from './fixtures/exampleStudio'
@@ -15,12 +15,12 @@ import { exampleStudio } from './fixtures/exampleStudio'
 const store = vi.hoisted(() => ({
   state: null as unknown as { workbook: Workbook | null; snapshot: null; status: string; error: string | null; writing: boolean },
   sync: async (): Promise<void> => undefined,
-  written: [] as TabRowsChange[],
-  async changeRows(_rules: unknown, change: TabRowsChange): Promise<null> {
-    store.written.push(change)
+  written: [] as Invoice[],
+  async write(_title: string, work: (unit: UnitOfWork) => void): Promise<null> {
+    const kept = (record: unknown) => store.written.push(record as Invoice)
+    work({ of: () => ({ add: kept, change: (_before: unknown, after: unknown) => kept(after), remove: () => {}, repair: () => {}, discard: () => {} }) } as UnitOfWork)
     return null
   },
-  async changeSettings(): Promise<void> {},
 }))
 const google = vi.hoisted(() => ({ session: null as unknown as FakeInvoiceGoogle }))
 
@@ -87,7 +87,7 @@ describe('the checks before an invoice is made', () => {
     store.state.workbook = { ...workbook, invoices: [...workbook.invoices, invoiceOf('10-1-26', 100, '2026-10-21', 'other')] }
     await run.make()
 
-    expect(store.written.map((change) => change.added[0]?.number)).toEqual(['10-1-26'])
+    expect(store.written.map((invoice) => invoice.number)).toEqual(['10-1-26'])
     run.dispose()
   })
 })

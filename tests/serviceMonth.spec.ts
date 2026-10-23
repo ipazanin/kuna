@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import type { Settings } from '../src/features/settings/domain/settings'
 import type { Booking, Category } from '../src/features/workbook/domain/workbook'
 import { serviceMonthOf } from '../src/packs/hr-doo/domain/accrual/serviceMonth'
 import { civil, euros } from './fixtures/ledger'
+import { COMPANY_FACT_SETTINGS } from '../src/packs/hr-doo/domain/companyFacts'
+import type { CompanyFacts } from '../src/packs/hr-doo/domain/companyFacts'
 
 function category(slug: string, roles: readonly string[] = []): Category {
   return { slug, family: 'operating', bucket: 'operating', colour: '', roles, vat: 'none' }
@@ -16,8 +16,8 @@ function booking(date: string, amount: number, categorySlug: string): Booking {
   return { date: civil(date), amount: euros(amount), category: categorySlug, family: 'operating', bucket: 'operating' }
 }
 
-function registeredOn(date: string | null): Settings {
-  return { ...DEFAULT_SETTINGS, companyFacts: { ...DEFAULT_SETTINGS.companyFacts, companyRegistered: date === null ? null : civil(date) } }
+function registeredOn(date: string | null): CompanyFacts {
+  return { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: date === null ? null : civil(date) }
 }
 
 describe('serviceMonthOf', () => {

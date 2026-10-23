@@ -9,8 +9,8 @@ import { sumMoney } from '../../../shared/money/money'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import { TERMS_LINK } from '../../invoicing/presentation/invoicingLinks'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
-import { BILLING_PLAN_ROWS, billingCellsOf } from '../application/billingPlanRows'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingItemDraft, RestOfYearFill } from '../domain/fillRestOfYear'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -24,7 +24,7 @@ const props = defineProps<{
   colours: ReadonlyMap<string, string>
 }>()
 
-const writes = useRowWrites(BILLING_PLAN_ROWS)
+const writes = useRecordWrites()
 const phone = usePhoneLayout()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -49,8 +49,8 @@ function descriptionOf(row: BillingItemDraft): string {
 
 async function write(): Promise<void> {
   const count = rows.value.length
-  const added = rows.value.map((row) => billingCellsOf({ ...row, description: descriptionOf(row) }))
-  const written = await writes.write({ added, changed: [], removed: [] }, { title: count === 1 ? 'Plan row added' : `${count} plan rows added` }, 'Not added')
+  const added = rows.value.map((row) => newBillingItem({ ...row, description: descriptionOf(row) }))
+  const written = await writes.write(count === 1 ? 'Plan row added' : `${count} plan rows added`, (unit) => added.forEach((item) => unit.of(BILLING_WRITES).add(item)), { failedTitle: 'Not added' })
   if (written) open.value = false
 }
 </script>

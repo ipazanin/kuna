@@ -35,8 +35,11 @@ import { categorise } from '../src/features/rules/domain/categorise.ts'
 import { RULE_COLUMNS } from '../src/features/rules/domain/rule.ts'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts.ts'
 import { readWorkbookFile, workbookGrids } from '../src/features/workbook/infrastructure/workbookFile.ts'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
-import { recordIdOfRow } from '../src/features/workbook/infrastructure/tabRecords.ts'
+import { recordIdOf } from '../src/features/workbook/domain/recordId.ts'
+import { readSnapshot, spreadsheetTabOf } from '../src/features/workbook/infrastructure/spreadsheetTab.ts'
+import { installHrDooPack } from './support/installPack.mjs'
+
+installHrDooPack()
 
 const { values: options } = parseArgs({
   options: {
@@ -117,7 +120,13 @@ function compareEngines(caseTabs, caseSpreadsheet, caseWorkbook) {
   }
   const appsScriptContext = { ownIbans, clientIbans: clients.appsScript, cardSettlementIbans: cardAccounts.appsScript }
   const context = categorisationContextOf({ ...caseWorkbook, settings: { ...caseWorkbook.settings, cardSettlementIbans: cardAccounts.app } })
-  const cellsOf = new Map(caseTabs.ledger.map((row) => [recordIdOfRow('ledger', row.cells), row.cells]))
+  const ledgerTab = spreadsheetTabOf('ledger')
+  const cellsOf = new Map(
+    caseTabs.ledger.flatMap((row) => {
+      const key = ledgerTab.key(row.cells)
+      return key === null ? [] : [[recordIdOf(ledgerTab.kind, key), row.cells]]
+    }),
+  )
   const result = { context, withSignals: 0, agreesWithLedger: 0, unmatched: 0, differences: [], decidedBy: new Map(), appsScriptRuleCount: appsScriptRules.length, ruleProblems: ruleProblems.length, clientsAgree: clients.agree }
   const deciding = new Set()
   for (const transaction of caseWorkbook.transactions) {
@@ -208,10 +217,10 @@ function compareClientRule() {
 }
 
 function workbookOver(caseTabs, caseMissingTabs) {
-  return readWorkbook({
+  return readSnapshot({
     meta: { id: 'parity', source: 'google', title: options.workbook, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null, missingTabs: caseMissingTabs },
     ...caseTabs,
-  })
+  }).workbook
 }
 
 /** Each side's card settlement accounts, from the settings tab. */

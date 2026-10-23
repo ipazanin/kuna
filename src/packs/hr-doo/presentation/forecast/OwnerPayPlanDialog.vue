@@ -7,14 +7,13 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import type { OwnerPayScenario } from '../../../../features/workbook/domain/ownerPayScenarios'
-import type { PlanLine } from '../../../../features/workbook/domain/plan'
-import type { RowCells } from '../../../../features/workbook/domain/rowChanges'
+import type { OwnerPayScenario } from '../../domain/scenarios/ownerPayScenarios'
+import type { PlanLine } from '../../domain/forecast/plan'
 import { civilDate, parseCivilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { ownerPayPlanCells, replacedPlanRows } from '../../application/planRows'
-import type { KeyedRow } from '../../application/planRows'
+import { ownerPayPlanLine, replacePlanLines } from '../../application/planWrites'
+import type { KeyedLine } from '../../application/planWrites'
 import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { usePlanWrites } from './usePlanWrites'
 
@@ -67,10 +66,10 @@ const errors = computed(() => ({
 }))
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
-function held(): KeyedRow<RowCells>[] {
+function held(): KeyedLine<PlanLine>[] {
   return props.lines.flatMap((line) => {
-    const row = writes.rowOf(line)
-    return row === null ? [] : [{ key: line.from === null ? 'opening' : 'switch', cells: row }]
+    const stored = writes.stored(line)
+    return stored === null ? [] : [{ key: line.from === null ? 'opening' : 'switch', line: stored }]
   })
 }
 
@@ -78,15 +77,16 @@ async function save(): Promise<void> {
   tried.value = true
   if (!valid.value) return
   const wanted = [
-    { key: 'opening', cells: ownerPayPlanCells(props.year, first.value, null) },
-    ...(switching.value && day.value !== null ? [{ key: 'switch', cells: ownerPayPlanCells(props.year, second.value, day.value) }] : []),
+    { key: 'opening', line: ownerPayPlanLine(props.year, first.value, null) },
+    ...(switching.value && day.value !== null ? [{ key: 'switch', line: ownerPayPlanLine(props.year, second.value, day.value) }] : []),
   ]
-  if (await writes.write(replacedPlanRows(held(), wanted), { title: 'Owner pay planned', description: `For ${props.year}, written to ${writes.where()}.` }, 'Not saved')) open.value = false
+  const holding = held()
+  if (await writes.write('Owner pay planned', (lines) => replacePlanLines(lines, holding, wanted), { description: `For ${props.year}.`, failedTitle: 'Not saved' })) open.value = false
 }
 
 async function clear(): Promise<void> {
-  const removed = held().map((entry) => entry.cells)
-  if (await writes.write({ added: [], changed: [], removed }, { title: 'Owner pay plan cleared', description: `The owner pay categories of ${props.year} take their averages again.` }, 'Not cleared')) open.value = false
+  const holding = held()
+  if (await writes.write('Owner pay plan cleared', (lines) => replacePlanLines(lines, holding, []), { description: `The owner pay categories of ${props.year} take their averages again.`, failedTitle: 'Not cleared' })) open.value = false
 }
 </script>
 
@@ -114,7 +114,7 @@ async function clear(): Promise<void> {
             <UInput v-model="switchOn" type="date" class="w-full" data-testid="owner-pay-switch-on" />
           </UFormField>
         </template>
-        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" :headers="writes.headers" />
+        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" />
       </form>
     </template>
     <template #footer>

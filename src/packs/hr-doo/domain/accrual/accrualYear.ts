@@ -1,8 +1,9 @@
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import { isDefinedBucket } from '../../../../features/workbook/domain/bucket'
-import type { Category, Workbook } from '../../../../features/workbook/domain/workbook'
-import type { YearEndStatement } from '../../../../features/workbook/domain/yearEnd'
+import type { Category } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../hrDooPart'
+import type { YearEndStatement } from '../yearEnd/yearEnd'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
@@ -110,8 +111,8 @@ export interface AccrualYear {
  * the accountant keeps in the next year, representation booked without the exchange loss inside a
  * card payment, and which line of a group a figure sits on.
  */
-export function accrualYear(workbook: Workbook, year: number, inputs: AccrualInputs, rules: RuleSource = ruleValue): AccrualYear {
-  const period = taxPeriodOf(year, workbook.settings.companyFacts.companyRegistered)
+export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: AccrualInputs, rules: RuleSource = ruleValue): AccrualYear {
+  const period = taxPeriodOf(year, workbook.companyFacts.companyRegistered)
   const firstDay = civilDate(year, 1, 1)
   const inYear = (date: CivilDate) => yearOf(date) === year
   const accountantMoney = (statement: YearEndStatement, line: string): Money | null => {
@@ -434,7 +435,7 @@ export function accrualLine(accrual: AccrualYear, statement: AccrualLine['statem
   return accrual.lines.find((candidate) => candidate.statement === statement && candidate.line === line) ?? null
 }
 
-function cashNetOf(entries: readonly AccrualBooking[], workbook: Workbook, year: number): TracedFigure {
+function cashNetOf(entries: readonly AccrualBooking[], workbook: HrDooWorkbook, year: number): TracedFigure {
   const buckets = [...new Set(entries.map((entry) => entry.booking.bucket))].filter(isDefinedBucket)
   const steps = buckets.map((bucket) =>
     withDrill(

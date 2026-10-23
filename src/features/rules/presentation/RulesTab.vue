@@ -11,6 +11,8 @@ import ProblemList from '../../excel/presentation/ProblemList.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
+import { recordsOf } from '../../workbook/domain/recordsRead'
+import type { RuleTabRow } from '../domain/readRules'
 import { categorise } from '../domain/categorise'
 import { inTryingOrder } from '../domain/rule'
 import type { Rule } from '../domain/rule'
@@ -71,8 +73,12 @@ const editorSource = ref<RuleEditorSource | null>(null)
 const dialogOpen = ref(false)
 const pending = ref<PendingRulesChange | null>(null)
 
+function ruleRows(): readonly RuleTabRow[] {
+  return state.records === null ? [] : recordsOf(state.records.rules)
+}
+
 function rowOf(rule: Rule): RuleRowEdit['expected'] | null {
-  return state.snapshot?.rules.find((row) => sameId(row.cells.rule, rule.id))?.cells ?? null
+  return ruleRows().find((row) => sameId(row.cells.rule, rule.id))?.cells ?? null
 }
 
 function addRule(): void {
@@ -81,7 +87,7 @@ function addRule(): void {
 }
 
 function editRule(rule: Rule): void {
-  const source = draftOfRule(rule, state.snapshot?.rules ?? [], workbook.value?.rules ?? [])
+  const source = draftOfRule(rule, ruleRows(), workbook.value?.rules ?? [])
   if (source === null) return
   editorSource.value = { title: `Edit ${rule.id}`, ...source }
   editorOpen.value = true

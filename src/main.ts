@@ -5,6 +5,7 @@ import ui from '@nuxt/ui/vue-plugin'
 
 import App from './App.vue'
 import { installPack } from './features/packs/packContribution'
+import { installPackTabs } from './features/workbook/infrastructure/packTabs'
 import { takeGoogleRedirect } from './shared/google/googleAuth'
 import { startServiceWorker } from './shared/pwa/appUpdate'
 import { createAppRouter } from './shared/routing/router'
@@ -13,9 +14,10 @@ import { applyInitialTheme } from './shared/theme/theme'
 applyInitialTheme()
 
 async function start(): Promise<void> {
-  // Loaded apart from the entry chunk, and installed before the router lists its screens.
-  const { hrDooPack } = await import('./packs/hr-doo/hrDooPack')
+  // Loaded apart from the entry chunk, and installed before the router lists its screens and before a workbook is read.
+  const [{ hrDooPack }, { HR_DOO_TABS }] = await Promise.all([import('./packs/hr-doo/hrDooPack'), import('./packs/hr-doo/infrastructure/hrDooTabs')])
   installPack(hrDooPack)
+  installPackTabs(HR_DOO_TABS)
   // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const { seedFakeWorkbook } = await import('./features/workbook/infrastructure/fake/seedFakeWorkbook')

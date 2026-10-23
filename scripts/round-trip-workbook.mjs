@@ -11,7 +11,11 @@ import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 
 import { readWorkbookFile, writeWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile.ts'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader.ts'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab.ts'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart.ts'
+import { installHrDooPack } from './support/installPack.mjs'
+
+installHrDooPack()
 
 const { values: options } = parseArgs({ options: { workbook: { type: 'string' } } })
 if (options.workbook === undefined) {
@@ -24,13 +28,13 @@ const META = { id: 'round-trip', source: 'excel', title: 'round trip', syncedAt:
 const SECTIONS = ['transactions', 'categories', 'accounts', 'rules', 'invoices', 'clients', 'billingPlan', 'ownerAdvances', 'splits', 'assets', 'grants', 'yearEndLines', 'planLines', 'payScenarios', 'dismissals', 'problems']
 
 function contentOf(tabs) {
-  const workbook = readWorkbook({ meta: META, ...tabs })
-  return Object.fromEntries([...SECTIONS, 'settings'].map((section) => [section, workbook[section]]))
+  const workbook = hrDooWorkbook(readSnapshot({ meta: META, ...tabs }).workbook)
+  return Object.fromEntries([...SECTIONS, 'settings', 'companyFacts'].map((section) => [section, workbook[section]]))
 }
 
 const imported = await readWorkbookFile(readFileSync(options.workbook))
 const first = contentOf(imported.tabs)
-const exported = await writeWorkbookFile(imported.tabs, readWorkbook({ meta: META, ...imported.tabs }))
+const exported = await writeWorkbookFile(imported.tabs, readSnapshot({ meta: META, ...imported.tabs }).workbook)
 const reimported = await readWorkbookFile(exported)
 const second = contentOf(reimported.tabs)
 
@@ -38,7 +42,7 @@ for (const section of SECTIONS) {
   const same = isDeepStrictEqual(first[section], second[section])
   console.log(`${section.padEnd(19)} ${String(first[section].length).padStart(5)} -> ${String(second[section].length).padStart(5)}  ${same ? 'same' : 'DIFFERENT'}`)
 }
-const sameSettings = isDeepStrictEqual(first.settings, second.settings)
+const sameSettings = isDeepStrictEqual(first.settings, second.settings) && isDeepStrictEqual(first.companyFacts, second.companyFacts)
 console.log(`${'settings'.padEnd(19)} ${sameSettings ? 'same' : 'DIFFERENT'}`)
 console.log(`missing tabs on import: ${imported.missingTabs.join(', ') || 'none'}; after export: ${reimported.missingTabs.join(', ') || 'none'}`)
 

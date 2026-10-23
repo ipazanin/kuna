@@ -3,8 +3,8 @@ import type { RouteLocationRaw } from 'vue-router'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import type { DonutPart } from '../../../../shared/ui/DonutCard.vue'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
-import type { YearEndFigure } from '../../../../features/workbook/domain/yearEnd'
+import type { HrDooWorkbook } from '../../domain/hrDooPart'
+import type { YearEndFigure } from '../../domain/yearEnd/yearEnd'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
 import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -58,8 +58,8 @@ export type ClosedYearView = ReturnType<typeof closedYearView>
  * net to profit, the open items, the statements line by line and the konto lines. `statements` is
  * where a status on the ring opens the lines.
  */
-export function closedYearView(workbook: Workbook, year: number, link: Link, statements: RouteLocationRaw) {
-  const accrual = accrualYear(workbook, year, { depreciation: workbook.settings.companyFacts, citAdvancesPaid: null })
+export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link, statements: RouteLocationRaw) {
+  const accrual = accrualYear(workbook, year, { depreciation: workbook.companyFacts, citAdvancesPaid: null })
   const comparison = compareYearEnd(workbook, accrual)
   const { bridge } = accrual
   const drillOf = (figure: TracedFigure | null) => link(figure?.drill ?? null)
@@ -174,7 +174,7 @@ export function closedYearView(workbook: Workbook, year: number, link: Link, sta
     })),
     openItemsSummary: `${openItems.filter((item) => !item.settled).length} to settle, ${openItems.filter((item) => item.settled).length} settled`,
     noVat: workbook.categories.every((category) => category.vat === 'none'),
-    unregistered: workbook.settings.companyFacts.companyRegistered === null,
+    unregistered: workbook.companyFacts.companyRegistered === null,
   }
 }
 

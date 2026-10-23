@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import { templateColumnNames } from '../infrastructure/workbookTemplate'
 import type { RowTab } from '../infrastructure/workbookWriter'
 
 /** Says, before a dialog saves, that the write adds the tab to a Google Sheet without one. */
-defineProps<{
+const props = defineProps<{
   tab: RowTab
-  headers: string
 }>()
+
+const headers = computed(() => templateColumnNames(props.tab).join(', '))
 </script>
 
 <template>

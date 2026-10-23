@@ -1,9 +1,9 @@
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import { displayName } from '../../../../features/workbook/domain/displayName'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
-import { YEAR_END_LINES } from '../../../../features/workbook/domain/yearEnd'
-import type { YearEndLine, YearEndStatement } from '../../../../features/workbook/domain/yearEnd'
+import type { HrDooWorkbook } from '../hrDooPart'
+import { YEAR_END_LINES } from './yearEnd'
+import type { YearEndLine, YearEndStatement } from './yearEnd'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -97,7 +97,7 @@ export interface YearEndComparison {
  * distribution decision are recorded, with a ledger check where one is possible. Konto lines are
  * grouped by the categories they share, since one category can sit on several of them.
  */
-export function compareYearEnd(workbook: Workbook, accrual: AccrualYear): YearEndComparison {
+export function compareYearEnd(workbook: HrDooWorkbook, accrual: AccrualYear): YearEndComparison {
   const { year } = accrual
   const accountant = workbook.yearEndLines.filter((line) => line.year === year)
   const order = (line: YearEndLine) => YEAR_END_LINES.findIndex((definition) => definition.statement === line.statement && definition.line === line.line)
@@ -191,7 +191,7 @@ function categoriesOf(figure: TracedFigure | null): readonly string[] {
  * category counts on, costs as positive amounts, so the profit and loss lines add up to the
  * cash net. The balance sheet has only cash.
  */
-function cashFigures(workbook: Workbook, accrual: AccrualYear): ReadonlyMap<string, TracedFigure> {
+function cashFigures(workbook: HrDooWorkbook, accrual: AccrualYear): ReadonlyMap<string, TracedFigure> {
   const { year } = accrual
   const paidInYear = accrual.bookings.filter((entry) => yearOf(entry.booking.date) === year)
   const income = paidInYear.filter((entry) => entry.category.bucket === 'income')
@@ -228,7 +228,7 @@ function cashFigures(workbook: Workbook, accrual: AccrualYear): ReadonlyMap<stri
   return new Map(figures)
 }
 
-function recordedLine(line: YearEndLine, workbook: Workbook, accrual: AccrualYear): RecordedLine {
+function recordedLine(line: YearEndLine, workbook: HrDooWorkbook, accrual: AccrualYear): RecordedLine {
   if (line.statement === 'tax' && line.line === 'paid-on' && line.figure.kind === 'date') {
     const day = line.figure.date
     const due = accrualLine(accrual, 'tax', 'balance-due')
@@ -256,7 +256,7 @@ function distributionCheck(accountant: readonly YearEndLine[], accrual: AccrualY
   return { shared, profitAfterTax: profit.figure.amount, residual: subtractMoney(shared, profit.figure.amount) }
 }
 
-function kontoComparisons(accountant: readonly YearEndLine[], workbook: Workbook, accrual: AccrualYear): KontoComparison[] {
+function kontoComparisons(accountant: readonly YearEndLine[], workbook: HrDooWorkbook, accrual: AccrualYear): KontoComparison[] {
   const totals = new Map(accrual.categoryTotals.map((entry) => [entry.category.slug, entry]))
   const categories = new Map(workbook.categories.map((category) => [category.slug, category]))
   const konto = accountant.filter((line) => line.statement === 'konto')

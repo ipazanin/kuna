@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import type { MonthKey } from '../../../shared/calendar/monthKey'
@@ -26,10 +26,7 @@ import { ROLLING_3_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSe
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { rowsWithoutIds } from '../../workbook/infrastructure/rowIds'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
-import MissingIdsDialog from '../../workbook/presentation/MissingIdsDialog.vue'
-import { rowsWithoutIdsInWords } from '../../workbook/presentation/rowsInWords'
 import { euroSplit } from '../domain/euroSplit'
 import { headline } from '../domain/headline'
 import { runway } from '../domain/runway'
@@ -63,10 +60,6 @@ function runwayText(months: number | null): string {
 
 /** The jobs come from the whole workbook, whatever the filters say, as the menu's review count does. */
 const waiting = computed(() => (ledger.value === null || state.workbook === null ? [] : waitingJobs(ledger.value.workbook, state.workbook.transactions)))
-
-/** Rows of the tabs that carry ids and have none yet, which the last line of the card offers to fix. */
-const missingIds = computed(() => (state.snapshot === null ? [] : rowsWithoutIds(state.snapshot)))
-const idsOpen = ref(false)
 
 const overview = computed(() => {
   const current = ledger.value
@@ -209,23 +202,15 @@ const overview = computed(() => {
             <MoneyText :cents="overview.headline.loss" precision="whole" class="text-negative" /></template>.
         </p>
 
-        <AppCard v-if="waiting.length || missingIds.length" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
+        <AppCard v-if="waiting.length" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
           <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
             <li v-for="job in waiting" :key="job.key" class="waiting-line" :data-job="job.key">
               <span class="waiting-dot" :class="job.tone" aria-hidden="true" />
               <span class="min-w-0 flex-1 text-sm text-toned">{{ job.text }}</span>
               <DrillLink :to="job.link.to" :label="`${job.text}, open ${job.link.label}`" class="shrink-0 text-sm font-medium text-highlighted">{{ job.link.label }}</DrillLink>
             </li>
-            <li v-if="missingIds.length" class="waiting-line" data-job="ids">
-              <span class="waiting-dot warning" aria-hidden="true" />
-              <span class="min-w-0 flex-1 text-sm text-toned">{{ rowsWithoutIdsInWords(missingIds) }}</span>
-              <button type="button" class="job-action shrink-0 text-sm font-medium text-highlighted" :disabled="state.writing" data-testid="missing-ids-open" @click="idsOpen = true">
-                Add ids
-              </button>
-            </li>
           </ul>
         </AppCard>
-        <MissingIdsDialog v-model:open="idsOpen" />
 
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiTile v-for="tile in overview.tiles" :key="tile.label" v-bind="tile" />
@@ -328,33 +313,6 @@ const overview = computed(() => {
 
 .waiting-line + .waiting-line {
   border-top: 1px solid var(--border-default);
-}
-
-.job-action {
-  border-radius: 3px;
-  text-decoration-line: underline;
-  text-decoration-color: transparent;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  transition:
-    text-decoration-color 120ms ease,
-    color 120ms ease;
-}
-
-.job-action:hover {
-  color: var(--ink-strong);
-  text-decoration-color: var(--accent);
-}
-
-.job-action:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.job-action:disabled {
-  cursor: default;
-  opacity: 0.6;
 }
 
 .waiting-dot {

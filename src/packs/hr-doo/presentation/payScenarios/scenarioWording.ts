@@ -1,4 +1,4 @@
-import type { DirectorBasis, ScenarioComponent } from '../../../../features/workbook/domain/ownerPayScenarios'
+import type { DirectorBasis, ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'

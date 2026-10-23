@@ -3,24 +3,26 @@ import type { ComputedRef, Ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { recordsOf } from '../../workbook/domain/recordsRead'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { previewRulesChange } from '../domain/rulesChangePreview'
 import type { RulesChangePreview } from '../domain/rulesChangePreview'
 import type { RulesTabChange } from '../domain/rulesTabChange'
 import { categorisationContextOf } from '../domain/transactionFacts'
+import { writeRulesChange } from './ruleWrites'
 
 /** The back-test and the checks of a rules change, kept current as the change is edited. Null without a workbook or a change. */
 export function useRulesChangePreview(change: () => RulesTabChange | null): ComputedRef<RulesChangePreview<Transaction> | null> {
   const { state } = useWorkbook()
   return computed(() => {
     const workbook = state.workbook
-    const rows = state.snapshot?.rules
+    const records = state.records
     const pending = change()
-    if (workbook === null || rows === undefined || pending === null) {
+    if (workbook === null || records === null || pending === null) {
       return null
     }
     const definedCategories = new Set(workbook.categories.map((category) => category.slug))
-    return previewRulesChange(rows, pending, definedCategories, workbook.hasClientsTab, workbook.rules, workbook.transactions, categorisationContextOf(workbook))
+    return previewRulesChange(recordsOf(records.rules), pending, definedCategories, workbook.hasClientsTab, workbook.rules, workbook.transactions, categorisationContextOf(workbook))
   })
 }
 
@@ -39,7 +41,7 @@ export function useRulesWrites(): RulesWrites {
     async save(change, saved) {
       saving.value = true
       try {
-        await store.changeRules(change)
+        await store.write(saved ?? 'Rules saved', (unit) => writeRulesChange(unit, change))
         if (saved !== null) {
           toast.add({ title: saved, icon: 'i-lucide-check', color: 'success' })
         }

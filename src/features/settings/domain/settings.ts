@@ -1,5 +1,3 @@
-import { civilDateFromSerial, parseCivilDate } from '../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
@@ -8,6 +6,7 @@ import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { isIban } from '../../workbook/domain/iban'
 import { recordIdOf } from '../../workbook/domain/recordId'
 import { SETTING_RECORDS } from '../../workbook/domain/recordKind'
+import type { RecordsRead } from '../../workbook/domain/recordsRead'
 import type { RecordProblem } from '../../workbook/domain/workbook'
 import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
@@ -42,7 +41,6 @@ export interface Settings {
   readonly cardSettlementIbans: readonly string[]
   readonly billing: BillingTerms
   readonly invoicing: InvoicingTerms
-  readonly companyFacts: CompanyFacts
   /** How each bank's spreadsheet export reads, from the `import_profile_<name>` keys, in tab order. */
   readonly importProfiles: readonly ImportProfile[]
 }
@@ -106,39 +104,6 @@ export interface BillingTerms {
   readonly client: string
 }
 
-/** Which corporate tax return the company files: `pd` on the accrual profit, `pd-nn` on cash received and paid. */
-export const CIT_RETURNS = ['pd', 'pd-nn'] as const
-
-export type CitReturn = (typeof CIT_RETURNS)[number]
-
-/** When VAT falls due: on the invoice, or when it is paid. */
-export const VAT_PRINCIPLES = ['invoice', 'cash'] as const
-
-export type VatPrinciple = (typeof VAT_PRINCIPLES)[number]
-
-/**
- * What the owner-pay pack needs to know about this company and its owner that the law does not
- * say. These are the owner's own facts, so they live in the workbook and never in the app.
- */
-export interface CompanyFacts {
-  /** Where the owner lives, which sets the local income tax rates. Blank when not given. */
-  readonly residenceCity: string
-  /** For the youth income tax relief. Null when not given. */
-  readonly birthYear: number | null
-  /** Whether the owner pays into the second pension pillar, which splits the pension contribution. */
-  readonly pensionPillarTwo: boolean
-  /** Dependants who raise the personal allowance. */
-  readonly dependants: number
-  /** The day the company was registered, which starts its first tax period. Null when not given. */
-  readonly companyRegistered: CivilDate | null
-  readonly citReturn: CitReturn
-  readonly vatPrinciple: VatPrinciple
-  /** The default for assets: whether the accountant doubles depreciation rates. */
-  readonly depreciationDoubled: boolean
-  /** The yearly interest rate the owner's loans carry, in basis points, so 200 is 2%. */
-  readonly ownerLoanInterest: number
-}
-
 export const DEFAULT_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = {
   income: 'Income',
   operating: 'Operating cost',
@@ -189,17 +154,6 @@ export const DEFAULT_SETTINGS: Settings = {
     mailBody: DEFAULT_MAIL_BODY,
     reverseChargeNote: DEFAULT_REVERSE_CHARGE_NOTE,
   },
-  companyFacts: {
-    residenceCity: '',
-    birthYear: null,
-    pensionPillarTwo: true,
-    dependants: 0,
-    companyRegistered: null,
-    citReturn: 'pd',
-    vatPrinciple: 'invoice',
-    depreciationDoubled: false,
-    ownerLoanInterest: 0,
-  },
   importProfiles: [],
 }
 
@@ -211,16 +165,7 @@ const RESERVED_LABELS = ['net', 'all costs', 'owner earns', 'kept']
 
 const LABEL_MAX_LENGTH = 40
 
-const CITY_MAX_LENGTH = 60
-
 const BILLING_ITEM_MAX_LENGTH = 60
-
-const EARLIEST_BIRTH_YEAR = 1900
-const LATEST_BIRTH_YEAR = 2100
-
-const MOST_DEPENDANTS = 20
-
-const BASIS_POINTS_PER_WHOLE = 10_000
 
 export type SettingCell = string | number | boolean
 
@@ -231,20 +176,27 @@ export interface SettingRow {
 
 type BucketLabelKey = `label_${string}`
 
-interface SettingDefinition {
+/** One key of the settings tab, and how its cell reads into the values it sets and back. */
+export interface SettingDefinition<Values> {
   readonly key: string
   /** What the key means, as the template's note on it says. */
   readonly note: string
-  readonly valueOf: (settings: Settings) => SettingCell
-  /** The settings with this key applied, or the reason the cell cannot be used. */
-  readonly apply: (settings: Settings, cell: SettingCell) => Settings | string
+  valueOf(values: Values): SettingCell
+  /** The values with this key applied, or the reason the cell cannot be used. */
+  apply(values: Values, cell: SettingCell): Values | string
+}
+
+/** The settings keys a pack reads, with the values they hold when blank, which core leaves to the pack. */
+export interface PackSettings<Values> {
+  readonly definitions: readonly SettingDefinition<Values>[]
+  readonly defaults: Values
 }
 
 function bucketLabelKey(bucket: DefinedBucket): BucketLabelKey {
   return `label_${bucket.replace('-', '_')}`
 }
 
-const BUCKET_LABEL_DEFINITIONS: readonly SettingDefinition[] = BUCKETS.map((bucket) => ({
+const BUCKET_LABEL_DEFINITIONS: readonly SettingDefinition<Settings>[] = BUCKETS.map((bucket) => ({
   key: bucketLabelKey(bucket),
   note: `What the ${bucket} bucket is called on screen. The bucket itself keeps its name in the categories tab.`,
   valueOf: (settings) => settings.bucketLabels[bucket],
@@ -255,10 +207,6 @@ const BUCKET_LABEL_DEFINITIONS: readonly SettingDefinition[] = BUCKETS.map((buck
   },
 }))
 
-function withFacts(settings: Settings, facts: Partial<CompanyFacts>): Settings {
-  return { ...settings, companyFacts: { ...settings.companyFacts, ...facts } }
-}
-
 function withBilling(settings: Settings, terms: Partial<BillingTerms>): Settings {
   return { ...settings, billing: { ...settings.billing, ...terms } }
 }
@@ -267,7 +215,7 @@ export type BillingAmountField = 'monthlyAmount' | 'subscriptionAmount' | 'bonus
 
 export type BillingItemField = 'monthlyItem' | 'subscriptionItem' | 'bonusItem'
 
-function billingAmountDefinition(key: string, field: BillingAmountField, note: string): SettingDefinition {
+function billingAmountDefinition(key: string, field: BillingAmountField, note: string): SettingDefinition<Settings> {
   return {
     key,
     note,
@@ -282,7 +230,7 @@ function billingAmountDefinition(key: string, field: BillingAmountField, note: s
   }
 }
 
-function billingItemDefinition(key: string, field: BillingItemField, note: string): SettingDefinition {
+function billingItemDefinition(key: string, field: BillingItemField, note: string): SettingDefinition<Settings> {
   return {
     key,
     note,
@@ -295,7 +243,7 @@ function billingItemDefinition(key: string, field: BillingItemField, note: strin
 }
 
 /** The billing plan's terms, for any freelancer or small business. */
-const BILLING_DEFINITIONS: readonly SettingDefinition[] = [
+const BILLING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   billingAmountDefinition('billing_monthly_amount', 'monthlyAmount', 'The fee invoiced for each worked month, such as 7200. "Fill the rest of the year" adds a row of it for every month to December. Optional.'),
   billingItemDefinition('billing_monthly_item', 'monthlyItem', 'The item text of the monthly fee rows on the outgoing-plan tab, written as the tab writes it. Needed with billing_monthly_amount.'),
   billingAmountDefinition('billing_subscription_amount', 'subscriptionAmount', 'Subscriptions re-billed every month, such as 60. "Fill the rest of the year" adds a row of it for every month to December. Optional.'),
@@ -329,7 +277,7 @@ function invoicingProblem(field: InvoicingField, value: string): string | null {
   }
 }
 
-function invoicingDefinition(key: string, field: InvoicingField, note: string): SettingDefinition {
+function invoicingDefinition(key: string, field: InvoicingField, note: string): SettingDefinition<Settings> {
   return {
     key,
     note,
@@ -343,7 +291,7 @@ function invoicingDefinition(key: string, field: InvoicingField, note: string): 
 }
 
 /** What an invoice the app makes prints about your company, and how it is numbered, filed and mailed. */
-const INVOICING_DEFINITIONS: readonly SettingDefinition[] = [
+const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   invoicingDefinition('invoice_company_name', 'name', 'Your company’s name as the invoice prints it, such as Example Studio d.o.o. Needed to make an invoice.'),
   invoicingDefinition('invoice_address', 'address', 'Your street and town, such as Example Street 1, Zagreb. Needed to make an invoice.'),
   invoicingDefinition('invoice_country', 'country', 'Your country, printed under the address. Optional.'),
@@ -367,93 +315,8 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition[] = [
   invoicingDefinition('invoice_reverse_charge_note', 'reverseChargeNote', 'The note a reverse-charge invoice prints under its totals. Blank means the Croatian VAT law’s Article 17 note.'),
 ]
 
-/** The pack's keys, read only while the owner-pay module is on, but kept and checked whatever it is. */
-const COMPANY_FACT_DEFINITIONS: readonly SettingDefinition[] = [
-  {
-    key: 'hr_residence_city',
-    note: 'The city or municipality the owner lives in, such as Zagreb. It sets the local income tax rates, so payroll figures stay empty while it is blank.',
-    valueOf: (settings) => settings.companyFacts.residenceCity,
-    apply: (settings, cell) => {
-      const city = String(cell).trim()
-      return residenceCityProblem(city) ?? withFacts(settings, { residenceCity: city })
-    },
-  },
-  {
-    key: 'hr_birth_year',
-    note: "The owner's year of birth, such as 1990, for the youth income tax relief. Blank means no relief is assumed.",
-    valueOf: (settings) => settings.companyFacts.birthYear ?? '',
-    apply: (settings, cell) => {
-      const year = typeof cell === 'number' ? cell : Number(String(cell).trim())
-      return birthYearProblem(year) ?? withFacts(settings, { birthYear: year })
-    },
-  },
-  {
-    key: 'hr_pension_pillar_2',
-    note: 'TRUE when the owner pays into the second pension pillar, FALSE when the whole pension contribution goes to the first.',
-    valueOf: (settings) => settings.companyFacts.pensionPillarTwo,
-    apply: (settings, cell) => {
-      const pillarTwo = booleanOf(cell)
-      return pillarTwo === null ? `"${String(cell)}" is neither TRUE nor FALSE` : withFacts(settings, { pensionPillarTwo: pillarTwo })
-    },
-  },
-  {
-    key: 'hr_dependants',
-    note: 'How many dependants raise the personal allowance, as a whole number. Blank means 0.',
-    valueOf: (settings) => settings.companyFacts.dependants,
-    apply: (settings, cell) => {
-      const dependants = typeof cell === 'number' ? cell : Number(String(cell).trim())
-      return dependantsProblem(dependants) ?? withFacts(settings, { dependants })
-    },
-  },
-  {
-    key: 'hr_company_registered',
-    note: 'The day the company was registered, as a date or as text such as 2025-05-12. It starts the first tax period.',
-    valueOf: (settings) => settings.companyFacts.companyRegistered ?? '',
-    apply: (settings, cell) => {
-      const registered = typeof cell === 'number' && Number.isFinite(cell) ? civilDateFromSerial(cell) : parseCivilDate(String(cell).trim())
-      return registered === null ? `"${String(cell)}" is not a date such as 2025-05-12` : withFacts(settings, { companyRegistered: registered })
-    },
-  },
-  {
-    key: 'hr_cit_return',
-    note: 'pd for the corporate tax return on the accrual profit, pd-nn for the return on cash received and paid.',
-    valueOf: (settings) => settings.companyFacts.citReturn,
-    apply: (settings, cell) => {
-      const citReturn = String(cell).trim().toLowerCase()
-      return isOneOf(citReturn, CIT_RETURNS) ? withFacts(settings, { citReturn }) : `"${citReturn}" is neither ${CIT_RETURNS.join(' nor ')}`
-    },
-  },
-  {
-    key: 'hr_vat_principle',
-    note: 'invoice when VAT falls due on the invoice date, cash when it falls due on payment.',
-    valueOf: (settings) => settings.companyFacts.vatPrinciple,
-    apply: (settings, cell) => {
-      const vatPrinciple = String(cell).trim().toLowerCase()
-      return isOneOf(vatPrinciple, VAT_PRINCIPLES) ? withFacts(settings, { vatPrinciple }) : `"${vatPrinciple}" is neither ${VAT_PRINCIPLES.join(' nor ')}`
-    },
-  },
-  {
-    key: 'hr_depreciation_doubled',
-    note: 'TRUE when the accountant doubles the depreciation rates by default. An asset row can still say otherwise.',
-    valueOf: (settings) => settings.companyFacts.depreciationDoubled,
-    apply: (settings, cell) => {
-      const doubled = booleanOf(cell)
-      return doubled === null ? `"${String(cell)}" is neither TRUE nor FALSE` : withFacts(settings, { depreciationDoubled: doubled })
-    },
-  },
-  {
-    key: 'hr_owner_loan_interest',
-    note: "The yearly interest rate the owner's loans from the company carry, as a percentage cell such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
-    valueOf: (settings) => settings.companyFacts.ownerLoanInterest / BASIS_POINTS_PER_WHOLE,
-    apply: (settings, cell) => {
-      const rate = rateOfCell(cell)
-      return typeof rate === 'string' ? rate : (ownerLoanInterestProblem(rate) ?? withFacts(settings, { ownerLoanInterest: rate }))
-    },
-  },
-]
-
 /** Every key the app reads, in the order the template lists them. */
-export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
+export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: 'template_version',
     note: 'The workbook format. Leave it as the app wrote it.',
@@ -527,81 +390,140 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
   },
   ...BILLING_DEFINITIONS,
   ...INVOICING_DEFINITIONS,
-  ...COMPANY_FACT_DEFINITIONS,
 ]
 
 const DEFINITION_BY_KEY = new Map(SETTING_DEFINITIONS.map((definition) => [definition.key, definition]))
 
+function keyOfRow(row: SettingRow): string {
+  return row.key.trim().toLowerCase()
+}
+
+/**
+ * The values with one row's cell applied by its definition, or the problem that leaves the default.
+ * A key set on more than one row is used from none of them, since where a row sits decides nothing.
+ */
+function applySettingRow<Values>(values: Values, row: SettingRow, definition: SettingDefinition<Values>, shared: ReadonlySet<string>): { readonly values: Values; readonly problem: RecordProblem | null } {
+  const named = { id: recordIdOf(SETTING_RECORDS, definition.key), label: definition.key }
+  if (shared.has(definition.key)) {
+    return { values, problem: { ...named, reason: 'set on more than one row, so the default is used' } }
+  }
+  if (row.value === undefined || String(row.value).trim() === '') {
+    return { values, problem: null }
+  }
+  const applied = definition.apply(values, row.value)
+  return typeof applied === 'string' ? { values, problem: { ...named, reason: `${applied}, so the default is used` } } : { values: applied, problem: null }
+}
+
 /**
  * The settings a `settings` tab describes, and what in it could not be used. A blank value means the
  * default. An unknown key is kept in the tab and reported. A value that does not hold falls back to
- * the default and is reported. A key set on more than one row is used from none of them, so it
- * takes its default, since where a row sits decides nothing.
+ * the default and is reported. A key set on more than one row takes its default. The keys a pack
+ * reads are left to it, so they are neither read nor reported here.
  */
-export function parseSettings(rows: readonly SettingRow[]): { readonly settings: Settings; readonly problems: RecordProblem[] } {
+export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet<string> = new Set()): { readonly settings: Settings; readonly problems: RecordProblem[] } {
   const problems: RecordProblem[] = []
-  const keyOf = (row: SettingRow): string => row.key.trim().toLowerCase()
-  const shared = sharedKeys(rows, keyOf)
+  const shared = sharedKeys(rows, keyOfRow)
   let settings = DEFAULT_SETTINGS
   for (const row of rows) {
-    const key = keyOf(row)
+    const key = keyOfRow(row)
     if (key === '') {
       problems.push({ id: null, label: 'unnamed', reason: 'a value without a key' })
       continue
     }
-    const named = { id: recordIdOf(SETTING_RECORDS, key), label: key }
-    const known = key.startsWith(IMPORT_PROFILE_PREFIX) || DEFINITION_BY_KEY.has(key)
-    if (known && shared.has(key)) {
-      problems.push({ ...named, reason: `set on more than one row, so ${key.startsWith(IMPORT_PROFILE_PREFIX) ? 'the profile is not offered' : 'the default is used'}` })
-      continue
-    }
-    if (key.startsWith(IMPORT_PROFILE_PREFIX)) {
-      if (row.value === undefined || String(row.value).trim() === '') continue
-      const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), String(row.value))
-      if (typeof profile === 'string') {
-        problems.push({ ...named, reason: `${profile}, so the profile is not offered` })
-      } else {
-        settings = { ...settings, importProfiles: [...settings.importProfiles, profile] }
-      }
+    if (packKeys.has(key)) {
       continue
     }
     const definition = DEFINITION_BY_KEY.get(key)
-    if (definition === undefined) {
+    if (definition !== undefined) {
+      const applied = applySettingRow(settings, row, definition, shared)
+      settings = applied.values
+      if (applied.problem !== null) problems.push(applied.problem)
+      continue
+    }
+    const named = { id: recordIdOf(SETTING_RECORDS, key), label: key }
+    if (!key.startsWith(IMPORT_PROFILE_PREFIX)) {
       problems.push({ ...named, reason: 'not a setting this app knows, so it is kept but not used' })
       continue
     }
-    if (row.value === undefined || String(row.value).trim() === '') {
+    if (shared.has(key)) {
+      problems.push({ ...named, reason: 'set on more than one row, so the profile is not offered' })
       continue
     }
-    const applied = definition.apply(settings, row.value)
-    if (typeof applied === 'string') {
-      problems.push({ ...named, reason: `${applied}, so the default is used` })
+    if (row.value === undefined || String(row.value).trim() === '') continue
+    const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), String(row.value))
+    if (typeof profile === 'string') {
+      problems.push({ ...named, reason: `${profile}, so the profile is not offered` })
     } else {
-      settings = applied
+      settings = { ...settings, importProfiles: [...settings.importProfiles, profile] }
     }
   }
   const clash = labelClash(settings.bucketLabels)
   if (clash !== null) {
-    const key = rows.map(keyOf).find((candidate) => candidate.startsWith('label_')) ?? null
+    const key = rows.map(keyOfRow).find((candidate) => candidate.startsWith('label_')) ?? null
     problems.push({ id: key === null ? null : recordIdOf(SETTING_RECORDS, key), label: key ?? 'label_', reason: `${clash}, so every bucket label is back to its default` })
     settings = { ...settings, bucketLabels: DEFAULT_BUCKET_LABELS }
   }
   return { settings, problems }
 }
 
-/** The key and value of every setting, in template order, as a `settings` tab holds them. */
-export function settingsTabEntries(settings: Settings): { readonly key: string; readonly value: SettingCell }[] {
+/** The values a pack's settings keys hold, read the way `parseSettings` reads core's, and what in them could not be used. */
+export function readPackSettings<Values>(rows: readonly SettingRow[], pack: PackSettings<Values>): { readonly values: Values; readonly problems: RecordProblem[] } {
+  const definitions = new Map(pack.definitions.map((definition) => [definition.key, definition]))
+  const shared = sharedKeys(rows, keyOfRow)
+  const problems: RecordProblem[] = []
+  let values = pack.defaults
+  for (const row of rows) {
+    const definition = definitions.get(keyOfRow(row))
+    if (definition === undefined) continue
+    const applied = applySettingRow(values, row, definition, shared)
+    values = applied.values
+    if (applied.problem !== null) problems.push(applied.problem)
+  }
+  return { values, problems }
+}
+
+/** Core's settings and a pack's values from one settings tab, and what in either could not be used. Each reads its own keys. */
+export function readSettingsTab<Values>(
+  rows: readonly SettingRow[],
+  pack: PackSettings<Values> | null,
+): { readonly settings: Settings; readonly packValues: Values | null; readonly problems: RecordProblem[] } {
+  const core = parseSettings(rows, new Set(pack?.definitions.map((definition) => definition.key)))
+  const packRead = pack === null ? null : readPackSettings(rows, pack)
+  return { settings: core.settings, packValues: packRead?.values ?? null, problems: [...core.problems, ...(packRead?.problems ?? [])] }
+}
+
+/** The value the settings hold for a key, which a write of it checks is still there, or null when no setting has the key. */
+export function heldSettingValue(read: RecordsRead<SettingRow>, key: string): SettingCell | null {
+  const held = read.records.find((stored) => stored.record.key.trim().toLowerCase() === key)
+  return held === undefined ? null : (held.record.value ?? '')
+}
+
+/** A pack's settings keys with the values they hold. */
+export interface PackSettingValues<Values> {
+  readonly settings: PackSettings<Values>
+  readonly values: Values
+}
+
+/** The key and value of every setting in template order, as a `settings` tab holds them: core's keys, then a pack's, then the import profiles. */
+export function settingsTabEntries<Values>(settings: Settings, pack: PackSettingValues<Values> | null): { readonly key: string; readonly value: SettingCell }[] {
   return [
     ...SETTING_DEFINITIONS.map((definition) => ({ key: definition.key, value: definition.valueOf(settings) })),
+    ...(pack === null ? [] : packSettingEntries(pack)),
     ...settings.importProfiles.map((profile) => ({ key: profileKey(profile.name), value: profileValue(profile) })),
   ]
+}
+
+function packSettingEntries<Values>(pack: PackSettingValues<Values>): { readonly key: string; readonly value: SettingCell }[] {
+  return pack.settings.definitions.map((definition) => ({ key: definition.key, value: definition.valueOf(pack.values) }))
 }
 
 const IMPORT_PROFILE_NOTE =
   'How one bank\'s spreadsheet export imports, as word=column pairs: account, date, date_format, decimal, amount or debit and credit, and the optional balance, counterparty, counterparty_iban, description and reference. Import saves it.'
 
-export function settingNote(key: string): string | null {
-  return key.startsWith(IMPORT_PROFILE_PREFIX) ? IMPORT_PROFILE_NOTE : (DEFINITION_BY_KEY.get(key)?.note ?? null)
+/** The template's note on a key, core's or the pack's, or null for a key neither reads. */
+export function settingNote(key: string, pack: PackSettings<unknown> | null): string | null {
+  if (key.startsWith(IMPORT_PROFILE_PREFIX)) return IMPORT_PROFILE_NOTE
+  return (DEFINITION_BY_KEY.get(key) ?? pack?.definitions.find((definition) => definition.key === key))?.note ?? null
 }
 
 export type SettingsField =
@@ -613,10 +535,6 @@ export type SettingsField =
   | BillingAmountField
   | BillingItemField
   | InvoicingField
-  | 'residenceCity'
-  | 'birthYear'
-  | 'dependants'
-  | 'ownerLoanInterest'
   | DefinedBucket
 
 /**
@@ -638,15 +556,6 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
     const problem = invoicingProblem(field, value)
     if (problem !== null) errors[field] = problem
   }
-  const { residenceCity, birthYear, dependants, ownerLoanInterest } = settings.companyFacts
-  const city = residenceCityProblem(residenceCity)
-  if (city !== null) errors.residenceCity = city
-  const born = birthYear === null ? null : birthYearProblem(birthYear)
-  if (born !== null) errors.birthYear = born
-  const dependantCount = dependantsProblem(dependants)
-  if (dependantCount !== null) errors.dependants = dependantCount
-  const loanInterest = ownerLoanInterestProblem(ownerLoanInterest)
-  if (loanInterest !== null) errors.ownerLoanInterest = loanInterest
   const seen = new Map<string, DefinedBucket>()
   for (const bucket of BUCKETS) {
     const label = settings.bucketLabels[bucket]
@@ -745,39 +654,6 @@ function billingItemProblem(item: string): string | null {
   return item.length > BILLING_ITEM_MAX_LENGTH ? `an item can be at most ${BILLING_ITEM_MAX_LENGTH} characters` : null
 }
 
-function residenceCityProblem(city: string): string | null {
-  return city.length > CITY_MAX_LENGTH ? `a city name can be at most ${CITY_MAX_LENGTH} characters` : null
-}
-
-function birthYearProblem(year: number): string | null {
-  return Number.isInteger(year) && year >= EARLIEST_BIRTH_YEAR && year <= LATEST_BIRTH_YEAR ? null : 'use a year of birth such as 1990'
-}
-
-function dependantsProblem(dependants: number): string | null {
-  return Number.isInteger(dependants) && dependants >= 0 && dependants <= MOST_DEPENDANTS ? null : `use a whole number from 0 to ${MOST_DEPENDANTS}`
-}
-
-/**
- * A rate in basis points from a percentage cell, which holds 2% as 0.02, or from text such as 2%,
- * 2,5 % or 0.025. A number above 1 is refused, as the year-end tab refuses it, since 2 would read as 200%.
- */
-function rateOfCell(cell: SettingCell): number | string {
-  const text = String(cell).trim().replace(/\s+/g, '').replace(',', '.')
-  const percent = text.endsWith('%')
-  const number = typeof cell === 'number' ? cell : Number(percent ? text.slice(0, -1) : text)
-  if (typeof cell === 'boolean' || !Number.isFinite(number) || text === '' || text === '%') return `"${String(cell)}" is not a rate such as 2%`
-  if (!percent && number > 1) return `${number} reads as ${number * 100}%. Enter the rate as a percentage cell, such as 2%`
-  return Math.round((percent ? number / 100 : number) * BASIS_POINTS_PER_WHOLE * 1_000) / 1_000
-}
-
-function ownerLoanInterestProblem(basisPoints: number): string | null {
-  return Number.isInteger(basisPoints) && basisPoints >= 0 && basisPoints <= BASIS_POINTS_PER_WHOLE ? null : 'use a rate from 0% to 100% with at most two decimals, such as 2%'
-}
-
-function isOneOf<Word extends string>(text: string, words: readonly Word[]): text is Word {
-  return (words as readonly string[]).includes(text)
-}
-
 function reviewLabelProblem(label: string): string | null {
   if (!/^[a-z0-9][a-z0-9_-]*$/.test(label)) {
     return 'use letters, digits, - or _, with no spaces'
@@ -788,7 +664,8 @@ function reviewLabelProblem(label: string): string | null {
   return null
 }
 
-function booleanOf(cell: SettingCell): boolean | null {
+/** A flag from a settings cell: TRUE or FALSE, and the words people type for them. Null for anything else. */
+export function booleanOf(cell: SettingCell): boolean | null {
   if (typeof cell === 'boolean') return cell
   const text = String(cell).trim().toLowerCase()
   if (['true', 'yes', 'on', '1'].includes(text)) return true
@@ -798,6 +675,18 @@ function booleanOf(cell: SettingCell): boolean | null {
 
 /** The keys whose value differs between two settings, with the new value, in template order. */
 export function changedSettings(current: Settings, next: Settings): { readonly key: string; readonly value: SettingCell }[] {
-  const before = new Map(settingsTabEntries(current).map((entry) => [entry.key, entry.value]))
-  return settingsTabEntries(next).filter((entry) => String(before.get(entry.key)) !== String(entry.value))
+  return changedEntries(settingsTabEntries(current, null), settingsTabEntries(next, null))
+}
+
+/** The keys of a pack whose value differs between two sets of its values, with the new value, in template order. */
+export function changedPackSettings<Values>(settings: PackSettings<Values>, current: Values, next: Values): { readonly key: string; readonly value: SettingCell }[] {
+  return changedEntries(packSettingEntries({ settings, values: current }), packSettingEntries({ settings, values: next }))
+}
+
+function changedEntries(
+  current: readonly { readonly key: string; readonly value: SettingCell }[],
+  next: readonly { readonly key: string; readonly value: SettingCell }[],
+): { readonly key: string; readonly value: SettingCell }[] {
+  const before = new Map(current.map((entry) => [entry.key, entry.value]))
+  return next.filter((entry) => String(before.get(entry.key)) !== String(entry.value))
 }

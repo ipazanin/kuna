@@ -5,14 +5,15 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
-import type { Grant } from '../../../../features/workbook/domain/grants'
-import { useRowWrites } from '../../../../features/workbook/presentation/useRowWrites'
-import { TEMPLATE_COLUMNS } from '../../../../features/workbook/infrastructure/workbookTemplate'
+import type { Grant } from '../../domain/grants/grants'
+import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
+import { useRecordWrites } from '../../../../features/workbook/presentation/useRecordWrites'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
-import { SCENARIO_ROWS, scenarioCells } from '../../application/scenarioRows'
+import { scenarioRowsOf } from '../../application/scenarioWrites'
+import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
 import { startingScenarios } from '../../domain/scenarios/startingScenarios'
 
 /** Writes the four starting scenarios for a year, and adds the scenarios tab first when the Sheet lacks it and the person says so. */
@@ -27,7 +28,7 @@ const props = defineProps<{
   taken: readonly string[]
 }>()
 
-const writes = useRowWrites(SCENARIO_ROWS)
+const writes = useRecordWrites()
 const phone = usePhoneLayout()
 
 const rent = ref('')
@@ -49,17 +50,16 @@ const parsedRent = computed((): Money | null | 'bad' => {
 
 const seeded = computed(() => startingScenarios(props.year, props.grants, parsedRent.value === 'bad' ? null : parsedRent.value))
 const clash = computed(() => seeded.value.drafts.filter((draft) => props.taken.includes(draft.slug)).map((draft) => draft.slug))
-const headers = TEMPLATE_COLUMNS.scenarios.map((column) => column.name).join(', ')
 
 async function save(): Promise<void> {
   tried.value = true
   if (parsedRent.value === 'bad' || clash.value.length > 0) return
-  const written = await writes.write(
-    { added: scenarioCells(seeded.value.drafts), changed: [], removed: [] },
-    { title: props.tabMissing ? 'Scenarios tab added' : 'Starting scenarios added', description: `${seeded.value.drafts.length} scenarios for ${props.year}, written to ${writes.where()}.` },
-    'Not added',
-    props.tabMissing,
-  )
+  const rows = scenarioRowsOf(seeded.value.drafts)
+  const written = await writes.write(props.tabMissing ? 'Scenarios tab added' : 'Starting scenarios added', (unit) => rows.forEach((row) => unit.of(SCENARIO_WRITES).add(row)), {
+    description: `${seeded.value.drafts.length} scenarios for ${props.year}.`,
+    failedTitle: 'Not added',
+    addMissingKinds: props.tabMissing,
+  })
   if (written) open.value = false
 }
 </script>
@@ -80,10 +80,7 @@ async function save(): Promise<void> {
           <UInput v-model="rent" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="starting-rent" />
         </UFormField>
         <p v-if="clash.length > 0" class="text-sm text-error" role="alert">The tab already has {{ clash.join(', ') }}, so the starting scenarios for {{ year }} are there.</p>
-        <div v-if="tabMissing" class="rounded-[var(--radius-control)] border border-default px-3 py-2 text-sm text-toned" data-testid="add-tab-notice">
-          The Sheet has no scenarios tab. Adding these adds a tab named <span class="identifier">scenarios</span> with the headers <span class="identifier">{{ headers }}</span> in row 1, then
-          writes the rows below them. Nothing else in the Sheet changes.
-        </div>
+        <AddTabNotice v-if="tabMissing" tab="scenarios" />
       </form>
     </template>
     <template #footer>

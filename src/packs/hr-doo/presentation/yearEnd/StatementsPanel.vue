@@ -5,12 +5,13 @@ import { useRoute } from 'vue-router'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import { YEAR_END_ROWS } from '../../../../features/settings/application/workbookTabRows'
-import { YEAR_END_COLUMNS } from '../../../../features/settings/presentation/factTabColumns'
+import { YEAR_END_WRITES } from '../../domain/hrDooWrites'
+import { YEAR_END_COLUMNS } from '../editorColumns'
 import FactTabCard from '../../../../features/settings/presentation/FactTabCard.vue'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
-import type { SheetRow } from '../../../../features/workbook/infrastructure/workbookSnapshot'
-import { readYearEnd } from '../../../../features/workbook/infrastructure/yearEndTabReader'
+import type { HrDooWorkbook } from '../../domain/hrDooPart'
+import type { RecordsRead } from '../../../../features/workbook/domain/recordsRead'
+import type { YearEndLine } from '../../domain/yearEnd/yearEnd'
+import { readYearEnd, yearEndLineOfFields } from '../../domain/yearEnd/yearEndReading'
 import type { ClosedYearView } from './closedYearView'
 import ComparisonTable from './ComparisonTable.vue'
 import KontoTable from './KontoTable.vue'
@@ -21,7 +22,7 @@ import StatusBadge from './StatusBadge.vue'
  * accountant's lines to edit. A year that has ended without them has only the editor, open.
  */
 const props = defineProps<{
-  workbook: Workbook
+  workbook: HrDooWorkbook
   year: number
   /** Null while the year has no accountant's lines. */
   view: ClosedYearView | null
@@ -30,7 +31,7 @@ const props = defineProps<{
 const route = useRoute()
 
 const categorySlugs = computed(() => new Set(props.workbook.categories.map((category) => category.slug)))
-const readLines = (rows: readonly SheetRow[]) => readYearEnd(rows, categorySlugs.value)
+const readLines = (records: RecordsRead<YearEndLine>) => readYearEnd(records, categorySlugs.value)
 /** A new line starts in the year on screen, on the profit and loss. */
 const newLine = () => ({ year: String(props.year), statement: 'pl' })
 </script>
@@ -90,12 +91,13 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
 
     <FactTabCard
       id="accountant-lines"
-      :rules="YEAR_END_ROWS"
+      :rules="YEAR_END_WRITES"
       title="The accountant's lines"
       description="The accountant's figures for every year, one row per year, statement and line, typed once from the year-end package. A konto row names the categories it matches."
       collapse-id="year.accountant-lines"
       :columns="YEAR_END_COLUMNS"
       :read="readLines"
+      :make="yearEndLineOfFields"
       :new-row="newLine"
       row-noun="year-end line"
       tab-noun="year-end lines"

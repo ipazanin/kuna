@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { exportWorkbook } from '../application/workbookFiles'
+import { exportWorkbook } from '../../workbook/presentation/workbookFiles'
 
 export interface ExportAction {
   readonly exporting: Readonly<Ref<boolean>>

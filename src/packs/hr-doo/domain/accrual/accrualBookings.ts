@@ -1,11 +1,12 @@
 import { advanceDrill, rowDrill } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
 import { RECEIVABLE_ROLES } from '../../../../features/receivables/domain/invoiceMatching'
-import type { Asset } from '../../../../features/workbook/domain/assets'
+import type { Asset } from '../assets/assets'
 import { PROFIT_AND_LOSS_BUCKETS } from '../../../../features/workbook/domain/bucket'
 import type { Bucket } from '../../../../features/workbook/domain/bucket'
 import { bookingOfAdvance, ownerAdvanceOrder } from '../../../../features/workbook/domain/workbook'
-import type { Booking, Category, OwnerAdvance, Transaction, Workbook } from '../../../../features/workbook/domain/workbook'
+import type { Booking, Category, OwnerAdvance, Transaction } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../hrDooPart'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
@@ -101,7 +102,7 @@ const TAKEN_OUT: readonly (readonly [role: string, treatment: TakenOutTreatment]
  * accrual view does with it. A capital purchase goes to the asset books only when an asset row
  * claims it. One no asset claims is small inventory and counts as a cost when paid.
  */
-export function accrualBookings(workbook: Workbook, rules: RuleSource = ruleValue): readonly AccrualBooking[] {
+export function accrualBookings(workbook: HrDooWorkbook, rules: RuleSource = ruleValue): readonly AccrualBooking[] {
   const categories = new Map(workbook.categories.map((category) => [category.slug, category]))
   const register = assetRegister(workbook.assets, workbook.transactions, workbook.categories, rules)
   const claimed = new Map<Transaction, Asset[]>()
@@ -162,12 +163,12 @@ function timed(
   booking: Booking,
   vat: VatSplit,
   category: Category,
-  workbook: Workbook,
+  workbook: HrDooWorkbook,
   rules: RuleSource,
 ): { readonly timing: BookingTiming; readonly shares: readonly MonthShare[] } {
   const cost = vat.cost.amount
   if (category.roles.includes(PACK_ROLES.arrears)) {
-    return { timing: 'arrears', shares: [{ month: serviceMonthOf(booking, workbook.categories, workbook.settings), amount: cost }] }
+    return { timing: 'arrears', shares: [{ month: serviceMonthOf(booking, workbook.categories, workbook.companyFacts), amount: cost }] }
   }
   if (category.roles.includes(PACK_ROLES.prepaidAnnual)) {
     const spread = prepaymentSpread({ ...booking, amount: cost }, PREPAID_MONTHS, rules)

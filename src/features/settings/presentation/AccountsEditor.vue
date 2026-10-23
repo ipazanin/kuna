@@ -4,17 +4,17 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { displayName } from '../../workbook/domain/displayName'
-import type { TabRowsChange } from '../../workbook/domain/rowChanges'
 import { listInWords } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
-import type { SheetRow } from '../../workbook/infrastructure/workbookSnapshot'
-import { ACCOUNT_ROWS } from '../application/workbookTabRows'
-import { accountCellsOf, accountDraftErrors } from '../domain/accountDrafts'
+import type { AccountRecord } from '../../workbook/domain/accountsReading'
+import type { RecordsRead } from '../../workbook/domain/recordsRead'
+import { accountDraftErrors, accountDraftsOf, accountsOfDrafts } from '../domain/accountDrafts'
 import type { AccountDraft } from '../domain/accountDrafts'
-import { rowsChangeOf } from '../domain/tabRowDrafts'
+import { storedOf } from '../../workbook/domain/recordsRead'
 
 const props = defineProps<{
-  rows: readonly SheetRow[]
+  /** The accounts as stored, refused ones included, so they can be fixed here. */
+  records: RecordsRead<AccountRecord>
   /** What names each account outside the tab. An account in use keeps its name and its row. */
   uses: SlugUses
   /** The workbook's currency, which a blank account currency means. */
@@ -23,26 +23,18 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  save: [change: TabRowsChange]
+  save: [made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]]
 }>()
 
-function draftsOf(rows: readonly SheetRow[]): AccountDraft[] {
-  return rows.map((row, saved) => {
-    const text = (column: string): string => (row.cells[column] === undefined ? '' : String(row.cells[column]))
-    return { saved, savedName: text('account'), account: text('account'), label: text('label'), iban: text('iban'), currency: text('currency') }
-  })
-}
 
-const drafts = ref<AccountDraft[]>(draftsOf(props.rows))
-watch(
-  () => props.rows,
-  (rows) => {
-    drafts.value = draftsOf(rows)
-  },
-)
+const stored = computed(() => storedOf(props.records))
+const drafts = ref<AccountDraft[]>(accountDraftsOf(stored.value))
+watch(stored, (records) => {
+  drafts.value = accountDraftsOf(records)
+})
 
 const usedNames = computed(() => new Set(props.uses.keys()))
-const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(draftsOf(props.rows)))
+const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(accountDraftsOf(stored.value)))
 const errors = computed(() => accountDraftErrors(drafts.value, usedNames.value))
 
 function update(index: number, field: 'account' | 'label' | 'iban' | 'currency', text: string): void {
@@ -66,19 +58,10 @@ function remove(index: number): void {
 }
 
 function save(): void {
-  const savedCells = new Map(props.rows.map((row, saved) => [saved, row.cells]))
-  const opened = draftsOf(props.rows)
-  const openedCells = accountCellsOf(opened, savedCells)
-  const draftedCells = accountCellsOf(drafts.value, savedCells)
-  emit(
-    'save',
-    rowsChangeOf(
-      props.rows,
-      ACCOUNT_ROWS.columns,
-      drafts.value.map((draft, index) => ({ saved: draft.saved, cells: draftedCells[index]! })),
-      new Map(opened.map((_, saved) => [saved, openedCells[saved]!])),
-    ),
-  )
+  const made = accountsOfDrafts(stored.value, drafts.value)
+  const records = made.flatMap((draft) => ('record' in draft ? [draft] : []))
+  // A draft its kind refuses is shown with its error, so a save never leaves it out.
+  if (records.length === made.length) emit('save', records)
 }
 </script>
 
@@ -158,7 +141,7 @@ function save(): void {
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton label="Add account" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="addAccount" />
     <span class="flex-1" />
-    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = draftsOf(rows)" />
+    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = accountDraftsOf(stored)" />
     <UButton label="Save accounts" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" @click="save" />
   </div>
 </template>

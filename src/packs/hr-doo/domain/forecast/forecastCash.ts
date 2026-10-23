@@ -1,10 +1,11 @@
 import { latestBalances } from '../../../../features/cash/domain/balances'
 import { daysToPaid } from '../../../../features/receivables/domain/daysToPaid'
 import { receivablesOf } from '../../../../features/receivables/domain/invoiceMatching'
-import type { Asset } from '../../../../features/workbook/domain/assets'
+import type { Asset } from '../assets/assets'
 import { displayName } from '../../../../features/workbook/domain/displayName'
 import { newestBookingOf } from '../../../../features/workbook/domain/workbook'
-import type { Transaction, Workbook } from '../../../../features/workbook/domain/workbook'
+import type { Transaction } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../hrDooPart'
 import { addDays, civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, lastDayOf, monthKey, monthOf, yearOfMonth } from '../../../../shared/calendar/monthKey'
@@ -63,7 +64,7 @@ export interface CashInputs {
   readonly year: number
   readonly calendar: ForecastCalendar
   /** The workbook as it stood on the day of the forecast. */
-  readonly known: Workbook
+  readonly known: HrDooWorkbook
   readonly asOf: CivilDate
   readonly revenue: ForecastLine
   readonly categories: readonly CategoryForecast[]
@@ -93,7 +94,7 @@ const KIND_LABELS: Readonly<Record<CashKind, string>> = {
 const KIND_ORDER: readonly CashKind[] = ['carried-revenue', 'carried-costs', 'open-invoices', 'vat', 'revenue', 'costs', 'purchases', 'dividend', 'corporate-tax']
 
 /** The median days from issue to payment of every invoice paid so far, or a day when none is, so the revenue of a month comes in the month after. */
-export function paymentLagOf(known: Workbook): PaymentLag {
+export function paymentLagOf(known: HrDooWorkbook): PaymentLag {
   const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
   const median = daysToPaid(receivables.clients.flatMap((client) => client.invoices), null).median
   return median === null

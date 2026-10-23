@@ -7,12 +7,13 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { storedCellsOf } from '../../../../features/workbook/application/tabRowWrites'
+import { recordsOfKindIn } from '../../../../features/workbook/domain/readWorkbook'
+import { NO_RECORDS, recordWithId } from '../../../../features/workbook/domain/recordsRead'
+import { SCENARIO_RECORDS } from '../../domain/hrDooKinds'
 import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
-import { DIRECTOR_BASES } from '../../../../features/workbook/domain/ownerPayScenarios'
-import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from '../../../../features/workbook/domain/ownerPayScenarios'
-import type { RowCells } from '../../../../features/workbook/domain/rowChanges'
-import { useRowWrites } from '../../../../features/workbook/presentation/useRowWrites'
+import { DIRECTOR_BASES } from '../../domain/scenarios/ownerPayScenarios'
+import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
+import { useRecordWrites } from '../../../../features/workbook/presentation/useRecordWrites'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
@@ -20,7 +21,9 @@ import { amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { SCENARIO_ROWS, componentCells } from '../../application/scenarioRows'
+import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
+import { scenarioRowOfComponent } from '../../domain/scenarios/scenariosReading'
+import type { ScenarioRow } from '../../domain/scenarios/scenariosReading'
 import { componentInWords } from '../../domain/scenarios/scenarioGuards'
 import type { ComponentDraft } from '../../domain/scenarios/startingScenarios'
 import { BASIS_WORDS, yearlyItems } from './scenarioWording'
@@ -44,7 +47,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useRowWrites(SCENARIO_ROWS)
+const writes = useRecordWrites()
 const phone = usePhoneLayout()
 
 const kind = ref<Kind>('salary_gross')
@@ -147,40 +150,33 @@ function draft(): ComponentDraft | null {
   }
 }
 
-function readCells(component: ScenarioComponent): RowCells | null {
-  return storedCellsOf(store.state.snapshot?.scenarios ?? [], SCENARIO_ROWS, component.id)
+/** The component's record as the app read it. */
+function storedRow(component: ScenarioComponent): ScenarioRow | null {
+  return recordWithId(store.state.records === null ? NO_RECORDS : recordsOfKindIn(store.state.records, SCENARIO_RECORDS), component.id)?.record ?? null
 }
 
 async function save(): Promise<void> {
   tried.value = true
   const typed = draft()
   if (typed === null) return
-  const cells = componentCells(props.scenario.slug, props.scenario.year, typed)
   const component = props.component
   if (component === null) {
-    if (await writes.write({ added: [cells], changed: [], removed: [] }, { title: 'Component added' }, 'Not added')) open.value = false
+    const added = scenarioRowOfComponent(props.scenario.slug, '', props.scenario.year, typed)
+    if (await writes.write('Component added', (unit) => unit.of(SCENARIO_WRITES).add(added), { failedTitle: 'Not added' })) open.value = false
     return
   }
-  const before = readCells(component)
+  const before = storedRow(component)
   if (before === null) return
-  const after: RowCells = { ...before, component: cells.component ?? '', amount: cells.amount ?? '', from: cells.from ?? '', to: cells.to ?? '' }
-  const saved = await writes.write(
-    { added: [], changed: [{ before, after }], removed: [] },
-    { title: 'Component saved', description: `Written to ${writes.where()}: ${componentInWords(component)}.` },
-    'Not saved',
-  )
+  const after = scenarioRowOfComponent(before.slug, before.label, before.year, typed)
+  const saved = await writes.write('Component saved', (unit) => unit.of(SCENARIO_WRITES).change(before, after), { description: `${componentInWords(component)}.`, failedTitle: 'Not saved' })
   if (saved) open.value = false
 }
 
 async function remove(): Promise<void> {
   const component = props.component
-  const cells = component === null ? null : readCells(component)
-  if (component === null || cells === null) return
-  const deleted = await writes.write(
-    { added: [], changed: [], removed: [cells] },
-    { title: 'Component deleted', description: `Taken out of ${writes.where()}: ${componentInWords(component)}.` },
-    'Not deleted',
-  )
+  const before = component === null ? null : storedRow(component)
+  if (component === null || before === null) return
+  const deleted = await writes.write('Component deleted', (unit) => unit.of(SCENARIO_WRITES).remove(before), { description: `${componentInWords(component)}.`, failedTitle: 'Not deleted' })
   if (deleted) open.value = false
 }
 </script>

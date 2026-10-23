@@ -1,4 +1,5 @@
-import type { WorkbookStatus, WorkbookStore } from './workbookStore'
+import type { WorkbookStatus, WorkbookStore } from './createWorkbookStore'
+import type { WorkbookCopy } from './workbookPorts'
 
 /** An automatic sync waits this long after the last read or attempt, so returning to the tab does not refetch every time. */
 export const AUTO_SYNC_INTERVAL_MS = 10 * 60_000
@@ -27,7 +28,7 @@ export function autoSyncDue(moment: AutoSyncMoment): boolean {
 }
 
 export interface AutoSyncPorts {
-  readonly store: Pick<WorkbookStore, 'state' | 'open' | 'sync' | 'canSyncSilently'>
+  readonly store: Pick<WorkbookStore<WorkbookCopy>, 'state' | 'open' | 'sync' | 'canSyncSilently'>
   now(): number
   online(): boolean
   /** Calls back whenever the page becomes visible again. Returns the function that stops it. */

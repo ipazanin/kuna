@@ -2,7 +2,9 @@ import { defineAsyncComponent } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { PackContribution } from '../../features/packs/packContribution'
-import { assetsClaimingRows } from './domain/assets/assetRegister'
+import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts'
+import type { CompanyFacts } from './domain/companyFacts'
+import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { unaccountedInView } from './presentation/unaccountedInView'
 import { findLocalUnit } from './ruleset/localUnits'
@@ -15,12 +17,12 @@ const COST_GROUP_LINKS: Readonly<Record<string, { readonly label: string; readon
 
 /** The Croatian d.o.o. pack: owner pay, taxes, the accountant's year end and the assets, on core's screens and its own. */
 export const hrDooPack: PackContribution = {
-  rowsKeptWhole: (workbook) => assetsClaimingRows(workbook.assets, workbook.transactions, workbook.categories),
+  workbook: HR_DOO_PART,
   screens: [
     { path: '/owner', title: 'Owner', icon: 'i-lucide-user-round', component: () => import('./presentation/OwnerScreen.vue') },
     { path: '/year', title: 'Year', icon: 'i-lucide-calendar-check', component: () => import('./presentation/year/YearScreen.vue') },
   ],
-  waitingJobs: packWaitingJobs,
+  waitingJobs: (workbook, asOf) => packWaitingJobs(hrDooWorkbook(workbook), asOf),
   reviewCards: [
     {
       component: defineAsyncComponent(() => import('./presentation/UnaccountedCard.vue')),
@@ -33,11 +35,12 @@ export const hrDooPack: PackContribution = {
   settingsCards: [defineAsyncComponent(() => import('./presentation/LoanBucketSwitch.vue'))],
   companyFacts: {
     card: defineAsyncComponent(() => import('./presentation/CompanyFactsCard.vue')),
+    factsOf: (workbook) => (workbook === null ? COMPANY_FACT_SETTINGS.defaults : hrDooWorkbook(workbook).companyFacts),
     // The workbook keeps the city as text, so a name typed there can be one the lookup refuses. Blank stays allowed.
-    errors: (facts) => {
+    errors: (facts: CompanyFacts) => {
       const city = facts.residenceCity.trim()
       const problem = city === '' ? null : findLocalUnit(city).problem
-      return problem === null ? {} : { residenceCity: problem }
+      return { ...companyFactsErrors(facts), ...(problem === null ? {} : { residenceCity: problem }) }
     },
   },
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,

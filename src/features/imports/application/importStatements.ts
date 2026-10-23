@@ -8,7 +8,11 @@ import type { ImportProfile } from '../domain/importProfile'
 import type { StatementReading } from '../domain/importedStatement'
 import { headerRowOf, readTabularStatement } from '../domain/tabularStatement'
 import type { CellGrid } from '../domain/tabularStatement'
-import type { LoadedImportFile } from '../infrastructure/importFiles'
+
+/** A file dropped on Import, as far as reading it goes: a camt document, or a spreadsheet's first sheet as cells. */
+export type LoadedImportFile =
+  | { readonly kind: 'camt'; readonly fileName: string; readonly document: Document }
+  | { readonly kind: 'table'; readonly fileName: string; readonly fileHash: string; readonly grid: CellGrid }
 
 /** The workbook's account for each IBAN on the accounts tab, normalised, as the Apps Script's `requireAccountIbans` reads them. */
 export function accountsByIban(workbook: Pick<Workbook, 'accounts'>): ReadonlyMap<string, string> {

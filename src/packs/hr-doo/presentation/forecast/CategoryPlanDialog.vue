@@ -5,13 +5,12 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
-import type { PlanLine } from '../../../../features/workbook/domain/plan'
-import type { RowCells } from '../../../../features/workbook/domain/rowChanges'
+import type { PlanLine } from '../../domain/forecast/plan'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { categoryPlanCells, replacedPlanRows } from '../../application/planRows'
-import type { KeyedRow } from '../../application/planRows'
+import { categoryPlanLine, replacePlanLines } from '../../application/planWrites'
+import type { KeyedLine } from '../../application/planWrites'
 import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { fieldAmount, monthsOf } from './planWording'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -62,10 +61,10 @@ const errors = computed(() => ({ every: wrong(every.value), months: months.value
 const valid = computed(() => !errors.value.every && !errors.value.months.some((error) => error))
 const placeholder = computed(() => (every.value.trim() !== '' && !errors.value.every ? every.value : props.average === null ? '0.00' : fieldAmount(props.average)))
 
-function held(): KeyedRow<RowCells>[] {
+function held(): KeyedLine<PlanLine>[] {
   return props.lines.flatMap((line) => {
-    const row = writes.rowOf(line)
-    return row === null ? [] : [{ key: line.month === null ? 'every' : String(line.month), cells: row }]
+    const stored = writes.stored(line)
+    return stored === null ? [] : [{ key: line.month === null ? 'every' : String(line.month), line: stored }]
   })
 }
 
@@ -74,18 +73,19 @@ async function save(): Promise<void> {
   if (!valid.value) return
   const noteOf = (month: number | null) => props.lines.find((line) => line.month === month)?.note ?? ''
   const wanted = [
-    ...(every.value.trim() === '' ? [] : [{ key: 'every', cells: categoryPlanCells(props.year, null, props.slug, typedAmount(every.value) as Money, noteOf(null)) }]),
+    ...(every.value.trim() === '' ? [] : [{ key: 'every', line: categoryPlanLine(props.year, null, props.slug, typedAmount(every.value) as Money, noteOf(null)) }]),
     ...calendar.value.flatMap((month, index) => {
       const text = months.value[index] ?? ''
-      return text.trim() === '' ? [] : [{ key: String(month.number), cells: categoryPlanCells(props.year, month.number, props.slug, typedAmount(text) as Money, noteOf(month.number)) }]
+      return text.trim() === '' ? [] : [{ key: String(month.number), line: categoryPlanLine(props.year, month.number, props.slug, typedAmount(text) as Money, noteOf(month.number)) }]
     }),
   ]
-  if (await writes.write(replacedPlanRows(held(), wanted), { title: 'Plan saved', description: `${props.name} for ${props.year}, written to ${writes.where()}.` }, 'Not saved')) open.value = false
+  const holding = held()
+  if (await writes.write('Plan saved', (lines) => replacePlanLines(lines, holding, wanted), { description: `${props.name} for ${props.year}.`, failedTitle: 'Not saved' })) open.value = false
 }
 
 async function clear(): Promise<void> {
-  const removed = held().map((entry) => entry.cells)
-  if (await writes.write({ added: [], changed: [], removed }, { title: 'Plan cleared', description: `${props.name} for ${props.year} takes its average again.` }, 'Not cleared')) open.value = false
+  const holding = held()
+  if (await writes.write('Plan cleared', (lines) => replacePlanLines(lines, holding, []), { description: `${props.name} for ${props.year} takes its average again.`, failedTitle: 'Not cleared' })) open.value = false
 }
 </script>
 
@@ -112,7 +112,7 @@ async function clear(): Promise<void> {
             <UInput v-model="months[index]" inputmode="decimal" :placeholder="placeholder" class="w-full" :aria-label="`${month.name} ${year}`" :data-testid="`plan-month-${month.number}`" />
           </UFormField>
         </fieldset>
-        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" :headers="writes.headers" />
+        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" />
       </form>
     </template>
     <template #footer>

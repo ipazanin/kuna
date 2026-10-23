@@ -5,3 +5,10 @@ export class WorkbookWriteRefused extends Error {
     this.name = 'WorkbookWriteRefused'
   }
 }
+
+/** Refuses a write with every reason given, or lets it go ahead when there are none. */
+export function refuseOn(refusals: readonly string[]): void {
+  if (refusals.length > 0) {
+    throw new WorkbookWriteRefused(`Nothing was written. ${refusals.join(' ')}`)
+  }
+}

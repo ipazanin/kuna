@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Asset } from '../src/features/workbook/domain/assets'
+import type { Asset } from '../src/packs/hr-doo/domain/assets/assets'
 import type { Category } from '../src/features/workbook/domain/workbook'
 import { assetRegister } from '../src/packs/hr-doo/domain/assets/assetRegister'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { ASSET_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { ASSET_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 const EQUIPMENT: Category = {
   slug: 'equipment',
@@ -122,5 +128,57 @@ describe('assetRegister', () => {
       ['Invoice 56/1 monitor', ['Example monitor'], euros(760)],
     ])
     expect(register.mismatchedPayments[0]?.drill.filters.amount).toEqual({ min: euros(-900), max: euros(-900) })
+  })
+
+  it('leaves a row dated before the ruleset knows a VAT rate unclaimed, and names it on the asset that would claim it', () => {
+    const transactions = ledger([
+      { date: '2024-05-24', amount: -250, category: 'equipment', description: 'Order 2024-77 dock' },
+      { date: '2024-06-03', amount: -375, category: 'equipment', description: 'Monitor order' },
+      { date: '2025-06-03', amount: -1250, category: 'equipment', description: 'Laptop order' },
+    ])
+    const register = assetRegister(
+      [asset('Example dock', 200, '2024-05-24', 'Order 2024-77'), asset('Example monitor', 300, '2024-06-03'), asset('Example laptop', 1000, '2025-06-03')],
+      transactions,
+      CATEGORIES,
+    )
+
+    expect(register.assets.map((entry) => entry.payment?.row.description ?? null)).toEqual([null, null, 'Laptop order'])
+    expect(register.uncheckedClaims.map((claim) => [claim.asset.name, claim.row.date, claim.matchedBy])).toEqual([
+      ['Example dock', '2024-05-24', 'description'],
+      ['Example monitor', '2024-06-03', 'date-and-amount'],
+    ])
+    expect(register.unmatchedPurchases.map((purchase) => purchase.row.description)).toEqual(['Order 2024-77 dock', 'Monitor order'])
+    expect(register.mismatchedPayments).toEqual([])
+  })
+})
+
+describe('a workbook with a capital purchase dated before the ruleset', () => {
+  /** The fake workbook with an asset whose ledger reference finds a bank row of 2024. */
+  function withEarlyPurchase(): WorkbookSnapshot {
+    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')
+    const day = serialFromCivilDate(civil('2024-05-24'))
+    const ledgerRow: CellValue[] = [day, 'legacy', '2024-05-24-statement-000', 'Dock Shop', '', 'Card purchase, dock', -250, 0, 'equipment', 'human', 'FAKE-REF-EARLY']
+    const assetRow: CellValue[] = ['Example dock', day, '', 200, 'equipment', '', '', '', 'Card purchase, dock', '', '00000000-0000-4000-8000-0000000000aa']
+    const rowsAfter = (rows: WorkbookSnapshot['ledger'], added: CellValue[], header: readonly string[]) => [
+      ...rows,
+      ...sheetRowsFromValues([[...header], added]).map((row) => ({ ...row, sheetRow: rows.length + 2 })),
+    ]
+    return {
+      ...snapshot,
+      ledger: rowsAfter(snapshot.ledger, ledgerRow, ['date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance', 'category', 'flagged_by', 'reference']),
+      assets: rowsAfter(snapshot.assets, assetRow, ['asset', 'bought', 'in_use', 'cost_net', 'group', 'doubled', 'disposed', 'funded_by', 'ledger_reference', 'note', 'id']),
+    }
+  }
+
+  it('reads, with a problem on the asset that names the day and the missing VAT rate', () => {
+    const workbook = hrDooWorkbook(readSnapshot(withEarlyPurchase()).workbook)
+
+    expect(workbook.assets.map((asset) => asset.name)).toContain('Example dock')
+    expect(workbook.problems.filter((problem) => problem.tab === 'assets').map((problem) => [problem.label, problem.reason])).toEqual([
+      [
+        'Example dock',
+        'its ledger_reference finds the bank row of 2024-05-24, but the app has no standard VAT rate for that day to check the amount against, so the row is left unclaimed',
+      ],
+    ])
   })
 })

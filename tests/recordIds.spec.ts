@@ -1,21 +1,22 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { BILLING_PLAN_ROWS } from '../src/features/billingPlan/application/billingPlanRows'
-import { DISMISSED_ROWS } from '../src/features/review/application/dismissedRows'
-import { ASSET_ROWS, YEAR_END_ROWS } from '../src/features/settings/application/workbookTabRows'
-import { SPLIT_ROWS } from '../src/features/transactions/application/splitRows'
-import { OWNER_ADVANCE_ROWS } from '../src/features/workbook/application/ownerAdvanceRows'
-import { rowCellsOf } from '../src/features/workbook/application/tabRowWrites'
-import type { TabRowRules } from '../src/features/workbook/application/tabRowWrites'
-import type { WorkbookStore } from '../src/features/workbook/application/workbookStore'
+import { BILLING_WRITES } from '../src/features/billingPlan/application/billingWrites'
+import { DISMISSAL_WRITES } from '../src/features/review/application/dismissalWrites'
+import { SPLIT_WRITES } from '../src/features/transactions/application/splitWrites'
+import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import type { Workbook } from '../src/features/workbook/domain/workbook'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import type { WriteRules } from '../src/features/workbook/domain/writeRules'
+import { readSnapshot, spreadsheetTabOfKind } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { PLAN_ROWS } from '../src/packs/hr-doo/application/planRows'
+import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { ASSET_WRITES, OWNER_ADVANCE_WRITES, PLAN_WRITES, YEAR_END_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
+import { recordsOnScreen } from './fixtures/records'
 import { withIds } from './fixtures/rowIds'
 import { forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
 const used = new Set<string>()
 
@@ -25,16 +26,16 @@ afterEach(async () => {
 
 /** One tab whose rows carry ids, two valid rows on it, the records the workbook reads from it and the labels of its two rows. */
 interface IdTab {
-  readonly rules: TabRowRules
+  readonly rules: WriteRules<unknown>
   readonly grid: CellValue[][]
-  readonly records: (workbook: Workbook) => readonly unknown[]
+  readonly records: (workbook: HrDooWorkbook) => readonly unknown[]
   readonly first: string
   readonly second: string
 }
 
 const ID_TABS: readonly IdTab[] = [
   {
-    rules: BILLING_PLAN_ROWS,
+    rules: BILLING_WRITES as WriteRules<unknown>,
     grid: [
       ['item', 'date', 'amount', 'client', 'description'],
       ['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026'],
@@ -45,7 +46,7 @@ const ID_TABS: readonly IdTab[] = [
     second: 'Bonus, acme, 2026-10-05, 800',
   },
   {
-    rules: OWNER_ADVANCE_ROWS,
+    rules: OWNER_ADVANCE_WRITES as WriteRules<unknown>,
     grid: [
       ['date', 'amount', 'description', 'category'],
       [46200, 12.5, 'Stamps', 'printing'],
@@ -56,7 +57,7 @@ const ID_TABS: readonly IdTab[] = [
     second: '30, 2026-07-07',
   },
   {
-    rules: ASSET_ROWS,
+    rules: ASSET_WRITES as WriteRules<unknown>,
     grid: [
       ['asset', 'bought', 'cost_net', 'group'],
       ['Laptop', 45809, 1519.2, 'computers'],
@@ -67,7 +68,7 @@ const ID_TABS: readonly IdTab[] = [
     second: 'Desk',
   },
   {
-    rules: YEAR_END_ROWS,
+    rules: YEAR_END_WRITES as WriteRules<unknown>,
     grid: [
       ['year', 'statement', 'line', 'label', 'amount', 'categories'],
       [2025, 'pl', 'sales', 'Sales', 46800],
@@ -78,7 +79,7 @@ const ID_TABS: readonly IdTab[] = [
     second: '2025 konto 41850',
   },
   {
-    rules: PLAN_ROWS,
+    rules: PLAN_WRITES as WriteRules<unknown>,
     grid: [
       ['year', 'month', 'item', 'amount', 'note'],
       [2027, '', 'printing', 10],
@@ -89,7 +90,7 @@ const ID_TABS: readonly IdTab[] = [
     second: 'dividend, 2027, month 6, 8000',
   },
   {
-    rules: SPLIT_ROWS,
+    rules: SPLIT_WRITES as WriteRules<unknown>,
     grid: [
       ['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note'],
       [46299, 'main', -20, 1038.9, -12, 'ai-services'],
@@ -100,7 +101,7 @@ const ID_TABS: readonly IdTab[] = [
     second: 'printing, -8, 2026-10-04',
   },
   {
-    rules: DISMISSED_ROWS,
+    rules: DISMISSAL_WRITES as WriteRules<unknown>,
     grid: [
       ['kind', 'key', 'category', 'dismissed_on'],
       ['not-covered', 'name:desk co', 'equipment', 46316],
@@ -112,6 +113,10 @@ const ID_TABS: readonly IdTab[] = [
   },
 ]
 
+function tabOf(tab: IdTab): WorkbookTab {
+  return spreadsheetTabOfKind(tab.rules.kind).tab
+}
+
 /** The write-back workbook with a printing category and a client, and this tab. */
 function gridsWith(tab: IdTab, grid: CellValue[][]): Record<string, CellValue[][]> {
   const base = workbookGrids()
@@ -122,14 +127,14 @@ function gridsWith(tab: IdTab, grid: CellValue[][]): Record<string, CellValue[][
       ['client', 'name', 'iban'],
       ['acme', 'Acme Studio', 'XX00FAKE0000000099'],
     ],
-    [tab.rules.tab]: grid,
+    [tabOf(tab)]: grid,
   }
 }
 
-function workbookOf(grids: Record<string, CellValue[][]>): Workbook {
+function workbookOf(grids: Record<string, CellValue[][]>): HrDooWorkbook {
   const tabs = Object.fromEntries(Object.entries(grids).map(([tab, grid]) => [tab, sheetRowsFromValues(grid)]))
   const meta = { id: 'books', source: 'excel', title: 'Books', syncedAt: '2026-10-22T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] }
-  return readWorkbook({ meta, ...EMPTY_TABS, ...tabs } as WorkbookSnapshot)
+  return hrDooWorkbook(readSnapshot({ meta, ...EMPTY_TABS, ...tabs } as WorkbookSnapshot).workbook)
 }
 
 function problemsOn(workbook: Workbook, tab: string): [string, string][] {
@@ -141,7 +146,7 @@ function withoutId<Cell extends CellValue | null>(row: readonly Cell[], idColumn
   return row.map((cell, column) => (column === idColumn ? '' : cell))
 }
 
-describe.each(ID_TABS.map((tab) => [tab.rules.tab, tab] as const))('the %s tab', (name, tab) => {
+describe.each(ID_TABS.map((tab) => [tabOf(tab), tab] as const))('the %s tab', (name, tab) => {
   it('reads every row whose id no other row holds', () => {
     const workbook = workbookOf(gridsWith(tab, withIds('row', tab.grid)))
 
@@ -154,7 +159,7 @@ describe.each(ID_TABS.map((tab) => [tab.rules.tab, tab] as const))('the %s tab',
     grid[1] = withoutId(grid[1]!, grid[0]!.indexOf('id'))
     const workbook = workbookOf(gridsWith(tab, grid))
 
-    expect(problemsOn(workbook, name)[0]).toEqual([tab.first, 'no id, so it is left out until "Add ids" on Overview gives it one'])
+    expect(problemsOn(workbook, name)[0]).toEqual([tab.first, 'no id, so it is left out. Give it an id in the workbook that no other row holds, or delete the row and add it in the app'])
     expect(tab.records(workbook).length).toBeLessThan(2)
   })
 
@@ -164,7 +169,7 @@ describe.each(ID_TABS.map((tab) => [tab.rules.tab, tab] as const))('the %s tab',
     grid[2]![idColumn] = grid[1]![idColumn]!
     const workbook = workbookOf(gridsWith(tab, grid))
 
-    const copied = 'the same id as another row, so it is left out. Clear the id cell of the copied row, and "Add ids" on Overview gives it its own'
+    const copied = 'the same id as another row, so it is left out. Give the copied row an id of its own in the workbook, or delete it and add it in the app'
     expect(problemsOn(workbook, name).slice(0, 2)).toEqual([
       [tab.first, copied],
       [tab.second, copied],
@@ -173,38 +178,39 @@ describe.each(ID_TABS.map((tab) => [tab.rules.tab, tab] as const))('the %s tab',
   })
 })
 
-describe.each(ID_TABS.map((tab) => [tab.rules.tab, tab] as const))('a write to the %s tab of a Google Sheet', (name, tab) => {
-  function targets(store: WorkbookStore) {
-    return store.state.snapshot![tab.rules.tab].map((row) => rowCellsOf(row, tab.rules))
+describe.each(ID_TABS.map((tab) => [tabOf(tab), tab] as const))('a write to the %s tab of a Google Sheet', (name, tab) => {
+  function targets(store: WorkbookStore<WorkbookCopy>): unknown[] {
+    return recordsOnScreen(store, tab.rules.kind).records.map((read) => read.record)
   }
 
-  it('finds its rows by their ids after rows were inserted above them from outside', async () => {
+  function remove(store: WorkbookStore<WorkbookCopy>, records: readonly unknown[]) {
+    return store.write('Removed', (unit) => records.forEach((record) => unit.of(tab.rules).remove(record)))
+  }
+
+  it('finds its records by their ids after rows were inserted above them from outside', async () => {
     const { store, sheets } = await googleHarness(used, gridsWith(tab, withIds('row', tab.grid)))
     const grid = sheets.grids[name]!
     const inserted = withoutId(grid[2]!, grid[0]!.indexOf('id'))
     grid.splice(1, 0, inserted, [...inserted])
 
-    await store.changeRows(tab.rules, { added: [], changed: [], removed: targets(store) })
+    await remove(store, targets(store))
 
     expect(sheets.grids[name]!.slice(1)).toEqual([inserted, inserted])
-    expect(tab.records(store.state.workbook!)).toEqual([])
+    expect(tab.records(hrDooWorkbook(store.state.workbook!))).toEqual([])
   })
 
-  it('refuses a row without an id, an id two rows hold, and a row changed since the app read it', async () => {
+  it('refuses a record two rows hold the id of, and one changed since the app read it', async () => {
     const { store, sheets } = await googleHarness(used, gridsWith(tab, withIds('row', tab.grid)))
     const [first] = targets(store)
     const grid = sheets.grids[name]!
     const label = `the ${tab.rules.kind.noun.one} "${tab.first}"`
-    const remove = (cells: NonNullable<typeof first>) => store.changeRows(tab.rules, { added: [], changed: [], removed: [cells] })
-
-    await expect(remove({ ...first!, id: '' })).rejects.toThrow(`has no id yet, so the app cannot find it. Press "Add ids" on Overview, then try again.`)
 
     grid.push([...grid[1]!])
-    await expect(remove(first!)).rejects.toThrow(`2 rows of the ${name} tab hold the id of ${label}, so the app cannot tell which one is meant. Clear the id cell of the copied row in the Sheet.`)
+    await expect(remove(store, [first])).rejects.toThrow(`2 records hold ${label}, so the app cannot tell which one is meant. Change it in the workbook.`)
 
     grid.pop()
-    grid[1]![grid[0]!.indexOf(tab.rules.columns[0]!)] = 'changed in the Sheet'
-    await expect(remove(first!)).rejects.toThrow(`is no longer on the ${name} tab as the app read it. Sync and look again.`)
+    grid[1]![0] = 'changed in the Sheet'
+    await expect(remove(store, [first])).rejects.toThrow('changed since the app read it. Sync and look again.')
     expect(grid).toHaveLength(3)
   })
 })

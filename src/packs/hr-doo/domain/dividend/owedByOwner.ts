@@ -1,4 +1,4 @@
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../hrDooPart'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO } from '../../../../shared/money/money'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -8,7 +8,7 @@ import { ownerLoans } from '../ownerLoans'
 import { tracedFigure } from '../payroll/payrollArithmetic'
 
 /** What the owner owes the company on loans and advances, net, on a day, never below nothing. */
-export function owedByOwnerOn(workbook: Workbook, on: CivilDate): TracedFigure {
+export function owedByOwnerOn(workbook: HrDooWorkbook, on: CivilDate): TracedFigure {
   const rows = workbook.transactions.filter((row) => row.date <= on)
   const advances = workbook.ownerAdvances.filter((advance) => advance.date <= on)
   const owed = netOwed(ownerLoans(rows, workbook.categories), ownerAdvances(advances, rows, workbook.categories), workbook.categories)

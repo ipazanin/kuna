@@ -3,12 +3,12 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import AppCard from '../../../shared/ui/AppCard.vue'
-import { CLIENT_ROWS } from '../../settings/application/workbookTabRows'
+import { CLIENT_WRITES } from '../../settings/application/namedRecordWrites'
 import { CLIENT_COLUMNS } from '../../settings/presentation/factTabColumns'
 import FactTabCard from '../../settings/presentation/FactTabCard.vue'
 import { useSettingsSave } from '../../settings/presentation/useSettingsSave'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { readClientRows } from '../../workbook/infrastructure/workbookReader'
+import { clientRowOfFields, readClients } from '../../workbook/domain/clientsReading'
 import { REQUIRED_ISSUER } from '../domain/invoiceDocument'
 import InvoicingTermsForm from './InvoicingTermsForm.vue'
 
@@ -36,12 +36,13 @@ const termsSummary = computed(() => {
 <template>
   <div class="flex flex-col gap-6">
     <FactTabCard
-      :rules="CLIENT_ROWS"
+      :rules="CLIENT_WRITES"
       title="Clients"
       description="Who pays your invoices, one row per IBAN they pay from, so a client paying from two accounts has two rows under one name."
       collapse-id="invoicing.clients"
       :columns="CLIENT_COLUMNS"
-      :read="readClientRows"
+      :read="readClients"
+      :make="clientRowOfFields"
       row-noun="client row"
       tab-noun="clients"
       saved-title="Clients saved"

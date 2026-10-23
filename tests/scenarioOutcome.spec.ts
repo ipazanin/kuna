@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Grant } from '../src/features/workbook/domain/grants'
-import type { OwnerPayScenario, ScenarioComponent } from '../src/features/workbook/domain/ownerPayScenarios'
+import type { Grant } from '../src/packs/hr-doo/domain/grants/grants'
+import type { OwnerPayScenario, ScenarioComponent } from '../src/packs/hr-doo/domain/scenarios/ownerPayScenarios'
 import type { CarriedLoss } from '../src/packs/hr-doo/domain/cit/taxBase'
 import type { EmployeeFacts } from '../src/packs/hr-doo/domain/payroll/incomeTax'
 import { tracedFigure } from '../src/packs/hr-doo/domain/payroll/payrollArithmetic'
@@ -18,7 +18,7 @@ import { civil, euros } from './fixtures/ledger'
 import { STEADY_GRANT, steadyStudio } from './fixtures/steadyStudio'
 import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { SCENARIO_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
 function figure(label: string, amount: number): TracedFigure {
   return tracedFigure(label, euros(amount), 'ledger', [])

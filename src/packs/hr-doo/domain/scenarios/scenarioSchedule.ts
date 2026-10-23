@@ -1,4 +1,4 @@
-import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from '../../../../features/workbook/domain/ownerPayScenarios'
+import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from './ownerPayScenarios'
 import { addDays, civilDate, daysBetween, weekdaysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { firstDayOf, lastDayOf, monthKey, monthOf } from '../../../../shared/calendar/monthKey'

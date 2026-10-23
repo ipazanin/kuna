@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createFakeSheets } from '../src/features/workbook/infrastructure/fake/fakeSheets'
 import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { readSnapshotFrom } from '../src/features/workbook/infrastructure/googleWorkbookPorts'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { withIds } from './fixtures/rowIds'
@@ -24,12 +24,12 @@ const CLIENTS: CellValue[][] = [
 ]
 
 function workbookWith(plan: CellValue[][], clients: CellValue[][] = CLIENTS) {
-  return readWorkbook({
+  return readSnapshot({
     meta: { id: 'sheet', source: 'excel', title: 'Books', syncedAt: '2026-10-19T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...EMPTY_TABS,
     clients: sheetRowsFromValues(clients),
     'outgoing-plan': sheetRowsFromValues(withIds('item', plan)),
-  })
+  }).workbook
 }
 
 describe('the outgoing-plan tab', () => {
@@ -70,8 +70,8 @@ describe('the outgoing-plan tab', () => {
       ['outgoing-plan', 'Monthly Fee, north, 2025-12-31, five thousand', 'amount "five thousand" is not a number'],
       ['outgoing-plan', 'Monthly Fee, north, 2025-12-31, 0', 'amount must be more than zero'],
       ['outgoing-plan', 'Monthly Fee, 2025-12-31, 5000', 'no client'],
-      ['outgoing-plan', 'Monthly Fee, south, 2025-12-31, 5000', '"south" is not on the clients tab'],
       ['outgoing-plan', 'Monthly Fee, north, 5000', 'no date'],
+      ['outgoing-plan', 'Monthly Fee, south, 2025-12-31, 5000', '"south" is not on the clients tab'],
     ])
   })
 
@@ -84,8 +84,8 @@ describe('the outgoing-plan tab', () => {
     const present = await readSnapshotFrom(withTab, { id: 'sheet', name: 'Books' })
 
     expect(missing.meta.missingTabs).toEqual(['outgoing-plan'])
-    expect(readWorkbook(missing).billingPlan).toEqual([])
+    expect(readSnapshot(missing).workbook.billingPlan).toEqual([])
     expect(withTab.requests.find((request) => request.kind === 'batchGet')).toMatchObject({ ranges: expect.arrayContaining(["'outgoing-plan'"]) })
-    expect(readWorkbook(present).billingPlan.length).toBeGreaterThan(15)
+    expect(readSnapshot(present).workbook.billingPlan.length).toBeGreaterThan(15)
   })
 })

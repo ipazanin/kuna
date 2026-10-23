@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
+import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import { loanBenefit, loanBenefitByYear, relatedPartyInterest, shortfallRate } from '../src/packs/hr-doo/domain/ownerLoanInterest'
 import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset'
 import type { Rate } from '../src/packs/hr-doo/ruleset/schema'
@@ -9,12 +8,13 @@ import { exampleStudio } from './fixtures/exampleStudio'
 import { withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
+import { COMPANY_FACT_SETTINGS } from '../src/packs/hr-doo/domain/companyFacts'
 
-function studio(rows: readonly RowSpec[], ownerLoanInterest = 0): Workbook {
+function studio(rows: readonly RowSpec[], ownerLoanInterest = 0): HrDooWorkbook {
   const workbook = exampleStudio()
   return exampleStudio({
     transactions: withPackBuckets(ledger(rows), workbook.categories),
-    settings: { ...DEFAULT_SETTINGS, companyFacts: { ...DEFAULT_SETTINGS.companyFacts, ownerLoanInterest } },
+    companyFacts: { ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest },
   })
 }
 

@@ -1,4 +1,4 @@
-import type { YearEndLine } from '../../../../features/workbook/domain/yearEnd'
+import type { YearEndLine } from '../yearEnd/yearEnd'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthCountBetween, monthOf } from '../../../../shared/calendar/monthKey'
 import { ruleValue } from '../../ruleset/ruleset'

@@ -1,4 +1,4 @@
-import type { AssetGroup } from '../../../../features/workbook/domain/assets'
+import type { AssetGroup } from '../../domain/assets/assets'
 import { monthKey } from '../../../../shared/calendar/monthKey'
 import { amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'

@@ -1,0 +1,52 @@
+import type { RecordId } from '../../../features/workbook/domain/recordId'
+import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../features/workbook/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../../features/workbook/domain/recordsRead'
+import { ownId, refuse, slugOf, textOf } from '../../../features/workbook/domain/storedFields'
+import type { StoredFields } from '../../../features/workbook/domain/storedFields'
+import { ADVANCE_BUCKETS } from '../../../features/workbook/domain/workbook'
+import type { OwnerAdvance, RecordProblem } from '../../../features/workbook/domain/workbook'
+
+/** A cost the owner paid as the owner-advances tab holds it, before its category is looked up. */
+export type OwnerAdvanceEntry = Omit<OwnerAdvance, 'family' | 'bucket'>
+
+/**
+ * A negative amount, the owner's private share of a company payment, belongs on the splits tab, so
+ * it is refused.
+ */
+export function ownerAdvanceOf(fields: StoredFields, id: RecordId | null): OwnerAdvanceEntry {
+  const date = fields.date === undefined ? refuse('no date') : (fields.date.date ?? refuse(`the date "${fields.date.text}" is not a date cell`))
+  const amount = fields.amount === undefined ? refuse('no amount') : (fields.amount.money ?? refuse(`the amount "${fields.amount.text}" is not a number`))
+  if (amount === 0) {
+    refuse('the amount is zero')
+  }
+  if (amount < 0) {
+    refuse('a negative amount is the owner’s private share of a company payment, which belongs on the splits tab. Press "Split" on its bank row on Transactions instead')
+  }
+  const category = slugOf(fields.category)
+  if (category === '') {
+    refuse('no category')
+  }
+  return { date, amount, description: textOf(fields.description), category, id: ownId(id) }
+}
+
+/** A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets leaves it out. */
+export function readOwnerAdvances(read: RecordsRead<OwnerAdvanceEntry>, categories: readonly { readonly slug: string; readonly family: string; readonly bucket: OwnerAdvance['bucket'] }[]): Reading<OwnerAdvance> {
+  const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
+  const sharesId = idSharing(read)
+  const advances: OwnerAdvance[] = []
+  const problems: RecordProblem[] = refusedProblems(read)
+  for (const stored of read.records) {
+    const { category: slug } = stored.record
+    const category = categoryBySlug.get(slug)
+    if (category === undefined) {
+      problems.push(problemOf(stored, `"${slug}" is not on the categories tab`))
+    } else if (!(ADVANCE_BUCKETS as readonly string[]).includes(category.bucket)) {
+      problems.push(problemOf(stored, `"${slug}" is in the ${category.bucket} bucket, and an advance counts as an operating cost or a tax`))
+    } else if (sharesId(stored)) {
+      problems.push(problemOf(stored, SHARED_ID_REASON))
+    } else {
+      advances.push({ ...stored.record, family: category.family, bucket: category.bucket })
+    }
+  }
+  return { facts: advances, problems }
+}

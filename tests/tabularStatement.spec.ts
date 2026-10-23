@@ -203,7 +203,7 @@ describe('import profiles', () => {
 
     expect(settings.importProfiles).toEqual([PROFILE])
     expect(problems).toEqual([{ id: recordIdOf(SETTING_RECORDS, 'import_profile_broken'), label: 'import_profile_broken', reason: 'the profile names no account, so the profile is not offered' }])
-    expect(settingsTabEntries(settings).at(-1)).toEqual({ key: 'import_profile_primjer-banka', value: profileValue(PROFILE) })
+    expect(settingsTabEntries(settings, null).at(-1)).toEqual({ key: 'import_profile_primjer-banka', value: profileValue(PROFILE) })
   })
 
   it('guesses the header row, the columns, the date format and the decimal mark of an export it has not seen', async () => {

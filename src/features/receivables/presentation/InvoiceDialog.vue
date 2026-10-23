@@ -6,18 +6,20 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { civilDateFromSerial, parseCivilDate } from '../../../shared/calendar/civilDate'
+import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
-import { amountOf, moneyFromAmount } from '../../../shared/money/money'
+import { amountOf } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
-import { cellText } from '../../../shared/text/cellText'
-import { storedCellsOf } from '../../workbook/application/tabRowWrites'
-import type { RecordId } from '../../workbook/domain/recordId'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { RowCells } from '../../workbook/domain/rowChanges'
-import { useRowWrites } from '../../workbook/presentation/useRowWrites'
-import { INVOICE_ROWS, invoiceCellsOf } from '../application/invoiceRows'
+import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
+import type { RecordId } from '../../workbook/domain/recordId'
+import { NO_RECORDS, recordWithId } from '../../workbook/domain/recordsRead'
+import { textOf } from '../../workbook/domain/storedFields'
+import type { StoredField, StoredFields } from '../../workbook/domain/storedFields'
+import type { Invoice } from '../../workbook/domain/workbook'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { INVOICE_WRITES } from '../application/invoiceWrites'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -40,7 +42,7 @@ const props = defineProps<{
 type Field = 'number' | 'client' | 'item' | 'amount' | 'issued' | 'due' | 'period_from' | 'period_to'
 
 const store = useWorkbook()
-const writes = useRowWrites(INVOICE_ROWS)
+const writes = useRecordWrites()
 const phone = usePhoneLayout()
 
 const fields = ref<Record<Field, string>>(blankFields())
@@ -51,38 +53,36 @@ function blankFields(): Record<Field, string> {
   return { number: '', client: '', item: '', amount: '', issued: '', due: '', period_from: '', period_to: '' }
 }
 
-/** The row's cells as the app read them, raw, so a formula left alone is never rewritten. */
-const readCells = computed((): RowCells | null => {
-  return props.id === null ? null : storedCellsOf(store.state.snapshot?.invoices ?? [], INVOICE_ROWS, props.id)
-})
+/** The invoice as the app read it, with its fields as stored, so a field the dialog cannot read still shows. */
+const stored = computed(() => (props.id === null ? null : recordWithId(store.state.records?.invoices ?? NO_RECORDS, props.id)))
 
-function dateText(cell: RowCells[string] | undefined): string {
-  return typeof cell === 'number' && Number.isFinite(cell) ? civilDateFromSerial(cell) : cellText(cell)
+function dateText(field: StoredField | undefined): string {
+  return field?.date ?? textOf(field)
 }
 
-function fieldsOf(cells: RowCells): Record<Field, string> {
-  const amount = cells.amount
+function fieldsOf(stored: StoredFields): Record<Field, string> {
+  const amount = stored.amount?.money ?? null
   return {
-    number: cellText(cells.number),
-    client: cellText(cells.client).toLowerCase(),
-    item: cellText(cells.item),
-    amount: typeof amount === 'number' ? amountOf(moneyFromAmount(amount)).toFixed(2) : cellText(amount),
-    issued: dateText(cells.issued),
-    due: dateText(cells.due),
-    period_from: dateText(cells.period_from),
-    period_to: dateText(cells.period_to),
+    number: textOf(stored.number),
+    client: textOf(stored.client).toLowerCase(),
+    item: textOf(stored.item),
+    amount: amount === null ? textOf(stored.amount) : amountOf(amount).toFixed(2),
+    issued: dateText(stored.issued),
+    due: dateText(stored.due),
+    period_from: dateText(stored.period_from),
+    period_to: dateText(stored.period_to),
   }
 }
 
 watch(open, (opening) => {
   if (!opening) return
-  const cells = readCells.value
-  if (cells === null) {
+  const read = stored.value
+  if (read === null) {
     const dates = newInvoiceDates(props.defaultIssued)
     const client = props.clients.length === 1 ? props.clients[0]!.slug : ''
     fields.value = { ...blankFields(), client, issued: props.defaultIssued, due: dates.due, period_from: dates.periodFrom, period_to: dates.periodTo }
   } else {
-    fields.value = fieldsOf(cells)
+    fields.value = fieldsOf(read.fields)
   }
   opened.value = { ...fields.value }
   tried.value = false
@@ -127,41 +127,46 @@ async function save(): Promise<void> {
   tried.value = true
   const issued = parseCivilDate(fields.value.issued.trim())
   if (!valid.value || issued === null || parsedAmount.value === null) return
-  const typed = invoiceCellsOf({
-    number: fields.value.number,
-    client: fields.value.client,
-    item: fields.value.item,
+  const from = optionalDate(fields.value.period_from) ?? null
+  const to = optionalDate(fields.value.period_to) ?? null
+  const number = fields.value.number.trim()
+  const client = fields.value.client.trim().toLowerCase()
+  const typed: Invoice = {
+    number,
+    client,
+    item: fields.value.item.trim(),
     amount: parsedAmount.value,
     issued,
     due: optionalDate(fields.value.due) ?? null,
-    periodFrom: optionalDate(fields.value.period_from) ?? null,
-    periodTo: optionalDate(fields.value.period_to) ?? null,
-  })
-  const before = readCells.value
+    deliveryPeriod: from === null || to === null ? null : { from, to },
+    id: invoiceIdOf({ client, number }),
+  }
+  const before = stored.value?.record ?? null
   if (props.id === null || before === null) {
-    if (await writes.write({ added: [typed], changed: [], removed: [] }, { title: 'Invoice added' }, 'Not added')) open.value = false
+    if (await writes.write('Invoice added', (unit) => unit.of(INVOICE_WRITES).add(typed), { failedTitle: 'Not added' })) open.value = false
     return
   }
-  const after: RowCells = Object.fromEntries(
-    INVOICE_ROWS.columns.map((column) => [column, (fields.value[column as Field] === opened.value[column as Field] ? before[column] : typed[column]) ?? '']),
-  )
-  const saved = await writes.write(
-    { added: [], changed: [{ before, after }], removed: [] },
-    { title: 'Invoice saved', description: `Invoice ${opened.value.number}, written to ${writes.where()}.` },
-    'Not saved',
-  )
-  if (saved) open.value = false
+  const changed = (field: Field): boolean => fields.value[field] !== opened.value[field]
+  const kept = {
+    number: changed('number') ? typed.number : before.number,
+    client: changed('client') ? typed.client : before.client,
+  }
+  const after: Invoice = {
+    ...kept,
+    item: changed('item') ? typed.item : before.item,
+    amount: changed('amount') ? typed.amount : before.amount,
+    issued: changed('issued') ? typed.issued : before.issued,
+    due: changed('due') ? typed.due : before.due,
+    deliveryPeriod: changed('period_from') || changed('period_to') ? typed.deliveryPeriod : before.deliveryPeriod,
+    id: invoiceIdOf(kept),
+  }
+  if (await writes.write('Invoice saved', (unit) => unit.of(INVOICE_WRITES).change(before, after), { failedTitle: 'Not saved' })) open.value = false
 }
 
 async function remove(): Promise<void> {
-  const cells = readCells.value
-  if (props.id === null || cells === null) return
-  const deleted = await writes.write(
-    { added: [], changed: [], removed: [cells] },
-    { title: 'Invoice deleted', description: `Invoice ${opened.value.number} is taken out of ${writes.where()}.` },
-    'Not deleted',
-  )
-  if (deleted) open.value = false
+  const before = stored.value?.record ?? null
+  if (props.id === null || before === null) return
+  if (await writes.write('Invoice deleted', (unit) => unit.of(INVOICE_WRITES).remove(before), { failedTitle: 'Not deleted' })) open.value = false
 }
 </script>
 

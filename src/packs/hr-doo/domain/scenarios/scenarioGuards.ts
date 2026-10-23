@@ -1,4 +1,4 @@
-import type { OwnerPayScenario, ScenarioComponent } from '../../../../features/workbook/domain/ownerPayScenarios'
+import type { OwnerPayScenario, ScenarioComponent } from './ownerPayScenarios'
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'

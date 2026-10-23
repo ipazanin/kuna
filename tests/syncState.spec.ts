@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { syncStateOf } from '../src/features/workbook/presentation/syncState'
-import { readWorkbook } from '../src/features/workbook/infrastructure/workbookReader'
+import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 
-const workbook = readWorkbook({
+const workbook = readSnapshot({
   meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T06:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
   ledger: [],
   categories: [],
@@ -21,7 +21,7 @@ const workbook = readWorkbook({
   scenarios: [],
   splits: [],
   dismissed: [],
-})
+}).workbook
 const choice = { source: 'google' as const, id: 'sheet', name: 'Books' }
 
 describe('syncStateOf', () => {

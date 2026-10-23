@@ -9,15 +9,16 @@ import { amountOf } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
-import { INVOICE_ROWS, invoiceCellsOf } from '../../receivables/application/invoiceRows'
-import { storedCellsOf } from '../../workbook/application/tabRowWrites'
+import { INVOICE_WRITES } from '../../receivables/application/invoiceWrites'
+import { setSettings } from '../../settings/application/settingWrites'
+import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
+import { NO_RECORDS, recordWithId } from '../../workbook/domain/recordsRead'
 import type { RecordId } from '../../workbook/domain/recordId'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { RowCells, TabRowsChange } from '../../workbook/domain/rowChanges'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
 import { invoiceDrafts, invoiceDrive } from '../application/invoiceGoogle'
 import { continueRun, locateFiling, runStepsOf } from '../application/invoiceRun'
-import type { FilingTarget, InvoiceDrive, RunPlan, RunStep } from '../application/invoiceRun'
+import type { FilingTarget, InvoiceDrive, RegisterChange, RunPlan, RunStep } from '../application/invoiceRun'
 import { newInvoiceDates } from '../domain/invoiceDates'
 import { invoiceProblems, recipientOf } from '../domain/invoiceDocument'
 import type { InvoiceDocument } from '../domain/invoiceDocument'
@@ -285,9 +286,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   async function pickInvoiceFolder(drive: InvoiceDrive): Promise<string | null> {
     const [picked] = await drive.pickFolders(null, 'Pick the folder to file invoices in. The app files each invoice in folders by year and month inside it.')
     if (picked === undefined) return null
-    const rows = store.state.snapshot?.settings ?? []
-    const row = rows.find((candidate) => String(candidate.cells.key ?? '').trim().toLowerCase() === 'invoice_folder_id')
-    await store.changeSettings([{ key: 'invoice_folder_id', value: picked.id, expected: row === undefined ? null : (row.cells.value ?? '') }])
+    await store.write('Invoice folder saved', (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: 'invoice_folder_id', value: picked.id }]))
     return picked.id
   }
 
@@ -348,32 +347,30 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     return check()
   }
 
-  function registerChange(): TabRowsChange | null {
+  function registerChange(): RegisterChange | null {
     const day = issueDay.value!
-    const due = dates.value!.due
-    const period = dates.value!.period
-    const cells = invoiceCellsOf({
-      number: number.value,
-      client: client.value,
+    const invoiceNumber = number.value.trim()
+    const invoiceClient = client.value.trim().toLowerCase()
+    const typed: Invoice = {
+      number: invoiceNumber,
+      client: invoiceClient,
       item: registerItemOf(parsedLines.value),
       amount: total.value,
       issued: day,
-      due,
-      periodFrom: period.from,
-      periodTo: period.to,
-    })
+      due: dates.value!.due,
+      deliveryPeriod: dates.value!.period,
+      id: invoiceIdOf({ client: invoiceClient, number: invoiceNumber }),
+    }
     const current = mode.value
-    if (current.kind === 'new') return { added: [cells], changed: [], removed: [] }
-    const before = storedCellsOf(store.state.snapshot?.invoices ?? [], INVOICE_ROWS, current.id)
-    if (before === null) return null
-    const after: RowCells = { ...before, item: cells.item!, amount: cells.amount! }
-    return String(after.item) === String(before.item) && Number(after.amount) === Number(before.amount)
-      ? null
-      : { added: [], changed: [{ before, after }], removed: [] }
+    if (current.kind === 'new') return { before: null, after: typed }
+    const before = recordWithId(store.state.records?.invoices ?? NO_RECORDS, current.id)?.record
+    if (before === undefined) return null
+    const after: Invoice = { ...before, item: typed.item, amount: typed.amount }
+    return after.item === before.item && after.amount === before.amount ? null : { before, after }
   }
 
-  async function writeRegister(change: TabRowsChange): Promise<void> {
-    await store.changeRows(INVOICE_ROWS, change)
+  async function writeRegister({ before, after }: RegisterChange): Promise<void> {
+    await store.write(before === null ? 'Invoice added' : 'Invoice saved', (unit) => (before === null ? unit.of(INVOICE_WRITES).add(after) : unit.of(INVOICE_WRITES).change(before, after)))
   }
 
   /** Makes the invoice: the steps run in order, each once. Run it from a click, since the Gmail grant may need a popup. */

@@ -1,6 +1,6 @@
 import { RULE_COLUMNS } from '../../rules/domain/rule'
 import type { CellValue, SheetRow, WorkbookTab } from './workbookSnapshot'
-import { TEMPLATE_COLUMNS } from './workbookTemplate'
+import { templateColumnNames } from './workbookTemplate'
 
 /** One tab as it stands right before or right after a write. */
 export interface TabRead {
@@ -88,43 +88,25 @@ export interface WorkbookWriter {
   write(edits: TabEdits, before: FreshTabs): Promise<void>
 }
 
-function templateColumns(tab: WorkbookTab): ReadonlySet<string> {
-  return new Set(TEMPLATE_COLUMNS[tab].map((column) => column.name))
-}
-
-/** Whether the edits change anything at all. */
-export function hasEdits(edits: TabEdits): boolean {
-  return edits.cells.length > 0 || edits.appends.length > 0 || (edits.deletions ?? []).length > 0 || (edits.newColumns ?? []).length > 0
-}
-
 /** Of a ledger row already on the tab the app changes only its verdict. A new row it writes whole. */
 export const LEDGER_VERDICT_COLUMNS: ReadonlySet<string> = new Set(['category', 'flagged_by'])
 
 /** The columns a cell edit may set on an existing row of the tab. */
 export function editableColumns(tab: WritableTab): ReadonlySet<string> {
-  return tab === 'ledger' ? LEDGER_VERDICT_COLUMNS : WRITABLE_COLUMNS[tab]
+  return tab === 'ledger' ? LEDGER_VERDICT_COLUMNS : writableColumns(tab)
 }
 
 /**
- * The columns each tab lets the app write: the template's own columns, never a column the Sheet
- * keeps beside them. Anything else is a bug and fails before a request is sent.
+ * The columns a tab lets the app write: the template's own columns, never a column the Sheet keeps
+ * beside them. Anything else is a bug and fails before a request is sent.
  */
-export const WRITABLE_COLUMNS: Readonly<Record<WritableTab, ReadonlySet<string>>> = {
-  ledger: templateColumns('ledger'),
-  rules: new Set(RULE_COLUMNS),
-  settings: new Set(['key', 'value']),
-  'owner-advances': templateColumns('owner-advances'),
-  'outgoing-plan': templateColumns('outgoing-plan'),
-  categories: templateColumns('categories'),
-  accounts: templateColumns('accounts'),
-  clients: templateColumns('clients'),
-  invoices: templateColumns('invoices'),
-  assets: templateColumns('assets'),
-  grants: templateColumns('grants'),
-  'year-end': templateColumns('year-end'),
-  plan: templateColumns('plan'),
-  scenarios: templateColumns('scenarios'),
-  splits: templateColumns('splits'),
-  dismissed: templateColumns('dismissed'),
+export function writableColumns(tab: WritableTab): ReadonlySet<string> {
+  switch (tab) {
+    case 'rules':
+      return new Set(RULE_COLUMNS)
+    case 'settings':
+      return new Set(['key', 'value'])
+    default:
+      return new Set(templateColumnNames(tab))
+  }
 }
-

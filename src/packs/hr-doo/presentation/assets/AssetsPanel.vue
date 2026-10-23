@@ -21,15 +21,15 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../../../features/filters/application/filterStore'
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import { ASSET_ROWS, GRANT_ROWS } from '../../../../features/settings/application/workbookTabRows'
-import { GRANT_COLUMNS, assetColumns } from '../../../../features/settings/presentation/factTabColumns'
+import { ASSET_WRITES, GRANT_WRITES } from '../../domain/hrDooWrites'
+import { GRANT_COLUMNS, assetColumns } from '../editorColumns'
 import FactTabCard from '../../../../features/settings/presentation/FactTabCard.vue'
-import type { AssetGroup } from '../../../../features/workbook/domain/assets'
-import type { Grant } from '../../../../features/workbook/domain/grants'
-import type { Workbook } from '../../../../features/workbook/domain/workbook'
-import { readAssets } from '../../../../features/workbook/infrastructure/assetsTabReader'
-import { readGrants } from '../../../../features/workbook/infrastructure/grantsTabReader'
-import type { SheetRow } from '../../../../features/workbook/infrastructure/workbookSnapshot'
+import type { Asset, AssetGroup } from '../../domain/assets/assets'
+import type { Grant } from '../../domain/grants/grants'
+import type { HrDooWorkbook } from '../../domain/hrDooPart'
+import { assetOfFields, readAssets } from '../../domain/assets/assetsReading'
+import { grantOfFields, readGrants } from '../../domain/grants/grantsReading'
+import type { RecordsRead } from '../../../../features/workbook/domain/recordsRead'
 import { ruleValue } from '../../ruleset/ruleset'
 import { dayLabel, ruleLink } from '../../ruleset/presentation/ruleWording'
 import { assetBooks, depreciationByYear, doubledRatesEffect } from '../../domain/assets/assetBooks'
@@ -56,7 +56,7 @@ import type { GrantComparisonLine, GrantLine } from './GrantPanel.vue'
  * as of today, whatever the year.
  */
 const props = defineProps<{
-  workbook: Workbook
+  workbook: HrDooWorkbook
   window: LedgerWindow
   year: number
 }>()
@@ -74,7 +74,7 @@ const GROUPS: Readonly<Record<AssetGroup, string>> = {
 }
 
 const grantSlugs = computed(() => props.workbook.grants.map((grant) => grant.slug))
-const readAssetRows = (rows: readonly SheetRow[]) => readAssets(rows, new Set(grantSlugs.value))
+const readAssetRows = (records: RecordsRead<Asset>) => readAssets(records, new Set(grantSlugs.value))
 
 const now = new Date()
 const today = civilDate(now.getFullYear(), now.getMonth() + 1, now.getDate())
@@ -106,9 +106,9 @@ function when(year: number): 'past' | 'current' | 'ahead' {
   return year < thisYear ? 'past' : year === thisYear ? 'current' : 'ahead'
 }
 
-function assetsView(workbook: Workbook, window: LedgerWindow, year: number) {
+function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number) {
   const { assets, grants, categories, transactions } = workbook
-  const asWorkbook = assetBooks(assets, grants, workbook.settings.companyFacts)
+  const asWorkbook = assetBooks(assets, grants, workbook.companyFacts)
   const revenueOf = (year: number) =>
     effectiveTaxRate(transactions, categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
   const effect = doubledRatesEffect(assets, grants, asWorkbook, revenueOf)
@@ -476,12 +476,13 @@ function employmentState(until: CivilDate | null): string | null {
 
     <FactTabCard
       id="asset-rows"
-      :rules="ASSET_ROWS"
+      :rules="ASSET_WRITES"
       title="Asset rows"
       description="Purchases kept as fixed assets and depreciated, each once. The cost is without the VAT that was reclaimed."
       collapse-id="year.asset-rows"
       :columns="assetColumns(grantSlugs)"
       :read="readAssetRows"
+      :make="assetOfFields"
       row-noun="asset"
       tab-noun="assets"
       saved-title="Assets saved"
@@ -490,12 +491,13 @@ function employmentState(until: CivilDate | null): string | null {
     />
     <FactTabCard
       id="grant-rows"
-      :rules="GRANT_ROWS"
+      :rules="GRANT_WRITES"
       title="Grant rows"
       description="The terms of each grant. The fixed and variable parts add up to the amount."
       collapse-id="year.grant-rows"
       :columns="GRANT_COLUMNS"
       :read="readGrants"
+      :make="grantOfFields"
       :new-row="() => ({ release: 'fixed-then-assets' })"
       row-noun="grant"
       tab-noun="grants"

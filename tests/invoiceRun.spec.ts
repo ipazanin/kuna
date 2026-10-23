@@ -4,13 +4,13 @@ import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 
 import { continueRun, locateFiling, pickerTitleFor, runStepsOf } from '../src/features/invoicing/application/invoiceRun'
-import type { DriveEntry, RunPlan, RunPorts } from '../src/features/invoicing/application/invoiceRun'
+import type { DriveEntry, RegisterChange, RunPlan, RunPorts } from '../src/features/invoicing/application/invoiceRun'
 import { DEFAULT_FILE_PATH, filingPathOf } from '../src/features/invoicing/domain/invoiceFiling'
 import { createFakeInvoiceGoogle, FAKE_INVOICE_FOLDER } from '../src/features/invoicing/infrastructure/fake/fakeInvoiceGoogle'
 import { renderInvoicePdf } from '../src/features/invoicing/infrastructure/invoicePdf'
 import type { InvoiceFontFiles } from '../src/features/invoicing/infrastructure/invoicePdf'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import type { TabRowsChange } from '../src/features/workbook/domain/rowChanges'
+import { invoiceOf } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
 
 const PATH = filingPathOf(DEFAULT_FILE_PATH, { issued: civil('2026-10-21'), client: 'north', number: '10-1-26' })
@@ -81,12 +81,12 @@ function planFor(overrides: Partial<RunPlan> = {}): RunPlan {
     filing: { folderId: 'fake-folder-2026', toCreate: ['2026-10'], fileName: PATH.fileName, existing: null },
     replace: false,
     draft: { to: 'a@example.com', subject: 'Invoice 10-1-26', body: 'Hello' },
-    register: { added: [{ number: '10-1-26' }], changed: [], removed: [] },
+    register: { before: null, after: invoiceOf('10-1-26', 4000, '2026-10-31') },
     ...overrides,
   }
 }
 
-function portsWith(drive: RunPorts['drive'], drafts: RunPorts['drafts'], register: (change: TabRowsChange) => Promise<void>) {
+function portsWith(drive: RunPorts['drive'], drafts: RunPorts['drafts'], register: (change: RegisterChange) => Promise<void>) {
   const downloads: string[] = []
   const ports: RunPorts = { drive, drafts, download: (_pdf, fileName) => downloads.push(fileName), writeRegister: register }
   return { ports, downloads }
@@ -95,7 +95,7 @@ function portsWith(drive: RunPorts['drive'], drafts: RunPorts['drafts'], registe
 describe('the run', () => {
   it('files the PDF, saves the draft and writes the register row, in that order', async () => {
     const { google } = await yearsPicked()
-    const written: TabRowsChange[] = []
+    const written: RegisterChange[] = []
     const plan = planFor()
     const steps = runStepsOf(plan)
     const { ports, downloads } = portsWith(google.drive, google.drafts, async (change) => {
@@ -138,7 +138,7 @@ describe('the run', () => {
     const plan = planFor()
     const steps = runStepsOf(plan)
     let refusals = 1
-    const written: TabRowsChange[] = []
+    const written: RegisterChange[] = []
     const { ports } = portsWith(google.drive, google.drafts, async (change) => {
       if (refusals > 0) {
         refusals -= 1

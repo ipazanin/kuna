@@ -1,4 +1,4 @@
-import type { OwnerPayScenario, ScenarioComponent } from '../../../../features/workbook/domain/ownerPayScenarios'
+import type { OwnerPayScenario, ScenarioComponent } from './ownerPayScenarios'
 import { addDays, civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { overlapOf, spanOf } from './scenarioSchedule'
