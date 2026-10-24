@@ -1,6 +1,6 @@
 import type { CellObject } from 'xlsx'
 
-import { gridOf, sheetJs } from '../../../shared/files/sheetJs'
+import { readEveryTab, sheetJs } from '../../../shared/xlsx/sheetGrids'
 import { installedPack } from '../../packs/packContribution'
 import { settingNote } from '../../settings/domain/settings'
 import type { Workbook } from '../domain/workbook'
@@ -8,8 +8,6 @@ import { numberFormatOf } from './cellFormats'
 import { settingsTabRows, templateColumnNames, templateColumns } from './workbookTemplate'
 import { EMPTY_TABS, WORKBOOK_TABS, sheetRowsFromValues } from './workbookSnapshot'
 import type { CellValue, SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
-
-export const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 const NOTE_AUTHOR = 'Ledgerboard'
 
@@ -27,18 +25,16 @@ export interface WorkbookFileContents {
 
 /** Reads the workbook tabs of an xlsx file, by tab name in any letter case. Other tabs are ignored. */
 export async function readWorkbookFile(bytes: ArrayBuffer | Uint8Array): Promise<WorkbookFileContents> {
-  const XLSX = await sheetJs()
-  const book = XLSX.read(bytes, { type: 'array', cellText: false })
+  const fileTabs = await readEveryTab(bytes)
   const missingTabs: WorkbookTab[] = []
   const tabs: Partial<Record<WorkbookTab, SheetRow[]>> = {}
   for (const tab of WORKBOOK_TABS) {
-    const name = book.SheetNames.find((candidate) => candidate.trim().toLowerCase() === tab)
-    const sheet = name === undefined ? undefined : book.Sheets[name]
-    if (sheet === undefined) {
+    const found = fileTabs.find((candidate) => candidate.name.trim().toLowerCase() === tab)
+    if (found === undefined) {
       missingTabs.push(tab)
       continue
     }
-    tabs[tab] = sheetRowsFromValues(gridOf(XLSX, sheet))
+    tabs[tab] = sheetRowsFromValues(found.grid)
   }
   return { tabs: { ...EMPTY_TABS, ...tabs }, missingTabs }
 }

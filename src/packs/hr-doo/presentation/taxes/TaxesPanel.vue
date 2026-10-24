@@ -36,9 +36,10 @@ import CitObligationList from '../CitObligationList.vue'
 import { citObligationLine } from '../CitObligationList.vue'
 import { categoryLegend, categorySeries, taxByTypeChart } from '../packCharts'
 import { figureLabel } from '../tracedFigureView'
+import AccountantReturns from './AccountantReturns.vue'
 import CadenceCalendar from './CadenceCalendar.vue'
 
-/** What the state took in a year, by type, and whether every payroll month and corporate tax payment landed. */
+/** What the state took in a year, by type, whether every payroll month and corporate tax payment landed, and the accountant's returns against the books. */
 const props = defineProps<{
   workbook: HrDooWorkbook
   window: LedgerWindow
@@ -298,6 +299,8 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
         </section>
       </div>
     </AppCard>
+
+    <AccountantReturns :workbook="workbook" :year="year" />
 
     <AppCard v-if="taxes.ring.parts.length === 0" title="Tax by type" :subtitle="taxes.period">
       <p class="px-5 py-8 text-sm text-muted">No tax was paid in {{ year }}.</p>

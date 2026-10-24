@@ -11,7 +11,8 @@ import type { RecordProblem } from '../../workbook/domain/workbook'
 import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
-import { DEFAULT_STATEMENTS_FOLDER, statementsFolderOf } from '../../imports/domain/statementFiles'
+import { folderPathOf } from '../../../shared/text/folderPath'
+import { DEFAULT_STATEMENTS_FOLDER } from '../../imports/domain/statementFiles'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
@@ -401,7 +402,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     note: `The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside. Blank means ${DEFAULT_STATEMENTS_FOLDER.join('/')}.`,
     valueOf: (settings) => settings.statementsFolder.join('/'),
     apply: (settings, cell) => {
-      const folders = statementsFolderOf(String(cell))
+      const folders = folderPathOf(String(cell))
       return folders.length === 0 ? `"${String(cell)}" names no folder` : { ...settings, statementsFolder: folders }
     },
   },
@@ -719,7 +720,7 @@ export function changedSettings(current: Settings, next: Settings): { readonly k
  * such as `/`. The app then reads the default, but the statement fetch in the Sheet reads the row.
  */
 export function statementsFolderUnset(held: RecordsRead<SettingRow>): boolean {
-  return statementsFolderOf(String(heldSettingValue(held, STATEMENTS_FOLDER_KEY) ?? '')).length === 0
+  return folderPathOf(String(heldSettingValue(held, STATEMENTS_FOLDER_KEY) ?? '')).length === 0
 }
 
 /**

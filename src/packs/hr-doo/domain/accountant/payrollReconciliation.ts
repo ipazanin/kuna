@@ -53,11 +53,14 @@ export type SalaryRuleLine = keyof Pick<
  * `total-adds-gross-one` is the one correction the accountant's workbooks are known to need: the
  * total adds gross I instead of gross II, while its two shares add up to our total.
  */
-export type SalaryRuleVerdict = 'pass' | 'fail' | 'total-adds-gross-one'
+type SalaryRuleVerdict = 'pass' | 'fail' | 'total-adds-gross-one'
 
-export interface SalaryRuleCheck {
+interface SalaryRuleCheck {
   readonly line: SalaryRuleLine
   readonly verdict: SalaryRuleVerdict
+  /** The workbook's amount and the engine's, or null for a line that is not one amount. */
+  readonly theirs: Money | null
+  readonly ours: Money | null
 }
 
 /**
@@ -169,6 +172,7 @@ export function salaryRules(salary: SalaryWorkbook, dependants: number, daysWork
   )
   const outside = outsidePayroll(salary)
   const verdict = (holds: boolean): SalaryRuleVerdict => (holds ? 'pass' : 'fail')
+  const amounts = (line: SalaryRuleLine, theirs: Money, ours: Money): SalaryRuleCheck => ({ line, verdict: verdict(theirs === ours), theirs, ours })
   const engineTotal = addMoney(payroll.totalCompanyCost.amount, outside)
   const totalWithoutHealth = addMoney(addMoney(payroll.gross.amount, payroll.nontaxablePayments.amount), outside)
   const totalVerdict: SalaryRuleVerdict =
@@ -178,11 +182,11 @@ export function salaryRules(salary: SalaryWorkbook, dependants: number, daysWork
         ? 'total-adds-gross-one'
         : 'fail'
   const lines: SalaryRuleCheck[] = [
-    { line: 'besideSalary', verdict: verdict(salary.besideSalary.every((payment) => payment.kind !== 'unknown')) },
-    ...RULE_LINES.map((line) => ({ line, verdict: verdict(salary[line] === payroll[line].amount) })),
-    { line: 'paidToEmployee', verdict: verdict(salary.paidToEmployee === addMoney(payroll.paidToEmployee.amount, outside)) },
-    { line: 'totalCompanyCost', verdict: totalVerdict },
-    { line: 'statedLowerRate', verdict: verdict(localRates(salary.residenceCity, salary.paidOn, rules).lowerRate === salary.statedLowerRate) },
+    { line: 'besideSalary', verdict: verdict(salary.besideSalary.every((payment) => payment.kind !== 'unknown')), theirs: null, ours: null },
+    ...RULE_LINES.map((line) => amounts(line, salary[line], payroll[line].amount)),
+    amounts('paidToEmployee', salary.paidToEmployee, addMoney(payroll.paidToEmployee.amount, outside)),
+    { line: 'totalCompanyCost', verdict: totalVerdict, theirs: salary.totalCompanyCost, ours: engineTotal },
+    { line: 'statedLowerRate', verdict: verdict(localRates(salary.residenceCity, salary.paidOn, rules).lowerRate === salary.statedLowerRate), theirs: null, ours: null },
   ]
   return { kind: 'checked', payroll, lines }
 }

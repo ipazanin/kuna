@@ -1,3 +1,4 @@
+import { forgetDriveReads } from './driveReads'
 import { googleConfig } from './googleConfig'
 import {
   EXPIRY_MARGIN_MS,
@@ -286,12 +287,13 @@ async function tokenFromPopup(scope: string, includeGrantedScopes: boolean, acce
   })
 }
 
-/** Forgets the token and the account on this device, as switching to a workbook kept here does. */
+/** Forgets the token, the account and what was read from Drive on this device, as switching to a workbook kept here does. */
 export function forgetGoogleSignIn(): void {
   forgetAccessToken()
   forgetAccountEmail()
   gmailToken = null
   driveReadToken = null
+  void forgetDriveReads()
 }
 
 /** Revokes the app's access with Google when a token is still good, then forgets the sign-in here. */

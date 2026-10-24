@@ -116,13 +116,18 @@ describe('salaryMonthChecks', () => {
 describe('salaryRules', () => {
   it('fails the line the engine computes otherwise', () => {
     const rules = salaryRules({ ...SALARY, net: addMoney(SALARY.net, moneyFromCents(1)) }, 0, null)
-    expect(rules.kind === 'checked' && rules.lines.filter((line) => line.verdict !== 'pass')).toEqual([{ line: 'net', verdict: 'fail' }])
+    expect(rules.kind === 'checked' && rules.lines.filter((line) => line.verdict !== 'pass')).toEqual([{ line: 'net', verdict: 'fail', theirs: addMoney(SALARY.net, moneyFromCents(1)), ours: SALARY.net }])
   })
 
   it('states the correction of a total that adds gross I instead of gross II', () => {
     const totalWithoutHealth = sumMoney([SALARY.gross, euros(100), euros(300)])
     const rules = salaryRules({ ...SALARY, totalCompanyCost: totalWithoutHealth }, 0, null)
-    expect(rules.kind === 'checked' && rules.lines.find((line) => line.line === 'totalCompanyCost')).toEqual({ line: 'totalCompanyCost', verdict: 'total-adds-gross-one' })
+    expect(rules.kind === 'checked' && rules.lines.find((line) => line.line === 'totalCompanyCost')).toEqual({
+      line: 'totalCompanyCost',
+      verdict: 'total-adds-gross-one',
+      theirs: totalWithoutHealth,
+      ours: SALARY.totalCompanyCost,
+    })
   })
 
   it('fails a payment beside the salary it does not know', () => {

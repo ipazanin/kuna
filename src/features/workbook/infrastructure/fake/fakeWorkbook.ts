@@ -292,6 +292,8 @@ function fakeTabs(source: WorkbookSource): Record<WorkbookTab, CellValue[][]> {
             ['hr_pension_pillar_2', true],
             ['hr_company_registered', '2025-05-12'],
             ['hr_owner_loan_interest', 0.025],
+            ['hr_vat_returns_folder', 'work/dss/dss-finance/vat-returns'],
+            ['hr_payroll_folder', 'work/dss/dss-finance/payroll'],
             ['billing_monthly_amount', 7200],
             ['billing_monthly_item', 'Monthly Fee'],
             ['billing_subscription_amount', 60],

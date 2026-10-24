@@ -10,7 +10,7 @@ import AppCard from '../../../shared/ui/AppCard.vue'
 import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
-import { statementsFolderOf } from '../../imports/domain/statementFiles'
+import { folderPathOf } from '../../../shared/text/folderPath'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
 
@@ -92,7 +92,7 @@ const statementsFolderText = ref(props.settings.statementsFolder.join('/'))
 watch(
   () => draft.value.statementsFolder,
   (folders) => {
-    if (JSON.stringify(statementsFolderOf(statementsFolderText.value)) !== JSON.stringify(folders)) {
+    if (JSON.stringify(folderPathOf(statementsFolderText.value)) !== JSON.stringify(folders)) {
       statementsFolderText.value = folders.join('/')
     }
   },
@@ -100,7 +100,7 @@ watch(
 
 function updateStatementsFolder(text: string): void {
   statementsFolderText.value = text
-  update('statementsFolder', statementsFolderOf(text))
+  update('statementsFolder', folderPathOf(text))
 }
 
 function updateLabel(bucket: DefinedBucket, label: string): void {

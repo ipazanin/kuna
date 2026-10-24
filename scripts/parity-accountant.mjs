@@ -20,14 +20,12 @@ import { parseArgs } from 'node:util'
 import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook.ts'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab.ts'
 import { readWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile.ts'
-import { accountantFileNameOf, filingsByPeriod, sameReading } from '../src/packs/hr-doo/domain/accountant/accountantFile.ts'
+import { accountantDocumentsOf } from '../src/packs/hr-doo/application/accountantDocuments.ts'
+import { accountantFileNameOf } from '../src/packs/hr-doo/domain/accountant/accountantFile.ts'
 import { salaryMonthChecks } from '../src/packs/hr-doo/domain/accountant/payrollReconciliation.ts'
-import { readSalaryWorkbook } from '../src/packs/hr-doo/domain/accountant/salaryWorkbookReading.ts'
-import { vatPeriods } from '../src/packs/hr-doo/domain/accountant/vatReconciliation.ts'
-import { readVatReturn } from '../src/packs/hr-doo/domain/accountant/vatReturnReading.ts'
+import { vatMonthsOf, vatPeriods } from '../src/packs/hr-doo/domain/accountant/vatReconciliation.ts'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart.ts'
-import { monthsFrom } from '../src/shared/calendar/monthKey.ts'
-import { gridOf, sheetJs } from '../src/shared/files/sheetJs.ts'
+import { readEveryTab } from '../src/shared/xlsx/sheetGrids.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 
 const { values: options } = parseArgs({
@@ -61,7 +59,6 @@ const read = readSnapshot({
   ...tabs,
 }).workbook
 const workbook = hrDooWorkbook(presentedWorkbook(read))
-const XLSX = await sheetJs()
 
 let failures = 0
 function report(period, subject, verdict, detail = '') {
@@ -84,45 +81,38 @@ function accountantFilesIn(folder) {
   })
 }
 
-function tabsOf(path) {
-  const book = XLSX.read(readFileSync(path), { type: 'buffer', cellText: false })
-  return book.SheetNames.map((name) => ({ name, grid: gridOf(XLSX, book.Sheets[name]) }))
-}
-
-function readingOf(file) {
-  return file.kind === 'vat-return' ? readVatReturn(file.period, tabsOf(file.path)) : readSalaryWorkbook(file.period, tabsOf(file.path))
-}
-
 const KIND_WORDS = { 'vat-return': 'VAT return', salary: 'salary workbook' }
 const files = [...accountantFilesIn(options['vat-returns']), ...accountantFilesIn(options.payroll), ...accountantFilesIn(options.downloads)]
-const documents = { 'vat-return': [], salary: [] }
-const counts = { 'vat-return': { files: 0, read: 0 }, salary: { files: 0, read: 0 } }
+const xlsxFiles = files.filter((file) => file.format === 'xlsx')
+const periodKey = (file) => `${file.period} ${file.kind}`
+const xlsxPeriods = new Set(xlsxFiles.map(periodKey))
 const sheetsOnly = { 'vat-return': [], salary: [] }
-for (const { file, alsoFiled } of filingsByPeriod(files)) {
-  if (file.format === 'google-sheet') {
-    sheetsOnly[file.kind].push(file.period)
+for (const file of files.filter((candidate) => candidate.format === 'google-sheet' && !xlsxPeriods.has(periodKey(candidate)))) {
+  sheetsOnly[file.kind].push(file.period)
+}
+const documents = accountantDocumentsOf({
+  readAt: new Date().toISOString(),
+  folders: { vatReturns: [], payroll: [] },
+  files: await Promise.all(xlsxFiles.map(async (file) => ({ ...file, id: file.path, version: '', contents: { tabs: await readEveryTab(readFileSync(file.path)) } }))),
+  folderProblems: { vatReturns: null, payroll: null },
+})
+const counts = { 'vat-return': { files: 0, read: 0 }, salary: { files: 0, read: 0 } }
+for (const key of [...xlsxPeriods].sort()) {
+  const [period, kind] = key.split(' ')
+  counts[kind].files += 1
+  const unread = documents.unread.find((candidate) => candidate.period === period && candidate.kind === kind)
+  if (unread !== undefined) {
+    const { tab, row, reason } = unread.refusal
+    report(period, `${KIND_WORDS[kind]} reads`, 'FAIL', [tab, row === null ? null : `row ${row}`, reason].filter((part) => part !== null).join(', '))
     continue
   }
-  counts[file.kind].files += 1
-  const reading = readingOf(file)
-  if ('refusal' in reading) {
-    const { tab, row, reason } = reading.refusal
-    report(file.period, `${KIND_WORDS[file.kind]} reads`, 'FAIL', [tab, row === null ? null : `row ${row}`, reason].filter((part) => part !== null).join(', '))
-    continue
-  }
-  counts[file.kind].read += 1
-  documents[file.kind].push(reading.document)
-  report(file.period, `${KIND_WORDS[file.kind]} reads`, 'pass')
-  for (const other of alsoFiled.filter((candidate) => candidate.format === 'xlsx')) {
-    report(file.period, `${other.name} reads the same as ${file.name}`, sameReading(reading, readingOf(other)) ? 'pass' : 'FAIL')
-  }
+  counts[kind].read += 1
+  report(period, `${KIND_WORDS[kind]} reads`, 'pass')
 }
 
 const verdictOf = (holds) => (holds ? 'pass' : 'FAIL')
-const returns = documents['vat-return']
-const vatFiled = [...new Set(files.filter((file) => file.kind === 'vat-return').map((file) => file.period))].sort()
-const vatMonths =
-  vatFiled.length === 0 ? [] : monthsFrom(vatFiled[0], vatFiled.at(-1)).filter((month) => !vatFiled.includes(month) || returns.some((vatReturn) => vatReturn.period === month))
+const returns = documents.vatReturns
+const vatMonths = vatMonthsOf([...documents.filedVatPeriods, ...sheetsOnly['vat-return']], returns)
 let carries = 0
 let salesHeld = 0
 const notFiled = []
@@ -142,7 +132,7 @@ const RULE_WORDS = { pass: 'pass', fail: 'FAIL', 'total-adds-gross-one': 'correc
 let banks = 0
 const ruleCounts = { pass: 0, fail: 0, 'total-adds-gross-one': 0 }
 const partMonths = []
-for (const check of salaryMonthChecks(workbook, documents.salary, daysWorked)) {
+for (const check of salaryMonthChecks(workbook, documents.salaries, daysWorked)) {
   const month = check.salary.workedMonth
   banks += check.stateTake.holds && check.payout.holds ? 1 : 0
   report(month, 'bank, paid to the state in the payout week', verdictOf(check.stateTake.holds))
@@ -164,7 +154,7 @@ const vat = counts['vat-return']
 const salary = counts.salary
 console.log(`VAT returns: ${vat.read} of ${vat.files} xlsx read, carry ${carries} of ${returns.length}, sales ${salesHeld} of ${returns.length}.`)
 console.log(
-  `Salary workbooks: ${salary.read} of ${salary.files} xlsx read, bank ${banks} of ${documents.salary.length}, rules ${ruleCounts.pass} lines pass, ${ruleCounts['total-adds-gross-one']} stated correction(s), ${ruleCounts.fail} fail.`,
+  `Salary workbooks: ${salary.read} of ${salary.files} xlsx read, bank ${banks} of ${documents.salaries.length}, rules ${ruleCounts.pass} lines pass, ${ruleCounts['total-adds-gross-one']} stated correction(s), ${ruleCounts.fail} fail.`,
 )
 if (partMonths.length > 0) {
   console.log(`Rules not run for the part month ${partMonths.join(', ')}.`)

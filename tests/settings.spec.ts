@@ -206,7 +206,7 @@ describe('statements_folder', () => {
 })
 
 describe('company facts', () => {
-  it('default to no city, no birth year, the second pillar, no dependants, the accrual return, the invoice principle and owner loans at 0%', () => {
+  it('default to no city, no birth year, the second pillar, no dependants, the accrual return, the invoice principle, owner loans at 0% and today’s accountant folders', () => {
     expect(COMPANY_FACT_SETTINGS.defaults).toEqual({
       residenceCity: '',
       birthYear: null,
@@ -217,6 +217,8 @@ describe('company facts', () => {
       vatPrinciple: 'invoice',
       depreciationDoubled: false,
       ownerLoanInterest: 0,
+      vatReturnsFolder: ['work', 'dss', 'dss-finance', 'vat-returns'],
+      payrollFolder: ['work', 'dss', 'dss-finance', 'payroll'],
     })
   })
 
@@ -232,6 +234,8 @@ describe('company facts', () => {
         ['hr_vat_principle', 'cash'],
         ['hr_depreciation_doubled', 'TRUE'],
         ['hr_owner_loan_interest', 0.025],
+        ['hr_vat_returns_folder', ' finance / vat '],
+        ['hr_payroll_folder', 'finance/payroll/'],
       ),
       COMPANY_FACT_SETTINGS,
     )
@@ -247,6 +251,8 @@ describe('company facts', () => {
       vatPrinciple: 'cash',
       depreciationDoubled: true,
       ownerLoanInterest: 250,
+      vatReturnsFolder: ['finance', 'vat'],
+      payrollFolder: ['finance', 'payroll'],
     })
     expect(readPackSettings(rows(['hr_company_registered', '2025-05-12']), COMPANY_FACT_SETTINGS).values.companyRegistered).toBe('2025-05-12')
     const written = settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values })
@@ -278,6 +284,7 @@ describe('company facts', () => {
         ['hr_cit_return', 'cash'],
         ['hr_vat_principle', 'monthly'],
         ['hr_pension_pillar_2', 'perhaps'],
+        ['hr_payroll_folder', ' / '],
       ),
       COMPANY_FACT_SETTINGS,
     )
@@ -290,7 +297,9 @@ describe('company facts', () => {
       settingProblem('hr_cit_return', '"cash" is neither pd nor pd-nn, so the default is used'),
       settingProblem('hr_vat_principle', '"monthly" is neither invoice nor cash, so the default is used'),
       settingProblem('hr_pension_pillar_2', '"perhaps" is neither TRUE nor FALSE, so the default is used'),
+      settingProblem('hr_payroll_folder', '" / " names no folder, so the default is used'),
     ])
+    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, vatReturnsFolder: [] })).toEqual({ vatReturnsFolder: 'name a folder from My Drive, such as finance/accountant' })
   })
 
   it('read the owner loan interest as a percentage cell or as a percent typed as text', () => {
@@ -322,6 +331,8 @@ describe('company facts', () => {
       { key: 'hr_vat_principle', value: 'invoice' },
       { key: 'hr_depreciation_doubled', value: false },
       { key: 'hr_owner_loan_interest', value: 0 },
+      { key: 'hr_vat_returns_folder', value: 'work/dss/dss-finance/vat-returns' },
+      { key: 'hr_payroll_folder', value: 'work/dss/dss-finance/payroll' },
     ])
   })
 })

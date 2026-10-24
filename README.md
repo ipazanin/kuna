@@ -45,12 +45,12 @@ forgets it too.
 
 The Drive read grant is a third token. The Apps Script files the bank statements in a Drive folder,
 and `drive.file` cannot see files another app made, so the app asks for `drive.readonly` to find the
-new ones. That token can read every file in Drive. It is asked for alone, with
+new ones, and to read the accountant's workbooks on Year, Taxes. That token can read every file in Drive. It is asked for alone, with
 `include_granted_scopes` off, so it can neither write the Sheet nor send mail, and it lives only in
 the page's memory. Each open of a Google Sheet while online first sends the tab to Google with
 `prompt=none`, which shows no screen there and comes straight back with the token. The tab leaves
 by replacing the page, so Back from the app does not land on a page that asks again. The token only
-lists and downloads the statements. The Sheet is read and written with the kept `drive.file` token
+lists and downloads the statements and the accountant's workbooks. The Sheet is read and written with the kept `drive.file` token
 alone, so a sync that files statements always holds a token that can write them, and a sync after
 the kept token ran out still needs the tap that asks for it. A load that is Google's answer to that
 sign-in asks once more the same way, so on a phone one tap on Sync brings back both tokens. What the
@@ -62,7 +62,8 @@ closed. Then only "Check for new statements" asks, with Google's consent screen 
 the popup on a desktop, by the redirect on a phone. Overview offers it, and so does a toast after a
 tap on Sync, while the page holds no Drive read token. A token that ran out after an hour is offered
 again the same way, since a silent ask in the middle of a session would reload the page. Excel mode,
-the fake build and an offline open never go to Google, and sign out forgets this token too.
+the fake build and an offline open never go to Google, and sign out forgets this token too, with
+the read of Year, Taxes this device kept.
 `driveReadAccess()` in `src/shared/google/googleAuth.ts` says where the page stands: the token
 held, not asked yet (or run out), or consent needed.
 
@@ -385,10 +386,13 @@ as before.
 | `hr_vat_principle` | `invoice` | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment. |
 | `hr_depreciation_doubled` | `FALSE` | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it. |
 | `hr_owner_loan_interest` | `0%` | The yearly interest rate the owner's loans from the company carry, as a percentage cell such as `2%`, or text such as `2%` or `0.02`. A number above 1, such as `2`, is refused, since it reads as 200%. Below the income tax law's rate the difference is a benefit in kind, as *Taxes and Owner* describes. |
+| `hr_vat_returns_folder` | `work/dss/dss-finance/vat-returns` | The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive, which Year, Taxes reads as *Year screen* describes. A path where a folder is missing, or where two folders share a name, is reported there. |
+| `hr_payroll_folder` | `work/dss/dss-finance/payroll` | The same for the accountant's salary workbooks, with a folder for each year and month inside. |
 | `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves and deletes. A profile that cannot be read is reported and not offered, and "Remove the key" beside it on Settings, General takes its row off the tab. |
 
-The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack, which reads
-and checks them itself, as *Core and the pack* describes. Settings, General shows them while
+The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack, with where
+its accountant files the returns, which the pack reads and checks itself, as *Core and the pack* describes.
+Nothing outside the app reads the two folder keys, so a save writes them only once they change. Settings, General shows them while
 `owner_pay_module` is on. They belong in the workbook and never in the app.
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
@@ -930,8 +934,8 @@ A Google Sheet without a `scenarios` tab gets it only from that dialog, which sa
 with the template's header before it writes the rows.
 
 **Taxes** holds the year's taxes paid and effective tax rate, then "Corporate income tax, expected
-against paid", the payroll cadence, collapsed, "Tax by type" as a ring and "Tax by type, by month",
-collapsed. The corporate tax lists every payment the schedule expects from the first tax period on,
+against paid", the payroll cadence, collapsed, for a Google Sheet "VAT returns" and "Payroll from the
+accountant", then "Tax by type" as a ring and "Tax by type, by month", collapsed. The corporate tax lists every payment the schedule expects from the first tax period on,
 seen on the newest booking, as *Forecast* describes, with overdue payments and payments no
 obligation takes called out above them. The payroll cadence gives every watched tax month by month
 since its first payment. Both span every year, open themselves when a payment is overdue or a month
@@ -939,6 +943,36 @@ was missed, and are `#corporate-tax` and `#payroll-cadence`. The ring holds each
 paid out more than it took back in the year, in the colour its band has in the chart, and a refund
 sits under it, so with the ring it makes the taxes paid. The year's figures count every bank row and
 advance, whatever the filters of other screens say.
+
+The two accountant cards read the workbooks the accountant mails, which the mail scripts file in
+Drive: the `YYYY-MM-pdv` VAT returns of `hr_vat_returns_folder` and the `YYYY-MM-salary` workbooks
+anywhere under `hr_payroll_folder`, an xlsx downloaded as filed and a Google Sheet exported as xlsx.
+The pack's readers in `src/packs/hr-doo/domain/accountant/` read them, as *Accountant parity*
+describes, and nothing is written to the Sheet or to Drive. A period with an xlsx and a Google Sheet
+reads the xlsx, and the two must read the same. The VAT card follows the year by the return's month,
+newest first, from the first return filed to the last: each return with what it states and its
+badges, "No return filed" for a month between them without one. "Carry" sets the return's carry
+forward against our VAT position to the month's end, and "Sales" each sales line against the invoice
+of its number, delivered in the month. The payroll card follows the year by the worked month: each
+workbook with its payout day, gross, the state's share and the employee's, each beside the bank
+figure it is set against. "Bank" needs both to hold, the state's share against the owner-pay taxes
+within 5 days of the payout day, dividend tax left out, and the employee's share less rent and
+refunds against one owner pay row of that week. "Rules" runs every line through the payroll engine,
+and when it differs, the lines the ruleset works out otherwise are listed under the row. A part month
+shows "Part month", since the days worked are nowhere in the app. A differing Carry or Bank badge, and
+each bank figure, opens Transactions on the rows it compared, and a differing Sales badge opens the
+month on Invoicing, Plan. A workbook the reader refuses shows "Could not read" with its name, tab, row
+and reason, and so does one Drive did not give.
+
+The files are read when Taxes opens while the page holds the Drive read token of *Google sign-in*, at
+most once every ten minutes as a sync does, and again with "Read again". A read lists both folders,
+one level of folders at a time, and downloads only the files whose Drive `version` changed since the
+last read, whose tabs it keeps. That last read stays on this device in IndexedDB
+(`ledgerboard-drive-reads`, `src/shared/google/driveReads.ts`) until the next read or sign-out, so
+without the token the cards show it at once with its date, and offer "Check for new statements",
+which asks for the token as Overview does and then reads. The fake build's accountant folders, at the
+default paths, hold made-up returns and salaries for 2026 that show a passing, a differing and an
+unread row on each card.
 
 **Assets** is *Assets* above.
 
@@ -1206,7 +1240,7 @@ are set up, and the law behind the figures, one tab each:
 
 | Tab | What it holds |
 |---|---|
-| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder and the owner-pay module) open, then the company and owner facts and the bucket labels, collapsed, with one Save under them. Then the loan switch and the rows the app could not use, which opens itself while there are any |
+| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder and the owner-pay module) open, then the company and owner facts with the accountant's two folders and the bucket labels, collapsed, with one Save under them. Then the loan switch and the rows the app could not use, which opens itself while there are any |
 | Categories | The categories tab |
 | Accounts | The accounts tab |
 | Ruleset | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as *Ruleset* describes |
@@ -1269,8 +1303,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, and the check for new statements Overview offers, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, the check for new statements Overview offers, and on Year, Taxes the accountant's cards with the rows a differing badge opens, the read this device kept with the check, and the payroll folder saved from Settings, General, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, the accountant's cards on Year, Taxes with a differing badge's rows and the kept read, the payroll folder saved from Settings, General, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -1305,7 +1339,8 @@ sample is the only file the app downloads from it. Sync files it, and a second s
 new. `?fake=held-statement` adds a statement of an account the accounts tab lacks, named by its
 label alone, which the sync holds. The fake build never goes to Google, so it reads this folder as
 if it held the Drive read token, unless the tab noted a refused ask, which offers "Check for new
-statements".
+statements". It holds the accountant's folders at the default folder paths too, as *Year screen*
+describes for Taxes.
 Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
 changes nine days past their last export and owner loans that carry 2.5%, so they give no benefit in kind, and `?fake=empty` starts with nothing, which is the first
 run. `?fake=no-scenarios` leaves the `scenarios` tab out of the Sheet, so adding the starting
@@ -1418,8 +1453,9 @@ categories tab lacks, and gives the workbook and its problems, core's first and 
 editors draft from the records and the refused ones alike, so a row the app leaves out, such as a
 category whose bucket reads `operatng`, still shows as stored and can be fixed there.
 
-Google sign-in, the redirect, the session, Drive, the Picker and the script loader are in
-`src/shared/google/`. The Sheets client stays with the workbook, in
+Google sign-in, the redirect, the session, Drive, the reads kept from it, the Picker and the script
+loader are in `src/shared/google/`, and reading a spreadsheet file's tabs with SheetJS in
+`src/shared/xlsx/`. The Sheets client stays with the workbook, in
 `src/features/workbook/infrastructure/`.
 
 ## Write-back
@@ -1580,6 +1616,7 @@ batchUpdate and again after it:
 | Plan the owner pay, a category, a purchase or the dividend on Year, Plan, change or clear it | get, batchGet of `plan`, `categories` and `scenarios` |
 | Import statements | get, batchGet of `ledger` and `categories` |
 | File statements on sync | Drive `files.list` with the Drive read token for each folder of the `statements_folder` path (`'<parent>' in parents and name = '<folder>' and mimeType = '<folder type>' and trashed = false`), one of the year folders and one of their files, `files.get` with `alt=media` of each file the name test keeps, then the import's reads |
+| Read the accountant's workbooks on Year, Taxes | No Sheets call. Drive `files.list` with the Drive read token for each folder of the `hr_vat_returns_folder` and `hr_payroll_folder` paths, then per level of folders inside one listing of their files (`files(id,name,mimeType,version)`) and one of their folders, `files.get` with `alt=media` of each changed xlsx and `files/<id>/export?mimeType=<xlsx type>` of each changed Google Sheet |
 | Dismiss a suggestion on Review, or restore one | get, batchGet of `dismissed` |
 | Undo any of these | the same reads, with the change turned around |
 
@@ -1638,7 +1675,8 @@ Never run it first on the original.
 
 `npm run parity:accountant -- --workbook <export.xlsx> --worked 2025-06=<days>` reads the
 accountant's VAT returns and salary workbooks with the pack's readers in
-`src/packs/hr-doo/domain/accountant/` and checks each against an xlsx export of the Sheet. VAT returns are the `YYYY-MM-pdv.xlsx` files of
+`src/packs/hr-doo/domain/accountant/` and checks each against an xlsx export of the Sheet, through `accountantDocumentsOf` in
+`src/packs/hr-doo/application/accountantDocuments.ts` as Year, Taxes does. VAT returns are the `YYYY-MM-pdv.xlsx` files of
 `~/gdrive/work/dss/dss-finance/vat-returns` (`--vat-returns <folder>`), salary workbooks the
 `YYYY-MM-salary.xlsx` files anywhere under `~/gdrive/work/dss/dss-finance/payroll` (`--payroll
 <folder>`). `--downloads <folder>`, by default `~/Projects/personal/ledgerboard-exports/accountant`,
@@ -1733,7 +1771,7 @@ Picker and sign-in hosts, and requests go only to these hosts:
 | Host | What the app asks it |
 |---|---|
 | `sheets.googleapis.com` | Reads and writes of the picked Sheet |
-| `www.googleapis.com` | Drive: listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), and listing and downloading the files of the statements folder |
+| `www.googleapis.com` | Drive: listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, and listing, downloading and exporting the accountant's workbooks |
 | `gmail.googleapis.com` | The invoice mail draft, only once the user turned it on |
 | `openidconnect.googleapis.com` | The userinfo endpoint |
 | `oauth2.googleapis.com` | Token revocation, where `google.accounts.oauth2.revoke` posts |

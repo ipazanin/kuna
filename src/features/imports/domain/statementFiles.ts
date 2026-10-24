@@ -9,14 +9,6 @@ export interface StatementFile {
 /** Where the bank statements are filed, as folder names from My Drive down. */
 export const DEFAULT_STATEMENTS_FOLDER: readonly string[] = ['work', 'dss', 'business-bank-account', 'erste', 'statements']
 
-/** The folder names of a path such as `work/statements`, with blank ones and the spaces around each name left out. */
-export function statementsFolderOf(path: string): string[] {
-  return path
-    .split('/')
-    .map((name) => name.trim())
-    .filter((name) => name !== '')
-}
-
 /**
  * The statement label and the account an archived camt file's name carries, as the fetch names it:
  * `<label>-<account>.xml`, or `<label>.xml` for a statement whose IBAN the accounts tab did not

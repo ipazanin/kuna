@@ -1,4 +1,4 @@
-import { readFirstSheet } from '../../../shared/files/sheetJs'
+import { readFirstSheet } from '../../../shared/xlsx/sheetGrids'
 import type { LoadedImportFile } from '../application/importStatements'
 import type { CellGrid } from '../domain/tabularStatement'
 

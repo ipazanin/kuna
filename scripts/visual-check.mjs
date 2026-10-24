@@ -38,7 +38,10 @@
  * mode, from Overview, Sync files the fake statements folder's sample statement, which Undo takes out
  * and Import lists, and a last sync finds nothing new and shows no toast. With a held statement in the
  * folder, Overview links to Import, which says why. A tab Google gave no Drive read token is offered
- * the check for new statements, which files the sample.
+ * the check for new statements, which files the sample. On Year, Taxes the accountant's cards read the
+ * fake accountant folders, name the tab and row of a file that does not read, and open the rows a
+ * differing badge compared. Without the Drive read token they show the read this device kept and
+ * offer the check, and a payroll folder saved on Settings, General that the fake Drive lacks is said.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -62,6 +65,9 @@ import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
+  accountantFoldersFlow,
+  accountantKeptReadFlow,
+  accountantReturnsFlow,
   advanceFlow,
   assetFlow,
   categoryFlow,
@@ -147,7 +153,13 @@ const SCREENS = [
     shows: 'Save terms',
     linkedPart: 'invoicing-terms',
   },
-  { name: 'year', hash: '#/year?tab=taxes', title: 'Year', charts: 0, shows: ['Corporate income tax, expected against paid', 'Payroll cadence', 'Tax by type'] },
+  {
+    name: 'year',
+    hash: '#/year?tab=taxes',
+    title: 'Year',
+    charts: 0,
+    shows: ['Corporate income tax, expected against paid', 'Payroll cadence', 'VAT returns', 'Carry differs', 'Payroll from the accountant', 'Rules differ', 'Could not read', 'Tax by type'],
+  },
   { name: 'year-forecast', hash: '#/year', title: 'Year', charts: 0, shows: 'The forecast needs the day the company was registered', cards: false },
   { name: 'year-plan', hash: '#/year?tab=plan', title: 'Year', charts: 0, shows: ['Plan for 2026', 'Revenue comes from the billing plan'], cards: false },
   { name: 'year-pay', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 0, shows: ['The figures need hr_company_registered', 'Scenarios for 2027'] },
@@ -549,6 +561,9 @@ const FLOWS = [
   { name: 'statements-sync', hash: '#/', title: 'Overview', run: statementSyncFlow, modes: ['google'] },
   { name: 'statements-held', hash: '#/', title: 'Overview', run: heldStatementFlow, modes: ['google'], queries: { google: '&fake=held-statement' } },
   { name: 'statements-check', hash: '#/', title: 'Overview', run: statementCheckFlow, modes: ['google'] },
+  { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['google'] },
+  { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['google'] },
+  { name: 'accountant-folders', hash: '#/settings#accountant-folders', title: 'Settings', run: accountantFoldersFlow, modes: ['google'] },
 ]
 const MODES = [
   { name: 'google', query: '' },

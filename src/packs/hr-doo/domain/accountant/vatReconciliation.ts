@@ -1,6 +1,6 @@
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import type { Invoice } from '../../../../features/workbook/domain/workbook'
-import { lastDayOf, monthOf } from '../../../../shared/calendar/monthKey'
+import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -18,7 +18,7 @@ import type { VatReturn, VatSale } from './vatReturn'
 /** Why a sales line does not close on the invoices tab. Null when it does. */
 export type SaleProblem = 'no-invoice' | 'other-amount' | 'delivered-in-another-month' | null
 
-export interface SaleCheck {
+interface SaleCheck {
   readonly sale: VatSale
   /** The invoice with the line's number. */
   readonly invoice: Invoice | null
@@ -79,6 +79,18 @@ export function vatPeriods(workbook: HrDooWorkbook, returns: readonly VatReturn[
       salesHold: sales.every((check) => check.problem === null),
     }
   })
+}
+
+/**
+ * The months to set against the books: from the first return filed to the last, leaving out the
+ * filed months whose return could not be read, so a month between them without a file is not filed.
+ */
+export function vatMonthsOf(filed: readonly MonthKey[], returns: readonly VatReturn[]): MonthKey[] {
+  const sorted = [...filed].sort()
+  const first = sorted[0]
+  const last = sorted.at(-1)
+  if (first === undefined || last === undefined) return []
+  return monthsFrom(first, last).filter((month) => !sorted.includes(month) || returns.some((vatReturn) => vatReturn.period === month))
 }
 
 function saleCheck(sale: VatSale, period: MonthKey, invoices: readonly Invoice[]): SaleCheck {

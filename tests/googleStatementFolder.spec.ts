@@ -36,7 +36,7 @@ describe('googleStatementFolder', () => {
     const requests = stubDrive({
       [`'root' in parents and name = 'work' and ${FOLDER}`]: { files: [{ id: 'work-id' }] },
       [`'work-id' in parents and name = 'statements' and ${FOLDER}`]: { files: [{ id: 'statements-id' }] },
-      [`'statements-id' in parents and ${FOLDER}`]: { files: [{ id: 'year-2025' }, { id: 'year-2026' }] },
+      [`('statements-id' in parents) and ${FOLDER}`]: { files: [{ id: 'year-2025' }, { id: 'year-2026' }] },
       ["('year-2025' in parents or 'year-2026' in parents) and mimeType != 'application/vnd.google-apps.folder' and trashed = false"]: {
         files: [
           { id: 'a', name: '2025-12-30-statement-001-main.xml' },
@@ -86,7 +86,7 @@ describe('googleStatementFolder', () => {
   it('escapes quotes and backslashes in a folder name', async () => {
     const requests = stubDrive({
       [`'root' in parents and name = 'Ivan\\'s \\\\ statements' and ${FOLDER}`]: { files: [{ id: 'quoted-id' }] },
-      [`'quoted-id' in parents and ${FOLDER}`]: { files: [] },
+      [`('quoted-id' in parents) and ${FOLDER}`]: { files: [] },
     })
 
     expect(await googleStatementFolder('read-token').files(["Ivan's \\ statements"])).toEqual({ kind: 'listed', files: [] })

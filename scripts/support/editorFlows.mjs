@@ -1218,3 +1218,132 @@ export async function rulesEditorFlow(page, { press, shoot, inspect }) {
   await shoot('rule-deleted-undone')
   await dismissToasts(page)
 }
+
+const VAT_RETURNS = '[data-testid="vat-returns"]'
+const ACCOUNTANT_PAYROLL = '[data-testid="accountant-payroll"]'
+const ACCOUNTANT_READ = '[data-testid="accountant-read"]'
+const ACCOUNTANT_RETURNS = '[data-testid="accountant-returns"]'
+
+/** Waits until a row of an accountant card, by its period, says every text given. Returns the row. */
+async function accountantRow(page, card, period, texts) {
+  const selector = `${card} [data-period="${period}"]`
+  return page
+    .waitForFunction(
+      (rowSelector, wanted) => {
+        const row = document.querySelector(rowSelector)
+        return row !== null && wanted.every((text) => row.textContent?.includes(text)) ? row : null
+      },
+      { timeout: 10_000 },
+      selector,
+      texts,
+    )
+    .then((handle) => handle.asElement())
+    .catch(async () => {
+      const said = await page.evaluate((rowSelector) => document.querySelector(rowSelector)?.textContent?.trim() ?? 'no such row', selector)
+      throw new Error(`${period} in ${card} does not say ${texts.join(', ')}, it says: ${said}`)
+    })
+}
+
+/** Waits until the read line above the accountant cards says the text. */
+async function accountantReadSays(page, text, failure) {
+  await page.waitForFunction((selector, wanted) => document.querySelector(selector)?.textContent?.includes(wanted) ?? false, { timeout: 10_000 }, ACCOUNTANT_READ, text).catch(async () => {
+    const said = await page.evaluate((selector) => document.querySelector(selector)?.textContent?.trim() ?? 'nothing', ACCOUNTANT_READ)
+    throw new Error(`${failure}, the read line says: ${said}`)
+  })
+}
+
+/** Presses the badge of a row that says the label, which opens the rows it compared on Transactions. */
+async function pressBadge(page, press, row, label) {
+  const link = (await row.evaluateHandle((element, wanted) => [...element.querySelectorAll('a')].find((anchor) => anchor.textContent?.trim() === wanted) ?? null, label)).asElement()
+  if (link === null) throw new Error(`the ${label} badge opens nothing`)
+  await link.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(link)
+  await page.waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Transactions', { timeout: 10_000 }).catch(() => {
+    throw new Error(`the ${label} badge did not open Transactions`)
+  })
+}
+
+async function scrollToTopOf(page, selector) {
+  await page.$eval(selector, (element) => element.scrollIntoView({ block: 'start' }))
+  await delay(200)
+}
+
+/**
+ * Year, Taxes in Google mode reads the fake accountant folders: each card shows passing, differing
+ * and unread rows, a file that does not read names its tab and row, and a differing badge opens the
+ * rows it compared.
+ */
+export async function accountantReturnsFlow(page, { press, shoot, inspect }) {
+  await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok', 'Sales ok'])
+  await accountantRow(page, VAT_RETURNS, '2026-08', ['Could not read', 'Lokalni U, row 5: the lines do not add up to the total row'])
+  await accountantRow(page, VAT_RETURNS, '2026-05', ['No return filed'])
+  await accountantRow(page, VAT_RETURNS, '2026-09', ['Sales differ', 'Sale 10-1-26'])
+  await accountantRow(page, ACCOUNTANT_PAYROLL, '2026-06', ['Bank ok', 'Rules differ', 'Income tax'])
+  await accountantRow(page, ACCOUNTANT_PAYROLL, '2026-08', ['Could not read', 'Obračun plaće_Alex Example, row 1'])
+  await accountantReadSays(page, 'Read from Drive on', 'the cards do not say when they read Drive')
+  await scrollToTopOf(page, ACCOUNTANT_RETURNS)
+  await inspect?.('the accountant cards')
+  await shoot('accountant-vat-returns')
+  await scrollToTopOf(page, ACCOUNTANT_PAYROLL)
+  await shoot('accountant-payroll')
+
+  await pressBadge(page, press, await accountantRow(page, VAT_RETURNS, '2026-07', ['Carry differs']), 'Carry differs')
+  await delay(400)
+  await inspect?.('the rows the carry compared')
+  await shoot('accountant-carry-rows')
+  // The drill's filters stay set, so the next drill starts from Taxes with every row in view.
+  await page.evaluate(() => {
+    window.location.hash = '#/year?tab=taxes&p=all'
+  })
+  await pressBadge(page, press, await accountantRow(page, ACCOUNTANT_PAYROLL, '2026-07', ['Bank differs', 'Rules ok']), 'Bank differs')
+  await delay(400)
+  await shoot('accountant-bank-rows')
+}
+
+/**
+ * A tab Google gave no Drive read token shows the read this device kept, with its date, and offers
+ * the check for new statements, after which the cards read Drive again.
+ */
+export async function accountantKeptReadFlow(page, { press, shoot, inspect }) {
+  await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok'])
+  await page.evaluate(() => sessionStorage.setItem('ledgerboard.drive-read-refused', 'true'))
+  await page.reload({ waitUntil: 'networkidle0' })
+  await accountantReadSays(page, 'kept on this device', 'the cards do not show the read this device kept')
+  await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok'])
+  await scrollToTopOf(page, ACCOUNTANT_RETURNS)
+  await inspect?.('the read this device kept')
+  await shoot('accountant-kept-read')
+  await pressSelector(page, press, '[data-testid="accountant-check-statements"]')
+  await accountantReadSays(page, 'Read from Drive on', 'the cards did not read Drive after the check')
+  await toastMatching(page, FILED)
+  await dismissToasts(page)
+}
+
+/** Settings, General: the payroll folder saved as a new path, which Year, Taxes then reads and the fake Drive does not hold. */
+export async function accountantFoldersFlow(page, { press, shoot, inspect }) {
+  const field = await page.waitForSelector('[data-testid="payroll-folder"] input', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the facts card has no payroll folder field')
+  })
+  const shown = await field.evaluate((element) => element.value)
+  if (shown !== 'work/dss/dss-finance/payroll') throw new Error(`the payroll folder shows "${shown}", not the default`)
+  await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await inspect?.('the accountant folders')
+  await shoot('accountant-folders')
+  await setField(field, 'finance/payroll/')
+  await press(await saveSettingsButton(page, true))
+  await toast(page, 'Settings saved')
+  await saveSettingsButton(page, false)
+  await dismissToasts(page)
+  await page.evaluate(() => {
+    window.location.hash = '#/year?tab=taxes'
+  })
+  await page
+    .waitForFunction((selector) => document.querySelector(`${selector} [data-testid="accountant-payroll-problem"]`)?.textContent?.includes('not in finance/payroll') ?? false, { timeout: 10_000 }, ACCOUNTANT_PAYROLL)
+    .catch(() => {
+      throw new Error('the payroll card does not say the folder the settings name holds no workbooks')
+    })
+  await scrollToTopOf(page, ACCOUNTANT_PAYROLL)
+  await shoot('accountant-folder-missing')
+}

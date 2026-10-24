@@ -20,6 +20,8 @@
  * silent ask with a token and with consent required and no message, from an ask the person made with the sync carrying on or a refusal, and from the
  * silent ask a sign-in's return makes, with the sync it resumes run with the token or with the offer to check, and the note to tap again,
  * a statement filed on Sync from the fake statements folder with Undo, one held and shown on Import from Overview, a sync with nothing new, the check for new statements,
+ * the accountant's VAT returns and payroll on Year, Taxes with a differing badge opening its rows, the read this device kept with the check that reads again,
+ * and the payroll folder saved on Settings, General,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
  * with a profile made for it, each confirmed and undone, and the profile deleted, an invoice made and re-exported, a rule made from a row and applied to
@@ -51,6 +53,9 @@ import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
+  accountantFoldersFlow,
+  accountantKeptReadFlow,
+  accountantReturnsFlow,
   advanceFlow,
   assetFlow,
   categoryFlow,
@@ -835,14 +840,17 @@ async function checkWidth(width) {
     }
   }
 
-  for (const [name, variant, run] of [
+  for (const [name, variant, run, hash = '#/', title = 'Overview'] of [
     ['statements-sync', '', statementSyncFlow],
     ['statements-held', '&fake=held-statement', heldStatementFlow],
     ['statements-check', '', statementCheckFlow],
+    ['accountant-returns', '', accountantReturnsFlow, '#/year?tab=taxes', 'Year'],
+    ['accountant-kept-read', '', accountantKeptReadFlow, '#/year?tab=taxes', 'Year'],
+    ['accountant-folders', '', accountantFoldersFlow, '#/settings#accountant-folders', 'Settings'],
   ]) {
     await step(name, async () => {
-      await page.goto(`${BASE}?theme=dark${variant}&load=${Date.now()}#/`, { waitUntil: 'networkidle0' })
-      await waitForTitle(page, 'Overview')
+      await page.goto(`${BASE}?theme=dark${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+      await waitForTitle(page, title)
       await run(page, {
         press: (handle) => handle.tap(),
         shoot: async (shot) => {

@@ -8,7 +8,7 @@ export type AccountantDocumentKind = 'vat-return' | 'salary'
 /** The mailed xlsx, or a Google Sheet someone converted it to. */
 export type AccountantFileFormat = 'xlsx' | 'google-sheet'
 
-export interface AccountantFileName {
+interface AccountantFileName {
   readonly period: MonthKey
   readonly kind: AccountantDocumentKind
 }
@@ -19,7 +19,7 @@ export interface AccountantFile extends AccountantFileName {
 }
 
 /** One period's file, and any other file of the same period and kind, which should say the same. */
-export interface PeriodFiling<File extends AccountantFile> {
+interface PeriodFiling<File extends AccountantFile> {
   readonly file: File
   readonly alsoFiled: readonly File[]
 }

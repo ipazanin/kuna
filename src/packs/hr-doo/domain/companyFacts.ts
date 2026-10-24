@@ -1,5 +1,6 @@
 import { civilDateFromSerial, parseCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
+import { folderPathOf } from '../../../shared/text/folderPath'
 import { booleanOf } from '../../../features/settings/domain/settings'
 import type { PackSettings, SettingCell } from '../../../features/settings/domain/settings'
 
@@ -22,6 +23,12 @@ export const VAT_PRINCIPLES = ['invoice', 'cash'] as const
 
 export type VatPrinciple = (typeof VAT_PRINCIPLES)[number]
 
+/** Where the accountant's monthly VAT returns are filed, as folder names from My Drive down. */
+export const DEFAULT_VAT_RETURNS_FOLDER: readonly string[] = ['work', 'dss', 'dss-finance', 'vat-returns']
+
+/** Where the accountant's salary workbooks are filed, a folder for each year and month inside. */
+export const DEFAULT_PAYROLL_FOLDER: readonly string[] = ['work', 'dss', 'dss-finance', 'payroll']
+
 /**
  * What the pack needs to know about this company and its owner that the law does not say. These
  * are the owner's own facts, so they live in the workbook and never in the app.
@@ -43,6 +50,10 @@ export interface CompanyFacts {
   readonly depreciationDoubled: boolean
   /** The yearly interest rate the owner's loans carry, in basis points, so 200 is 2%. */
   readonly ownerLoanInterest: number
+  /** The Drive folder of the accountant's VAT returns, as folder names from My Drive down. */
+  readonly vatReturnsFolder: readonly string[]
+  /** The Drive folder of the accountant's salary workbooks, as folder names from My Drive down. */
+  readonly payrollFolder: readonly string[]
 }
 
 /** The pack's settings keys, read and checked whatever the owner-pay switch says. */
@@ -57,6 +68,8 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     vatPrinciple: 'invoice',
     depreciationDoubled: false,
     ownerLoanInterest: 0,
+    vatReturnsFolder: DEFAULT_VAT_RETURNS_FOLDER,
+    payrollFolder: DEFAULT_PAYROLL_FOLDER,
   },
   definitions: [
   {
@@ -140,6 +153,24 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       return typeof rate === 'string' ? rate : (ownerLoanInterestProblem(rate) ?? withFacts(facts, { ownerLoanInterest: rate }))
     },
   },
+  {
+    key: 'hr_vat_returns_folder',
+    note: `The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive. Year, Taxes reads them. Blank means ${DEFAULT_VAT_RETURNS_FOLDER.join('/')}.`,
+    valueOf: (facts) => facts.vatReturnsFolder.join('/'),
+    apply: (facts, cell) => {
+      const folders = folderPathOf(String(cell))
+      return folders.length === 0 ? `"${String(cell)}" names no folder` : withFacts(facts, { vatReturnsFolder: folders })
+    },
+  },
+  {
+    key: 'hr_payroll_folder',
+    note: `The Google Drive folder the accountant's salary workbooks are filed in, as a path from My Drive, with a folder for each year and month inside. Year, Taxes reads them. Blank means ${DEFAULT_PAYROLL_FOLDER.join('/')}.`,
+    valueOf: (facts) => facts.payrollFolder.join('/'),
+    apply: (facts, cell) => {
+      const folders = folderPathOf(String(cell))
+      return folders.length === 0 ? `"${String(cell)}" names no folder` : withFacts(facts, { payrollFolder: folders })
+    },
+  },
 ],
 }
 
@@ -148,7 +179,7 @@ function withFacts(facts: CompanyFacts, changed: Partial<CompanyFacts>): Company
 }
 
 /** The facts a typed value can be wrong in, which the facts card shows an error under. */
-export type CompanyFactsField = 'residenceCity' | 'birthYear' | 'dependants' | 'ownerLoanInterest'
+export type CompanyFactsField = 'residenceCity' | 'birthYear' | 'dependants' | 'ownerLoanInterest' | 'vatReturnsFolder' | 'payrollFolder'
 
 /** What is wrong with facts typed in the app, by field. The same rules as reading the keys, so facts saved from the app read back without a problem. */
 export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyFactsField, string>> {
@@ -161,8 +192,12 @@ export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyF
   if (dependantCount !== null) errors.dependants = dependantCount
   const loanInterest = ownerLoanInterestProblem(facts.ownerLoanInterest)
   if (loanInterest !== null) errors.ownerLoanInterest = loanInterest
+  if (facts.vatReturnsFolder.length === 0) errors.vatReturnsFolder = FOLDER_MISSING
+  if (facts.payrollFolder.length === 0) errors.payrollFolder = FOLDER_MISSING
   return errors
 }
+
+const FOLDER_MISSING = 'name a folder from My Drive, such as finance/accountant'
 
 function residenceCityProblem(city: string): string | null {
   return city.length > CITY_MAX_LENGTH ? `a city name can be at most ${CITY_MAX_LENGTH} characters` : null

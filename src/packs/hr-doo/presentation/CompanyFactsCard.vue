@@ -8,6 +8,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
+import { folderPathOf } from '../../../shared/text/folderPath'
 import { fold } from '../../../shared/text/fold'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import type { CitReturn, CompanyFacts, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
@@ -31,11 +32,13 @@ const emit = defineEmits<{
 }>()
 
 /** The facts other screens link to, by the id their link's hash names. */
-const LINKED_FACTS = ['residence-city', 'company-registered', 'owner-loan-interest']
+const LINKED_FACTS = ['residence-city', 'company-registered', 'owner-loan-interest', 'accountant-folders']
 
 const route = useRoute()
 const revealed = computed(
-  () => LINKED_FACTS.includes(route.hash.slice(1)) || (['residenceCity', 'birthYear', 'dependants', 'ownerLoanInterest'] as const).some((field) => props.errors[field] !== undefined),
+  () =>
+    LINKED_FACTS.includes(route.hash.slice(1)) ||
+    (['residenceCity', 'birthYear', 'dependants', 'ownerLoanInterest', 'vatReturnsFolder', 'payrollFolder'] as const).some((field) => props.errors[field] !== undefined),
 )
 const summary = computed(() => {
   const { residenceCity, ownerLoanInterest } = props.saved
@@ -102,6 +105,27 @@ function updateBirthYear(text: string): void {
 function updateDependants(text: string): void {
   dependantsText.value = text
   updateFact('dependants', numberOfDependants(text))
+}
+
+/** The folder paths as typed, so a trailing slash survives until the next folder name is written. */
+const vatReturnsFolderText = ref(props.facts.vatReturnsFolder.join('/'))
+const payrollFolderText = ref(props.facts.payrollFolder.join('/'))
+watch(
+  () => [props.facts.vatReturnsFolder, props.facts.payrollFolder] as const,
+  ([vatReturns, payroll]) => {
+    if (JSON.stringify(folderPathOf(vatReturnsFolderText.value)) !== JSON.stringify(vatReturns)) vatReturnsFolderText.value = vatReturns.join('/')
+    if (JSON.stringify(folderPathOf(payrollFolderText.value)) !== JSON.stringify(payroll)) payrollFolderText.value = payroll.join('/')
+  },
+)
+
+function updateVatReturnsFolder(text: string): void {
+  vatReturnsFolderText.value = text
+  updateFact('vatReturnsFolder', folderPathOf(text))
+}
+
+function updatePayrollFolder(text: string): void {
+  payrollFolderText.value = text
+  updateFact('payrollFolder', folderPathOf(text))
 }
 
 const citReturnItems: { value: CitReturn; label: string }[] = [
@@ -190,6 +214,24 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
         description="The default for assets. An asset row can still say otherwise."
         @update:model-value="updateFact('depreciationDoubled', $event)"
       />
+      <div id="accountant-folders" class="grid gap-4 sm:grid-cols-2">
+        <UFormField
+          label="VAT returns folder"
+          :error="errors.vatReturnsFolder ?? false"
+          help="Where Year, Taxes reads the accountant's VAT returns in Google Drive, as a path from My Drive."
+          data-testid="vat-returns-folder"
+        >
+          <UInput :model-value="vatReturnsFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateVatReturnsFolder(String($event))" />
+        </UFormField>
+        <UFormField
+          label="Payroll folder"
+          :error="errors.payrollFolder ?? false"
+          help="Where Year, Taxes reads the accountant's salary workbooks, with a folder for each year and month inside."
+          data-testid="payroll-folder"
+        >
+          <UInput :model-value="payrollFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updatePayrollFolder(String($event))" />
+        </UFormField>
+      </div>
     </div>
   </AppCard>
 </template>

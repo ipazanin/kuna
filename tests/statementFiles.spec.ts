@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { dryRunFor, statementReadings } from '../src/features/imports/application/importStatements'
-import { statementFilesToRead, statementsFolderOf } from '../src/features/imports/domain/statementFiles'
+import { statementFilesToRead } from '../src/features/imports/domain/statementFiles'
 import type { StatementFile } from '../src/features/imports/domain/statementFiles'
 import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
@@ -59,12 +59,5 @@ describe('statementFilesToRead', () => {
     const files = named('2026-04-06-statement-110.pdf', 'notes.txt', 'export.xml')
 
     expect(statementFilesToRead(files, LEDGER).map((file) => file.name)).toEqual(['export.xml'])
-  })
-})
-
-describe('statementsFolderOf', () => {
-  it('reads folder names between slashes, trimmed, without blank ones', () => {
-    expect(statementsFolderOf('/work/ dss //statements/')).toEqual(['work', 'dss', 'statements'])
-    expect(statementsFolderOf(' / ')).toEqual([])
   })
 })
