@@ -2,6 +2,7 @@ import { XLSX_MIME_TYPE } from '../xlsx/sheetGrids'
 import { googleFetch } from './googleApi'
 
 const DRIVE_FILES_API = 'https://www.googleapis.com/drive/v3/files'
+const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
 
 export const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 
@@ -15,6 +16,27 @@ export interface DriveFile {
   readonly mimeType: string
   /** Goes up with every change to the file, so a copy read at one version still holds while the version does. */
   readonly version: string
+  /** The revision the file's content stands at. Only files with binary content, such as JSON, have one. */
+  readonly headRevisionId: string
+  readonly parents: readonly string[]
+}
+
+/** What a new file is called, what it holds and where it goes. */
+export interface NewDriveFile {
+  readonly name: string
+  readonly mimeType: string
+  readonly parents: readonly string[]
+  /** Properties only this app sees, which a search can find the file by. */
+  readonly appProperties?: Readonly<Record<string, string>>
+}
+
+/** One revision of a file's content as `revisions.list` gives it. */
+export interface DriveRevision {
+  readonly id: string
+  /** RFC 3339 time, by which Drive orders the list. Two revisions saved at the same moment can land in the other order. */
+  readonly modifiedTime: string
+  /** Only a revision kept forever can be downloaded once it is no longer the head. */
+  readonly keepForever: boolean
 }
 
 /** A text as a quoted literal of a Drive search query, its backslashes and quotes escaped. */
@@ -82,10 +104,113 @@ function inAnyOf(folderIds: readonly string[]): string {
   return folderIds.map((id) => `${queryLiteral(id)} in parents`).join(' or ')
 }
 
-/** The contents of a file that is not a Google document. */
+/** The contents of a file that is not a Google document, never from the browser's HTTP cache, which could hold an older revision. */
 export async function downloadFile(accessToken: string, fileId: string): Promise<ArrayBuffer> {
-  const response = await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?alt=media`, accessToken)
+  const response = await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?alt=media`, accessToken, { cache: 'no-store' })
   return response.arrayBuffer()
+}
+
+/** One file's fields, never from the browser's HTTP cache, which could hold an older head revision. */
+export async function getFile<Field extends keyof DriveFile>(accessToken: string, fileId: string, fields: readonly Field[]): Promise<Pick<DriveFile, Field>> {
+  const query = new URLSearchParams({ fields: fields.join(',') })
+  const response = await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?${query}`, accessToken, { cache: 'no-store' })
+  return (await response.json()) as Pick<DriveFile, Field>
+}
+
+/** The files a search finds by a property this app gave them, read page by page. */
+export async function filesWithAppProperty<Field extends keyof DriveFile>(accessToken: string, key: string, value: string, fields: readonly Field[]): Promise<Pick<DriveFile, Field>[]> {
+  return listChildren(accessToken, `appProperties has { key=${queryLiteral(key)} and value=${queryLiteral(value)} } and trashed = false`, fields)
+}
+
+export async function createFolder(accessToken: string, parentId: string, name: string): Promise<Pick<DriveFile, 'id' | 'name' | 'mimeType'>> {
+  const response = await googleFetch(`${DRIVE_FILES_API}?fields=id,name,mimeType`, accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, mimeType: FOLDER_MIME_TYPE, parents: [parentId] }),
+  })
+  return (await response.json()) as Pick<DriveFile, 'id' | 'name' | 'mimeType'>
+}
+
+/** Creates a file with its metadata and content in one multipart upload. */
+export async function createFile<Field extends keyof DriveFile>(accessToken: string, file: NewDriveFile, content: BlobPart, fields: readonly Field[]): Promise<Pick<DriveFile, Field>> {
+  const boundary = `ledgerboard-${crypto.randomUUID()}`
+  const body = new Blob(
+    [
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(file)}\r\n--${boundary}\r\nContent-Type: ${file.mimeType}\r\n\r\n`,
+      content,
+      `\r\n--${boundary}--`,
+    ],
+    { type: `multipart/related; boundary=${boundary}` },
+  )
+  const query = new URLSearchParams({ uploadType: 'multipart', fields: fields.join(',') })
+  const response = await googleFetch(`${DRIVE_UPLOAD_API}?${query}`, accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body,
+  })
+  return (await response.json()) as Pick<DriveFile, Field>
+}
+
+/**
+ * Replaces a file's content with one media upload and gives the head revision it made. With
+ * `keepForever` Drive keeps that revision, up to 200 of a file, until the app lets go of it.
+ */
+export async function uploadContent(accessToken: string, fileId: string, content: BlobPart, mimeType: string, keepForever: boolean): Promise<string> {
+  const query = new URLSearchParams({ uploadType: 'media', fields: 'headRevisionId' })
+  if (keepForever) {
+    query.set('keepRevisionForever', 'true')
+  }
+  const response = await googleFetch(`${DRIVE_UPLOAD_API}/${encodeURIComponent(fileId)}?${query}`, accessToken, {
+    method: 'PATCH',
+    headers: { 'Content-Type': mimeType },
+    body: new Blob([content], { type: mimeType }),
+  })
+  return ((await response.json()) as Pick<DriveFile, 'headRevisionId'>).headRevisionId
+}
+
+/** Moves a file to the bin, from which a person can still restore it for 30 days. */
+export async function trashFile(accessToken: string, fileId: string): Promise<void> {
+  await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?fields=id`, accessToken, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true }),
+  })
+}
+
+/** Every revision of a file's content, in Drive's order, read page by page and never from the browser's HTTP cache. */
+export async function listRevisions(accessToken: string, fileId: string): Promise<DriveRevision[]> {
+  const revisions: DriveRevision[] = []
+  let pageToken: string | undefined
+  do {
+    const parameters = new URLSearchParams({ fields: 'nextPageToken,revisions(id,modifiedTime,keepForever)', pageSize: '1000' })
+    if (pageToken !== undefined) {
+      parameters.set('pageToken', pageToken)
+    }
+    const response = await googleFetch(`${revisionsOf(fileId)}?${parameters}`, accessToken, { cache: 'no-store' })
+    const page = (await response.json()) as { revisions?: DriveRevision[]; nextPageToken?: string }
+    revisions.push(...(page.revisions ?? []).map((revision) => ({ ...revision, keepForever: revision.keepForever === true })))
+    pageToken = page.nextPageToken
+  } while (pageToken !== undefined)
+  return revisions
+}
+
+/** The content of one revision. Drive downloads only a revision kept forever, or the head. */
+export async function downloadRevision(accessToken: string, fileId: string, revisionId: string): Promise<ArrayBuffer> {
+  const response = await googleFetch(`${revisionsOf(fileId)}/${encodeURIComponent(revisionId)}?alt=media`, accessToken)
+  return response.arrayBuffer()
+}
+
+/** Lets Drive purge a revision in its own time, which frees its place among the 200 kept ones. */
+export async function unkeepRevision(accessToken: string, fileId: string, revisionId: string): Promise<void> {
+  await googleFetch(`${revisionsOf(fileId)}/${encodeURIComponent(revisionId)}?fields=id`, accessToken, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ keepForever: false }),
+  })
+}
+
+function revisionsOf(fileId: string): string {
+  return `${DRIVE_FILES_API}/${encodeURIComponent(fileId)}/revisions`
 }
 
 /** A Google Sheet as the contents of an xlsx file. Google caps an export at 10 MB. */

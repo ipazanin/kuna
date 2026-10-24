@@ -3,6 +3,8 @@ import type { DriveFile } from '../../../shared/google/driveClient'
 import { XLSX_MIME_TYPE, readEveryTab } from '../../../shared/xlsx/sheetGrids'
 import type { AccountantFolders, DriveWorkbook } from '../application/accountantDocuments'
 
+type ListedFile = Pick<DriveFile, 'id' | 'name' | 'mimeType' | 'version'>
+
 /**
  * Drive v3 with the Drive read token. Drive lists one folder level at a time, so the folders are
  * walked a level per pair of listings: the files of every folder of the level, and the folders
@@ -18,7 +20,7 @@ export function googleAccountantFolders(accessToken: string): AccountantFolders 
         case 'ambiguous':
           return { kind: 'refused', reason: `${folder.where} holds ${folder.count} folders named "${folder.name}", so the app cannot tell which one is meant` }
         case 'found': {
-          const files: DriveFile[] = []
+          const files: ListedFile[] = []
           let level = [folder.id]
           while (level.length > 0) {
             const [inLevel, inside] = await Promise.all([filesInside(accessToken, level, ['id', 'name', 'mimeType', 'version']), foldersInside(accessToken, level)])
@@ -36,7 +38,7 @@ export function googleAccountantFolders(accessToken: string): AccountantFolders 
   }
 }
 
-function workbookOf(file: DriveFile): DriveWorkbook[] {
+function workbookOf(file: ListedFile): DriveWorkbook[] {
   const format = file.mimeType === GOOGLE_SHEET_MIME_TYPE ? 'google-sheet' : file.mimeType === XLSX_MIME_TYPE || /\.xlsx$/i.test(file.name) ? 'xlsx' : null
   return format === null ? [] : [{ id: file.id, name: file.name, format, version: file.version }]
 }

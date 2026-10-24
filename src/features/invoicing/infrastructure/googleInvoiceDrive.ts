@@ -1,11 +1,10 @@
 import { googleFetch } from '../../../shared/google/googleApi'
-import { FOLDER_MIME_TYPE, listChildren, queryLiteral } from '../../../shared/google/driveClient'
+import { createFile, createFolder, FOLDER_MIME_TYPE, listChildren, queryLiteral, uploadContent } from '../../../shared/google/driveClient'
 import { pickFromDrive } from '../../../shared/google/picker'
 import type { DriveEntry, InvoiceDrive, MailDrafts } from '../application/invoiceRun'
 import { rawInvoiceMessage } from './invoiceMessage'
 
-const DRIVE_FILES_API = 'https://www.googleapis.com/drive/v3/files'
-const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
+const PDF_MIME_TYPE = 'application/pdf'
 const GMAIL_DRAFTS_API = 'https://gmail.googleapis.com/gmail/v1/users/me/drafts'
 
 function entryOf(file: { readonly id: string; readonly name: string; readonly mimeType: string }): DriveEntry {
@@ -25,39 +24,15 @@ export function googleInvoiceDrive(accessToken: string): InvoiceDrive {
     },
 
     async createFolder(parentId, name) {
-      const response = await googleFetch(`${DRIVE_FILES_API}?fields=id,name,mimeType`, accessToken, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, mimeType: FOLDER_MIME_TYPE, parents: [parentId] }),
-      })
-      return entryOf(await response.json())
+      return entryOf(await createFolder(accessToken, parentId, name))
     },
 
     async createPdf(folderId, name, pdf) {
-      const boundary = `ledgerboard-${crypto.randomUUID()}`
-      const metadata = JSON.stringify({ name, mimeType: 'application/pdf', parents: [folderId] })
-      const body = new Blob(
-        [
-          `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`,
-          pdf as BlobPart,
-          `\r\n--${boundary}--`,
-        ],
-        { type: `multipart/related; boundary=${boundary}` },
-      )
-      const response = await googleFetch(`${DRIVE_UPLOAD_API}?uploadType=multipart&fields=id,name,mimeType`, accessToken, {
-        method: 'POST',
-        headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-        body,
-      })
-      return entryOf(await response.json())
+      return entryOf(await createFile(accessToken, { name, mimeType: PDF_MIME_TYPE, parents: [folderId] }, pdf as BlobPart, ['id', 'name', 'mimeType']))
     },
 
     async replacePdf(fileId, pdf) {
-      await googleFetch(`${DRIVE_UPLOAD_API}/${encodeURIComponent(fileId)}?uploadType=media`, accessToken, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/pdf' },
-        body: new Blob([pdf as BlobPart], { type: 'application/pdf' }),
-      })
+      await uploadContent(accessToken, fileId, pdf as BlobPart, PDF_MIME_TYPE, false)
     },
   }
 }
