@@ -9,9 +9,10 @@ import type { RulesTabChange } from '../src/features/rules/domain/rulesTabChange
 import { ruleTabCells } from '../src/features/rules/domain/rulesTabChange'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 import { removeSettings, setSettings } from '../src/features/settings/application/settingWrites'
-import { unreadSettingKeys } from '../src/features/settings/domain/settings'
+import { generalSettingsToSave, heldSettingValue, statementsFolderUnset, unreadSettingKeys } from '../src/features/settings/domain/settings'
 import { installedPack } from '../src/features/packs/packContribution'
 import { recordsOf } from '../src/features/workbook/domain/recordsRead'
+import { canUndo } from '../src/features/workbook/application/createWorkbookStore'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
 import type { WriteReceipt } from '../src/features/workbook/application/recordWrites'
 import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
@@ -246,6 +247,26 @@ describe.each([
     await expect(store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, ['old_switch']))).rejects.toThrow(
       'The settings tab sets "old_switch" on 2 rows. Keep one of them in the Sheet first.',
     )
+  })
+
+  it('writes the statements folder from Settings, General while the settings hold none, the default too, and later changes that row', async () => {
+    const { store } = await harnessOf(used)
+    const saveGeneral = (next: Settings) =>
+      store.write('Settings saved', (unit) => setSettings(unit, store.state.records!.settings, generalSettingsToSave(settings(store), next, store.state.records!.settings)))
+    const folderRows = () => store.state.records!.settings.records.filter((stored) => stored.record.key === 'statements_folder')
+    expect(statementsFolderUnset(store.state.records!.settings)).toBe(true)
+
+    await saveGeneral(settings(store))
+
+    expect(heldSettingValue(store.state.records!.settings, 'statements_folder')).toBe('work/dss/business-bank-account/erste/statements')
+    expect(statementsFolderUnset(store.state.records!.settings)).toBe(false)
+    expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(false)
+    expect(generalSettingsToSave(settings(store), settings(store), store.state.records!.settings)).toEqual([])
+
+    await saveGeneral({ ...settings(store), statementsFolder: ['finance', 'bank statements'] })
+
+    expect(settings(store).statementsFolder).toEqual(['finance', 'bank statements'])
+    expect(folderRows().map((stored) => stored.record.value)).toEqual(['finance/bank statements'])
   })
 
   it('refuses a setting the reader would not use', async () => {

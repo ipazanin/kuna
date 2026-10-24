@@ -1057,3 +1057,58 @@ export async function dismissFlow(page, { press, shoot, inspect }) {
   await shoot('dismiss-undone')
   await dismissToasts(page)
 }
+
+const STATEMENTS_FOLDER = '[data-testid="statements-folder"]'
+
+/** The Save settings button once it is enabled or disabled, as `enabled` asks. */
+async function saveSettingsButton(page, enabled) {
+  return page
+    .waitForFunction(
+      (wanted) => [...document.querySelectorAll('button[type="submit"]')].find((button) => button.textContent?.trim() === 'Save settings' && button.disabled === !wanted) ?? null,
+      { timeout: 10_000 },
+      enabled,
+    )
+    .then((handle) => handle.asElement())
+    .catch(() => {
+      throw new Error(`Save settings did not become ${enabled ? 'enabled' : 'disabled'}`)
+    })
+}
+
+/**
+ * Settings, General shows the statements folder the app uses while the settings name none, and Save
+ * writes it with nothing else changed. Once written, Save waits for a change, and a new path is
+ * written to the same row. Settings keep no Undo, so the flow leaves the row in the workbook.
+ */
+export async function statementsFolderFlow(page, { press, shoot, inspect }) {
+  const field = await page.waitForSelector(`${STATEMENTS_FOLDER} input`, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, General has no statements folder field')
+  })
+  await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  const said = () => page.$eval(STATEMENTS_FOLDER, (element) => element.textContent ?? '')
+  const unsetNote = 'names no statements folder yet'
+  if (!(await said()).includes(unsetNote)) throw new Error(`the field does not say the settings name no folder, it says: ${await said()}`)
+  const shown = await field.evaluate((element) => element.value)
+  if (shown !== 'work/dss/business-bank-account/erste/statements') throw new Error(`the field shows "${shown}", not the path the app uses`)
+  await inspect?.('the statements folder the settings lack')
+  await shoot('statements-folder-unset')
+
+  await press(await saveSettingsButton(page, true))
+  await toast(page, 'Settings saved')
+  await page.waitForFunction((selector, note) => !document.querySelector(selector)?.textContent?.includes(note), { timeout: 5_000 }, STATEMENTS_FOLDER, unsetNote).catch(() => {
+    throw new Error('the field still says the settings name no folder after the save')
+  })
+  await saveSettingsButton(page, false)
+  await dismissToasts(page)
+
+  await setField(field, 'finance/bank statements/')
+  await press(await saveSettingsButton(page, true))
+  await toast(page, 'Settings saved')
+  await saveSettingsButton(page, false)
+  if ((await said()).includes(unsetNote)) throw new Error('the field says the settings name no folder after a new path was saved')
+  await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await inspect?.('the statements folder saved')
+  await shoot('statements-folder-saved')
+  await dismissToasts(page)
+}

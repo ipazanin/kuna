@@ -23,7 +23,7 @@ import {
   settleRedirect,
   takePendingRedirect,
 } from './googleRedirect'
-import type { RedirectGrant, RedirectResume, RedirectReturn } from './googleRedirect'
+import type { RedirectAsk, RedirectGrant, RedirectResume, RedirectReturn } from './googleRedirect'
 import { loadScript } from './loadScript'
 
 const IDENTITY_SERVICES_SRC = 'https://accounts.google.com/gsi/client'
@@ -36,6 +36,9 @@ const SCOPES = 'https://www.googleapis.com/auth/drive.file openid email'
 
 /** The `userinfo_endpoint` of https://accounts.google.com/.well-known/openid-configuration. */
 const USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userinfo'
+
+/** How long a return from a sign-in waits for the email before it goes on without it, since the page waits on it. */
+const USERINFO_TIMEOUT_MS = 5_000
 
 /** The kept token while it is still good, so a reload or a new tab syncs without a click. */
 export function currentAccessToken(): StoredAccessToken | null {
@@ -57,10 +60,11 @@ export function signsInByRedirect(): boolean {
  * hash route to return to. The promise never settles, since the page goes away. Throws before the
  * tab moves when the Google variables are missing or the browser keeps no site storage.
  */
-function redirectToGoogle(grant: RedirectGrant, scope: string, resume: RedirectResume, silent: boolean): Promise<never> {
+function redirectToGoogle(grant: RedirectGrant, scope: string, resume: RedirectResume, ask: RedirectAsk): Promise<never> {
   const { clientId } = googleConfig()
   const state = crypto.randomUUID()
-  savePendingRedirect({ state, grant, resume, route: window.location.hash.startsWith('#/') ? window.location.hash : '#/', silent })
+  const silent = ask !== 'tap'
+  savePendingRedirect({ state, grant, resume, route: window.location.hash.startsWith('#/') ? window.location.hash : '#/', ask })
   const url = authorizationUrl({
     clientId,
     redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}`,
@@ -82,9 +86,10 @@ function redirectToGoogle(grant: RedirectGrant, scope: string, resume: RedirectR
 /**
  * Takes Google's answer from the address the tab came back to, before the router reads it: keeps
  * the token as the popup's would be kept, and puts the route the person left back in the address.
- * Null when the address holds no answer.
+ * A first sign-in also reads the account email before it settles, so a silent ask that leaves the
+ * page next carries it as the login hint. Null when the address holds no answer.
  */
-export function takeGoogleRedirect(): RedirectReturn | null {
+export async function takeGoogleRedirect(): Promise<RedirectReturn | null> {
   const fragment = redirectFragmentOf(window.location.hash)
   if (fragment === null) {
     return null
@@ -104,7 +109,7 @@ export function takeGoogleRedirect(): RedirectReturn | null {
         driveReadToken = pageToken
         break
       case 'sign-in':
-        keepSignIn(answer.token)
+        await keepSignIn(answer.token)
     }
   }
   return answer
@@ -119,7 +124,7 @@ export function takeGoogleRedirect(): RedirectReturn | null {
  */
 export async function requestToken(resume: RedirectResume): Promise<StoredAccessToken> {
   if (signsInByRedirect()) {
-    return redirectToGoogle('sign-in', SCOPES, resume, false)
+    return redirectToGoogle('sign-in', SCOPES, resume, 'tap')
   }
   const { clientId } = googleConfig()
   await prepareGoogleIdentity()
@@ -146,16 +151,15 @@ export async function requestToken(resume: RedirectResume): Promise<StoredAccess
     })
     client.requestAccessToken()
   })
-  keepSignIn(token)
+  void keepSignIn(token)
   return token
 }
 
-function keepSignIn(token: StoredAccessToken): void {
+/** Keeps the token, and reads the account email for the login hint when this device has none yet. */
+function keepSignIn(token: StoredAccessToken): Promise<void> {
   const hadHint = loadAccountEmail() !== null
   saveAccessToken(token)
-  if (!hadHint) {
-    void rememberAccountEmail(token)
-  }
+  return hadHint ? Promise.resolve() : rememberAccountEmail(token)
 }
 
 /** A token held in this page's memory only, never stored, so a reload starts without it. */
@@ -181,7 +185,7 @@ export function currentGmailToken(): string | null {
  */
 export async function requestGmailToken(): Promise<string> {
   if (signsInByRedirect()) {
-    return redirectToGoogle('gmail', GMAIL_COMPOSE, 'none', false)
+    return redirectToGoogle('gmail', GMAIL_COMPOSE, 'none', 'tap')
   }
   gmailToken = await tokenFromPopup(GMAIL_COMPOSE, true, 'Gmail access', GMAIL_NOT_GRANTED)
   return gmailToken.value
@@ -211,15 +215,19 @@ export function driveReadAccess(): DriveReadAccess {
 
 /**
  * Moves the tab to Google for the Drive read token with `prompt=none`, so Google shows no screen and
- * sends the tab straight back. Returns false and stays when this tab's last ask brought no token, so
- * a refusal never sends it round again, or when the ask could not be noted or made.
+ * sends the tab straight back: on an ordinary load, or on the load that brought a sign-in back, whose
+ * resume the ask carries so it runs once the tab is back again. Returns false and stays on a load
+ * that brought any other answer, when this tab's last ask brought no token, so a refusal never sends
+ * it round again, or when the ask could not be noted or made.
  */
-export function askForDriveReadSilently(): boolean {
-  if (driveReadRefusedInThisTab() || !noteDriveReadRefused(true)) {
+export function askForDriveReadSilently(answer: RedirectReturn | null): boolean {
+  const signedIn = answer?.kind === 'granted' && answer.grant === 'sign-in' && answer.ask === 'tap'
+  const ask = answer === null ? 'silent-on-open' : signedIn ? 'silent-after-sign-in' : null
+  if (ask === null || driveReadRefusedInThisTab() || !noteDriveReadRefused(true)) {
     return false
   }
   try {
-    void redirectToGoogle('drive-read', DRIVE_READONLY, 'none', true)
+    void redirectToGoogle('drive-read', DRIVE_READONLY, answer?.resume ?? 'none', ask)
     return true
   } catch {
     return false
@@ -234,7 +242,7 @@ export function askForDriveReadSilently(): boolean {
  */
 export async function requestDriveReadToken(): Promise<string> {
   if (signsInByRedirect()) {
-    return redirectToGoogle('drive-read', DRIVE_READONLY, 'sync', false)
+    return redirectToGoogle('drive-read', DRIVE_READONLY, 'sync', 'tap')
   }
   try {
     driveReadToken = await tokenFromPopup(DRIVE_READONLY, false, 'Drive read access', DRIVE_READ_NOT_GRANTED)
@@ -310,7 +318,7 @@ async function rememberAccountEmail(token: StoredAccessToken): Promise<void> {
     return
   }
   try {
-    const response = await fetch(USERINFO_ENDPOINT, { headers: { Authorization: `Bearer ${token.value}` } })
+    const response = await fetch(USERINFO_ENDPOINT, { headers: { Authorization: `Bearer ${token.value}` }, signal: AbortSignal.timeout(USERINFO_TIMEOUT_MS) })
     const claims: unknown = response.ok ? await response.json() : null
     const email = (claims as { email?: unknown } | null)?.email
     if (typeof email === 'string' && email !== '') {

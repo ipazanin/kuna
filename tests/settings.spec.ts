@@ -4,10 +4,12 @@ import {
   DEFAULT_SETTINGS,
   SETTING_DEFINITIONS,
   changedPackSettings,
+  generalSettingsToSave,
   parseSettings,
   readPackSettings,
   settingsErrors,
   settingsTabEntries,
+  statementsFolderUnset,
 } from '../src/features/settings/domain/settings'
 import type { SettingRow } from '../src/features/settings/domain/settings'
 import {
@@ -21,10 +23,16 @@ import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
 import { euros, ledger } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { SETTING_RECORDS } from '../src/features/workbook/domain/recordKind'
+import type { RecordsRead } from '../src/features/workbook/domain/recordsRead'
 import { COMPANY_FACT_SETTINGS, companyFactsErrors } from '../src/packs/hr-doo/domain/companyFacts'
 
 function rows(...entries: [string, SettingRow['value']][]): SettingRow[] {
   return entries.map(([key, value]) => ({ key, value }))
+}
+
+/** The settings as a storage holds them, one record per row. */
+function held(...entries: [string, SettingRow['value']][]): RecordsRead<SettingRow> {
+  return { records: rows(...entries).map((record) => ({ record, id: recordIdOf(SETTING_RECORDS, record.key), label: record.key, fields: {} })), refused: [] }
 }
 
 function settingProblem(key: string, reason: string) {
@@ -168,6 +176,32 @@ describe('statements_folder', () => {
   it('is the Erste archive by default and listed in the template', () => {
     expect(DEFAULT_SETTINGS.statementsFolder).toEqual(['work', 'dss', 'business-bank-account', 'erste', 'statements'])
     expect(settingsTabEntries(DEFAULT_SETTINGS, null)).toContainEqual({ key: 'statements_folder', value: 'work/dss/business-bank-account/erste/statements' })
+  })
+
+  it('counts as unset with no row, a blank one or one that names no folder, since the statement fetch reads the row', () => {
+    expect(statementsFolderUnset(held())).toBe(true)
+    expect(statementsFolderUnset(held(['statements_folder', ' ']))).toBe(true)
+    expect(statementsFolderUnset(held(['statements_folder', undefined]))).toBe(true)
+    expect(statementsFolderUnset(held(['statements_folder', ' / ']))).toBe(true)
+    expect(statementsFolderUnset(held(['Statements_Folder', 'finance/statements']))).toBe(false)
+  })
+
+  it('is written by a save of Settings, General while unset, at the default too, and only when changed once set', () => {
+    const fetchPath = { key: 'statements_folder', value: 'work/dss/business-bank-account/erste/statements' }
+    const renamed = { ...DEFAULT_SETTINGS, companyName: 'Example Studio' }
+    const moved = { ...DEFAULT_SETTINGS, statementsFolder: ['finance', 'statements'] }
+
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, held())).toEqual([fetchPath])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, renamed, held(['statements_folder', '']))).toEqual([{ key: 'company_name', value: 'Example Studio' }, fetchPath])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, moved, held())).toEqual([{ key: 'statements_folder', value: 'finance/statements' }])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, held([fetchPath.key, fetchPath.value]))).toEqual([])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, moved, held([fetchPath.key, fetchPath.value]))).toEqual([{ key: 'statements_folder', value: 'finance/statements' }])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, held([fetchPath.key, '/']))).toEqual([fetchPath])
+  })
+
+  it('needs a folder when typed in the app', () => {
+    expect(settingsErrors({ ...DEFAULT_SETTINGS, statementsFolder: [] }).statementsFolder).toBe('name a folder from My Drive, such as finance/statements')
+    expect(settingsErrors(DEFAULT_SETTINGS).statementsFolder).toBeUndefined()
   })
 })
 

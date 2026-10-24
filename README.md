@@ -52,8 +52,11 @@ the page's memory. Each open of a Google Sheet while online first sends the tab 
 by replacing the page, so Back from the app does not land on a page that asks again. The token only
 lists and downloads the statements. The Sheet is read and written with the kept `drive.file` token
 alone, so a sync that files statements always holds a token that can write them, and a sync after
-the kept token ran out still needs the tap that asks for it. A load that is Google's answer never
-asks again. When Google answers with an error instead, such as `consent_required` before the first
+the kept token ran out still needs the tap that asks for it. A load that is Google's answer to that
+sign-in asks once more the same way, so on a phone one tap on Sync brings back both tokens. What the
+sign-in picks up, such as the sync, waits until the tab is back from that second trip, and runs
+whether Google gave the Drive read token or not. Any other load that is Google's answer never asks
+again. When Google answers with an error instead, such as `consent_required` before the first
 consent, the tab notes it in session storage and opens without going to Google until the tab is
 closed. Then only "Check for new statements" asks, with Google's consent screen if it needs one: in
 the popup on a desktop, by the redirect on a phone. Overview offers it, and so does a toast after a
@@ -75,12 +78,16 @@ The Gmail grant goes the same way with `include_granted_scopes=true`. The invoic
 once back, so a toast asks to make the invoice again, which then uses the Gmail token this page
 now holds. Nothing is filed or written before the grant is asked for. The Drive read grant asked
 from "Check for new statements" goes the same way with `include_granted_scopes=false`, and the sync
-starts by itself once back. The silent ask on open shows no message either way.
+starts by itself once back. The silent asks show no message of their own either way. A sync that
+picks up after a sign-in is the tap on Sync carried on, so without the Drive read token its toast
+offers "Check for new statements" too.
 
 The token model returns no ID token, so after the first sign-in the app reads the email address
 once from the OpenID Connect userinfo endpoint (`https://openidconnect.googleapis.com/v1/userinfo`,
 the `userinfo_endpoint` of Google's discovery document) and keeps it. It is passed as `login_hint`,
-so an expired token renews with one click and no account chooser. Sign out forgets it.
+so an expired token renews with one click and no account chooser. Sign out forgets it. A return
+from a sign-in by redirect waits for the email before the silent Drive read ask leaves, for up to
+five seconds, and then goes on without it.
 
 ## Sync
 
@@ -368,7 +375,7 @@ as before.
 | `invoice_file_path` | `{yyyy}/{yyyy}-{mm}/{yyyy}-{mm}-{client}-invoice.pdf` | Where under that folder each invoice is filed, with `{yyyy}`, `{yy}`, `{mm}` from the issue date, `{client}` and `{number}`. It must end in `.pdf`. |
 | `invoice_mail_subject`, `invoice_mail_body` | `Invoice {number}, {month}` and a short note signed `{signatory}` | The invoice mail, with `{month}` (the issue month in the client's `mail_language`), `{number}`, `{client}`, `{company}` and `{signatory}`. |
 | `invoice_reverse_charge_note` | the Croatian VAT law's Article 17 note | Printed under the totals, after an asterisk. |
-| `statements_folder` | `work/dss/business-bank-account/erste/statements` | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. The app reads it and never makes or changes a folder there. A path where a folder is missing, or where two folders share a name, is reported. |
+| `statements_folder` | `work/dss/business-bank-account/erste/statements` | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. The app reads it and never makes or changes a folder there. A path where a folder is missing, or where two folders share a name, is reported. The statement fetch in the Sheet reads the row too and stops without it, so while the tab names no folder for the key, with no row, a blank one or one such as `/`, Settings, General says so and its Save writes the path shown, the default included. |
 | `hr_residence_city` | blank | The city or municipality the owner lives in, such as `Grad Zagreb`, which sets the local income tax rates. Settings offers every unit to pick from. A name typed in the workbook is read regardless of case, diacritics and a leading `Grad` or `Općina`, and a name two units share takes the county in brackets, such as `Općina Privlaka (Zadarska)`. Payroll figures need it, so they stay empty while it is blank. |
 | `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
 | `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
@@ -1207,7 +1214,7 @@ are set up, and the law behind the figures, one tab each:
 
 | Tab | What it holds |
 |---|---|
-| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs and the owner-pay module) open, then the company and owner facts and the bucket labels, collapsed, with one Save under them. Then the loan switch and the rows the app could not use, which opens itself while there are any |
+| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder and the owner-pay module) open, then the company and owner facts and the bucket labels, collapsed, with one Save under them. Then the loan switch and the rows the app could not use, which opens itself while there are any |
 | Categories | The categories tab |
 | Accounts | The accounts tab |
 | Ruleset | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as *Ruleset* describes |
@@ -1270,8 +1277,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, both statement imports with their dry run, confirm and undo at 430 too, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, and the check for new statements Overview offers, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal and both statement imports in both modes, statements filed, held and checked for on sync, the way back from Google's sign-in page and from the Drive read grant, silent or asked, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, and the check for new statements Overview offers, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```

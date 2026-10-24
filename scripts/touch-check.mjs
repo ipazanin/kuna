@@ -12,11 +12,13 @@
  * the cost of a reimbursement with no cost on file added from Review,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
- * its colour, a label and a role, an asset and an invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, an owner advance
+ * its colour, a label and a role, an asset and an invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, the statements
+ * folder the settings lack saved at the path the app uses and then at a new one, in both modes, an owner advance
  * changed, deleted and brought back, a payment split, edited, deleted and
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused, the Drive read grant back from a
- * silent ask with a token and with consent required and no message, and from an ask the person made with the sync carrying on or a refusal,
+ * silent ask with a token and with consent required and no message, from an ask the person made with the sync carrying on or a refusal, and from the
+ * silent ask a sign-in's return makes, with the sync it resumes run with the token or with the offer to check, and the note to tap again,
  * a statement filed on Sync from the fake statements folder with Undo, one held and shown on Import from Overview, a sync with nothing new, the check for new statements,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
@@ -66,6 +68,7 @@ import {
   startingScenariosFlow,
   statementCheckFlow,
   statementSyncFlow,
+  statementsFolderFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
@@ -797,6 +800,7 @@ async function checkWidth(width) {
   ]) {
     for (const [name, hash, title, run, variant] of [
       ['categories', '#/settings?tab=categories', 'Settings', categoryFlow],
+      ['settings-statements-folder', '#/settings', 'Settings', statementsFolderFlow],
       ['assets', '#/year?tab=assets#asset-rows', 'Year', assetFlow],
       ['advances', '#/owner', 'Owner', advanceFlow],
       ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],
@@ -1276,7 +1280,7 @@ async function checkWidth(width) {
     await expect(fragmentGone(), (gone) => gone, 'the error stayed in the address')
 
     const driveRead = `access_token=fake-drive-read&token_type=Bearer&expires_in=3599&scope=${encodeURIComponent('https://www.googleapis.com/auth/drive.readonly')}&state=touch-check`
-    const silentAsk = { state: 'touch-check', grant: 'drive-read', resume: 'none', route: '#/review', silent: true }
+    const silentAsk = { state: 'touch-check', grant: 'drive-read', resume: 'none', route: '#/review', ask: 'silent-on-open' }
     const noMessage = () => page.evaluate(() => document.querySelectorAll('li[data-slot="base"]').length === 0)
     const refusedInTab = () => page.evaluate(() => sessionStorage.getItem('ledgerboard.drive-read-refused') !== null)
 
@@ -1302,15 +1306,39 @@ async function checkWidth(width) {
         if (document.querySelector('[data-testid="sync-status"]')?.textContent?.includes('Syncing')) window.sawSyncing = true
       }).observe(document, { subtree: true, childList: true, characterData: true })
     })
-    await comeBack('google', { ...silentAsk, resume: 'sync', route: '#/transactions', silent: false }, driveRead)
+    const syncStarted = (after) =>
+      page.waitForFunction(() => window.sawSyncing === true, { timeout: 10_000 }).catch(() => {
+        throw new Error(`the sync did not start by itself after ${after}`)
+      })
+    await comeBack('google', { ...silentAsk, resume: 'sync', route: '#/transactions', ask: 'tap' }, driveRead)
     await waitForTitle(page, 'Transactions')
-    await page.waitForFunction(() => window.sawSyncing === true, { timeout: 10_000 }).catch(() => {
-      throw new Error('the sync did not start by itself after the Drive read grant')
-    })
-    await page.removeScriptToEvaluateOnNewDocument(watchSync.identifier)
+    await syncStarted('the Drive read grant')
     await expect(refusedInTab(), (refused) => !refused, 'the Drive read grant left the tab noted as refused')
 
-    await comeBack('google', { ...silentAsk, resume: 'sync', route: '#/', silent: false }, 'error=access_denied&state=touch-check')
+    // The silent ask a sign-in's return makes comes back with what the sign-in resumes: Sync runs with the Drive read token, or without it and offers the check.
+    const afterSignIn = { ...silentAsk, ask: 'silent-after-sign-in' }
+    await comeBack('google', { ...afterSignIn, resume: 'sync', route: '#/transactions' }, driveRead)
+    await waitForTitle(page, 'Transactions')
+    await syncStarted('a sign-in and the silent Drive read ask')
+    await expect(refusedInTab(), (refused) => !refused, 'the Drive read token after a sign-in left the tab noted as refused')
+    await waitForText(page, 'li[data-slot="base"] [data-slot="title"]', 'Filed statement')
+    await inspect(page, `${width}px sign-in and drive read return`)
+
+    await comeBack('google', { ...afterSignIn, resume: 'sync', route: '#/' }, 'error=consent_required&state=touch-check')
+    await waitForTitle(page, 'Overview')
+    await syncStarted('a sign-in whose silent Drive read ask Google refused')
+    await page.removeScriptToEvaluateOnNewDocument(watchSync.identifier)
+    await expect(refusedInTab(), (refused) => refused, 'the tab did not note that Google gave no Drive read token after the sign-in')
+    await waitForText(page, 'li[data-slot="base"] button', 'Check for new statements')
+    await page.waitForSelector('[data-job="check-statements"]', { visible: true, timeout: 10_000 })
+    await inspect(page, `${width}px sign-in return without drive read`)
+    await shoot('sign-in-without-drive-read')
+
+    await comeBack('google', { ...afterSignIn, resume: 'none', route: '#/review' }, driveRead)
+    await waitForTitle(page, 'Review')
+    await waitForText(page, 'li[data-slot="base"]', 'Signed in to Google')
+
+    await comeBack('google', { ...silentAsk, resume: 'sync', route: '#/', ask: 'tap' }, 'error=access_denied&state=touch-check')
     await waitForTitle(page, 'Overview')
     await waitForText(page, 'li[data-slot="base"]', 'No Drive read access')
     await expect(fragmentGone(), (gone) => gone, 'the Drive read refusal stayed in the address')

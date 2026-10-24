@@ -35,7 +35,7 @@ import { useSettingsSave } from './useSettingsSave'
 
 const { state } = useWorkbook()
 const route = useRoute()
-const { settings, facts: packFacts, saving: savingSettings, save: saveSettings } = useSettingsSave()
+const { settings, facts: packFacts, statementsFolderUnset, saving: savingSettings, saveGeneral } = useSettingsSave()
 const pack = computed(() => shownPack(settings.value))
 
 /** The workbook's tabs need a workbook on screen. This device's tab is there before one is. */
@@ -121,7 +121,13 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
     <PageTabs :tabs="tabs" label="Parts of the settings" data-testid="settings-tabs" @select="linkedTab = null">
       <template #general>
         <div v-if="state.workbook" class="flex flex-col gap-6">
-          <GeneralSettingsForm :settings="settings" :facts="packFacts" :saving="savingSettings || state.writing" @save="saveSettings" />
+          <GeneralSettingsForm
+            :settings="settings"
+            :facts="packFacts"
+            :statements-folder-unset="statementsFolderUnset"
+            :saving="savingSettings || state.writing"
+            @save="saveGeneral"
+          />
           <component :is="card" v-for="(card, index) in pack.settingsCards" :key="index" />
           <AppCard
             title="Rows the app could not use as written"

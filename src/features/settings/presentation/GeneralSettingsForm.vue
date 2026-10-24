@@ -10,6 +10,7 @@ import AppCard from '../../../shared/ui/AppCard.vue'
 import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
+import { statementsFolderOf } from '../../imports/domain/statementFiles'
 import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
 
@@ -17,11 +18,14 @@ import type { Settings, SettingsField } from '../domain/settings'
  * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
  * them. A card with a field in error opens. While the owner-pay switch is on in the draft, the
  * pack's facts card sits between the basics and the bucket labels, and Save waits for its checks too.
+ * While the settings name no statements folder, Save is open with nothing changed, since it writes one.
  */
 const props = defineProps<{
   settings: Settings
   /** The pack's facts as the workbook holds them, which its card edits. */
   facts: unknown
+  /** The settings name no statements folder, so the save writes the path shown. */
+  statementsFolderUnset: boolean
   saving: boolean
 }>()
 
@@ -44,9 +48,10 @@ const packFacts = computed(() => shownPack(draft.value).companyFacts)
 const errors = computed(() => settingsErrors(draft.value))
 const factErrors = computed(() => packFacts.value?.errors(factsDraft.value) ?? {})
 const valid = computed(() => Object.keys(errors.value).length === 0 && Object.keys(factErrors.value).length === 0)
+const savable = computed(() => valid.value && (dirty.value || props.statementsFolderUnset))
 
 const inError = (fields: readonly SettingsField[]): boolean => fields.some((field) => errors.value[field] !== undefined)
-const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'reviewLabel', 'cardSettlementIbans']))
+const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'reviewLabel', 'cardSettlementIbans', 'statementsFolder']))
 const labelsRevealed = computed(() => inError(BUCKETS))
 const labelsSummary = computed(() => BUCKETS.map((bucket) => props.settings.bucketLabels[bucket]).join(', '))
 
@@ -82,14 +87,36 @@ function updateCardIbans(text: string): void {
   update('cardSettlementIbans', ibanListOf(text))
 }
 
+/** The path as typed, so a trailing slash survives until the next folder name is written. */
+const statementsFolderText = ref(props.settings.statementsFolder.join('/'))
+watch(
+  () => draft.value.statementsFolder,
+  (folders) => {
+    if (JSON.stringify(statementsFolderOf(statementsFolderText.value)) !== JSON.stringify(folders)) {
+      statementsFolderText.value = folders.join('/')
+    }
+  },
+)
+
+function updateStatementsFolder(text: string): void {
+  statementsFolderText.value = text
+  update('statementsFolder', statementsFolderOf(text))
+}
+
 function updateLabel(bucket: DefinedBucket, label: string): void {
   draft.value = { ...draft.value, bucketLabels: { ...draft.value.bucketLabels, [bucket]: label } }
 }
 </script>
 
 <template>
-  <form class="flex flex-col gap-6" @submit.prevent="valid && dirty && emit('save', draft, factsDraft)">
-    <AppCard title="The workbook" subtitle="Its name, money and review label, from the settings tab." collapse-id="settings.workbook" summary="The company, the currency and the review label" :reveal="basicsRevealed">
+  <form class="flex flex-col gap-6" @submit.prevent="savable && emit('save', draft, factsDraft)">
+    <AppCard
+      title="The workbook"
+      subtitle="Its name, money, review label and statements folder, from the settings tab."
+      collapse-id="settings.workbook"
+      summary="The company, the currency, the review label and the statements folder"
+      :reveal="basicsRevealed"
+    >
       <div class="flex flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
         <div class="grid gap-4 sm:grid-cols-2">
           <UFormField label="Company name" help="Shown under the app name and used in the name of an exported file.">
@@ -127,6 +154,24 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
             class="sm:col-span-2"
           >
             <UInput :model-value="cardIbansText" placeholder="None" class="identifier w-full" @update:model-value="updateCardIbans(String($event))" />
+          </UFormField>
+          <UFormField
+            label="Statements folder"
+            :error="errors.statementsFolder ?? false"
+            :help="
+              statementsFolderUnset
+                ? 'The settings tab names no statements folder yet, so the app uses this one. Save settings writes it there, where the statement fetch reads it too.'
+                : 'Where Sync looks in Google Drive for the bank’s camt statements, as a path from My Drive with a folder for each year inside.'
+            "
+            class="sm:col-span-2"
+            data-testid="statements-folder"
+          >
+            <UInput
+              :model-value="statementsFolderText"
+              class="identifier w-full"
+              :ui="{ base: 'text-ellipsis' }"
+              @update:model-value="updateStatementsFolder(String($event))"
+            />
           </UFormField>
         </div>
 
@@ -170,7 +215,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
     </AppCard>
 
     <div class="flex flex-wrap items-center gap-2">
-      <UButton type="submit" label="Save settings" icon="i-lucide-save" :loading="saving" :disabled="!dirty || !valid || saving" />
+      <UButton type="submit" label="Save settings" icon="i-lucide-save" :loading="saving" :disabled="!savable || saving" />
       <UButton label="Discard changes" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />
     </div>
   </form>

@@ -12,16 +12,17 @@ const REFUSED_TITLES: Readonly<Record<RedirectGrant, string>> = {
 /**
  * Picks up after a redirect sign-in: runs `sync` or opens the Picker when that is what the person
  * tapped, and otherwise says what happened, since anything else they started did not run while the
- * tab was at Google. The silent ask for the Drive read token as the app opened shows nothing either
- * way, and auto-sync carries on. Call it before auto-sync starts, so a Picker to open goes first.
+ * tab was at Google. The silent ask for the Drive read token shows nothing either way: as the app
+ * opened auto-sync carries on, and after a sign-in what the sign-in resumes runs now. Call it before
+ * auto-sync starts, so a Picker to open goes first.
  */
 export function useGoogleReturn(answer: RedirectReturn | null, sync: () => Promise<void>): void {
-  if (answer === null || answer.silent) {
+  if (answer === null || answer.ask === 'silent-on-open') {
     return
   }
   const toast = useToast()
   const store = useWorkbook()
-  if (answer.kind === 'refused') {
+  if (answer.kind === 'refused' && answer.ask === 'tap') {
     toast.add({
       title: REFUSED_TITLES[answer.grant ?? 'sign-in'],
       description: answer.message,

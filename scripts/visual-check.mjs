@@ -18,7 +18,8 @@
  * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
  * category, with its colour, a label the fake Sheet has no column for and a role, an asset and an
  * invoice, changes and deletes an owner advance and undoes the delete, and screenshots the editors
- * and the invoice dialog on the way.
+ * and the invoice dialog on the way. On Settings, General it saves the statements folder the
+ * settings lack at the path the app uses, then a new path.
  * On Transactions it changes the category of a settled row, which a rule files elsewhere, and undoes it.
  * On Year a link to the Statements tab alone keeps the year it opened through two tabs and Back.
  * It also makes an invoice through the checks and every step, with the fake Picker picking the
@@ -78,6 +79,7 @@ import {
   startingScenariosFlow,
   statementCheckFlow,
   statementSyncFlow,
+  statementsFolderFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -504,6 +506,7 @@ const FLOWS = [
   { name: 'page-tabs', hash: '#/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
   { name: 'categories', hash: '#/settings?tab=categories', title: 'Settings', run: categoryFlow },
+  { name: 'settings-statements-folder', hash: '#/settings', title: 'Settings', run: statementsFolderFlow },
   { name: 'assets', hash: '#/year?tab=assets#asset-rows', title: 'Year', run: assetFlow },
   { name: 'advances', hash: '#/owner', title: 'Owner', run: advanceFlow },
   { name: 'invoices', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceFlow },

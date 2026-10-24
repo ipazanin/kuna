@@ -319,6 +319,8 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   invoicingDefinition('invoice_reverse_charge_note', 'reverseChargeNote', 'The note a reverse-charge invoice prints under its totals. Blank means the Croatian VAT law’s Article 17 note.'),
 ]
 
+const STATEMENTS_FOLDER_KEY = 'statements_folder'
+
 /** Every key the app reads, in the order the template lists them. */
 export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
@@ -395,7 +397,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   ...BILLING_DEFINITIONS,
   ...INVOICING_DEFINITIONS,
   {
-    key: 'statements_folder',
+    key: STATEMENTS_FOLDER_KEY,
     note: `The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside. Blank means ${DEFAULT_STATEMENTS_FOLDER.join('/')}.`,
     valueOf: (settings) => settings.statementsFolder.join('/'),
     apply: (settings, cell) => {
@@ -564,6 +566,7 @@ export type SettingsField =
   | 'numberLocale'
   | 'reviewLabel'
   | 'cardSettlementIbans'
+  | 'statementsFolder'
   | BillingAmountField
   | BillingItemField
   | InvoicingField
@@ -583,6 +586,7 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (review !== null) errors.reviewLabel = review
   const cardAccounts = ibanListProblem(settings.cardSettlementIbans)
   if (cardAccounts !== null) errors.cardSettlementIbans = cardAccounts
+  if (settings.statementsFolder.length === 0) errors.statementsFolder = 'name a folder from My Drive, such as finance/statements'
   Object.assign(errors, billingErrors(settings.billing))
   for (const [field, value] of Object.entries(settings.invoicing) as [InvoicingField, string][]) {
     const problem = invoicingProblem(field, value)
@@ -708,6 +712,26 @@ export function booleanOf(cell: SettingCell): boolean | null {
 /** The keys whose value differs between two settings, with the new value, in template order. */
 export function changedSettings(current: Settings, next: Settings): { readonly key: string; readonly value: SettingCell }[] {
   return changedEntries(settingsTabEntries(current, null), settingsTabEntries(next, null))
+}
+
+/**
+ * Whether the settings name no folder for `statements_folder`, with no row for it, a blank one or one
+ * such as `/`. The app then reads the default, but the statement fetch in the Sheet reads the row.
+ */
+export function statementsFolderUnset(held: RecordsRead<SettingRow>): boolean {
+  return statementsFolderOf(String(heldSettingValue(held, STATEMENTS_FOLDER_KEY) ?? '')).length === 0
+}
+
+/**
+ * What a save of Settings, General writes of core's keys: those whose value changed, and while the
+ * settings name no folder for `statements_folder`, that key with the path the app uses, the default too.
+ */
+export function generalSettingsToSave(current: Settings, next: Settings, held: RecordsRead<SettingRow>): { readonly key: string; readonly value: SettingCell }[] {
+  const changed = changedSettings(current, next)
+  if (!statementsFolderUnset(held) || changed.some((entry) => entry.key === STATEMENTS_FOLDER_KEY)) {
+    return changed
+  }
+  return [...changed, ...settingsTabEntries(next, null).filter((entry) => entry.key === STATEMENTS_FOLDER_KEY)]
 }
 
 /** The keys of a pack whose value differs between two sets of its values, with the new value, in template order. */

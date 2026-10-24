@@ -45,7 +45,7 @@ const navigation = computed(() =>
 )
 
 bindFiltersToRouter(useRouter())
-useGoogleReturn(props.googleReturn, statements.sync)
+useGoogleReturn(props.googleReturn, statements.syncByHand)
 const stopAutoSync = startAutoSync({
   store,
   sync: statements.sync,

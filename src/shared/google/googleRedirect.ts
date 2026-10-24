@@ -16,14 +16,20 @@ export type RedirectGrant = 'sign-in' | 'gmail' | 'drive-read'
 /** What the app does once back: read the chosen Sheet again, open the Picker, or nothing, since the action that asked has to start again. */
 export type RedirectResume = 'sync' | 'pick' | 'none'
 
+/**
+ * How the tab went to Google: from a tap, or with `prompt=none` for the Drive read token as the app
+ * opened or as a sign-in came back. A silent answer shows no message of its own either way.
+ */
+export type RedirectAsk = 'tap' | 'silent-on-open' | 'silent-after-sign-in'
+
 /** What a tab remembers while it is away at Google. `route` is the hash route to return to. */
 export interface PendingRedirect {
   readonly state: string
   readonly grant: RedirectGrant
+  /** On the silent Drive read ask that follows a sign-in, what the sign-in resumes once that ask is back too. */
   readonly resume: RedirectResume
   readonly route: string
-  /** Asked with `prompt=none` as the app opened, so the answer shows no message either way. */
-  readonly silent: boolean
+  readonly ask: RedirectAsk
 }
 
 export interface AuthorizationRequest {
@@ -92,9 +98,16 @@ export type RedirectReturn =
       readonly token: StoredAccessToken
       readonly resume: RedirectResume
       readonly route: string
-      readonly silent: boolean
+      readonly ask: RedirectAsk
     }
-  | { readonly kind: 'refused'; readonly grant: RedirectGrant | null; readonly message: string; readonly route: string; readonly silent: boolean }
+  | {
+      readonly kind: 'refused'
+      readonly grant: RedirectGrant | null
+      readonly message: string
+      readonly resume: RedirectResume
+      readonly route: string
+      readonly ask: RedirectAsk
+    }
 
 export const GMAIL_COMPOSE = 'https://www.googleapis.com/auth/gmail.compose'
 
@@ -123,30 +136,31 @@ export function settleRedirect(fragment: RedirectFragment, pending: PendingRedir
       kind: 'refused',
       grant: null,
       message: 'Google sent back a sign-in this tab did not ask for, so the app did not keep it. Sign in again from here.',
+      resume: 'none',
       route,
-      silent: false,
+      ask: 'tap',
     }
   }
-  const { grant, silent } = pending
+  const { grant, resume, ask } = pending
   const checked = CHECKED_GRANTS[grant]
   if (fragment.kind === 'error') {
     if (checked !== undefined) {
-      return { kind: 'refused', grant, message: checked.notGranted, route, silent }
+      return { kind: 'refused', grant, message: checked.notGranted, resume, route, ask }
     }
     const message =
       fragment.error === 'access_denied'
         ? 'Google access was not allowed, so nothing was read from Google.'
         : `Google refused the token: ${fragment.error} ${fragment.description ?? ''}`.trim()
-    return { kind: 'refused', grant, message, route, silent }
+    return { kind: 'refused', grant, message, resume, route, ask }
   }
   if (!Number.isFinite(fragment.expiresIn) || fragment.expiresIn <= 0 || fragment.accessToken === '') {
-    return { kind: 'refused', grant, message: 'Google sent back no usable token. Sign in again.', route, silent }
+    return { kind: 'refused', grant, message: 'Google sent back no usable token. Sign in again.', resume, route, ask }
   }
   if (checked !== undefined && !fragment.scope.split(' ').includes(checked.scope)) {
-    return { kind: 'refused', grant, message: checked.notGranted, route, silent }
+    return { kind: 'refused', grant, message: checked.notGranted, resume, route, ask }
   }
   const token = { value: fragment.accessToken, grantedScope: fragment.scope, expiresAt: now + fragment.expiresIn * 1000 }
-  return { kind: 'granted', grant, token, resume: pending.resume, route, silent }
+  return { kind: 'granted', grant, token, resume, route, ask }
 }
 
 const PENDING_KEY = 'ledgerboard.google-redirect'
@@ -184,11 +198,13 @@ function pendingOf(text: string | null): PendingRedirect | null {
   if (typeof candidate !== 'object' || candidate === null) {
     return null
   }
-  const { state, grant, resume, route, silent } = candidate as Record<string, unknown>
+  const { state, grant, resume, route, ask, silent } = candidate as Record<string, unknown>
   if (typeof state !== 'string' || state === '' || typeof route !== 'string') return null
   if (grant !== 'sign-in' && grant !== 'gmail' && grant !== 'drive-read') return null
   if (resume !== 'sync' && resume !== 'pick' && resume !== 'none') return null
-  return { state, grant, resume, route, silent: silent === true }
+  if (ask === 'tap' || ask === 'silent-on-open' || ask === 'silent-after-sign-in') return { state, grant, resume, route, ask }
+  // A pending redirect saved by an older copy of the app carries `silent` in place of `ask`.
+  return { state, grant, resume, route, ask: silent === true ? 'silent-on-open' : 'tap' }
 }
 
 const DRIVE_READ_REFUSED_KEY = 'ledgerboard.drive-read-refused'
