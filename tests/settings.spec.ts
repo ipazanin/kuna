@@ -7,11 +7,12 @@ import {
   generalSettingsToSave,
   parseSettings,
   readPackSettings,
+  settingCodec,
   settingsErrors,
   settingsTabEntries,
   statementsFolderUnset,
 } from '../src/features/settings/domain/settings'
-import type { SettingRow } from '../src/features/settings/domain/settings'
+import type { PackSettings, SettingRow } from '../src/features/settings/domain/settings'
 import {
   costLabelsInSentence,
   inSentence,
@@ -24,14 +25,21 @@ import { euros, ledger } from './fixtures/ledger'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { SETTING_RECORDS } from '../src/features/workbook/domain/recordKind'
 import type { RecordsRead } from '../src/features/workbook/domain/recordsRead'
+import { storedFieldOf } from '../src/features/workbook/domain/storedFields'
 import { COMPANY_FACT_SETTINGS, companyFactsErrors } from '../src/packs/hr-doo/domain/companyFacts'
 
-function rows(...entries: [string, SettingRow['value']][]): SettingRow[] {
-  return entries.map(([key, value]) => ({ key, value }))
+/** A cell of the value column, undefined for a blank one. */
+type Cell = string | number | boolean | undefined
+
+const SETTINGS = settingCodec(() => COMPANY_FACT_SETTINGS as PackSettings<unknown>)
+
+/** The settings rows a tab of these cells holds, each value typed by its key as reading the workbook types it. */
+function rows(...entries: [string, Cell][]): SettingRow[] {
+  return entries.map(([key, value]) => SETTINGS.make(value === undefined ? { key: storedFieldOf(key) } : { key: storedFieldOf(key), value: storedFieldOf(value) }, null))
 }
 
 /** The settings as a storage holds them, one record per row. */
-function held(...entries: [string, SettingRow['value']][]): RecordsRead<SettingRow> {
+function held(...entries: [string, Cell][]): RecordsRead<SettingRow> {
   return { records: rows(...entries).map((record) => ({ record, id: recordIdOf(SETTING_RECORDS, record.key), label: record.key, fields: {} })), refused: [] }
 }
 
@@ -139,7 +147,7 @@ describe('card_settlement_ibans', () => {
 
     expect(problems).toEqual([])
     expect(settings.cardSettlementIbans).toEqual(['XX66FAKE0000000099', 'XX93FAKE0000000098'])
-    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, Cell]))).settings).toEqual(settings)
   })
 
   it('reports an entry that is not an IBAN, or whose check digits do not hold, and keeps the default', () => {
@@ -163,14 +171,14 @@ describe('statements_folder', () => {
     expect(problems).toEqual([])
     expect(settings.statementsFolder).toEqual(['finance', 'bank statements', 'erste'])
     expect(settingsTabEntries(settings, null)).toContainEqual({ key: 'statements_folder', value: 'finance/bank statements/erste' })
-    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, Cell]))).settings).toEqual(settings)
   })
 
   it('reports a path that names no folder and keeps the default', () => {
     const { settings, problems } = parseSettings(rows(['statements_folder', ' / ']))
 
     expect(settings.statementsFolder).toEqual(DEFAULT_SETTINGS.statementsFolder)
-    expect(problems).toEqual([settingProblem('statements_folder', '" / " names no folder, so the default is used')])
+    expect(problems).toEqual([settingProblem('statements_folder', '"/" names no folder, so the default is used')])
   })
 
   it('is the Erste archive by default and listed in the template', () => {
@@ -256,7 +264,19 @@ describe('company facts', () => {
     })
     expect(readPackSettings(rows(['hr_company_registered', '2025-05-12']), COMPANY_FACT_SETTINGS).values.companyRegistered).toBe('2025-05-12')
     const written = settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values })
-    expect(readPackSettings(rows(...written.map(({ key, value }) => [key, value] as [string, SettingRow['value']])), COMPANY_FACT_SETTINGS).values).toEqual(values)
+    expect(readPackSettings(rows(...written.map(({ key, value }) => [key, value] as [string, Cell])), COMPANY_FACT_SETTINGS).values).toEqual(values)
+  })
+
+  it('are stored typed by their key: a date cell as its day, a flag the app wrote as a flag, and anything else as text', () => {
+    expect(rows(['hr_company_registered', 45789], ['hr_pension_pillar_2', false], ['hr_dependants', 2])).toEqual([
+      { key: 'hr_company_registered', value: '2025-05-12' },
+      { key: 'hr_pension_pillar_2', value: 'FALSE' },
+      { key: 'hr_dependants', value: '2' },
+    ])
+    expect(SETTINGS.fieldsOf({ key: 'hr_pension_pillar_2', value: 'TRUE' })).toEqual({ key: 'hr_pension_pillar_2', value: true })
+    expect(SETTINGS.fieldsOf({ key: 'hr_pension_pillar_2', value: 'yes' })).toEqual({ key: 'hr_pension_pillar_2', value: 'yes' })
+    expect(SETTINGS.fieldsOf({ key: 'company_name', value: 'TRUE' })).toEqual({ key: 'company_name', value: 'TRUE' })
+    expect(SETTINGS.fieldsOf({ key: 'hr_birth_year', value: '' })).toEqual({ key: 'hr_birth_year' })
   })
 
   it('are left to the pack by the core parser, which neither reads nor reports them', () => {
@@ -271,7 +291,7 @@ describe('company facts', () => {
 
     expect(changedPackSettings(COMPANY_FACT_SETTINGS, before, { ...before, ownerLoanInterest: 200, residenceCity: 'Zagreb' })).toEqual([
       { key: 'hr_residence_city', value: 'Zagreb' },
-      { key: 'hr_owner_loan_interest', value: 0.02 },
+      { key: 'hr_owner_loan_interest', value: '0.02' },
     ])
   })
 
@@ -297,13 +317,13 @@ describe('company facts', () => {
       settingProblem('hr_cit_return', '"cash" is neither pd nor pd-nn, so the default is used'),
       settingProblem('hr_vat_principle', '"monthly" is neither invoice nor cash, so the default is used'),
       settingProblem('hr_pension_pillar_2', '"perhaps" is neither TRUE nor FALSE, so the default is used'),
-      settingProblem('hr_payroll_folder', '" / " names no folder, so the default is used'),
+      settingProblem('hr_payroll_folder', '"/" names no folder, so the default is used'),
     ])
     expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, vatReturnsFolder: [] })).toEqual({ vatReturnsFolder: 'name a folder from My Drive, such as finance/accountant' })
   })
 
   it('read the owner loan interest as a percentage cell or as a percent typed as text', () => {
-    const rate = (cell: SettingRow['value']) => readPackSettings(rows(['hr_owner_loan_interest', cell]), COMPANY_FACT_SETTINGS)
+    const rate = (cell: Cell) => readPackSettings(rows(['hr_owner_loan_interest', cell]), COMPANY_FACT_SETTINGS)
     expect(rate(0.02).values.ownerLoanInterest).toBe(200)
     expect(rate('2%').values.ownerLoanInterest).toBe(200)
     expect(rate('2,5 %').values.ownerLoanInterest).toBe(250)
@@ -324,13 +344,13 @@ describe('company facts', () => {
     expect(settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values: COMPANY_FACT_SETTINGS.defaults }).filter((entry) => entry.key.startsWith('hr_'))).toEqual([
       { key: 'hr_residence_city', value: '' },
       { key: 'hr_birth_year', value: '' },
-      { key: 'hr_pension_pillar_2', value: true },
-      { key: 'hr_dependants', value: 0 },
+      { key: 'hr_pension_pillar_2', value: 'TRUE' },
+      { key: 'hr_dependants', value: '0' },
       { key: 'hr_company_registered', value: '' },
       { key: 'hr_cit_return', value: 'pd' },
       { key: 'hr_vat_principle', value: 'invoice' },
-      { key: 'hr_depreciation_doubled', value: false },
-      { key: 'hr_owner_loan_interest', value: 0 },
+      { key: 'hr_depreciation_doubled', value: 'FALSE' },
+      { key: 'hr_owner_loan_interest', value: '0' },
       { key: 'hr_vat_returns_folder', value: 'work/dss/dss-finance/vat-returns' },
       { key: 'hr_payroll_folder', value: 'work/dss/dss-finance/payroll' },
     ])
@@ -382,7 +402,7 @@ describe('billing terms', () => {
       bonusItem: 'Bonus',
       client: 'north',
     })
-    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, SettingRow['value']]))).settings).toEqual(settings)
+    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, Cell]))).settings).toEqual(settings)
   })
 
   it('fall back to blank for an amount that is not above zero, and say which key', () => {

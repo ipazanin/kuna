@@ -1,15 +1,34 @@
 import { normaliseIban } from '../../../shared/text/fold'
+import { filledKey, labelWords } from '../../workbook/domain/recordCodec'
+import type { RecordCodec } from '../../workbook/domain/recordCodec'
+import { filledFields } from '../../workbook/domain/recordFields'
+import type { FieldValue, RecordFields } from '../../workbook/domain/recordFields'
 import { recordIdOf } from '../../workbook/domain/recordId'
 import { RULE_RECORDS } from '../../workbook/domain/recordKind'
 import { sharedKeys } from '../../workbook/domain/sharedKeys'
+import { slugOf, textOf as fieldTextOf } from '../../workbook/domain/storedFields'
+import type { StoredFields } from '../../workbook/domain/storedFields'
 import type { RecordProblem } from '../../workbook/domain/workbook'
 import { CONDITION_COLUMNS, RULE_COLUMNS, inTryingOrder } from './rule'
 import type { Rule, RuleCondition, RuleConfidence } from './rule'
 import { foldRuleText } from './transactionFacts'
 
-/** One data row of the `rules` tab, keyed by header, with blank cells left out. */
+/** One stored rule as its fields, a flag as true or false and anything else as its text, blank fields left out. */
 export interface RuleTabRow {
-  readonly cells: Readonly<Record<string, string | number | boolean>>
+  readonly fields: RecordFields
+}
+
+/** A stored rule as its fields. The rules reader checks them, so the factory refuses none. */
+function ruleRowOf(fields: StoredFields): RuleTabRow {
+  return { fields: filledFields(Object.fromEntries(Object.entries(fields).map(([name, field]) => [name, field.flag ?? field.text]))) }
+}
+
+export const RULE_CODEC: RecordCodec<RuleTabRow> = {
+  kind: RULE_RECORDS,
+  key: (fields) => filledKey(slugOf(fields.rule)),
+  label: (fields) => labelWords([fieldTextOf(fields.rule)]),
+  make: ruleRowOf,
+  fieldsOf: (row) => filledFields(row.fields),
 }
 
 export interface RulesRead {
@@ -33,21 +52,21 @@ type ConditionColumnName = (typeof CONDITION_COLUMNS)[number]
 export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>): RulesRead {
   const problems: RecordProblem[] = []
   const shared = sharedKeys(
-    rows.filter((row) => textOf(row.cells.rule) !== ''),
-    (row) => textOf(row.cells.rule).toLowerCase(),
+    rows.filter((row) => textOf(row.fields.rule) !== ''),
+    (row) => textOf(row.fields.rule).toLowerCase(),
   )
   const rules: Rule[] = []
   for (const row of rows) {
-    const named = textOf(row.cells.rule)
+    const named = textOf(row.fields.rule)
     const refuse = (reason: string): void => {
       problems.push({ id: named === '' ? null : recordIdOf(RULE_RECORDS, named.toLowerCase()), label: named || 'unnamed', reason })
     }
-    const unknownColumns = Object.keys(row.cells).filter((column) => !(RULE_COLUMNS as readonly string[]).includes(column))
+    const unknownColumns = Object.keys(row.fields).filter((column) => !(RULE_COLUMNS as readonly string[]).includes(column))
     if (unknownColumns.length > 0) {
       refuse(`${unknownColumns.map((column) => `"${column}"`).join(', ')} is not a column a rule can test`)
       continue
     }
-    const id = textOf(row.cells.rule)
+    const id = textOf(row.fields.rule)
     if (id === '') {
       refuse('a row without a rule id')
       continue
@@ -56,20 +75,20 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
       refuse('the id is on more than one row, so none of them is tried')
       continue
     }
-    const orderCell = row.cells.order
+    const orderCell = row.fields.order
     const order = Number(orderCell)
     if (textOf(orderCell) === '' || !Number.isFinite(order)) {
       refuse(`the order "${textOf(orderCell)}" is not a number`)
       continue
     }
-    const enabled = booleanCell(row.cells.enabled)
+    const enabled = booleanCell(row.fields.enabled)
     if (enabled === 'unreadable' || enabled === null) {
-      refuse(`the enabled cell "${textOf(row.cells.enabled)}" is neither TRUE nor FALSE`)
+      refuse(`the enabled cell "${textOf(row.fields.enabled)}" is neither TRUE nor FALSE`)
       continue
     }
-    const read = conditionsOf(row.cells)
-    const category = textOf(row.cells.category).toLowerCase()
-    const confidenceText = textOf(row.cells.confidence).toLowerCase()
+    const read = conditionsOf(row.fields)
+    const category = textOf(row.fields.category).toLowerCase()
+    const confidenceText = textOf(row.fields.confidence).toLowerCase()
     if (enabled) {
       const reasons = enabledRuleRefusals(confidenceText, category, read, definedCategories)
       if (reasons.length > 0) {
@@ -78,7 +97,7 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
       }
     }
     const confidence: RuleConfidence = confidenceText === 'rule' ? 'rule' : 'review'
-    rules.push({ id, order, enabled, conditions: read.conditions, category, confidence, note: textOf(row.cells.note) })
+    rules.push({ id, order, enabled, conditions: read.conditions, category, confidence, note: textOf(row.fields.note) })
   }
   return { rules: inTryingOrder(rules), problems }
 }
@@ -105,11 +124,11 @@ function enabledRuleRefusals(
   return []
 }
 
-function conditionsOf(cells: RuleTabRow['cells']): { readonly conditions: RuleCondition[]; readonly unreadable: string[] } {
+function conditionsOf(fields: RecordFields): { readonly conditions: RuleCondition[]; readonly unreadable: string[] } {
   const conditions: RuleCondition[] = []
   const unreadable: string[] = []
   for (const column of CONDITION_COLUMNS) {
-    const cell = cells[column]
+    const cell = fields[column]
     if (cell === undefined || textOf(cell) === '') {
       continue
     }
@@ -124,7 +143,7 @@ function conditionsOf(cells: RuleTabRow['cells']): { readonly conditions: RuleCo
 }
 
 /** The condition one filled cell states, null for a cell that states none, or why it cannot be read. */
-function conditionOf(column: ConditionColumnName, cell: string | number | boolean): RuleCondition | null | string {
+function conditionOf(column: ConditionColumnName, cell: FieldValue): RuleCondition | null | string {
   switch (column) {
     case 'direction': {
       const direction = textOf(cell).toLowerCase()
@@ -159,7 +178,7 @@ function conditionOf(column: ConditionColumnName, cell: string | number | boolea
     case 'purpose':
       return { column, code: foldRuleText(textOf(cell)) }
     case 'revenue_code': {
-      // Four digits and nothing else: a cell that is not text drops a leading zero, and a three-digit code would match nothing.
+      // Four digits and nothing else: a number drops a leading zero, and a three-digit code would match nothing.
       const code = textOf(cell)
       return /^\d{4}$/.test(code) ? { column, code } : `revenue_code is "${code}", and it is four digits`
     }
@@ -167,7 +186,7 @@ function conditionOf(column: ConditionColumnName, cell: string | number | boolea
 }
 
 /** TRUE, FALSE or blank. A checkbox reads as a boolean and a pasted TRUE as text, and both mean the same. */
-function booleanCell(cell: string | number | boolean | undefined): boolean | null | 'unreadable' {
+function booleanCell(cell: FieldValue | undefined): boolean | null | 'unreadable' {
   if (typeof cell === 'boolean') {
     return cell
   }
@@ -181,6 +200,6 @@ function booleanCell(cell: string | number | boolean | undefined): boolean | nul
   return 'unreadable'
 }
 
-function textOf(cell: string | number | boolean | undefined): string {
+function textOf(cell: FieldValue | undefined): string {
   return cell === undefined ? '' : String(cell).trim()
 }

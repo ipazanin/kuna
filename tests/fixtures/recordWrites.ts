@@ -4,10 +4,11 @@ import type { WriteReceipt } from '../../src/features/workbook/application/recor
 import { newRecordId } from '../../src/features/workbook/domain/recordId'
 import type { RecordKind } from '../../src/features/workbook/domain/recordKind'
 import type { WriteRules } from '../../src/features/workbook/domain/writeRules'
-import { recordsOfRows, spreadsheetTabOfKind } from '../../src/features/workbook/infrastructure/spreadsheetTab'
+import { cellsOfRecord, recordsOfRows, spreadsheetTabOfKind } from '../../src/features/workbook/infrastructure/spreadsheetTab'
 import type { Cells } from '../../src/features/workbook/infrastructure/spreadsheetTab'
 import type { WorkbookSnapshot } from '../../src/features/workbook/infrastructure/workbookSnapshot'
-import { ID_COLUMN, TABS_WITH_IDS } from '../../src/features/workbook/infrastructure/workbookTemplate'
+import { ID_FIELD } from '../../src/features/workbook/domain/recordCodec'
+import { TABS_WITH_IDS } from '../../src/features/workbook/infrastructure/workbookTemplate'
 import { recordOf } from './records'
 
 type Store = WorkbookStore<WorkbookSnapshot>
@@ -28,7 +29,7 @@ export function recordOnRow<R>(store: Store, kind: RecordKind<R>, sheetRow: numb
 
 /** The record a new row of these cells makes, with an id of its own on a kind whose records carry one and none is given. */
 export function newRecordOf<R>(kind: RecordKind<R>, cells: Cells): R {
-  return recordOf(kind, carriesIds(kind) && cellText(cells[ID_COLUMN]) === '' ? { ...cells, [ID_COLUMN]: newRecordId() } : cells)
+  return recordOf(kind, carriesIds(kind) && cellText(cells[ID_FIELD]) === '' ? { ...cells, [ID_FIELD]: newRecordId() } : cells)
 }
 
 /** One write of a kind as a screen makes it: records added from cells, records on these rows changed by these cells, and records on these rows removed. */
@@ -43,7 +44,7 @@ export function writeRows<R>(store: Store, rules: WriteRules<R>, rows: RowsWrite
   const added = (rows.added ?? []).map((cells) => newRecordOf(kind, cells))
   const changed = (rows.changed ?? []).map(({ sheetRow, cells }) => {
     const before = recordOnRow(store, kind, sheetRow)
-    return { before, after: recordOf(kind, { ...spreadsheetTabOfKind(kind).cells(before), ...cells }) }
+    return { before, after: recordOf(kind, { ...cellsOfRecord(spreadsheetTabOfKind(kind), before), ...cells }) }
   })
   const removed = (rows.removed ?? []).map((sheetRow) => recordOnRow(store, kind, sheetRow))
   return store.write(
@@ -76,6 +77,6 @@ export function cellsOf(receipt: WriteReceipt | null, verb: 'add' | 'change' | '
     if (change.verb !== verb) return []
     const mapping = spreadsheetTabOfKind(change.kind)
     const record = change.verb === 'remove' ? change.before : change.verb === 'add' || change.verb === 'change' ? change.after : null
-    return record === null ? [] : [Object.fromEntries(Object.entries(mapping.cells(record)).filter(([, cell]) => cellText(cell) !== ''))]
+    return record === null ? [] : [Object.fromEntries(Object.entries(cellsOfRecord(mapping, record)).filter(([, cell]) => cellText(cell) !== ''))]
   })
 }

@@ -1,5 +1,5 @@
 import type { ChoiceItem, EditorColumn } from '../../../features/settings/presentation/factTabColumns'
-import type { DraftCellKind, FieldReader } from '../../../features/settings/domain/recordDrafts'
+import type { DraftFieldKind, FieldReader } from '../../../features/settings/domain/recordDrafts'
 import { ASSET_GROUPS } from '../domain/assets/assets'
 import { GRANT_RELEASES } from '../domain/grants/grants'
 import { YEAR_END_LINES, YEAR_END_STATEMENTS, yearEndLineDefinition } from '../domain/yearEnd/yearEnd'
@@ -40,7 +40,7 @@ export const GRANT_COLUMNS: readonly EditorColumn[] = [
   { name: 'note', label: 'Note', kind: 'text', width: 'w-56' },
 ]
 
-const FIGURE_FIELD_KINDS: Readonly<Record<YearEndFigureKind, DraftCellKind>> = { money: 'amount', date: 'date', rate: 'percent', count: 'whole-number' }
+const FIGURE_FIELD_KINDS: Readonly<Record<YearEndFigureKind, DraftFieldKind>> = { money: 'amount', date: 'date', rate: 'percent', count: 'whole-number' }
 
 function definitionOf(fieldOf: FieldReader): ReturnType<typeof yearEndLineDefinition> {
   const statement = fieldOf('statement')

@@ -1,9 +1,10 @@
-import { civilDateFromSerial } from '../../../shared/calendar/civilDate'
+import { civilDateFromSerial, parseCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../shared/calendar/dateRange'
 import { moneyFromAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { RecordId } from './recordId'
+import type { FieldValue, RecordFields } from './recordFields'
 
 /**
  * One filled field of a stored record: its text, and what it holds where the storage keeps it as a
@@ -37,6 +38,32 @@ export function storedFieldOf(value: string | number | boolean): StoredField {
     number,
     flag: typeof value === 'boolean' ? value : null,
   }
+}
+
+/** Decimal text such as `-95.49` or `2025`, without grouping or an exponent. */
+const DECIMAL = /^-?\d+(\.\d+)?$/
+
+/** A field's text as the number it writes, or null for text that is not decimal. */
+export function decimalOf(text: string): number | null {
+  return DECIMAL.test(text) ? Number(text) : null
+}
+
+/**
+ * A record's field as the domain reads it: text such as `2025-05-12` is also the day it names, and
+ * decimal text is also the number and the amount it holds.
+ */
+export function storedFieldOfValue(value: FieldValue): StoredField {
+  if (typeof value === 'boolean') {
+    return storedFieldOf(value)
+  }
+  const text = value.trim()
+  const number = decimalOf(text)
+  return { text, date: parseCivilDate(text), money: number === null ? null : moneyFromAmount(number), number, flag: null }
+}
+
+/** A record's fields as the domain reads them. */
+export function storedFieldsOfValues(fields: RecordFields): StoredFields {
+  return Object.fromEntries(Object.entries(fields).map(([name, value]) => [name, storedFieldOfValue(value)]))
 }
 
 /** Why a kind's factory refuses a stored record. `refuse` throws it, and the reader of the records catches it. */

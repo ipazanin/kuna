@@ -1,9 +1,12 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { amountOf as unitsOf } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
-import { ownerShareProblem, storedOwnerShare } from '../../owner-share/domain/ownerShare'
+import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import { bookingOrder } from './bookingOrder'
 import { UNCLASSIFIED } from './bucket'
+import { dayText, labelWords, labelled, numberText } from './recordCodec'
+import type { RecordCodec } from './recordCodec'
+import { amountText, filledFields } from './recordFields'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import { LEDGER_RECORDS } from './recordKind'
@@ -81,6 +84,55 @@ export function ledgerEntryOf(fields: StoredFields, id: RecordId | null): Ledger
     ownerShare: storedOwnerShare(fields.owner_share),
     id: keyedId(id),
   }
+}
+
+/**
+ * The ledger row's key. A row with a reference is known by it even when the ledger's factory refuses
+ * the row, so a statement carrying that reference is never added beside it. Null for a refused row
+ * without one.
+ */
+function ledgerKey(fields: StoredFields): string | null {
+  const account = slugOf(fields.account)
+  const reference = textOf(fields.reference)
+  if (account !== '' && reference !== '') {
+    return referencedLedgerKey(account, reference)
+  }
+  const date = fields.date?.date ?? null
+  const amount = fields.amount?.number ?? null
+  const balance = fields.balance?.number ?? null
+  if (date === null || account === '' || amount === null || balance === null) {
+    return null
+  }
+  return ledgerKeyOf({ account, reference, date, amount, balance, description: textOf(fields.description) })
+}
+
+export const LEDGER_CODEC: RecordCodec<LedgerEntry> = {
+  kind: LEDGER_RECORDS,
+  key: ledgerKey,
+  label: (fields) => labelWords([dayText(fields.date), textOf(fields.counterparty) || textOf(fields.description), numberText(fields.amount), labelled('balance', numberText(fields.balance))]),
+  make: ledgerEntryOf,
+  fieldsOf: (entry) =>
+    filledFields({
+      date: entry.date,
+      account: entry.account,
+      statement: entry.statement,
+      counterparty: entry.counterparty,
+      counterparty_iban: entry.counterpartyIban,
+      description: entry.description,
+      amount: amountText(entry.amount),
+      balance: amountText(entry.balance),
+      category: entry.category,
+      flagged_by: entry.flaggedBy,
+      reference: entry.reference,
+      purpose: entry.signals.purpose,
+      tx_domain: entry.signals.txDomain,
+      tx_family: entry.signals.txFamily,
+      tx_sub_family: entry.signals.txSubFamily,
+      creditor_reference: entry.signals.creditorReference,
+      instructed_currency: entry.signals.instructedCurrency,
+      review_reasons: entry.reviewReasons.join(' | '),
+      owner_share: ownerShareText(entry.ownerShare),
+    }),
 }
 
 function amountOf(field: StoredField | undefined, name: string): Transaction['amount'] {

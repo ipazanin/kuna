@@ -1,6 +1,9 @@
-import { ownerShareProblem, storedOwnerShare } from '../../owner-share/domain/ownerShare'
+import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import { isDefinedBucket } from './bucket'
 import { categoryColourOf } from './categoryColour'
+import { filledKey, labelWords } from './recordCodec'
+import type { RecordCodec } from './recordCodec'
+import { filledFields } from './recordFields'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import { CATEGORY_RECORDS } from './recordKind'
@@ -43,6 +46,24 @@ export function categoryOf(fields: StoredFields, id: RecordId | null): CategoryR
     ownerShare: storedOwnerShare(fields.owner_share),
     id: keyedId(id),
   }
+}
+
+export const CATEGORY_CODEC: RecordCodec<CategoryRecord> = {
+  kind: CATEGORY_RECORDS,
+  key: (fields) => filledKey(slugOf(fields.category)),
+  label: (fields) => labelWords([textOf(fields.category)]),
+  make: categoryOf,
+  fieldsOf: (category) =>
+    filledFields({
+      category: category.slug,
+      family: category.family,
+      bucket: category.bucket,
+      colour: category.colour.stored,
+      roles: category.roles.join(', '),
+      label: category.label,
+      vat: category.vat === 'none' ? null : category.vat,
+      owner_share: ownerShareText(category.ownerShare),
+    }),
 }
 
 /** A category made from its fields, with the id its name makes, as an editor makes one. */

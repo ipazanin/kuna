@@ -15,6 +15,7 @@ import type { WriteBackHarness } from './fixtures/writeBack'
 import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import { GRANT_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { cellsOfRecord } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { GRANTS_TAB } from '../src/packs/hr-doo/infrastructure/hrDooTabs'
 
 const used = new Set<string>()
@@ -326,7 +327,7 @@ describe.each([
     const grids = everyTab()
     const [header, startup, innovation] = grids.grants as [CellValue[], CellValue[], CellValue[]]
     const { store } = await harnessOf(used, { ...grids, grants: [header, startup, ['spare', ...startup.slice(1)], innovation] })
-    const innovationAgain = GRANTS_TAB.cells(recordOnRow(store, GRANT_RECORDS, 4))
+    const innovationAgain = cellsOfRecord(GRANTS_TAB, recordOnRow(store, GRANT_RECORDS, 4))
 
     await expect(writeRows(store, GRANT_WRITES, { added: [innovationAgain], removed: [3] })).rejects.toThrow('The grant "innovation" is in the workbook already, so it is not added again.')
   })

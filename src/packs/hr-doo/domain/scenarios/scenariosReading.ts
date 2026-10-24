@@ -1,6 +1,10 @@
 import type { Money } from '../../../../shared/money/money'
 import { DIRECTOR_BASES, SCENARIO_COMPONENTS } from './ownerPayScenarios'
 import type { OwnerPayScenario, ScenarioComponent } from './ownerPayScenarios'
+import { amountText, filledFields } from '../../../../features/workbook/domain/recordFields'
+import type { FieldValue } from '../../../../features/workbook/domain/recordFields'
+import { dayText, labelWords, labelled } from '../../../../features/workbook/domain/recordCodec'
+import type { RecordCodec } from '../../../../features/workbook/domain/recordCodec'
 import { recordIdOf } from '../../../../features/workbook/domain/recordId'
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { problemOf, refusedProblems } from '../../../../features/workbook/domain/recordsRead'
@@ -59,6 +63,33 @@ export function scenarioRowOf(fields: StoredFields, id: RecordId | null): Scenar
     ? nontaxableComponent(written.slice(NONTAXABLE_PREFIX.length).trim(), fields, span)
     : namedComponent(requiredChoice(fields, 'component', SCENARIO_COMPONENTS.filter((name) => name !== 'nontaxable')), fields, span)
   return { slug, label: textOf(fields.label), year, component, key: `${written} ${from ?? ''} ${to ?? ''}` }
+}
+
+/** A scenario component's name and amount fields, a tax-free item as `nontaxable:<item>`. */
+function componentFields(component: ScenarioComponent): Readonly<Record<string, FieldValue>> {
+  switch (component.component) {
+    case 'salary_gross':
+      return { component: 'salary_gross', amount: component.gross === 'floor' ? 'floor' : amountText(component.gross) }
+    case 'nontaxable':
+      return { component: `${NONTAXABLE_PREFIX}${component.item}`, amount: amountText(component.amount) }
+    case 'rent_monthly':
+      return { component: 'rent_monthly', amount: amountText(component.amount) }
+    case 'dividend':
+      return { component: 'dividend', amount: component.amount === 'max' ? 'max' : amountText(component.amount) }
+    case 'director_basis':
+      return { component: 'director_basis', amount: component.basis }
+  }
+}
+
+export const SCENARIO_CODEC: RecordCodec<ScenarioRow> = {
+  kind: SCENARIO_RECORDS,
+  key: (fields) => {
+    const scenario = slugOf(fields.scenario)
+    return scenario === '' ? null : scenarioKeyOf({ scenario, component: slugOf(fields.component), from: dayText(fields.from), to: dayText(fields.to) })
+  },
+  label: (fields) => labelWords([textOf(fields.scenario), textOf(fields.component), labelled('from', dayText(fields.from))]),
+  make: scenarioRowOf,
+  fieldsOf: (row) => filledFields({ scenario: row.slug, label: row.label, year: String(row.year), ...componentFields(row.component), from: row.component.from, to: row.component.to }),
 }
 
 type Span = Pick<ScenarioComponent, 'from' | 'to' | 'id'>

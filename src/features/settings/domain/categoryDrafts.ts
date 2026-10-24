@@ -4,7 +4,7 @@ import { categoryOfFields } from '../../workbook/domain/categoriesReading'
 import { swatchOf } from '../../workbook/domain/categoryColour'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { slugProblem } from '../../workbook/domain/slug'
-import { slugOf, storedFieldOf, textOf } from '../../workbook/domain/storedFields'
+import { slugOf, storedFieldOfValue, textOf } from '../../workbook/domain/storedFields'
 import type { StoredField, StoredFields } from '../../workbook/domain/storedFields'
 import { isVatTreatment } from '../../workbook/domain/vatTreatment'
 import type { StoredRecord } from '../../workbook/domain/recordsRead'
@@ -151,7 +151,7 @@ function categoryFieldsOf(draft: CategoryDraft, stored: StoredFields): StoredFie
     if (text === '') {
       delete fields[name]
     } else {
-      fields[name] = storedFieldOf(text)
+      fields[name] = storedFieldOfValue(text)
     }
   }
   return fields

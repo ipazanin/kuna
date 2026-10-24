@@ -1,25 +1,27 @@
 import { cellText } from '../../../shared/text/cellText'
+import { filledFields } from '../../workbook/domain/recordFields'
+import type { FieldValue } from '../../workbook/domain/recordFields'
 import type { RuleTabRow } from './readRules'
 import type { Rule, RuleCondition } from './rule'
 
-export type RuleCells = RuleTabRow['cells']
+export type RuleFields = RuleTabRow['fields']
 
-/** One rules row changed in place. */
+/** One stored rule changed in place. */
 export interface RuleRowEdit {
-  /** The id the row carries now, which finds it on the tab. */
+  /** The id the rule carries now, which finds it. */
   readonly id: string
-  /** The row's cells as the app last read them. The change is refused when the tab holds something else. */
-  readonly expected: RuleCells
-  /** The row's cells after the change. A column left out ends up blank. */
-  readonly cells: RuleCells
+  /** The rule's fields as the app last read them. The change is refused when the rules hold something else. */
+  readonly expected: RuleFields
+  /** The rule's fields after the change. A field left out ends up blank. */
+  readonly fields: RuleFields
 }
 
 /** What a save does to the rules tab: at most one new row at the bottom, rows changed in place, and at most one row taken off. */
 export interface RulesTabChange {
-  readonly appended: RuleCells | null
+  readonly appended: RuleFields | null
   readonly edited: readonly RuleRowEdit[]
   /** The row to take off as the app last read it, which finds it by its id. The change is refused when the tab holds something else. */
-  readonly removed: RuleCells | null
+  readonly removed: RuleFields | null
 }
 
 export interface RulesTabAfter {
@@ -34,8 +36,8 @@ export interface RulesTabAfter {
  */
 export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChange): RulesTabAfter {
   const refusals: string[] = []
-  const rowHolding = (id: string, expected: RuleCells): RuleTabRow | null => {
-    const matches = rows.filter((row) => sameId(row.cells.rule, id))
+  const rowHolding = (id: string, expected: RuleFields): RuleTabRow | null => {
+    const matches = rows.filter((row) => sameId(row.fields.rule, id))
     if (matches.length !== 1) {
       refusals.push(
         matches.length === 0
@@ -45,43 +47,43 @@ export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChang
       return null
     }
     const [row] = matches as [RuleTabRow]
-    if (!sameCells(row.cells, expected)) {
+    if (!sameFields(row.fields, expected)) {
       refusals.push(`rule "${id}" changed since the app last read it`)
       return null
     }
     return row
   }
-  const replaced = new Map<RuleTabRow, RuleCells>()
+  const replaced = new Map<RuleTabRow, RuleFields>()
   for (const edit of change.edited) {
     const row = rowHolding(edit.id, edit.expected)
-    if (row !== null) replaced.set(row, withoutBlanks(edit.cells))
+    if (row !== null) replaced.set(row, filledFields(edit.fields))
   }
   const removed = change.removed === null ? null : rowHolding(cellText(change.removed.rule), change.removed)
   const changed = rows.filter((row) => row !== removed).map((row) => {
-    const cells = replaced.get(row)
-    return cells === undefined ? row : { cells }
+    const fields = replaced.get(row)
+    return fields === undefined ? row : { fields }
   })
-  const appended = change.appended === null ? [] : [{ cells: withoutBlanks(change.appended) }]
+  const appended = change.appended === null ? [] : [{ fields: filledFields(change.appended) }]
   return { rows: [...changed, ...appended], refusals }
 }
 
-/** The cells a rules row holds for this rule, blank cells left out. */
-export function ruleTabCells(rule: Rule): RuleCells {
-  const cells: Record<string, string | number | boolean> = {
+/** The fields a stored rule holds for this rule, blank fields left out. */
+export function ruleFieldsOf(rule: Rule): RuleFields {
+  const fields: Record<string, FieldValue> = {
     rule: rule.id,
-    order: rule.order,
+    order: String(rule.order),
     enabled: rule.enabled,
     category: rule.category,
     confidence: rule.confidence,
     note: rule.note,
   }
   for (const condition of rule.conditions) {
-    cells[condition.column] = conditionCell(condition)
+    fields[condition.column] = conditionField(condition)
   }
-  return withoutBlanks(cells)
+  return filledFields(fields)
 }
 
-function conditionCell(condition: RuleCondition): string | boolean {
+function conditionField(condition: RuleCondition): FieldValue {
   switch (condition.column) {
     case 'direction':
       return condition.direction
@@ -107,16 +109,12 @@ function conditionCell(condition: RuleCondition): string | boolean {
   }
 }
 
-function sameCells(left: RuleCells, right: RuleCells): boolean {
-  const columns = new Set([...Object.keys(left), ...Object.keys(right)])
-  return [...columns].every((column) => cellText(left[column]) === cellText(right[column]))
+function sameFields(left: RuleFields, right: RuleFields): boolean {
+  const names = new Set([...Object.keys(left), ...Object.keys(right)])
+  return [...names].every((name) => cellText(left[name]) === cellText(right[name]))
 }
 
-/** Whether the cell holds this rule id, compared without regard to case as the reader does. */
-export function sameId(cell: string | number | boolean | undefined, id: string): boolean {
-  return cellText(cell).toLowerCase() === id.trim().toLowerCase()
-}
-
-function withoutBlanks(cells: RuleCells): RuleCells {
-  return Object.fromEntries(Object.entries(cells).filter(([, cell]) => cellText(cell) !== ''))
+/** Whether the field holds this rule id, compared without regard to case as the reader does. */
+export function sameId(field: FieldValue | undefined, id: string): boolean {
+  return cellText(field).toLowerCase() === id.trim().toLowerCase()
 }

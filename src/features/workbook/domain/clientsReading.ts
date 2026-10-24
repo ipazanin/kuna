@@ -1,4 +1,7 @@
 import { ibanListOf } from './iban'
+import { filledKey, labelWords } from './recordCodec'
+import type { RecordCodec } from './recordCodec'
+import { filledFields } from './recordFields'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import { CLIENT_RECORDS } from './recordKind'
@@ -20,6 +23,25 @@ export function clientOf(fields: StoredFields, id: RecordId | null): ClientRecor
     refuse(slug === '' ? 'no client name' : 'no IBAN')
   }
   return { slug, name: textOf(fields.name), ibans, invoicing: invoicingOf(fields).invoicing, id: keyedId(id) }
+}
+
+export const CLIENT_CODEC: RecordCodec<ClientRecord> = {
+  kind: CLIENT_RECORDS,
+  key: (fields) => filledKey(slugOf(fields.client)),
+  label: (fields) => labelWords([textOf(fields.client) || textOf(fields.name)]),
+  make: clientOf,
+  fieldsOf: (client) =>
+    filledFields({
+      client: client.slug,
+      name: client.name,
+      iban: client.ibans.join(', '),
+      address: client.invoicing.address,
+      country: client.invoicing.country,
+      tax_id: client.invoicing.taxId,
+      invoice_mail: client.invoicing.invoiceMail,
+      mail_language: client.invoicing.mailLanguage,
+      reverse_charge: client.invoicing.reverseCharge ? true : null,
+    }),
 }
 
 /** A client made from its fields, with the id its name makes, as an editor makes one. */

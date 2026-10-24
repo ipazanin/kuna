@@ -143,7 +143,7 @@ describe.each([
     await switchLoans(store, 'financing')
     const [switched, added] = store.state.writes
 
-    expect(store.state.writes.map((write) => write.receipt.records[0]!.change.kind.name)).toEqual(['category', 'owner-advance'])
+    expect(store.state.writes.map((write) => write.receipt.records[0]!.change.kind.name)).toEqual(['category', 'hr-doo.owner-advance'])
     expect(canUndo(switched!, store.state.writes)).toBe(true)
 
     await store.undo(switched!)

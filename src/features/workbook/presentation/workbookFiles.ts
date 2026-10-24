@@ -8,7 +8,7 @@ import type { Workbook } from '../domain/workbook'
 import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
 import { readSnapshot } from '../infrastructure/spreadsheetTab'
 import type { WorkbookSnapshot, WorkbookTabs } from '../infrastructure/workbookSnapshot'
-import { emptyWorkbookTabs } from '../infrastructure/workbookTemplate'
+import { emptyWorkbookTabs } from '../infrastructure/emptyWorkbook'
 
 const TEMPLATE_FILE_NAME = 'ledgerboard-template.xlsx'
 

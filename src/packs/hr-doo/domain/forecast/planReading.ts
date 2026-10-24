@@ -4,6 +4,10 @@ import { monthNumber, monthOf } from '../../../../shared/calendar/monthKey'
 import { ASSET_GROUPS } from '../assets/assets'
 import { PLAN_KEYWORDS } from './plan'
 import type { PlanLine } from './plan'
+import { labelWords, labelled, numberText, withIdField } from '../../../../features/workbook/domain/recordCodec'
+import type { RecordCodec } from '../../../../features/workbook/domain/recordCodec'
+import { amountText, filledFields } from '../../../../features/workbook/domain/recordFields'
+import type { FieldValue } from '../../../../features/workbook/domain/recordFields'
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../../features/workbook/domain/recordsRead'
 import type { ReadRecord, Reading, RecordsRead } from '../../../../features/workbook/domain/recordsRead'
@@ -11,6 +15,7 @@ import { sharedKeys } from '../../../../features/workbook/domain/sharedKeys'
 import { optionalDate, ownId, positiveMoney, refuse, requiredChoice, requiredMoney, requiredYear, slugOf, textOf, wholeNumberOf } from '../../../../features/workbook/domain/storedFields'
 import type { StoredFields } from '../../../../features/workbook/domain/storedFields'
 import type { RecordProblem } from '../../../../features/workbook/domain/workbook'
+import { PLAN_RECORDS } from '../hrDooKinds'
 
 /**
  * One plan line. An `owner_pay_scenario` line holds from its date and names its scenario in
@@ -49,6 +54,26 @@ export function planLineOf(fields: StoredFields, id: RecordId | null): PlanLine 
   const amount = requiredMoney(fields, 'amount')
   return { year, month, note, id: ownId(id), kind: 'amount', item, amount }
 }
+
+/** A plan line's item, amount, date and group fields, by its kind. */
+function planLineFields(line: PlanLine): Readonly<Record<string, FieldValue | null>> {
+  switch (line.kind) {
+    case 'amount':
+      return { item: line.item, amount: amountText(line.amount) }
+    case 'purchase':
+      return { item: 'purchase', amount: amountText(line.amount), date: line.date, group: line.group }
+    case 'owner-pay-scenario':
+      return { item: 'owner_pay_scenario', amount: line.scenario, date: line.from }
+  }
+}
+
+export const PLAN_CODEC: RecordCodec<PlanLine> = withIdField(
+  PLAN_RECORDS,
+  (fields) => labelWords([textOf(fields.item), textOf(fields.year), labelled('month', textOf(fields.month)), numberText(fields.amount)]),
+  planLineOf,
+  // A purchase takes its month from its date, so its month is kept blank.
+  (line) => filledFields({ year: String(line.year), month: line.kind === 'purchase' || line.month === null ? null : String(line.month), ...planLineFields(line), note: line.note }),
+)
 
 function inYear(day: CivilDate, year: number): CivilDate {
   return yearOf(day) === year ? day : refuse(`date ${day} is not in ${year}`)

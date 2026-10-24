@@ -71,29 +71,29 @@ export function rulesChangeInWords(change: RulesTabChange): string {
     return 'Changed no rule'
   }
   if (change.edited.every((edit) => changesOnly(edit, 'order'))) {
-    const ahead = change.edited.find((edit) => orderOf(edit.cells) < orderOf(edit.expected))
+    const ahead = change.edited.find((edit) => orderOf(edit.fields) < orderOf(edit.expected))
     const behind = change.edited.find((edit) => edit !== ahead)
     return change.edited.length === 2 && ahead !== undefined && behind !== undefined
       ? `Moved ${idOf(ahead)} ahead of ${idOf(behind)}`
       : `Renumbered ${change.edited.length} rules`
   }
   if (others.length === 0 && changesOnly(first, 'enabled')) {
-    return `${cellText(first.cells.enabled).toUpperCase() === 'FALSE' ? 'Switched off' : 'Switched on'} ${idOf(first)}`
+    return `${cellText(first.fields.enabled).toUpperCase() === 'FALSE' ? 'Switched off' : 'Switched on'} ${idOf(first)}`
   }
   return `Edited ${idOf(first)}: ${changedColumns(first).join(', ')}${renumbered(others.length)}`
 }
 
 function changedColumns(edit: RuleRowEdit): string[] {
-  const columns = new Set([...Object.keys(edit.expected), ...Object.keys(edit.cells)])
-  return [...columns].filter((column) => cellText(edit.expected[column]) !== cellText(edit.cells[column]))
+  const columns = new Set([...Object.keys(edit.expected), ...Object.keys(edit.fields)])
+  return [...columns].filter((column) => cellText(edit.expected[column]) !== cellText(edit.fields[column]))
 }
 
 function idOf(edit: RuleRowEdit): string {
-  return cellText(edit.cells.rule) || edit.id
+  return cellText(edit.fields.rule) || edit.id
 }
 
-function orderOf(cells: RuleRowEdit['cells']): number {
-  return Number(cellText(cells.order))
+function orderOf(fields: RuleRowEdit['fields']): number {
+  return Number(cellText(fields.order))
 }
 
 function changesOnly(edit: RuleRowEdit, column: string): boolean {

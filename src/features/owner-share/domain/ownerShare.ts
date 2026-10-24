@@ -38,6 +38,11 @@ export function storedOwnerShare(field: StoredField | undefined): OwnerShare | n
   return percent === null ? null : ownerShareOf(percent)
 }
 
+/** The share as a stored field holds it, null for no share. */
+export function ownerShareText(share: OwnerShare | null): string | null {
+  return share === null ? null : String(share)
+}
+
 /** Why a filled field reads as no share, or null when it reads as it stands. */
 export function ownerShareProblem(field: StoredField | undefined): string | null {
   return field === undefined || storedOwnerShare(field) !== null ? null : `owner_share "${field.text}" is not a whole number from 0 to 100, so it reads as blank`

@@ -1,3 +1,6 @@
+import { labelWords } from './recordCodec'
+import type { RecordCodec } from './recordCodec'
+import { amountText, filledFields } from './recordFields'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import { INVOICE_RECORDS } from './recordKind'
@@ -32,6 +35,28 @@ export function invoiceOf(fields: StoredFields, id: RecordId | null): Invoice {
   const due = fields.due === undefined ? null : (fields.due.date ?? refuse(`the due date "${fields.due.text}" is not a date cell`))
   const period = deliveryPeriodOf(fields)
   return { number, client, item: textOf(fields.item), amount, issued, due, deliveryPeriod: 'made' in period ? period.made : null, id: keyedId(id) }
+}
+
+export const INVOICE_CODEC: RecordCodec<Invoice> = {
+  kind: INVOICE_RECORDS,
+  key: (fields) => {
+    const client = slugOf(fields.client)
+    const number = textOf(fields.number)
+    return client === '' || number === '' ? null : invoiceKeyOf({ client, number })
+  },
+  label: (fields) => labelWords([textOf(fields.number)]),
+  make: invoiceOf,
+  fieldsOf: (invoice) =>
+    filledFields({
+      number: invoice.number,
+      client: invoice.client,
+      item: invoice.item,
+      amount: amountText(invoice.amount),
+      issued: invoice.issued,
+      due: invoice.due,
+      period_from: invoice.deliveryPeriod?.from,
+      period_to: invoice.deliveryPeriod?.to,
+    }),
 }
 
 function deliveryPeriodOf(fields: StoredFields) {

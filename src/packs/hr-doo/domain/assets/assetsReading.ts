@@ -1,5 +1,8 @@
 import { ASSET_GROUPS } from './assets'
 import type { Asset } from './assets'
+import { labelWords, withIdField } from '../../../../features/workbook/domain/recordCodec'
+import type { RecordCodec } from '../../../../features/workbook/domain/recordCodec'
+import { amountText, filledFields } from '../../../../features/workbook/domain/recordFields'
 import { newRecordId, recordIdOf } from '../../../../features/workbook/domain/recordId'
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { ASSET_RECORDS } from '../hrDooKinds'
@@ -40,6 +43,22 @@ export function assetOf(fields: StoredFields, id: RecordId | null): Asset {
     id: ownId(id),
   }
 }
+
+export const ASSET_CODEC: RecordCodec<Asset> = withIdField(ASSET_RECORDS, (fields) => labelWords([textOf(fields.asset)]), assetOf, (asset) =>
+  filledFields({
+    asset: asset.name,
+    bought: asset.bought,
+    // A blank in_use reads as the day it was bought, so that day is kept blank.
+    in_use: asset.inUse === asset.bought ? null : asset.inUse,
+    cost_net: amountText(asset.costNet),
+    group: asset.group,
+    doubled: asset.doubledRate ? true : null,
+    disposed: asset.disposed,
+    funded_by: asset.fundedBy,
+    ledger_reference: asset.ledgerReference,
+    note: asset.note,
+  }),
+)
 
 /**
  * The assets. A name on more than one record leaves out every record of it, since depreciation

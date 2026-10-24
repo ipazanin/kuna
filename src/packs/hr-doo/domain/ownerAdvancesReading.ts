@@ -1,4 +1,7 @@
-import { ownerShareProblem, storedOwnerShare } from '../../../features/owner-share/domain/ownerShare'
+import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../../features/owner-share/domain/ownerShare'
+import { dayText, labelWords, numberText, withIdField } from '../../../features/workbook/domain/recordCodec'
+import type { RecordCodec } from '../../../features/workbook/domain/recordCodec'
+import { amountText, filledFields } from '../../../features/workbook/domain/recordFields'
 import type { RecordId } from '../../../features/workbook/domain/recordId'
 import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../features/workbook/domain/recordsRead'
 import type { Reading, RecordsRead } from '../../../features/workbook/domain/recordsRead'
@@ -6,6 +9,7 @@ import { ownId, refuse, slugOf, textOf } from '../../../features/workbook/domain
 import type { StoredFields } from '../../../features/workbook/domain/storedFields'
 import { ADVANCE_BUCKETS } from '../../../features/workbook/domain/workbook'
 import type { OwnerAdvance, RecordProblem } from '../../../features/workbook/domain/workbook'
+import { OWNER_ADVANCE_RECORDS } from './hrDooKinds'
 
 /** A cost the owner paid as the owner-advances tab holds it, before its category is looked up. */
 export type OwnerAdvanceEntry = Omit<OwnerAdvance, 'family' | 'bucket'>
@@ -29,6 +33,20 @@ export function ownerAdvanceOf(fields: StoredFields, id: RecordId | null): Owner
   }
   return { date, amount, description: textOf(fields.description), category, ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
 }
+
+export const OWNER_ADVANCE_CODEC: RecordCodec<OwnerAdvanceEntry> = withIdField(
+  OWNER_ADVANCE_RECORDS,
+  (fields) => labelWords([textOf(fields.description), numberText(fields.amount), dayText(fields.date)]),
+  ownerAdvanceOf,
+  (advance) =>
+    filledFields({
+      date: advance.date,
+      amount: amountText(advance.amount),
+      description: advance.description,
+      category: advance.category,
+      owner_share: ownerShareText(advance.ownerShare),
+    }),
+)
 
 /** A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets leaves it out. An owner share it cannot read is reported and counts as none. */
 export function readOwnerAdvances(read: RecordsRead<OwnerAdvanceEntry>, categories: readonly { readonly slug: string; readonly family: string; readonly bucket: OwnerAdvance['bucket'] }[]): Reading<OwnerAdvance> {

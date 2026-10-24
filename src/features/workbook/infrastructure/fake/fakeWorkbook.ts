@@ -1,7 +1,8 @@
 import { RULE_COLUMNS } from '../../../rules/domain/rule'
 import type { WorkbookSource } from '../../domain/workbook'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../workbookSnapshot'
-import { ID_COLUMN, TABS_WITH_IDS, missingColumnsOf, templateColumnNames } from '../workbookTemplate'
+import { ID_FIELD } from '../../domain/recordCodec'
+import { TABS_WITH_IDS, missingColumnsOf, templateColumnNames } from '../workbookTemplate'
 import { sheetRowsFromValues } from '../workbookSnapshot'
 
 /**
@@ -281,7 +282,7 @@ export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<Wo
 /** The id column added to a tab, each row's id made from the tab's place and the row's, so every run gives the same ids. */
 function withFixedIds([header = [], ...rows]: readonly CellValue[][], tabIndex: number): CellValue[][] {
   return [
-    [...header, ID_COLUMN],
+    [...header, ID_FIELD],
     ...rows.map((row, rowIndex) => [...row, `00000000-0000-4000-8000-${String(tabIndex + 1).padStart(4, '0')}${String(rowIndex + 1).padStart(8, '0')}`]),
   ]
 }

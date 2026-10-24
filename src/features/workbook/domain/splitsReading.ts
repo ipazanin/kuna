@@ -1,8 +1,12 @@
 import { ZERO, addMoney, plainAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
-import { ownerShareProblem, storedOwnerShare } from '../../owner-share/domain/ownerShare'
+import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
+import { dayText, labelWords, numberText, withIdField } from './recordCodec'
+import type { RecordCodec } from './recordCodec'
+import { amountText, filledFields } from './recordFields'
 import type { RecordId } from './recordId'
+import { SPLIT_PART_RECORDS } from './recordKind'
 import { SHARED_ID_REASON, idSharing, problemOf } from './recordsRead'
 import type { ReadRecord, Reading, RecordsRead } from './recordsRead'
 import { holdsSplitKey, partOrder } from './splits'
@@ -38,6 +42,23 @@ export function splitPartOf(fields: StoredFields, id: RecordId | null): SplitTab
   const key = splitKeyOf(fields)
   return { key, amount: requiredMoney(fields, 'amount'), category: slugOf(fields.category), note: textOf(fields.note), ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
 }
+
+export const SPLIT_PART_CODEC: RecordCodec<SplitTabRow> = withIdField(
+  SPLIT_PART_RECORDS,
+  (fields) => labelWords([textOf(fields.category), numberText(fields.amount), dayText(fields.date)]),
+  splitPartOf,
+  (part) =>
+    filledFields({
+      date: part.key.date,
+      account: part.key.account,
+      row_amount: amountText(part.key.rowAmount),
+      row_balance: amountText(part.key.rowBalance),
+      amount: amountText(part.amount),
+      category: part.category,
+      note: part.note,
+      owner_share: ownerShareText(part.ownerShare),
+    }),
+)
 
 function splitKeyOf(fields: StoredFields): SplitKey {
   const date = requiredDate(fields, 'date')

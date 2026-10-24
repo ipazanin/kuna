@@ -4,9 +4,14 @@ import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { ibanListOf, isIban } from '../../workbook/domain/iban'
+import { filledKey, labelWords } from '../../workbook/domain/recordCodec'
+import type { RecordCodec } from '../../workbook/domain/recordCodec'
+import { amountText, filledFields } from '../../workbook/domain/recordFields'
 import { recordIdOf } from '../../workbook/domain/recordId'
 import { SETTING_RECORDS } from '../../workbook/domain/recordKind'
 import type { RecordsRead } from '../../workbook/domain/recordsRead'
+import { slugOf, textOf } from '../../workbook/domain/storedFields'
+import type { StoredField } from '../../workbook/domain/storedFields'
 import type { RecordProblem } from '../../workbook/domain/workbook'
 import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
@@ -172,23 +177,35 @@ const LABEL_MAX_LENGTH = 40
 
 const BILLING_ITEM_MAX_LENGTH = 60
 
-export type SettingCell = string | number | boolean
+/** What a setting's value holds: a day, a number, TRUE or FALSE, or text. */
+export type SettingType = 'date' | 'number' | 'flag' | 'text'
 
+/** One setting as stored, its value as the text of its key's type, blank when the setting holds none. */
 export interface SettingRow {
   readonly key: string
-  readonly value: SettingCell | undefined
+  readonly value: string
+}
+
+/** A key and the value to store for it, as `SettingDefinition.valueOf` gives it. */
+export interface SettingEntry {
+  readonly key: string
+  readonly value: string
 }
 
 type BucketLabelKey = `label_${string}`
 
-/** One key of the settings tab, and how its cell reads into the values it sets and back. */
+/**
+ * One key of the settings, and how its value reads into the values it sets and back. The value is
+ * text of the key's type: a day as `yyyy-mm-dd`, a number as decimal text, a flag as TRUE or FALSE.
+ */
 export interface SettingDefinition<Values> {
   readonly key: string
   /** What the key means, as the template's note on it says. */
   readonly note: string
-  valueOf(values: Values): SettingCell
-  /** The values with this key applied, or the reason the cell cannot be used. */
-  apply(values: Values, cell: SettingCell): Values | string
+  readonly type: SettingType
+  valueOf(values: Values): string
+  /** The values with this key applied, or the reason the value cannot be used. */
+  apply(values: Values, value: string): Values | string
 }
 
 /** The settings keys a pack reads, with the values they hold when blank, which core leaves to the pack. */
@@ -204,9 +221,10 @@ function bucketLabelKey(bucket: DefinedBucket): BucketLabelKey {
 const BUCKET_LABEL_DEFINITIONS: readonly SettingDefinition<Settings>[] = BUCKETS.map((bucket) => ({
   key: bucketLabelKey(bucket),
   note: `What the ${bucket} bucket is called on screen. The bucket itself keeps its name in the categories tab.`,
+  type: 'text',
   valueOf: (settings) => settings.bucketLabels[bucket],
-  apply: (settings, cell) => {
-    const label = String(cell).trim()
+  apply: (settings, value) => {
+    const label = value.trim()
     const problem = labelProblem(label)
     return problem ?? { ...settings, bucketLabels: { ...settings.bucketLabels, [bucket]: label } }
   },
@@ -224,12 +242,13 @@ function billingAmountDefinition(key: string, field: BillingAmountField, note: s
   return {
     key,
     note,
+    type: 'number',
     valueOf: (settings) => {
       const amount = settings.billing[field]
-      return amount === null ? '' : amount / 100
+      return amount === null ? '' : amountText(amount)
     },
-    apply: (settings, cell) => {
-      const amount = typeof cell === 'number' ? cell : Number(String(cell).trim())
+    apply: (settings, value) => {
+      const amount = Number(value.trim())
       return billingAmountProblem(amount) ?? withBilling(settings, { [field]: moneyFromAmount(amount) })
     },
   }
@@ -239,9 +258,10 @@ function billingItemDefinition(key: string, field: BillingItemField, note: strin
   return {
     key,
     note,
+    type: 'text',
     valueOf: (settings) => settings.billing[field],
-    apply: (settings, cell) => {
-      const item = String(cell).trim()
+    apply: (settings, value) => {
+      const item = value.trim()
       return billingItemProblem(item) ?? withBilling(settings, { [field]: item })
     },
   }
@@ -258,8 +278,9 @@ const BILLING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: 'billing_client',
     note: 'The client the filled rows are for, by the client name in the clients tab, such as northwind. Optional.',
+    type: 'text',
     valueOf: (settings) => settings.billing.client,
-    apply: (settings, cell) => withBilling(settings, { client: String(cell).trim().toLowerCase() }),
+    apply: (settings, value) => withBilling(settings, { client: value.trim().toLowerCase() }),
   },
 ]
 
@@ -286,9 +307,9 @@ function invoicingDefinition(key: string, field: InvoicingField, note: string): 
   return {
     key,
     note,
+    type: 'text',
     valueOf: (settings) => settings.invoicing[field],
-    apply: (settings, cell) => {
-      const typed = String(cell)
+    apply: (settings, typed) => {
       const text = field === 'iban' ? normaliseIban(typed) : field === 'mailBody' ? typed.replaceAll('\r\n', '\n').trim() : typed.replace(/\s*[\r\n]+\s*/g, ' ').trim()
       return invoicingProblem(field, text) ?? { ...settings, invoicing: { ...settings.invoicing, [field]: text } }
     },
@@ -327,11 +348,12 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: 'template_version',
     note: 'The workbook format. Leave it as the app wrote it.',
-    valueOf: (settings) => settings.templateVersion,
-    apply: (settings, cell) => {
-      const version = typeof cell === 'number' ? cell : Number(String(cell).trim())
+    type: 'number',
+    valueOf: (settings) => String(settings.templateVersion),
+    apply: (settings, value) => {
+      const version = Number(value.trim())
       if (!Number.isInteger(version) || version < 1) {
-        return `"${String(cell)}" is not a template version`
+        return `"${value}" is not a template version`
       }
       if (version > TEMPLATE_VERSION) {
         return `the workbook is template version ${version} and this app reads version ${TEMPLATE_VERSION}`
@@ -342,15 +364,17 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: 'company_name',
     note: 'Shown in the app and used in the name of an exported file. Leave it blank to use the file name.',
+    type: 'text',
     valueOf: (settings) => settings.companyName,
-    apply: (settings, cell) => ({ ...settings, companyName: String(cell).trim() }),
+    apply: (settings, value) => ({ ...settings, companyName: value.trim() }),
   },
   {
     key: 'currency',
     note: 'The three-letter ISO code of the money in the ledger, such as EUR, USD or GBP.',
+    type: 'text',
     valueOf: (settings) => settings.currency,
-    apply: (settings, cell) => {
-      const currency = String(cell).trim().toUpperCase()
+    apply: (settings, value) => {
+      const currency = value.trim().toUpperCase()
       const problem = currencyProblem(currency)
       return problem ?? { ...settings, currency }
     },
@@ -358,9 +382,10 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: 'number_locale',
     note: 'How amounts are written: en-GB gives 1,234.56 and de-DE gives 1.234,56. Dates and text stay in English.',
+    type: 'text',
     valueOf: (settings) => settings.numberLocale,
-    apply: (settings, cell) => {
-      const locale = String(cell).trim()
+    apply: (settings, value) => {
+      const locale = value.trim()
       const problem = localeProblem(locale)
       return problem ?? { ...settings, numberLocale: locale }
     },
@@ -369,18 +394,20 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: 'owner_pay_module',
     note: 'TRUE shows owner pay and owner earns. FALSE hides them, and the owner-pay rows then count as operating cost.',
-    valueOf: (settings) => settings.ownerPayModule,
-    apply: (settings, cell) => {
-      const enabled = booleanOf(cell)
-      return enabled === null ? `"${String(cell)}" is neither TRUE nor FALSE` : { ...settings, ownerPayModule: enabled }
+    type: 'flag',
+    valueOf: (settings) => flagText(settings.ownerPayModule),
+    apply: (settings, value) => {
+      const enabled = booleanOf(value)
+      return enabled === null ? `"${value}" is neither TRUE nor FALSE` : { ...settings, ownerPayModule: enabled }
     },
   },
   {
     key: 'review_label',
     note: 'What flagged_by says on a row a person confirmed, such as human or your first name. rule and ai are taken.',
+    type: 'text',
     valueOf: (settings) => settings.reviewLabel,
-    apply: (settings, cell) => {
-      const label = String(cell).trim().toLowerCase()
+    apply: (settings, value) => {
+      const label = value.trim().toLowerCase()
       const problem = reviewLabelProblem(label)
       return problem ?? { ...settings, reviewLabel: label }
     },
@@ -388,9 +415,10 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: 'card_settlement_ibans',
     note: 'The bank accounts a card purchase settles against, comma separated. A row with one of them as counterparty reads as a card purchase. Optional.',
+    type: 'text',
     valueOf: (settings) => settings.cardSettlementIbans.join(', '),
-    apply: (settings, cell) => {
-      const ibans = ibanListOf(String(cell))
+    apply: (settings, value) => {
+      const ibans = ibanListOf(value)
       const problem = ibanListProblem(ibans)
       return problem ?? { ...settings, cardSettlementIbans: ibans }
     },
@@ -400,10 +428,11 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: STATEMENTS_FOLDER_KEY,
     note: `The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside. Blank means ${DEFAULT_STATEMENTS_FOLDER.join('/')}.`,
+    type: 'text',
     valueOf: (settings) => settings.statementsFolder.join('/'),
-    apply: (settings, cell) => {
-      const folders = folderPathOf(String(cell))
-      return folders.length === 0 ? `"${String(cell)}" names no folder` : { ...settings, statementsFolder: folders }
+    apply: (settings, value) => {
+      const folders = folderPathOf(value)
+      return folders.length === 0 ? `"${value}" names no folder` : { ...settings, statementsFolder: folders }
     },
   },
 ]
@@ -414,8 +443,39 @@ function keyOfRow(row: SettingRow): string {
   return row.key.trim().toLowerCase()
 }
 
+/** The type of a key's value, core's or the pack's. Any other key, such as an import profile, holds text. */
+export function settingTypeOf(key: string, pack: PackSettings<unknown> | null): SettingType {
+  return (DEFINITION_BY_KEY.get(key) ?? pack?.definitions.find((definition) => definition.key === key))?.type ?? 'text'
+}
+
+/** A stored value as text of its key's type: a date cell as its day and a checkbox as TRUE or FALSE. */
+function settingValueOf(field: StoredField | undefined, type: SettingType): string {
+  if (field === undefined) return ''
+  if (type === 'date') return field.date ?? field.text
+  if (type === 'flag' && field.flag !== null) return flagText(field.flag)
+  return field.text
+}
+
 /**
- * The values with one row's cell applied by its definition, or the problem that leaves the default.
+ * How settings are stored, each value typed by its key, core's or those of the pack `packSettings`
+ * gives: a flag the app wrote as TRUE or FALSE is stored as a flag, and anything else as text.
+ */
+export function settingCodec(packSettings: () => PackSettings<unknown> | null): RecordCodec<SettingRow> {
+  const typeOf = (key: string): SettingType => settingTypeOf(key.trim().toLowerCase(), packSettings())
+  return {
+    kind: SETTING_RECORDS,
+    key: (fields) => filledKey(slugOf(fields.key)),
+    label: (fields) => labelWords([slugOf(fields.key)]),
+    make: (fields) => ({ key: textOf(fields.key), value: settingValueOf(fields.value, typeOf(textOf(fields.key))) }),
+    fieldsOf: (setting) => {
+      const flag = typeOf(setting.key) === 'flag' && (setting.value === 'TRUE' || setting.value === 'FALSE')
+      return filledFields({ key: setting.key, value: flag ? setting.value === 'TRUE' : setting.value })
+    },
+  }
+}
+
+/**
+ * The values with one row's value applied by its definition, or the problem that leaves the default.
  * A key set on more than one row is used from none of them, since where a row sits decides nothing.
  */
 function applySettingRow<Values>(values: Values, row: SettingRow, definition: SettingDefinition<Values>, shared: ReadonlySet<string>): { readonly values: Values; readonly problem: RecordProblem | null } {
@@ -423,7 +483,7 @@ function applySettingRow<Values>(values: Values, row: SettingRow, definition: Se
   if (shared.has(definition.key)) {
     return { values, problem: { ...named, reason: 'set on more than one row, so the default is used' } }
   }
-  if (row.value === undefined || String(row.value).trim() === '') {
+  if (row.value.trim() === '') {
     return { values, problem: null }
   }
   const applied = definition.apply(values, row.value)
@@ -465,8 +525,8 @@ export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet
       problems.push({ ...named, reason: 'set on more than one row, so the profile is not offered' })
       continue
     }
-    if (row.value === undefined || String(row.value).trim() === '') continue
-    const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), String(row.value))
+    if (row.value.trim() === '') continue
+    const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), row.value)
     if (typeof profile === 'string') {
       problems.push({ ...named, reason: `${profile}, so the profile is not offered` })
     } else {
@@ -528,9 +588,9 @@ export function readSettingsTab<Values>(
 }
 
 /** The value the settings hold for a key, which a write of it checks is still there, or null when no setting has the key. */
-export function heldSettingValue(read: RecordsRead<SettingRow>, key: string): SettingCell | null {
+export function heldSettingValue(read: RecordsRead<SettingRow>, key: string): string | null {
   const held = read.records.find((stored) => stored.record.key.trim().toLowerCase() === key)
-  return held === undefined ? null : (held.record.value ?? '')
+  return held === undefined ? null : held.record.value
 }
 
 /** A pack's settings keys with the values they hold. */
@@ -540,7 +600,7 @@ export interface PackSettingValues<Values> {
 }
 
 /** The key and value of every setting in template order, as a `settings` tab holds them: core's keys, then a pack's, then the import profiles. */
-export function settingsTabEntries<Values>(settings: Settings, pack: PackSettingValues<Values> | null): { readonly key: string; readonly value: SettingCell }[] {
+export function settingsTabEntries<Values>(settings: Settings, pack: PackSettingValues<Values> | null): SettingEntry[] {
   return [
     ...SETTING_DEFINITIONS.map((definition) => ({ key: definition.key, value: definition.valueOf(settings) })),
     ...(pack === null ? [] : packSettingEntries(pack)),
@@ -548,7 +608,7 @@ export function settingsTabEntries<Values>(settings: Settings, pack: PackSetting
   ]
 }
 
-function packSettingEntries<Values>(pack: PackSettingValues<Values>): { readonly key: string; readonly value: SettingCell }[] {
+function packSettingEntries<Values>(pack: PackSettingValues<Values>): SettingEntry[] {
   return pack.settings.definitions.map((definition) => ({ key: definition.key, value: definition.valueOf(pack.values) }))
 }
 
@@ -693,17 +753,21 @@ function reviewLabelProblem(label: string): string | null {
   return null
 }
 
-/** A flag from a settings cell: TRUE or FALSE, and the words people type for them. Null for anything else. */
-export function booleanOf(cell: SettingCell): boolean | null {
-  if (typeof cell === 'boolean') return cell
-  const text = String(cell).trim().toLowerCase()
+/** A flag as a setting's value holds it. */
+export function flagText(flag: boolean): string {
+  return flag ? 'TRUE' : 'FALSE'
+}
+
+/** A flag from a setting's value: TRUE or FALSE, and the words people type for them. Null for anything else. */
+export function booleanOf(value: string): boolean | null {
+  const text = value.trim().toLowerCase()
   if (['true', 'yes', 'on', '1'].includes(text)) return true
   if (['false', 'no', 'off', '0'].includes(text)) return false
   return null
 }
 
 /** The keys whose value differs between two settings, with the new value, in template order. */
-export function changedSettings(current: Settings, next: Settings): { readonly key: string; readonly value: SettingCell }[] {
+export function changedSettings(current: Settings, next: Settings): SettingEntry[] {
   return changedEntries(settingsTabEntries(current, null), settingsTabEntries(next, null))
 }
 
@@ -712,14 +776,14 @@ export function changedSettings(current: Settings, next: Settings): { readonly k
  * such as `/`. The app then reads the default, but the statement fetch in the Sheet reads the row.
  */
 export function statementsFolderUnset(held: RecordsRead<SettingRow>): boolean {
-  return folderPathOf(String(heldSettingValue(held, STATEMENTS_FOLDER_KEY) ?? '')).length === 0
+  return folderPathOf(heldSettingValue(held, STATEMENTS_FOLDER_KEY) ?? '').length === 0
 }
 
 /**
  * What a save of Settings, General writes of core's keys: those whose value changed, and while the
  * settings name no folder for `statements_folder`, that key with the path the app uses, the default too.
  */
-export function generalSettingsToSave(current: Settings, next: Settings, held: RecordsRead<SettingRow>): { readonly key: string; readonly value: SettingCell }[] {
+export function generalSettingsToSave(current: Settings, next: Settings, held: RecordsRead<SettingRow>): SettingEntry[] {
   const changed = changedSettings(current, next)
   if (!statementsFolderUnset(held) || changed.some((entry) => entry.key === STATEMENTS_FOLDER_KEY)) {
     return changed
@@ -728,14 +792,11 @@ export function generalSettingsToSave(current: Settings, next: Settings, held: R
 }
 
 /** The keys of a pack whose value differs between two sets of its values, with the new value, in template order. */
-export function changedPackSettings<Values>(settings: PackSettings<Values>, current: Values, next: Values): { readonly key: string; readonly value: SettingCell }[] {
+export function changedPackSettings<Values>(settings: PackSettings<Values>, current: Values, next: Values): SettingEntry[] {
   return changedEntries(packSettingEntries({ settings, values: current }), packSettingEntries({ settings, values: next }))
 }
 
-function changedEntries(
-  current: readonly { readonly key: string; readonly value: SettingCell }[],
-  next: readonly { readonly key: string; readonly value: SettingCell }[],
-): { readonly key: string; readonly value: SettingCell }[] {
+function changedEntries(current: readonly SettingEntry[], next: readonly SettingEntry[]): SettingEntry[] {
   const before = new Map(current.map((entry) => [entry.key, entry.value]))
-  return next.filter((entry) => String(before.get(entry.key)) !== String(entry.value))
+  return next.filter((entry) => before.get(entry.key) !== entry.value)
 }

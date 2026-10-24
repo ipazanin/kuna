@@ -9,7 +9,7 @@ import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fa
 import { readWorkbookFile, workbookGrids, writeWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import type { CellValue, WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { emptyWorkbookTabs } from '../src/features/workbook/infrastructure/workbookTemplate'
+import { emptyWorkbookTabs } from '../src/features/workbook/infrastructure/emptyWorkbook'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 

@@ -2,7 +2,7 @@ import { normaliseIban } from '../../../shared/text/fold'
 import { accountOfFields } from '../../workbook/domain/accountsReading'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import { slugProblem } from '../../workbook/domain/slug'
-import { storedFieldOf, textOf } from '../../workbook/domain/storedFields'
+import { storedFieldOfValue, textOf } from '../../workbook/domain/storedFields'
 import type { StoredField, StoredFields } from '../../workbook/domain/storedFields'
 import type { StoredRecord } from '../../workbook/domain/recordsRead'
 import { madeOfDrafts } from './recordDrafts'
@@ -85,7 +85,7 @@ function accountFieldsOf(draft: AccountDraft, stored: StoredFields): StoredField
     if (text === '') {
       delete fields[name]
     } else {
-      fields[name] = storedFieldOf(text)
+      fields[name] = storedFieldOfValue(text)
     }
   }
   return fields

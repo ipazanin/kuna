@@ -10,7 +10,7 @@ import type { RecordId } from '../../workbook/domain/recordId'
 import type { Reading, RecordsRead } from '../../workbook/domain/recordsRead'
 import { draftOutcomes, draftsOfRecords, fieldsOfDrafts, kindOfColumn, madeOfDrafts } from '../domain/recordDrafts'
 import { storedOf } from '../../workbook/domain/recordsRead'
-import type { DraftCellKind, DraftFactory, FieldReader, RecordDraft } from '../domain/recordDrafts'
+import type { DraftFieldKind, DraftFactory, FieldReader, RecordDraft } from '../domain/recordDrafts'
 import type { ChoiceItem, EditorColumn } from './factTabColumns'
 import IbanTagsField from './IbanTagsField.vue'
 
@@ -60,7 +60,7 @@ function fieldReader(draft: RecordDraft): FieldReader {
   return (column) => (draft.fields[column] ?? '').trim().toLowerCase()
 }
 
-function kindOf(column: EditorColumn, draft: RecordDraft): DraftCellKind {
+function kindOf(column: EditorColumn, draft: RecordDraft): DraftFieldKind {
   return kindOfColumn(column, fieldReader(draft))
 }
 

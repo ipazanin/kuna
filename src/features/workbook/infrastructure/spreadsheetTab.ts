@@ -1,312 +1,160 @@
-import { civilDateFromSerial, serialFromCivilDate } from '../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../shared/calendar/civilDate'
-import { amountOf } from '../../../shared/money/money'
+import { parseCivilDate, serialFromCivilDate } from '../../../shared/calendar/civilDate'
 import { cellText } from '../../../shared/text/cellText'
 import { installedPack } from '../../packs/packContribution'
-import { accountOf } from '../domain/accountsReading'
-import { billingItemOf } from '../domain/billingPlanReading'
-import { categoryOf } from '../domain/categoriesReading'
-import { clientOf } from '../domain/clientsReading'
-import { dismissalOf } from '../domain/dismissalsReading'
-import { invoiceKeyOf, invoiceOf } from '../domain/invoicesReading'
-import { ledgerEntryOf, ledgerKeyOf, referencedLedgerKey } from '../domain/ledgerReading'
+import { RULE_CODEC } from '../../rules/domain/readRules'
+import { settingCodec, settingTypeOf } from '../../settings/domain/settings'
+import type { SettingType } from '../../settings/domain/settings'
+import { ACCOUNT_CODEC } from '../domain/accountsReading'
+import { BILLING_CODEC } from '../domain/billingPlanReading'
+import { CATEGORY_CODEC } from '../domain/categoriesReading'
+import { CLIENT_CODEC } from '../domain/clientsReading'
+import { DISMISSAL_CODEC } from '../domain/dismissalsReading'
+import { INVOICE_CODEC } from '../domain/invoicesReading'
+import { LEDGER_CODEC } from '../domain/ledgerReading'
 import type { PackRecords } from '../domain/packPart'
 import type { WorkbookRecordTypes, WorkbookRecords } from '../domain/readWorkbook'
 import { readWorkbook } from '../domain/readWorkbook'
-import { keyOfRecordId, recordIdOf } from '../domain/recordId'
+import type { RecordCodec } from '../domain/recordCodec'
+import type { FieldValue, RecordFields } from '../domain/recordFields'
+import { recordIdOf } from '../domain/recordId'
 import type { RecordId } from '../domain/recordId'
-import {
-  ACCOUNT_RECORDS,
-  BILLING_RECORDS,
-  CATEGORY_RECORDS,
-  CLIENT_RECORDS,
-  DISMISSAL_RECORDS,
-  INVOICE_RECORDS,
-  LEDGER_RECORDS,
-  RULE_RECORDS,
-  SETTING_RECORDS,
-  SPLIT_PART_RECORDS,
-} from '../domain/recordKind'
 import type { RecordKind } from '../domain/recordKind'
 import type { ReadRecord, RecordsRead, RefusedRecord } from '../domain/recordsRead'
-import { splitPartOf } from '../domain/splitsReading'
-import { refusalOr } from '../domain/storedFields'
-import type { StoredFields } from '../domain/storedFields'
+import { SPLIT_PART_CODEC } from '../domain/splitsReading'
+import { decimalOf, refusalOr } from '../domain/storedFields'
 import type { Workbook } from '../domain/workbook'
-import { fieldsOf, textOf } from './cellReading'
-import { installedPackTabs } from './packTabs'
+import { byColumn, numberFormatOfCell } from './cellFormats'
+import type { CellFormat, CellFormatOf } from './cellFormats'
+import { storedFieldsOfCells } from './cellReading'
+import { installedPackTabs, packTabOf } from './packTabs'
 import type { CellValue, CoreTab, SheetRow, WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
-import { ID_COLUMN, OWNER_SHARE_COLUMN, contentColumns } from './workbookTemplate'
+import { OWNER_SHARE_COLUMN, contentColumns } from './workbookTemplate'
 
 /** A row's cells, keyed by header. */
 export type Cells = Readonly<Record<string, CellValue>>
 
-/** One row as its tab's mapping hands it to the kind's factory. */
-interface StoredRow {
-  readonly cells: Cells
-  readonly fields: StoredFields
-  /** By the key or id the row holds, or null when it lacks it. */
-  readonly id: RecordId | null
-}
-
 /**
- * How one tab holds one kind of record: the kind, the key or id a row holds, the words that name
- * it, the record the kind's domain factory makes of it, and the cells a record is written as. The
- * factory refuses a row it cannot read by throwing.
+ * How one tab holds one kind of record: the kind's codec, the columns the tab needs, and the cell
+ * format of each column a record's fields are written to as numbers.
  */
 export interface SpreadsheetTab<R> {
   readonly tab: WorkbookTab
-  readonly kind: RecordKind<R>
+  readonly codec: RecordCodec<R>
   /** The columns the tab needs before anything is written to it. */
   readonly required: readonly string[]
-  /** The key the record is kept by, or null when the row lacks it. */
-  key(cells: Cells): string | null
-  label(cells: Cells): string
-  record(row: StoredRow): R
-  /** The record as a row holds it: a date as its serial number, an amount as a number, a blank field as an empty string. */
-  cells(record: R): Cells
+  readonly formatOf: CellFormatOf
 }
 
-/** What names a row that gives nothing to name it by. */
-export const UNNAMED = 'unnamed'
-
-/** A cell's text in lower case, as a slug key reads it. */
-export function slugText(cell: CellValue | undefined): string {
-  return cellText(cell).toLowerCase()
-}
-
-/** A date cell as a day, anything else as its text. */
-export function dayText(cell: CellValue | undefined): string {
-  return typeof cell === 'number' && Number.isFinite(cell) ? civilDateFromSerial(cell) : cellText(cell)
-}
-
-/** A label of the parts that are not blank, comma separated. */
-export function labelWords(parts: readonly string[]): string {
-  return parts.filter((part) => part !== '').join(', ') || UNNAMED
-}
-
-/** "month 3", or blank for a blank cell. */
-export function labelled(name: string, text: string): string {
-  return text === '' ? '' : `${name} ${text}`
-}
-
-/** A key, or null when the row leaves it blank. */
-export function filledKey(text: string): string | null {
-  return text === '' ? null : text
-}
-
-/** A date cell as its serial number, blank for no date. */
-export function dayCell(date: CivilDate | null): number | string {
-  return date === null ? '' : serialFromCivilDate(date)
-}
-
-/** The mapping of a tab whose rows carry their record's id in the id column, which `cells` writes beside the record's other cells. */
-export function byId<R extends { readonly id: RecordId }, Tab extends WorkbookTab>(
-  tab: Tab,
-  kind: RecordKind<R>,
-  required: readonly string[],
-  label: (cells: Cells) => string,
-  factory: (fields: StoredFields, id: RecordId | null) => R,
-  cells: (record: R) => Cells,
-): SpreadsheetTab<R> & { readonly tab: Tab } {
-  return {
-    tab,
-    kind,
-    required,
-    key: (row) => filledKey(cellText(row[ID_COLUMN])),
-    label,
-    record: ({ fields, id }) => factory(fields, id),
-    cells: (record) => ({ ...cells(record), [ID_COLUMN]: keyOfRecordId(kind, record.id) }),
-  }
-}
-
-/**
- * The ledger row's key. A row with a reference is known by it even when the ledger's factory refuses
- * the row, so a statement carrying that reference is never added beside it. Null for a refused row
- * without one.
- */
-function ledgerKey(cells: Cells): string | null {
-  const account = slugText(cells.account)
-  const reference = cellText(cells.reference)
-  if (account !== '' && reference !== '') {
-    return referencedLedgerKey(account, reference)
-  }
-  if (typeof cells.date !== 'number' || !Number.isFinite(cells.date) || account === '' || typeof cells.amount !== 'number' || typeof cells.balance !== 'number') {
-    return null
-  }
-  return ledgerKeyOf({ account, reference, date: civilDateFromSerial(cells.date), amount: cells.amount, balance: cells.balance, description: cellText(cells.description) })
-}
+const SETTING_FORMATS: Readonly<Partial<Record<SettingType, CellFormat>>> = { date: 'date', number: 'number' }
 
 /** The records of each core tab, each by its tab's mapping. */
 export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookRecordTypes[Tab]> & { readonly tab: Tab } } = {
   ledger: {
     tab: 'ledger',
-    kind: LEDGER_RECORDS,
+    codec: LEDGER_CODEC,
     required: ['date', 'account', 'amount', 'balance'],
-    key: ledgerKey,
-    label: (cells) => labelWords([dayText(cells.date), cellText(cells.counterparty) || cellText(cells.description), cellText(cells.amount), labelled('balance', cellText(cells.balance))]),
-    record: ({ fields, id }) => ledgerEntryOf(fields, id),
-    cells: (entry) => ({
-      date: serialFromCivilDate(entry.date),
-      account: entry.account,
-      statement: entry.statement,
-      counterparty: entry.counterparty,
-      counterparty_iban: entry.counterpartyIban,
-      description: entry.description,
-      amount: amountOf(entry.amount),
-      balance: amountOf(entry.balance),
-      category: entry.category,
-      flagged_by: entry.flaggedBy,
-      reference: entry.reference,
-      purpose: entry.signals.purpose,
-      tx_domain: entry.signals.txDomain,
-      tx_family: entry.signals.txFamily,
-      tx_sub_family: entry.signals.txSubFamily,
-      creditor_reference: entry.signals.creditorReference,
-      instructed_currency: entry.signals.instructedCurrency,
-      review_reasons: entry.reviewReasons.join(' | '),
-      owner_share: entry.ownerShare ?? '',
-    }),
+    formatOf: byColumn({ date: 'date', amount: 'amount', balance: 'amount', owner_share: 'number' }),
   },
-  categories: {
-    tab: 'categories',
-    kind: CATEGORY_RECORDS,
-    required: ['category', 'family', 'bucket'],
-    key: (cells) => filledKey(slugText(cells.category)),
-    label: (cells) => labelWords([cellText(cells.category)]),
-    record: ({ fields, id }) => categoryOf(fields, id),
-    cells: (category) => ({
-      category: category.slug,
-      family: category.family,
-      bucket: category.bucket,
-      colour: category.colour.stored,
-      roles: category.roles.join(', '),
-      label: category.label ?? '',
-      vat: category.vat === 'none' ? '' : category.vat,
-      owner_share: category.ownerShare ?? '',
-    }),
-  },
-  accounts: {
-    tab: 'accounts',
-    kind: ACCOUNT_RECORDS,
-    required: ['account', 'iban'],
-    key: (cells) => filledKey(slugText(cells.account)),
-    label: (cells) => labelWords([cellText(cells.account)]),
-    record: ({ fields, id }) => accountOf(fields, id),
-    cells: (account) => ({ account: account.slug, iban: account.iban, currency: account.currency, label: account.label ?? '' }),
-  },
+  categories: { tab: 'categories', codec: CATEGORY_CODEC, required: ['category', 'family', 'bucket'], formatOf: byColumn({ owner_share: 'number' }) },
+  accounts: { tab: 'accounts', codec: ACCOUNT_CODEC, required: ['account', 'iban'], formatOf: byColumn({}) },
   settings: {
     tab: 'settings',
-    kind: SETTING_RECORDS,
+    codec: settingCodec(() => installedPack().workbook?.settings ?? null),
     required: ['key', 'value'],
-    key: (cells) => filledKey(slugText(cells.key)),
-    label: (cells) => labelWords([slugText(cells.key)]),
-    record: ({ cells }) => ({ key: textOf(cells.key), value: cells.value }),
-    cells: (setting) => ({ key: setting.key, value: setting.value ?? '' }),
+    // A value is a date or a number as its key says, core's or the pack's.
+    formatOf: (column, fieldOf) => (column === 'value' ? (SETTING_FORMATS[settingTypeOf(fieldOf('key'), installedPack().workbook?.settings ?? null)] ?? null) : null),
   },
-  rules: {
-    tab: 'rules',
-    kind: RULE_RECORDS,
-    required: [],
-    key: (cells) => filledKey(slugText(cells.rule)),
-    label: (cells) => labelWords([cellText(cells.rule)]),
-    record: ({ cells }) => ({ cells }),
-    cells: (rule) => rule.cells,
-  },
+  rules: { tab: 'rules', codec: RULE_CODEC, required: [], formatOf: byColumn({ order: 'number' }) },
   invoices: {
     tab: 'invoices',
-    kind: INVOICE_RECORDS,
+    codec: INVOICE_CODEC,
     required: contentColumns('invoices'),
-    key: (cells) => (slugText(cells.client) === '' || cellText(cells.number) === '' ? null : invoiceKeyOf({ client: slugText(cells.client), number: cellText(cells.number) })),
-    label: (cells) => labelWords([cellText(cells.number)]),
-    record: ({ fields, id }) => invoiceOf(fields, id),
-    cells: (invoice) => ({
-      number: invoice.number,
-      client: invoice.client,
-      item: invoice.item,
-      amount: amountOf(invoice.amount),
-      issued: serialFromCivilDate(invoice.issued),
-      due: dayCell(invoice.due),
-      period_from: dayCell(invoice.deliveryPeriod?.from ?? null),
-      period_to: dayCell(invoice.deliveryPeriod?.to ?? null),
-    }),
+    formatOf: byColumn({ amount: 'amount', issued: 'date', due: 'date', period_from: 'date', period_to: 'date' }),
   },
-  clients: {
-    tab: 'clients',
-    kind: CLIENT_RECORDS,
-    required: ['client', 'iban'],
-    key: (cells) => filledKey(slugText(cells.client)),
-    label: (cells) => labelWords([cellText(cells.client) || cellText(cells.name)]),
-    record: ({ fields, id }) => clientOf(fields, id),
-    cells: (client) => ({
-      client: client.slug,
-      name: client.name,
-      iban: client.ibans.join(', '),
-      address: client.invoicing.address,
-      country: client.invoicing.country,
-      tax_id: client.invoicing.taxId,
-      invoice_mail: client.invoicing.invoiceMail,
-      mail_language: client.invoicing.mailLanguage,
-      reverse_charge: client.invoicing.reverseCharge ? true : '',
-    }),
+  clients: { tab: 'clients', codec: CLIENT_CODEC, required: ['client', 'iban'], formatOf: byColumn({}) },
+  'outgoing-plan': { tab: 'outgoing-plan', codec: BILLING_CODEC, required: contentColumns('outgoing-plan'), formatOf: byColumn({ date: 'date', amount: 'amount' }) },
+  splits: {
+    tab: 'splits',
+    codec: SPLIT_PART_CODEC,
+    required: contentColumns('splits').filter((column) => column !== 'note' && column !== OWNER_SHARE_COLUMN),
+    formatOf: byColumn({ date: 'date', row_amount: 'amount', row_balance: 'amount', amount: 'amount', owner_share: 'number' }),
   },
-  'outgoing-plan': byId(
-    'outgoing-plan',
-    BILLING_RECORDS,
-    contentColumns('outgoing-plan'),
-    (cells) => labelWords([cellText(cells.item), cellText(cells.client), dayText(cells.date), cellText(cells.amount)]),
-    billingItemOf,
-    (item) => ({ item: item.item, date: serialFromCivilDate(item.date), amount: amountOf(item.amount), client: item.client, description: item.description }),
-  ),
-  splits: byId(
-    'splits',
-    SPLIT_PART_RECORDS,
-    contentColumns('splits').filter((column) => column !== 'note' && column !== OWNER_SHARE_COLUMN),
-    (cells) => labelWords([cellText(cells.category), cellText(cells.amount), dayText(cells.date)]),
-    splitPartOf,
-    (part) => ({
-      date: serialFromCivilDate(part.key.date),
-      account: part.key.account,
-      row_amount: amountOf(part.key.rowAmount),
-      row_balance: amountOf(part.key.rowBalance),
-      amount: amountOf(part.amount),
-      category: part.category,
-      note: part.note,
-      owner_share: part.ownerShare ?? '',
-    }),
-  ),
-  dismissed: byId(
-    'dismissed',
-    DISMISSAL_RECORDS,
-    ['kind', 'key'],
-    (cells) => labelWords([cellText(cells.key), dayText(cells.dismissed_on)]),
-    dismissalOf,
-    (dismissal) => ({ kind: dismissal.kind, key: dismissal.key, category: dismissal.category, dismissed_on: dayCell(dismissal.dismissedOn) }),
-  ),
+  dismissed: { tab: 'dismissed', codec: DISMISSAL_CODEC, required: ['kind', 'key'], formatOf: byColumn({ dismissed_on: 'date' }) },
 }
 
 /** The mapping of a kind, core's or the installed pack's. Throws for a kind no tab holds. */
 export function spreadsheetTabOfKind<R>(kind: RecordKind<R>): SpreadsheetTab<R> {
-  const mapping = [...Object.values(CORE_TABS), ...installedPackTabs()].find((candidate) => candidate.kind.name === kind.name)
+  const mapping = [...Object.values(CORE_TABS), ...installedPackTabs()].find((candidate) => candidate.codec.kind.name === kind.name)
   if (mapping === undefined) {
     throw new Error(`No tab holds ${kind.noun.many}.`)
   }
   return mapping as SpreadsheetTab<unknown> as SpreadsheetTab<R>
 }
 
+/** The mapping of a tab, core's or the installed pack's, or null for a pack tab no installed pack maps. */
+function spreadsheetTabOf(tab: WorkbookTab): SpreadsheetTab<unknown> | null {
+  return tab in CORE_TABS ? CORE_TABS[tab as CoreTab] : packTabOf(tab)
+}
+
+/** A field in a date column as its serial number, in another number column as a number, and anything else as it is. */
+function cellOfField(value: FieldValue, format: CellFormat | null): CellValue {
+  if (typeof value === 'boolean' || format === null) {
+    return value
+  }
+  if (format === 'date') {
+    const date = parseCivilDate(value)
+    return date === null ? value : serialFromCivilDate(date)
+  }
+  return decimalOf(value) ?? value
+}
+
+/** A record's fields as the cells of its row, each by its column's cell format. */
+export function cellsOfFields(mapping: SpreadsheetTab<unknown>, fields: RecordFields): Cells {
+  const fieldOf = (column: string): string => cellText(fields[column]).toLowerCase()
+  return Object.fromEntries(Object.entries(fields).map(([column, value]) => [column, cellOfField(value, mapping.formatOf(column, fieldOf))]))
+}
+
+/** A record as the cells of its row. */
+export function cellsOfRecord<R>(mapping: SpreadsheetTab<R>, record: R): Cells {
+  return cellsOfFields(mapping as SpreadsheetTab<unknown>, mapping.codec.fieldsOf(record))
+}
+
+/**
+ * The number format a number in this cell takes, by its tab's cell formats. Null for a column the
+ * template keeps as typed, and for a tab no installed pack maps.
+ */
+export function numberFormatOf(tab: WorkbookTab, column: string, cellOf: (column: string) => CellValue | undefined): string | null {
+  const mapping = spreadsheetTabOf(tab)
+  return mapping === null ? null : numberFormatOfCell(mapping.formatOf(column, (other) => cellText(cellOf(other)).toLowerCase()))
+}
+
+/** Whether the cell holds a date as its serial number, so a person reads it as a day. */
+export function isDateCell(tab: WorkbookTab, column: string, cellOf: (column: string) => CellValue | undefined): boolean {
+  const mapping = spreadsheetTabOf(tab)
+  return typeof cellOf(column) === 'number' && mapping?.formatOf(column, (other) => cellText(cellOf(other)).toLowerCase()) === 'date'
+}
+
+/** The identity the row's cells hold by the tab's mapping, or null when the row lacks its key or id. */
+export function rowIdOf<R>(mapping: SpreadsheetTab<R>, cells: Cells): RecordId | null {
+  const key = mapping.codec.key(storedFieldsOfCells(cells))
+  return key === null ? null : recordIdOf(mapping.codec.kind, key)
+}
+
 /** The records a tab's rows hold by the tab's mapping, and the rows the kind's domain refuses, in the order of the rows. */
 export function recordsOfRows<R>(mapping: SpreadsheetTab<R>, rows: readonly SheetRow[]): RecordsRead<R> {
+  const { codec } = mapping
   const records: ReadRecord<R>[] = []
   const refused: RefusedRecord[] = []
   for (const { cells } of rows) {
-    const key = mapping.key(cells)
-    const stored = { cells, fields: fieldsOf(cells), id: key === null ? null : recordIdOf(mapping.kind, key) }
-    const label = mapping.label(cells)
-    const read = refusalOr(() => mapping.record(stored))
+    const fields = storedFieldsOfCells(cells)
+    const key = codec.key(fields)
+    const id = key === null ? null : recordIdOf(codec.kind, key)
+    const label = codec.label(fields)
+    const read = refusalOr(() => codec.make(fields, id))
     if ('made' in read) {
-      records.push({ record: read.made, id: stored.id, label, fields: stored.fields })
+      records.push({ record: read.made, id, label, fields })
     } else {
-      refused.push({ id: stored.id, label, fields: stored.fields, reason: read.refused })
+      refused.push({ id, label, fields, reason: read.refused })
     }
   }
   return { records, refused }
@@ -314,7 +162,7 @@ export function recordsOfRows<R>(mapping: SpreadsheetTab<R>, rows: readonly Shee
 
 /** The records of the installed pack's tabs, by kind. A tab the workbook lacks reads as empty. */
 function packRecordsOf(rowsOf: (tab: WorkbookTab) => readonly SheetRow[]): PackRecords {
-  return new Map(installedPackTabs().map((mapping) => [mapping.kind.name, recordsOfRows(mapping, rowsOf(mapping.tab))]))
+  return new Map(installedPackTabs().map((mapping) => [mapping.codec.kind.name, recordsOfRows(mapping, rowsOf(mapping.tab))]))
 }
 
 /** The records of every tab of a workbook's tabs. */

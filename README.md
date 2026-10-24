@@ -1502,8 +1502,8 @@ spec runs with the pack installed, through `tests/setup/installPack.ts`, and so 
 read or write a workbook, through `scripts/support/installPack.mjs`.
 
 The pack owns its records. Owner advances, assets, grants, year-end lines, plan lines and pay
-scenario rows have their types and factories in `src/packs/hr-doo/domain/`, their kinds in
-`hrDooKinds.ts`, their `WriteRules` in `hrDooWrites.ts` and `HR_DOO_PART`, which lists the kinds with
+scenario rows have their types, factories and codecs in `src/packs/hr-doo/domain/`, their kinds in
+`hrDooKinds.ts`, each named with the pack's `hr-doo.` prefix, such as `hr-doo.asset`, their `WriteRules` in `hrDooWrites.ts` and `HR_DOO_PART`, which lists the kinds with
 their rules, in `hrDooPart.ts` there. Their tab mappings are in
 `src/packs/hr-doo/infrastructure/hrDooTabs.ts`, the records the plan, scenario and advance dialogs
 make in `src/packs/hr-doo/application/`, and their editor columns in
@@ -1544,20 +1544,34 @@ the id of a kind without a business key. The adapter gives each record read from
 a row its id (`spreadsheetTab.ts`), and a record's own domain makes one where it states identity, such
 as `categoryIdOf`.
 
+Each kind's domain gives its codec beside its factory, such as `INVOICE_CODEC` beside `invoiceOf`
+in `src/features/workbook/domain/invoicesReading.ts`, or `ASSET_CODEC` beside `assetOf` in the pack's
+`domain/assets/assetsReading.ts`. A `RecordCodec` (`recordCodec.ts`) says, whatever the storage, the
+key or id a record's stored fields hold, the words that name it, the record its factory makes of
+them or why it refuses them, and `fieldsOf`, the fields a record is stored as: a day as
+`yyyy-mm-dd`, an amount as decimal text from its cents, a number as decimal text, a flag as true or
+false, other text as typed, and a blank field left out. A setting is typed by its key: each key's
+definition, core's or the pack's, says whether its value is a date, a number, a flag or text, and
+its `apply` takes the value as text, so a date cell and the text `2025-05-12` read the same. A rule
+is stored as its fields, which the rules reader checks.
+
 Reading goes the same way for both sources. The adapter's `SpreadsheetTab` of each tab turns a
-row's cells into fields by their type, a serial number into a day and an amount and a checkbox into
-a flag (`cellReading.ts`), and hands them to the kind's factory, such as `invoiceOf` in
-`src/features/workbook/domain/invoicesReading.ts`, or `assetOf` in the pack's
-`domain/assets/assetsReading.ts`. The factory makes the record or refuses it with a reason. The
-tab names stay in the adapter's workbook format, since the export, the browser's copy and a Google
-Sheet hold every tab. A pack tab's columns, notes, number formats and mapping come from the pack's
-`PackSpreadsheetTab` (`packTabs.ts`).
+row's cells into fields, a serial number into a day and an amount and a checkbox into a flag
+(`cellReading.ts`), and hands them to the kind's codec. Writing turns a record's fields into cells
+in one function, `cellsOfFields`, by the tab's cell formats (`cellFormats.ts`): a field in a date
+column as its serial number, in another number column as a number, and anything else as it is. So
+a tab's mapping holds only its tab, its codec, the columns a write needs and its cell formats, and
+for a `year-end` amount and a settings value the format follows the line or the key. The tab names
+stay in the adapter's workbook format, since the export, the browser's copy and a Google Sheet hold
+every tab. A pack tab's columns, notes and mapping come from the pack's `PackSpreadsheetTab`
+(`packTabs.ts`).
 What a storage holds of a kind is a `RecordsRead`: the records, each with its label and its fields as
 stored, and the refused ones with theirs. The store keeps them beside the workbook. `readWorkbook`,
 in the domain too, then applies the rules across records, such as a key on two rows or a category the
 categories tab lacks, and gives the workbook and its problems, core's first and then the pack's. The Settings, Invoicing and Year
 editors draft from the records and the refused ones alike, so a row the app leaves out, such as a
-category whose bucket reads `operatng`, still shows as stored and can be fixed there.
+category whose bucket reads `operatng`, still shows as stored and can be fixed there. A draft is
+the text of the record's fields, which becomes fields as `fieldsOf` gives them, never cells.
 
 Google sign-in, the redirect, the session, Drive, the reads kept from it, the Picker and the script
 loader are in `src/shared/google/`, and reading a spreadsheet file's tabs with SheetJS in
@@ -1633,7 +1647,8 @@ session list is held in memory, so a reload clears it.
   grants, year-end lines, billing plan rows, plan lines, pay scenario rows, split parts and
   dismissals are added below the last row of their tab, changed in place and removed as whole rows,
   so the rows below move up and no blank row is left. A record of a kind with an id gets a new one
-  when it is added and keeps it after. Dates go in as serial numbers and amounts as numbers. Each
+  when it is added and keeps it after. Dates go in as serial numbers and amounts as numbers, as the
+  tab's cell formats say. Each
   kind's own checks are these, each refused with its reason:
 
   | Kind | Refused, with the reason given |
@@ -1659,7 +1674,7 @@ the session list, and knows no tabs. `workbookStore.ts` beside it wires the spre
 and gives the screens `useWorkbook`. `spreadsheetRecordStorage.ts` in
 `src/features/workbook/infrastructure/` keeps records on the tabs of a Google Sheet or of the
 workbook kept in this browser, through the same writers, and `SpreadsheetTab` in `spreadsheetTab.ts`
-maps each kind to its tab, the pack's kinds through `hrDooTabs.ts`. A record is found again by the
+maps each kind to its tab and its codec, the pack's kinds through `hrDooTabs.ts`. A record is found again by the
 key or id its row holds, wherever the row now stands. A change writes only the cells of the fields it
 alters, and only where the row holds something else, so a cell the change leaves alone keeps its
 formula or its own spelling, such as a capital the reader lowers. A tab or a column the write needs
@@ -1672,11 +1687,12 @@ first share a write puts on a tab, as the `id` column does, so a write that copi
 adds nothing. In Excel mode the workbook always holds every tab, so nothing is added.
 
 `tests/recordStorageContract.spec.ts` says what any storage must do, once for each storage and each
-kind, core's and the pack's: a record reads back as written, a change and a removal find the record
-after rows were added above it from outside, a stale change writes nothing, a refused row reads with
-its fields and reason and a repair stores it or a discard takes it out, Undo of a removal brings it
-back with its identity, and a write across two kinds applies whole or not at all. A kind joins by
-giving its fixture.
+kind, core's and the pack's, in record terms: a record reads back as written, a change and a removal
+find the record after another device added one ahead of it, a stale change writes nothing, a refused
+record reads with its fields and reason and a repair stores it or a discard takes it out, Undo of a
+removal brings it back with its identity, and a write across two kinds applies whole or not at all.
+A storage joins by playing the outside edits, `addOutside`, `changeOutside` and `removeOutside`, and
+a kind by giving its fixture as typed fields.
 
 Every write to a Google Sheet is one `spreadsheets.batchUpdate`, which Sheets applies in order and,
 when any of its requests is not valid, not at all. So a write that fails leaves the Sheet as it was,
@@ -1701,8 +1717,9 @@ Every date the write puts in a cell, on any tab, gets the `yyyy-mm-dd` number fo
 `repeatCell` in the same batch, after the request that wrote it, since a tab without a date format
 on its column would show the serial number. A row added below the last one lands where
 `appendCells` puts it, right under the last row with anything in it, which the write works out from
-the tab as it read it. Which cells hold dates `cellFormats.ts` says by tab and column, and for a
-`year-end` amount by its line, the same table an Excel export formats its cells with.
+the tab as it read it. Which cells hold dates each tab's cell formats say by column, for a
+`year-end` amount by its line and for a settings value by its key, the same formats an Excel export
+formats its cells with.
 
 Every value goes in as `userEnteredValue`, text as `stringValue`, which Sheets stores as typed and
 never reads as a number, a date or a formula. Amounts and dates are numbers, a date as its serial

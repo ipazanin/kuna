@@ -23,16 +23,6 @@ export function recordOf<R>(kind: RecordKind<R>, cells: Cells): R {
   return made.record
 }
 
-/** The identity a row of these cells holds. */
-export function idOfCells(kind: RecordKind<unknown>, cells: Cells): RecordId {
-  const read = readOf(kind, cells)
-  const id = (read.records[0] ?? read.refused[0])?.id ?? null
-  if (id === null) {
-    throw new Error(`The fixture's ${kind.noun.one} has no key or id.`)
-  }
-  return id
-}
-
 /** What the copy on screen holds of a kind. */
 export function recordsOnScreen<R>(store: WorkbookStore<WorkbookCopy>, kind: RecordKind<R>): RecordsRead<R> {
   return recordsOfKindIn(store.state.records!, kind)

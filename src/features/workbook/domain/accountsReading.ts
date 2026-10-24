@@ -1,5 +1,8 @@
 import { normaliseIban } from '../../../shared/text/fold'
 import { currencyProblem } from '../../settings/domain/settings'
+import { filledKey, labelWords } from './recordCodec'
+import type { RecordCodec } from './recordCodec'
+import { filledFields } from './recordFields'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import { ACCOUNT_RECORDS } from './recordKind'
@@ -19,6 +22,14 @@ export function accountOf(fields: StoredFields, id: RecordId | null): AccountRec
     refuse('no account name')
   }
   return { slug, label: textOf(fields.label), iban: normaliseIban(textOf(fields.iban)), currency: textOf(fields.currency).toUpperCase(), id: keyedId(id) }
+}
+
+export const ACCOUNT_CODEC: RecordCodec<AccountRecord> = {
+  kind: ACCOUNT_RECORDS,
+  key: (fields) => filledKey(slugOf(fields.account)),
+  label: (fields) => labelWords([textOf(fields.account)]),
+  make: accountOf,
+  fieldsOf: (account) => filledFields({ account: account.slug, iban: account.iban, currency: account.currency, label: account.label }),
 }
 
 /** An account made from its fields, with the id its name makes, as an editor makes one. */

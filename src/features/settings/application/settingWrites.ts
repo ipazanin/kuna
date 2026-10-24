@@ -1,4 +1,3 @@
-import { cellText } from '../../../shared/text/cellText'
 import { installedPack } from '../../packs/packContribution'
 import type { UnitOfWork } from '../../workbook/application/repository'
 import { recordIdOf } from '../../workbook/domain/recordId'
@@ -8,7 +7,7 @@ import type { RecordsRead } from '../../workbook/domain/recordsRead'
 import { slugOf } from '../../workbook/domain/storedFields'
 import type { WriteRules } from '../../workbook/domain/writeRules'
 import { readSettingsTab } from '../domain/settings'
-import type { SettingCell, SettingRow } from '../domain/settings'
+import type { SettingEntry, SettingRow } from '../domain/settings'
 
 function problemsOf(read: RecordsRead<SettingRow>): string[] {
   return readSettingsTab(recordsOf(read), installedPack().workbook?.settings ?? null).problems.map((problem) => `${problem.label}: ${problem.reason}`)
@@ -46,14 +45,14 @@ export const SETTING_WRITES: WriteRules<SettingRow> = {
  * Sets each key to its value: the setting the app read for the key is changed, or one is added when
  * the settings lack the key. A blank value for a key they lack adds nothing.
  */
-export function setSettings(unit: UnitOfWork, held: RecordsRead<SettingRow>, values: readonly { readonly key: string; readonly value: SettingCell }[]): void {
+export function setSettings(unit: UnitOfWork, held: RecordsRead<SettingRow>, values: readonly SettingEntry[]): void {
   const settings = unit.of(SETTING_WRITES)
   for (const { key, value } of values) {
     const id = recordIdOf(SETTING_RECORDS, key.trim().toLowerCase())
     const stored = held.records.find((candidate) => candidate.id === id)
     if (stored !== undefined) {
       settings.change(stored.record, { ...stored.record, value })
-    } else if (cellText(value) !== '') {
+    } else if (value.trim() !== '') {
       settings.add({ key: key.trim().toLowerCase(), value })
     }
   }

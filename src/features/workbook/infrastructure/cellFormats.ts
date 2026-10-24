@@ -1,28 +1,28 @@
-import { packTabOf } from './packTabs'
-import type { CellValue, CoreTab, WorkbookTab } from './workbookSnapshot'
-
 export const DATE_FORMAT = 'yyyy-mm-dd'
-export const AMOUNT_FORMAT = '#,##0.00'
-export const RATE_FORMAT = '0.00%'
-
-const COLUMN_FORMATS: Readonly<Partial<Record<CoreTab, Readonly<Record<string, string>>>>> = {
-  ledger: { date: DATE_FORMAT, amount: AMOUNT_FORMAT, balance: AMOUNT_FORMAT },
-  invoices: { amount: AMOUNT_FORMAT, issued: DATE_FORMAT, due: DATE_FORMAT, period_from: DATE_FORMAT, period_to: DATE_FORMAT },
-  'outgoing-plan': { date: DATE_FORMAT, amount: AMOUNT_FORMAT },
-  splits: { date: DATE_FORMAT, row_amount: AMOUNT_FORMAT, row_balance: AMOUNT_FORMAT, amount: AMOUNT_FORMAT },
-  dismissed: { dismissed_on: DATE_FORMAT },
-}
 
 /**
- * The number format a number in this cell takes, by its tab and column, a pack's tab by the pack's
- * own formats. Null for a column the template keeps as typed.
+ * What a column holds as a number cell: a day as its serial number, an amount, a rate as a fraction,
+ * a whole count, or a plain number. A column without one keeps its fields as text.
  */
-export function numberFormatOf(tab: WorkbookTab, column: string, cellOf: (column: string) => CellValue | undefined): string | null {
-  const pack = packTabOf(tab)
-  return pack === null ? (COLUMN_FORMATS[tab as CoreTab]?.[column] ?? null) : pack.numberFormat(column, cellOf)
+export type CellFormat = 'date' | 'amount' | 'rate' | 'count' | 'number'
+
+/** A column's cell format, which may follow other fields of the record, read as lower-case text. Null for a column kept as text. */
+export type CellFormatOf = (column: string, fieldOf: (column: string) => string) => CellFormat | null
+
+/** The cell formats of a tab whose columns each keep one format. */
+export function byColumn(formats: Readonly<Record<string, CellFormat>>): CellFormatOf {
+  return (column) => formats[column] ?? null
 }
 
-/** Whether the cell holds a date as its serial number, so a person reads it as a day. */
-export function isDateCell(tab: WorkbookTab, column: string, cellOf: (column: string) => CellValue | undefined): boolean {
-  return typeof cellOf(column) === 'number' && numberFormatOf(tab, column, cellOf) === DATE_FORMAT
+const NUMBER_FORMATS: Readonly<Record<CellFormat, string | null>> = {
+  date: DATE_FORMAT,
+  amount: '#,##0.00',
+  rate: '0.00%',
+  count: '0',
+  number: null,
+}
+
+/** The number format a cell of this format shows its number in. Null for a number shown as typed. */
+export function numberFormatOfCell(format: CellFormat | null): string | null {
+  return format === null ? null : NUMBER_FORMATS[format]
 }

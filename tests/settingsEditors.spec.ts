@@ -121,15 +121,15 @@ describe('the categories editor and the owner share', () => {
 })
 
 describe('the assets, grants and year-end editors', () => {
-  it('turn field text into the values the workbook holds: dates as dates, a percent as a fraction, a flag as TRUE', () => {
-    expect(valueOfDraftText('2025-06-01', 'date')).toBe(45809)
+  it('turn field text into the fields a record holds: dates as days, numbers as decimal text, a percent as a fraction, a flag as true', () => {
+    expect(valueOfDraftText('2025-06-01', 'date')).toBe('2025-06-01')
     expect(valueOfDraftText('1.6.2025', 'date')).toBe('1.6.2025')
-    expect(valueOfDraftText('10', 'percent')).toBe(0.1)
-    expect(valueOfDraftText(' 1519.20 ', 'amount')).toBe(1519.2)
+    expect(valueOfDraftText('10', 'percent')).toBe('0.1')
+    expect(valueOfDraftText(' 1519.20 ', 'amount')).toBe('1519.2')
     expect(valueOfDraftText('lots', 'amount')).toBe('lots')
     expect(valueOfDraftText('TRUE', 'flag')).toBe(true)
     expect(valueOfDraftText('Whole', 'amount-or-word')).toBe('whole')
-    expect(valueOfDraftText('2500', 'amount-or-word')).toBe(2500)
+    expect(valueOfDraftText('2500', 'amount-or-word')).toBe('2500')
     expect(valueOfDraftText(' Computers ', 'word')).toBe('computers')
     expect(valueOfDraftText('   ', 'text')).toBe('')
     expect(valueOfDraftText(' gb82 west 1234 5698 7654 32,, IE29AIBK93115212345678 ', 'iban-list')).toBe('GB82WEST12345698765432, IE29AIBK93115212345678')

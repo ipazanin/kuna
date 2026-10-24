@@ -32,9 +32,9 @@ export function previewRulesChange<Row extends BacktestTransaction>(
   const after = rulesTabAfter(rows, change)
   const { rules: proposed, problems } = readRules(after.rows, definedCategories)
   const written = new Set(
-    [change.appended, ...change.edited.map((edit) => edit.cells)].flatMap((cells) => {
-      if (cells === null) return []
-      const id = cellText(cells.rule).toLowerCase()
+    [change.appended, ...change.edited.map((edit) => edit.fields)].flatMap((fields) => {
+      if (fields === null) return []
+      const id = cellText(fields.rule).toLowerCase()
       return [id === '' ? null : recordIdOf(RULE_RECORDS, id)]
     }),
   )

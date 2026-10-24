@@ -1,8 +1,8 @@
-import { civilDateFromSerial, parseCivilDate } from '../../../shared/calendar/civilDate'
+import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { folderPathOf } from '../../../shared/text/folderPath'
-import { booleanOf } from '../../../features/settings/domain/settings'
-import type { PackSettings, SettingCell } from '../../../features/settings/domain/settings'
+import { booleanOf, flagText } from '../../../features/settings/domain/settings'
+import type { PackSettings } from '../../../features/settings/domain/settings'
 
 const CITY_MAX_LENGTH = 60
 
@@ -75,100 +75,111 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
   {
     key: 'hr_residence_city',
     note: 'The city or municipality the owner lives in, such as Zagreb. It sets the local income tax rates, so payroll figures stay empty while it is blank.',
+    type: 'text',
     valueOf: (facts) => facts.residenceCity,
-    apply: (facts, cell) => {
-      const city = String(cell).trim()
+    apply: (facts, value) => {
+      const city = value.trim()
       return residenceCityProblem(city) ?? withFacts(facts, { residenceCity: city })
     },
   },
   {
     key: 'hr_birth_year',
     note: "The owner's year of birth, such as 1990, for the youth income tax relief. Blank means no relief is assumed.",
-    valueOf: (facts) => facts.birthYear ?? '',
-    apply: (facts, cell) => {
-      const year = typeof cell === 'number' ? cell : Number(String(cell).trim())
+    type: 'number',
+    valueOf: (facts) => (facts.birthYear === null ? '' : String(facts.birthYear)),
+    apply: (facts, value) => {
+      const year = Number(value.trim())
       return birthYearProblem(year) ?? withFacts(facts, { birthYear: year })
     },
   },
   {
     key: 'hr_pension_pillar_2',
     note: 'TRUE when the owner pays into the second pension pillar, FALSE when the whole pension contribution goes to the first.',
-    valueOf: (facts) => facts.pensionPillarTwo,
-    apply: (facts, cell) => {
-      const pillarTwo = booleanOf(cell)
-      return pillarTwo === null ? `"${String(cell)}" is neither TRUE nor FALSE` : withFacts(facts, { pensionPillarTwo: pillarTwo })
+    type: 'flag',
+    valueOf: (facts) => flagText(facts.pensionPillarTwo),
+    apply: (facts, value) => {
+      const pillarTwo = booleanOf(value)
+      return pillarTwo === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { pensionPillarTwo: pillarTwo })
     },
   },
   {
     key: 'hr_dependants',
     note: 'How many dependants raise the personal allowance, as a whole number. Blank means 0.',
-    valueOf: (facts) => facts.dependants,
-    apply: (facts, cell) => {
-      const dependants = typeof cell === 'number' ? cell : Number(String(cell).trim())
+    type: 'number',
+    valueOf: (facts) => String(facts.dependants),
+    apply: (facts, value) => {
+      const dependants = Number(value.trim())
       return dependantsProblem(dependants) ?? withFacts(facts, { dependants })
     },
   },
   {
     key: 'hr_company_registered',
     note: 'The day the company was registered, as a date or as text such as 2025-05-12. It starts the first tax period.',
+    type: 'date',
     valueOf: (facts) => facts.companyRegistered ?? '',
-    apply: (facts, cell) => {
-      const registered = typeof cell === 'number' && Number.isFinite(cell) ? civilDateFromSerial(cell) : parseCivilDate(String(cell).trim())
-      return registered === null ? `"${String(cell)}" is not a date such as 2025-05-12` : withFacts(facts, { companyRegistered: registered })
+    apply: (facts, value) => {
+      const registered = parseCivilDate(value.trim())
+      return registered === null ? `"${value}" is not a date such as 2025-05-12` : withFacts(facts, { companyRegistered: registered })
     },
   },
   {
     key: 'hr_cit_return',
     note: 'pd for the corporate tax return on the accrual profit, pd-nn for the return on cash received and paid.',
+    type: 'text',
     valueOf: (facts) => facts.citReturn,
-    apply: (facts, cell) => {
-      const citReturn = String(cell).trim().toLowerCase()
+    apply: (facts, value) => {
+      const citReturn = value.trim().toLowerCase()
       return isOneOf(citReturn, CIT_RETURNS) ? withFacts(facts, { citReturn }) : `"${citReturn}" is neither ${CIT_RETURNS.join(' nor ')}`
     },
   },
   {
     key: 'hr_vat_principle',
     note: 'invoice when VAT falls due on the invoice date, cash when it falls due on payment.',
+    type: 'text',
     valueOf: (facts) => facts.vatPrinciple,
-    apply: (facts, cell) => {
-      const vatPrinciple = String(cell).trim().toLowerCase()
+    apply: (facts, value) => {
+      const vatPrinciple = value.trim().toLowerCase()
       return isOneOf(vatPrinciple, VAT_PRINCIPLES) ? withFacts(facts, { vatPrinciple }) : `"${vatPrinciple}" is neither ${VAT_PRINCIPLES.join(' nor ')}`
     },
   },
   {
     key: 'hr_depreciation_doubled',
     note: 'TRUE when the accountant doubles the depreciation rates by default. An asset row can still say otherwise.',
-    valueOf: (facts) => facts.depreciationDoubled,
-    apply: (facts, cell) => {
-      const doubled = booleanOf(cell)
-      return doubled === null ? `"${String(cell)}" is neither TRUE nor FALSE` : withFacts(facts, { depreciationDoubled: doubled })
+    type: 'flag',
+    valueOf: (facts) => flagText(facts.depreciationDoubled),
+    apply: (facts, value) => {
+      const doubled = booleanOf(value)
+      return doubled === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { depreciationDoubled: doubled })
     },
   },
   {
     key: 'hr_owner_loan_interest',
     note: "The yearly interest rate the owner's loans from the company carry, as a percentage cell such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
-    valueOf: (facts) => facts.ownerLoanInterest / BASIS_POINTS_PER_WHOLE,
-    apply: (facts, cell) => {
-      const rate = rateOfCell(cell)
+    type: 'number',
+    valueOf: (facts) => String(facts.ownerLoanInterest / BASIS_POINTS_PER_WHOLE),
+    apply: (facts, value) => {
+      const rate = rateOf(value)
       return typeof rate === 'string' ? rate : (ownerLoanInterestProblem(rate) ?? withFacts(facts, { ownerLoanInterest: rate }))
     },
   },
   {
     key: 'hr_vat_returns_folder',
     note: `The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive. Year, Taxes reads them. Blank means ${DEFAULT_VAT_RETURNS_FOLDER.join('/')}.`,
+    type: 'text',
     valueOf: (facts) => facts.vatReturnsFolder.join('/'),
-    apply: (facts, cell) => {
-      const folders = folderPathOf(String(cell))
-      return folders.length === 0 ? `"${String(cell)}" names no folder` : withFacts(facts, { vatReturnsFolder: folders })
+    apply: (facts, value) => {
+      const folders = folderPathOf(value)
+      return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { vatReturnsFolder: folders })
     },
   },
   {
     key: 'hr_payroll_folder',
     note: `The Google Drive folder the accountant's salary workbooks are filed in, as a path from My Drive, with a folder for each year and month inside. Year, Taxes reads them. Blank means ${DEFAULT_PAYROLL_FOLDER.join('/')}.`,
+    type: 'text',
     valueOf: (facts) => facts.payrollFolder.join('/'),
-    apply: (facts, cell) => {
-      const folders = folderPathOf(String(cell))
-      return folders.length === 0 ? `"${String(cell)}" names no folder` : withFacts(facts, { payrollFolder: folders })
+    apply: (facts, value) => {
+      const folders = folderPathOf(value)
+      return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { payrollFolder: folders })
     },
   },
 ],
@@ -212,14 +223,15 @@ function dependantsProblem(dependants: number): string | null {
 }
 
 /**
- * A rate in basis points from a percentage cell, which holds 2% as 0.02, or from text such as 2%,
- * 2,5 % or 0.025. A number above 1 is refused, as the year-end tab refuses it, since 2 would read as 200%.
+ * A rate in basis points from a fraction such as 0.025, which a percentage cell holds for 2.5%, or
+ * from text such as 2% or 2,5 %. A number above 1 is refused, as the year-end tab refuses it, since 2
+ * would read as 200%.
  */
-function rateOfCell(cell: SettingCell): number | string {
-  const text = String(cell).trim().replace(/\s+/g, '').replace(',', '.')
+function rateOf(value: string): number | string {
+  const text = value.trim().replace(/\s+/g, '').replace(',', '.')
   const percent = text.endsWith('%')
-  const number = typeof cell === 'number' ? cell : Number(percent ? text.slice(0, -1) : text)
-  if (typeof cell === 'boolean' || !Number.isFinite(number) || text === '' || text === '%') return `"${String(cell)}" is not a rate such as 2%`
+  const number = Number(percent ? text.slice(0, -1) : text)
+  if (!Number.isFinite(number) || text === '' || text === '%') return `"${value}" is not a rate such as 2%`
   if (!percent && number > 1) return `${number} reads as ${number * 100}%. Enter the rate as a percentage cell, such as 2%`
   return Math.round((percent ? number / 100 : number) * BASIS_POINTS_PER_WHOLE * 1_000) / 1_000
 }

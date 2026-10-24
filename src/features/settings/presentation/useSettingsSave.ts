@@ -7,7 +7,7 @@ import { NO_RECORDS } from '../../workbook/domain/recordsRead'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { setSettings } from '../application/settingWrites'
 import { DEFAULT_SETTINGS, changedPackSettings, changedSettings, generalSettingsToSave, statementsFolderUnset } from '../domain/settings'
-import type { SettingCell, Settings } from '../domain/settings'
+import type { SettingEntry, Settings } from '../domain/settings'
 
 export interface SettingsSave {
   /** The settings as the workbook holds them. */
@@ -35,7 +35,7 @@ export function useSettingsSave(): SettingsSave {
   const facts = computed(() => installedPack().companyFacts?.factsOf(state.workbook) ?? null)
   const held = computed(() => state.records?.settings ?? NO_RECORDS)
 
-  async function write(changes: readonly { readonly key: string; readonly value: SettingCell }[]): Promise<void> {
+  async function write(changes: readonly SettingEntry[]): Promise<void> {
     await writes.write('Settings saved', (unit) => setSettings(unit, held.value, changes), { failedTitle: 'Not saved' })
   }
 

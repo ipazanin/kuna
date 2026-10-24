@@ -78,7 +78,7 @@ function ruleRows(): readonly RuleTabRow[] {
 }
 
 function rowOf(rule: Rule): RuleRowEdit['expected'] | null {
-  return ruleRows().find((row) => sameId(row.cells.rule, rule.id))?.cells ?? null
+  return ruleRows().find((row) => sameId(row.fields.rule, rule.id))?.fields ?? null
 }
 
 function addRule(): void {
@@ -100,7 +100,7 @@ function toggleRule(rule: Rule): void {
   pending.value = {
     title: `${switching} ${rule.id}`,
     description: rule.enabled ? 'It stays on the tab and is no longer tried.' : 'It is tried again at its place in the order.',
-    change: { appended: null, edited: [{ id: rule.id, expected, cells: { ...expected, enabled: !rule.enabled } }], removed: null },
+    change: { appended: null, edited: [{ id: rule.id, expected, fields: { ...expected, enabled: !rule.enabled } }], removed: null },
     saved: `${rule.enabled ? 'Switched off' : 'Switched on'} ${rule.id}`,
     action: switching,
   }
@@ -113,7 +113,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
   const edited = [...orders].flatMap(([id, order]): RuleRowEdit[] => {
     const moved = ordered.value.find((candidate) => candidate.id === id)
     const expected = moved === undefined ? null : rowOf(moved)
-    return expected === null ? [] : [{ id, expected, cells: { ...expected, order } }]
+    return expected === null ? [] : [{ id, expected, fields: { ...expected, order: String(order) } }]
   })
   pending.value = {
     title: `Try ${rule.id} ${way}`,

@@ -1,5 +1,8 @@
 import { negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { UNNAMED, withIdField } from '../../../../features/workbook/domain/recordCodec'
+import type { RecordCodec } from '../../../../features/workbook/domain/recordCodec'
+import { amountText, filledFields } from '../../../../features/workbook/domain/recordFields'
 import { newRecordId, recordIdOf } from '../../../../features/workbook/domain/recordId'
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../../features/workbook/domain/recordsRead'
@@ -37,6 +40,38 @@ export function yearEndLineOf(fields: StoredFields, id: RecordId | null): YearEn
     id: ownId(id),
   }
 }
+
+/** A figure as its amount field: a date as its day and a rate as a fraction, such as 0.1 for 10%. */
+function figureText(figure: YearEndFigure): string {
+  switch (figure.kind) {
+    case 'money':
+      return amountText(figure.amount)
+    case 'date':
+      return figure.date
+    case 'rate':
+      return String(figure.basisPoints / 10_000)
+    case 'count':
+      return String(figure.count)
+  }
+}
+
+export const YEAR_END_CODEC: RecordCodec<YearEndLine> = withIdField(
+  YEAR_END_RECORDS,
+  (fields) => [fields.year, fields.statement, fields.line].map(textOf).filter((part) => part !== '').join(' ') || UNNAMED,
+  yearEndLineOf,
+  (line) =>
+    filledFields({
+      year: String(line.year),
+      statement: line.statement,
+      line: line.line,
+      label: line.label,
+      amount: figureText(line.figure),
+      categories: line.categories.join(', '),
+      aop: line.aop,
+      source: line.source,
+      note: line.note,
+    }),
+)
 
 function figureOf(field: StoredField | undefined, kind: YearEndFigureKind): YearEndFigure {
   if (field === undefined) refuse('no amount')

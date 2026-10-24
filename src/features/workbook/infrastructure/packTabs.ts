@@ -1,13 +1,11 @@
 import type { SpreadsheetTab } from './spreadsheetTab'
-import type { CellValue, PackTab } from './workbookSnapshot'
+import type { PackTab } from './workbookSnapshot'
 import type { TemplateColumn } from './workbookTemplate'
 
-/** A tab a pack's records live on: its mapping, its columns with their notes, and the number formats its cells take. */
+/** A tab a pack's records live on: its mapping, and its columns with their notes. */
 export interface PackSpreadsheetTab<R> extends SpreadsheetTab<R> {
   readonly tab: PackTab
   readonly columns: readonly TemplateColumn[]
-  /** The number format a number in the column takes, or null for a column the template keeps as typed. */
-  numberFormat(column: string, cellOf: (column: string) => CellValue | undefined): string | null
 }
 
 let installed: readonly PackSpreadsheetTab<unknown>[] = []

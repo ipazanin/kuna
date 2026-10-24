@@ -1,27 +1,28 @@
-import { parseCivilDate, serialFromCivilDate } from '../../../shared/calendar/civilDate'
+import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import { ibanListOf } from '../../workbook/domain/iban'
+import type { FieldValue } from '../../workbook/domain/recordFields'
 import type { RecordId } from '../../workbook/domain/recordId'
 import type { Reading, RecordsRead } from '../../workbook/domain/recordsRead'
-import { refusalOr, storedFieldOf } from '../../workbook/domain/storedFields'
+import { refusalOr, storedFieldOfValue } from '../../workbook/domain/storedFields'
 import type { StoredField, StoredFields } from '../../workbook/domain/storedFields'
 import type { StoredRecord } from '../../workbook/domain/recordsRead'
 
 /**
- * What an editor field holds and how its text becomes a stored value. A word is stored in lower
- * case, a date as a date, a percent typed as 10 as 0.1, a flag as TRUE or blank, a list of IBANs
- * without their grouping spaces and separated by commas, and `amount-or-word` takes a number or a
- * keyword such as whole.
+ * What an editor field holds and how its text becomes a record's field. A word is stored in lower
+ * case, a date as `yyyy-mm-dd`, a number as decimal text, a percent typed as 10 as 0.1, a flag as
+ * true or blank, a list of IBANs without their grouping spaces and separated by commas, and
+ * `amount-or-word` takes a number or a keyword such as whole.
  */
-export type DraftCellKind = 'text' | 'word' | 'date' | 'amount' | 'whole-number' | 'percent' | 'flag' | 'amount-or-word' | 'iban-list'
+export type DraftFieldKind = 'text' | 'word' | 'date' | 'amount' | 'whole-number' | 'percent' | 'flag' | 'amount-or-word' | 'iban-list'
 
 /** Reads another field of the same record as lower-case text, so a field's kind can follow it. */
 export type FieldReader = (column: string) => string
 
 export interface DraftColumn {
   readonly name: string
-  readonly kind: DraftCellKind
+  readonly kind: DraftFieldKind
   /** Overrides `kind` for a column whose stored type depends on the rest of the record. */
-  readonly kindOf?: (fieldOf: FieldReader) => DraftCellKind
+  readonly kindOf?: (fieldOf: FieldReader) => DraftFieldKind
 }
 
 /** One record of an editor, as the text in its fields. */
@@ -34,7 +35,7 @@ export interface RecordDraft {
 /** Makes a record of the kind from its fields, keeping the id it was stored with where the kind has no business key. Refuses by throwing, as a kind's factory does. */
 export type DraftFactory<R> = (fields: StoredFields, storedId: RecordId | null) => R
 
-export function kindOfColumn(column: DraftColumn, fieldOf: FieldReader): DraftCellKind {
+export function kindOfColumn(column: DraftColumn, fieldOf: FieldReader): DraftFieldKind {
   return column.kindOf?.(fieldOf) ?? column.kind
 }
 
@@ -56,14 +57,14 @@ export function fieldsOfDrafts(drafts: readonly RecordDraft[], columns: readonly
       if (value === '') {
         delete fields[column.name]
       } else {
-        fields[column.name] = storedFieldOf(value)
+        fields[column.name] = storedFieldOfValue(value)
       }
     }
     return fields
   })
 }
 
-export function draftTextOf(field: StoredField | undefined, kind: DraftCellKind): string {
+export function draftTextOf(field: StoredField | undefined, kind: DraftFieldKind): string {
   if (field === undefined) return ''
   switch (kind) {
     case 'date':
@@ -78,27 +79,25 @@ export function draftTextOf(field: StoredField | undefined, kind: DraftCellKind)
 }
 
 /**
- * The value a field's text becomes. Text that does not fit the kind is kept as text, so the kind's
+ * The field a draft's text becomes. Text that does not fit the kind is kept as text, so the kind's
  * factory reports it the way it would report it in the file.
  */
-export function valueOfDraftText(text: string, kind: DraftCellKind): string | number | boolean {
+export function valueOfDraftText(text: string, kind: DraftFieldKind): FieldValue {
   const trimmed = text.trim()
   if (trimmed === '') return ''
   const number = Number(trimmed)
   switch (kind) {
-    case 'date': {
-      const date = parseCivilDate(trimmed)
-      return date === null ? trimmed : serialFromCivilDate(date)
-    }
+    case 'date':
+      return parseCivilDate(trimmed) ?? trimmed
     case 'amount':
     case 'whole-number':
-      return Number.isFinite(number) ? number : trimmed
+      return Number.isFinite(number) ? String(number) : trimmed
     case 'percent':
-      return Number.isFinite(number) ? number / 100 : trimmed
+      return Number.isFinite(number) ? String(number / 100) : trimmed
     case 'flag':
       return trimmed === 'TRUE'
     case 'amount-or-word':
-      return Number.isFinite(number) ? number : trimmed.toLowerCase()
+      return Number.isFinite(number) ? String(number) : trimmed.toLowerCase()
     case 'word':
       return trimmed.toLowerCase()
     case 'iban-list':

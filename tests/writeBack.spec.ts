@@ -5,7 +5,7 @@ import { fileRows } from '../src/features/review/application/fileRows'
 import { confirmation, recategorisation, waitingRowsSettledBy } from '../src/features/review/domain/verdictChanges'
 import type { RowVerdict } from '../src/features/review/domain/verdictChanges'
 import { writeRulesChange } from '../src/features/rules/application/ruleWrites'
-import type { RulesTabChange } from '../src/features/rules/domain/rulesTabChange'
+import type { RuleFields, RulesTabChange } from '../src/features/rules/domain/rulesTabChange'
 import { draftOfRule } from '../src/features/rules/domain/ruleDraft'
 import { previewRulesChange } from '../src/features/rules/domain/rulesChangePreview'
 import { rulesChangeInWords } from '../src/features/rules/domain/ruleSummary'
@@ -19,7 +19,7 @@ import type { WorkbookStore } from '../src/features/workbook/application/createW
 import type { WriteReceipt } from '../src/features/workbook/application/recordWrites'
 import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
-import type { SettingCell, Settings } from '../src/features/settings/domain/settings'
+import type { SettingEntry, Settings } from '../src/features/settings/domain/settings'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
 import type { WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { LEDGER_ROWS, cellData, excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
@@ -44,8 +44,8 @@ function settings(store: WorkbookStore<WorkbookCopy>): Settings {
   return store.state.workbook!.settings
 }
 
-function rulesCells(store: Store, id: string): Record<string, string | number | boolean> {
-  return { ...store.state.snapshot!.rules.find((rule) => rule.cells.rule === id)!.cells }
+function ruleFields(store: Store, id: string): RuleFields {
+  return store.state.records!.rules.records.find((stored) => stored.record.fields.rule === id)!.record.fields
 }
 
 /** Files the rows under their verdicts, as Review does. */
@@ -62,7 +62,7 @@ function changeRules(store: WorkbookStore<WorkbookCopy>, change: RulesTabChange)
   return store.write('Rules saved', (unit) => writeRulesChange(unit, change))
 }
 
-function changeSettings(store: WorkbookStore<WorkbookCopy>, values: readonly { readonly key: string; readonly value: SettingCell }[]): Promise<WriteReceipt | null> {
+function changeSettings(store: WorkbookStore<WorkbookCopy>, values: readonly SettingEntry[]): Promise<WriteReceipt | null> {
   return store.write('Settings saved', (unit) => setSettings(unit, store.state.records!.settings, values))
 }
 
@@ -93,8 +93,8 @@ describe.each([
     const { store } = await harnessOf(used)
     const receipt = await setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
     await undo(store, receipt)
-    const expected = rulesCells(store, 'merchant-model')
-    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false } }], removed: null })
+    const expected = ruleFields(store, 'merchant-model')
+    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, fields: { ...expected, enabled: false } }], removed: null })
     await changeSettings(store, [{ key: 'review_label', value: 'anna' }])
     await expect(setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'snacks', settings(store))])).rejects.toThrow(WorkbookWriteRefused)
 
@@ -134,7 +134,7 @@ describe.each([
 
   it('adds a rule, then files only the rows still waiting that it settles, never a confirmed one', async () => {
     const { store } = await harnessOf(used)
-    const debits = { rule: 'all-debits', order: 50, enabled: true, direction: 'debit', category: 'equipment', confidence: 'rule' }
+    const debits = { rule: 'all-debits', order: '50', enabled: true, direction: 'debit', category: 'equipment', confidence: 'rule' }
 
     await changeRules(store, { appended: debits, edited: [], removed: null })
     const workbook = store.state.workbook!
@@ -153,10 +153,10 @@ describe.each([
     const { store } = await harnessOf(used)
 
     await expect(
-      changeRules(store, { appended: { rule: 'Merchant-Model', order: 200, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [], removed: null }),
+      changeRules(store, { appended: { rule: 'Merchant-Model', order: '200', enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [], removed: null }),
     ).rejects.toThrow('The rule "merchant-model" is in the workbook already, so it is not added again.')
     await expect(
-      changeRules(store, { appended: { rule: 'snacks', order: 200, enabled: true, description_contains: 'X', category: 'snacks', confidence: 'rule' }, edited: [], removed: null }),
+      changeRules(store, { appended: { rule: 'snacks', order: '200', enabled: true, description_contains: 'X', category: 'snacks', confidence: 'rule' }, edited: [], removed: null }),
     ).rejects.toThrow('the categories tab does not define it')
     expect(store.state.workbook!.rules).toHaveLength(1)
   })
@@ -166,7 +166,7 @@ describe.each([
     grids.rules!.push(ruleRow({ rule: 'broken', order: 'soon', enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }))
     const { store } = await harnessOf(used, grids)
 
-    await changeRules(store, { appended: { rule: 'fine', order: 300, enabled: true, description_contains: 'Y', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
+    await changeRules(store, { appended: { rule: 'fine', order: '300', enabled: true, description_contains: 'Y', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
 
     expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model', 'fine'])
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'rules').map((problem) => [problem.label, problem.reason])).toEqual([['broken', 'the order "soon" is not a number']])
@@ -175,7 +175,7 @@ describe.each([
   it('lets two enabled rules share an order and tries them by id', async () => {
     const { store } = await harnessOf(used)
 
-    await changeRules(store, { appended: { rule: 'also-model', order: 100, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
+    await changeRules(store, { appended: { rule: 'also-model', order: '100', enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
 
     expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['also-model', 'merchant-model'])
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'rules')).toEqual([])
@@ -183,9 +183,9 @@ describe.each([
 
   it('undoes an added rule, a changed one and a deleted one, each back to what the tab held', async () => {
     const { store } = await harnessOf(used)
-    const read = rulesCells(store, 'merchant-model')
+    const read = ruleFields(store, 'merchant-model')
 
-    const added = await changeRules(store, { appended: { rule: 'desk-co', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
+    const added = await changeRules(store, { appended: { rule: 'desk-co', order: '200', enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
     expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(true)
     await undo(store, added)
     expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model'])
@@ -193,17 +193,17 @@ describe.each([
     const { counterparty_contains: _dropped, ...withoutCounterparty } = read
     const changed = await changeRules(store, {
       appended: null,
-      edited: [{ id: 'merchant-model', expected: read, cells: { ...withoutCounterparty, description_contains: 'MODEL', enabled: false, note: 'Paused' } }],
+      edited: [{ id: 'merchant-model', expected: read, fields: { ...withoutCounterparty, description_contains: 'MODEL', enabled: false, note: 'Paused' } }],
       removed: null,
     })
-    expect(rulesCells(store, 'merchant-model')).not.toHaveProperty('counterparty_contains')
+    expect(ruleFields(store, 'merchant-model')).not.toHaveProperty('counterparty_contains')
     await undo(store, changed)
-    expect(rulesCells(store, 'merchant-model')).toEqual(read)
+    expect(ruleFields(store, 'merchant-model')).toEqual(read)
 
     const deleted = await changeRules(store, { appended: null, edited: [], removed: read })
     expect(store.state.workbook!.rules).toEqual([])
     await undo(store, deleted)
-    expect(rulesCells(store, 'merchant-model')).toEqual(read)
+    expect(ruleFields(store, 'merchant-model')).toEqual(read)
     expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model'])
   })
 
@@ -230,19 +230,19 @@ describe.each([
 
   it('switches a rule off in place by its id', async () => {
     const { store } = await harnessOf(used)
-    const expected = rulesCells(store, 'merchant-model')
+    const expected = ruleFields(store, 'merchant-model')
 
-    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false } }], removed: null })
+    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, fields: { ...expected, enabled: false } }], removed: null })
 
     expect(store.state.workbook!.rules).toMatchObject([{ id: 'merchant-model', enabled: false }])
   })
 
   it('refuses to edit a rule that no longer holds what the app read', async () => {
     const { store } = await harnessOf(used)
-    const read = rulesCells(store, 'merchant-model')
+    const read = ruleFields(store, 'merchant-model')
 
     await expect(
-      changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected: { ...read, note: 'typed meanwhile' }, cells: { ...read, enabled: false } }], removed: null }),
+      changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected: { ...read, note: 'typed meanwhile' }, fields: { ...read, enabled: false } }], removed: null }),
     ).rejects.toThrow('The rule "merchant-model" changed since the app read it. Sync and look again.')
   })
 
@@ -260,7 +260,7 @@ describe.each([
   it('adds a key of the pack the tab lacks, which the pack reads, and refuses a value the pack would not use', async () => {
     const { store } = await harnessOf(used)
 
-    await changeSettings(store, [{ key: 'hr_owner_loan_interest', value: 0.02 }])
+    await changeSettings(store, [{ key: 'hr_owner_loan_interest', value: '0.02' }])
 
     expect(hrDooWorkbook(store.state.workbook!).companyFacts.ownerLoanInterest).toBe(200)
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
@@ -423,7 +423,7 @@ describe('writing to a Google Sheet', () => {
     const { store, sheets } = await googleHarness(used)
 
     await changeRules(store, {
-      appended: { rule: 'desk-co', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule', note: 'Furniture' },
+      appended: { rule: 'desk-co', order: '200', enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule', note: 'Furniture' },
       edited: [],
       removed: null,
     })
@@ -438,9 +438,9 @@ describe('writing to a Google Sheet', () => {
 
   it('edits a rule by writing only the cells that change', async () => {
     const { store, writtenRanges } = await googleHarness(used)
-    const expected = rulesCells(store, 'merchant-model')
+    const expected = ruleFields(store, 'merchant-model')
 
-    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false, note: 'Paused' } }], removed: null })
+    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, fields: { ...expected, enabled: false, note: 'Paused' } }], removed: null })
 
     expect(writtenRanges()).toEqual(['rules!C2', 'rules!U2'])
   })

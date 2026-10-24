@@ -114,7 +114,7 @@ describe.each([
   it('files the waiting rows a new rule settles with the rule’s category’s default', async () => {
     const { store } = await harnessOf(used, grids(false))
     await store.write('Rules saved', (unit) =>
-      writeRulesChange(unit, { appended: { rule: 'gadgets', order: 100, enabled: true, counterparty_contains: 'GADGET', category: 'ai-services', confidence: 'rule' }, edited: [], removed: null }),
+      writeRulesChange(unit, { appended: { rule: 'gadgets', order: '100', enabled: true, counterparty_contains: 'GADGET', category: 'ai-services', confidence: 'rule' }, edited: [], removed: null }),
     )
     const workbook = store.state.workbook!
 

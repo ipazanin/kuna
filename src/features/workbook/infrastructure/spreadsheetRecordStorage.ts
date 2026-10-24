@@ -2,18 +2,17 @@ import { cellText } from '../../../shared/text/cellText'
 import type { RecordChange } from '../application/recordStorage'
 import type { CopyStorage } from '../application/workbookPorts'
 import { WorkbookWriteRefused, refuseOn } from '../application/workbookWriteRefused'
-import { recordIdOf } from '../domain/recordId'
-import type { RecordId } from '../domain/recordId'
+import { ID_FIELD, identityOf, labelOfRecord } from '../domain/recordCodec'
 import type { RecordKind } from '../domain/recordKind'
 import { NO_RECORDS, sameRecord } from '../domain/recordsRead'
 import type { RecordsRead } from '../domain/recordsRead'
 import type { FreshRecords } from '../domain/writeRules'
 import { insertedRowNumbers, placeLedgerRows } from './ledgerPlacement'
-import { recordsOfRows, spreadsheetTabOfKind } from './spreadsheetTab'
+import { cellsOfRecord, recordsOfRows, rowIdOf, spreadsheetTabOfKind } from './spreadsheetTab'
 import type { Cells, SpreadsheetTab } from './spreadsheetTab'
 import { WORKBOOK_TABS } from './workbookSnapshot'
 import type { SheetRow, WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
-import { ID_COLUMN, OWNER_SHARE_COLUMN, TABS_WITH_IDS, contentColumns, missingColumnsOf, templateColumnNames } from './workbookTemplate'
+import { OWNER_SHARE_COLUMN, TABS_WITH_IDS, contentColumns, missingColumnsOf, templateColumnNames } from './workbookTemplate'
 import type { CellEdit, FreshTabs, NewColumn, NewTab, RowAppend, RowDeletion, RowTab, TabEdits, TabRead, WorkbookWriter } from './workbookWriter'
 
 /** What one write does to one tab: the edits that carry it out and the rows the tab is left with. */
@@ -81,12 +80,11 @@ export function spreadsheetRecordStorage(writer: WorkbookWriter): CopyStorage<Wo
     },
 
     identify(kind, record) {
-      return identityOf(spreadsheetTabOfKind(kind), record)
+      return identityOf(spreadsheetTabOfKind(kind).codec, record)
     },
 
     labelOf(kind, record) {
-      const mapping = spreadsheetTabOfKind(kind)
-      return mapping.label(mapping.cells(record))
+      return labelOfRecord(spreadsheetTabOfKind(kind).codec, record)
     },
 
     preview(changes, addMissingKinds) {
@@ -138,18 +136,13 @@ function recordsOfTabs(tabs: FreshTabs): FreshRecords {
   }
 }
 
-function identityOf<R>(mapping: SpreadsheetTab<R>, record: R): RecordId | null {
-  const key = mapping.key(mapping.cells(record))
-  return key === null ? null : recordIdOf(mapping.kind, key)
-}
-
 function carriesIds(tab: WorkbookTab): boolean {
   return (TABS_WITH_IDS as readonly WorkbookTab[]).includes(tab)
 }
 
 /** The columns the app writes on a tab, its id among them on a tab whose rows carry one. */
 function writtenColumns(tab: WorkbookTab): string[] {
-  return carriesIds(tab) ? [...contentColumns(tab), ID_COLUMN] : contentColumns(tab)
+  return carriesIds(tab) ? [...contentColumns(tab), ID_FIELD] : contentColumns(tab)
 }
 
 function quotedList(columns: readonly string[]): string {
@@ -176,12 +169,8 @@ function tabToWrite(fresh: FreshTabs, mapping: SpreadsheetTab<unknown>, addMissi
 
 /** The one row holding a record a change or removal names: by its identity, then by the record the row reads as. */
 function rowOfRecord<R>(rows: readonly SheetRow[], mapping: SpreadsheetTab<R>, record: R): readonly SheetRow[] {
-  const id = identityOf(mapping, record)
-  const rowId = (row: SheetRow): RecordId | null => {
-    const key = mapping.key(row.cells)
-    return key === null ? null : recordIdOf(mapping.kind, key)
-  }
-  return rows.filter((row) => id !== null && rowId(row) === id && sameRecord(recordsOfRows(mapping, [row]).records[0]?.record, record))
+  const id = identityOf(mapping.codec, record)
+  return rows.filter((row) => id !== null && rowIdOf(mapping, row.cells) === id && sameRecord(recordsOfRows(mapping, [row]).records[0]?.record, record))
 }
 
 /** The rows holding a refused record: by its identity when it has one, and by its fields as stored. */
@@ -219,21 +208,21 @@ function planTab<R>(fresh: FreshTabs, mapping: SpreadsheetTab<R>, changes: reado
   const { tab, newTab } = tabToWrite(fresh, mapping as SpreadsheetTab<unknown>, addMissingKinds)
   const columns = writtenColumns(tabName)
   const header = new Set(tab.header.map((name) => name.trim()))
-  const named = (cells: Cells): string => `the ${mapping.kind.noun.one} "${mapping.label(cells)}"`
+  const named = (label: string): string => `the ${mapping.codec.kind.noun.one} "${label}"`
   const refusals: string[] = []
   const taken = new Set<SheetRow>()
-  const found = (holding: readonly SheetRow[], cells: Cells): SheetRow | null => {
+  const found = (holding: readonly SheetRow[], label: string): SheetRow | null => {
     const [row] = holding
     if (holding.length !== 1 || row === undefined) {
       refusals.push(
         holding.length === 0
-          ? `${capitalised(named(cells))} is no longer on the ${tabName} tab as the app read it. Sync and look again.`
-          : `${holding.length} rows of the ${tabName} tab hold ${named(cells)}, so the app cannot tell which one is meant. Change it in the Sheet.`,
+          ? `${capitalised(named(label))} is no longer on the ${tabName} tab as the app read it. Sync and look again.`
+          : `${holding.length} rows of the ${tabName} tab hold ${named(label)}, so the app cannot tell which one is meant. Change it in the Sheet.`,
       )
       return null
     }
     if (taken.has(row)) {
-      refusals.push(`${capitalised(named(cells))} is asked to change twice in one write.`)
+      refusals.push(`${capitalised(named(label))} is asked to change twice in one write.`)
       return null
     }
     taken.add(row)
@@ -248,7 +237,7 @@ function planTab<R>(fresh: FreshTabs, mapping: SpreadsheetTab<R>, changes: reado
   for (const change of changes as readonly RecordChange<R>[]) {
     switch (change.verb) {
       case 'add': {
-        const row = filledCells(mapping.cells(change.after))
+        const row = filledCells(cellsOfRecord(mapping, change.after))
         added.push(row)
         written.push(row)
         break
@@ -256,23 +245,23 @@ function planTab<R>(fresh: FreshTabs, mapping: SpreadsheetTab<R>, changes: reado
       case 'remove':
       case 'discard': {
         const holding = change.verb === 'remove' ? rowOfRecord(tab.rows, mapping, change.before) : rowsOfRefused(tab.rows, mapping, change.refused)
-        const row = found(holding, change.verb === 'remove' ? mapping.cells(change.before) : (holding[0]?.cells ?? {}))
+        const row = found(holding, change.verb === 'remove' ? labelOfRecord(mapping.codec, change.before) : change.refused.label)
         if (row !== null) removed.push(row)
         written.push(null)
         break
       }
       case 'change':
       case 'repair': {
-        const after = mapping.cells(change.after)
+        const after = cellsOfRecord(mapping, change.after)
         const row =
           change.verb === 'change'
-            ? found(rowOfRecord(tab.rows, mapping, change.before), mapping.cells(change.before))
-            : found(rowsOfRefused(tab.rows, mapping, change.refused), after)
+            ? found(rowOfRecord(tab.rows, mapping, change.before), labelOfRecord(mapping.codec, change.before))
+            : found(rowsOfRefused(tab.rows, mapping, change.refused), labelOfRecord(mapping.codec, change.after))
         if (row === null) {
           written.push(null)
           break
         }
-        const before = change.verb === 'change' ? mapping.cells(change.before) : null
+        const before = change.verb === 'change' ? cellsOfRecord(mapping, change.before) : null
         const rowEdits = columns
           .filter((column) => (before === null || cellText(before[column]) !== cellText(after[column])) && cellText(row.cells[column]) !== cellText(after[column]))
           .map((column): CellEdit => ({ tab: tabName, sheetRow: row.sheetRow, column, value: after[column] ?? '' }))
@@ -286,7 +275,7 @@ function planTab<R>(fresh: FreshTabs, mapping: SpreadsheetTab<R>, changes: reado
   const cellsWritten = [...added.flatMap((row) => Object.entries(row)), ...cells.map((edit): [string, Cells[string]] => [edit.column, edit.value])]
   const unheaded = new Set(cellsWritten.filter(([column, cell]) => !header.has(column) && cellText(cell) !== '').map(([column]) => column))
   // The id and owner share columns come with the first value written there. Another template column the tab lacks comes only once the person agreed.
-  const lacking = columns.filter((column) => unheaded.has(column) && (column === ID_COLUMN || column === OWNER_SHARE_COLUMN || addMissingKinds))
+  const lacking = columns.filter((column) => unheaded.has(column) && (column === ID_FIELD || column === OWNER_SHARE_COLUMN || addMissingKinds))
   const missing = [...unheaded].filter((column) => !lacking.includes(column))
   if (missing.length > 0) {
     refusals.push(`The ${tabName} tab has no ${quotedList(missing)} column for what this change writes. Add the column to row 1 in the Sheet, or leave the field blank.`)

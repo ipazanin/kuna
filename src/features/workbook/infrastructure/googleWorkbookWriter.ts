@@ -1,6 +1,7 @@
 import { cellText } from '../../../shared/text/cellText'
 import { WorkbookWriteRefused } from '../application/workbookWriteRefused'
-import { DATE_FORMAT, isDateCell } from './cellFormats'
+import { DATE_FORMAT } from './cellFormats'
+import { isDateCell } from './spreadsheetTab'
 import { sheetNameInRange } from './sheetsClient'
 import type { CellData, NumberFormat, RowData, SheetGrid, SheetsValues, SpreadsheetRequest } from './sheetsClient'
 import { sheetRowsFromValues } from './workbookSnapshot'

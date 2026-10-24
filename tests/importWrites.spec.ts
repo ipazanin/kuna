@@ -11,7 +11,8 @@ import type { ImportProfile } from '../src/features/imports/domain/importProfile
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
 import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import type { LedgerEntry } from '../src/features/workbook/domain/ledgerReading'
-import { CORE_TABS } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import { CORE_TABS, cellsOfRecord } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import { templateColumnNames } from '../src/features/workbook/infrastructure/workbookTemplate'
 import type { WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { cellsOf } from './fixtures/recordWrites'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
@@ -60,7 +61,10 @@ function dryRun(store: WorkbookStore<WorkbookCopy>, xml: string, starts: Readonl
 
 /** The ledger rows confirming would write, as the tab holds them. */
 function rowsOf(run: ImportDryRun): Record<string, CellValue>[] {
-  return run.added.map((entry) => ({ ...CORE_TABS.ledger.cells(entry) }))
+  return run.added.map((entry) => {
+    const cells = cellsOfRecord(CORE_TABS.ledger, entry)
+    return Object.fromEntries(templateColumnNames('ledger').map((column) => [column, cells[column] ?? '']))
+  })
 }
 
 /** Imports the entries, as Confirm import does. */

@@ -23,7 +23,7 @@ export const RULE_WRITES: WriteRules<RuleTabRow> = {
 /** Writes a save of the rules: the new rule added, each edited rule changed from what the app read, and the deleted rule removed. */
 export function writeRulesChange(unit: UnitOfWork, change: RulesTabChange): void {
   const rules = unit.of(RULE_WRITES)
-  if (change.appended !== null) rules.add({ cells: change.appended })
-  for (const edit of change.edited) rules.change({ cells: edit.expected }, { cells: edit.cells })
-  if (change.removed !== null) rules.remove({ cells: change.removed })
+  if (change.appended !== null) rules.add({ fields: change.appended })
+  for (const edit of change.edited) rules.change({ fields: edit.expected }, { fields: edit.fields })
+  if (change.removed !== null) rules.remove({ fields: change.removed })
 }

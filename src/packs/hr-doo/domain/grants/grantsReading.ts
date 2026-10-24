@@ -1,6 +1,9 @@
 import { addMoney, plainAmount } from '../../../../shared/money/money'
 import { GRANT_RELEASES } from './grants'
 import type { Grant, GrantClawback, GrantParts, GrantRelease } from './grants'
+import { filledKey, labelWords } from '../../../../features/workbook/domain/recordCodec'
+import type { RecordCodec } from '../../../../features/workbook/domain/recordCodec'
+import { amountText, filledFields } from '../../../../features/workbook/domain/recordFields'
 import { recordIdOf } from '../../../../features/workbook/domain/recordId'
 import type { RecordId } from '../../../../features/workbook/domain/recordId'
 import { GRANT_RECORDS } from '../hrDooKinds'
@@ -41,6 +44,33 @@ export function grantOf(fields: StoredFields, id: RecordId | null): Grant {
     note: textOf(fields.note),
     id: keyedId(id),
   }
+}
+
+/** A clawback as its field: whole, an amount, or blank. */
+function clawbackText(clawback: GrantClawback | null): string | null {
+  return clawback === null || clawback === 'whole' ? clawback : amountText(clawback)
+}
+
+export const GRANT_CODEC: RecordCodec<Grant> = {
+  kind: GRANT_RECORDS,
+  key: (fields) => filledKey(slugOf(fields.grant)),
+  label: (fields) => labelWords([textOf(fields.grant)]),
+  make: grantOf,
+  fieldsOf: (grant) =>
+    filledFields({
+      grant: grant.slug,
+      received: grant.received,
+      amount: amountText(grant.amount),
+      fixed_part: grant.parts === null ? null : amountText(grant.parts.fixed),
+      variable_part: grant.parts === null ? null : amountText(grant.parts.variable),
+      period_from: grant.period?.from,
+      period_to: grant.period?.to,
+      release: grant.release,
+      clawback_year1: clawbackText(grant.clawbackFirstYear),
+      clawback_year2: clawbackText(grant.clawbackSecondYear),
+      employment_required_until: grant.employmentRequiredUntil,
+      note: grant.note,
+    }),
 }
 
 /** Both parts or neither, never negative, and together the whole grant. */

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { confirmation } from '../src/features/review/domain/verdictChanges'
-import { readRules } from '../src/features/rules/domain/readRules'
+import { RULE_CODEC, readRules } from '../src/features/rules/domain/readRules'
 import type { Rule, RuleCondition } from '../src/features/rules/domain/rule'
 import { ruleCoverage } from '../src/features/rules/domain/ruleCoverage'
 import { placeBefore, swapWithNeighbour } from '../src/features/rules/domain/rulePlacement'
-import { ruleTabCells, rulesTabAfter } from '../src/features/rules/domain/rulesTabChange'
+import { ruleFieldsOf, rulesTabAfter } from '../src/features/rules/domain/rulesTabChange'
 import { previewRulesChange } from '../src/features/rules/domain/rulesChangePreview'
 import { rulesChangeInWords } from '../src/features/rules/domain/ruleSummary'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
@@ -22,7 +22,7 @@ function rule(id: string, order: number, conditions: RuleCondition[], category =
 
 const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '' }], clients: [], settings: DEFAULT_SETTINGS })
 
-describe('rule cells', () => {
+describe('rule fields', () => {
   it('reads back as the rule they were written from', () => {
     const written = rule('every-condition', 150, [
       { column: 'direction', direction: 'debit' },
@@ -42,52 +42,56 @@ describe('rule cells', () => {
       { column: 'foreign_currency' },
     ])
 
-    const [read] = readRules([{ cells: ruleTabCells(written) }], CATEGORIES).rules
+    const [read] = readRules([{ fields: ruleFieldsOf(written) }], CATEGORIES).rules
 
     expect(read).toEqual(written)
   })
 
   it('applies an edit to the row with that id only when the row still holds what was read', () => {
-    const rows = [{ cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }]
-    const expected = rows[0]!.cells
+    const rows = [{ fields: { rule: 'a', order: '100', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }]
+    const expected = rows[0]!.fields
 
-    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'A', expected, cells: { ...expected, enabled: false } }], removed: null }).rows).toEqual([{ cells: { ...expected, enabled: false } }])
-    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: '100 ' }, cells: expected }], removed: null }).refusals).toEqual([])
-    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: 200 }, cells: expected }], removed: null }).refusals).toHaveLength(1)
-    expect(rulesTabAfter(rows, { appended: { rule: 'b', note: '' }, edited: [], removed: null }).rows[1]).toEqual({ cells: { rule: 'b' } })
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'A', expected, fields: { ...expected, enabled: false } }], removed: null }).rows).toEqual([{ fields: { ...expected, enabled: false } }])
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: '100 ' }, fields: expected }], removed: null }).refusals).toEqual([])
+    expect(rulesTabAfter(rows, { appended: null, edited: [{ id: 'a', expected: { ...expected, order: '200' }, fields: expected }], removed: null }).refusals).toHaveLength(1)
+    expect(rulesTabAfter(rows, { appended: { rule: 'b', note: '' }, edited: [], removed: null }).rows[1]).toEqual({ fields: { rule: 'b' } })
   })
 
   it('takes a removed row off only while it still holds what was read', () => {
-    const kept = { cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
-    const gone = { cells: { ...kept.cells, rule: 'b', order: 200 } }
+    const kept = { fields: { rule: 'a', order: '100', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
+    const gone = { fields: { ...kept.fields, rule: 'b', order: '200' } }
 
-    expect(rulesTabAfter([kept, gone], { appended: null, edited: [], removed: gone.cells })).toEqual({ rows: [kept], refusals: [] })
-    expect(rulesTabAfter([kept, gone], { appended: null, edited: [], removed: { ...gone.cells, note: 'typed meanwhile' } }).refusals).toEqual(['rule "b" changed since the app last read it'])
-    expect(rulesTabAfter([kept], { appended: null, edited: [], removed: gone.cells }).refusals).toEqual(['no row on the rules tab has the id "b" any more'])
+    expect(rulesTabAfter([kept, gone], { appended: null, edited: [], removed: gone.fields })).toEqual({ rows: [kept], refusals: [] })
+    expect(rulesTabAfter([kept, gone], { appended: null, edited: [], removed: { ...gone.fields, note: 'typed meanwhile' } }).refusals).toEqual(['rule "b" changed since the app last read it'])
+    expect(rulesTabAfter([kept], { appended: null, edited: [], removed: gone.fields }).refusals).toEqual(['no row on the rules tab has the id "b" any more'])
+  })
+
+  it('are stored without the blank fields a draft leaves, and keep a switched-off flag', () => {
+    expect(RULE_CODEC.fieldsOf({ fields: { rule: 'a', order: '100', enabled: false, category: '', note: '' } })).toEqual({ rule: 'a', order: '100', enabled: false })
   })
 })
 
 describe('previewRulesChange', () => {
-  const good = { cells: { rule: 'a', order: 100, enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
-  const broken = { cells: { rule: 'broken', order: 'soon', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
+  const good = { fields: { rule: 'a', order: '100', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
+  const broken = { fields: { rule: 'broken', order: 'soon', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
 
   it('refuses only the rules the change writes, and leaves a broken rule elsewhere to its problem', () => {
     const preview = (change: Parameters<typeof previewRulesChange>[1]) => previewRulesChange([good, broken], change, CATEGORIES, [], [], context).refusals
 
-    expect(preview({ appended: { rule: 'b', order: 200, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }, edited: [], removed: null })).toEqual([])
-    expect(preview({ appended: null, edited: [{ id: 'a', expected: good.cells, cells: { ...good.cells, category: 'snacks' } }], removed: null })).toEqual([
+    expect(preview({ appended: { rule: 'b', order: '200', enabled: true, is_card: true, category: 'travel', confidence: 'rule' }, edited: [], removed: null })).toEqual([])
+    expect(preview({ appended: null, edited: [{ id: 'a', expected: good.fields, fields: { ...good.fields, category: 'snacks' } }], removed: null })).toEqual([
       'a: it files rows as "snacks" at rule confidence, and the categories tab does not define it',
     ])
-    expect(preview({ appended: null, edited: [], removed: good.cells })).toEqual([])
+    expect(preview({ appended: null, edited: [], removed: good.fields })).toEqual([])
   })
 
   it('refuses a new rule without an id, and names a taken id once', () => {
     const preview = (change: Parameters<typeof previewRulesChange>[1]) => previewRulesChange([good, broken], change, CATEGORIES, [], [], context).refusals
 
-    expect(preview({ appended: { rule: '', order: 200, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }, edited: [], removed: null })).toEqual([
+    expect(preview({ appended: { rule: '', order: '200', enabled: true, is_card: true, category: 'travel', confidence: 'rule' }, edited: [], removed: null })).toEqual([
       'unnamed: a row without a rule id',
     ])
-    expect(preview({ appended: { rule: 'a', order: 200, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }, edited: [], removed: null })).toEqual([
+    expect(preview({ appended: { rule: 'a', order: '200', enabled: true, is_card: true, category: 'travel', confidence: 'rule' }, edited: [], removed: null })).toEqual([
       'a: the id is on more than one row, so none of them is tried',
     ])
   })
@@ -196,26 +200,26 @@ describe('rule coverage', () => {
 })
 
 describe('rulesChangeInWords', () => {
-  const cells = { rule: 'accountant', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000014', category: 'accounting', confidence: 'rule' }
-  const neighbour = { ...cells, rule: 'bank-fees', order: 100 }
+  const fields = { rule: 'accountant', order: '200', enabled: true, counterparty_iban: 'XX00FAKE0000000014', category: 'accounting', confidence: 'rule' }
+  const neighbour = { ...fields, rule: 'bank-fees', order: '100' }
 
   it('names an added, a switched, a moved, an edited and a deleted rule', () => {
-    expect(rulesChangeInWords({ appended: cells, edited: [], removed: null })).toBe('Added accountant')
-    expect(rulesChangeInWords({ appended: null, edited: [{ id: 'accountant', expected: cells, cells: { ...cells, enabled: false } }], removed: null })).toBe('Switched off accountant')
+    expect(rulesChangeInWords({ appended: fields, edited: [], removed: null })).toBe('Added accountant')
+    expect(rulesChangeInWords({ appended: null, edited: [{ id: 'accountant', expected: fields, fields: { ...fields, enabled: false } }], removed: null })).toBe('Switched off accountant')
     expect(
       rulesChangeInWords({
         appended: null,
         edited: [
-          { id: 'accountant', expected: cells, cells: { ...cells, order: 100 } },
-          { id: 'bank-fees', expected: neighbour, cells: { ...neighbour, order: 200 } },
+          { id: 'accountant', expected: fields, fields: { ...fields, order: '100' } },
+          { id: 'bank-fees', expected: neighbour, fields: { ...neighbour, order: '200' } },
         ],
         removed: null,
       }),
     ).toBe('Moved accountant ahead of bank-fees')
-    expect(rulesChangeInWords({ appended: null, edited: [{ id: 'accountant', expected: cells, cells: { ...cells, note: 'Monthly', category: 'consulting' } }], removed: null })).toBe(
+    expect(rulesChangeInWords({ appended: null, edited: [{ id: 'accountant', expected: fields, fields: { ...fields, note: 'Monthly', category: 'consulting' } }], removed: null })).toBe(
       'Edited accountant: category, note',
     )
-    expect(rulesChangeInWords({ appended: null, edited: [], removed: cells })).toBe('Deleted accountant')
+    expect(rulesChangeInWords({ appended: null, edited: [], removed: fields })).toBe('Deleted accountant')
   })
 })
 
