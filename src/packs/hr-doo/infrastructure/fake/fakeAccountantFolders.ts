@@ -150,9 +150,10 @@ interface FakeFile extends DriveWorkbook {
  * The fake build's accountant folders at the default paths, against the fake ledger. On Year 2026,
  * Taxes: the April and June returns close on the books, July carries forward 12.40 less than the
  * books, August's local purchases do not add up to their total row, and September's sales line has
- * two digits swapped. May has no return. The June salary closes on the bank but its income tax is
- * below the ruleset's, July's follows the ruleset but the bank paid the state less, and August's
- * title names July. July's VAT return and salary are Google Sheets.
+ * two digits swapped. May has no return, and July brings forward what June carried, so no return
+ * claims a refund. The June salary closes on the bank but its income tax is below the ruleset's,
+ * July's follows the ruleset but the bank paid the state less, and August's title names July. July's
+ * VAT return and salary are Google Sheets.
  */
 const FAKE_FILES: readonly FakeFile[] = [
   vatFile('2026-04-pdv.xlsx', 'xlsx', { sale: { number: '5-1-26', issued: civilDate(2026, 4, 30), amount: 7109.87 }, local: [[120, 30]], carriedForward: -2859.41 }),
@@ -165,7 +166,7 @@ const FAKE_FILES: readonly FakeFile[] = [
     eu: [[60, 15]],
     carriedForward: -3246.16,
   }),
-  vatFile('2026-07-pdv', 'google-sheet', { sale: { number: '8-1-26', issued: civilDate(2026, 7, 31), amount: 7494.05 }, local: [[120, 30]], carriedForward: -3267.14 }),
+  vatFile('2026-07-pdv', 'google-sheet', { sale: { number: '8-1-26', issued: civilDate(2026, 7, 31), amount: 7494.05 }, local: [[83.92, 20.98]], carriedForward: -3267.14 }),
   vatFile('2026-08-pdv.xlsx', 'xlsx', {
     sale: { number: '9-1-26', issued: civilDate(2026, 8, 31), amount: 8006.73 },
     local: [[120, 30]],

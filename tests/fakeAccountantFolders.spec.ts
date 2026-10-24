@@ -33,7 +33,9 @@ describe('the fake accountant folders', () => {
   it('show every state of the VAT returns card against the fake ledger on 2026', async () => {
     const { documents } = await fakeDocuments()
 
-    expect(vatReturnRows(workbook, documents, 2026, linkOf).map((row) => [row.key, row.kind, row.badges.map((badge) => badge.label)])).toEqual([
+    const rows = vatReturnRows(workbook, documents, 2026, linkOf)
+
+    expect(rows.map((row) => [row.key, row.kind, row.badges.map((badge) => badge.label)])).toEqual([
       ['2026-09', 'filed', ['Carry ok', 'Sales differ']],
       ['2026-08', 'unread', ['Could not read']],
       ['2026-07', 'filed', ['Carry differs', 'Sales ok']],
@@ -41,6 +43,7 @@ describe('the fake accountant folders', () => {
       ['2026-05', 'not-filed', []],
       ['2026-04', 'filed', ['Carry ok', 'Sales ok']],
     ])
+    expect(rows.find((row) => row.key === '2026-07')?.notes).toEqual([])
   })
 
   it('show every state of the payroll card against the fake ledger on 2026', async () => {

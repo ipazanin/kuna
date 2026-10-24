@@ -123,7 +123,8 @@ for (const period of vatPeriods(workbook, returns, vatMonths)) {
   }
   carries += period.carryHolds ? 1 : 0
   salesHeld += period.salesHold ? 1 : 0
-  report(period.period, 'carry', verdictOf(period.carryHolds))
+  const refund = period.refund === null ? '' : `less the refund the return claims, ${period.refund.receivedOn === null ? 'not received yet' : 'received'}`
+  report(period.period, 'carry', verdictOf(period.carryHolds), refund)
   const problems = period.sales.filter((check) => check.problem !== null).map((check) => check.problem)
   report(period.period, `sales, ${period.sales.length} line(s)`, verdictOf(period.salesHold), problems.join(', '))
 }

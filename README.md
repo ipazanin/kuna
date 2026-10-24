@@ -975,8 +975,10 @@ describes, and nothing is written to the Sheet or to Drive. A period with an xls
 reads the xlsx, and the two must read the same. The VAT card follows the year by the return's month,
 newest first, from the first return filed to the last: each return with what it states and its
 badges, "No return filed" for a month between them without one. "Carry" sets the return's carry
-forward against our VAT position to the month's end, and "Sales" each sales line against the invoice
-of its number, delivered in the month. The payroll card follows the year by the worked month: each
+forward against our VAT position to the month's end, less the refund the return claims, and "Sales"
+each sales line against the invoice of its number, delivered in the month. A return that claims a
+refund says how much and the day the bank received it, or that it has not been received yet. Our
+VAT position stays as booked, here and everywhere else. The payroll card follows the year by the worked month: each
 workbook with its payout day, gross, the state's share and the employee's, each beside the bank
 figure it is set against. "Bank" needs both to hold, the state's share against the owner-pay taxes
 within 5 days of the payout day, dividend tax left out, and the employee's share less rent and
@@ -1729,8 +1731,12 @@ the labels in column A. Its title gives the worked month, which must be the file
 date. A refused workbook prints its tab, row and reason.
 
 Each return then gets two checks. The carry passes when the VAT position through the month, with the
-`vat-settlement` rows to the month as booked so a refund lowers it, equals the return's
-`Pretplata za prijenos u buduća razdoblja` turned round. Sales pass when every line of `Treće zemlje
+`vat-settlement` rows to the month as booked so a refund lowers it, less the refund the return
+claims, equals the return's `Pretplata za prijenos u buduća razdoblja` turned round. The form has no
+line for a refund, so the refund claimed is what the previous month's return carried forward less
+what this one brings forward in `Pretplata iz prethodnih razdoblja`, when that is more than zero. It
+counts as received on the first `vat-settlement` row of that amount after the return's month and
+within the three months after it. The script says so beside the carry, without the figure. Sales pass when every line of `Treće zemlje
 usluge I` is the invoice of that number with the same amount, delivered in the month. A month between
 two returns without one is listed as not filed. Each salary workbook gets two bank checks and the
 rules. `- Država` must equal the rows of the taxes bucket with `owner-pay-tax` and without

@@ -12,7 +12,7 @@ import type { DocumentRefusal } from '../../domain/accountant/accountantDocument
 import { PAYOUT_WEEK_DAYS, salaryMonthChecks } from '../../domain/accountant/payrollReconciliation'
 import type { FigureCheck, SalaryMonthCheck, SalaryRuleLine, SalaryRules } from '../../domain/accountant/payrollReconciliation'
 import { vatMonthsOf, vatPeriods } from '../../domain/accountant/vatReconciliation'
-import type { SaleProblem, VatPeriod } from '../../domain/accountant/vatReconciliation'
+import type { ClaimedRefund, SaleProblem, VatPeriod } from '../../domain/accountant/vatReconciliation'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
 
@@ -45,7 +45,7 @@ export interface VatReturnRow {
   readonly theirCarry: Money | null
   readonly ourCarry: OurFigure | null
   readonly badges: readonly CheckBadge[]
-  /** A sales line that does not close, or why the file could not be read. */
+  /** The refund the return claims, a sales line that does not close, or why the file could not be read. */
   readonly notes: readonly string[]
 }
 
@@ -159,14 +159,22 @@ function vatRow(period: VatPeriod, linkOf: LinkOf): VatReturnRow {
       badge('carry', month, period.carryHolds, ['Carry ok', 'Carry differs'], carryTo),
       badge('sales', month, period.salesHold, ['Sales ok', 'Sales differ'], planMonthLink(period.period)),
     ],
-    notes: period.sales.flatMap((check) =>
-      check.problem === null
-        ? []
-        : [
-            `Sale ${check.sale.invoiceNumber}, ${formatMoney(check.sale.amount)} on the return, ${SALE_PROBLEMS[check.problem]}${check.invoice === null || check.problem !== 'other-amount' ? '' : `, which says ${formatMoney(check.invoice.amount)}`}.`,
-          ],
-    ),
+    notes: [
+      ...(period.refund === null ? [] : [refundNote(period.refund)]),
+      ...period.sales.flatMap((check) =>
+        check.problem === null
+          ? []
+          : [
+              `Sale ${check.sale.invoiceNumber}, ${formatMoney(check.sale.amount)} on the return, ${SALE_PROBLEMS[check.problem]}${check.invoice === null || check.problem !== 'other-amount' ? '' : `, which says ${formatMoney(check.invoice.amount)}`}.`,
+            ],
+      ),
+    ],
   }
+}
+
+/** "Refund of €1,200.00 claimed, received 9 Sept 2025." */
+function refundNote(refund: ClaimedRefund): string {
+  return `Refund of ${formatMoney(refund.amount)} claimed, ${refund.receivedOn === null ? 'not received yet' : `received ${dayLabel(refund.receivedOn)}`}.`
 }
 
 /** The year's salary workbooks by worked month, newest first, each against the bank and the ruleset, and each file that could not be read. */
