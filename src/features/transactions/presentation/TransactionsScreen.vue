@@ -313,7 +313,7 @@ const columns: TableColumn<TableEntry>[] = [
       if (entry.kind === 'group') return ''
       if (entry.kind !== 'row') {
         const { whole } = entry
-        return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [
+        return h('div', { class: 'min-w-40 max-w-48 @3xl:max-w-56 @4xl:max-w-96' }, [
           h('span', { class: 'inline-flex flex-wrap items-center gap-2 text-highlighted' }, [counterpartyName(whole), headingBadge(entry)]),
           whole.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, whole.description),
         ])
@@ -322,7 +322,7 @@ const columns: TableColumn<TableEntry>[] = [
       const place = partPlace(listed)
       if (place !== null) {
         const note = listed.kind === 'bank' ? (listed.split?.note ?? '') : ''
-        return h('div', { class: 'min-w-40 max-w-56 ps-4 @4xl:max-w-96' }, [
+        return h('div', { class: 'min-w-40 max-w-48 ps-4 @3xl:max-w-56 @4xl:max-w-96' }, [
           h('span', { class: 'inline-flex items-center gap-1.5 text-toned' }, [
             h(UIcon, { name: 'i-lucide-corner-down-right', class: 'size-3.5 shrink-0 text-muted', 'aria-hidden': 'true' }),
             `Part ${place.number} of ${place.count}`,
@@ -331,7 +331,7 @@ const columns: TableColumn<TableEntry>[] = [
           categoryBelowName(listed),
         ])
       }
-      return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [
+      return h('div', { class: 'min-w-40 max-w-48 @3xl:max-w-56 @4xl:max-w-96' }, [
         counterpartyName(listed),
         listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description),
         categoryBelowName(listed),
