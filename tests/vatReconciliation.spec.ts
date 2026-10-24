@@ -14,7 +14,9 @@ function vatReturn(period: string, carriedForward: number, sales: readonly VatSa
   return {
     period: month(period),
     salesOutsideEu: sales,
+    localSales: nothing,
     localPurchases: nothing,
+    euGoods: nothing,
     euServices: nothing,
     thirdCountryServices: nothing,
     outputVat: ZERO,

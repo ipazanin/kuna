@@ -16,13 +16,17 @@ export interface VatSale {
 
 /**
  * A monthly VAT return as the accountant prepared it, with every figure as the return states it.
- * Services bought from the EU and from outside it are reverse charged, so they sit on both sides
- * and cancel.
+ * Services bought from the EU and from outside it, and goods bought from the EU, are reverse
+ * charged, so they sit on both sides and cancel.
  */
 export interface VatReturn {
   readonly period: MonthKey
   readonly salesOutsideEu: readonly VatSale[]
+  /** Sales in Croatia, whose VAT the company owes. Zero when the return has no such tab. */
+  readonly localSales: VatAmounts
   readonly localPurchases: VatAmounts
+  /** Zero when the return has no such tab. */
+  readonly euGoods: VatAmounts
   /** Zero when the return has no such tab. */
   readonly euServices: VatAmounts
   /** Zero when the return has no such tab. */

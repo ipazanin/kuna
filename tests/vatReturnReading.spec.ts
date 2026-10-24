@@ -31,7 +31,9 @@ describe('readVatReturn', () => {
     expect(returnOf({ sales: [SALE], local: [], broughtForward: -150 })).toEqual({
       period: month('2026-03'),
       salesOutsideEu: [{ invoiceNumber: '3-2-26', issued: civil('2026-03-31'), amount: euros(4000) }],
+      localSales: { base: euros(0), vat: euros(0) },
       localPurchases: { base: euros(0), vat: euros(0) },
+      euGoods: { base: euros(0), vat: euros(0) },
       euServices: { base: euros(0), vat: euros(0) },
       thirdCountryServices: { base: euros(0), vat: euros(0) },
       outputVat: euros(0),
@@ -58,6 +60,50 @@ describe('readVatReturn', () => {
     const vatReturn = returnOf(spec)
     expect(vatReturn.thirdCountryServices).toEqual({ base: euros(8), vat: euros(2) })
     expect([vatReturn.outputVat, vatReturn.inputVat, vatReturn.carriedForward]).toEqual([euros(6), euros(26), euros(-170)])
+  })
+
+  it('reads sales in Croatia from Lokalni I, whose VAT the company owes', () => {
+    const spec: VatReturnSpec = { sales: [SALE], localSales: [{ base: 200, vat: 50 }], local: [{ base: 80, vat: 20 }], broughtForward: -150 }
+    expect(vatReturnTabs(spec)[0]!.grid).toHaveLength(11)
+    const vatReturn = returnOf(spec)
+    expect(vatReturn.localSales).toEqual({ base: euros(200), vat: euros(50) })
+    // 50.00 owed on the sales less 20.00 deducted on the purchases leaves 30.00 to pay, which the 150.00 overpayment brought forward covers.
+    expect([vatReturn.outputVat, vatReturn.inputVat, vatReturn.difference, vatReturn.carriedForward]).toEqual([euros(50), euros(20), euros(30), euros(-120)])
+  })
+
+  it('reads goods bought from the EU from Dobra EU, reverse charged on both sides', () => {
+    const spec: VatReturnSpec = { sales: [SALE], local: [{ base: 80, vat: 20 }], euGoods: [{ base: 12, vat: 3 }, { base: 4, vat: 1 }], broughtForward: -150 }
+    expect(vatReturnTabs(spec)[0]!.grid).toHaveLength(12)
+    const vatReturn = returnOf(spec)
+    expect(vatReturn.euGoods).toEqual({ base: euros(16), vat: euros(4) })
+    expect([vatReturn.outputVat, vatReturn.inputVat, vatReturn.difference, vatReturn.carriedForward]).toEqual([euros(4), euros(24), euros(-20), euros(-170)])
+  })
+
+  it('reads third-country services under the older wording, Primljene usluge - TZ and Porezni broj', () => {
+    const spec: VatReturnSpec = { sales: [SALE], local: [{ base: 80, vat: 20 }], thirdCountry: [{ base: 8, vat: 2 }], olderThirdCountryWording: true, broughtForward: -150 }
+    const vatReturn = returnOf(spec)
+    expect(vatReturn.thirdCountryServices).toEqual({ base: euros(8), vat: euros(2) })
+    expect([vatReturn.outputVat, vatReturn.inputVat, vatReturn.carriedForward]).toEqual([euros(2), euros(22), euros(-170)])
+  })
+
+  it('refuses a third-country services tab with neither tax number header, naming both', () => {
+    const tabs = withCell(vatReturnTabs({ sales: [SALE], local: [], thirdCountry: [{ base: 8, vat: 2 }], broughtForward: -150 }), 'Treće zemlje usluge U', 1, 5, 'OIB')
+    expect(refusalOf(tabs)).toEqual({
+      tab: 'Treće zemlje usluge U',
+      row: 1,
+      reason: 'the header is not R.b., Broj računa, Datum, Dobavljač, PDV ID broj or Porezni broj, Osnovica, PDV, Ukupno',
+    })
+  })
+
+  it('refuses a summary line for sales in Croatia that disagrees with Lokalni I', () => {
+    const tabs = vatReturnTabs({ sales: [SALE], localSales: [{ base: 200, vat: 50 }], local: [], broughtForward: -150 })
+    // Row 4 is Lokalne isporuke under Izlazne isporuke, column C its VAT.
+    expect(refusalOf(withCell(tabs, 'Rekapitulacija', 4, 3, 51))).toEqual({ tab: 'Rekapitulacija', row: 4, reason: 'the VAT of Lokalne isporuke differs from the total of Lokalni I' })
+  })
+
+  it('refuses a summary line for EU goods without the Dobra EU tab behind it', () => {
+    const tabs = vatReturnTabs({ sales: [SALE], local: [], euGoods: [{ base: 12, vat: 3 }], broughtForward: -150 }).filter((tab) => tab.name !== 'Dobra EU')
+    expect(refusalOf(tabs)).toEqual({ tab: 'Rekapitulacija', row: 4, reason: 'Stjecanje dobra iz EU has no Dobra EU tab behind it' })
   })
 
   it('reads a tab name written with combining accents as the same tab', () => {

@@ -38,11 +38,17 @@ export interface PurchaseLine {
 
 export interface VatReturnSpec {
   readonly sales: readonly SaleLine[]
+  /** Sales in Croatia with their VAT. Leave out for a return without the tab. */
+  readonly localSales?: readonly PurchaseLine[]
   readonly local: readonly PurchaseLine[]
+  /** Leave out for a return without the EU goods tab. */
+  readonly euGoods?: readonly PurchaseLine[]
   /** Leave out for a return without the EU services tab. */
   readonly eu?: readonly PurchaseLine[]
   /** Leave out for a return without the third-country services tab. */
   readonly thirdCountry?: readonly PurchaseLine[]
+  /** Words the third-country services as the older returns do: `Primljene usluge - TZ` on the summary and `Porezni broj` on their tab. */
+  readonly olderThirdCountryWording?: boolean
   /** Negative, as the return states an overpayment. */
   readonly broughtForward: number
   /** `R.b.` as text such as `1.`, or as a number. */
@@ -50,10 +56,11 @@ export interface VatReturnSpec {
 }
 
 const PURCHASE_HEADER: Row = ['R.b.', 'Broj računa', 'Datum', 'Dobavljač', 'PDV ID broj', 'Osnovica', 'PDV', 'Ukupno', 'Check']
+const SALES_HEADER: Row = ['R.b.', 'Broj računa', 'Datum', 'Kupac', 'PDV ID broj', 'Osnovica', 'PDV', 'Ukupno', 'Check']
 
 /**
  * The tabs of a made-up VAT return, laid out as the accountant's files are. `Rekapitulacija` takes
- * 10 rows without reverse-charged services, 12 with EU services and 14 with third-country services too.
+ * 10 rows, one more with sales in Croatia and two more for each reverse-charged tab.
  */
 export function vatReturnTabs(spec: VatReturnSpec): DocumentTab[] {
   const lineNumber = (index: number): StatementCell => (spec.lineNumbers === 'number' ? index + 1 : `${index + 1}.`)
@@ -68,15 +75,15 @@ export function vatReturnTabs(spec: VatReturnSpec): DocumentTab[] {
       [undefined, undefined, undefined, undefined, 'I.5.', salesTotal],
     ],
   }
-  const purchaseTab = (name: string, code: string, lines: readonly PurchaseLine[]): { tab: DocumentTab; base: number; vat: number } => {
+  const detailTab = (name: string, code: string, lines: readonly PurchaseLine[], header = PURCHASE_HEADER, party = 'Example Supplier'): { tab: DocumentTab; base: number; vat: number } => {
     const base = total(lines.map((line) => line.base))
     const vat = total(lines.map((line) => line.vat))
-    const rows = lines.map((line, index): Row => [lineNumber(index), `R-${index + 1}`, serialFromCivilDate(civil('2026-03-05')), 'Example Supplier', 'HR00000000000', line.base, line.vat, total([line.base, line.vat]), 0])
+    const rows = lines.map((line, index): Row => [lineNumber(index), `R-${index + 1}`, serialFromCivilDate(civil('2026-03-05')), party, 'HR00000000000', line.base, line.vat, total([line.base, line.vat]), 0])
     return {
       tab: {
         name,
         grid: [
-          PURCHASE_HEADER,
+          header,
           ...rows,
           [],
           [undefined, undefined, undefined, undefined, undefined, 'Osnovica', 'PDV'],
@@ -88,25 +95,33 @@ export function vatReturnTabs(spec: VatReturnSpec): DocumentTab[] {
       vat,
     }
   }
-  const local = purchaseTab('Lokalni U', 'III.3.', spec.local)
-  const eu = spec.eu === undefined ? null : purchaseTab('EU usluge U', 'II.10./III.10.', spec.eu)
-  const third = spec.thirdCountry === undefined ? null : purchaseTab('Treće zemlje usluge U', 'II.13./III.13.', spec.thirdCountry)
+  const localSales = spec.localSales === undefined ? null : detailTab('Lokalni I', 'II.3.', spec.localSales, SALES_HEADER, 'Example Buyer')
+  const local = detailTab('Lokalni U', 'III.3.', spec.local)
+  const euGoods = spec.euGoods === undefined ? null : detailTab('Dobra EU', 'II.7./III.7.', spec.euGoods)
+  const eu = spec.eu === undefined ? null : detailTab('EU usluge U', 'II.10./III.10.', spec.eu)
+  const thirdHeader = spec.olderThirdCountryWording === true ? PURCHASE_HEADER.map((header) => (header === 'PDV ID broj' ? 'Porezni broj' : header)) : PURCHASE_HEADER
+  const third = spec.thirdCountry === undefined ? null : detailTab('Treće zemlje usluge U', 'II.13./III.13.', spec.thirdCountry, thirdHeader)
+  const thirdLabel = spec.olderThirdCountryWording === true ? 'Primljene usluge - TZ' : 'Treće zemlje - usluge'
 
-  const reverseCharged = [eu, third].filter((detail) => detail !== null)
-  const outputVat = total(reverseCharged.map((detail) => detail.vat))
+  const reverseCharged = [euGoods, eu, third].filter((detail) => detail !== null)
+  const reverseChargedLines = (): Row[] => [
+    ...(euGoods === null ? [] : [['Stjecanje dobra iz EU', euGoods.base, euGoods.vat]]),
+    ...(eu === null ? [] : [['EU - usluge', eu.base, eu.vat]]),
+    ...(third === null ? [] : [[thirdLabel, third.base, third.vat]]),
+  ]
+  const outputVat = total([localSales?.vat ?? 0, ...reverseCharged.map((detail) => detail.vat)])
   const inputVat = total([local.vat, ...reverseCharged.map((detail) => detail.vat)])
   const difference = total([outputVat, -inputVat])
   const summary: Row[] = [
     ['Vrsta isporuke', 'Osnovica', 'PDV'],
     ['Izlazne isporuke'],
     ['Obavljene usluge u TZ', salesTotal],
-    ...(eu === null ? [] : [['EU - usluge', eu.base, eu.vat]]),
-    ...(third === null ? [] : [['Treće zemlje - usluge', third.base, third.vat]]),
-    ['Ukupno', total([salesTotal, ...reverseCharged.map((detail) => detail.base)]), outputVat],
+    ...(localSales === null ? [] : [['Lokalne isporuke', localSales.base, localSales.vat]]),
+    ...reverseChargedLines(),
+    ['Ukupno', total([salesTotal, localSales?.base ?? 0, ...reverseCharged.map((detail) => detail.base)]), outputVat],
     ['Ulazne isporuke'],
     ['Lokalne isporuke', local.base, local.vat],
-    ...(eu === null ? [] : [['EU - usluge', eu.base, eu.vat]]),
-    ...(third === null ? [] : [['Treće zemlje - usluge', third.base, third.vat]]),
+    ...reverseChargedLines(),
     ['Ukupno', total([local.base, ...reverseCharged.map((detail) => detail.base)]), inputVat],
     ['Razlika PDV-a', undefined, difference],
     ['Pretplata iz prethodnih razdoblja', undefined, spec.broughtForward],
@@ -115,9 +130,11 @@ export function vatReturnTabs(spec: VatReturnSpec): DocumentTab[] {
   return [
     { name: 'Rekapitulacija', grid: summary },
     { name: 'Izlazni>>', grid: [] },
+    ...(localSales === null ? [] : [localSales.tab]),
     salesTab,
     { name: 'Ulazni>>', grid: [] },
     local.tab,
+    ...(euGoods === null ? [] : [euGoods.tab]),
     ...(eu === null ? [] : [eu.tab]),
     ...(third === null ? [] : [third.tab]),
   ]

@@ -11,19 +11,30 @@ const SUMMARY_HEADERS = ['Vrsta isporuke', 'Osnovica', 'PDV']
 /** Empty tabs that only separate the sales tabs from the purchase tabs. */
 const SEPARATOR_TABS = ['Izlazni>>', 'Ulazni>>']
 
+/** A column's header, or the words it may carry when the accountant's files differ. */
+type Header = string | readonly string[]
+
 interface DetailShape {
   readonly name: string
   /** The form code the total row carries in column E. */
   readonly code: string
-  readonly headers: readonly string[]
+  readonly headers: readonly Header[]
 }
 
 const PURCHASE_HEADERS = ['R.b.', 'Broj računa', 'Datum', 'Dobavljač', 'PDV ID broj', 'Osnovica', 'PDV', 'Ukupno']
 const SALES_OUTSIDE_EU: DetailShape = { name: 'Treće zemlje usluge I', code: 'I.5.', headers: ['R.b.', 'Broj računa', 'Datum', 'Kupac', 'Porezni broj', 'Iznos'] }
+const LOCAL_SALES: DetailShape = { name: 'Lokalni I', code: 'II.3.', headers: ['R.b.', 'Broj računa', 'Datum', 'Kupac', 'PDV ID broj', 'Osnovica', 'PDV', 'Ukupno'] }
 const LOCAL_PURCHASES: DetailShape = { name: 'Lokalni U', code: 'III.3.', headers: PURCHASE_HEADERS }
+const EU_GOODS: DetailShape = { name: 'Dobra EU', code: 'II.7./III.7.', headers: PURCHASE_HEADERS }
 const EU_SERVICES: DetailShape = { name: 'EU usluge U', code: 'II.10./III.10.', headers: PURCHASE_HEADERS }
-const THIRD_COUNTRY_SERVICES: DetailShape = { name: 'Treće zemlje usluge U', code: 'II.13./III.13.', headers: PURCHASE_HEADERS }
-const DETAIL_TABS = [SALES_OUTSIDE_EU, LOCAL_PURCHASES, EU_SERVICES, THIRD_COUNTRY_SERVICES]
+const THIRD_COUNTRY_SERVICES: DetailShape = {
+  name: 'Treće zemlje usluge U',
+  code: 'II.13./III.13.',
+  headers: ['R.b.', 'Broj računa', 'Datum', 'Dobavljač', ['PDV ID broj', 'Porezni broj'], 'Osnovica', 'PDV', 'Ukupno'],
+}
+const DETAIL_TABS = [SALES_OUTSIDE_EU, LOCAL_SALES, LOCAL_PURCHASES, EU_GOODS, EU_SERVICES, THIRD_COUNTRY_SERVICES]
+const BOTH_SIDES = ['output', 'input'] as const
+const NO_AMOUNTS: VatAmounts = { base: ZERO, vat: ZERO }
 
 /** The words a detail tab repeats above its total row. */
 const REPEATED_HEADERS = new Set(['Osnovica', 'PDV', 'Iznos', 'Ukupno'])
@@ -31,13 +42,38 @@ const REPEATED_HEADERS = new Set(['Osnovica', 'PDV', 'Iznos', 'Ukupno'])
 const COLUMN = { lineNumber: 0, invoiceNumber: 1, date: 2, code: 4, base: 5, vat: 6 } as const
 
 type SummarySection = 'output' | 'input' | 'closing'
-type SummaryLine = 'salesOutsideEu' | 'euServices' | 'thirdCountryServices' | 'localPurchases' | 'total' | 'difference' | 'broughtForward' | 'carriedForward'
+type SummaryLine =
+  | 'salesOutsideEu'
+  | 'localSales'
+  | 'euGoods'
+  | 'euServices'
+  | 'thirdCountryServices'
+  | 'localPurchases'
+  | 'total'
+  | 'difference'
+  | 'broughtForward'
+  | 'carriedForward'
 
 const SECTION_HEADINGS: Readonly<Record<string, SummarySection>> = { 'Izlazne isporuke': 'output', 'Ulazne isporuke': 'input' }
 const SECTION_NAMES: Readonly<Record<SummarySection, string>> = { output: 'Izlazne isporuke', input: 'Ulazne isporuke', closing: 'the closing lines' }
 const SUMMARY_LABELS: Readonly<Record<SummarySection, Readonly<Record<string, SummaryLine>>>> = {
-  output: { 'Obavljene usluge u TZ': 'salesOutsideEu', 'EU - usluge': 'euServices', 'Treće zemlje - usluge': 'thirdCountryServices', Ukupno: 'total' },
-  input: { 'Lokalne isporuke': 'localPurchases', 'EU - usluge': 'euServices', 'Treće zemlje - usluge': 'thirdCountryServices', Ukupno: 'total' },
+  output: {
+    'Obavljene usluge u TZ': 'salesOutsideEu',
+    'Lokalne isporuke': 'localSales',
+    'Stjecanje dobra iz EU': 'euGoods',
+    'EU - usluge': 'euServices',
+    'Treće zemlje - usluge': 'thirdCountryServices',
+    'Primljene usluge - TZ': 'thirdCountryServices',
+    Ukupno: 'total',
+  },
+  input: {
+    'Lokalne isporuke': 'localPurchases',
+    'Stjecanje dobra iz EU': 'euGoods',
+    'EU - usluge': 'euServices',
+    'Treće zemlje - usluge': 'thirdCountryServices',
+    'Primljene usluge - TZ': 'thirdCountryServices',
+    Ukupno: 'total',
+  },
   closing: {
     'Razlika PDV-a': 'difference',
     'Pretplata iz prethodnih razdoblja': 'broughtForward',
@@ -85,11 +121,15 @@ function vatReturnOf(period: MonthKey, tabs: readonly DocumentTab[]): VatReturn 
   const salesTotal = amountCell(salesTab.name, salesTotalRow, gridRow(salesTab.grid, salesTotalRow)[COLUMN.base], 'Iznos on the total row')
   if (sumMoney(sales.map((sale) => sale.amount)) !== salesTotal) refuse(salesTab.name, salesTotalRow + 1, 'the lines do not add up to the total row')
 
-  const local = purchaseTotal(required(LOCAL_PURCHASES.name), LOCAL_PURCHASES)
-  const euTab = byName.get(EU_SERVICES.name)
-  const eu = euTab === undefined ? null : purchaseTotal(euTab, EU_SERVICES)
-  const thirdTab = byName.get(THIRD_COUNTRY_SERVICES.name)
-  const third = thirdTab === undefined ? null : purchaseTotal(thirdTab, THIRD_COUNTRY_SERVICES)
+  const optionalTotal = (shape: DetailShape): DetailTotal | null => {
+    const tab = byName.get(shape.name)
+    return tab === undefined ? null : detailTotal(tab, shape)
+  }
+  const localSales = optionalTotal(LOCAL_SALES)
+  const local = detailTotal(required(LOCAL_PURCHASES.name), LOCAL_PURCHASES)
+  const euGoods = optionalTotal(EU_GOODS)
+  const eu = optionalTotal(EU_SERVICES)
+  const third = optionalTotal(THIRD_COUNTRY_SERVICES)
 
   const summary = summaryOf(required(SUMMARY_TAB))
   const line = (section: SummarySection, key: SummaryLine): SummaryEntry | null => summary[section].get(key) ?? null
@@ -102,11 +142,13 @@ function vatReturnOf(period: MonthKey, tabs: readonly DocumentTab[]): VatReturn 
 
   agrees(requiredLine('output', 'salesOutsideEu'), { name: SALES_OUTSIDE_EU.name, amounts: { base: salesTotal, vat: ZERO } }, 'base')
   agrees(requiredLine('input', 'localPurchases'), local)
-  for (const [key, detail, shape] of [
-    ['euServices', eu, EU_SERVICES],
-    ['thirdCountryServices', third, THIRD_COUNTRY_SERVICES],
+  for (const [key, detail, shape, sections] of [
+    ['localSales', localSales, LOCAL_SALES, ['output']],
+    ['euGoods', euGoods, EU_GOODS, BOTH_SIDES],
+    ['euServices', eu, EU_SERVICES, BOTH_SIDES],
+    ['thirdCountryServices', third, THIRD_COUNTRY_SERVICES, BOTH_SIDES],
   ] as const) {
-    for (const section of ['output', 'input'] as const) {
+    for (const section of sections) {
       const entry = line(section, key)
       if (entry === null && detail !== null) refuse(SUMMARY_TAB, null, `${SECTION_NAMES[section]} has no line for the ${shape.name} tab`)
       if (entry !== null && detail === null) refuse(SUMMARY_TAB, entry.row, `${entry.label} has no ${shape.name} tab behind it`)
@@ -129,9 +171,11 @@ function vatReturnOf(period: MonthKey, tabs: readonly DocumentTab[]): VatReturn 
   return {
     period,
     salesOutsideEu: sales,
+    localSales: localSales?.amounts ?? NO_AMOUNTS,
     localPurchases: local.amounts,
-    euServices: eu?.amounts ?? { base: ZERO, vat: ZERO },
-    thirdCountryServices: third?.amounts ?? { base: ZERO, vat: ZERO },
+    euGoods: euGoods?.amounts ?? NO_AMOUNTS,
+    euServices: eu?.amounts ?? NO_AMOUNTS,
+    thirdCountryServices: third?.amounts ?? NO_AMOUNTS,
     outputVat: outputTotal.vat,
     inputVat: inputTotal.vat,
     difference: difference.amounts.vat,
@@ -189,17 +233,17 @@ function agrees(entry: SummaryEntry, detail: DetailTotal, compared: 'base' | 'bo
   if (compared === 'both' && entry.amounts.vat !== detail.amounts.vat) refuse(SUMMARY_TAB, entry.row, `the VAT of ${entry.label} differs from the total of ${detail.name}`)
 }
 
-function purchaseTotal(tab: DocumentTab, shape: DetailShape): DetailTotal {
+function detailTotal(tab: DocumentTab, shape: DetailShape): DetailTotal {
   const totalRow = totalRowOf(tab, shape)
-  const lines = lineRows(tab, totalRow).map((rowIndex) => purchaseAmounts(tab, rowIndex, 'on the line'))
-  const total = purchaseAmounts(tab, totalRow, 'on the total row')
+  const lines = lineRows(tab, totalRow).map((rowIndex) => lineAmounts(tab, rowIndex, 'on the line'))
+  const total = lineAmounts(tab, totalRow, 'on the total row')
   if (sumMoney(lines.map((amounts) => amounts.base)) !== total.base || sumMoney(lines.map((amounts) => amounts.vat)) !== total.vat) {
     refuse(tab.name, totalRow + 1, 'the lines do not add up to the total row')
   }
   return { name: tab.name, amounts: total }
 }
 
-function purchaseAmounts(tab: DocumentTab, rowIndex: number, where: string): VatAmounts {
+function lineAmounts(tab: DocumentTab, rowIndex: number, where: string): VatAmounts {
   const cells = gridRow(tab.grid, rowIndex)
   return {
     base: amountCell(tab.name, rowIndex, cells[COLUMN.base], `Osnovica ${where}`),
@@ -244,7 +288,10 @@ function isLineNumber(cell: StatementCell | undefined): boolean {
   return typeof cell === 'number' ? Number.isInteger(cell) && cell > 0 : /^\d+\.?$/.test(labelText(cell))
 }
 
-function checkHeaders(tab: DocumentTab, headers: readonly string[]): void {
+function checkHeaders(tab: DocumentTab, headers: readonly Header[]): void {
   const found = gridRow(tab.grid, 0).map(labelText)
-  if (headers.some((header, column) => found[column] !== header)) refuse(tab.name, 1, `the header is not ${headers.join(', ')}`)
+  const wordsOf = (header: Header): readonly string[] => (typeof header === 'string' ? [header] : header)
+  if (headers.some((header, column) => !wordsOf(header).includes(found[column] ?? ''))) {
+    refuse(tab.name, 1, `the header is not ${headers.map((header) => wordsOf(header).join(' or ')).join(', ')}`)
+  }
 }
