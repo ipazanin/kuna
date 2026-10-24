@@ -3,9 +3,12 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { FOREIGN_WORKBOOK_FILES, foreignWorkbookBytes } from '../scripts/support/foreignWorkbookFiles.mjs'
 import { exportFileName, previewImport } from '../src/features/workbook/presentation/workbookFiles'
+import { NEWER_FILE, encodeDocument } from '../src/features/workbook/infrastructure/documentFormat'
+import { newDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import { COMPANY_APP } from '../src/features/workbook/infrastructure/documentStorePorts'
 import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readWorkbookFile, workbookGrids, writeWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import type { CellValue, WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
@@ -13,7 +16,7 @@ import { emptyWorkbookTabs } from '../src/features/workbook/infrastructure/empty
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
-const META = { id: 'file', source: 'excel', title: 'File', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] } as const
+const META = { id: 'file', source: 'browser', title: 'File', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null } as const
 
 function workbookOf(tabs: WorkbookTabs): HrDooWorkbook {
   return hrDooWorkbook(readSnapshot({ meta: META, ...tabs }).workbook)
@@ -139,6 +142,39 @@ describe('reading an xlsx file', () => {
       ['ledger', 'yesterday, 1, balance 1'],
     ])
     expect(refused.summary.refusal).toMatch(/no tab called "ledger"/)
+    expect(preview.counts).toEqual([
+      { name: 'ledger', count: 3 },
+      { name: 'settings', count: 2 },
+    ])
+    expect(preview.recordCount).toBe(5)
+  })
+
+  it('opens a ledgerboard file such as a backup, and refuses one a newer app saved or another app keeps', async () => {
+    const document = newDocument(
+      COMPANY_APP,
+      {
+        'ledger-row': [{ id: 'row-1', date: '2026-10-05', account: 'main', amount: '-12.50', balance: '87.50', category: 'software', flagged_by: 'rule' }],
+        setting: [{ key: 'company_name', value: 'Example Studio' }],
+        'a-later-kind': [{ kept: 'as it was' }],
+      },
+      '2026-10-16T08:00:00.000Z',
+    )
+    const backup = new File([encodeDocument(document)], 'ledgerboard-company-2026-10-16.json')
+
+    const preview = await previewImport(backup)
+    const newer = await previewImport(new File([encodeDocument({ ...document, schema: { ...document.schema, core: 99 } })], 'newer.json'))
+    const otherApp = await previewImport(new File([encodeDocument({ ...document, app: 'household' })], 'ledgerboard-household.json')).catch((error: unknown) => error)
+
+    expect(preview.document).toEqual(document)
+    expect(preview.title).toBe('Example Studio')
+    expect(preview.summary).toMatchObject({ transactionCount: 1, defaultedTabs: [], refusal: null })
+    expect(preview.counts).toEqual([
+      { name: 'ledger', count: 1 },
+      { name: 'settings', count: 1 },
+      { name: 'a-later-kind', count: 1 },
+    ])
+    expect(newer.summary.refusal).toBe(NEWER_FILE)
+    expect((otherApp as Error).message).toMatch(/holds the books of another ledgerboard app, household/)
   })
 
   it('says plainly when a file is not a workbook at all, and keeps the reason it failed', async () => {
@@ -174,7 +210,7 @@ describe('reading an xlsx file', () => {
 
 describe('exporting', () => {
   it('round-trips: importing an export gives the same workbook, extra columns included', async () => {
-    const original = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
+    const original = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'browser')
     const withExtra: WorkbookSnapshot = {
       ...original,
       ledger: original.ledger.map((row, index) => (index === 3 ? { ...row, cells: { ...row.cells, receipt: 'R-17' } } : row)),
@@ -201,7 +237,7 @@ describe('exporting', () => {
   })
 
   it('round-trips the rules tab and the camt signal columns', async () => {
-    const original = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
+    const original = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'browser')
     const withRules: WorkbookSnapshot = {
       ...original,
       ledger: original.ledger.map((row, index) =>
@@ -242,7 +278,7 @@ describe('exporting', () => {
     expect(contentOf(workbookOf(imported.tabs))).toEqual(contentOf(workbook))
   })
 
-  it('keeps the Sheet’s column order, A to R, then the owner share, and writes dates as dates', () => {
+  it('keeps the Sheet’s column order, A to R, then the owner share and the id, and writes dates as dates', () => {
     const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')
     const grids = workbookGrids(snapshot, readSnapshot(snapshot).workbook)
     const header = grids.ledger.header
@@ -251,7 +287,7 @@ describe('exporting', () => {
       'date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance',
       'category', 'flagged_by', 'reference',
       'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency', 'review_reasons',
-      'owner_share',
+      'owner_share', 'id',
     ])
     expect(typeof grids.ledger.rows[0]?.[header.indexOf('date')]).toBe('number')
   })
@@ -279,13 +315,13 @@ describe('exporting', () => {
 
     expect(workbook.problems).toEqual([])
     expect(workbook.transactions[0]).toMatchObject({ category: 'revenue', flaggedBy: 'rule', reference: 'REF-1', family: 'income', bucket: 'income' })
-    expect(grids.ledger.header.slice(19)).toEqual(['family', 'bucket', 'month'])
-    expect(grids.ledger.rows[0]?.slice(19)).toEqual(['operating', 'neutral', '1999-01'])
+    expect(grids.ledger.header.slice(20)).toEqual(['family', 'bucket', 'month'])
+    expect(grids.ledger.rows[0]?.slice(20)).toEqual(['operating', 'neutral', '1999-01'])
     expect(contentOf(workbookOf(reimported.tabs))).toEqual(contentOf(workbook))
   })
 
   it('writes the year-end amount as a date, a rate or an amount by its line, and the planning dates as dates', async () => {
-    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
+    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'browser')
     const book = XLSX.read(await writeWorkbookFile(snapshot, readSnapshot(snapshot).workbook), { type: 'array' })
     const yearEnd = XLSX.utils.sheet_to_json<Record<string, CellValue>>(book.Sheets['year-end']!, { raw: false })
 

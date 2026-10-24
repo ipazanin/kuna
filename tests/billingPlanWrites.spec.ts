@@ -1,22 +1,23 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
 import { BILLING_WRITES, newBillingItem } from '../src/features/billingPlan/application/billingWrites'
 import type { BillingItemDraft } from '../src/features/billingPlan/domain/fillRestOfYear'
 import { canUndo, wasUndone } from '../src/features/workbook/application/createWorkbookStore'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import type { BillingItem } from '../src/features/workbook/domain/billingPlan'
-import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { civil, euros } from './fixtures/ledger'
 import { cellsOf, recordOnRow } from './fixtures/recordWrites'
 import { withIds } from './fixtures/rowIds'
-import { AN_ID, cellData, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { AN_ID, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { BILLING_RECORDS } from '../src/features/workbook/domain/recordKind'
 
-type Store = WorkbookStore<WorkbookSnapshot>
+type Store = WorkbookStore<DocumentCopy>
 
 const used = new Set<string>()
 
@@ -63,8 +64,8 @@ function plan(store: Store): [string, string, number][] {
 }
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('billing plan writes to %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('appends rows that read back as plan rows, and Undo clears them again', async () => {
     const { store } = await harnessOf(used, gridsWithBillingPlan())
@@ -146,84 +147,5 @@ describe.each([
     expect(store.state.workbook?.billingPlan.map((row) => [row.item, row.id])).toEqual([['Monthly Fee', recordIdOf(BILLING_RECORDS, 'item-2')]])
     expect(store.state.writes[0]).toMatchObject({ undid: receipt })
     await expect(store.undo(deleted!)).rejects.toThrow(WorkbookWriteRefused)
-  })
-})
-
-describe('billing plan writes to a Google Sheet', () => {
-  it('finds a row again by its id after rows were inserted above it, and refuses when copies hold its id', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used, gridsWithBillingPlan())
-    const fee = planRowAt(store, 2)
-    sheets.grids['outgoing-plan']!.splice(1, 0, ['Hotel', 46290, 120, 'acme', 'Inserted in the Sheet', 'hotel-id'])
-
-    await removeRow(store, fee)
-
-    expect(writtenRanges()).toEqual([])
-    expect(sheets.grids['outgoing-plan']!.map((row) => row[4])).toEqual(['description', 'Inserted in the Sheet', 'Bonus share'])
-
-    const bonus = sheets.grids['outgoing-plan']![2]!
-    sheets.grids['outgoing-plan']!.push([...bonus], [...bonus])
-    await expect(removeRow(store, planRowAt(store, 3))).rejects.toThrow('3 records hold the plan row "Bonus, acme, 2026-10-05, 833.333333", so the app cannot tell which one is meant.')
-  })
-
-  it('appends below the last row, the date as a serial number, with a new id under an id header the tab lacked', async () => {
-    const { store, sheets } = await googleHarness(used, { ...gridsWithBillingPlan(), 'outgoing-plan': [['item', 'date', 'amount', 'client', 'description']] })
-
-    await addRows(store, [OCTOBER_FEE])
-
-    const sheetId = (await sheets.sheetGrids()).get('outgoing-plan')!.sheetId
-    const added = sheets.grids['outgoing-plan']!.length - 1
-    expect(sentRequests(sheets)).toEqual([
-      { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: 5 }, rows: [{ values: [cellData('id')] }], fields: 'userEnteredValue' } },
-      {
-        appendCells: {
-          sheetId,
-          rows: [{ values: [...['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026'].map(cellData), { userEnteredValue: { stringValue: AN_ID } }] }],
-          fields: 'userEnteredValue',
-        },
-      },
-      dateFormat(sheetId, added, 1),
-    ])
-    expect(sheets.formats['outgoing-plan']?.[added]?.[1]).toBe('yyyy-mm-dd')
-  })
-
-  it('adds a grid column for the id header when the tab has none free', async () => {
-    const { store, sheets } = await googleHarness(used, { ...gridsWithBillingPlan(), 'outgoing-plan': [['item', 'date', 'amount', 'client', 'description']] })
-    sheets.columnCounts['outgoing-plan'] = 5
-
-    await addRows(store, [OCTOBER_FEE])
-
-    const sheetId = (await sheets.sheetGrids()).get('outgoing-plan')!.sheetId
-    expect(sentRequests(sheets).slice(0, 2)).toEqual([
-      { appendDimension: { sheetId, dimension: 'COLUMNS', length: 1 } },
-      { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: 5 }, rows: [{ values: [cellData('id')] }], fields: 'userEnteredValue' } },
-    ])
-    expect(sheets.columnCounts['outgoing-plan']).toBe(6)
-    expect(sheets.grids['outgoing-plan']![1]).toEqual(['Monthly Fee', 46326, 4000, 'acme', 'Oct 2026', AN_ID])
-  })
-
-  it('appends every row of a fill in one request, so they land together or not at all', async () => {
-    const { store, sheets } = await googleHarness(used, gridsWithBillingPlan())
-
-    await addRows(store, [OCTOBER_FEE, { ...OCTOBER_FEE, date: civil('2026-11-30'), description: 'Nov 2026' }])
-
-    const appends = sentRequests(sheets).flatMap((request) => ('appendCells' in request ? [request.appendCells] : []))
-    expect(appends).toHaveLength(1)
-    expect(appends[0]?.rows.map((row) => row.values[4])).toEqual([cellData('Oct 2026'), cellData('Nov 2026')])
-  })
-
-  it('writes one cell when one changes, and never the formula value of a cell left alone', async () => {
-    const { store, writtenRanges } = await googleHarness(used, gridsWithBillingPlan())
-    const bonus = planRowAt(store, 3)
-
-    await changeRow(store, { before: bonus, after: { ...bonus, date: civil('2026-10-15') } })
-
-    expect(writtenRanges()).toEqual(["'outgoing-plan'!B3"])
-  })
-
-  it('refuses every write to a Sheet without an outgoing-plan tab', async () => {
-    const { 'outgoing-plan': _plan, ...withoutPlan } = gridsWithBillingPlan()
-    const { store } = await googleHarness(used, withoutPlan)
-
-    await expect(addRows(store, [OCTOBER_FEE])).rejects.toThrow('The workbook has no outgoing-plan tab')
   })
 })

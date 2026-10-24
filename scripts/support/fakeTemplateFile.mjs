@@ -1,8 +1,9 @@
 import { writeFileSync } from 'node:fs'
 
-import { fakeWorkbookSnapshot } from '../../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
+import { readDocument } from '../../src/features/workbook/infrastructure/documentRecordStorage.ts'
+import { fakeWorkbookDocument } from '../../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
+import { tabsOfDocument } from '../../src/features/workbook/infrastructure/spreadsheetDocument.ts'
 import { writeWorkbookFile } from '../../src/features/workbook/infrastructure/workbookFile.ts'
-import { readSnapshot } from '../../src/features/workbook/infrastructure/spreadsheetTab.ts'
 import { installHrDooPack } from './installPack.mjs'
 
 /**
@@ -11,7 +12,8 @@ import { installHrDooPack } from './installPack.mjs'
  */
 export async function writeFakeTemplateFile(path) {
   installHrDooPack()
-  const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
-  writeFileSync(path, await writeWorkbookFile(snapshot, readSnapshot(snapshot).workbook))
+  const document = fakeWorkbookDocument('2026-10-16T08:00:00.000Z', 'browser')
+  const { workbook } = readDocument({ id: 'fake', source: 'browser', title: 'Fake workbook', syncedAt: document.savedAt }, document)
+  writeFileSync(path, await writeWorkbookFile(tabsOfDocument(document), workbook))
   return path
 }

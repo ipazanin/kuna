@@ -1,7 +1,7 @@
 import type { StatementCell } from '../../../../features/imports/domain/tabularStatement'
 import { civilDate, serialFromCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { FAKE_SPREADSHEET_ID } from '../../../../features/workbook/infrastructure/fake/fakeWorkbook'
+import { FAKE_WORKBOOK_ID } from '../../../../features/workbook/infrastructure/fake/fakeWorkbook'
 import type { AccountantFolders, DriveWorkbook } from '../../application/accountantDocuments'
 import type { DocumentTab } from '../../domain/accountant/accountantDocument'
 import { DEFAULT_PAYROLL_FOLDER, DEFAULT_VAT_RETURNS_FOLDER } from '../../domain/companyFacts'
@@ -181,11 +181,11 @@ const FAKE_FILES: readonly FakeFile[] = [
 
 /** The fake workbook's id leads every file id, so a production bundle that holds these files fails its check. */
 function vatFile(name: string, format: DriveWorkbook['format'], spec: FakeVatReturn): FakeFile {
-  return { id: `${FAKE_SPREADSHEET_ID}/${name}`, name, format, version: '1', folder: 'vat-returns', tabs: vatReturnTabs(spec) }
+  return { id: `${FAKE_WORKBOOK_ID}/${name}`, name, format, version: '1', folder: 'vat-returns', tabs: vatReturnTabs(spec) }
 }
 
 function salaryFile(name: string, format: DriveWorkbook['format'], spec: FakeSalary): FakeFile {
-  return { id: `${FAKE_SPREADSHEET_ID}/${name}`, name, format, version: '1', folder: 'payroll', tabs: salaryTabs(spec) }
+  return { id: `${FAKE_WORKBOOK_ID}/${name}`, name, format, version: '1', folder: 'payroll', tabs: salaryTabs(spec) }
 }
 
 export function fakeAccountantFolders(): AccountantFolders {

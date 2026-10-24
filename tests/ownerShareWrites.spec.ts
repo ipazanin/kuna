@@ -24,7 +24,7 @@ import { ownerAdvanceOfDraft } from '../src/packs/hr-doo/application/ownerAdvanc
 import type { OwnerAdvanceEntry } from '../src/packs/hr-doo/domain/ownerAdvancesReading'
 import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 import { civil, euros } from './fixtures/ledger'
-import { LEDGER_HEADER, LEDGER_ROWS, excelHarness, forgetCaches, googleHarness } from './fixtures/writeBack'
+import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -67,34 +67,24 @@ function file(store: WorkbookStore<WorkbookCopy>, verdicts: readonly RowVerdict[
 }
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
-] as const)('filing rows with their share in %s', (name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
+] as const)('filing rows with their share in %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('confirms a row with its category’s default copied again, and the first share adds the owner_share column after the last one', async () => {
-    const { store, sheets, writtenRanges } = await harnessOf(used, grids(false))
+    const { store } = await harnessOf(used, grids(false))
     expect(row(store, 'MODEL API INC').ownerShare).toBeNull()
 
     await file(store, [confirmation(row(store, 'MODEL API INC'), store.state.workbook!.settings)!])
 
     expect(row(store, 'MODEL API INC')).toMatchObject({ category: 'ai-services', flaggedBy: 'ivan', ownerShare: 50 })
-    if (name === 'a Google Sheet') {
-      expect(sheets.grids.ledger![0]).toEqual([...LEDGER_HEADER, 'owner_share'])
-      expect(writtenRanges()).toEqual(['ledger!S1', 'ledger!J3', 'ledger!S3'])
-      expect(store.state.snapshot?.meta.missingColumns?.ledger).toBeUndefined()
-    }
   })
 
   it('files a row in a category without a default with a blank share, and writes no owner_share cell or column', async () => {
-    const { store, sheets, writtenRanges } = await harnessOf(used, grids(false))
+    const { store } = await harnessOf(used, grids(false))
 
     await file(store, [recategorisation(row(store, 'GADGET CORNER'), 'equipment', store.state.workbook!.settings)])
 
     expect(row(store, 'GADGET CORNER')).toMatchObject({ category: 'equipment', ownerShare: null })
-    if (name === 'a Google Sheet') {
-      expect(writtenRanges()).toEqual(['ledger!I2', 'ledger!J2'])
-      expect(sheets.grids.ledger![0]).toEqual(LEDGER_HEADER)
-      expect(store.state.snapshot?.meta.missingColumns?.ledger).toEqual(['owner_share'])
-    }
   })
 
   it('recategorises a row with the new category’s default over the share it held, and one Undo puts back both', async () => {

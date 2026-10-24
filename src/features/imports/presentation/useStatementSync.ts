@@ -64,17 +64,17 @@ export interface StatementSync {
   readonly state: Readonly<StatementSyncState>
   /** The statements the last sync held, as they stand against the workbook on screen now, or null. */
   readonly held: ComputedRef<readonly DryRunStatement[] | null>
-  /** What to say while a Google Sheet's sync cannot read the statements folder, or null. */
+  /** What to say while a sync of the file on Drive cannot read the statements folder, or null. */
   readonly unchecked: ComputedRef<string | null>
-  /** Reads the Sheet, then files the new statements of the folder while the page can read it. A second call while one runs waits on it. */
+  /** Reads the file on Drive, then files the new statements of the folder while the page can read it. A second call while one runs waits on it. */
   sync(): Promise<void>
-  /** The Sync button: a sync, and when the page cannot read the folder, a toast that offers to check it. */
+  /** The Sync button: with no file chosen it finds the file on Drive, otherwise a sync, and when the page cannot read the folder, a toast that offers to check it. */
   syncByHand(): Promise<void>
   /** Asks for the Drive read token, with Google's consent screen when needed, then syncs. Call it first in a click handler. */
   checkForNewStatements(): Promise<void>
 }
 
-/** The statements step of a sync, after the Sheet is read, and what it did, shared by the whole page. Excel mode has no sync. */
+/** The statements step of a sync, after the file is read, and what it did, shared by the whole page. A workbook kept in this browser has no sync. */
 export function useStatementSync(): StatementSync {
   const store = useWorkbook()
   const writes = useRecordWrites()
@@ -90,7 +90,7 @@ export function useStatementSync(): StatementSync {
   })
 
   const unchecked = computed(() => {
-    if (store.state.choice?.source !== 'google' || state.step !== null) return null
+    if (store.state.choice?.source !== 'drive' || state.step !== null) return null
     switch (state.access) {
       case 'held':
         return null
@@ -124,7 +124,7 @@ export function useStatementSync(): StatementSync {
   }
 
   async function fileStatements(): Promise<void> {
-    if (store.state.choice?.source !== 'google' || store.state.status !== 'ready' || store.state.workbook === null) return
+    if (store.state.choice?.source !== 'drive' || store.state.status !== 'ready' || store.state.workbook === null) return
     state.access = statementsAccess()
     if (state.access !== 'held') return
     state.step = { kind: 'looking' }
@@ -175,8 +175,12 @@ export function useStatementSync(): StatementSync {
     unchecked,
     sync,
     async syncByHand() {
+      if (store.state.choice === null) {
+        await store.chooseDriveFile()
+        return
+      }
       await sync()
-      if (store.state.choice?.source !== 'google' || store.state.status !== 'ready' || state.access === 'held') return
+      if (store.state.choice?.source !== 'drive' || store.state.status !== 'ready' || state.access === 'held') return
       toast.add({
         title: 'New statements not checked',
         description: 'Reading the statements folder in Drive needs your Drive read access on this page.',

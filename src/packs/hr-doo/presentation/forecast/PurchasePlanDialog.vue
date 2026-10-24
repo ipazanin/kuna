@@ -13,7 +13,6 @@ import { parseCivilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import type { Money } from '../../../../shared/money/money'
 import { purchasePlanLine, replacePlanLines } from '../../application/planWrites'
-import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { GROUP_WORDS, fieldAmount } from './planWording'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { usePlanWrites } from './usePlanWrites'
@@ -102,7 +101,6 @@ async function remove(): Promise<void> {
         <UFormField label="Depreciation group" class="sm:col-span-2">
           <USelect v-model="group" :items="groups" class="w-full" data-testid="purchase-group" />
         </UFormField>
-        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" class="sm:col-span-2" />
       </form>
     </template>
     <template #footer>

@@ -32,7 +32,7 @@ export const TEMPLATE_VERSION = 1
  */
 export interface Settings {
   readonly templateVersion: number
-  /** Blank when unnamed. The app then uses the Sheet's or the file's name. */
+  /** Blank when unnamed. The app then uses the file's name. */
   readonly companyName: string
   /** An ISO 4217 code with at most two decimals, such as `EUR`. */
   readonly currency: string

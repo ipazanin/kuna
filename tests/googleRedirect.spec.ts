@@ -278,7 +278,7 @@ describe('coming back to the app', () => {
     expect(loadAccessToken(Date.now())).toBeNull()
   })
 
-  it('keeps a Drive read token in page memory only, apart from the sign-in that reads and writes the Sheet, and forgets it on sign-out', async () => {
+  it('keeps a Drive read token in page memory only, apart from the sign-in that reads and writes the file on Drive, and forgets it on sign-out', async () => {
     savePendingRedirect(SILENT_DRIVE_READ)
     comeBackWith(`access_token=ya29.drive&expires_in=3599&scope=${encodeURIComponent(DRIVE_READONLY)}&state=one-time-state`)
 

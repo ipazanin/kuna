@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import UButton from '@nuxt/ui/components/Button.vue'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { today } from '../../../shared/calendar/civilDate'
-import { usePhoneLayout } from '../../../shared/layout/viewport'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import PageHeader from '../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../shared/ui/PageTabs.vue'
@@ -32,7 +29,6 @@ import type { Dismissal, SuggestionKind } from '../../workbook/domain/dismissals
 import { needsReview } from '../../workbook/domain/needsReview'
 import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
-import AddTabNotice from '../../workbook/presentation/AddTabNotice.vue'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { NO_RECORDS, recordWithId } from '../../workbook/domain/recordsRead'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
@@ -53,7 +49,6 @@ const { state } = store
 const toast = useToast()
 const names = useDisplayNames()
 const writes = useRecordWrites()
-const phone = usePhoneLayout()
 
 const context = computed(() => (ledger.value === null ? null : categorisationContextOf(ledger.value.workbook)))
 const busy = computed(() => writes.busy.value || state.writing)
@@ -111,8 +106,8 @@ function toggle(id: RecordId): void {
 }
 
 const description = computed(() =>
-  ledger.value?.workbook.source === 'google'
-    ? 'Rows that wait for a person, and the rules that decide the rest. Confirm or recategorise a row and the app writes its category and flagged_by to the Sheet.'
+  ledger.value?.workbook.source === 'drive'
+    ? 'Rows that wait for a person, and the rules that decide the rest. Confirm or recategorise a row and the app writes its category and flagged_by to the file on Drive.'
     : 'Rows that wait for a person, and the rules that decide the rest. Confirm or recategorise a row and the app keeps its category and flagged_by in this browser.',
 )
 
@@ -166,31 +161,10 @@ function openSplit(row: Transaction): void {
   splitOpen.value = true
 }
 
-const dismissedTabMissing = computed(() => state.choice?.source === 'google' && (state.snapshot?.meta.missingTabs.includes('dismissed') ?? false))
-
-/** A dismissal waiting for the person to agree that the Sheet gets a dismissed tab. */
-const asking = ref<{ readonly kind: SuggestionKind; readonly group: CoverageGroup<Transaction> } | null>(null)
-const askingOpen = computed({
-  get: () => asking.value !== null,
-  set: (opened: boolean) => {
-    if (!opened) asking.value = null
-  },
-})
-
-async function writeDismissal(kind: SuggestionKind, group: CoverageGroup<Transaction>, addTab: boolean): Promise<void> {
-  const written = await writes.write(`Dismissed ${group.name || 'the rows with no counterparty'}`, (unit) => unit.of(DISMISSAL_WRITES).add(dismissalOfGroup(kind, group, today())), {
-    failedTitle: 'Not dismissed',
-    addMissingKinds: addTab,
-  })
-  if (written) asking.value = null
-}
-
 function dismiss(kind: SuggestionKind, group: CoverageGroup<Transaction>): void {
-  if (dismissedTabMissing.value) {
-    asking.value = { kind, group }
-    return
-  }
-  void writeDismissal(kind, group, false)
+  void writes.write(`Dismissed ${group.name || 'the rows with no counterparty'}`, (unit) => unit.of(DISMISSAL_WRITES).add(dismissalOfGroup(kind, group, today())), {
+    failedTitle: 'Not dismissed',
+  })
 }
 
 function restore(dismissal: Dismissal): void {
@@ -278,29 +252,5 @@ function restore(dismissal: Dismissal): void {
     </PageTabs>
 
     <RuleEditor v-model:open="editorOpen" :source="editorSource" />
-    <UModal
-      v-model:open="askingOpen"
-      title="Dismiss and add the dismissed tab"
-      :description="asking ? `${asking.group.name || 'The rows with no counterparty'} stays hidden as new rows join it, until you restore it.` : ''"
-      :fullscreen="phone"
-      :ui="{ header: 'pe-16 sm:pe-6' }"
-    >
-      <template #body>
-        <AddTabNotice tab="dismissed" />
-      </template>
-      <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="asking = null" />
-          <UButton
-            label="Add the tab and dismiss"
-            icon="i-lucide-eye-off"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-            data-testid="dismiss-add-tab"
-            @click="asking && writeDismissal(asking.kind, asking.group, true)"
-          />
-        </div>
-      </template>
-    </UModal>
   </section>
 </template>

@@ -59,7 +59,7 @@ describe('the owner share', () => {
 
 function snapshotOf(tabs: Readonly<Record<string, CellValue[][]>>): WorkbookSnapshot {
   return {
-    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id: 'sheet', source: 'drive', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ...EMPTY_TABS,
     ...Object.fromEntries(Object.entries(tabs).map(([tab, values]) => [tab, sheetRowsFromValues(values)])),
   } as WorkbookSnapshot

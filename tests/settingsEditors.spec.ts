@@ -14,7 +14,7 @@ import type { RecordId } from '../src/features/workbook/domain/recordId'
 import type { RecordsRead, RefusedRecord } from '../src/features/workbook/domain/recordsRead'
 import { storedFieldOf } from '../src/features/workbook/domain/storedFields'
 import { GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from '../src/packs/hr-doo/presentation/editorColumns'
-import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { assetOfFields, readAssets } from '../src/packs/hr-doo/domain/assets/assetsReading'
 import { grantOfFields, readGrants } from '../src/packs/hr-doo/domain/grants/grantsReading'
 import { readYearEnd, yearEndLineOfFields } from '../src/packs/hr-doo/domain/yearEnd/yearEndReading'
@@ -140,7 +140,7 @@ describe('the assets, grants and year-end editors', () => {
   })
 
   it('draft the fake workbook and make the same records back, so an unchanged tab saves nothing', () => {
-    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
+    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'browser')
     const sameBack = <R extends { readonly id: RecordId }>(tab: SpreadsheetTab<R>, rows: readonly SheetRow[], columns: readonly DraftColumn[], make: DraftFactory<R>) => {
       const stored = storedOf(recordsOfRows(tab, rows))
       const drafts = draftsOfRecords(stored, columns)
@@ -167,7 +167,7 @@ describe('the assets, grants and year-end editors', () => {
   })
 
   it('give each year-end amount the field its line needs', () => {
-    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
+    const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'browser')
     const drafts = draftsOfRecords(storedOf(recordsOfRows(YEAR_END_TAB, snapshot['year-end'])), YEAR_END_COLUMNS)
     const amountOf = (line: string): string | undefined => drafts.find((draft) => draft.fields.line === line)?.fields.amount
 

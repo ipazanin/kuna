@@ -3,6 +3,7 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { FOLDER_MIME_TYPE } from '../../../shared/google/driveClient'
 import type { DriveFile, DriveRevision } from '../../../shared/google/driveClient'
 import type { DocumentHome, DocumentSave, Rewrite, StoredDocument } from '../application/documentHome'
+import type { DriveFilePlace } from '../application/workbookPorts'
 
 /** What a media upload of the document gave: the revision it made, or Drive's refusal because the file already keeps 200 revisions. */
 export type DocumentUpload = { readonly kind: 'uploaded'; readonly revision: string } | { readonly kind: 'kept-revisions-full' }
@@ -18,6 +19,7 @@ export interface DocumentDrive {
   downloadRevision(fileId: string, revisionId: string): Promise<string>
   unkeepRevision(fileId: string, revisionId: string): Promise<void>
   parentOf(fileId: string): Promise<string>
+  nameOf(fileId: string): Promise<string>
   children(folderId: string): Promise<readonly Pick<DriveFile, 'id' | 'name' | 'mimeType'>[]>
   createFolder(parentId: string, name: string): Promise<string>
   createFile(parentId: string, name: string, text: string, appProperties?: Readonly<Record<string, string>>): Promise<{ readonly id: string; readonly revision: string }>
@@ -36,12 +38,31 @@ const BACKUPS_FOLDER = 'backups'
 const POST_CHECKS = 5
 const OUTSIDE_EDIT = 'The file changed outside the app during this save. Check the backups folder.'
 
-function documentName(app: string): string {
+/** The file the app's document is kept in, such as `ledgerboard-company.json`. */
+export function documentName(app: string): string {
   return `ledgerboard-${app}.json`
 }
 
 function backupName(app: string, day: CivilDate): string {
   return `ledgerboard-${app}-${day}.json`
+}
+
+function backupDayOf(app: string, name: string): CivilDate | null {
+  const prefix = `ledgerboard-${app}-`
+  return name.startsWith(prefix) && name.endsWith('.json') ? parseCivilDate(name.slice(prefix.length, -'.json'.length)) : null
+}
+
+/** The `backups` folder beside the document, or null before the first backup made it. */
+async function backupsFolderOf(drive: DocumentDrive, parentId: string): Promise<string | null> {
+  return (await drive.children(parentId)).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === BACKUPS_FOLDER)?.id ?? null
+}
+
+/** The folder the document sits in and the day of its newest backup, null before the first. */
+export async function placeOfDriveDocument(drive: DocumentDrive, fileId: string, app: string): Promise<DriveFilePlace> {
+  const folderId = await drive.parentOf(fileId)
+  const [folderName, backupsId] = await Promise.all([drive.nameOf(folderId), backupsFolderOf(drive, folderId)])
+  const days = backupsId === null ? [] : (await drive.children(backupsId)).flatMap((entry) => backupDayOf(app, entry.name) ?? [])
+  return { folderId, folderName, lastBackup: days.sort().at(-1) ?? null }
 }
 
 /** Revisions by modified time, then id. Drive lists them by modified time, which need not be the order they landed in. */
@@ -53,6 +74,14 @@ function byModifiedTime(left: DriveRevision, right: DriveRevision): number {
 export async function createDriveDocument(drive: DocumentDrive, folderId: string, app: string, text: string): Promise<{ readonly fileId: string; readonly document: StoredDocument }> {
   const created = await drive.createFile(folderId, documentName(app), text, { [APP_PROPERTY]: app })
   return { fileId: created.id, document: { revision: created.revision, text } }
+}
+
+/** Throws for a file the person picked that is a daily backup of the document, since saves to a backup would never reach the books. */
+export async function refuseBackup(drive: DocumentDrive, fileId: string, app: string): Promise<void> {
+  const name = await drive.nameOf(fileId)
+  if (backupDayOf(app, name) !== null) {
+    throw new Error(`${name} is a backup, so the app does not keep the books in it. Pick ${documentName(app)}, or open the backup with "Open a file" to look at it.`)
+  }
 }
 
 /** The id of the document the app made on any device, or null when the search finds none. */
@@ -95,8 +124,7 @@ export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: str
 
   async function backupsFolder(): Promise<string> {
     const parentId = await drive.parentOf(fileId)
-    const existing = (await drive.children(parentId)).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === BACKUPS_FOLDER)
-    return existing?.id ?? (await drive.createFolder(parentId, BACKUPS_FOLDER))
+    return (await backupsFolderOf(drive, parentId)) ?? (await drive.createFolder(parentId, BACKUPS_FOLDER))
   }
 
   /** The first save of a day keeps the document as it stood before it. The last 30 dailies stay, and so does the first of each month. */
@@ -112,7 +140,7 @@ export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: str
       await drive.createFile(folderId, name, base.text)
     }
     const backups = entries.flatMap((entry) => {
-      const backupDay = entry.mimeType === FOLDER_MIME_TYPE ? null : backupDayOf(entry.name)
+      const backupDay = entry.mimeType === FOLDER_MIME_TYPE ? null : backupDayOf(app, entry.name)
       return backupDay === null || backupDay === on ? [] : [{ id: entry.id, day: backupDay }]
     })
     const days = [...new Set([on, ...backups.map((backup) => backup.day)])].sort().reverse()
@@ -121,11 +149,6 @@ export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: str
       await drive.trash(backup.id)
     }
     backedUpOn = on
-  }
-
-  function backupDayOf(name: string): CivilDate | null {
-    const prefix = `ledgerboard-${app}-`
-    return name.startsWith(prefix) && name.endsWith('.json') ? parseCivilDate(name.slice(prefix.length, -'.json'.length)) : null
   }
 
   /**

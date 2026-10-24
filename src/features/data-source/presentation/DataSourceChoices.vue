@@ -3,20 +3,19 @@ import { ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
-import { useToast } from '@nuxt/ui/composables/useToast'
 
+import { REDIRECT_SIGN_IN_QUERY } from '../../../shared/google/googleRedirect'
 import { useMediaQuery } from '../../../shared/layout/viewport'
 import AppCard from '../../../shared/ui/AppCard.vue'
-import { downloadTemplate, emptyLocalWorkbook } from '../../workbook/presentation/workbookFiles'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { WorkbookSource } from '../../workbook/domain/workbook'
-import { REDIRECT_SIGN_IN_QUERY } from '../../../shared/google/googleRedirect'
-import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
+import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
+import { WORKBOOK_FILE_TYPES, emptyLocalWorkbook } from '../../workbook/presentation/workbookFiles'
 
-/** The three places a workbook can come from. Each action changes the workbook on screen. */
+/** Where a workbook can come from: the file on Drive, a file to open, or an empty start. Each action changes the workbook on screen. */
 defineProps<{
-  /** The source in use, which changes how the Google choice is worded. Null on a first run. */
+  /** The source in use, which changes how the Drive choice is worded. Null on a first run. */
   current: WorkbookSource | null
 }>()
 
@@ -26,40 +25,34 @@ const emit = defineEmits<{
 }>()
 
 const store = useWorkbook()
-const toast = useToast()
+const { keeping, keepOnDrive } = useKeepOnDrive()
 
 const signInByRedirect = useMediaQuery(REDIRECT_SIGN_IN_QUERY)
 
 const pickedFile = ref<File | null>(null)
 const startingEmpty = ref(false)
-const downloading = ref(false)
 
-async function connectGoogle(): Promise<void> {
+async function findOnDrive(): Promise<void> {
   const before = store.state.choice
-  await store.chooseGoogleSheet()
-  if (store.state.choice !== before && store.state.choice?.source === 'google') {
+  await store.chooseDriveFile()
+  if (store.state.choice !== before && store.state.choice?.source === 'drive') {
     emit('chosen')
   }
 }
 
-async function startEmpty(): Promise<void> {
+async function startEmptyInBrowser(): Promise<void> {
   startingEmpty.value = true
-  const { tabs, title } = emptyLocalWorkbook()
-  await store.replaceLocalWorkbook(tabs, title)
+  const { document, title } = emptyLocalWorkbook()
+  await store.replaceLocalWorkbook(document, title)
   startingEmpty.value = false
   if (store.state.status !== 'error') {
     emit('chosen')
   }
 }
 
-async function getTemplate(): Promise<void> {
-  downloading.value = true
-  try {
-    await downloadTemplate()
-  } catch (failure) {
-    toast.add({ title: 'The template could not be made', description: failure instanceof Error ? failure.message : String(failure), color: 'error' })
-  } finally {
-    downloading.value = false
+async function startEmptyOnDrive(): Promise<void> {
+  if (await keepOnDrive(emptyLocalWorkbook().document)) {
+    emit('chosen')
   }
 }
 </script>
@@ -67,24 +60,23 @@ async function getTemplate(): Promise<void> {
 <template>
   <AppCard as="ul" class="choices" data-testid="data-source-choices">
     <li class="choice">
-      <UIcon name="i-lucide-sheet" class="choice-icon" aria-hidden="true" />
+      <UIcon name="i-lucide-hard-drive" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">{{ current === 'google' ? 'Choose another Google Sheet' : 'Connect a Google Sheet' }}</h3>
+        <h3 class="text-sm font-medium text-highlighted">{{ current === 'drive' ? 'Find the file on Google Drive again' : 'Open your books on Google Drive' }}</h3>
         <p class="mt-1 text-sm text-muted">
-          Sign in with Google and pick the Sheet. The app reads its ledger, categories, accounts, settings and rules tabs and keeps a copy in
-          this browser. It writes only what you save: category and flagged_by on ledger rows you act on, rows on the rules tab, and rows on the
-          settings tab, and only in the Sheet you pick.
+          For books another device keeps on Drive. Sign in with Google, and the app finds ledgerboard-company.json or asks you to pick it.
+          It keeps a copy in this browser, and writes only that file and the backups folder beside it.
         </p>
       </div>
       <div class="choice-action">
         <UButton
-          :label="current === 'google' ? 'Choose a Sheet' : 'Connect'"
+          label="Find the file"
           icon="i-lucide-log-in"
           color="neutral"
           variant="outline"
-          :loading="store.state.status === 'syncing'"
+          :loading="store.state.status === 'syncing' && !keeping"
           :disabled="store.state.status === 'syncing'"
-          @click="connectGoogle"
+          @click="findOnDrive"
         />
         <p v-if="signInByRedirect" class="mt-2 max-w-56 text-xs text-muted" data-testid="redirect-sign-in-note">
           Google may ask about cookies first, then brings you back here.
@@ -95,9 +87,10 @@ async function getTemplate(): Promise<void> {
     <li class="choice">
       <UIcon name="i-lucide-file-spreadsheet" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">Open an Excel file</h3>
+        <h3 class="text-sm font-medium text-highlighted">Open a file</h3>
         <p class="mt-1 text-sm text-muted">
-          Import a filled-in template. The workbook then lives in this browser, and you export it back to a file whenever you like.
+          An Excel workbook, such as a download of your Google Sheet, or a ledgerboard file from the backups folder. Check what it holds,
+          then keep it on Google Drive or in this browser.
         </p>
         <UFileUpload
           v-model="pickedFile"
@@ -105,21 +98,11 @@ async function getTemplate(): Promise<void> {
           :preview="false"
           reset
           icon="i-lucide-file-up"
-          label="Drop an .xlsx file here"
+          label="Drop an .xlsx or .json file here"
           description="or click to choose one"
           color="neutral"
           class="mt-3 w-full"
           :ui="{ base: 'min-h-28 border-dashed bg-elevated/40' }"
-        />
-        <UButton
-          label="Download the empty template"
-          icon="i-lucide-download"
-          color="neutral"
-          variant="link"
-          size="sm"
-          class="mt-2 -ms-2"
-          :loading="downloading"
-          @click="getTemplate"
         />
       </div>
     </li>
@@ -127,13 +110,33 @@ async function getTemplate(): Promise<void> {
     <li class="choice">
       <UIcon name="i-lucide-file-plus" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">Start from the empty template</h3>
+        <h3 class="text-sm font-medium text-highlighted">Start empty</h3>
         <p class="mt-1 text-sm text-muted">
-          An empty workbook in this browser with the default categories and settings. Set it up here, export it, fill the ledger in Excel, and
-          import it again.
+          An empty workbook with the default categories and settings. Set it up here, then import your bank statements.
         </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <UButton
+            label="Keep on Google Drive"
+            icon="i-lucide-hard-drive-upload"
+            color="neutral"
+            variant="outline"
+            :loading="keeping"
+            :disabled="keeping || startingEmpty || store.state.status === 'syncing'"
+            data-testid="start-empty-drive"
+            @click="startEmptyOnDrive"
+          />
+          <UButton
+            label="Keep in this browser"
+            icon="i-lucide-monitor-smartphone"
+            color="neutral"
+            variant="outline"
+            :loading="startingEmpty"
+            :disabled="keeping || startingEmpty"
+            data-testid="start-empty-browser"
+            @click="startEmptyInBrowser"
+          />
+        </div>
       </div>
-      <UButton label="Start empty" icon="i-lucide-plus" color="neutral" variant="outline" :loading="startingEmpty" class="choice-action" @click="startEmpty" />
     </li>
   </AppCard>
 

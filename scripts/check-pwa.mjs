@@ -171,11 +171,11 @@ try {
   }, assets), [], 'Every built asset, including lazy screens, SheetJS and fonts, must be available offline.')
   console.log(`PASS: manifest, icons, scoped worker, complete precache${browserName === 'chrome' ? ', installable' : ''}`)
 
-  // The first visit: the welcome screen, then an Excel import, which keeps the workbook in IndexedDB.
+  // The first visit: the welcome screen, then an xlsx file kept in this browser, which keeps the workbook in IndexedDB.
   await page.waitForSelector('[data-testid="data-source-choices"] input[type="file"]')
   await (await page.$('[data-testid="data-source-choices"] input[type="file"]')).uploadFile(templateFile)
   await page.waitForSelector('[data-testid="import-summary"] dl')
-  await clickText(page, '[role="dialog"] button', 'Import')
+  await clickText(page, '[role="dialog"] button', 'Keep in this browser')
   await waitForTitle(page, 'Overview')
   await page.waitForSelector('.chart-body canvas')
   assert.deepEqual(await cachedForeignUrls(page, origin), [], 'Nothing from another origin may be cached.')

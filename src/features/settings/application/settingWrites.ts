@@ -30,7 +30,7 @@ export const SETTING_WRITES: WriteRules<SettingRow> = {
     const twice = change.edits.flatMap((edit) => {
       const key = slugOf((edit.before ?? edit.after)?.fields.key)
       const holding = stored.filter((other) => slugOf(other.fields.key) === key).length
-      return holding > 1 ? [`The settings tab sets "${key}" on ${holding} rows. Keep one of them in the Sheet first.`] : []
+      return holding > 1 ? [`The settings tab sets "${key}" on ${holding} rows. Keep one of them in an export and open that file again.`] : []
     })
     if (twice.length > 0) {
       return twice

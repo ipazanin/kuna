@@ -40,7 +40,7 @@ const filed = computed(() => {
   })
 })
 
-const shows = computed(() => store.state.choice?.source === 'google' && (statements.unchecked.value !== null || outcome.value?.problem || held.value.length > 0 || filed.value.length > 0))
+const shows = computed(() => store.state.choice?.source === 'drive' && (statements.unchecked.value !== null || outcome.value?.problem || held.value.length > 0 || filed.value.length > 0))
 
 const summary = computed(() => {
   const count = held.value.length

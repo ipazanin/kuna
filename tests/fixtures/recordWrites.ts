@@ -4,26 +4,27 @@ import type { WriteReceipt } from '../../src/features/workbook/application/recor
 import { newRecordId } from '../../src/features/workbook/domain/recordId'
 import type { RecordKind } from '../../src/features/workbook/domain/recordKind'
 import type { WriteRules } from '../../src/features/workbook/domain/writeRules'
-import { cellsOfRecord, recordsOfRows, spreadsheetTabOfKind } from '../../src/features/workbook/infrastructure/spreadsheetTab'
+import { cellsOfRecord, spreadsheetTabOfKind } from '../../src/features/workbook/infrastructure/spreadsheetTab'
 import type { Cells } from '../../src/features/workbook/infrastructure/spreadsheetTab'
-import type { WorkbookSnapshot } from '../../src/features/workbook/infrastructure/workbookSnapshot'
+import { recordsOfDocument } from '../../src/features/workbook/infrastructure/documentRecordStorage'
+import type { DocumentCopy } from '../../src/features/workbook/infrastructure/documentRecordStorage'
 import { ID_FIELD } from '../../src/features/workbook/domain/recordCodec'
-import { TABS_WITH_IDS } from '../../src/features/workbook/infrastructure/workbookTemplate'
+import { TABS_WITH_IDS } from './rowIds'
 import { recordOf } from './records'
 
-type Store = WorkbookStore<WorkbookSnapshot>
+type Store = WorkbookStore<DocumentCopy>
 
 function carriesIds(kind: RecordKind<unknown>): boolean {
   return (TABS_WITH_IDS as readonly string[]).includes(spreadsheetTabOfKind(kind).tab)
 }
 
-/** The record the copy on screen holds on this row of the kind's tab. */
+/** The record the copy on screen holds at this row of the kind's tab, as the xlsx file it was opened from numbers it: the first record is row 2. */
 export function recordOnRow<R>(store: Store, kind: RecordKind<R>, sheetRow: number): R {
-  const tab = spreadsheetTabOfKind(kind).tab
-  const row = store.state.snapshot?.[tab].find((candidate) => candidate.sheetRow === sheetRow)
-  if (row === undefined) throw new Error(`No row ${sheetRow} on ${tab}`)
-  const [read] = recordsOfRows(spreadsheetTabOfKind(kind), [row]).records
-  if (read === undefined) throw new Error(`Row ${sheetRow} on ${tab} does not read as ${kind.noun.article} ${kind.noun.one}`)
+  const document = store.state.snapshot!.document
+  const record = document.records[kind.name]?.[sheetRow - 2]
+  if (record === undefined) throw new Error(`No ${kind.noun.one} at row ${sheetRow}`)
+  const [read] = recordsOfDocument({ ...document, records: { [kind.name]: [record] } }, kind).records
+  if (read === undefined) throw new Error(`Row ${sheetRow} does not read as ${kind.noun.article} ${kind.noun.one}`)
   return read.record
 }
 
@@ -39,7 +40,7 @@ export interface RowsWrite {
   readonly removed?: readonly number[]
 }
 
-export function writeRows<R>(store: Store, rules: WriteRules<R>, rows: RowsWrite, addMissingKinds = false): Promise<WriteReceipt | null> {
+export function writeRows<R>(store: Store, rules: WriteRules<R>, rows: RowsWrite): Promise<WriteReceipt | null> {
   const kind = rules.kind
   const added = (rows.added ?? []).map((cells) => newRecordOf(kind, cells))
   const changed = (rows.changed ?? []).map(({ sheetRow, cells }) => {
@@ -47,16 +48,12 @@ export function writeRows<R>(store: Store, rules: WriteRules<R>, rows: RowsWrite
     return { before, after: recordOf(kind, { ...cellsOfRecord(spreadsheetTabOfKind(kind), before), ...cells }) }
   })
   const removed = (rows.removed ?? []).map((sheetRow) => recordOnRow(store, kind, sheetRow))
-  return store.write(
-    'Written',
-    (unit) => {
-      const repository = unit.of(rules)
-      added.forEach((record) => repository.add(record))
-      changed.forEach(({ before, after }) => repository.change(before, after))
-      removed.forEach((record) => repository.remove(record))
-    },
-    { addMissingKinds },
-  )
+  return store.write('Written', (unit) => {
+    const repository = unit.of(rules)
+    added.forEach((record) => repository.add(record))
+    changed.forEach(({ before, after }) => repository.change(before, after))
+    removed.forEach((record) => repository.remove(record))
+  })
 }
 
 export function addRows<R>(store: Store, rules: WriteRules<R>, ...added: Cells[]): Promise<WriteReceipt | null> {

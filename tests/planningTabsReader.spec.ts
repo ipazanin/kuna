@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { createFakeSheets } from '../src/features/workbook/infrastructure/fake/fakeSheets'
-import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
-import { readSnapshotFrom } from '../src/features/workbook/infrastructure/googleWorkbookPorts'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { TABS_WITH_IDS } from '../src/features/workbook/infrastructure/workbookTemplate'
+import { TABS_WITH_IDS } from './fixtures/rowIds'
 import { civilDate, serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { withIds } from './fixtures/rowIds'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
@@ -40,7 +37,7 @@ const CATEGORIES: CellValue[][] = [
 
 function workbookWith(tabs: Partial<Record<WorkbookTab, CellValue[][]>>) {
   const snapshot: WorkbookSnapshot = {
-    meta: { id: 'sheet', source: 'excel', title: 'Example Studio d.o.o.', syncedAt: '2026-10-18T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id: 'sheet', source: 'browser', title: 'Example Studio d.o.o.', syncedAt: '2026-10-18T08:00:00.000Z', lastExportedAt: null, unexportedSince: null },
     ...EMPTY_TABS,
     categories: sheetRowsFromValues(CATEGORIES),
     ...Object.fromEntries(Object.entries(tabs).map(([tab, values]) => [tab, sheetRowsFromValues((TABS_WITH_IDS as readonly string[]).includes(tab) ? withIds(tab, values) : values)])),
@@ -473,20 +470,5 @@ describe('the scenarios tab', () => {
       ['named, salary_gross', 'the rows of named give its label differently, so it reads blank'],
       ['named, rent_monthly', 'the rows of named give its label differently, so it reads blank'],
     ])
-  })
-})
-
-describe('a Google Sheet', () => {
-  it('reads the planning tabs it has, quoting a name with a hyphen, and lists the ones it lacks', async () => {
-    const { assets, 'year-end': yearEnd, ...others } = fakeWorkbookValues('google')
-    const withoutGrants = Object.fromEntries(Object.entries(others).filter(([tab]) => !['grants', 'plan', 'scenarios'].includes(tab)))
-    const sheets = createFakeSheets({ ...withoutGrants, assets, 'year-end': yearEnd })
-
-    const snapshot = await readSnapshotFrom(sheets, { id: 'sheet', name: 'Books' })
-
-    expect(sheets.requests.find((request) => request.kind === 'batchGet')).toMatchObject({ ranges: expect.arrayContaining(['assets', "'year-end'"]) })
-    expect(snapshot.meta.missingTabs).toEqual(['grants', 'plan', 'scenarios'])
-    expect(snapshot.assets).toHaveLength(2)
-    expect(hrDooWorkbook(readSnapshot(snapshot).workbook).yearEndLines.length).toBeGreaterThan(40)
   })
 })

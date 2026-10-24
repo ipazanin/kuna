@@ -88,6 +88,7 @@ export function ledger(rows: readonly RowSpec[]): Transaction[] {
         reviewReasons: row.reviewReasons ?? [],
         ownerShare: null,
         id: recordIdOf(LEDGER_RECORDS, `REF-${position + 1}`),
+        rowId: null,
       }
     })
     .reverse()

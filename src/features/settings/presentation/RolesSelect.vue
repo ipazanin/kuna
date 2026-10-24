@@ -7,7 +7,7 @@ import { rolesOfText } from '../domain/categoryDrafts'
 
 /**
  * The roles of one category as a menu of the roles the app knows. A role the app does not know,
- * such as a typo typed in the Sheet, shows as a red chip until it is taken off.
+ * such as a typo typed in a file, shows as a red chip until it is taken off.
  */
 const props = defineProps<{
   known: readonly string[]

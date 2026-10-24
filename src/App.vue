@@ -61,7 +61,7 @@ const stopAutoSync = startAutoSync({
 })
 onBeforeUnmount(stopAutoSync)
 
-/** A sync reads the Sheet, then looks for new statements in Drive, and the control says which. */
+/** A sync reads the file on Drive, then looks for new statements there, and the control says which. */
 const syncState = computed(() => (statements.state.step === null ? syncStateOf(state) : 'syncing'))
 const syncStep = computed(() => statements.state.step ?? { kind: 'reading' as const })
 
@@ -82,7 +82,7 @@ const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))
         <component :is="Component" v-else />
       </RouterView>
       <template #sync="{ compact }">
-        <LocalWorkbookStatus v-if="state.choice?.source === 'excel'" :compact="compact" />
+        <LocalWorkbookStatus v-if="state.choice?.source === 'browser'" :compact="compact" />
         <SyncStatus
           v-else
           :state="syncState"

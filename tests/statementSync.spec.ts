@@ -2,6 +2,9 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import { decodeDocument, encodeDocument } from '../src/features/workbook/infrastructure/documentFormat'
+
 import { dryRunFor, statementReadings } from '../src/features/imports/application/importStatements'
 import { LEDGER_WRITES } from '../src/features/imports/application/ledgerWrites'
 import type { StatementFolder } from '../src/features/imports/application/statementFolder'
@@ -10,9 +13,8 @@ import type { StatementSyncStep } from '../src/features/imports/application/stat
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
 import { moneyFromCents } from '../src/shared/money/money'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
-import type { WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { LEDGER_HEADER, LEDGER_ROWS, excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -94,7 +96,7 @@ function folderHolding(files: Readonly<Record<string, string | null>>): { readon
   return { folder, downloads }
 }
 
-function syncOf(store: WorkbookStore<WorkbookSnapshot>, folder: StatementFolder, steps: StatementSyncStep[] = []) {
+function syncOf(store: WorkbookStore<DocumentCopy>, folder: StatementFolder, steps: StatementSyncStep[] = []) {
   return fileNewStatements({ store, folder, load: loadImportFile, step: (step) => steps.push(step) })
 }
 
@@ -104,12 +106,17 @@ const MAIN_004 = camt(MAIN_IBAN, 4, '2026-10-07', 110_000, [
   { reference: 'M4-2', cents: 50_000 },
 ])
 
+/** How many saves reached the Drive file. */
 function writesTo(harness: WriteBackHarness): number {
-  return harness.sheets.requests.filter((request) => request.kind === 'updateSpreadsheet').length
+  return harness.drive?.requests.filter((request) => request === 'upload').length ?? 0
 }
 
-function ledgerOf(store: WorkbookStore<WorkbookSnapshot>, account: string): string[] {
-  return store.state.workbook!.transactions.filter((row) => row.account === account).map((row) => `${row.date} ${row.reference} ${row.balance}`)
+/** The account's rows, newest booking first. */
+function ledgerOf(store: WorkbookStore<DocumentCopy>, account: string): string[] {
+  return store.state.workbook!.transactions
+    .filter((row) => row.account === account)
+    .sort((newer, older) => older.sequence - newer.sequence)
+    .map((row) => `${row.date} ${row.reference} ${row.balance}`)
 }
 
 describe('the title of a filing write', () => {
@@ -121,8 +128,8 @@ describe('the title of a filing write', () => {
 })
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('the statements step of a sync, on %s', (name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('files every accepted statement in one write, which one Undo takes out', async () => {
     const harness = await harnessOf(used, grids())
@@ -140,7 +147,7 @@ describe.each([
     expect(store.state.writes).toHaveLength(1)
     expect(store.state.writes[0]?.receipt).toBe(outcome.receipt)
     expect(outcome.receipt?.title).toBe('Filed statements 003 and 004, 3 rows')
-    if (name === 'a Google Sheet') expect(writesTo(harness)).toBe(1)
+    if (name === 'a file on Drive') expect(writesTo(harness)).toBe(1)
     expect(ledgerOf(store, 'main').slice(0, 3)).toEqual(['2026-10-07 M4-2 157000', '2026-10-07 M4-1 107000', '2026-10-06 M3-1 110000'])
 
     await store.undo(store.state.writes[0]!)
@@ -182,7 +189,7 @@ describe.each([
     expect(downloads).toEqual([])
     expect(steps).toEqual([{ kind: 'looking' }])
     expect(store.state.writes).toEqual([])
-    if (name === 'a Google Sheet') expect(writesTo(harness)).toBe(0)
+    if (name === 'a file on Drive') expect(writesTo(harness)).toBe(0)
   })
 
   it('holds the first statement of an account with no rows until it is started, then files it through the ledger writes', async () => {
@@ -234,14 +241,17 @@ describe.each([
 })
 
 describe('the statements step against another device\'s sync', () => {
-  it('reads the Sheet again and runs the dry run once more when another device filed the same rows first, and writes nothing', async () => {
-    const harness = await googleHarness(used, grids())
-    const { store, sheets } = harness
+  it('reads the file again and runs the dry run once more when another device filed the same rows first, and writes nothing', async () => {
+    const harness = await driveHarness(used, grids())
+    const { store, drive } = harness
     const workbook = store.state.workbook!
     const run = dryRunFor(statementReadings({ kind: 'camt', fileName: 'x.xml', document: new DOMParser().parseFromString(MAIN_003, 'application/xml') }, workbook, null), workbook, new Map())
-    const filedElsewhere = [46301, 'main', '2026-10-06-statement-003', '', '', 'Entry M3-1', 100, 1100, 'revenue', 'rule', 'M3-1', '', 'PMNT', 'RCDT', 'ESCT', '', '', '']
+    const filedElsewhere = { date: '2026-10-06', account: 'main', statement: '2026-10-06-statement-003', description: 'Entry M3-1', amount: '100.00', balance: '1100.00', category: 'revenue', flagged_by: 'rule', reference: 'M3-1', tx_domain: 'PMNT', tx_family: 'RCDT', tx_sub_family: 'ESCT', id: 'another-device' }
     expect(run.added).toHaveLength(1)
-    sheets.grids.ledger!.splice(1, 0, filedElsewhere)
+    const fileId = store.state.choice!.id
+    const held = decodeDocument(await drive!.download(fileId))
+    await drive!.upload(fileId, encodeDocument({ ...held, records: { ...held.records, 'ledger-row': [...held.records['ledger-row']!, filedElsewhere] } }))
+    drive!.requests.length = 0
     const { folder } = folderHolding({ '2026-10-06-statement-003-main.xml': MAIN_003 })
     const steps: StatementSyncStep[] = []
 
@@ -249,8 +259,8 @@ describe('the statements step against another device\'s sync', () => {
 
     expect(outcome).toEqual(NOTHING_FILED)
     expect(steps).toEqual([{ kind: 'looking' }, { kind: 'filing', rows: 1 }, { kind: 'looking' }])
-    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toEqual([])
+    expect(writesTo(harness)).toBe(0)
     expect(store.state.writes).toEqual([])
-    expect(ledgerOf(store, 'main')[0]).toBe('2026-10-06 M3-1 110000')
+    expect(ledgerOf(store, 'main')).toContain('2026-10-06 M3-1 110000')
   })
 })

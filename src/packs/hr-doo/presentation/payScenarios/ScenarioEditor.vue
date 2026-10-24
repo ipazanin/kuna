@@ -19,7 +19,6 @@ const props = defineProps<{
   /** Why a scenario cannot be worked out, by its name. */
   refusals: ReadonlyMap<string, readonly string[]>
   grants: readonly Grant[]
-  tabMissing: boolean
   /** Every scenario name the tab uses, of any year. */
   taken: readonly string[]
 }>()
@@ -102,7 +101,7 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
     </div>
     <ComponentDialog v-if="editing" v-model:open="componentOpen" :scenario="editing.scenario" :component="editing.component" />
     <ScenarioNameDialog v-if="naming" v-model:open="nameOpen" :scenario="naming.scenario" :mode="naming.mode" :taken="taken" />
-    <StartingScenariosDialog v-model:open="startingOpen" :year="year" :grants="grants" :tab-missing="tabMissing" :taken="taken" />
+    <StartingScenariosDialog v-model:open="startingOpen" :year="year" :grants="grants" :taken="taken" />
   </AppCard>
 </template>
 

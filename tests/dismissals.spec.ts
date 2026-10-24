@@ -12,7 +12,7 @@ import { readDismissals } from '../src/features/workbook/domain/dismissalsReadin
 import { CORE_TABS, recordsOfRows } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { DESK_IBAN, LEDGER_ROWS, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { DESK_IBAN, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { withIds } from './fixtures/rowIds'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
@@ -73,7 +73,7 @@ describe('the dismissed tab', () => {
 
   it('keeps a dismissed group hidden as new rows join it, and lists the dismissal', async () => {
     const newDesk: CellValue[] = [46301, 'main', 's-003', 'Desk Co', DESK_IBAN, 'Chair', -60, 940, 'equipment', 'human', 'REF-5', '', '', '', '', '', '', '']
-    const { store } = await excelHarness(used, {
+    const { store } = await browserHarness(used, {
       ...grids(),
       ledger: [workbookGrids().ledger![0]!, newDesk, ...LEDGER_ROWS.map((row) => [...row])],
       dismissed: withIds('dismissal', [HEADER, ['not-covered', DESK_KEY, 'equipment', 46316]]),
@@ -104,8 +104,8 @@ describe('the dismissed tab', () => {
 })
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('dismissals written to %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('dismisses a group, restores it, and Undo puts the dismissal back', async () => {
     const { store } = await harnessOf(used, grids())
@@ -117,26 +117,9 @@ describe.each([
     const [dismissal] = store.state.records!.dismissed.records
     await store.write('Restored', (unit) => unit.of(DISMISSAL_WRITES).remove(dismissal!.record))
     expect(coverageOf(store).coverage.notCovered.map((group) => group.key)).toContain(DESK_KEY)
-    expect(store.state.snapshot?.dismissed).toEqual([])
+    expect(store.state.snapshot?.document.records.dismissal).toEqual([])
 
     await store.undo(store.state.writes[0]!)
     expect(store.state.workbook?.dismissals.map((dismissal) => dismissal.key)).toEqual([DESK_KEY])
-  })
-})
-
-describe('dismissals written to a Google Sheet without the tab', () => {
-  it('adds the dismissed tab with the template’s header once the person agreed, the day as a date cell', async () => {
-    const { store, sheets } = await googleHarness(used, grids(false))
-    const dismissal = dismissalOfGroup('not-covered', deskGroup(store), DAY)
-
-    await expect(store.write('Dismissed', (unit) => unit.of(DISMISSAL_WRITES).add(dismissal))).rejects.toThrow('The workbook has no dismissed tab')
-    await store.write('Dismissed', (unit) => unit.of(DISMISSAL_WRITES).add(dismissal), { addMissingKinds: true })
-
-    const dismissed = (await sheets.sheetGrids()).get('dismissed')!.sheetId
-    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells', 'repeatCell'])
-    expect(sentRequests(sheets)[3]).toEqual(dateFormat(dismissed, 1, 3))
-    expect(sheets.grids.dismissed?.[0]).toEqual([...HEADER, 'id'])
-    expect(store.state.snapshot?.meta.missingTabs).not.toContain('dismissed')
-    expect(coverageOf(store).coverage.notCovered.map((group) => group.key)).not.toContain(DESK_KEY)
   })
 })

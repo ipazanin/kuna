@@ -4,7 +4,7 @@ import { normaliseIban } from '../../../shared/text/fold'
 import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import { bookingOrder } from './bookingOrder'
 import { UNCLASSIFIED } from './bucket'
-import { dayText, labelWords, labelled, numberText } from './recordCodec'
+import { ID_FIELD, dayText, labelWords, labelled, numberText } from './recordCodec'
 import type { RecordCodec } from './recordCodec'
 import { amountText, filledFields } from './recordFields'
 import { recordIdOf } from './recordId'
@@ -83,6 +83,7 @@ export function ledgerEntryOf(fields: StoredFields, id: RecordId | null): Ledger
     reviewReasons: reviewReasonsOf(fields.review_reasons),
     ownerShare: storedOwnerShare(fields.owner_share),
     id: keyedId(id),
+    rowId: textOf(fields[ID_FIELD]) || null,
   }
 }
 
@@ -132,6 +133,7 @@ export const LEDGER_CODEC: RecordCodec<LedgerEntry> = {
       instructed_currency: entry.signals.instructedCurrency,
       review_reasons: entry.reviewReasons.join(' | '),
       owner_share: ownerShareText(entry.ownerShare),
+      [ID_FIELD]: entry.rowId,
     }),
 }
 

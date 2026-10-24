@@ -163,7 +163,6 @@ const { dryRun, started, typedOpenings } = starts
 const refused = computed(() => dryRun.value?.statements.filter((statement) => statement.refusal !== null).length ?? 0)
 const waitingStart = computed(() => dryRun.value?.statements.filter((statement) => statement.start !== null && !statement.rows.some((row) => row.verdict !== null)).length ?? 0)
 
-const inGoogle = computed(() => store.state.choice?.source === 'google')
 
 async function confirm(): Promise<void> {
   const run = dryRun.value
@@ -190,7 +189,7 @@ const summary = computed(() => {
   const run = dryRun.value
   if (run === null) return ''
   return [
-    run.newRows > 0 ? `Confirming adds ${rowsInWords(run.newRows)} to ${inGoogle.value ? 'the ledger tab of the Sheet' : 'the ledger tab'}, each statement where its dates belong.` : 'Confirming would write nothing.',
+    run.newRows > 0 ? `Confirming adds ${rowsInWords(run.newRows)} to the ledger, each statement where its dates belong.` : 'Confirming would write nothing.',
     run.inLedger > 0 ? `${rowsInWords(run.inLedger)} ${run.inLedger === 1 ? 'is' : 'are'} on the ledger already, found by account and bank reference.` : '',
     refused.value > 0 ? `${refused.value === 1 ? 'One statement is' : `${refused.value} statements are`} refused and not written.` : '',
     waitingStart.value > 0 ? `${waitingStart.value === 1 ? 'One statement waits' : `${waitingStart.value} statements wait`} for you to start its account.` : '',

@@ -20,7 +20,6 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import { BILLING_RECORDS } from '../../workbook/domain/recordKind'
 import { columnsInWords } from '../../workbook/presentation/tabWords'
-import { useSheetLink } from '../../workbook/presentation/useSheetLink'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useBillingPlan } from '../application/useBillingPlan'
 import { fillRestOfYear } from '../domain/fillRestOfYear'
@@ -60,11 +59,8 @@ const columns = columnsInWords(BILLING_RECORDS)
 const tabState = computed(() => {
   const workbook = state.workbook
   if (workbook === null) return null
-  if (workbook.source === 'google' && (state.snapshot?.meta.missingTabs.includes('outgoing-plan') ?? false)) return 'missing' as const
   return workbook.billingPlan.length === 0 ? ('empty' as const) : ('rows' as const)
 })
-
-const sheetLink = useSheetLink()
 
 const view = computed(() => {
   const current = figures.value
@@ -129,24 +125,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
   <div class="flex flex-col gap-6">
     <LedgerGate>
       <UEmpty
-        v-if="tabState === 'missing'"
-        icon="i-lucide-calendar-clock"
-        title="The Sheet has no outgoing-plan tab yet"
-        variant="outline"
-        class="rounded-card border-dashed bg-raised/40"
-        :actions="sheetLink ? [{ label: 'Open the Sheet', icon: 'i-lucide-external-link', color: 'neutral', variant: 'outline', to: sheetLink, target: '_blank' }] : []"
-        data-testid="billing-no-tab"
-      >
-        <template #description>
-          <span class="block max-w-[60ch]">
-            The billing plan is one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel, dated on the day it becomes
-            billable. Add a tab named <span class="identifier">outgoing-plan</span> with these headers in row 1, then sync:
-            <span class="identifier">{{ columns }}</span>. The client is its name on the clients tab.
-          </span>
-        </template>
-      </UEmpty>
-      <UEmpty
-        v-else-if="tabState === 'empty'"
+        v-if="tabState === 'empty'"
         icon="i-lucide-calendar-clock"
         title="No plan rows yet"
         variant="outline"
@@ -219,8 +198,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             :reveal="route.hash === '#billing-rows-card'"
           >
             <template #subtitle>
-              The outgoing-plan tab is the one place for planned revenue, and the forecast reads it. Change a row here or in
-              {{ state.workbook?.source === 'google' ? 'the Sheet' : 'an exported file' }}.
+              The billing plan is the one place for planned revenue, and the forecast reads it.
             </template>
             <template #actions>
               <UButton label="Add row" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="billing-add" @click="addRow" />

@@ -85,7 +85,7 @@ async function pdfOf(document: InvoiceDocument): Promise<Uint8Array> {
 export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   const store = useWorkbook()
   const workbook = computed(() => store.state.workbook)
-  const google = computed(() => workbook.value?.source === 'google')
+  const google = computed(() => workbook.value?.source === 'drive')
 
   const client = ref('')
   const issued = ref('')
@@ -291,7 +291,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   }
 
   /**
-   * The checks before anything is written: a fresh read of the Sheet, the number free on the
+   * The checks before anything is written: a fresh read of the file, the number free on the
    * register, the path's folders found, and no file of the name in view. Run it from a click,
    * since a Google token may need a popup.
    */
@@ -302,9 +302,9 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       if (drive !== null) {
         await store.sync()
         if (store.state.status === 'syncing' || store.state.writing) {
-          throw new Error('Another sync or change of the Sheet was running, so the register was not read again. Check again once it finishes.')
+          throw new Error('Another sync or change of the workbook was running, so the register was not read again. Check again once it finishes.')
         }
-        if (store.state.error !== null) throw new Error(`The Sheet could not be read again: ${store.state.error}`)
+        if (store.state.error !== null) throw new Error(`The file could not be read again: ${store.state.error}`)
       }
       if (problems.value.length > 0 || document.value === null || path.value === null) {
         stage.value = { kind: 'edit', message: null }

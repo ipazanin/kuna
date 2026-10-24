@@ -4,17 +4,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { BILLING_WRITES } from '../src/features/billingPlan/application/billingWrites'
 import { DISMISSAL_WRITES } from '../src/features/review/application/dismissalWrites'
 import { SPLIT_WRITES } from '../src/features/transactions/application/splitWrites'
-import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import type { Workbook } from '../src/features/workbook/domain/workbook'
 import type { WriteRules } from '../src/features/workbook/domain/writeRules'
 import { readSnapshot, spreadsheetTabOfKind } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { ASSET_WRITES, OWNER_ADVANCE_WRITES, PLAN_WRITES, YEAR_END_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
-import { recordsOnScreen } from './fixtures/records'
 import { withIds } from './fixtures/rowIds'
-import { forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { forgetCaches, workbookGrids } from './fixtures/writeBack'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
@@ -133,7 +130,7 @@ function gridsWith(tab: IdTab, grid: CellValue[][]): Record<string, CellValue[][
 
 function workbookOf(grids: Record<string, CellValue[][]>): HrDooWorkbook {
   const tabs = Object.fromEntries(Object.entries(grids).map(([tab, grid]) => [tab, sheetRowsFromValues(grid)]))
-  const meta = { id: 'books', source: 'excel', title: 'Books', syncedAt: '2026-10-22T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] }
+  const meta = { id: 'books', source: 'browser', title: 'Books', syncedAt: '2026-10-22T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] }
   return hrDooWorkbook(readSnapshot({ meta, ...EMPTY_TABS, ...tabs } as WorkbookSnapshot).workbook)
 }
 
@@ -175,42 +172,5 @@ describe.each(ID_TABS.map((tab) => [tabOf(tab), tab] as const))('the %s tab', (n
       [tab.second, copied],
     ])
     expect(tab.records(workbook)).toEqual([])
-  })
-})
-
-describe.each(ID_TABS.map((tab) => [tabOf(tab), tab] as const))('a write to the %s tab of a Google Sheet', (name, tab) => {
-  function targets(store: WorkbookStore<WorkbookCopy>): unknown[] {
-    return recordsOnScreen(store, tab.rules.kind).records.map((read) => read.record)
-  }
-
-  function remove(store: WorkbookStore<WorkbookCopy>, records: readonly unknown[]) {
-    return store.write('Removed', (unit) => records.forEach((record) => unit.of(tab.rules).remove(record)))
-  }
-
-  it('finds its records by their ids after rows were inserted above them from outside', async () => {
-    const { store, sheets } = await googleHarness(used, gridsWith(tab, withIds('row', tab.grid)))
-    const grid = sheets.grids[name]!
-    const inserted = withoutId(grid[2]!, grid[0]!.indexOf('id'))
-    grid.splice(1, 0, inserted, [...inserted])
-
-    await remove(store, targets(store))
-
-    expect(sheets.grids[name]!.slice(1)).toEqual([inserted, inserted])
-    expect(tab.records(hrDooWorkbook(store.state.workbook!))).toEqual([])
-  })
-
-  it('refuses a record two rows hold the id of, and one changed since the app read it', async () => {
-    const { store, sheets } = await googleHarness(used, gridsWith(tab, withIds('row', tab.grid)))
-    const [first] = targets(store)
-    const grid = sheets.grids[name]!
-    const label = `the ${tab.rules.kind.noun.one} "${tab.first}"`
-
-    grid.push([...grid[1]!])
-    await expect(remove(store, [first])).rejects.toThrow(`2 records hold ${label}, so the app cannot tell which one is meant. Change it in the workbook.`)
-
-    grid.pop()
-    grid[1]![0] = 'changed in the Sheet'
-    await expect(remove(store, [first])).rejects.toThrow('changed since the app read it. Sync and look again.')
-    expect(grid).toHaveLength(3)
   })
 })

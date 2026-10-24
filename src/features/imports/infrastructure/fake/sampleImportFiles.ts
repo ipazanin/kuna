@@ -1,6 +1,6 @@
-import { addDays, civilDateFromSerial } from '../../../../shared/calendar/civilDate'
+import { addDays, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { fakeWorkbookValues } from '../../../workbook/infrastructure/fake/fakeWorkbook'
+import { fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import type { CellValue } from '../../../workbook/infrastructure/workbookSnapshot'
 
 /**
@@ -21,10 +21,10 @@ interface MainAccount {
 }
 
 function mainAccount(): MainAccount {
-  const values = fakeWorkbookValues('google')
-  const newest = values.ledger.slice(1).find((row) => row[1] === 'main')!
-  const iban = String(values.accounts.slice(1).find((row) => row[0] === 'main')![1])
-  return { iban, date: civilDateFromSerial(Number(newest[0])), balance: Number(newest[7]), sequence: Number(/-statement-(\d+)$/.exec(String(newest[2]))![1]) }
+  const records = fakeWorkbookRecords('drive')
+  const newest = records['ledger-row']!.find((row) => row.account === 'main')!
+  const iban = String(records.account!.find((row) => row.account === 'main')!.iban)
+  return { iban, date: parseCivilDate(String(newest.date))!, balance: Number(newest.balance), sequence: Number(/-statement-(\d+)$/.exec(String(newest.statement))![1]) }
 }
 
 interface SampleEntry {

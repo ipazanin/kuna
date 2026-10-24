@@ -48,8 +48,8 @@ export interface Account {
   readonly currency: string
 }
 
-/** Where the workbook lives: a Google Sheet, or this browser with xlsx files as its copies. */
-export type WorkbookSource = 'google' | 'excel'
+/** Where the workbook document is kept: a file on Google Drive, or this browser. */
+export type WorkbookSource = 'drive' | 'browser'
 
 /**
  * What a camt statement said about an entry beyond its money, from ledger columns O to T. Every
@@ -94,6 +94,8 @@ export interface Transaction {
   readonly ownerShare: OwnerShare | null
   /** By its key: its account and reference, or for a row without a reference its account, day, amount, balance and description. */
   readonly id: RecordId
+  /** The id the row carries in its `id` field, which every row gets when the books move into the file. Null on a row that has none yet. */
+  readonly rowId: string | null
   /** Set on a part of a split bank row, which the screens count in the row's place. */
   readonly split?: SplitPartOf
   /** Set on a part of a shared row, which the cash screens count in the row's place. */
@@ -240,7 +242,7 @@ export interface Workbook {
   readonly title: string
   /** ISO timestamp of the read this copy came from, or of the last change kept in this browser. */
   readonly syncedAt: string
-  /** In the order the tab holds them, which the app keeps newest first for a person reading the Sheet. `sequence` gives the booking order. */
+  /** In the order the tab holds them, which the app keeps newest first for a person reading an export. `sequence` gives the booking order. */
   readonly transactions: readonly Transaction[]
   readonly categories: readonly Category[]
   readonly accounts: readonly Account[]

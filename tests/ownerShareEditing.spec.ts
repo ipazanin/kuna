@@ -15,7 +15,7 @@ import type { WorkbookCopy } from '../src/features/workbook/application/workbook
 import { recordsOf } from '../src/features/workbook/domain/recordsRead'
 import { splitLedger } from '../src/features/workbook/domain/splits'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { LEDGER_HEADER, LEDGER_ROWS, excelHarness, forgetCaches, googleHarness, sentRequests } from './fixtures/writeBack'
+import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { withIds } from './fixtures/rowIds'
 
@@ -84,11 +84,11 @@ async function undo(store: WorkbookStore<WorkbookCopy>, receipt: WriteReceipt | 
 }
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
-] as const)('setting one owner share in %s', (name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
+] as const)('setting one owner share in %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('sets, changes and clears the share of a ledger row, a split part and an owner advance, each with Undo', async () => {
-    const { store, sheets, writtenRanges } = await harnessOf(used, grids())
+    const { store } = await harnessOf(used, grids())
     const { desk, cable, arm } = targets(store)
     expect(shares(store)).toEqual([null, null, null])
 
@@ -96,10 +96,6 @@ describe.each([
     await setShare(store, cable, share(20))
     await setShare(store, arm, share(25))
     expect(shares(store)).toEqual([30, 20, 25])
-    if (name === 'a Google Sheet') {
-      expect(writtenRanges()).toEqual(['ledger!S1', 'ledger!S4', 'splits!I1', 'splits!I3', "'owner-advances'!F1", "'owner-advances'!F2"])
-      expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(3)
-    }
 
     const changed = await setShare(store, desk, share(40))
     expect(shares(store)).toEqual([40, 20, 25])
@@ -107,9 +103,6 @@ describe.each([
     expect(shares(store)).toEqual([40, null, 25])
     const zero = await setShare(store, arm, share(0))
     expect(shares(store)).toEqual([40, null, 0])
-    if (name === 'a Google Sheet') {
-      expect(sheets.grids.splits![2]).toEqual([46299, 'main', -20, 1038.9, -5, 'equipment', 'A cable', 'split-3', null])
-    }
 
     await undo(store, zero)
     await undo(store, cleared)
@@ -118,23 +111,22 @@ describe.each([
   })
 
   it('writes nothing when the share is the one the record holds', async () => {
-    const { store, sheets } = await harnessOf(used, grids())
+    const { store, drive } = await harnessOf(used, grids())
     const { desk } = targets(store)
 
     expect(await setShare(store, desk, null)).toBeNull()
-    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(0)
+    expect(drive?.requests.filter((request) => request === 'upload') ?? []).toEqual([])
   })
 })
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
-] as const)('the fill offer in %s', (name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
+] as const)('the fill offer in %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('gives the new default to the blank rows of the category with the categories in one write, keeps a 0, and one Undo puts back all of it', async () => {
-    const { store, sheets, writtenRanges } = await harnessOf(used, grids())
+    const { store } = await harnessOf(used, grids())
     const gadget = store.state.workbook!.transactions.find((row) => row.counterparty === 'GADGET CORNER')!
     await setShare(store, { holder: 'ledger', id: gadget.id }, share(0))
-    sheets.requests.length = 0
     const equipment = recordsOf(store.state.records!.categories).find((category) => category.slug === 'equipment')!
     const saved = { ...equipment, ownerShare: share(20) }
 
@@ -148,11 +140,6 @@ describe.each([
     expect(store.state.workbook!.categories.find((category) => category.slug === 'equipment')?.ownerShare).toBe(20)
     expect(shares(store)).toEqual([20, 20, 20])
     expect(store.state.workbook!.transactions.find((row) => row.counterparty === 'GADGET CORNER')!.ownerShare).toBe(0)
-    if (name === 'a Google Sheet') {
-      expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
-      expect(writtenRanges()).toEqual(['splits!I1', "'owner-advances'!F1", 'categories!E2', 'ledger!S4', 'splits!I3', "'owner-advances'!F2"])
-      expect(sentRequests(sheets).every((request) => 'updateCells' in request)).toBe(true)
-    }
 
     await undo(store, receipt)
     expect(store.state.workbook!.categories.find((category) => category.slug === 'equipment')?.ownerShare).toBeNull()

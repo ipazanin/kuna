@@ -175,7 +175,7 @@ describe('googleDocumentDrive', () => {
       Response.json({ error: { code: 403, errors: [{ reason: 'keptRevisionsLimitExceeded' }] } }, { status: 403 }),
       Response.json({ error: { code: 403, errors: [{ reason: 'userRateLimitExceeded' }] } }, { status: 403 }),
     )
-    const drive = googleDocumentDrive('token')
+    const drive = googleDocumentDrive(async () => 'token')
 
     expect(await drive.upload('file-1', '{}')).toEqual({ kind: 'kept-revisions-full' })
     await expect(drive.upload('file-1', '{}')).rejects.toThrow('userRateLimitExceeded')

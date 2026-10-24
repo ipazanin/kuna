@@ -7,7 +7,7 @@ import type { CoreTab, WorkbookTab } from './workbookSnapshot'
 
 export interface TemplateColumn {
   readonly name: string
-  /** The note on the header cell of the template and every export. */
+  /** The note on the header cell of every export. */
   readonly note: string
 }
 
@@ -35,16 +35,13 @@ const RULE_COLUMN_NOTES: Readonly<Record<(typeof RULE_COLUMNS)[number], string>>
   note: 'Why the rule exists and why it sits where it does. Optional.',
 }
 
-/** The tabs whose rows have no business key of their own, so each row carries an id. */
-export const TABS_WITH_IDS = ['outgoing-plan', 'owner-advances', 'assets', 'year-end', 'plan', 'splits', 'dismissed'] as const satisfies readonly WorkbookTab[]
-
 export const ID_TEMPLATE_COLUMN: TemplateColumn = {
   name: ID_FIELD,
-  note: 'A code the app gives each row so it can find the row again. Leave it as it is. On a copied row, clear it, and the app gives the copy its own.',
+  note: 'A code the app gives each row so it can find the row again. Leave it as it is.',
 }
 
 /** The column of a row's owner share, on the ledger, categories, splits and owner-advances tabs. */
-export const OWNER_SHARE_COLUMN = 'owner_share'
+const OWNER_SHARE_COLUMN = 'owner_share'
 
 export const OWNER_SHARE_TEMPLATE_COLUMN: TemplateColumn = {
   name: OWNER_SHARE_COLUMN,
@@ -52,9 +49,9 @@ export const OWNER_SHARE_TEMPLATE_COLUMN: TemplateColumn = {
 }
 
 /**
- * The columns of each core tab, in the order the template and an export write them. The ledger
- * keeps the Google Sheet's own order, A to R, with the owner share after them, so an export lines
- * up with the Sheet column for column. The reader finds every column by name, so a file may order
+ * The columns of each core tab, in the order an export writes them. The ledger keeps the Google
+ * Sheet's own order, A to R, with the owner share after them, so an export lines up with a download
+ * of the Sheet column for column. The reader finds every column by name, so a file may order
  * them as it likes and add its own.
  */
 const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
@@ -78,6 +75,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'instructed_currency', note: 'The currency the payment was instructed in, from a camt statement. Optional.' },
     { name: 'review_reasons', note: 'Why the statement wants a person to look at the row, such as reversal, separated by |. Such a row waits for review.' },
     OWNER_SHARE_TEMPLATE_COLUMN,
+    { name: ID_FIELD, note: 'A code the app gives each row, so it keeps the row apart from every other. Leave it as it is.' },
   ],
   categories: [
     { name: 'category', note: 'A short name in lower case, such as software. Each category once. Required.' },
@@ -179,7 +177,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
   ],
 }
 
-/** The columns of a tab, core's or the installed pack's, in template order. Throws for a pack tab no installed pack maps. */
+/** The columns of a tab, core's or the installed pack's, in export order. Throws for a pack tab no installed pack maps. */
 export function templateColumns(tab: WorkbookTab): readonly TemplateColumn[] {
   if (tab in TEMPLATE_COLUMNS) {
     return TEMPLATE_COLUMNS[tab as CoreTab]
@@ -191,28 +189,12 @@ export function templateColumns(tab: WorkbookTab): readonly TemplateColumn[] {
   return mapping.columns
 }
 
-/** The names of a tab's columns, in template order. */
+/** The names of a tab's columns, in export order. */
 export function templateColumnNames(tab: WorkbookTab): string[] {
   return templateColumns(tab).map((column) => column.name)
 }
 
-/** The tab's columns other than its id, which a row the app writes is found again by. */
+/** The tab's columns other than its id. */
 export function contentColumns(tab: WorkbookTab): string[] {
-  return contentColumnsOf(templateColumns(tab))
-}
-
-/** The tab's columns other than its id that a header row lacks, in template order. */
-function missingContentColumns(tab: WorkbookTab, header: readonly string[]): string[] {
-  const held = new Set(header.map((name) => name.trim()))
-  return contentColumns(tab).filter((column) => !held.has(column))
-}
-
-/** The columns other than the id that each tab's header lacks, for the tabs that lack any. */
-export function missingColumnsOf(headers: readonly (readonly [tab: WorkbookTab, header: readonly string[]])[]): Partial<Record<WorkbookTab, readonly string[]>> {
-  return Object.fromEntries(headers.map(([tab, header]) => [tab, missingContentColumns(tab, header)] as const).filter(([, columns]) => columns.length > 0))
-}
-
-/** The names of the columns other than the id, in template order. */
-export function contentColumnsOf(columns: readonly TemplateColumn[]): string[] {
-  return columns.map((column) => column.name).filter((name) => name !== ID_FIELD)
+  return templateColumnNames(tab).filter((name) => name !== ID_FIELD)
 }

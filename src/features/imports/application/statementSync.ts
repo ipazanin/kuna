@@ -38,7 +38,7 @@ export interface StatementSyncPorts {
 }
 
 /**
- * Files the statements of the folder the ledger lacks, after the Sheet was read: the files whose
+ * Files the statements of the folder the ledger lacks, after the file was read: the files whose
  * name the ledger does not hold are downloaded and read, one dry run takes them all, and one write
  * adds every statement it accepts through the ledger's write rules, as Import does. A statement it
  * refuses or that waits for its account to start is held, and nothing after it is written for that
@@ -83,7 +83,7 @@ async function readingsOf(file: StatementFile, ports: StatementSyncPorts, workbo
 
 /**
  * The write of every accepted statement. When it is refused, such as for rows another device's sync
- * filed since the Sheet was read, the Sheet is read again and the dry run runs once more on it.
+ * filed since the file was read, the file is read again and the dry run runs once more on it.
  */
 async function fileReadings(readings: readonly StatementReading[], ports: StatementSyncPorts, mayRetry: boolean): Promise<StatementSyncOutcome> {
   const { store } = ports

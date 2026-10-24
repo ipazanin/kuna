@@ -53,9 +53,9 @@ const daysWorked = new Map(
 )
 
 installHrDooPack()
-const { tabs, missingTabs } = await readWorkbookFile(readFileSync(options.workbook))
+const { tabs } = await readWorkbookFile(readFileSync(options.workbook))
 const read = readSnapshot({
-  meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null, missingTabs },
+  meta: { id: 'export', source: 'browser', title: options.workbook, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null },
   ...tabs,
 }).workbook
 const workbook = hrDooWorkbook(presentedWorkbook(read))

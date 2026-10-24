@@ -19,7 +19,7 @@ import { categoryIdOf } from '../src/features/workbook/domain/workbook'
 import { cellsOf } from './fixtures/recordWrites'
 import { civil, euros } from './fixtures/ledger'
 import { withIds } from './fixtures/rowIds'
-import { AN_ID, cellData, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { AN_ID, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -65,8 +65,8 @@ function addAdvance(store: WorkbookStore<WorkbookCopy>, draft: OwnerAdvanceDraft
 }
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('owner writes to %s', (_name, harnessOf: (used: Set<string>, grids?: ReturnType<typeof workbookGrids>) => Promise<WriteBackHarness>) => {
   it('appends an advance that reads back as a cost in its category, and Undo clears it again', async () => {
     const { store } = await harnessOf(used, gridsWithOwnerTabs())
@@ -161,39 +161,5 @@ describe.each([
     ])
     expect(store.state.workbook?.ownerAdvances).toHaveLength(1)
     await expect(store.undo(added!)).rejects.toThrow(WorkbookWriteRefused)
-  })
-})
-
-describe('owner writes to a Google Sheet', () => {
-  it('finds a loan category again after a row was inserted above it in the Sheet', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used, gridsWithOwnerTabs())
-    sheets.grids.categories!.splice(1, 0, ['travel', 'operating', 'operating', ''])
-
-    await switchLoans(store, 'financing', ['owner-loan-out'])
-
-    expect(writtenRanges()).toEqual(['categories!C6'])
-  })
-
-  it('writes the date as a serial number with a new id, and the bucket as one cell, found by its header', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used, gridsWithOwnerTabs())
-
-    await addAdvance(store, DESK)
-    await switchLoans(store, 'financing', ['owner-loan-out'])
-
-    expect(sentRequests(sheets).find((request) => 'appendCells' in request)).toEqual({
-      appendCells: { sheetId: (await sheets.sheetGrids()).get('owner-advances')?.sheetId, rows: [{ values: [...[46305, 117.3, 'Desk lamp', 'equipment'].map(cellData), { userEnteredValue: { stringValue: AN_ID } }] }], fields: 'userEnteredValue' },
-    })
-    expect(writtenRanges()).toEqual(['categories!C5'])
-  })
-
-  it('refuses an advance on a Sheet without an owner-advances tab, and a bucket for a category row that two rows match', async () => {
-    const grids = gridsWithOwnerTabs()
-    const { 'owner-advances': _advances, ...withoutAdvances } = grids
-    const { store, sheets } = await googleHarness(used, withoutAdvances)
-    sheets.grids.categories!.splice(1, 0, ['travel', 'operating', 'operating', ''])
-    sheets.grids.categories!.push(['owner-loan-out', 'owner', 'owner-pay', 'owner-loan-out'])
-
-    await expect(addAdvance(store, DESK)).rejects.toThrow('The workbook has no owner-advances tab')
-    await expect(switchLoans(store, 'financing', ['owner-loan-out'])).rejects.toThrow('2 records hold the category "owner-loan-out"')
   })
 })

@@ -1,33 +1,55 @@
 import { downloadFile } from '../../../shared/files/downloadFile'
 import { fold } from '../../../shared/text/fold'
+import { JSON_MIME_TYPE } from '../../../shared/google/driveClient'
 import { XLSX_MIME_TYPE } from '../../../shared/xlsx/sheetGrids'
 import { importSummary } from '../../excel/domain/importSummary'
 import type { ImportSummary } from '../../excel/domain/importSummary'
 import type { WorkbookStore } from '../application/createWorkbookStore'
 import type { Workbook } from '../domain/workbook'
-import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
-import { readSnapshot } from '../infrastructure/spreadsheetTab'
-import type { WorkbookSnapshot, WorkbookTabs } from '../infrastructure/workbookSnapshot'
+import { NEWER_FILE, decodeDocument, savedByNewerApp } from '../infrastructure/documentFormat'
+import type { WorkbookDocument } from '../infrastructure/documentFormat'
+import { readDocument } from '../infrastructure/documentRecordStorage'
+import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
+import { COMPANY_APP } from '../infrastructure/documentStorePorts'
 import { emptyWorkbookTabs } from '../infrastructure/emptyWorkbook'
+import { documentOfTabs, recordCountsOf, tabsOfDocument } from '../infrastructure/spreadsheetDocument'
+import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
 
-const TEMPLATE_FILE_NAME = 'ledgerboard-template.xlsx'
+/** What a file input takes for a workbook: an xlsx file, or a ledgerboard file such as a backup. */
+export const WORKBOOK_FILE_TYPES = `.xlsx,${XLSX_MIME_TYPE},.json,${JSON_MIME_TYPE}`
 
-/** What a file input takes for a workbook. */
-export const WORKBOOK_FILE_TYPES = `.xlsx,${XLSX_MIME_TYPE}`
-
-/** A file read and checked, ready to replace the workbook in this browser once the user agrees. */
+/** A file read and checked, ready to be kept on Drive or in this browser once the user agrees. */
 export interface ImportPreview {
   readonly fileName: string
   readonly title: string
-  readonly tabs: WorkbookTabs
+  /** The file's records as the app's document, every ledger row with an id. */
+  readonly document: WorkbookDocument
   readonly summary: ImportSummary
+  /** How many records the file holds of each kind, by the tab an xlsx file keeps them on. */
+  readonly counts: readonly { readonly name: string; readonly count: number }[]
+  readonly recordCount: number
 }
 
 /**
- * The workbook a file holds, read by the same reader as a Google Sheet. Nothing is stored yet.
- * A file that cannot be read throws a message for the user, with the underlying error as its cause.
+ * The workbook a file holds, as the document the app would keep. Nothing is stored yet. A file
+ * that cannot be read throws a message for the user, with the underlying error as its cause.
  */
 export async function previewImport(file: File): Promise<ImportPreview> {
+  const { document, missingTabs } = file.name.toLowerCase().endsWith('.json') ? await documentOfFile(file) : await documentOfWorkbookFile(file)
+  const workbook = readDocument(previewIdentity(file.name), document).workbook
+  const counts = recordCountsOf(document)
+  const summary = importSummary(workbook, missingTabs)
+  return {
+    fileName: file.name,
+    title: workbook.settings.companyName || withoutExtension(file.name),
+    document,
+    summary: savedByNewerApp(document) ? { ...summary, refusal: NEWER_FILE } : summary,
+    counts,
+    recordCount: counts.reduce((sum, kind) => sum + kind.count, 0),
+  }
+}
+
+async function documentOfWorkbookFile(file: File): Promise<{ readonly document: WorkbookDocument; readonly missingTabs: ImportSummary['defaultedTabs'] }> {
   let contents
   try {
     contents = await readWorkbookFile(await file.arrayBuffer())
@@ -35,34 +57,37 @@ export async function previewImport(file: File): Promise<ImportPreview> {
     console.error(`Reading ${file.name} failed`, readFailure)
     throw new Error(`${file.name} could not be read as an Excel workbook. Save it as .xlsx and try again.`, { cause: readFailure })
   }
-  const workbook = workbookOf(contents.tabs, file.name)
-  return {
-    fileName: file.name,
-    title: workbook.settings.companyName || withoutExtension(file.name),
-    tabs: contents.tabs,
-    summary: importSummary(workbook, contents.missingTabs),
+  return { document: documentOfTabs(COMPANY_APP, contents.tabs, new Date().toISOString()), missingTabs: contents.missingTabs }
+}
+
+/** A ledgerboard file, such as a backup from the Drive folder, holds every kind, so no tab is missing. */
+async function documentOfFile(file: File): Promise<{ readonly document: WorkbookDocument; readonly missingTabs: ImportSummary['defaultedTabs'] }> {
+  let document
+  try {
+    document = decodeDocument(await file.text())
+  } catch (readFailure) {
+    console.error(`Reading ${file.name} failed`, readFailure)
+    throw new Error(`${file.name} could not be read as a ledgerboard file.`, { cause: readFailure })
   }
+  if (document.app !== COMPANY_APP) {
+    throw new Error(`${file.name} holds the books of another ledgerboard app, ${document.app}.`)
+  }
+  return { document, missingTabs: [] }
 }
 
-/** The blank template: every tab with its headers and notes, the default categories and settings. */
-export async function downloadTemplate(): Promise<void> {
-  const tabs = emptyWorkbookTabs()
-  downloadFile(await writeWorkbookFile(tabs, workbookOf(tabs, 'template')), TEMPLATE_FILE_NAME, XLSX_MIME_TYPE)
-}
-
-/** The tabs of a new, empty workbook kept in this browser. */
-export function emptyLocalWorkbook(): { readonly tabs: WorkbookTabs; readonly title: string } {
-  return { tabs: emptyWorkbookTabs(), title: 'New workbook' }
+/** The document of a new, empty workbook kept in this browser. */
+export function emptyLocalWorkbook(): { readonly document: WorkbookDocument; readonly title: string } {
+  return { document: documentOfTabs(COMPANY_APP, emptyWorkbookTabs(), new Date().toISOString()), title: 'New workbook' }
 }
 
 /** Writes the workbook on screen in the template format, hands it to the browser, and notes the export. */
-export async function exportWorkbook(store: WorkbookStore<WorkbookSnapshot>): Promise<string> {
+export async function exportWorkbook(store: WorkbookStore<DocumentCopy, WorkbookDocument>): Promise<string> {
   const { snapshot, workbook } = store.state
   if (snapshot === null || workbook === null) {
     throw new Error('There is no workbook to export yet.')
   }
   const fileName = exportFileName(workbook, new Date())
-  downloadFile(await writeWorkbookFile(snapshot, workbook), fileName, XLSX_MIME_TYPE)
+  downloadFile(await writeWorkbookFile(tabsOfDocument(snapshot.document), workbook), fileName, XLSX_MIME_TYPE)
   await store.recordExport()
   return fileName
 }
@@ -77,11 +102,8 @@ export function exportFileName(workbook: Pick<Workbook, 'title' | 'settings'>, d
   return `ledgerboard-${name || 'workbook'}-${date}.xlsx`
 }
 
-function workbookOf(tabs: WorkbookTabs, title: string): Workbook {
-  return readSnapshot({
-    meta: { id: 'preview', source: 'excel', title, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null, missingTabs: [] },
-    ...tabs,
-  }).workbook
+function previewIdentity(title: string): Pick<Workbook, 'id' | 'source' | 'title' | 'syncedAt'> {
+  return { id: 'preview', source: 'browser', title, syncedAt: new Date().toISOString() }
 }
 
 function withoutExtension(fileName: string): string {

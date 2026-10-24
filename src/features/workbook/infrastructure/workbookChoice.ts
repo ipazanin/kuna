@@ -1,6 +1,7 @@
 import type { WorkbookChoice } from '../application/workbookPorts'
 
-const WORKBOOK_CHOICE_KEY = 'ledgerboard.workbook'
+/** A choice of a Google Sheet, kept under the key before, is not read, so a device that showed the Sheet starts at the first-run choices. */
+const WORKBOOK_CHOICE_KEY = 'ledgerboard.workbook-file'
 
 export function loadWorkbookChoice(): WorkbookChoice | null {
   try {
@@ -24,13 +25,12 @@ export function saveWorkbookChoice(choice: WorkbookChoice | null): void {
   }
 }
 
-/** A choice saved before Excel mode existed has no source, and was always a Google Sheet. */
 function choiceOf(candidate: unknown): WorkbookChoice | null {
   if (typeof candidate !== 'object' || candidate === null) {
     return null
   }
-  const { source = 'google', id, name } = candidate as Record<string, unknown>
-  if ((source !== 'google' && source !== 'excel') || typeof id !== 'string' || id === '' || typeof name !== 'string') {
+  const { source, id, name } = candidate as Record<string, unknown>
+  if ((source !== 'drive' && source !== 'browser') || typeof id !== 'string' || id === '' || typeof name !== 'string') {
     return null
   }
   return { source, id, name }

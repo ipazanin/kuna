@@ -7,8 +7,9 @@ import { categoriesOfDrafts, categoryDraftsOf } from '../src/features/settings/d
 import { storedOf } from '../src/features/workbook/domain/recordsRead'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { CATEGORY_RECORDS } from '../src/features/workbook/domain/recordKind'
-import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
-import { excelHarness, forgetCaches, googleHarness } from './fixtures/writeBack'
+import type { WorkbookDocument } from '../src/features/workbook/infrastructure/documentFormat'
+import { fakeWorkbookDocument } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { browserHarness, forgetCaches, driveHarness } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -17,20 +18,19 @@ afterEach(async () => {
   await forgetCaches(used)
 })
 
-/** The fake workbook with the bucket of `consulting` misspelt, as a person might type it in the Sheet. */
-function withMisspeltBucket(source: 'google' | 'excel'): ReturnType<typeof fakeWorkbookValues> {
-  const values = fakeWorkbookValues(source)
-  const [header, ...rows] = values.categories
-  const bucket = header!.indexOf('bucket')
-  return { ...values, categories: [header!, ...rows.map((row) => (row[0] === 'consulting' ? row.map((cell, column) => (column === bucket ? 'operatng' : cell)) : row))] }
+/** The fake workbook with the bucket of `consulting` misspelt, as a person might type it in a file. */
+function withMisspeltBucket(source: 'drive' | 'browser'): WorkbookDocument {
+  const document = fakeWorkbookDocument('2026-10-16T08:00:00.000Z', source)
+  const categories = (document.records.category ?? []).map((record) => (record.category === 'consulting' ? { ...record, bucket: 'operatng' } : record))
+  return { ...document, records: { ...document.records, category: categories } }
 }
 
 describe.each([
-  ['a Google Sheet', 'google', googleHarness],
-  ['a workbook kept in this browser', 'excel', excelHarness],
-] as const)('a category the domain refuses, in %s', (_name, source, harnessOf: (used: Set<string>, grids: ReturnType<typeof fakeWorkbookValues>) => Promise<WriteBackHarness>) => {
-  it('still shows in the categories editor as stored, and saving it fixed writes the one cell', async () => {
-    const { store, writtenRanges } = await harnessOf(used, withMisspeltBucket(source))
+  ['a file on Drive', 'drive', driveHarness],
+  ['a workbook kept in this browser', 'browser', browserHarness],
+] as const)('a category the domain refuses, in %s', (_name, source, harnessOf: (used: Set<string>, seed: WorkbookDocument) => Promise<WriteBackHarness>) => {
+  it('still shows in the categories editor as stored, and saving it fixed changes only its bucket', async () => {
+    const { store, held } = await harnessOf(used, withMisspeltBucket(source))
     const records = store.state.records!.categories
 
     expect(records.refused).toEqual([expect.objectContaining({ id: recordIdOf(CATEGORY_RECORDS, 'consulting'), label: 'consulting', reason: '"operatng" is not a bucket' })])
@@ -48,10 +48,8 @@ describe.each([
     const receipt = await store.write('Categories saved', (unit) => writeDrafts(unit.of(CATEGORY_WRITES), stored, made))
     expect(receipt?.records.map(({ change }) => change.verb)).toEqual(['repair'])
 
-    if (source === 'google') {
-      const row = withMisspeltBucket(source).categories.findIndex((cells) => cells[0] === 'consulting') + 1
-      expect(writtenRanges()).toEqual([`categories!C${row}`])
-    }
+    const before = withMisspeltBucket(source).records.category!.find((record) => record.category === 'consulting')
+    expect((await held()).records.category!.find((record) => record.category === 'consulting')).toEqual({ ...before, bucket: 'operating' })
     expect(store.state.records!.categories.refused).toEqual([])
     expect(store.state.workbook?.categories.find((category) => category.slug === 'consulting')?.bucket).toBe('operating')
   })

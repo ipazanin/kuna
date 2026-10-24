@@ -2,106 +2,151 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/features/settings/application/namedRecordWrites'
-import { ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
 import { createWorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
-import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookStore, WorkbookStorePorts } from '../src/features/workbook/application/createWorkbookStore'
 import type { WorkbookChoice } from '../src/features/workbook/application/workbookPorts'
-import { spreadsheetStorePorts } from '../src/features/workbook/application/workbookStore'
-import type { SpreadsheetStorePorts } from '../src/features/workbook/application/workbookStore'
+import { deleteBrowserDocument } from '../src/features/workbook/infrastructure/browserDocument'
+import { decodeDocument, encodeDocument } from '../src/features/workbook/infrastructure/documentFormat'
+import type { DocumentRecord, WorkbookDocument } from '../src/features/workbook/infrastructure/documentFormat'
+import { newDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import { COMPANY_APP, documentStorePorts } from '../src/features/workbook/infrastructure/documentStorePorts'
+import type { DriveAccess } from '../src/features/workbook/infrastructure/documentStorePorts'
+import { createDriveDocument } from '../src/features/workbook/infrastructure/driveDocument'
+import type { DocumentDrive } from '../src/features/workbook/infrastructure/driveDocument'
+import { createFakeDrive } from '../src/features/workbook/infrastructure/fake/fakeDrive'
+import type { FakeDrive } from '../src/features/workbook/infrastructure/fake/fakeDrive'
 import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
-import { addRows, editRow } from './fixtures/recordWrites'
-import type { WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import { addRows, editRow } from './fixtures/recordWrites'
 
 const used = new Set<string>()
 
-function tabsOf(amounts: number[]): WorkbookTabs {
-  return {
-    ledger: amounts.map((amount, index) => ({
-      sheetRow: index + 2,
-      cells: { date: 46300 - index, account: 'main', amount, balance: 100, category: 'revenue' },
-    })),
-    categories: [{ sheetRow: 2, cells: { category: 'revenue', family: 'income', bucket: 'income' } }],
-    accounts: [{ sheetRow: 2, cells: { account: 'main', iban: 'XX00FAKE0001' } }],
-    settings: [],
-    rules: [],
-    invoices: [],
-    clients: [],
-    'outgoing-plan': [],
-    'owner-advances': [],
-    assets: [],
-    grants: [],
-    'year-end': [],
-    plan: [],
-    scenarios: [],
-    splits: [],
-    dismissed: [],
-  }
+function documentOf(amounts: readonly number[]): WorkbookDocument {
+  return newDocument(
+    COMPANY_APP,
+    {
+      'ledger-row': amounts.map((amount, index) => ({ date: `2026-10-${String(10 - index).padStart(2, '0')}`, account: 'main', amount: amount.toFixed(2), balance: '100.00', category: 'revenue' })),
+      category: [{ category: 'revenue', family: 'income', bucket: 'income' }],
+      account: [{ account: 'main', iban: 'XX00FAKE0001' }],
+    },
+    '2026-10-15T06:00:00.000Z',
+  )
 }
 
-function snapshotOf(id: string, syncedAt: string, amounts: number[], title = 'Books'): WorkbookSnapshot {
-  return {
-    meta: { id, source: 'google', title, syncedAt, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
-    ...tabsOf(amounts),
-  }
+/** Drive as the store reaches it, which a test can make fail or race. */
+interface DriveSide {
+  readonly drive: FakeDrive
+  access: DriveAccess
+  /** Runs before each request the store sends to Drive, with its name. */
+  before: (request: keyof DocumentDrive) => Promise<void>
+  pickedFile: string | null
+  pickedFolder: string | null
 }
 
-/** A store over the spreadsheet adapters and these ports. */
-function storeOf(ports: SpreadsheetStorePorts): WorkbookStore<WorkbookSnapshot> {
-  return createWorkbookStore(spreadsheetStorePorts(ports))
+function driveSide(): DriveSide {
+  const drive = createFakeDrive()
+  const side: DriveSide = {
+    drive,
+    before: async () => {},
+    pickedFile: null,
+    pickedFolder: null,
+    access: {
+      drive: new Proxy(drive, {
+        get(target, name) {
+          const member = Reflect.get(target, name) as unknown
+          return typeof member === 'function'
+            ? async (...parameters: unknown[]) => {
+                await side.before(name as keyof DocumentDrive)
+                return (member as (...given: unknown[]) => unknown).apply(target, parameters)
+              }
+            : member
+        },
+      }),
+      signIn: async () => {},
+      signedIn: () => true,
+      pickFolder: async () => side.pickedFolder,
+      pickFile: async () => side.pickedFile,
+    },
+  }
+  return side
 }
 
 interface Harness {
-  readonly ports: SpreadsheetStorePorts
+  readonly ports: WorkbookStorePorts<DocumentCopy, WorkbookDocument>
   readonly chosen: () => WorkbookChoice | null
+  readonly side: DriveSide
+  /** How long each pause before a retry asked to wait, in order. */
+  readonly pauses: number[]
   /** Moves the clock the store reads. */
   readonly setNow: (iso: string) => void
 }
 
-function harness(initial: WorkbookChoice | null, fetchFromGoogle: SpreadsheetStorePorts['fetchFromGoogle'] = async () => null): Harness {
+function harness(initial: WorkbookChoice | null, side = driveSide()): Harness {
   let remembered = initial
   let now = '2026-10-16T09:00:00.000Z'
   let nextLocal = 0
-  if (initial !== null) {
-    used.add(initial.id)
-  }
+  const pauses: number[] = []
+  const documents = documentStorePorts(async () => side.access, () => now)
   return {
     chosen: () => remembered,
+    side,
+    pauses,
     setNow: (iso) => {
       now = iso
     },
     ports: {
+      ...documents,
+      openCache: (id) => {
+        used.add(id)
+        return documents.openCache(id)
+      },
       loadChoice: () => remembered,
       saveChoice: (choice) => {
         remembered = choice
       },
-      openCache: (id) => {
-        used.add(id)
-        return openWorkbookCache(id)
-      },
-      fetchFromGoogle,
       prepareSync: () => {},
       hasLiveAccessToken: () => false,
       forgetGoogleSignIn: () => {},
       signOutOfGoogle: async () => {},
-      newLocalId: () => `local-${(nextLocal += 1)}`,
-      now: () => now,
-      requestPersistentStorage: () => {},
-      googleWriter: async () => {
-        throw new Error('This spec never writes to Google.')
+      newLocalId: () => {
+        nextLocal += 1
+        used.add(`local-${nextLocal}`)
+        return `local-${nextLocal}`
       },
+      now: () => now,
+      pause: async (milliseconds) => {
+        pauses.push(milliseconds)
+      },
+      requestPersistentStorage: () => {},
     },
   }
 }
 
-async function seedCache(snapshot: WorkbookSnapshot): Promise<void> {
-  used.add(snapshot.meta.id)
-  const cache = openWorkbookCache(snapshot.meta.id)
-  await cache.replace(snapshot)
+/** The books as a file in a folder of the side's Drive, read once on this device, so its copy is in the cache. */
+async function onDrive(side: DriveSide, document: WorkbookDocument, extra: Partial<DocumentCopy['meta']> = {}): Promise<WorkbookChoice> {
+  const folderId = await side.drive.createFolder('root', 'books')
+  const { fileId, document: stored } = await createDriveDocument(side.drive, folderId, COMPANY_APP, encodeDocument(document))
+  used.add(fileId)
+  const cache = openWorkbookCache(fileId)
+  await cache.replace({
+    meta: { id: fileId, source: 'drive', title: 'ledgerboard-company.json', syncedAt: '2026-10-15T06:00:00.000Z', lastExportedAt: null, unexportedSince: null, ...extra },
+    revision: stored.revision,
+    document,
+  })
   cache.close()
+  side.drive.requests.length = 0
+  return { source: 'drive', id: fileId, name: 'ledgerboard-company.json' }
 }
 
-async function storedCopy(id: string): Promise<WorkbookSnapshot | null> {
+/** Another device saves the file with these records added. */
+async function savedElsewhere(drive: FakeDrive, fileId: string, kind: string, ...records: DocumentRecord[]): Promise<void> {
+  const held = decodeDocument(await drive.download(fileId))
+  await drive.upload(fileId, encodeDocument({ ...held, records: { ...held.records, [kind]: [...(held.records[kind] ?? []), ...records] } }))
+}
+
+async function storedCopy(id: string): Promise<DocumentCopy | null> {
   const cache = openWorkbookCache(id)
   try {
     return await cache.read()
@@ -110,23 +155,26 @@ async function storedCopy(id: string): Promise<WorkbookSnapshot | null> {
   }
 }
 
+function storeOf(ports: WorkbookStorePorts<DocumentCopy, WorkbookDocument>): WorkbookStore<DocumentCopy, WorkbookDocument> {
+  return createWorkbookStore(ports)
+}
+
 afterEach(async () => {
   for (const id of used) {
     await openWorkbookCache(id).delete()
+    await deleteBrowserDocument(id)
   }
   used.clear()
 })
 
-const BOOKS: WorkbookChoice = { source: 'google', id: 'books', name: 'Books' }
-
-describe('workbook store with a Google Sheet', () => {
-  it('shows the cached copy on open, with the time it was synced, before any sync', async () => {
-    await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [7200, -150]))
-    const store = storeOf(
-      harness(BOOKS, async () => {
-        throw new Error('open must not sync')
-      }).ports,
-    )
+describe('workbook store with a Drive file', () => {
+  it('shows the cached copy on open, with the time it was read, before any request to Drive', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([7200, -150]))
+    side.before = async () => {
+      throw new Error('open must not read Drive')
+    }
+    const store = storeOf(harness(choice, side).ports)
 
     await store.open()
 
@@ -159,37 +207,41 @@ describe('workbook store with a Google Sheet', () => {
     expect(reads).toBe(1)
   })
 
-  it('replaces the cache and the screen wholesale on sync, keeping the export history', async () => {
-    const cached = snapshotOf('books', '2026-10-15T06:00:00.000Z', [1, 2, 3])
-    await seedCache({ ...cached, meta: { ...cached.meta, lastExportedAt: '2026-10-10T12:00:00.000Z' } })
-    const store = storeOf(harness(BOOKS, async () => snapshotOf('books', '2026-10-16T06:00:00.000Z', [9])).ports)
+  it('downloads nothing on a sync while the file stands at the revision it holds', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([5]))
+    const store = storeOf(harness(choice, side).ports)
     await store.open()
 
     await store.sync()
 
-    expect(store.state.syncedAt).toBe('2026-10-16T06:00:00.000Z')
+    expect(side.drive.requests).toEqual(['headRevision'])
+    expect(store.state.syncedAt).toBe('2026-10-16T09:00:00.000Z')
+  })
+
+  it('replaces the cache and the screen with another device’s save on sync, keeping the export history', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1, 2, 3]), { lastExportedAt: '2026-10-10T12:00:00.000Z' })
+    await side.drive.upload(choice.id, encodeDocument(documentOf([9])))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+
+    await store.sync()
+
     expect(store.state.workbook?.transactions).toHaveLength(1)
-    const stored = await storedCopy('books')
-    expect(stored?.ledger).toHaveLength(1)
+    const stored = await storedCopy(choice.id)
+    expect(stored?.document.records['ledger-row']).toHaveLength(1)
+    expect(stored?.revision).toBe(side.drive.file(choice.id).headRevisionId)
     expect(stored?.meta.lastExportedAt).toBe('2026-10-10T12:00:00.000Z')
   })
 
-  it('keeps what is on screen when the Picker is cancelled on the first run', async () => {
-    const store = storeOf(harness(null).ports)
-    await store.open()
-
-    await store.sync()
-
-    expect(store.state).toMatchObject({ status: 'ready', workbook: null, choice: null, error: null })
-  })
-
   it('reports a failed sync and keeps the cached copy on screen', async () => {
-    await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [5]))
-    const store = storeOf(
-      harness(BOOKS, async () => {
-        throw new Error('403 from /v4/spreadsheets: The caller does not have permission')
-      }).ports,
-    )
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([5]))
+    side.before = async () => {
+      throw new Error('403 from /drive/v3/files: The caller does not have permission')
+    }
+    const store = storeOf(harness(choice, side).ports)
     await store.open()
 
     await store.sync()
@@ -199,84 +251,166 @@ describe('workbook store with a Google Sheet', () => {
     expect(store.state.workbook?.transactions).toHaveLength(1)
   })
 
-  it('keeps the chosen Sheet when choosing another one is cancelled', async () => {
-    await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [5]))
-    const { ports, chosen } = harness(BOOKS)
+  it('finds the app’s file by its mark on a second device, and keeps the chosen workbook when the search and the Picker find none', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
     const store = storeOf(ports)
     await store.open()
 
-    await store.chooseGoogleSheet()
+    await store.chooseDriveFile()
+    expect(store.state).toMatchObject({ status: 'ready', choice: null, workbook: null })
 
-    expect(store.state).toMatchObject({ status: 'ready', choice: BOOKS, error: null })
-    expect(chosen()).toEqual(BOOKS)
-    expect(store.state.workbook?.transactions).toHaveLength(1)
+    const folderId = await side.drive.createFolder('root', 'books')
+    const { fileId } = await createDriveDocument(side.drive, folderId, COMPANY_APP, encodeDocument(documentOf([1, 2])))
+    used.add(fileId)
+    await store.chooseDriveFile()
+
+    expect(chosen()).toEqual({ source: 'drive', id: fileId, name: 'ledgerboard-company.json' })
+    expect(store.state.workbook?.transactions).toHaveLength(2)
   })
 
-  it('shows the newly chosen Sheet once the Picker returns one', async () => {
-    const pickedFor: (string | null)[] = []
-    const store = storeOf(
-      harness(BOOKS, async (sheet) => {
-        pickedFor.push(sheet?.id ?? null)
-        return snapshotOf('new', '2026-10-16T06:00:00.000Z', [1, 2], 'New books')
-      }).ports,
-    )
+  it('refuses a backup or another app’s file picked when the search finds none, and keeps the chosen workbook', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    const folderId = await side.drive.createFolder('root', 'backups')
+    const backup = await side.drive.createFile(folderId, 'ledgerboard-company-2026-10-24.json', encodeDocument(documentOf([1])))
+    const personal = await side.drive.createFile(folderId, 'ledgerboard-personal.json', encodeDocument({ ...documentOf([1]), app: 'personal' }))
+    used.add(backup.id)
+    used.add(personal.id)
+
+    side.pickedFile = backup.id
+    await store.chooseDriveFile()
+    expect(store.state.error).toMatch(/ledgerboard-company-2026-10-24\.json is a backup/)
+
+    side.pickedFile = personal.id
+    await store.chooseDriveFile()
+    expect(store.state.error).toMatch(/another ledgerboard app, personal/)
+    expect(chosen()).toBeNull()
+    expect(store.state.workbook).toBeNull()
+  })
+
+  it('starts a write again from a fresh read when another device saved since the read, and lands both saves', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([5]))
+    const { ports, pauses } = harness(choice, side)
+    const store = storeOf(ports)
+    await store.open()
+    let headChecks = 0
+    side.before = async (request) => {
+      if (request !== 'headRevision') return
+      headChecks += 1
+      // The second check of the head is the one before the upload.
+      if (headChecks === 2) await savedElsewhere(side.drive, choice.id, 'account', { account: 'spare', iban: 'XX00FAKE0002' })
+    }
+
+    await editRow(store, CATEGORY_WRITES, 2, { label: 'Sales' })
+
+    expect(pauses).toHaveLength(1)
+    expect(pauses[0]).toBeGreaterThanOrEqual(1000)
+    const held = decodeDocument(await side.drive.download(choice.id))
+    expect(held.records.account?.map((record) => record.account)).toEqual(['main', 'spare'])
+    expect(held.records.category?.[0]).toMatchObject({ label: 'Sales' })
+    expect(store.state.workbook?.accounts.map((account) => account.slug)).toEqual(['main', 'spare'])
+  })
+
+  it('gives up after three fresh reads on a file that keeps moving, and writes nothing', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([5]))
+    const { ports, pauses } = harness(choice, side)
+    const store = storeOf(ports)
+    await store.open()
+    let headChecks = 0
+    side.before = async (request) => {
+      if (request !== 'headRevision') return
+      headChecks += 1
+      if (headChecks % 2 === 0) await savedElsewhere(side.drive, choice.id, 'account', { account: `spare-${headChecks}`, iban: `XX00FAKE${headChecks}` })
+    }
+
+    await expect(editRow(store, CATEGORY_WRITES, 2, { label: 'Sales' })).rejects.toThrow('Another device kept saving the workbook during this change.')
+
+    expect(pauses).toHaveLength(3)
+    expect(side.drive.file(choice.id).revisions.filter((revision) => revision.text.includes('Sales'))).toEqual([])
+    expect(decodeDocument(await side.drive.download(choice.id)).records.category?.[0]).not.toHaveProperty('label')
+    expect(store.state.writes).toEqual([])
+  })
+
+  it('tells the folder the file sits in and the day of its newest backup', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([10]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    const folderId = side.drive.file(choice.id).parents[0]!
+    expect(await store.driveFilePlace()).toEqual({ folderId, folderName: 'books', lastBackup: null })
+
+    const backups = await side.drive.createFolder(folderId, 'backups')
+    await side.drive.createFile(backups, 'ledgerboard-company-2026-10-20.json', '')
+    await side.drive.createFile(backups, 'ledgerboard-company-2026-10-22.json', '')
+    await side.drive.createFile(backups, 'notes.json', '')
+
+    expect(await store.driveFilePlace()).toEqual({ folderId, folderName: 'books', lastBackup: '2026-10-22' })
+  })
+
+  it('asks Drive nothing about the file while no token is kept', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([10]))
+    side.access = { ...side.access, signedIn: () => false }
+    const store = storeOf(harness(choice, side).ports)
     await store.open()
 
-    await store.chooseGoogleSheet()
-
-    expect(pickedFor).toEqual([null])
-    expect(store.state.choice).toEqual({ source: 'google', id: 'new', name: 'New books' })
-    expect(store.state.workbook?.id).toBe('new')
+    expect(await store.driveFilePlace()).toBeNull()
+    expect(side.drive.requests).toEqual([])
   })
 })
 
-describe('workbook store in Excel mode', () => {
+describe('workbook store with a workbook kept in this browser', () => {
   it('keeps an imported workbook under its own id and reads it back on the next start', async () => {
     const first = harness(null)
     const store = storeOf(first.ports)
     await store.open()
 
-    await store.replaceLocalWorkbook(tabsOf([10, 20]), 'Studio')
+    await store.replaceLocalWorkbook(documentOf([10, 20]), 'Studio')
 
-    expect(store.state.choice).toEqual({ source: 'excel', id: 'local-1', name: 'Studio' })
-    expect(store.state.workbook).toMatchObject({ source: 'excel', id: 'local-1', title: 'Studio' })
+    expect(store.state.choice).toEqual({ source: 'browser', id: 'local-1', name: 'Studio' })
+    expect(store.state.workbook).toMatchObject({ source: 'browser', id: 'local-1', title: 'Studio' })
     const reopened = storeOf(harness(first.chosen()).ports)
     await reopened.open()
     expect(reopened.state.workbook?.transactions).toHaveLength(2)
-    expect(reopened.state.snapshot?.meta).toMatchObject({ source: 'excel', lastExportedAt: null, unexportedSince: null, missingTabs: [] })
+    expect(reopened.state.snapshot?.meta).toMatchObject({ source: 'browser', lastExportedAt: null, unexportedSince: null })
   })
 
-  it('forgets the Google sign-in when a workbook kept in this browser replaces a Sheet', async () => {
-    await seedCache(snapshotOf('books', '2026-10-15T06:00:00.000Z', [7200]))
-    const { ports } = harness(BOOKS)
+  it('forgets the Google sign-in when a workbook kept in this browser replaces a Drive file', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([7200]))
+    const { ports } = harness(choice, side)
     let forgotten = 0
     const store = storeOf({ ...ports, hasLiveAccessToken: () => true, forgetGoogleSignIn: () => (forgotten += 1) })
     await store.open()
     expect(store.canSyncSilently()).toBe(true)
 
-    await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
+    await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
 
     expect(forgotten).toBe(1)
     expect(store.canSyncSilently()).toBe(false)
   })
 
   it('replaces the workbook it keeps rather than adding a second one', async () => {
-    const { ports } = harness(null)
-    const store = storeOf(ports)
+    const store = storeOf(harness(null).ports)
     await store.open()
-    await store.replaceLocalWorkbook(tabsOf([10, 20]), 'Studio')
+    await store.replaceLocalWorkbook(documentOf([10, 20]), 'Studio')
 
-    await store.replaceLocalWorkbook(tabsOf([30]), 'Studio again')
+    await store.replaceLocalWorkbook(documentOf([30]), 'Studio again')
 
     expect(store.state.workbook?.id).toBe('local-1')
-    expect((await storedCopy('local-1'))?.ledger).toHaveLength(1)
+    expect((await storedCopy('local-1'))?.document.records['ledger-row']).toHaveLength(1)
   })
 
-  it('saves row changes, marks them unexported from the first one, and clears that on export', async () => {
+  it('saves record changes, marks them unexported from the first one, and clears that on export', async () => {
     const { ports, setNow } = harness(null)
     const store = storeOf(ports)
     await store.open()
-    await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
+    await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
     setNow('2026-10-17T09:00:00.000Z')
     await editRow(store, CATEGORY_WRITES, 2, { label: 'Sales' })
     setNow('2026-10-18T09:00:00.000Z')
@@ -292,11 +426,10 @@ describe('workbook store in Excel mode', () => {
     expect((await storedCopy('local-1'))?.meta).toMatchObject({ lastExportedAt: '2026-10-19T09:00:00.000Z', unexportedSince: null })
   })
 
-  it('adds grants, assets and year-end lines in Excel mode, and keeps them in this browser', async () => {
-    const { ports } = harness(null)
-    const store = storeOf(ports)
+  it('adds grants, assets and year-end lines, and keeps them in this browser', async () => {
+    const store = storeOf(harness(null).ports)
     await store.open()
-    await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
+    await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
 
     await addRows(store, GRANT_WRITES, { grant: 'startup', received: 45809, amount: 5000, fixed_part: 2000, variable_part: 3000 })
     await addRows(store, ASSET_WRITES, { asset: 'Laptop', bought: 45809, cost_net: 1519.2, group: 'computers', funded_by: 'startup' })
@@ -306,39 +439,97 @@ describe('workbook store in Excel mode', () => {
     expect(hrDooWorkbook(store.state.workbook!).grants).toHaveLength(1)
     expect(hrDooWorkbook(store.state.workbook!).yearEndLines).toHaveLength(1)
     expect(store.state.workbook?.problems).toEqual([])
-    expect((await storedCopy('local-1'))?.assets).toHaveLength(1)
+    expect((await storedCopy('local-1'))?.document.records['hr-doo.asset']).toHaveLength(1)
   })
 
   it('never syncs a workbook kept in this browser with Google', async () => {
-    let fetched = false
-    const { ports } = harness(null, async () => {
-      fetched = true
-      return null
-    })
-    const store = storeOf(ports)
+    const side = driveSide()
+    const store = storeOf(harness(null, side).ports)
     await store.open()
-    await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
+    await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
 
     await store.sync()
 
-    expect(fetched).toBe(false)
+    expect(side.drive.requests).toEqual([])
   })
 
-  it('deletes the local workbook once a Google Sheet replaces it, and only then', async () => {
-    let answer: WorkbookSnapshot | null = null
-    const { ports } = harness(null, async () => answer)
-    const store = storeOf(ports)
+  it('deletes the local workbook once a Drive file replaces it, and only then', async () => {
+    const side = driveSide()
+    const store = storeOf(harness(null, side).ports)
     await store.open()
-    await store.replaceLocalWorkbook(tabsOf([10]), 'Studio')
+    await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
 
-    await store.chooseGoogleSheet()
-    expect(store.state.choice?.source).toBe('excel')
+    await store.chooseDriveFile()
+    expect(store.state.choice?.source).toBe('browser')
     expect(await storedCopy('local-1')).not.toBeNull()
 
-    answer = snapshotOf('books', '2026-10-16T06:00:00.000Z', [1])
-    await store.chooseGoogleSheet()
+    const choice = await onDrive(side, documentOf([1]))
+    await store.chooseDriveFile()
 
-    expect(store.state.choice).toEqual(BOOKS)
+    expect(store.state.choice).toEqual(choice)
     expect(await storedCopy('local-1')).toBeNull()
+  })
+
+  it('moves the workbook into a new file in the folder picked, reads it back the same, and then keeps nothing in this browser', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    const document = { ...documentOf([10, 20]), records: { ...documentOf([10, 20]).records, 'a-later-kind': [{ kept: 'as it was' }] } }
+    await store.replaceLocalWorkbook(document, 'Studio')
+    side.pickedFolder = await side.drive.createFolder('root', 'books')
+
+    await store.keepOnDrive(document)
+
+    const choice = chosen()!
+    used.add(choice.id)
+    expect(choice).toMatchObject({ source: 'drive', name: 'ledgerboard-company.json' })
+    expect(side.drive.file(choice.id)).toMatchObject({ name: 'ledgerboard-company.json', parents: [side.pickedFolder], appProperties: { ledgerboard: COMPANY_APP } })
+    expect(decodeDocument(await side.drive.download(choice.id)).records).toEqual(document.records)
+    expect(store.state.workbook?.transactions).toHaveLength(2)
+    expect(await storedCopy('local-1')).toBeNull()
+  })
+
+  it('keeps an opened file on Drive without keeping it in this browser first', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    side.pickedFolder = await side.drive.createFolder('root', 'books')
+
+    await store.keepOnDrive(documentOf([10, 20, 30]))
+
+    const choice = chosen()!
+    used.add(choice.id)
+    expect(choice).toMatchObject({ source: 'drive', name: 'ledgerboard-company.json' })
+    expect(store.state.workbook?.transactions).toHaveLength(3)
+    expect(used.has('local-1')).toBe(false)
+  })
+
+  it('keeps the workbook on screen when the folder Picker is cancelled', async () => {
+    const side = driveSide()
+    const store = storeOf(harness(null, side).ports)
+    await store.open()
+    await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
+
+    await store.keepOnDrive(documentOf([10]))
+
+    expect(store.state.choice).toEqual({ source: 'browser', id: 'local-1', name: 'Studio' })
+    expect(store.state.status).toBe('ready')
+    expect(await storedCopy('local-1')).not.toBeNull()
+  })
+
+  it('makes no second file when Drive holds the app’s file already, and keeps the browser’s workbook', async () => {
+    const side = driveSide()
+    await onDrive(side, documentOf([1]))
+    const store = storeOf(harness(null, side).ports)
+    await store.open()
+    await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
+
+    await store.keepOnDrive(documentOf([10]))
+
+    expect(store.state.error).toMatch(/Drive already holds ledgerboard-company.json/)
+    expect(store.state.choice?.source).toBe('browser')
+    expect(await storedCopy('local-1')).not.toBeNull()
   })
 })

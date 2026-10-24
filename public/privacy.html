@@ -140,21 +140,22 @@
         </svg>
         <h1>Privacy</h1>
       </header>
-      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 23 October 2026.</p>
+      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 24 October 2026.</p>
 
       <article>
         <section>
           <h2>What the app reads</h2>
           <p>
             Files you choose, and your bank statements. With Google, it asks for the <code>drive.file</code> permission, which covers only
-            the Sheet you pick in Google's file picker and the files the app makes. It reads that Sheet's ledger, categories, accounts,
-            settings and rules tabs.
+            the files and folders you pick in Google's file picker and the files the app makes. It reads your books from
+            <code>ledgerboard-company.json</code>, the file it makes in the folder you pick, and the names of that folder and of the backups
+            beside the file.
           </p>
           <p>
             It also asks for <code>drive.readonly</code>, which lets it read any file in your Drive and change none. It uses it only to find
-            the bank statements in your statements folder that are not on the ledger yet, since
-            <code>drive.file</code> cannot see files another app filed there. Google's wording for this permission covers your whole Drive.
-            The app reads nothing else with it. Each time the app opens, it asks Google for this permission again, and Google shows you a
+            the bank statements in your statements folder that are not on the ledger yet, and to read your accountant's VAT returns and
+            salary workbooks in the folders you name, since <code>drive.file</code> cannot see files another app filed there. Google's
+            wording for this permission covers your whole Drive. The app reads nothing else with it. Each time the app opens, it asks Google for this permission again, and Google shows you a
             screen only when it needs your consent.
           </p>
           <p>
@@ -169,15 +170,15 @@
             It saves one draft per invoice and never sends mail. Google's wording for this permission includes sending, which the app does
             not do.
           </p>
-          <p>In Excel mode it reads only the .xlsx file you open or drop on the page.</p>
+          <p>A file you open or drop on the page, an .xlsx workbook or a ledgerboard file, is read in this browser only.</p>
         </section>
         <section>
           <h2>What the app writes</h2>
           <p>
-            Only what you save, and only in the Sheet you picked: the <code>category</code> and <code>flagged_by</code> cells of a ledger row
-            you confirm or recategorise, rows on the <code>rules</code> tab you add or change, and rows on the <code>settings</code> tab you
-            change. Before each write it reads the tab again, and it refuses when the row it means cannot be found exactly once. It never
-            writes any other cell, and it never deletes a row.
+            Only what you save, and only in <code>ledgerboard-company.json</code>: the records you add, change or delete, and the bank
+            statements a sync files. Before each save it reads the file again, and it refuses when a record it means changed since. Each save
+            keeps its revision of the file, and the first save of a day copies the file as it stood into a <code>backups</code> folder
+            beside it. The app keeps the last 30 daily copies and the first of each month.
           </p>
           <p>
             When you make an invoice, it files the PDF in the invoice folder you picked, making a year or month folder there only when you
@@ -187,14 +188,15 @@
         <section>
           <h2>Where your data goes</h2>
           <p>
-            There is no server. The page talks only to Google's own APIs, and only to read and write the Sheet you picked, read your bank statements, file the invoices you make and save their drafts. No analytics, no tracking, no
+            There is no server. The page talks only to Google's own APIs, and only to read and write your books on Drive, read your bank statements and your accountant's files, file the invoices you make and save their drafts. No analytics, no tracking, no
             third-party scripts beyond Google's sign-in and file picker.
           </p>
         </section>
         <section>
           <h2>Where your data is kept</h2>
           <p>
-            With a Google Sheet, the Sheet stays the original. The app keeps a copy in this browser's storage so the figures show at once.
+            With your books on Google Drive, the file there is the original. The app keeps a copy in this browser's storage so the figures
+            show at once.
           </p>
           <p>
             Google's access token is kept in this browser until it expires, about an hour after you sign in, so a reload or a new tab can
@@ -203,8 +205,8 @@
             permissions are kept only in the open page and are gone when you close or reload it, or sign out.
           </p>
           <p>
-            In Excel mode, the workbook lives in this browser's storage and in the files you export. Clearing this site's data in the browser
-            deletes it, so export to keep a copy.
+            With your books kept in this browser, they live in this browser's storage and in the files you export. Clearing this site's data in
+            the browser deletes them, so export to keep a copy, or keep them on Google Drive.
           </p>
         </section>
         <section>

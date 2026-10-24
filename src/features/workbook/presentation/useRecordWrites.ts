@@ -7,6 +7,7 @@ import type { SessionWrite } from '../application/createWorkbookStore'
 import type { WriteReceipt } from '../application/recordWrites'
 import { useWorkbook } from '../application/workbookStore'
 import type { UnitOfWork } from '../application/repository'
+import { WorkbookWriteRefused } from '../application/workbookWriteRefused'
 import { recordsChangeInWords } from './rowsInWords'
 
 /** How long a toast with Undo stays, so there is time to reach the button. */
@@ -17,10 +18,8 @@ export interface RecordWriteOptions {
   readonly description?: string
   /** A second action beside Undo, such as making a rule from the row just filed. */
   readonly follow?: { readonly label: string; readonly icon: string; readonly run: () => void }
-  /** The toast's title when nothing was written. */
+  /** The toast's title when the write was refused, so nothing was written. */
   readonly failedTitle?: string
-  /** Gives a storage without a place for a kind or a field one, once the person agreed. */
-  readonly addMissingKinds?: boolean
 }
 
 export interface RecordWrites {
@@ -78,7 +77,7 @@ export function useRecordWrites(): RecordWrites {
   async function write(title: string, work: (unit: UnitOfWork) => void, options: RecordWriteOptions = {}): Promise<boolean> {
     busy.value = true
     try {
-      const receipt = await store.write(title, work, { addMissingKinds: options.addMissingKinds ?? false })
+      const receipt = await store.write(title, work)
       if (receipt === null || store.state.writes[0]?.receipt !== receipt) {
         toast.add({ title: 'Nothing changed', description: 'The workbook already holds this.', icon: 'i-lucide-info', color: 'neutral' })
         return true
@@ -86,7 +85,8 @@ export function useRecordWrites(): RecordWrites {
       announce(receipt, options)
       return true
     } catch (failure) {
-      refused(options.failedTitle ?? 'Nothing was written', failure)
+      // Any other failure may come after the file took the save, such as an edit from outside the app during it.
+      refused(failure instanceof WorkbookWriteRefused ? (options.failedTitle ?? 'Nothing was written') : 'The save may not have finished', failure)
       return false
     } finally {
       busy.value = false

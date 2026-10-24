@@ -1,21 +1,17 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
 import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import { recordsOfKindIn } from '../src/features/workbook/domain/readWorkbook'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { copyScenario, renameScenario, scenarioRowsOf } from '../src/packs/hr-doo/application/scenarioWrites'
+import { copyScenario, renameScenario } from '../src/packs/hr-doo/application/scenarioWrites'
 import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 import { SCENARIO_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
 import { scenarioRowOfComponent } from '../src/packs/hr-doo/domain/scenarios/scenariosReading'
 import type { ScenarioRow } from '../src/packs/hr-doo/domain/scenarios/scenariosReading'
-import { cellsOf } from './fixtures/recordWrites'
-import { startingScenarios } from '../src/packs/hr-doo/domain/scenarios/startingScenarios'
 import { civil, euros } from './fixtures/ledger'
-import { STEADY_GRANT } from './fixtures/steadyStudio'
-import { excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
@@ -26,9 +22,6 @@ afterEach(async () => {
 })
 
 const HEADER = ['scenario', 'label', 'year', 'component', 'amount', 'from', 'to']
-// 2027-06-01 and 2027-05-31 as serial days.
-const JUNE_FIRST = 46539
-const MAY_LAST = 46538
 
 function gridsWithScenarios(): Record<string, CellValue[][]> {
   return {
@@ -47,54 +40,17 @@ function rowsOf(store: WorkbookStore<WorkbookCopy>, slug: string): ScenarioRow[]
     .filter((row) => row.slug === slug)
 }
 
-function writeScenarios(store: WorkbookStore<WorkbookCopy>, work: (rows: Parameters<typeof copyScenario>[0]) => void, addMissingKinds = false) {
-  return store.write('Scenarios saved', (unit) => work(unit.of(SCENARIO_WRITES)), { addMissingKinds })
+function writeScenarios(store: WorkbookStore<WorkbookCopy>, work: (rows: Parameters<typeof copyScenario>[0]) => void) {
+  return store.write('Scenarios saved', (unit) => work(unit.of(SCENARIO_WRITES)))
 }
 
 function scenarios(store: WorkbookStore<WorkbookCopy>): [string, string, string[]][] {
   return (hrDooWorkbook(store.state.workbook!).payScenarios ?? []).map((scenario) => [scenario.slug, scenario.label, scenario.components.map((component) => component.component)])
 }
 
-describe('starting scenarios on a Google Sheet without a scenarios tab', () => {
-  const drafts = startingScenarios(2027, [STEADY_GRANT], euros(250)).drafts
-
-  it('refuses until the person agrees to add the tab', async () => {
-    const { store, sheets } = await googleHarness(used)
-    await expect(writeScenarios(store, (rows) => scenarioRowsOf(drafts).forEach((row) => rows.add(row)))).rejects.toThrow(
-      new WorkbookWriteRefused('The workbook has no scenarios tab, so nothing was written.'),
-    )
-    expect(sheets.requests.filter((request) => request.kind !== 'sheetGrids' && request.kind !== 'batchGet')).toEqual([])
-  })
-
-  it('adds the tab with the template header and the rows in one request, and reads them back', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used)
-    const receipt = await writeScenarios(store, (rows) => scenarioRowsOf(drafts).forEach((row) => rows.add(row)), true)
-
-    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetGrids', 'batchGet', 'updateSpreadsheet', 'sheetGrids', 'batchGet'])
-    expect(sentRequests(sheets).map((request) => Object.keys(request)[0]).slice(0, 3)).toEqual(['addSheet', 'updateCells', 'appendCells'])
-    expect(sentRequests(sheets).slice(3).every((request) => 'repeatCell' in request)).toBe(true)
-    expect(writtenRanges()).toEqual(['scenarios!A1:G1'])
-    expect(sheets.grids.scenarios?.[0]).toEqual(HEADER)
-    expect(sheets.grids.scenarios?.[3]).toEqual(['floor-salary-extras-2027', 'Floor salary, tax-free items and rent', 2027, 'salary_gross', 'floor', null, null])
-    expect(sheets.grids.scenarios?.[9]).toEqual(['floor-then-board-2027', 'Floor salary, then board member only', 2027, 'salary_gross', 'floor', null, MAY_LAST])
-    expect(sheets.grids.scenarios?.[10]).toEqual(['floor-then-board-2027', null, 2027, 'director_basis', 'board-only', JUNE_FIRST, null])
-    expect(sheets.formats.scenarios?.[9]?.[6]).toBe('yyyy-mm-dd')
-    expect(sheets.formats.scenarios?.[10]?.[5]).toBe('yyyy-mm-dd')
-    expect(sheets.formats.scenarios?.[10]?.[4]).toBeUndefined()
-    expect(cellsOf(receipt, 'add')).toHaveLength(14)
-    expect(store.state.snapshot?.meta.missingTabs).not.toContain('scenarios')
-    expect(scenarios(store).map(([slug]) => slug)).toEqual(['floor-salary-2027', 'floor-salary-extras-2027', 'floor-then-board-2027', 'floor-then-elsewhere-2027'])
-    expect(store.state.workbook?.problems.filter((problem) => problem.tab === 'scenarios')).toEqual([])
-
-    await store.undo(store.state.writes[0]!)
-    expect(scenarios(store)).toEqual([])
-    expect(sheets.grids.scenarios?.[0]).toEqual(HEADER)
-  })
-})
-
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('scenario writes to %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('adds, edits and deletes a component', async () => {
     const { store } = await harnessOf(used, gridsWithScenarios())
@@ -154,7 +110,7 @@ describe.each([
       "Nothing was written. Floor salary: The scenario sets 2 dividends. A scenario pays one, out of the year's profit.",
     )
     await expect(writeScenarios(store, (rows) => rows.add(scenarioRowOfComponent('floor', '', 2027, { component: 'rent_monthly', amount: euros(-5), from: null, to: null })))).rejects.toThrow(
-      'The new scenario row "floor, rent_monthly" would be left out: amount "-5" is not an amount above zero.',
+      'The new scenario row "floor, rent_monthly" would be left out: amount "-5.00" is not an amount above zero.',
     )
   })
 })

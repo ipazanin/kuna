@@ -2,59 +2,50 @@ import Dexie from 'dexie'
 import type { EntityTable } from 'dexie'
 
 import type { WorkbookCache } from '../application/workbookPorts'
-import { WORKBOOK_TABS } from './workbookSnapshot'
-import type { SheetRow, WorkbookMeta, WorkbookSnapshot, WorkbookTabs } from './workbookSnapshot'
+import type { DocumentCopy } from './documentRecordStorage'
 
-const META_KEY = 'workbook'
+const COPY_KEY = 'workbook'
 
-interface StoredMeta extends WorkbookMeta {
-  readonly key: typeof META_KEY
+interface StoredCopy extends DocumentCopy {
+  readonly key: typeof COPY_KEY
 }
 
 type WorkbookDatabase = Dexie & {
-  meta: EntityTable<StoredMeta, 'key'>
+  copy: EntityTable<StoredCopy, 'key'>
 }
 
 function workbookDatabaseName(workbookId: string): string {
   return `ledgerboard-workbook-${workbookId}`
 }
 
-/** Every tab is a table keyed by its sheet row. A new tab needs the next version number. */
+/**
+ * The copy is one row: the document whole, with its revision and what names it.
+ */
 function openDatabase(workbookId: string): WorkbookDatabase {
   const database = new Dexie(workbookDatabaseName(workbookId)) as WorkbookDatabase
-  database.version(8).stores({ meta: 'key', ...Object.fromEntries(WORKBOOK_TABS.map((tab) => [tab, 'sheetRow'])) })
+  database.version(9).stores({ copy: 'key' })
   return database
 }
 
-/** One workbook in this browser, as Dexie keeps it: a table per tab, keyed by its sheet row. */
-export function openWorkbookCache(workbookId: string): WorkbookCache<WorkbookSnapshot> {
+/** One workbook in this browser, as Dexie keeps it: the document whole with its revision. */
+export function openWorkbookCache(workbookId: string): WorkbookCache<DocumentCopy> {
   const database = openDatabase(workbookId)
-  const tabTables = WORKBOOK_TABS.map((tab) => database.table<SheetRow, number>(tab))
-  const tables = [database.meta, ...tabTables]
 
   return {
-    async replace(snapshot) {
-      if (snapshot.meta.id !== workbookId) {
-        throw new Error(`Refusing to keep workbook ${snapshot.meta.id} in the database for ${workbookId}.`)
+    async replace(copy) {
+      if (copy.meta.id !== workbookId) {
+        throw new Error(`Refusing to keep workbook ${copy.meta.id} in the database for ${workbookId}.`)
       }
-      await database.transaction('rw', tables, async () => {
-        await Promise.all(tables.map((table) => table.clear()))
-        await Promise.all(WORKBOOK_TABS.map((tab, index) => tabTables[index]!.bulkAdd([...snapshot[tab]])))
-        await database.meta.put({ key: META_KEY, ...snapshot.meta })
-      })
+      await database.copy.put({ key: COPY_KEY, ...copy })
     },
 
     async read() {
-      return database.transaction('r', tables, async () => {
-        const stored = await database.meta.get(META_KEY)
-        if (stored === undefined) {
-          return null
-        }
-        const { key: _key, ...meta } = stored
-        const rows = await Promise.all(tabTables.map((table) => table.toArray()))
-        const tabs = Object.fromEntries(WORKBOOK_TABS.map((tab, index) => [tab, rows[index] ?? []])) as unknown as WorkbookTabs
-        return { meta, ...tabs }
-      })
+      const stored = await database.copy.get(COPY_KEY)
+      if (stored === undefined) {
+        return null
+      }
+      const { key: _key, ...copy } = stored
+      return copy
     },
 
     async delete() {

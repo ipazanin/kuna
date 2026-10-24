@@ -1,24 +1,19 @@
 import { byColumn } from '../../../features/workbook/infrastructure/cellFormats'
 import type { CellFormat } from '../../../features/workbook/infrastructure/cellFormats'
 import type { PackSpreadsheetTab } from '../../../features/workbook/infrastructure/packTabs'
-import { ID_TEMPLATE_COLUMN, OWNER_SHARE_COLUMN, OWNER_SHARE_TEMPLATE_COLUMN, contentColumnsOf } from '../../../features/workbook/infrastructure/workbookTemplate'
+import { ID_TEMPLATE_COLUMN, OWNER_SHARE_TEMPLATE_COLUMN } from '../../../features/workbook/infrastructure/workbookTemplate'
 import type { TemplateColumn } from '../../../features/workbook/infrastructure/workbookTemplate'
 import { ASSET_GROUPS } from '../domain/assets/assets'
 import type { Asset } from '../domain/assets/assets'
-import { ASSET_CODEC } from '../domain/assets/assetsReading'
 import type { PlanLine } from '../domain/forecast/plan'
-import { PLAN_CODEC } from '../domain/forecast/planReading'
 import { GRANT_RELEASES } from '../domain/grants/grants'
 import type { Grant } from '../domain/grants/grants'
-import { GRANT_CODEC } from '../domain/grants/grantsReading'
-import { OWNER_ADVANCE_CODEC } from '../domain/ownerAdvancesReading'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
+import { ASSET_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../domain/hrDooKinds'
 import { DIRECTOR_BASES } from '../domain/scenarios/ownerPayScenarios'
-import { SCENARIO_CODEC } from '../domain/scenarios/scenariosReading'
 import type { ScenarioRow } from '../domain/scenarios/scenariosReading'
 import { YEAR_END_STATEMENTS, yearEndLineDefinition } from '../domain/yearEnd/yearEnd'
 import type { YearEndFigureKind, YearEndLine, YearEndStatement } from '../domain/yearEnd/yearEnd'
-import { YEAR_END_CODEC } from '../domain/yearEnd/yearEndReading'
 
 const OWNER_ADVANCE_COLUMNS: readonly TemplateColumn[] = [
   { name: 'date', note: 'When the owner paid, as a date cell. Required.' },
@@ -130,24 +125,21 @@ const FIGURE_FORMATS: Readonly<Record<YearEndFigureKind, CellFormat>> = { money:
 
 export const OWNER_ADVANCES_TAB: PackSpreadsheetTab<OwnerAdvanceEntry> = {
   tab: 'owner-advances',
-  codec: OWNER_ADVANCE_CODEC,
-  required: contentColumnsOf(OWNER_ADVANCE_COLUMNS).filter((column) => column !== OWNER_SHARE_COLUMN),
+  kind: OWNER_ADVANCE_RECORDS,
   formatOf: byColumn({ date: 'date', amount: 'amount', owner_share: 'number' }),
   columns: OWNER_ADVANCE_COLUMNS,
 }
 
 export const ASSETS_TAB: PackSpreadsheetTab<Asset> = {
   tab: 'assets',
-  codec: ASSET_CODEC,
-  required: ['asset', 'bought', 'cost_net', 'group'],
+  kind: ASSET_RECORDS,
   formatOf: byColumn({ bought: 'date', in_use: 'date', cost_net: 'amount', disposed: 'date' }),
   columns: ASSET_COLUMNS,
 }
 
 export const GRANTS_TAB: PackSpreadsheetTab<Grant> = {
   tab: 'grants',
-  codec: GRANT_CODEC,
-  required: ['grant', 'received', 'amount'],
+  kind: GRANT_RECORDS,
   formatOf: byColumn({
     received: 'date',
     amount: 'amount',
@@ -165,8 +157,7 @@ export const GRANTS_TAB: PackSpreadsheetTab<Grant> = {
 /** The `year-end` amount holds a date, a rate or a count on some lines, so its format follows the record's line. */
 export const YEAR_END_TAB: PackSpreadsheetTab<YearEndLine> = {
   tab: 'year-end',
-  codec: YEAR_END_CODEC,
-  required: ['year', 'statement', 'line', 'amount'],
+  kind: YEAR_END_RECORDS,
   formatOf: (column, fieldOf) => {
     if (column === 'year') {
       return 'number'
@@ -186,16 +177,14 @@ const PLAN_FORMATS = byColumn({ year: 'number', month: 'number', amount: 'amount
 /** An `owner_pay_scenario` line names its scenario in `amount`, so its amount stays text. */
 export const PLAN_TAB: PackSpreadsheetTab<PlanLine> = {
   tab: 'plan',
-  codec: PLAN_CODEC,
-  required: ['year', 'month', 'item', 'amount'],
+  kind: PLAN_RECORDS,
   formatOf: (column, fieldOf) => (column === 'amount' && fieldOf('item') === 'owner_pay_scenario' ? null : PLAN_FORMATS(column, fieldOf)),
   columns: PLAN_COLUMNS,
 }
 
 export const SCENARIOS_TAB: PackSpreadsheetTab<ScenarioRow> = {
   tab: 'scenarios',
-  codec: SCENARIO_CODEC,
-  required: ['scenario', 'year', 'component', 'amount'],
+  kind: SCENARIO_RECORDS,
   formatOf: byColumn({ year: 'number', amount: 'amount', from: 'date', to: 'date' }),
   columns: SCENARIO_COLUMNS,
 }

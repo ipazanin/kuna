@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
-import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { accountantDocumentsOf, readAccountantDocuments } from '../src/packs/hr-doo/application/accountantDocuments'
 import { DEFAULT_PAYROLL_FOLDER, DEFAULT_VAT_RETURNS_FOLDER } from '../src/packs/hr-doo/domain/companyFacts'

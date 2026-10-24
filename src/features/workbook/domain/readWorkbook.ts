@@ -15,7 +15,7 @@ import { readDismissals } from './dismissalsReading'
 import { readInvoices } from './invoicesReading'
 import { readLedger } from './ledgerReading'
 import type { LedgerEntry } from './ledgerReading'
-import { recordsOfKind } from './packPart'
+import { packRecordsOf, recordsOfKind } from './packPart'
 import type { PackPart, PackRecords } from './packPart'
 import {
   ACCOUNT_RECORDS,
@@ -75,6 +75,26 @@ const CORE_PARTS: ReadonlyMap<string, keyof WorkbookRecordTypes> = new Map([
 export function recordsOfKindIn<R>(records: WorkbookRecords, kind: RecordKind<R>): RecordsRead<R> {
   const part = CORE_PARTS.get(kind.name)
   return part === undefined ? recordsOfKind(records.pack, kind) : (records[part] as RecordsRead<unknown> as RecordsRead<R>)
+}
+
+/** The records of every kind, core's and the pack's, as `of` gives each kind. */
+export function workbookRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>, pack: PackPart<unknown, unknown> | null): WorkbookRecords {
+  return {
+    ledger: of(LEDGER_RECORDS),
+    categories: of(CATEGORY_RECORDS),
+    accounts: of(ACCOUNT_RECORDS),
+    settings: of(SETTING_RECORDS),
+    rules: of(RULE_RECORDS),
+    invoices: of(INVOICE_RECORDS),
+    clients: of(CLIENT_RECORDS),
+    'outgoing-plan': of(BILLING_RECORDS),
+    splits: of(SPLIT_PART_RECORDS),
+    dismissed: of(DISMISSAL_RECORDS),
+    pack: packRecordsOf(
+      (pack?.kinds ?? []).map((rules) => rules.kind),
+      (kind) => of(kind),
+    ),
+  }
 }
 
 /** Which workbook the records are of. */

@@ -1,7 +1,7 @@
 <script lang="ts">
 export type SyncState = 'first-run' | 'ready' | 'syncing' | 'error'
 
-/** What a running sync is doing: reading the Sheet, looking for new bank statements, or filing their rows. */
+/** What a running sync is doing: reading the file on Drive, looking for new bank statements, or filing their rows. */
 export type SyncStep = { readonly kind: 'reading' } | { readonly kind: 'looking' } | { readonly kind: 'filing'; readonly rows: number }
 </script>
 
@@ -27,7 +27,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  /** On first run this opens the Picker, since no Sheet is chosen yet. */
+  /** On first run this asks for the file, since none is chosen yet. */
   sync: []
 }>()
 
@@ -49,7 +49,7 @@ const stepWords = computed(() => {
   const { step } = props
   switch (step.kind) {
     case 'reading':
-      return { long: 'Reading the Sheet', short: 'Syncing…' }
+      return { long: 'Reading the file', short: 'Syncing…' }
     case 'looking':
       return { long: 'Looking for new statements', short: 'Checking Drive…' }
     case 'filing': {
@@ -90,10 +90,10 @@ const errorDetailId = useId()
 <template>
   <div class="flex min-w-0 items-center gap-2" :class="compact ? 'justify-end' : 'flex-wrap justify-between'" data-testid="sync-status">
     <template v-if="state === 'first-run'">
-      <p v-if="!compact" class="w-full text-xs text-muted">Pick the Google Sheet that holds your ledger.</p>
+      <p v-if="!compact" class="w-full text-xs text-muted">Find the file on Google Drive that holds your books.</p>
       <UButton
-        icon="i-lucide-file-spreadsheet"
-        :label="compact ? 'Choose Sheet' : 'Choose your Sheet'"
+        icon="i-lucide-hard-drive"
+        :label="compact ? 'Find file' : 'Find your file'"
         size="sm"
         @click="emit('sync')"
       />

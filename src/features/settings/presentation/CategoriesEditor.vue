@@ -17,8 +17,6 @@ import type { RecordsRead } from '../../workbook/domain/recordsRead'
 import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName, pickedColour } from '../domain/categoryDrafts'
 import type { CategoryDraft } from '../domain/categoryDrafts'
 import { storedOf } from '../../workbook/domain/recordsRead'
-import { CATEGORY_RECORDS } from '../../workbook/domain/recordKind'
-import AddColumnNotice from '../../workbook/presentation/AddColumnNotice.vue'
 import { swatchToken } from '../../workbook/presentation/categoryColours'
 import RolesSelect from './RolesSelect.vue'
 
@@ -66,7 +64,7 @@ function colourNote(index: number): string {
   const draft = drafts.value[index]!
   const swatch = swatchOf(draft.colour)
   if (swatch === null) {
-    return draft.colour.trim() === '' ? `The ${draft.bucket} bucket's colour.` : `The ${draft.bucket} bucket's colour. The Sheet keeps its own colour unless a swatch is picked.`
+    return `The ${draft.bucket} bucket's colour.`
   }
   const others = drafts.value.filter((other, position) => position !== index && other.bucket === draft.bucket && swatchOf(other.colour) === swatch).map(shownName)
   return others.length === 0 ? `${swatch.name}. No other ${draft.bucket} category uses it.` : `${swatch.name}. Also used by ${listInWords(others)}.`
@@ -227,7 +225,6 @@ function save(): void {
       </tbody>
     </table>
   </div>
-  <AddColumnNotice :kind="CATEGORY_RECORDS" :drafts="drafts" class="mx-4 mb-3 sm:mx-5" />
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton label="Add category" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-category" @click="addCategory" />
     <span class="flex-1" />

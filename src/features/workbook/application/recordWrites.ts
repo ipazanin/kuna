@@ -4,7 +4,7 @@ import { sameRecord, storedOf } from '../domain/recordsRead'
 import { listInWords } from '../domain/slug'
 import type { Reading, StoredRecord } from '../domain/recordsRead'
 import type { FreshRecords, KindChange, RecordEdit, WriteRules } from '../domain/writeRules'
-import type { RecordChange, RecordStorage } from './recordStorage'
+import type { RecordChange, StorageView } from './recordStorage'
 import type { Repository, UnitOfWork } from './repository'
 import { refuseOn } from './workbookWriteRefused'
 
@@ -104,7 +104,7 @@ function alteredFields(before: unknown, after: unknown): string[] {
  * The stored record a change, a repair or a removal names, or why there is not exactly one: found by
  * its identity, then by holding what the app read.
  */
-function findStored(storage: RecordStorage, fresh: FreshRecords, change: Exclude<RecordChange, { readonly verb: 'add' }>): StoredRecord<unknown> | string {
+function findStored(storage: StorageView, fresh: FreshRecords, change: Exclude<RecordChange, { readonly verb: 'add' }>): StoredRecord<unknown> | string {
   const stored = storedOf(fresh.of(change.kind))
   if (change.verb === 'repair' || change.verb === 'discard') {
     const holding = stored.filter((candidate) => !isRead(candidate) && candidate.id === change.refused.id && sameRecord(candidate.fields, change.refused.fields))
@@ -171,7 +171,7 @@ function readerRefusals(rules: WriteRules<unknown>, change: KindChange<unknown>,
  * and its reader must keep every record it kept. Throws `WorkbookWriteRefused` with every reason.
  * Null when no change alters anything.
  */
-export async function checkWrite(storage: RecordStorage, title: string, ruled: readonly RuledChange[], options: { readonly addMissingKinds: boolean; readonly undoing: boolean }): Promise<CheckedWrite | null> {
+export async function checkWrite(storage: StorageView, title: string, ruled: readonly RuledChange[], options: { readonly undoing: boolean }): Promise<CheckedWrite | null> {
   const changes = ruled.filter(({ change }) => change.verb !== 'change' || !sameRecord(change.before, change.after))
   if (changes.length === 0) {
     return null
@@ -220,10 +220,7 @@ export async function checkWrite(storage: RecordStorage, title: string, ruled: r
   })
   refuseOn(refusals)
 
-  const preview = storage.preview(
-    changes.map(({ change }) => change),
-    options.addMissingKinds,
-  )
+  const preview = storage.preview(changes.map(({ change }) => change))
   const { written } = preview
 
   const kindRefusals: string[] = []

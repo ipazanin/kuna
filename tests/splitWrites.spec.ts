@@ -11,7 +11,7 @@ import type { WorkbookCopy } from '../src/features/workbook/application/workbook
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { cellsOf } from './fixtures/recordWrites'
 import { euros } from './fixtures/ledger'
-import { AN_ID, dateFormat, excelHarness, forgetCaches, googleHarness, sentRequests, workbookGrids } from './fixtures/writeBack'
+import { AN_ID, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import { withIds } from './fixtures/rowIds'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
@@ -51,15 +51,15 @@ function currentParts(store: WorkbookStore<WorkbookCopy>, row: Transaction): Spl
   return (split?.parts ?? []).map((part) => recordWithId(store.state.records!.splits, part.id)!.record)
 }
 
-function writeSplit(store: WorkbookStore<WorkbookCopy>, row: Transaction, parts: readonly (readonly [number, string, string?])[], addMissingKinds = false) {
+function writeSplit(store: WorkbookStore<WorkbookCopy>, row: Transaction, parts: readonly (readonly [number, string, string?])[]) {
   const current = currentParts(store, row)
   const drafts = parts.map(([amount, category, note = ''], index) => ({ amount: euros(amount), category, note, opened: current[index] ?? null }))
-  return store.write('Split', (unit) => writeSplitParts(unit, row, current, drafts, store.state.workbook!.categories), { addMissingKinds })
+  return store.write('Split', (unit) => writeSplitParts(unit, row, current, drafts, store.state.workbook!.categories))
 }
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('split writes to %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('adds a split whose parts read back in the row’s place, and Undo takes it back', async () => {
     const { store } = await harnessOf(used, grids())
@@ -84,7 +84,7 @@ describe.each([
     await store.undo(store.state.writes[0]!)
 
     expect(store.state.workbook?.splits).toEqual([])
-    expect(store.state.snapshot?.splits).toEqual([])
+    expect(store.state.records?.splits).toEqual({ records: [], refused: [] })
   })
 
   it('edits a split in place, adding and dropping parts, and deletes it', async () => {
@@ -120,23 +120,6 @@ describe.each([
       'The main row of 2026-10-03 for -100.00 stays whole, since the asset "Desk" claims it as payment.',
     )
     await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'snacks']])).rejects.toThrow(WorkbookWriteRefused)
-    expect(store.state.snapshot?.splits).toEqual([])
-  })
-})
-
-describe('split writes to a Google Sheet', () => {
-  it('adds the splits tab with the template’s header first when the person agreed', async () => {
-    const { store, sheets } = await googleHarness(used, grids(false))
-
-    await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']])).rejects.toThrow('The workbook has no splits tab')
-    await writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'owner-loan-out']], true)
-
-    const splits = (await sheets.sheetGrids()).get('splits')!.sheetId
-    expect(sentRequests(sheets).map((request) => Object.keys(request)[0])).toEqual(['addSheet', 'updateCells', 'appendCells', 'repeatCell'])
-    expect(sentRequests(sheets)[3]).toEqual(dateFormat(splits, 1, 0, 2))
-    expect(sentRequests(sheets)[0]).toEqual({ addSheet: { properties: { sheetId: splits, title: 'splits' } } })
-    expect(sentRequests(sheets)[2]).toMatchObject({ appendCells: { sheetId: splits } })
-    expect(sheets.grids.splits?.[0]).toEqual([...SPLIT_HEADER, 'owner_share', 'id'])
-    expect(store.state.workbook?.splits).toHaveLength(1)
+    expect(store.state.records?.splits).toEqual({ records: [], refused: [] })
   })
 })

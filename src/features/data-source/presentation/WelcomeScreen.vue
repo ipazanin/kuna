@@ -41,7 +41,7 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
       </section>
 
       <footer class="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted">
-        <span>No server. Your data stays in your Sheet, this browser and the files you export.</span>
+        <span>No server. Your data stays in your Google Drive, this browser and the files you export.</span>
         <a :href="privacyPage" class="welcome-link inline-target">Privacy</a>
       </footer>
     </div>

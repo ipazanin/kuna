@@ -1,9 +1,12 @@
+import { moneyFromAmount } from '../../../../shared/money/money'
 import { RULE_COLUMNS } from '../../../rules/domain/rule'
-import type { WorkbookSource } from '../../domain/workbook'
-import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../workbookSnapshot'
 import { ID_FIELD } from '../../domain/recordCodec'
-import { TABS_WITH_IDS, missingColumnsOf, templateColumnNames } from '../workbookTemplate'
-import { sheetRowsFromValues } from '../workbookSnapshot'
+import { amountText, filledFields } from '../../domain/recordFields'
+import type { FieldValue, RecordFields } from '../../domain/recordFields'
+import type { WorkbookSource } from '../../domain/workbook'
+import type { WorkbookDocument } from '../documentFormat'
+import { newDocument } from '../documentRecordStorage'
+import { COMPANY_APP } from '../documentStorePorts'
 
 /**
  * A synthetic workbook for fake mode and tests. Every name, IBAN and amount is made up. It spans
@@ -12,12 +15,10 @@ import { sheetRowsFromValues } from '../workbookSnapshot'
  *
  * The id doubles as the marker `assert-no-fake-bytes` looks for in a production bundle.
  */
-export const FAKE_SPREADSHEET_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP'
+export const FAKE_WORKBOOK_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP'
 
-export const FAKE_WORKBOOK_TITLE = 'Fake workbook'
-
-/** Like the live Sheet, the fake Google Sheet has no dismissed tab yet, so the first Dismiss on Review asks to add it. */
-export const FAKE_SHEET_LACKS: readonly WorkbookTab[] = ['dismissed']
+/** A record's fields as the fake writes them, a blank one left out. */
+type FakeFields = Readonly<Record<string, FieldValue | number | null | undefined>>
 
 /** The `roles` column as the shadow-accounting Sheet seeds it. Salary and rent are paid in the month after the work, hence `arrears`. */
 const CATEGORY_ROLES: Readonly<Record<string, string>> = {
@@ -212,47 +213,51 @@ const MONTHS = [
 const LOSS_MONTH = '2025-11'
 
 /**
- * As a Google Sheet its `settings` tab holds a blank `card_settlement_ibans` row and the invoice
- * details, so every other default applies. As a workbook kept in this browser it also names its
- * company, the way a template user would.
- * Rows the rules tab does not reproduce are flagged as a person's, so Review has coverage gaps to show.
+ * The made-up company's records, by kind. As a Drive file its settings hold a blank
+ * `card_settlement_ibans` and the invoice details, so every other default applies. As a workbook
+ * kept in this browser they also name the company, the way a new user would. Rows the rules do not
+ * reproduce are flagged as a person's, so Review has coverage gaps to show. The records of the
+ * kinds without a business key, and every ledger row, carry a fixed id.
  */
-export function fakeWorkbookSnapshot(syncedAt: string, source: WorkbookSource = 'google'): WorkbookSnapshot {
-  const values = fakeWorkbookValues(source)
-  return {
-    meta: {
-      id: FAKE_SPREADSHEET_ID,
-      source,
-      title: FAKE_WORKBOOK_TITLE,
-      syncedAt,
-      lastExportedAt: null,
-      unexportedSince: null,
-      missingTabs: source === 'google' ? FAKE_SHEET_LACKS : [],
-      ...(source === 'google'
-        ? { missingColumns: missingColumnsOf(Object.entries(values).flatMap(([tab, [header = []]]) => (FAKE_SHEET_LACKS.includes(tab as WorkbookTab) ? [] : [[tab as WorkbookTab, header.map(String)] as const]))) }
-        : {}),
-    },
-    ledger: sheetRowsFromValues(values.ledger),
-    categories: sheetRowsFromValues(values.categories),
-    accounts: sheetRowsFromValues(values.accounts),
-    settings: sheetRowsFromValues(values.settings),
-    rules: sheetRowsFromValues(values.rules),
-    invoices: sheetRowsFromValues(values.invoices),
-    clients: sheetRowsFromValues(values.clients),
-    'outgoing-plan': sheetRowsFromValues(values['outgoing-plan']),
-    'owner-advances': sheetRowsFromValues(values['owner-advances']),
-    assets: sheetRowsFromValues(values.assets),
-    grants: sheetRowsFromValues(values.grants),
-    'year-end': sheetRowsFromValues(values['year-end']),
-    plan: sheetRowsFromValues(values.plan),
-    scenarios: sheetRowsFromValues(values.scenarios),
-    splits: sheetRowsFromValues(values.splits),
-    dismissed: source === 'google' ? [] : sheetRowsFromValues(values.dismissed),
-  }
+export function fakeWorkbookRecords(source: WorkbookSource = 'drive'): Readonly<Record<string, readonly RecordFields[]>> {
+  const records = fakeKinds(source)
+  return Object.fromEntries(Object.entries(records).map(([kind, held]) => [kind, held.map((fields, index) => recordFields(withFixedId(kind, fields, index)))]))
+}
+
+/** The made-up company's books as the document a Drive file or this browser holds. */
+export function fakeWorkbookDocument(savedAt: string, source: WorkbookSource = 'drive'): WorkbookDocument {
+  return newDocument(COMPANY_APP, fakeWorkbookRecords(source), savedAt)
+}
+
+/** The kinds whose records carry an id, each with its place in the fixed ids, so every run gives the same ids. */
+const FIXED_IDS: Readonly<Record<string, number>> = {
+  'billing-item': 1,
+  'hr-doo.owner-advance': 2,
+  'hr-doo.asset': 3,
+  'hr-doo.year-end-line': 4,
+  'hr-doo.plan-line': 5,
+  'split-part': 6,
+  dismissal: 7,
+  'ledger-row': 8,
+}
+
+function withFixedId(kind: string, fields: FakeFields, index: number): FakeFields {
+  const place = FIXED_IDS[kind]
+  return place === undefined ? fields : { ...fields, [ID_FIELD]: `00000000-0000-4000-8000-${String(place).padStart(4, '0')}${String(index + 1).padStart(8, '0')}` }
+}
+
+/** The fields as text, a number as its decimal text. */
+function recordFields(fields: FakeFields): RecordFields {
+  return filledFields(Object.fromEntries(Object.entries(fields).map(([name, value]) => [name, typeof value === 'number' ? String(value) : value])))
+}
+
+/** An amount as the file holds it, decimal text from its cents. */
+function money(amount: number): string {
+  return amountText(moneyFromAmount(amount))
 }
 
 /** What the made-up company's invoices print. The invoice folder is left to pick, as on a first run. */
-const FAKE_INVOICING: CellValue[][] = [
+const FAKE_INVOICING: readonly (readonly [key: string, value: string])[] = [
   ['invoice_company_name', 'Example Studio d.o.o.'],
   ['invoice_address', 'Primjerna ulica 12, Đakovo'],
   ['invoice_country', 'Croatia'],
@@ -270,96 +275,86 @@ const FAKE_INVOICING: CellValue[][] = [
   ['invoice_signatory_title', 'director'],
 ]
 
-/**
- * The tabs as the Sheets API returns them: header row first, dates as serial numbers. The tabs
- * whose rows carry ids end with the id column and a fixed id on each row.
- */
-export function fakeWorkbookValues(source: WorkbookSource = 'google'): Record<WorkbookTab, CellValue[][]> {
-  const values = fakeTabs(source)
-  return { ...values, ...Object.fromEntries(TABS_WITH_IDS.map((tab, tabIndex) => [tab, withFixedIds(values[tab], tabIndex)])) }
-}
+const setting = ([key, value]: readonly [string, FieldValue | number]): FakeFields => ({ key, value })
 
-/** The id column added to a tab, each row's id made from the tab's place and the row's, so every run gives the same ids. */
-function withFixedIds([header = [], ...rows]: readonly CellValue[][], tabIndex: number): CellValue[][] {
-  return [
-    [...header, ID_FIELD],
-    ...rows.map((row, rowIndex) => [...row, `00000000-0000-4000-8000-${String(tabIndex + 1).padStart(4, '0')}${String(rowIndex + 1).padStart(8, '0')}`]),
-  ]
-}
-
-function fakeTabs(source: WorkbookSource): Record<WorkbookTab, CellValue[][]> {
+function fakeKinds(source: WorkbookSource): Readonly<Record<string, readonly FakeFields[]>> {
   const { bookings, invoices } = fakeBooks()
-  const ledger = ledgerValues(bookings)
+  const ledger = ledgerRecords(bookings)
   return {
-    settings:
-      source === 'google'
-        ? [['key', 'value'], ['card_settlement_ibans', ''], ...FAKE_INVOICING]
+    setting:
+      source === 'drive'
+        ? [{ key: 'card_settlement_ibans' }, ...FAKE_INVOICING.map(setting)]
         : [
-            ['key', 'value'],
-            ['template_version', 1],
-            ['company_name', 'Example Studio'],
-            ['currency', 'EUR'],
-            ['hr_residence_city', 'Zagreb'],
-            ['hr_birth_year', 1990],
-            ['hr_pension_pillar_2', true],
-            ['hr_company_registered', '2025-05-12'],
-            ['hr_owner_loan_interest', 0.025],
-            ['hr_vat_returns_folder', 'work/dss/dss-finance/vat-returns'],
-            ['hr_payroll_folder', 'work/dss/dss-finance/payroll'],
-            ['billing_monthly_amount', 7200],
-            ['billing_monthly_item', 'Monthly Fee'],
-            ['billing_subscription_amount', 60],
-            ['billing_subscription_item', 'Subscription'],
-            ['billing_bonus_amount', 4800],
-            ['billing_bonus_item', 'Bonus'],
-            ['billing_client', 'northwind'],
-            ...FAKE_INVOICING,
+            ...(
+              [
+                ['template_version', 1],
+                ['company_name', 'Example Studio'],
+                ['currency', 'EUR'],
+                ['hr_residence_city', 'Zagreb'],
+                ['hr_birth_year', 1990],
+                ['hr_pension_pillar_2', true],
+                ['hr_company_registered', '2025-05-12'],
+                ['hr_owner_loan_interest', 0.025],
+                ['hr_vat_returns_folder', 'work/dss/dss-finance/vat-returns'],
+                ['hr_payroll_folder', 'work/dss/dss-finance/payroll'],
+                ['billing_monthly_amount', 7200],
+                ['billing_monthly_item', 'Monthly Fee'],
+                ['billing_subscription_amount', 60],
+                ['billing_subscription_item', 'Subscription'],
+                ['billing_bonus_amount', 4800],
+                ['billing_bonus_item', 'Bonus'],
+                ['billing_client', 'northwind'],
+              ] as const
+            ).map(setting),
+            ...FAKE_INVOICING.map(setting),
           ],
-    ledger,
-    categories: [
-      ['category', 'family', 'bucket', 'colour', 'roles', 'vat', 'owner_share'],
-      ...CATEGORY_SEED.flatMap((group) =>
-        group.categories.map(([category, bucket]) => [
-          category,
-          group.family,
-          bucket,
-          CATEGORY_COLOURS[category] ?? group.colour,
-          CATEGORY_ROLES[category] ?? '',
-          CATEGORY_VAT[category] ?? '',
-          CATEGORY_OWNER_SHARES[category] ?? '',
-        ]),
-      ),
+    'ledger-row': ledger,
+    category: CATEGORY_SEED.flatMap((group) =>
+      group.categories.map(([category, bucket]) => ({
+        category,
+        family: group.family,
+        bucket,
+        colour: CATEGORY_COLOURS[category] ?? group.colour,
+        roles: CATEGORY_ROLES[category],
+        vat: CATEGORY_VAT[category],
+        owner_share: CATEGORY_OWNER_SHARES[category],
+      })),
+    ),
+    account: Object.entries(ACCOUNTS).map(([account, iban]) => ({ account, iban })),
+    rule: ruleRecords(),
+    invoice: invoices.map((invoice) => ({
+      number: invoice.number,
+      client: invoice.client,
+      item: invoice.item,
+      amount: money(invoice.amount),
+      issued: invoice.issued,
+      due: invoice.due,
+      period_from: invoice.workedIn === '' ? '' : `${invoice.workedIn}-01`,
+      period_to: invoice.workedIn === '' ? '' : lastDayOf(invoice.workedIn),
+    })),
+    client: [
+      {
+        client: 'northwind',
+        name: 'Northwind Analytics',
+        iban: PAYEES.client.iban,
+        address: '1 Example Road, London',
+        country: 'United Kingdom',
+        tax_id: 'GB000000000',
+        invoice_mail: 'accounts@northwind.example',
+        mail_language: 'en',
+        reverse_charge: true,
+      },
+      { client: 'lumen', name: 'Lumen Labs', iban: PAYEES.secondClient.iban },
     ],
-    accounts: [['account', 'iban'], ...Object.entries(ACCOUNTS).map(([account, iban]) => [account, iban])],
-    rules: rulesValues(),
-    invoices: [
-      ['number', 'client', 'item', 'amount', 'issued', 'due', 'period_from', 'period_to'],
-      ...invoices.map((invoice) => [
-        invoice.number,
-        invoice.client,
-        invoice.item,
-        invoice.amount,
-        serialOf(invoice.issued),
-        invoice.due === '' ? '' : serialOf(invoice.due),
-        invoice.workedIn === '' ? '' : serialOf(`${invoice.workedIn}-01`),
-        invoice.workedIn === '' ? '' : serialOf(lastDayOf(invoice.workedIn)),
-      ]),
+    'billing-item': billingPlanRecords(invoices),
+    'hr-doo.owner-advance': [
+      { date: '2026-02-03', amount: money(212.5), description: 'Train tickets to the client, paid privately', category: 'travel' },
+      { date: '2026-08-21', amount: money(89), description: 'Design tool, annual plan on the owner’s card', category: 'software-subscriptions', owner_share: 25 },
+      { date: '2026-09-30', amount: money(34.2), description: 'Printer paper', category: 'office-supplies' },
     ],
-    clients: [
-      ['client', 'name', 'iban', 'address', 'country', 'tax_id', 'invoice_mail', 'mail_language', 'reverse_charge'],
-      ['northwind', 'Northwind Analytics', PAYEES.client.iban, '1 Example Road, London', 'United Kingdom', 'GB000000000', 'accounts@northwind.example', 'en', true],
-      ['lumen', 'Lumen Labs', PAYEES.secondClient.iban],
-    ],
-    'outgoing-plan': billingPlanValues(invoices),
-    'owner-advances': [
-      ['date', 'amount', 'description', 'category', 'owner_share'],
-      [serialOf('2026-02-03'), 212.5, 'Train tickets to the client, paid privately', 'travel', ''],
-      [serialOf('2026-08-21'), 89, 'Design tool, annual plan on the owner’s card', 'software-subscriptions', 25],
-      [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies', ''],
-    ],
-    splits: splitsValues(ledger),
-    dismissed: [['kind', 'key', 'category', 'dismissed_on']],
-    ...planningValues(),
+    'split-part': splitRecords(ledger),
+    dismissal: [],
+    ...planningRecords(),
   }
 }
 
@@ -372,56 +367,48 @@ function fakeTabs(source: WorkbookSource): Record<WorkbookTab, CellValue[][]> {
  * the ledger, except where the Accountant tab of Year needs something to show: the grant released, rent
  * placed on other costs, bank interest as financial income and 10.00 moved between two konto lines.
  */
-function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | 'grants' | 'year-end' | 'plan' | 'scenarios'> {
-  const yearEnd = (statement: string, line: string, label: string, amount: number, categories = ''): CellValue[] => [
-    2025,
+function planningRecords(): Readonly<Record<string, readonly FakeFields[]>> {
+  /** A money line's amount as an amount, and a date, a rate or a count as given. */
+  const yearEnd = (statement: string, line: string, label: string, amount: number | string, categories = ''): FakeFields => ({
+    year: 2025,
     statement,
     line,
     label,
-    amount,
+    amount: typeof amount === 'number' ? money(amount) : amount,
     categories,
-    '',
-    'example-studio-2025-package.pdf',
-    '',
-  ]
+    source: 'example-studio-2025-package.pdf',
+  })
   return {
-    assets: [
-      ['asset', 'bought', 'in_use', 'cost_net', 'group', 'doubled', 'disposed', 'funded_by', 'ledger_reference', 'note'],
-      ['Laptop 14 inch', serialOf('2025-05-28'), serialOf('2025-06-01'), 1519.2, 'computers', '', '', '', 'Card purchase, laptop', ''],
-      ['Workstation', serialOf('2025-11-21'), serialOf('2025-11-24'), 2720, 'computers', '', '', 'startup-grant', 'Card purchase, workstation', 'Paid from the grant'],
+    'hr-doo.asset': [
+      { asset: 'Laptop 14 inch', bought: '2025-05-28', in_use: '2025-06-01', cost_net: money(1519.2), group: 'computers', ledger_reference: 'Card purchase, laptop' },
+      {
+        asset: 'Workstation',
+        bought: '2025-11-21',
+        in_use: '2025-11-24',
+        cost_net: money(2720),
+        group: 'computers',
+        funded_by: 'startup-grant',
+        ledger_reference: 'Card purchase, workstation',
+        note: 'Paid from the grant',
+      },
     ],
-    grants: [
-      [
-        'grant',
-        'received',
-        'amount',
-        'fixed_part',
-        'variable_part',
-        'period_from',
-        'period_to',
-        'release',
-        'clawback_year1',
-        'clawback_year2',
-        'employment_required_until',
-        'note',
-      ],
-      [
-        'startup-grant',
-        serialOf('2025-09-15'),
-        5000,
-        2000,
-        3000,
-        serialOf('2025-09-15'),
-        serialOf('2027-09-14'),
-        'fixed-then-assets',
-        'whole',
-        2500,
-        serialOf('2027-09-14'),
-        'Regional start-up grant',
-      ],
+    'hr-doo.grant': [
+      {
+        grant: 'startup-grant',
+        received: '2025-09-15',
+        amount: money(5000),
+        fixed_part: money(2000),
+        variable_part: money(3000),
+        period_from: '2025-09-15',
+        period_to: '2027-09-14',
+        release: 'fixed-then-assets',
+        clawback_year1: 'whole',
+        clawback_year2: money(2500),
+        employment_required_until: '2027-09-14',
+        note: 'Regional start-up grant',
+      },
     ],
-    'year-end': [
-      ['year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note'],
+    'hr-doo.year-end-line': [
       yearEnd('pl', 'sales', 'Prihodi od prodaje', 57147.33),
       yearEnd('pl', 'other-operating-income', 'Ostali poslovni prihodi', 2050),
       yearEnd('pl', 'financial-income', 'Financijski prihodi', 0.04),
@@ -449,17 +436,17 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
       yearEnd('tax', 'expenses', 'Rashodi', 23432.69),
       yearEnd('tax', 'increases', 'Povećanja', 35),
       yearEnd('tax', 'tax-base', 'Porezna osnovica', 35799.68),
-      yearEnd('tax', 'rate', 'Porezna stopa', 0.1),
+      yearEnd('tax', 'rate', 'Porezna stopa', '0.1'),
       yearEnd('tax', 'liability', 'Porezna obveza', 3579.97),
       yearEnd('tax', 'advances-paid', 'Plaćeni predujmovi', 0),
       yearEnd('tax', 'balance-due', 'Razlika za uplatu', 3579.97),
       yearEnd('tax', 'monthly-advance', 'Mjesečni predujam', 447.5),
-      yearEnd('tax', 'months-of-operation', 'Broj mjeseci', 8),
-      yearEnd('tax', 'filed-on', 'Predano', serialOf('2026-04-27')),
-      yearEnd('tax', 'paid-on', 'Plaćeno', serialOf('2026-04-28')),
+      yearEnd('tax', 'months-of-operation', 'Broj mjeseci', '8'),
+      yearEnd('tax', 'filed-on', 'Predano', '2026-04-27'),
+      yearEnd('tax', 'paid-on', 'Plaćeno', '2026-04-28'),
       yearEnd('distribution', 'retained', 'Zadržana dobit', 27784.71),
       yearEnd('distribution', 'dividend', 'Isplata dobiti', 4400),
-      yearEnd('distribution', 'decided-on', 'Odluka o raspodjeli dobiti', serialOf('2026-05-15')),
+      yearEnd('distribution', 'decided-on', 'Odluka o raspodjeli dobiti', '2026-05-15'),
       yearEnd('grant', 'released-in-year', 'Prihod od potpore', 2050),
       yearEnd('grant', 'deferred-at-year-end', 'Odgođeni prihod od potpore', 2950),
       yearEnd('konto', '41200', 'Usluge telefona', 82.04, 'telecom'),
@@ -467,33 +454,33 @@ function planningValues(): Pick<Record<WorkbookTab, CellValue[][]>, 'assets' | '
       yearEnd('konto', '41850', 'Softver i pretplate', 435.87, 'ai-services, software-subscriptions'),
       yearEnd('konto', '46500', 'Reprezentacija', 70, 'representation'),
     ],
-    plan: [
-      ['year', 'month', 'item', 'amount', 'note', 'date', 'group'],
-      [2026, '', 'ai-services', 55, 'Model API seats', '', ''],
-      [2026, '', 'purchase', 420, 'Second monitor', serialOf('2026-11-12'), 'equipment'],
-      [2027, '', 'software-subscriptions', 10, '', '', ''],
-      [2027, 1, 'software-subscriptions', 120, 'Yearly design tool', '', ''],
-      [2027, '', 'owner_pay_scenario', 'floor-salary', '', '', ''],
-      [2027, '', 'owner_pay_scenario', 'floor-then-board', '', serialOf('2027-09-15'), ''],
-      [2027, '', 'purchase', 1600, 'Replacement laptop', serialOf('2027-03-10'), 'computers'],
-      [2027, 6, 'dividend', 8000, 'After the 2026 statements are adopted', '', ''],
+    'hr-doo.plan-line': [
+      { year: 2026, item: 'ai-services', amount: money(55), note: 'Model API seats' },
+      { year: 2026, item: 'purchase', amount: money(420), note: 'Second monitor', date: '2026-11-12', group: 'equipment' },
+      { year: 2027, item: 'software-subscriptions', amount: money(10) },
+      { year: 2027, month: 1, item: 'software-subscriptions', amount: money(120), note: 'Yearly design tool' },
+      { year: 2027, item: 'owner_pay_scenario', amount: 'floor-salary' },
+      { year: 2027, item: 'owner_pay_scenario', amount: 'floor-then-board', date: '2027-09-15' },
+      { year: 2027, item: 'purchase', amount: money(1600), note: 'Replacement laptop', date: '2027-03-10', group: 'computers' },
+      { year: 2027, month: 6, item: 'dividend', amount: money(8000), note: 'After the 2026 statements are adopted' },
     ],
-    scenarios: [
-      ['scenario', 'label', 'year', 'component', 'amount', 'from', 'to'],
-      ['floor-salary', 'Floor salary all year', 2027, 'salary_gross', 'floor', '', ''],
-      ['floor-salary', '', 2027, 'dividend', 'max', '', ''],
-      ['floor-extras', 'Floor salary, tax-free items and rent', 2027, 'salary_gross', 'floor', '', ''],
-      ['floor-extras', '', 2027, 'nontaxable:results-bonus', 1200, '', ''],
-      ['floor-extras', '', 2027, 'nontaxable:occasional-gift', 900, serialOf('2027-12-01'), ''],
-      ['floor-extras', '', 2027, 'rent_monthly', 350, '', ''],
-      ['floor-extras', '', 2027, 'dividend', 'max', '', ''],
-      ['floor-then-board', 'Floor salary, then board member only', 2027, 'salary_gross', 'floor', '', serialOf('2027-09-14')],
-      ['floor-then-board', '', 2027, 'director_basis', 'board-only', serialOf('2027-09-15'), ''],
-      ['floor-then-board', '', 2027, 'dividend', 'max', '', ''],
-      ['early-exit', 'Salary stops in June, large payout', 2027, 'salary_gross', 2000, '', serialOf('2027-06-30')],
-      ['early-exit', '', 2027, 'director_basis', 'insured-elsewhere', serialOf('2027-07-01'), ''],
-      ['early-exit', '', 2027, 'dividend', 120000, '', ''],
-    ],
+    'hr-doo.scenario-component': (
+      [
+        ['floor-salary', 'Floor salary all year', 'salary_gross', 'floor', '', ''],
+        ['floor-salary', '', 'dividend', 'max', '', ''],
+        ['floor-extras', 'Floor salary, tax-free items and rent', 'salary_gross', 'floor', '', ''],
+        ['floor-extras', '', 'nontaxable:results-bonus', money(1200), '', ''],
+        ['floor-extras', '', 'nontaxable:occasional-gift', money(900), '2027-12-01', ''],
+        ['floor-extras', '', 'rent_monthly', money(350), '', ''],
+        ['floor-extras', '', 'dividend', 'max', '', ''],
+        ['floor-then-board', 'Floor salary, then board member only', 'salary_gross', 'floor', '', '2027-09-14'],
+        ['floor-then-board', '', 'director_basis', 'board-only', '2027-09-15', ''],
+        ['floor-then-board', '', 'dividend', 'max', '', ''],
+        ['early-exit', 'Salary stops in June, large payout', 'salary_gross', money(2000), '', '2027-06-30'],
+        ['early-exit', '', 'director_basis', 'insured-elsewhere', '2027-07-01', ''],
+        ['early-exit', '', 'dividend', money(120000), '', ''],
+      ] as const
+    ).map(([scenario, label, component, amount, from, to]) => ({ scenario, label, year: 2027, component, amount, from, to })),
   }
 }
 
@@ -517,32 +504,25 @@ const SPLIT_ROWS: readonly FakeSplit[] = [
   { date: '2025-10-02', counterparty: 'PAPER & INK STORE', description: 'Card purchase', parts: [['office-supplies', null, 'Paper and ink for the office', 20], ['owner-loan-out', 13.45, 'Private share of the paper and ink order']] },
 ]
 
-function splitsValues(ledger: readonly (readonly CellValue[])[]): CellValue[][] {
-  const [header = [], ...rows] = ledger
-  const column = (name: string): number => header.indexOf(name)
-  return [
-    ['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note', 'owner_share'],
-    ...SPLIT_ROWS.flatMap((split) => {
-      const row = rows.find(
-        (cells) => cells[column('date')] === serialOf(split.date) && cells[column('counterparty')] === split.counterparty && cells[column('description')] === split.description,
-      )
-      if (row === undefined) {
-        throw new Error(`The fake ledger has no row "${split.description}" on ${split.date} to split.`)
-      }
-      const amount = Number(row[column('amount')])
-      const fixed = split.parts.reduce((sum, [, part]) => sum + (part ?? 0), 0)
-      return split.parts.map(([category, part, note, ownerShare = '']) => [
-        row[column('date')]!,
-        row[column('account')]!,
-        amount,
-        row[column('balance')]!,
-        part === null ? roundToCent(amount + fixed) : -part,
-        category,
-        note,
-        ownerShare,
-      ])
-    }),
-  ]
+function splitRecords(ledger: readonly FakeFields[]): FakeFields[] {
+  return SPLIT_ROWS.flatMap((split) => {
+    const row = ledger.find((fields) => fields.date === split.date && fields.counterparty === split.counterparty && fields.description === split.description)
+    if (row === undefined) {
+      throw new Error(`The fake ledger has no row "${split.description}" on ${split.date} to split.`)
+    }
+    const amount = Number(row.amount)
+    const fixed = split.parts.reduce((sum, [, part]) => sum + (part ?? 0), 0)
+    return split.parts.map(([category, part, note, ownerShare]) => ({
+      date: row.date,
+      account: row.account,
+      row_amount: row.amount,
+      row_balance: row.balance,
+      amount: money(part === null ? roundToCent(amount + fixed) : -part),
+      category,
+      note,
+      owner_share: ownerShare,
+    }))
+  })
 }
 
 /** Re-billed costs and extras of a worked month, which its invoice carries beside the fee. */
@@ -568,29 +548,25 @@ const MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'long', year: '
  * invoice, the extra sprint is a bonus, and October is planned but not invoiced yet. Lumen's
  * invoices have no plan rows.
  */
-function billingPlanValues(invoices: readonly FakeInvoice[]): CellValue[][] {
+function billingPlanRecords(invoices: readonly FakeInvoice[]): FakeFields[] {
+  const item = (name: string, date: string, amount: number, client: string, description: string): FakeFields => ({ item: name, date, amount: money(amount), client, description })
   const invoiced = invoices
     .filter((invoice) => invoice.client === 'northwind')
-    .flatMap((invoice): CellValue[][] => {
+    .flatMap((invoice): FakeFields[] => {
       if (invoice.workedIn === '') {
-        return [['Bonus', serialOf(invoice.issued), invoice.amount, 'northwind', invoice.item]]
+        return [item('Bonus', invoice.issued, invoice.amount, 'northwind', invoice.item)]
       }
       const extras = BILLED_EXTRAS[invoice.workedIn] ?? []
       const fee = roundToCent(invoice.amount - extras.reduce((sum, [, , amount]) => sum + amount, 0))
       return [
-        ...extras.map(([item, date, amount, description]) => [item, serialOf(date), amount, 'northwind', description]),
-        [invoice.workedIn === MONTHS[0] ? 'Part Time Fee' : 'Monthly Fee', serialOf(lastDayOf(invoice.workedIn)), fee, 'northwind', `Fee for ${MONTH_AND_YEAR.format(new Date(`${invoice.workedIn}-01`))}`],
+        ...extras.map(([name, date, amount, description]) => item(name, date, amount, 'northwind', description)),
+        item(invoice.workedIn === MONTHS[0] ? 'Part Time Fee' : 'Monthly Fee', lastDayOf(invoice.workedIn), fee, 'northwind', `Fee for ${MONTH_AND_YEAR.format(new Date(`${invoice.workedIn}-01`))}`),
       ]
     })
-  return [
-    ['item', 'date', 'amount', 'client', 'description'],
-    ...invoiced,
-    ['Monthly Fee', serialOf('2026-10-31'), 7200, 'northwind', 'Fee for October 2026'],
-    ['Subscription', serialOf('2026-10-31'), 60, 'Northwind', 'Model API seat'],
-  ]
+  return [...invoiced, item('Monthly Fee', '2026-10-31', 7200, 'northwind', 'Fee for October 2026'), item('Subscription', '2026-10-31', 60, 'Northwind', 'Model API seat')]
 }
 
-type RuleSeed = Partial<Record<(typeof RULE_COLUMNS)[number], CellValue>>
+type RuleSeed = Partial<Record<(typeof RULE_COLUMNS)[number], FieldValue | number>>
 
 /** Rules in trying order, in steps of 100, that reproduce every row flagged `rule`. */
 const RULE_SEED: readonly RuleSeed[] = [
@@ -616,14 +592,8 @@ const RULE_SEED: readonly RuleSeed[] = [
   { rule: 'card-review', description_starts_with: 'CARD PURCHASE', category: 'card-purchase-unknown', confidence: 'review', note: 'A card purchase no merchant rule names.' },
 ]
 
-function rulesValues(): CellValue[][] {
-  return [
-    [...RULE_COLUMNS],
-    ...RULE_SEED.map((seed, index) => {
-      const cells: RuleSeed = { order: (index + 1) * 100, enabled: true, confidence: 'rule', ...seed }
-      return RULE_COLUMNS.map((column) => cells[column] ?? '')
-    }),
-  ]
+function ruleRecords(): FakeFields[] {
+  return RULE_SEED.map((seed, index) => ({ order: (index + 1) * 100, enabled: true, confidence: 'rule', ...seed }))
 }
 
 /**
@@ -746,11 +716,11 @@ interface LedgerRow extends Booking {
   readonly order: number
   readonly balance: number
   readonly statement: string
-  readonly reference: CellValue
+  readonly reference: string
 }
 
-/** Books every entry in date order, runs each account's balance, then writes the tab newest first. */
-function ledgerValues(entries: readonly Booking[]): CellValue[][] {
+/** Books every entry in date order, runs each account's balance, then lists the rows newest first. */
+function ledgerRecords(entries: readonly Booking[]): FakeFields[] {
   const ordered = entries
     .map((entry, order) => ({ ...entry, account: entry.account ?? accountOn(entry.date), order }))
     .sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.order - later.order)
@@ -776,32 +746,24 @@ function ledgerValues(entries: readonly Booking[]): CellValue[][] {
       amount,
       balance: balances[entry.account],
       statement: `${entry.date}-statement-${String(statementNumbers[entry.account]).padStart(3, '0')}`,
-      // The real tab holds numbers on some rows and text on others.
-      reference: entry.account === 'legacy' ? 900_000_000 + position : `FAKE-REF-${String(position).padStart(4, '0')}`,
+      // The live ledger's references are digits on some rows and letters on others.
+      reference: entry.account === 'legacy' ? String(900_000_000 + position) : `FAKE-REF-${String(position).padStart(4, '0')}`,
     }
   })
-  const newestFirst = [...rows].reverse()
-  const header = templateColumnNames('ledger')
-  return [
-    header,
-    ...newestFirst.map((row) => {
-      const cells: Readonly<Record<string, CellValue>> = {
-        date: serialOf(row.date),
-        account: row.account,
-        statement: row.statement,
-        counterparty: row.counterparty,
-        counterparty_iban: row.iban,
-        description: row.description,
-        amount: row.amount,
-        balance: row.balance,
-        category: row.category,
-        flagged_by: row.flaggedBy,
-        reference: row.reference,
-        owner_share: row.ownerShare ?? CATEGORY_OWNER_SHARES[row.category] ?? '',
-      }
-      return header.map((column) => cells[column] ?? '')
-    }),
-  ]
+  return [...rows].reverse().map((row) => ({
+    date: row.date,
+    account: row.account,
+    statement: row.statement,
+    counterparty: row.counterparty,
+    counterparty_iban: row.iban,
+    description: row.description,
+    amount: money(row.amount),
+    balance: money(row.balance),
+    category: row.category,
+    flagged_by: row.flaggedBy,
+    reference: row.reference,
+    owner_share: row.ownerShare ?? CATEGORY_OWNER_SHARES[row.category],
+  }))
 }
 
 function lastDayOf(month: string): string {
@@ -818,11 +780,6 @@ function addOneMonth(date: string): string {
 
 function accountOn(date: string): AccountSlug {
   return date < MAIN_OPENS ? 'legacy' : 'main'
-}
-
-function serialOf(date: string): number {
-  const [year, month, day] = date.split('-').map(Number) as [number, number, number]
-  return (Date.UTC(year, month - 1, day) - Date.UTC(1899, 11, 30)) / 86_400_000
 }
 
 function roundToCent(amount: number): number {

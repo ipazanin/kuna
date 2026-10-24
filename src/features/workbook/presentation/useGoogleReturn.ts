@@ -47,7 +47,7 @@ export function useGoogleReturn(answer: RedirectReturn | null, sync: () => Promi
       void store.open().then(sync)
       return
     case 'pick':
-      void store.open().then(() => store.chooseGoogleSheet())
+      void store.open().then(() => store.chooseDriveFile())
       return
     case 'none':
       toast.add({

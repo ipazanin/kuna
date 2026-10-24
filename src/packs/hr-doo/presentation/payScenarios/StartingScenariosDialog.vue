@@ -6,7 +6,6 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
 import type { Grant } from '../../domain/grants/grants'
-import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { useRecordWrites } from '../../../../features/workbook/presentation/useRecordWrites'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import type { Money } from '../../../../shared/money/money'
@@ -16,14 +15,12 @@ import { scenarioRowsOf } from '../../application/scenarioWrites'
 import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
 import { startingScenarios } from '../../domain/scenarios/startingScenarios'
 
-/** Writes the four starting scenarios for a year, and adds the scenarios tab first when the Sheet lacks it and the person says so. */
+/** Writes the four starting scenarios for a year. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
   year: number
   grants: readonly Grant[]
-  /** The Sheet has no scenarios tab, so the write adds it. */
-  tabMissing: boolean
   /** Every scenario name the tab uses. */
   taken: readonly string[]
 }>()
@@ -55,17 +52,16 @@ async function save(): Promise<void> {
   tried.value = true
   if (parsedRent.value === 'bad' || clash.value.length > 0) return
   const rows = scenarioRowsOf(seeded.value.drafts)
-  const written = await writes.write(props.tabMissing ? 'Scenarios tab added' : 'Starting scenarios added', (unit) => rows.forEach((row) => unit.of(SCENARIO_WRITES).add(row)), {
+  const written = await writes.write('Starting scenarios added', (unit) => rows.forEach((row) => unit.of(SCENARIO_WRITES).add(row)), {
     description: `${seeded.value.drafts.length} scenarios for ${props.year}.`,
     failedTitle: 'Not added',
-    addMissingKinds: props.tabMissing,
   })
   if (written) open.value = false
 }
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="`Add the starting scenarios for ${year}`" description="Each one is rows on the scenarios tab, editable here or in the Sheet." :fullscreen="phone" :ui="{ header: 'pe-16 sm:pe-6' }">
+  <UModal v-model:open="open" :title="`Add the starting scenarios for ${year}`" description="Each one is rows on the scenarios tab, editable here." :fullscreen="phone" :ui="{ header: 'pe-16 sm:pe-6' }">
     <template #body>
       <form id="starting-scenarios" class="flex flex-col gap-4" data-testid="starting-scenarios-form" @submit.prevent="save">
         <ol class="flex list-decimal flex-col gap-1 ps-5 text-sm text-toned">
@@ -80,7 +76,6 @@ async function save(): Promise<void> {
           <UInput v-model="rent" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="starting-rent" />
         </UFormField>
         <p v-if="clash.length > 0" class="text-sm text-error" role="alert">The tab already has {{ clash.join(', ') }}, so the starting scenarios for {{ year }} are there.</p>
-        <AddTabNotice v-if="tabMissing" tab="scenarios" />
       </form>
     </template>
     <template #footer>
@@ -89,7 +84,7 @@ async function save(): Promise<void> {
         <UButton
           type="submit"
           form="starting-scenarios"
-          :label="tabMissing ? 'Add the tab and the scenarios' : 'Add the scenarios'"
+          label="Add the scenarios"
           icon="i-lucide-plus"
           :loading="writes.busy.value"
           :disabled="writes.busy.value"

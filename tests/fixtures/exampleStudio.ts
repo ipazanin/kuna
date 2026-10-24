@@ -115,7 +115,7 @@ export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbo
   const categories = changes.categories ?? STUDIO_CATEGORIES
   return withPart({
     id: 'example-studio',
-    source: 'excel',
+    source: 'browser',
     title: 'Example Studio d.o.o.',
     syncedAt: '2026-10-18T00:00:00.000Z',
     transactions: withPackBuckets(ledger(STUDIO_ROWS), categories),

@@ -66,7 +66,7 @@ export type CategoryField = 'category' | 'family' | 'bucket' | 'roles' | 'vat' |
 export type CategoryDraftErrors = ReadonlyMap<number, Partial<Record<CategoryField, string>>>
 
 /**
- * The rules of the Sheet's categories tab: every row names a category once, and fills category,
+ * The rules of the categories tab: every row names a category once, and fills category,
  * family and a bucket from the six. A new name keeps to the slug format. A category in use keeps
  * its name, or the rows that name it would lose their category. Each role and a VAT treatment, if
  * given, is one the app knows. While `shares` shows the owner share, a default is a whole number

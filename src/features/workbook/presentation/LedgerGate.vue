@@ -12,7 +12,7 @@ const { state, sync } = useWorkbook()
 const router = useRouter()
 const { exportNow } = useExport()
 
-const inBrowser = computed(() => state.choice?.source === 'excel')
+const inBrowser = computed(() => state.choice?.source === 'browser')
 
 const gate = computed(() => {
   if (state.workbook !== null && state.workbook.transactions.length > 0) {
@@ -33,7 +33,7 @@ const gate = computed(() => {
   <UEmpty
     v-else-if="gate === 'error'"
     icon="i-lucide-triangle-alert"
-    :title="inBrowser ? 'The workbook in this browser could not be read' : 'The Sheet could not be read'"
+    :title="inBrowser ? 'The workbook in this browser could not be read' : 'The file on Drive could not be read'"
     :description="state.error ?? ''"
     :actions="inBrowser ? [] : [{ label: 'Try again', color: 'neutral', variant: 'outline', onClick: () => sync() }]"
     variant="outline"
@@ -55,9 +55,9 @@ const gate = computed(() => {
   />
   <UEmpty
     v-else-if="gate === 'empty-ledger'"
-    icon="i-lucide-sheet"
-    title="The ledger tab has no transactions yet"
-    description="Import a bank statement, or once rows reach the Sheet's ledger tab, sync again."
+    icon="i-lucide-hard-drive"
+    title="The ledger has no transactions yet"
+    description="Import a bank statement, or sync once the statements folder holds one."
     :actions="[{ label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/transactions', query: { tab: 'import' } }) }]"
     variant="outline"
     class="rounded-card border-dashed bg-raised/40"
@@ -65,14 +65,14 @@ const gate = computed(() => {
   <UEmpty
     v-else-if="gate === 'syncing'"
     icon="i-lucide-refresh-cw"
-    title="Reading the Sheet"
+    title="Reading the file"
     description="The first copy is on its way."
     variant="naked"
   />
   <UEmpty
     v-else-if="gate === 'ready'"
     icon="i-lucide-refresh-cw"
-    :title="`Sync to read ${state.choice?.name ?? 'the Sheet'}`"
+    :title="`Sync to read ${state.choice?.name ?? 'the file'}`"
     description="This browser has no copy of it yet."
     :actions="[{ label: 'Sync', icon: 'i-lucide-refresh-cw', onClick: () => sync() }]"
     variant="outline"

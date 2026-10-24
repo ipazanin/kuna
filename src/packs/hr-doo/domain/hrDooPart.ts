@@ -1,4 +1,5 @@
 import { packPart, recordsOfKind } from '../../../features/workbook/domain/packPart'
+import type { RecordCodec } from '../../../features/workbook/domain/recordCodec'
 import type { CategoryNaming, PackKey, PackPart } from '../../../features/workbook/domain/packPart'
 import { listInWords } from '../../../features/workbook/domain/slug'
 import { slugListOf, slugOf } from '../../../features/workbook/domain/storedFields'
@@ -6,21 +7,21 @@ import { tabProblems } from '../../../features/workbook/domain/workbook'
 import type { OwnerAdvance, Workbook } from '../../../features/workbook/domain/workbook'
 import { assetsClaimingRows, uncheckedClaimProblems } from './assets/assetRegister'
 import type { Asset } from './assets/assets'
-import { readAssets } from './assets/assetsReading'
+import { ASSET_CODEC, readAssets } from './assets/assetsReading'
 import { COMPANY_FACT_SETTINGS } from './companyFacts'
 import type { CompanyFacts } from './companyFacts'
 import type { PlanLine } from './forecast/plan'
-import { readPlan } from './forecast/planReading'
+import { PLAN_CODEC, readPlan } from './forecast/planReading'
 import type { Grant } from './grants/grants'
-import { readGrants } from './grants/grantsReading'
+import { GRANT_CODEC, readGrants } from './grants/grantsReading'
 import { ASSET_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from './hrDooKinds'
 import { ASSET_WRITES, GRANT_WRITES, OWNER_ADVANCE_WRITES, PLAN_WRITES, SCENARIO_WRITES, YEAR_END_WRITES } from './hrDooWrites'
-import { readOwnerAdvances } from './ownerAdvancesReading'
+import { OWNER_ADVANCE_CODEC, readOwnerAdvances } from './ownerAdvancesReading'
 import { PACK_ROLES } from './packRoles'
 import type { OwnerPayScenario } from './scenarios/ownerPayScenarios'
-import { readScenarios } from './scenarios/scenariosReading'
+import { SCENARIO_CODEC, readScenarios } from './scenarios/scenariosReading'
 import type { YearEndLine } from './yearEnd/yearEnd'
-import { readYearEnd } from './yearEnd/yearEndReading'
+import { YEAR_END_CODEC, readYearEnd } from './yearEnd/yearEndReading'
 
 /** The pack's part of the workbook: the records only the pack reads, the costs it hands core, and the facts its settings keys hold. */
 export interface HrDooPart {
@@ -69,6 +70,8 @@ const OWNER_ADVANCE_NAMING: CategoryNaming = { kind: OWNER_ADVANCE_RECORDS, one:
 export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   key: HR_DOO,
   kinds: [OWNER_ADVANCE_WRITES, ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES, PLAN_WRITES, SCENARIO_WRITES],
+  codecs: [OWNER_ADVANCE_CODEC, ASSET_CODEC, GRANT_CODEC, YEAR_END_CODEC, PLAN_CODEC, SCENARIO_CODEC] as readonly RecordCodec<unknown>[],
+  schemaVersion: 1,
   settings: COMPANY_FACT_SETTINGS,
   categoryNaming: [
     OWNER_ADVANCE_NAMING,

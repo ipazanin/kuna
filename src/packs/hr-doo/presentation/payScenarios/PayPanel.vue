@@ -16,7 +16,6 @@ import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../../../features/filters/application/filterStore'
-import { useWorkbook } from '../../../../features/workbook/application/workbookStore'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
 import { scenarioGuards } from '../../domain/scenarios/scenarioGuards'
@@ -46,7 +45,6 @@ const MOST_COMPARED = 4
 
 const PAYOUTS: readonly PayoutOptionId[] = ['after-adoption', 'interim', 'keep']
 
-const store = useWorkbook()
 const { drillLocation } = useFilters()
 const route = useRoute()
 const router = useRouter()
@@ -54,7 +52,6 @@ const phone = usePhoneLayout()
 
 const link = (drill: Parameters<typeof drillLocation>[0] | null) => (drill === null ? null : drillLocation(drill))
 
-const tabMissing = computed(() => store.state.choice?.source === 'google' && (store.state.snapshot?.meta.missingTabs.includes('scenarios') ?? false))
 const yearScenarios = computed(() => props.workbook.payScenarios.filter((scenario) => scenario.year === props.year))
 const taken = computed(() => props.workbook.payScenarios.map((scenario) => scenario.slug))
 
@@ -270,7 +267,7 @@ function openDetail(opened: FigureDetail): void {
       </AppCard>
     </template>
 
-    <ScenarioEditor :year="year" :scenarios="yearScenarios" :refusals="refusals" :grants="workbook.grants" :tab-missing="tabMissing" :taken="taken" />
+    <ScenarioEditor :year="year" :scenarios="yearScenarios" :refusals="refusals" :grants="workbook.grants" :taken="taken" />
 
     <UModal
       v-model:open="startingOpen"

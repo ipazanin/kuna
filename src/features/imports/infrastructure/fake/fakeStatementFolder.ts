@@ -1,4 +1,4 @@
-import { fakeWorkbookValues } from '../../../workbook/infrastructure/fake/fakeWorkbook'
+import { fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import type { StatementFolder } from '../../application/statementFolder'
 import { DEFAULT_STATEMENTS_FOLDER } from '../../domain/statementFiles'
 import type { StatementFile } from '../../domain/statementFiles'
@@ -15,8 +15,7 @@ const UNKNOWN_ACCOUNT_IBAN = 'XX00FAKE0000000000000003'
  * names such a file, which the sync holds.
  */
 export function fakeStatementFolder(variant: string | null): StatementFolder {
-  const values = fakeWorkbookValues('google')
-  const filed = [...new Set(values.ledger.slice(1).map((row) => `${String(row[2])}-${String(row[1])}.xml`))]
+  const filed = [...new Set((fakeWorkbookRecords('drive')['ledger-row'] ?? []).map((row) => `${String(row.statement)}-${String(row.account)}.xml`))]
   const sample: StatementFile = { id: 'fake-statement-sample', name: `${sampleCamtLabel()}-main.xml` }
   const unknown: StatementFile = { id: 'fake-statement-unknown-account', name: `${sampleCamtLabel(1)}.xml` }
   const files: StatementFile[] = [

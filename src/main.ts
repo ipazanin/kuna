@@ -25,11 +25,11 @@ async function start(): Promise<void> {
     await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'))
   }
   const googleReturn = await takeGoogleRedirect()
-  // Each open of a Google Sheet online, and each return from a sign-in, fetches the Drive read token first, with no screen at Google.
+  // Each open of the books on Drive online, and each return from a sign-in, fetches the Drive read token first, with no screen at Google.
   if (
     import.meta.env.VITE_FAKE_WORKBOOK !== 'true' &&
     navigator.onLine &&
-    loadWorkbookChoice()?.source === 'google' &&
+    loadWorkbookChoice()?.source === 'drive' &&
     askForDriveReadSilently(googleReturn)
   ) {
     return

@@ -1,31 +1,19 @@
 # Ledgerboard
 
 Company finance dashboards over a workbook of bank transactions, computed in the browser. The
-workbook is either a Google Sheet, which stays the system of record, or an Excel file kept in the
-browser (Excel mode). There is no backend. It deploys to GitHub Pages at
+workbook is one JSON document, `ledgerboard-company.json`, in a Google Drive folder the user picks,
+or the same document kept in this browser. There is no backend. It deploys to GitHub Pages at
 `https://ipazanin.github.io/ledgerboard/`, with a privacy page at `privacy.html`.
 
-With a Google Sheet, the app asks Google for `drive.file`, which covers files the user picks in the
-Google Picker or that the app creates, and for `openid email`, which tells it which account signed
-in. To find new bank statements in Drive it also asks for `drive.readonly`, whose token it holds in
-the page's memory only. See *Google sign-in*. The app reads the Sheet and keeps a copy in IndexedDB.
-It writes only in the Sheet the user picked, and only what the user saves or a sync files:
-`category`, `flagged_by` and `owner_share` on ledger rows the user acts on, the rows of the bank statements a sync
-finds in the statements folder or the user imports, and rows of the tabs a person keeps by hand:
-`rules`, `settings`, `owner-advances`, `outgoing-plan`, `categories`, `accounts`, `clients`,
-`invoices`, `assets`, `grants`, `year-end`, `plan`, `scenarios`, `splits` and `dismissed`. It never
-writes a formula a change leaves alone. It writes data validation only by copying a ledger row's
-dropdowns onto the rows an import puts in above it. It writes a header only when the user agrees to
-add the `plan`, `scenarios`, `splits` or `dismissed` tab to a Sheet without one, or an optional
-column such as `label` to the categories or accounts tab when a save fills it, an `id` header
-after the last column of a tab whose rows carry ids, when it adds a row there, and an `owner_share`
-header after the last column of a tab the first time a write puts a share there. See *Write-back*
-below. Making an invoice also files its PDF in the Drive folder the user picks for invoices, and,
-only for a user who turns the mail draft on, asks for `gmail.compose` to save a Gmail draft. See
-*Invoices*.
-
-On a first run the app asks where the ledger lives: connect a Google Sheet, open an Excel file, or
-start from the empty template. Settings, This device has "Switch data source" for the same three choices.
+With the file on Drive, the app asks Google for `drive.file`, which covers files the user picks in
+the Google Picker or that the app creates, and for `openid email`, which tells it which account
+signed in. To find new bank statements in Drive it also asks for `drive.readonly`, whose token it
+holds in the page's memory only. See *Google sign-in*. The app reads the file and keeps a copy in
+IndexedDB. It writes only that file, its revisions and a `backups` folder beside it, and only what
+the user saves or a sync files, as *Write-back* describes. An xlsx file opens as the same document,
+and "Export to Excel" writes one. Making an invoice also files its PDF in the Drive folder the user
+picks for invoices, and, only for a user who turns the mail draft on, asks for `gmail.compose` to
+save a Gmail draft. See *Invoices*.
 
 ## Google sign-in
 
@@ -47,11 +35,11 @@ forgets it too.
 The Drive read grant is a third token. The Apps Script files the bank statements in a Drive folder,
 and `drive.file` cannot see files another app made, so the app asks for `drive.readonly` to find the
 new ones, and to read the accountant's workbooks on Year, Taxes. That token can read every file in Drive. It is asked for alone, with
-`include_granted_scopes` off, so it can neither write the Sheet nor send mail, and it lives only in
-the page's memory. Each open of a Google Sheet while online first sends the tab to Google with
+`include_granted_scopes` off, so it can neither write the file nor send mail, and it lives only in
+the page's memory. Each open of the books on Drive while online first sends the tab to Google with
 `prompt=none`, which shows no screen there and comes straight back with the token. The tab leaves
 by replacing the page, so Back from the app does not land on a page that asks again. The token only
-lists and downloads the statements and the accountant's workbooks. The Sheet is read and written with the kept `drive.file` token
+lists and downloads the statements and the accountant's workbooks. The file is read and written with the kept `drive.file` token
 alone, so a sync that files statements always holds a token that can write them, and a sync after
 the kept token ran out still needs the tap that asks for it. A load that is Google's answer to that
 sign-in asks once more the same way, so on a phone one tap on Sync brings back both tokens. What the
@@ -62,8 +50,8 @@ consent, the tab notes it in session storage and opens without going to Google u
 closed. Then only "Check for new statements" asks, with Google's consent screen if it needs one: in
 the popup on a desktop, by the redirect on a phone. Overview offers it, and so does a toast after a
 tap on Sync, while the page holds no Drive read token. A token that ran out after an hour is offered
-again the same way, since a silent ask in the middle of a session would reload the page. Excel mode,
-the fake build and an offline open never go to Google, and sign out forgets this token too, with
+again the same way, since a silent ask in the middle of a session would reload the page. A workbook
+kept in this browser, the fake build and an offline open never go to Google, and sign out forgets this token too, with
 the read of Year, Taxes this device kept.
 `driveReadAccess()` in `src/shared/google/googleAuth.ts` says where the page stands: the token
 held, not asked yet (or run out), or consent needed.
@@ -93,13 +81,14 @@ five seconds, and then goes on without it.
 
 ## Sync
 
-A sync reads the Sheet, then files the new bank statements of the statements folder in Drive. The
-Sync button, the sync on open and on a return to the tab, and the way back from Google run both
-steps, through `useStatementSync` in `src/features/imports/presentation/`. The workbook store reads
-the Sheet and knows nothing of statements. Excel mode has no sync, and its statements come in on
-the Import tab.
+A sync reads the file on Drive, downloading it only when its head revision moved, then files the
+new bank statements of the statements folder in Drive. The Sync button, the sync on open and on a
+return to the tab, and the way back from Google run both steps, through `useStatementSync` in
+`src/features/imports/presentation/`. The workbook store reads the file and knows nothing of
+statements. A workbook kept in this browser has no sync, and its statements come in on the Import
+tab.
 
-The statements step runs for a Google Sheet after a read that went through, while the page holds
+The statements step runs for a file on Drive after a read that went through, while the page holds
 the Drive read token of *Google sign-in*. `fileNewStatements` in
 `src/features/imports/application/statementSync.ts`:
 
@@ -117,7 +106,7 @@ the Drive read token of *Google sign-in*. `fileNewStatements` in
    it refuses, or that waits for its account to start, is held. The dry run leaves the account where
    it was, so nothing after a held statement is filed for that account, and other accounts still are.
 5. When the write is refused, such as for rows another device's sync filed since the read, reads the
-   Sheet again and runs the dry run once more. A second refusal is shown on Import, and nothing is
+   file again and runs the dry run once more. A second refusal is shown on Import, and nothing is
    written.
 
 What the step did is page state and never stored: the statements it filed, the ones it held, and a
@@ -157,11 +146,11 @@ square, and the installed app keeps clear of the system bars through the safe-ar
 
 The top bar's sync control is one rounded 44 px button with the icon and how long ago the last sync
 was, such as "3 h ago", on one line. A screen reader hears the full time of that sync with it.
-While a sync runs its icon turns and it says the step: "Syncing…" while it reads the Sheet,
+While a sync runs its icon turns and it says the step: "Syncing…" while it reads the file,
 "Checking Drive…" while it looks for new statements, and "Filing 3 rows…" while it writes them. A
-screen reader hears the steps as "Reading the Sheet", "Looking for new statements" and "Filing 3
+screen reader hears the steps as "Reading the file", "Looking for new statements" and "Filing 3
 rows", and so does the sidebar's status line from 1024 px up. The menu shows beside Review how many
-rows wait there, whatever the filters. In Excel mode the Export button in the top bar has the same
+rows wait there, whatever the filters. For a workbook kept in this browser the Export button in the top bar has the same
 rounded 44 px shape.
 
 The bars that stay at the top while a screen scrolls, the top bar below 1024 px and a screen's
@@ -221,7 +210,7 @@ reimbursements with no cost on file (Review), a complete month in which a watche
 payroll contributions had no payment, and a corporate tax payment due this month or overdue (both
 Year, Taxes, at their cards). The pack's jobs need the `owner_pay_module`, and the corporate tax one
 `hr_company_registered`. A job already late has a red dot, and the card is gone when nothing waits.
-While the page of a Google Sheet holds no Drive read token, the card starts with "Check for new
+While the page of a file on Drive holds no Drive read token, the card starts with "Check for new
 statements", as *Google sign-in* describes.
 `waitingJobs` in `src/features/overview/presentation/waitingForYou.ts` builds it, and the pack's
 jobs come from `src/packs/hr-doo/presentation/packWaitingJobs.ts`. Below it sit the tiles (cash on hand, net over
@@ -264,8 +253,7 @@ opens to Confirm, Recategorise, Make this a rule and Split, which opens the spli
 card, and "Confirmed rows no rule repeats", collapsed, over the whole ledger. Each group there can
 be made a rule or dismissed. A dismissal is a row on the `dismissed` tab, so the group stays hidden
 as new rows join it, and "Dismissed suggestions (N)" lists each one with Restore, which deletes its
-row. Both write through the record path with Undo, and the first dismissal in a Google Sheet
-without the tab asks before it adds the tab with the template's header.
+row. Both write through the record path with Undo.
 
 **Analysis** says where the money goes and whether it is getting better or worse. One filter bar sits
 above its three tabs, since each follows it, and on a phone its Filters button ends the tab row.
@@ -279,14 +267,14 @@ last complete quarter: profit and loss line by line, and each category's change,
 
 ## The workbook format
 
-A Google Sheet and an xlsx file share one format. Every column is found by its header name, so
-columns may sit in any order, and a column the app does not know is kept on export and ignored
-otherwise. Only `ledger` is required. A missing tab or column reads as empty, and missing settings
+The file's records and an xlsx file share one format: a record's fields are the columns of its
+tab, as *The file* under *Write-back* describes. Every column is found by its header name, so
+columns may sit in any order, and a column the app does not know is kept and ignored otherwise. Only `ledger` is required. A missing tab or column reads as empty, and missing settings
 take their defaults.
 
 | Tab | Columns |
 |---|---|
-| `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`, in that order from A to R, then the optional `owner_share` as *Owner share* describes. |
+| `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`, in that order from A to R, then the optional `owner_share` as *Owner share* describes, and `id`, which every row gets when the books move into the file. |
 | `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour` (a swatch of the palette as its light hex, such as `#2a78d6` for Blue, or blank for the bucket colour), an optional comma-separated `roles` from the roles core and the pack pick categories by (*Taxes and Owner* lists them), an optional `label`, and an optional `vat`: how a purchase in the category splits into cost and VAT, one of `none`, `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `representation` and `car-50`. A blank `vat` is `none`, and an unknown one is reported and read as `none`. An optional `owner_share`, the default a row filed in the category takes. |
 | `accounts` | `account`, `iban`, an optional `currency`, and an optional `label`. An account named on more than one row is reported on each and read from none. |
 | `settings` | `key`, `value`, one row per setting. A key on more than one row is reported on each and takes its default. |
@@ -297,7 +285,7 @@ take their defaults.
 | `owner-advances` | `date`, `amount` (above zero), `description`, `category` and the optional `owner_share`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount, the owner's private share of a company payment, is reported and left out, since that share is a part on the `splits` tab, as *Split rows* describes. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once, or every row of its name is reported and left out. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
 | `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once, or every row of its name is reported and left out. |
-| `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line, or every row of the key is reported and left out. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the editor on Year, Statements, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
+| `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line, or every row of the key is reported and left out. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the editor on Year, Statements, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
 | `plan` | `year`, `month` (1 to 12, blank for every month), `item` (a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount`, `note`, and the optional `date` (a date cell) and `group`. `amount` is positive for income and costs alike, a cost without the VAT that is reclaimed. A category is listed once per year and month, or every row of it is reported and left out. A `dividend` needs its month. A `purchase` needs `date`, the day it is bought and put in use, and `group`, one of the `assets` tab's groups, and takes its month from the date. Its `note` says what it is, and two purchases may share a day. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount` and leaves `month` blank: without a `date` it holds from 1 January, and a second row with a `date` switches to another scenario from that day. Planned revenue belongs on `outgoing-plan`, so a `revenue` row is reported and left out. The rules across rows are the plan guards of *Forecast*. |
 | `splits` | `date` (a date cell), `account`, `row_amount` and `row_balance`, which find one ledger row, then the part's `amount`, `category` and the optional `note` and `owner_share`: one row per part of a bank row that paid for more than one thing. The parts of a row share its four key cells, as *Split rows* describes. |
 | `dismissed` | `kind` (`not-covered` or `exception`), `key`, the optional `category` and the optional `dismissed_on` (a date cell): one row per group of "Confirmed rows no rule repeats" that a person dismissed on Review. `key` is the group's counterparty as counterparty filters key it, `iban:` and the IBAN or `name:` and the folded name, so the group stays hidden as new rows join it. An exception adds `|` and the id of the rule it differs from, so dismissing it leaves the same counterparty's exceptions to other rules in view. `category` is where most of its rows were on the day. A row without a kind or a key is reported and left out, and so is every row of a kind and key dismissed twice. |
@@ -308,7 +296,7 @@ The rows of `outgoing-plan`, `owner-advances`, `assets`, `year-end`, `plan`, `sp
 Every row the app adds there gets one, and a tab without the column gets it in the same write. A
 row without an id is reported by its label and left out, and so is every row of an id that more
 than one row holds, as a copied row does. A split part left out this way leaves out its whole
-split. The problem on Settings names the row, so a person who typed it into the Sheet by hand can
+split. The problem on Settings names the row, so a person who typed it into a file by hand can
 give it an id there, any text no other row of the tab holds, or delete it and add it in the app.
 
 Every record is known by its key or its id, never by its row: a ledger row by its account and
@@ -347,8 +335,7 @@ a swatch. A chart by category gives such a category the next chart slot that no 
 bucket was given, in the order of the tab, so a category with nothing in the period never repaints
 the others. Charts of whole buckets, such as Overview's ring and the profit and loss, keep the
 bucket colours. `SWATCHES` in `src/features/workbook/domain/categoryColour.ts` lists the palette,
-and `tests/categoryPalette.spec.ts` fails when it and `tokens.css` disagree. The Apps Script colours
-the Sheet's category cells with the same value.
+and `tests/categoryPalette.spec.ts` fails when it and `tokens.css` disagree.
 
 `flagged_by` values `rule` and `ai` belong to the categoriser: `ai` marks a guess that waits for
 review. Any other value means a person set the category. A row with `review_reasons`, such as a
@@ -371,7 +358,7 @@ default again, so a default changed since the row was filed reaches it, and a ne
 replaces any share the row held. An advance or a split part keeps its share while an edit keeps its
 category. Only a category in the operating bucket holds a default, and only while a category
 carries the `owner-benefit` role, such as "Benefits from company costs" in the owner-pay bucket,
-which the template seeds. The role sits on one category only, in the owner-pay bucket. The
+which an empty start seeds. The role sits on one category only, in the owner-pay bucket. The
 categories write refuses a new default that breaks either, and a role that breaks the last rule,
 except an Undo. A default left on a category moved out of operating, or held while no category
 carries the role, counts as 0, so the write lets it stand. That way a save with the owner-pay
@@ -409,7 +396,7 @@ as before.
 | Key | Default | What it does |
 |---|---|---|
 | `template_version` | `1` | The workbook format. A newer version is reported. |
-| `company_name` | blank | Shown under the app name and used in an export's file name. Blank uses the Sheet or file name. |
+| `company_name` | blank | Shown under the app name and used in an export's file name. Blank uses the file name. |
 | `currency` | `EUR` | ISO 4217 code of the ledger's money. One currency per workbook, with at most two decimals. |
 | `number_locale` | `en-GB` | How amounts are written, such as `de-DE` for `1.234,56`. Dates and text stay in English. |
 | `label_income` | `Income` | What the `income` bucket is called on screen. |
@@ -500,7 +487,7 @@ none of them takes a loan that a later repayment equals. The loan balance is len
 the whole ledger, signed. A screen says which role no category carries, and what it leaves out
 because of that.
 
-Costs the owner paid privately go on the `owner-advances` tab, from the Sheet or from "Add advance"
+Costs the owner paid privately go on the `owner-advances` tab, from an opened file or from "Add advance"
 on Owner. The pencil beside each one on Owner opens it to change or delete it, by its id. Each counts as a cost on its date and in its category on every profit and loss figure:
 bucket totals, the monthly series, the window averages and runway, category totals, period review,
 tax by type, the effective tax rate and the payroll cadence. Transactions lists each one as an
@@ -589,7 +576,7 @@ salary paid with a bonus, is split on the `splits` tab. The ledger keeps the row
 it, so the Apps Script, the balance chain and the append-only rule do not change. Each tab row is
 one part: the ledger row's `date`, `account`, `row_amount` and `row_balance`, then the part's
 `amount`, `category`, `note` and `owner_share`. The four key cells find exactly one ledger row, since the balance
-chain makes them unique. Copy the balance from the ledger row when typing a split in the Sheet.
+chain makes them unique. Copy the balance from the ledger row when typing a split in a file.
 
 The reader checks each split and refuses it whole, every one of its tab rows reported, when one of
 these holds, each part named by its category, amount and day. The bank row then counts whole.
@@ -626,9 +613,7 @@ as the amounts change. The arrow beside an amount puts the rest of the payment i
 editor says so up front when an asset claims the row, and saves nothing. The pencil on a split row
 opens the same editor to change, add or remove parts or delete the split. "Split" on a part of a
 shared row splits the payment it comes from. Each save is one write
-through the record path with Undo in the toast, in both modes, and a Google Sheet without a
-`splits` tab gets it with the template's header from the first save, which the editor says
-beforehand.
+through the record path with Undo in the toast, in both homes.
 
 ## Assets
 
@@ -989,9 +974,7 @@ both modes through the record path, each change one write with Undo in the toast
   deleted.
 - Dividend: the amount before tax and the month.
 
-A row the forecast does not count shows why under it. A Google Sheet without a `plan` tab gets it
-from the first save, each dialog saying beforehand that it adds the tab with the template's header.
-Revenue is planned on the Plan tab of Invoicing, which the editor links to for the same year, and
+A row the forecast does not count shows why under it. Revenue is planned on the Plan tab of Invoicing, which the editor links to for the same year, and
 whose "Fill 2027" writes a later year's fees.
 
 **Pay** compares the year's owner pay scenarios, as *Pay scenarios* works them out, and needs
@@ -1011,8 +994,6 @@ figure opens its build-up and rules. "Scenarios for 2027", collapsed unless the 
 the year's scenarios as their rows. A component is added, edited or deleted in a dialog, a scenario
 is renamed or copied with all its rows, and "Add the starting scenarios" writes the four for the
 year, asking for the owner's rent. Every change is one write with Undo in the toast, in both modes.
-A Google Sheet without a `scenarios` tab gets it only from that dialog, which says it adds the tab
-with the template's header before it writes the rows.
 
 **Taxes** holds the year's taxes paid and effective tax rate, then "Corporate income tax, expected
 against paid", the payroll cadence, collapsed, for a Google Sheet "VAT returns" and "Payroll from the
@@ -1029,7 +1010,7 @@ The two accountant cards read the workbooks the accountant mails, which the mail
 Drive: the `YYYY-MM-pdv` VAT returns of `hr_vat_returns_folder` and the `YYYY-MM-salary` workbooks
 anywhere under `hr_payroll_folder`, an xlsx downloaded as filed and a Google Sheet exported as xlsx.
 The pack's readers in `src/packs/hr-doo/domain/accountant/` read them, as *Accountant parity*
-describes, and nothing is written to the Sheet or to Drive. A period with an xlsx and a Google Sheet
+describes, and nothing is written to the books or to Drive. A period with an xlsx and a Google Sheet
 reads the xlsx, and the two must read the same. The VAT card follows the year by the return's month,
 newest first, from the first return filed to the last: each return with what it states and its
 badges, "No return filed" for a month between them without one. "Carry" sets the return's carry
@@ -1121,14 +1102,11 @@ lists the year's items with their shares and then charts every year by item, eac
 colour on every chart and list. "Totals over every client", collapsed, gives everything planned,
 everything invoiced and the difference, and what was invoiced each year by issue date.
 
-The rows of the year can be added, edited and deleted in both modes. "Fill the rest of 2026", or
+The rows of the year can be added, edited and deleted in both homes. "Fill the rest of 2026", or
 "Fill 2027" on the year after, previews the rows `fillRestOfYear` would add, with each description in a field to edit, and appends
-them. An edit writes only the cells that
-changed, so a formula amount left alone stays a formula. A delete takes the row out, so the rows
-below it move up. Both find the row by its id, wherever it now stands, and refuse when no row or
-several rows hold it or it changed since. Undo takes an addition back, adds a deleted row again at the
-foot of the tab with its id, and puts an edited row back as it was. Without the tab the Plan tab names the headers to
-add, and in Excel mode starts one from its first row.
+them. An edit writes only the fields that changed, and a delete takes the row out. Both find the
+row by its id and refuse when no row or several rows hold it or it changed since. Undo takes an
+addition back, adds a deleted row again with its id, and puts an edited row back as it was.
 
 **Clients** holds the clients tab as an editor, as *Settings screen* describes for a tab, and "Billing and
 invoice terms", collapsed, the `billing_` and `invoice_` settings with their own Save, written as the
@@ -1178,9 +1156,9 @@ did, and drafts its mail without sending it. The services are in `src/features/i
   `reverse_charge` TRUE. The app makes only invoices without VAT for a client who accounts for it,
   with the note. A domestic invoice with VAT is made elsewhere and recorded with "Record invoice".
 - **The PDF** is drawn in the browser with pdf-lib, loaded only when the dialog first opens, in the
-  layout of the generator's Sheet template. Its font is Inter from the app's own font files: the
+  layout of the invoice generator's template. Its font is Inter from the app's own font files: the
   Latin file, and the Latin Extended one for letters such as č, ć, ž, š and đ.
-- **Check** reads the Sheet again, so the number is checked on the register as it is now, and stops
+- **Check** reads the file again, so the number is checked on the register as it is now, and stops
   when a sync or a change is already running. From then on the number stays as checked. Then it
   finds each folder of `invoice_file_path` by name under the invoice folder, among what the app can
   see. With `drive.file` the app sees only folders it made or the user picked, so a folder the old
@@ -1202,47 +1180,84 @@ did, and drafts its mail without sending it. The services are in `src/features/i
   register's number and dates, replaces the file of the same name in view, and saves a fresh draft.
   The old draft stays in Gmail until it is deleted there. The register row changes only when its
   item or amount do.
-- **Excel mode** has no Drive, so the PDF downloads and the register row is written to the
-  workbook kept in this browser.
+- **A workbook kept in this browser** has no Drive, so the PDF downloads and the register row is
+  written to the workbook there.
 
 The register keeps one row per invoice: the lines' descriptions joined by `; ` as `item` and the
 total as `amount`, with the number, client, dates and delivery period, the eight columns the
 generator wrote.
 
-## Excel mode
+## Where the books are kept
 
-The workbook lives in IndexedDB, under its own id, as the store of record. The app asks the browser
+The first run, and "Switch data source" on Settings, This device, offer three ways in
+(`DataSourceChoices` in `src/features/data-source/presentation/`):
+
+- **Open your books on Google Drive**, for a device whose books another device keeps there. After
+  the sign-in the app searches Drive for the file it marked with `appProperties`, and opens the
+  Picker, filtered to JSON files, when the search finds none. Two marked files are refused with a
+  message, since the app cannot tell which one holds the books. So is a backup or another app's file
+  picked there, since the books would then be saved into it.
+- **Open a file**, an xlsx or a ledgerboard file, which shows its summary first, as *A workbook kept
+  in this browser* describes.
+- **Start empty**, with the default categories and settings.
+
+An opened file and an empty start then choose their home. "Keep on Google Drive" opens the folder
+Picker, creates `ledgerboard-company.json` there with its mark, reads the file back, and opens it
+only when it holds the same records, with "Moved N records" in a toast. When Drive already holds a
+marked file, nothing is made and the message says so. "Keep in this browser" keeps the document in
+IndexedDB. On a phone the sign-in goes to Google and back, and an opened file is opened again after
+it.
+
+To move the books from the Google Sheet, download the Sheet as xlsx, open it here, compare the
+counts per tab with the Sheet's, and keep it on Google Drive. Do not edit the Sheet between the
+download and the move.
+
+Settings, This device names the workbook. For the file on Drive it gives the folder the file sits
+in with a link to it, "Open in Drive", the last save the file records, the newest daily backup and
+the last sync. The folder and the backup cost three Drive requests and are asked only while the page
+holds a token, since asking for one needs a click. A file a newer app saved says "A newer
+ledgerboard saved this file" there, and every save is refused with the same reason until the app is updated.
+A workbook kept in this browser shows when it changed and when it was last exported, with "Keep on
+Google Drive", which moves it the same way and then deletes it here. A save that fails after its
+upload may have reached the file, such as one an edit from outside the app overtook, so its toast
+says "The save may not have finished" with the reason, and a refused one says "Nothing was written".
+
+## A workbook kept in this browser
+
+The document lives in IndexedDB, under its own id, as the store of record. The app asks the browser
 to keep it (`navigator.storage.persist()`, which Firefox shows as a prompt). Clearing the site's data
-deletes it, so the exported files are its only other copies.
+deletes it, so the exported files are its only other copies until it moves to Drive.
 
-- **Template.** "Download the empty template" writes a blank xlsx in the browser: the sixteen tabs
-  with their headers, a note on every header and every settings key, a default category set for a
-  freelancer or a small company, and the default settings. VAT refunds have their own `vat-refund`
-  category in the operating bucket, and `tax-refund` in the taxes bucket is for income tax refunds.
-  `benefits-from-company-costs` in the owner-pay bucket carries the `owner-benefit` role.
-- **Import.** Open or drop an xlsx file. It goes through the same workbook reader as a Google Sheet,
-  and a summary (transactions, dates, accounts, categories, every problem) shows before anything is
-  replaced. A file without a `ledger` tab is refused.
-- **Export.** From either mode, "Export to Excel" writes the workbook in the template format as
-  `ledgerboard-<company or sheet name>-<yyyy-mm-dd>.xlsx`. Importing an export gives the same
+- **Start empty.** The first run and "Switch data source" start an empty workbook on Drive or in
+  this browser: a default category set for a freelancer or a small company, and the default
+  settings. VAT refunds have their own `vat-refund` category in the operating bucket, and
+  `tax-refund` in the taxes bucket is for income tax refunds. `benefits-from-company-costs` in the
+  owner-pay bucket carries the `owner-benefit` role.
+- **Open a file.** Open or drop an xlsx file, such as a download of the Google Sheet, or a
+  ledgerboard file, such as a backup from the Drive folder. It opens as the app's document, every
+  ledger row with an id, and a summary shows before anything is replaced: transactions, dates,
+  accounts, categories, the records of each tab with their total, and every problem. Then "Keep on
+  Google Drive" or "Keep in this browser" chooses where it lives. An xlsx file without a `ledger`
+  tab is refused, and so is a ledgerboard file a newer app saved or another app keeps.
+- **Export.** From either home, "Export to Excel" writes the workbook in the template format as
+  `ledgerboard-<company or file name>-<yyyy-mm-dd>.xlsx`. Opening an export gives the same
   workbook. When changes have gone a week or more without an export, the sidebar says so.
-- **Editing.** Every tab a person keeps by hand is edited the same way in both modes, as the
-  *Settings screen* and *Write-back* describe. In Excel mode a change replaces the stored workbook
-  once it reads back, and counts towards the export reminder. Settings, This device keeps what
-  belongs to this device: the data source, Google sign-out, the theme and the privacy notes.
+- **Editing.** Every kind a person keeps by hand is edited the same way in both homes, as the
+  *Settings screen* and *Write-back* describe. A change counts towards the export reminder.
+  Settings, This device keeps what belongs to this device: the data source, Google sign-out, the
+  theme and the privacy notes.
 
-Switching from Excel mode to another source deletes the workbook kept in the browser, once the new
-one has been read. SheetJS loads only on the first import, export or template download, as its own
-chunk.
+Choosing a file on Drive deletes the workbook kept in this browser, once the file has been read.
+SheetJS loads only on the first import or export, as its own chunk.
 
 ## Import
 
 The Import tab of Transactions, at `#/transactions?tab=import`, adds a bank statement to the ledger
-in both modes. Drop or pick a file. Nothing is written until the dry run is confirmed, and Undo in
+in both homes. Drop or pick a file. Nothing is written until the dry run is confirmed, and Undo in
 the toast takes the rows out again. Once confirmed, the dry run says how many of the new rows wait
 on Review, with a link there. The services are in `src/features/imports/`.
 
-With a Google Sheet, "From the statements folder" sits above the file drop, `StatementFolderCard`
+With the file on Drive, "From the statements folder" sits above the file drop, `StatementFolderCard`
 beside `ImportPanel`. It shows what the last sync did with the folder, as *Sync* describes: the
 statements it filed, and each one it held with its dry run, the reason, and for an account with no
 rows yet the start at its opening. "Confirm and file" writes what the held statements' dry run then
@@ -1310,18 +1325,14 @@ the others are still written. A file without balances gets them worked out from 
 leaves the account.
 
 **The write** adds ledger records, checked by `LEDGER_WRITES` in
-`src/features/imports/application/ledgerWrites.ts`, and the adapter writes whole ledger rows, A to
-R and the owner share. The tab reads newest first for a person reading the Sheet, so each statement goes in as one
-block above the first row whose date is not after the statement's newest one, the block newest
-first. Right before writing, the tab as it is then is checked again: a new row already on it by its
-account and reference is refused, as any record the workbook holds already is, which happens when
-another device's sync filed the statement since the dry run. A row the reader refuses still holds its account and reference, so a new row
-with that reference is refused too, until the row is fixed in the Sheet. Each account's new rows
-must open at its newest balance and run on from it, and
-none may predate the account's newest row. The rows and
-their cells go in as one request, so a failed write leaves no empty row behind. Undo takes the rows
-out whole, and is refused once a newer row of the account sits above them. A Google Sheet whose ledger tab lacks a column the rows fill, such as
-the signal columns of an older Sheet, is refused with the column to add.
+`src/features/imports/application/ledgerWrites.ts`, each new row with its own `id`, in one write
+with the rest of the document. Right before writing, the ledger as it is then is checked again: a
+new row already on it by its account and reference is refused, as any record the workbook holds
+already is, which happens when another device's sync filed the statement since the dry run. A row
+the reader refuses still holds its account and reference, so a new row with that reference is
+refused too, until the row is fixed in a file opened again. Each account's new rows must open at
+its newest balance and run on from it, and none may predate the account's newest row. Undo takes
+the rows out whole.
 
 ## Settings screen
 
@@ -1334,7 +1345,7 @@ are set up, and the law behind the figures, one tab each:
 | Categories | The categories tab |
 | Accounts | The accounts tab |
 | Ruleset | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as *Ruleset* describes |
-| This device | The data source with export, import, switch and sign-out, and the theme and privacy notes |
+| This device | Where the books are kept, with export, import, the move to Drive, switch and sign-out, and the theme and privacy notes |
 
 Without a workbook on screen only This device is there. A card with a field in error opens. A link
 that names a fact by its field, such as `#/settings#owner-loan-interest` from Owner or
@@ -1354,20 +1365,19 @@ that sticks, such as the Ruleset search, sticks under a phone's tab row through 
 drill from a figure always opens Transactions on its Rows tab, so the tab of the screen it starts
 from never carries over.
 
-The editors work the same for a Google Sheet and in Excel mode. Each tab is a table of fields: add a
-row, change any field, delete a row with its bin, then "Save" writes the whole change as one write
-with Undo in the toast and under "Changes in this session" on Review. Only the cells that changed
-are written, so a formula left alone stays a formula, and a deleted row is taken out, so the rows
-below it move up. "Discard changes" goes back to what the tab holds. A save that fixes a row the app
+The editors work the same in both homes. Each tab is a table of fields: add a row, change any
+field, delete a row with its bin, then "Save" writes the whole change as one write with Undo in the
+toast and under "Changes in this session" on Review. Only the fields that changed are written, and
+a deleted row is taken out. "Discard changes" goes back to what the workbook holds. A save that fixes a row the app
 could not read, or deletes one, keeps no Undo, since nothing could store that row as it was.
 
 On Categories the colour is a swatch button that opens a pop-up, `ColourSwatchPicker` in
 `src/shared/ui/`: Bucket colour first, then the nine swatches, each a 44 px target named for a
 screen reader, which the arrow keys move through. A line under them names the other categories of
 the bucket that wear the chosen swatch, since a repeat is allowed. A colour outside the palette
-shows as Bucket colour, and the line says the Sheet keeps it until a swatch is picked. Roles are a
+shows as Bucket colour. Roles are a
 menu of the roles core and the pack pick categories by, shown as chips. A role the app does not
-know, such as `revenu` typed in the Sheet, shows as a red chip with the error under it and blocks the
+know, such as `revenu` typed in a file, shows as a red chip with the error under it and blocks the
 save until it is taken off.
 
 While `owner_pay_module` is on, the last column is "Owner share", the default a row filed in the
@@ -1381,20 +1391,14 @@ writes the categories and those cells in one write, so one Undo puts back the de
 cells. A share of 0 is not blank and is left alone, and so is the ledger cell of a split row, whose
 parts hold the shares. A row the pack keeps whole counts whole, so its own cell is filled and its
 parts are not. A record that takes a share while the question is open keeps it. "Save the default only" writes the categories alone, and Cancel writes
-nothing. The `owner_share` column comes without a notice, as *Write-back* describes.
+nothing.
 
 Each table checks its rows as the reader would before it lets a save go: a row the reader would
 leave out is marked and blocks the save. A row the tab holds that the app cannot read at all, such
 as a category with a misspelt bucket, is listed after the rows it reads, as stored, so it can be
 fixed here. A category or account in use keeps its name, so its name
 field and its bin are locked, and the tooltip says what uses it. A client or grant in use is refused
-when the save renames or deletes it, with what uses it. Categories say that the
-ledger's dropdown in the Sheet lists the categories tab, so a category added here appears there. A
-field the Sheet has no column for, such as `label` on an older categories or accounts tab, gets a
-notice under the table once a row fills it, and the save adds the column after the last one, with its
-header in row 1, in the same write. The sync records which template columns each tab of the Sheet
-lacks, in `missingColumns` of the copy's meta. When the Sheet lacks a whole tab, the screen names the
-headers to add.
+when the save renames or deletes it, with what uses it.
 
 ## Development
 
@@ -1406,10 +1410,10 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, the check for new statements Overview offers, and on Year, Taxes the accountant's cards with the rows a differing badge opens, the read this device kept with the check, and the payroll folder saved from Settings, General, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, the accountant's cards on Year, Taxes with a differing badge's rows and the kept read, the payroll folder saved from Settings, General, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, the first run kept on the fake Drive and in this browser, an xlsx moved to the fake Drive through its summary, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, the check for new statements Overview offers, and on Year, Taxes the accountant's cards with the rows a differing badge opens, the read this device kept with the check, and the payroll folder saved from Settings, General, and This device for a file a newer app saved, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, the accountant's cards on Year, Taxes with a differing badge's rows and the kept read, the payroll folder saved from Settings, General, the first run on the fake Drive and in this browser, an xlsx moved to the fake Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
-npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
+npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
 ```
 
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
@@ -1424,16 +1428,14 @@ dividend, and four owner pay scenarios for 2027, two of them with warnings to sh
 and its extras, with October planned and not invoiced yet, and has no rows for the second client,
 whose invoices are invoiced with no plan row. Its `splits` tab splits four rows: a salary paid
 with a results bonus, a design invoice that also paid a workshop, and a business lunch and an
-office order, each with the owner's own part in it. Its ledger tab carries every column from A to R, as the Sheet does, and
-`owner_share`. Its categories give AI services a 50% owner share, with "Benefits from company
+office order, each with the owner's own part in it. Its ledger carries every column from A to R, as the Google Sheet did, then
+`owner_share` and an `id` on every row. Its categories give AI services a 50% owner share, with "Benefits from company
 costs" carrying the `owner-benefit` role, so its AI services rows hold 50, the laptop's row holds
-30 of its own, and the office order's office part and the design tool advance hold one each. Like
-the live Sheet, its Google Sheet has no `dismissed` tab, so the first Dismiss on Review asks to add
-it, and the Excel-mode variant starts with the tab empty. On the Import tab the fake build offers two sample files that carry the main account on from its newest row: a
+30 of its own, and the office order's office part and the design tool advance hold one each. It holds no dismissed suggestions yet. On the Import tab the fake build offers two sample files that carry the main account on from its newest row: a
 camt.053 statement with a client payment, a card purchase in dollars, a bank fee and a reversal,
 and a Croatian bank's xlsx export with a title above the header, text dates, a decimal comma, split
 debit and credit columns and a total below, which no saved profile fits yet. Both start from the
-same balance, so once one is imported the other is refused. The Excel-mode variant sets the billing settings. In the fake build a Google Sheet held in memory answers syncs and writes until the page reloads. A
+same balance, so once one is imported the other is refused. The variant kept in this browser sets the billing settings. The fake workbook is built as records in `fakeWorkbook.ts`. In the fake build it is a file on a Drive held in memory (`fake/fakeDriveSession.ts`), which answers syncs and saves, keeps revisions and makes the day's backup, until the page reloads. A
 Drive and a Gmail held in memory answer "Make invoice" the same way: the invoice folder holds this
 year's and last year's folders with every month inside, made by another app and out of view until
 picked, and the browser's confirm dialog stands in for the Picker, OK picking every folder it names
@@ -1447,15 +1449,16 @@ label alone, which the sync holds. The fake build never goes to Google, so it re
 if it held the Drive read token, unless the tab noted a refused ask, which offers "Check for new
 statements". It holds the accountant's folders at the default folder paths too, as *Year screen*
 describes for Taxes.
-Every name, IBAN and amount in it is made up. `?fake=excel` keeps it as an Excel-mode workbook with
-changes nine days past their last export and owner loans that carry 2.5%, so they give no benefit in kind, and `?fake=empty` starts with nothing, which is the first
-run. `?fake=no-scenarios` leaves the `scenarios` tab out of the Sheet, so adding the starting
-scenarios adds the tab, and `?fake=excel-no-scenarios` starts a workbook kept in this browser with no
-scenario rows. `?fake=no-plan` and `?fake=excel-no-plan` do the same for the `plan` tab, so the plan
-editor's first save adds it, and `?fake=no-splits` and `?fake=excel-no-splits` the same for the
-`splits` tab and the split editor. The rows of the tabs that carry ids have fixed ids. The visual
-check covers each variant, and the import summary of an xlsx it writes from the fake
-workbook. It and the touch check run against a preview of the fake build, so start one first:
+Every name, IBAN and amount in it is made up. `?fake=browser` keeps it as a workbook kept in this
+browser with changes nine days past their last export and owner loans that carry 2.5%, so they give
+no benefit in kind, and `?fake=empty` starts with nothing, which is the first run, whose folder
+Picker picks a `Books` folder on the fake Drive. A variant that ends in `no-scenarios`, `no-plan` or
+`no-billing-plan`, such as `?fake=no-plan` or `?fake=browser-no-plan`, starts without those records,
+so the starting scenarios and the first plan line have nothing before them. `?fake=newer-file` is a
+file a newer app saved, which the app shows and never writes. With `?fake=race` a phone files the
+snack kiosk's row on the fake Drive a moment before the first save uploads, so the save runs again
+on the phone's file and both stand. Every record that carries an id has a fixed one. The visual
+check covers each variant, and the import summary of an xlsx it writes from the fake workbook. It and the touch check run against a preview of the fake build, so start one first:
 
 ```sh
 npm run build:fake && npm run preview:fake -- --port 4173
@@ -1471,9 +1474,9 @@ npm run check:touch -- --only billing,split --widths 430
 ```
 
 `--only` takes screen and flow names for the visual check, such as `invoicing`, `settings-categories`
-or `split`, and step names for the touch check, such as `billing-edit-delete` or `split-google`. A
+or `split`, and step names for the touch check, such as `billing-edit-delete` or `split-drive`. A
 name also picks every name that starts with it and a hyphen, so `invoicing` takes `invoicing-plan-2025`
-and `invoicing-clients-excel` too. A touch step that carries on from the page of an earlier one runs that one as
+and `invoicing-clients-browser` too. A touch step that carries on from the page of an earlier one runs that one as
 well. `--widths` takes widths the check already has. A name nothing is called fails with the names
 there are, and a run that would check nothing fails too. A limited run keeps the screenshots it does not
 take and says on its last line that it was limited. Only the full run, without options, is the check
@@ -1526,23 +1529,24 @@ naming the file, the line and the import:
   `src/shared/calendar`, `src/shared/money` and `src/shared/text`.
 - Core, which is `src/features`, `src/shared` and `src/App.vue`, imports nothing from `src/packs`.
   Only `main.ts` does.
-- Nothing outside `src/features/workbook` imports its `infrastructure`, the spreadsheet adapter. The
-  exceptions are `main.ts`, which installs the pack's tabs and loads the fake seed, the fake build's
-  data in an `infrastructure/fake/` folder, and a pack's `infrastructure`, which maps its tabs with
-  `spreadsheetTab.ts`, `packTabs.ts`, `workbookTemplate.ts` and `cellFormats.ts`. A screen reaches
-  the adapter through the workbook's own presentation, such as `MissingTabHint.vue`,
-  `AddTabNotice.vue`, `useSheetLink` and `workbookFiles.ts`.
+- Nothing outside `src/features/workbook` imports its `infrastructure`, the document storage and
+  the xlsx mapping. The exceptions are `main.ts`, which installs the pack's tabs and loads the fake
+  seed, the fake build's data in an `infrastructure/fake/` folder, and a pack's `infrastructure`,
+  which maps its tabs with `spreadsheetTab.ts`, `packTabs.ts`, `workbookTemplate.ts` and
+  `cellFormats.ts`. A screen reaches them through the workbook's own presentation, such as
+  `workbookFiles.ts`.
 - An `application` folder imports no `infrastructure` folder. The exceptions are the files that wire
   adapters in, `src/features/workbook/application/workbookStore.ts` and
   `src/features/invoicing/application/invoiceGoogle.ts`.
 
-It also fails on a line of `src` outside `src/features/workbook/infrastructure`, the spreadsheet
-adapter, that names `sheetRow`, so row numbers stay with the grid, and on `as RecordId` outside
+It also fails on a line of `src` outside `src/features/workbook/infrastructure` that names
+`sheetRow`, so row numbers stay with the xlsx mapping, and on `as RecordId` outside
 `src/features/workbook/domain/recordId.ts`. Elsewhere a record is known by its `RecordId`: its kind and its
 key or id, which `recordIdOf` makes and only a storage reads apart, with `keyOfRecordId`, to write
-the id of a kind without a business key. The adapter gives each record read from
-a row its id (`spreadsheetTab.ts`), and a record's own domain makes one where it states identity, such
-as `categoryIdOf`.
+the id of a kind without a business key. A storage gives each record it reads its id, and a
+record's own domain makes one where it states identity, such as `categoryIdOf`. Every kind's codec,
+core's and the installed pack's, is found by its kind through `recordCodecs.ts` in
+`src/features/workbook/application/`, the pack's through `PackPart.codecs`.
 
 Each kind's domain gives its codec beside its factory, such as `INVOICE_CODEC` beside `invoiceOf`
 in `src/features/workbook/domain/invoicesReading.ts`, or `ASSET_CODEC` beside `assetOf` in the pack's
@@ -1555,16 +1559,14 @@ definition, core's or the pack's, says whether its value is a date, a number, a 
 its `apply` takes the value as text, so a date cell and the text `2025-05-12` read the same. A rule
 is stored as its fields, which the rules reader checks.
 
-Reading goes the same way for both sources. The adapter's `SpreadsheetTab` of each tab turns a
-row's cells into fields, a serial number into a day and an amount and a checkbox into a flag
-(`cellReading.ts`), and hands them to the kind's codec. Writing turns a record's fields into cells
-in one function, `cellsOfFields`, by the tab's cell formats (`cellFormats.ts`): a field in a date
-column as its serial number, in another number column as a number, and anything else as it is. So
-a tab's mapping holds only its tab, its codec, the columns a write needs and its cell formats, and
-for a `year-end` amount and a settings value the format follows the line or the key. The tab names
-stay in the adapter's workbook format, since the export, the browser's copy and a Google Sheet hold
-every tab. A pack tab's columns, notes and mapping come from the pack's `PackSpreadsheetTab`
-(`packTabs.ts`).
+The xlsx mapping reads a file the same way. The `SpreadsheetTab` of each tab turns a row's cells
+into fields, a serial number into a day and an amount and a checkbox into a flag
+(`cellReading.ts`), and hands them to the kind's codec. Writing an export turns a record's fields
+into cells in one function, `cellsOfFields`, by the tab's cell formats (`cellFormats.ts`): a field
+in a date column as its serial number, in another number column as a number, and anything else as
+it is. So a tab's mapping holds only its tab, its kind and its cell formats, and for a `year-end`
+amount and a settings value the format follows the line or the key. A pack tab's columns, notes and
+mapping come from the pack's `PackSpreadsheetTab` (`packTabs.ts`).
 What a storage holds of a kind is a `RecordsRead`: the records, each with its label and its fields as
 stored, and the refused ones with theirs. The store keeps them beside the workbook. `readWorkbook`,
 in the domain too, then applies the rules across records, such as a key on two rows or a category the
@@ -1575,7 +1577,7 @@ the text of the record's fields, which becomes fields as `fieldsOf` gives them, 
 
 Google sign-in, the redirect, the session, Drive, the reads kept from it, the Picker and the script
 loader are in `src/shared/google/`, and reading a spreadsheet file's tabs with SheetJS in
-`src/shared/xlsx/`. The Sheets client stays with the workbook, in
+`src/shared/xlsx/`. The document's homes, on Drive and in this browser, are in
 `src/features/workbook/infrastructure/`.
 
 ## Write-back
@@ -1609,13 +1611,11 @@ change may touch, the kind's own checks and its reader, and whether a write keep
    its identity, and adds the write to "Changes in this session" on Review, newest first.
 
 Every message names a record by its label, such as an invoice's number or an asset's name, and
-never by its row. In Excel mode the reads and writes go to a working copy that replaces the stored
-workbook when the write is complete.
+never by where it is kept.
 
 Undo turns a write's receipt around: an added record is removed, a changed one changed back, and a
-removed one added again with the same identity. It lands below the last row of its tab, and a ledger
-row where its date puts it, newest first. Nothing reads where a row sits, so the figures after Undo
-are those before the delete. Undo goes through the same checks, so it is refused when a record changed
+removed one added again with the same identity, at the end of its kind. Nothing reads where a record
+sits, so the figures after Undo are those before the delete. Undo goes through the same checks, so it is refused when a record changed
 since, or when the workbook holds the identity of a record it would put back. So a save that merged
 two rows of one key, such as a client's two rows made into one, keeps its result: its Undo would put
 back a second row the workbook already holds. Settings keep no Undo,
@@ -1625,9 +1625,9 @@ session list is held in memory, so a reload clears it.
 
 - **Ledger rows.** A row is known by its account and reference, even one the reader refuses, or for
   a blank reference by its account, date, amount, balance and description, so rows a hand edit or
-  another device inserted since the last sync do not matter. The app changes only a row's `category`, `flagged_by` and `owner_share`, each found by its header (I
-  and J in the shadow-accounting Sheet), and only where the value changes. A refused ledger row is
-  fixed in the Sheet, never by the app. Confirm writes the `review_label` setting to `flagged_by`.
+  another device added since the last sync do not matter. Each row also carries an `id`, which the
+  move into the file and every import give it. The app changes only a row's `category`,
+  `flagged_by` and `owner_share`. A refused ledger row is fixed outside the app, never by the app. Confirm writes the `review_label` setting to `flagged_by`.
   Recategorise, and Change category on Transactions, write the category and the label. Applying a
   new rule writes its category and `rule`, only to rows flagged `ai` or unclassified. A category the
   categories tab does not define is refused, unless Undo puts it back. Imported rows are added as
@@ -1645,166 +1645,125 @@ session list is held in memory, so a reload clears it.
   refused.
 - **Records of the other kinds.** Categories, accounts, clients, invoices, owner advances, assets,
   grants, year-end lines, billing plan rows, plan lines, pay scenario rows, split parts and
-  dismissals are added below the last row of their tab, changed in place and removed as whole rows,
-  so the rows below move up and no blank row is left. A record of a kind with an id gets a new one
-  when it is added and keeps it after. Dates go in as serial numbers and amounts as numbers, as the
-  tab's cell formats say. Each
+  dismissals are added at the end of their kind, changed in place and removed whole. A record of a
+  kind with an id gets a new one when it is added and keeps it after. Each
   kind's own checks are these, each refused with its reason:
 
   | Kind | Refused, with the reason given |
   |---|---|
   | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. A changed colour outside the palette, or a role the change gives that the app does not know, unless Undo puts it back. Unless Undo puts it back too, a new owner share on a category outside the operating bucket or while no category carries the `owner-benefit` role, and that role on a second category or one outside the owner-pay bucket. |
-  | Accounts | A name outside the slug format. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the app files no statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. One IBAN names one account, since the fetch names each statement file by its IBAN and the app files each statement by it. The tab needs its `account` and `iban` headers, which the statement fetch reads. |
+  | Accounts | A name outside the slug format. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the app files no statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. One IBAN names one account, since the fetch names each statement file by its IBAN and the app files each statement by it. |
   | Clients | A name outside the slug format, or one another row holds. Renaming or deleting a client that invoices, plan rows or `billing_client` name. An IBAN the change adds that is not valid, is on another client, or is one of your accounts. A save that merges a client's two rows into one keeps no Undo, as above. |
-  | Invoices | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. The tab needs all eight columns the generator writes, and the app never adds one. |
+  | Invoices | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. |
   | Grants | A name outside the slug format. Renaming or deleting a grant an asset is funded by. |
   | Owner advances | What their reader refuses: an amount of zero or below, which for a negative one points to the `splits` tab, or a category the categories tab lacks or keeps outside the operating and taxes buckets. "Add advance" on Owner, and "Add the cost" on Review, add one, and the pencil beside an advance on Owner changes or deletes it. |
   | Split parts | What their reader refuses against the ledger and the categories as they are now, which are the guards of *Split rows*. A split of a row an asset claims, with the asset named. |
   | Assets, year-end lines, billing plan rows, dismissals | What their readers refuse, such as an asset listed twice, a grant the grants tab lacks, or a konto row naming an unknown category. |
-  | Plan lines | What their reader refuses, such as a dividend without its month or a category twice in one month. Then every year the change touches must pass the plan guards of *Forecast*. A purchase or a switch day on an older tab without the `date` and `group` columns names the columns to add. |
+  | Plan lines | What their reader refuses, such as a dividend without its month or a category twice in one month. Then every year the change touches must pass the plan guards of *Forecast*. |
   | Pay scenario rows | A name outside the slug format. Renaming a scenario onto the name another scenario holds. Renaming or deleting the last row of a scenario a `plan` row names. Then every scenario the change touches must pass the guards of *Pay scenarios*, each refusal naming the scenario and its rows, and every plan year that names one of them must pass the plan guards. |
 
-  The loan switch on Settings, General is a change to the `bucket` of the loan categories. The
-  ledger's category dropdown is never touched. It takes its options from the categories tab's
-  category column, a rule set up by hand in the Sheet.
+  The loan switch on Settings, General is a change to the `bucket` of the loan categories.
 
 The storage is a port, `RecordStorage` (`src/features/workbook/application/recordStorage.ts`). The
 store, `createWorkbookStore.ts` in the same folder, holds the unit of work, the copy on screen and
-the session list, and knows no tabs. `workbookStore.ts` beside it wires the spreadsheet adapter in
-and gives the screens `useWorkbook`. `spreadsheetRecordStorage.ts` in
-`src/features/workbook/infrastructure/` keeps records on the tabs of a Google Sheet or of the
-workbook kept in this browser, through the same writers, and `SpreadsheetTab` in `spreadsheetTab.ts`
-maps each kind to its tab and its codec, the pack's kinds through `hrDooTabs.ts`. A record is found again by the
-key or id its row holds, wherever the row now stands. A change writes only the cells of the fields it
-alters, and only where the row holds something else, so a cell the change leaves alone keeps its
-formula or its own spelling, such as a capital the reader lowers. A tab or a column the write needs
-and the Sheet lacks is named in the refusal. The tab is added only when the person agreed, as the
-starting scenarios dialog, the plan editor's dialogs, the split editor and the first Dismiss on Review
-ask before they write, named as the template names it, with the template's header in row 1, in the
-same write. A template column is added the same way, as the notice of the Categories and Accounts
-editors says before the save, after the last column in use. The `owner_share` column comes with the
-first share a write puts on a tab, as the `id` column does, so a write that copies only blank shares
-adds nothing. In Excel mode the workbook always holds every tab, so nothing is added.
+the session list. `workbookStore.ts` beside it wires the document storage in and gives the screens
+`useWorkbook`. The copy on screen is the document whole with its revision, which the cache in
+IndexedDB keeps as one row (`workbookCache.ts`). `documentRecordStorage.ts` in
+`src/features/workbook/infrastructure/` keeps every kind's records in that one document, in a file
+on Drive or in this browser. A read decodes the document and makes each record with its kind's
+factory. A write works out the next document in memory: an added record goes at the end of its
+kind, a changed one takes the fields the change alters and keeps every other field, a field the app
+does not know among them, and a removed one leaves. A repaired record takes the fields of the fixed
+record and keeps a stored field it does not name only while the record reads the same with it. The
+document's home then stores it whole, so a write is all or nothing. A kind finds its codec through
+`recordCodecs.ts` in the application folder, core's kinds and the installed pack's `PackPart.codecs`
+alike, so the document storage needs no tab mapping.
 
-`tests/recordStorageContract.spec.ts` says what any storage must do, once for each storage and each
+When the home finds the document moved since the write's read, it stores nothing and the write
+starts again from a fresh read, at most three times, after 1, 2 and 4 seconds with up to a second
+more at random. A write the checks refuse on the fresh read is refused as always. After three moves
+the write is refused with "Another device kept saving the workbook during this change".
+
+`tests/recordStorageContract.spec.ts` says what any storage must do, once for each home and each
 kind, core's and the pack's, in record terms: a record reads back as written, a change and a removal
 find the record after another device added one ahead of it, a stale change writes nothing, a refused
 record reads with its fields and reason and a repair stores it or a discard takes it out, Undo of a
 removal brings it back with its identity, and a write across two kinds applies whole or not at all.
 A storage joins by playing the outside edits, `addOutside`, `changeOutside` and `removeOutside`, and
-a kind by giving its fixture as typed fields.
+a kind by giving its fixture as typed fields. `tests/documentStorage.spec.ts` holds what only the
+document must do: one record per line, a file a newer app saved read and never written, unknown
+fields and kinds kept through a save, the `hr_company_registered` date kept as the day it names, and
+two devices saving at the same moment.
 
-Every write to a Google Sheet is one `spreadsheets.batchUpdate`, which Sheets applies in order and,
-when any of its requests is not valid, not at all. So a write that fails leaves the Sheet as it was,
-and never an empty row. Its requests run in this order:
+### The file on Drive
 
-1. `addSheet` for a tab the person agreed to add, with a sheet id the app picks, and `updateCells` of
-   its header in row 1. Then, for each column a tab gets, its `id` column, its `owner_share` column
-   or a template column the person agreed to add, `appendDimension` of a column when its grid has none free after the last
-   column in use, and `updateCells` of the header there, one column after another. The grid's width
-   comes with the tab ids, from `spreadsheets.get`.
-2. `updateCells` of each changed cell, such as `ledger!I57`, found by its header on the row as read.
-3. `deleteDimension` of each deleted row, the bottom row first.
-4. For rows put in at a place, the ledger's new statements and rows Undo puts back, per block of rows
-   from the top down: `insertDimension`, two `copyPaste` requests that copy the format and the data
-   validation of the row below onto the new rows, column for column, `updateCells` of the whole
-   rows, such as `ledger!A2:R2`, and `repeatCell` number formats. The row below may carry a number
-   format on a text column, as the live ledger carries the euro on its category column, so each text
-   cell of a new row gets the text format `@`.
-5. `appendCells` of the rows added below the last row, every new row of the tab in one request.
+The document is one file, `ledgerboard-company.json`, in a Drive folder the person picks, made with
+`drive.file` and marked with the `appProperties` `ledgerboard=company`, so a second device finds it
+by search. Drive refuses no stale upload, so the home in `driveDocument.ts` checks the revision
+itself. One home serves a file for as long as the page holds it, with a token getter rather than a
+token, so it remembers the day's backup. A save:
 
-Every date the write puts in a cell, on any tab, gets the `yyyy-mm-dd` number format by a
-`repeatCell` in the same batch, after the request that wrote it, since a tab without a date format
-on its column would show the serial number. A row added below the last one lands where
-`appendCells` puts it, right under the last row with anything in it, which the write works out from
-the tab as it read it. Which cells hold dates each tab's cell formats say by column, for a
-`year-end` amount by its line and for a settings value by its key, the same formats an Excel export
-formats its cells with.
+1. Reads `files.get ?fields=headRevisionId`, and downloads the file with `alt=media` only when the
+   revision differs from the copy's. That revision is the base.
+2. Before its upload, reads the head again. A head other than the base is a moved file, and nothing
+   is uploaded.
+3. Uploads the whole document with `uploadType=media&keepRevisionForever=true`.
+4. Lists the revisions and reads the head. A revision since the base that is neither the base nor
+   this save's is another device's save. When this save's upload is the head, it replaced that save,
+   so the write runs again on that save's text through the same checks and uploads the result, or
+   uploads that save back and is refused with the reason. A save whose upload is not the head
+   answers saved, since the device that landed last sees it.
+5. Reads back from memory, since the save knows what the file holds.
 
-Every value goes in as `userEnteredValue`, text as `stringValue`, which Sheets stores as typed and
-never reads as a number, a date or a formula. Amounts and dates are numbers, a date as its serial
-number with the date format beside it. Each write reads the tabs it touches before the
-batchUpdate and again after it:
+A write makes five requests, the read and four for the save. The first save of a day first copies the base into a `backups`
+folder beside the file, as `ledgerboard-company-<yyyy-mm-dd>.json`, and keeps the last 30 days and
+the first of each month. Once more than 100 revisions are kept, the oldest are let go, since Drive
+refuses a 201st. A revision Drive did not keep, such as an edit through Drive for Desktop, cannot be
+read back, and the save says "The file changed outside the app during this save. Check the backups
+folder."
 
-| Use case | Requests besides the batchUpdate |
-|---|---|
-| Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids and grid widths), `values.batchGet` of `ledger` and `categories` |
-| Add, edit, switch on or off, move or delete a rule | get, batchGet of `rules` and `categories` |
-| Save settings, save or delete an import profile, remove a key | get, batchGet of `settings` |
-| Add, change or delete an advance | get, batchGet of `'owner-advances'` and `categories` |
-| Split a row, edit or delete a split | get, batchGet of `splits`, `ledger`, `categories` and `assets` (each when the Sheet has it) |
-| Set an owner share on Transactions | The reads of Confirm for a ledger row, of a split for a split part, and of an advance for an owner advance |
-| Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `splits`, `'year-end'` and `plan` (each when the Sheet has it), and `assets` too when the fill reaches a split part |
-| Save accounts | get, batchGet of `accounts`, `ledger` and `clients` |
-| Save clients | get, batchGet of `clients`, `accounts`, `invoices`, `'outgoing-plan'` and `settings` |
-| Add, edit or delete an invoice | get, batchGet of `invoices` and `clients` |
-| Make an invoice | Check: the sync's reads, then Drive `files.list` of each path folder's children (`'<parent>' in parents and trashed = false`), the Picker for a folder not in view, and on the first run the settings write of `invoice_folder_id`. Make: `files.create` of a folder the user chose to make, `files.list` of the target folder, a multipart `files.create` upload of the PDF to `www.googleapis.com/upload/drive/v3`, `users.drafts.create` on `gmail.googleapis.com` when the draft is on, then the invoice write above. A re-export uploads with `files.update` instead |
-| Save assets, grants or year-end | get, batchGet of `assets` and `grants`, or `grants` and `assets`, or `'year-end'` and `categories` |
-| Add or fill plan rows, edit or delete one | get, batchGet of `'outgoing-plan'` and `clients` |
-| Add, edit or delete a scenario component, rename or copy a scenario, add the starting scenarios | get, batchGet of `scenarios`, `plan` and `categories` (each when the Sheet has it) |
-| Plan the owner pay, a category, a purchase or the dividend on Year, Plan, change or clear it | get, batchGet of `plan`, `categories` and `scenarios` |
-| Import statements | get, batchGet of `ledger` and `categories` |
-| File statements on sync | Drive `files.list` with the Drive read token for each folder of the `statements_folder` path (`'<parent>' in parents and name = '<folder>' and mimeType = '<folder type>' and trashed = false`), one of the year folders and one of their files, `files.get` with `alt=media` of each file the name test keeps, then the import's reads |
-| Read the accountant's workbooks on Year, Taxes | No Sheets call. Drive `files.list` with the Drive read token for each folder of the `hr_vat_returns_folder` and `hr_payroll_folder` paths, then per level of folders inside one listing of their files (`files(id,name,mimeType,version)`) and one of their folders, `files.get` with `alt=media` of each changed xlsx and `files/<id>/export?mimeType=<xlsx type>` of each changed Google Sheet |
-| Dismiss a suggestion on Review, or restore one | get, batchGet of `dismissed` |
-| Undo any of these | the same reads, with the change turned around |
+The workbook kept in this browser is the same document in IndexedDB (`browserDocument.ts`), whose
+revision is a new random id on every save, so a tab holding an older one finds it moved even after
+the database was deleted and made again.
 
-### Manual test, against a copy of the Sheet first
+### The file
 
-Run this on a copy (File, Make a copy in Google Sheets, then pick the copy in "Switch data source").
-Never run it first on the original.
+```json
+{
+  "format": "ledgerboard",
+  "app": "company",
+  "schema": {"core":1,"hr-doo":1},
+  "savedAt": "2026-10-23T08:00:00.000Z",
+  "records": {
+    "ledger-row": [
+      {"date":"2026-10-14","account":"main","amount":"-95.49","balance":"1204.10","category":"software","flagged_by":"ivan","id":"…"}
+    ],
+    "setting": [
+      {"key":"hr_company_registered","value":"2025-05-12"}
+    ]
+  }
+}
+```
 
-1. Pick the copy and sync. Note one `ai` row on Review and find it on `ledger` in the copy.
-2. Open the row and Confirm it. In the copy, only J on that row changed to your review label. I is
-   as before. Press Undo in the toast and check J is back.
-3. Recategorise the same row. I and J change, nothing else. Wait for the toast to close, open
-   "Changes in this session" and press Undo there. Both are back.
-4. In the copy, insert an empty row at row 2 of `ledger`. Recategorise another row from the app
-   without syncing first. The write lands on the shifted row. Delete the empty row again.
-5. Make a rule from a row. Check the back-test lists, save, and check the new row at the bottom of
-   `rules`. Press "Apply to the rows still waiting" and check only `ai` or unclassified rows changed.
-6. On Review, Rules, switch the new rule off and move it. Check `enabled` and `order` changed and no
-   other cell did. Open the rule's editor, press Delete, then Delete rule, and check its row is gone
-   with no blank row left. Press Undo and check it is back at the foot of `rules`.
-7. On Settings, General, change the company name. Check the `settings` tab.
-8. On Owner, add an advance. Check one new row at the foot of `owner-advances`, its date shown as a
-   date. Press Undo and check the row is gone, with no blank row left. On Settings, General, switch
-   "Loans to the owner count as owner pay" off and on. Check only the two `bucket` cells of the loan
-   categories changed.
-   On Transactions, split a payment in two, check its two rows on `splits`, change a part, then
-   delete the split. Check its rows are gone with no blank row left, press Undo and check they are
-   back at the foot of `splits` with the ids they had.
-9. On Invoicing, Clients, fill the invoice terms and give the client its address, invoice mail and
-   reverse charge. On Invoicing, press "Make invoice" with a test
-   number agreed beforehand, open the PDF, press Check and pick the invoice folder, the year folder
-   and every month folder the Picker offers. Make the invoice with the mail draft on, then check the
-   PDF in the month folder, the draft in Gmail (not sent) and the new row on `invoices`. Re-export
-   it from its editor and check the PDF was replaced and a second draft saved. Delete the test row,
-   the PDF and both drafts.
-10. On Settings, Categories, add a category and save. Check the new row at the foot of `categories`
-   and that the ledger's category dropdown offers it. Pick a colour for it, check only that cell changed,
-   then delete it and check the row is gone with no blank row left. Press Undo and check it is back
-   at the foot. Try to rename a category the ledger uses and read the refusal. On Invoicing, record an
-   invoice, check its row on `invoices` with the dates shown as dates and the number as text, edit
-   its amount, delete it and press Undo.
-11. In the copy, note the rows of the newest Erste statement on `ledger`, then delete them as whole
-   rows. On Transactions, Import, drop that statement's XML from the statements archive. The dry run lists its
-   entries as new, opening where the ledger now leaves the account. Confirm, then check in the copy
-   that the rows are back where they were with every cell as before, dates shown as dates and the
-   category dropdown on each new row. Drop the same file again and check the dry run writes nothing.
-   Undo the import under "Changes in this session" and check the rows are gone with no blank row
-   left, then import it once more.
-12. In the copy, add a row to `owner-advances` by hand and leave its `id` cell blank, then sync. On
-   Settings, General, check the problems name the row as having no id, and that the advance does
-   not count on Owner. Type an id no other row holds into its `id` cell, sync, and check the
-   problem is gone and the advance counts.
-13. Repeat steps 2, 3 and 5 on the original.
+`documentFormat.ts` reads and writes it. Records go by kind, each kind's name as its `RecordKind`
+names it, the pack's with its `hr-doo.` prefix, one record per line. Field names are the column
+names of *The workbook format*. Every value is text except a flag, which is true or false. A day is
+`yyyy-mm-dd`, an amount the app writes is decimal text from its cents, and text that looks like a
+number stays as typed. A blank field is absent, and a field or a kind the app does not know is kept.
+`schema` holds a version per contributor, core and each pack. A file that names a higher version, or
+a contributor this app lacks, is read and never written: "This file was saved by a newer ledgerboard.
+Reload to update before you change anything."
+
+An xlsx file opens as this document (`spreadsheetDocument.ts`): every row moves as stored, each cell
+by its column's format, so a date cell becomes its day and nothing is repaired on the way, and a
+ledger row the reader takes gets an `id` when it has none. A refused row moves as it was. "Export to
+Excel" writes the document back as the tabs of *The workbook format*.
 
 ## Accountant parity
 
 `npm run parity:accountant -- --workbook <export.xlsx> --worked 2025-06=<days>` reads the
 accountant's VAT returns and salary workbooks with the pack's readers in
-`src/packs/hr-doo/domain/accountant/` and checks each against an xlsx export of the Sheet, through `accountantDocumentsOf` in
+`src/packs/hr-doo/domain/accountant/` and checks each against an xlsx export of the books, through `accountantDocumentsOf` in
 `src/packs/hr-doo/application/accountantDocuments.ts` as Year, Taxes does. VAT returns are the `YYYY-MM-pdv.xlsx` files of
 `~/gdrive/work/dss/dss-finance/vat-returns` (`--vat-returns <folder>`), salary workbooks the
 `YYYY-MM-salary.xlsx` files anywhere under `~/gdrive/work/dss/dss-finance/payroll` (`--payroll
@@ -1856,7 +1815,7 @@ month, only in the annual settlement.
 ## Year-end parity
 
 `npm run parity:year-end -- --workbook <export.xlsx> --year 2025` runs the accrual engine over an
-xlsx export of the Sheet, a split row through its parts and every row as booked, whatever its owner share, and compares every
+xlsx export of the books, a split row through its parts and every row as booked, whatever its owner share, and compares every
 line of that year's `year-end` rows with ours. It prints the bridge's steps with their kinds, then a
 verdict per line. `pass` means ours equals the accountant's to the cent with no judgement behind it.
 `judgement` means it equals because the engine took the accountant's figure, and names each
@@ -1874,7 +1833,8 @@ it.
 
 ## Google configuration
 
-Three variables, read at build time:
+The app calls the Drive API, the Picker and, for mail drafts, the Gmail API. Three variables, read
+at build time:
 
 | Variable | What it is |
 |---|---|
@@ -1903,8 +1863,7 @@ Picker and sign-in hosts, and requests go only to these hosts:
 
 | Host | What the app asks it |
 |---|---|
-| `sheets.googleapis.com` | Reads and writes of the picked Sheet |
-| `www.googleapis.com` | Drive: listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, and listing, downloading and exporting the accountant's workbooks |
+| `www.googleapis.com` | Drive: the books' file, its revisions and its backups, listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, and listing, downloading and exporting the accountant's workbooks |
 | `gmail.googleapis.com` | The invoice mail draft, only once the user turned it on |
 | `openidconnect.googleapis.com` | The userinfo endpoint |
 | `oauth2.googleapis.com` | Token revocation, where `google.accounts.oauth2.revoke` posts |

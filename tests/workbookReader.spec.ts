@@ -20,7 +20,7 @@ const CATEGORIES: CellValue[][] = [
 
 function snapshotWith(ledger: CellValue[][], categories: CellValue[][] = CATEGORIES, settings: CellValue[][] = []): WorkbookSnapshot {
   return {
-    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+    meta: { id: 'sheet', source: 'drive', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null },
     ...EMPTY_TABS,
     ledger: sheetRowsFromValues(ledger),
     categories: sheetRowsFromValues(categories),

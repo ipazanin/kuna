@@ -7,7 +7,7 @@ import { DEFAULT_STATEMENTS_FOLDER, statementFilesToRead } from '../src/features
 import { fakeStatementFolder } from '../src/features/imports/infrastructure/fake/fakeStatementFolder'
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtLabel, sampleCamtXml, sampleTableGrid } from '../src/features/imports/infrastructure/fake/sampleImportFiles'
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
-import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 
 const workbook = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')).workbook

@@ -534,9 +534,9 @@ const columns: TableColumn<SampleTransaction>[] = [
         />
         <UEmpty
           icon="i-lucide-triangle-alert"
-          title="The ledger tab could not be read"
-          description="The Sheet has no tab named ledger. Rename the tab or choose another Sheet."
-          :actions="[{ label: 'Choose another Sheet', color: 'neutral', variant: 'outline' }]"
+          title="The file on Drive could not be read"
+          description="Drive answered 404: File not found. Find the file again or open another."
+          :actions="[{ label: 'Try again', color: 'neutral', variant: 'outline' }]"
           variant="outline"
           class="rounded-card border-error/40 bg-raised"
           :ui="{ avatar: 'text-error' }"

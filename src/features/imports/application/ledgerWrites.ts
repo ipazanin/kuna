@@ -86,7 +86,7 @@ function verdictRefusals(change: KindChange<LedgerEntry>, definedCategories: Rea
 }
 
 /**
- * Ledger records: statement rows added newest first, where a person reading the Sheet looks, and
+ * Ledger records: statement rows added newest first, where a person reading an export looks, and
  * taken out again by Undo, and the verdict of a record already there with the owner share filed with
  * it, which is all of it the app changes. Against the ledger as it is right before the write, each
  * account's new records must open at its newest balance and run on from it, and none may predate the account's newest record. A

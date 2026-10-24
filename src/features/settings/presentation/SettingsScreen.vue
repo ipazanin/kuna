@@ -18,11 +18,8 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../../workbook/domain/recordKind'
 import { NO_RECORDS, recordsOf } from '../../workbook/domain/recordsRead'
 import type { RecordsRead } from '../../workbook/domain/recordsRead'
-import { useMissingColumns } from '../../workbook/presentation/missingColumns'
-import MissingTabHint from '../../workbook/presentation/MissingTabHint.vue'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
 import { removeSettings } from '../application/settingWrites'
@@ -77,7 +74,7 @@ const unreadKeys = computed(() => unreadSettingKeys(recordsOf(settingRecords.val
 
 function removeKey(key: string): void {
   void writes.write('Setting removed', (unit) => removeSettings(unit, settingRecords.value, [key]), {
-    description: `${key} is off the settings tab. Settings keep no Undo, so add it in the Sheet again to bring it back.`,
+    description: `${key} is off the settings tab. Settings keep no Undo.`,
     failedTitle: 'Not removed',
   })
 }
@@ -91,10 +88,6 @@ function storedCount(read: RecordsRead<unknown>): number {
 }
 
 const saving = computed(() => writes.busy.value || state.writing)
-
-/** A save that fills a column the Sheet lacks adds it, as the editor's notice says before the save. */
-const categoryColumnsMissing = useMissingColumns(CATEGORY_RECORDS)
-const accountColumnsMissing = useMissingColumns(ACCOUNT_RECORDS)
 
 type MadeCategories = readonly { readonly saved: number | null; readonly record: CategoryRecord }[]
 
@@ -132,7 +125,6 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
     },
     {
       failedTitle: 'Not saved',
-      addMissingKinds: categoryColumnsMissing.value.length > 0,
       ...(filled === 0 ? {} : { description: `${rowsInWords(filled, 'row', 'rows')} without a share took the new default.` }),
     },
   )
@@ -141,7 +133,6 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
 function saveAccounts(made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]): void {
   void writes.write('Accounts saved', (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), {
     failedTitle: 'Not saved',
-    addMissingKinds: accountColumnsMissing.value.length > 0,
   })
 }
 </script>
@@ -151,9 +142,9 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
     <PageHeader
       title="Settings"
       :description="
-        source === 'excel'
+        source === 'browser'
           ? 'How the workbook and this device are set up, and the law behind the figures. Changes are kept in this browser, and an export writes them into the file.'
-          : 'How the workbook and this device are set up, and the law behind the figures. A save writes only the cells you changed to the Sheet, checks they read back, and offers Undo.'
+          : 'How the workbook and this device are set up, and the law behind the figures. A save writes what you changed to the file on Drive, checks it reads back, and offers Undo.'
       "
     />
 
@@ -213,8 +204,6 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
           <template #subtitle>
             The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name and its
             row.
-            <span v-if="source === 'google'" class="mt-1 block" data-testid="dropdown-note">The ledger's category dropdown in the Sheet lists this tab's categories.</span>
-            <MissingTabHint :kind="CATEGORY_RECORDS" />
           </template>
           <CategoriesEditor :records="categories" :uses="categoriesInUse" :roles="roles" :shares="settings.ownerPayModule" :saving="saving" @save="saveCategories" />
         </AppCard>
@@ -230,7 +219,6 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
         >
           <template #subtitle>
             Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}.
-            <MissingTabHint :kind="ACCOUNT_RECORDS" />
           </template>
           <AccountsEditor
             :records="accounts"

@@ -1,4 +1,5 @@
 import type { PackSettings } from '../../settings/domain/settings'
+import type { RecordCodec } from './recordCodec'
 import type { RecordId } from './recordId'
 import type { RecordKind } from './recordKind'
 import { NO_RECORDS } from './recordsRead'
@@ -39,6 +40,10 @@ export interface PackPart<Part, Values> {
   readonly key: PackKey<Part>
   /** The pack's kinds, each with how its records are written. */
   readonly kinds: readonly WriteRules<unknown>[]
+  /** How each of the pack's kinds is stored. */
+  readonly codecs: readonly RecordCodec<unknown>[]
+  /** The version of the shape the pack stores its records in. A file saved at a higher one is read and never written. */
+  readonly schemaVersion: number
   readonly settings: PackSettings<Values>
   /** The pack's kinds whose records name categories. */
   readonly categoryNaming: readonly CategoryNaming[]

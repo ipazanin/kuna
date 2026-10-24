@@ -132,7 +132,7 @@ const split = computed(() => (props.source?.split !== undefined && props.source.
 const splitRows = computed(() => split.value?.reduce((total, entry) => total + entry.count, 0) ?? 0)
 const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).map((category) => [category.slug, category.bucket])))
 
-const inSheet = computed(() => state.workbook?.source === 'google')
+const onDrive = computed(() => state.workbook?.source === 'drive')
 
 async function applyToWaiting(): Promise<void> {
   const count = waiting.value.length
@@ -195,8 +195,8 @@ async function applyToWaiting(): Promise<void> {
       <div v-else class="flex flex-col gap-4" data-testid="rule-saved">
         <p class="text-sm text-toned">
           {{
-            inSheet
-              ? 'It is on the rules tab now, and the next sync or import files new rows by it.'
+            onDrive
+              ? 'It is in the file on Drive now, and the next sync or import files new rows by it.'
               : 'It is in the workbook kept in this browser, and an export writes it into the file.'
           }}
         </p>

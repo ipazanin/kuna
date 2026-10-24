@@ -40,9 +40,9 @@ if (options.workbook === undefined || !Number.isInteger(year)) {
 
 installHrDooPack()
 const bytes = readFileSync(options.workbook)
-const { tabs, missingTabs } = await readWorkbookFile(bytes)
+const { tabs } = await readWorkbookFile(bytes)
 const read = readSnapshot({
-  meta: { id: 'export', source: 'excel', title: options.workbook, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null, missingTabs },
+  meta: { id: 'export', source: 'browser', title: options.workbook, syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null },
   ...tabs,
 }).workbook
 const workbook = hrDooWorkbook(presentedWorkbook(read))

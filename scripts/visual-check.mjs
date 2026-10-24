@@ -11,12 +11,13 @@
  * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
  * collapses and expands one card.
  *
- * Beyond the screens of the fake Google workbook, it renders the first-run welcome screen
- * (`?fake=empty`), each Settings tab and the Year page's editors for a workbook kept in this browser (`?fake=excel`), and the import
- * summary for an xlsx file it writes from the fake workbook with two problems added.
+ * Beyond the screens of the fake workbook on Drive, it renders the first-run welcome screen
+ * (`?fake=empty`), each Settings tab and the Year page's editors for a workbook kept in this browser
+ * (`?fake=browser`), This device for a file a newer app saved (`?fake=newer-file`), and the summary
+ * of an xlsx file it writes from the fake workbook with two problems added.
  *
  * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
- * category, with its colour, a label the fake Sheet has no column for and a role, an asset and an
+ * category, with its colour, a label and a role, an asset and an
  * invoice, changes and deletes an owner advance and undoes the delete, and screenshots the editors
  * and the invoice dialog on the way. On Settings, General it saves the statements folder the
  * settings lack at the path the app uses, then a new path, and adds, refuses and removes card
@@ -27,23 +28,24 @@
  * It also makes an invoice through the checks and every step, with the fake Picker picking the
  * invoice and year folders and the month folder made on request, then re-exports it.
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
- * adds the starting scenarios to a workbook without any, which adds the tab to a Sheet without it.
+ * adds the starting scenarios to a workbook without any.
  * It plans a category for 2027 on Year, Plan, edits, clears and undoes it, and plans a purchase in a
- * workbook without plan rows, which adds the plan tab to a Sheet without it. On Transactions it
- * splits a payment, edits the split, deletes it and undoes the delete, and splits one in a workbook
- * without the splits tab. On Review it does the same from a row of the queue, and dismisses a group of
- * confirmed rows no rule repeats, which adds the dismissed tab to a Sheet without it, restores it and
- * undoes the restore. On its Rules tab it changes a rule's note in the rule's editor and undoes it,
+ * workbook without plan rows. On Transactions it splits a payment, edits the split, deletes it and
+ * undoes the delete. On Review it does the same from a row of the queue, and dismisses a group of
+ * confirmed rows no rule repeats, restores it and undoes the restore. On its Rules tab it changes a rule's note in the rule's editor and undoes it,
  * then deletes the rule from its editor and brings it back with Undo. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
- * new rows wait on Review and undoes it, then deletes the profile, at 360, 430 and 1440 px. In Google
- * mode, from Overview, Sync files the fake statements folder's sample statement, which Undo takes out
+ * new rows wait on Review and undoes it, then deletes the profile, at 360, 430 and 1440 px. With the
+ * file on Drive, from Overview, Sync files the fake statements folder's sample statement, which Undo takes out
  * and Import lists, and a last sync finds nothing new and shows no toast. With a held statement in the
  * folder, Overview links to Import, which says why. A tab Google gave no Drive read token is offered
  * the check for new statements, which files the sample. On Year, Taxes the accountant's cards read the
  * fake accountant folders, name the tab and row of a file that does not read, and open the rows a
  * differing badge compared. Without the Drive read token they show the read this device kept and
  * offer the check, and a payroll folder saved on Settings, General that the fake Drive lacks is said.
+ * The first run keeps an empty workbook on the fake Drive and one in this browser, an xlsx file
+ * moves to the fake Drive through its summary, Settings, This device moves a workbook kept in this
+ * browser there, and a row confirmed on Review while another device files the other row keeps both.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -62,7 +64,10 @@ import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 import * as XLSX from 'xlsx'
 
-import { fakeWorkbookValues } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
+import { fakeWorkbookDocument } from '../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
+import { tabsOfDocument } from '../src/features/workbook/infrastructure/spreadsheetDocument.ts'
+import { templateColumnNames } from '../src/features/workbook/infrastructure/workbookTemplate.ts'
+import { installHrDooPack } from './support/installPack.mjs'
 import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
@@ -77,14 +82,19 @@ import {
   changeCategoryFlow,
   clientIbansFlow,
   dismissFlow,
+  firstRunBrowserFlow,
+  firstRunDriveFlow,
   heldStatementFlow,
   importCamtFlow,
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
+  moveFromBrowserFlow,
+  moveFromXlsxFlow,
   ownerShareFlow,
   planFlow,
   planTabFlow,
+  raceFlow,
   reviewSplitFlow,
   rulesEditorFlow,
   scenarioFlow,
@@ -219,7 +229,7 @@ const SCREENS = [
     hash: '#/settings?tab=categories',
     title: 'Settings',
     charts: 0,
-    shows: "The ledger's category dropdown in the Sheet lists",
+    shows: 'The bucket decides where a row counts',
     collapsedBefore: ['settings.categories'],
     linkedCard: 'settings.categories',
   },
@@ -233,7 +243,15 @@ const SCREENS = [
     shows: 'Contribution base floor for an employed',
     linkedRule: 'hr.contrib.director-floor',
   },
-  { name: 'settings-device', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: 'Fake workbook', cards: false },
+  {
+    name: 'settings-device',
+    hash: '#/settings?tab=device',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="drive-file-place"] a',
+    shows: ['ledgerboard-company.json', 'Books', 'None yet. The first save of a day makes one.', 'Open in Drive'],
+    cards: false,
+  },
 ]
 
 /** The gallery's chart cards that draw a chart. The loading card counts, the empty one does not. */
@@ -242,55 +260,47 @@ const GALLERY_CHARTS = 7
 /** The gallery's donut cards, each of which must draw its ring. */
 const GALLERY_DONUTS = 2
 
-/** Screens outside the fake Google workbook. `query` picks the fake variant, `upload` drops the import file on the page. */
+/** Screens outside the fake workbook on Drive. `query` picks the fake variant, `upload` drops the import file on the page. */
 const SOURCE_SCREENS = [
-  { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'Where is your ledger?', cards: false },
-  { name: 'settings-excel', query: 'fake=excel', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
-  { name: 'settings-categories-excel', query: 'fake=excel', hash: '#/settings?tab=categories', title: 'Settings', charts: 0, shows: 'Save categories' },
-  { name: 'settings-accounts-excel', query: 'fake=excel', hash: '#/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
-  { name: 'settings-device-excel', query: 'fake=excel', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: 'Import a file', cards: false },
-  { name: 'year-accountant-excel', query: 'fake=excel', hash: '#/year?year=2025', title: 'Year', charts: 1, shows: 'Loans to the owner carry 2.5%' },
-  { name: 'year-statements-excel', query: 'fake=excel', hash: '#/year?year=2025&tab=statements', title: 'Year', charts: 0, shows: 'Balance paid on', expandedBefore: ['year.tax'] },
+  { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: ['Where is your ledger?', 'Open your books on Google Drive', 'Keep in this browser'], cards: false },
+  { name: 'settings-browser', query: 'fake=browser', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
+  { name: 'settings-categories-browser', query: 'fake=browser', hash: '#/settings?tab=categories', title: 'Settings', charts: 0, shows: 'Save categories' },
+  { name: 'settings-accounts-browser', query: 'fake=browser', hash: '#/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
+  { name: 'settings-device-browser', query: 'fake=browser', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: ['Import a file', 'Keep on Google Drive'], cards: false },
+  { name: 'settings-device-newer', query: 'fake=newer-file', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: 'A newer ledgerboard saved this file', cards: false },
+  { name: 'year-accountant-browser', query: 'fake=browser', hash: '#/year?year=2025', title: 'Year', charts: 1, shows: 'Loans to the owner carry 2.5%' },
+  { name: 'year-statements-browser', query: 'fake=browser', hash: '#/year?year=2025&tab=statements', title: 'Year', charts: 0, shows: 'Balance paid on', expandedBefore: ['year.tax'] },
   {
-    name: 'year-accountant-lines-excel',
-    query: 'fake=excel',
+    name: 'year-accountant-lines-browser',
+    query: 'fake=browser',
     hash: '#/year?year=2025&tab=statements#accountant-lines',
     title: 'Year',
     charts: 0,
     shows: 'Save year-end lines',
     linkedPart: 'accountant-lines',
   },
-  { name: 'year-asset-rows-excel', query: 'fake=excel', hash: '#/year?tab=assets#asset-rows', title: 'Year', charts: 0, shows: 'Save assets', linkedPart: 'asset-rows' },
-  { name: 'owner-excel', query: 'fake=excel', hash: '#/owner', title: 'Owner', charts: 0, shows: 'so they give no benefit in kind' },
-  { name: 'owner-taken-excel', query: 'fake=excel', hash: '#/owner?tab=taken', title: 'Owner', charts: 1, shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults'], cards: false },
-  { name: 'year-forecast-excel', query: 'fake=excel', hash: '#/year?year=2026', title: 'Year', charts: 1, shows: ['Month by month, 2026', 'plan rows of 2026 are not invoiced yet', 'Plan against actual, 2026'] },
-  { name: 'year-forecast-2027-excel', query: 'fake=excel', hash: '#/year?year=2027', title: 'Year', charts: 1, shows: ['Month by month, 2027', 'Values the ruleset only estimates for 2027'] },
-  { name: 'year-pay-excel', query: 'fake=excel', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 1, shows: ['Dividend capacity', 'Where the profit before owner pay goes, 2027', '1 warning', 'Side by side'] },
+  { name: 'year-asset-rows-browser', query: 'fake=browser', hash: '#/year?tab=assets#asset-rows', title: 'Year', charts: 0, shows: 'Save assets', linkedPart: 'asset-rows' },
+  { name: 'owner-browser', query: 'fake=browser', hash: '#/owner', title: 'Owner', charts: 0, shows: 'so they give no benefit in kind' },
+  { name: 'owner-taken-browser', query: 'fake=browser', hash: '#/owner?tab=taken', title: 'Owner', charts: 1, shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults'], cards: false },
+  { name: 'year-forecast-browser', query: 'fake=browser', hash: '#/year?year=2026', title: 'Year', charts: 1, shows: ['Month by month, 2026', 'plan rows of 2026 are not invoiced yet', 'Plan against actual, 2026'] },
+  { name: 'year-forecast-2027-browser', query: 'fake=browser', hash: '#/year?year=2027', title: 'Year', charts: 1, shows: ['Month by month, 2027', 'Values the ruleset only estimates for 2027'] },
+  { name: 'year-pay-browser', query: 'fake=browser', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 1, shows: ['Dividend capacity', 'Where the profit before owner pay goes, 2027', '1 warning', 'Side by side'] },
   {
-    name: 'year-pay-interim-excel',
-    query: 'fake=excel',
+    name: 'year-pay-interim-browser',
+    query: 'fake=browser',
     hash: '#/year?year=2027&tab=pay&payout=interim',
     title: 'Year',
     charts: 1,
     shows: 'An interim payout in 2027',
     expandedBefore: ['year.comparison'],
   },
-  { name: 'year-pay-2026-excel', query: 'fake=excel', hash: '#/year?year=2026&tab=pay', title: 'Year', charts: 0, shows: ['No scenario for 2026 to compare yet', 'Dividend capacity'] },
-  { name: 'year-pay-no-tab', query: 'fake=no-scenarios', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 0, shows: 'No scenario is for 2027 yet' },
-  { name: 'year-taxes-excel', query: 'fake=excel', hash: '#/year?tab=taxes', title: 'Year', charts: 0, shows: ['For 2026', '1 payment is overdue', 'Less tax refund'] },
-  { name: 'invoicing-plan-excel', query: 'fake=excel', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Fill the rest of 2026' },
-  { name: 'invoicing-clients-excel', query: 'fake=excel', hash: '#/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Save clients' },
-  {
-    name: 'invoicing-no-plan-tab',
-    query: 'fake=no-billing-plan',
-    hash: '#/invoicing?tab=plan',
-    title: 'Invoicing',
-    charts: 0,
-    shows: 'The Sheet has no outgoing-plan tab yet',
-    cards: false,
-  },
-  { name: 'invoicing-empty-plan-excel', query: 'fake=excel-no-billing-plan', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Add the first row', cards: false },
-  { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: 'rows the app could not use', upload: true, cards: false },
+  { name: 'year-pay-2026-browser', query: 'fake=browser', hash: '#/year?year=2026&tab=pay', title: 'Year', charts: 0, shows: ['No scenario for 2026 to compare yet', 'Dividend capacity'] },
+  { name: 'year-pay-no-scenarios', query: 'fake=no-scenarios', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 0, shows: 'No scenario is for 2027 yet' },
+  { name: 'year-taxes-browser', query: 'fake=browser', hash: '#/year?tab=taxes', title: 'Year', charts: 0, shows: ['For 2026', '1 payment is overdue', 'Less tax refund'] },
+  { name: 'invoicing-plan-browser', query: 'fake=browser', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Fill the rest of 2026' },
+  { name: 'invoicing-clients-browser', query: 'fake=browser', hash: '#/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Save clients' },
+  { name: 'invoicing-empty-plan-browser', query: 'fake=browser-no-billing-plan', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Add the first row', cards: false },
+  { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: ['rows the app could not use', 'records, by tab', 'Keep on Google Drive'], upload: true, cards: false },
 ]
 
 const THEMES = ['dark', 'light']
@@ -507,7 +517,14 @@ if (!selection.limited) {
 
 /** The fake workbook as an xlsx file, with a ledger row that has no amount and a setting the app does not know. */
 function writeImportFile() {
-  const values = fakeWorkbookValues('excel')
+  installHrDooPack()
+  const tabs = tabsOfDocument(fakeWorkbookDocument('2026-10-16T08:00:00.000Z', 'browser'))
+  const values = Object.fromEntries(
+    Object.entries(tabs).map(([tab, rows]) => {
+      const header = [...new Set([...templateColumnNames(tab), ...rows.flatMap((row) => Object.keys(row.cells))])]
+      return [tab, [header, ...rows.map((row) => header.map((column) => row.cells[column] ?? ''))]]
+    }),
+  )
   const book = XLSX.utils.book_new()
   const ledger = [...values.ledger, [values.ledger[1][0], 'main', 'stray row without an amount']]
   const settings = [...values.settings, ['colour_scheme', 'teal']]
@@ -522,7 +539,7 @@ function writeImportFile() {
 const IMPORT_FILE = writeImportFile()
 const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 
-/** The editors' flows, each on a fresh load, so the fake Sheet and the workbook kept in this browser start from their seed. */
+/** The editors' flows, each on a fresh load, so the fake file on Drive and the workbook kept in this browser start from their seed. */
 const FLOWS = [
   { name: 'page-tabs', hash: '#/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
@@ -541,7 +558,7 @@ const FLOWS = [
     title: 'Year',
     run: startingScenariosFlow,
     viewports: ['phone', 'phone-large', 'desktop'],
-    queries: { google: '&fake=no-scenarios', excel: '&fake=excel-no-scenarios' },
+    queries: { drive: '&fake=no-scenarios', browser: '&fake=browser-no-scenarios' },
   },
   { name: 'plan', hash: '#/year?year=2027&tab=plan', title: 'Year', run: planFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   {
@@ -550,17 +567,9 @@ const FLOWS = [
     title: 'Year',
     run: planTabFlow,
     viewports: ['phone', 'phone-large', 'desktop'],
-    queries: { google: '&fake=no-plan', excel: '&fake=excel-no-plan' },
+    queries: { drive: '&fake=no-plan', browser: '&fake=browser-no-plan' },
   },
   { name: 'split', hash: '#/transactions?p=all&q=GADGET', title: 'Transactions', run: splitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
-  {
-    name: 'split-tab',
-    hash: '#/transactions?p=all&q=GADGET',
-    title: 'Transactions',
-    run: splitFlow,
-    viewports: ['phone', 'desktop'],
-    queries: { google: '&fake=no-splits', excel: '&fake=excel-no-splits' },
-  },
   { name: 'split-review', hash: '#/review', title: 'Review', run: reviewSplitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'change-category', hash: '#/transactions?p=all&q=CODE%20HOST', title: 'Transactions', run: changeCategoryFlow },
   { name: 'owner-share', hash: '#/transactions?p=all&q=purchase%2C%20laptop', title: 'Transactions', run: ownerShareFlow },
@@ -569,16 +578,21 @@ const FLOWS = [
   { name: 'rules-editor', hash: '#/review?tab=rules', title: 'Review', run: rulesEditorFlow },
   { name: 'import-camt', hash: '#/transactions?tab=import', title: 'Transactions', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'import-table', hash: '#/transactions?tab=import', title: 'Transactions', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
-  { name: 'statements-sync', hash: '#/', title: 'Overview', run: statementSyncFlow, modes: ['google'] },
-  { name: 'statements-held', hash: '#/', title: 'Overview', run: heldStatementFlow, modes: ['google'], queries: { google: '&fake=held-statement' } },
-  { name: 'statements-check', hash: '#/', title: 'Overview', run: statementCheckFlow, modes: ['google'] },
-  { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['google'] },
-  { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['google'] },
-  { name: 'accountant-folders', hash: '#/settings#accountant-folders', title: 'Settings', run: accountantFoldersFlow, modes: ['google'] },
+  { name: 'statements-sync', hash: '#/', title: 'Overview', run: statementSyncFlow, modes: ['drive'] },
+  { name: 'statements-held', hash: '#/', title: 'Overview', run: heldStatementFlow, modes: ['drive'], queries: { drive: '&fake=held-statement' } },
+  { name: 'statements-check', hash: '#/', title: 'Overview', run: statementCheckFlow, modes: ['drive'] },
+  { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['drive'] },
+  { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['drive'] },
+  { name: 'accountant-folders', hash: '#/settings#accountant-folders', title: 'Settings', run: accountantFoldersFlow, modes: ['drive'] },
+  { name: 'first-run-drive', hash: '#/', title: 'Ledgerboard', run: firstRunDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'first-run-browser', hash: '#/', title: 'Ledgerboard', run: firstRunBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
+  { name: 'move-xlsx', hash: '#/', title: 'Ledgerboard', run: moveFromXlsxFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'move-browser', hash: '#/settings?tab=device', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
+  { name: 'race', hash: '#/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
 ]
 const MODES = [
-  { name: 'google', query: '' },
-  { name: 'excel', query: '&fake=excel' },
+  { name: 'drive', query: '' },
+  { name: 'browser', query: '&fake=browser' },
 ]
 
 const visits = VISITS.filter((visit) => selection.takes(visit.name))
@@ -618,7 +632,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${visit.hash}`, { waitUntil: 'networkidle0' })
 
     const drawsCharts = visit.gallery || visit.charts > 0
-    const ready = drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]'
+    const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
     let rendered = await page
       .waitForSelector(ready, { timeout: 10_000 })
       .then(() => true)
@@ -735,7 +749,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
 for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 'desktop'].includes(candidate.name) && selection.takesWidth(candidate.width))) {
   for (const mode of MODES) {
     for (const theme of THEMES) {
-      for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name) && (candidate.modes ?? ['google', 'excel']).includes(mode.name))) {
+      for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name) && (candidate.modes ?? ['drive', 'browser']).includes(mode.name))) {
         const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
         const context = await browser.createBrowserContext()
         const page = await context.newPage()

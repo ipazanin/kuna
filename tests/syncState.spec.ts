@@ -4,7 +4,7 @@ import { syncStateOf } from '../src/features/workbook/presentation/syncState'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 
 const workbook = readSnapshot({
-  meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T06:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
+  meta: { id: 'sheet', source: 'drive', title: 'Books', syncedAt: '2026-10-16T06:00:00.000Z', lastExportedAt: null, unexportedSince: null },
   ledger: [],
   categories: [],
   accounts: [],
@@ -22,7 +22,7 @@ const workbook = readSnapshot({
   splits: [],
   dismissed: [],
 }).workbook
-const choice = { source: 'google' as const, id: 'sheet', name: 'Books' }
+const choice = { source: 'drive' as const, id: 'sheet', name: 'Books' }
 
 describe('syncStateOf', () => {
   it('asks for a Sheet when this browser has neither a copy nor a chosen Sheet', () => {
@@ -35,7 +35,7 @@ describe('syncStateOf', () => {
     expect(syncStateOf({ status: 'opening', workbook: null, choice })).toBe('ready')
   })
 
-  it('keeps showing the copy on screen after the Sheet was forgotten for a new pick', () => {
+  it('keeps showing the copy on screen after the file was forgotten for a new pick', () => {
     expect(syncStateOf({ status: 'ready', workbook, choice: null })).toBe('ready')
   })
 

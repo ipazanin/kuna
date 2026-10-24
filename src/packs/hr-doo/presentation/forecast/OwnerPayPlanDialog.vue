@@ -14,7 +14,6 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { ownerPayPlanLine, replacePlanLines } from '../../application/planWrites'
 import type { KeyedLine } from '../../application/planWrites'
-import AddTabNotice from '../../../../features/workbook/presentation/AddTabNotice.vue'
 import { usePlanWrites } from './usePlanWrites'
 
 type OwnerPayLine = Extract<PlanLine, { readonly kind: 'owner-pay-scenario' }>
@@ -114,7 +113,6 @@ async function clear(): Promise<void> {
             <UInput v-model="switchOn" type="date" class="w-full" data-testid="owner-pay-switch-on" />
           </UFormField>
         </template>
-        <AddTabNotice v-if="writes.tabMissing.value" tab="plan" />
       </form>
     </template>
     <template #footer>

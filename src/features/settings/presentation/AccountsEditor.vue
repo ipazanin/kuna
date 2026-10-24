@@ -11,8 +11,6 @@ import type { RecordsRead } from '../../workbook/domain/recordsRead'
 import { accountDraftErrors, accountDraftsOf, accountsOfDrafts } from '../domain/accountDrafts'
 import type { AccountDraft } from '../domain/accountDrafts'
 import { storedOf } from '../../workbook/domain/recordsRead'
-import { ACCOUNT_RECORDS } from '../../workbook/domain/recordKind'
-import AddColumnNotice from '../../workbook/presentation/AddColumnNotice.vue'
 
 const props = defineProps<{
   /** The accounts as stored, refused ones included, so they can be fixed here. */
@@ -140,7 +138,6 @@ function save(): void {
       </tbody>
     </table>
   </div>
-  <AddColumnNotice :kind="ACCOUNT_RECORDS" :drafts="drafts" class="mx-4 mb-3 sm:mx-5" />
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton label="Add account" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="addAccount" />
     <span class="flex-1" />

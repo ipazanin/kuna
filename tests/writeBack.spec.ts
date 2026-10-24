@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
 import { fileRows } from '../src/features/review/application/fileRows'
 import { confirmation, recategorisation, waitingRowsSettledBy } from '../src/features/review/domain/verdictChanges'
 import type { RowVerdict } from '../src/features/review/domain/verdictChanges'
@@ -21,8 +22,7 @@ import type { WorkbookCopy } from '../src/features/workbook/application/workbook
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import type { SettingEntry, Settings } from '../src/features/settings/domain/settings'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
-import type { WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { LEDGER_ROWS, cellData, excelHarness, forgetCaches, googleHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
+import { browserHarness, forgetCaches, driveHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
@@ -32,7 +32,7 @@ afterEach(async () => {
   await forgetCaches(used)
 })
 
-type Store = WorkbookStore<WorkbookSnapshot>
+type Store = WorkbookStore<DocumentCopy>
 
 function row(store: WorkbookStore<WorkbookCopy>, counterparty: string): Transaction {
   const found = store.state.workbook?.transactions.find((transaction) => transaction.counterparty === counterparty)
@@ -67,8 +67,8 @@ function changeSettings(store: WorkbookStore<WorkbookCopy>, values: readonly Set
 }
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('writing to %s', (_name, harnessOf: (used: Set<string>, grids?: ReturnType<typeof workbookGrids>) => Promise<WriteBackHarness>) => {
   it('confirms a row: the category stays and flagged_by takes the review label', async () => {
     const { store } = await harnessOf(used)
@@ -294,7 +294,7 @@ describe.each([
 
     expect(unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)).toEqual(new Map([['old_switch', 2], ['import_profile_twice', 2]]))
     await expect(store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, ['old_switch']))).rejects.toThrow(
-      'The settings tab sets "old_switch" on 2 rows. Keep one of them in the Sheet first.',
+      'The settings tab sets "old_switch" on 2 rows. Keep one of them in an export and open that file again.',
     )
   })
 
@@ -326,163 +326,17 @@ describe.each([
   })
 })
 
-describe('writing to a Google Sheet', () => {
-  it('confirms with one write of the text in flagged_by, column J, after reading the ledger and categories', async () => {
-    const { store, sheets } = await googleHarness(used)
-
-    await setVerdicts(store, [confirmation(row(store, 'MODEL API INC'), settings(store))!])
-
-    expect(sheets.requests.map((request) => request.kind)).toEqual(['sheetGrids', 'batchGet', 'updateSpreadsheet', 'sheetGrids', 'batchGet'])
-    expect(sheets.requests[1]).toEqual({ kind: 'batchGet', ranges: ['ledger', 'categories'] })
-    expect(sheets.requests[2]).toEqual({
-      kind: 'updateSpreadsheet',
-      requests: [{ updateCells: { start: { sheetId: 0, rowIndex: 2, columnIndex: 9 }, rows: [{ values: [{ userEnteredValue: { stringValue: 'ivan' } }] }], fields: 'userEnteredValue' } }],
-    })
-  })
-
-  it('recategorises with writes to I and J of that row only, in one request', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used)
-
-    await setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
-
-    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
-    expect(writtenRanges()).toEqual(['ledger!I2', 'ledger!J2'])
-    expect(sheets.grids.ledger![1]).toEqual([...LEDGER_ROWS[0]!.slice(0, 8), 'equipment', 'ivan', ...LEDGER_ROWS[0]!.slice(10)])
-  })
-
-  it('finds the row again after a hand edit or another device inserted rows above it since the last sync', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used)
-    const target = row(store, 'MODEL API INC')
-    sheets.grids.ledger!.splice(1, 0, [46301, 'main', 's-003', 'NEW ROW', '', 'x', -1, 999, 'unknown', 'ai', 'REF-5'], [46301, 'main', 's-003', 'NEWER ROW', '', 'y', -1, 998, 'unknown', 'ai', 'REF-6'])
-
-    await setVerdicts(store, [recategorisation(target, 'equipment', settings(store))])
-
-    expect(writtenRanges()).toEqual(['ledger!I5', 'ledger!J5'])
-    expect(row(store, 'MODEL API INC')).toMatchObject({ category: 'equipment' })
-  })
-
-  it('says so loudly when rows moved between the read and the write', async () => {
-    const { store, sheets } = await googleHarness(used)
-    const write = sheets.updateSpreadsheet.bind(sheets)
-    sheets.updateSpreadsheet = async (requests) => {
-      sheets.grids.ledger!.splice(1, 0, [46301, 'main', 's-003', 'ARRIVED MEANWHILE', '', 'x', -1, 999, 'unknown', 'ai', 'REF-9'])
-      await write(requests)
-    }
-
-    await expect(setVerdicts(store, [recategorisation(row(store, 'MODEL API INC'), 'equipment', settings(store))])).rejects.toThrow(
-      'The write reached the workbook, but the ledger row "2026-10-04, MODEL API INC, -20, balance 1038.9" does not read back as written. Check it in the workbook.',
-    )
-    expect(store.state.workbook!.transactions.map((transaction) => transaction.counterparty)).toContain('ARRIVED MEANWHILE')
-    expect(store.state.writing).toBe(false)
-  })
-
-  it('finds a row without a reference by its date, amount, balance and description', async () => {
-    const { store, writtenRanges } = await googleHarness(used)
-
-    await setVerdicts(store, [recategorisation(row(store, 'Cash deposit'), 'equipment', settings(store))])
-
-    expect(writtenRanges()).toEqual(['ledger!I5', 'ledger!J5'])
-  })
-
-  it('refuses without writing when no row matches, or several do', async () => {
-    const { store, sheets } = await googleHarness(used)
-    const gone = row(store, 'Desk Co')
-    const twice = row(store, 'MODEL API INC')
-    sheets.grids.ledger!.splice(3, 1)
-    sheets.grids.ledger!.push([...sheets.grids.ledger![2]!])
-
-    await expect(setVerdicts(store, [recategorisation(gone, 'revenue', settings(store))])).rejects.toThrow(
-      'The ledger row "2026-10-03, Desk Co, -100, balance 1058.9" is no longer in the workbook. Sync and look again.',
-    )
-    await expect(setVerdicts(store, [recategorisation(twice, 'revenue', settings(store))])).rejects.toThrow('2 records hold the ledger row "2026-10-04, MODEL API INC, -20, balance 1038.9", so the app cannot tell which one is meant.')
-    expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
-  })
-
-  it('refuses a row someone changed in the Sheet since the last sync', async () => {
-    const { store, sheets } = await googleHarness(used)
-    const target = row(store, 'GADGET CORNER')
-    sheets.grids.ledger![1]![9] = 'ivan'
-
-    await expect(setVerdicts(store, [recategorisation(target, 'equipment', settings(store))])).rejects.toThrow('The ledger row "2026-10-05, GADGET CORNER, -38.9, balance 1000" changed since the app read it.')
-    expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
-  })
-
-  it('finds category and flagged_by by header, wherever they sit', async () => {
-    const grids = workbookGrids()
-    const moved = (cells: readonly (string | number | boolean | null)[]): (string | number | boolean)[] => [...cells.slice(0, 8), cells[9]!, cells[8]!, ...cells.slice(10)] as (string | number | boolean)[]
-    grids.ledger = grids.ledger!.map(moved)
-    const { store, writtenRanges } = await googleHarness(used, grids)
-
-    await setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
-
-    expect(writtenRanges()).toEqual(['ledger!J2', 'ledger!I2'])
-    expect(row(store, 'GADGET CORNER').category).toBe('equipment')
-  })
-
-  it('appends a rule below the last row, its cells in the header order', async () => {
-    const { store, sheets } = await googleHarness(used)
-
-    await changeRules(store, {
-      appended: { rule: 'desk-co', order: '200', enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule', note: 'Furniture' },
-      edited: [],
-      removed: null,
-    })
-
-    expect(sheets.requests[1]).toEqual({ kind: 'batchGet', ranges: ['rules', 'categories'] })
-    expect(sheets.requests[2]).toEqual({
-      kind: 'updateSpreadsheet',
-      requests: [{ appendCells: { sheetId: 4, rows: [{ values: ruleRow({ rule: 'desk-co', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule', note: 'Furniture' }).map(cellData) }], fields: 'userEnteredValue' } }],
-    })
-    expect(sheets.grids.rules).toHaveLength(3)
-  })
-
-  it('edits a rule by writing only the cells that change', async () => {
-    const { store, writtenRanges } = await googleHarness(used)
-    const expected = ruleFields(store, 'merchant-model')
-
-    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, fields: { ...expected, enabled: false, note: 'Paused' } }], removed: null })
-
-    expect(writtenRanges()).toEqual(['rules!C2', 'rules!U2'])
-  })
-
-  it('sets a setting in the value column and appends a missing key under key and value', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used)
-
-    await changeSettings(store, [
-      { key: 'review_label', value: 'anna' },
-      { key: 'company_name', value: 'Example Studio' },
-    ])
-
-    expect(writtenRanges()).toEqual(['settings!B3'])
-    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
-    expect(sheets.grids.settings!.at(-1)).toEqual(['company_name', 'Example Studio'])
-  })
-
-  it('refuses settings for a Sheet without a settings tab, and a key set on two rows', async () => {
-    const withoutSettings = workbookGrids()
-    delete withoutSettings.settings
-    const bare = await googleHarness(used, withoutSettings)
-    await expect(changeSettings(bare.store, [{ key: 'company_name', value: 'X' }])).rejects.toThrow('The workbook has no settings tab, so nothing was written.')
-
-    const doubled = workbookGrids()
-    doubled.settings!.push(['review_label', 'other'])
-    const twice = await googleHarness(used, doubled)
-    await expect(changeSettings(twice.store, [{ key: 'review_label', value: 'anna' }])).rejects.toThrow('sets "review_label" on 2 rows')
-  })
-})
-
 describe('writing to a workbook kept in this browser', () => {
   it('keeps the change in the stored copy and notes it as not yet exported', async () => {
-    const { store, sheets } = await excelHarness(used)
+    const { store } = await browserHarness(used)
 
     await setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
 
     expect(store.state.snapshot!.meta).toMatchObject({ syncedAt: '2026-10-17T09:00:00.000Z', unexportedSince: '2026-10-17T09:00:00.000Z' })
-    expect(store.state.snapshot!.ledger.find((ledgerRow) => ledgerRow.cells.counterparty === 'GADGET CORNER')!.cells).toMatchObject({
+    expect(store.state.snapshot!.document.records['ledger-row']!.find((record) => record.counterparty === 'GADGET CORNER')).toMatchObject({
       category: 'equipment',
       flagged_by: 'ivan',
       reference: 'REF-4',
     })
-    expect(sheets.requests).toEqual([])
   })
 })

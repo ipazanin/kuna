@@ -1,7 +1,8 @@
 /**
- * Add, edit, delete and undo on the row editors, shared by the visual and the touch check. `press`
- * clicks or taps an element handle, and `shoot` takes a screenshot under a name. Each flow starts
- * on its screen and leaves the workbook as it found it. A failure throws with what was missing.
+ * Add, edit, delete and undo on the row editors, and where the books are kept, shared by the visual
+ * and the touch check. `press` clicks or taps an element handle, and `shoot` takes a screenshot
+ * under a name. Each flow starts on its screen and leaves the workbook as it found it, except the
+ * flows that choose where the books are kept. A failure throws with what was missing.
  */
 
 const TOAST = 'li[data-slot="base"]'
@@ -191,20 +192,10 @@ export async function categoryFlow(page, { press, shoot }) {
 
   const named = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
   await setField(await fieldIn(named, 'Shown as'), 'Paper and pens')
-  const inGoogle = !page.url().includes('fake=excel')
-  const notice = await page
-    .waitForSelector('[data-testid="add-column-notice"]', { visible: true, timeout: inGoogle ? 5_000 : 1_000 })
-    .then((handle) => handle.evaluate((element) => element.textContent?.replace(/\s+/g, ' ').trim() ?? ''))
-    .catch(() => null)
-  if (inGoogle && !notice?.startsWith("The Sheet's categories tab has no label column.")) throw new Error(`a label on the fake Sheet, which lacks the column, says "${notice}"`)
-  if (!inGoogle && notice !== null) throw new Error('a workbook kept in this browser says it lacks the label column')
   await chooseRole(page, press, named, 'representation')
   await shoot('categories-label-and-role')
   await pressSelector(page, press, '[data-testid="save-categories"]')
   await toast(page, 'Categories saved')
-  await page.waitForFunction(() => !document.querySelector('[data-testid="add-column-notice"]'), { timeout: 5_000 }).catch(() => {
-    throw new Error('the notice about the label column stayed once the save added it')
-  })
   await dismissToasts(page)
 
   const row = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
@@ -363,10 +354,10 @@ async function runFinished(page) {
 }
 
 /**
- * Make invoice: the form from the billing plan, the checks, and the steps. With a Google Sheet the
+ * Make invoice: the form from the billing plan, the checks, and the steps. With the file on Drive the
  * fake Picker is the browser's confirm dialog: the invoice folder and the year folder are picked,
  * the month folder is not, so the flow makes it on request. A re-export then finds the folders
- * without asking. In Excel mode the PDF is saved through the browser.
+ * without asking. With a workbook kept in this browser the PDF is saved through the browser.
  */
 export async function invoiceRunFlow(page, { press, shoot, inspect }) {
   const answers = ['accept', 'accept', 'dismiss']
@@ -515,7 +506,7 @@ export async function scenarioFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 }
 
-/** Year, Pay with no scenarios yet, where the scenarios card opens itself: add the starting four, which adds the tab to a Sheet without one, and Undo them. */
+/** Year, Pay with no scenarios yet, where the scenarios card opens itself: add the starting four, and Undo them. */
 export async function startingScenariosFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="scenario-editor"]')
   if (await page.$('[data-scenario]')) throw new Error('a scenario is on the screen before the flow adds the starting ones')
@@ -525,9 +516,8 @@ export async function startingScenariosFlow(page, { press, shoot, inspect }) {
   await setField(await page.$('[data-testid="starting-rent"]'), '300')
   await inspect?.('add the starting scenarios')
   await shoot('starting-scenarios')
-  const missing = await page.evaluate(() => document.querySelector('[data-testid="add-tab-notice"]') !== null)
   await pressSelector(page, press, '[data-testid="starting-scenarios-save"]')
-  await toast(page, missing ? 'Scenarios tab added' : 'Starting scenarios added')
+  await toast(page, 'Starting scenarios added')
   await dialogGone(page, '[data-testid="starting-scenarios-form"]')
   await page.waitForSelector('[data-scenario="floor-salary-2027"]')
   await shoot('starting-added')
@@ -603,7 +593,7 @@ export async function planFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 }
 
-/** Year, Plan for 2027 with no plan rows: plan a purchase, which adds the plan tab to a Sheet without one, and Undo it. */
+/** Year, Plan for 2027 with no plan rows: plan a purchase, and Undo it. */
 export async function planTabFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="plan-editor"]')
   if (await page.$('[data-testid="plan-purchase"]')) throw new Error('a purchase is planned before the flow adds one')
@@ -613,11 +603,10 @@ export async function planTabFlow(page, { press, shoot, inspect }) {
   await setField(await page.$('[data-testid="purchase-name"]'), 'Replacement laptop')
   await setField(await page.$('[data-testid="purchase-date"]'), '2027-03-10')
   await setField(await page.$('[data-testid="purchase-amount"]'), '1600')
-  const missing = await page.evaluate(() => document.querySelector('[data-testid="add-tab-notice"]') !== null)
   await inspect?.('plan a purchase')
   await shoot('plan-purchase')
   await pressSelector(page, press, '[data-testid="purchase-save"]')
-  await toast(page, missing ? 'Plan tab added' : 'Purchase planned')
+  await toast(page, 'Purchase planned')
   await dialogGone(page, '[data-testid="purchase-plan-form"]')
   await page.waitForSelector('[data-testid="plan-purchase"]')
   await shoot('plan-purchase-added')
@@ -673,20 +662,18 @@ async function waitForSplit(page, present) {
 export async function splitFlow(page, { press, shoot, inspect }) {
   await waitForSplit(page, false)
   await openSplitOfRow(page, press)
-  const missing = await page.evaluate(() => document.querySelector('[data-testid="add-tab-notice"]') !== null)
   await setPart(page, 0, '30.00')
   const second = await setPart(page, 1, '8.90')
   await chooseCategory(page, press, await second.$('[data-testid="split-part-category"]'), 'Office supplies')
   await setField(await second.$('[data-testid="split-part-note"]'), 'Printer paper')
   await inspect?.('split a row')
-  await shoot(missing ? 'split-add-tab' : 'split-add')
+  await shoot('split-add')
   await pressSelector(page, press, '[data-testid="split-save"]')
   await toast(page, 'Split in 2 parts')
   await dialogGone(page, '[data-testid="split-form"]')
   await waitForSplit(page, true)
   await shoot('split-added')
   await dismissToasts(page)
-  if (missing) return
 
   await pressSelector(page, press, '[data-testid="edit-split"]')
   await page.waitForSelector('[data-testid="split-form"]')
@@ -1122,8 +1109,8 @@ function coverageGroupShown(page, name, shown) {
 }
 
 /**
- * Review, Rules: dismiss a group no rule settles, which in a Google Sheet without the dismissed
- * tab first asks to add it, find it under the dismissed suggestions, restore it, and Undo the restore.
+ * Review, Rules: dismiss a group no rule settles, find it under the dismissed suggestions, restore
+ * it, and Undo the restore.
  */
 export async function dismissFlow(page, { press, shoot, inspect }) {
   await openCard(page, press, 'rule-coverage')
@@ -1134,13 +1121,6 @@ export async function dismissFlow(page, { press, shoot, inspect }) {
   await delay(200)
   await press(dismiss)
   await delay(400)
-  const asks = await page.$('[data-testid="dismiss-add-tab"]')
-  if (asks !== null) {
-    await page.waitForSelector('[data-testid="add-tab-notice"]')
-    await inspect?.('dismiss asks to add the tab')
-    await shoot('dismiss-add-tab')
-    await press(asks)
-  }
   await toast(page, 'Dismissed Laptop Store')
   await coverageGroupShown(page, 'Laptop Store', false)
   await dismissToasts(page)
@@ -1555,4 +1535,140 @@ export async function accountantFoldersFlow(page, { press, shoot, inspect }) {
     })
   await scrollToTopOf(page, ACCOUNTANT_PAYROLL)
   await shoot('accountant-folder-missing')
+}
+
+/** Presses the visible button under `selector` whose text starts with `label`. */
+async function pressButton(page, press, selector, label) {
+  const button = await page
+    .waitForFunction(
+      (css, wanted) => [...document.querySelectorAll(css)].find((element) => element.offsetParent !== null && !element.disabled && element.textContent?.trim().startsWith(wanted)) ?? null,
+      { timeout: 10_000 },
+      selector,
+      label,
+    )
+    .then((handle) => handle.asElement())
+    .catch(() => {
+      throw new Error(`no enabled ${selector} reading "${label}" within 10 s`)
+    })
+  await button.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(button)
+}
+
+const MOVED = /^Moved \d+ records$/
+
+/** Settings, This device names the file on the fake Drive, its folder and that no backup is made yet. */
+async function deviceShowsDriveFile(page) {
+  await page.evaluate(() => {
+    window.location.hash = '#/settings?tab=device'
+  })
+  await page.waitForFunction(() => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === 'Books', { timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, This device does not name the Books folder the file sits in')
+  })
+  await pageSays(page, 'ledgerboard-company.json', true)
+  await pageSays(page, 'None yet. The first save of a day makes one.', true)
+}
+
+/** The first run: an empty workbook kept on the fake Drive, which Settings, This device then names with its folder. */
+export async function firstRunDriveFlow(page, { press, shoot, inspect }) {
+  await pressSelector(page, press, '[data-testid="start-empty-drive"]')
+  await toastMatching(page, MOVED)
+  await page.waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Overview', { timeout: 10_000 }).catch(() => {
+    throw new Error('the empty workbook on Drive did not open Overview')
+  })
+  await pageSays(page, 'The ledger has no transactions yet', true)
+  await shoot('first-run-drive')
+  await dismissToasts(page)
+  await deviceShowsDriveFile(page)
+  await inspect?.('this device with the file on Drive')
+  await shoot('first-run-drive-device')
+}
+
+/** The first run: an empty workbook kept in this browser, which offers the import and the export. */
+export async function firstRunBrowserFlow(page, { press, shoot }) {
+  await pressSelector(page, press, '[data-testid="start-empty-browser"]')
+  await page.waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Overview', { timeout: 10_000 }).catch(() => {
+    throw new Error('the empty workbook in this browser did not open Overview')
+  })
+  await pageSays(page, 'Import a statement', true)
+  await page.waitForSelector('[data-testid="local-status"]', { timeout: 10_000 }).catch(() => {
+    throw new Error('the empty workbook in this browser shows no export status')
+  })
+  await shoot('first-run-browser')
+}
+
+/** The move from an xlsx download: the summary counts the records by tab, then Keep on Google Drive writes the file, reads it back and opens it. */
+export function moveFromXlsxFlow(path) {
+  return async (page, { press, shoot, inspect }) => {
+    const input = await page.waitForSelector('[data-testid="data-source-choices"] input[type="file"]')
+    await input.uploadFile(path)
+    await page.waitForSelector('[data-testid="record-counts"] dl', { timeout: 10_000 }).catch(() => {
+      throw new Error('the summary does not count the records by tab')
+    })
+    await page.waitForFunction(() => /^\d+ records, by tab$/.test(document.querySelector('[data-testid="record-counts"] h3')?.textContent?.trim() ?? ''), { timeout: 5_000 }).catch(() => {
+      throw new Error('the summary does not say how many records the file holds')
+    })
+    await delay(600)
+    await inspect?.('the move summary')
+    await shoot('move-summary')
+    await pressButton(page, press, '[role="dialog"] button', 'Keep on Google Drive')
+    await toastMatching(page, MOVED)
+    await page.waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Overview', { timeout: 10_000 }).catch(() => {
+      throw new Error('the moved workbook did not open Overview')
+    })
+    await page.waitForSelector('.chart-body canvas', { timeout: 10_000 }).catch(() => {
+      throw new Error('Overview drew no chart from the moved workbook')
+    })
+    await shoot('moved')
+    await dismissToasts(page)
+    await deviceShowsDriveFile(page)
+  }
+}
+
+/** Settings, This device: the workbook kept in this browser moves to a new file on the fake Drive. */
+export async function moveFromBrowserFlow(page, { press, shoot, inspect }) {
+  await pageSays(page, 'Kept in this browser', true)
+  await pressSelector(page, press, '[data-testid="keep-on-drive"]')
+  await toastMatching(page, MOVED)
+  await page.waitForSelector('[data-testid="drive-file-place"]', { timeout: 10_000 }).catch(() => {
+    throw new Error('the moved workbook is not shown as a file on Drive')
+  })
+  await dismissToasts(page)
+  await deviceShowsDriveFile(page)
+  await inspect?.('this device once moved')
+  await shoot('moved-from-browser')
+}
+
+function queueLength(page) {
+  return page.evaluate(() => document.querySelectorAll('[data-testid="review-row"]').length)
+}
+
+async function queueHolds(page, count, failure) {
+  await page.waitForFunction((wanted) => document.querySelectorAll('[data-testid="review-row"]').length === wanted, { timeout: 10_000 }, count).catch(async () => {
+    throw new Error(`${failure} (the queue holds ${await queueLength(page)})`)
+  })
+}
+
+/**
+ * Review: a row confirmed while a phone files the other waiting row on the fake Drive at the same
+ * moment. Both saves stand, so the queue empties, and Undo takes back only this device's.
+ */
+export async function raceFlow(page, { press, shoot, inspect }) {
+  await queueHolds(page, 2, 'the queue does not hold the two fake rows')
+  const summary = await page
+    .waitForFunction(() => [...document.querySelectorAll('[data-testid="review-row"] > button')].find((button) => button.textContent?.includes('GADGET CORNER')) ?? null, { timeout: 10_000 })
+    .then((handle) => handle.asElement())
+  await summary.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(summary)
+  await page.waitForSelector('[data-testid="review-details"]')
+  await pressButton(page, press, '[data-testid="review-details"] button', 'Confirm')
+  await toastMatching(page, /^Confirmed/)
+  await queueHolds(page, 0, "the phone's save or this one is missing after the race")
+  await inspect?.('both saves of the race')
+  await shoot('race')
+  await undo(page, press)
+  await queueHolds(page, 1, "Undo did not bring back this device's row alone")
+  await pageSays(page, 'GADGET CORNER', true)
+  await shoot('race-undone')
 }

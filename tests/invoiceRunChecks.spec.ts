@@ -37,7 +37,7 @@ vi.mock('../src/shared/files/downloadFile', () => ({ downloadFile: () => undefin
 
 function googleWorkbook(): Workbook {
   return exampleStudio({
-    source: 'google',
+    source: 'drive',
     clients: [{ slug: 'north', name: 'North Ltd', ibans: [], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Road, London', reverseCharge: true } }],
     invoices: [invoiceOf('8-1-26', 6925, '2026-08-21'), invoiceOf('9-1-26', 6925, '2026-09-21')],
     settings: {

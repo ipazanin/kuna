@@ -1,4 +1,4 @@
-import { FOLDER_MIME_TYPE } from '../../../../shared/google/driveClient'
+import { FOLDER_MIME_TYPE, JSON_MIME_TYPE } from '../../../../shared/google/driveClient'
 import type { DriveRevision } from '../../../../shared/google/driveClient'
 import type { DocumentDrive, DocumentUpload } from '../driveDocument'
 
@@ -193,6 +193,11 @@ export function createFakeDrive(): FakeDrive {
       return fileOf(fileId).parents[0]!
     },
 
+    async nameOf(fileId) {
+      requests.push('nameOf')
+      return fileOf(fileId).name
+    },
+
     async children(folderId) {
       requests.push('children')
       return [...files.values()].filter((file) => !file.trashed && file.parents.includes(folderId)).map(({ id, name, mimeType }) => ({ id, name, mimeType }))
@@ -205,7 +210,7 @@ export function createFakeDrive(): FakeDrive {
 
     async createFile(parentId, name, text, appProperties = {}) {
       requests.push('createFile')
-      const file = add(parentId, name, 'application/json', text, appProperties)
+      const file = add(parentId, name, JSON_MIME_TYPE, text, appProperties)
       return { id: file.id, revision: file.headRevisionId }
     },
 

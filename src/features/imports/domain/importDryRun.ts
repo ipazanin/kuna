@@ -10,6 +10,7 @@ import { filedIn } from '../../owner-share/domain/ownerShare'
 import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { ledgerIdOf } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
+import { newRecordId } from '../../workbook/domain/recordId'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 
@@ -233,6 +234,7 @@ function ledgerEntryOfImport(
     signals: row.signals,
     reviewReasons: row.reviewReasons,
     ownerShare: null,
+    rowId: newRecordId(),
   }
   return filedIn({ ...entry, id: ledgerIdOf(entry) }, row.verdict?.category ?? '', categories)
 }

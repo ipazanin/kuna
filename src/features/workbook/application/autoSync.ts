@@ -8,7 +8,7 @@ export interface AutoSyncMoment {
   /** Epoch milliseconds. */
   readonly now: number
   readonly status: WorkbookStatus
-  /** A Google Sheet is chosen and a kept token is still good. */
+  /** A file on Drive is chosen and a kept token is still good. */
   readonly silent: boolean
   readonly online: boolean
   /** ISO timestamp of the read on screen, or null. */
@@ -29,7 +29,7 @@ export function autoSyncDue(moment: AutoSyncMoment): boolean {
 
 export interface AutoSyncPorts {
   readonly store: Pick<WorkbookStore<WorkbookCopy>, 'state' | 'open' | 'canSyncSilently'>
-  /** The whole sync: the Sheet read and whatever follows it. */
+  /** The whole sync: the file read and whatever follows it. */
   sync(): Promise<void>
   now(): number
   online(): boolean

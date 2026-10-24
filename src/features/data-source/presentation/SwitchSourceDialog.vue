@@ -22,7 +22,7 @@ const phone = usePhoneLayout()
     <template #body>
       <div class="flex flex-col gap-4">
         <UAlert
-          v-if="current === 'excel'"
+          v-if="current === 'browser'"
           icon="i-lucide-triangle-alert"
           color="warning"
           variant="subtle"

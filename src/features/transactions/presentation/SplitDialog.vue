@@ -17,7 +17,6 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { SplitTabRow } from '../../workbook/domain/splitsReading'
 import type { LedgerSplit, SplitPart } from '../../workbook/domain/splits'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
-import AddTabNotice from '../../workbook/presentation/AddTabNotice.vue'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { writeSplit } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
@@ -79,8 +78,6 @@ const remainder = computed(() => subtractMoney(whole.value, placed.value))
 /** Why a pack keeps the row whole, or null when it may be split. */
 const keptWhole = computed(() => store.state.workbook?.rowsKeptWhole.get(props.row.id) ?? null)
 
-const tabMissing = computed(() => store.state.choice?.source === 'google' && (store.state.snapshot?.meta.missingTabs.includes('splits') ?? false))
-
 function amountError(index: number): string | null {
   const amount = typed.value[index]
   return amount === null || amount === 0 ? 'An amount above zero, with at most two decimals' : null
@@ -127,7 +124,6 @@ async function save(): Promise<void> {
   const saved = await writes.write(props.split === null ? `Split in ${drafts.length} parts` : 'Split saved', (unit) => writeSplit(unit, props.row, current, drafts, props.categories), {
     description: `${props.row.counterparty || 'The payment'} of ${formatMoney(props.row.amount)}.`,
     failedTitle: 'Not saved',
-    addMissingKinds: tabMissing.value,
   })
   if (saved) open.value = false
 }
@@ -159,7 +155,6 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
         <div v-if="keptWhole !== null" class="rounded-[var(--radius-control)] border border-default px-3 py-2 text-sm text-toned" data-testid="split-claimed">
           This row stays whole, since {{ keptWhole }}.
         </div>
-        <AddTabNotice v-else-if="tabMissing" tab="splits" />
 
         <ol class="flex flex-col gap-3" aria-label="Parts">
           <li v-for="(part, index) in parts" :key="part.id" class="part" data-testid="split-part">

@@ -1,41 +1,39 @@
 import 'fake-indexeddb/auto'
+import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
 import type { WorkbookCache } from '../src/features/workbook/application/workbookPorts'
-import type { SheetRow, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import type { DocumentRecord } from '../src/features/workbook/infrastructure/documentFormat'
+import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
 
-const opened: WorkbookCache<WorkbookSnapshot>[] = []
+const opened: WorkbookCache<DocumentCopy>[] = []
 
-function cacheFor(spreadsheetId: string): WorkbookCache<WorkbookSnapshot> {
-  const cache = openWorkbookCache(spreadsheetId)
+function cacheFor(workbookId: string): WorkbookCache<DocumentCopy> {
+  const cache = openWorkbookCache(workbookId)
   opened.push(cache)
   return cache
 }
 
-function ledgerRow(sheetRow: number, amount: number): SheetRow {
-  return { sheetRow, cells: { date: 46300, account: 'operating', amount } }
+function ledgerRow(amount: string): DocumentRecord {
+  return { date: '2026-10-05', account: 'operating', amount, balance: amount, id: `row-${amount}` }
 }
 
-function snapshotOf(workbookId: string, ledger: SheetRow[], syncedAt = '2026-10-15T08:00:00.000Z'): WorkbookSnapshot {
+function copyOf(workbookId: string, ledger: DocumentRecord[], revision = 'rev-1', syncedAt = '2026-10-15T08:00:00.000Z'): DocumentCopy {
   return {
-    meta: { id: workbookId, source: 'google', title: 'Test workbook', syncedAt, lastExportedAt: null, unexportedSince: null, missingTabs: [] },
-    ledger,
-    categories: [{ sheetRow: 2, cells: { category: 'revenue', bucket: 'income' } }],
-    accounts: [{ sheetRow: 2, cells: { account: 'operating', currency: 'EUR' } }],
-    settings: [{ sheetRow: 2, cells: { key: 'currency', value: 'EUR' } }],
-    rules: [{ sheetRow: 2, cells: { rule: 'own-account', order: 100, enabled: true, counterparty_is_own: true } }],
-    invoices: [],
-    clients: [],
-    'outgoing-plan': [{ sheetRow: 2, cells: { item: 'Monthly Fee', date: 46326, amount: 5000, client: 'north' } }],
-    'owner-advances': [],
-    assets: [{ sheetRow: 2, cells: { asset: 'Laptop', bought: 45809, cost_net: 1519.2, group: 'computers' } }],
-    grants: [{ sheetRow: 2, cells: { grant: 'startup', received: 45809, amount: 5000 } }],
-    'year-end': [{ sheetRow: 2, cells: { year: 2025, statement: 'tax', line: 'rate', amount: 0.1 } }],
-    plan: [{ sheetRow: 2, cells: { year: 2027, item: 'revenue', amount: 7400 } }],
-    scenarios: [{ sheetRow: 2, cells: { scenario: 'floor', year: 2027, component: 'salary_gross', amount: 'floor' } }],
-    splits: [{ sheetRow: 2, cells: { date: 46297, account: 'main', row_amount: -20, row_balance: 980, amount: -15, category: 'software', note: 'Seat' } }],
-    dismissed: [{ sheetRow: 2, cells: { kind: 'not-covered', key: 'name:corner shop', category: 'software', dismissed_on: 46297 } }],
+    meta: { id: workbookId, source: 'drive', title: 'ledgerboard-company.json', syncedAt, lastExportedAt: null, unexportedSince: null },
+    revision,
+    document: {
+      app: 'company',
+      schema: { core: 1, 'hr-doo': 1 },
+      savedAt: syncedAt,
+      records: {
+        'ledger-row': ledger,
+        setting: [{ key: 'currency', value: 'EUR' }],
+        'hr-doo.year-end-line': [{ year: '2025', statement: 'tax', line: 'rate', amount: '0.1', id: 'line-1' }],
+        'a-later-kind': [{ field: { nested: true } }],
+      },
+    },
   }
 }
 
@@ -46,70 +44,65 @@ afterEach(async () => {
 })
 
 describe('workbook cache', () => {
-  it('reads nothing before the first sync', async () => {
-    expect(await cacheFor('never-synced').read()).toBeNull()
+  it('reads nothing before the first read', async () => {
+    expect(await cacheFor('never-read').read()).toBeNull()
   })
 
-  it('reads back what was written, rows in sheet order', async () => {
-    const cache = cacheFor('sheet-a')
-    await cache.replace(snapshotOf('sheet-a', [ledgerRow(3, -40), ledgerRow(2, 4200)]))
+  it('reads back the document whole with its revision', async () => {
+    const cache = cacheFor('file-a')
+    const copy = copyOf('file-a', [ledgerRow('-40.00'), ledgerRow('4200.00')])
+    await cache.replace(copy)
 
-    const read = await cache.read()
-
-    expect(read?.meta).toEqual({
-      id: 'sheet-a',
-      source: 'google',
-      title: 'Test workbook',
-      syncedAt: '2026-10-15T08:00:00.000Z',
-      lastExportedAt: null,
-      unexportedSince: null,
-      missingTabs: [],
-    })
-    expect(read?.ledger.map((row) => row.sheetRow)).toEqual([2, 3])
-    expect(read?.categories).toHaveLength(1)
-    expect(read?.accounts[0]?.cells.currency).toBe('EUR')
-    expect(read?.settings[0]?.cells).toEqual({ key: 'currency', value: 'EUR' })
-    expect(read?.assets[0]?.cells.asset).toBe('Laptop')
-    expect(read?.grants[0]?.cells.grant).toBe('startup')
-    expect(read?.['year-end'][0]?.cells.amount).toBe(0.1)
-    expect(read?.plan[0]?.cells.item).toBe('revenue')
-    expect(read?.scenarios[0]?.cells.component).toBe('salary_gross')
-    expect(read?.['outgoing-plan'][0]?.cells.item).toBe('Monthly Fee')
+    expect(await cache.read()).toEqual(copy)
   })
 
-  it('replaces the whole copy, so rows gone from the Sheet are gone from the cache', async () => {
-    const cache = cacheFor('sheet-b')
-    await cache.replace(snapshotOf('sheet-b', [ledgerRow(2, 1), ledgerRow(3, 2), ledgerRow(4, 3)]))
+  it('replaces the whole copy, so records gone from the file are gone from the cache', async () => {
+    const cache = cacheFor('file-b')
+    await cache.replace(copyOf('file-b', [ledgerRow('1.00'), ledgerRow('2.00')]))
 
-    await cache.replace(snapshotOf('sheet-b', [ledgerRow(2, 9)], '2026-10-16T08:00:00.000Z'))
+    await cache.replace(copyOf('file-b', [ledgerRow('9.00')], 'rev-2', '2026-10-16T08:00:00.000Z'))
 
     const read = await cache.read()
-    expect(read?.ledger).toEqual([ledgerRow(2, 9)])
+    expect(read?.document.records['ledger-row']).toEqual([ledgerRow('9.00')])
+    expect(read?.revision).toBe('rev-2')
     expect(read?.meta.syncedAt).toBe('2026-10-16T08:00:00.000Z')
   })
 
-  it('keeps each spreadsheet in its own database', async () => {
-    await cacheFor('sheet-c').replace(snapshotOf('sheet-c', [ledgerRow(2, 1)]))
-    await cacheFor('sheet-d').replace(snapshotOf('sheet-d', [ledgerRow(2, 2), ledgerRow(3, 3)]))
+  it('keeps each workbook in its own database', async () => {
+    await cacheFor('file-c').replace(copyOf('file-c', [ledgerRow('1.00')]))
+    await cacheFor('file-d').replace(copyOf('file-d', [ledgerRow('2.00'), ledgerRow('3.00')]))
 
-    expect((await cacheFor('sheet-c').read())?.ledger).toHaveLength(1)
-    expect((await cacheFor('sheet-d').read())?.ledger).toHaveLength(2)
+    expect((await cacheFor('file-c').read())?.document.records['ledger-row']).toHaveLength(1)
+    expect((await cacheFor('file-d').read())?.document.records['ledger-row']).toHaveLength(2)
   })
 
-  it('refuses a snapshot of another spreadsheet and keeps the old copy', async () => {
-    const cache = cacheFor('sheet-e')
-    await cache.replace(snapshotOf('sheet-e', [ledgerRow(2, 1)]))
+  it('refuses a copy of another workbook and keeps the old copy', async () => {
+    const cache = cacheFor('file-e')
+    await cache.replace(copyOf('file-e', [ledgerRow('1.00')]))
 
-    await expect(cache.replace(snapshotOf('sheet-other', []))).rejects.toThrow(/sheet-other/)
-    expect((await cache.read())?.ledger).toHaveLength(1)
+    await expect(cache.replace(copyOf('file-other', []))).rejects.toThrow(/file-other/)
+    expect((await cache.read())?.document.records['ledger-row']).toHaveLength(1)
   })
 
   it('reads nothing after the copy is deleted', async () => {
-    const cache = cacheFor('sheet-f')
-    await cache.replace(snapshotOf('sheet-f', [ledgerRow(2, 1)]))
+    const cache = cacheFor('file-f')
+    await cache.replace(copyOf('file-f', [ledgerRow('1.00')]))
 
     await cache.delete()
 
-    expect(await cacheFor('sheet-f').read()).toBeNull()
+    expect(await cacheFor('file-f').read()).toBeNull()
+  })
+
+  it('opens a database that held the tabs of a Sheet, and reads nothing from it', async () => {
+    const old = new Dexie('ledgerboard-workbook-sheet-g')
+    old.version(8).stores({ meta: 'key', ledger: 'sheetRow' })
+    await old.table('meta').put({ key: 'workbook', id: 'sheet-g' })
+    old.close()
+
+    const cache = cacheFor('sheet-g')
+
+    expect(await cache.read()).toBeNull()
+    await cache.replace(copyOf('sheet-g', [ledgerRow('5.00')]))
+    expect((await cache.read())?.revision).toBe('rev-1')
   })
 })

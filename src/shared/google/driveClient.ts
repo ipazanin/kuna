@@ -6,6 +6,8 @@ const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
 
 export const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 
+export const JSON_MIME_TYPE = 'application/json'
+
 export const GOOGLE_SHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet'
 
 const IS_FOLDER = `mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`

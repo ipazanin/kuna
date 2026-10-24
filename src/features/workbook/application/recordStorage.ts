@@ -21,11 +21,8 @@ export interface StoragePreview {
   readonly written: readonly (StoredRecord<unknown> | null)[]
 }
 
-/**
- * Where records are kept, the port each storage adapter implements. One instance serves one
- * write: it reads, works out what the changes would leave on that read, then applies them there.
- */
-export interface RecordStorage {
+/** What a write's checks need of a storage: a read, a record's identity and words, and what changes would leave on that read. */
+export interface StorageView {
   /** What the storage holds of these kinds now. */
   read(kinds: readonly RecordKind<unknown>[]): Promise<FreshRecords>
   /** The identity the storage keeps a record by, or null when the record lacks its key or id. */
@@ -34,14 +31,22 @@ export interface RecordStorage {
   labelOf<R>(kind: RecordKind<R>, record: R): string
   /**
    * What the changes would leave, with nothing written. Throws `WorkbookWriteRefused` when the
-   * storage cannot hold a change, such as a field it has no place for.
+   * storage cannot hold the changes, such as a file a newer app saved.
    */
-  preview(changes: readonly RecordChange[], addMissingKinds: boolean): StoragePreview
+  preview(changes: readonly RecordChange[]): StoragePreview
+}
+
+/**
+ * Where records are kept, the port each storage adapter implements. One instance serves one
+ * write: it reads, works out what the changes would leave on that read, then applies them there.
+ */
+export interface RecordStorage extends StorageView {
   /**
    * Applies every change on the last read, or none, finding each record by its identity. A change
    * writes only the fields it alters, so a field it leaves alone keeps what the storage holds.
-   * `addMissingKinds`, once the person agreed, gives the storage a place for a kind it lacks, or
-   * for a field of a kind it holds.
+   * Answers `moved` when the storage changed since the read and nothing was written. When another
+   * device's save landed at the same moment, `recheck` runs the write's checks on that save and
+   * throws `WorkbookWriteRefused` when the write no longer holds there.
    */
-  apply(changes: readonly RecordChange[], addMissingKinds: boolean): Promise<void>
+  apply(changes: readonly RecordChange[], recheck: (storage: StorageView) => Promise<void>): Promise<'applied' | 'moved'>
 }

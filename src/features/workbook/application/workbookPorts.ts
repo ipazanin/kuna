@@ -1,7 +1,8 @@
+import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { WorkbookSource } from '../domain/workbook'
 import type { RecordStorage } from './recordStorage'
 
-/** The workbook this browser shows: a picked Google Sheet, or one kept here in Excel mode. Never data. */
+/** The workbook this browser shows: a file on Drive, or one kept in this browser. Never data. */
 export interface WorkbookChoice {
   readonly source: WorkbookSource
   readonly id: string
@@ -10,7 +11,7 @@ export interface WorkbookChoice {
 
 /** What names a workbook's copy, and when it was read, changed and exported. */
 export interface CopyMeta {
-  /** The Google spreadsheet id, or the id of the workbook kept in this browser. */
+  /** The Drive file's id, or the id of the workbook kept in this browser. */
   readonly id: string
   readonly source: WorkbookSource
   readonly title: string
@@ -22,15 +23,12 @@ export interface CopyMeta {
   readonly unexportedSince: string | null
 }
 
-/** The copy of a workbook this browser keeps, in the format of the storage it came from. The store reads only what names it. */
+/** The copy of a workbook this browser keeps. The store reads only what names it. */
 export interface WorkbookCopy {
   readonly meta: CopyMeta
 }
 
-/**
- * One workbook in this browser: a copy of a Google Sheet, or in Excel mode the workbook itself.
- * Every write replaces it whole, since the workbook is small.
- */
+/** The copy of one workbook in this browser, which a read or a write replaces whole, since the workbook is small. */
 export interface WorkbookCache<Copy extends WorkbookCopy> {
   replace(copy: Copy): Promise<void>
   read(): Promise<Copy | null>
@@ -44,4 +42,11 @@ export interface CopyStorage<Copy extends WorkbookCopy> extends RecordStorage {
   readBack(copy: Copy): Copy
   /** Reads again what it read last, as a write that failed part way may still have changed it. */
   readAgain(): Promise<void>
+}
+
+/** Where a Drive file sits, and the day of its newest backup, null before the first. */
+export interface DriveFilePlace {
+  readonly folderId: string
+  readonly folderName: string
+  readonly lastBackup: CivilDate | null
 }

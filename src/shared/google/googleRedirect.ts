@@ -13,7 +13,7 @@ export const REDIRECT_SIGN_IN_QUERY = '(pointer: coarse), (display-mode: standal
 /** The sign-in kept on this device, or the Gmail or Drive read grant kept in page memory. */
 export type RedirectGrant = 'sign-in' | 'gmail' | 'drive-read'
 
-/** What the app does once back: read the chosen Sheet again, open the Picker, or nothing, since the action that asked has to start again. */
+/** What the app does once back: read the chosen file again, find or pick it, or nothing, since the action that asked has to start again. */
 export type RedirectResume = 'sync' | 'pick' | 'none'
 
 /**

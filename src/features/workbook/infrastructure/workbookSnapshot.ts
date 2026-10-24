@@ -1,9 +1,9 @@
 import type { CopyMeta } from '../application/workbookPorts'
 
-/** A cell as the Sheets API returns it with UNFORMATTED_VALUE and SERIAL_NUMBER dates, and as an xlsx holds it. */
+/** A cell as an xlsx holds it, a date as its serial number. */
 export type CellValue = string | number | boolean
 
-/** One data row of a tab, keyed by header name. `sheetRow` is the 1-based row in the Sheet. */
+/** One data row of a tab, keyed by header name. `sheetRow` is the 1-based row in the tab. */
 export interface SheetRow {
   readonly sheetRow: number
   readonly cells: Readonly<Record<string, CellValue>>
@@ -39,17 +39,8 @@ export type CoreTab = Exclude<WorkbookTab, PackTab>
 
 export type WorkbookTabs = { readonly [tab in WorkbookTab]: readonly SheetRow[] }
 
-/** A workbook copy's meta, with the tabs a Google Sheet lacks. A workbook kept in this browser has every tab, since an export writes them all. */
-export interface WorkbookMeta extends CopyMeta {
-  readonly missingTabs: readonly WorkbookTab[]
-  /**
-   * The template columns other than the id that a tab of a Google Sheet lacks, by tab. A tab
-   * missing here lacks none the app knows of, as every tab of a workbook kept in this browser.
-   */
-  readonly missingColumns?: Readonly<Partial<Record<WorkbookTab, readonly string[]>>>
-}
-
-export type WorkbookSnapshot = { readonly meta: WorkbookMeta } & WorkbookTabs
+/** A workbook read from the tabs of an xlsx file, with what names it. */
+export type WorkbookSnapshot = { readonly meta: CopyMeta } & WorkbookTabs
 
 export const EMPTY_TABS: WorkbookTabs = {
   ledger: [],
@@ -70,10 +61,7 @@ export const EMPTY_TABS: WorkbookTabs = {
   dismissed: [],
 }
 
-/**
- * Turns a tab's value grid (header row first) into rows keyed by header. The API drops trailing
- * empty cells and rows, so a short row simply lacks the later headers.
- */
+/** Turns a tab's value grid, header row first, into rows keyed by header. A short row lacks the later headers. */
 export function sheetRowsFromValues(values: readonly (readonly (CellValue | null | undefined)[])[]): SheetRow[] {
   const [header = [], ...dataRows] = values
   const headerNames = header.map((name) => String(name ?? '').trim())

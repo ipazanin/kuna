@@ -12,6 +12,7 @@ import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/features/
 import { SPLIT_WRITES } from '../src/features/transactions/application/splitWrites'
 import { canUndo } from '../src/features/workbook/application/createWorkbookStore'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
+import { codecOfKind } from '../src/features/workbook/application/recordCodecs'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import type { RecordCodec } from '../src/features/workbook/domain/recordCodec'
 import { filledFields } from '../src/features/workbook/domain/recordFields'
@@ -23,13 +24,14 @@ import type { RecordKind } from '../src/features/workbook/domain/recordKind'
 import { refusalOr, storedFieldOfValue, storedFieldsOfValues } from '../src/features/workbook/domain/storedFields'
 import type { StoredField } from '../src/features/workbook/domain/storedFields'
 import type { WriteRules } from '../src/features/workbook/domain/writeRules'
-import { cellsOfFields, rowIdOf, spreadsheetTabOfKind } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import type { Cells } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import { WORKBOOK_TABS } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue, SheetRow, WorkbookSnapshot, WorkbookTab, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { templateColumnNames } from '../src/features/workbook/infrastructure/workbookTemplate'
+import { browserDocumentHome, replaceBrowserDocument } from '../src/features/workbook/infrastructure/browserDocument'
+import { decodeDocument, encodeDocument, storedFieldsOfDocument } from '../src/features/workbook/infrastructure/documentFormat'
+import type { DocumentRecord, WorkbookDocument } from '../src/features/workbook/infrastructure/documentFormat'
+import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import { newDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import { COMPANY_APP } from '../src/features/workbook/infrastructure/documentStorePorts'
 import { recordOnScreen, recordsOnScreen } from './fixtures/records'
-import { excelHarness, forgetCaches, googleHarness } from './fixtures/writeBack'
+import { browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
 
 const used = new Set<string>()
 
@@ -42,19 +44,19 @@ type Seed = Readonly<Record<string, readonly RecordFields[]>>
 
 /** A storage under test, opened with the seed's records, and the edits another device or a person makes outside the app. */
 interface StorageUnderTest {
-  readonly store: WorkbookStore<WorkbookSnapshot>
+  readonly store: WorkbookStore<DocumentCopy>
   /** Another device adds a record, ahead of every record the app wrote. */
   addOutside(kind: RecordKind<unknown>, fields: RecordFields): Promise<void>
   /** Another device sets one field of the one record with this identity. */
   changeOutside(kind: RecordKind<unknown>, id: RecordId, field: string, value: FieldValue): Promise<void>
   removeOutside(kind: RecordKind<unknown>, id: RecordId): Promise<void>
   /** Everything the storage holds, to show that a refused write left it alone. */
-  held(): string
+  held(): Promise<string>
 }
 
 /** The codec of a kind, which the suite writes and reads its fixtures with. */
 function codecOf<R>(kind: RecordKind<R>): RecordCodec<R> {
-  return spreadsheetTabOfKind(kind).codec
+  return codecOfKind(kind)
 }
 
 /** The identity these fields hold. */
@@ -83,88 +85,65 @@ function holdsValue(field: StoredField | undefined, value: FieldValue): boolean 
   return field.text === written.text || (written.date !== null && field.date === written.date) || (written.number !== null && field.number === written.number)
 }
 
-/** The grid storages hold a record as a row of its kind's tab. */
-function rowOf(kind: RecordKind<unknown>, fields: RecordFields): { readonly tab: WorkbookTab; readonly cells: Cells } {
-  const mapping = spreadsheetTabOfKind(kind)
-  return { tab: mapping.tab, cells: cellsOfFields(mapping, filledFields(fields)) }
+function holdsId(kind: RecordKind<unknown>, id: RecordId): (record: DocumentRecord) => boolean {
+  return (record) => {
+    const key = codecOf(kind).key(storedFieldsOfDocument(record))
+    return key !== null && recordIdOf(kind, key) === id
+  }
 }
 
-function holdsId(kind: RecordKind<unknown>, id: RecordId): (cells: Cells) => boolean {
-  const mapping = spreadsheetTabOfKind(kind)
-  return (cells) => rowIdOf(mapping, cells) === id
+/** A document with the seed's records. */
+function documentOf(seed: Seed): WorkbookDocument {
+  return newDocument(COMPANY_APP, Object.fromEntries(Object.entries(seed).map(([name, records]) => [name, records.map((fields) => filledFields(fields))])), '2026-10-16T09:00:00.000Z')
 }
 
-/** Every tab with its template header and the seed's records, values from row 1. */
-function gridsOf(seed: Seed): Record<string, CellValue[][]> {
-  const rows = Object.entries(seed).flatMap(([name, records]) => records.map((fields) => rowOf(kindNamed(name), fields)))
-  return Object.fromEntries(
-    WORKBOOK_TABS.map((tab) => {
-      const header = templateColumnNames(tab)
-      return [tab, [header, ...rows.filter((row) => row.tab === tab).map((row) => header.map((column) => row.cells[column] ?? ''))]]
-    }),
-  )
+/** The document with one kind's records as `edit` leaves them. */
+function withRecords(document: WorkbookDocument, kind: RecordKind<unknown>, edit: (records: readonly DocumentRecord[]) => DocumentRecord[]): WorkbookDocument {
+  return { ...document, records: { ...document.records, [kind.name]: edit(document.records[kind.name] ?? []) } }
 }
 
-async function googleStorage(seed: Seed): Promise<StorageUnderTest> {
-  const { store, sheets } = await googleHarness(used, gridsOf(seed))
-  const rowIndex = (tab: WorkbookTab, holds: (cells: Cells) => boolean): number => {
-    const [header = [], ...rows] = sheets.grids[tab]!
-    const index = rows.findIndex((row) => holds(Object.fromEntries(header.flatMap((column, at) => (row[at] === undefined || row[at] === null || row[at] === '' ? [] : [[String(column), row[at]!]])))))
-    expect(index).toBeGreaterThanOrEqual(0)
-    return index + 1
+/** The outside edits on a document, which `save` stores in place of the one its home holds. */
+function outsideEdits(load: () => Promise<WorkbookDocument>, save: (document: WorkbookDocument) => Promise<void>): Omit<StorageUnderTest, 'store' | 'held'> {
+  const edit = async (kind: RecordKind<unknown>, change: (records: readonly DocumentRecord[]) => DocumentRecord[]): Promise<void> => {
+    await save(withRecords(await load(), kind, change))
   }
   return {
-    store,
-    async addOutside(kind, fields) {
-      const { tab, cells } = rowOf(kind, fields)
-      sheets.grids[tab]!.splice(1, 0, templateColumnNames(tab).map((column) => cells[column] ?? ''))
-      await store.sync()
-    },
-    async changeOutside(kind, id, field, value) {
-      const { tab, cells } = rowOf(kind, { [field]: value })
-      sheets.grids[tab]![rowIndex(tab, holdsId(kind, id))]![templateColumnNames(tab).indexOf(field)] = cells[field] ?? ''
-      await store.sync()
-    },
-    async removeOutside(kind, id) {
-      const { tab } = spreadsheetTabOfKind(kind)
-      sheets.grids[tab]!.splice(rowIndex(tab, holdsId(kind, id)), 1)
-      await store.sync()
-    },
-    held: () => JSON.stringify(sheets.grids),
+    addOutside: (kind, fields) => edit(kind, (records) => [filledFields(fields), ...records]),
+    changeOutside: (kind, id, field, value) =>
+      edit(kind, (records) => {
+        const holds = holdsId(kind, id)
+        expect(records.filter(holds)).toHaveLength(1)
+        return records.map((record) => (holds(record) ? { ...record, [field]: value } : record))
+      }),
+    removeOutside: (kind, id) => edit(kind, (records) => records.filter((record) => !holdsId(kind, id)(record))),
   }
+}
+
+async function driveStorage(seed: Seed): Promise<StorageUnderTest> {
+  const harness = await driveHarness(used, documentOf(seed))
+  const { store } = harness
+  const fileId = store.state.choice!.id
+  const drive = harness.drive!
+  const edits = outsideEdits(
+    async () => decodeDocument(await drive.download(fileId)),
+    async (document) => {
+      await drive.upload(fileId, encodeDocument(document))
+      await store.sync()
+    },
+  )
+  return { store, ...edits, held: () => drive.download(fileId) }
 }
 
 async function browserStorage(seed: Seed): Promise<StorageUnderTest> {
-  const { store } = await excelHarness(used, gridsOf(seed))
-  /** Another tab of the app, or an import, leaving the workbook kept in this browser with these rows. */
-  const replaceRows = async (tab: WorkbookTab, rowsOf: (rows: readonly SheetRow[]) => SheetRow[]): Promise<void> => {
-    const { meta: _meta, ...tabs } = store.state.snapshot!
-    const rows = rowsOf(tabs[tab]).map((row, index) => ({ sheetRow: index + 2, cells: row.cells }))
-    await store.replaceLocalWorkbook({ ...(tabs as WorkbookTabs), [tab]: rows }, 'Books')
-  }
-  return {
-    store,
-    addOutside: (kind, fields) => {
-      const { tab, cells } = rowOf(kind, fields)
-      return replaceRows(tab, (rows) => [{ sheetRow: 2, cells }, ...rows])
-    },
-    changeOutside: (kind, id, field, value) => {
-      const { tab, cells } = rowOf(kind, { [field]: value })
-      const holds = holdsId(kind, id)
-      return replaceRows(tab, (rows) => {
-        expect(rows.filter((row) => holds(row.cells))).toHaveLength(1)
-        return rows.map((row) => (holds(row.cells) ? { sheetRow: row.sheetRow, cells: { ...row.cells, ...cells } } : row))
-      })
-    },
-    removeOutside: (kind, id) => {
-      const holds = holdsId(kind, id)
-      return replaceRows(spreadsheetTabOfKind(kind).tab, (rows) => rows.filter((row) => !holds(row.cells)))
-    },
-    held: () => {
-      const { meta: _meta, ...tabs } = store.state.snapshot!
-      return JSON.stringify(tabs)
-    },
-  }
+  const harness = await browserHarness(used, documentOf(seed))
+  const { store } = harness
+  const id = store.state.choice!.id
+  const edits = outsideEdits(harness.held, async (document) => {
+    // Another tab of the app saved, then this tab reads the browser's document again, as an import does.
+    await replaceBrowserDocument(id, encodeDocument(document))
+    await store.replaceLocalWorkbook(document, 'Books')
+  })
+  return { store, ...edits, held: async () => (await browserDocumentHome(id).read(null)).text }
 }
 
 /**
@@ -433,17 +412,9 @@ const CORE_WRITES: readonly WriteRules<unknown>[] = [
 
 const KINDS = [...CORE_WRITES, ...installedPack().workbook!.kinds].map((rules) => [rules.kind.name, rules] as const)
 
-function kindNamed(name: string): RecordKind<unknown> {
-  const found = KINDS.find(([candidate]) => candidate === name)
-  if (found === undefined) {
-    throw new Error(`No kind is named ${name}.`)
-  }
-  return found[1].kind
-}
-
 const STORAGES = [
-  ['a Google Sheet', googleStorage],
-  ['the workbook kept in this browser', browserStorage],
+  ['a file on Drive', driveStorage],
+  ['the document kept in this browser', browserStorage],
 ] as const
 
 it('has a fixture for every kind, core’s and the pack’s', () => {
@@ -460,7 +431,7 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
 
     async function withBoth(): Promise<StorageUnderTest> {
       const storage = await open(fixture.seed ?? {})
-      await storage.store.write('Added', (unit) => fixture.records.forEach((fields) => unit.of(rules).add(recordOf(kind, fields))), { addMissingKinds: true })
+      await storage.store.write('Added', (unit) => fixture.records.forEach((fields) => unit.of(rules).add(recordOf(kind, fields))))
       return storage
     }
 
@@ -493,7 +464,7 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
     it('refuses work that awaits before it makes its changes, and writes nothing', async () => {
       const storage = await withBoth()
       const { store } = storage
-      const held = storage.held()
+      const held = await storage.held()
       const changed = recordOf(kind, { ...first, [fixture.change.field]: fixture.change.value })
 
       const awaiting = store.write('Changed', async (unit) => {
@@ -502,7 +473,7 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
       })
 
       await expect(awaiting).rejects.toThrow('before it returns')
-      expect(storage.held()).toBe(held)
+      expect(await storage.held()).toBe(held)
     })
 
     it('refuses a change to a record that differs from what the app read, or is gone, and writes nothing', async () => {
@@ -511,16 +482,16 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
       const stale = recordOnScreen(store, kind, firstId).record
       const changed = recordOf(kind, { ...first, [fixture.change.field]: fixture.change.value })
       await storage.changeOutside(kind, firstId, fixture.change.field, 'edited outside')
-      const held = storage.held()
+      const held = await storage.held()
 
       await expect(store.write('Changed', (unit) => unit.of(rules).change(stale, changed))).rejects.toThrow('changed since the app read it')
-      expect(storage.held()).toBe(held)
+      expect(await storage.held()).toBe(held)
 
       await storage.removeOutside(kind, firstId)
-      const gone = storage.held()
+      const gone = await storage.held()
       await expect(store.write('Changed', (unit) => unit.of(rules).change(stale, changed))).rejects.toThrow(WorkbookWriteRefused)
       await expect(store.write('Removed', (unit) => unit.of(rules).remove(stale))).rejects.toThrow('is no longer in the workbook')
-      expect(storage.held()).toBe(gone)
+      expect(await storage.held()).toBe(gone)
       expect(recordsOnScreen(store, kind).records.map((stored) => stored.id)).toEqual([idOf(kind, second)])
     })
 
@@ -604,7 +575,7 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
     it('or not at all, when one kind refuses its part', async () => {
       const storage = await open({})
       const { store } = storage
-      const held = storage.held()
+      const held = await storage.held()
 
       await expect(
         store.write('Added', (unit) => {
@@ -613,7 +584,7 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
         }),
       ).rejects.toThrow('nobody is not on the clients tab')
 
-      expect(storage.held()).toBe(held)
+      expect(await storage.held()).toBe(held)
       expect(store.state.workbook!.categories).toEqual([])
       expect(store.state.writes).toEqual([])
     })

@@ -9,7 +9,6 @@ import { NO_RECORDS } from '../../workbook/domain/recordsRead'
 import type { Reading, RecordsRead } from '../../workbook/domain/recordsRead'
 import { storedOf } from '../../workbook/domain/recordsRead'
 import type { WriteRules } from '../../workbook/domain/writeRules'
-import MissingTabHint from '../../workbook/presentation/MissingTabHint.vue'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
 import type { DraftFactory } from '../domain/recordDrafts'
@@ -63,7 +62,6 @@ function save(made: readonly { readonly saved: number | null; readonly record: R
   >
     <template #subtitle>
       {{ description }}
-      <MissingTabHint :kind="rules.kind" />
     </template>
     <FactTabEditor
       :records="records"

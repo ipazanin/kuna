@@ -1,10 +1,11 @@
-import { FOLDER_MIME_TYPE } from './driveClient'
+import { FOLDER_MIME_TYPE, JSON_MIME_TYPE } from './driveClient'
 import { googleConfig } from './googleConfig'
 import { loadScript } from './loadScript'
 
 const GOOGLE_API_LOADER_SRC = 'https://apis.google.com/js/api.js'
 
-export type PickerKind = 'spreadsheet' | 'folder'
+/** A folder, or a JSON file such as a ledgerboard document. */
+export type PickerKind = 'folder' | 'json'
 
 export interface PickedDocument {
   readonly id: string
@@ -36,11 +37,6 @@ function loadPickerLibrary(): Promise<void> {
   return pickerLibrary
 }
 
-/** Loads the Picker ahead of a click, so opening it does not wait on the network. */
-export function preparePicker(): Promise<void> {
-  return loadPickerLibrary()
-}
-
 /** Where a folder Picker opens and what it says above the folders. */
 export interface FolderPickerOptions {
   /** The folder whose contents it shows. My Drive when absent. */
@@ -64,7 +60,8 @@ export async function pickFromDrive(kind: PickerKind, accessToken: string, folde
     if (folders.parentId !== undefined) view.setParent(folders.parentId)
     return view
   }
-  const view = kind === 'spreadsheet' ? new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS) : folderView()
+  const jsonView = (): google.picker.DocsView => new google.picker.DocsView(google.picker.ViewId.DOCS).setMimeTypes(JSON_MIME_TYPE)
+  const view = kind === 'json' ? jsonView() : folderView()
 
   return new Promise<PickedDocument[]>((resolve) => {
     const builder = new google.picker.PickerBuilder()

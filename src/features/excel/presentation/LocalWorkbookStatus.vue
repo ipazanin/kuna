@@ -7,7 +7,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { exportReminderDue } from '../domain/exportReminder'
 import { useExport } from './useExport'
 
-/** Where an Excel-mode workbook lives and when it was last written to a file, with the export button. */
+/** Where a workbook kept in this browser lives and when it was last written to a file, with the export button. */
 withDefaults(
   defineProps<{
     /** The narrow top-bar form: the button alone, with the reminder in its label. */

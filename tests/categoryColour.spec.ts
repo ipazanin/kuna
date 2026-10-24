@@ -11,7 +11,7 @@ import { CATEGORY_RECORDS } from '../src/features/workbook/domain/recordKind'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { recordsOfRows, spreadsheetTabOfKind } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { addRows as add, editRow as edit } from './fixtures/recordWrites'
-import { excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -87,10 +87,10 @@ describe('CategoryColour', () => {
 })
 
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('category colours in %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
-  const colourCells = (harness: WriteBackHarness) => harness.store.state.snapshot?.categories.map((row) => row.cells.colour ?? '')
+  const colourCells = (harness: WriteBackHarness) => harness.store.state.snapshot?.document.records.category?.map((record) => record.colour ?? '')
 
   it('writes a picked swatch, leaves a colour from the Sheet alone when another field changes, and Undo puts the old colour back', async () => {
     const harness = await harnessOf(used, withColours())
@@ -113,16 +113,5 @@ describe.each([
     await expect(edit(harness.store, CATEGORY_WRITES, 3, { colour: '#12345' })).rejects.toThrow('"ai-services" takes one of the nine colours of the palette')
     await expect(add(harness.store, CATEGORY_WRITES, { category: 'paper', family: 'operating', bucket: 'operating', colour: 'blue' })).rejects.toThrow('"paper" takes one of the nine colours of the palette')
     expect(colourCells(harness)).toEqual(['#DCE9F9', '', ''])
-  })
-})
-
-describe('category colours in a Google Sheet', () => {
-  it('writes one cell when a swatch is picked, and none for a colour the change leaves alone', async () => {
-    const { store, writtenRanges } = await googleHarness(used, withColours())
-
-    await edit(store, CATEGORY_WRITES, 2, { label: 'Tools' })
-    await edit(store, CATEGORY_WRITES, 3, { colour: '#6250d6' })
-
-    expect(writtenRanges()).toEqual(['categories!E2', 'categories!D3'])
   })
 })

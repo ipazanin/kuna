@@ -2,7 +2,7 @@
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
  * with its one-line Sync button and its navigation drawer, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
- * grouped transactions that collapse and expand, a payee's category breakdown, the Excel import,
+ * grouped transactions that collapse and expand, a payee's category breakdown, an xlsx file opened and kept in this browser,
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the payroll calendar of Year, Taxes, the
  * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
@@ -12,7 +12,7 @@
  * the cost of a reimbursement with no cost on file added from Review,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
- * its colour, a label and a role, an asset and an invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, the statements
+ * its colour, a label and a role, an asset and an invoice added, edited, deleted and brought back with Undo in the fake file on Drive and in a workbook kept in this browser, the statements
  * folder the settings lack saved at the path the app uses and then at a new one, the card settlement IBANs and a client's second
  * IBAN typed as tags, refused, removed and saved, the client's with Undo, in both modes, an owner advance
  * changed, deleted and brought back, a payment split, edited, deleted and
@@ -28,7 +28,10 @@
  * with a profile made for it, each confirmed and undone, and the profile deleted, an invoice made and re-exported, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on Review's Rules tab, a rule's note changed and the rule deleted from
  * its editor, each undone, in both modes, the Ruleset search on Settings, a
- * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, and every screen. The
+ * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, the first run kept
+ * on the fake Drive and in this browser, an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
+ * moved there from Settings, This device, a row confirmed while another device files the other one, the notice for a file a
+ * newer app saved, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
@@ -64,14 +67,19 @@ import {
   changeCategoryFlow,
   clientIbansFlow,
   dismissFlow,
+  firstRunBrowserFlow,
+  firstRunDriveFlow,
   heldStatementFlow,
   importCamtFlow,
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
+  moveFromBrowserFlow,
+  moveFromXlsxFlow,
   ownerShareFlow,
   planFlow,
   planTabFlow,
+  raceFlow,
   reviewSplitFlow,
   rulesEditorFlow,
   scenarioFlow,
@@ -260,7 +268,7 @@ async function checkWidth(width) {
   })
 
   await step('waiting-corporate-tax', async () => {
-    await openFreshExcel(page, '#/', 'Overview')
+    await openFreshBrowser(page, '#/', 'Overview')
     const taxLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="corporate-tax"] a', 'Year, Taxes')
     await taxLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -475,7 +483,7 @@ async function checkWidth(width) {
   })
 
   await step('forecast-build-up-and-switch', async () => {
-    await openFreshExcel(page, '#/year?year=2026&p=all', 'Year')
+    await openFreshBrowser(page, '#/year?year=2026&p=all', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="forecast-tiles"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-forecast.png`))
@@ -513,7 +521,7 @@ async function checkWidth(width) {
   })
 
   await step('taxes-corporate-tax-drill', async () => {
-    await openFreshExcel(page, '#/year?tab=taxes&p=all', 'Year')
+    await openFreshBrowser(page, '#/year?tab=taxes&p=all', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="corporate-tax-2026"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes-corporate-tax.png`))
@@ -571,7 +579,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-taken-dividend', async () => {
-    await openFreshExcel(page, '#/owner?tab=taken&p=all', 'Owner')
+    await openFreshBrowser(page, '#/owner?tab=taken&p=all', 'Owner')
     const avoided = await page.waitForSelector('[data-testid="owner-benefits-dividend"] [data-testid="build-up-button"]')
     await avoided.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -604,7 +612,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-pay-mixes', async () => {
-    await openFreshExcel(page, '#/owner?p=all', 'Owner')
+    await openFreshBrowser(page, '#/owner?p=all', 'Owner')
     await page.tap('[data-testid="owner-pay-scenarios"]')
     await waitForTitle(page, 'Year')
     await expect(hashOf(page), (hash) => hash.includes('tab=pay') && hash.includes('year=2027'), 'Compare pay mixes did not open Year, Pay for the next year')
@@ -612,7 +620,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-advance-undo', async () => {
-    await openFreshExcel(page, '#/owner?p=all', 'Owner')
+    await openFreshBrowser(page, '#/owner?p=all', 'Owner')
     const advances = () => page.evaluate(() => document.querySelectorAll('[data-testid="advance-list"] > li').length)
     const before = await advances()
     const opener = await page.$('[data-testid="open-add-advance"]')
@@ -640,7 +648,7 @@ async function checkWidth(width) {
 
   for (const [screen, title] of [['review', 'Review']]) {
     await step(`${screen}-unaccounted-cost`, async () => {
-      await openFreshExcel(page, `#/${screen}?p=all`, title)
+      await openFreshBrowser(page, `#/${screen}?p=all`, title)
       const unaccounted = () => page.evaluate(() => document.querySelectorAll('[data-testid="unaccounted-reimbursement"]').length)
       await expect(unaccounted(), (count) => count === 1, 'the reimbursement with no cost on file is not listed')
       const adder = await page.$('[data-testid="add-unaccounted-cost"]')
@@ -694,7 +702,7 @@ async function checkWidth(width) {
   })
 
   await step('billing-fill-write-undo', async () => {
-    await openFreshExcel(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
+    await openFreshBrowser(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
     const before = await rows()
@@ -721,7 +729,7 @@ async function checkWidth(width) {
   })
 
   await step('billing-edit-delete', async () => {
-    await openFreshExcel(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
+    await openFreshBrowser(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
     const before = await rows()
@@ -742,7 +750,7 @@ async function checkWidth(width) {
     await waitForText(page, '[data-slot="title"]', 'Plan row saved')
     await waitForText(page, '[data-testid="billing-row"] p', 'Seat for the model API, adjusted')
     // A fresh load drops the toast, so the Undo below is the deletion's own.
-    await openFreshExcel(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
+    await openFreshBrowser(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     await openLastRow()
     await page.tap('[data-testid="billing-row-delete"]')
@@ -754,8 +762,8 @@ async function checkWidth(width) {
     await expect(rows(), (count) => count === before, 'Undo did not bring the row back')
   })
 
-  await step('billing-start-excel', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=excel-no-billing-plan&load=${Date.now()}#/invoicing?tab=plan`, { waitUntil: 'networkidle0' })
+  await step('billing-start-browser', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=browser-no-billing-plan&load=${Date.now()}#/invoicing?tab=plan`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Invoicing')
     await page.waitForSelector('[data-testid="billing-empty"]')
     await shoot('billing-empty')
@@ -776,7 +784,7 @@ async function checkWidth(width) {
   })
 
   await step('pay-scenarios-figures', async () => {
-    await openFreshExcel(page, '#/year?year=2027&tab=pay&p=all', 'Year')
+    await openFreshBrowser(page, '#/year?year=2027&tab=pay&p=all', 'Year')
     await settleCharts(page)
     await inspect(page, `${width}px pay`)
     const badge = await page.waitForSelector('[data-testid="scenario-warning-badge"]')
@@ -830,8 +838,8 @@ async function checkWidth(width) {
   })
 
   for (const [mode, query] of [
-    ['google', ''],
-    ['excel', '&fake=excel'],
+    ['drive', ''],
+    ['browser', '&fake=browser'],
   ]) {
     for (const [name, hash, title, run, variant] of [
       ['categories', '#/settings?tab=categories', 'Settings', categoryFlow],
@@ -843,11 +851,10 @@ async function checkWidth(width) {
       ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],
       ['invoice-run', '#/invoicing?p=all', 'Invoicing', invoiceRunFlow],
       ['scenarios', '#/year?year=2027&tab=pay', 'Year', scenarioFlow],
-      ['starting-scenarios', '#/year?year=2027&tab=pay', 'Year', startingScenariosFlow, mode === 'google' ? '&fake=no-scenarios' : '&fake=excel-no-scenarios'],
+      ['starting-scenarios', '#/year?year=2027&tab=pay', 'Year', startingScenariosFlow, mode === 'drive' ? '&fake=no-scenarios' : '&fake=browser-no-scenarios'],
       ['plan', '#/year?year=2027&tab=plan', 'Year', planFlow],
-      ['plan-tab', '#/year?year=2027&tab=plan', 'Year', planTabFlow, mode === 'google' ? '&fake=no-plan' : '&fake=excel-no-plan'],
+      ['plan-tab', '#/year?year=2027&tab=plan', 'Year', planTabFlow, mode === 'drive' ? '&fake=no-plan' : '&fake=browser-no-plan'],
       ['split', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow],
-      ['split-tab', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow, mode === 'google' ? '&fake=no-splits' : '&fake=excel-no-splits'],
       ['split-review', '#/review', 'Review', reviewSplitFlow],
       ['change-category', '#/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
       ['owner-share', '#/transactions?p=all&q=purchase%2C%20laptop', 'Transactions', ownerShareFlow],
@@ -994,14 +1001,14 @@ async function checkWidth(width) {
     await expect(tableCount(), (text) => !text.startsWith('All'), 'Show fewer did not fold the table back')
   })
 
-  await step('settings-excel', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=excel#/settings?tab=device`, { waitUntil: 'networkidle0' })
+  await step('settings-browser', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=browser#/settings?tab=device`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
     await waitForText(page, 'button', 'Import a file')
   })
 
   await step('settings-tabs', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=excel#/settings`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=browser#/settings`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
     await waitForText(page, 'button', 'Save settings')
     await shoot('settings-general')
@@ -1047,7 +1054,7 @@ async function checkWidth(width) {
       ['#/year?tab=assets#asset-rows', 'Save assets', 'year-asset-rows'],
       ['#/year?tab=assets#grant-rows', 'Save grants', 'year-grant-rows'],
     ]) {
-      await page.goto(`${BASE}?theme=dark&fake=excel&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+      await page.goto(`${BASE}?theme=dark&fake=browser&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
       await waitForTitle(page, 'Year')
       await waitForText(page, 'button', ready)
       await inspect(page, `${width}px ${name}`)
@@ -1056,7 +1063,7 @@ async function checkWidth(width) {
   })
 
   await step('invoicing-clients', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=excel#/invoicing?tab=clients`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=browser#/invoicing?tab=clients`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Invoicing')
     await waitForText(page, 'button', 'Save clients')
     await inspect(page, `${width}px invoicing clients`)
@@ -1080,7 +1087,7 @@ async function checkWidth(width) {
   })
 
   await step('review-confirm-undo', async () => {
-    await openFreshExcel(page, '#/review', 'Review')
+    await openFreshBrowser(page, '#/review', 'Review')
     await expect(reviewCount(page), (count) => count === 2, 'the queue does not hold the two fake rows')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await page.waitForSelector('[data-testid="review-details"]')
@@ -1098,7 +1105,7 @@ async function checkWidth(width) {
   })
 
   await step('review-recategorise-undo', async () => {
-    await openFreshExcel(page, '#/review', 'Review')
+    await openFreshBrowser(page, '#/review', 'Review')
     await (await reviewRow(page, 'SNACK KIOSK')).tap()
     await page.waitForSelector('[data-testid="recategorise-row"]')
     await page.tap('[data-testid="review-details"] [data-testid="recategorise-row"]')
@@ -1118,7 +1125,7 @@ async function checkWidth(width) {
   })
 
   await step('session-panel-undo', async () => {
-    await openFreshExcel(page, '#/review', 'Review')
+    await openFreshBrowser(page, '#/review', 'Review')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await (await waitForText(page, '[data-testid="review-details"] button', 'Confirm')).tap()
     await waitForText(page, '[data-slot="title"]', 'Confirmed')
@@ -1159,7 +1166,7 @@ async function checkWidth(width) {
   })
 
   await step('make-rule-apply', async () => {
-    await openFreshExcel(page, '#/review', 'Review')
+    await openFreshBrowser(page, '#/review', 'Review')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await page.tap('[data-testid="review-details"] [data-testid="make-rule"]')
     await page.waitForSelector('[data-testid="rule-backtest"]')
@@ -1185,7 +1192,7 @@ async function checkWidth(width) {
   })
 
   await step('coverage-split', async () => {
-    await openFreshExcel(page, '#/review?tab=rules', 'Review')
+    await openFreshBrowser(page, '#/review?tab=rules', 'Review')
     await openCoverage(page)
     const split = await waitForText(page, '[data-testid="coverage-gap"]', 'STATE BUDGET')
     await expect(
@@ -1246,7 +1253,7 @@ async function checkWidth(width) {
   })
 
   await step('rules-tab-edit', async () => {
-    await openFreshExcel(page, '#/review?tab=rules', 'Review')
+    await openFreshBrowser(page, '#/review?tab=rules', 'Review')
     await page.waitForSelector('[data-testid="rule-row"]')
     await inspect(page, `${width}px rules tab`)
     await shoot('rules-tab')
@@ -1304,7 +1311,7 @@ async function checkWidth(width) {
     await waitForTitle(page, 'Ledgerboard')
     await waitForText(page, '[data-testid="redirect-sign-in-note"]', 'Google may ask about cookies first')
 
-    await comeBack('google', { state: 'touch-check', grant: 'sign-in', resume: 'none', route: '#/review?tab=rules' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
+    await comeBack('drive', { state: 'touch-check', grant: 'sign-in', resume: 'none', route: '#/review?tab=rules' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
     await waitForTitle(page, 'Review')
     await waitForText(page, 'li[data-slot="base"]', 'Signed in to Google')
     await expect(hashOf(page), (hash) => hash === '#/review?tab=rules', 'the return did not land on the tab the sign-in left')
@@ -1313,16 +1320,19 @@ async function checkWidth(width) {
     await inspect(page, `${width}px google return`)
     await shoot('google-return')
 
+    // The empty fake Drive holds no file the app marked, and its Picker picks none, so the find the sign-in resumes leaves the welcome screen.
     await comeBack('empty', { state: 'touch-check', grant: 'sign-in', resume: 'pick', route: '#/' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
-    await waitForTitle(page, 'Overview')
+    await waitForTitle(page, 'Ledgerboard')
+    await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the find resumed')
+    await expect(keptToken(), (token) => token === 'fake-token', 'the token of the sign-in that resumed the find was not kept')
 
-    await comeBack('google', { state: 'touch-check', grant: 'sign-in', resume: 'sync', route: '#/transactions' }, `access_token=forged-token&expires_in=3599&scope=${scope}&state=forged`)
+    await comeBack('drive', { state: 'touch-check', grant: 'sign-in', resume: 'sync', route: '#/transactions' }, `access_token=forged-token&expires_in=3599&scope=${scope}&state=forged`)
     await waitForTitle(page, 'Transactions')
     await waitForText(page, 'li[data-slot="base"]', 'Not signed in to Google')
     await expect(fragmentGone(), (gone) => gone, 'the forged token stayed in the address')
     await expect(keptToken(), (token) => token === null, 'a token with the wrong state was kept')
 
-    await comeBack('google', { state: 'touch-check', grant: 'gmail', resume: 'none', route: '#/invoicing' }, 'error=access_denied&state=touch-check')
+    await comeBack('drive', { state: 'touch-check', grant: 'gmail', resume: 'none', route: '#/invoicing' }, 'error=access_denied&state=touch-check')
     await waitForTitle(page, 'Invoicing')
     await waitForText(page, 'li[data-slot="base"]', 'No Gmail access')
     await expect(fragmentGone(), (gone) => gone, 'the error stayed in the address')
@@ -1332,7 +1342,7 @@ async function checkWidth(width) {
     const noMessage = () => page.evaluate(() => document.querySelectorAll('li[data-slot="base"]').length === 0)
     const refusedInTab = () => page.evaluate(() => sessionStorage.getItem('ledgerboard.drive-read-refused') !== null)
 
-    await comeBack('google', silentAsk, driveRead)
+    await comeBack('drive', silentAsk, driveRead)
     await waitForTitle(page, 'Review')
     await delay(500)
     await expect(noMessage(), (none) => none, 'the silent Drive read ask showed a message')
@@ -1341,7 +1351,7 @@ async function checkWidth(width) {
     await expect(refusedInTab(), (refused) => !refused, 'a Drive read token was noted as refused')
     await inspect(page, `${width}px drive read return`)
 
-    await comeBack('google', silentAsk, 'error=consent_required&state=touch-check')
+    await comeBack('drive', silentAsk, 'error=consent_required&state=touch-check')
     await waitForTitle(page, 'Review')
     await delay(500)
     await expect(noMessage(), (none) => none, 'the silent Drive read ask showed a message when Google wanted consent')
@@ -1358,21 +1368,21 @@ async function checkWidth(width) {
       page.waitForFunction(() => window.sawSyncing === true, { timeout: 10_000 }).catch(() => {
         throw new Error(`the sync did not start by itself after ${after}`)
       })
-    await comeBack('google', { ...silentAsk, resume: 'sync', route: '#/transactions', ask: 'tap' }, driveRead)
+    await comeBack('drive', { ...silentAsk, resume: 'sync', route: '#/transactions', ask: 'tap' }, driveRead)
     await waitForTitle(page, 'Transactions')
     await syncStarted('the Drive read grant')
     await expect(refusedInTab(), (refused) => !refused, 'the Drive read grant left the tab noted as refused')
 
     // The silent ask a sign-in's return makes comes back with what the sign-in resumes: Sync runs with the Drive read token, or without it and offers the check.
     const afterSignIn = { ...silentAsk, ask: 'silent-after-sign-in' }
-    await comeBack('google', { ...afterSignIn, resume: 'sync', route: '#/transactions' }, driveRead)
+    await comeBack('drive', { ...afterSignIn, resume: 'sync', route: '#/transactions' }, driveRead)
     await waitForTitle(page, 'Transactions')
     await syncStarted('a sign-in and the silent Drive read ask')
     await expect(refusedInTab(), (refused) => !refused, 'the Drive read token after a sign-in left the tab noted as refused')
     await waitForText(page, 'li[data-slot="base"] [data-slot="title"]', 'Filed statement')
     await inspect(page, `${width}px sign-in and drive read return`)
 
-    await comeBack('google', { ...afterSignIn, resume: 'sync', route: '#/' }, 'error=consent_required&state=touch-check')
+    await comeBack('drive', { ...afterSignIn, resume: 'sync', route: '#/' }, 'error=consent_required&state=touch-check')
     await waitForTitle(page, 'Overview')
     await syncStarted('a sign-in whose silent Drive read ask Google refused')
     await page.removeScriptToEvaluateOnNewDocument(watchSync.identifier)
@@ -1382,11 +1392,11 @@ async function checkWidth(width) {
     await inspect(page, `${width}px sign-in return without drive read`)
     await shoot('sign-in-without-drive-read')
 
-    await comeBack('google', { ...afterSignIn, resume: 'none', route: '#/review' }, driveRead)
+    await comeBack('drive', { ...afterSignIn, resume: 'none', route: '#/review' }, driveRead)
     await waitForTitle(page, 'Review')
     await waitForText(page, 'li[data-slot="base"]', 'Signed in to Google')
 
-    await comeBack('google', { ...silentAsk, resume: 'sync', route: '#/', ask: 'tap' }, 'error=access_denied&state=touch-check')
+    await comeBack('drive', { ...silentAsk, resume: 'sync', route: '#/', ask: 'tap' }, 'error=access_denied&state=touch-check')
     await waitForTitle(page, 'Overview')
     await waitForText(page, 'li[data-slot="base"]', 'No Drive read access')
     await expect(fragmentGone(), (gone) => gone, 'the Drive read refusal stayed in the address')
@@ -1394,7 +1404,7 @@ async function checkWidth(width) {
     await shoot('drive-read-refused')
   })
 
-  await step('excel-import', async () => {
+  await step('open-file-browser', async () => {
     await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Ledgerboard')
     await inspect(page, `${width}px welcome`)
@@ -1404,10 +1414,35 @@ async function checkWidth(width) {
     await delay(400)
     await inspect(page, `${width}px import summary`)
     await shoot('import-summary')
-    const importButton = await waitForText(page, '[role="dialog"] button', 'Import')
-    await importButton.tap()
+    await (await waitForText(page, '[role="dialog"] button', 'Keep in this browser')).tap()
     await waitForTitle(page, 'Overview')
     await waitForText(page, 'header [data-testid="local-status"] button', 'Export')
+  })
+
+  for (const [name, variant, run, hash = '#/', title = 'Ledgerboard'] of [
+    ['first-run-drive', 'empty', firstRunDriveFlow],
+    ['first-run-browser', 'empty', firstRunBrowserFlow],
+    ['move-xlsx', 'empty', moveFromXlsxFlow(TEMPLATE_FILE)],
+    ['move-browser', 'browser', moveFromBrowserFlow, '#/settings?tab=device', 'Settings'],
+    ['race', 'race', raceFlow, '#/review', 'Review'],
+  ]) {
+    await step(name, async () => {
+      await page.goto(`${BASE}?theme=dark&fake=${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+      await waitForTitle(page, title)
+      await run(page, {
+        press: (handle) => handle.tap(),
+        shoot,
+        inspect: (when) => inspect(page, `${width}px ${when}`),
+      })
+    })
+  }
+
+  await step('newer-file', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=newer-file&load=${Date.now()}#/settings?tab=device`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Settings')
+    await waitForText(page, '[data-testid="newer-file-notice"]', 'A newer ledgerboard saved this file')
+    await inspect(page, `${width}px newer file`)
+    await shoot('newer-file')
   })
 
   if (errors.length) failures.push(`[${width}px] console errors: ${errors.slice(0, 3).join(' | ')}`)
@@ -1425,8 +1460,8 @@ async function open(page, hash, title) {
  * no toast left over. The query changes on every load, since a URL that differs only after the #
  * would not load the page again.
  */
-async function openFreshExcel(page, hash, title) {
-  await page.goto(`${BASE}?theme=dark&fake=excel&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+async function openFreshBrowser(page, hash, title) {
+  await page.goto(`${BASE}?theme=dark&fake=browser&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
   await waitForTitle(page, title)
 }
 

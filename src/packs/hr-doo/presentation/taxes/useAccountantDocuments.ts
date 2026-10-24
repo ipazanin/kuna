@@ -52,7 +52,7 @@ export interface AccountantDocumentsView {
   readonly documents: ComputedRef<AccountantDocuments | null>
   /** Whether the page can read Drive, as the statements step last saw it. */
   readonly access: ComputedRef<DriveReadAccess>
-  /** Whether the workbook is a Google Sheet, the only kind whose cards read Drive. */
+  /** Whether the workbook is a file on Drive, the only kind whose cards read Drive. */
   readonly shows: ComputedRef<boolean>
   /** Reads the folders again, the files whose Drive version is the same taken from the last read. */
   readAgain(): Promise<void>
@@ -68,7 +68,7 @@ export interface AccountantDocumentsView {
 export function useAccountantDocuments(): AccountantDocumentsView {
   const store = useWorkbook()
   const statements = useStatementSync()
-  const shows = computed(() => store.state.choice?.source === 'google' && store.state.workbook !== null)
+  const shows = computed(() => store.state.choice?.source === 'drive' && store.state.workbook !== null)
   const folders = computed((): AccountantFolderPaths | null => {
     const workbook = store.state.workbook
     if (workbook === null) return null

@@ -1,7 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
 import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import { recordsOfKindIn } from '../src/features/workbook/domain/readWorkbook'
@@ -16,7 +15,7 @@ import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { civil, euros } from './fixtures/ledger'
 import { cellsOf } from './fixtures/recordWrites'
 import { withIds } from './fixtures/rowIds'
-import { AN_ID, excelHarness, forgetCaches, googleHarness, workbookGrids } from './fixtures/writeBack'
+import { browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 
@@ -47,13 +46,13 @@ function stored(store: WorkbookStore<WorkbookCopy>): PlanLine[] {
 }
 
 /** Writes the plan as the plan dialogs do. */
-function writePlan(store: WorkbookStore<WorkbookCopy>, held: readonly KeyedLine<PlanLine>[], wanted: readonly KeyedLine<PlanLineDraft>[], addMissingKinds = false) {
-  return store.write('Plan saved', (unit) => replacePlanLines(unit.of(PLAN_WRITES), held, wanted), { addMissingKinds })
+function writePlan(store: WorkbookStore<WorkbookCopy>, held: readonly KeyedLine<PlanLine>[], wanted: readonly KeyedLine<PlanLineDraft>[]) {
+  return store.write('Plan saved', (unit) => replacePlanLines(unit.of(PLAN_WRITES), held, wanted))
 }
 
 /** Adds the lines, each under a key of its own. */
-function addLines(store: WorkbookStore<WorkbookCopy>, drafts: readonly PlanLineDraft[], addMissingKinds = false) {
-  return writePlan(store, [], drafts.map((line, index) => ({ key: String(index), line })), addMissingKinds)
+function addLines(store: WorkbookStore<WorkbookCopy>, drafts: readonly PlanLineDraft[]) {
+  return writePlan(store, [], drafts.map((line, index) => ({ key: String(index), line })))
 }
 
 function lines(store: WorkbookStore<WorkbookCopy>): string[] {
@@ -62,45 +61,9 @@ function lines(store: WorkbookStore<WorkbookCopy>): string[] {
   )
 }
 
-describe('the plan tab on a Google Sheet without one', () => {
-  it('refuses until the person agrees, then adds the tab with the template header and the row', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used, { ...workbookGrids(), scenarios: grids().scenarios! })
-    const line = categoryPlanLine(2027, null, 'ai-services', euros(150))
-    await expect(addLines(store, [line])).rejects.toThrow(new WorkbookWriteRefused('The workbook has no plan tab, so nothing was written.'))
-
-    await addLines(store, [line], true)
-    expect(writtenRanges()).toEqual(['plan!A1:H1'])
-    expect(sheets.grids.plan).toEqual([[...PLAN_HEADER, 'id'], [2027, null, 'ai-services', 150, null, null, null, AN_ID]])
-    expect(lines(store)).toEqual(['ai-services every 15000'])
-
-    await store.undo(store.state.writes[0]!)
-    expect(lines(store)).toEqual([])
-    expect(sheets.grids.plan?.[0]).toEqual([...PLAN_HEADER, 'id'])
-  })
-
-  it('finds a plan row again by its id after a row was inserted above it, and writes only the plan columns that change', async () => {
-    const { store, sheets, writtenRanges } = await googleHarness(used, grids([[...PLAN_HEADER, 'source'], [2027, '', 'ai-services', 150, '', '', '', 'Quote 12']]))
-    const held = stored(store).map((line) => ({ key: 'every', line }))
-    sheets.grids.plan!.splice(1, 0, [2027, 3, 'consulting', 400, 'Inserted in the Sheet', '', '', ''])
-
-    await writePlan(store, held, [{ key: 'every', line: categoryPlanLine(2027, null, 'ai-services', euros(175)) }])
-
-    expect(writtenRanges()).toEqual(['plan!D3'])
-    expect(sheets.grids.plan![2]).toEqual([2027, '', 'ai-services', 175, '', '', '', 'Quote 12', 'plan-2'])
-    expect(sheets.grids.plan![1]?.[2]).toBe('consulting')
-  })
-
-  it('refuses a purchase on an older plan tab with no date or group column', async () => {
-    const { store } = await googleHarness(used, grids([['year', 'month', 'item', 'amount', 'note']]))
-    await expect(addLines(store, [purchasePlanLine(2027, civil('2027-03-10'), euros(1600), 'computers', 'Laptop')])).rejects.toThrow(
-      'The plan tab has no "date", "group" column for what this change writes.',
-    )
-  })
-})
-
 describe.each([
-  ['a Google Sheet', googleHarness],
-  ['a workbook kept in this browser', excelHarness],
+  ['a file on Drive', driveHarness],
+  ['a workbook kept in this browser', browserHarness],
 ] as const)('plan writes to %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('plans a category for every month and a month of its own, changes it and clears it', async () => {
     const { store } = await harnessOf(used, grids())
@@ -130,7 +93,7 @@ describe.each([
       dividendPlanLine(2027, 6, euros(5000)),
     ])
     expect(lines(store)).toEqual(['owner pay floor from January', 'owner pay board from 2027-06-05', 'purchase Laptop on 2027-03-10', 'dividend 6 500000'])
-    expect(store.state.snapshot?.plan[2]?.cells.date).toBe(serialFromCivilDate(civil('2027-03-10')))
+    expect(recordsOfKindIn(store.state.records!, PLAN_RECORDS).records[2]?.fields.date?.text).toBe('2027-03-10')
   })
 
   it('refuses what the plan guards stop, naming why', async () => {

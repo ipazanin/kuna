@@ -6,13 +6,15 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { usePhoneLayout } from '../../../shared/layout/viewport'
+import { REDIRECT_SIGN_IN_QUERY } from '../../../shared/google/googleRedirect'
+import { useMediaQuery, usePhoneLayout } from '../../../shared/layout/viewport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
 import { previewImport } from '../../workbook/presentation/workbookFiles'
 import type { ImportPreview } from '../../workbook/presentation/workbookFiles'
 import ProblemList from './ProblemList.vue'
 
-/** The file to import. Setting it opens the dialog, and the dialog sets it back to null when it closes. */
+/** The file to open. Setting it opens the dialog, and the dialog sets it back to null when it closes. */
 const file = defineModel<File | null>('file', { required: true })
 
 const emit = defineEmits<{
@@ -21,8 +23,10 @@ const emit = defineEmits<{
 
 const store = useWorkbook()
 const toast = useToast()
-// Full screen on a phone, so Import sits at the bottom under the thumb.
+// Full screen on a phone, so the choices sit at the bottom under the thumb.
 const phone = usePhoneLayout()
+const signInByRedirect = useMediaQuery(REDIRECT_SIGN_IN_QUERY)
+const { keeping, keepOnDrive } = useKeepOnDrive()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
@@ -65,7 +69,8 @@ const open = computed({
   },
 })
 
-const replacesLocal = computed(() => store.state.choice?.source === 'excel')
+const replacesLocal = computed(() => store.state.choice?.source === 'browser')
+const keepable = computed(() => preview.value !== null && preview.value.summary.refusal === null && !importing.value && !keeping.value)
 
 const facts = computed(() => {
   const summary = preview.value?.summary
@@ -79,28 +84,38 @@ const facts = computed(() => {
   ]
 })
 
-async function confirmImport(): Promise<void> {
+async function keepInBrowser(): Promise<void> {
   const chosen = preview.value
   if (chosen === null || chosen.summary.refusal !== null) return
   importing.value = true
-  await store.replaceLocalWorkbook(chosen.tabs, chosen.title)
+  await store.replaceLocalWorkbook(chosen.document, chosen.title)
   importing.value = false
   if (store.state.status === 'error') {
     failure.value = store.state.error
     return
   }
-  toast.add({ title: 'Imported', description: `${chosen.summary.transactionCount} transactions from ${chosen.fileName}`, icon: 'i-lucide-check', color: 'success' })
+  toast.add({ title: 'Kept in this browser', description: `${chosen.summary.transactionCount} transactions from ${chosen.fileName}`, icon: 'i-lucide-check', color: 'success' })
   file.value = null
   emit('imported')
+}
+
+async function keepOnGoogleDrive(): Promise<void> {
+  const chosen = preview.value
+  if (chosen === null || chosen.summary.refusal !== null) return
+  if (await keepOnDrive(chosen.document)) {
+    file.value = null
+    emit('imported')
+  }
 }
 </script>
 
 <template>
   <UModal
     v-model:open="open"
-    :title="file ? `Import ${file.name}` : 'Import'"
-    description="Check what the file holds. Nothing changes until you import it."
+    :title="file ? `Open ${file.name}` : 'Open a file'"
+    description="Check what the file holds, then choose where to keep it. Nothing changes until you choose."
     :fullscreen="phone"
+    :dismissible="!keeping && !importing"
     :ui="{ content: 'sm:max-w-xl', header: 'pe-16 sm:pe-6', footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]' }"
   >
     <template #body>
@@ -128,7 +143,7 @@ async function confirmImport(): Promise<void> {
             color="error"
             variant="subtle"
             :title="preview.summary.refusal"
-            description="Start from the template: it has the tabs and columns the app reads."
+            description="Open an Excel download of the Google Sheet, a file the app exported, or a ledgerboard file from the backups folder."
           />
           <template v-else>
             <dl class="grid gap-px sm:grid-cols-2 overflow-hidden rounded-control border border-default bg-[var(--border-default)]">
@@ -137,6 +152,16 @@ async function confirmImport(): Promise<void> {
                 <dd class="figure mt-0.5 truncate text-sm font-medium text-highlighted" :title="fact.value">{{ fact.value }}</dd>
               </div>
             </dl>
+
+            <section class="flex flex-col gap-2" data-testid="record-counts">
+              <h3 class="text-sm font-medium text-highlighted">{{ preview.recordCount }} {{ preview.recordCount === 1 ? 'record' : 'records' }}, by tab</h3>
+              <dl class="record-counts text-sm">
+                <div v-for="kind in preview.counts" :key="kind.name" class="flex min-w-0 items-baseline justify-between gap-3">
+                  <dt class="truncate text-toned">{{ kind.name }}</dt>
+                  <dd class="figure text-highlighted">{{ kind.count }}</dd>
+                </div>
+              </dl>
+            </section>
 
             <p v-if="preview.summary.defaultedTabs.length" class="text-sm text-muted">
               No {{ inWords(preview.summary.defaultedTabs) }} tab, so {{ preview.summary.defaultedTabs.length === 1 ? 'it reads' : 'they read' }} as
@@ -162,6 +187,10 @@ async function confirmImport(): Promise<void> {
               title="This replaces the workbook kept in this browser"
               description="Changes you made here since your last export are lost. Export first if you want to keep them."
             />
+
+            <p v-if="signInByRedirect" class="text-xs text-muted" data-testid="redirect-sign-in-note">
+              Google may ask you to sign in first and bring you back here. Open the file again then.
+            </p>
           </template>
         </template>
       </div>
@@ -171,13 +200,24 @@ async function confirmImport(): Promise<void> {
       <div class="flex w-full flex-wrap justify-end gap-2">
         <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
         <UButton
-          icon="i-lucide-file-input"
-          label="Import"
+          icon="i-lucide-monitor-smartphone"
+          label="Keep in this browser"
+          color="neutral"
+          variant="outline"
           :loading="importing"
-          :disabled="!preview || preview.summary.refusal !== null || importing"
-          @click="confirmImport"
+          :disabled="!keepable"
+          @click="keepInBrowser"
         />
+        <UButton icon="i-lucide-hard-drive-upload" label="Keep on Google Drive" :loading="keeping" :disabled="!keepable" @click="keepOnGoogleDrive" />
       </div>
     </template>
   </UModal>
 </template>
+
+<style scoped>
+.record-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.25rem 1.5rem;
+}
+</style>

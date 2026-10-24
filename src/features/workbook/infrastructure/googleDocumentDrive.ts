@@ -3,6 +3,7 @@ import {
   createFolder,
   downloadFile,
   downloadRevision,
+  JSON_MIME_TYPE,
   filesWithAppProperty,
   getFile,
   listChildren,
@@ -15,24 +16,22 @@ import {
 import { GoogleApiError } from '../../../shared/google/googleApi'
 import type { DocumentDrive } from './driveDocument'
 
-const JSON_MIME_TYPE = 'application/json'
-
-/** Drive v3 with a `drive.file` token. */
-export function googleDocumentDrive(accessToken: string): DocumentDrive {
+/** Drive v3 with a `drive.file` token, which `accessToken` gives for each request, so one drive serves a file for as long as the page holds it. */
+export function googleDocumentDrive(accessToken: () => Promise<string>): DocumentDrive {
   const decoder = new TextDecoder()
 
   return {
     async headRevision(fileId) {
-      return (await getFile(accessToken, fileId, ['headRevisionId'])).headRevisionId
+      return (await getFile(await accessToken(), fileId, ['headRevisionId'])).headRevisionId
     },
 
     async download(fileId) {
-      return decoder.decode(await downloadFile(accessToken, fileId))
+      return decoder.decode(await downloadFile(await accessToken(), fileId))
     },
 
     async upload(fileId, text) {
       try {
-        return { kind: 'uploaded', revision: await uploadContent(accessToken, fileId, text, JSON_MIME_TYPE, true) }
+        return { kind: 'uploaded', revision: await uploadContent(await accessToken(), fileId, text, JSON_MIME_TYPE, true) }
       } catch (failure) {
         if (failure instanceof GoogleApiError && failure.reason === 'keptRevisionsLimitExceeded') {
           return { kind: 'kept-revisions-full' }
@@ -41,45 +40,49 @@ export function googleDocumentDrive(accessToken: string): DocumentDrive {
       }
     },
 
-    revisions(fileId) {
-      return listRevisions(accessToken, fileId)
+    async revisions(fileId) {
+      return listRevisions(await accessToken(), fileId)
     },
 
     async downloadRevision(fileId, revisionId) {
-      return decoder.decode(await downloadRevision(accessToken, fileId, revisionId))
+      return decoder.decode(await downloadRevision(await accessToken(), fileId, revisionId))
     },
 
-    unkeepRevision(fileId, revisionId) {
-      return unkeepRevision(accessToken, fileId, revisionId)
+    async unkeepRevision(fileId, revisionId) {
+      return unkeepRevision(await accessToken(), fileId, revisionId)
     },
 
     async parentOf(fileId) {
-      const [parentId] = (await getFile(accessToken, fileId, ['parents'])).parents
+      const [parentId] = (await getFile(await accessToken(), fileId, ['parents'])).parents
       if (parentId === undefined) {
         throw new Error('The file has no folder the app can see, so it has nowhere to keep backups.')
       }
       return parentId
     },
 
-    children(folderId) {
-      return listChildren(accessToken, `${queryLiteral(folderId)} in parents and trashed = false`, ['id', 'name', 'mimeType'])
+    async nameOf(fileId) {
+      return (await getFile(await accessToken(), fileId, ['name'])).name
+    },
+
+    async children(folderId) {
+      return listChildren(await accessToken(), `${queryLiteral(folderId)} in parents and trashed = false`, ['id', 'name', 'mimeType'])
     },
 
     async createFolder(parentId, name) {
-      return (await createFolder(accessToken, parentId, name)).id
+      return (await createFolder(await accessToken(), parentId, name)).id
     },
 
     async createFile(parentId, name, text, appProperties = {}) {
-      const created = await createFile(accessToken, { name, mimeType: JSON_MIME_TYPE, parents: [parentId], appProperties }, text, ['id', 'headRevisionId'])
+      const created = await createFile(await accessToken(), { name, mimeType: JSON_MIME_TYPE, parents: [parentId], appProperties }, text, ['id', 'headRevisionId'])
       return { id: created.id, revision: created.headRevisionId }
     },
 
-    trash(fileId) {
-      return trashFile(accessToken, fileId)
+    async trash(fileId) {
+      return trashFile(await accessToken(), fileId)
     },
 
     async findByAppProperty(key, value) {
-      return (await filesWithAppProperty(accessToken, key, value, ['id'])).map((file) => file.id)
+      return (await filesWithAppProperty(await accessToken(), key, value, ['id'])).map((file) => file.id)
     },
   }
 }

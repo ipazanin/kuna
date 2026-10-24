@@ -2,18 +2,19 @@ import { expect } from 'vitest'
 
 import { RULE_COLUMNS } from '../../src/features/rules/domain/rule'
 import { createWorkbookStore } from '../../src/features/workbook/application/createWorkbookStore'
-import type { WorkbookStore } from '../../src/features/workbook/application/createWorkbookStore'
-import type { WorkbookChoice } from '../../src/features/workbook/application/workbookPorts'
-import { spreadsheetStorePorts } from '../../src/features/workbook/application/workbookStore'
-import type { SpreadsheetStorePorts } from '../../src/features/workbook/application/workbookStore'
-import { createFakeSheets } from '../../src/features/workbook/infrastructure/fake/fakeSheets'
-import type { FakeSheets } from '../../src/features/workbook/infrastructure/fake/fakeSheets'
-import { readSnapshotFrom } from '../../src/features/workbook/infrastructure/googleWorkbookPorts'
-import { sheetNameInRange } from '../../src/features/workbook/infrastructure/sheetsClient'
-import type { CellData, SpreadsheetRequest } from '../../src/features/workbook/infrastructure/sheetsClient'
-import { googleWorkbookWriter } from '../../src/features/workbook/infrastructure/googleWorkbookWriter'
+import type { WorkbookStore, WorkbookStorePorts } from '../../src/features/workbook/application/createWorkbookStore'
+import type { WorkbookCache, WorkbookChoice } from '../../src/features/workbook/application/workbookPorts'
+import { browserDocumentHome, deleteBrowserDocument, replaceBrowserDocument } from '../../src/features/workbook/infrastructure/browserDocument'
+import { decodeDocument, encodeDocument } from '../../src/features/workbook/infrastructure/documentFormat'
+import type { WorkbookDocument } from '../../src/features/workbook/infrastructure/documentFormat'
+import type { DocumentCopy } from '../../src/features/workbook/infrastructure/documentRecordStorage'
+import { COMPANY_APP, documentStorePorts } from '../../src/features/workbook/infrastructure/documentStorePorts'
+import { createDriveDocument, documentName } from '../../src/features/workbook/infrastructure/driveDocument'
+import { createFakeDrive } from '../../src/features/workbook/infrastructure/fake/fakeDrive'
+import type { FakeDrive } from '../../src/features/workbook/infrastructure/fake/fakeDrive'
+import { documentOfTabs } from '../../src/features/workbook/infrastructure/spreadsheetDocument'
 import { openWorkbookCache } from '../../src/features/workbook/infrastructure/workbookCache'
-import type { CellValue, WorkbookSnapshot } from '../../src/features/workbook/infrastructure/workbookSnapshot'
+import type { CellValue } from '../../src/features/workbook/infrastructure/workbookSnapshot'
 import { EMPTY_TABS, sheetRowsFromValues } from '../../src/features/workbook/infrastructure/workbookSnapshot'
 
 export const LEDGER_HEADER = [
@@ -54,31 +55,6 @@ export function ruleRow(cells: Partial<Record<(typeof RULE_COLUMNS)[number], Cel
 /** A new row's id as the app makes one: a version 4 UUID. */
 export const AN_ID = expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
 
-/** A cell as an updateCells or appendCells request carries it, a blank one as no value. */
-export function cellData(value: CellValue): CellData {
-  if (value === '') return {}
-  return { userEnteredValue: typeof value === 'number' ? { numberValue: value } : typeof value === 'boolean' ? { boolValue: value } : { stringValue: value } }
-}
-
-/** The request that gives one cell, or a run of rows in its column, a number format, 0-based as the API counts. */
-export function numberFormatRequest(sheetId: number, rowIndex: number, columnIndex: number, format: { type: 'DATE' | 'TEXT'; pattern: string }, rowCount = 1): SpreadsheetRequest {
-  return {
-    repeatCell: {
-      range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + rowCount, startColumnIndex: columnIndex, endColumnIndex: columnIndex + 1 },
-      cell: { userEnteredFormat: { numberFormat: format } },
-      fields: 'userEnteredFormat.numberFormat',
-    },
-  }
-}
-
-export function dateFormat(sheetId: number, rowIndex: number, columnIndex: number, rowCount = 1): SpreadsheetRequest {
-  return numberFormatRequest(sheetId, rowIndex, columnIndex, { type: 'DATE', pattern: 'yyyy-mm-dd' }, rowCount)
-}
-
-export function textFormat(sheetId: number, rowIndex: number, columnIndex: number, rowCount = 1): SpreadsheetRequest {
-  return numberFormatRequest(sheetId, rowIndex, columnIndex, { type: 'TEXT', pattern: '@' }, rowCount)
-}
-
 export function workbookGrids(): Record<string, CellValue[][]> {
   return {
     ledger: [LEDGER_HEADER, ...LEDGER_ROWS.map((row) => [...row])],
@@ -101,101 +77,110 @@ export function workbookGrids(): Record<string, CellValue[][]> {
   }
 }
 
-export interface WriteBackHarness {
-  readonly store: WorkbookStore<WorkbookSnapshot>
-  readonly sheets: FakeSheets
-  /** Every range an updateCells request wrote, in order, in A1 notation. */
-  readonly writtenRanges: () => string[]
+/** Tabs as a test gives them, each a grid with its header row first. */
+type Grids = Readonly<Record<string, readonly (readonly CellValue[])[]>>
+
+/** The tabs a test gives as grids, header row first, as the document opening them as an xlsx file makes. */
+export function documentOfGrids(grids: Grids): WorkbookDocument {
+  const tabs = Object.fromEntries(Object.entries(grids).map(([tab, values]) => [tab, sheetRowsFromValues(values)]))
+  return documentOfTabs(COMPANY_APP, { ...EMPTY_TABS, ...tabs }, '2026-10-16T09:00:00.000Z')
 }
 
-const SHEET = { id: 'sheet-under-test', name: 'Books' }
+function documentOfSeed(seed: Grids | WorkbookDocument): WorkbookDocument {
+  return 'schema' in seed && 'records' in seed ? (seed as WorkbookDocument) : documentOfGrids(seed as Grids)
+}
 
-function ports(choice: WorkbookChoice, sheets: FakeSheets, used: Set<string>): SpreadsheetStorePorts {
+export interface WriteBackHarness {
+  readonly store: WorkbookStore<DocumentCopy, WorkbookDocument>
+  /** The Drive the file is kept on, or null for a workbook kept in this browser. */
+  readonly drive: FakeDrive | null
+  /** The document as its home holds it now. */
+  held(): Promise<WorkbookDocument>
+}
+
+const NOW = '2026-10-17T09:00:00.000Z'
+
+function storePorts(choice: WorkbookChoice, drive: FakeDrive, used: Set<string>): WorkbookStorePorts<DocumentCopy, WorkbookDocument> {
+  const ports = documentStorePorts(async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => 'root', pickFile: async () => null }), () => NOW)
   return {
-    loadChoice: () => choice,
-    saveChoice: () => {},
+    ...ports,
     openCache: (id) => {
       used.add(id)
-      return openWorkbookCache(id)
+      return ports.openCache(id)
     },
-    fetchFromGoogle: async () => readSnapshotFrom(sheets, SHEET),
+    loadChoice: () => choice,
+    saveChoice: () => {},
     prepareSync: () => {},
     hasLiveAccessToken: () => true,
     forgetGoogleSignIn: () => {},
     signOutOfGoogle: async () => {},
     newLocalId: () => 'local-new',
-    now: () => '2026-10-17T09:00:00.000Z',
+    now: () => NOW,
+    pause: async () => {},
     requestPersistentStorage: () => {},
-    googleWriter: async () => googleWorkbookWriter(sheets),
   }
 }
 
-/** A store showing a Google Sheet held in a fake that records every request, read once as a sync would, with the tabs' number formats where a test gives them. */
-export async function googleHarness(used: Set<string>, grids = workbookGrids(), numberFormats: Record<string, (string | null)[][]> = {}): Promise<WriteBackHarness> {
-  const sheets = createFakeSheets(grids, numberFormats)
-  const snapshot = await readSnapshotFrom(sheets, SHEET)
-  await keepInCache(snapshot, used)
-  const store = createWorkbookStore(spreadsheetStorePorts(ports({ source: 'google', id: SHEET.id, name: SHEET.name }, sheets, used)))
-  await store.open()
-  sheets.requests.length = 0
-  return {
-    store,
-    sheets,
-    writtenRanges: () => updatedRanges(sheets),
-  }
-}
-
-/** A store showing the same workbook kept in this browser. Its fake Sheet is never asked for anything. */
-export async function excelHarness(used: Set<string>, grids = workbookGrids()): Promise<WriteBackHarness> {
-  const sheets = createFakeSheets({})
-  const id = 'local-under-test'
-  const tabs = Object.fromEntries(Object.entries(grids).map(([tab, values]) => [tab, sheetRowsFromValues(values)]))
-  const snapshot = {
-    meta: { id, source: 'excel', title: 'Books', syncedAt: '2026-10-16T09:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
-    ...EMPTY_TABS,
-    ...tabs,
-  } as WorkbookSnapshot
-  await keepInCache(snapshot, used)
-  const store = createWorkbookStore(spreadsheetStorePorts(ports({ source: 'excel', id, name: 'Books' }, sheets, used)))
-  await store.open()
-  return { store, sheets, writtenRanges: () => [] }
-}
-
-/** Every request the writes sent in their batchUpdates, in order. */
-export function sentRequests(sheets: FakeSheets): SpreadsheetRequest[] {
-  return sheets.requests.flatMap((request) => (request.kind === 'updateSpreadsheet' ? [...request.requests] : []))
-}
-
-/** The spreadsheet letter of a 1-based column: 1 is A, 26 is Z, 27 is AA. */
-function columnLetter(column: number): string {
-  let letters = ''
-  for (let remaining = column; remaining > 0; remaining = Math.floor((remaining - 1) / 26)) {
-    letters = String.fromCharCode(65 + ((remaining - 1) % 26)) + letters
-  }
-  return letters
-}
-
-function updatedRanges(sheets: FakeSheets): string[] {
-  return sentRequests(sheets).flatMap((change) => {
-    if (!('updateCells' in change)) return []
-    const { start, rows } = change.updateCells
-    const width = Math.max(...rows.map((row) => row.values.length))
-    const from = `${columnLetter(start.columnIndex + 1)}${start.rowIndex + 1}`
-    const to = `${columnLetter(start.columnIndex + width)}${start.rowIndex + rows.length}`
-    return [`${sheetNameInRange(sheets.tabWithId(start.sheetId) ?? '?')}!${from === to ? from : `${from}:${to}`}`]
-  })
-}
-
-async function keepInCache(snapshot: WorkbookSnapshot, used: Set<string>): Promise<void> {
-  used.add(snapshot.meta.id)
-  const cache = openWorkbookCache(snapshot.meta.id)
-  await cache.replace(snapshot)
+async function keepInCache(copy: DocumentCopy, used: Set<string>): Promise<void> {
+  used.add(copy.meta.id)
+  const cache = openWorkbookCache(copy.meta.id)
+  await cache.replace(copy)
   cache.close()
+}
+
+/** A store showing the workbook as a file on a fake Drive, read once as a sync would. The grids or the document seed it. */
+export async function driveHarness(used: Set<string>, seed: Grids | WorkbookDocument = workbookGrids()): Promise<WriteBackHarness> {
+  const drive = createFakeDrive()
+  const document = documentOfSeed(seed)
+  const folderId = await drive.createFolder('root', 'books')
+  const { fileId, document: stored } = await createDriveDocument(drive, folderId, COMPANY_APP, encodeDocument(document))
+  const name = documentName(COMPANY_APP)
+  await keepInCache({ meta: { id: fileId, source: 'drive', title: name, syncedAt: '2026-10-16T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }, revision: stored.revision, document }, used)
+  const store = createWorkbookStore(storePorts({ source: 'drive', id: fileId, name }, drive, used))
+  await store.open()
+  drive.requests.length = 0
+  return { store, drive, held: async () => decodeDocument(await drive.download(fileId)) }
+}
+
+/** A second device's store on the same file of the same Drive, which read the file as it stands now. */
+export async function secondDevice(used: Set<string>, drive: FakeDrive, fileId: string): Promise<WorkbookStore<DocumentCopy, WorkbookDocument>> {
+  const name = documentName(COMPANY_APP)
+  const store = createWorkbookStore({ ...storePorts({ source: 'drive', id: fileId, name }, drive, used), openCache: () => memoryCache() })
+  await store.open()
+  await store.sync()
+  return store
+}
+
+/** A cache of the copy held in memory, so a second device in the same test keeps its own. */
+function memoryCache(): WorkbookCache<DocumentCopy> {
+  let held: DocumentCopy | null = null
+  return {
+    replace: async (copy) => {
+      held = copy
+    },
+    read: async () => held,
+    delete: async () => {
+      held = null
+    },
+    close: () => {},
+  }
+}
+
+/** A store showing the same workbook kept in this browser. */
+export async function browserHarness(used: Set<string>, seed: Grids | WorkbookDocument = workbookGrids()): Promise<WriteBackHarness> {
+  const id = `local-under-test-${used.size}`
+  const document = documentOfSeed(seed)
+  const stored = await replaceBrowserDocument(id, encodeDocument(document))
+  await keepInCache({ meta: { id, source: 'browser', title: 'Books', syncedAt: '2026-10-16T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }, revision: stored.revision, document }, used)
+  const store = createWorkbookStore(storePorts({ source: 'browser', id, name: 'Books' }, createFakeDrive(), used))
+  await store.open()
+  return { store, drive: null, held: async () => decodeDocument((await browserDocumentHome(id).read(null)).text) }
 }
 
 export async function forgetCaches(used: Set<string>): Promise<void> {
   for (const id of used) {
     await openWorkbookCache(id).delete()
+    await deleteBrowserDocument(id)
   }
   used.clear()
 }
