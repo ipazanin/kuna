@@ -13,7 +13,7 @@ import { recordsOfRows, spreadsheetTabOfKind } from './spreadsheetTab'
 import type { Cells, SpreadsheetTab } from './spreadsheetTab'
 import { WORKBOOK_TABS } from './workbookSnapshot'
 import type { SheetRow, WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
-import { ID_COLUMN, TABS_WITH_IDS, contentColumns, missingColumnsOf, templateColumnNames } from './workbookTemplate'
+import { ID_COLUMN, OWNER_SHARE_COLUMN, TABS_WITH_IDS, contentColumns, missingColumnsOf, templateColumnNames } from './workbookTemplate'
 import type { CellEdit, FreshTabs, NewColumn, NewTab, RowAppend, RowDeletion, RowTab, TabEdits, TabRead, WorkbookWriter } from './workbookWriter'
 
 /** What one write does to one tab: the edits that carry it out and the rows the tab is left with. */
@@ -285,8 +285,8 @@ function planTab<R>(fresh: FreshTabs, mapping: SpreadsheetTab<R>, changes: reado
   }
   const cellsWritten = [...added.flatMap((row) => Object.entries(row)), ...cells.map((edit): [string, Cells[string]] => [edit.column, edit.value])]
   const unheaded = new Set(cellsWritten.filter(([column, cell]) => !header.has(column) && cellText(cell) !== '').map(([column]) => column))
-  // The id column comes with the first id written. Another template column the tab lacks comes only once the person agreed.
-  const lacking = columns.filter((column) => unheaded.has(column) && (column === ID_COLUMN || addMissingKinds))
+  // The id and owner share columns come with the first value written there. Another template column the tab lacks comes only once the person agreed.
+  const lacking = columns.filter((column) => unheaded.has(column) && (column === ID_COLUMN || column === OWNER_SHARE_COLUMN || addMissingKinds))
   const missing = [...unheaded].filter((column) => !lacking.includes(column))
   if (missing.length > 0) {
     refusals.push(`The ${tabName} tab has no ${quotedList(missing)} column for what this change writes. Add the column to row 1 in the Sheet, or leave the field blank.`)

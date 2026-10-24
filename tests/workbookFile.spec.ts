@@ -52,8 +52,8 @@ describe('the template', () => {
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['year-end']!, { header: 1 })[0]).toEqual([
       'year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note', 'id',
     ])
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category', 'id'])
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.splits!, { header: 1 })[0]).toEqual(['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note', 'id'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category', 'owner_share', 'id'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.splits!, { header: 1 })[0]).toEqual(['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note', 'owner_share', 'id'])
     expect(book.Sheets.splits?.D1?.c?.[0]?.t).toMatch(/finds exactly one row/)
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['outgoing-plan']!, { header: 1 })[0]).toEqual(['item', 'date', 'amount', 'client', 'description', 'id'])
     expect(book.Sheets['outgoing-plan']?.B1?.c?.[0]?.t).toMatch(/billable/)
@@ -70,6 +70,7 @@ describe('the template', () => {
     expect(workbook.problems).toEqual([])
     expect(workbook.transactions).toEqual([])
     expect(workbook.settings).toEqual(DEFAULT_SETTINGS)
+    expect(workbook.categories.find((category) => category.roles.includes('owner-benefit'))).toMatchObject({ slug: 'benefits-from-company-costs', bucket: 'owner-pay' })
     expect(new Set(workbook.categories.map((category) => category.bucket))).toEqual(
       new Set(['income', 'operating', 'taxes', 'owner-pay', 'financing', 'neutral']),
     )
@@ -241,7 +242,7 @@ describe('exporting', () => {
     expect(contentOf(workbookOf(imported.tabs))).toEqual(contentOf(workbook))
   })
 
-  it('keeps the Sheet’s column order, A to R, and writes dates as dates', () => {
+  it('keeps the Sheet’s column order, A to R, then the owner share, and writes dates as dates', () => {
     const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')
     const grids = workbookGrids(snapshot, readSnapshot(snapshot).workbook)
     const header = grids.ledger.header
@@ -250,11 +251,12 @@ describe('exporting', () => {
       'date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance',
       'category', 'flagged_by', 'reference',
       'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency', 'review_reasons',
+      'owner_share',
     ])
     expect(typeof grids.ledger.rows[0]?.[header.indexOf('date')]).toBe('number')
   })
 
-  it('reads an older file that still has family, bucket and month, and exports them as it found them, after R', async () => {
+  it('reads an older file that still has family, bucket and month, and exports them as it found them, after the template’s columns', async () => {
     const older = xlsxOf({
       ledger: [
         ['date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance', 'category', 'family', 'bucket', 'month', 'flagged_by', 'reference'],
@@ -277,8 +279,8 @@ describe('exporting', () => {
 
     expect(workbook.problems).toEqual([])
     expect(workbook.transactions[0]).toMatchObject({ category: 'revenue', flaggedBy: 'rule', reference: 'REF-1', family: 'income', bucket: 'income' })
-    expect(grids.ledger.header.slice(18)).toEqual(['family', 'bucket', 'month'])
-    expect(grids.ledger.rows[0]?.slice(18)).toEqual(['operating', 'neutral', '1999-01'])
+    expect(grids.ledger.header.slice(19)).toEqual(['family', 'bucket', 'month'])
+    expect(grids.ledger.rows[0]?.slice(19)).toEqual(['operating', 'neutral', '1999-01'])
     expect(contentOf(workbookOf(reimported.tabs))).toEqual(contentOf(workbook))
   })
 

@@ -490,7 +490,7 @@ function ownerPayForecast(plan: PlannedOwnerPay, known: HrDooWorkbook, calendar:
   const arrears = known.categories.some((category) => isOwnerPayCost(category) && category.roles.includes(PACK_ROLES.arrears))
   const scenarioName = plan.scenario.label || plan.scenario.slug
   const lineOf = (slug: string, label: string, line: CategoryForecast['line'], monthly: (month: MonthKey) => TracedFigure): CategoryForecast => ({
-    category: { slug, label, family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: arrears ? [PACK_ROLES.arrears] : [], vat: 'none' },
+    category: { slug, label, family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: arrears ? [PACK_ROLES.arrears] : [], vat: 'none', ownerShare: null },
     line,
     forecast: forecastLine(calendar, {
       label,

@@ -22,6 +22,7 @@ const EQUIPMENT: Category = {
   colour: BUCKET_COLOUR,
   roles: ['capital-purchase'],
   vat: 'deductible-25',
+  ownerShare: null,
 }
 
 const CATEGORIES = [...PACK_CATEGORIES, EQUIPMENT]

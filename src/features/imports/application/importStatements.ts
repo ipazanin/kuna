@@ -35,7 +35,7 @@ export function statementReadings(file: LoadedImportFile, workbook: Pick<Workboo
 
 /** What importing would do to the workbook on screen, with the openings the person gave accounts that have no rows yet. */
 export function dryRunFor(readings: readonly StatementReading[], workbook: Workbook, starts: ReadonlyMap<string, Money>): ImportDryRun {
-  return importDryRun(readings, { transactions: workbook.transactions, rules: workbook.rules, context: categorisationContextOf(workbook), starts })
+  return importDryRun(readings, { transactions: workbook.transactions, rules: workbook.rules, context: categorisationContextOf(workbook), categories: workbook.categories, starts })
 }
 
 /** The saved profiles whose columns all head one row of the file, in the order the settings tab lists them. */

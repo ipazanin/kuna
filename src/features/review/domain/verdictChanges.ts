@@ -1,3 +1,5 @@
+import { filedIn } from '../../owner-share/domain/ownerShare'
+import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { categorise } from '../../rules/domain/categorise'
 import type { Rule } from '../../rules/domain/rule'
 import type { CategorisableTransaction, CategorisationContext } from '../../rules/domain/transactionFacts'
@@ -8,7 +10,7 @@ import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import type { RecordId } from '../../workbook/domain/recordId'
 import type { Transaction } from '../../workbook/domain/workbook'
 
-/** A ledger row's `category` and `flagged_by`, the only two fields of it the app writes. */
+/** A ledger row's `category` and `flagged_by`, which a person or a rule decides. */
 export interface LedgerVerdict {
   readonly category: string
   readonly flaggedBy: string
@@ -35,9 +37,13 @@ export function recategorisation(transaction: ReviewedRow, category: string, set
   return { id: transaction.id, verdict: { category, flaggedBy: settings.reviewLabel } }
 }
 
-/** The ledger entry with the verdict, everything else as it was. */
-export function withVerdict(entry: LedgerEntry, verdict: LedgerVerdict): LedgerEntry {
-  return { ...entry, category: verdict.category, flaggedBy: verdict.flaggedBy }
+/**
+ * The ledger entry with the verdict and the default share of its category, everything else as it
+ * was. Every verdict copies the default again, so a confirmed row takes a default changed since it
+ * was filed, and a recategorised one takes the new category's over any share it held.
+ */
+export function withVerdict(entry: LedgerEntry, verdict: LedgerVerdict, categories: readonly ShareDefault[]): LedgerEntry {
+  return { ...filedIn(entry, verdict.category, categories), flaggedBy: verdict.flaggedBy }
 }
 
 /**

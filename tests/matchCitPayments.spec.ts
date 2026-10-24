@@ -18,8 +18,8 @@ import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 const FACTS = { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: civil('2025-06-16') }
 
 const CATEGORIES: readonly Category[] = [
-  { slug: 'profit-tax', family: 'taxes', bucket: 'taxes', colour: BUCKET_COLOUR, roles: ['corporate-income-tax'], vat: 'none' },
-  { slug: 'payroll-tax', family: 'taxes', bucket: 'taxes', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
+  { slug: 'profit-tax', family: 'taxes', bucket: 'taxes', colour: BUCKET_COLOUR, roles: ['corporate-income-tax'], vat: 'none', ownerShare: null },
+  { slug: 'payroll-tax', family: 'taxes', bucket: 'taxes', colour: BUCKET_COLOUR, roles: [], vat: 'none', ownerShare: null },
 ]
 
 const CODE = 'Corporate tax, revenue code 1651'

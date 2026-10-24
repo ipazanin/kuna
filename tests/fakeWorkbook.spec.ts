@@ -56,13 +56,24 @@ describe('fake workbook', () => {
   })
 
   it('carries the Sheet’s category list and two accounts, one of them closed at zero', () => {
-    expect(workbook.categories).toHaveLength(32)
+    expect(workbook.categories).toHaveLength(33)
     expect(workbook.categories.find((category) => category.slug === 'vat-refund')).toMatchObject({ bucket: 'operating', roles: ['vat-settlement'] })
     expect(workbook.categories.find((category) => category.slug === 'tax-refund')?.bucket).toBe('taxes')
     expect(workbook.accounts.map((account) => account.slug)).toEqual(['legacy', 'main'])
     const legacy = latestBalances(workbook.transactions).accounts.find((account) => account.account === 'legacy')
     expect(legacy?.balance.amount).toBe(0)
     expect(legacy !== undefined && monthOf(legacy.asOf) < window!.partMonth).toBe(true)
+  })
+
+  it('holds a few owner shares: a category default with the benefit category beside it, a row of its own, a split part and an advance', () => {
+    expect(workbook.categories.find((category) => category.roles.includes('owner-benefit'))).toMatchObject({ slug: 'benefits-from-company-costs', bucket: 'owner-pay', ownerShare: null })
+    expect(workbook.categories.filter((category) => category.ownerShare !== null).map((category) => [category.slug, category.ownerShare])).toEqual([['ai-services', 50]])
+    const aiRows = workbook.transactions.filter((row) => row.category === 'ai-services')
+    expect(aiRows.length).toBeGreaterThan(0)
+    expect(aiRows.every((row) => row.ownerShare === 50)).toBe(true)
+    expect(workbook.transactions.filter((row) => row.category !== 'ai-services' && row.ownerShare !== null).map((row) => [row.category, row.ownerShare])).toEqual([['equipment', 30]])
+    expect(workbook.splits.flatMap((split) => split.parts).filter((part) => part.ownerShare !== null).map((part) => [part.category, part.ownerShare])).toEqual([['office-supplies', 20]])
+    expect(workbook.ownerAdvances.filter((advance) => advance.ownerShare !== null).map((advance) => [advance.category, advance.ownerShare])).toEqual([['software-subscriptions', 25]])
   })
 
   it('moves money between its own accounts exactly once, as two legs that cancel', () => {

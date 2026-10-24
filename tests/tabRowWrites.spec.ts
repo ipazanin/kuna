@@ -409,14 +409,14 @@ describe('row writes to a Google Sheet', () => {
   it('adds the label column a categories tab lacks, once the person agreed, and the screen then knows the tab has it', async () => {
     const grids = everyTab()
     const { store, sheets } = await googleHarness(used, { ...grids, categories: grids.categories!.map((row) => row.slice(0, 5)) })
-    expect(store.state.snapshot?.meta.missingColumns?.categories).toEqual(['label', 'vat'])
+    expect(store.state.snapshot?.meta.missingColumns?.categories).toEqual(['label', 'vat', 'owner_share'])
 
     await writeRows(store, CATEGORY_WRITES, { added: [{ ...STATIONERY, label: 'Paper and pens' }], changed: [{ sheetRow: 3, cells: { label: 'AI services' } }] }, true)
 
     expect(sheets.grids.categories![0]).toEqual(['category', 'family', 'bucket', 'colour', 'roles', 'label'])
     expect(sheets.grids.categories![2]![5]).toBe('AI services')
     expect(sheets.grids.categories!.at(-1)).toEqual(['stationery', 'operating', 'operating', null, null, 'Paper and pens'])
-    expect(store.state.snapshot?.meta.missingColumns?.categories).toEqual(['vat'])
+    expect(store.state.snapshot?.meta.missingColumns?.categories).toEqual(['vat', 'owner_share'])
     expect(store.state.workbook?.categories.find((category) => category.slug === 'stationery')?.label).toBe('Paper and pens')
   })
 

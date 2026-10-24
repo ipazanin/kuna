@@ -17,7 +17,7 @@ import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
 
 function category(slug: string, bucket: DefinedBucket, roles: readonly string[]): Category {
-  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat: 'none' }
+  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat: 'none', ownerShare: null }
 }
 
 const CATEGORIES: readonly Category[] = [

@@ -1,3 +1,4 @@
+import { ownerShareProblem, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import { isDefinedBucket } from './bucket'
 import { categoryColourOf } from './categoryColour'
 import { recordIdOf } from './recordId'
@@ -17,7 +18,8 @@ export type CategoryRecord = Category & { readonly id: RecordId }
 /**
  * A category is matched case-insensitively. A record is a definition only when category, family and
  * bucket are all filled, and the bucket is one the analysis knows. A VAT treatment the app does not
- * know reads as none, and a colour outside the palette as the bucket's, so the category still counts.
+ * know reads as none, a colour outside the palette as the bucket's, and an owner share that is not a
+ * whole number from 0 to 100 as none, so the category still counts.
  */
 export function categoryOf(fields: StoredFields, id: RecordId | null): CategoryRecord {
   const slug = slugOf(fields.category)
@@ -38,6 +40,7 @@ export function categoryOf(fields: StoredFields, id: RecordId | null): CategoryR
     colour: categoryColourOf(textOf(fields.colour)),
     roles: slugListOf(fields.roles),
     vat: isVatTreatment(vat) ? vat : 'none',
+    ownerShare: storedOwnerShare(fields.owner_share),
     id: keyedId(id),
   }
 }
@@ -50,7 +53,7 @@ export function categoryOfFields(fields: StoredFields): CategoryRecord {
 /**
  * The categories the workbook defines. A category two records define is defined by neither, since
  * where a row sits decides nothing, and its ledger rows read unclassified. A VAT treatment the app
- * does not know is reported.
+ * does not know is reported, and so is an owner share it cannot read.
  */
 export function readCategories(read: RecordsRead<CategoryRecord>): Reading<CategoryRecord> {
   const problems: RecordProblem[] = refusedProblems(read)
@@ -58,6 +61,10 @@ export function readCategories(read: RecordsRead<CategoryRecord>): Reading<Categ
     const vat = slugOf(stored.fields.vat)
     if (vat !== '' && !isVatTreatment(vat)) {
       problems.push(problemOf(stored, `vat "${vat}" is not a VAT treatment, so ${stored.record.slug} reads as none`))
+    }
+    const share = ownerShareProblem(stored.fields.owner_share)
+    if (share !== null) {
+      problems.push(problemOf(stored, share))
     }
   }
   const shared = sharedKeys(read.records, (stored) => stored.record.slug)

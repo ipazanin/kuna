@@ -60,7 +60,7 @@ async function change(): Promise<void> {
   if (workbook === null || category === undefined || !changed.value) return
   const contradicting = against.value
   const verdict = recategorisation(props.row, category, workbook.settings)
-  const written = await writes.write(`Filed as ${names.value.category(category)}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict]), {
+  const written = await writes.write(`Filed as ${names.value.category(category)}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], workbook.categories), {
     failedTitle: 'Not written',
     description: props.row.counterparty || 'A row with no counterparty',
     ...(contradicting === null

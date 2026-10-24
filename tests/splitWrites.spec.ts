@@ -52,9 +52,9 @@ function currentParts(store: WorkbookStore<WorkbookCopy>, row: Transaction): Spl
 }
 
 function writeSplit(store: WorkbookStore<WorkbookCopy>, row: Transaction, parts: readonly (readonly [number, string, string?])[], addMissingKinds = false) {
-  const drafts = parts.map(([amount, category, note = '']) => ({ amount: euros(amount), category, note }))
   const current = currentParts(store, row)
-  return store.write('Split', (unit) => writeSplitParts(unit, row, current, drafts), { addMissingKinds })
+  const drafts = parts.map(([amount, category, note = ''], index) => ({ amount: euros(amount), category, note, opened: current[index] ?? null }))
+  return store.write('Split', (unit) => writeSplitParts(unit, row, current, drafts, store.state.workbook!.categories), { addMissingKinds })
 }
 
 describe.each([
@@ -136,7 +136,7 @@ describe('split writes to a Google Sheet', () => {
     expect(sentRequests(sheets)[3]).toEqual(dateFormat(splits, 1, 0, 2))
     expect(sentRequests(sheets)[0]).toEqual({ addSheet: { properties: { sheetId: splits, title: 'splits' } } })
     expect(sentRequests(sheets)[2]).toMatchObject({ appendCells: { sheetId: splits } })
-    expect(sheets.grids.splits?.[0]).toEqual([...SPLIT_HEADER, 'id'])
+    expect(sheets.grids.splits?.[0]).toEqual([...SPLIT_HEADER, 'owner_share', 'id'])
     expect(store.state.workbook?.splits).toHaveLength(1)
   })
 })

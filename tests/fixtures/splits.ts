@@ -11,7 +11,7 @@ export function splitOf(row: Transaction, parts: readonly (readonly [amount: num
     row,
     parts: parts.map(([amount, category, note = ''], index) => {
       const defined = categories.find((candidate) => candidate.slug === category)!
-      return { amount: moneyFromAmount(amount), category, family: defined.family, bucket: defined.bucket, note, id: recordIdOf(SPLIT_PART_RECORDS, `split-${index + 2}`) }
+      return { amount: moneyFromAmount(amount), category, family: defined.family, bucket: defined.bucket, note, ownerShare: null, id: recordIdOf(SPLIT_PART_RECORDS, `split-${index + 2}`) }
     }),
   }
 }

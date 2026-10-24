@@ -19,7 +19,7 @@ function book(rows: readonly RowSpec[], categories: readonly Category[] = PACK_C
 /** A private cost the company paid for the owner, filed on a category that carries the loan-out role. */
 const WITH_PRIVATE_COSTS: readonly Category[] = [
   ...PACK_CATEGORIES,
-  { slug: 'private-cost-for-owner', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-out'], vat: 'none' },
+  { slug: 'private-cost-for-owner', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-out'], vat: 'none', ownerShare: null },
 ]
 
 describe('owner loans', () => {
@@ -87,9 +87,9 @@ describe('owner loans', () => {
 
   it('finds loans by role, whatever the categories are called', () => {
     const categories: Category[] = [
-      { slug: 'shareholder-loan', family: 'owner', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-out'], vat: 'none' },
-      { slug: 'shareholder-loan-back', family: 'owner', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-repaid'], vat: 'none' },
-      { slug: 'owner-loan-out', family: 'owner', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
+      { slug: 'shareholder-loan', family: 'owner', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-out'], vat: 'none', ownerShare: null },
+      { slug: 'shareholder-loan-back', family: 'owner', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-repaid'], vat: 'none', ownerShare: null },
+      { slug: 'owner-loan-out', family: 'owner', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: [], vat: 'none', ownerShare: null },
     ]
     const loans = book(
       [

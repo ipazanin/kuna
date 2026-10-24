@@ -1,3 +1,4 @@
+import { OWNER_SHARE_ROLES } from '../../owner-share/domain/ownerShare'
 import { RULE_COLUMNS } from '../../rules/domain/rule'
 import { installedPack } from '../../packs/packContribution'
 import { DEFAULT_SETTINGS, settingsTabEntries } from '../../settings/domain/settings'
@@ -49,10 +50,19 @@ export const ID_TEMPLATE_COLUMN: TemplateColumn = {
   note: 'A code the app gives each row so it can find the row again. Leave it as it is. On a copied row, clear it, and the app gives the copy its own.',
 }
 
+/** The column of a row's owner share, on the ledger, categories, splits and owner-advances tabs. */
+export const OWNER_SHARE_COLUMN = 'owner_share'
+
+export const OWNER_SHARE_TEMPLATE_COLUMN: TemplateColumn = {
+  name: OWNER_SHARE_COLUMN,
+  note: 'The part of the cost the owner enjoys privately, as a whole percentage from 0 to 100. The app copies it from the category when it files the row. Optional.',
+}
+
 /**
  * The columns of each core tab, in the order the template and an export write them. The ledger
- * keeps the Google Sheet's own order, A to R, so an export lines up with the Sheet column for
- * column. The reader finds every column by name, so a file may order them as it likes and add its own.
+ * keeps the Google Sheet's own order, A to R, with the owner share after them, so an export lines
+ * up with the Sheet column for column. The reader finds every column by name, so a file may order
+ * them as it likes and add its own.
  */
 const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
   ledger: [
@@ -74,6 +84,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'creditor_reference', note: 'The structured creditor reference from a camt statement. Optional.' },
     { name: 'instructed_currency', note: 'The currency the payment was instructed in, from a camt statement. Optional.' },
     { name: 'review_reasons', note: 'Why the statement wants a person to look at the row, such as reversal, separated by |. Such a row waits for review.' },
+    OWNER_SHARE_TEMPLATE_COLUMN,
   ],
   categories: [
     { name: 'category', note: 'A short name in lower case, such as software. Each category once. Required.' },
@@ -98,6 +109,12 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
       note:
         `How a purchase in the category splits into cost and VAT: ${VAT_TREATMENTS.join(', ')}. Optional. Blank means none. ` +
         'deductible-25 means the bank amount holds 25% VAT that is reclaimed, so it is not a cost.',
+    },
+    {
+      name: OWNER_SHARE_COLUMN,
+      note:
+        'The owner share a row filed in the category takes, as a whole percentage from 0 to 100: the part of the cost the owner enjoys privately. Optional. ' +
+        'Only an operating category holds one, and only while a category carries the owner-benefit role.',
     },
   ],
   accounts: [
@@ -154,6 +171,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     },
     { name: 'category', note: 'A category from the categories tab. The part counts there, with its own timing. Required.' },
     { name: 'note', note: 'What this part paid for. Optional.' },
+    OWNER_SHARE_TEMPLATE_COLUMN,
     ID_TEMPLATE_COLUMN,
   ],
   dismissed: [
@@ -253,7 +271,7 @@ const DEFAULT_CATEGORIES: readonly CategorySeed[] = [
     family: 'owner',
     bucket: 'owner-pay',
     colour: '#e4e1f6',
-    categories: [['owner-salary'], ['owner-dividend'], ['owner-drawings']],
+    categories: [['owner-salary'], ['owner-dividend'], ['owner-drawings'], ['benefits-from-company-costs', OWNER_SHARE_ROLES.ownerBenefit]],
   },
   {
     family: 'financing',

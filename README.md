@@ -10,15 +10,16 @@ Google Picker or that the app creates, and for `openid email`, which tells it wh
 in. To find new bank statements in Drive it also asks for `drive.readonly`, whose token it holds in
 the page's memory only. See *Google sign-in*. The app reads the Sheet and keeps a copy in IndexedDB.
 It writes only in the Sheet the user picked, and only what the user saves or a sync files:
-`category` and `flagged_by` on ledger rows the user acts on, the rows of the bank statements a sync
+`category`, `flagged_by` and `owner_share` on ledger rows the user acts on, the rows of the bank statements a sync
 finds in the statements folder or the user imports, and rows of the tabs a person keeps by hand:
 `rules`, `settings`, `owner-advances`, `outgoing-plan`, `categories`, `accounts`, `clients`,
 `invoices`, `assets`, `grants`, `year-end`, `plan`, `scenarios`, `splits` and `dismissed`. It never
 writes a formula a change leaves alone. It writes data validation only by copying a ledger row's
 dropdowns onto the rows an import puts in above it. It writes a header only when the user agrees to
 add the `plan`, `scenarios`, `splits` or `dismissed` tab to a Sheet without one, or an optional
-column such as `label` to the categories or accounts tab when a save fills it, and an `id` header
-after the last column of a tab whose rows carry ids, when it adds a row there. See *Write-back*
+column such as `label` to the categories or accounts tab when a save fills it, an `id` header
+after the last column of a tab whose rows carry ids, when it adds a row there, and an `owner_share`
+header after the last column of a tab the first time a write puts a share there. See *Write-back*
 below. Making an invoice also files its PDF in the Drive folder the user picks for invoices, and,
 only for a user who turns the mail draft on, asks for `gmail.compose` to save a Gmail draft. See
 *Invoices*.
@@ -233,7 +234,7 @@ account's newest balance.
 **Transactions** has two tabs. Rows is the filtered list of every row behind the figures, and Import
 adds a statement, as *Import* describes. A click on any figure opens Rows with the filters that
 reproduce it. "Change category" on a row a rule or a person settled files it in another category: it
-writes the row's `category` and `flagged_by` with the review label, as Review's Recategorise does,
+writes the row's `category` and `flagged_by` with the review label, and the new category's owner share, as Review's Recategorise does,
 with Undo in the toast and under "Changes in this session". Before the write the dialog names the
 rule that files such rows elsewhere, since the row then shows on Review's Rules tab among that
 rule's exceptions, and the toast opens the rule. A row still waiting is settled on Review. On a
@@ -269,20 +270,20 @@ take their defaults.
 
 | Tab | Columns |
 |---|---|
-| `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`, in that order from A to R. |
-| `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour` (a swatch of the palette as its light hex, such as `#2a78d6` for Blue, or blank for the bucket colour), an optional comma-separated `roles` from the roles core and the pack pick categories by (*Taxes and Owner* lists them), an optional `label`, and an optional `vat`: how a purchase in the category splits into cost and VAT, one of `none`, `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `representation` and `car-50`. A blank `vat` is `none`, and an unknown one is reported and read as `none`. |
+| `ledger` | `date` (a date cell), `account`, `statement`, `counterparty`, `counterparty_iban`, `description`, `amount`, `balance`, `category`, `flagged_by`, `reference`, and the optional camt signals `purpose`, `tx_domain`, `tx_family`, `tx_sub_family`, `creditor_reference`, `instructed_currency` and `review_reasons`, in that order from A to R, then the optional `owner_share` as *Owner share* describes. |
+| `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour` (a swatch of the palette as its light hex, such as `#2a78d6` for Blue, or blank for the bucket colour), an optional comma-separated `roles` from the roles core and the pack pick categories by (*Taxes and Owner* lists them), an optional `label`, and an optional `vat`: how a purchase in the category splits into cost and VAT, one of `none`, `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `representation` and `car-50`. A blank `vat` is `none`, and an unknown one is reported and read as `none`. An optional `owner_share`, the default a row filed in the category takes. |
 | `accounts` | `account`, `iban`, an optional `currency`, and an optional `label`. An account named on more than one row is reported on each and read from none. |
 | `settings` | `key`, `value`, one row per setting. A key on more than one row is reported on each and takes its default. |
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`. A row the reader refuses, such as one with an order that is not a number or a filled column no rule can test, is reported and left out, and so is every row of an id used on more than one row. Rules are tried by `order`, then by id. |
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional), and the optional delivery period `period_from` and `period_to` (date cells, both or neither). A row without a number, client, amount or issue date is reported and left out, and so is every row of a number used twice for one client. A period that cannot be read is reported, and the issue date stands for it. |
 | `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN on more than one row is reported and left out on each, so no payment from it counts as a client's. The rules' `counterparty_is_client` reads these IBANs, so without the tab it matches no row. The optional invoice columns `address`, `country`, `tax_id`, `invoice_mail`, `mail_language` (a language tag such as `en` or `hr`, blank for English) and `reverse_charge` (TRUE or FALSE) are read from whichever of a client's rows fills each one, the way `name` is. A name or detail the rows fill differently is reported on each of them and reads blank. A language the browser does not know, or a `reverse_charge` that is neither TRUE nor FALSE, is reported and read as blank. |
 | `outgoing-plan` | `item`, `date` (a date cell), `amount` (above zero), `client` and `description`: one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel. `date` is the day it becomes billable, the last day of the worked month for a monthly fee. `client` must be on the `clients` tab, or the row is reported and left out. Only these five columns and `id` are read. |
-| `owner-advances` | `date`, `amount` (above zero), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount, the owner's private share of a company payment, is reported and left out, since that share is a part on the `splits` tab, as *Split rows* describes. |
+| `owner-advances` | `date`, `amount` (above zero), `description`, `category` and the optional `owner_share`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount, the owner's private share of a company payment, is reported and left out, since that share is a part on the `splits` tab, as *Split rows* describes. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once, or every row of its name is reported and left out. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
 | `grants` | `grant`, `received` (a date cell), `amount` (above zero), `fixed_part` and `variable_part` (both or neither, adding up to `amount`), `period_from` and `period_to` (date cells, both or neither), `release` (`fixed-then-assets`, the default, which needs both parts, or `straight-line`, which needs the period), `clawback_year1` and `clawback_year2` (`whole` or an amount), `employment_required_until` (a date cell) and `note`. A grant is listed once, or every row of its name is reported and left out. |
 | `year-end` | `year`, `statement` (`pl`, `balance`, `tax`, `distribution`, `grant` or `konto`), `line`, `label`, `amount`, `categories`, `aop`, `source` and `note`: the accountant's figures, one row per year, statement and line, or every row of the key is reported and left out. `line` is a fixed id per statement, such as `sales`, `total-assets` or `liability`, listed in the template's note and in the editor on Year, Statements, or the account number on a `konto` row. `amount` is the figure as printed, costs as positive numbers. `filed-on`, `paid-on` and `decided-on` take a date cell, `rate` a percentage cell, and `months-of-operation` a whole number. `categories` names the app categories of a `konto` row. When income less expenses differs from `profit-before-tax`, or the asset lines or the equity and liability lines differ from `total-assets`, the total's row is reported and every line kept. |
 | `plan` | `year`, `month` (1 to 12, blank for every month), `item` (a category, `owner_pay_scenario`, `dividend` or `purchase`), `amount`, `note`, and the optional `date` (a date cell) and `group`. `amount` is positive for income and costs alike, a cost without the VAT that is reclaimed. A category is listed once per year and month, or every row of it is reported and left out. A `dividend` needs its month. A `purchase` needs `date`, the day it is bought and put in use, and `group`, one of the `assets` tab's groups, and takes its month from the date. Its `note` says what it is, and two purchases may share a day. An `owner_pay_scenario` row names a scenario from the `scenarios` tab in `amount` and leaves `month` blank: without a `date` it holds from 1 January, and a second row with a `date` switches to another scenario from that day. Planned revenue belongs on `outgoing-plan`, so a `revenue` row is reported and left out. The rules across rows are the plan guards of *Forecast*. |
-| `splits` | `date` (a date cell), `account`, `row_amount` and `row_balance`, which find one ledger row, then the part's `amount`, `category` and the optional `note`: one row per part of a bank row that paid for more than one thing. The parts of a row share its four key cells, as *Split rows* describes. |
+| `splits` | `date` (a date cell), `account`, `row_amount` and `row_balance`, which find one ledger row, then the part's `amount`, `category` and the optional `note` and `owner_share`: one row per part of a bank row that paid for more than one thing. The parts of a row share its four key cells, as *Split rows* describes. |
 | `dismissed` | `kind` (`not-covered` or `exception`), `key`, the optional `category` and the optional `dismissed_on` (a date cell): one row per group of "Confirmed rows no rule repeats" that a person dismissed on Review. `key` is the group's counterparty as counterparty filters key it, `iban:` and the IBAN or `name:` and the folded name, so the group stays hidden as new rows join it. An exception adds `|` and the id of the rule it differs from, so dismissing it leaves the same counterparty's exceptions to other rules in view. `category` is where most of its rows were on the day. A row without a kind or a key is reported and left out, and so is every row of a kind and key dismissed twice. |
 | `scenarios` | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (a month's gross or `floor`), `nontaxable:<item>` such as `nontaxable:occasional-gift` (a year's amount of a tax-free item), `rent_monthly` (a month's rent), `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. A tax-free item is paid with the salary of the month its `from` falls in, January when blank, and a dividend once the year's statements are adopted, so their `to` is not read. The label is read from the rows that give one, and reads blank when they give it differently. A scenario whose rows name two years is reported and left out whole, and the same component for the same days on two rows leaves out both. |
 
@@ -336,6 +337,27 @@ the Sheet's category cells with the same value.
 `flagged_by` values `rule` and `ai` belong to the categoriser: `ai` marks a guess that waits for
 review. Any other value means a person set the category. A row with `review_reasons`, such as a
 reversal, also waits for review until a person confirms it.
+
+### Owner share
+
+`owner_share` is the part of a company cost the owner enjoys privately, such as the private use of
+a laptop the company paid for, as a whole percentage from 0 to 100. It sits on four tabs: a
+category's default, and the share of a ledger row, a split part and an owner advance. A blank cell
+holds no share, which is not the same as 0. A cell that is not a whole number from 0 to 100 reads as
+blank, and a problem names its row, which still reads. A Sheet without the column reads every share
+as blank. The figures read the rows as booked, so a share changes no figure.
+
+A record takes its category's default whenever the app sets its category, in the same write, so one
+Undo puts back the category and the share together: a new row of an import or a sync, the rows a
+new rule files, Confirm and Recategorise on Review, Change category on Transactions, and an advance
+on Owner or a part in the split editor that is new or moves to another category. Confirm copies the
+default again, so a default changed since the row was filed reaches it, and a new category's default
+replaces any share the row held. An advance or a split part keeps its share while an edit keeps its
+category. Only a category in the operating bucket holds a default, and only while a category
+carries the `owner-benefit` role, such as "Benefits from company costs" in the owner-pay bucket,
+which the template seeds. The categories write refuses a change that breaks either. `src/features/owner-share/domain/ownerShare.ts` holds
+the share, its role, `filedIn`, the copy every path goes through, and `movedTo`, which copies only
+when an edit moves the record.
 
 ### Settings keys
 
@@ -408,6 +430,7 @@ the `roles` column, never by name:
 | Role | What it selects |
 |---|---|
 | `revenue` | Client revenue, the base of the effective tax rate |
+| `owner-benefit` | The owner-pay category an owner share is for, as *Owner share* describes. Core reads it |
 | `owner-loan-out`, `owner-loan-repaid` | Loans to the owner and their repayments |
 | `owner-pay-tax` | Taxes owed because the owner was paid, added to the owner's gross cost |
 | `watched` | In the taxes bucket, a tax with a monthly payment calendar |
@@ -509,7 +532,7 @@ A bank row that paid for more than one thing, such as an order with a private it
 salary paid with a bonus, is split on the `splits` tab. The ledger keeps the row as the bank booked
 it, so the Apps Script, the balance chain and the append-only rule do not change. Each tab row is
 one part: the ledger row's `date`, `account`, `row_amount` and `row_balance`, then the part's
-`amount`, `category` and `note`. The four key cells find exactly one ledger row, since the balance
+`amount`, `category`, `note` and `owner_share`. The four key cells find exactly one ledger row, since the balance
 chain makes them unique. Copy the balance from the ledger row when typing a split in the Sheet.
 
 The reader checks each split and refuses it whole, every one of its tab rows reported, when one of
@@ -1130,6 +1153,7 @@ deletes it, so the exported files are its only other copies.
   with their headers, a note on every header and every settings key, a default category set for a
   freelancer or a small company, and the default settings. VAT refunds have their own `vat-refund`
   category in the operating bucket, and `tax-refund` in the taxes bucket is for income tax refunds.
+  `benefits-from-company-costs` in the owner-pay bucket carries the `owner-benefit` role.
 - **Import.** Open or drop an xlsx file. It goes through the same workbook reader as a Google Sheet,
   and a summary (transactions, dates, accounts, categories, every problem) shows before anything is
   replaced. A file without a `ledger` tab is refused.
@@ -1221,7 +1245,7 @@ leaves the account.
 
 **The write** adds ledger records, checked by `LEDGER_WRITES` in
 `src/features/imports/application/ledgerWrites.ts`, and the adapter writes whole ledger rows, A to
-R. The tab reads newest first for a person reading the Sheet, so each statement goes in as one
+R and the owner share. The tab reads newest first for a person reading the Sheet, so each statement goes in as one
 block above the first row whose date is not after the statement's newest one, the block newest
 first. Right before writing, the tab as it is then is checked again: a new row already on it by its
 account and reference is refused, as any record the workbook holds already is, which happens when
@@ -1321,7 +1345,10 @@ dividend, and four owner pay scenarios for 2027, two of them with warnings to sh
 and its extras, with October planned and not invoiced yet, and has no rows for the second client,
 whose invoices are invoiced with no plan row. Its `splits` tab splits four rows: a salary paid
 with a results bonus, a design invoice that also paid a workshop, and a business lunch and an
-office order, each with the owner's own part in it. Its ledger tab carries every column from A to R, as the Sheet does. Like
+office order, each with the owner's own part in it. Its ledger tab carries every column from A to R, as the Sheet does, and
+`owner_share`. Its categories give AI services a 50% owner share, with "Benefits from company
+costs" carrying the `owner-benefit` role, so its AI services rows hold 50, the laptop's row holds
+30 of its own, and the office order's office part and the design tool advance hold one each. Like
 the live Sheet, its Google Sheet has no `dismissed` tab, so the first Dismiss on Review asks to add
 it, and the Excel-mode variant starts with the tab empty. On the Import tab the fake build offers two sample files that carry the main account on from its newest row: a
 camt.053 statement with a client payment, a card purchase in dollars, a bank fee and a reversal,
@@ -1502,7 +1529,7 @@ session list is held in memory, so a reload clears it.
 
 - **Ledger rows.** A row is known by its account and reference, even one the reader refuses, or for
   a blank reference by its account, date, amount, balance and description, so rows a hand edit or
-  another device inserted since the last sync do not matter. The app changes only a row's `category` and `flagged_by`, each found by its header (I
+  another device inserted since the last sync do not matter. The app changes only a row's `category`, `flagged_by` and `owner_share`, each found by its header (I
   and J in the shadow-accounting Sheet), and only where the value changes. A refused ledger row is
   fixed in the Sheet, never by the app. Confirm writes the `review_label` setting to `flagged_by`.
   Recategorise, and Change category on Transactions, write the category and the label. Applying a
@@ -1529,7 +1556,7 @@ session list is held in memory, so a reload clears it.
 
   | Kind | Refused, with the reason given |
   |---|---|
-  | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. A changed colour outside the palette, or a role the change gives that the app does not know, unless Undo puts it back. |
+  | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. A changed colour outside the palette, or a role the change gives that the app does not know, unless Undo puts it back. Unless Undo puts it back too, an owner share on a category outside the operating bucket, a new one while no category carries the `owner-benefit` role, and taking that role off the last category carrying it while a share is held. |
   | Accounts | A name outside the slug format. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the app files no statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. One IBAN names one account, since the fetch names each statement file by its IBAN and the app files each statement by it. The tab needs its `account` and `iban` headers, which the statement fetch reads. |
   | Clients | A name outside the slug format. A second row of a client under another name. Renaming or deleting the last row of a client that invoices, plan rows or `billing_client` name. A new or changed IBAN that is not valid, is on another client row, or is one of your accounts. |
   | Invoices | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. The tab needs all eight columns the generator writes, and the app never adds one. |
@@ -1558,7 +1585,9 @@ and the Sheet lacks is named in the refusal. The tab is added only when the pers
 starting scenarios dialog, the plan editor's dialogs, the split editor and the first Dismiss on Review
 ask before they write, named as the template names it, with the template's header in row 1, in the
 same write. A template column is added the same way, as the notice of the Categories and Accounts
-editors says before the save, after the last column in use. In Excel mode the workbook always holds every tab, so nothing is added.
+editors says before the save, after the last column in use. The `owner_share` column comes with the
+first share a write puts on a tab, as the `id` column does, so a write that copies only blank shares
+adds nothing. In Excel mode the workbook always holds every tab, so nothing is added.
 
 `tests/recordStorageContract.spec.ts` says what any storage must do, once for each storage and each
 kind, core's and the pack's: a record reads back as written, a change and a removal find the record
@@ -1572,8 +1601,8 @@ when any of its requests is not valid, not at all. So a write that fails leaves 
 and never an empty row. Its requests run in this order:
 
 1. `addSheet` for a tab the person agreed to add, with a sheet id the app picks, and `updateCells` of
-   its header in row 1. Then, for each column a tab gets, its `id` column or a template column the
-   person agreed to add, `appendDimension` of a column when its grid has none free after the last
+   its header in row 1. Then, for each column a tab gets, its `id` column, its `owner_share` column
+   or a template column the person agreed to add, `appendDimension` of a column when its grid has none free after the last
    column in use, and `updateCells` of the header there, one column after another. The grid's width
    comes with the tab ids, from `spreadsheets.get`.
 2. `updateCells` of each changed cell, such as `ledger!I57`, found by its header on the row as read.

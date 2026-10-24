@@ -87,16 +87,16 @@ function verdictRefusals(change: KindChange<LedgerEntry>, definedCategories: Rea
 
 /**
  * Ledger records: statement rows added newest first, where a person reading the Sheet looks, and
- * taken out again by Undo, and the verdict of a record already there, which is all of it the app
- * changes. Against the ledger as it is right before the write, each account's new records must open
- * at its newest balance and run on from it, and none may predate the account's newest record. A
+ * taken out again by Undo, and the verdict of a record already there with the owner share filed with
+ * it, which is all of it the app changes. Against the ledger as it is right before the write, each
+ * account's new records must open at its newest balance and run on from it, and none may predate the account's newest record. A
  * record already there by its account and reference is refused as every kind refuses a record it holds. A record taken out must have no
  * record of its account booked after it left in. A verdict names a defined category.
  */
 export const LEDGER_WRITES: WriteRules<LedgerEntry> = {
   kind: LEDGER_RECORDS,
   reads: [CATEGORY_RECORDS],
-  changeable: ['category', 'flaggedBy'] satisfies (keyof LedgerEntry)[],
+  changeable: ['category', 'flaggedBy', 'ownerShare'] satisfies (keyof LedgerEntry)[],
   undoable: true,
   read: (read, records) => readLedger(read, definedCategories(records.of(CATEGORY_RECORDS))),
   refusals: (change, fresh) => {

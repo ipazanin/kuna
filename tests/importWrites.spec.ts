@@ -100,8 +100,29 @@ describe('the import dry run', () => {
         creditor_reference: 'HR027926-19672674662-89804',
         instructed_currency: '',
         review_reasons: '',
+        owner_share: '',
       },
     ])
+  })
+
+  it('files a new row with the default share of the category the rules give it, and the ledger tab gains the column with the first share', async () => {
+    const base = grids()
+    const { store, sheets } = await googleHarness(used, {
+      ...base,
+      categories: [
+        ['category', 'family', 'bucket', 'roles', 'owner_share'],
+        ['ai-services', 'operating', 'operating', '', 50],
+        ['revenue', 'income', 'income', '', ''],
+        ['benefits', 'owner', 'owner-pay', 'owner-benefit', ''],
+      ],
+      rules: base.rules!.map((row) => (row[0] === 'client-northwind' ? row.map((cell) => (cell === 'revenue' ? 'ai-services' : cell)) : row)),
+    })
+    const run = dryRun(store, creditStatement())
+
+    expect(run.added.map((entry) => [entry.category, entry.ownerShare])).toEqual([['ai-services', 50]])
+    await importRows(store, run.added)
+    expect(sheets.grids.ledger![0]).toEqual([...LEDGER_HEADER, 'owner_share'])
+    expect(store.state.workbook!.transactions.find((row) => row.counterparty === 'Northwind Analytics Ltd')).toMatchObject({ category: 'ai-services', ownerShare: 50 })
   })
 
   it('refuses a statement that does not open where the ledger leaves the account', async () => {

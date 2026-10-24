@@ -39,6 +39,12 @@ const CATEGORY_ROLES: Readonly<Record<string, string>> = {
   'owner-loan-repaid': 'owner-loan-repaid',
   'reimbursement-to-owner': 'reimbursement',
   'reimbursement-from-owner': 'reimbursement',
+  'benefits-from-company-costs': 'owner-benefit',
+}
+
+/** The `owner_share` column: the default share of the one category the owner partly enjoys privately. */
+const CATEGORY_OWNER_SHARES: Readonly<Record<string, number>> = {
+  'ai-services': 50,
 }
 
 /** The `vat` column. Foreign tools invoice without VAT under the reverse charge. Blank is none. */
@@ -55,10 +61,12 @@ const CATEGORY_VAT: Readonly<Record<string, string>> = {
 }
 
 /**
- * Colours picked on Settings, Categories: every swatch once, Blue twice in one bucket, and a few
- * blanks. The rest keep the seed's pastel, which reads as the bucket colour.
+ * Colours picked on Settings, Categories: every swatch, Blue twice in one bucket, and a few blanks.
+ * The rest keep the seed's pastel, which reads as the bucket colour. The benefits category wears
+ * Violet, so it takes none of the owner pay chart's free slots.
  */
 const CATEGORY_COLOURS: Readonly<Record<string, string>> = {
+  'benefits-from-company-costs': '#6250d6',
   consulting: '#1baf7a',
   'external-contractors': '#eb6834',
   'software-subscriptions': '#2a78d6',
@@ -108,6 +116,7 @@ const CATEGORY_SEED: readonly { readonly family: string; readonly colour: string
       ['rent-owner', 'owner-pay'],
       ['owner-loan-out', 'owner-pay'],
       ['owner-loan-repaid', 'owner-pay'],
+      ['benefits-from-company-costs', 'owner-pay'],
       ['reimbursement-to-owner', 'financing'],
       ['reimbursement-from-owner', 'financing'],
     ],
@@ -189,6 +198,8 @@ interface Booking {
   readonly amount: number
   readonly category: string
   readonly flaggedBy: string
+  /** A share of the row's own, over its category's default. */
+  readonly ownerShare?: number
 }
 
 const MONTHS = [
@@ -305,9 +316,17 @@ function fakeTabs(source: WorkbookSource): Record<WorkbookTab, CellValue[][]> {
           ],
     ledger,
     categories: [
-      ['category', 'family', 'bucket', 'colour', 'roles', 'vat'],
+      ['category', 'family', 'bucket', 'colour', 'roles', 'vat', 'owner_share'],
       ...CATEGORY_SEED.flatMap((group) =>
-        group.categories.map(([category, bucket]) => [category, group.family, bucket, CATEGORY_COLOURS[category] ?? group.colour, CATEGORY_ROLES[category] ?? '', CATEGORY_VAT[category] ?? '']),
+        group.categories.map(([category, bucket]) => [
+          category,
+          group.family,
+          bucket,
+          CATEGORY_COLOURS[category] ?? group.colour,
+          CATEGORY_ROLES[category] ?? '',
+          CATEGORY_VAT[category] ?? '',
+          CATEGORY_OWNER_SHARES[category] ?? '',
+        ]),
       ),
     ],
     accounts: [['account', 'iban'], ...Object.entries(ACCOUNTS).map(([account, iban]) => [account, iban])],
@@ -332,10 +351,10 @@ function fakeTabs(source: WorkbookSource): Record<WorkbookTab, CellValue[][]> {
     ],
     'outgoing-plan': billingPlanValues(invoices),
     'owner-advances': [
-      ['date', 'amount', 'description', 'category'],
-      [serialOf('2026-02-03'), 212.5, 'Train tickets to the client, paid privately', 'travel'],
-      [serialOf('2026-08-21'), 89, 'Design tool, annual plan on the owner’s card', 'software-subscriptions'],
-      [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies'],
+      ['date', 'amount', 'description', 'category', 'owner_share'],
+      [serialOf('2026-02-03'), 212.5, 'Train tickets to the client, paid privately', 'travel', ''],
+      [serialOf('2026-08-21'), 89, 'Design tool, annual plan on the owner’s card', 'software-subscriptions', 25],
+      [serialOf('2026-09-30'), 34.2, 'Printer paper', 'office-supplies', ''],
     ],
     splits: splitsValues(ledger),
     dismissed: [['kind', 'key', 'category', 'dismissed_on']],
@@ -481,7 +500,7 @@ interface FakeSplit {
   readonly date: string
   readonly counterparty: string
   readonly description: string
-  readonly parts: readonly (readonly [category: string, amount: number | null, note: string])[]
+  readonly parts: readonly (readonly [category: string, amount: number | null, note: string, ownerShare?: number])[]
 }
 
 /**
@@ -494,14 +513,14 @@ const SPLIT_ROWS: readonly FakeSplit[] = [
   { date: '2026-07-12', counterparty: PAYEES.owner.name, description: 'Salary for 2026-06', parts: [['salary-net', null, 'Net salary'], ['salary-bonus', 200, 'Results bonus paid with the salary']] },
   { date: '2026-03-16', counterparty: PAYEES.contractor.name, description: 'Design work', parts: [['external-contractors', null, 'Design work'], ['consulting', 400, 'Workshop facilitation']] },
   { date: '2026-05-10', counterparty: 'BISTRO HARBOUR · business lunch', description: 'Card purchase', parts: [['representation', null, 'Client lunch'], ['owner-loan-out', 25, 'The owner’s own lunch']] },
-  { date: '2025-10-02', counterparty: 'PAPER & INK STORE', description: 'Card purchase', parts: [['office-supplies', null, 'Paper and ink for the office'], ['owner-loan-out', 13.45, 'Private share of the paper and ink order']] },
+  { date: '2025-10-02', counterparty: 'PAPER & INK STORE', description: 'Card purchase', parts: [['office-supplies', null, 'Paper and ink for the office', 20], ['owner-loan-out', 13.45, 'Private share of the paper and ink order']] },
 ]
 
 function splitsValues(ledger: readonly (readonly CellValue[])[]): CellValue[][] {
   const [header = [], ...rows] = ledger
   const column = (name: string): number => header.indexOf(name)
   return [
-    ['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note'],
+    ['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note', 'owner_share'],
     ...SPLIT_ROWS.flatMap((split) => {
       const row = rows.find(
         (cells) => cells[column('date')] === serialOf(split.date) && cells[column('counterparty')] === split.counterparty && cells[column('description')] === split.description,
@@ -511,7 +530,7 @@ function splitsValues(ledger: readonly (readonly CellValue[])[]): CellValue[][] 
       }
       const amount = Number(row[column('amount')])
       const fixed = split.parts.reduce((sum, [, part]) => sum + (part ?? 0), 0)
-      return split.parts.map(([category, part, note]) => [
+      return split.parts.map(([category, part, note, ownerShare = '']) => [
         row[column('date')]!,
         row[column('account')]!,
         amount,
@@ -519,6 +538,7 @@ function splitsValues(ledger: readonly (readonly CellValue[])[]): CellValue[][] 
         part === null ? roundToCent(amount + fixed) : -part,
         category,
         note,
+        ownerShare,
       ])
     }),
   ]
@@ -624,7 +644,7 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
   const all: Booking[] = [
     booking('2025-05-14', 'Alex Example', PAYEES.owner.iban, 'Share capital paid in', 2500, 'share-capital', undefined, 'human'),
     booking('2025-05-20', 'Brightdesk Accounting', PAYEES.accountant.iban, 'Company registration', -445, 'accounting'),
-    booking('2025-05-28', 'Laptop Store', '', 'Card purchase, laptop', -1899, 'equipment', undefined, 'human'),
+    { ...booking('2025-05-28', 'Laptop Store', '', 'Card purchase, laptop', -1899, 'equipment', undefined, 'human'), ownerShare: 30 },
   ]
   for (const month of MONTHS.slice(1)) {
     const isPartMonth = month === MONTHS[MONTHS.length - 1]
@@ -760,21 +780,26 @@ function ledgerValues(entries: readonly Booking[]): CellValue[][] {
     }
   })
   const newestFirst = [...rows].reverse()
+  const header = templateColumnNames('ledger')
   return [
-    templateColumnNames('ledger'),
-    ...newestFirst.map((row) => [
-      serialOf(row.date),
-      row.account,
-      row.statement,
-      row.counterparty,
-      row.iban,
-      row.description,
-      row.amount,
-      row.balance,
-      row.category,
-      row.flaggedBy,
-      row.reference,
-    ]),
+    header,
+    ...newestFirst.map((row) => {
+      const cells: Readonly<Record<string, CellValue>> = {
+        date: serialOf(row.date),
+        account: row.account,
+        statement: row.statement,
+        counterparty: row.counterparty,
+        counterparty_iban: row.iban,
+        description: row.description,
+        amount: row.amount,
+        balance: row.balance,
+        category: row.category,
+        flagged_by: row.flaggedBy,
+        reference: row.reference,
+        owner_share: row.ownerShare ?? CATEGORY_OWNER_SHARES[row.category] ?? '',
+      }
+      return header.map((column) => cells[column] ?? '')
+    }),
   ]
 }
 

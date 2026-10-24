@@ -1,6 +1,7 @@
 import type { RecordId } from '../domain/recordId'
 import type { RecordKind } from '../domain/recordKind'
 import { sameRecord, storedOf } from '../domain/recordsRead'
+import { listInWords } from '../domain/slug'
 import type { Reading, StoredRecord } from '../domain/recordsRead'
 import type { FreshRecords, KindChange, RecordEdit, WriteRules } from '../domain/writeRules'
 import type { RecordChange, RecordStorage } from './recordStorage'
@@ -205,13 +206,13 @@ export async function checkWrite(storage: RecordStorage, title: string, ruled: r
     }
     claim(stored.id, named(change.kind, stored.label))
     if ((change.verb === 'repair' || change.verb === 'discard') && rules.changeable !== undefined) {
-      refusals.push(`The app changes only ${rules.changeable.join(' and ')} of ${change.kind.noun.article} ${change.kind.noun.one}, so ${named(change.kind, stored.label)} is fixed in the workbook itself.`)
+      refusals.push(`The app changes only ${listInWords(rules.changeable)} of ${change.kind.noun.article} ${change.kind.noun.one}, so ${named(change.kind, stored.label)} is fixed in the workbook itself.`)
     }
     if (change.verb === 'change' && rules.changeable !== undefined) {
       const changeable = rules.changeable
       const others = alteredFields(change.before, change.after).filter((field) => !changeable.includes(field))
       if (others.length > 0) {
-        refusals.push(`Of ${named(change.kind, stored.label)} the app changes only ${changeable.join(' and ')}, and this change also alters ${others.join(', ')}.`)
+        refusals.push(`Of ${named(change.kind, stored.label)} the app changes only ${listInWords(changeable)}, and this change also alters ${others.join(', ')}.`)
       }
     }
     return stored

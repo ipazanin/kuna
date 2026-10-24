@@ -50,7 +50,7 @@ function rulesCells(store: Store, id: string): Record<string, string | number | 
 
 /** Files the rows under their verdicts, as Review does. */
 function setVerdicts(store: WorkbookStore<WorkbookCopy>, verdicts: readonly RowVerdict[]): Promise<WriteReceipt | null> {
-  return store.write('Filed', (unit) => fileRows(unit, store.state.records!.ledger, verdicts))
+  return store.write('Filed', (unit) => fileRows(unit, store.state.records!.ledger, verdicts, store.state.workbook!.categories))
 }
 
 /** Undoes the session's write with this receipt, as its Undo does. */

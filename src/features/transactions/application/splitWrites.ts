@@ -1,5 +1,7 @@
 import { plainAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
+import { movedTo } from '../../owner-share/domain/ownerShare'
+import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
 import type { UnitOfWork } from '../../workbook/application/repository'
 import { newRecordId, recordIdOf } from '../../workbook/domain/recordId'
@@ -19,18 +21,29 @@ export interface SplitPartDraft {
   readonly amount: Money
   readonly category: string
   readonly note: string
+  /** The part as the editor opened it, whose share it keeps while it keeps its category, or null for a part added in the editor. */
+  readonly opened: Pick<SplitTabRow, 'category' | 'ownerShare'> | null
 }
 
 /**
  * Leaves the row's split holding these parts: the parts it holds now take the drafts in order,
  * drafts beyond them are added with ids of their own, and parts beyond the drafts are removed. A
- * part keeps the row's key as the app read it.
+ * part keeps the row's key as the app read it. A part added in the editor, or one put in another
+ * category, takes its category's default share, and a part that keeps its category keeps the share
+ * it was opened with.
  */
-export function writeSplit(unit: UnitOfWork, row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance'>, current: readonly SplitTabRow[], drafts: readonly SplitPartDraft[]): void {
+export function writeSplit(
+  unit: UnitOfWork,
+  row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance'>,
+  current: readonly SplitTabRow[],
+  drafts: readonly SplitPartDraft[],
+  categories: readonly ShareDefault[],
+): void {
   const parts = unit.of(SPLIT_WRITES)
   const key = { date: row.date, account: row.account, rowAmount: row.amount, rowBalance: row.balance }
   drafts.forEach((draft, index) => {
-    const wanted = { amount: draft.amount, category: draft.category, note: draft.note.trim() }
+    const filed = movedTo(draft.opened ?? { category: '', ownerShare: null }, draft.category, categories)
+    const wanted = { amount: draft.amount, category: filed.category, note: draft.note.trim(), ownerShare: filed.ownerShare }
     const held = current[index]
     if (held === undefined) {
       parts.add({ key, ...wanted, id: recordIdOf(SPLIT_PART_RECORDS, newRecordId()) })

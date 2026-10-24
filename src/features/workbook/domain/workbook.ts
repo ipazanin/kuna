@@ -5,6 +5,7 @@ import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { naturalOrder } from '../../../shared/text/naturalOrder'
+import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
 import type { BillingItem } from './billingPlan'
@@ -28,6 +29,8 @@ export interface Category {
   readonly roles: readonly string[]
   /** How a purchase in it splits into cost and VAT. */
   readonly vat: VatTreatment
+  /** The share a row takes when it is filed in the category. */
+  readonly ownerShare: OwnerShare | null
 }
 
 /** A category's record id, which its slug makes. */
@@ -86,6 +89,8 @@ export interface Transaction {
   readonly signals: TransactionSignals
   /** Why the statement parser wants a person to look at the row, such as `reversal`. Column U. */
   readonly reviewReasons: readonly string[]
+  /** The row's own share, copied from its category when the row was filed. A part of a split row holds the part's. */
+  readonly ownerShare: OwnerShare | null
   /** By its key: its account and reference, or for a row without a reference its account, day, amount, balance and description. */
   readonly id: RecordId
   /** Set on a part of a split bank row, which the screens count in the row's place. */
@@ -163,6 +168,8 @@ export interface OwnerAdvance {
   readonly category: string
   readonly family: string
   readonly bucket: Bucket
+  /** Copied from its category when the advance was filed. */
+  readonly ownerShare: OwnerShare | null
   /** Held by no other row of its tab. */
   readonly id: RecordId
 }

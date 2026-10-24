@@ -4,7 +4,7 @@ import { cellText } from '../../../shared/text/cellText'
 import { AMOUNT_FORMAT, DATE_FORMAT, RATE_FORMAT } from '../../../features/workbook/infrastructure/cellFormats'
 import type { PackSpreadsheetTab } from '../../../features/workbook/infrastructure/packTabs'
 import { UNNAMED, byId, dayCell, dayText, filledKey, labelWords, labelled, slugText } from '../../../features/workbook/infrastructure/spreadsheetTab'
-import { ID_TEMPLATE_COLUMN, contentColumnsOf } from '../../../features/workbook/infrastructure/workbookTemplate'
+import { ID_TEMPLATE_COLUMN, OWNER_SHARE_COLUMN, OWNER_SHARE_TEMPLATE_COLUMN, contentColumnsOf } from '../../../features/workbook/infrastructure/workbookTemplate'
 import type { TemplateColumn } from '../../../features/workbook/infrastructure/workbookTemplate'
 import { ASSET_GROUPS } from '../domain/assets/assets'
 import type { Asset } from '../domain/assets/assets'
@@ -33,6 +33,7 @@ const OWNER_ADVANCE_COLUMNS: readonly TemplateColumn[] = [
   },
   { name: 'description', note: 'What it was for. Optional.' },
   { name: 'category', note: 'A category from the categories tab in the operating or taxes bucket. The cost counts there on its date. Required.' },
+  OWNER_SHARE_TEMPLATE_COLUMN,
   ID_TEMPLATE_COLUMN,
 ]
 
@@ -188,10 +189,16 @@ export const OWNER_ADVANCES_TAB: PackSpreadsheetTab<OwnerAdvanceEntry> = {
   ...byId(
     'owner-advances',
     OWNER_ADVANCE_RECORDS,
-    contentColumnsOf(OWNER_ADVANCE_COLUMNS),
+    contentColumnsOf(OWNER_ADVANCE_COLUMNS).filter((column) => column !== OWNER_SHARE_COLUMN),
     (cells) => labelWords([cellText(cells.description), cellText(cells.amount), dayText(cells.date)]),
     ownerAdvanceOf,
-    (advance) => ({ date: serialFromCivilDate(advance.date), amount: amountOf(advance.amount), description: advance.description, category: advance.category }),
+    (advance) => ({
+      date: serialFromCivilDate(advance.date),
+      amount: amountOf(advance.amount),
+      description: advance.description,
+      category: advance.category,
+      owner_share: advance.ownerShare ?? '',
+    }),
   ),
   columns: OWNER_ADVANCE_COLUMNS,
   numberFormat: formats({ date: DATE_FORMAT, amount: AMOUNT_FORMAT }),

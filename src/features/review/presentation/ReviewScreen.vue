@@ -117,7 +117,7 @@ const description = computed(() =>
 )
 
 function file(title: string, verdict: RowVerdict, options: RecordWriteOptions = {}): Promise<boolean> {
-  return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict]), { failedTitle: 'Not written', ...options })
+  return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], state.workbook?.categories ?? []), { failedTitle: 'Not written', ...options })
 }
 
 async function confirm(transaction: Transaction): Promise<void> {

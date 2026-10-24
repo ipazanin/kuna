@@ -7,7 +7,9 @@ import { readClients } from '../../workbook/domain/clientsReading'
 import { slugListOf, slugOf, textOf } from '../../workbook/domain/storedFields'
 import type { StoredFields } from '../../workbook/domain/storedFields'
 import { accountChangeRefusals } from '../domain/accountGuards'
-import { categoryChangeRefusals, categoryColourRefusals, categoryRoleRefusals, knownRoles } from '../domain/categoryGuards'
+import { categoryChangeRefusals, categoryColourRefusals, categoryRoleRefusals, categoryShareRefusals, knownRoles } from '../domain/categoryGuards'
+import { storedOwnerShare } from '../../owner-share/domain/ownerShare'
+import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { clientChangeRefusals } from '../domain/clientGuards'
 import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/recordKind'
 import type { RecordKind } from '../../workbook/domain/recordKind'
@@ -73,10 +75,15 @@ function advancesByCategory(records: RecordsOfKind): ReadonlyMap<string, number>
   return advances
 }
 
+function categoryFieldsOf(fields: StoredFields): { readonly slug: string; readonly bucket: string; readonly colour: string; readonly roles: readonly string[]; readonly ownerShare: OwnerShare | null } {
+  return { slug: slugOf(fields.category), bucket: slugOf(fields.bucket), colour: textOf(fields.colour), roles: slugListOf(fields.roles), ownerShare: storedOwnerShare(fields.owner_share) }
+}
+
 /**
  * A category keeps to the slug format, once on its tab, keeps its name while anything names it, and
  * keeps owner advances in an operating or taxes bucket. Unless Undo puts them back, a colour it is
- * given comes from the palette and a role it is given is one the app knows.
+ * given comes from the palette, a role it is given is one the app knows, and an owner share it holds
+ * keeps to the share guards.
  */
 export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
   kind: CATEGORY_RECORDS,
@@ -87,13 +94,19 @@ export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
   read: (read) => readCategories(read),
   refusals: (change, fresh) => {
     const recordsOfKind: RecordsOfKind = (kind) => fresh.of(kind)
-    const edits = pickedEdits(change, (fields) => ({ slug: slugOf(fields.category), bucket: slugOf(fields.bucket), colour: textOf(fields.colour), roles: slugListOf(fields.roles) }))
+    const edits = pickedEdits(change, categoryFieldsOf)
     return [
       ...categoryChangeRefusals(edits, pickedUntouched(change, (fields) => ({ slug: slugOf(fields.category) })).filter((row) => row.slug !== ''), {
         named: categoryUses(recordsOfKind),
         advances: advancesByCategory(recordsOfKind),
       }),
-      ...(change.undoing ? [] : [...categoryColourRefusals(edits), ...categoryRoleRefusals(edits, knownRoles(installedPack().workbook?.categoryRoles ?? []))]),
+      ...(change.undoing
+        ? []
+        : [
+            ...categoryColourRefusals(edits),
+            ...categoryRoleRefusals(edits, knownRoles(installedPack().workbook?.categoryRoles ?? [])),
+            ...categoryShareRefusals(edits, change.after.records.map((stored) => categoryFieldsOf(stored.fields))),
+          ]),
     ]
   },
 }

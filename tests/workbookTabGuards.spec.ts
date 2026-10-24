@@ -83,7 +83,7 @@ describe('the categories tab', () => {
   it('refuses a role a change gives that the app does not know, and leaves one the row already held', () => {
     const known = knownRoles(['watched'])
 
-    expect(known).toEqual(['revenue', 'client-refund', 'watched'])
+    expect(known).toEqual(['revenue', 'client-refund', 'owner-benefit', 'watched'])
     expect(
       categoryRoleRefusals(
         [

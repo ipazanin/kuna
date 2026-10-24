@@ -10,7 +10,7 @@ import { civil, euros } from './fixtures/ledger'
 import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
 
 function category(vat: VatTreatment): Category {
-  return { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat }
+  return { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat, ownerShare: null }
 }
 
 function booking(amount: number, date = '2026-03-10'): Booking {

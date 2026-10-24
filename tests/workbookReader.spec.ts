@@ -349,7 +349,7 @@ describe('readWorkbook', () => {
     }).workbook
 
     expect(workbook.ownerAdvances).toEqual([
-      { date: '2026-10-05', amount: 8900, description: 'Design tool', category: 'software', family: 'operating', bucket: 'operating', id: recordIdOf(OWNER_ADVANCE_RECORDS, 'advance-2') },
+      { date: '2026-10-05', amount: 8900, description: 'Design tool', category: 'software', family: 'operating', bucket: 'operating', ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'advance-2') },
     ])
     expect(workbook.problems.filter((problem) => problem.tab === 'owner-advances').map((problem) => problem.reason)).toEqual([
       'a negative amount is the owner’s private share of a company payment, which belongs on the splits tab. Press "Split" on its bank row on Transactions instead',

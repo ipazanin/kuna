@@ -37,7 +37,7 @@ import type { Workbook } from '../domain/workbook'
 import { fieldsOf, textOf } from './cellReading'
 import { installedPackTabs } from './packTabs'
 import type { CellValue, CoreTab, SheetRow, WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
-import { ID_COLUMN, contentColumns } from './workbookTemplate'
+import { ID_COLUMN, OWNER_SHARE_COLUMN, contentColumns } from './workbookTemplate'
 
 /** A row's cells, keyed by header. */
 export type Cells = Readonly<Record<string, CellValue>>
@@ -166,6 +166,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
       creditor_reference: entry.signals.creditorReference,
       instructed_currency: entry.signals.instructedCurrency,
       review_reasons: entry.reviewReasons.join(' | '),
+      owner_share: entry.ownerShare ?? '',
     }),
   },
   categories: {
@@ -183,6 +184,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
       roles: category.roles.join(', '),
       label: category.label ?? '',
       vat: category.vat === 'none' ? '' : category.vat,
+      owner_share: category.ownerShare ?? '',
     }),
   },
   accounts: {
@@ -260,7 +262,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
   splits: byId(
     'splits',
     SPLIT_PART_RECORDS,
-    contentColumns('splits').filter((column) => column !== 'note'),
+    contentColumns('splits').filter((column) => column !== 'note' && column !== OWNER_SHARE_COLUMN),
     (cells) => labelWords([cellText(cells.category), cellText(cells.amount), dayText(cells.date)]),
     splitPartOf,
     (part) => ({
@@ -271,6 +273,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
       amount: amountOf(part.amount),
       category: part.category,
       note: part.note,
+      owner_share: part.ownerShare ?? '',
     }),
   ),
   dismissed: byId(

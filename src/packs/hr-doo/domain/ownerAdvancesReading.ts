@@ -1,3 +1,4 @@
+import { ownerShareProblem, storedOwnerShare } from '../../../features/owner-share/domain/ownerShare'
 import type { RecordId } from '../../../features/workbook/domain/recordId'
 import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../features/workbook/domain/recordsRead'
 import type { Reading, RecordsRead } from '../../../features/workbook/domain/recordsRead'
@@ -26,16 +27,20 @@ export function ownerAdvanceOf(fields: StoredFields, id: RecordId | null): Owner
   if (category === '') {
     refuse('no category')
   }
-  return { date, amount, description: textOf(fields.description), category, id: ownId(id) }
+  return { date, amount, description: textOf(fields.description), category, ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
 }
 
-/** A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets leaves it out. */
+/** A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets leaves it out. An owner share it cannot read is reported and counts as none. */
 export function readOwnerAdvances(read: RecordsRead<OwnerAdvanceEntry>, categories: readonly { readonly slug: string; readonly family: string; readonly bucket: OwnerAdvance['bucket'] }[]): Reading<OwnerAdvance> {
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
   const sharesId = idSharing(read)
   const advances: OwnerAdvance[] = []
   const problems: RecordProblem[] = refusedProblems(read)
   for (const stored of read.records) {
+    const share = ownerShareProblem(stored.fields.owner_share)
+    if (share !== null) {
+      problems.push(problemOf(stored, share))
+    }
     const { category: slug } = stored.record
     const category = categoryBySlug.get(slug)
     if (category === undefined) {

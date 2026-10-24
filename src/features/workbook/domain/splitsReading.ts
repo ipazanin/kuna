@@ -1,5 +1,7 @@
 import { ZERO, addMoney, plainAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
+import { ownerShareProblem, storedOwnerShare } from '../../owner-share/domain/ownerShare'
+import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import type { RecordId } from './recordId'
 import { SHARED_ID_REASON, idSharing, problemOf } from './recordsRead'
 import type { ReadRecord, Reading, RecordsRead } from './recordsRead'
@@ -16,6 +18,7 @@ export interface SplitTabRow {
   /** Blank when the field is. */
   readonly category: string
   readonly note: string
+  readonly ownerShare: OwnerShare | null
   readonly id: RecordId
 }
 
@@ -33,7 +36,7 @@ interface SplitParts {
 
 export function splitPartOf(fields: StoredFields, id: RecordId | null): SplitTabRow {
   const key = splitKeyOf(fields)
-  return { key, amount: requiredMoney(fields, 'amount'), category: slugOf(fields.category), note: textOf(fields.note), id: ownId(id) }
+  return { key, amount: requiredMoney(fields, 'amount'), category: slugOf(fields.category), note: textOf(fields.note), ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
 }
 
 function splitKeyOf(fields: StoredFields): SplitKey {
@@ -49,7 +52,7 @@ function splitKeyOf(fields: StoredFields): SplitKey {
  * reported, when the key finds no row or several, a part of it cannot be read, it has fewer than
  * two parts, a part is zero or has the other sign to the row, the parts do not add up to the row, a
  * part's category is not on the categories tab, or a part has no id or one another part holds. The
- * bank row then counts whole.
+ * bank row then counts whole. A part whose owner share cannot be read is reported and counts with none.
  */
 export function readSplits(read: RecordsRead<SplitTabRow>, transactions: readonly Transaction[], categories: readonly Category[]): SplitsReading {
   const problems: RecordProblem[] = []
@@ -69,6 +72,10 @@ export function readSplits(read: RecordsRead<SplitTabRow>, transactions: readonl
   }
   const sharesId = idSharing(read)
   for (const stored of read.records) {
+    const share = ownerShareProblem(stored.fields.owner_share)
+    if (share !== null) {
+      problems.push(problemOf(stored, share))
+    }
     if (sharesId(stored)) {
       problems.push(problemOf(stored, SHARED_ID_REASON))
       groupOf(stored.record.key).unreadable += 1
@@ -94,7 +101,7 @@ export function readSplits(read: RecordsRead<SplitTabRow>, transactions: readonl
       parts: group.parts
         .map(({ record: part }): SplitPart => {
           const category = categoryBySlug.get(part.category)!
-          return { amount: part.amount, category: part.category, family: category.family, bucket: category.bucket, note: part.note, id: part.id }
+          return { amount: part.amount, category: part.category, family: category.family, bucket: category.bucket, note: part.note, ownerShare: part.ownerShare, id: part.id }
         })
         .sort(partOrder),
     })

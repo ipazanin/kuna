@@ -138,12 +138,12 @@ const FIXTURES: Readonly<Record<string, KindFixture>> = {
   'ledger-row': {
     seed: { categories: CATEGORIES },
     records: [
-      { date: 46300, account: 'main', statement: 's-1', counterparty: 'Corner Shop', description: 'Card purchase', amount: -12.5, balance: 987.5, category: 'groceries', flagged_by: 'ai', reference: '00123' },
+      { date: 46300, account: 'main', statement: 's-1', counterparty: 'Corner Shop', description: 'Card purchase', amount: -12.5, balance: 987.5, category: 'groceries', flagged_by: 'ai', reference: '00123', owner_share: 40 },
       { date: 46300, account: 'spare', statement: 's-2', counterparty: 'Bank', description: 'Fee', amount: -1, balance: 99, category: 'telecom', flagged_by: 'rule', reference: 'R-B' },
     ],
     outside: { date: 46301, account: 'other', description: 'Deposit', amount: 5, balance: 5, reference: 'R-C' },
-    change: { column: 'flagged_by', value: 'ivan' },
-    cleared: 'flagged_by',
+    change: { column: 'owner_share', value: 0 },
+    cleared: 'owner_share',
     refused: {
       cells: { date: 'yesterday', account: 'third', amount: -3, balance: 7, category: 'groceries', reference: 'R-X' },
       reason: 'is not a date cell',
@@ -152,8 +152,8 @@ const FIXTURES: Readonly<Record<string, KindFixture>> = {
   },
   category: {
     records: [
-      { category: 'groceries', family: 'operating', bucket: 'operating', colour: '#2a78d6', roles: 'watched', label: 'Groceries', vat: 'deductible-25' },
-      { category: 'rent', family: 'operating', bucket: 'operating' },
+      { category: 'groceries', family: 'operating', bucket: 'operating', colour: '#2a78d6', roles: 'watched', label: 'Groceries', vat: 'deductible-25', owner_share: 30 },
+      { category: 'owner-benefits', family: 'owner', bucket: 'owner-pay', roles: 'owner-benefit' },
     ],
     outside: { category: 'travel', family: 'operating', bucket: 'operating' },
     change: { column: 'family', value: 'office' },
@@ -209,7 +209,7 @@ const FIXTURES: Readonly<Record<string, KindFixture>> = {
   'split-part': {
     seed: { categories: CATEGORIES, ledger: [{ date: 46300, account: 'main', description: 'Card purchase', amount: -10, balance: 90, category: 'groceries', reference: 'R-S' }] },
     records: [
-      { ...SPLIT_ROW, amount: -6, category: 'groceries', note: 'Food', id: SPLIT_A! },
+      { ...SPLIT_ROW, amount: -6, category: 'groceries', note: 'Food', owner_share: 25, id: SPLIT_A! },
       { ...SPLIT_ROW, amount: -4, category: 'telecom', id: SPLIT_B! },
     ],
     outside: { date: 46200, account: 'main', row_amount: -3, row_balance: 50, amount: -3, category: 'telecom', id: SPLIT_C! },
@@ -255,12 +255,12 @@ const FIXTURES: Readonly<Record<string, KindFixture>> = {
   'owner-advance': {
     seed: { categories: CATEGORIES },
     records: [
-      { date: 46300, amount: 12.5, description: 'Pens', category: 'office-supplies', id: ADVANCE_A! },
+      { date: 46300, amount: 12.5, description: 'Pens', category: 'office-supplies', owner_share: 0, id: ADVANCE_A! },
       { date: 46301, amount: 3, category: 'office-supplies', id: ADVANCE_B! },
     ],
     outside: { date: 46302, amount: 7, category: 'telecom', id: ADVANCE_C! },
-    change: { column: 'description', value: 'Pens and paper' },
-    cleared: 'description',
+    change: { column: 'owner_share', value: 60 },
+    cleared: 'owner_share',
     refused: {
       cells: { date: 46302, amount: -4, category: 'office-supplies', id: ADVANCE_R! },
       reason: 'belongs on the splits tab',

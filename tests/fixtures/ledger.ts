@@ -86,6 +86,7 @@ export function ledger(rows: readonly RowSpec[]): Transaction[] {
         reference: `REF-${position + 1}`,
         signals: NO_SIGNALS,
         reviewReasons: row.reviewReasons ?? [],
+        ownerShare: null,
         id: recordIdOf(LEDGER_RECORDS, `REF-${position + 1}`),
       }
     })

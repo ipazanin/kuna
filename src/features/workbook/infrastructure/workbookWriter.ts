@@ -1,6 +1,6 @@
 import { RULE_COLUMNS } from '../../rules/domain/rule'
 import type { CellValue, SheetRow, WorkbookTab } from './workbookSnapshot'
-import { templateColumnNames } from './workbookTemplate'
+import { OWNER_SHARE_COLUMN, templateColumnNames } from './workbookTemplate'
 
 /** One tab as it stands right before or right after a write. */
 export interface TabRead {
@@ -88,8 +88,8 @@ export interface WorkbookWriter {
   write(edits: TabEdits, before: FreshTabs): Promise<void>
 }
 
-/** Of a ledger row already on the tab the app changes only its verdict. A new row it writes whole. */
-export const LEDGER_VERDICT_COLUMNS: ReadonlySet<string> = new Set(['category', 'flagged_by'])
+/** Of a ledger row already on the tab the app changes only its verdict and the owner share filed with it. A new row it writes whole. */
+export const LEDGER_VERDICT_COLUMNS: ReadonlySet<string> = new Set(['category', 'flagged_by', OWNER_SHARE_COLUMN])
 
 /** The columns a cell edit may set on an existing row of the tab. */
 export function editableColumns(tab: WritableTab): ReadonlySet<string> {

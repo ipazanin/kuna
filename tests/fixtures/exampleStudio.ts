@@ -20,7 +20,7 @@ import { BUCKET_COLOUR } from '../../src/features/workbook/domain/categoryColour
 // runs from March to December 2025, ten months.
 
 function category(slug: string, bucket: DefinedBucket, roles: readonly string[] = [], vat: VatTreatment = 'none'): Category {
-  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat }
+  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat, ownerShare: null }
 }
 
 export const STUDIO_CATEGORIES: readonly Category[] = [
@@ -108,7 +108,7 @@ export const STUDIO_ASSETS: readonly Asset[] = [
 
 /** Software the owner paid for privately: 40.00 of cost and 10.00 of input VAT. */
 export const STUDIO_ADVANCES: readonly OwnerAdvance[] = [
-  { date: civil('2025-06-20'), amount: euros(50), description: 'Software bought privately', category: 'software', family: 'operating', bucket: 'operating', id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') },
+  { date: civil('2025-06-20'), amount: euros(50), description: 'Software bought privately', category: 'software', family: 'operating', bucket: 'operating', ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') },
 ]
 
 export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbook {

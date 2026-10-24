@@ -96,7 +96,7 @@ async function save(): Promise<void> {
   }
   const draft = { date: day, amount: parsedAmount.value, description: description.value, category: category.value }
   const before = props.editing
-  const advance = before === null ? ownerAdvanceOfDraft(draft) : ownerAdvanceOfDraft(draft, before.id)
+  const advance = ownerAdvanceOfDraft(draft, props.categories, before)
   const written = await writes.write(
     before === null ? 'Advance added' : 'Advance changed',
     (unit) => (before === null ? unit.of(OWNER_ADVANCE_WRITES).add(advance) : unit.of(OWNER_ADVANCE_WRITES).change(before, advance)),

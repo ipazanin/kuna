@@ -6,6 +6,8 @@ import { categorise } from '../../rules/domain/categorise'
 import type { Verdict } from '../../rules/domain/categorise'
 import type { Rule } from '../../rules/domain/rule'
 import type { CategorisationContext } from '../../rules/domain/transactionFacts'
+import { filedIn } from '../../owner-share/domain/ownerShare'
+import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { ledgerIdOf } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import type { Transaction } from '../../workbook/domain/workbook'
@@ -63,6 +65,8 @@ export interface DryRunInputs {
   readonly transactions: readonly Transaction[]
   readonly rules: readonly Rule[]
   readonly context: CategorisationContext
+  /** Whose default share a new row takes with the category the rules give it. */
+  readonly categories: readonly ShareDefault[]
   /** The opening each account without ledger rows starts at, as the person confirmed or typed it. */
   readonly starts: ReadonlyMap<string, Money>
 }
@@ -77,7 +81,7 @@ export interface DryRunInputs {
  * and that still has new rows is refused, since its rows' keys changed since it was imported.
  * Statements of one account are taken oldest first, each against where the one before left the
  * account, and a refused one leaves the account where it was, so a later one is refused for the
- * gap. New rows are categorised by the rules.
+ * gap. New rows are categorised by the rules, each with its category's default share.
  */
 export function importDryRun(readings: readonly StatementReading[], inputs: DryRunInputs): ImportDryRun {
   const states = accountStates(inputs.transactions)
@@ -204,12 +208,16 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   for (const row of fresh) state.references.add(row.reference)
   state.labels.add(statement.label)
   if (statement.source.kind === 'camt') state.lastSequence = Math.max(state.lastSequence ?? 0, statement.source.sequence)
-  const entries = balanced.map((row, index) => ledgerEntryOfImport(statement, { ...row, verdict: rows[firstNew + index]!.verdict }))
+  const entries = balanced.map((row, index) => ledgerEntryOfImport(statement, { ...row, verdict: rows[firstNew + index]!.verdict }, inputs.categories))
   return { statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, notes }, added: entries.reverse() }
 }
 
-/** The ledger entry a new entry of a statement makes, with its verdict. */
-function ledgerEntryOfImport(statement: Pick<ImportedStatement, 'account' | 'label'>, row: ImportedRow & { readonly balance: Money; readonly verdict: Verdict | null }): LedgerEntry {
+/** The ledger entry a new entry of a statement makes, filed under its verdict with the category's default share. */
+function ledgerEntryOfImport(
+  statement: Pick<ImportedStatement, 'account' | 'label'>,
+  row: ImportedRow & { readonly balance: Money; readonly verdict: Verdict | null },
+  categories: readonly ShareDefault[],
+): LedgerEntry {
   const entry = {
     account: statement.account,
     date: row.date,
@@ -219,13 +227,14 @@ function ledgerEntryOfImport(statement: Pick<ImportedStatement, 'account' | 'lab
     description: row.description,
     amount: row.amount,
     balance: row.balance,
-    category: row.verdict?.category ?? '',
+    category: '',
     flaggedBy: row.verdict?.flaggedBy ?? '',
     reference: row.reference,
     signals: row.signals,
     reviewReasons: row.reviewReasons,
+    ownerShare: null,
   }
-  return { ...entry, id: ledgerIdOf(entry) }
+  return filedIn({ ...entry, id: ledgerIdOf(entry) }, row.verdict?.category ?? '', categories)
 }
 
 /** Each row with its balance: the file's own, or worked out from `from` when the file gives none. */

@@ -61,7 +61,7 @@ const DESK = { date: civil('2026-10-10'), amount: euros(117.3), description: 'De
 
 /** An advance appended as Add advance appends it. */
 function addAdvance(store: WorkbookStore<WorkbookCopy>, draft: OwnerAdvanceDraft) {
-  return store.write('Advance added', (unit) => unit.of(OWNER_ADVANCE_WRITES).add(ownerAdvanceOfDraft(draft)))
+  return store.write('Advance added', (unit) => unit.of(OWNER_ADVANCE_WRITES).add(ownerAdvanceOfDraft(draft, store.state.workbook!.categories)))
 }
 
 describe.each([
@@ -92,7 +92,7 @@ describe.each([
     const before = recordsOfKindIn(store.state.records!, OWNER_ADVANCE_RECORDS).records[0]!.record
 
     const changed = await store.write('Advance changed', (unit) =>
-      unit.of(OWNER_ADVANCE_WRITES).change(before, ownerAdvanceOfDraft({ date: before.date, amount: euros(42.5), description: 'Printer paper and toner ', category: 'ai-services' }, before.id)),
+      unit.of(OWNER_ADVANCE_WRITES).change(before, ownerAdvanceOfDraft({ date: before.date, amount: euros(42.5), description: 'Printer paper and toner ', category: 'ai-services' }, store.state.workbook!.categories, before)),
     )
 
     expect(cellsOf(changed, 'change')).toEqual([expect.objectContaining({ date: 46200, amount: 42.5, description: 'Printer paper and toner', category: 'ai-services' })])

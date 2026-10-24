@@ -15,7 +15,7 @@ import { NO_RECORDS, recordWithId } from '../../workbook/domain/recordsRead'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { SplitTabRow } from '../../workbook/domain/splitsReading'
-import type { LedgerSplit } from '../../workbook/domain/splits'
+import type { LedgerSplit, SplitPart } from '../../workbook/domain/splits'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import AddTabNotice from '../../workbook/presentation/AddTabNotice.vue'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
@@ -43,15 +43,16 @@ interface PartField {
   amount: string
   category: string
   note: string
+  readonly opened: SplitPart | null
 }
 
 const parts = ref<PartField[]>([])
 const tried = ref(false)
 let nextId = 0
 
-function field(amount: Money | null, category: string, note: string): PartField {
+function field(amount: Money | null, category: string, note: string, opened: SplitPart | null = null): PartField {
   nextId += 1
-  return { id: nextId, amount: amount === null ? '' : amountOf(amount).toFixed(2), category, note }
+  return { id: nextId, amount: amount === null ? '' : amountOf(amount).toFixed(2), category, note, opened }
 }
 
 watch(
@@ -62,7 +63,7 @@ watch(
     parts.value =
       props.split === null
         ? [field(null, props.row.category, ''), field(null, '', '')]
-        : props.split.parts.map((part) => field(part.amount < 0 ? negateMoney(part.amount) : part.amount, part.category, part.note))
+        : props.split.parts.map((part) => field(part.amount < 0 ? negateMoney(part.amount) : part.amount, part.category, part.note, part))
   },
   { immediate: true },
 )
@@ -122,8 +123,8 @@ async function save(): Promise<void> {
   const current = currentParts()
   if (!valid.value || current === null) return
   const signed = (amount: Money): Money => (props.row.amount < 0 ? negateMoney(amount) : amount)
-  const drafts = parts.value.map((part, index) => ({ amount: signed(typed.value[index]!), category: part.category, note: part.note }))
-  const saved = await writes.write(props.split === null ? `Split in ${drafts.length} parts` : 'Split saved', (unit) => writeSplit(unit, props.row, current, drafts), {
+  const drafts = parts.value.map((part, index) => ({ amount: signed(typed.value[index]!), category: part.category, note: part.note, opened: part.opened }))
+  const saved = await writes.write(props.split === null ? `Split in ${drafts.length} parts` : 'Split saved', (unit) => writeSplit(unit, props.row, current, drafts, props.categories), {
     description: `${props.row.counterparty || 'The payment'} of ${formatMoney(props.row.amount)}.`,
     failedTitle: 'Not saved',
     addMissingKinds: tabMissing.value,
@@ -134,7 +135,7 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const current = currentParts()
   if (current === null || current.length === 0) return
-  const deleted = await writes.write('Split deleted', (unit) => writeSplit(unit, props.row, current, []), { description: 'The payment counts whole again.', failedTitle: 'Not deleted' })
+  const deleted = await writes.write('Split deleted', (unit) => writeSplit(unit, props.row, current, [], props.categories), { description: 'The payment counts whole again.', failedTitle: 'Not deleted' })
   if (deleted) open.value = false
 }
 

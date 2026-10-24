@@ -23,7 +23,7 @@ import { BUCKET_COLOUR } from '../../src/features/workbook/domain/categoryColour
 // The ledger runs from 5 January 2025 to 10 October 2026.
 
 function category(slug: string, bucket: DefinedBucket, roles: readonly string[] = [], vat: VatTreatment = 'none'): Category {
-  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat }
+  return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat, ownerShare: null }
 }
 
 export const STEADY_CATEGORIES: readonly Category[] = [

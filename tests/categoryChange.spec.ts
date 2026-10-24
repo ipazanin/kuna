@@ -30,6 +30,7 @@ const ADVANCE: OwnerAdvance = {
   family: 'operating',
   bucket: 'operating',
   description: 'Taxi',
+  ownerShare: null,
   id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2'),
 }
 

@@ -24,9 +24,9 @@ const CLIENTS: readonly Client[] = [
 
 /** Revenue is picked by its role, so the category here is named something else on purpose. */
 const CATEGORIES: readonly Category[] = [
-  { slug: 'fees', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: ['revenue'], vat: 'none' },
-  { slug: 'revenue', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
-  { slug: 'money-back', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: ['client-refund'], vat: 'none' },
+  { slug: 'fees', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: ['revenue'], vat: 'none', ownerShare: null },
+  { slug: 'revenue', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: [], vat: 'none', ownerShare: null },
+  { slug: 'money-back', family: 'income', bucket: 'income', colour: BUCKET_COLOUR, roles: ['client-refund'], vat: 'none', ownerShare: null },
 ]
 
 let nextRow = 2

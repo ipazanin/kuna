@@ -93,8 +93,8 @@ describe('readSplits', () => {
       {
         row: ORDER,
         parts: [
-          { amount: euros(-45), category: 'office-supplies', family: 'operating', bucket: 'operating', note: 'Paper', id: recordIdOf(SPLIT_PART_RECORDS, 'split-2') },
-          { amount: euros(-15), category: 'owner-loan-out', family: 'owner-pay', bucket: 'owner-pay', note: '', id: recordIdOf(SPLIT_PART_RECORDS, 'split-3') },
+          { amount: euros(-45), category: 'office-supplies', family: 'operating', bucket: 'operating', note: 'Paper', ownerShare: null, id: recordIdOf(SPLIT_PART_RECORDS, 'split-2') },
+          { amount: euros(-15), category: 'owner-loan-out', family: 'owner-pay', bucket: 'owner-pay', note: '', ownerShare: null, id: recordIdOf(SPLIT_PART_RECORDS, 'split-3') },
         ],
       },
     ])
@@ -255,10 +255,10 @@ describe('the split of a salary, on a company with a private share split off', (
   // and a July salary of 2,000.00 for June with an 800.00 bonus in it.
   const categories: readonly Category[] = [
     ...STUDIO_CATEGORIES,
-    { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat: 'deductible-25' },
-    { slug: 'private-cost-for-owner', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-out'], vat: 'none' },
-    { slug: 'reimbursement-from-owner', family: 'financing', bucket: 'financing', colour: BUCKET_COLOUR, roles: ['reimbursement'], vat: 'none' },
-    { slug: 'salary-bonus', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: [], vat: 'none' },
+    { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat: 'deductible-25', ownerShare: null },
+    { slug: 'private-cost-for-owner', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-loan-out'], vat: 'none', ownerShare: null },
+    { slug: 'reimbursement-from-owner', family: 'financing', bucket: 'financing', colour: BUCKET_COLOUR, roles: ['reimbursement'], vat: 'none', ownerShare: null },
+    { slug: 'salary-bonus', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: [], vat: 'none', ownerShare: null },
   ]
   const rows = withPackBuckets(
     ledger([
@@ -290,7 +290,7 @@ describe('the split of a salary, on a company with a private share split off', (
 
 describe('withSplitHeadings', () => {
   const presented = splitLedger(ROWS, [splitOf(ORDER, [[-45, 'office-supplies'], [-15, 'owner-loan-out']], PACK_CATEGORIES)])
-  const advance = { date: civil('2026-03-09'), amount: euros(30), description: 'Train', category: 'travel', family: 'operating', bucket: 'operating' as const, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') }
+  const advance = { date: civil('2026-03-09'), amount: euros(30), description: 'Train', category: 'travel', family: 'operating', bucket: 'operating' as const, ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') }
 
   it('lists a split row as the bank row with its parts under it, where its first part stood', () => {
     const listed = listedRows(presented, [advance])

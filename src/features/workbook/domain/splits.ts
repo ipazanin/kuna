@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
 import { naturalOrder } from '../../../shared/text/naturalOrder'
+import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import type { Bucket } from './bucket'
 import type { RecordId } from './recordId'
 import type { Transaction } from './workbook'
@@ -24,6 +25,7 @@ export interface SplitPart {
   readonly family: string
   readonly bucket: Bucket
   readonly note: string
+  readonly ownerShare: OwnerShare | null
   /** Held by no other row of its tab. */
   readonly id: RecordId
 }
@@ -50,7 +52,7 @@ export function holdsSplitKey(row: Pick<Transaction, 'date' | 'account' | 'amoun
 
 /**
  * The ledger with each split row replaced, where it stood, by its parts. A part keeps the bank
- * row's day, account, balance, booking order and text, and takes its own amount and category, so
+ * row's day, account, balance, booking order and text, and takes its own amount, category and share, so
  * every figure counts it as a row of its own.
  */
 export function splitLedger(transactions: readonly Transaction[], splits: readonly LedgerSplit[]): readonly Transaction[] {
@@ -70,6 +72,7 @@ export function splitLedger(transactions: readonly Transaction[], splits: readon
         category: part.category,
         family: part.family,
         bucket: part.bucket,
+        ownerShare: part.ownerShare,
         split: { whole: row, index, count: split.parts.length, note: part.note, id: part.id },
       }),
     )

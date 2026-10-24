@@ -137,7 +137,7 @@ const inSheet = computed(() => state.workbook?.source === 'google')
 async function applyToWaiting(): Promise<void> {
   const count = waiting.value.length
   const verdicts = waiting.value
-  const written = await recordWrites.write(`Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, verdicts), {
+  const written = await recordWrites.write(`Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, verdicts, state.workbook?.categories ?? []), {
     failedTitle: 'Not written',
     description: 'Only rows that were waiting for review. Confirmed rows kept their category.',
   })

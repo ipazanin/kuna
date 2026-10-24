@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { amountOf as unitsOf } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
+import { ownerShareProblem, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import { bookingOrder } from './bookingOrder'
 import { UNCLASSIFIED } from './bucket'
 import { recordIdOf } from './recordId'
@@ -77,6 +78,7 @@ export function ledgerEntryOf(fields: StoredFields, id: RecordId | null): Ledger
       instructedCurrency: textOf(fields.instructed_currency),
     },
     reviewReasons: reviewReasonsOf(fields.review_reasons),
+    ownerShare: storedOwnerShare(fields.owner_share),
     id: keyedId(id),
   }
 }
@@ -99,13 +101,18 @@ function reviewReasonsOf(field: StoredField | undefined): string[] {
 /**
  * The transactions of the ledger against these categories, each numbered in booking order, and why
  * the other rows were left out. A day whose balances do not chain is reported on the row the
- * guessed order closes it with. Rows that share their key still count, each with a problem.
+ * guessed order closes it with. Rows that share their key still count, each with a problem, and so
+ * does a row whose owner share cannot be read, which reads as none.
  */
 export function readLedger(read: RecordsRead<LedgerEntry>, categories: readonly Category[]): Reading<Transaction> {
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
   const problems: RecordProblem[] = refusedProblems(read)
   const storedOf = new Map<Omit<Transaction, 'sequence'>, ReadRecord<LedgerEntry>>()
   const entries = read.records.map((stored) => {
+    const share = ownerShareProblem(stored.fields.owner_share)
+    if (share !== null) {
+      problems.push(problemOf(stored, share))
+    }
     const defined = categoryBySlug.get(stored.record.category)
     const entry: Omit<Transaction, 'sequence'> = { ...stored.record, family: defined?.family ?? UNCLASSIFIED, bucket: defined?.bucket ?? UNCLASSIFIED }
     storedOf.set(entry, stored)
