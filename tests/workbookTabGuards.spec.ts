@@ -107,22 +107,19 @@ describe('the accounts tab', () => {
     expect(accountChangeRefusals(added(''), untouched, checks)).toEqual([])
     expect(accountChangeRefusals(added('XX24FAKE0000000097'), untouched, checks)).toEqual(['"XX24FAKE0000000097" is not a valid IBAN.'])
     expect(accountChangeRefusals(added(VALID_IBAN), untouched, checks)).toEqual([
-      `${VALID_IBAN} is already the IBAN of the main account, and the Apps Script stops on an IBAN the tab names twice.`,
+      `${VALID_IBAN} is already the IBAN of the main account, and the app files each statement by its IBAN, so one IBAN names one account.`,
     ])
     expect(accountChangeRefusals(added(OTHER_IBAN), untouched, checks)).toEqual([
       `${OTHER_IBAN} is the IBAN of the client acme, so the rules would read its payments as transfers between your own accounts.`,
     ])
   })
 
-  it('leaves an IBAN that did not change alone, and keeps at least one IBAN on the tab', () => {
+  it('leaves an IBAN that did not change alone, and lets an account no ledger row names drop its IBAN', () => {
     const main = { slug: 'main', iban: 'XX00FAKE0000000001' }
 
     expect(accountChangeRefusals([{ before: main, after: main }], [], checks)).toEqual([])
     const spare = { slug: 'spare', iban: 'XX00FAKE0000000002' }
-    expect(accountChangeRefusals([{ before: spare, after: { ...spare, iban: '' } }], [{ ...main }], checks)).toEqual([])
-    expect(accountChangeRefusals([{ before: spare, after: { ...spare, iban: '' } }], [], checks)).toEqual([
-      'The accounts tab would name no IBAN, and the Apps Script stops its morning run without one. Keep at least one account with its IBAN.',
-    ])
+    expect(accountChangeRefusals([{ before: spare, after: { ...spare, iban: '' } }], [], checks)).toEqual([])
     expect(accountChangeRefusals([{ before: { slug: 'cash', iban: '' }, after: null }], [], checks)).toEqual([])
   })
 
@@ -131,7 +128,7 @@ describe('the accounts tab', () => {
     const savings = { slug: 'savings', iban: VALID_IBAN }
 
     expect(accountChangeRefusals([{ before: main, after: { ...main, iban: '' } }], [{ ...savings }], checks)).toEqual([
-      '"main" keeps its IBAN, since ledger rows name the account and the Apps Script refuses a statement whose IBAN the accounts tab does not name.',
+      '"main" keeps its IBAN, since ledger rows name the account and the app files no statement whose IBAN the accounts tab does not name.',
     ])
     expect(accountChangeRefusals([{ before: main, after: { ...main, iban: 'XX23FAKE0000000097' } }], [], checks)).toEqual([])
   })

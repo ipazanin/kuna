@@ -5,7 +5,9 @@ import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { useRulesChangePreview, useRulesWrites } from '../application/useRulesChange'
+import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRulesChangePreview } from '../application/useRulesChange'
+import { writeRulesChange } from '../application/ruleWrites'
 import type { RulesTabChange } from '../domain/rulesTabChange'
 import RuleChangeReview from './RuleChangeReview.vue'
 
@@ -13,7 +15,7 @@ export interface PendingRulesChange {
   readonly title: string
   readonly description: string
   readonly change: RulesTabChange
-  /** The toast once it is written, such as "Switched off merchant-telecom". */
+  /** The toast once it is written, with Undo, such as "Switched off merchant-telecom". */
   readonly saved: string
   readonly action: string
 }
@@ -27,7 +29,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 const { state } = useWorkbook()
 const phone = usePhoneLayout()
-const rulesWrites = useRulesWrites()
+const rulesWrites = useRecordWrites()
 const accepted = ref(false)
 
 watch(
@@ -40,12 +42,13 @@ watch(
 const preview = useRulesChangePreview(() => (open.value ? (props.pending?.change ?? null) : null))
 const needsAcceptance = computed(() => (preview.value?.backtest.brokenAgreements.length ?? 0) + (preview.value?.backtest.humanConflicts.length ?? 0) > 0)
 const canSave = computed(
-  () => preview.value !== null && preview.value.refusals.length === 0 && (!needsAcceptance.value || accepted.value) && !rulesWrites.saving.value && !state.writing,
+  () => preview.value !== null && preview.value.refusals.length === 0 && (!needsAcceptance.value || accepted.value) && !rulesWrites.busy.value && !state.writing,
 )
 
 async function save(): Promise<void> {
   if (props.pending === null || !canSave.value) return
-  if (await rulesWrites.save(props.pending.change, props.pending.saved)) open.value = false
+  const { change, saved } = props.pending
+  if (await rulesWrites.write(saved, (unit) => writeRulesChange(unit, change), { failedTitle: 'Not saved' })) open.value = false
 }
 </script>
 
@@ -63,7 +66,7 @@ async function save(): Promise<void> {
     <template #footer>
       <div class="flex w-full flex-wrap justify-end gap-2">
         <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
-        <UButton :label="pending?.action ?? 'Save'" icon="i-lucide-save" :loading="rulesWrites.saving.value" :disabled="!canSave" data-testid="save-rules-change" @click="save" />
+        <UButton :label="pending?.action ?? 'Save'" icon="i-lucide-save" :loading="rulesWrites.busy.value" :disabled="!canSave" data-testid="save-rules-change" @click="save" />
       </div>
     </template>
   </UModal>

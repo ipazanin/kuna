@@ -13,7 +13,7 @@ export type RecordedSheetsRequest =
 
 /** A Google Sheet held in memory that answers reads and `spreadsheets.batchUpdate` as Google does and records every request. */
 export interface FakeSheets extends SheetsValues {
-  /** Each tab's cells, row 1 first. Tests change them to play the ingest or a person in the Sheet. */
+  /** Each tab's cells, row 1 first. Tests change them to play another device or a person in the Sheet. */
   readonly grids: Record<string, (CellValue | null)[][]>
   /** Each tab's number formats, such as `yyyy-mm-dd`, in the same rows and columns as its cells. A cell without one is null or missing. */
   readonly formats: Record<string, (string | null)[][]>

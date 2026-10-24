@@ -22,12 +22,11 @@ export interface AccountChecks {
 }
 
 /**
- * What the Apps Script needs of the accounts tab. An account the ledger names keeps its name and its
+ * What the statements need of the accounts tab. An account the ledger names keeps its name and its
  * row. A new or changed IBAN is a valid one that no other account and no client has, since the
- * ingest files each statement by its IBAN and stops on one named twice, and the rules would read a
- * client's payment as a transfer between your own accounts. An account the ledger names keeps an
- * IBAN once it has one, since the ingest refuses a statement whose IBAN the tab does not name. The
- * tab keeps at least one IBAN once it has one, or the morning run stops.
+ * fetch names each statement file by its IBAN and the app files each statement by it, and the rules
+ * would read a client's payment as a transfer between your own accounts. An account the ledger names
+ * keeps an IBAN once it has one, since the app files no statement whose IBAN the tab does not name.
  */
 export function accountChangeRefusals(
   edits: readonly AccountEdit[],
@@ -47,7 +46,7 @@ export function accountChangeRefusals(
   for (const edit of edits) {
     const after = edit.after
     if (after !== null && after.iban === '' && edit.before !== null && edit.before.iban !== '' && checks.named.has(edit.before.slug)) {
-      refusals.push(`"${edit.before.slug}" keeps its IBAN, since ledger rows name the account and the Apps Script refuses a statement whose IBAN the accounts tab does not name.`)
+      refusals.push(`"${edit.before.slug}" keeps its IBAN, since ledger rows name the account and the app files no statement whose IBAN the accounts tab does not name.`)
     }
     if (after === null || after.iban === '' || after.iban === edit.before?.iban) {
       continue
@@ -57,15 +56,10 @@ export function accountChangeRefusals(
     if (!isIban(after.iban)) {
       refusals.push(`"${after.iban}" is not a valid IBAN.`)
     } else if (holder !== undefined) {
-      refusals.push(`${after.iban} is already the IBAN of the ${holder.slug} account, and the Apps Script stops on an IBAN the tab names twice.`)
+      refusals.push(`${after.iban} is already the IBAN of the ${holder.slug} account, and the app files each statement by its IBAN, so one IBAN names one account.`)
     } else if (client !== undefined) {
       refusals.push(`${after.iban} is the IBAN of the client ${client}, so the rules would read its payments as transfers between your own accounts.`)
     }
-  }
-  const hadIban = [...untouched, ...edits.flatMap((edit) => (edit.before === null ? [] : [edit.before]))].some((row) => row.iban !== '')
-  const keepsIban = [...untouched, ...edits.flatMap((edit) => (edit.after === null ? [] : [edit.after]))].some((row) => row.iban !== '')
-  if (hadIban && !keepsIban) {
-    refusals.push('The accounts tab would name no IBAN, and the Apps Script stops its morning run without one. Keep at least one account with its IBAN.')
   }
   return refusals
 }

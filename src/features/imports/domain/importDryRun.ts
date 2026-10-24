@@ -69,15 +69,15 @@ export interface DryRunInputs {
 
 /**
  * What importing the statements would do, written nowhere. A row is on the ledger already when its
- * account holds its reference, the key the Apps Script dedups by, so a statement the morning ingest
- * filed adds nothing. Each statement's new rows must follow every row it shares with the ledger,
+ * account holds its reference, so a statement another sync or an earlier import filed adds
+ * nothing. Each statement's new rows must follow every row it shares with the ledger,
  * carry a reference, not predate the account's newest row, and open at the balance the ledger
  * leaves the account at. An account with no rows yet waits until the person starts it at the
  * statement's opening. A bank export whose label, its file name and hash, is on the ledger already
  * and that still has new rows is refused, since its rows' keys changed since it was imported.
  * Statements of one account are taken oldest first, each against where the one before left the
  * account, and a refused one leaves the account where it was, so a later one is refused for the
- * gap. New rows are categorised by the rules, as the ingest does.
+ * gap. New rows are categorised by the rules.
  */
 export function importDryRun(readings: readonly StatementReading[], inputs: DryRunInputs): ImportDryRun {
   const states = accountStates(inputs.transactions)
@@ -142,7 +142,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   if (unidentified.length > 0) {
     return {
       statement: shown(
-        `${unidentified.length === 1 ? 'An entry carries' : `${unidentified.length} entries carry`} no bank reference, so a second import could not tell ${unidentified.length === 1 ? 'it' : 'them'} from others. The whole statement is refused, as the Apps Script refuses it.`,
+        `${unidentified.length === 1 ? 'An entry carries' : `${unidentified.length} entries carry`} no bank reference, so a second import could not tell ${unidentified.length === 1 ? 'it' : 'them'} from others. The whole statement is refused.`,
         null,
         statement.opening,
       ),
@@ -208,7 +208,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   return { statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, notes }, added: entries.reverse() }
 }
 
-/** The ledger entry the Apps Script's `ledgerRowFor` writes for a new entry of a statement, with its verdict. */
+/** The ledger entry a new entry of a statement makes, with its verdict. */
 function ledgerEntryOfImport(statement: Pick<ImportedStatement, 'account' | 'label'>, row: ImportedRow & { readonly balance: Money; readonly verdict: Verdict | null }): LedgerEntry {
   const entry = {
     account: statement.account,

@@ -27,7 +27,7 @@ import type { PendingRulesChange } from './RuleChangeDialog.vue'
 import RuleEditor from './RuleEditor.vue'
 import type { RuleEditorSource } from './RuleEditor.vue'
 
-/** The rules tab in the order rules are tried, each switched, moved, edited or added through the same checked write. */
+/** The rules tab in the order rules are tried, each switched, moved, edited, deleted or added through the same checked write. */
 const { state } = useWorkbook()
 
 const workbook = computed(() => state.workbook)
@@ -100,7 +100,7 @@ function toggleRule(rule: Rule): void {
   pending.value = {
     title: `${switching} ${rule.id}`,
     description: rule.enabled ? 'It stays on the tab and is no longer tried.' : 'It is tried again at its place in the order.',
-    change: { appended: null, edited: [{ id: rule.id, expected, cells: { ...expected, enabled: !rule.enabled } }] },
+    change: { appended: null, edited: [{ id: rule.id, expected, cells: { ...expected, enabled: !rule.enabled } }], removed: null },
     saved: `${rule.enabled ? 'Switched off' : 'Switched on'} ${rule.id}`,
     action: switching,
   }
@@ -118,7 +118,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
   pending.value = {
     title: `Try ${rule.id} ${way}`,
     description: orders.size === 2 ? 'It trades orders with its neighbour.' : 'Two rules share an order, so every rule is renumbered in steps of 100.',
-    change: { appended: null, edited },
+    change: { appended: null, edited, removed: null },
     saved: `Moved ${rule.id}`,
     action: 'Move it',
   }
@@ -129,7 +129,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
 <template>
   <AppCard
     title="Rules"
-    subtitle="Tried from the top. The first enabled rule whose conditions all hold decides a row. Every save is checked the way the Apps Script reads the tab."
+    subtitle="Tried from the top. The first enabled rule whose conditions all hold decides a row."
     collapse-id="review.rules"
     :summary="summary"
     :reveal="highlightedId !== null"
@@ -145,7 +145,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
         color="error"
         variant="subtle"
         :title="`${problems.length} ${problems.length === 1 ? 'row' : 'rows'} on the rules tab cannot be read`"
-        description="The Apps Script refuses the whole tab while any is left, and the app saves no rule until they are fixed in the workbook."
+        description="Each is left out, so the rules below it decide its rows instead. Fix them in the workbook."
       />
       <ProblemList :problems="problems" />
     </div>

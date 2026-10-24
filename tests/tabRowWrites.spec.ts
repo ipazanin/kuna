@@ -5,7 +5,6 @@ import { INVOICE_WRITES } from '../src/features/receivables/application/invoiceW
 import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/features/settings/application/namedRecordWrites'
 import { ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
 import { canUndo, wasUndone } from '../src/features/workbook/application/createWorkbookStore'
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
 import { ACCOUNT_RECORDS } from '../src/features/workbook/domain/recordKind'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import { euros } from './fixtures/ledger'
@@ -434,15 +433,7 @@ describe('row writes to a Google Sheet', () => {
     expect(store.state.snapshot?.meta.missingColumns?.accounts).toBeUndefined()
   })
 
-  it('refuses to leave the accounts tab without an IBAN, which the morning run needs', async () => {
-    const grids = everyTab()
-    const { store } = await googleHarness(used, { ...grids, ledger: [grids.ledger![0]!], rules: [grids.rules![0]!] })
-
-    await expect(edit(store, ACCOUNT_WRITES, 2, { iban: '' })).rejects.toThrow('The accounts tab would name no IBAN')
-    await expect(remove(store, ACCOUNT_WRITES, 2)).rejects.toThrow(WorkbookWriteRefused)
-  })
-
-  it('keeps a rule that names a category valid, as the Apps Script reads it', async () => {
+  it('keeps a rule that names a category valid, as the rules reader reads it', async () => {
     const grids = everyTab()
     const { store } = await googleHarness(used, { ...grids, rules: [...grids.rules!, ruleRow({ rule: 'review-postage', order: 200, enabled: false, category: 'postage', confidence: 'rule' })] })
 

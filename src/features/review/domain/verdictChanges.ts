@@ -42,7 +42,7 @@ export function withVerdict(entry: LedgerEntry, verdict: LedgerVerdict): LedgerE
 
 /**
  * The rows a new rule settles that still wait on review: flagged `ai` or unclassified, never a row
- * a person confirmed. Each takes the rule's category and `rule`, as the morning ingest would have
+ * a person confirmed. Each takes the rule's category and `rule`, as a sync or an import would have
  * written had the rule existed.
  */
 export function waitingRowsSettledBy(

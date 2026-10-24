@@ -73,9 +73,8 @@ export interface Receivables {
 }
 
 /**
- * Invoices against the revenue credits that paid them, client by client, as the `outgoing` tab's
- * scan in AnalysisMatched.gs does it for its one client. A payment belongs to the client whose
- * IBAN sent it. Revenue and client refunds are the categories with those roles.
+ * Invoices against the revenue credits that paid them, client by client. A payment belongs to the
+ * client whose IBAN sent it. Revenue and client refunds are the categories with those roles.
  */
 export function receivablesOf(
   transactions: readonly Transaction[],

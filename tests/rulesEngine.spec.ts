@@ -173,7 +173,7 @@ describe('categorise', () => {
 })
 
 describe('the derived signals', () => {
-  it('folds as the Apps Script does, keeping đ', () => {
+  it('folds accents away and keeps đ', () => {
     expect(foldRuleText('  Plaća  za\tvođenje ')).toBe('PLACA ZA VOĐENJE')
   })
 

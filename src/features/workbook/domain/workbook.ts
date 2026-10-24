@@ -227,7 +227,7 @@ export interface Workbook {
   readonly title: string
   /** ISO timestamp of the read this copy came from, or of the last change kept in this browser. */
   readonly syncedAt: string
-  /** In the order the tab holds them, which the Apps Script keeps newest first. `sequence` gives the booking order. */
+  /** In the order the tab holds them, which the app keeps newest first for a person reading the Sheet. `sequence` gives the booking order. */
   readonly transactions: readonly Transaction[]
   readonly categories: readonly Category[]
   readonly accounts: readonly Account[]
@@ -236,8 +236,6 @@ export interface Workbook {
   /** In the order the tab holds them. */
   readonly invoices: readonly Invoice[]
   readonly clients: readonly Client[]
-  /** False for a Google Sheet without a `clients` tab, where the Apps Script refuses a rule that tests counterparty_is_client. */
-  readonly hasClientsTab: boolean
   /** What is to be invoiced, in the order the tab holds it. */
   readonly billingPlan: readonly BillingItem[]
   /** The costs the owner paid privately, which a pack hands core, in the order its tab holds them. */

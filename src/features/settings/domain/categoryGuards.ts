@@ -18,9 +18,8 @@ export interface CategoryUses {
 }
 
 /**
- * A category in use keeps its name and its row, since the ledger's chips, the rules the Apps Script
- * runs every morning and the other tabs name it. A new name keeps to the slug format and is on one
- * row only. A category owner advances carry stays in the operating or taxes bucket, where an advance
+ * A category in use keeps its name and its row, since the ledger's chips, the rules and the other
+ * tabs name it. A new name keeps to the slug format and is on one row only. A category owner advances carry stays in the operating or taxes bucket, where an advance
  * counts.
  */
 export function categoryChangeRefusals(

@@ -57,11 +57,14 @@ export const CONDITION_LABELS: Readonly<Record<(typeof CONDITION_COLUMNS)[number
   foreign_currency: 'In a foreign currency',
 }
 
-/** What a save did to the rules tab, in a few words, such as "Switched off merchant-telecom". */
+/** What a save did to the rules tab, in a few words, such as "Switched off merchant-telecom" or "Deleted merchant-telecom". */
 export function rulesChangeInWords(change: RulesTabChange): string {
   const renumbered = (count: number): string => (count === 0 ? '' : `, and renumbered ${count} ${count === 1 ? 'rule' : 'rules'}`)
   if (change.appended !== null) {
     return `Added ${cellText(change.appended.rule)}${renumbered(change.edited.length)}`
+  }
+  if (change.removed !== null) {
+    return `Deleted ${cellText(change.removed.rule)}`
   }
   const [first, ...others] = change.edited
   if (first === undefined) {

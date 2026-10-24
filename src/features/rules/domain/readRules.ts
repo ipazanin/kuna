@@ -22,18 +22,15 @@ export interface RulesRead {
 type ConditionColumnName = (typeof CONDITION_COLUMNS)[number]
 
 /**
- * The `rules` tab as `Rules.gs` reads it, with each refusal a problem on its row rather than an
- * error for the tab. A refused row is left out, which hands its rows to the rules below it, so the
- * Apps Script would refuse the whole tab where this reports a problem.
+ * The `rules` tab, with each refusal a problem on its row rather than an error for the tab. A
+ * refused row is left out, which hands its rows to the rules below it.
  *
  * Refused: an unknown column, no id or one on more than one row, every row of it, an order that is not a number, an enabled
- * cell that is not TRUE or FALSE, an enabled rule with no condition or an unreadable one, a `rule`
- * confidence rule whose category `definedCategories` lacks, and an enabled rule that tests
- * `counterparty_is_client` in a workbook without a clients tab, which stops the Apps Script's
- * `categorisationContext` before a row is filed. A `review` rule may name any category or none. A
- * disabled rule is checked for its id and order only, and keeps the conditions that read.
+ * cell that is not TRUE or FALSE, an enabled rule with no condition or an unreadable one, and a `rule`
+ * confidence rule whose category `definedCategories` lacks. A `review` rule may name any category or
+ * none. A disabled rule is checked for its id and order only, and keeps the conditions that read.
  */
-export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>, hasClientsTab: boolean): RulesRead {
+export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>): RulesRead {
   const problems: RecordProblem[] = []
   const shared = sharedKeys(
     rows.filter((row) => textOf(row.cells.rule) !== ''),
@@ -74,7 +71,7 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
     const category = textOf(row.cells.category).toLowerCase()
     const confidenceText = textOf(row.cells.confidence).toLowerCase()
     if (enabled) {
-      const reasons = enabledRuleRefusals(confidenceText, category, read, definedCategories, hasClientsTab)
+      const reasons = enabledRuleRefusals(confidenceText, category, read, definedCategories)
       if (reasons.length > 0) {
         reasons.forEach(refuse)
         continue
@@ -92,7 +89,6 @@ function enabledRuleRefusals(
   category: string,
   read: ReturnType<typeof conditionsOf>,
   definedCategories: ReadonlySet<string>,
-  hasClientsTab: boolean,
 ): string[] {
   if (confidence !== 'rule' && confidence !== 'review') {
     return [`the confidence "${confidence}" is neither rule nor review`]
@@ -105,9 +101,6 @@ function enabledRuleRefusals(
   }
   if (read.conditions.length === 0) {
     return ['no condition, so it would match every row']
-  }
-  if (!hasClientsTab && read.conditions.some((condition) => condition.column === 'counterparty_is_client')) {
-    return [`it tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban`]
   }
   return []
 }

@@ -37,7 +37,7 @@ interface TabPlan {
  * stands. A change writes only the cells of the fields it alters, and only where the row holds
  * something else, so a formula the change leaves alone stays a formula. A removed record's row is
  * taken out whole. An added record goes below the last row, and a ledger row where its date puts it,
- * newest first, as the shadow-accounting Apps Script inserts a batch.
+ * newest first, for a person reading the Sheet.
  */
 export function spreadsheetRecordStorage(writer: WorkbookWriter): CopyStorage<WorkbookSnapshot> {
   let read: FreshTabs = {}
@@ -134,9 +134,6 @@ function recordsOfTabs(tabs: FreshTabs): FreshRecords {
       const records = memo.get(kind.name) ?? recordsOfRows(mapping, rows)
       memo.set(kind.name, records)
       return records as RecordsRead<R>
-    },
-    fieldsKept(kind) {
-      return tabs[spreadsheetTabOfKind(kind).tab]?.header ?? null
     },
   }
 }

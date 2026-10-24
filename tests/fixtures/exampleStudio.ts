@@ -124,7 +124,6 @@ export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbo
     rules: [],
     invoices: STUDIO_INVOICES,
     clients: [],
-    hasClientsTab: true,
     billingPlan: [],
     ownerAdvances: STUDIO_ADVANCES,
     splits: [],

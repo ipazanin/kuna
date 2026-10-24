@@ -35,7 +35,7 @@ import { refusalOr } from '../domain/storedFields'
 import type { StoredFields } from '../domain/storedFields'
 import type { Workbook } from '../domain/workbook'
 import { fieldsOf, textOf } from './cellReading'
-import { installedPackTabs, packTabOf } from './packTabs'
+import { installedPackTabs } from './packTabs'
 import type { CellValue, CoreTab, SheetRow, WorkbookSnapshot, WorkbookTab } from './workbookSnapshot'
 import { ID_COLUMN, contentColumns } from './workbookTemplate'
 
@@ -283,15 +283,6 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
   ),
 }
 
-/** The mapping of a tab, core's or the installed pack's. Throws for a pack tab no installed pack maps. */
-export function spreadsheetTabOf(tab: WorkbookTab): SpreadsheetTab<unknown> {
-  const mapping: SpreadsheetTab<unknown> | null = tab in CORE_TABS ? CORE_TABS[tab as CoreTab] : packTabOf(tab)
-  if (mapping === null) {
-    throw new Error(`The ${tab} tab belongs to a pack that is not installed.`)
-  }
-  return mapping
-}
-
 /** The mapping of a kind, core's or the installed pack's. Throws for a kind no tab holds. */
 export function spreadsheetTabOfKind<R>(kind: RecordKind<R>): SpreadsheetTab<R> {
   const mapping = [...Object.values(CORE_TABS), ...installedPackTabs()].find((candidate) => candidate.kind.name === kind.name)
@@ -342,12 +333,9 @@ function recordsOfTabs(tabs: Readonly<Record<WorkbookTab, readonly SheetRow[]>>)
   }
 }
 
-/**
- * A snapshot's records and the workbook they make, whether it came from a Google Sheet or an xlsx
- * file. A Google Sheet without a clients tab cannot answer a rule that tests counterparty_is_client.
- */
+/** A snapshot's records and the workbook they make, whether it came from a Google Sheet or an xlsx file. */
 export function readSnapshot(snapshot: WorkbookSnapshot): { readonly records: WorkbookRecords; readonly workbook: Workbook } {
-  const { id, source, title, syncedAt, missingTabs } = snapshot.meta
+  const { id, source, title, syncedAt } = snapshot.meta
   const records = recordsOfTabs(snapshot)
-  return { records, workbook: readWorkbook({ id, source, title, syncedAt, hasClientsTab: !missingTabs.includes('clients') }, records, installedPack().workbook) }
+  return { records, workbook: readWorkbook({ id, source, title, syncedAt }, records, installedPack().workbook) }
 }

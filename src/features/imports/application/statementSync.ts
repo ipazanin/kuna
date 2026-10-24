@@ -82,7 +82,7 @@ async function readingsOf(file: StatementFile, ports: StatementSyncPorts, workbo
 }
 
 /**
- * The write of every accepted statement. When it is refused, such as for rows the morning ingest
+ * The write of every accepted statement. When it is refused, such as for rows another device's sync
  * filed since the Sheet was read, the Sheet is read again and the dry run runs once more on it.
  */
 async function fileReadings(readings: readonly StatementReading[], ports: StatementSyncPorts, mayRetry: boolean): Promise<StatementSyncOutcome> {

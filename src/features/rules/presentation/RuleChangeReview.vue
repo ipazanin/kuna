@@ -85,8 +85,7 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
       data-testid="rule-refusals"
     >
       <template #description>
-        <p>The Apps Script reads the whole rules tab every morning and stops on any of these, so the app writes nothing until they are fixed.</p>
-        <ul class="mt-2 list-disc ps-4">
+        <ul class="list-disc ps-4">
           <li v-for="refusal in preview.refusals" :key="refusal" class="break-words">{{ refusal }}</li>
         </ul>
       </template>

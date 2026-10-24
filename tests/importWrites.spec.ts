@@ -137,7 +137,7 @@ describe('the import dry run', () => {
     expect(run.statements[0]).toMatchObject({ refusal: null, notes: ['The statement has no booked entries, so importing it writes nothing.'] })
   })
 
-  it('refuses an entry without a reference, as the Apps Script does', async () => {
+  it('refuses an entry without a reference, which a second import could not tell from others', async () => {
     const { store } = await googleHarness(used, grids())
     const unreferenced = creditStatement().replace(/<NtryRef>.*?<\/NtryRef>/, '').replace(/(<\/RvslInd>[\s\S]*?)<AcctSvcrRef>.*?<\/AcctSvcrRef>/, '$1')
 
@@ -166,7 +166,7 @@ describe('the import dry run', () => {
   })
 })
 
-describe('placing statement rows where the Apps Script inserts a batch', () => {
+describe('placing statement rows newest first, where a person reading the Sheet looks', () => {
   const rows = sheetRowsFromValues([LEDGER_HEADER, ...LEDGER_VALUES])
   const cells = (date: number, statement: string, account = 'main'): Record<string, CellValue> => ({ date, statement, account })
 
@@ -244,7 +244,7 @@ describe.each([
     expect(sheets.formats.ledger![2]).toEqual(below)
   })
 
-  it('refuses rows the ingest filed since the dry run, and writes nothing', async () => {
+  it('refuses rows another device filed since the dry run, and writes nothing', async () => {
     const { store, sheets } = await harnessOf(used, grids())
     const run = dryRun(store, creditStatement())
     await importRows(store, run.added)
@@ -287,7 +287,7 @@ describe.each([
 })
 
 describe('an import into a Google Sheet', () => {
-  it('leaves the ledger as it was when the one request of the import fails, so no empty row is left for the morning ingest', async () => {
+  it('leaves the ledger as it was when the one request of the import fails, so no empty row is left behind', async () => {
     const { store, sheets } = await googleHarness(used, grids())
     const before = structuredClone(sheets.grids.ledger)
     const send = sheets.updateSpreadsheet.bind(sheets)

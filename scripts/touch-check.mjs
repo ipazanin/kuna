@@ -23,7 +23,8 @@
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
  * with a profile made for it, each confirmed and undone, and the profile deleted, an invoice made and re-exported, a rule made from a row and applied to
- * the rows still waiting, a rule edited and switched off on Review's Rules tab, the Ruleset search on Settings, a
+ * the rows still waiting, a rule edited and switched off on Review's Rules tab, a rule's note changed and the rule deleted from
+ * its editor, each undone, in both modes, the Ruleset search on Settings, a
  * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
@@ -63,6 +64,7 @@ import {
   planFlow,
   planTabFlow,
   reviewSplitFlow,
+  rulesEditorFlow,
   scenarioFlow,
   splitFlow,
   startingScenariosFlow,
@@ -814,6 +816,7 @@ async function checkWidth(width) {
       ['split-review', '#/review', 'Review', reviewSplitFlow],
       ['change-category', '#/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
       ['dismiss', '#/review?tab=rules', 'Review', dismissFlow],
+      ['rules-editor', '#/review?tab=rules', 'Review', rulesEditorFlow],
       ['import-camt', '#/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
       ['import-table', '#/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
     ]) {
@@ -1175,6 +1178,9 @@ async function checkWidth(width) {
     await page.tap('[data-testid="save-rule"]')
     await (await waitForText(page, '[role="dialog"] button', 'Done')).tap()
     await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+    // The save's toast shows once the editor closes and would take the taps below.
+    await waitForText(page, '[data-slot="title"]', 'Added merchant-laptop-store')
+    await closeToasts(page)
 
     const exception = await waitForText(page, '[data-testid="coverage-exception"]', 'PAPER & INK STORE')
     await expect(
@@ -1214,6 +1220,8 @@ async function checkWidth(width) {
     await waitForText(page, '[role="dialog"] [data-slot="title"]', 'Saved own-account')
     await (await waitForText(page, '[role="dialog"] button', 'Done')).tap()
     await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+    await waitForText(page, '[data-slot="title"]', 'Edited own-account: note')
+    await closeToasts(page)
     await expect(
       page.evaluate(() => document.querySelector('[data-testid="rule-row"]')?.textContent ?? ''),
       (text) => text.includes('Checked on the phone.'),

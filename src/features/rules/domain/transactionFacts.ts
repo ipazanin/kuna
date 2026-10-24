@@ -3,9 +3,8 @@ import type { Settings } from '../../settings/domain/settings'
 import type { Account, Client, Transaction, TransactionSignals } from '../../workbook/domain/workbook'
 
 /**
- * Text folded the way `Categorise.gs` folds it: accents stripped, upper case, whitespace collapsed.
- * Unlike the app's own `fold`, `đ` survives, because a rule cell and a statement must compare here
- * exactly as they do in the Apps Script that files the morning's rows.
+ * Text folded for the rules: accents stripped, upper case, whitespace collapsed. Unlike the app's
+ * own `fold`, `đ` survives, so the rules on the tab keep matching the rows they were written for.
  */
 export function foldRuleText(text: string): string {
   return text
@@ -108,7 +107,7 @@ export function budgetRevenueCode(creditorReference: string, foldedDescription: 
 /**
  * A card purchase: the ISO code says so, the counterparty is a card settlement account, the folded
  * description heads with a masked card number, or it carries a PDF statement's card line. The ISO
- * codes are compared as stored, without folding, as `Categorise.gs` does.
+ * codes are compared as stored, without folding.
  */
 export function isCardTransaction(
   signals: Pick<TransactionSignals, 'txDomain' | 'txFamily'>,

@@ -6,7 +6,9 @@ import { confirmation, recategorisation, waitingRowsSettledBy } from '../src/fea
 import type { RowVerdict } from '../src/features/review/domain/verdictChanges'
 import { writeRulesChange } from '../src/features/rules/application/ruleWrites'
 import type { RulesTabChange } from '../src/features/rules/domain/rulesTabChange'
-import { ruleTabCells } from '../src/features/rules/domain/rulesTabChange'
+import { draftOfRule } from '../src/features/rules/domain/ruleDraft'
+import { previewRulesChange } from '../src/features/rules/domain/rulesChangePreview'
+import { rulesChangeInWords } from '../src/features/rules/domain/ruleSummary'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 import { removeSettings, setSettings } from '../src/features/settings/application/settingWrites'
 import { generalSettingsToSave, heldSettingValue, statementsFolderUnset, unreadSettingKeys } from '../src/features/settings/domain/settings'
@@ -92,7 +94,7 @@ describe.each([
     const receipt = await setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])
     await undo(store, receipt)
     const expected = rulesCells(store, 'merchant-model')
-    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false } }] })
+    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false } }], removed: null })
     await changeSettings(store, [{ key: 'review_label', value: 'anna' }])
     await expect(setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'snacks', settings(store))])).rejects.toThrow(WorkbookWriteRefused)
 
@@ -134,7 +136,7 @@ describe.each([
     const { store } = await harnessOf(used)
     const debits = { rule: 'all-debits', order: 50, enabled: true, direction: 'debit', category: 'equipment', confidence: 'rule' }
 
-    await changeRules(store, { appended: debits, edited: [] })
+    await changeRules(store, { appended: debits, edited: [], removed: null })
     const workbook = store.state.workbook!
     const waiting = waitingRowsSettledBy('all-debits', workbook.transactions, workbook.rules, categorisationContextOf(workbook))
     await setVerdicts(store, waiting)
@@ -147,43 +149,90 @@ describe.each([
     expect(row(store, 'Cash deposit')).toMatchObject({ category: 'revenue', flaggedBy: 'rule' })
   })
 
-  it('refuses a rule whose id is taken or whose category is not defined, as the Apps Script would', async () => {
+  it('refuses a rule whose id is taken or whose category is not defined', async () => {
     const { store } = await harnessOf(used)
 
     await expect(
-      changeRules(store, { appended: { rule: 'Merchant-Model', order: 200, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [] }),
+      changeRules(store, { appended: { rule: 'Merchant-Model', order: 200, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [], removed: null }),
     ).rejects.toThrow('The rule "merchant-model" is in the workbook already, so it is not added again.')
     await expect(
-      changeRules(store, { appended: { rule: 'snacks', order: 200, enabled: true, description_contains: 'X', category: 'snacks', confidence: 'rule' }, edited: [] }),
+      changeRules(store, { appended: { rule: 'snacks', order: 200, enabled: true, description_contains: 'X', category: 'snacks', confidence: 'rule' }, edited: [], removed: null }),
     ).rejects.toThrow('the categories tab does not define it')
     expect(store.state.workbook!.rules).toHaveLength(1)
   })
 
-  it('refuses a rule that would share its order with an enabled rule, since the Apps Script breaks that tie by row', async () => {
-    const { store } = await harnessOf(used)
-
-    await expect(
-      changeRules(store, { appended: { rule: 'also-model', order: 100, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [] }),
-    ).rejects.toThrow('Nothing was written. Also-model and merchant-model would share the order 100, and the Apps Script tries rules of one order by their row, so give each its own order.')
-    await changeRules(store, { appended: { rule: 'parked', order: 100, enabled: false, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [] })
-    expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model', 'parked'])
-  })
-
-  it('refuses any rules change while the tab has a problem elsewhere', async () => {
+  it('saves a rule while a broken rule elsewhere on the tab stays left out', async () => {
     const grids = workbookGrids()
     grids.rules!.push(ruleRow({ rule: 'broken', order: 'soon', enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }))
     const { store } = await harnessOf(used, grids)
 
-    await expect(
-      changeRules(store, { appended: { rule: 'fine', order: 300, enabled: true, description_contains: 'Y', category: 'equipment', confidence: 'rule' }, edited: [] }),
-    ).rejects.toThrow('broken: the order "soon" is not a number')
+    await changeRules(store, { appended: { rule: 'fine', order: 300, enabled: true, description_contains: 'Y', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
+
+    expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model', 'fine'])
+    expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'rules').map((problem) => [problem.label, problem.reason])).toEqual([['broken', 'the order "soon" is not a number']])
+  })
+
+  it('lets two enabled rules share an order and tries them by id', async () => {
+    const { store } = await harnessOf(used)
+
+    await changeRules(store, { appended: { rule: 'also-model', order: 100, enabled: true, description_contains: 'X', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
+
+    expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['also-model', 'merchant-model'])
+    expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'rules')).toEqual([])
+  })
+
+  it('undoes an added rule, a changed one and a deleted one, each back to what the tab held', async () => {
+    const { store } = await harnessOf(used)
+    const read = rulesCells(store, 'merchant-model')
+
+    const added = await changeRules(store, { appended: { rule: 'desk-co', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
+    expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(true)
+    await undo(store, added)
+    expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model'])
+
+    const { counterparty_contains: _dropped, ...withoutCounterparty } = read
+    const changed = await changeRules(store, {
+      appended: null,
+      edited: [{ id: 'merchant-model', expected: read, cells: { ...withoutCounterparty, description_contains: 'MODEL', enabled: false, note: 'Paused' } }],
+      removed: null,
+    })
+    expect(rulesCells(store, 'merchant-model')).not.toHaveProperty('counterparty_contains')
+    await undo(store, changed)
+    expect(rulesCells(store, 'merchant-model')).toEqual(read)
+
+    const deleted = await changeRules(store, { appended: null, edited: [], removed: read })
+    expect(store.state.workbook!.rules).toEqual([])
+    await undo(store, deleted)
+    expect(rulesCells(store, 'merchant-model')).toEqual(read)
+    expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model'])
+  })
+
+  it('deletes a rule as the editor does, its back-test listing the rows the rule filed', async () => {
+    const grids = workbookGrids()
+    grids.ledger![2]![9] = 'rule'
+    const { store } = await harnessOf(used, grids)
+    const workbook = store.state.workbook!
+    const rows = recordsOf(store.state.records!.rules)
+    const opened = draftOfRule(workbook.rules[0]!, rows, workbook.rules)!
+    const deletion: RulesTabChange = { appended: null, edited: [], removed: opened.edited.expected }
+
+    const preview = previewRulesChange(rows, deletion, new Set(workbook.categories.map((category) => category.slug)), workbook.rules, workbook.transactions, categorisationContextOf(workbook))
+    expect(preview.refusals).toEqual([])
+    expect(preview.backtest.brokenAgreements.map((change) => change.transaction.counterparty)).toEqual(['MODEL API INC'])
+    expect(rulesChangeInWords(deletion)).toBe('Deleted merchant-model')
+
+    await store.write(rulesChangeInWords(deletion), (unit) => writeRulesChange(unit, deletion))
+
+    expect(store.state.workbook!.rules).toEqual([])
+    expect(store.state.writes[0]!.receipt.title).toBe('Deleted merchant-model')
+    await expect(changeRules(store, deletion)).rejects.toThrow('The rule "merchant-model" is no longer in the workbook. Sync and look again.')
   })
 
   it('switches a rule off in place by its id', async () => {
     const { store } = await harnessOf(used)
     const expected = rulesCells(store, 'merchant-model')
 
-    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false } }] })
+    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false } }], removed: null })
 
     expect(store.state.workbook!.rules).toMatchObject([{ id: 'merchant-model', enabled: false }])
   })
@@ -193,7 +242,7 @@ describe.each([
     const read = rulesCells(store, 'merchant-model')
 
     await expect(
-      changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected: { ...read, note: 'typed meanwhile' }, cells: { ...read, enabled: false } }] }),
+      changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected: { ...read, note: 'typed meanwhile' }, cells: { ...read, enabled: false } }], removed: null }),
     ).rejects.toThrow('The rule "merchant-model" changed since the app read it. Sync and look again.')
   })
 
@@ -301,7 +350,7 @@ describe('writing to a Google Sheet', () => {
     expect(sheets.grids.ledger![1]).toEqual([...LEDGER_ROWS[0]!.slice(0, 8), 'equipment', 'ivan', ...LEDGER_ROWS[0]!.slice(10)])
   })
 
-  it('finds the row again after the ingest inserted rows above it since the last sync', async () => {
+  it('finds the row again after a hand edit or another device inserted rows above it since the last sync', async () => {
     const { store, sheets, writtenRanges } = await googleHarness(used)
     const target = row(store, 'MODEL API INC')
     sheets.grids.ledger!.splice(1, 0, [46301, 'main', 's-003', 'NEW ROW', '', 'x', -1, 999, 'unknown', 'ai', 'REF-5'], [46301, 'main', 's-003', 'NEWER ROW', '', 'y', -1, 998, 'unknown', 'ai', 'REF-6'])
@@ -376,6 +425,7 @@ describe('writing to a Google Sheet', () => {
     await changeRules(store, {
       appended: { rule: 'desk-co', order: 200, enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule', note: 'Furniture' },
       edited: [],
+      removed: null,
     })
 
     expect(sheets.requests[1]).toEqual({ kind: 'batchGet', ranges: ['rules', 'categories'] })
@@ -390,49 +440,9 @@ describe('writing to a Google Sheet', () => {
     const { store, writtenRanges } = await googleHarness(used)
     const expected = rulesCells(store, 'merchant-model')
 
-    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false, note: 'Paused' } }] })
+    await changeRules(store, { appended: null, edited: [{ id: 'merchant-model', expected, cells: { ...expected, enabled: false, note: 'Paused' } }], removed: null })
 
     expect(writtenRanges()).toEqual(['rules!C2', 'rules!U2'])
-  })
-
-  it('refuses a rules tab with a column no rule can test, as parseRules does', async () => {
-    const grids = workbookGrids()
-    grids.rules![0]!.push('owner')
-    const { store, sheets } = await googleHarness(used, grids)
-
-    await expect(
-      changeRules(store, { appended: ruleTabCells({ id: 'x', order: 1, enabled: true, conditions: [{ column: 'is_card' }], category: 'equipment', confidence: 'rule', note: '' }), edited: [] }),
-    ).rejects.toThrow('column V is headed "owner", which no rule can test')
-    expect(sheets.requests.some((request) => request.kind === 'updateSpreadsheet')).toBe(false)
-  })
-
-  it('refuses a rule that tests counterparty_is_client until the Sheet has a clients tab with client and iban columns', async () => {
-    const asksForClients = ruleTabCells({
-      id: 'client-pays',
-      order: 1,
-      enabled: true,
-      conditions: [{ column: 'direction', direction: 'credit' }, { column: 'counterparty_is_client' }],
-      category: 'revenue',
-      confidence: 'rule',
-      note: '',
-    })
-    const withoutClients = await googleHarness(used)
-    expect(withoutClients.store.state.workbook?.hasClientsTab).toBe(false)
-    await expect(changeRules(withoutClients.store, { appended: asksForClients, edited: [] })).rejects.toThrow(
-      'client-pays: it tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it',
-    )
-
-    const headerless = workbookGrids()
-    headerless.clients = [['client', 'name']]
-    await expect(changeRules((await googleHarness(used, headerless)).store, { appended: asksForClients, edited: [] })).rejects.toThrow('no clients tab with client and iban columns')
-
-    const withClients = workbookGrids()
-    withClients.clients = [['client', 'name', 'iban'], ['acme', 'Acme', 'XX00FAKE0000000042']]
-    const { store, sheets } = await googleHarness(used, withClients)
-    await changeRules(store, { appended: asksForClients, edited: [] })
-    expect(sheets.requests.filter((request) => request.kind === 'updateSpreadsheet')).toHaveLength(1)
-    expect(store.state.workbook?.rules.map((rule) => rule.id)).toContain('client-pays')
-    expect(store.state.workbook?.problems.filter((problem) => problem.tab === 'rules')).toEqual([])
   })
 
   it('sets a setting in the value column and appends a missing key under key and value', async () => {

@@ -75,8 +75,8 @@ export function draftChange(draft: RuleDraft, rules: readonly Rule[], rows: read
     return row === undefined ? [] : [{ id, expected: row.cells, cells: { ...row.cells, order } }]
   })
   return edited === null
-    ? { appended: cells, edited: renumbered }
-    : { appended: null, edited: [{ id: edited.id, expected: edited.expected, cells }, ...renumbered] }
+    ? { appended: cells, edited: renumbered, removed: null }
+    : { appended: null, edited: [{ id: edited.id, expected: edited.expected, cells }, ...renumbered], removed: null }
 }
 
 function cellsOf(draft: RuleDraft): RuleCells {

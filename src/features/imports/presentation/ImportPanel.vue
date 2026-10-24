@@ -301,9 +301,6 @@ const summary = computed(() => {
               </p>
               <DrillLink v-if="importedRows.waiting > 0" to="/review" class="font-medium text-highlighted">Open Review</DrillLink>
             </div>
-            <p v-if="inGoogle && loaded?.kind === 'camt'" class="text-sm text-muted">
-              The shadow-accounting Apps Script may file the same statements on its morning run. Its rows carry the same bank references, so whichever writes first, the other finds them on the ledger and writes nothing.
-            </p>
             <div class="flex justify-end">
               <UButton label="Confirm import" icon="i-lucide-file-input" :loading="writes.busy.value" :disabled="dryRun.newRows === 0 || writes.busy.value" data-testid="import-confirm" @click="confirm" />
             </div>

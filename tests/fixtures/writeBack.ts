@@ -1,6 +1,5 @@
 import { expect } from 'vitest'
 
-import { columnLetter } from '../../src/shared/text/columnLetter'
 import { RULE_COLUMNS } from '../../src/features/rules/domain/rule'
 import { createWorkbookStore } from '../../src/features/workbook/application/createWorkbookStore'
 import type { WorkbookStore } from '../../src/features/workbook/application/createWorkbookStore'
@@ -165,6 +164,15 @@ export async function excelHarness(used: Set<string>, grids = workbookGrids()): 
 /** Every request the writes sent in their batchUpdates, in order. */
 export function sentRequests(sheets: FakeSheets): SpreadsheetRequest[] {
   return sheets.requests.flatMap((request) => (request.kind === 'updateSpreadsheet' ? [...request.requests] : []))
+}
+
+/** The spreadsheet letter of a 1-based column: 1 is A, 26 is Z, 27 is AA. */
+function columnLetter(column: number): string {
+  let letters = ''
+  for (let remaining = column; remaining > 0; remaining = Math.floor((remaining - 1) / 26)) {
+    letters = String.fromCharCode(65 + ((remaining - 1) % 26)) + letters
+  }
+  return letters
 }
 
 function updatedRanges(sheets: FakeSheets): string[] {

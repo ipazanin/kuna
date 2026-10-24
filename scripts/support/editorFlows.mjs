@@ -1112,3 +1112,109 @@ export async function statementsFolderFlow(page, { press, shoot, inspect }) {
   await shoot('statements-folder-saved')
   await dismissToasts(page)
 }
+
+const RULE_ROW = '[data-testid="rule-row"]'
+
+/** The rules tab's row of this rule, by its id. */
+async function ruleRowOf(page, id) {
+  return page
+    .waitForFunction((selector, wanted) => [...document.querySelectorAll(selector)].find((row) => row.querySelector('.identifier')?.textContent?.trim() === wanted) ?? null, { timeout: 10_000 }, RULE_ROW, id)
+    .then((handle) => handle.asElement())
+    .catch(() => {
+      throw new Error(`the rules tab has no rule ${id}`)
+    })
+}
+
+async function ruleGone(page, id) {
+  await page
+    .waitForFunction((selector, wanted) => ![...document.querySelectorAll(selector)].some((row) => row.querySelector('.identifier')?.textContent?.trim() === wanted), { timeout: 10_000 }, RULE_ROW, id)
+    .catch(() => {
+      throw new Error(`the rule ${id} is still on the rules tab`)
+    })
+}
+
+/** Waits until the rule's note on the rules tab reads `note`, blank for none. */
+async function ruleNoteReads(page, id, note, when) {
+  await page
+    .waitForFunction(
+      (selector, wanted, text) => {
+        const row = [...document.querySelectorAll(selector)].find((candidate) => candidate.querySelector('.identifier')?.textContent?.trim() === wanted)
+        return row !== undefined && (row.querySelector('.rule-main > p.text-xs')?.textContent?.trim() ?? '') === text
+      },
+      { timeout: 10_000 },
+      RULE_ROW,
+      id,
+      note,
+    )
+    .catch(() => {
+      throw new Error(`${when}, the note of ${id} on the rules tab does not read "${note}"`)
+    })
+}
+
+/** Ticks the back-test's "I have looked at these rows" when the change needs it. */
+async function acceptBacktest(page, press) {
+  await page.waitForSelector('[data-testid="rule-backtest"]', { visible: true, timeout: 10_000 })
+  await delay(300)
+  const accept = await page.$('[data-testid="accept-backtest"][role="checkbox"], [data-testid="accept-backtest"] [role="checkbox"]')
+  if (accept === null) return
+  await accept.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(accept)
+}
+
+async function editRule(page, press, id) {
+  const row = await ruleRowOf(page, id)
+  const edit = await row.$('[data-testid="edit-rule"]')
+  await edit.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(edit)
+  await page.waitForSelector('[role="dialog"] [data-testid="rule-editor"]', { visible: true, timeout: 10_000 })
+  await delay(300)
+}
+
+/**
+ * On Review, Rules: a rule's note changed in its editor, the toast with Undo once the editor closes,
+ * and Undo putting the note back. Then the same rule deleted from its editor after the back-test of
+ * taking it off, and brought back with Undo.
+ */
+export async function rulesEditorFlow(page, { press, shoot, inspect }) {
+  const id = 'merchant-airline'
+  const added = 'Checked in the editor.'
+  await ruleNoteReads(page, id, '', 'before the flow')
+
+  await editRule(page, press, id)
+  const note = await page.waitForSelector('[data-testid="rule-form"] textarea', { visible: true })
+  await note.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await press(note)
+  await page.keyboard.type(added)
+  await acceptBacktest(page, press)
+  await pressSelector(page, press, '[data-testid="save-rule"]')
+  await page.waitForSelector('[role="dialog"] [data-testid="rule-saved"]', { visible: true, timeout: 10_000 })
+  await inspect?.('rule saved')
+  const early = await page.evaluate((selector) => [...document.querySelectorAll(`${selector} [data-slot="title"]`)].map((title) => title.textContent?.trim()), TOAST)
+  if (early.includes(`Edited ${id}: note`)) throw new Error('the save toast shows while the saved rule editor is still open')
+  const done = await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.trim() === 'Done') ?? null)
+  await press(done.asElement())
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
+  await toast(page, `Edited ${id}: note`)
+  await ruleNoteReads(page, id, added, 'after the save')
+  await shoot('rule-edited')
+  await undo(page, press)
+  await ruleNoteReads(page, id, '', 'after Undo')
+  await dismissToasts(page)
+
+  await editRule(page, press, id)
+  await pressSelector(page, press, '[data-testid="delete-rule"]')
+  await page.waitForSelector('[role="dialog"] [data-testid="rule-delete"]', { visible: true, timeout: 10_000 })
+  await acceptBacktest(page, press)
+  await inspect?.('rule delete back-test')
+  await shoot('rule-delete')
+  await pressSelector(page, press, '[data-testid="confirm-delete-rule"]')
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+  await toast(page, `Deleted ${id}`)
+  await ruleGone(page, id)
+  await undo(page, press)
+  await ruleNoteReads(page, id, '', 'after Undo of the delete')
+  await shoot('rule-deleted-undone')
+  await dismissToasts(page)
+}

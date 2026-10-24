@@ -200,7 +200,7 @@ const MONTHS = [
 const LOSS_MONTH = '2025-11'
 
 /**
- * As a Google Sheet its `settings` tab holds the row the Apps Script requires and the invoice
+ * As a Google Sheet its `settings` tab holds a blank `card_settlement_ibans` row and the invoice
  * details, so every other default applies. As a workbook kept in this browser it also names its
  * company, the way a template user would.
  * Rows the rules tab does not reproduce are flagged as a person's, so Review has coverage gaps to show.

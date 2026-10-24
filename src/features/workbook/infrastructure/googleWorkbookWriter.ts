@@ -17,8 +17,8 @@ import type { CellEdit, FreshTabs, RowAppend, TabRead, WorkbookWriter, WritableT
  * The requests run in the order `TabEdits` gives: a new tab with its header, each new column's
  * header after the last column in use, with columns added to the grid first when it has none free, the
  * cell edits, the rows taken out from the bottom up, the rows put in from the top down, each block
- * with the format and the dropdowns of the row below copied onto it the way the shadow-accounting
- * Apps Script inserts a batch, and last the rows added below the last one. Every date the write
+ * with the format and the dropdowns of the row below copied onto it, so it reads like the rows
+ * around it, and last the rows added below the last one. Every date the write
  * puts in a cell gets the date format in the same batch, since a tab without one would show its
  * serial number.
  */

@@ -233,15 +233,15 @@ describe.each([
   })
 })
 
-describe('the statements step against the morning ingest', () => {
-  it('reads the Sheet again and runs the dry run once more when the ingest filed the same rows first, and writes nothing', async () => {
+describe('the statements step against another device\'s sync', () => {
+  it('reads the Sheet again and runs the dry run once more when another device filed the same rows first, and writes nothing', async () => {
     const harness = await googleHarness(used, grids())
     const { store, sheets } = harness
     const workbook = store.state.workbook!
     const run = dryRunFor(statementReadings({ kind: 'camt', fileName: 'x.xml', document: new DOMParser().parseFromString(MAIN_003, 'application/xml') }, workbook, null), workbook, new Map())
-    const ingested = [46301, 'main', '2026-10-06-statement-003', '', '', 'Entry M3-1', 100, 1100, 'revenue', 'rule', 'M3-1', '', 'PMNT', 'RCDT', 'ESCT', '', '', '']
+    const filedElsewhere = [46301, 'main', '2026-10-06-statement-003', '', '', 'Entry M3-1', 100, 1100, 'revenue', 'rule', 'M3-1', '', 'PMNT', 'RCDT', 'ESCT', '', '', '']
     expect(run.added).toHaveLength(1)
-    sheets.grids.ledger!.splice(1, 0, ingested)
+    sheets.grids.ledger!.splice(1, 0, filedElsewhere)
     const { folder } = folderHolding({ '2026-10-06-statement-003-main.xml': MAIN_003 })
     const steps: StatementSyncStep[] = []
 

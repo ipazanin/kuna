@@ -14,7 +14,7 @@ export type LoadedImportFile =
   | { readonly kind: 'camt'; readonly fileName: string; readonly document: Document }
   | { readonly kind: 'table'; readonly fileName: string; readonly fileHash: string; readonly grid: CellGrid }
 
-/** The workbook's account for each IBAN on the accounts tab, normalised, as the Apps Script's `requireAccountIbans` reads them. */
+/** The workbook's account for each IBAN on the accounts tab, normalised. */
 export function accountsByIban(workbook: Pick<Workbook, 'accounts'>): ReadonlyMap<string, string> {
   return new Map(workbook.accounts.filter((account) => account.iban !== '').map((account) => [account.iban, account.slug]))
 }

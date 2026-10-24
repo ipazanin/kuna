@@ -9,12 +9,10 @@ export interface AddedPlace {
 }
 
 /**
- * Where each row added to the `ledger` tab goes, as the shadow-accounting Apps Script's
- * `insertPositionFor` places a batch, so the tab keeps reading newest first: a statement's rows go
- * in together above the first row whose day is not after the statement's newest day, the
- * statements one after another, each placed among the rows the ones before it put in. The Apps
- * Script reads each account's balance off its topmost row, so a block at the foot would break its
- * next morning.
+ * Where each row added to the `ledger` tab goes, so the tab keeps reading newest first for a person
+ * reading the Sheet: a statement's rows go in together above the first row whose day is not after
+ * the statement's newest day, the statements one after another, each placed among the rows the ones
+ * before it put in.
  */
 export function placeLedgerRows(rows: readonly SheetRow[], added: readonly SheetRow['cells'][], lastRow: number): AddedPlace[] {
   const slots: { readonly readAs: number | null; readonly date: number; readonly index: number }[] = [...rows]

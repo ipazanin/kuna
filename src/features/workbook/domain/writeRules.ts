@@ -7,8 +7,6 @@ import type { StoredFields } from './storedFields'
 export interface FreshRecords {
   /** The records of the kind, none when the storage lacks the kind or it was not read. */
   of<R>(kind: RecordKind<R>): RecordsRead<R>
-  /** The fields the storage keeps for the kind, in its own order, or null when it lacks the kind. */
-  fieldsKept(kind: RecordKind<unknown>): readonly string[] | null
 }
 
 /** One record a write touches: as stored now, null for an add, and as it will be stored, null for a remove. */
@@ -42,7 +40,7 @@ export interface WriteRules<R> {
   readonly reads: readonly RecordKind<unknown>[]
   /** The names of the record's fields a change may touch. Unset means all. */
   readonly changeable?: readonly string[]
-  /** False for rules and settings, which keep no Undo. */
+  /** False for settings, which keep no Undo. */
   readonly undoable: boolean
   /** The kind's own reader against the other kinds as given: which records count, and why the rest do not or are doubted. */
   read(read: RecordsRead<R>, records: FreshRecords): Reading<{ readonly id: RecordId }>

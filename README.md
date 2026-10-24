@@ -114,7 +114,7 @@ the Drive read token of *Google sign-in*. `fileNewStatements` in
    through `LEDGER_WRITES`: the same path, the same checks and the same Undo as Import. A statement
    it refuses, or that waits for its account to start, is held. The dry run leaves the account where
    it was, so nothing after a held statement is filed for that account, and other accounts still are.
-5. When the write is refused, such as for rows the morning ingest filed since the read, reads the
+5. When the write is refused, such as for rows another device's sync filed since the read, reads the
    Sheet again and runs the dry run once more. A second refusal is shown on Import, and nothing is
    written.
 
@@ -272,9 +272,9 @@ take their defaults.
 | `categories` | `category`, `family`, `bucket` (one of `income`, `operating`, `taxes`, `owner-pay`, `financing`, `neutral`), `colour` (a swatch of the palette as its light hex, such as `#2a78d6` for Blue, or blank for the bucket colour), an optional comma-separated `roles` from the roles core and the pack pick categories by (*Taxes and Owner* lists them), an optional `label`, and an optional `vat`: how a purchase in the category splits into cost and VAT, one of `none`, `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `representation` and `car-50`. A blank `vat` is `none`, and an unknown one is reported and read as `none`. |
 | `accounts` | `account`, `iban`, an optional `currency`, and an optional `label`. An account named on more than one row is reported on each and read from none. |
 | `settings` | `key`, `value`, one row per setting. A key on more than one row is reported on each and takes its default. |
-| `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`, as the shadow-accounting Apps Script reads them. A row it would refuse is reported and left out, and so is every row of an id used on more than one row. Rules are tried by `order`, then by id. The Apps Script breaks a tie by the row instead, so two enabled rules that share an order are reported. |
+| `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`. A row the reader refuses, such as one with an order that is not a number or a filled column no rule can test, is reported and left out, and so is every row of an id used on more than one row. Rules are tried by `order`, then by id. |
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional), and the optional delivery period `period_from` and `period_to` (date cells, both or neither). A row without a number, client, amount or issue date is reported and left out, and so is every row of a number used twice for one client. A period that cannot be read is reported, and the issue date stands for it. |
-| `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN on more than one row is reported and left out on each, so no payment from it counts as a client's. The rules' `counterparty_is_client` reads these IBANs, and a rule using it in a Google Sheet without the tab is refused, as the Apps Script would stop on it. The optional invoice columns `address`, `country`, `tax_id`, `invoice_mail`, `mail_language` (a language tag such as `en` or `hr`, blank for English) and `reverse_charge` (TRUE or FALSE) are read from whichever of a client's rows fills each one, the way `name` is. A name or detail the rows fill differently is reported on each of them and reads blank. A language the browser does not know, or a `reverse_charge` that is neither TRUE nor FALSE, is reported and read as blank. |
+| `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN on more than one row is reported and left out on each, so no payment from it counts as a client's. The rules' `counterparty_is_client` reads these IBANs, so without the tab it matches no row. The optional invoice columns `address`, `country`, `tax_id`, `invoice_mail`, `mail_language` (a language tag such as `en` or `hr`, blank for English) and `reverse_charge` (TRUE or FALSE) are read from whichever of a client's rows fills each one, the way `name` is. A name or detail the rows fill differently is reported on each of them and reads blank. A language the browser does not know, or a `reverse_charge` that is neither TRUE nor FALSE, is reported and read as blank. |
 | `outgoing-plan` | `item`, `date` (a date cell), `amount` (above zero), `client` and `description`: one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel. `date` is the day it becomes billable, the last day of the worked month for a monthly fee. `client` must be on the `clients` tab, or the row is reported and left out. Only these five columns and `id` are read. |
 | `owner-advances` | `date`, `amount` (above zero), `description` and `category`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount, the owner's private share of a company payment, is reported and left out, since that share is a part on the `splits` tab, as *Split rows* describes. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once, or every row of its name is reported and left out. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
@@ -1125,14 +1125,14 @@ rows yet the start at its opening. "Confirm and file" writes what the held state
 accepts, through the same path. While the page holds no Drive read token, the card offers "Check for
 new statements". The card is gone when there is nothing to say.
 
-**camt.053.** `readCamtDocument` is the shadow-accounting Apps Script's `ErsteCamt.gs` over the
-browser's `DOMParser`. It finds elements by local name, so any camt.053 version reads, takes booked
-entries only, and reads every amount in cents from its decimal text, refusing a negative one, one
-finer than a cent and a localised `1.234,56`. Entries are put in booking-date order, ties in
-document order, and the running balance must close at CLBD. The counts and sums of TxsSummry are
-checked per direction. TxsSummry is required from Erste (`ESBCHR22`), as the Apps Script requires
-it, and a statement from another bank without it reads with a note. Unlike the Apps Script, a file
-may hold several Stmt, and each one is read or refused on its own. The counterparty is the creditor
+**camt.053.** `readCamtDocument` reads the file with the browser's `DOMParser`. It finds elements by
+local name, so any camt.053 version reads, takes booked entries only, and reads every amount in
+cents from its decimal text, refusing a negative one, one finer than a cent and a localised
+`1.234,56`. Entries are put in booking-date order, ties in document order, and the running balance
+must close at CLBD. The counts and sums of TxsSummry are checked per direction. TxsSummry is
+required from Erste (`ESBCHR22`), whose statements always carry it, and a statement from another
+bank without it reads with a note. A file may hold several Stmt, and each one is read or refused on
+its own. The counterparty is the creditor
 of a debit or the debtor of a credit, unless that side states this account's IBAN or, without an
 IBAN, its holder's name. An entry whose domain is `ACMT` or whose sub-family is `COMM` or `CHRG`
 takes the servicer's name when it names no party, since those are ISO 20022 sub-family codes. The
@@ -1167,12 +1167,12 @@ the file with the profile as it is edited, and "Save new profile" writes it to t
 through the settings write. "Delete" beside a saved profile takes its row off the settings tab, so no
 file is offered it again. Settings keep no Undo, so a deleted profile is saved again to bring it back.
 
-**The dry run** lists each statement's entries with the category the rules give them, as the
-ingest categorises, and checks them against the ledger as it is on screen:
+**The dry run** lists each statement's entries with the category the rules give them, and checks
+them against the ledger as it is on screen:
 
 | Check | What happens |
 |---|---|
-| On the ledger already | An entry whose account holds its reference is listed as such and never written, so importing a statement twice, or one the Apps Script filed, writes nothing. |
+| On the ledger already | An entry whose account holds its reference is listed as such and never written, so importing a statement twice, or one a sync filed, writes nothing. |
 | Follows the ledger | New entries must come after every entry the ledger holds, carry a reference, and not predate the account's newest row. |
 | Opening balance | The balance before the first new entry must be where the ledger leaves the account, or a statement in between is missing, and the statement is refused. |
 | A new account | An account with no rows waits until "Start <account> at <opening>" is ticked, or for a file without balances until its opening balance is typed. |
@@ -1186,26 +1186,18 @@ the others are still written. A file without balances gets them worked out from 
 leaves the account.
 
 **The write** adds ledger records, checked by `LEDGER_WRITES` in
-`src/features/imports/application/ledgerWrites.ts`, and the adapter writes whole ledger rows, A to R,
-as the Apps Script's `ledgerRowFor` does. The tab reads newest first, so each statement goes in as one block
-where the Apps Script inserts a batch: above the first row whose date is not after the statement's
-newest one, the block newest first. The Apps Script reads each account's balance off its topmost
-row, so a block at the foot would stop its next morning. Right before writing, the tab as it is
-then is checked again: a new row already on it by its account and reference is refused, as any
-record the workbook holds already is, which happens when the morning ingest filed the statement
-since the dry run. A row the reader refuses still holds its account and reference, so a new row
+`src/features/imports/application/ledgerWrites.ts`, and the adapter writes whole ledger rows, A to
+R. The tab reads newest first for a person reading the Sheet, so each statement goes in as one
+block above the first row whose date is not after the statement's newest one, the block newest
+first. Right before writing, the tab as it is then is checked again: a new row already on it by its
+account and reference is refused, as any record the workbook holds already is, which happens when
+another device's sync filed the statement since the dry run. A row the reader refuses still holds its account and reference, so a new row
 with that reference is refused too, until the row is fixed in the Sheet. Each account's new rows
 must open at its newest balance and run on from it, and
 none may predate the account's newest row. The rows and
 their cells go in as one request, so a failed write leaves no empty row behind. Undo takes the rows
-out whole, since a blank row stops the Apps Script too, and is refused once a newer row of the
-account sits above them. A Google Sheet whose ledger tab lacks a column the rows fill, such as
+out whole, and is refused once a newer row of the account sits above them. A Google Sheet whose ledger tab lacks a column the rows fill, such as
 the signal columns of an older Sheet, is refused with the column to add.
-
-In Google mode the Apps Script may file the same statements on its morning run. Its rows carry the
-same bank references, so whichever writes first, the other finds the rows on the ledger and writes
-nothing, and the dry run says so. A sync that meets them as its write is refused reads the Sheet
-again and finds nothing left to file.
 
 ## Settings screen
 
@@ -1277,8 +1269,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, and the check for new statements Overview offers, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, and the check for new statements Overview offers, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -1348,6 +1340,10 @@ before a commit. The address of the preview can go before or after the options.
 
 `check:pwa` serves the production build itself and sends every other origin to a dead proxy, so it
 needs no preview and makes no call to Google.
+
+In development and fake builds, `#/gallery` shows every shared component and chart style with
+made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist
+in a production build.
 
 ### Core and the pack
 
@@ -1463,29 +1459,27 @@ Undo turns a write's receipt around: an added record is removed, a changed one c
 removed one added again with the same identity. It lands below the last row of its tab, and a ledger
 row where its date puts it, newest first. Nothing reads where a row sits, so the figures after Undo
 are those before the delete. Undo goes through the same checks, so it is refused when a record changed
-since, or when the workbook holds the identity of a record it would put back. Rules and settings keep
-no Undo, and neither does a write that repaired or discarded a refused record, since nothing could
-store that record as it was. Rules are changed back on Review, Rules, and settings on Settings. The
+since, or when the workbook holds the identity of a record it would put back. Settings keep no Undo,
+and neither does a write that repaired or discarded a refused record, since nothing could store that
+record as it was. Settings are changed back on Settings. The
 session list is held in memory, so a reload clears it.
 
 - **Ledger rows.** A row is known by its account and reference, even one the reader refuses, or for
-  a blank reference by its account, date, amount, balance and description, so rows the ingest inserted since the last sync do
-  not matter. The app changes only a row's `category` and `flagged_by`, each found by its header (I
+  a blank reference by its account, date, amount, balance and description, so rows a hand edit or
+  another device inserted since the last sync do not matter. The app changes only a row's `category` and `flagged_by`, each found by its header (I
   and J in the shadow-accounting Sheet), and only where the value changes. A refused ledger row is
   fixed in the Sheet, never by the app. Confirm writes the `review_label` setting to `flagged_by`.
   Recategorise, and Change category on Transactions, write the category and the label. Applying a
   new rule writes its category and `rule`, only to rows flagged `ai` or unclassified. A category the
   categories tab does not define is refused, unless Undo puts it back. Imported rows are added as
   *Import* describes, and Undo takes them out.
-- **Rules.** The rules after the change must pass every check of `parseRules` in the Apps Script's
-  `Rules.gs` (mirrored in `rulesTabRefusals.ts`), against the categories as they are now, so a save
-  is refused while the tab has any problem. A save that leaves two enabled rules sharing an order
-  they did not share before is refused too, since the app and the Apps Script break that tie
-  differently. An enabled rule that tests `counterparty_is_client` also needs a `clients` tab with
-  `client` and `iban` columns, which `categorisationContext` reads. A new rule is appended, and an
-  edited, switched or moved rule is found by its id. Moving a rule swaps its order with its
-  neighbour's, so orders stay in steps of 100, and renumbers every rule in steps of 100 only when the
-  two share an order.
+- **Rules.** The rules reader checks each rule a save adds or changes, against the categories as
+  they are now, and a rule that counts today may not drop out. A broken rule elsewhere on the tab
+  stays left out and blocks no save. Two enabled rules may share an order, and are tried by id. A new
+  rule is appended, and an edited, switched, moved or deleted rule is found by its id. Delete in the
+  rule's editor shows the back-test of taking it off first, and its row goes as a whole row. Moving a
+  rule swaps its order with its neighbour's, so orders stay in steps of 100, and renumbers every
+  rule in steps of 100 only when the two share an order. Every rules write has Undo.
 - **Settings.** Each changed key's value is set, or a `key`, `value` row is added when the tab lacks
   the key. A removed key, an import profile deleted on Import, or an unknown key or a profile it cannot
   read removed on Settings, General, has its row taken out. A key on two rows, or a value the settings reader would not use, is
@@ -1500,7 +1494,7 @@ session list is held in memory, so a reload clears it.
   | Kind | Refused, with the reason given |
   |---|---|
   | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. A changed colour outside the palette, or a role the change gives that the app does not know, unless Undo puts it back. |
-  | Accounts | A name outside the slug format. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the ingest refuses a statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. Leaving the tab with no IBAN, which stops the Apps Script's morning run. The tab needs its `account` and `iban` headers, as the Apps Script does. |
+  | Accounts | A name outside the slug format. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the app files no statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. One IBAN names one account, since the fetch names each statement file by its IBAN and the app files each statement by it. The tab needs its `account` and `iban` headers, which the statement fetch reads. |
   | Clients | A name outside the slug format. A second row of a client under another name. Renaming or deleting the last row of a client that invoices, plan rows or `billing_client` name. A new or changed IBAN that is not valid, is on another client row, or is one of your accounts. |
   | Invoices | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. The tab needs all eight columns the generator writes, and the app never adds one. |
   | Grants | A name outside the slug format. Renaming or deleting a grant an asset is funded by. |
@@ -1539,7 +1533,7 @@ giving its fixture.
 
 Every write to a Google Sheet is one `spreadsheets.batchUpdate`, which Sheets applies in order and,
 when any of its requests is not valid, not at all. So a write that fails leaves the Sheet as it was,
-and never an empty row the morning ingest would stop on. Its requests run in this order:
+and never an empty row. Its requests run in this order:
 
 1. `addSheet` for a tab the person agreed to add, with a sheet id the app picks, and `updateCells` of
    its header in row 1. Then, for each column a tab gets, its `id` column or a template column the
@@ -1571,7 +1565,7 @@ batchUpdate and again after it:
 | Use case | Requests besides the batchUpdate |
 |---|---|
 | Confirm, recategorise, undo, apply a rule | `spreadsheets.get` (tab ids and grid widths), `values.batchGet` of `ledger` and `categories` |
-| Add, edit, switch on or off, move a rule | get, batchGet of `rules`, `categories` and `clients` (when the Sheet has it) |
+| Add, edit, switch on or off, move or delete a rule | get, batchGet of `rules` and `categories` |
 | Save settings, save or delete an import profile, remove a key | get, batchGet of `settings` |
 | Add, change or delete an advance | get, batchGet of `'owner-advances'` and `categories` |
 | Split a row, edit or delete a split | get, batchGet of `splits`, `ledger`, `categories` and `assets` (each when the Sheet has it) |
@@ -1604,7 +1598,8 @@ Never run it first on the original.
 5. Make a rule from a row. Check the back-test lists, save, and check the new row at the bottom of
    `rules`. Press "Apply to the rows still waiting" and check only `ai` or unclassified rows changed.
 6. On Review, Rules, switch the new rule off and move it. Check `enabled` and `order` changed and no
-   other cell did.
+   other cell did. Open the rule's editor, press Delete, then Delete rule, and check its row is gone
+   with no blank row left. Press Undo and check it is back at the foot of `rules`.
 7. On Settings, General, change the company name. Check the `settings` tab.
 8. On Owner, add an advance. Check one new row at the foot of `owner-advances`, its date shown as a
    date. Press Undo and check the row is gone, with no blank row left. On Settings, General, switch
@@ -1632,35 +1627,12 @@ Never run it first on the original.
    that the rows are back where they were with every cell as before, dates shown as dates and the
    category dropdown on each new row. Drop the same file again and check the dry run writes nothing.
    Undo the import under "Changes in this session" and check the rows are gone with no blank row
-   left, then import it once more. Run "Preview camt ingest (writes nothing)" from the Shadow
-   Accounting menu and check it reports that statement as already filed.
+   left, then import it once more.
 12. In the copy, add a row to `owner-advances` by hand and leave its `id` cell blank, then sync. On
    Settings, General, check the problems name the row as having no id, and that the advance does
    not count on Owner. Type an id no other row holds into its `id` cell, sync, and check the
    problem is gone and the advance counts.
-13. In the copy, run "Back-test categorisation (writes nothing)" from the Shadow Accounting menu. It
-   reads the rules and settings tabs the way the morning ingest does, so it must finish without an
-   error. Then repeat steps 2, 3 and 5 on the original, and check the next 06:00 run in Executions.
-
-## Rules parity
-
-`npm run parity:rules -- --workbook <export.xlsx>` loads the shadow-accounting Apps Script files
-(`--scripts <folder>`, by default `~/gdrive/work/dss/dss-finance/shadow-accounting/scripts`) into
-`node:vm` and runs their categoriser and the app's rules engine over every ledger row, with the
-export's `rules` tab. An export without its `rules`, `settings` or `clients` tab is refused. It
-prints counts and every row where the two differ in category, `flagged_by` or deciding rule, by
-account, day and rule id only, and exits non-zero on any.
-
-Each side reads `card_settlement_ibans` from the export's `settings` tab with its own reader, and
-the script fails when the two lists differ or the Apps Script refuses the tab. The client IBANs
-come from the export's `clients` tab the same way, read by `requireClientIbans` when an enabled
-rule tests `counterparty_is_client`, and the two lists must agree. A synthetic case follows: one
-rule, tried first, that files credits from a client of the export's tab. Both engines run it over
-every row, and both must refuse it without a `clients` tab.
-
-In development and fake builds, `#/gallery` shows every shared component and chart style with
-made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist
-in a production build.
+13. Repeat steps 2, 3 and 5 on the original.
 
 ## Accountant parity
 

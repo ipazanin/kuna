@@ -53,29 +53,7 @@ export const CONDITION_COLUMNS = [
 /** Every column of the `rules` tab in its seeded order. */
 export const RULE_COLUMNS = ['rule', 'order', 'enabled', ...CONDITION_COLUMNS, 'category', 'confidence', 'note'] as const
 
-/**
- * The rules in the order they are tried: by order, then by id. `Rules.gs` breaks a tie by the tab
- * row instead, so two enabled rules that share an order are reported and a save that makes such a
- * tie is refused, which keeps the two in step.
- */
+/** The rules in the order they are tried: by order, then by id. */
 export function inTryingOrder(rules: readonly Rule[]): Rule[] {
   return [...rules].sort((earlier, later) => earlier.order - later.order || naturalOrder(earlier.id.toLowerCase(), later.id.toLowerCase()))
-}
-
-/** The enabled rules that share an order with another enabled rule, in groups of one order each. */
-export function orderTies(rules: readonly Rule[]): readonly (readonly Rule[])[] {
-  const byOrder = new Map<number, Rule[]>()
-  for (const rule of inTryingOrder(rules.filter((candidate) => candidate.enabled))) {
-    byOrder.set(rule.order, [...(byOrder.get(rule.order) ?? []), rule])
-  }
-  return [...byOrder.values()].filter((group) => group.length > 1)
-}
-
-/** Why a change to the rules leaves enabled rules sharing an order that did not share it before. Empty when it makes no new tie. */
-export function newOrderTies(before: readonly Rule[], after: readonly Rule[]): string[] {
-  const tieOf = (group: readonly Rule[]): string => `${group[0]!.order} ${group.map((rule) => rule.id.toLowerCase()).join(' ')}`
-  const known = new Set(orderTies(before).map(tieOf))
-  return orderTies(after)
-    .filter((group) => !known.has(tieOf(group)))
-    .map((group) => `${group.map((rule) => rule.id).join(' and ')} would share the order ${group[0]!.order}, and the Apps Script tries rules of one order by their row, so give each its own order`)
 }

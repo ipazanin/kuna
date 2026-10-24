@@ -1,22 +1,27 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
+import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { fileRows } from '../../review/application/fileRows'
 import { waitingRowsSettledBy } from '../../review/domain/verdictChanges'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
+import type { WriteReceipt } from '../../workbook/application/recordWrites'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import { NO_RECORDS, recordsOf } from '../../workbook/domain/recordsRead'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
-import { useRulesChangePreview, useRulesWrites } from '../application/useRulesChange'
+import { writeRulesChange } from '../application/ruleWrites'
+import { useRulesChangePreview } from '../application/useRulesChange'
 import type { CategoryCount } from '../domain/ruleCoverage'
 import { draftChange } from '../domain/ruleDraft'
 import type { EditedRule, RuleDraft } from '../domain/ruleDraft'
+import type { RulesTabChange } from '../domain/rulesTabChange'
+import { rulesChangeInWords } from '../domain/ruleSummary'
 import { categorisationContextOf } from '../domain/transactionFacts'
 import RuleChangeReview from './RuleChangeReview.vue'
 import RuleForm from './RuleForm.vue'
@@ -31,8 +36,9 @@ export interface RuleEditorSource {
 }
 
 /**
- * Adds or edits one rule with its back-test beside the form, live. Once saved it offers to file the
- * rows still waiting for review that the rule settles.
+ * Adds, edits or deletes one rule with its back-test beside the form, live. Once saved it offers to
+ * file the rows still waiting for review that the rule settles, and the save's toast with Undo shows
+ * when the editor closes, so it never covers the editor's buttons on a phone.
  */
 const props = defineProps<{
   source: RuleEditorSource | null
@@ -44,12 +50,14 @@ const store = useWorkbook()
 const { state } = store
 const phone = usePhoneLayout()
 const names = useDisplayNames()
-const rulesWrites = useRulesWrites()
-const ledgerWrites = useRecordWrites()
+const toast = useToast()
+const recordWrites = useRecordWrites()
 
 const draft = ref<RuleDraft | null>(props.source?.draft ?? null)
 const accepted = ref(false)
 const savedId = ref<string | null>(null)
+const savedReceipt = shallowRef<WriteReceipt | null>(null)
+const deleting = ref(false)
 
 watch(
   () => props.source,
@@ -57,14 +65,23 @@ watch(
     draft.value = source?.draft ?? null
     accepted.value = false
     savedId.value = null
+    deleting.value = false
   },
 )
 
-const change = computed(() => {
+watch(open, (isOpen) => {
+  if (isOpen || savedReceipt.value === null) return
+  recordWrites.announce(savedReceipt.value)
+  savedReceipt.value = null
+})
+
+const change = computed((): RulesTabChange | null => {
   const workbook = state.workbook
   const records = state.records
+  const edited = props.source?.edited ?? null
   if (draft.value === null || workbook === null || records === null) return null
-  return draftChange(draft.value, workbook.rules, recordsOf(records.rules), props.source?.edited ?? null)
+  if (deleting.value && edited !== null) return { appended: null, edited: [], removed: edited.expected }
+  return draftChange(draft.value, workbook.rules, recordsOf(records.rules), edited)
 })
 
 const preview = useRulesChangePreview(() => (open.value && savedId.value === null ? change.value : null))
@@ -79,17 +96,30 @@ const canSave = computed(
     preview.value !== null &&
     preview.value.refusals.length === 0 &&
     (!needsAcceptance.value || accepted.value) &&
-    !rulesWrites.saving.value &&
     !state.writing,
 )
 
+function notWritten(title: string, failure: unknown): void {
+  toast.add({ title, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+}
+
 async function save(): Promise<void> {
-  if (change.value === null || draft.value === null || !canSave.value) return
+  const pending = change.value
+  if (pending === null || draft.value === null || !canSave.value) return
   const id = draft.value.id.trim()
-  // The dialog itself turns to say it is saved, and a toast would cover its buttons on a phone.
-  if (await rulesWrites.save(change.value, null)) {
+  try {
+    savedReceipt.value = await store.write(rulesChangeInWords(pending), (unit) => writeRulesChange(unit, pending))
     savedId.value = id
+  } catch (failure) {
+    notWritten('Not saved', failure)
   }
+}
+
+async function deleteRule(): Promise<void> {
+  const pending = change.value
+  const edited = props.source?.edited ?? null
+  if (pending === null || edited === null || !canSave.value) return
+  if (await recordWrites.write(rulesChangeInWords(pending), (unit) => writeRulesChange(unit, pending), { failedTitle: 'Not deleted' })) open.value = false
 }
 
 const waiting = computed(() => {
@@ -107,7 +137,7 @@ const inSheet = computed(() => state.workbook?.source === 'google')
 async function applyToWaiting(): Promise<void> {
   const count = waiting.value.length
   const verdicts = waiting.value
-  const written = await ledgerWrites.write(`Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, verdicts), {
+  const written = await recordWrites.write(`Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, verdicts), {
     failedTitle: 'Not written',
     description: 'Only rows that were waiting for review. Confirmed rows kept their category.',
   })
@@ -118,13 +148,20 @@ async function applyToWaiting(): Promise<void> {
 <template>
   <UModal
     v-model:open="open"
-    :title="savedId ? `Saved ${savedId}` : (source?.title ?? 'Rule')"
-    v-bind="savedId ? {} : { description: 'The back-test below follows every change to the form.' }"
+    :title="savedId ? `Saved ${savedId}` : deleting && source?.edited ? `Delete ${source.edited.id}` : (source?.title ?? 'Rule')"
+    v-bind="savedId ? {} : { description: deleting ? 'The back-test below lists the rows it decides today.' : 'The back-test below follows every change to the form.' }"
     :fullscreen="phone"
     :ui="{ content: 'sm:max-w-3xl', header: 'pe-16 sm:pe-6', footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]' }"
   >
     <template #body>
-      <div v-if="savedId === null && draft" class="flex flex-col gap-6" data-testid="rule-editor">
+      <div v-if="savedId === null && deleting" class="flex flex-col gap-4" data-testid="rule-delete">
+        <p class="text-sm text-toned">
+          Its row leaves the rules tab. Rows already filed keep their category, and new rows it would decide go to the next rule that holds, or
+          wait for review.
+        </p>
+        <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
+      </div>
+      <div v-else-if="savedId === null && draft" class="flex flex-col gap-6" data-testid="rule-editor">
         <UAlert
           v-if="split"
           icon="i-lucide-split"
@@ -159,7 +196,7 @@ async function applyToWaiting(): Promise<void> {
         <p class="text-sm text-toned">
           {{
             inSheet
-              ? 'It is on the rules tab now, and the morning ingest files new rows by it.'
+              ? 'It is on the rules tab now, and the next sync or import files new rows by it.'
               : 'It is in the workbook kept in this browser, and an export writes it into the file.'
           }}
         </p>
@@ -177,12 +214,35 @@ async function applyToWaiting(): Promise<void> {
 
     <template #footer>
       <div class="flex w-full flex-wrap justify-end gap-2">
-        <template v-if="savedId === null">
+        <template v-if="savedId === null && deleting">
+          <UButton label="Keep it" color="neutral" variant="ghost" data-testid="keep-rule" @click="deleting = false" />
+          <UButton
+            label="Delete rule"
+            icon="i-lucide-trash-2"
+            color="error"
+            :loading="state.writing"
+            :disabled="!canSave"
+            data-testid="confirm-delete-rule"
+            @click="deleteRule"
+          />
+        </template>
+        <template v-else-if="savedId === null">
+          <UButton
+            v-if="source?.edited"
+            label="Delete"
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="ghost"
+            class="me-auto"
+            :disabled="state.writing"
+            data-testid="delete-rule"
+            @click="deleting = true"
+          />
           <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
           <UButton
             :label="source?.edited ? 'Save rule' : 'Add rule'"
             icon="i-lucide-save"
-            :loading="rulesWrites.saving.value"
+            :loading="state.writing"
             :disabled="!canSave"
             data-testid="save-rule"
             @click="save"
@@ -194,8 +254,8 @@ async function applyToWaiting(): Promise<void> {
             v-if="waiting.length"
             :label="`Apply to the ${waiting.length} ${waiting.length === 1 ? 'row' : 'rows'} still waiting`"
             icon="i-lucide-check-check"
-            :loading="ledgerWrites.busy.value"
-            :disabled="ledgerWrites.busy.value || state.writing"
+            :loading="recordWrites.busy.value"
+            :disabled="state.writing"
             data-testid="apply-rule"
             @click="applyToWaiting"
           />

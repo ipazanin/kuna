@@ -14,10 +14,12 @@ export interface RuleRowEdit {
   readonly cells: RuleCells
 }
 
-/** What a save does to the rules tab: at most one new row at the bottom, and rows changed in place. */
+/** What a save does to the rules tab: at most one new row at the bottom, rows changed in place, and at most one row taken off. */
 export interface RulesTabChange {
   readonly appended: RuleCells | null
   readonly edited: readonly RuleRowEdit[]
+  /** The row to take off as the app last read it, which finds it by its id. The change is refused when the tab holds something else. */
+  readonly removed: RuleCells | null
 }
 
 export interface RulesTabAfter {
@@ -27,30 +29,35 @@ export interface RulesTabAfter {
 }
 
 /**
- * The tab's rows with the change made, the new row below the last one. Each edited row is found by
- * its id, once, and must still hold what the app read.
+ * The tab's rows with the change made, the new row below the last one. Each edited or removed row is
+ * found by its id, once, and must still hold what the app read.
  */
 export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChange): RulesTabAfter {
   const refusals: string[] = []
-  const replaced = new Map<RuleTabRow, RuleCells>()
-  for (const edit of change.edited) {
-    const matches = rows.filter((row) => sameId(row.cells.rule, edit.id))
+  const rowHolding = (id: string, expected: RuleCells): RuleTabRow | null => {
+    const matches = rows.filter((row) => sameId(row.cells.rule, id))
     if (matches.length !== 1) {
       refusals.push(
         matches.length === 0
-          ? `no row on the rules tab has the id "${edit.id}" any more`
-          : `${matches.length} rows on the rules tab have the id "${edit.id}", so the app cannot tell which to change`,
+          ? `no row on the rules tab has the id "${id}" any more`
+          : `${matches.length} rows on the rules tab have the id "${id}", so the app cannot tell which to change`,
       )
-      continue
+      return null
     }
     const [row] = matches as [RuleTabRow]
-    if (!sameCells(row.cells, edit.expected)) {
-      refusals.push(`rule "${edit.id}" changed since the app last read it`)
-      continue
+    if (!sameCells(row.cells, expected)) {
+      refusals.push(`rule "${id}" changed since the app last read it`)
+      return null
     }
-    replaced.set(row, withoutBlanks(edit.cells))
+    return row
   }
-  const changed = rows.map((row) => {
+  const replaced = new Map<RuleTabRow, RuleCells>()
+  for (const edit of change.edited) {
+    const row = rowHolding(edit.id, edit.expected)
+    if (row !== null) replaced.set(row, withoutBlanks(edit.cells))
+  }
+  const removed = change.removed === null ? null : rowHolding(cellText(change.removed.rule), change.removed)
+  const changed = rows.filter((row) => row !== removed).map((row) => {
     const cells = replaced.get(row)
     return cells === undefined ? row : { cells }
   })
@@ -105,7 +112,7 @@ function sameCells(left: RuleCells, right: RuleCells): boolean {
   return [...columns].every((column) => cellText(left[column]) === cellText(right[column]))
 }
 
-/** Whether the cell holds this rule id, compared without regard to case as `Rules.gs` does. */
+/** Whether the cell holds this rule id, compared without regard to case as the reader does. */
 export function sameId(cell: string | number | boolean | undefined, id: string): boolean {
   return cellText(cell).toLowerCase() === id.trim().toLowerCase()
 }

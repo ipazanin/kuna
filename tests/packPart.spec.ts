@@ -7,7 +7,7 @@ import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from '../src/packs/hr-doo/domain/h
 
 const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'excel')
 const { records, workbook } = readSnapshot(snapshot)
-const identity = { id: workbook.id, source: workbook.source, title: workbook.title, syncedAt: workbook.syncedAt, hasClientsTab: workbook.hasClientsTab }
+const identity = { id: workbook.id, source: workbook.source, title: workbook.title, syncedAt: workbook.syncedAt }
 
 describe('the pack part', () => {
   it('reads the pack records into the part, and hands core the owner advances and the rows it keeps whole', () => {

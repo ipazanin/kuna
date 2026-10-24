@@ -4,7 +4,7 @@ const SLUG_FORMAT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 /**
  * Why a name cannot serve as a category, account, client or grant, or null when it can. A comma
  * would split it on a year-end konto row, and a space or a capital reads differently in the Sheet's
- * dropdowns and the Apps Script's file names, so a new name keeps to the format the seed uses.
+ * dropdowns and the statement fetch's file names, so a new name keeps to the format the seed uses.
  */
 export function slugProblem(slug: string, noun: string): string | null {
   if (slug === '') {

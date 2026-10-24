@@ -4,7 +4,7 @@ import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
 import { needsReview } from '../src/features/workbook/domain/needsReview'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
 const HEADER = [...RULE_COLUMNS] as string[]
 
@@ -13,9 +13,9 @@ function ruleRow(cells: Partial<Record<(typeof RULE_COLUMNS)[number], CellValue>
   return HEADER.map((column) => cells[column as keyof typeof cells] ?? '')
 }
 
-function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'account', 'amount', 'balance']], missingTabs: WorkbookTab[] = []): WorkbookSnapshot {
+function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'account', 'amount', 'balance']]): WorkbookSnapshot {
   return {
-    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs },
+    meta: { id: 'sheet', source: 'google', title: 'Books', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null, missingTabs: [] },
     ledger: sheetRowsFromValues(ledger),
     categories: sheetRowsFromValues([
       ['category', 'family', 'bucket'],
@@ -94,7 +94,7 @@ describe('reading the rules tab', () => {
     })
   })
 
-  it('tries enabled rules that share an order by id, and reports the tie on each of them', () => {
+  it('tries enabled rules that share an order by id', () => {
     const workbook = readSnapshot(
       snapshotWith([
         HEADER,
@@ -105,10 +105,7 @@ describe('reading the rules tab', () => {
     ).workbook
 
     expect(workbook.rules.map((rule) => rule.id)).toEqual(['parked', 'rule-9', 'rule-10'])
-    expect(workbook.problems.map((problem) => [problem.label, problem.reason])).toEqual([
-      ['rule-9', 'shares the order 100 with rule-10, so the app tries them by id and the Apps Script by row. Give each its own order'],
-      ['rule-10', 'shares the order 100 with rule-9, so the app tries them by id and the Apps Script by row. Give each its own order'],
-    ])
+    expect(workbook.problems).toEqual([])
   })
 
   it('reports each refusal on its row instead of failing the workbook', () => {
@@ -124,11 +121,10 @@ describe('reading the rules tab', () => {
         ruleRow({ rule: 'sure', order: 7, enabled: true, is_card: true, category: 'travel', confidence: 'certain' }),
         ruleRow({ rule: 'nope', order: 8, enabled: true, is_card: true, category: 'nope', confidence: 'rule' }),
         ruleRow({ rule: 'bare', order: 9, enabled: true, category: 'travel', confidence: 'rule' }),
-        ruleRow({ rule: 'client', order: 10, enabled: true, counterparty_is_client: true, category: 'travel', confidence: 'rule' }),
         ruleRow({ rule: 'code', order: 11, enabled: true, revenue_code: 651, category: 'travel', confidence: 'rule' }),
         ruleRow({ rule: 'side', order: 12, enabled: true, direction: 'out', is_card: 'FALSE', category: 'travel', confidence: 'rule' }),
         ruleRow({ rule: 'kept', order: 13, enabled: true, is_card: true, category: 'travel', confidence: 'rule' }),
-      ], undefined, ['clients']),
+      ]),
     ).workbook
 
     expect(workbook.rules.map((rule) => rule.id)).toEqual(['kept'])
@@ -142,7 +138,6 @@ describe('reading the rules tab', () => {
       ['rules', 'sure', 'the confidence "certain" is neither rule nor review'],
       ['rules', 'nope', 'it files rows as "nope" at rule confidence, and the categories tab does not define it'],
       ['rules', 'bare', 'no condition, so it would match every row'],
-      ['rules', 'client', 'it tests counterparty_is_client, and the workbook has no clients tab with client and iban columns to answer it. Add the tab, or name the client by counterparty_iban'],
       ['rules', 'code', 'revenue_code is "651", and it is four digits'],
       ['rules', 'side', 'direction is "out", and it is credit, debit or blank'],
       ['rules', 'side', 'is_card is "FALSE", and it is TRUE or blank'],

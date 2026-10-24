@@ -9,12 +9,12 @@ import type { ImportedRow, ImportedStatement, StatementReading } from './importe
 
 /**
  * Banks whose camt statements always carry TxsSummry, by the servicer's BIC. A statement from one
- * of them without it is refused, as the shadow-accounting Apps Script refuses every statement
- * without it. From another bank it is read with a note, since the summary is optional in ISO 20022.
+ * of them without it is refused, since its totals are one of the checks on the entries. From another
+ * bank it is read with a note, since the summary is optional in ISO 20022.
  */
 const BANKS_THAT_SUMMARISE: ReadonlySet<string> = new Set(['ESBCHR22'])
 
-/** The reasons a row waits for a person, as the Apps Script's `ErsteCamt.gs` words them. */
+/** The reasons a row waits for a person, as the `review_reasons` column words them. */
 const REVIEW_REASONS = {
   noReference: 'no bank reference',
   reversal: 'reversal',
@@ -38,11 +38,10 @@ interface CamtEntry {
 }
 
 /**
- * The statements of a camt.053 document, as the shadow-accounting Apps Script's `parseCamtStatement`
- * reads one: elements found by local name, so any camt.053 version reads, every amount read in
- * cents from its decimal text, booked entries only, in booking-date order with ties kept in
- * document order, and the four checks against the statement's own balances and totals. Unlike the
- * Apps Script, a document may carry several Stmt, and each is read, or refused, on its own.
+ * The statements of a camt.053 document: elements found by local name, so any camt.053 version
+ * reads, every amount read in cents from its decimal text, booked entries only, in booking-date
+ * order with ties kept in document order, and the four checks against the statement's own balances
+ * and totals. A document may carry several Stmt, and each is read, or refused, on its own.
  * `accountsByIban` names the account of each IBAN, normalised, as the accounts tab does. Throws
  * `StatementRefused` for a document that holds no statement at all.
  */
@@ -125,8 +124,8 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
 }
 
 /**
- * The label the PDF pipeline and the Apps Script write in the statement column: the statement's
- * creation day and its legal sequence number. A display string only, since a redelivery made on
+ * The label the app writes in the statement column, and the fetch puts in each statement's file
+ * name: the statement's creation day and its legal sequence number. A display string only, since a redelivery made on
  * a later day carries another one.
  */
 function statementLabelOf(statement: Element): string | null {
@@ -261,7 +260,7 @@ function isOwnSide(side: { readonly name: string; readonly iban: string }, conte
 /**
  * A fee or an account-management entry names no party, since the other side is the bank, so the
  * row takes the servicer's name. COMM and CHRG are ISO 20022 sub-family codes, so they are read
- * there, as the Apps Script reads them.
+ * there.
  */
 function servicerCounterparty(context: StatementContext, domain: string, subFamily: string): string {
   return domain === 'ACMT' || subFamily === 'COMM' || subFamily === 'CHRG' ? context.servicer : ''
