@@ -1662,26 +1662,47 @@ In development and fake builds, `#/gallery` shows every shared component and cha
 made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist
 in a production build.
 
-## Payroll parity
+## Accountant parity
 
-`npm run parity:payroll -- --worked 2025-06=<days>` runs the payroll engine in
-`src/packs/hr-doo/domain/payroll/` against the accountant's monthly salary workbooks and compares
-every line to the cent. By default it reads 2025-06, 2026-01 and 2026-06 under
-`~/gdrive/work/dss/dss-finance/payroll` (`--payroll <folder>`, `--months <list>`). Only the mailed
-`.xlsx` of a month can be read. A month converted to a Google Sheet is a stub on disk, and the
-script lists it as not read.
+`npm run parity:accountant -- --workbook <export.xlsx> --worked 2025-06=<days>` reads the
+accountant's VAT returns and salary workbooks with the pack's readers in
+`src/packs/hr-doo/domain/accountant/` and checks each against an xlsx export of the Sheet. VAT returns are the `YYYY-MM-pdv.xlsx` files of
+`~/gdrive/work/dss/dss-finance/vat-returns` (`--vat-returns <folder>`), salary workbooks the
+`YYYY-MM-salary.xlsx` files anywhere under `~/gdrive/work/dss/dss-finance/payroll` (`--payroll
+<folder>`). `--downloads <folder>`, by default `~/Projects/personal/ledgerboard-exports/accountant`,
+adds xlsx downloads of the Google Sheets, named as in Drive. A period held only as a Google Sheet is
+a stub on disk, and the script lists it as not read. When a period has two xlsx files, both must read
+the same.
 
-The worked month and the payment date come from the workbook's title, the city from the note on
-the tax line, and pillar II from its own line. A salary noted as the director's minimum base runs
-as an agreed gross below the floor, so the engine finds the floor itself. A part month needs its
-days worked as `--worked YYYY-MM=<days>`, counted against Monday to Friday of that month with
-public holidays included, as the monthly fund of hours counts them. `--dependants` sets the
-dependants on the tax card, 0 by default. Rent and refunds of costs listed beside the salary are
-not payroll, so they count only in the total cost and in what the employee is paid.
+A VAT return reads by the labels of `Rekapitulacija` inside its two sections and by the form code on
+each detail tab's total row. Every summary line must equal the detail tab it stands for, and a tab
+the reader does not know is refused, so a new kind of supply fails loudly. A salary workbook reads by
+the labels in column A. Its title gives the worked month, which must be the file's, and the payout
+date. A refused workbook prints its tab, row and reason.
 
-Each line prints as pass, FAIL, or corrected with the reason, and any FAIL makes the exit code
-non-zero. The workbooks hold real pay, so the script prints no figure. Never copy a figure from a
-workbook into the repository.
+Each return then gets two checks. The carry passes when the VAT position through the month, with the
+`vat-settlement` rows to the month as booked so a refund lowers it, equals the return's
+`Pretplata za prijenos u buduća razdoblja` turned round. Sales pass when every line of `Treće zemlje
+usluge I` is the invoice of that number with the same amount, delivered in the month. A month between
+two returns without one is listed as not filed. Each salary workbook gets two bank checks and the
+rules. `- Država` must equal the rows of the taxes bucket with `owner-pay-tax` and without
+`profit-distribution` within 5 days of the payout date, so a dividend tax paid that week stays out.
+The employee's share less rent and refunds must be one owner-pay bank row of that week, as booked
+before any split.
+
+The rules run every line through the payroll engine and compare it to the cent. The city comes from
+the note on the tax line and pillar II from its own line, and the dependants from the export's
+`hr_dependants`. A salary noted as the director's minimum base runs as an agreed gross below the
+floor, so the engine finds the floor itself. A part month at the floor needs its days worked as
+`--worked YYYY-MM=<days>`, counted against Monday to Friday of that month with public holidays
+included, as the monthly fund of hours counts them. Without them, or above the floor, its rules are
+not run. Rent and refunds of costs listed beside the salary are not payroll, so they count only in
+the total cost and in what the employee is paid. A total that adds gross I instead of gross II while
+its two shares add up to the engine's total is a stated correction.
+
+Each check prints as pass, FAIL, or corrected with the reason, then the counts. Any FAIL makes the
+exit code non-zero. The workbooks and the export hold real figures, so the script prints no figure.
+Never copy a figure from them into the repository.
 
 Where the law leaves room, the engine follows the accountant: contribution bases come from the
 month worked, so a December salary paid in January keeps December's director floor. Income tax
