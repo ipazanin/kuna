@@ -173,22 +173,22 @@ describe('invoice settings and client details', () => {
     })
   })
 
-  it('reads each row’s invoice details, a blank reverse charge as unset', () => {
+  it('reads each client’s invoice details, a blank reverse charge as FALSE', () => {
     const reading = readClients(
       recordsOfRows(CORE_TABS.clients, [
         { sheetRow: 2, cells: { client: 'north', name: 'North Ltd', iban: 'XX00FAKE0101' } },
-        { sheetRow: 3, cells: { client: 'north', iban: 'XX00FAKE0102', address: '1 Road', invoice_mail: 'ap@north.example', mail_language: 'HR', reverse_charge: true } },
+        { sheetRow: 3, cells: { client: 'east', iban: 'XX00FAKE0102', address: '1 Road', invoice_mail: 'ap@east.example', mail_language: 'HR', reverse_charge: true } },
         { sheetRow: 4, cells: { client: 'south', iban: 'XX00FAKE0103', mail_language: 'not a language tag', reverse_charge: 'maybe' } },
       ]),
     )
-    expect(reading.facts.map((row) => [row.slug, row.invoicing])).toEqual([
-      ['north', { ...NO_CLIENT_INVOICING, reverseCharge: null }],
-      ['north', { ...NO_CLIENT_INVOICING, address: '1 Road', invoiceMail: 'ap@north.example', mailLanguage: 'hr', reverseCharge: true }],
-      ['south', { ...NO_CLIENT_INVOICING, reverseCharge: null }],
+    expect(reading.facts.map((client) => [client.slug, client.invoicing])).toEqual([
+      ['north', NO_CLIENT_INVOICING],
+      ['east', { ...NO_CLIENT_INVOICING, address: '1 Road', invoiceMail: 'ap@east.example', mailLanguage: 'hr', reverseCharge: true }],
+      ['south', NO_CLIENT_INVOICING],
     ])
     expect(reading.problems).toEqual([
-      { id: recordIdOf(CLIENT_RECORDS, 'XX00FAKE0103'), label: 'south, XX00FAKE0103', reason: '"not a language tag" is not a language such as en or hr, so the mail is written in English' },
-      { id: recordIdOf(CLIENT_RECORDS, 'XX00FAKE0103'), label: 'south, XX00FAKE0103', reason: 'reverse_charge "maybe" is neither TRUE nor FALSE, so it reads as FALSE' },
+      { id: recordIdOf(CLIENT_RECORDS, 'south'), label: 'south', reason: '"not a language tag" is not a language such as en or hr, so the mail is written in English' },
+      { id: recordIdOf(CLIENT_RECORDS, 'south'), label: 'south', reason: 'reverse_charge "maybe" is neither TRUE nor FALSE, so it reads as FALSE' },
     ])
   })
 })

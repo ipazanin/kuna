@@ -5,12 +5,14 @@ import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
+import { ibanListOf } from '../../workbook/domain/iban'
 import type { RecordId } from '../../workbook/domain/recordId'
 import type { Reading, RecordsRead } from '../../workbook/domain/recordsRead'
 import { draftOutcomes, draftsOfRecords, fieldsOfDrafts, kindOfColumn, madeOfDrafts } from '../domain/recordDrafts'
 import { storedOf } from '../../workbook/domain/recordsRead'
 import type { DraftCellKind, DraftFactory, FieldReader, RecordDraft } from '../domain/recordDrafts'
 import type { ChoiceItem, EditorColumn } from './factTabColumns'
+import IbanTagsField from './IbanTagsField.vue'
 
 // A select item cannot carry an empty value, so the blank choice travels as this.
 const BLANK_CHOICE = '-'
@@ -131,6 +133,14 @@ function save(): void {
                 :label="column.label"
                 :class="column.width"
                 @update:model-value="update(index, column.name, $event === true ? 'TRUE' : '')"
+              />
+              <IbanTagsField
+                v-else-if="kindOf(column, draft) === 'iban-list'"
+                :model-value="ibanListOf(draft.fields[column.name] ?? '')"
+                :aria-label="column.label"
+                size="sm"
+                :class="column.width"
+                @update:model-value="update(index, column.name, $event.join(', '))"
               />
               <UInput
                 v-else

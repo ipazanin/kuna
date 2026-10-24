@@ -18,9 +18,12 @@ import { fakeWorkbookSnapshot } from '../src/features/workbook/infrastructure/fa
 import { assetOfFields, readAssets } from '../src/packs/hr-doo/domain/assets/assetsReading'
 import { grantOfFields, readGrants } from '../src/packs/hr-doo/domain/grants/grantsReading'
 import { readYearEnd, yearEndLineOfFields } from '../src/packs/hr-doo/domain/yearEnd/yearEndReading'
-import { recordsOfRows } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import { CLIENT_COLUMNS } from '../src/features/settings/presentation/factTabColumns'
+import { clientOfFields } from '../src/features/workbook/domain/clientsReading'
+import { CORE_TABS, recordsOfRows } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import type { SpreadsheetTab } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { ASSETS_TAB, GRANTS_TAB, YEAR_END_TAB } from '../src/packs/hr-doo/infrastructure/hrDooTabs'
+import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
 import type { SheetRow } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
 function category(name: string, overrides: Partial<CategoryDraft> = {}): CategoryDraft {
@@ -103,6 +106,7 @@ describe('the assets, grants and year-end editors', () => {
     expect(valueOfDraftText('2500', 'amount-or-word')).toBe(2500)
     expect(valueOfDraftText(' Computers ', 'word')).toBe('computers')
     expect(valueOfDraftText('   ', 'text')).toBe('')
+    expect(valueOfDraftText(' gb82 west 1234 5698 7654 32,, IE29AIBK93115212345678 ', 'iban-list')).toBe('GB82WEST12345698765432, IE29AIBK93115212345678')
     expect(draftTextOf(storedFieldOf(45809), 'date')).toBe('2025-06-01')
     expect(draftTextOf(storedFieldOf(0.1), 'percent')).toBe('10')
     expect(draftTextOf(storedFieldOf(0.125), 'percent')).toBe('12.5')
@@ -119,6 +123,21 @@ describe('the assets, grants and year-end editors', () => {
     sameBack(ASSETS_TAB, snapshot.assets, assetColumns(['startup-grant']), assetOfFields)
     sameBack(GRANTS_TAB, snapshot.grants, GRANT_COLUMNS, grantOfFields)
     sameBack(YEAR_END_TAB, snapshot['year-end'], YEAR_END_COLUMNS, yearEndLineOfFields)
+  })
+
+  it('draft a client with two IBANs and every invoice detail and make the same record back, so a save keeps its invoice columns', () => {
+    const stored = storedOf(
+      recordsOfRows(
+        CORE_TABS.clients,
+        sheetRowsFromValues([
+          ['client', 'name', 'iban', 'address', 'country', 'tax_id', 'invoice_mail', 'mail_language', 'reverse_charge'],
+          ['northwind', 'Northwind', 'GB82WEST12345698765432, IE29AIBK93115212345678', '1 Example Road', 'United Kingdom', 'GB000000000', 'ap@northwind.example', 'hr', true],
+        ]),
+      ),
+    )
+    const drafts = draftsOfRecords(stored, CLIENT_COLUMNS)
+
+    expect(madeOfDrafts(drafts, fieldsOfDrafts(drafts, CLIENT_COLUMNS, stored), stored, clientOfFields)).toEqual(stored.map((read, saved) => ({ saved, record: (read as { readonly record: unknown }).record })))
   })
 
   it('give each year-end amount the field its line needs', () => {

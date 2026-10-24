@@ -18,11 +18,11 @@ export interface EditorColumn extends DraftColumn {
   readonly placeholderOf?: (fieldOf: FieldReader) => string
 }
 
-/** The clients tab, one row per IBAN a client pays from. */
+/** The clients tab, one row per client with every IBAN it pays from. */
 export const CLIENT_COLUMNS: readonly EditorColumn[] = [
   { name: 'client', label: 'Client', kind: 'word', width: 'w-36' },
   { name: 'name', label: 'Name', kind: 'text', width: 'w-48' },
-  { name: 'iban', label: 'IBAN', kind: 'iban', width: 'w-64' },
+  { name: 'iban', label: 'IBANs', kind: 'iban-list', width: 'w-72' },
   { name: 'address', label: 'Address', kind: 'text', width: 'w-56' },
   { name: 'country', label: 'Country', kind: 'text', width: 'w-36' },
   { name: 'tax_id', label: 'Tax ID', kind: 'text', width: 'w-36' },

@@ -1,5 +1,5 @@
 import { parseCivilDate, serialFromCivilDate } from '../../../shared/calendar/civilDate'
-import { normaliseIban } from '../../../shared/text/fold'
+import { ibanListOf } from '../../workbook/domain/iban'
 import type { RecordId } from '../../workbook/domain/recordId'
 import type { Reading, RecordsRead } from '../../workbook/domain/recordsRead'
 import { refusalOr, storedFieldOf } from '../../workbook/domain/storedFields'
@@ -8,10 +8,11 @@ import type { StoredRecord } from '../../workbook/domain/recordsRead'
 
 /**
  * What an editor field holds and how its text becomes a stored value. A word is stored in lower
- * case, a date as a date, a percent typed as 10 as 0.1, a flag as TRUE or blank, an IBAN without its
- * grouping spaces, and `amount-or-word` takes a number or a keyword such as whole.
+ * case, a date as a date, a percent typed as 10 as 0.1, a flag as TRUE or blank, a list of IBANs
+ * without their grouping spaces and separated by commas, and `amount-or-word` takes a number or a
+ * keyword such as whole.
  */
-export type DraftCellKind = 'text' | 'word' | 'date' | 'amount' | 'whole-number' | 'percent' | 'flag' | 'amount-or-word' | 'iban'
+export type DraftCellKind = 'text' | 'word' | 'date' | 'amount' | 'whole-number' | 'percent' | 'flag' | 'amount-or-word' | 'iban-list'
 
 /** Reads another field of the same record as lower-case text, so a field's kind can follow it. */
 export type FieldReader = (column: string) => string
@@ -100,8 +101,8 @@ export function valueOfDraftText(text: string, kind: DraftCellKind): string | nu
       return Number.isFinite(number) ? number : trimmed.toLowerCase()
     case 'word':
       return trimmed.toLowerCase()
-    case 'iban':
-      return normaliseIban(trimmed)
+    case 'iban-list':
+      return ibanListOf(trimmed).join(', ')
     case 'text':
       return trimmed
   }

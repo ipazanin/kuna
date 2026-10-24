@@ -2,12 +2,11 @@ import { civilDateFromSerial, serialFromCivilDate } from '../../../shared/calend
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { amountOf } from '../../../shared/money/money'
 import { cellText } from '../../../shared/text/cellText'
-import { normaliseIban } from '../../../shared/text/fold'
 import { installedPack } from '../../packs/packContribution'
 import { accountOf } from '../domain/accountsReading'
 import { billingItemOf } from '../domain/billingPlanReading'
 import { categoryOf } from '../domain/categoriesReading'
-import { clientRowOf } from '../domain/clientsReading'
+import { clientOf } from '../domain/clientsReading'
 import { dismissalOf } from '../domain/dismissalsReading'
 import { invoiceKeyOf, invoiceOf } from '../domain/invoicesReading'
 import { ledgerEntryOf, ledgerKeyOf, referencedLedgerKey } from '../domain/ledgerReading'
@@ -236,19 +235,19 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
     tab: 'clients',
     kind: CLIENT_RECORDS,
     required: ['client', 'iban'],
-    key: (cells) => filledKey(normaliseIban(cellText(cells.iban))),
-    label: (cells) => labelWords([cellText(cells.client), cellText(cells.iban)]),
-    record: ({ fields, id }) => clientRowOf(fields, id),
+    key: (cells) => filledKey(slugText(cells.client)),
+    label: (cells) => labelWords([cellText(cells.client) || cellText(cells.name)]),
+    record: ({ fields, id }) => clientOf(fields, id),
     cells: (client) => ({
       client: client.slug,
       name: client.name,
-      iban: client.iban,
+      iban: client.ibans.join(', '),
       address: client.invoicing.address,
       country: client.invoicing.country,
       tax_id: client.invoicing.taxId,
       invoice_mail: client.invoicing.invoiceMail,
       mail_language: client.invoicing.mailLanguage,
-      reverse_charge: client.invoicing.reverseCharge ?? '',
+      reverse_charge: client.invoicing.reverseCharge ? true : '',
     }),
   },
   'outgoing-plan': byId(

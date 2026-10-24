@@ -3,7 +3,7 @@ import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
-import { isIban } from '../../workbook/domain/iban'
+import { ibanListOf, isIban } from '../../workbook/domain/iban'
 import { recordIdOf } from '../../workbook/domain/recordId'
 import { SETTING_RECORDS } from '../../workbook/domain/recordKind'
 import type { RecordsRead } from '../../workbook/domain/recordsRead'
@@ -649,14 +649,6 @@ function localeProblem(locale: string): string | null {
   } catch {
     return `"${locale}" is not a locale tag such as en-GB`
   }
-}
-
-/** A comma-separated list of IBANs, each normalised, blanks left out. */
-export function ibanListOf(text: string): string[] {
-  return text
-    .split(',')
-    .map(normaliseIban)
-    .filter((iban) => iban !== '')
 }
 
 function ibanListProblem(ibans: readonly string[]): string | null {

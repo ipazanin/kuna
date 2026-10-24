@@ -270,15 +270,17 @@ describe('readWorkbook', () => {
     ])
   })
 
-  it('reads invoices and clients, keeping a number as text and leaving out every row of an IBAN or a number given twice', () => {
+  it('reads invoices and clients, keeping a number as text, an IBAN list once each, and leaving out an IBAN on two clients, every row of a client named twice and of a number given twice', () => {
     const workbook = readSnapshot({
       ...snapshotWith([['date']]),
       clients: sheetRowsFromValues([
         ['client', 'name', 'iban'],
-        ['North', 'North Ltd', 'xx00 fake 0101'],
-        ['north', '', 'XX00FAKE0102'],
-        ['south', 'South GmbH', 'XX00FAKE0101'],
+        ['North', 'North Ltd', 'xx00 fake 0101, XX00FAKE0102,, xx00fake0102'],
+        ['south', 'South GmbH', 'XX00FAKE0101,XX00FAKE0103'],
         ['', 'Nobody', 'XX00FAKE0999'],
+        ['west', 'West AG', 'XX00FAKE0201'],
+        ['West', '', 'XX00FAKE0202'],
+        ['empty', 'Empty Ltd', ' , '],
       ]),
       invoices: sheetRowsFromValues([
         ['number', 'client', 'item', 'amount', 'issued', 'due'],
@@ -291,44 +293,59 @@ describe('readWorkbook', () => {
       ]),
     }).workbook
 
-    expect(workbook.clients).toEqual([{ slug: 'north', name: '', ibans: ['XX00FAKE0102'], invoicing: NO_CLIENT_INVOICING }])
+    expect(workbook.clients).toEqual([
+      { slug: 'north', name: 'North Ltd', ibans: ['XX00FAKE0102'], invoicing: NO_CLIENT_INVOICING },
+      { slug: 'south', name: 'South GmbH', ibans: ['XX00FAKE0103'], invoicing: NO_CLIENT_INVOICING },
+    ])
     expect(workbook.invoices.map((invoice) => [invoice.number, invoice.client, invoice.amount, invoice.issued, invoice.due])).toEqual([
       ['2-1-26', 'north', 30000, '2026-02-27', null],
       ['3-1-26', 'east', 10000, '2026-03-09', null],
     ])
-    expect(workbook.problems.filter((problem) => problem.tab !== 'categories').map((problem) => [problem.tab, problem.label])).toEqual([
-      ['clients', 'XX00FAKE0999'],
-      ['clients', 'North, xx00 fake 0101'],
-      ['clients', 'south, XX00FAKE0101'],
-      ['invoices', '4-1-26'],
-      ['invoices', '5-1-26'],
-      ['invoices', '1-1-26'],
-      ['invoices', '1-1-26'],
-      ['invoices', '3-1-26'],
+    expect(workbook.problems.filter((problem) => problem.tab !== 'categories').map((problem) => [problem.tab, problem.label, problem.reason])).toEqual([
+      ['clients', 'Nobody', 'no client name'],
+      ['clients', 'empty', 'no IBAN'],
+      ['clients', 'west', 'west is on 2 rows, so none of them counts. Put all its IBANs in the first row, separated by commas, and delete the others'],
+      ['clients', 'West', 'west is on 2 rows, so none of them counts. Put all its IBANs in the first row, separated by commas, and delete the others'],
+      ['clients', 'North', 'XX00FAKE0101 is on another client too, so a payment from it counts for neither'],
+      ['clients', 'south', 'XX00FAKE0101 is on another client too, so a payment from it counts for neither'],
+      ['invoices', '4-1-26', expect.any(String)],
+      ['invoices', '5-1-26', expect.any(String)],
+      ['invoices', '1-1-26', expect.any(String)],
+      ['invoices', '1-1-26', expect.any(String)],
+      ['invoices', '3-1-26', expect.any(String)],
     ])
-    expect(workbook.problems.find((problem) => problem.tab === 'clients' && problem.label === 'south, XX00FAKE0101')?.reason).toBe('XX00FAKE0101 is on more than one row, so none of them counts')
     expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.label === '1-1-26')?.reason).toBe('invoice 1-1-26 for north is listed on more than one row, so none of them counts')
     expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.label === '3-1-26')?.reason).toMatch(/east is not on the clients tab/)
   })
 
-  it('reads a name or invoice detail a client’s rows give differently as blank, and reports it on each of its rows', () => {
+  it('leaves out both rows of a client on two rows, and with them its invoices’ payments and its plan rows', () => {
     const workbook = readSnapshot({
       ...snapshotWith([['date']]),
       clients: sheetRowsFromValues([
         ['client', 'name', 'iban', 'address', 'reverse_charge'],
         ['north', 'North Ltd', 'XX00FAKE0101', '1 Road', true],
-        ['north', 'North Limited', 'XX00FAKE0102', '', false],
-        ['north', '', 'XX00FAKE0103', '1 Road', ''],
+        ['north', 'North Ltd', 'XX00FAKE0102'],
       ]),
+      invoices: sheetRowsFromValues([
+        ['number', 'client', 'item', 'amount', 'issued', 'due'],
+        ['1-1-26', 'north', 'Work', 1200, 46050, 46081],
+      ]),
+      'outgoing-plan': sheetRowsFromValues(
+        withIds('item', [
+          ['item', 'date', 'amount', 'client', 'description'],
+          ['Monthly fee', 46053, 1200, 'north', 'January fee'],
+        ]),
+      ),
     }).workbook
 
-    expect(workbook.clients).toEqual([
-      { slug: 'north', name: '', ibans: ['XX00FAKE0101', 'XX00FAKE0102', 'XX00FAKE0103'], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Road' } },
-    ])
-    expect(workbook.problems.filter((problem) => problem.tab === 'clients').map((problem) => [problem.label, problem.reason])).toEqual([
-      ['north, XX00FAKE0101', 'the rows of north give name, reverse_charge differently, so they read blank'],
-      ['north, XX00FAKE0102', 'the rows of north give name, reverse_charge differently, so they read blank'],
-      ['north, XX00FAKE0103', 'the rows of north give name, reverse_charge differently, so they read blank'],
+    expect(workbook.clients).toEqual([])
+    expect(workbook.invoices.map((invoice) => invoice.number)).toEqual(['1-1-26'])
+    expect(workbook.billingPlan).toEqual([])
+    expect(workbook.problems.filter((problem) => problem.tab !== 'categories').map((problem) => [problem.tab, problem.reason])).toEqual([
+      ['clients', 'north is on 2 rows, so none of them counts. Put all its IBANs in the first row, separated by commas, and delete the others'],
+      ['clients', 'north is on 2 rows, so none of them counts. Put all its IBANs in the first row, separated by commas, and delete the others'],
+      ['invoices', 'north is not on the clients tab, so no payment can be matched to invoice 1-1-26'],
+      ['outgoing-plan', '"north" is not on the clients tab'],
     ])
   })
 

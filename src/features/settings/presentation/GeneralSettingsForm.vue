@@ -11,8 +11,9 @@ import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { folderPathOf } from '../../../shared/text/folderPath'
-import { currencyProblem, ibanListOf, settingsErrors } from '../domain/settings'
+import { currencyProblem, settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
+import IbanTagsField from './IbanTagsField.vue'
 
 /**
  * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
@@ -69,22 +70,6 @@ const preview = computed(() => {
 
 function update<Field extends keyof Settings>(field: Field, value: Settings[Field]): void {
   draft.value = { ...draft.value, [field]: value }
-}
-
-/** The IBANs as typed, so a trailing comma survives until the next IBAN is written. */
-const cardIbansText = ref(props.settings.cardSettlementIbans.join(', '))
-watch(
-  () => draft.value.cardSettlementIbans,
-  (ibans) => {
-    if (JSON.stringify(ibanListOf(cardIbansText.value)) !== JSON.stringify(ibans)) {
-      cardIbansText.value = ibans.join(', ')
-    }
-  },
-)
-
-function updateCardIbans(text: string): void {
-  cardIbansText.value = text
-  update('cardSettlementIbans', ibanListOf(text))
 }
 
 /** The path as typed, so a trailing slash survives until the next folder name is written. */
@@ -150,10 +135,11 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
           <UFormField
             label="Card settlement IBANs"
             :error="errors.cardSettlementIbans ?? false"
-            help="The bank's card settlement accounts, comma separated. A row paid to one of them reads as a card purchase."
+            help="The bank's card settlement accounts. A row paid to one of them reads as a card purchase."
             class="sm:col-span-2"
+            data-testid="card-settlement-ibans"
           >
-            <UInput :model-value="cardIbansText" placeholder="None" class="identifier w-full" @update:model-value="updateCardIbans(String($event))" />
+            <IbanTagsField :model-value="draft.cardSettlementIbans" class="w-full" @update:model-value="update('cardSettlementIbans', $event)" />
           </UFormField>
           <UFormField
             label="Statements folder"

@@ -276,7 +276,7 @@ take their defaults.
 | `settings` | `key`, `value`, one row per setting. A key on more than one row is reported on each and takes its default. |
 | `rules` | `rule`, `order`, `enabled`, the condition columns, `category`, `confidence` (`rule` or `review`) and `note`. A row the reader refuses, such as one with an order that is not a number or a filled column no rule can test, is reported and left out, and so is every row of an id used on more than one row. Rules are tried by `order`, then by id. |
 | `invoices` | `number` (text), `client`, `item`, `amount`, `issued` and `due` (date cells, `due` optional), and the optional delivery period `period_from` and `period_to` (date cells, both or neither). A row without a number, client, amount or issue date is reported and left out, and so is every row of a number used twice for one client. A period that cannot be read is reported, and the issue date stands for it. |
-| `clients` | `client`, `name` and `iban`, one row per IBAN, so a client paying from two accounts has two rows. An IBAN on more than one row is reported and left out on each, so no payment from it counts as a client's. The rules' `counterparty_is_client` reads these IBANs, so without the tab it matches no row. The optional invoice columns `address`, `country`, `tax_id`, `invoice_mail`, `mail_language` (a language tag such as `en` or `hr`, blank for English) and `reverse_charge` (TRUE or FALSE) are read from whichever of a client's rows fills each one, the way `name` is. A name or detail the rows fill differently is reported on each of them and reads blank. A language the browser does not know, or a `reverse_charge` that is neither TRUE nor FALSE, is reported and read as blank. |
+| `clients` | `client`, `name` and `iban`, one row per client. `iban` holds every IBAN the client pays from, separated by commas, such as `HR12 3456, HR98 7654`, each read without its spaces and once. A client named on more than one row is reported on each and read from none, and with it go the payments matched to its invoices and its `outgoing-plan` rows, until its IBANs are in one row and the others are deleted. An IBAN on two clients is reported on both and counts for neither, so no payment from it counts as a client's. The rules' `counterparty_is_client` reads these IBANs, so without the tab it matches no row. The optional invoice columns are `address`, `country`, `tax_id`, `invoice_mail`, `mail_language` (a language tag such as `en` or `hr`, blank for English) and `reverse_charge` (TRUE or FALSE, blank for FALSE). A language the browser does not know is reported and read as blank, and a `reverse_charge` that is neither TRUE nor FALSE is reported and read as FALSE. |
 | `outgoing-plan` | `item`, `date` (a date cell), `amount` (above zero), `client` and `description`: one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel. `date` is the day it becomes billable, the last day of the worked month for a monthly fee. `client` must be on the `clients` tab, or the row is reported and left out. Only these five columns and `id` are read. |
 | `owner-advances` | `date`, `amount` (above zero), `description`, `category` and the optional `owner_share`: costs the owner paid privately for the company. The category must be in the `operating` or `taxes` bucket, or the row is reported and left out. A negative amount, the owner's private share of a company payment, is reported and left out, since that share is a part on the `splits` tab, as *Split rows* describes. |
 | `assets` | `asset`, `bought` (a date cell), `in_use` (a date cell, blank means the day it was bought), `cost_net` (above zero, without the VAT that was reclaimed), `group` (`computers`, `equipment`, `car`, `building` or `other`), `doubled` (TRUE for a doubled depreciation rate), `disposed` (a date cell), `funded_by` (a grant on the `grants` tab), `ledger_reference` and `note`. An asset is listed once, or every row of its name is reported and left out. A row put in use before it was bought, or disposed before it was put in use, is reported and left out. A grant the `grants` tab lacks is reported and the asset kept. |
@@ -297,8 +297,8 @@ give it an id there, any text no other row of the tab holds, or delete it and ad
 
 Every record is known by its key or its id, never by its row: a ledger row by its account and
 reference, or for a row without a reference by its account, day, amount, balance and description,
-a category, an account, a grant or a setting by its name, a rule by its id, an invoice by its client
-and number, a `clients` row by its IBAN, a `scenarios` row by its scenario, component and days, and
+a category, an account, a client, a grant or a setting by its name, a rule by its id, an invoice by its client
+and number, a `scenarios` row by its scenario, component and days, and
 a row of the seven tabs above by its id. A write finds its rows that way, lists and links key on it,
 and a problem names its record by a label, such as an invoice's number, an asset's name, a plan
 row's item, client, day and amount, or a ledger row's day, counterparty, amount and balance. The
@@ -1072,7 +1072,13 @@ add, and in Excel mode starts one from its first row.
 
 **Clients** holds the clients tab as an editor, as *Settings screen* describes for a tab, and "Billing and
 invoice terms", collapsed, the `billing_` and `invoice_` settings with their own Save, written as the
-settings are. `#invoicing-terms` opens the terms.
+settings are. `#invoicing-terms` opens the terms. A client's IBANs are tags: a comma, Enter or leaving
+the field adds the IBAN typed, a pasted list splits at its commas, and each tag has its own remove
+button. The card settlement IBANs on Settings, General are the same field, `IbanTagsField` in
+`src/features/settings/presentation/`. A client on two rows shows both rows left out, with the
+reason, and Save stays off while both rows are there. Typing the second row's IBANs into the first
+row and deleting the second row, then one Save, merges them. That save has no Undo, since Undo
+never puts back a second row of one client.
 
 "Record invoice", and the pencil on each invoice, add, edit and delete rows of the
 `invoices` tab in both modes, in the eight columns the invoice generator writes, for an invoice made
@@ -1082,7 +1088,7 @@ generator set them.
 
 The invoice matching pairs the `invoices` tab with the revenue credits, client by client, the way the
 Sheet's `outgoing` tab does for its one client. A credit belongs to the client whose `clients` row
-names its IBAN, and one from an IBAN no client names is listed apart and never pays anyone's
+lists its IBAN, and one from an IBAN no client names is listed apart and never pays anyone's
 invoice. Invoices fill oldest first, by issue date and then by number. A
 payment can fill only invoices already issued on its day, so a credit that arrives before its
 invoice is a payment with no invoice on file, and a payment past what is owed is an overpayment on
@@ -1505,9 +1511,10 @@ dismissals in the `*Writes.ts` file of their feature's `application` folder. The
 change may touch, the kind's own checks and its reader, and whether a write keeps Undo. One write:
 
 1. Reads fresh the kinds it touches and the kinds their checks read.
-2. Finds each record it changes, repairs, discards or removes by its identity, and refuses one that
-   is gone, that two stored records hold, or that differs from what the app read. An added record
-   whose identity the workbook holds already is refused too, so a copy is never made.
+2. Finds each record it changes, repairs, discards or removes by its identity and by what the app
+   read, so two rows that share a key but hold different fields are told apart, and refuses one that
+   is gone, that two stored records hold alike, or that differs from what the app read. An added
+   record whose identity the workbook holds already is refused too, so a copy is never made.
 3. Refuses a change to a field the kind keeps from the app. Then each kind's checks run, and its
    reader reads the kind as the write would leave it: a record the write touches may not be left
    out or gain a problem, and a record it leaves alone may not drop out.
@@ -1522,7 +1529,9 @@ Undo turns a write's receipt around: an added record is removed, a changed one c
 removed one added again with the same identity. It lands below the last row of its tab, and a ledger
 row where its date puts it, newest first. Nothing reads where a row sits, so the figures after Undo
 are those before the delete. Undo goes through the same checks, so it is refused when a record changed
-since, or when the workbook holds the identity of a record it would put back. Settings keep no Undo,
+since, or when the workbook holds the identity of a record it would put back. So a save that merged
+two rows of one key, such as a client's two rows made into one, keeps its result: its Undo would put
+back a second row the workbook already holds. Settings keep no Undo,
 and neither does a write that repaired or discarded a refused record, since nothing could store that
 record as it was. Settings are changed back on Settings. The
 session list is held in memory, so a reload clears it.
@@ -1558,7 +1567,7 @@ session list is held in memory, so a reload clears it.
   |---|---|
   | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. A changed colour outside the palette, or a role the change gives that the app does not know, unless Undo puts it back. Unless Undo puts it back too, an owner share on a category outside the operating bucket, a new one while no category carries the `owner-benefit` role, and taking that role off the last category carrying it while a share is held. |
   | Accounts | A name outside the slug format. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the app files no statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. One IBAN names one account, since the fetch names each statement file by its IBAN and the app files each statement by it. The tab needs its `account` and `iban` headers, which the statement fetch reads. |
-  | Clients | A name outside the slug format. A second row of a client under another name. Renaming or deleting the last row of a client that invoices, plan rows or `billing_client` name. A new or changed IBAN that is not valid, is on another client row, or is one of your accounts. |
+  | Clients | A name outside the slug format, or one another row holds. Renaming or deleting a client that invoices, plan rows or `billing_client` name. An IBAN the change adds that is not valid, is on another client, or is one of your accounts. A save that merges a client's two rows into one keeps no Undo, as above. |
   | Invoices | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. The tab needs all eight columns the generator writes, and the app never adds one. |
   | Grants | A name outside the slug format. Renaming or deleting a grant an asset is funded by. |
   | Owner advances | What their reader refuses: an amount of zero or below, which for a negative one points to the `splits` tab, or a category the categories tab lacks or keeps outside the operating and taxes buckets. "Add advance" on Owner, and "Add the cost" on Review, add one, and the pencil beside an advance on Owner changes or deletes it. |

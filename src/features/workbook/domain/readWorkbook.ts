@@ -8,8 +8,8 @@ import type { BillingItem } from './billingPlan'
 import { readBillingPlan } from './billingPlanReading'
 import type { CategoryRecord } from './categoriesReading'
 import { readCategories, withoutIds } from './categoriesReading'
-import { clientsOf, readClients } from './clientsReading'
-import type { ClientRow } from './clientsReading'
+import { readClients } from './clientsReading'
+import type { ClientRecord } from './clientsReading'
 import type { Dismissal } from './dismissals'
 import { readDismissals } from './dismissalsReading'
 import { readInvoices } from './invoicesReading'
@@ -45,7 +45,7 @@ export interface WorkbookRecordTypes {
   readonly settings: SettingRow
   readonly rules: RuleTabRow
   readonly invoices: Invoice
-  readonly clients: ClientRow
+  readonly clients: ClientRecord
   readonly 'outgoing-plan': BillingItem
   readonly splits: SplitTabRow
   readonly dismissed: Dismissal
@@ -97,7 +97,7 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
   problems.push(...tabProblems('settings', settingsTab.problems))
   const { settings } = settingsTab
   const categories: Category[] = withoutIds(keep('categories', readCategories(records.categories)))
-  const clients = clientsOf(keep('clients', readClients(records.clients)))
+  const clients = withoutIds(keep('clients', readClients(records.clients)))
   const clientSlugs = new Set(clients.map((client) => client.slug))
   const categorySlugs = new Set(categories.map((category) => category.slug))
   const transactions = keep('ledger', readLedger(records.ledger, categories))

@@ -1113,6 +1113,114 @@ export async function statementsFolderFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 }
 
+const FACT_ROW = '[data-testid="fact-row"]'
+const CARD_IBANS = '[data-testid="card-settlement-ibans"]'
+const NEW_IBAN = 'GB82WEST12345698765432'
+
+/** The tags an IBAN field under this selector shows, as their text. */
+function tagsIn(page, selector) {
+  return page.$$eval(`${selector} [data-slot="item"]`, (items) => items.map((item) => item.textContent?.trim() ?? ''))
+}
+
+async function waitForTags(page, selector, wanted, when) {
+  await page
+    .waitForFunction(
+      (scope, tags) => JSON.stringify([...document.querySelectorAll(`${scope} [data-slot="item"]`)].map((item) => item.textContent?.trim() ?? '')) === JSON.stringify(tags),
+      { timeout: 5_000 },
+      selector,
+      wanted,
+    )
+    .catch(async () => {
+      throw new Error(`${when}: the IBAN field shows ${JSON.stringify(await tagsIn(page, selector))}, not ${JSON.stringify(wanted)}`)
+    })
+}
+
+/** Presses the remove button of the last tag of the IBAN field under this selector. */
+async function removeLastTag(page, press, selector) {
+  const buttons = await page.$$(`${selector} [data-slot="itemDelete"]`)
+  const last = buttons.at(-1)
+  if (last === undefined) throw new Error(`the IBAN field under ${selector} has no tag to remove`)
+  await last.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(last)
+}
+
+/** Types into an IBAN field the way a person does: a press on the field, the IBAN with its grouping spaces, and a comma that makes it a tag. */
+async function typeIban(page, press, input, text) {
+  await input.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(input)
+  await page.keyboard.type(`${text},`)
+}
+
+/**
+ * On Invoicing, Clients a client's IBANs are tags. A second IBAN typed with its spaces becomes a tag
+ * without them, Save writes it with Undo, and Undo takes it off again. A tag's remove button takes a
+ * new IBAN off before a save, which leaves nothing to save.
+ */
+export async function clientIbansFlow(page, { press, shoot, inspect }) {
+  const position = await (await rowNamed(page, FACT_ROW, 'lumen')).evaluate((row) => [...row.parentElement.children].indexOf(row) + 1)
+  const lumen = `${FACT_ROW}:nth-child(${position})`
+  const before = await tagsIn(page, lumen)
+  if (before.length !== 1) throw new Error(`the fake client lumen shows ${before.length} IBANs, not one`)
+  const input = async () => fieldIn(await rowNamed(page, FACT_ROW, 'lumen'), 'IBANs')
+
+  await typeIban(page, press, await input(), 'GB82 WEST 1234 5698 7654 32')
+  await waitForTags(page, lumen, [...before, NEW_IBAN], 'a typed IBAN')
+  await inspect?.('a client with a second IBAN')
+  await shoot('client-ibans-added')
+  await pressSelector(page, press, '[data-testid="save-rows"]:not([disabled])')
+  await toast(page, 'Clients saved')
+  await waitForTags(page, lumen, [...before, NEW_IBAN], 'after the save')
+  await undo(page, press)
+  await waitForTags(page, lumen, before, 'after Undo')
+  await dismissToasts(page)
+
+  await typeIban(page, press, await input(), NEW_IBAN)
+  await waitForTags(page, lumen, [...before, NEW_IBAN], 'a typed IBAN again')
+  await removeLastTag(page, press, lumen)
+  await waitForTags(page, lumen, before, 'after its remove button')
+  await page.waitForSelector('[data-testid="save-rows"][disabled]', { timeout: 5_000 }).catch(() => {
+    throw new Error('Save clients is still on after the new IBAN was taken off')
+  })
+}
+
+/**
+ * On Settings, General the card settlement IBANs are the same tags field. A tag that is not an IBAN
+ * is said under the field and keeps Save off until its remove button takes it off. A valid one is
+ * saved, then taken off and saved again, since settings keep no Undo.
+ */
+export async function cardSettlementIbansFlow(page, { press, shoot, inspect }) {
+  const input = () =>
+    page.waitForSelector(`${CARD_IBANS} input`, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Settings, General has no card settlement IBANs field')
+    })
+  const before = await tagsIn(page, CARD_IBANS)
+
+  await typeIban(page, press, await input(), 'GB82 WEST 1234 5698 7654 32')
+  await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'a typed IBAN')
+  await typeIban(page, press, await input(), 'XX00 NOT AN IBAN')
+  await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN, 'XX00NOTANIBAN'], 'an entry that is not an IBAN')
+  await page.waitForFunction((selector) => document.querySelector(selector)?.textContent?.includes('"XX00NOTANIBAN" is not an IBAN'), { timeout: 5_000 }, CARD_IBANS).catch(() => {
+    throw new Error('the field does not say the entry is not an IBAN')
+  })
+  await saveSettingsButton(page, false)
+  await inspect?.('card settlement IBANs with one that is not an IBAN')
+  await shoot('card-ibans-invalid')
+  await removeLastTag(page, press, CARD_IBANS)
+  await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'after its remove button')
+
+  await press(await saveSettingsButton(page, true))
+  await toast(page, 'Settings saved')
+  await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'after the save')
+  await dismissToasts(page)
+  await removeLastTag(page, press, CARD_IBANS)
+  await waitForTags(page, CARD_IBANS, before, 'after the saved IBAN was taken off')
+  await press(await saveSettingsButton(page, true))
+  await toast(page, 'Settings saved')
+  await dismissToasts(page)
+}
+
 const RULE_ROW = '[data-testid="rule-row"]'
 
 /** The rules tab's row of this rule, by its id. */

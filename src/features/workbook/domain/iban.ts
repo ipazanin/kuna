@@ -20,3 +20,11 @@ export function isIban(text: string): boolean {
   }
   return remainder === 1
 }
+
+/** A comma-separated list of IBANs, each normalised, blanks left out. */
+export function ibanListOf(text: string): string[] {
+  return text
+    .split(',')
+    .map(normaliseIban)
+    .filter((iban) => iban !== '')
+}

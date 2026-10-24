@@ -170,13 +170,13 @@ const FIXTURES: Readonly<Record<string, KindFixture>> = {
     cleared: 'label',
     refused: { cells: { iban: 'FR1420041010050500013M02606' }, reason: 'no account name', fixed: { account: 'third', iban: 'FR1420041010050500013M02606' } },
   },
-  'client-iban': {
+  client: {
     records: [
-      { client: 'northwind', name: 'Northwind', iban: 'GB82WEST12345698765432', address: '1 Example Road', mail_language: 'en', reverse_charge: true },
+      { client: 'northwind', name: 'Northwind', iban: 'GB82WEST12345698765432, IE29AIBK93115212345678', address: '1 Example Road', mail_language: 'en', reverse_charge: true },
       { client: 'lumen', iban: 'DE89370400440532013000' },
     ],
     outside: { client: 'acme', iban: 'GB33BUKB20201555555555' },
-    change: { column: 'name', value: 'Northwind Analytics' },
+    change: { column: 'iban', value: 'GB82WEST12345698765432, IE29AIBK93115212345678, NL91ABNA0417164300' },
     cleared: 'address',
     refused: { cells: { client: 'nobank' }, reason: 'no IBAN', fixed: { client: 'nobank', iban: 'FR1420041010050500013M02606' } },
   },

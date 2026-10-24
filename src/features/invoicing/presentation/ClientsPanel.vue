@@ -8,7 +8,7 @@ import { CLIENT_COLUMNS } from '../../settings/presentation/factTabColumns'
 import FactTabCard from '../../settings/presentation/FactTabCard.vue'
 import { useSettingsSave } from '../../settings/presentation/useSettingsSave'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { clientRowOfFields, readClients } from '../../workbook/domain/clientsReading'
+import { clientOfFields, readClients } from '../../workbook/domain/clientsReading'
 import { REQUIRED_ISSUER } from '../domain/invoiceDocument'
 import InvoicingTermsForm from './InvoicingTermsForm.vue'
 
@@ -38,12 +38,12 @@ const termsSummary = computed(() => {
     <FactTabCard
       :rules="CLIENT_WRITES"
       title="Clients"
-      description="Who pays your invoices, one row per IBAN they pay from, so a client paying from two accounts has two rows under one name."
+      description="Who pays your invoices, one row per client with every IBAN they pay from."
       collapse-id="invoicing.clients"
       :columns="CLIENT_COLUMNS"
       :read="readClients"
-      :make="clientRowOfFields"
-      row-noun="client row"
+      :make="clientOfFields"
+      row-noun="client"
       tab-noun="clients"
       saved-title="Clients saved"
       :reveal="linked"

@@ -181,11 +181,10 @@ export async function checkWrite(storage: RecordStorage, title: string, ruled: r
   const fresh = await storage.read(kinds)
 
   const refusals: string[] = []
-  const claimed = new Set<string>()
-  const claim = (id: RecordId | null, record: string): void => {
-    if (id === null) return
-    if (claimed.has(id)) refusals.push(`${capitalised(record)} is asked to change twice in one write.`)
-    claimed.add(id)
+  const claimed = new Set<RecordId | StoredRecord<unknown>>()
+  const claim = (claimant: RecordId | StoredRecord<unknown>, record: string): void => {
+    if (claimed.has(claimant)) refusals.push(`${capitalised(record)} is asked to change twice in one write.`)
+    claimed.add(claimant)
   }
   const found = changes.map(({ rules, change }): StoredRecord<unknown> | null => {
     if (change.verb === 'add') {
@@ -193,7 +192,9 @@ export async function checkWrite(storage: RecordStorage, title: string, ruled: r
       const held = storedOf(fresh.of(change.kind)).find((stored) => id !== null && stored.id === id)
       if (id === null) {
         refusals.push(`The new ${change.kind.noun.one} has nothing to find it by, such as its name or id.`)
-      } else if (held !== undefined) {
+        return null
+      }
+      if (held !== undefined) {
         refusals.push(`${capitalised(named(change.kind, held.label))} is in the workbook already, so it is not added again.`)
       }
       claim(id, named(change.kind, held?.label ?? null))
@@ -204,7 +205,7 @@ export async function checkWrite(storage: RecordStorage, title: string, ruled: r
       refusals.push(stored)
       return null
     }
-    claim(stored.id, named(change.kind, stored.label))
+    claim(stored, named(change.kind, stored.label))
     if ((change.verb === 'repair' || change.verb === 'discard') && rules.changeable !== undefined) {
       refusals.push(`The app changes only ${listInWords(rules.changeable)} of ${change.kind.noun.article} ${change.kind.noun.one}, so ${named(change.kind, stored.label)} is fixed in the workbook itself.`)
     }
@@ -255,7 +256,7 @@ export function receiptOf(checked: CheckedWrite, after: FreshRecords): WriteRece
   const records = checked.changes.map(({ rules, change }, index): WrittenRecord => {
     const before = checked.found[index] ?? null
     if (change.verb === 'remove' || change.verb === 'discard') {
-      const left = (stored: StoredRecord<unknown>): boolean => (before !== null && before.id !== null ? stored.id === before.id : sameRecord(stored.fields, before?.fields))
+      const left = (stored: StoredRecord<unknown>): boolean => (before === null || before.id === null || stored.id === before.id) && sameRecord(stored.fields, before?.fields)
       if (before === null || storedOf(after.of(change.kind)).some(left)) {
         throw new Error(`The write reached the workbook, but it still holds ${named(change.kind, before?.label ?? null)}. Check it in the workbook.`)
       }

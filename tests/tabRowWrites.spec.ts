@@ -210,18 +210,70 @@ describe.each([
     await expect(remove(store, ACCOUNT_WRITES, 2)).rejects.toThrow('"main" cannot be deleted, since it is used by 4 ledger rows.')
   })
 
-  it('adds a second IBAN row for a client, and refuses an IBAN on another row or an account, a second name, and deleting a client with invoices', async () => {
+  it('adds a second IBAN to a client’s row, and refuses an IBAN on another client or an account, a second row of a client, and deleting a client with invoices', async () => {
     const { store } = await harnessOf(used, everyTab())
 
-    await add(store, CLIENT_WRITES, { client: 'acme', name: '', iban: SECOND_ACME_IBAN })
+    await edit(store, CLIENT_WRITES, 2, { iban: `${ACME_IBAN}, ${SECOND_ACME_IBAN.toLowerCase()}` })
 
     expect(store.state.workbook?.clients).toEqual([{ slug: 'acme', name: 'Acme Studio', ibans: [ACME_IBAN, SECOND_ACME_IBAN], invoicing: NO_CLIENT_INVOICING }])
-    await expect(add(store, CLIENT_WRITES, { client: 'globex', name: 'Globex', iban: ACME_IBAN })).rejects.toThrow(`The client row "acme, ${ACME_IBAN}" is in the workbook already, so it is not added again.`)
+    expect(store.state.snapshot?.clients[0]?.cells.iban).toBe(`${ACME_IBAN}, ${SECOND_ACME_IBAN}`)
+    await expect(add(store, CLIENT_WRITES, { client: 'globex', name: 'Globex', iban: `XX50FAKE0000000096, ${SECOND_ACME_IBAN}` })).rejects.toThrow(`${SECOND_ACME_IBAN} is already on the clients tab for acme.`)
     await expect(add(store, CLIENT_WRITES, { client: 'globex', name: 'Globex', iban: 'XX00FAKE0000000001' })).rejects.toThrow('is not a valid IBAN')
-    await expect(add(store, CLIENT_WRITES, { client: 'acme', name: 'Acme Ltd', iban: 'XX50FAKE0000000096' })).rejects.toThrow('acme is called "Acme Studio" on another row.')
-    await remove(store, CLIENT_WRITES, 3)
+    await expect(add(store, CLIENT_WRITES, { client: 'globex', name: 'Globex', iban: SAVINGS_IBAN })).resolves.not.toBeNull()
+    await expect(add(store, CLIENT_WRITES, { client: 'acme', name: 'Acme Ltd', iban: 'XX50FAKE0000000096' })).rejects.toThrow('The client "acme" is in the workbook already, so it is not added again.')
+    await expect(writeRows(store, CLIENT_WRITES, { added: [{ client: 'acme', iban: 'XX50FAKE0000000096' }], changed: [{ sheetRow: 2, cells: { name: 'Acme' } }] })).rejects.toThrow(
+      'The client "acme" is in the workbook already, so it is not added again.',
+    )
     await expect(remove(store, CLIENT_WRITES, 2)).rejects.toThrow('"acme" cannot be deleted, since it is used by 1 invoice and 1 billing plan row.')
     await expect(edit(store, CLIENT_WRITES, 2, { client: 'acme-studio' })).rejects.toThrow('"acme" cannot be renamed')
+  })
+
+  it('merges two rows of one client in one write, whose Undo is refused because the client is on the tab', async () => {
+    const tabs = everyTab()
+    const { store } = await harnessOf(used, {
+      ...tabs,
+      clients: [
+        ['client', 'name', 'iban', 'address'],
+        ['acme', 'Acme Studio', ACME_IBAN, '1 Example Road'],
+        ['acme', 'Acme Studio', SECOND_ACME_IBAN, ''],
+      ],
+    })
+    expect(store.state.workbook?.clients).toEqual([])
+    expect(store.state.workbook?.problems.filter((problem) => problem.tab === 'clients').map((problem) => problem.reason)).toEqual([
+      'acme is on 2 rows, so none of them counts. Put all its IBANs in the first row, separated by commas, and delete the others',
+      'acme is on 2 rows, so none of them counts. Put all its IBANs in the first row, separated by commas, and delete the others',
+    ])
+
+    await writeRows(store, CLIENT_WRITES, { changed: [{ sheetRow: 2, cells: { iban: `${ACME_IBAN}, ${SECOND_ACME_IBAN}` } }], removed: [3] })
+
+    expect(store.state.workbook?.clients).toEqual([{ slug: 'acme', name: 'Acme Studio', ibans: [ACME_IBAN, SECOND_ACME_IBAN], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Example Road' } }])
+    expect(store.state.workbook?.problems).toEqual([])
+    const merged = store.state.snapshot?.clients.map((row) => row.cells)
+
+    await expect(store.undo(store.state.writes[0]!)).rejects.toThrow('The client "acme" is in the workbook already, so it is not added again.')
+
+    expect(store.state.snapshot?.clients.map((row) => row.cells)).toEqual(merged)
+  })
+
+  it('merges two rows of one client in two writes, the second row deleted first, and Undo takes back the IBAN but not the delete', async () => {
+    const tabs = everyTab()
+    const { store } = await harnessOf(used, {
+      ...tabs,
+      clients: [
+        ['client', 'name', 'iban'],
+        ['acme', 'Acme Studio', ACME_IBAN],
+        ['acme', 'Acme Studio', SECOND_ACME_IBAN],
+      ],
+    })
+
+    const deleted = await remove(store, CLIENT_WRITES, 3)
+    expect(store.state.workbook?.clients.map((client) => client.ibans)).toEqual([[ACME_IBAN]])
+    await edit(store, CLIENT_WRITES, 2, { iban: `${ACME_IBAN}, ${SECOND_ACME_IBAN}` })
+    expect(store.state.workbook?.clients.map((client) => client.ibans)).toEqual([[ACME_IBAN, SECOND_ACME_IBAN]])
+
+    await store.undo(store.state.writes[0]!)
+    expect(store.state.workbook?.clients.map((client) => client.ibans)).toEqual([[ACME_IBAN]])
+    await expect(store.undo(store.state.writes.find((write) => write.receipt === deleted)!)).rejects.toThrow('The client "acme" is in the workbook already, so it is not added again.')
   })
 
   it('adds, changes and deletes an invoice as the generator files it, and refuses a number on the tab or a client not on the clients tab', async () => {

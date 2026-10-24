@@ -13,7 +13,8 @@
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
  * its colour, a label and a role, an asset and an invoice added, edited, deleted and brought back with Undo in the fake Google Sheet and in Excel mode, the statements
- * folder the settings lack saved at the path the app uses and then at a new one, in both modes, an owner advance
+ * folder the settings lack saved at the path the app uses and then at a new one, the card settlement IBANs and a client's second
+ * IBAN typed as tags, refused, removed and saved, the client's with Undo, in both modes, an owner advance
  * changed, deleted and brought back, a payment split, edited, deleted and
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused, the Drive read grant back from a
@@ -58,8 +59,10 @@ import {
   accountantReturnsFlow,
   advanceFlow,
   assetFlow,
+  cardSettlementIbansFlow,
   categoryFlow,
   changeCategoryFlow,
+  clientIbansFlow,
   dismissFlow,
   heldStatementFlow,
   importCamtFlow,
@@ -808,6 +811,8 @@ async function checkWidth(width) {
     for (const [name, hash, title, run, variant] of [
       ['categories', '#/settings?tab=categories', 'Settings', categoryFlow],
       ['settings-statements-folder', '#/settings', 'Settings', statementsFolderFlow],
+      ['settings-card-ibans', '#/settings', 'Settings', cardSettlementIbansFlow],
+      ['clients-ibans', '#/invoicing?tab=clients', 'Invoicing', clientIbansFlow],
       ['assets', '#/year?tab=assets#asset-rows', 'Year', assetFlow],
       ['advances', '#/owner', 'Owner', advanceFlow],
       ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],

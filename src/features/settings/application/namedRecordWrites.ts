@@ -2,6 +2,7 @@ import { normaliseIban } from '../../../shared/text/fold'
 import { countedBy, usesOf } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { readAccounts } from '../../workbook/domain/accountsReading'
+import { ibanListOf } from '../../workbook/domain/iban'
 import { readCategories } from '../../workbook/domain/categoriesReading'
 import { readClients } from '../../workbook/domain/clientsReading'
 import { slugListOf, slugOf, textOf } from '../../workbook/domain/storedFields'
@@ -17,7 +18,7 @@ import { storedFieldsOf } from '../../workbook/domain/recordsRead'
 import type { RecordsRead } from '../../workbook/domain/recordsRead'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
-import type { ClientRow } from '../../workbook/domain/clientsReading'
+import type { ClientRecord } from '../../workbook/domain/clientsReading'
 import { pickedEdits, pickedUntouched } from '../../workbook/domain/writeRules'
 import type { WriteRules } from '../../workbook/domain/writeRules'
 import { installedPack } from '../../packs/packContribution'
@@ -124,22 +125,22 @@ export const ACCOUNT_WRITES: WriteRules<AccountRecord> = {
   refusals: (change, fresh) =>
     accountChangeRefusals(pickedEdits(change, accountOfFields), pickedUntouched(change, accountOfFields).filter((row) => row.slug !== ''), {
       named: accountUses((kind) => fresh.of(kind)),
-      clientIbans: new Map(readClients(fresh.of(CLIENT_RECORDS)).facts.map((row) => [row.iban, row.slug])),
+      clientIbans: new Map(readClients(fresh.of(CLIENT_RECORDS)).facts.flatMap((client) => client.ibans.map((iban) => [iban, client.slug] as const))),
     }),
 }
 
-function clientOfFields(fields: StoredFields): { readonly slug: string; readonly name: string; readonly iban: string } {
-  return { slug: slugOf(fields.client), name: textOf(fields.name), iban: normaliseIban(textOf(fields.iban)) }
+function clientCellsOf(fields: StoredFields): { readonly slug: string; readonly ibans: readonly string[] } {
+  return { slug: slugOf(fields.client), ibans: ibanListOf(textOf(fields.iban)) }
 }
 
-/** A client keeps to the slug format, keeps its name while invoices, plan rows or billing_client name it, and its IBAN is valid, its own and none of the accounts'. */
-export const CLIENT_WRITES: WriteRules<ClientRow> = {
+/** A client keeps to the slug format and to one row, keeps its name while invoices, plan rows or billing_client name it, and its IBANs are valid, its own and none of the accounts'. */
+export const CLIENT_WRITES: WriteRules<ClientRecord> = {
   kind: CLIENT_RECORDS,
   reads: [ACCOUNT_RECORDS, INVOICE_RECORDS, BILLING_RECORDS, SETTING_RECORDS],
   undoable: true,
   read: (read) => readClients(read),
   refusals: (change, fresh) =>
-    clientChangeRefusals(pickedEdits(change, clientOfFields), pickedUntouched(change, clientOfFields).filter((row) => row.slug !== ''), {
+    clientChangeRefusals(pickedEdits(change, clientCellsOf), pickedUntouched(change, clientCellsOf).filter((client) => client.slug !== ''), {
       named: clientUses((kind) => fresh.of(kind)),
       accountIbans: new Map(readAccounts(fresh.of(ACCOUNT_RECORDS), null).facts.flatMap((account) => (account.iban === '' ? [] : [[account.iban, account.slug] as const]))),
     }),

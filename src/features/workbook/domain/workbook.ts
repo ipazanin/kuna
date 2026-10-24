@@ -133,17 +133,17 @@ export function invoiceOrder(earlier: Pick<Invoice, 'issued' | 'number'>, later:
   return earlier.issued.localeCompare(later.issued) || naturalOrder(earlier.number, later.number)
 }
 
-/** A client from the `clients` tab, which holds one row per IBAN. */
+/** A client from the `clients` tab, one row per client. */
 export interface Client {
   readonly slug: string
-  /** Blank when no row of the client names it. */
+  /** Blank when the row names none. */
   readonly name: string
   /** Normalised. A payment from one of them is the client's. */
   readonly ibans: readonly string[]
   readonly invoicing: ClientInvoicing
 }
 
-/** What an invoice to the client prints and where its mail goes, each from the first of the client's rows that gives it. Blank when none does. */
+/** What an invoice to the client prints and where its mail goes, blank where the row gives nothing. */
 export interface ClientInvoicing {
   readonly address: string
   readonly country: string

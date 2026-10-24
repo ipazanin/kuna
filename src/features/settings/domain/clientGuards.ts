@@ -4,12 +4,11 @@ import type { SlugUses } from '../../workbook/domain/slug'
 
 interface ClientCells {
   readonly slug: string
-  readonly name: string
   /** Normalised. */
-  readonly iban: string
+  readonly ibans: readonly string[]
 }
 
-/** One clients row before and after a change. `before` is null for an added row, `after` for a deleted one. */
+/** One client before and after a change. `before` is null for an added client, `after` for a deleted one. */
 export interface ClientEdit {
   readonly before: ClientCells | null
   readonly after: ClientCells | null
@@ -23,11 +22,10 @@ export interface ClientChecks {
 }
 
 /**
- * The tab holds one row per IBAN, so a client paying from two accounts has two rows with one name.
- * A client the invoices or the plan name keeps its name while it has no other row. A new or changed
- * IBAN is a valid one on no other row and on no account of your own, since a payment from it is
- * matched to one client only and a transfer between your accounts must not read as a client's
- * payment. A second row of a client carries the client's name or none.
+ * A client is on one row and keeps its name while invoices, plan rows or billing_client name it.
+ * Each IBAN a change gives it is a valid one on no other client and on no account of your own, since
+ * a payment from it is matched to one client only and a transfer between your accounts must not
+ * read as a client's payment.
  */
 export function clientChangeRefusals(
   edits: readonly ClientEdit[],
@@ -38,7 +36,7 @@ export function clientChangeRefusals(
     'client',
     { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
     checks.named,
-    false,
+    true,
   )
   for (const edit of edits) {
     const after = edit.after
@@ -49,20 +47,16 @@ export function clientChangeRefusals(
       ...untouched,
       ...edits.flatMap((other) => (other === edit || other.after === null ? [] : [other.after])),
     ]
-    if (after.iban !== '' && after.iban !== edit.before?.iban) {
-      const holder = others.find((row) => row.iban === after.iban)
-      const account = checks.accountIbans.get(after.iban)
-      if (!isIban(after.iban)) {
-        refusals.push(`"${after.iban}" is not a valid IBAN.`)
+    for (const iban of after.ibans.filter((candidate) => !(edit.before?.ibans ?? []).includes(candidate))) {
+      const holder = others.find((client) => client.ibans.includes(iban))
+      const account = checks.accountIbans.get(iban)
+      if (!isIban(iban)) {
+        refusals.push(`"${iban}" is not a valid IBAN.`)
       } else if (holder !== undefined) {
-        refusals.push(`${after.iban} is already on the clients tab for ${holder.slug}.`)
+        refusals.push(`${iban} is already on the clients tab for ${holder.slug}.`)
       } else if (account !== undefined) {
-        refusals.push(`${after.iban} is the IBAN of your ${account} account, so a transfer between your own accounts would read as a payment from a client.`)
+        refusals.push(`${iban} is the IBAN of your ${account} account, so a transfer between your own accounts would read as a payment from a client.`)
       }
-    }
-    const named = others.find((row) => row.slug === after.slug && row.name !== '')
-    if (after.name !== '' && named !== undefined && named.name.toLowerCase() !== after.name.toLowerCase() && (edit.before === null || edit.before.name !== after.name || edit.before.slug !== after.slug)) {
-      refusals.push(`${after.slug} is called "${named.name}" on another row. Give this row the same name, or leave it blank.`)
     }
   }
   return refusals

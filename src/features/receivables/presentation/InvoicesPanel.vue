@@ -249,7 +249,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
           title="No invoices yet"
           :description="
             noClients
-              ? 'Invoices are matched against the revenue credits, client by client. Add the clients first, one row per IBAN they pay from.'
+              ? 'Invoices are matched against the revenue credits, client by client. Add the clients first, each with every IBAN it pays from.'
               : 'Invoices are matched against the revenue credits, client by client. Make the first one with Make invoice, or record one made elsewhere.'
           "
           variant="outline"

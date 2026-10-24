@@ -19,7 +19,9 @@
  * category, with its colour, a label the fake Sheet has no column for and a role, an asset and an
  * invoice, changes and deletes an owner advance and undoes the delete, and screenshots the editors
  * and the invoice dialog on the way. On Settings, General it saves the statements folder the
- * settings lack at the path the app uses, then a new path.
+ * settings lack at the path the app uses, then a new path, and adds, refuses and removes card
+ * settlement IBANs as tags. On Invoicing, Clients it gives a client a second IBAN, saves it and
+ * undoes it, and takes a new IBAN off with its tag's remove button.
  * On Transactions it changes the category of a settled row, which a rule files elsewhere, and undoes it.
  * On Year a link to the Statements tab alone keeps the year it opened through two tabs and Back.
  * It also makes an invoice through the checks and every step, with the fake Picker picking the
@@ -70,8 +72,10 @@ import {
   accountantReturnsFlow,
   advanceFlow,
   assetFlow,
+  cardSettlementIbansFlow,
   categoryFlow,
   changeCategoryFlow,
+  clientIbansFlow,
   dismissFlow,
   heldStatementFlow,
   importCamtFlow,
@@ -144,7 +148,7 @@ const SCREENS = [
     linkedPart: 'billing-month-2026-10',
   },
   { name: 'invoicing-plan-2025', hash: '#/invoicing?tab=plan&year=2025', title: 'Invoicing', charts: 0, shows: 'Month by month, 2025' },
-  { name: 'invoicing-clients', hash: '#/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Add client row' },
+  { name: 'invoicing-clients', hash: '#/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Add client' },
   {
     name: 'invoicing-terms',
     hash: '#/invoicing?tab=clients#invoicing-terms',
@@ -521,6 +525,8 @@ const FLOWS = [
   { name: 'year-tab-link', hash: '#/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
   { name: 'categories', hash: '#/settings?tab=categories', title: 'Settings', run: categoryFlow },
   { name: 'settings-statements-folder', hash: '#/settings', title: 'Settings', run: statementsFolderFlow },
+  { name: 'settings-card-ibans', hash: '#/settings', title: 'Settings', run: cardSettlementIbansFlow },
+  { name: 'clients-ibans', hash: '#/invoicing?tab=clients', title: 'Invoicing', run: clientIbansFlow },
   { name: 'assets', hash: '#/year?tab=assets#asset-rows', title: 'Year', run: assetFlow },
   { name: 'advances', hash: '#/owner', title: 'Owner', run: advanceFlow },
   { name: 'invoices', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceFlow },

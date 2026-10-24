@@ -139,10 +139,10 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'period_to', note: 'The last day of the work the invoice is for, as a date cell. Optional, with period_from.' },
   ],
   clients: [
-    { name: 'client', note: 'A short name in lower case, such as northwind. One row per IBAN, so a client paying from two accounts has two rows. Required.' },
+    { name: 'client', note: 'A short name in lower case, such as northwind. One row per client. Required.' },
     { name: 'name', note: 'What the screens call the client. Optional.' },
-    { name: 'iban', note: 'An IBAN the client pays from. A payment from it counts against that client’s invoices. Required.' },
-    { name: 'address', note: 'The street and town an invoice to the client prints. Fill it on one of the client’s rows, or the same on each. Needed to make an invoice.' },
+    { name: 'iban', note: 'The IBANs the client pays from, separated by commas. A payment from any of them counts against the client’s invoices. Required.' },
+    { name: 'address', note: 'The street and town an invoice to the client prints. Needed to make an invoice.' },
     { name: 'country', note: 'The country printed under the address. Optional.' },
     { name: 'tax_id', note: 'The client’s tax or VAT ID, printed on the invoice. Optional.' },
     { name: 'invoice_mail', note: 'Who the invoice mail goes to, one address. Optional.' },
