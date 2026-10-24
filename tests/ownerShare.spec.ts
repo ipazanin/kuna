@@ -158,16 +158,13 @@ describe('categoryShareRefusals', () => {
     expect(categoryShareRefusals([{ before: null, after: { ...ai, ownerShare: share(0) } }], [benefit, { ...ai, ownerShare: share(0) }])).toEqual([])
   })
 
-  it('refuses a default outside operating cost, and a move out of it that keeps the default', () => {
+  it('refuses a new default outside operating cost, and lets a category move out of it with the default it holds, which then counts as 0', () => {
     const taxes = { slug: 'payroll-tax', bucket: 'taxes', roles: [], ownerShare: share(20) }
 
     expect(categoryShareRefusals([{ before: { ...taxes, ownerShare: null }, after: taxes }], [benefit, taxes])).toEqual([
-      '"payroll-tax" is in the taxes bucket, and only an operating category holds an owner share. Clear its owner share in the same save.',
+      '"payroll-tax" is in the taxes bucket, and only an operating category holds an owner share.',
     ])
-    expect(categoryShareRefusals([{ before: ai, after: { ...ai, bucket: 'owner-pay' } }], [benefit, { ...ai, bucket: 'owner-pay' }])).toEqual([
-      '"ai-services" is in the owner-pay bucket, and only an operating category holds an owner share. Clear its owner share in the same save.',
-    ])
-    expect(categoryShareRefusals([{ before: ai, after: { ...ai, bucket: 'owner-pay', ownerShare: null } }], [benefit])).toEqual([])
+    expect(categoryShareRefusals([{ before: ai, after: { ...ai, bucket: 'owner-pay' } }], [benefit, { ...ai, bucket: 'owner-pay' }])).toEqual([])
   })
 
   it('refuses a new default while no category carries the owner-benefit role, and leaves a default it does not touch alone', () => {
@@ -177,11 +174,25 @@ describe('categoryShareRefusals', () => {
     expect(categoryShareRefusals([{ before: ai, after: { ...ai, roles: ['watched'] } }], [{ ...ai, roles: ['watched'] }])).toEqual([])
   })
 
-  it('refuses taking the role off the last category that carries it while a default is held', () => {
-    expect(categoryShareRefusals([{ before: benefit, after: { ...benefit, roles: [] } }], [{ ...benefit, roles: [] }, ai])).toEqual([
-      'No category would carry the owner-benefit role while "ai-services" holds an owner share. Give the role to another category, or clear the shares in the same save.',
+  it('lets the role come off the last category that carries it while a default is held, since the default then counts as 0', () => {
+    expect(categoryShareRefusals([{ before: benefit, after: { ...benefit, roles: [] } }], [{ ...benefit, roles: [] }, ai])).toEqual([])
+    expect(categoryShareRefusals([{ before: benefit, after: null }], [ai])).toEqual([])
+  })
+
+  it('gives the owner-benefit role to one owner-pay category only, and keeps that category in owner pay', () => {
+    const perks = { slug: 'perks', bucket: 'owner-pay', roles: ['owner-benefit'], ownerShare: null }
+    const movedOut = { ...benefit, bucket: 'operating' }
+
+    expect(categoryShareRefusals([{ before: null, after: perks }], [benefit, perks, ai])).toEqual([
+      '"perks" takes the owner-benefit role only once no other category carries it, and "benefits" does.',
     ])
-    expect(categoryShareRefusals([{ before: benefit, after: null }], [ai])).toHaveLength(1)
-    expect(categoryShareRefusals([{ before: benefit, after: null }, { before: ai, after: { ...ai, ownerShare: null } }], [{ ...ai, ownerShare: null }])).toEqual([])
+    expect(categoryShareRefusals([{ before: { ...ai, ownerShare: null }, after: { ...ai, ownerShare: null, roles: ['owner-benefit'] } }], [{ ...ai, ownerShare: null, roles: ['owner-benefit'] }])).toEqual([
+      '"ai-services" is in the operating bucket, and only an owner-pay category carries the owner-benefit role, since the owner\'s part of a shared cost counts there.',
+    ])
+    expect(categoryShareRefusals([{ before: benefit, after: movedOut }], [movedOut, ai])).toEqual([
+      '"benefits" is in the operating bucket, and only an owner-pay category carries the owner-benefit role, since the owner\'s part of a shared cost counts there.',
+    ])
+    expect(categoryShareRefusals([{ before: benefit, after: { ...benefit, roles: [] } }, { before: null, after: perks }], [{ ...benefit, roles: [] }, perks, ai])).toEqual([])
+    expect(categoryShareRefusals([{ before: benefit, after: { ...benefit, roles: ['owner-benefit', 'watched'] } }], [benefit, ai])).toEqual([])
   })
 })

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { latestBalances } from '../src/features/cash/domain/balances'
 import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
 import { countedSplits } from '../src/features/transactions/domain/countedSplits'
-import { listedRows, withSplitHeadings } from '../src/features/transactions/domain/listedRows'
+import { listedRows, withPartHeadings } from '../src/features/transactions/domain/listedRows'
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
 import { listedRowKey, splitLedger } from '../src/features/workbook/domain/splits'
 import type { Category } from '../src/features/workbook/domain/workbook'
@@ -288,7 +288,7 @@ describe('the split of a salary, on a company with a private share split off', (
   })
 })
 
-describe('withSplitHeadings', () => {
+describe('withPartHeadings', () => {
   const presented = splitLedger(ROWS, [splitOf(ORDER, [[-45, 'office-supplies'], [-15, 'owner-loan-out']], PACK_CATEGORIES)])
   const advance = { date: civil('2026-03-09'), amount: euros(30), description: 'Train', category: 'travel', family: 'operating', bucket: 'operating' as const, ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') }
 
@@ -296,7 +296,7 @@ describe('withSplitHeadings', () => {
     const listed = listedRows(presented, [advance])
     const byAmount = [...listed].sort((left, right) => left.amount - right.amount)
 
-    expect(withSplitHeadings(byAmount).map((entry) => (entry.kind === 'split' ? `split ${entry.whole.amount}` : `${entry.row.kind} ${entry.row.amount}`))).toEqual([
+    expect(withPartHeadings(byAmount).map((entry) => (entry.kind === 'row' ? `${entry.row.kind} ${entry.row.amount}` : `${entry.kind} ${entry.whole.amount}`))).toEqual([
       `split ${euros(-60)}`,
       `bank ${euros(-45)}`,
       `bank ${euros(-15)}`,
@@ -308,9 +308,9 @@ describe('withSplitHeadings', () => {
   })
 
   it('heads the one part a filter keeps with its bank row', () => {
-    const entries = withSplitHeadings(listedRows(presented.filter((row) => row.category === 'owner-loan-out'), []))
+    const entries = withPartHeadings(listedRows(presented.filter((row) => row.category === 'owner-loan-out'), []))
 
     expect(entries.map((entry) => entry.kind)).toEqual(['split', 'row'])
-    expect(entries[0]?.kind === 'split' && entries[0].parts.map((part) => part.split?.index)).toEqual([1])
+    expect(entries[0]?.kind === 'split' && entries[0].parts.map((part) => part.kind === 'bank' && part.split?.index)).toEqual([1])
   })
 })

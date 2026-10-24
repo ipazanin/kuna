@@ -11,6 +11,8 @@ export interface DonutPart {
   readonly colour: string
   /** Where the part's rows open, or null when none are behind it. */
   readonly to: RouteLocationRaw | null
+  /** Shown in place of the part's share of the ring, such as the owner share a benefit was counted at. */
+  readonly note?: string
 }
 </script>
 
@@ -134,10 +136,13 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
               {{ part.label }}
             </DrillLink>
             <span class="figure text-end text-highlighted">{{ formatValue(part.value) }}</span>
-            <span class="figure text-end text-xs text-muted">{{ share(part.value) }}</span>
+            <span class="figure text-end text-xs text-muted">{{ part.note ?? share(part.value) }}</span>
           </li>
         </ul>
         <slot name="below" />
+      </div>
+      <div v-if="$slots.aside" class="donut-aside">
+        <slot name="aside" />
       </div>
     </div>
   </AppCard>
@@ -177,7 +182,8 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
   pointer-events: none;
 }
 
-.legend {
+.legend,
+.donut-aside {
   flex: 1;
   min-width: min(100%, 16rem);
 }

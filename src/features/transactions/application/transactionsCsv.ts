@@ -14,13 +14,15 @@ const COLUMNS: readonly { readonly header: string; readonly cell: (row: ListedRo
   { header: 'flagged_by', cell: (row) => (row.kind === 'bank' ? row.flaggedBy : '') },
   { header: 'reference', cell: (row) => (row.kind === 'bank' ? row.reference : '') },
   { header: 'note', cell: (row) => (row.kind === 'bank' ? (row.split?.note ?? '') : '') },
+  { header: 'owner_share', cell: (row) => String((row.kind === 'bank' ? row.ownerShare : row.advance.ownerShare) ?? '') },
   { header: 'tab', cell: (row) => (row.kind === 'owner-advance' ? 'owner-advances' : row.split === undefined ? 'ledger' : 'splits') },
 ]
 
 /**
  * The rows as CSV with the ledger's own column names, amounts as plain decimals with a point, and
  * a last column naming the tab each row comes from, so an owner advance and a part of a split row
- * are told apart. A part keeps its bank row's date, account, balance and reference. Text that a
+ * are told apart. A part keeps its bank row's date, account, balance and reference, and both parts
+ * of a shared row carry the row's owner share. Text that a
  * spreadsheet would run as a formula gets a leading apostrophe, so opening the file in Sheets or
  * Excel never evaluates a payee name.
  */

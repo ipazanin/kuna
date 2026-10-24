@@ -71,7 +71,7 @@ const missing = computed(() => {
             <OwedPanel :ledger="ledger" :as-of="asOf" />
           </template>
           <template #taken>
-            <TakenPanel :ledger="ledger" />
+            <TakenPanel :ledger="ledger" :as-of="asOf" />
           </template>
         </PageTabs>
         <AdvanceDialog v-model:open="addingAdvance" :categories="ledger.workbook.categories" :default-date="asOf" />

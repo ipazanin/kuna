@@ -779,6 +779,107 @@ export async function changeCategoryFlow(page, { press, shoot, inspect }) {
   await dialogGone(page, '[data-testid="split-form"]')
 }
 
+/**
+ * Opens the Owner share dialog of the shared row in view: from the pencil on its heading, or from
+ * its first part, in the table's last column or inside the part's card on a phone.
+ */
+async function openShareOfRow(page, press, from = 'heading') {
+  if (from === 'heading') {
+    await pressSelector(page, press, '[data-testid="edit-owner-share"]')
+  } else {
+    await page.waitForSelector('[data-testid="owner-share-row"], [data-testid="transaction-card"].part', { timeout: 10_000 })
+    const visible = await page.evaluate(() => [...document.querySelectorAll('[data-testid="owner-share-row"]')].some((element) => element.getBoundingClientRect().width > 0))
+    if (!visible) {
+      await pressSelector(page, press, '[data-testid="transaction-card"].part .card-summary')
+    }
+    await pressSelector(page, press, '[data-testid="owner-share-row"]')
+  }
+  await page.waitForSelector('[data-testid="owner-share"]', { visible: true })
+  await delay(400)
+}
+
+async function shareTyped(page) {
+  return page.$eval('[data-testid="owner-share-input"]', (input) => input.value)
+}
+
+/** Reopens the dialog from the row's first part and checks it starts on the share of the row as booked, then closes it. */
+async function shareReads(page, press, wanted) {
+  await openShareOfRow(page, press, 'part')
+  const typed = await shareTyped(page)
+  if (typed !== wanted) throw new Error(`the Owner share dialog starts on "${typed}", not "${wanted}"`)
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[data-testid="owner-share"]')
+}
+
+/**
+ * Transactions: the laptop, which holds a 30% share of its own and so heads its two parts, changed
+ * to 45% from its heading with the company's and the owner's parts shown, then undone, and cleared
+ * through its category's default, which is none, then undone. Each Undo is checked from a part.
+ */
+export async function ownerShareFlow(page, { press, shoot, inspect }) {
+  await openShareOfRow(page, press)
+  if ((await shareTyped(page)) !== '30') throw new Error(`the laptop's share reads "${await shareTyped(page)}", not 30`)
+  await setField(await page.$('[data-testid="owner-share-input"]'), '45')
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="owner-share-split"]')?.innerText.replace(/\s+/g, ' ').includes('You take €854.55') ?? false, { timeout: 5_000 })
+    .catch(async () => {
+      const said = await page.$eval('[data-testid="owner-share-split"]', (element) => element.innerText.replace(/\s+/g, ' ').trim())
+      throw new Error(`45% of the laptop's €1,899.00 reads "${said}", not the company keeps €1,044.45 and you take €854.55`)
+    })
+  await inspect?.('owner share')
+  await shoot('owner-share')
+  await pressSelector(page, press, '[data-testid="owner-share-save"]')
+  await toast(page, 'Owner share set to 45%')
+  await dialogGone(page, '[data-testid="owner-share"]')
+  await undo(page, press)
+  await dismissToasts(page)
+  await shareReads(page, press, '30')
+
+  await openShareOfRow(page, press)
+  await pressSelector(page, press, '[data-testid="owner-share-default"]')
+  if ((await shareTyped(page)) !== '') throw new Error('the default of Equipment, which has none, did not clear the share')
+  await shoot('owner-share-clear')
+  await pressSelector(page, press, '[data-testid="owner-share-save"]')
+  await toast(page, 'Owner share cleared')
+  await dialogGone(page, '[data-testid="owner-share"]')
+  await undo(page, press)
+  await dismissToasts(page)
+  await shareReads(page, press, '30')
+}
+
+/**
+ * Settings, Categories: a 40% default on software subscriptions, saved with the fill offer, which
+ * fills the bank rows without a share and leaves the design tool advance's 25%, then undone whole.
+ */
+export async function shareFillFlow(page, { press, shoot, inspect }) {
+  const row = await rowNamed(page, '[data-testid="category-row"]', 'software-subscriptions')
+  await setField(await fieldIn(row, 'Owner share, in percent'), '40')
+  await delay(200)
+  await shoot('share-fill-draft')
+  await pressSelector(page, press, '[data-testid="save-categories"]')
+  await page.waitForSelector('[data-testid="share-fill"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('a new default did not offer to fill the rows without a share')
+  })
+  await delay(400)
+  const offer = await page.$eval('[data-testid="share-fill"]', (element) => element.innerText.replace(/\s+/g, ' ').trim())
+  const rows = /Software subscriptions 40% (\d+) rows/.exec(offer)?.[1]
+  if (rows === undefined) throw new Error(`the fill offer says "${offer}"`)
+  await inspect?.('share fill')
+  await shoot('share-fill')
+  await pressSelector(page, press, '[data-testid="share-fill-save"]')
+  await toast(page, 'Categories saved')
+  const said = await page.$eval(`${TOAST} [data-slot="description"]`, (element) => element.textContent?.trim() ?? '')
+  if (said !== `${rows} rows without a share took the new default.`) throw new Error(`the save says "${said}" after filling ${rows} rows`)
+  await dialogGone(page, '[data-testid="share-fill"]')
+  await undo(page, press)
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('[data-testid="category-row"]')].find((element) => element.querySelector('input')?.value === 'software-subscriptions')?.querySelector('[data-testid="category-owner-share"]')?.value === '', { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('Undo did not take the default off software subscriptions')
+    })
+  await dismissToasts(page)
+}
+
 async function dropFile(page, path) {
   const input = await page.waitForSelector('[data-testid="import-file"] input[type="file"]', { timeout: 10_000 }).catch(() => {
     throw new Error('Import offers no file input')

@@ -57,7 +57,7 @@ const tiles = computed(() => {
   const current = ledger.value
   const day = asOf.value
   if (current === null || day === null) return null
-  const { workbook, window } = current
+  const { booked: workbook, window } = current
   if (workbook.invoices.length === 0 && workbook.billingPlan.length === 0) return null
   const invoices = receivablesOf(workbook.transactions, workbook.categories, workbook.invoices, workbook.clients).clients.flatMap((entry) => entry.invoices)
   const owed = amountsOwed(invoices, day)

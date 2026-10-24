@@ -4,6 +4,7 @@ import { ruleValue } from '../../ruleset/ruleset'
 import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { TracedRate } from '../cit/citLiability'
+import { dividendRoute } from '../dividend/dividendRoute'
 import { localRates } from '../payroll/incomeTax'
 import type { EmployeeFacts } from '../payroll/incomeTax'
 import { atRate, deducted, dividedRounded, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
@@ -39,15 +40,6 @@ export function marginalEuro(year: number, facts: EmployeeFacts, corporateRate: 
   const rentTax = tracedFigure(`Rent tax at ${percentText(rentRule.taxRate.basisPoints)}`, atRate(rentBase.amount, rentRule.taxRate.basisPoints), 'plan', [rentCitation], [rentBase])
   const rent = tracedFigure('Rent for business space, after the rent tax', subtractMoney(HUNDRED, rentTax.amount), 'plan', [rentCitation], [company, deducted(rentTax)])
 
-  const corporateTax = tracedFigure(`Corporate tax at ${percentText(corporateRate.basisPoints)}`, atRate(HUNDRED, corporateRate.basisPoints), 'plan', corporateRate.rules)
-  const afterCorporateTax = tracedFigure('Profit after corporate tax', subtractMoney(HUNDRED, corporateTax.amount), 'plan', corporateRate.rules, [company, deducted(corporateTax)])
-  const dividendRule = rules('hr.pit.dividend', civilDate(year + 1, 1, 1))
-  const dividendTax = tracedFigure(`Dividend tax at ${percentText(dividendRule.value.rate.basisPoints)}`, atRate(afterCorporateTax.amount, dividendRule.value.rate.basisPoints), 'plan', [dividendRule.citation], [afterCorporateTax])
-  const dividend = tracedFigure('A dividend, after corporate and dividend tax', subtractMoney(afterCorporateTax.amount, dividendTax.amount), 'plan', rulesOf([afterCorporateTax, dividendTax]), [
-    afterCorporateTax,
-    deducted(dividendTax),
-  ])
-
   const contributions = rules('hr.contrib.rates', start)
   const rates = contributions.value
   const healthRate = rates.healthRate.basisPoints
@@ -77,7 +69,7 @@ export function marginalEuro(year: number, facts: EmployeeFacts, corporateRate: 
   const routes: MarginalRoute[] = [
     { id: 'tax-free', net: taxFree },
     { id: 'rent', net: rent },
-    { id: 'dividend', net: dividend },
+    { id: 'dividend', net: dividendRoute(company, year, corporateRate, rules).net },
     { id: 'salary', net: salaryAt(city.lowerRate, 'Salary above the director floor, at the lower rate', null) },
   ]
   const reliefRule = rules('hr.pit.youth-relief', yearEnd)

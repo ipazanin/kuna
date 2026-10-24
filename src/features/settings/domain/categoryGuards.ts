@@ -74,29 +74,35 @@ interface ShareFields {
 }
 
 /**
- * Only an operating category holds a default owner share, and a default needs a category with the
- * owner-benefit role, where the owner's part counts. A change that sets or changes a default, moves a
- * category that holds one out of operating cost, or takes the role off the last category carrying
- * it while a default is held, is refused. `after` is every category the tab holds once the change is made.
+ * A new or changed default owner share sits on an operating category while a category carries the
+ * owner-benefit role, where the owner's part counts. That role sits on one owner-pay category only.
+ * A default left outside operating, or without the role, counts as 0, so a change that leaves one
+ * there is let through. `after` is every category the tab holds once the change is made.
  */
 export function categoryShareRefusals(edits: readonly CategoryEdit<ShareFields>[], after: readonly ShareFields[]): string[] {
   const role = OWNER_SHARE_ROLES.ownerBenefit
-  const benefitCategory = after.some((category) => category.roles.includes(role))
+  const carrying = after.filter((category) => category.roles.includes(role))
+  const benefitCategory = carrying.length > 0
   const refusals: string[] = []
   for (const { before, after: changed } of edits) {
-    if (changed === null || changed.ownerShare === null) continue
-    const newDefault = before === null || before.ownerShare !== changed.ownerShare
-    if ((newDefault || before.bucket !== changed.bucket) && changed.bucket !== 'operating') {
-      refusals.push(`"${changed.slug}" is in the ${changed.bucket} bucket, and only an operating category holds an owner share. Clear its owner share in the same save.`)
+    if (changed === null || !changed.roles.includes(role)) continue
+    const givesRole = before === null || !before.roles.includes(role)
+    if ((givesRole || before.bucket !== changed.bucket) && changed.bucket !== 'owner-pay') {
+      refusals.push(`"${changed.slug}" is in the ${changed.bucket} bucket, and only an owner-pay category carries the ${role} role, since the owner's part of a shared cost counts there.`)
     }
-    if (newDefault && !benefitCategory) {
-      refusals.push(`"${changed.slug}" holds an owner share only once a category carries the ${role} role, where the owner's part counts.`)
+    const others = carrying.filter((category) => category.slug !== changed.slug).map((category) => `"${category.slug}"`)
+    if (givesRole && others.length > 0) {
+      refusals.push(`"${changed.slug}" takes the ${role} role only once no other category carries it, and ${listInWords(others)} ${others.length === 1 ? 'does' : 'do'}.`)
     }
   }
-  const roleTaken = edits.some((edit) => edit.before !== null && edit.before.roles.includes(role) && !(edit.after?.roles.includes(role) ?? false))
-  const holding = after.filter((category) => category.ownerShare !== null).map((category) => `"${category.slug}"`)
-  if (roleTaken && !benefitCategory && holding.length > 0) {
-    refusals.push(`No category would carry the ${role} role while ${listInWords(holding)} ${holding.length === 1 ? 'holds' : 'hold'} an owner share. Give the role to another category, or clear the shares in the same save.`)
+  for (const { before, after: changed } of edits) {
+    if (changed === null || changed.ownerShare === null || before?.ownerShare === changed.ownerShare) continue
+    if (changed.bucket !== 'operating') {
+      refusals.push(`"${changed.slug}" is in the ${changed.bucket} bucket, and only an operating category holds an owner share.`)
+    }
+    if (!benefitCategory) {
+      refusals.push(`"${changed.slug}" holds an owner share only once a category carries the ${role} role, where the owner's part counts.`)
+    }
   }
   return refusals
 }

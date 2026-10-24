@@ -123,7 +123,7 @@ describe.each([
     expect(row(store, 'GADGET CORNER')).toMatchObject({ category: 'ai-services', flaggedBy: 'rule', ownerShare: 50 })
   })
 
-  it('refuses a default on a category outside operating cost, or while no category carries the owner-benefit role, and lets Undo put one back', async () => {
+  it('refuses a new default on a category outside operating cost, the role on a second category or outside owner pay, and lets Undo put a default back', async () => {
     const { store } = await harnessOf(used, grids(false))
     const categories = () => recordsOf(store.state.records!.categories)
     const revenue = categories().find((category) => category.slug === 'revenue')!
@@ -132,8 +132,11 @@ describe.each([
     await expect(store.write('Saved', (unit) => unit.of(CATEGORY_WRITES).change(revenue, { ...revenue, ownerShare: share(10) }))).rejects.toThrow(
       '"revenue" is in the income bucket, and only an operating category holds an owner share.',
     )
-    await expect(store.write('Saved', (unit) => unit.of(CATEGORY_WRITES).change(benefit, { ...benefit, roles: [] }))).rejects.toThrow(
-      'No category would carry the owner-benefit role while "ai-services" holds an owner share.',
+    await expect(store.write('Saved', (unit) => unit.of(CATEGORY_WRITES).change(revenue, { ...revenue, roles: ['owner-benefit'] }))).rejects.toThrow(
+      '"revenue" takes the owner-benefit role only once no other category carries it, and "benefits" does.',
+    )
+    await expect(store.write('Saved', (unit) => unit.of(CATEGORY_WRITES).change(benefit, { ...benefit, bucket: 'operating' }))).rejects.toThrow(
+      '"benefits" is in the operating bucket, and only an owner-pay category carries the owner-benefit role',
     )
     const ai = categories().find((category) => category.slug === 'ai-services')!
     const cleared = await store.write('Saved', (unit) => unit.of(CATEGORY_WRITES).change(ai, { ...ai, ownerShare: null }))

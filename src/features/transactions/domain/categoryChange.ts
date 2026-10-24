@@ -3,8 +3,9 @@ import type { ListedRow } from './listedRows'
 
 /**
  * Where Transactions changes a listed row's category: on its ledger row, or for a part of a split
- * row in the split editor, since the splits tab holds the parts' categories. A row still waiting is
- * settled on Review, and an owner advance is a row of its own tab, so neither changes here.
+ * row in the split editor, since the splits tab holds the parts' categories. Either part of a shared
+ * row changes the ledger row it comes from. A row still waiting is settled on Review, and an owner
+ * advance is a row of its own tab, so neither changes here.
  */
 export type CategoryChange = 'ledger' | 'split' | null
 
@@ -15,5 +16,5 @@ export function categoryChangeOf(row: ListedRow): CategoryChange {
   if (row.split !== undefined) {
     return 'split'
   }
-  return needsReview(row) ? null : 'ledger'
+  return needsReview(row.ownerPart?.whole ?? row) ? null : 'ledger'
 }

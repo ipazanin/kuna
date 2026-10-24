@@ -5,6 +5,7 @@ import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { negateMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { naturalOrder } from '../../../shared/text/naturalOrder'
+import type { OwnerPart, OwnerPartOf } from '../../owner-share/domain/ownerParts'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import type { Rule } from '../../rules/domain/rule'
 import type { Settings } from '../../settings/domain/settings'
@@ -95,6 +96,8 @@ export interface Transaction {
   readonly id: RecordId
   /** Set on a part of a split bank row, which the screens count in the row's place. */
   readonly split?: SplitPartOf
+  /** Set on a part of a shared row, which the cash screens count in the row's place. */
+  readonly ownerPart?: OwnerPartOf<Transaction>
 }
 
 /** Where a part of a split row comes from: the bank row as booked, and the part's place among its parts. */
@@ -109,7 +112,7 @@ export interface SplitPartOf {
 }
 
 /** What profit and loss counts of a row: a bank transaction, or a cost the owner paid privately. */
-export type Booking = Pick<Transaction, 'date' | 'amount' | 'category' | 'family' | 'bucket'>
+export type Booking = Pick<Transaction, 'date' | 'amount' | 'category' | 'family' | 'bucket'> & { readonly ownerPart?: OwnerPart }
 
 /** One invoice on the `invoices` tab, which the invoice generator appends to. */
 export interface Invoice {
@@ -172,6 +175,8 @@ export interface OwnerAdvance {
   readonly ownerShare: OwnerShare | null
   /** Held by no other row of its tab. */
   readonly id: RecordId
+  /** Set on a part of a shared advance, which the cash screens count in the advance's place. */
+  readonly ownerPart?: OwnerPartOf<OwnerAdvance>
 }
 
 /** Costs the owner paid, oldest first, and on one day by amount, description and category. */
@@ -189,7 +194,8 @@ export const ADVANCE_BUCKETS = ['operating', 'taxes'] as const satisfies readonl
 
 /** An advance as profit and loss counts it: a cost on its date, in its category. */
 export function bookingOfAdvance(advance: OwnerAdvance): Booking {
-  return { date: advance.date, amount: negateMoney(advance.amount), category: advance.category, family: advance.family, bucket: advance.bucket }
+  const booking: Booking = { date: advance.date, amount: negateMoney(advance.amount), category: advance.category, family: advance.family, bucket: advance.bucket }
+  return advance.ownerPart === undefined ? booking : { ...booking, ownerPart: advance.ownerPart }
 }
 
 /** Why a stored record was left out or is doubted, with what names it for a person. */

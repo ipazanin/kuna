@@ -27,7 +27,7 @@ import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/wor
 import type { SheetRow } from '../src/features/workbook/infrastructure/workbookSnapshot'
 
 function category(name: string, overrides: Partial<CategoryDraft> = {}): CategoryDraft {
-  return { saved: 0, savedName: name, category: name, label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', vat: '', ...overrides }
+  return { saved: 0, savedName: name, category: name, label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', vat: '', ownerShare: '', ...overrides }
 }
 
 /** A stored record the editor opened with: the fields given, refused, as a row with other columns would be. */
@@ -49,7 +49,7 @@ const ROLES = knownRoles(installedPack().workbook?.categoryRoles ?? [])
 
 describe('the categories editor', () => {
   it('accepts a tab that follows the Sheet rules', () => {
-    expect(categoryDraftErrors([category('software'), category('travel', { roles: 'watched' })], new Set(['software']), ROLES)).toEqual(new Map())
+    expect(categoryDraftErrors([category('software'), category('travel', { roles: 'watched' })], new Set(['software']), ROLES, true)).toEqual(new Map())
   })
 
   it('needs category, family and a bucket from the six, and each category once', () => {
@@ -57,6 +57,7 @@ describe('the categories editor', () => {
       [category('software'), category('Software', { saved: null, savedName: '' }), category('', { family: ' ', bucket: 'expenses' })],
       new Set(),
       ROLES,
+      true,
     )
 
     expect(errors.get(1)).toEqual({ category: 'Already used above' })
@@ -66,14 +67,14 @@ describe('the categories editor', () => {
   it('keeps the name of a category the ledger uses, but lets a later duplicate of it be renamed', () => {
     const drafts = [category('tools', { savedName: 'software' }), category('software-copy', { saved: 1, savedName: 'software' })]
 
-    const errors = categoryDraftErrors(drafts, new Set(['software']), ROLES)
+    const errors = categoryDraftErrors(drafts, new Set(['software']), ROLES, true)
 
     expect(errors.get(0)?.category).toMatch(/keeps its name/)
     expect(errors.has(1)).toBe(false)
   })
 
   it('marks a role the app does not know, such as a typo, so the save waits until it is fixed', () => {
-    const errors = categoryDraftErrors([category('software', { roles: 'revenu, watched' }), category('travel', { roles: 'client-refund, non-deductible' })], new Set(), ROLES)
+    const errors = categoryDraftErrors([category('software', { roles: 'revenu, watched' }), category('travel', { roles: 'client-refund, non-deductible' })], new Set(), ROLES, true)
 
     expect(errors.get(0)).toEqual({ roles: 'Not a role the app knows: revenu' })
     expect(errors.has(1)).toBe(false)
@@ -89,8 +90,33 @@ describe('the categories editor', () => {
 describe('the categories editor and VAT', () => {
   it('writes a VAT treatment in lower case and refuses one the app does not know', () => {
     expect(categoriesOfDrafts([], [category('software', { saved: null, vat: ' Reverse-Charge ' })])[0]).toMatchObject({ record: { vat: 'reverse-charge' } })
-    expect(categoryDraftErrors([category('software', { vat: 'half' })], new Set(), ROLES).get(0)).toEqual({ vat: 'Not a VAT treatment the app knows' })
-    expect(categoryDraftErrors([category('software', { vat: '' })], new Set(), ROLES).size).toBe(0)
+    expect(categoryDraftErrors([category('software', { vat: 'half' })], new Set(), ROLES, true).get(0)).toEqual({ vat: 'Not a VAT treatment the app knows' })
+    expect(categoryDraftErrors([category('software', { vat: '' })], new Set(), ROLES, true).size).toBe(0)
+  })
+})
+
+describe('the categories editor and the owner share', () => {
+  const benefit = category('benefits', { saved: 1, family: 'owner', bucket: 'owner-pay', roles: 'owner-benefit' })
+
+  it('takes a whole number from 0 to 100 on an operating category, or blank for none, and writes it as a number', () => {
+    expect(categoryDraftErrors([category('ai', { ownerShare: '50' }), category('desk', { ownerShare: '0' }), category('pens', { ownerShare: ' ' }), benefit], new Set(), ROLES, true)).toEqual(new Map())
+    expect(categoriesOfDrafts([], [category('ai', { saved: null, ownerShare: ' 50 ' })])[0]).toMatchObject({ record: { ownerShare: 50 } })
+    expect(categoriesOfDrafts([], [category('ai', { saved: null, ownerShare: '' })])[0]).toMatchObject({ record: { ownerShare: null } })
+  })
+
+  it('refuses a share that is not a whole number from 0 to 100', () => {
+    const errors = categoryDraftErrors([category('a', { ownerShare: '101' }), category('b', { ownerShare: '12.5' }), category('c', { ownerShare: '-5' }), category('d', { ownerShare: 'half' }), benefit], new Set(), ROLES, true)
+
+    expect([...errors.values()]).toEqual(Array(4).fill({ ownerShare: 'A whole number from 0 to 100' }))
+  })
+
+  it('refuses a share outside operating cost, and any share while no category carries the owner-benefit role', () => {
+    expect(categoryDraftErrors([category('fees', { bucket: 'taxes', ownerShare: '10' }), benefit], new Set(), ROLES, true).get(0)).toEqual({ ownerShare: 'Only an operating category holds a share' })
+    expect(categoryDraftErrors([category('ai', { ownerShare: '50' }), { ...benefit, roles: '' }], new Set(), ROLES, true).get(0)).toEqual({ ownerShare: 'Give a category the owner-benefit role first' })
+  })
+
+  it('checks no share while the owner-pay module is off, since the column is not shown', () => {
+    expect(categoryDraftErrors([category('fees', { bucket: 'taxes', ownerShare: 'half' })], new Set(), ROLES, false)).toEqual(new Map())
   })
 })
 

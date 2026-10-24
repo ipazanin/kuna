@@ -54,10 +54,10 @@ const TAB_LABELS: Readonly<Record<YearTab, Omit<PageTab, 'value'>>> = {
 }
 
 const filteredLedger = useFilteredLedger()
-/** The filtered ledger with the pack's part of the workbook, which every tab reads. */
+/** The filtered ledger with the workbook as booked and the pack's part of it, which every tab reads. */
 const ledger = computed(() => {
   const filtered = filteredLedger.value
-  return filtered === null ? null : { ...filtered, workbook: hrDooWorkbook(filtered.workbook) }
+  return filtered === null ? null : { ...filtered, workbook: hrDooWorkbook(filtered.booked) }
 })
 const settings = useSettings()
 const names = useDisplayNames()

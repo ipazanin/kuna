@@ -8,7 +8,7 @@
  * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
  * asset rows and grant rows on Year, a line's build-up on Year, Forecast, a payout option, the next year and the Plan tab from Year, Pay,
  * a pay scenario's figure, warnings and starting figures on Year, Pay, a paid corporate tax advance on Year, Taxes, a repayment on the Owner loan list, the build-up of
- * the loans' benefit in kind and its link to the rate on Settings, the owner take under the ring against its tile, Compare pay mixes and the Add advance form from Owner's header,
+ * the loans' benefit in kind and its link to the rate on Settings, the owner take under the ring against its tile, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header,
  * the cost of a reimbursement with no cost on file added from Review,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
@@ -69,11 +69,13 @@ import {
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
+  ownerShareFlow,
   planFlow,
   planTabFlow,
   reviewSplitFlow,
   rulesEditorFlow,
   scenarioFlow,
+  shareFillFlow,
   splitFlow,
   startingScenariosFlow,
   statementCheckFlow,
@@ -568,6 +570,29 @@ async function checkWidth(width) {
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-owner-taken.png`))
   })
 
+  await step('owner-taken-dividend', async () => {
+    await openFreshExcel(page, '#/owner?tab=taken&p=all', 'Owner')
+    const avoided = await page.waitForSelector('[data-testid="owner-benefits-dividend"] [data-testid="build-up-button"]')
+    await avoided.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await avoided.tap()
+    await page.waitForSelector('[data-testid="figure-detail"]')
+    await delay(400)
+    await expect(
+      page.evaluate(() => {
+        const dialog = document.querySelector('[role="dialog"]')?.getBoundingClientRect()
+        const fills = dialog !== undefined && dialog.width >= window.innerWidth - 1 && dialog.height >= window.innerHeight - 1
+        return { fills, steps: document.querySelector('[data-testid="figure-detail"]')?.textContent ?? '' }
+      }),
+      (shown) => shown.fills && shown.steps.includes('Corporate tax at') && shown.steps.includes('Dividend tax at'),
+      'the tax avoided against a dividend did not open full screen on its corporate and dividend tax',
+    )
+    await inspect(page, `${width}px owner, taken, tax avoided against a dividend`)
+    await shoot('owner-taken-dividend')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="figure-detail"]'))
+  })
+
   await step('invoices-payment-drill', async () => {
     await open(page, '#/invoicing?p=all', 'Invoicing')
     await settleCharts(page)
@@ -825,6 +850,8 @@ async function checkWidth(width) {
       ['split-tab', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow, mode === 'google' ? '&fake=no-splits' : '&fake=excel-no-splits'],
       ['split-review', '#/review', 'Review', reviewSplitFlow],
       ['change-category', '#/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
+      ['owner-share', '#/transactions?p=all&q=purchase%2C%20laptop', 'Transactions', ownerShareFlow],
+      ['share-fill', '#/settings?tab=categories', 'Settings', shareFillFlow],
       ['dismiss', '#/review?tab=rules', 'Review', dismissFlow],
       ['rules-editor', '#/review?tab=rules', 'Review', rulesEditorFlow],
       ['import-camt', '#/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],

@@ -66,7 +66,7 @@ const statements = useStatementSync()
 const waiting = computed(() => {
   if (ledger.value === null || state.workbook === null) return []
   const held = statementsJob(statements.held.value?.length ?? 0, statements.state.outcome?.problem ?? null)
-  return [...(held === null ? [] : [held]), ...waitingJobs(ledger.value.workbook, state.workbook.transactions)]
+  return [...(held === null ? [] : [held]), ...waitingJobs(ledger.value.booked, state.workbook.transactions)]
 })
 const checkText = statements.unchecked
 

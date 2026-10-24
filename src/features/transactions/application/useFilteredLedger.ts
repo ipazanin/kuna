@@ -5,6 +5,7 @@ import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { useFilters } from '../../filters/application/filterStore'
 import { transactionsInPeriod } from '../../filters/domain/filterState'
 import type { FilterState } from '../../filters/domain/filterState'
+import { withOwnerParts } from '../../owner-share/domain/ownerParts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { bookingOfAdvance, ledgerWindowOf } from '../../workbook/domain/workbook'
 import type { Booking, OwnerAdvance, Transaction, Workbook } from '../../workbook/domain/workbook'
@@ -13,8 +14,13 @@ import { presentedWorkbook } from './presentedWorkbook'
 
 /** The workbook on screen with the shared filters applied, in the cuts the screens compute from. */
 export interface FilteredLedger {
-  /** The workbook on screen, its rows as the screens count them: split rows as their parts, under the settings. */
+  /**
+   * The workbook as the cash screens count it: split rows as their parts, under the settings, and
+   * each shared row and advance as its business part and the owner's part.
+   */
   readonly workbook: Workbook
+  /** The same workbook as booked, without the owner parts, which Year, the taxes and who owes whom read. */
+  readonly booked: Workbook
   /** The whole ledger's window, so rolling periods end at the same month on every screen. */
   readonly window: LedgerWindow
   readonly filters: FilterState
@@ -36,11 +42,12 @@ export interface FilteredLedger {
 export function useFilteredLedger(): ComputedRef<FilteredLedger | null> {
   const { state } = useWorkbook()
   const { filters } = useFilters()
-  const presented = computed(() => (state.workbook === null ? null : presentedWorkbook(state.workbook)))
+  const booked = computed(() => (state.workbook === null ? null : presentedWorkbook(state.workbook)))
+  const cash = computed(() => (booked.value === null ? null : withOwnerParts(booked.value)))
   return computed(() => {
-    const workbook = presented.value
+    const workbook = cash.value
     const window = workbook === null ? null : ledgerWindowOf(workbook.transactions)
-    if (workbook === null || window === null) {
+    if (workbook === null || booked.value === null || window === null) {
       return null
     }
     const current = filters.value as FilterState
@@ -49,6 +56,7 @@ export function useFilteredLedger(): ComputedRef<FilteredLedger | null> {
     const scopedAdvances = scopeOwnerAdvances(workbook.ownerAdvances, current)
     return {
       workbook,
+      booked: booked.value,
       window,
       filters: current,
       scoped,

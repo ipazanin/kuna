@@ -29,13 +29,14 @@ const props = defineProps<{
   uses: SlugUses
   /** The roles core and the pack pick categories by. */
   roles: readonly string[]
+  /** Whether the owner share shows, which it does while the owner-pay module is on. */
+  shares: boolean
   saving: boolean
 }>()
 
 const emit = defineEmits<{
   save: [made: readonly { readonly saved: number | null; readonly record: CategoryRecord }[]]
 }>()
-
 
 const stored = computed(() => storedOf(props.records))
 const drafts = ref<CategoryDraft[]>(categoryDraftsOf(stored.value))
@@ -45,7 +46,7 @@ watch(stored, (records) => {
 
 const usedNames = computed(() => new Set(props.uses.keys()))
 const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(categoryDraftsOf(stored.value)))
-const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value, props.roles))
+const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value, props.roles, props.shares))
 
 const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: bucket }))
 const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: treatment }))
@@ -80,7 +81,7 @@ function inUse(draft: CategoryDraft): string {
 }
 
 function addCategory(): void {
-  drafts.value = [...drafts.value, { saved: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '', vat: '' }]
+  drafts.value = [...drafts.value, { saved: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '', vat: '', ownerShare: '' }]
 }
 
 function remove(index: number): void {
@@ -107,6 +108,7 @@ function save(): void {
           <th scope="col" class="text-start">Colour</th>
           <th scope="col" class="text-start">Roles</th>
           <th scope="col" class="text-start">VAT</th>
+          <th v-if="shares" scope="col" class="text-start">Owner share</th>
           <th scope="col"><span class="sr-only">Delete</span></th>
         </tr>
       </thead>
@@ -188,6 +190,25 @@ function save(): void {
               @update:model-value="update(index, 'vat', String($event))"
             />
             <p v-if="errors.get(index)?.vat" class="field-error">{{ errors.get(index)?.vat }}</p>
+          </td>
+          <td v-if="shares">
+            <template v-if="draft.bucket === 'operating' || draft.ownerShare.trim() !== ''">
+              <UInput
+                :model-value="draft.ownerShare"
+                :color="errors.get(index)?.ownerShare ? 'error' : 'neutral'"
+                :highlight="Boolean(errors.get(index)?.ownerShare)"
+                inputmode="numeric"
+                aria-label="Owner share, in percent"
+                size="sm"
+                class="w-24"
+                data-testid="category-owner-share"
+                @update:model-value="update(index, 'ownerShare', String($event))"
+              >
+                <template #trailing><span class="text-muted">%</span></template>
+              </UInput>
+              <p v-if="errors.get(index)?.ownerShare" class="field-error">{{ errors.get(index)?.ownerShare }}</p>
+            </template>
+            <span v-else class="inline-block px-2 py-1 text-muted" title="Only an operating category holds a share">–</span>
           </td>
           <td>
             <UButton

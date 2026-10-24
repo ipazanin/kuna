@@ -1,3 +1,4 @@
+import { OWNER_SHARE_ROLES, typedOwnerShare } from '../../owner-share/domain/ownerShare'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { categoryOfFields } from '../../workbook/domain/categoriesReading'
 import { swatchOf } from '../../workbook/domain/categoryColour'
@@ -25,13 +26,26 @@ export interface CategoryDraft {
   readonly roles: string
   /** Blank means none. */
   readonly vat: string
+  /** The default share a row filed in the category takes. Blank means none. */
+  readonly ownerShare: string
 }
 
 /** The drafts of the stored categories, as the workbook holds their text. */
 export function categoryDraftsOf(stored: readonly StoredRecord<unknown>[]): CategoryDraft[] {
   return stored.map(({ fields }, saved) => {
     const text = (name: string): string => textOf(fields[name])
-    return { saved, savedName: text('category'), category: text('category'), label: text('label'), family: text('family'), bucket: slugOf(fields.bucket), colour: text('colour'), roles: text('roles'), vat: slugOf(fields.vat) }
+    return {
+      saved,
+      savedName: text('category'),
+      category: text('category'),
+      label: text('label'),
+      family: text('family'),
+      bucket: slugOf(fields.bucket),
+      colour: text('colour'),
+      roles: text('roles'),
+      vat: slugOf(fields.vat),
+      ownerShare: text('owner_share'),
+    }
   })
 }
 
@@ -47,7 +61,7 @@ export function categoriesOfDrafts(stored: readonly StoredRecord<unknown>[], dra
   return madeOfDrafts(drafts, fields, stored, categoryOfFields)
 }
 
-export type CategoryField = 'category' | 'family' | 'bucket' | 'roles' | 'vat'
+export type CategoryField = 'category' | 'family' | 'bucket' | 'roles' | 'vat' | 'ownerShare'
 
 export type CategoryDraftErrors = ReadonlyMap<number, Partial<Record<CategoryField, string>>>
 
@@ -55,11 +69,14 @@ export type CategoryDraftErrors = ReadonlyMap<number, Partial<Record<CategoryFie
  * The rules of the Sheet's categories tab: every row names a category once, and fills category,
  * family and a bucket from the six. A new name keeps to the slug format. A category in use keeps
  * its name, or the rows that name it would lose their category. Each role and a VAT treatment, if
- * given, is one the app knows. Errors are keyed by the draft's position.
+ * given, is one the app knows. While `shares` shows the owner share, a default is a whole number
+ * from 0 to 100, on an operating category, while a category carries the owner-benefit role. Errors
+ * are keyed by the draft's position.
  */
-export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>, knownRoles: readonly string[]): CategoryDraftErrors {
+export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames: ReadonlySet<string>, knownRoles: readonly string[], shares: boolean): CategoryDraftErrors {
   const errors = new Map<number, Partial<Record<CategoryField, string>>>()
   const named = new Set<string>()
+  const benefitCategory = drafts.some((draft) => rolesOfText(draft.roles).includes(OWNER_SHARE_ROLES.ownerBenefit))
   drafts.forEach((draft, index) => {
     const found: Partial<Record<CategoryField, string>> = {}
     const name = draft.category.trim().toLowerCase()
@@ -88,6 +105,14 @@ export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames:
     const vat = draft.vat.trim().toLowerCase()
     if (vat !== '' && !isVatTreatment(vat)) {
       found.vat = 'Not a VAT treatment the app knows'
+    }
+    const share = typedOwnerShare(draft.ownerShare)
+    if (shares && share === undefined) {
+      found.ownerShare = 'A whole number from 0 to 100'
+    } else if (shares && share !== null && draft.bucket.trim().toLowerCase() !== 'operating') {
+      found.ownerShare = 'Only an operating category holds a share'
+    } else if (shares && share !== null && !benefitCategory) {
+      found.ownerShare = `Give a category the ${OWNER_SHARE_ROLES.ownerBenefit} role first`
     }
     if (Object.keys(found).length > 0) {
       errors.set(index, found)
@@ -119,6 +144,7 @@ function categoryFieldsOf(draft: CategoryDraft, stored: StoredFields): StoredFie
     colour: draft.colour.trim(),
     roles: rolesOfText(draft.roles).join(', '),
     vat: draft.vat.trim().toLowerCase(),
+    owner_share: draft.ownerShare.trim(),
   }
   const fields: Record<string, StoredField> = { ...stored }
   for (const [name, text] of Object.entries(typed)) {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { currencyUnitName, formatWholeMoney } from '../../../shared/money/moneyFormat'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
@@ -17,14 +18,18 @@ import FilterBar from '../../../features/filters/presentation/FilterBar.vue'
 import { useSettings } from '../../../features/settings/application/useSettings'
 import type { FilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
+import { ownerBenefits } from '../domain/ownerBenefits'
 import { ownerCost } from '../domain/ownerCost'
 import { ownerTake, ownerTakeByMonth } from '../domain/ownerTake'
 import { PACK_ROLES, categoriesWithRole } from '../domain/packRoles'
+import OwnerBenefitsCard from './OwnerBenefitsCard.vue'
 import { categoryLegend, ownerDrawsChart, ownerPaySeries, ownerTakeRing } from './packCharts'
 
 /** What the owner took out over the period in view, what it cost the company, and how it was paid. */
 const props = defineProps<{
   ledger: FilteredLedger
+  /** The newest booking, the day Year's forecast is seen on. */
+  asOf: CivilDate
 }>()
 
 const settings = useSettings()
@@ -40,6 +45,7 @@ const taken = computed(() => {
   const period = periodInWords(filters.period, window)
   const take = ownerTake(profitAndLossRows, categories, filters.period, window)
   const cost = ownerCost(profitAndLossRows, categories, filters.period, window)
+  const benefits = ownerBenefits(profitAndLossRows, categories, filters.period, window)
   const takeMonths = ownerTakeByMonth(profitAndLossRows, categories, chartedMonths(filters.period, window), window)
   const pay = categories.filter((category) => category.bucket === 'owner-pay')
   const loanSlugs = [...categoriesWithRole(categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)].filter((slug) =>
@@ -53,19 +59,35 @@ const taken = computed(() => {
   const parts = ring.parts.map((part): DonutPart => ({ ...part, to: drillLocation(part.drill) }))
   const shares = parts.map((part) => `${part.label} ${formatWholeMoney(part.value)}`).join(', ')
   const aside = ring.aside.map((line) => ({ ...line, to: drillLocation(line.drill) }))
+  const benefitName = benefits === null ? '' : categoryName(benefits.category)
+  const fromCosts = benefits !== null && benefits.total.amount !== 0
   return {
     period,
     payLabel,
+    benefits,
     tiles: [
       {
         label: 'Owner take',
         value: formatWholeMoney(take.total.amount),
         to: drillLocation(take.total.drill),
-        caption: loansArePay ? 'Loans in, repayments out' : 'Loans left out, as financing',
-        definition: loansArePay
-          ? `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. A loan to the owner is pay taken early and its repayment is pay handed back, so both count. Reimbursements settle costs and are left out.`
-          : `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. Loans to the owner are in the financing bucket, so neither they nor their repayments count. Reimbursements settle costs and are left out.`,
+        caption: fromCosts ? `${formatWholeMoney(benefits.total.amount)} of it from company costs` : loansArePay ? 'Loans in, repayments out' : 'Loans left out, as financing',
+        definition:
+          (loansArePay
+            ? `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. A loan to the owner is pay taken early and its repayment is pay handed back, so both count. Reimbursements settle costs and are left out.`
+            : `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. Loans to the owner are in the financing bucket, so neither they nor their repayments count. Reimbursements settle costs and are left out.`) +
+          (benefits === null ? '' : ` ${benefitName}, the owner's parts of company costs, count too.`),
       },
+      ...(benefits === null
+        ? []
+        : [
+            {
+              label: benefitName,
+              value: formatWholeMoney(benefits.total.amount),
+              to: drillLocation(benefits.total.drill),
+              caption: `${benefits.payments} ${benefits.payments === 1 ? 'payment' : 'payments'}`,
+              definition: `The owner's parts of company costs, at each row's owner share. They count as owner pay with no tax on them. The share is your own estimate, and the accountant books these costs in full.`,
+            },
+          ]),
       {
         label: 'Gross cost of the owner',
         value: formatWholeMoney(cost.gross.amount),
@@ -78,7 +100,7 @@ const taken = computed(() => {
         value: cost.costPerEuroReceived === null ? '–' : `${times.format(cost.costPerEuroReceived)}×`,
         to: drillLocation(cost.gross.drill),
         caption: cost.costPerEuroReceived === null ? 'Nothing paid to the owner' : 'Gross cost over owner take',
-        definition: `What the company spends for each ${currencyUnitName()} the owner takes out. 1.00× would mean no tax on top.${loansArePay ? ' Loans count in the take, so a year with loans reads cheaper.' : ''}`,
+        definition: `What the company spends for each ${currencyUnitName()} the owner takes out. 1.00× would mean no tax on top.${loansArePay ? ' Loans count in the take, so a year with loans reads cheaper.' : ''}${benefits === null ? '' : ` ${benefitName} carry no tax, so they make it read cheaper.`}`,
       },
     ],
     ring: {
@@ -105,7 +127,7 @@ const taken = computed(() => {
   <div class="flex flex-col gap-6">
     <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
 
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-3" data-testid="owner-taken-tiles">
+    <div class="grid grid-cols-2 gap-3" :class="taken.benefits === null ? 'lg:grid-cols-3' : 'lg:grid-cols-4'" data-testid="owner-taken-tiles">
       <KpiTile v-for="tile in taken.tiles" :key="tile.label" v-bind="tile" />
     </div>
 
@@ -153,6 +175,8 @@ const taken = computed(() => {
         <template #legend><ChartLegend :entries="taken.drawsLegend" /></template>
       </DrillChartCard>
     </div>
+
+    <OwnerBenefitsCard v-if="taken.benefits" :ledger="ledger" :benefits="taken.benefits" :period="taken.period" :as-of="asOf" />
   </div>
 </template>
 

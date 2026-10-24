@@ -80,7 +80,7 @@ function partOfPayment(whole: Transaction, note: string): string {
 
 const owed = computed(() => {
   const { window } = props.ledger
-  const workbook = hrDooWorkbook(props.ledger.workbook)
+  const workbook = hrDooWorkbook(props.ledger.booked)
   const { categories, transactions } = workbook
   const tokens = chartTokens()
   const loans = ownerLoans(transactions, categories)

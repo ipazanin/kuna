@@ -15,8 +15,9 @@ import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
+import type { ShareTarget } from '../../owner-share/domain/ownerShare'
 import { categoryChangeOf } from '../domain/categoryChange'
-import { OWNER_ADVANCE_LABEL, withSplitHeadings } from '../domain/listedRows'
+import { OWNER_ADVANCE_LABEL, listedOwnerPart, partPlace, withPartHeadings } from '../domain/listedRows'
 import type { ListedBankRow, ListedRow } from '../domain/listedRows'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { TransactionGroup } from '../domain/transactionGroups'
@@ -35,23 +36,26 @@ const props = defineProps<{
   showAccount: boolean
   /** True while a change is being written, when no split can be opened. */
   writing: boolean
+  /** The record a row's owner share sits on, or null where none is set here. */
+  shareTargetOf: (row: ListedRow) => ShareTarget | null
 }>()
 
 const emit = defineEmits<{
   toggle: [key: string]
   split: [row: Transaction]
   changeCategory: [row: ListedBankRow]
+  ownerShare: [row: ListedRow]
 }>()
 
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 const colours = useCategoryColours()
 
-/** One untitled section when ungrouped, so both forms share the card markup. A split payment heads its parts. */
+/** One untitled section when ungrouped, so both forms share the card markup. A split or shared payment heads its parts. */
 const sections = computed(() =>
   props.groups === null
-    ? [{ key: 'all', entries: withSplitHeadings(props.rows), group: null }]
-    : props.groups.map((group) => ({ key: group.key, entries: withSplitHeadings(group.rows), group })),
+    ? [{ key: 'all', entries: withPartHeadings(props.rows), group: null }]
+    : props.groups.map((group) => ({ key: group.key, entries: withPartHeadings(group.rows), group })),
 )
 
 const thisYear = String(new Date().getFullYear())
@@ -70,8 +74,9 @@ function toggleRow(key: string): void {
   if (!openRows.value.delete(key)) openRows.value.add(key)
 }
 
+/** The badge beside a row's category. A part of a shared advance leaves its badge to the heading above it. */
 function badgeOf(row: ListedRow): { label: string; color: 'warning' | 'info' | 'neutral' } | null {
-  if (row.kind === 'owner-advance') return { label: OWNER_ADVANCE_LABEL, color: 'neutral' }
+  if (row.kind === 'owner-advance') return partPlace(row) === null ? { label: OWNER_ADVANCE_LABEL, color: 'neutral' } : null
   if (row.bucket === UNCLASSIFIED) return { label: 'Unclassified', color: 'warning' }
   if (row.flaggedBy === 'ai') return { label: 'AI guess', color: 'info' }
   return null
@@ -79,6 +84,19 @@ function badgeOf(row: ListedRow): { label: string; color: 'warning' | 'info' | '
 
 function accountOf(row: ListedRow): string {
   return row.kind === 'bank' ? names.value.account(row.account) : 'No bank account'
+}
+
+/** What a part says before its amount: its place among the parts, with a split part's note. */
+function partLabel(row: ListedRow): string | null {
+  const place = partPlace(row)
+  const note = row.kind === 'bank' ? (row.split?.note ?? '') : ''
+  return place === null ? null : `Part ${place.number} of ${place.count}${note === '' ? '' : `, ${note}`}`
+}
+
+/** The owner's part of a shared row names the category and share it comes from. */
+function ownerPartOrigin(row: ListedRow): string | null {
+  const part = listedOwnerPart(row)
+  return part?.side === 'owner' ? `from ${names.value.category(part.sourceCategory)}, ${part.share}%` : null
 }
 </script>
 
@@ -99,8 +117,43 @@ function accountOf(row: ListedRow): string {
         />
       </h2>
       <ul v-if="!section.group || !isCollapsed(section.key)">
-        <template v-for="entry in section.entries" :key="entry.kind === 'split' ? entry.key : entry.row.key">
-        <li v-if="entry.kind === 'split'" class="card split-heading" data-testid="split-heading">
+        <template v-for="entry in section.entries" :key="entry.kind === 'row' ? entry.row.key : entry.key">
+        <li v-if="entry.kind === 'shared'" class="card split-heading" data-testid="shared-heading">
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5">
+            <span class="flex items-baseline justify-between gap-3">
+              <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
+              <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
+            </span>
+            <span class="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <UBadge v-if="entry.whole.kind === 'owner-advance'" :label="OWNER_ADVANCE_LABEL" color="neutral" variant="subtle" size="sm" />
+              <UBadge :label="`Shared with the owner, ${entry.share}%`" color="neutral" variant="subtle" size="sm" />
+              <span class="figure">{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ accountOf(entry.whole) }}</template></span>
+            </span>
+          </span>
+          <span class="flex shrink-0">
+            <UButton
+              v-if="shareTargetOf(entry.whole) !== null"
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              :disabled="writing"
+              :aria-label="`Edit the owner share of ${entry.whole.counterparty || 'the payment'}`"
+              data-testid="edit-owner-share"
+              @click="emit('ownerShare', entry.whole)"
+            />
+            <UButton
+              v-if="entry.whole.kind === 'bank'"
+              icon="i-lucide-split"
+              color="neutral"
+              variant="ghost"
+              :disabled="writing"
+              :aria-label="`Split the payment of ${entry.whole.counterparty || 'this row'}`"
+              data-testid="split-row"
+              @click="entry.whole.kind === 'bank' && emit('split', entry.whole)"
+            />
+          </span>
+        </li>
+        <li v-else-if="entry.kind === 'split'" class="card split-heading" data-testid="split-heading">
           <span class="flex min-w-0 flex-col gap-0.5">
             <span class="flex items-baseline justify-between gap-3">
               <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
@@ -121,12 +174,12 @@ function accountOf(row: ListedRow): string {
             @click="emit('split', entry.whole)"
           />
         </li>
-        <li v-else class="card" :class="{ part: entry.row.kind === 'bank' && entry.row.split }" data-testid="transaction-card">
+        <li v-else class="card" :class="{ part: partLabel(entry.row) !== null }" data-testid="transaction-card">
           <button type="button" class="card-summary" :aria-expanded="openRows.has(entry.row.key)" @click="toggleRow(entry.row.key)">
             <span class="flex items-baseline justify-between gap-3">
-              <span v-if="entry.row.kind === 'bank' && entry.row.split" class="flex min-w-0 items-center gap-1.5 text-toned">
+              <span v-if="partLabel(entry.row)" class="flex min-w-0 items-center gap-1.5 text-toned">
                 <UIcon name="i-lucide-corner-down-right" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
-                <span class="truncate">Part {{ entry.row.split.index + 1 }} of {{ entry.row.split.count }}<template v-if="entry.row.split.note">, {{ entry.row.split.note }}</template></span>
+                <span class="truncate">{{ partLabel(entry.row) }}</span>
               </span>
               <span v-else class="min-w-0 truncate font-medium text-highlighted">{{ entry.row.counterparty || 'No counterparty' }}</span>
               <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
@@ -134,7 +187,8 @@ function accountOf(row: ListedRow): string {
             <span class="flex items-center justify-between gap-3 text-xs text-muted">
               <span class="flex min-w-0 items-center gap-1.5">
                 <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
-                <span class="truncate text-toned">{{ entry.row.category === '' ? 'No category' : names.category(entry.row.category) }}</span>
+                <span v-if="ownerPartOrigin(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartOrigin(entry.row) }}</span>
+                <span v-else class="truncate text-toned">{{ entry.row.category === '' ? 'No category' : names.category(entry.row.category) }}</span>
                 <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
               </span>
               <span class="figure shrink-0">
@@ -172,7 +226,7 @@ function accountOf(row: ListedRow): string {
                 @click="entry.row.kind === 'bank' && emit('changeCategory', entry.row)"
               />
               <UButton
-                v-if="entry.row.kind === 'bank' && !entry.row.split && entry.row.amount !== 0"
+                v-if="entry.row.kind === 'bank' && !entry.row.split && !entry.row.ownerPart && entry.row.amount !== 0"
                 label="Split"
                 icon="i-lucide-split"
                 color="neutral"
@@ -180,7 +234,18 @@ function accountOf(row: ListedRow): string {
                 class="inline-target px-0 text-sm"
                 :disabled="writing"
                 data-testid="split-row"
-                @click="emit('split', entry.row)"
+                @click="entry.row.kind === 'bank' && emit('split', entry.row)"
+              />
+              <UButton
+                v-if="shareTargetOf(entry.row) !== null"
+                label="Owner share"
+                icon="i-lucide-hand-coins"
+                color="neutral"
+                variant="link"
+                class="inline-target px-0 text-sm"
+                :disabled="writing"
+                data-testid="owner-share-row"
+                @click="emit('ownerShare', entry.row)"
               />
             </div>
           </div>

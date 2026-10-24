@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { Money } from '../../../shared/money/money'
 import { naturalOrder } from '../../../shared/text/naturalOrder'
+import { ownerPartKey } from '../../owner-share/domain/ownerParts'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import type { Bucket } from './bucket'
 import type { RecordId } from './recordId'
@@ -79,7 +80,7 @@ export function splitLedger(transactions: readonly Transaction[], splits: readon
   })
 }
 
-/** A key for a row as a screen lists it: the bank row's, or for a part of a split row the part's own. */
-export function listedRowKey(row: Pick<Transaction, 'id' | 'split'>): RecordId {
-  return row.split?.id ?? row.id
+/** A key for a row as a screen lists it: the bank row's, or for a part of a split row the part's own, with the owner's part of a shared row marked. */
+export function listedRowKey(row: Pick<Transaction, 'id' | 'split' | 'ownerPart'>): string {
+  return ownerPartKey(row.split?.id ?? row.id, row.ownerPart)
 }

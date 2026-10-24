@@ -25,6 +25,8 @@ import { drillToTransactions } from '../../filters/domain/drillTarget'
 import { withoutChips } from '../../filters/domain/filterChips'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import ImportPanel from '../../imports/presentation/ImportPanel.vue'
+import type { ShareTarget } from '../../owner-share/domain/ownerShare'
+import OwnerShareDialog from '../../owner-share/presentation/OwnerShareDialog.vue'
 import { counterpartyIdentity, counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useCategoryColours } from '../../workbook/presentation/categoryColours'
@@ -35,9 +37,10 @@ import { useCollapsedGroups } from '../application/collapsedGroups'
 import { transactionsCsv } from '../application/transactionsCsv'
 import { useFilteredLedger } from '../application/useFilteredLedger'
 import { categoryChangeOf } from '../domain/categoryChange'
+import { ownerShareChangeOf } from '../domain/ownerShareChange'
 import { advancesLeftOutByBankFilters } from '../domain/filterTransactions'
-import { OWNER_ADVANCE_LABEL, inBookingOrder, listedRows, withSplitHeadings } from '../domain/listedRows'
-import type { ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
+import { OWNER_ADVANCE_LABEL, bookedRowOf, inBookingOrder, listedOwnerPart, listedRows, partPlace, withPartHeadings } from '../domain/listedRows'
+import type { ListedAdvanceRow, ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
 import { groupTransactions } from '../domain/transactionGroups'
 import type { Grouping, TransactionGroup } from '../domain/transactionGroups'
 import type { LedgerSplit } from '../../workbook/domain/splits'
@@ -94,7 +97,7 @@ const severalAccounts = computed(() => new Set(rows.value.flatMap((row) => (row.
 /** Advances in the period that only the account, counterparty or review filter keeps off the list, said in words. */
 const advancesLeftOut = computed(() => {
   const shown = ledger.value
-  const count = shown === null ? 0 : advancesLeftOutByBankFilters(shown.workbook.ownerAdvances, shown.filters, shown.window)
+  const count = shown === null ? 0 : advancesLeftOutByBankFilters(shown.booked.ownerAdvances, shown.filters, shown.window)
   if (shown === null || count === 0) {
     return null
   }
@@ -124,13 +127,13 @@ const groups = computed<TransactionGroup[] | null>(() => {
 
 const bucketLabels = computed(() => ledger.value?.workbook.settings.bucketLabels ?? DEFAULT_BUCKET_LABELS)
 
-/** The table's rows: each group's heading, then its rows unless it is collapsed, a split payment's parts under the payment. */
+/** The table's rows: each group's heading, then its rows unless it is collapsed, a split or shared payment's parts under the payment. */
 type TableEntry = { readonly kind: 'group'; readonly group: TransactionGroup } | ListedEntry
 
 const tableEntries = computed<TableEntry[]>(() =>
   groups.value === null
-    ? withSplitHeadings(sortedRows.value)
-    : groups.value.flatMap((group): TableEntry[] => [{ kind: 'group', group }, ...(collapsed.isCollapsed(group.key) ? [] : withSplitHeadings(group.rows))]),
+    ? withPartHeadings(sortedRows.value)
+    : groups.value.flatMap((group): TableEntry[] => [{ kind: 'group', group }, ...(collapsed.isCollapsed(group.key) ? [] : withPartHeadings(group.rows))]),
 )
 
 /** The payment the split editor is open on, with its split on the splits tab or null. */
@@ -150,16 +153,35 @@ function openSplit(row: Transaction): void {
 const changing = ref<Transaction | null>(null)
 const changeOpen = ref(false)
 
-/** A part of a split row opens the split editor on the row as booked, since its category lives on the splits tab. */
+/**
+ * A part of a split row opens the split editor on the row as booked, since its category lives on the
+ * splits tab. A part of a shared row changes the row it comes from.
+ */
 function changeCategory(row: ListedBankRow): void {
   const change = categoryChangeOf(row)
   if (change === 'split') {
     const whole = state.workbook?.transactions.find((transaction) => transaction.id === row.id)
     if (whole !== undefined) openSplit(whole)
   } else if (change === 'ledger') {
-    changing.value = row
+    changing.value = row.ownerPart?.whole ?? row
     changeOpen.value = true
   }
+}
+
+/** The row as booked whose owner share is being set, with the record that holds it. */
+const sharing = ref<{ readonly target: ShareTarget; readonly row: ListedRow } | null>(null)
+const shareOpen = ref(false)
+
+/** Owner shares show only while the owner-pay module is on. */
+function shareTargetOf(row: ListedRow): ShareTarget | null {
+  return ledger.value?.workbook.settings.ownerPayModule === true ? ownerShareChangeOf(row) : null
+}
+
+function setOwnerShare(row: ListedRow): void {
+  const target = shareTargetOf(row)
+  if (target === null) return
+  sharing.value = { target, row: bookedRowOf(row) }
+  shareOpen.value = true
 }
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -188,7 +210,12 @@ type EntryCell = { readonly row: { readonly original: TableEntry } }
 
 const isHeading = (cell: EntryCell): boolean => cell.row.original.kind === 'group'
 
-const isPart = (entry: TableEntry): boolean => entry.kind === 'row' && entry.row.kind === 'bank' && entry.row.split !== undefined
+const isPart = (entry: TableEntry): boolean => entry.kind === 'row' && partPlace(entry.row) !== null
+
+/** The heading's badge: how many parts a split row has, or the share of a shared one. */
+function headingBadge(entry: Extract<TableEntry, { kind: 'split' | 'shared' }>) {
+  return h(UBadge, { label: entry.kind === 'split' ? `Split in ${entry.count} parts` : `Shared with the owner, ${entry.share}%`, color: 'neutral', variant: 'subtle', size: 'sm' })
+}
 
 /** A group's heading fills its whole row, so every other cell of that row is left out. */
 function besideHeading(rowClass = ''): { class: { td: (cell: EntryCell) => string } } {
@@ -203,6 +230,12 @@ function reviewBadge(listed: ListedRow) {
   return null
 }
 
+/** The owner's part of a shared row names the category and share it comes from. */
+function ownerPartOrigin(listed: ListedRow) {
+  const part = listedOwnerPart(listed)
+  return part?.side === 'owner' ? h('span', { class: 'text-xs text-muted' }, `from ${names.value.category(part.sourceCategory)}, ${part.share}%`) : null
+}
+
 function categoryOf(listed: ListedRow) {
   return h('span', { class: 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-toned' }, [
     h('span', { class: 'inline-flex items-center gap-1.5' }, [
@@ -211,8 +244,16 @@ function categoryOf(listed: ListedRow) {
         ? h('span', { class: 'text-muted' }, 'No category')
         : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
     ]),
+    ownerPartOrigin(listed),
     reviewBadge(listed),
   ])
+}
+
+/** A bank row's counterparty opens its rows. An advance has no counterparty in the ledger, so a counterparty filter would leave it out. */
+function counterpartyName(row: Transaction | ListedAdvanceRow) {
+  return 'kind' in row && row.kind === 'owner-advance'
+    ? h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [row.counterparty, h(UBadge, { label: OWNER_ADVANCE_LABEL, color: 'neutral', variant: 'subtle', size: 'sm' })])
+    : h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(row).key] }), class: 'text-highlighted' }, () => row.counterparty || 'No counterparty')
 }
 
 /** Below a container width the category column drops out and the category moves under the row's name. */
@@ -220,10 +261,26 @@ function categoryBelowName(listed: ListedRow) {
   return h('div', { class: 'mt-1 text-sm @2xl:hidden' }, [categoryOf(listed)])
 }
 
+/** Split on a payment that is not split yet. A shared payment offers it on its heading, since a split divides the payment as booked. */
+function splitButton(payment: Transaction) {
+  return payment.amount === 0
+    ? null
+    : h(UButton, {
+        icon: 'i-lucide-split',
+        color: 'neutral',
+        variant: 'ghost',
+        size: 'xs',
+        'aria-label': `Split the payment of ${payment.counterparty || 'this row'}`,
+        'data-testid': 'split-row',
+        disabled: state.writing,
+        onClick: () => openSplit(payment),
+      })
+}
+
 const columns: TableColumn<TableEntry>[] = [
   {
     id: 'date',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.date : entry.kind === 'split' ? entry.whole.date : ''),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.date : entry.kind === 'group' ? '' : entry.whole.date),
     header: sortableHeader('Date'),
     meta: {
       colspan: { td: (cell: EntryCell) => (isHeading(cell) ? String(COLUMN_COUNT) : '1') },
@@ -239,7 +296,7 @@ const columns: TableColumn<TableEntry>[] = [
           onToggle: () => collapsed.toggle(entry.group.key),
         })
       }
-      if (entry.kind === 'split') {
+      if (entry.kind !== 'row') {
         return h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.whole.date)))
       }
       return isPart(entry) ? '' : h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.row.date)))
@@ -247,42 +304,35 @@ const columns: TableColumn<TableEntry>[] = [
   },
   {
     id: 'counterparty',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.counterparty : entry.kind === 'split' ? entry.whole.counterparty : ''),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.counterparty : entry.kind === 'group' ? '' : entry.whole.counterparty),
     header: 'Counterparty',
     meta: besideHeading('whitespace-normal'),
     footer: () => h('span', { class: 'text-xs font-normal text-muted' }, `${rows.value.length} ${rows.value.length === 1 ? 'row' : 'rows'}`),
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
-      if (entry.kind === 'split') {
+      if (entry.kind !== 'row') {
         const { whole } = entry
         return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [
-          h('span', { class: 'inline-flex flex-wrap items-center gap-2 text-highlighted' }, [
-            h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(whole).key] }), class: 'text-highlighted' }, () => whole.counterparty || 'No counterparty'),
-            h(UBadge, { label: `Split in ${entry.count} parts`, color: 'neutral', variant: 'subtle', size: 'sm' }),
-          ]),
+          h('span', { class: 'inline-flex flex-wrap items-center gap-2 text-highlighted' }, [counterpartyName(whole), headingBadge(entry)]),
           whole.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, whole.description),
         ])
       }
       const listed = entry.row
-      if (listed.kind === 'bank' && listed.split !== undefined) {
-        const { split } = listed
+      const place = partPlace(listed)
+      if (place !== null) {
+        const note = listed.kind === 'bank' ? (listed.split?.note ?? '') : ''
         return h('div', { class: 'min-w-40 max-w-56 ps-4 @4xl:max-w-96' }, [
           h('span', { class: 'inline-flex items-center gap-1.5 text-toned' }, [
             h(UIcon, { name: 'i-lucide-corner-down-right', class: 'size-3.5 shrink-0 text-muted', 'aria-hidden': 'true' }),
-            `Part ${split.index + 1} of ${split.count}`,
+            `Part ${place.number} of ${place.count}`,
           ]),
-          split.note === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, split.note),
+          note === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, note),
           categoryBelowName(listed),
         ])
       }
-      // An advance has no counterparty in the ledger, so a counterparty filter would leave it out.
-      const name =
-        listed.kind === 'bank'
-          ? h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(listed).key] }), class: 'text-highlighted' }, () => listed.counterparty || 'No counterparty')
-          : h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [listed.counterparty, h(UBadge, { label: OWNER_ADVANCE_LABEL, color: 'neutral', variant: 'subtle', size: 'sm' })])
       return h('div', { class: 'min-w-40 max-w-56 @4xl:max-w-96' }, [
-        name,
+        counterpartyName(listed),
         listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description),
         categoryBelowName(listed),
       ])
@@ -296,13 +346,13 @@ const columns: TableColumn<TableEntry>[] = [
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
-      if (entry.kind === 'split') return h('span', { class: 'text-xs text-muted' }, 'Counts as its parts')
+      if (entry.kind !== 'row') return h('span', { class: 'text-xs text-muted' }, 'Counts as its parts')
       return categoryOf(entry.row)
     },
   },
   {
     id: 'account',
-    accessorFn: (entry) => (entry.kind === 'row' && entry.row.kind === 'bank' ? entry.row.account : entry.kind === 'split' ? entry.whole.account : ''),
+    accessorFn: (entry) => (entry.kind === 'row' && entry.row.kind === 'bank' ? entry.row.account : entry.kind === 'split' ? entry.whole.account : entry.kind === 'shared' && entry.whole.kind === 'bank' ? entry.whole.account : ''),
     header: 'Account',
     // The account is the first column a narrow card gives up, since the filters name it too.
     meta: { class: { th: 'hidden @4xl:table-cell', ...besideHeading('hidden @4xl:table-cell').class } },
@@ -310,20 +360,19 @@ const columns: TableColumn<TableEntry>[] = [
       const entry = row.original
       if (entry.kind === 'group' || isPart(entry)) return ''
       if (entry.kind === 'split') return h('span', { class: 'text-muted' }, names.value.account(entry.whole.account))
-      return entry.row.kind === 'bank'
-        ? h('span', { class: 'text-muted' }, names.value.account(entry.row.account))
-        : h('span', { class: 'text-muted' }, 'No bank account')
+      const listed = entry.kind === 'shared' ? entry.whole : entry.row
+      return h('span', { class: 'text-muted' }, listed.kind === 'bank' ? names.value.account(listed.account) : 'No bank account')
     },
   },
   {
     id: 'amount',
-    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.amount : entry.kind === 'split' ? entry.whole.amount : entry.group.total),
+    accessorFn: (entry) => (entry.kind === 'row' ? entry.row.amount : entry.kind === 'group' ? entry.group.total : entry.whole.amount),
     header: sortableHeader('Amount', true),
     meta: { class: { th: 'text-end', ...besideHeading('text-end').class } },
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
-      if (entry.kind === 'split') return h(MoneyText, { cents: entry.whole.amount, class: 'text-muted' })
+      if (entry.kind !== 'row') return h(MoneyText, { cents: entry.whole.amount, class: 'text-muted' })
       return h(MoneyText, { cents: entry.row.amount, tone: 'flow' })
     },
     // The count sits under the counterparty, so the amount column stays as narrow as its figures.
@@ -351,11 +400,30 @@ const columns: TableColumn<TableEntry>[] = [
           onClick: () => openSplit(entry.whole),
         })
       }
-      if (entry.kind !== 'row' || entry.row.kind !== 'bank') return ''
+      if (entry.kind === 'shared') {
+        const { whole } = entry
+        return h('span', { class: 'flex justify-end' }, [
+          shareTargetOf(whole) === null
+            ? null
+            : h(UButton, {
+                icon: 'i-lucide-pencil',
+                color: 'neutral',
+                variant: 'ghost',
+                size: 'xs',
+                'aria-label': `Edit the owner share of ${whole.counterparty || 'the payment'}`,
+                'data-testid': 'edit-owner-share',
+                disabled: state.writing,
+                onClick: () => setOwnerShare(whole),
+              }),
+          whole.kind === 'bank' ? splitButton(whole) : null,
+        ])
+      }
+      if (entry.kind !== 'row') return ''
       const listed = entry.row
-      const named = listed.split === undefined ? listed.counterparty || 'this row' : `part ${listed.split.index + 1} of ${listed.counterparty || 'the payment'}`
+      const place = partPlace(listed)
+      const named = place === null ? listed.counterparty || 'this row' : `part ${place.number} of ${listed.counterparty || 'the payment'}`
       return h('span', { class: 'flex justify-end' }, [
-        categoryChangeOf(listed) === null
+        listed.kind !== 'bank' || categoryChangeOf(listed) === null
           ? null
           : h(UButton, {
               icon: 'i-lucide-tag',
@@ -367,17 +435,18 @@ const columns: TableColumn<TableEntry>[] = [
               disabled: state.writing,
               onClick: () => changeCategory(listed),
             }),
-        listed.split !== undefined || listed.amount === 0
+        listed.kind !== 'bank' || listed.split !== undefined || listed.ownerPart !== undefined ? null : splitButton(listed),
+        shareTargetOf(listed) === null
           ? null
           : h(UButton, {
-              icon: 'i-lucide-split',
+              icon: 'i-lucide-hand-coins',
               color: 'neutral',
               variant: 'ghost',
               size: 'xs',
-              'aria-label': `Split the payment of ${named}`,
-              'data-testid': 'split-row',
+              'aria-label': `Owner share of ${named}`,
+              'data-testid': 'owner-share-row',
               disabled: state.writing,
-              onClick: () => openSplit(listed),
+              onClick: () => setOwnerShare(listed),
             }),
       ])
     },
@@ -468,9 +537,11 @@ function exportCsv(): void {
                 :is-collapsed="collapsed.isCollapsed"
                 :show-account="severalAccounts"
                 :writing="state.writing"
+                :share-target-of="shareTargetOf"
                 @toggle="collapsed.toggle"
                 @split="openSplit"
                 @change-category="changeCategory"
+                @owner-share="setOwnerShare"
               />
               <AppCard v-else as="div" class="@container overflow-hidden">
                 <UTable
@@ -479,13 +550,19 @@ function exportCsv(): void {
                   :columns="columns"
                   :sorting-options="{ manualSorting: true }"
                   :meta="{ class: { tr: (row: EntryCell['row']) => (row.original.kind === 'group' ? 'bg-elevated' : '') } }"
-                  :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : entry.kind === 'split' ? entry.key : entry.row.key)"
+                  :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : entry.kind === 'row' ? entry.row.key : entry.key)"
                   sticky
                   class="max-h-[70dvh]"
                 />
               </AppCard>
               <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
               <ChangeCategoryDialog v-if="changing" v-model:open="changeOpen" :row="changing" />
+              <OwnerShareDialog
+                v-if="sharing"
+                v-model:open="shareOpen"
+                :target="sharing.target"
+                :row="{ ...sharing.row, ownerShare: sharing.row.kind === 'bank' ? sharing.row.ownerShare : sharing.row.advance.ownerShare }"
+              />
             </template>
           </LedgerGate>
         </div>

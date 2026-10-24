@@ -128,7 +128,7 @@ const view = computed(() => {
   if (current === null) {
     return null
   }
-  const { workbook, window } = current
+  const { booked: workbook, window } = current
   const transactions = workbook.transactions
   const receivables = receivablesOf(transactions, workbook.categories, workbook.invoices, workbook.clients)
   const revenue = workbook.categories.filter((category) => category.roles.includes(RECEIVABLE_ROLES.revenue)).map((category) => category.slug)

@@ -11,6 +11,7 @@ import type { DrillTarget, Figure } from '../../../features/filters/domain/drill
 import type { Period } from '../../../features/filters/domain/filterState'
 import type { DrillChart } from '../../../features/filters/presentation/chartDrill'
 import type { Category } from '../../../features/workbook/domain/workbook'
+import type { OwnerBenefits } from '../domain/ownerBenefits'
 import type { LoanMonth } from '../domain/ownerLoans'
 import type { OwnerTake } from '../domain/ownerTake'
 
@@ -151,6 +152,33 @@ export function ownerTakeRing(take: OwnerTake, period: Period, series: readonly 
     ...others.filter((line) => line.amount.amount < 0).map((line) => ({ key: line.category, label: nameOf(line.category), amount: line.amount.amount, drill: line.amount.drill })),
   ]
   return { parts, ringTotal: parts.reduce((sum, part) => sum + part.value, 0), aside, total: take.total.amount }
+}
+
+/** One category the benefits come from, as a part of their ring. */
+export interface BenefitsRingPart {
+  readonly key: string
+  readonly label: string
+  readonly value: number
+  readonly colour: string
+  /** The owner share its rows were counted at, such as "50%", or "mixed" when they differ. */
+  readonly note: string
+  readonly drill: DrillTarget
+}
+
+/**
+ * The benefits from company costs as a ring by the category each comes from, in the colour that
+ * category has on a chart of its bucket, with the share its rows were counted at.
+ */
+export function benefitsRing(benefits: OwnerBenefits, series: readonly CategorySeries[], nameOf: (slug: string) => string): BenefitsRingPart[] {
+  const tokenOf = new Map(series.flatMap((entry) => entry.categories.map((category) => [category, entry.token])))
+  return benefits.bySource.map((source) => ({
+    key: source.category,
+    label: nameOf(source.category),
+    value: source.amount.amount,
+    colour: tokenOf.get(source.category) ?? '--chart-deemphasis',
+    note: source.share === 'mixed' ? 'mixed' : source.share === null ? '–' : `${source.share}%`,
+    drill: source.amount.drill,
+  }))
 }
 
 export function categoryLegend(series: readonly CategorySeries[]): LegendEntry[] {

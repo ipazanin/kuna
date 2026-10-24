@@ -189,7 +189,8 @@ subtitle, actions and an optional definition behind an info button. Charts use i
 summary and start state as any card. `DonutCard` shows one snapshot of at most five parts as a
 ring, 62 to 82% of its radius from 12 o'clock, with the total in the middle as page text. The
 list beside it gives each part's value and share and opens its rows, so it is the chart's table
-too. Each part keeps the colour of what it stands for, such as its bucket, never one picked by its
+too. A part may carry a note in place of its share, and the card may set more content beside the
+list. Each part keeps the colour of what it stands for, such as its bucket, never one picked by its
 rank. A phone sets the ring above the list. A card with a long list or table, such
 as plan rows, invoices, rules or a tab editor, has a toggle at the end of its header. Collapsed,
 it shows its title and one summary line, such as the row count or a total. Each card opens
@@ -233,13 +234,28 @@ account's newest balance.
 
 **Transactions** has two tabs. Rows is the filtered list of every row behind the figures, and Import
 adds a statement, as *Import* describes. A click on any figure opens Rows with the filters that
-reproduce it. "Change category" on a row a rule or a person settled files it in another category: it
+reproduce it. A row shared with the owner, as *Owner share* describes, heads its two parts the way a
+split row does, badged with the share, and the owner's part names the category and share it comes
+from. "Change category" on either part, or on a row a rule or a person settled, files the row in another category: it
 writes the row's `category` and `flagged_by` with the review label, and the new category's owner share, as Review's Recategorise does,
 with Undo in the toast and under "Changes in this session". Before the write the dialog names the
 rule that files such rows elsewhere, since the row then shows on Review's Rules tab among that
 rule's exceptions, and the toast opens the rule. A row still waiting is settled on Review. On a
 part of a split row the action opens the split editor, since the `splits` tab holds the parts'
 categories.
+
+While `owner_pay_module` is on, "Owner share" sits beside Change category and Split, as an icon in
+the table and a link in the phone card. It is offered on a settled bank row, a part of a split row
+and an owner advance, each only in an operating category. On a shared row the heading's pencil and
+either part open it for the row as booked, and Split sits on the heading alone, since it divides the
+payment as booked. `ownerShareChangeOf` in `src/features/transactions/domain/` is the one rule for
+where it is offered. Its dialog takes a whole percentage from
+0 to 100, or blank for none, and "Use the category's default" puts in the category's default, blank
+when it has none. Under the field it shows what the company keeps and what you take: the payment
+split by the share, the owner's part rounded to the cent and the company's the rest, so the two add
+up. Save writes the one `owner_share` cell of the ledger row, the split part or the advance, with
+Undo in the toast. `OwnerShareDialog` in `src/features/owner-share/presentation/` is the dialog, and
+`writeOwnerShare` in `src/features/owner-share/application/ownerShareWrites.ts` the write.
 
 **Review** has two tabs. Queue, with its count, holds the filters, the rows that wait for a person,
 the reimbursements with no cost on file and "Changes in this session", collapsed. A row of the queue
@@ -345,7 +361,7 @@ a laptop the company paid for, as a whole percentage from 0 to 100. It sits on f
 category's default, and the share of a ledger row, a split part and an owner advance. A blank cell
 holds no share, which is not the same as 0. A cell that is not a whole number from 0 to 100 reads as
 blank, and a problem names its row, which still reads. A Sheet without the column reads every share
-as blank. The figures read the rows as booked, so a share changes no figure.
+as blank.
 
 A record takes its category's default whenever the app sets its category, in the same write, so one
 Undo puts back the category and the share together: a new row of an import or a sync, the rows a
@@ -355,9 +371,30 @@ default again, so a default changed since the row was filed reaches it, and a ne
 replaces any share the row held. An advance or a split part keeps its share while an edit keeps its
 category. Only a category in the operating bucket holds a default, and only while a category
 carries the `owner-benefit` role, such as "Benefits from company costs" in the owner-pay bucket,
-which the template seeds. The categories write refuses a change that breaks either. `src/features/owner-share/domain/ownerShare.ts` holds
+which the template seeds. The role sits on one category only, in the owner-pay bucket. The
+categories write refuses a new default that breaks either, and a role that breaks the last rule,
+except an Undo. A default left on a category moved out of operating, or held while no category
+carries the role, counts as 0, so the write lets it stand. That way a save with the owner-pay
+module off, where the share column is hidden, is never refused over a share. `src/features/owner-share/domain/ownerShare.ts` holds
 the share, its role, `filedIn`, the copy every path goes through, and `movedTo`, which copies only
-when an edit moves the record.
+when an edit moves the record. A default is set on Settings, Categories, which offers to fill the
+rows without a share, and one record's share with "Owner share" on Transactions, as *Settings
+screen* and *Overview, Transactions, Review and Analysis* describe.
+
+The share is your own estimate, never booked. The accountant books the cost in full, so Year, its
+Taxes, Accountant, Forecast and Pay tabs, Overview's corporate tax job, Who owes whom on Owner and
+the parity scripts read the rows as booked, and a share changes none of their figures. The cash
+screens count it: Overview, Analysis, Transactions and the Taken tab of Owner. There a bank row, a
+split part or an owner advance with a share above 0 in the operating bucket counts as two parts. The
+owner's part is the share of the signed amount, rounded to the cent, in the `owner-benefit` category.
+The business part is the rest, in the row's own category, so the two add up to the payment and a
+refund gives its share back. Operating cost goes down and owner pay goes up by the owner's parts,
+while all costs and net stay as they were. A split row's own share is ignored, and each part counts
+with its own. `ownerPartsOf` in `src/features/owner-share/domain/ownerParts.ts` makes the parts, and
+`useFilteredLedger` gives the cash screens the workbook with them and the rest the workbook as booked,
+`booked`. With `owner_pay_module` off nothing about shares shows and every figure is as booked.
+While rows hold a share and no single owner-pay category carries the role, every share counts as 0
+and Settings, General says why.
 
 ### Settings keys
 
@@ -507,7 +544,26 @@ type" as a ring, and owner pay by month with the loans and their repayments as o
 The ring holds each owner pay category paid out on balance, in the colour its band has in the
 chart. Loans can be negative, so "Loans, net" sits under the ring with any category that took back
 more than it paid, and the ring and those lines add up to the Owner take tile. `ownerTakeRing` in
-`packCharts.ts` builds it. Reimbursements stay outside the take and are named under it.
+`packCharts.ts` builds it. Reimbursements stay outside the take and are named under it. The
+owner's parts of shared costs count in the take, untaxed, as *Owner share* describes, while Who
+owes whom reads the advances as booked.
+
+While a category carries the `owner-benefit` role, Taken has a fourth tile and a card for those
+parts, both named after that category, such as "Benefits from company costs". The tile gives their
+total with the number of payments and opens the category on Transactions, and the Owner take tile
+says how much of the take they are. The card is a ring of the parts by the category each comes
+from, in that category's chart colour, with the share its rows were counted at, or "mixed" when
+they differ. Each opens the benefit category, since a category filter keeps only the business
+part of a shared row, and there each part names the category it comes from. Beside the ring, "Tax avoided against a dividend" opens
+its build-up: the corporate tax the same money would have paid at the rate Year works out for the
+year it was paid in, on the rows as booked, then the dividend tax on what is left at the
+`hr.pit.dividend` rate of the year after. "As a dividend you would net" is what is left of it. A
+period across years sums each year at its own rates. Without `hr_company_registered` the card says
+the comparison needs it, since the forecast that sets the rate counts from that day. A line says the
+share is your estimate, which the accountant books in full, and "Set the defaults" opens Settings,
+Categories. `ownerBenefits` and `dividendComparison` in `src/packs/hr-doo/domain/ownerBenefits.ts`
+work the figures out. `dividendRoute` in `src/packs/hr-doo/domain/dividend/` gives the dividend
+steps, which the next 100.00 of *Pay scenarios* uses too.
 
 A loan from the company to the owner, who is its employee, gives a benefit in kind when it carries
 less than the yearly rate the income tax law sets: 2% under Art. 21(3) of the Zakon o porezu na
@@ -563,11 +619,13 @@ Settings, General lists the reader's problems with the splits the figures leave 
 Transactions lists a split row as the bank row, badged with its number of parts, with the parts
 under it, larger first, each one a row of its own that filters and drills like any other. A filter that keeps one
 part still shows the bank row above it. The CSV export writes the parts, each with its note and
-`splits` as its tab. "Split" on a bank row opens the editor: parts with an amount, a category and a
+`splits` as its tab, and an `owner_share` column with the share of the row, part or advance, which
+both parts of a shared row carry. "Split" on a bank row opens the editor: parts with an amount, a category and a
 note, at least two, typed without a sign since each takes the row's, with what is left to place shown
 as the amounts change. The arrow beside an amount puts the rest of the payment into that part. The
 editor says so up front when an asset claims the row, and saves nothing. The pencil on a split row
-opens the same editor to change, add or remove parts or delete the split. Each save is one write
+opens the same editor to change, add or remove parts or delete the split. "Split" on a part of a
+shared row splits the payment it comes from. Each save is one write
 through the record path with Undo in the toast, in both modes, and a Google Sheet without a
 `splits` tab gets it with the template's header from the first save, which the editor says
 beforehand.
@@ -1312,6 +1370,19 @@ menu of the roles core and the pack pick categories by, shown as chips. A role t
 know, such as `revenu` typed in the Sheet, shows as a red chip with the error under it and blocks the
 save until it is taken off.
 
+While `owner_pay_module` is on, the last column is "Owner share", the default a row filed in the
+category takes, as *Owner share* describes. A category outside the operating bucket shows a dash
+there unless it holds a share, which can then be cleared. The field blocks the save when it holds
+anything but a whole number from 0 to 100, a share on a category outside the operating bucket, or
+any share while no category carries the `owner-benefit` role. A save that sets or changes a
+default first asks "Fill the rows without a share?" when ledger rows, split parts or owner advances
+of that category hold no share, one line per category with its share and its rows. "Save and fill"
+writes the categories and those cells in one write, so one Undo puts back the default and the
+cells. A share of 0 is not blank and is left alone, and so is the ledger cell of a split row, whose
+parts hold the shares. A row the pack keeps whole counts whole, so its own cell is filled and its
+parts are not. A record that takes a share while the question is open keeps it. "Save the default only" writes the categories alone, and Cancel writes
+nothing. The `owner_share` column comes without a notice, as *Write-back* describes.
+
 Each table checks its rows as the reader would before it lets a save go: a row the reader would
 leave out is marked and blocks the save. A row the tab holds that the app cannot read at all, such
 as a category with a misspelt bucket, is listed after the rows it reads, as stored, so it can be
@@ -1335,8 +1406,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, the check for new statements Overview offers, and on Year, Taxes the accountant's cards with the rows a differing badge opens, the read this device kept with the check, and the payroll folder saved from Settings, General, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, the accountant's cards on Year, Taxes with a differing badge's rows and the kept read, the payroll folder saved from Settings, General, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, and in Google mode a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, the check for new statements Overview offers, and on Year, Taxes the accountant's cards with the rows a differing badge opens, the read this device kept with the check, and the payroll folder saved from Settings, General, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, the accountant's cards on Year, Taxes with a differing badge's rows and the kept read, the payroll folder saved from Settings, General, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # import, export and import again, counts only
 ```
@@ -1567,7 +1638,7 @@ session list is held in memory, so a reload clears it.
 
   | Kind | Refused, with the reason given |
   |---|---|
-  | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. A changed colour outside the palette, or a role the change gives that the app does not know, unless Undo puts it back. Unless Undo puts it back too, an owner share on a category outside the operating bucket, a new one while no category carries the `owner-benefit` role, and taking that role off the last category carrying it while a share is held. |
+  | Categories | A name outside the slug format (lower-case letters and digits with single hyphens). Renaming or deleting a category that ledger rows, rules, owner advances, split parts, year-end `categories` or `plan` rows name. A bucket outside operating and taxes for a category owner advances carry. A changed colour outside the palette, or a role the change gives that the app does not know, unless Undo puts it back. Unless Undo puts it back too, a new owner share on a category outside the operating bucket or while no category carries the `owner-benefit` role, and that role on a second category or one outside the owner-pay bucket. |
   | Accounts | A name outside the slug format. Renaming or deleting an account ledger rows name, or clearing its IBAN, since the app files no statement whose IBAN the tab lacks. A new or changed IBAN that is not valid (shape and ISO 13616 check digits), is on another account, or is a client's. One IBAN names one account, since the fetch names each statement file by its IBAN and the app files each statement by it. The tab needs its `account` and `iban` headers, which the statement fetch reads. |
   | Clients | A name outside the slug format, or one another row holds. Renaming or deleting a client that invoices, plan rows or `billing_client` name. An IBAN the change adds that is not valid, is on another client, or is one of your accounts. A save that merges a client's two rows into one keeps no Undo, as above. |
   | Invoices | A number already on the tab for any client, as the invoice generator checks. A client the clients tab lacks. An amount of zero or less. The tab needs all eight columns the generator writes, and the app never adds one. |
@@ -1645,7 +1716,8 @@ batchUpdate and again after it:
 | Save settings, save or delete an import profile, remove a key | get, batchGet of `settings` |
 | Add, change or delete an advance | get, batchGet of `'owner-advances'` and `categories` |
 | Split a row, edit or delete a split | get, batchGet of `splits`, `ledger`, `categories` and `assets` (each when the Sheet has it) |
-| Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `splits`, `'year-end'` and `plan` (each when the Sheet has it) |
+| Set an owner share on Transactions | The reads of Confirm for a ledger row, of a split for a split part, and of an advance for an owner advance |
+| Save categories, or switch the loan bucket | get, batchGet of `categories`, `ledger`, `rules`, `'owner-advances'`, `splits`, `'year-end'` and `plan` (each when the Sheet has it), and `assets` too when the fill reaches a split part |
 | Save accounts | get, batchGet of `accounts`, `ledger` and `clients` |
 | Save clients | get, batchGet of `clients`, `accounts`, `invoices`, `'outgoing-plan'` and `settings` |
 | Add, edit or delete an invoice | get, batchGet of `invoices` and `clients` |
@@ -1767,7 +1839,7 @@ month, only in the annual settlement.
 ## Year-end parity
 
 `npm run parity:year-end -- --workbook <export.xlsx> --year 2025` runs the accrual engine over an
-xlsx export of the Sheet, a split row through its parts as the screens count it, and compares every
+xlsx export of the Sheet, a split row through its parts and every row as booked, whatever its owner share, and compares every
 line of that year's `year-end` rows with ours. It prints the bridge's steps with their kinds, then a
 verdict per line. `pass` means ours equals the accountant's to the cent with no judgement behind it.
 `judgement` means it equals because the engine took the accountant's figure, and names each

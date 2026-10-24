@@ -17,15 +17,15 @@ describe('transactionsCsv', () => {
   it('writes the ledger’s column names and plain decimal amounts', () => {
     const [header, row] = transactionsCsv(rows([{ date: '2026-08-09', amount: -70, category: 'travel', counterparty: 'Bistro' }])).split('\r\n')
 
-    expect(header).toBe('date,account,counterparty,counterparty_iban,description,amount,balance,category,bucket,flagged_by,reference,note,tab')
-    expect(row).toBe('2026-08-09,main,Bistro,,,-70.00,-70.00,travel,operating,rule,REF-1,,ledger')
+    expect(header).toBe('date,account,counterparty,counterparty_iban,description,amount,balance,category,bucket,flagged_by,reference,note,owner_share,tab')
+    expect(row).toBe('2026-08-09,main,Bistro,,,-70.00,-70.00,travel,operating,rule,REF-1,,,ledger')
   })
 
   it('writes an owner advance as the cost it books, with no account, balance or flag, from the owner-advances tab', () => {
     const advance = { date: civil('2026-08-10'), amount: euros(45), description: 'Train ticket', category: 'travel', family: 'operating', bucket: 'operating' as const, ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-4') }
     const [, row] = transactionsCsv(listedRows([], [advance])).split('\r\n')
 
-    expect(row).toBe('2026-08-10,,Owner,,Train ticket,-45.00,,travel,operating,,,,owner-advances')
+    expect(row).toBe('2026-08-10,,Owner,,Train ticket,-45.00,,travel,operating,,,,,owner-advances')
   })
 
   it('writes each part of a split row with its bank row’s date, account, balance and reference, its note, from the splits tab', () => {
@@ -35,8 +35,8 @@ describe('transactionsCsv', () => {
     ], PACK_CATEGORIES)
     const [, company, owner] = transactionsCsv(listedRows(transactions, [])).split('\r\n')
 
-    expect(company).toBe('2025-03-14,main,Online shop,,,-39.50,-52.30,travel,operating,rule,REF-1,Company part,splits')
-    expect(owner).toBe('2025-03-14,main,Online shop,,,-12.80,-52.30,owner-loan-out,owner-pay,rule,REF-1,The owner’s book,splits')
+    expect(company).toBe('2025-03-14,main,Online shop,,,-39.50,-52.30,travel,operating,rule,REF-1,Company part,,splits')
+    expect(owner).toBe('2025-03-14,main,Online shop,,,-12.80,-52.30,owner-loan-out,owner-pay,rule,REF-1,The owner’s book,,splits')
   })
 
   it('quotes commas, quotes and line breaks', () => {

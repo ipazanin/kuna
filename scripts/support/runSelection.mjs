@@ -33,9 +33,9 @@ export function runSelection(widths) {
     takes(name) {
       seen.add(name)
       if (only === null) return true
-      const entry = only.find((candidate) => name === candidate || name.startsWith(`${candidate}-`))
-      if (entry !== undefined) matched.add(entry)
-      return entry !== undefined
+      const entries = only.filter((candidate) => name === candidate || name.startsWith(`${candidate}-`))
+      for (const entry of entries) matched.add(entry)
+      return entries.length > 0
     },
     /** The `--only` names nothing was called, each with the names there are, as a sentence. */
     unmatched() {
