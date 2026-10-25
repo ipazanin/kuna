@@ -11,11 +11,11 @@ const REFUSED_TITLES: Readonly<Record<RedirectGrant, string>> = {
 }
 
 /**
- * Picks up after a redirect sign-in: runs `sync` or opens the Picker when that is what the person
- * tapped, and otherwise says what happened, since anything else they started did not run while the
- * tab was at Google. The silent ask for the Drive read token shows nothing either way: as the app
- * opened auto-sync carries on, and after a sign-in what the sign-in resumes runs now. Call it before
- * auto-sync starts, so a Picker to open goes first.
+ * Picks up after a redirect sign-in: runs `sync`, finds the books or opens the Picker when that is
+ * what the person tapped, and otherwise says what happened, since anything else they started did
+ * not run while the tab was at Google. The silent ask for the Drive read token shows nothing either
+ * way: as the app opened auto-sync carries on, and after a sign-in what the sign-in resumes runs
+ * now. Call it before auto-sync starts, so a Picker to open goes first.
  */
 export function useGoogleReturn(answer: RedirectReturn | null, sync: () => Promise<void>): void {
   if (answer === null || answer.ask === 'silent-on-open') {
@@ -48,9 +48,12 @@ export function useGoogleReturn(answer: RedirectReturn | null, sync: () => Promi
     case 'sync':
       void store.open().then(sync)
       return
-    case 'pick':
-      void store.open().then(findDriveFile)
+    case 'find':
+    case 'pick': {
+      const lookup = answer.resume
+      void store.open().then(() => findDriveFile(lookup))
       return
+    }
     case 'none':
       toast.add({
         title: 'Signed in to Google',

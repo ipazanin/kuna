@@ -12,6 +12,7 @@ import { newDocument } from '../src/features/workbook/infrastructure/documentRec
 import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
 import { COMPANY_APP, documentStorePorts } from '../src/features/workbook/infrastructure/documentStorePorts'
 import type { DriveAccess } from '../src/features/workbook/infrastructure/documentStorePorts'
+import type { RedirectResume } from '../src/shared/google/googleRedirect'
 import { createDriveDocument } from '../src/features/workbook/infrastructure/driveDocument'
 import type { DocumentDrive } from '../src/features/workbook/infrastructure/driveDocument'
 import { createFakeDrive } from '../src/features/workbook/infrastructure/fake/fakeDrive'
@@ -43,6 +44,8 @@ interface DriveSide {
   before: (request: keyof DocumentDrive) => Promise<void>
   pickedFile: string | null
   pickedFolder: string | null
+  /** What each sign-in would resume after a redirect, in order. */
+  readonly signIns: RedirectResume[]
 }
 
 function driveSide(): DriveSide {
@@ -52,6 +55,7 @@ function driveSide(): DriveSide {
     before: async () => {},
     pickedFile: null,
     pickedFolder: null,
+    signIns: [],
     access: {
       drive: new Proxy(drive, {
         get(target, name) {
@@ -64,7 +68,9 @@ function driveSide(): DriveSide {
             : member
         },
       }),
-      signIn: async () => {},
+      signIn: async (then) => {
+        side.signIns.push(then)
+      },
       signedIn: () => true,
       pickFolder: async () => side.pickedFolder,
       pickFile: async () => side.pickedFile,
@@ -257,13 +263,13 @@ describe('workbook store with a Drive file', () => {
     const store = storeOf(ports)
     await store.open()
 
-    await store.chooseDriveFile()
+    await store.chooseDriveFile('find')
     expect(store.state).toMatchObject({ status: 'ready', choice: null, workbook: null })
 
     const folderId = await side.drive.createFolder('root', 'books')
     const { fileId } = await createDriveDocument(side.drive, folderId, COMPANY_APP, encodeDocument(documentOf([1, 2])))
     used.add(fileId)
-    await store.chooseDriveFile()
+    await store.chooseDriveFile('find')
 
     expect(chosen()).toEqual({ source: 'drive', id: fileId, name: 'ledgerboard-company.json' })
     expect(store.state.workbook?.transactions).toHaveLength(2)
@@ -281,14 +287,82 @@ describe('workbook store with a Drive file', () => {
     used.add(personal.id)
 
     side.pickedFile = backup.id
-    await store.chooseDriveFile()
+    await store.chooseDriveFile('find')
     expect(store.state.error).toMatch(/ledgerboard-company-2026-10-24\.json is a backup/)
 
     side.pickedFile = personal.id
-    await store.chooseDriveFile()
+    await store.chooseDriveFile('find')
     expect(store.state.error).toMatch(/another ledgerboard app, personal/)
     expect(chosen()).toBeNull()
     expect(store.state.workbook).toBeNull()
+  })
+
+  it('opens the file picked when asked to pick, even while Drive holds the file the app marked', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    const marked = await onDrive(side, documentOf([1]))
+    await store.chooseDriveFile('find')
+    expect(chosen()).toEqual(marked)
+    const folderId = await side.drive.createFolder('root', 'copies')
+    const copy = await side.drive.createFile(folderId, 'ledgerboard-company copy.json', encodeDocument(documentOf([1, 2, 3])))
+    used.add(copy.id)
+
+    side.pickedFile = copy.id
+    await store.chooseDriveFile('pick')
+
+    expect(chosen()).toEqual({ source: 'drive', id: copy.id, name: 'ledgerboard-company copy.json' })
+    expect(store.state.workbook?.transactions).toHaveLength(3)
+    expect(side.signIns).toEqual(['find', 'pick'])
+  })
+
+  it('refuses a backup, another app’s file or a JSON file that is no ledgerboard file picked, and keeps the workbook on screen', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    const marked = await onDrive(side, documentOf([1]))
+    await store.chooseDriveFile('find')
+    const folderId = await side.drive.createFolder('root', 'elsewhere')
+    const backup = await side.drive.createFile(folderId, 'ledgerboard-company-2026-10-24.json', encodeDocument(documentOf([1, 2])))
+    const personal = await side.drive.createFile(folderId, 'ledgerboard-personal.json', encodeDocument({ ...documentOf([1, 2]), app: 'personal' }))
+    const settings = await side.drive.createFile(folderId, 'settings.json', JSON.stringify({ theme: 'dark' }))
+    used.add(backup.id)
+    used.add(personal.id)
+    used.add(settings.id)
+
+    side.pickedFile = backup.id
+    await store.chooseDriveFile('pick')
+    expect(store.state.error).toMatch(/ledgerboard-company-2026-10-24\.json is a backup/)
+
+    side.pickedFile = personal.id
+    await store.chooseDriveFile('pick')
+    expect(store.state.error).toMatch(/another ledgerboard app, personal/)
+
+    side.pickedFile = settings.id
+    await store.chooseDriveFile('pick')
+    expect(store.state.error).toBe('The file is not a ledgerboard file.')
+
+    expect(chosen()).toEqual(marked)
+    expect(store.state.workbook?.transactions).toHaveLength(1)
+  })
+
+  it('changes nothing when the Picker is cancelled', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    const marked = await onDrive(side, documentOf([1]))
+    await store.chooseDriveFile('find')
+    const before = store.state.snapshot
+
+    side.pickedFile = null
+    await store.chooseDriveFile('pick')
+
+    expect(chosen()).toEqual(marked)
+    expect(store.state).toMatchObject({ status: 'ready', error: null, choice: marked })
+    expect(store.state.snapshot).toBe(before)
   })
 
   it('starts a write again from a fresh read when another device saved since the read, and lands both saves', async () => {
@@ -459,12 +533,12 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.open()
     await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
 
-    await store.chooseDriveFile()
+    await store.chooseDriveFile('find')
     expect(store.state.choice?.source).toBe('browser')
     expect(await storedCopy('local-1')).not.toBeNull()
 
     const choice = await onDrive(side, documentOf([1]))
-    await store.chooseDriveFile()
+    await store.chooseDriveFile('find')
 
     expect(store.state.choice).toEqual(choice)
     expect(await storedCopy('local-1')).toBeNull()

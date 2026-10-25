@@ -44,6 +44,9 @@ export interface CopyStorage<Copy extends WorkbookCopy> extends RecordStorage {
   readAgain(): Promise<void>
 }
 
+/** How the person chooses the books on Drive: `find` opens the file the app marked, or the Picker when there is none, and `pick` always opens the Picker. */
+export type DriveFileLookup = 'find' | 'pick'
+
 /** Where a Drive file sits, and the day of its newest backup, null before the first. */
 export interface DriveFilePlace {
   readonly folderId: string

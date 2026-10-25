@@ -1196,8 +1196,10 @@ The first run, and "Switch data source" on Settings, This device, offer three wa
   the sign-in the app searches Drive for the file it marked with `appProperties`, and opens the
   Picker, filtered to JSON files, when the search finds none. Two marked files are refused with a
   message, since the app cannot tell which one holds the books. So is a backup or another app's file
-  picked there, since the books would then be saved into it. A toast names the file and its folder
-  once it is open, or says the file found is the one already on screen.
+  picked there, since the books would then be saved into it. "Pick another file" skips the search and
+  always opens the Picker, with the same refusals, so a file other than the marked one can be opened.
+  A toast names the file and its folder once it is open, or says the file found or picked is the one
+  already on screen.
 - **Open a file**, an xlsx or a ledgerboard file, which shows its summary first, as *A workbook kept
   in this browser* describes.
 - **Start empty**, with the default categories and settings.

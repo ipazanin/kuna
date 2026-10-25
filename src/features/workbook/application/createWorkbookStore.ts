@@ -6,7 +6,7 @@ import type { Workbook } from '../domain/workbook'
 import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from './recordWrites'
 import type { RuledChange, WriteReceipt } from './recordWrites'
 import type { UnitOfWork } from './repository'
-import type { CopyMeta, CopyStorage, DriveFilePlace, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
+import type { CopyMeta, CopyStorage, DriveFileLookup, DriveFilePlace, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
 import { WorkbookWriteRefused } from './workbookWriteRefused'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
@@ -66,8 +66,11 @@ export interface WorkbookStorePorts<Copy extends WorkbookCopy, Contents> {
    * for a token first when none is kept, so call it from a click unless a token is kept.
    */
   readDriveFile(choice: WorkbookChoice, held: Copy | null): Promise<Copy>
-  /** Finds the app's file on Drive: by the mark the app gave it, or in the Picker when the search finds none. Null when cancelled. */
-  findDriveFile(): Promise<Copy | null>
+  /**
+   * The books on Drive: with `find` the file the app marked, or the one picked when the search finds
+   * none, and with `pick` the one picked. Refuses a backup and another app's file. Null when cancelled.
+   */
+  findDriveFile(lookup: DriveFileLookup): Promise<Copy | null>
   /**
    * Creates the app's file in a Drive folder the person picks, holding these contents, reads it
    * back and throws unless it holds the same records. Null when cancelled.
@@ -115,10 +118,10 @@ export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
   /** Revokes and forgets the Google sign-in. The file stays chosen and its copy stays on screen. */
   signOutOfGoogle(): Promise<void>
   /**
-   * Shows the app's file on Drive, found by its mark or picked. On a cancel or a failure the
-   * previous workbook stays chosen. Leaving a workbook kept in this browser deletes it.
+   * Shows the books on Drive, found by the app's mark or picked, as `lookup` says. On a cancel or a
+   * failure the previous workbook stays chosen. Leaving a workbook kept in this browser deletes it.
    */
-  chooseDriveFile(): Promise<void>
+  chooseDriveFile(lookup: DriveFileLookup): Promise<void>
   /**
    * Keeps the contents, an opened file's, a fresh start's or the workbook kept in this browser, in a
    * new file in a Drive folder the person picks, and shows that file once it reads back with the
@@ -374,8 +377,8 @@ export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: 
       return ports.signOutOfGoogle()
     },
 
-    chooseDriveFile() {
-      return readDrive(() => ports.findDriveFile())
+    chooseDriveFile(lookup) {
+      return readDrive(() => ports.findDriveFile(lookup))
     },
 
     keepOnDrive(contents) {

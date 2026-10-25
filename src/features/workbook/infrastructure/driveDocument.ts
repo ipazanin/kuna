@@ -76,9 +76,8 @@ export async function createDriveDocument(drive: DocumentDrive, folderId: string
   return { fileId: created.id, document: { revision: created.revision, text } }
 }
 
-/** Throws for a file the person picked that is a daily backup of the document, since saves to a backup would never reach the books. */
-export async function refuseBackup(drive: DocumentDrive, fileId: string, app: string): Promise<void> {
-  const name = await drive.nameOf(fileId)
+/** Throws for a file the person picked whose name is a daily backup's, since saves to a backup would never reach the books. */
+export function refuseBackup(name: string, app: string): void {
   if (backupDayOf(app, name) !== null) {
     throw new Error(`${name} is a backup, so the app does not keep the books in it. Pick ${documentName(app)}, or open the backup with "Open a file" to look at it.`)
   }

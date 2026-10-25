@@ -1321,10 +1321,16 @@ async function checkWidth(width) {
     await shoot('google-return')
 
     // The empty fake Drive holds no file the app marked, and its Picker picks none, so the find the sign-in resumes leaves the welcome screen.
-    await comeBack('empty', { state: 'touch-check', grant: 'sign-in', resume: 'pick', route: '#/' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
+    await comeBack('empty', { state: 'touch-check', grant: 'sign-in', resume: 'find', route: '#/' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
     await waitForTitle(page, 'Ledgerboard')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the find resumed')
     await expect(keptToken(), (token) => token === 'fake-token', 'the token of the sign-in that resumed the find was not kept')
+
+    // The fake Picker the sign-in resumes picks the file in Books, which is the one on screen.
+    await comeBack('drive', { state: 'touch-check', grant: 'sign-in', resume: 'pick', route: '#/' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
+    await waitForTitle(page, 'Overview')
+    await waitForText(page, 'li[data-slot="base"]', 'Your books are already open')
+    await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the Picker resumed')
 
     await comeBack('drive', { state: 'touch-check', grant: 'sign-in', resume: 'sync', route: '#/transactions' }, `access_token=forged-token&expires_in=3599&scope=${scope}&state=forged`)
     await waitForTitle(page, 'Transactions')

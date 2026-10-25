@@ -1,23 +1,24 @@
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useWorkbook } from '../application/workbookStore'
+import type { DriveFileLookup } from '../application/workbookPorts'
 
 export interface FindDriveFile {
   /**
-   * Finds the books on Drive, by the app's mark or else in the Picker, and says in a toast which
-   * file is now open and in which folder, or that it was open already. Resolves to whether the
-   * books on screen are a Drive file. A cancelled Picker says nothing.
+   * Opens the books on Drive, found by the app's mark or picked, as `lookup` says, and says in a
+   * toast which file is now open and in which folder, or that it was open already. Resolves to
+   * whether the books on screen are a Drive file. A cancelled Picker says nothing.
    */
-  findDriveFile(): Promise<boolean>
+  findDriveFile(lookup: DriveFileLookup): Promise<boolean>
 }
 
 export function useFindDriveFile(): FindDriveFile {
   const store = useWorkbook()
   const toast = useToast()
 
-  async function findDriveFile(): Promise<boolean> {
+  async function findDriveFile(lookup: DriveFileLookup): Promise<boolean> {
     const before = store.state.choice
-    await store.chooseDriveFile()
+    await store.chooseDriveFile(lookup)
     const chosen = store.state.choice
     if (store.state.status === 'error') {
       toast.add({ title: 'Your books were not opened', description: store.state.error ?? '', icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
@@ -32,8 +33,8 @@ export function useFindDriveFile(): FindDriveFile {
     toast.add({
       title: already ? 'Your books are already open' : `Opened ${chosen.name}`,
       description: already
-        ? `${chosen.name} ${where} is the file on screen, read again just now. To open another file, use Open a file.`
-        : `The app found ${chosen.name} ${where} and keeps a copy in this browser.`,
+        ? `${chosen.name} ${where} is the file on screen, read again just now. To open a different file, use Pick another file.`
+        : `${chosen.name} ${where} is on screen now, and the app keeps a copy in this browser.`,
       icon: 'i-lucide-check',
       color: 'success',
     })

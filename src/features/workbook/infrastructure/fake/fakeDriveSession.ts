@@ -34,7 +34,15 @@ function otherDeviceSave(text: string): string {
   return encodeDocument({ ...document, records: { ...document.records, 'ledger-row': ledger } })
 }
 
-/** The fake build never goes to Google: it is always signed in, its Picker picks the books folder, and it never offers a file to pick. */
+/** The file in the books folder, which the fake build's Picker always picks, or null while the folder holds none. */
+async function fakeBooksFile(): Promise<string | null> {
+  const drive = fakeDriveSession()
+  const folder = (await drive.children('root')).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === BOOKS_FOLDER)
+  const files = folder === undefined ? [] : await drive.children(folder.id)
+  return files.find((entry) => entry.mimeType !== FOLDER_MIME_TYPE)?.id ?? null
+}
+
+/** The fake build never goes to Google: it is always signed in, and its Picker picks the books folder or the file in it. */
 export function fakeDriveAccess(): DriveAccess {
   const drive = fakeDriveSession()
   return {
@@ -51,6 +59,6 @@ export function fakeDriveAccess(): DriveAccess {
     signIn: async () => {},
     signedIn: () => true,
     pickFolder: fakeBooksFolder,
-    pickFile: async () => null,
+    pickFile: fakeBooksFile,
   }
 }

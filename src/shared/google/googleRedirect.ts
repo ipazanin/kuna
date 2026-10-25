@@ -13,8 +13,11 @@ export const REDIRECT_SIGN_IN_QUERY = '(pointer: coarse), (display-mode: standal
 /** The sign-in kept on this device, or the Gmail or Drive read grant kept in page memory. */
 export type RedirectGrant = 'sign-in' | 'gmail' | 'drive-read'
 
-/** What the app does once back: read the chosen file again, find or pick it, or nothing, since the action that asked has to start again. */
-export type RedirectResume = 'sync' | 'pick' | 'none'
+/**
+ * What the app does once back: read the chosen file again, find the books by the app's mark or else
+ * in the Picker, open the Picker, or nothing, since the action that asked has to start again.
+ */
+export type RedirectResume = 'sync' | 'find' | 'pick' | 'none'
 
 /**
  * How the tab went to Google: from a tap, or with `prompt=none` for the Drive read token as the app
@@ -201,7 +204,7 @@ function pendingOf(text: string | null): PendingRedirect | null {
   const { state, grant, resume, route, ask, silent } = candidate as Record<string, unknown>
   if (typeof state !== 'string' || state === '' || typeof route !== 'string') return null
   if (grant !== 'sign-in' && grant !== 'gmail' && grant !== 'drive-read') return null
-  if (resume !== 'sync' && resume !== 'pick' && resume !== 'none') return null
+  if (resume !== 'sync' && resume !== 'find' && resume !== 'pick' && resume !== 'none') return null
   if (ask === 'tap' || ask === 'silent-on-open' || ask === 'silent-after-sign-in') return { state, grant, resume, route, ask }
   // A pending redirect saved by an older copy of the app carries `silent` in place of `ask`.
   return { state, grant, resume, route, ask: silent === true ? 'silent-on-open' : 'tap' }

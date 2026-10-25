@@ -29,7 +29,7 @@ const GOOGLE_DRIVE_ACCESS: DriveAccess = {
   },
   signedIn: () => currentAccessToken() !== null,
   pickFolder: () => picked('folder', 'Pick the folder for the books'),
-  pickFile: () => picked('json', 'Pick ledgerboard-company.json'),
+  pickFile: () => picked('json', 'Pick the file with your books'),
 }
 
 async function driveAccess(): Promise<DriveAccess> {

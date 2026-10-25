@@ -178,7 +178,7 @@ export function useStatementSync(): StatementSync {
     sync,
     async syncByHand() {
       if (store.state.choice === null) {
-        await findDriveFile()
+        await findDriveFile('find')
         return
       }
       await sync()

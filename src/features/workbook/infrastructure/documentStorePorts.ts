@@ -1,3 +1,4 @@
+import type { RedirectResume } from '../../../shared/google/googleRedirect'
 import type { WorkbookStorePorts } from '../application/createWorkbookStore'
 import type { DocumentHome } from '../application/documentHome'
 import type { CopyMeta } from '../application/workbookPorts'
@@ -18,7 +19,7 @@ export const COMPANY_APP = 'company'
 export interface DriveAccess {
   readonly drive: DocumentDrive
   /** Asks Google for a token when none is kept, which needs a click. On a phone the tab goes to Google, and `then` is what the app does once back. */
-  signIn(then: 'sync' | 'pick' | 'none'): Promise<void>
+  signIn(then: RedirectResume): Promise<void>
   /** Whether a token is kept, so a request to Drive needs no click. */
   signedIn(): boolean
   /** The folder the person picks for the file, or null when cancelled. */
@@ -64,10 +65,10 @@ export function documentStorePorts(driveAccess: () => Promise<DriveAccess>, now:
       return readFile(choice.id, held, choice.name)
     },
 
-    async findDriveFile() {
+    async findDriveFile(lookup) {
       const access = await driveAccess()
-      await access.signIn('pick')
-      const found = await findDriveDocument(access.drive, COMPANY_APP)
+      await access.signIn(lookup)
+      const found = lookup === 'find' ? await findDriveDocument(access.drive, COMPANY_APP) : null
       if (found !== null) {
         return readFile(found, null, documentName(COMPANY_APP))
       }
@@ -75,8 +76,9 @@ export function documentStorePorts(driveAccess: () => Promise<DriveAccess>, now:
       if (picked === null) {
         return null
       }
-      await refuseBackup(access.drive, picked, COMPANY_APP)
-      const copy = await readFile(picked, null, documentName(COMPANY_APP))
+      const name = await access.drive.nameOf(picked)
+      refuseBackup(name, COMPANY_APP)
+      const copy = await readFile(picked, null, name)
       if (copy.document.app !== COMPANY_APP) {
         throw new Error(`The file picked holds the books of another ledgerboard app, ${copy.document.app}. Pick ${documentName(COMPANY_APP)}.`)
       }

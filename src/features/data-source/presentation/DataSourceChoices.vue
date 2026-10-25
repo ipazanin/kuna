@@ -9,6 +9,7 @@ import { useMediaQuery } from '../../../shared/layout/viewport'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import type { DriveFileLookup } from '../../workbook/application/workbookPorts'
 import type { WorkbookSource } from '../../workbook/domain/workbook'
 import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
 import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
@@ -33,9 +34,13 @@ const signInByRedirect = useMediaQuery(REDIRECT_SIGN_IN_QUERY)
 
 const pickedFile = ref<File | null>(null)
 const startingEmpty = ref(false)
+const lookingUp = ref<DriveFileLookup | null>(null)
 
-async function findOnDrive(): Promise<void> {
-  if (await findDriveFile()) {
+async function openFromDrive(lookup: DriveFileLookup): Promise<void> {
+  lookingUp.value = lookup
+  const opened = await findDriveFile(lookup)
+  lookingUp.value = null
+  if (opened) {
     emit('chosen')
   }
 }
@@ -62,22 +67,34 @@ async function startEmptyOnDrive(): Promise<void> {
     <li class="choice">
       <UIcon name="i-lucide-hard-drive" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">{{ current === 'drive' ? 'Find the file on Google Drive again' : 'Open your books on Google Drive' }}</h3>
+        <h3 class="text-sm font-medium text-highlighted">{{ current === 'drive' ? 'Open your books on Google Drive again' : 'Open your books on Google Drive' }}</h3>
         <p class="mt-1 text-sm text-muted">
-          For books another device keeps on Drive. Sign in with Google, and the app finds ledgerboard-company.json or asks you to pick it.
-          It keeps a copy in this browser, and writes only that file and the backups folder beside it.
+          For books another device keeps on Drive. Sign in with Google, then Find the file opens the file the app marked as its books, or
+          asks you to pick it when there is none. Pick another file lets you choose the .json file yourself. The app keeps a copy in this
+          browser, and writes only that file and the backups folder beside it.
         </p>
       </div>
       <div class="choice-action">
-        <UButton
-          label="Find the file"
-          icon="i-lucide-log-in"
-          color="neutral"
-          variant="outline"
-          :loading="store.state.status === 'syncing' && !keeping"
-          :disabled="store.state.status === 'syncing'"
-          @click="findOnDrive"
-        />
+        <div class="flex flex-col items-start gap-2 sm:items-stretch">
+          <UButton
+            label="Find the file"
+            icon="i-lucide-log-in"
+            color="neutral"
+            variant="outline"
+            :loading="lookingUp === 'find'"
+            :disabled="store.state.status === 'syncing'"
+            @click="openFromDrive('find')"
+          />
+          <UButton
+            label="Pick another file"
+            icon="i-lucide-file-search"
+            color="neutral"
+            variant="outline"
+            :loading="lookingUp === 'pick'"
+            :disabled="store.state.status === 'syncing'"
+            @click="openFromDrive('pick')"
+          />
+        </div>
         <p v-if="signInByRedirect" class="mt-2 max-w-56 text-xs text-muted" data-testid="redirect-sign-in-note">
           Google may ask about cookies first, then brings you back here.
         </p>

@@ -244,6 +244,17 @@ describe('the pending redirect', () => {
     expect(takePendingRedirect()).toEqual(SILENT_DRIVE_READ)
   })
 
+  it('remembers whether the sign-in resumes finding the books or picking a file, and refuses any other resume', () => {
+    savePendingRedirect({ ...PENDING, resume: 'find' })
+    expect(takePendingRedirect()).toEqual({ ...PENDING, resume: 'find' })
+
+    savePendingRedirect({ ...PENDING, resume: 'pick' })
+    expect(takePendingRedirect()).toEqual({ ...PENDING, resume: 'pick' })
+
+    localStorage.setItem('ledgerboard.google-redirect', JSON.stringify({ ...PENDING, resume: 'open' }))
+    expect(takePendingRedirect()).toBeNull()
+  })
+
   it('reads one an older copy of the app saved with its silent flag, one with no flag as asked by a tap, and refuses an unknown grant', () => {
     localStorage.setItem('ledgerboard.google-redirect', JSON.stringify({ state: 's', grant: 'drive-read', resume: 'none', route: '#/', silent: true }))
     expect(takePendingRedirect()).toEqual({ state: 's', grant: 'drive-read', resume: 'none', route: '#/', ask: 'silent-on-open' })
