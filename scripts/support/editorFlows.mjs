@@ -1569,7 +1569,7 @@ async function deviceShowsDriveFile(page) {
   await pageSays(page, 'None yet. The first save of a day makes one.', true)
 }
 
-/** The first run: an empty workbook kept on the fake Drive, which Settings, This device then names with its folder. */
+/** The first run: an empty workbook kept on the fake Drive, which Settings, This device then names with its folder, and Find the file says is open already. */
 export async function firstRunDriveFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="start-empty-drive"]')
   await toastMatching(page, MOVED)
@@ -1582,6 +1582,11 @@ export async function firstRunDriveFlow(page, { press, shoot, inspect }) {
   await deviceShowsDriveFile(page)
   await inspect?.('this device with the file on Drive')
   await shoot('first-run-drive-device')
+  await pressButton(page, press, 'button', 'Switch data source')
+  await pressButton(page, press, '[role="dialog"] button', 'Find the file')
+  await toastMatching(page, /^Your books are already open$/)
+  await pageSays(page, 'in Books on Google Drive is the file on screen', true)
+  await dismissToasts(page)
 }
 
 /** The first run: an empty workbook kept in this browser, which offers the import and the export. */

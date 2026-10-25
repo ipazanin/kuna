@@ -8,6 +8,7 @@ import type { DriveReadAccess } from '../../../shared/google/googleAuth'
 import { noteDriveReadRefused } from '../../../shared/google/googleRedirect'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { needsReview } from '../../workbook/domain/needsReview'
+import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { dryRunFor } from '../application/importStatements'
 import { fileNewStatements, stillHeld } from '../application/statementSync'
@@ -78,6 +79,7 @@ export interface StatementSync {
 export function useStatementSync(): StatementSync {
   const store = useWorkbook()
   const writes = useRecordWrites()
+  const { findDriveFile } = useFindDriveFile()
   const toast = useToast()
   const router = useRouter()
   state.access = statementsAccess()
@@ -176,7 +178,7 @@ export function useStatementSync(): StatementSync {
     sync,
     async syncByHand() {
       if (store.state.choice === null) {
-        await store.chooseDriveFile()
+        await findDriveFile()
         return
       }
       await sync()

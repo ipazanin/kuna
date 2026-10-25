@@ -1,6 +1,7 @@
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useWorkbook } from '../application/workbookStore'
+import { useFindDriveFile } from './useFindDriveFile'
 import type { RedirectGrant, RedirectReturn } from '../../../shared/google/googleRedirect'
 
 const REFUSED_TITLES: Readonly<Record<RedirectGrant, string>> = {
@@ -22,6 +23,7 @@ export function useGoogleReturn(answer: RedirectReturn | null, sync: () => Promi
   }
   const toast = useToast()
   const store = useWorkbook()
+  const { findDriveFile } = useFindDriveFile()
   if (answer.kind === 'refused' && answer.ask === 'tap') {
     toast.add({
       title: REFUSED_TITLES[answer.grant ?? 'sign-in'],
@@ -47,7 +49,7 @@ export function useGoogleReturn(answer: RedirectReturn | null, sync: () => Promi
       void store.open().then(sync)
       return
     case 'pick':
-      void store.open().then(() => store.chooseDriveFile())
+      void store.open().then(findDriveFile)
       return
     case 'none':
       toast.add({

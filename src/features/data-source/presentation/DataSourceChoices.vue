@@ -10,6 +10,7 @@ import AppCard from '../../../shared/ui/AppCard.vue'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { WorkbookSource } from '../../workbook/domain/workbook'
+import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
 import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
 import { WORKBOOK_FILE_TYPES, emptyLocalWorkbook } from '../../workbook/presentation/workbookFiles'
 
@@ -26,6 +27,7 @@ const emit = defineEmits<{
 
 const store = useWorkbook()
 const { keeping, keepOnDrive } = useKeepOnDrive()
+const { findDriveFile } = useFindDriveFile()
 
 const signInByRedirect = useMediaQuery(REDIRECT_SIGN_IN_QUERY)
 
@@ -33,9 +35,7 @@ const pickedFile = ref<File | null>(null)
 const startingEmpty = ref(false)
 
 async function findOnDrive(): Promise<void> {
-  const before = store.state.choice
-  await store.chooseDriveFile()
-  if (store.state.choice !== before && store.state.choice?.source === 'drive') {
+  if (await findDriveFile()) {
     emit('chosen')
   }
 }
