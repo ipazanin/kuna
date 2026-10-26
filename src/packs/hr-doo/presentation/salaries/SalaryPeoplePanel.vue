@@ -64,7 +64,7 @@ const phone = usePhoneLayout()
             <th scope="col" class="text-start">Name</th>
             <th scope="col" class="text-end">Gross</th>
             <th scope="col" class="text-end">Net</th>
-            <th scope="col" class="hidden text-end @2xl:table-cell">Pension savings</th>
+            <th scope="col" class="hidden text-end @3xl:table-cell">Pension savings</th>
             <th scope="col" class="hidden text-end @xl:table-cell">To the state</th>
             <th scope="col" class="text-end">Cost</th>
             <th scope="col" class="w-20 text-end">Problems</th>
@@ -78,7 +78,7 @@ const phone = usePhoneLayout()
             </th>
             <td class="text-end"><MoneyText :cents="person.gross" /></td>
             <td class="text-end"><MoneyText :cents="person.net" /></td>
-            <td class="hidden text-end @2xl:table-cell"><MoneyText :cents="person.pensionSavings" /></td>
+            <td class="hidden text-end @3xl:table-cell"><MoneyText :cents="person.pensionSavings" /></td>
             <td class="hidden text-end @xl:table-cell"><MoneyText :cents="person.toState" /></td>
             <td class="text-end"><MoneyText :cents="person.cost" /></td>
             <td class="figure text-end" :class="person.problems === 0 ? 'text-muted' : 'text-negative'">{{ person.problems }}</td>
