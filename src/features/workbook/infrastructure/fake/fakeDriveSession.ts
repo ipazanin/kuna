@@ -1,4 +1,5 @@
 import { FOLDER_MIME_TYPE } from '../../../../shared/google/driveClient'
+import { currentToken } from '../../../../shared/google/googleAuth'
 import { decodeDocument, encodeDocument } from '../documentFormat'
 import type { DriveAccess } from '../documentStorePorts'
 import { createFakeDrive } from './fakeDrive'
@@ -42,7 +43,19 @@ async function fakeBooksFile(): Promise<string | null> {
   return files.find((entry) => entry.mimeType !== FOLDER_MIME_TYPE)?.id ?? null
 }
 
-/** The fake build never goes to Google: it is always signed in, and its Picker picks the books folder or the file in it. */
+/** The names of the folders from My Drive down to this one on the fake Drive. */
+function fakePathOf(drive: FakeDrive, folderId: string): string[] {
+  const names: string[] = []
+  for (let current = folderId; current !== 'root'; current = drive.file(current).parents[0] ?? 'root') {
+    names.unshift(drive.file(current).name)
+  }
+  return names
+}
+
+/**
+ * The fake build never goes to Google: it is always signed in, and its Picker picks the books folder
+ * or the file in it. Its folder path, like Google's, needs a token that carries Drive read.
+ */
 export function fakeDriveAccess(): DriveAccess {
   const drive = fakeDriveSession()
   return {
@@ -58,7 +71,13 @@ export function fakeDriveAccess(): DriveAccess {
     },
     signIn: async () => {},
     signedIn: () => true,
-    pickFolder: fakeBooksFolder,
+    async pickFolder() {
+      const id = await fakeBooksFolder()
+      return { id, name: drive.file(id).name }
+    },
+    async folderPath(folderId) {
+      return currentToken('drive.readonly') === null ? null : fakePathOf(drive, folderId)
+    },
     pickFile: fakeBooksFile,
   }
 }

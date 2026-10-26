@@ -167,7 +167,7 @@ describe('fake workbook', () => {
   it('uses no real IBAN, only the fake ones', () => {
     const ibans = new Set(workbook.transactions.map((transaction) => transaction.counterpartyIban).filter((iban) => iban !== ''))
 
-    expect([...ibans].every((iban) => iban.startsWith('XX00FAKE'))).toBe(true)
+    expect([...ibans].every((iban) => /^XX\d{2}FAKE/.test(iban))).toBe(true)
   })
 
   it('has a rules tab that reproduces every row flagged rule, and confirmed rows no rule covers yet', () => {

@@ -1,7 +1,7 @@
 import { computed, shallowReactive, shallowReadonly } from 'vue'
 import type { ComputedRef } from 'vue'
 
-import { currentDriveReadToken } from '../../../../shared/google/googleAuth'
+import { currentToken } from '../../../../shared/google/googleAuth'
 import { keepDriveRead, keptDriveRead } from '../../../../shared/google/driveReads'
 import { counted } from '../../../../features/overview/presentation/waitingForYou'
 import type { StepResult } from '../../../../features/sync/domain/syncRun'
@@ -42,7 +42,7 @@ async function openFolders(): Promise<AccountantFolders> {
     const { fakeAccountantFolders } = await import('../../infrastructure/fake/fakeAccountantFolders')
     return fakeAccountantFolders()
   }
-  const token = currentDriveReadToken()
+  const token = currentToken('drive.readonly')
   if (token === null) {
     throw new Error('The Drive read access ran out. Sync again.')
   }

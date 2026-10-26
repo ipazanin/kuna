@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount } from 'vue'
-import { RouterView, useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import UApp from '@nuxt/ui/components/App.vue'
 
-import WelcomeScreen from './features/data-source/presentation/WelcomeScreen.vue'
 import LocalWorkbookStatus from './features/excel/presentation/LocalWorkbookStatus.vue'
 import { bindFiltersToRouter } from './features/filters/application/filterStore'
+import { ONBOARDING_ROUTE } from './features/onboarding/presentation/useOnboarding'
 import { shownPack } from './features/packs/packContribution'
 import { useSettings } from './features/settings/application/useSettings'
 import { startAutoSync } from './features/sync/application/autoSync'
@@ -46,7 +46,9 @@ const navigation = computed(() =>
   })),
 )
 
-bindFiltersToRouter(useRouter())
+const router = useRouter()
+const route = useRoute()
+bindFiltersToRouter(router)
 useGoogleReturn(props.googleReturn, sync.sync)
 const stopAutoSync = startAutoSync({
   store,
@@ -64,8 +66,19 @@ const stopAutoSync = startAutoSync({
 })
 onBeforeUnmount(stopAutoSync)
 
-/** Nothing chosen and nothing kept: the first run, which asks where the ledger lives. */
+/** Nothing chosen and nothing kept: the first run, which onboarding takes, whatever screen the address names. */
 const firstRun = computed(() => state.status !== 'opening' && state.choice === null && state.workbook === null)
+const onboarding = computed(() => route.path === ONBOARDING_ROUTE)
+// Once the router has read the address, so a link into onboarding keeps its step.
+void router.isReady().then(() =>
+  watch(
+    [firstRun, onboarding],
+    ([first, onStart]) => {
+      if (first && !onStart) void router.replace(ONBOARDING_ROUTE)
+    },
+    { immediate: true },
+  ),
+)
 const companyName = computed(() => state.workbook?.settings.companyName || null)
 
 /** Toasts rise from the bottom, clear of the gesture bar in the installed app. */
@@ -74,8 +87,8 @@ const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))
 
 <template>
   <UApp :toaster="toaster">
-    <WelcomeScreen v-if="firstRun" />
-    <AppShell v-else :navigation="navigation" :subtitle="companyName">
+    <RouterView v-if="onboarding" />
+    <AppShell v-else-if="!firstRun" :navigation="navigation" :subtitle="companyName">
       <RouterView v-slot="{ Component }">
         <ScreenSkeleton v-if="screenLoading || !Component" />
         <component :is="Component" v-else />

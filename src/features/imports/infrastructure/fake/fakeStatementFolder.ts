@@ -1,18 +1,17 @@
-import { fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
+import { FAKE_FOLDERS, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import type { StatementFolder } from '../../application/statementFolder'
-import { DEFAULT_STATEMENTS_FOLDER } from '../../domain/statementFiles'
 import type { StatementFile } from '../../domain/statementFiles'
 import { sampleCamtLabel, sampleCamtXml } from './sampleImportFiles'
 
-/** An IBAN no account of the fake workbook holds, so its statement is refused until the account is added. */
-const UNKNOWN_ACCOUNT_IBAN = 'XX00FAKE0000000000000003'
+/** An IBAN no account of the fake workbook holds, so its statement waits for the person to add the account. */
+const UNKNOWN_ACCOUNT_IBAN = 'XX43FAKE0000000000000003'
 
 const SLOW_LISTING_MS = 3_000
 
 /**
- * The fake build's statements folder at the default path. It holds an XML name for every statement
- * on the fake ledger, which the name test skips and which has no contents here, and the sample camt
- * statement, which carries the main account on, with a PDF beside it. `?fake=held-statement` adds
+ * The fake build's statements folder at the path the made-up books name. It holds an XML name for
+ * every statement on the fake ledger, which the name test skips and which has no contents here, and
+ * the sample camt statement, which carries the main account on, with a PDF beside it. `?fake=held-statement` adds
  * the first statement of an account the accounts tab lacks, named by its label alone as the fetch
  * names such a file, which the sync holds. `?fake=slow-statements` takes three seconds to list the
  * folder, so a check can see the sync control while the step runs.
@@ -33,7 +32,7 @@ export function fakeStatementFolder(variant: string | null): StatementFolder {
         await new Promise((resolve) => setTimeout(resolve, SLOW_LISTING_MS))
       }
       const where = path.join('/')
-      const holding = DEFAULT_STATEMENTS_FOLDER.join('/')
+      const holding = FAKE_FOLDERS.statements.join('/')
       return where === holding ? { kind: 'listed', files } : { kind: 'refused', reason: `The fake Drive holds statements only in ${holding}, not in ${where}.` }
     },
 

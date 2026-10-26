@@ -11,23 +11,20 @@ import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { folderPathOf } from '../../../shared/text/folderPath'
-import { listInWords } from '../../workbook/domain/slug'
-import { currencyProblem, settingsErrors } from '../domain/settings'
+import { settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
 import IbanTagsField from './IbanTagsField.vue'
+import { CURRENCY_ITEMS } from './moneyChoices'
 
 /**
  * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
  * them. A card with a field in error opens. While the owner-pay switch is on in the draft, the
  * pack's facts card sits between the basics and the bucket labels, and Save waits for its checks too.
- * While the settings hold no value for a key Save writes when unset, Save is open with nothing changed.
  */
 const props = defineProps<{
   settings: Settings
   /** The pack's facts as the workbook holds them, which its card edits. */
   facts: unknown
-  /** The keys the settings hold no value for, which the save writes with the values shown. */
-  unsetKeys: readonly string[]
   saving: boolean
 }>()
 
@@ -50,24 +47,13 @@ const packFacts = computed(() => shownPack(draft.value).companyFacts)
 const errors = computed(() => settingsErrors(draft.value))
 const factErrors = computed(() => packFacts.value?.errors(factsDraft.value) ?? {})
 const valid = computed(() => Object.keys(errors.value).length === 0 && Object.keys(factErrors.value).length === 0)
-const statementsFolderUnset = computed(() => props.unsetKeys.includes('statements_folder'))
-const savable = computed(() => valid.value && (dirty.value || props.unsetKeys.length > 0))
-const unsetNote = computed(() => {
-  const keys = props.unsetKeys
-  if (keys.length === 0) return ''
-  return `The settings tab holds no value for ${listInWords(keys)}, so the app uses its defaults. Save settings writes them there.`
-})
+const savable = computed(() => valid.value && dirty.value)
 
 const inError = (fields: readonly SettingsField[]): boolean => fields.some((field) => errors.value[field] !== undefined)
-const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'reviewLabel', 'cardSettlementIbans', 'statementsFolder']))
+const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'reviewLabel', 'cardSettlementIbans']))
 const labelsRevealed = computed(() => inError(BUCKETS))
 const labelsSummary = computed(() => BUCKETS.map((bucket) => props.settings.bucketLabels[bucket]).join(', '))
 
-/** Every currency the browser knows that counts in at most hundredths, by name. */
-const currencyNames = new Intl.DisplayNames('en', { type: 'currency' })
-const currencies = Intl.supportedValuesOf('currency')
-  .filter((code) => currencyProblem(code) === null)
-  .map((code) => ({ value: code, label: `${currencyNames.of(code) ?? code} (${code})` }))
 
 const preview = computed(() => {
   if (errors.value.currency !== undefined || errors.value.numberLocale !== undefined) return null
@@ -117,7 +103,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
           <UFormField label="Currency" :error="errors.currency ?? false" help="The money in the ledger. One currency per workbook.">
             <USelectMenu
               :model-value="draft.currency"
-              :items="currencies"
+              :items="[...CURRENCY_ITEMS]"
               value-key="value"
               :search-input="{ placeholder: 'Search currencies' }"
               virtualize
@@ -150,12 +136,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
           </UFormField>
           <UFormField
             label="Statements folder"
-            :error="errors.statementsFolder ?? false"
-            :help="
-              statementsFolderUnset
-                ? 'The settings tab names no statements folder yet, so the app uses this one. Save settings writes it there, where the statement fetch reads it too.'
-                : 'Where Sync looks in Google Drive for the bank’s camt statements, as a path from My Drive with a folder for each year inside.'
-            "
+            help="Where Sync looks in Google Drive for the bank’s camt statements, as a path from My Drive with a folder for each year inside. Blank names none, and statements come in through Import."
             class="sm:col-span-2"
             data-testid="statements-folder"
           >
@@ -171,7 +152,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
         <USwitch
           :model-value="draft.statementsSync"
           label="File new statements on sync"
-          description="Each sync files the statements of the folder that the ledger lacks. Off leaves statements to Import."
+          description="Each sync files the statements of the folder that the ledger lacks. Off, or no folder, leaves statements to Import."
           data-testid="statements-sync"
           @update:model-value="update('statementsSync', $event)"
         />
@@ -215,7 +196,6 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
       </div>
     </AppCard>
 
-    <p v-if="unsetNote" class="text-sm text-muted" data-testid="settings-unset">{{ unsetNote }}</p>
     <div class="flex flex-wrap items-center gap-2">
       <UButton type="submit" label="Save settings" icon="i-lucide-save" :loading="saving" :disabled="!savable || saving" />
       <UButton label="Discard changes" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />

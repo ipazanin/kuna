@@ -17,9 +17,9 @@
  * IBAN typed as tags, refused, removed and saved, the client's with Undo, in both modes, an owner advance
  * changed, deleted and brought back, a payment split, edited, deleted and
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
- * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused, the Drive read grant back from a
- * silent ask with a token and with consent required and no message, from an ask the person made with the sync carrying on or a refusal that leaves Allow access, and from the
- * silent ask a sign-in's return makes, with the sync it resumes run with the token or ending in Allow access, and the note to tap again,
+ * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
+ * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
+ * for a sign-in, the find and the Picker a tap resumes, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Settings, This device and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * Salaries with five made-up employees, its gross to net chart's tap-then-drill, a sync's payslips with the one problem's build-up and rows, the People tab and the Over time table,
@@ -72,15 +72,17 @@ import {
   changeCategoryFlow,
   clientIbansFlow,
   dismissFlow,
-  firstRunBrowserFlow,
-  firstRunDriveFlow,
   heldStatementFlow,
   importCamtFlow,
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
   moveFromBrowserFlow,
-  moveFromXlsxFlow,
+  onboardingBringFlow,
+  onboardingBrowserFlow,
+  onboardingDriveFlow,
+  onboardingDriveReadFlow,
+  onboardingOpenFlow,
   ownerShareFlow,
   salariesFlow,
   planFlow,
@@ -1350,148 +1352,160 @@ async function checkWidth(width) {
   })
 
   await step('google-return', async () => {
-    const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.file openid email')
-    /** Loads the app as Google sends the tab back, with what the tab remembered before it left. */
+    const scopeOf = (...names) => encodeURIComponent(['openid', ...names.map((name) => `https://www.googleapis.com/auth/${name}`)].join(' '))
+    const tokenOf = (scope, state = 'touch-check') => `access_token=fake-one-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=${state}`
+    const everyScope = scopeOf('drive.file', 'drive.readonly', 'gmail.compose')
+    const tapAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], resume: 'sync', route: '#/transactions', ask: 'tap' }
+    const silentAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/review', ask: 'silent' }
+    /** Loads the app as Google sends the tab back, with what the tab remembered before it left, nothing kept from an earlier grant and invoice drafts off. */
     const comeBack = async (variant, pending, fragment) => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}#/`, { waitUntil: 'networkidle0' })
       await page.evaluate((remembered) => {
-        localStorage.removeItem('ledgerboard.google-token')
+        for (const key of ['ledgerboard.google-granted', 'ledgerboard.google-silent-refused', 'ledgerboard.invoice-mail-draft']) localStorage.removeItem(key)
         localStorage.setItem('ledgerboard.google-account', 'owner@example.com')
         localStorage.setItem('ledgerboard.google-redirect', JSON.stringify(remembered))
       }, pending)
       await page.goto(`${BASE}?theme=dark&fake=${variant}&load=${Date.now()}#${fragment}`, { waitUntil: 'networkidle0' })
     }
-    const keptToken = () => page.evaluate(() => JSON.parse(localStorage.getItem('ledgerboard.google-token') ?? 'null')?.value ?? null)
     const fragmentGone = () => page.evaluate(() => !window.location.href.includes('access_token') && !window.location.href.includes('error='))
-
-    await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'Ledgerboard')
-    await waitForText(page, '[data-testid="redirect-sign-in-note"]', 'Google may ask about cookies first')
-
-    await comeBack('drive', { state: 'touch-check', grant: 'sign-in', resume: 'none', route: '#/review?tab=rules' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
-    await waitForTitle(page, 'Review')
-    await waitForText(page, 'li[data-slot="base"]', 'Signed in to Google')
-    await expect(hashOf(page), (hash) => hash === '#/review?tab=rules', 'the return did not land on the tab the sign-in left')
-    await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address')
-    await expect(keptToken(), (token) => token === 'fake-token', 'the token from the fragment was not kept as the sign-in')
-    await inspect(page, `${width}px google return`)
-    await shoot('google-return')
-
-    // The empty fake Drive holds no file the app marked, and its Picker picks none, so the find the sign-in resumes leaves the welcome screen.
-    await comeBack('empty', { state: 'touch-check', grant: 'sign-in', resume: 'find', route: '#/' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
-    await waitForTitle(page, 'Ledgerboard')
-    await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the find resumed')
-    await expect(keptToken(), (token) => token === 'fake-token', 'the token of the sign-in that resumed the find was not kept')
-
-    // The fake Picker the sign-in resumes picks the file in Books, which is the one on screen.
-    await comeBack('drive', { state: 'touch-check', grant: 'sign-in', resume: 'pick', route: '#/' }, `access_token=fake-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`)
-    await waitForTitle(page, 'Overview')
-    await waitForText(page, 'li[data-slot="base"]', 'Your books are already open')
-    await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the Picker resumed')
-
-    await comeBack('drive', { state: 'touch-check', grant: 'sign-in', resume: 'sync', route: '#/transactions' }, `access_token=forged-token&expires_in=3599&scope=${scope}&state=forged`)
-    await waitForTitle(page, 'Transactions')
-    await waitForText(page, 'li[data-slot="base"]', 'Not signed in to Google')
-    await expect(fragmentGone(), (gone) => gone, 'the forged token stayed in the address')
-    await expect(keptToken(), (token) => token === null, 'a token with the wrong state was kept')
-
-    await comeBack('drive', { state: 'touch-check', grant: 'gmail', resume: 'none', route: '#/invoicing' }, 'error=access_denied&state=touch-check')
-    await waitForTitle(page, 'Invoicing')
-    await waitForText(page, 'li[data-slot="base"]', 'No Gmail access')
-    await expect(fragmentGone(), (gone) => gone, 'the error stayed in the address')
-
-    const driveRead = `access_token=fake-drive-read&token_type=Bearer&expires_in=3599&scope=${encodeURIComponent('https://www.googleapis.com/auth/drive.readonly')}&state=touch-check`
-    const silentAsk = { state: 'touch-check', grant: 'drive-read', resume: 'none', route: '#/review', ask: 'silent-on-open' }
+    const tokenKept = () => page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }).includes('fake-one-token'))
+    const granted = () => page.evaluate(() => JSON.parse(localStorage.getItem('ledgerboard.google-granted') ?? 'null'))
+    const deviceMark = () => page.evaluate(() => localStorage.getItem('ledgerboard.google-silent-refused'))
     const noMessage = () => page.evaluate(() => document.querySelectorAll('li[data-slot="base"]').length === 0)
-    const refusedInTab = () => page.evaluate(() => sessionStorage.getItem('ledgerboard.drive-read-refused') !== null)
-
-    await comeBack('drive', silentAsk, driveRead)
-    await waitForTitle(page, 'Review')
-    await delay(500)
-    await expect(noMessage(), (none) => none, 'the silent Drive read ask showed a message')
-    await expect(fragmentGone(), (gone) => gone, 'the Drive read token stayed in the address')
-    await expect(keptToken(), (token) => token === null, 'the Drive read token was kept as the sign-in')
-    await expect(refusedInTab(), (refused) => !refused, 'a Drive read token was noted as refused')
-    await inspect(page, `${width}px drive read return`)
-
-    await comeBack('drive', silentAsk, 'error=consent_required&state=touch-check')
-    await waitForTitle(page, 'Review')
-    await delay(500)
-    await expect(noMessage(), (none) => none, 'the silent Drive read ask showed a message when Google wanted consent')
-    await expect(fragmentGone(), (gone) => gone, 'the consent error stayed in the address')
-    await expect(refusedInTab(), (refused) => refused, 'the tab did not note that Google gave no Drive read token')
-
-    // Asked from Allow access on a phone: once back, the sync starts with no second tap.
+    const control = () =>
+      page.evaluate(() => {
+        const button = document.querySelector('header [data-testid="sync-button"]')
+        return { label: button?.textContent?.trim() ?? '', name: button?.getAttribute('aria-label') ?? '' }
+      })
+    const controlShows = (kind, failure) =>
+      page.waitForFunction((wanted) => document.querySelector('[data-testid="sync-status"]')?.dataset.control === wanted, { timeout: 12_000 }, kind).catch(() => {
+        throw new Error(failure)
+      })
     const watchSync = await page.evaluateOnNewDocument(() => {
       new MutationObserver(() => {
         if (document.querySelector('[data-testid="sync-status"]')?.dataset.control === 'running') window.sawSyncing = true
       }).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['data-control'] })
     })
-    const controlShows = (kind, failure) =>
-      page.waitForFunction((wanted) => document.querySelector('[data-testid="sync-status"]')?.dataset.control === wanted, { timeout: 12_000 }, kind).catch(() => {
-        throw new Error(failure)
-      })
     const syncStarted = (after) =>
       page.waitForFunction(() => window.sawSyncing === true, { timeout: 10_000 }).catch(() => {
         throw new Error(`the sync did not start by itself after ${after}`)
       })
-    await comeBack('drive', { ...silentAsk, resume: 'sync', route: '#/transactions', ask: 'tap' }, driveRead)
-    await waitForTitle(page, 'Transactions')
-    await syncStarted('the Drive read grant')
-    await expect(refusedInTab(), (refused) => !refused, 'the Drive read grant left the tab noted as refused')
 
-    // The silent ask a sign-in's return makes comes back with what the sign-in resumes: Sync runs with the Drive read token, or without it and shows Allow access.
-    const afterSignIn = { ...silentAsk, ask: 'silent-after-sign-in' }
-    await comeBack('drive', { ...afterSignIn, resume: 'sync', route: '#/transactions' }, driveRead)
-    await waitForTitle(page, 'Transactions')
-    await syncStarted('a sign-in and the silent Drive read ask')
-    await expect(refusedInTab(), (refused) => !refused, 'the Drive read token after a sign-in left the tab noted as refused')
-    await controlShows('ready', 'the sync after a sign-in and the Drive read token did not end ready')
-    await expect(noMessage(), (none) => none, 'the sync after a sign-in and the Drive read token showed a message')
-    await inspect(page, `${width}px sign-in and drive read return`)
+    await page.goto(`${BASE}?theme=dark&fake=empty#/start?step=access`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Ledgerboard')
+    await waitForText(page, '[data-testid="redirect-sign-in-note"]', 'Google may ask about cookies first')
 
-    await comeBack('drive', { ...afterSignIn, resume: 'sync', route: '#/' }, 'error=consent_required&state=touch-check')
-    await waitForTitle(page, 'Overview')
-    await syncStarted('a sign-in whose silent Drive read ask Google refused')
+    // Allow access on a phone, every box ticked: one token for every scope, and the sync it resumes runs and ends ready, with no message.
+    await comeBack('drive', tapAsk, tokenOf(everyScope))
+    await waitForTitle(page, 'Transactions')
+    await syncStarted('a full grant')
+    await controlShows('ready', 'the sync after a full grant did not end ready')
+    await expect(hashOf(page), (hash) => hash === '#/transactions', 'the return did not land on the route the tap left')
+    await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address')
+    await expect(tokenKept(), (kept) => !kept, 'the token was kept in site storage, not in page memory only')
+    await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']), 'the full grant was not noted')
+    await expect(noMessage(), (none) => none, 'the full grant showed a message')
+    await inspect(page, `${width}px full grant return`)
+    await shoot('google-return-full-grant')
+
+    // The same with Drive read unticked: the books sync, and the control asks for Drive read for the steps that need it.
+    await comeBack('drive', tapAsk, tokenOf(scopeOf('drive.file', 'gmail.compose')))
+    await waitForTitle(page, 'Transactions')
+    await syncStarted('a partial grant')
+    await controlShows('allow-access', 'a grant without Drive read did not leave Allow access in the sync control')
+    const partial = await control()
+    if (!partial.name.includes('Statements and Accountant need your Drive read access')) throw new Error(`after a partial grant a screen reader hears "${partial.name}"`)
+    await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'gmail.compose']), 'the partial grant was not noted without Drive read')
+    await expect(noMessage(), (none) => none, 'the partial grant showed a message')
+    await inspect(page, `${width}px partial grant return`)
+    await shoot('google-return-partial-grant')
     await page.removeScriptToEvaluateOnNewDocument(watchSync.identifier)
-    await expect(refusedInTab(), (refused) => refused, 'the tab did not note that Google gave no Drive read token after the sign-in')
-    await controlShows('allow-access', 'the sync without the Drive read token did not show Allow access')
-    await expect(noMessage(), (none) => none, 'the sync without the Drive read token showed a message')
-    await inspect(page, `${width}px sign-in return without drive read`)
-    await shoot('sign-in-without-drive-read')
 
-    await comeBack('drive', { ...afterSignIn, resume: 'none', route: '#/review' }, driveRead)
+    // A refused consent and an answer this tab never asked for leave Allow access, never a message.
+    for (const [pending, fragment, what] of [
+      [tapAsk, 'error=access_denied&state=touch-check', 'a refused consent'],
+      [tapAsk, tokenOf(everyScope, 'forged'), 'a forged answer'],
+    ]) {
+      await comeBack('drive', pending, fragment)
+      await waitForTitle(page, 'Transactions')
+      await controlShows('allow-access', `${what} did not leave Allow access in the sync control`)
+      await expect(fragmentGone(), (gone) => gone, `${what} stayed in the address`)
+      await expect(noMessage(), (none) => none, `${what} showed a message`)
+    }
+
+    // The silent trip as the app opens, refused: the device is marked, so the next open stays, and the control asks for a tap.
+    await comeBack('drive', silentAsk, 'error=interaction_required&state=touch-check')
     await waitForTitle(page, 'Review')
-    await waitForText(page, 'li[data-slot="base"]', 'Signed in to Google')
+    await controlShows('allow-access', 'a refused silent trip did not leave Allow access in the sync control')
+    await expect(noMessage(), (none) => none, 'the refused silent trip showed a message')
+    await expect(deviceMark(), (mark) => mark === 'interaction_required', 'the refused silent trip did not mark the device')
+    await page.reload({ waitUntil: 'networkidle0' })
+    await controlShows('allow-access', 'the next open of a marked device did not wait for a tap')
+    await inspect(page, `${width}px refused silent trip`)
+    await shoot('google-return-silent-refused')
+    await (await page.waitForSelector('header [data-testid="sync-button"]')).tap()
+    await controlShows('ready', 'Allow access after a refused silent trip did not sync')
+    await expect(deviceMark(), (mark) => mark === 'interaction_required', 'a tap\'s token cleared a mark Google gave as needing a person')
 
-    await comeBack('drive', { ...silentAsk, resume: 'sync', route: '#/', ask: 'tap' }, 'error=access_denied&state=touch-check')
+    // Not signed in to Google: the control says so, and its tap signs in, syncs and lets the next open go silently again.
+    await comeBack('drive', silentAsk, 'error=login_required&state=touch-check')
+    await waitForTitle(page, 'Review')
+    await controlShows('sign-in', 'Google asking for a sign-in did not show Sign in to Google')
+    const signIn = await control()
+    if (signIn.label !== 'Sign in to Google') throw new Error(`the sync control says "${signIn.label}", not Sign in to Google`)
+    await inspect(page, `${width}px sign in to google`)
+    await shoot('google-return-sign-in')
+    await (await page.waitForSelector('header [data-testid="sync-button"]')).tap()
+    await controlShows('ready', 'Sign in to Google did not sync')
+    await expect(deviceMark(), (mark) => mark === null, 'the token after a sign-in left the device marked')
+
+    // The empty fake Drive holds no file the app marked, and its Picker picks none, so the find the tap resumes leaves onboarding's find step.
+    await comeBack('empty', { ...tapAsk, resume: 'find', route: '#/start?path=open&step=find' }, tokenOf(everyScope))
+    await waitForTitle(page, 'Ledgerboard')
+    await expect(hashOf(page), (hash) => hash === '#/start?path=open&step=find', 'the find the tap resumed did not stay on the find step')
+    await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the find resumed')
+
+    // The fake Picker the tap resumes picks the file in Books, which is the one on screen.
+    await comeBack('drive', { ...tapAsk, resume: 'pick', route: '#/' }, tokenOf(everyScope))
     await waitForTitle(page, 'Overview')
-    await controlShows('allow-access', 'a refused Drive read grant did not leave Allow access in the sync control')
-    await expect(noMessage(), (none) => none, 'a refused Drive read grant showed a message')
-    await expect(fragmentGone(), (gone) => gone, 'the Drive read refusal stayed in the address')
-    await inspect(page, `${width}px drive read refused`)
-    await shoot('drive-read-refused')
+    await waitForText(page, 'li[data-slot="base"]', 'Your books are already open')
+
+    // Onboarding's access step resumes nothing: the route brings the person back to it, and it says what Google allowed, with no message.
+    await comeBack('empty', { ...tapAsk, scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/start?step=access&statements=folder' }, tokenOf(scopeOf('drive.file')))
+    await waitForTitle(page, 'Ledgerboard')
+    await expect(hashOf(page), (hash) => hash === '#/start?step=access&statements=folder', 'the return did not land on the step the tap left')
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].map((badge) => badge.textContent?.trim()).join(',') === 'Allowed,Not allowed', { timeout: 10_000 }).catch(() => {
+      throw new Error('the access step does not say Google allowed the books file and not Drive read')
+    })
+    await expect(noMessage(), (none) => none, 'the return to the access step showed a message')
+    await inspect(page, `${width}px access step after Google`)
+    await shoot('google-return-onboarding')
   })
 
   await step('open-file-browser', async () => {
     await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Ledgerboard')
     await inspect(page, `${width}px welcome`)
-    const input = await page.$('[data-testid="data-source-choices"] input[type="file"]')
+    await page.goto(`${BASE}?theme=dark&fake=empty#/start?path=bring&home=browser&step=file`, { waitUntil: 'networkidle0' })
+    const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
     await input.uploadFile(TEMPLATE_FILE)
     await page.waitForSelector('[data-testid="import-summary"] dl')
     await delay(400)
     await inspect(page, `${width}px import summary`)
     await shoot('import-summary')
-    await (await waitForText(page, '[role="dialog"] button', 'Keep in this browser')).tap()
+    await (await waitForText(page, '[data-testid="onboarding-step"] button', 'Keep in this browser')).tap()
+    await waitForText(page, '[data-testid="onboarding-step"] button', 'Continue')
+    await (await waitForText(page, '[data-testid="onboarding-step"] button', 'Continue')).tap()
     await waitForTitle(page, 'Overview')
     await waitForText(page, 'header [data-testid="local-status"] button', 'Export')
   })
 
   for (const [name, variant, run, hash = '#/', title = 'Ledgerboard'] of [
-    ['first-run-drive', 'empty', firstRunDriveFlow],
-    ['first-run-browser', 'empty', firstRunBrowserFlow],
-    ['move-xlsx', 'empty', moveFromXlsxFlow(TEMPLATE_FILE)],
+    ['onboarding-drive', 'empty', onboardingDriveFlow],
+    ['onboarding-drive-read', 'empty', onboardingDriveReadFlow],
+    ['onboarding-browser', 'empty', onboardingBrowserFlow],
+    ['onboarding-bring', 'empty', onboardingBringFlow(TEMPLATE_FILE)],
+    ['onboarding-open', 'drive', onboardingOpenFlow, '#/start?path=open', 'Ledgerboard'],
     ['move-browser', 'browser', moveFromBrowserFlow, '#/settings?tab=device', 'Settings'],
     ['race', 'race', raceFlow, '#/review', 'Review'],
   ]) {

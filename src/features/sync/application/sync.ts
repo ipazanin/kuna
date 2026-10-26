@@ -45,7 +45,7 @@ export interface Sync {
   /**
    * Runs every step that is on, in order, after any save under way. A step that fails or lacks its
    * permission leaves the others running, and a failed read of the books skips the rest. A second
-   * call while one runs waits on it. Call it from a click handler unless a token is kept, since the
+   * call while one runs waits on it. Call it from a click handler unless the page holds a token, since the
    * books may need a sign-in.
    */
   sync(): Promise<void>

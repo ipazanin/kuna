@@ -9,9 +9,8 @@ import type { DryRunStatement } from '../domain/importDryRun'
 import type { StatementReading } from '../domain/importedStatement'
 import { statementFilesToRead } from '../domain/statementFiles'
 import type { StatementFile } from '../domain/statementFiles'
-import { dryRunFor, statementReadings } from './importStatements'
+import { dryRunFor, statementReadings, writeImport } from './importStatements'
 import type { LoadedImportFile } from './importStatements'
-import { LEDGER_WRITES } from './ledgerWrites'
 import type { StatementFolder } from './statementFolder'
 
 /** What the statements step of a sync is doing: looking through the folder, or filing this many rows. */
@@ -42,9 +41,9 @@ export interface StatementSyncPorts {
  * Files the statements of the folder the ledger lacks, after the file was read: the files whose
  * name the ledger does not hold are downloaded and read, one dry run takes them all, and one write
  * adds every statement it accepts through the ledger's write rules, as Import does. A statement it
- * refuses or that waits for its account to start is held, and nothing after it is written for that
- * account. A sync with nothing new downloads nothing and writes nothing. Google turning the Drive
- * read token away throws, so the sync can ask for access.
+ * refuses, that waits for its account to start, or whose IBAN no account has, is held, and nothing
+ * after it is written for that account. A sync with nothing new downloads nothing and writes
+ * nothing. Google turning the token away throws, so the sync can ask for access.
  */
 export async function fileNewStatements(ports: StatementSyncPorts): Promise<StatementSyncOutcome> {
   const workbook = ports.store.state.workbook
@@ -101,7 +100,7 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
   }
   ports.step({ kind: 'filing', rows: run.newRows })
   try {
-    const receipt = await store.write(filedTitle(filed, run.newRows), (unit) => run.added.forEach((entry) => unit.of(LEDGER_WRITES).add(entry)))
+    const receipt = await store.write(filedTitle(filed, run.newRows), (unit) => writeImport(unit, run))
     return { problem: null, held, filed: receipt === null ? [] : filed, receipt }
   } catch (failure) {
     if (!(failure instanceof WorkbookWriteRefused) || !mayRetry) {
@@ -117,14 +116,14 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
   }
 }
 
-/** A statement the dry run writes: nothing refused, no account to start, and at least one new row. */
+/** A statement the dry run writes: nothing refused, no account to start or add, and at least one new row. */
 function isFiled(statement: DryRunStatement): boolean {
-  return statement.refusal === null && statement.start === null && statement.rows.some((row) => row.verdict !== null)
+  return !waitsForPerson(statement) && statement.rows.some((row) => row.verdict !== null)
 }
 
-/** A statement the person has to look at: refused, or its account waits to be started. */
+/** A statement the person has to look at: refused, its account waits to be started, or its IBAN names an account to add. */
 function waitsForPerson(statement: DryRunStatement): boolean {
-  return statement.refusal !== null || statement.start !== null
+  return statement.refusal !== null || statement.start !== null || statement.newAccount !== null
 }
 
 /** A held statement the ledger still lacks, as its dry run now says: refused, waiting for its account, or with rows to add. */

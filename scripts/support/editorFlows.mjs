@@ -1251,7 +1251,8 @@ export async function statementSyncFlow(page, { press, shoot, inspect }) {
 /**
  * With a statement of an account the accounts tab lacks in the folder, Sync files the sample and
  * holds the other: the control says 1 problem, and its steps, in a popover from 640 px and a bottom
- * sheet on a phone, link to Import, which says why. Overview lists the held statement too.
+ * sheet on a phone, link to Import, which offers to add the account. Overview lists the held
+ * statement too. Named and confirmed on Import, the account is added and the statement filed.
  */
 export async function heldStatementFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
@@ -1268,9 +1269,9 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
   await shoot('sync-steps')
   await pressSelector(page, press, `${SYNC_STEPS} [data-step="statements"] a`)
   await page
-    .waitForFunction(() => document.querySelector('[data-testid="statement-folder"] [data-testid="dry-run-refusal"]')?.textContent?.includes('names no account for IBAN') ?? false, { timeout: 10_000 })
+    .waitForFunction(() => document.querySelector('[data-testid="statement-folder"] [data-testid="dry-run-new-account"]')?.textContent?.includes('is new') ?? false, { timeout: 10_000 })
     .catch(() => {
-      throw new Error('Import does not show why the statement was held')
+      throw new Error('Import does not offer the account the held statement names')
     })
   await page.waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, SYNC_STEPS).catch(() => {
     throw new Error('the steps stayed open over Import')
@@ -1286,21 +1287,41 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
   })
   const text = await job.evaluate((element) => element.textContent ?? '')
   if (!text.includes('1 statement was not filed')) throw new Error(`the held statement's line says: ${text}`)
+
+  await page.evaluate(() => {
+    window.location.hash = '#/transactions?tab=import'
+  })
+  const name = await page.waitForSelector('[data-testid="statement-folder"] input[data-testid="dry-run-account-name"]', { visible: true, timeout: 10_000 })
+  await setField(name, 'second')
+  await pressSelector(page, press, '[data-testid="statement-folder-confirm"]')
+  await toastMatching(page, /^Filed statement/)
+  await page.waitForFunction(() => !document.querySelector('[data-testid="dry-run-new-account"]'), { timeout: 10_000 }).catch(() => {
+    throw new Error('the held statement still offers its account after it was filed')
+  })
+  await page.evaluate(() => {
+    window.location.hash = '#/settings?tab=accounts'
+  })
+  await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'second'), { timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, Accounts does not list the account the import added')
+  })
+}
+
+/** Makes the next load's token come without Drive read, as when the person unticked it on Google's consent screen. */
+async function withoutDriveRead(page) {
+  await page.evaluate(() => localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
+  await page.reload({ waitUntil: 'networkidle0' })
 }
 
 /**
- * A tab Google gave no Drive read token: Overview offers nothing, Sync reads the books and shows
- * Allow access in its control, and that tap asks Google and files the sample, with no toast.
+ * A token Google gave without Drive read: Overview offers nothing, the sync control shows Allow
+ * access as the app opens, and that tap asks Google and files the sample, with no toast.
  */
 export async function statementAccessFlow(page, { press, shoot, inspect }) {
-  await page.evaluate(() => sessionStorage.setItem('ledgerboard.drive-read-refused', 'true'))
-  await page.reload({ waitUntil: 'networkidle0' })
-  await controlShows(page, 'ready')
-  if (await page.$('[data-job="check-statements"]')) throw new Error('Overview still offers to check for new statements')
-  await syncAndSettle(page, press)
+  await withoutDriveRead(page)
   const control = await controlShows(page, 'allow-access')
   if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
   if (!control.name.includes('Statements and Accountant need your Drive read access')) throw new Error(`a screen reader hears "${control.name}"`)
+  if (await page.$('[data-job="check-statements"]')) throw new Error('Overview still offers to check for new statements')
   await inspect?.('the sync control asking for access')
   await shoot('sync-allow-access')
   await syncAndSettle(page, press)
@@ -1419,9 +1440,8 @@ async function saveSettingsButton(page, enabled) {
 }
 
 /**
- * Settings, General shows the statements folder the app uses while the settings name none, and Save
- * writes it with nothing else changed. Once written, Save waits for a change, and a new path is
- * written to the same row. Settings keep no Undo, so the flow leaves the row in the workbook.
+ * Settings, General shows the statements folder the books name, Save waits for a change, and a new
+ * path is written to the same row. Settings keep no Undo, so the flow leaves the row in the workbook.
  */
 export async function statementsFolderFlow(page, { press, shoot, inspect }) {
   const field = await page.waitForSelector(`${STATEMENTS_FOLDER} input`, { visible: true, timeout: 10_000 }).catch(() => {
@@ -1429,30 +1449,16 @@ export async function statementsFolderFlow(page, { press, shoot, inspect }) {
   })
   await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await delay(200)
-  const said = () => page.$eval(STATEMENTS_FOLDER, (element) => element.textContent ?? '')
-  const unsetNote = 'names no statements folder yet'
-  if (!(await said()).includes(unsetNote)) throw new Error(`the field does not say the settings name no folder, it says: ${await said()}`)
   const shown = await field.evaluate((element) => element.value)
-  if (shown !== 'work/dss/business-bank-account/erste/statements') throw new Error(`the field shows "${shown}", not the path the app uses`)
-  const unsetKeys = await page.$eval('[data-testid="settings-unset"]', (element) => element.textContent ?? '').catch(() => '')
-  if (!unsetKeys.includes('statements_folder')) throw new Error(`Settings, General does not name the keys Save writes, it says: ${unsetKeys || 'nothing'}`)
-  await inspect?.('the statements folder the settings lack')
-  await shoot('statements-folder-unset')
-
-  await press(await saveSettingsButton(page, true))
-  await toast(page, 'Settings saved')
-  await page.waitForFunction((selector, note) => !document.querySelector(selector)?.textContent?.includes(note), { timeout: 5_000 }, STATEMENTS_FOLDER, unsetNote).catch(() => {
-    throw new Error('the field still says the settings name no folder after the save')
-  })
-  if (await page.$('[data-testid="settings-unset"]')) throw new Error('Settings, General still names keys the settings lack after the save')
+  if (shown !== 'finance/statements') throw new Error(`the field shows "${shown}", not the path the books name`)
   await saveSettingsButton(page, false)
-  await dismissToasts(page)
+  await inspect?.('the statements folder the books name')
+  await shoot('statements-folder-named')
 
   await setField(field, 'finance/bank statements/')
   await press(await saveSettingsButton(page, true))
   await toast(page, 'Settings saved')
   await saveSettingsButton(page, false)
-  if ((await said()).includes(unsetNote)) throw new Error('the field says the settings name no folder after a new path was saved')
   await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await delay(200)
   await inspect?.('the statements folder saved')
@@ -1758,23 +1764,20 @@ export async function accountantReturnsFlow(page, { press, shoot, inspect }) {
 }
 
 /**
- * A tab Google gave no Drive read token shows the read this device kept, with its date, and offers
- * no button of its own: Sync shows Allow access, after which the cards read Drive again.
+ * A token without Drive read shows the read this device kept, with its date, and offers no button
+ * of its own: the sync control shows Allow access, after which the cards read Drive again.
  */
 export async function accountantKeptReadFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok'])
-  await page.evaluate(() => sessionStorage.setItem('ledgerboard.drive-read-refused', 'true'))
-  await page.reload({ waitUntil: 'networkidle0' })
+  await withoutDriveRead(page)
+  await controlShows(page, 'allow-access')
   await accountantReadSays(page, 'kept on this device', 'the cards do not show the read this device kept')
   await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok'])
   if (await page.$(`${ACCOUNTANT_READ} button`)) throw new Error('the accountant cards offer a button of their own')
   await scrollToTopOf(page, ACCOUNTANT_RETURNS)
   await inspect?.('the read this device kept')
   await shoot('accountant-kept-read')
-  await syncAndSettle(page, press)
-  await controlShows(page, 'allow-access')
-  await accountantReadSays(page, 'kept on this device', 'the cards read Drive without the Drive read token')
   await syncAndSettle(page, press)
   await accountantReadSays(page, 'Read from Drive on', 'the cards did not read Drive after Allow access')
   await noToast(page, 'the sync after Allow access showed a toast')
@@ -1786,12 +1789,12 @@ export async function accountantFoldersFlow(page, { press, shoot, inspect }) {
     throw new Error('the facts card has no payroll folder field')
   })
   const shown = await field.evaluate((element) => element.value)
-  if (shown !== 'work/dss/dss-finance/payroll') throw new Error(`the payroll folder shows "${shown}", not the default`)
+  if (shown !== 'finance/payroll') throw new Error(`the payroll folder shows "${shown}", not the one the books name`)
   await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await delay(200)
   await inspect?.('the accountant folders')
   await shoot('accountant-folders')
-  await setField(field, 'finance/payroll/')
+  await setField(field, 'finance/salaries/')
   await press(await saveSettingsButton(page, true))
   await toast(page, 'Settings saved')
   await saveSettingsButton(page, false)
@@ -1803,7 +1806,7 @@ export async function accountantFoldersFlow(page, { press, shoot, inspect }) {
   const control = await controlShows(page, 'problems')
   if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}" for the folder the fake Drive lacks`)
   await page
-    .waitForFunction((selector) => document.querySelector(`${selector} [data-testid="accountant-payroll-problem"]`)?.textContent?.includes('not in finance/payroll') ?? false, { timeout: 10_000 }, ACCOUNTANT_PAYROLL)
+    .waitForFunction((selector) => document.querySelector(`${selector} [data-testid="accountant-payroll-problem"]`)?.textContent?.includes('not in finance/salaries') ?? false, { timeout: 10_000 }, ACCOUNTANT_PAYROLL)
     .catch(() => {
       throw new Error('the payroll card does not say the folder the settings name holds no workbooks')
     })
@@ -1831,8 +1834,8 @@ async function pressButton(page, press, selector, label) {
 
 const MOVED = /^Moved \d+ records$/
 
-/** Settings, This device names the file on the fake Drive, its folder and that no backup is made yet. */
-async function deviceShowsDriveFile(page) {
+/** Settings, This device names the file on the fake Drive, its folder, and that no backup is made yet, or with `saved` that the save onboarding made today made one. */
+async function deviceShowsDriveFile(page, saved = false) {
   await page.evaluate(() => {
     window.location.hash = '#/settings?tab=device'
   })
@@ -1840,84 +1843,251 @@ async function deviceShowsDriveFile(page) {
     throw new Error('Settings, This device does not name the Books folder the file sits in')
   })
   await pageSays(page, 'ledgerboard-company.json', true)
-  await pageSays(page, 'None yet. The first save of a day makes one.', true)
+  await pageSays(page, 'None yet. The first save of a day makes one.', !saved)
+}
+
+const STEP = '[data-testid="onboarding-step"]'
+
+/** Waits for onboarding to show this step, or for Overview once it is over. */
+async function onboardingAt(page, step) {
+  await page
+    .waitForFunction(
+      (selector, wanted) =>
+        wanted === 'overview' ? document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Overview' : document.querySelector(selector)?.dataset.step === wanted,
+      { timeout: 10_000 },
+      STEP,
+      step,
+    )
+    .catch(async () => {
+      const at = await page.evaluate((selector) => document.querySelector(selector)?.dataset.step ?? window.location.hash, STEP)
+      throw new Error(`onboarding is at ${at}, not ${step}`)
+    })
+  await delay(250)
+}
+
+/** Picks the choice of a radio group in an onboarding step by the start of its label. */
+async function chooseOption(page, press, group, label) {
+  await pressButton(page, press, `[data-testid="${group}"] label`, label)
+}
+
+/** Continue to Google, which the fake build's Google grants at once, unless the page holds a token already, then Continue once the step says Allowed. */
+async function allowGoogle(page, press, { shoot, inspect }) {
+  await onboardingAt(page, 'access')
+  await inspect?.('the access step')
+  await shoot('onboarding-access')
+  if (await page.$('[data-testid="onboarding-google"]')) await pressSelector(page, press, '[data-testid="onboarding-google"]')
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].some((badge) => badge.textContent?.trim() === 'Allowed'), { timeout: 10_000 }).catch(() => {
+    throw new Error('the access step does not say Google allowed the books file')
+  })
+  await shoot('onboarding-access-allowed')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+}
+
+/** The folder step: the fake Picker picks Books, the confirm names it as `named`, and Create the file here makes the file. */
+async function confirmFolder(page, press, { shoot, inspect }, named) {
+  await onboardingAt(page, 'folder')
+  await pressSelector(page, press, '[data-testid="onboarding-choose-folder"]')
+  const confirm = await page.waitForSelector('[data-testid="onboarding-folder-confirm"]', { visible: true, timeout: 10_000 })
+  const said = await confirm.evaluate((element) => element.textContent ?? '')
+  if (!said.includes(named)) throw new Error(`the folder confirm says "${said}", not ${named}`)
+  if (!(await page.$('[data-testid="onboarding-folder-link"]'))) throw new Error('the folder confirm has no link to the folder in Drive')
+  await inspect?.('the folder confirm')
+  await shoot(named.startsWith('My Drive') ? 'onboarding-folder-path' : 'onboarding-folder-name')
+  await pressSelector(page, press, '[data-testid="onboarding-create"]')
+}
+
+
+/** The lines Overview's Getting set up card shows, by key. */
+async function setUpLines(page) {
+  await page.waitForSelector('[data-testid="getting-set-up"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Overview shows no Getting set up card')
+  })
+  return page.$$eval('[data-testid="getting-set-up"] [data-line]', (lines) => lines.map((line) => line.dataset.line))
 }
 
 /**
- * The first run: an empty workbook kept on the fake Drive, which Settings, This device then names
- * with its folder. Find the file and Pick another file, whose fake Picker picks the file in Books,
- * each say it is open already.
+ * New books on the fake Drive with statements by hand: the access step asks for the books file
+ * alone, so the folder confirm names Books with no path, as `drive.file` cannot read its parents.
+ * The file's toast names where it was made. The first statement's IBAN becomes the account main,
+ * and Overview's Getting set up card asks only for a look over the categories.
  */
-export async function firstRunDriveFlow(page, { press, shoot, inspect }) {
-  await pressSelector(page, press, '[data-testid="start-empty-drive"]')
-  await toastMatching(page, MOVED)
-  await page.waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Overview', { timeout: 10_000 }).catch(() => {
-    throw new Error('the empty workbook on Drive did not open Overview')
-  })
-  await pageSays(page, 'The ledger has no transactions yet', true)
-  await shoot('first-run-drive')
+export async function onboardingDriveFlow(page, { press, shoot, inspect }) {
+  await onboardingAt(page, 'welcome')
+  await inspect?.('the welcome step')
+  await shoot('onboarding-welcome')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'home')
+  await shoot('onboarding-home')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await allowGoogle(page, press, { shoot, inspect })
+  await confirmFolder(page, press, { shoot, inspect }, 'Books, inside folders the app cannot see')
+  await toastMatching(page, /^Created ledgerboard-company\.json in Books$/)
   await dismissToasts(page)
-  await deviceShowsDriveFile(page)
-  await inspect?.('this device with the file on Drive')
-  await shoot('first-run-drive-device')
-  for (const action of ['Find the file', 'Pick another file']) {
-    await pressButton(page, press, 'button', 'Switch data source')
-    await pressButton(page, press, '[role="dialog"] button', action)
-    await toastMatching(page, /^Your books are already open$/)
-    await pageSays(page, 'in Books on Google Drive is the file on screen', true)
-    await dismissToasts(page)
-  }
+  await onboardingAt(page, 'company')
+  await inspect?.('the company step')
+  await shoot('onboarding-company')
+  if (await page.$('[data-testid="onboarding-back"]')) throw new Error('the company step goes back to the folder step, which would make the file again')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'statement')
+  await pressSelector(page, press, '[data-testid="sample-camt"]')
+  const offer = await page.waitForSelector('[data-testid="dry-run-new-account"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the first statement does not offer its account')
+  })
+  if (!(await offer.evaluate((element) => element.textContent ?? '')).includes('is new')) throw new Error('the new account offer does not say the IBAN is new')
+  const name = await page.$eval('input[data-testid="dry-run-account-name"]', (input) => input.value)
+  if (name !== 'main') throw new Error(`the account offered is named "${name}", not main`)
+  await inspect?.('the first statement')
+  await shoot('onboarding-statement')
+  await pressButton(page, press, '[data-testid="onboarding-step"] button', 'Add and import')
+  await toastMatching(page, /^Added main and imported \d+ rows$/)
+  await onboardingAt(page, 'overview')
+  const lines = await setUpLines(page)
+  if (JSON.stringify(lines) !== JSON.stringify(['categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}, not the categories alone`)
+  await inspect?.('Overview getting set up')
+  await shoot('onboarding-overview')
+  await dismissToasts(page)
+  await deviceShowsDriveFile(page, true)
 }
 
-/** The first run: an empty workbook kept in this browser, which offers the import and the export. */
-export async function firstRunBrowserFlow(page, { press, shoot }) {
-  await pressSelector(page, press, '[data-testid="start-empty-browser"]')
-  await page.waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Overview', { timeout: 10_000 }).catch(() => {
-    throw new Error('the empty workbook in this browser did not open Overview')
+/**
+ * New books on the fake Drive with statements from a Drive folder: the token carries Drive read, so
+ * the folder confirm names the full path, and the toast does too. A Croatian d.o.o. chooses the VAT
+ * returns folder in the company step and the statements folder in the statement step, skips the
+ * statement, and Getting set up lists the first statement, the payslips folder, which shows only while the pack is on, and the categories.
+ */
+export async function onboardingDriveReadFlow(page, { press, shoot, inspect }) {
+  await onboardingAt(page, 'welcome')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'home')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'access')
+  await chooseOption(page, press, 'onboarding-statements', 'From a folder in my Drive')
+  await page.waitForFunction(() => window.location.hash.includes('statements=folder'), { timeout: 5_000 }).catch(() => {
+    throw new Error('the statements choice did not reach the address, so a trip to Google would lose it')
   })
-  await pageSays(page, 'Import a statement', true)
+  await allowGoogle(page, press, { shoot, inspect })
+  await confirmFolder(page, press, { shoot, inspect }, 'My Drive › Books')
+  await toastMatching(page, /^Created ledgerboard-company\.json in My Drive › Books$/)
+  await dismissToasts(page)
+  await onboardingAt(page, 'company')
+  await chooseOption(page, press, 'onboarding-pack', 'Yes')
+  await pressButton(page, press, '[data-testid="onboarding-pack-folders"] button', 'Choose folder')
+  await page.waitForFunction(() => document.querySelector('[data-testid="onboarding-pack-folders"]')?.textContent?.includes('My Drive › Books') ?? false, { timeout: 10_000 }).catch(() => {
+    throw new Error('the company step does not show the path of the folder chosen')
+  })
+  await inspect?.('the company step of a Croatian d.o.o.')
+  await shoot('onboarding-company-pack')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'statement')
+  await pressButton(page, press, '[data-testid="onboarding-statements-folder"] button', 'Choose folder')
+  await page.waitForFunction(() => document.querySelector('[data-testid="onboarding-statements-folder"]')?.textContent?.includes('My Drive › Books') ?? false, { timeout: 10_000 }).catch(() => {
+    throw new Error('the statement step does not show the statements folder chosen')
+  })
+  await shoot('onboarding-statements-folder')
+  await pressSelector(page, press, '[data-testid="onboarding-skip"]')
+  await onboardingAt(page, 'overview')
+  const lines = await setUpLines(page)
+  if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'hr_payroll_folder', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
+  await shoot('onboarding-overview-pack')
+}
+
+/**
+ * New books in this browser: no Google at all. The company step names the company, the statement
+ * is skipped, and Getting set up's first line opens Import.
+ */
+export async function onboardingBrowserFlow(page, { press, shoot, inspect }) {
+  await onboardingAt(page, 'welcome')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'home')
+  await chooseOption(page, press, 'onboarding-home', 'Only this browser')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'company')
+  await setField(await page.waitForSelector('input[data-testid="onboarding-company-name"]'), 'Example Studio')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'statement')
+  if (await page.$('[data-testid="onboarding-statements-folder"]')) throw new Error('books kept in this browser are offered a statements folder')
+  await pressSelector(page, press, '[data-testid="onboarding-skip"]')
+  await onboardingAt(page, 'overview')
   await page.waitForSelector('[data-testid="local-status"]', { timeout: 10_000 }).catch(() => {
-    throw new Error('the empty workbook in this browser shows no export status')
+    throw new Error('the new books in this browser show no export status')
   })
-  await shoot('first-run-browser')
+  const lines = await setUpLines(page)
+  if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
+  await inspect?.('new books in this browser')
+  await shoot('onboarding-browser')
+  await pressButton(page, press, '[data-line="first-statement"] a', 'Import')
+  await page.waitForSelector('[data-testid="import-file"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Getting set up did not open Import')
+  })
+  await page.evaluate(() => {
+    window.location.hash = '#/settings'
+  })
+  await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Example Studio'), { timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, General does not name the company the company step named')
+  })
 }
 
-/** The move from an xlsx download: the summary counts the records by tab, then Keep on Google Drive writes the file, reads it back and opens it. */
-export function moveFromXlsxFlow(path) {
+/**
+ * Books brought from an xlsx file to the fake Drive: access first, then the file's summary with its
+ * records by tab, then the folder. The toast says how many records moved, the company step confirms
+ * what the file says, and Overview draws the moved books.
+ */
+export function onboardingBringFlow(path) {
   return async (page, { press, shoot, inspect }) => {
-    const input = await page.waitForSelector('[data-testid="data-source-choices"] input[type="file"]')
+    await onboardingAt(page, 'welcome')
+    await chooseOption(page, press, 'onboarding-path', 'Bring my books')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'home')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await allowGoogle(page, press, { shoot, inspect })
+    await onboardingAt(page, 'file')
+    const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
     await input.uploadFile(path)
-    await page.waitForSelector('[data-testid="record-counts"] dl', { timeout: 10_000 }).catch(() => {
-      throw new Error('the summary does not count the records by tab')
+    await page.waitForFunction(() => /^\d+ records, by tab$/.test(document.querySelector('[data-testid="record-counts"] h3')?.textContent?.trim() ?? ''), { timeout: 10_000 }).catch(() => {
+      throw new Error('the file step does not count the records by tab')
     })
-    await page.waitForFunction(() => /^\d+ records, by tab$/.test(document.querySelector('[data-testid="record-counts"] h3')?.textContent?.trim() ?? ''), { timeout: 5_000 }).catch(() => {
-      throw new Error('the summary does not say how many records the file holds')
-    })
-    await delay(600)
-    await inspect?.('the move summary')
-    await shoot('move-summary')
-    await pressButton(page, press, '[role="dialog"] button', 'Keep on Google Drive')
+    await delay(400)
+    await inspect?.('the file summary')
+    await shoot('onboarding-file')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await confirmFolder(page, press, { shoot, inspect }, 'Books, inside folders the app cannot see')
     await toastMatching(page, MOVED)
-    await page.waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Overview', { timeout: 10_000 }).catch(() => {
-      throw new Error('the moved workbook did not open Overview')
-    })
+    await dismissToasts(page)
+    await onboardingAt(page, 'company')
+    const named = await page.$eval('input[data-testid="onboarding-company-name"]', (input) => input.value)
+    if (named === '') throw new Error('the company step does not show the name the file gives')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'overview')
     await page.waitForSelector('.chart-body canvas', { timeout: 10_000 }).catch(() => {
-      throw new Error('Overview drew no chart from the moved workbook')
+      throw new Error('Overview drew no chart from the moved books')
     })
     await shoot('moved')
-    await dismissToasts(page)
-    await deviceShowsDriveFile(page)
+    await deviceShowsDriveFile(page, true)
   }
 }
 
-/** Settings, This device: the workbook kept in this browser moves to a new file on the fake Drive. */
+/** Open my books on Drive, on a device that keeps the fake Drive's books: Find the file says they are open, and onboarding ends on Overview. */
+export async function onboardingOpenFlow(page, { press, shoot, inspect }) {
+  await onboardingAt(page, 'welcome')
+  await chooseOption(page, press, 'onboarding-path', 'Open my books on Google Drive')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await allowGoogle(page, press, { shoot, inspect })
+  await onboardingAt(page, 'find')
+  await inspect?.('the find step')
+  await shoot('onboarding-find')
+  await pressSelector(page, press, '[data-testid="onboarding-find"]')
+  await toastMatching(page, /^Your books are already open$/)
+  await onboardingAt(page, 'overview')
+}
+
+/** Settings, This device: the books kept in this browser move to a new file on the fake Drive through onboarding's access and folder steps. */
 export async function moveFromBrowserFlow(page, { press, shoot, inspect }) {
   await pageSays(page, 'Kept in this browser', true)
   await pressSelector(page, press, '[data-testid="keep-on-drive"]')
+  await allowGoogle(page, press, { shoot, inspect })
+  await confirmFolder(page, press, { shoot, inspect }, 'Books, inside folders the app cannot see')
   await toastMatching(page, MOVED)
-  await page.waitForSelector('[data-testid="drive-file-place"]', { timeout: 10_000 }).catch(() => {
-    throw new Error('the moved workbook is not shown as a file on Drive')
-  })
+  await onboardingAt(page, 'overview')
   await dismissToasts(page)
   await deviceShowsDriveFile(page)
   await inspect?.('this device once moved')

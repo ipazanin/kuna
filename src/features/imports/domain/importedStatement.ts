@@ -40,8 +40,22 @@ export interface ImportedStatement {
   readonly notes: readonly string[]
 }
 
-/** A statement read, or why the file's statement cannot be imported. */
-export type StatementReading = { readonly statement: ImportedStatement } | { readonly fileName: string; readonly label: string; readonly refusal: string }
+/** An account a statement's IBAN names that the accounts tab lacks, which the person can add as the statement is imported. */
+export interface NewAccountOffer {
+  /** Normalised. */
+  readonly iban: string
+  /** The account's ISO 4217 code, as the statement states it. */
+  readonly currency: string
+}
+
+/**
+ * A statement read, or why the file's statement cannot be imported. A statement of an IBAN the
+ * accounts tab lacks is read with a blank account and the account it offers to add.
+ */
+export type StatementReading =
+  | { readonly statement: ImportedStatement }
+  | { readonly statement: ImportedStatement; readonly newAccount: NewAccountOffer }
+  | { readonly fileName: string; readonly label: string; readonly refusal: string }
 
 /** A file or statement the app will not read, with the reason in words a person can act on. */
 export class StatementRefused extends Error {

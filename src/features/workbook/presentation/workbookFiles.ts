@@ -3,15 +3,16 @@ import { fold } from '../../../shared/text/fold'
 import { JSON_MIME_TYPE } from '../../../shared/google/driveClient'
 import { XLSX_MIME_TYPE } from '../../../shared/xlsx/sheetGrids'
 import { importSummary } from '../../excel/domain/importSummary'
+import { DEFAULT_SETTINGS } from '../../settings/domain/settings'
 import type { ImportSummary } from '../../excel/domain/importSummary'
 import type { WorkbookStore } from '../application/createWorkbookStore'
-import type { Workbook } from '../domain/workbook'
+import type { Category, Workbook } from '../domain/workbook'
 import { NEWER_FILE, decodeDocument, savedByNewerApp } from '../infrastructure/documentFormat'
 import type { WorkbookDocument } from '../infrastructure/documentFormat'
 import { readDocument } from '../infrastructure/documentRecordStorage'
 import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
 import { COMPANY_APP } from '../infrastructure/documentStorePorts'
-import { emptyWorkbookTabs } from '../infrastructure/emptyWorkbook'
+import { DEFAULT_CATEGORY_NAMES, emptyWorkbookTabs } from '../infrastructure/emptyWorkbook'
 import { documentOfTabs, recordCountsOf, tabsOfDocument } from '../infrastructure/spreadsheetDocument'
 import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
 
@@ -75,9 +76,23 @@ async function documentOfFile(file: File): Promise<{ readonly document: Workbook
   return { document, missingTabs: [] }
 }
 
-/** The document of a new, empty workbook kept in this browser. */
-export function emptyLocalWorkbook(): { readonly document: WorkbookDocument; readonly title: string } {
-  return { document: documentOfTabs(COMPANY_APP, emptyWorkbookTabs(), new Date().toISOString()), title: 'New workbook' }
+/** What new books kept in this browser are called until the company step names the company. */
+export const NEW_BOOKS_TITLE = 'New books'
+
+/**
+ * The document of new books: the default categories, no accounts or rows, and a row for every
+ * setting, so the books name each choice instead of leaving it to a default a later app may change.
+ * `statementsSync` says whether a sync files statements from a folder, which is named later. The
+ * owner-pay module is off and the pack's folders blank until the person says otherwise.
+ */
+export function newBooksDocument(statementsSync: boolean, savedAt: string): WorkbookDocument {
+  return documentOfTabs(COMPANY_APP, emptyWorkbookTabs({ ...DEFAULT_SETTINGS, statementsSync }), savedAt)
+}
+
+/** Whether the categories are the ones new books start with, none added, removed or renamed. */
+export function categoriesAsNewBooksStart(categories: readonly Pick<Category, 'slug'>[]): boolean {
+  const names = new Set(categories.map((category) => category.slug))
+  return names.size === DEFAULT_CATEGORY_NAMES.length && DEFAULT_CATEGORY_NAMES.every((name) => names.has(name))
 }
 
 /** Writes the workbook on screen in the template format, hands it to the browser, and notes the export. */

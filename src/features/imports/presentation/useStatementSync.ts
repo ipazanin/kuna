@@ -1,7 +1,7 @@
 import { computed, shallowReactive, shallowReadonly } from 'vue'
 import type { ComputedRef } from 'vue'
 
-import { currentDriveReadToken } from '../../../shared/google/googleAuth'
+import { currentToken } from '../../../shared/google/googleAuth'
 import type { SyncStep } from '../../sync/application/sync'
 import type { StepResult } from '../../sync/domain/syncRun'
 import { counted } from '../../overview/presentation/waitingForYou'
@@ -28,7 +28,7 @@ async function openStatementFolder(): Promise<StatementFolder> {
     const { fakeStatementFolder } = await import('../infrastructure/fake/fakeStatementFolder')
     return fakeStatementFolder(new URLSearchParams(window.location.search).get('fake'))
   }
-  const token = currentDriveReadToken()
+  const token = currentToken('drive.readonly')
   if (token === null) {
     throw new Error('The Drive read access ran out. Sync again.')
   }
@@ -90,7 +90,7 @@ export function useStatementSync(): StatementSync {
       label: 'Statements',
       scope: 'drive.readonly',
       startLine: lineOf({ kind: 'looking' }),
-      on: (workbook) => workbook.settings.statementsSync,
+      on: (workbook) => workbook.settings.statementsSync && workbook.settings.statementsFolder.length > 0,
       async run(report) {
         try {
           state.outcome = await fileNewStatements({ store, folder: await openStatementFolder(), load: loadImportFile, step: (step) => report(lineOf(step)) })

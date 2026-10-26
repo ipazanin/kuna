@@ -1,35 +1,32 @@
-import type { StoredAccessToken } from './googleSession'
+import { GOOGLE_SCOPES, scopeRequest, scopesIn } from './googleScopes'
+import type { GoogleScope } from './googleScopes'
 
 /**
- * Google's OAuth 2.0 implicit flow for client-side web apps, as a full-page redirect, for phones and
- * the installed app, where Google's popup can open unreadable. Google answers in the fragment of
- * the app's own address. https://developers.google.com/identity/protocols/oauth2/javascript-implicit-flow
+ * Google's OAuth 2.0 implicit flow for client-side web apps, as a full-page redirect: for phones and
+ * the installed app, where Google's popup can open unreadable, and for the silent trip as the app
+ * opens. Google answers in the fragment of the app's own address.
+ * https://developers.google.com/identity/protocols/oauth2/javascript-implicit-flow
  */
 export const AUTHORIZATION_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
 
 /** A touch screen as the main pointer, or the app installed from the browser, signs in by redirect. */
 export const REDIRECT_SIGN_IN_QUERY = '(pointer: coarse), (display-mode: standalone)'
 
-/** The sign-in kept on this device, or the Gmail or Drive read grant kept in page memory. */
-export type RedirectGrant = 'sign-in' | 'gmail' | 'drive-read'
-
 /**
- * What the app does once back: read the chosen file again, find the books by the app's mark or else
- * in the Picker, open the Picker, or nothing, since the action that asked has to start again.
+ * What the app does once back from a tap's trip: sync, find the books by the app's mark or else in
+ * the Picker, open the Picker, or nothing, for a step such as onboarding's access step that the route
+ * brings back. The silent trip resumes nothing, since auto-sync carries on.
  */
 export type RedirectResume = 'sync' | 'find' | 'pick' | 'none'
 
-/**
- * How the tab went to Google: from a tap, or with `prompt=none` for the Drive read token as the app
- * opened or as a sign-in came back. A silent answer shows no message of its own either way.
- */
-export type RedirectAsk = 'tap' | 'silent-on-open' | 'silent-after-sign-in'
+/** How the tab went to Google: from a tap, with Google's consent screen when it needs one, or with `prompt=none` as the app opened. */
+export type RedirectAsk = 'tap' | 'silent'
 
 /** What a tab remembers while it is away at Google. `route` is the hash route to return to. */
 export interface PendingRedirect {
   readonly state: string
-  readonly grant: RedirectGrant
-  /** On the silent Drive read ask that follows a sign-in, what the sign-in resumes once that ask is back too. */
+  /** The scopes asked for, which Google's answer is checked against. */
+  readonly scopes: readonly GoogleScope[]
   readonly resume: RedirectResume
   readonly route: string
   readonly ask: RedirectAsk
@@ -38,28 +35,26 @@ export interface PendingRedirect {
 export interface AuthorizationRequest {
   readonly clientId: string
   readonly redirectUri: string
-  readonly scope: string
+  readonly scopes: readonly GoogleScope[]
   readonly state: string
-  /** True asks for the new scope on top of those granted before, as the Gmail grant does. */
-  readonly includeGrantedScopes: boolean
   readonly loginHint: string | null
   /** True sends `prompt=none`: Google shows no screen and answers with an error when it would need one. */
   readonly silent: boolean
 }
 
 /**
- * The address the tab moves to. Without `silent` there is no `prompt`, so Google asks for consent
- * only the first time. `enable_granular_consent` is left at its default, so the scopes granted have
- * to be checked.
+ * The address the tab moves to. It asks for exactly these scopes, never for one granted before and
+ * not asked for now. Without `silent` there is no `prompt`, so Google asks for consent only for a
+ * scope not granted yet, and the person can untick any, so the scopes granted have to be read back.
  */
 export function authorizationUrl(request: AuthorizationRequest): string {
   const query = new URLSearchParams({
     client_id: request.clientId,
     redirect_uri: request.redirectUri,
     response_type: 'token',
-    scope: request.scope,
+    scope: scopeRequest(request.scopes),
     state: request.state,
-    include_granted_scopes: String(request.includeGrantedScopes),
+    include_granted_scopes: 'false',
   })
   if (request.loginHint !== null) {
     query.set('login_hint', request.loginHint)
@@ -93,77 +88,41 @@ export function redirectFragmentOf(hash: string): RedirectFragment | null {
   return { kind: 'token', accessToken, expiresIn: Number(fields.get('expires_in')), scope: fields.get('scope') ?? '', state }
 }
 
-/** What coming back from Google amounts to. A refusal keeps no token. */
-export type RedirectReturn =
-  | {
-      readonly kind: 'granted'
-      readonly grant: RedirectGrant
-      readonly token: StoredAccessToken
-      readonly resume: RedirectResume
-      readonly route: string
-      readonly ask: RedirectAsk
-    }
-  | {
-      readonly kind: 'refused'
-      readonly grant: RedirectGrant | null
-      readonly message: string
-      readonly resume: RedirectResume
-      readonly route: string
-      readonly ask: RedirectAsk
-    }
-
-export const GMAIL_COMPOSE = 'https://www.googleapis.com/auth/gmail.compose'
-
-export const GMAIL_NOT_GRANTED = 'Gmail access was not granted, so no draft can be saved. Leave "Create the mail draft" off to write the mail yourself.'
-
-/** Reads every file in Drive and changes none. The token that carries it carries nothing else. */
-export const DRIVE_READONLY = 'https://www.googleapis.com/auth/drive.readonly'
-
-export const DRIVE_READ_NOT_GRANTED = 'Drive read access was not granted, so the app cannot look for new statements in Drive.'
-
-/** The scope a grant has to come back with, which the person can untick on the consent page, and what to say when it does not. */
-const CHECKED_GRANTS: Readonly<Partial<Record<RedirectGrant, { readonly scope: string; readonly notGranted: string }>>> = {
-  gmail: { scope: GMAIL_COMPOSE, notGranted: GMAIL_NOT_GRANTED },
-  'drive-read': { scope: DRIVE_READONLY, notGranted: DRIVE_READ_NOT_GRANTED },
+/** The one token of a page, held in memory only, with the app's scopes Google granted for it. */
+export interface GoogleToken {
+  readonly value: string
+  readonly scopes: readonly GoogleScope[]
+  /** Epoch milliseconds. */
+  readonly expiresAt: number
 }
 
 /**
- * Checks Google's answer against what this tab asked for: the same one-time `state`, a token that
- * lasts, and for Gmail and Drive read the scope asked for. `now` is when the tab came back, from
- * which `expires_in` counts.
+ * What coming back from Google amounts to. A token may carry fewer scopes than were asked for, when
+ * the person unticked some. A refusal keeps no token, and `error` is Google's, such as
+ * `interaction_required`, or `forged` for an answer this tab never asked for.
+ */
+export type RedirectReturn =
+  | { readonly kind: 'granted'; readonly token: GoogleToken; readonly asked: readonly GoogleScope[]; readonly resume: RedirectResume; readonly route: string; readonly ask: RedirectAsk }
+  | { readonly kind: 'refused'; readonly error: string; readonly resume: RedirectResume; readonly route: string; readonly ask: RedirectAsk }
+
+/**
+ * Checks Google's answer against what this tab asked for: the same one-time `state` and a token
+ * that lasts. `now` is when the tab came back, from which `expires_in` counts.
  */
 export function settleRedirect(fragment: RedirectFragment, pending: PendingRedirect | null, now: number): RedirectReturn {
   const route = pending !== null && pending.route.startsWith('#/') ? pending.route : '#/'
   if (pending === null || fragment.state === null || fragment.state !== pending.state) {
-    return {
-      kind: 'refused',
-      grant: null,
-      message: 'Google sent back a sign-in this tab did not ask for, so the app did not keep it. Sign in again from here.',
-      resume: 'none',
-      route,
-      ask: 'tap',
-    }
+    return { kind: 'refused', error: 'forged', resume: 'none', route, ask: 'tap' }
   }
-  const { grant, resume, ask } = pending
-  const checked = CHECKED_GRANTS[grant]
+  const { scopes, resume, ask } = pending
   if (fragment.kind === 'error') {
-    if (checked !== undefined) {
-      return { kind: 'refused', grant, message: checked.notGranted, resume, route, ask }
-    }
-    const message =
-      fragment.error === 'access_denied'
-        ? 'Google access was not allowed, so nothing was read from Google.'
-        : `Google refused the token: ${fragment.error} ${fragment.description ?? ''}`.trim()
-    return { kind: 'refused', grant, message, resume, route, ask }
+    return { kind: 'refused', error: fragment.error, resume, route, ask }
   }
   if (!Number.isFinite(fragment.expiresIn) || fragment.expiresIn <= 0 || fragment.accessToken === '') {
-    return { kind: 'refused', grant, message: 'Google sent back no usable token. Sign in again.', resume, route, ask }
+    return { kind: 'refused', error: 'no-token', resume, route, ask }
   }
-  if (checked !== undefined && !fragment.scope.split(' ').includes(checked.scope)) {
-    return { kind: 'refused', grant, message: checked.notGranted, resume, route, ask }
-  }
-  const token = { value: fragment.accessToken, grantedScope: fragment.scope, expiresAt: now + fragment.expiresIn * 1000 }
-  return { kind: 'granted', grant, token, resume, route, ask }
+  const token = { value: fragment.accessToken, scopes: scopesIn(fragment.scope), expiresAt: now + fragment.expiresIn * 1000 }
+  return { kind: 'granted', token, asked: scopes, resume, route, ask }
 }
 
 const PENDING_KEY = 'ledgerboard.google-redirect'
@@ -201,40 +160,9 @@ function pendingOf(text: string | null): PendingRedirect | null {
   if (typeof candidate !== 'object' || candidate === null) {
     return null
   }
-  const { state, grant, resume, route, ask, silent } = candidate as Record<string, unknown>
-  if (typeof state !== 'string' || state === '' || typeof route !== 'string') return null
-  if (grant !== 'sign-in' && grant !== 'gmail' && grant !== 'drive-read') return null
+  const { state, scopes, resume, route, ask } = candidate as Record<string, unknown>
+  if (typeof state !== 'string' || state === '' || typeof route !== 'string' || !Array.isArray(scopes)) return null
   if (resume !== 'sync' && resume !== 'find' && resume !== 'pick' && resume !== 'none') return null
-  if (ask === 'tap' || ask === 'silent-on-open' || ask === 'silent-after-sign-in') return { state, grant, resume, route, ask }
-  // A pending redirect saved by an older copy of the app carries `silent` in place of `ask`.
-  return { state, grant, resume, route, ask: silent === true ? 'silent-on-open' : 'tap' }
-}
-
-const DRIVE_READ_REFUSED_KEY = 'ledgerboard.drive-read-refused'
-
-/**
- * Notes for this tab whether Google's last answer to a Drive read ask brought no token. It is kept
- * in session storage, so it lasts through reloads of the tab and ends with it. False when the
- * browser keeps no session storage.
- */
-export function noteDriveReadRefused(refused: boolean): boolean {
-  try {
-    if (refused) {
-      sessionStorage.setItem(DRIVE_READ_REFUSED_KEY, 'true')
-    } else {
-      sessionStorage.removeItem(DRIVE_READ_REFUSED_KEY)
-    }
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Whether Google gave this tab no Drive read token on its last ask. True when the browser keeps no session storage, since the ask cannot be noted there. */
-export function driveReadRefusedInThisTab(): boolean {
-  try {
-    return sessionStorage.getItem(DRIVE_READ_REFUSED_KEY) !== null
-  } catch {
-    return true
-  }
+  if (ask !== 'tap' && ask !== 'silent') return null
+  return { state, scopes: GOOGLE_SCOPES.filter((scope) => scopes.includes(scope)), resume, route, ask }
 }

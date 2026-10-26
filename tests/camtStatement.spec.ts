@@ -194,8 +194,12 @@ describe('reading a camt.053 statement', () => {
     expect(refusalOf(xml)).toMatch(reason)
   })
 
-  it('refuses a statement whose IBAN the accounts tab does not name', () => {
-    expect(refusalOf(CREDIT, new Map())).toBe(`The accounts tab names no account for IBAN ${OWN_IBAN}, so the statement cannot be filed. Add the account on Settings, Accounts first.`)
+  it('reads a statement whose IBAN the accounts tab does not name with no account, offering that account by its IBAN and currency', () => {
+    expect(read(CREDIT, new Map())[0]).toMatchObject({ statement: { account: '', label: '2031-03-12-statement-042' }, newAccount: { iban: OWN_IBAN, currency: 'EUR' } })
+  })
+
+  it('refuses a statement that names no IBAN', () => {
+    expect(refusalOf(CREDIT.replace(`<IBAN>${OWN_IBAN}</IBAN>`, '<IBAN></IBAN>'), new Map())).toBe('The statement names no Acct/Id/IBAN, so the app cannot tell whose account it is.')
   })
 
   it('throws for a document with no statement in it', () => {

@@ -57,7 +57,7 @@ try {
   rmSync(scratch, { recursive: true, force: true })
 }
 
-/** Drops one file on the welcome screen and reads what the import dialog says about it. */
+/** Drops one file on onboarding's file step and reads what its summary says about it. */
 async function importFile(path) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
@@ -66,8 +66,8 @@ async function importFile(path) {
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text())
   })
-  await page.goto(appUrl, { waitUntil: 'networkidle0' })
-  const input = await page.waitForSelector('[data-testid="data-source-choices"] input[type="file"]')
+  await page.goto(`${appUrl}#/start?path=bring&home=browser&step=file`, { waitUntil: 'networkidle0' })
+  const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
   await input.uploadFile(path)
   const outcome = await page
     .waitForFunction(

@@ -27,6 +27,7 @@ import { ROLLING_3_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSe
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import GettingSetUpCard from '../../onboarding/presentation/GettingSetUpCard.vue'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { euroSplit } from '../domain/euroSplit'
 import { headline } from '../domain/headline'
@@ -196,6 +197,7 @@ const overview = computed(() => {
 <template>
   <section class="flex flex-col gap-6">
     <PageHeader title="Overview" description="How the company is doing, and what waits for you." />
+    <GettingSetUpCard />
     <LedgerGate>
       <template v-if="ledger && overview">
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />

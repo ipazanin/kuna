@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
 import { LEDGER_WRITES } from '../src/features/imports/application/ledgerWrites'
-import { dryRunFor, statementReadings } from '../src/features/imports/application/importStatements'
+import { dryRunFor, importTitle, newAccountNameProblem, statementReadings, writeImport } from '../src/features/imports/application/importStatements'
 import type { ImportDryRun } from '../src/features/imports/domain/importDryRun'
 import type { ImportProfile } from '../src/features/imports/domain/importProfile'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
@@ -289,5 +289,53 @@ describe('a tabular import through its profile', () => {
     expect(changed.statements[0]?.refusal).toBe(
       'Rows of promet (ffffffff) are on the ledger already, so this file was imported before, and none of its entries match them now, such as after a change to its profile. Nothing of it is written.',
     )
+  })
+})
+
+describe('an account from a camt file', () => {
+  const NEW_IBAN = 'HR1210010051863000160'
+  const newAccountStatement = () => creditStatement('250.00', '1173.15').replace(MAIN_IBAN, NEW_IBAN)
+
+  it('offers the account a statement’s IBAN names when the accounts tab lacks it, with its currency, opening and day, and writes nothing until it is named', async () => {
+    const { store } = await driveHarness(used, grids())
+    const workbook = store.state.workbook!
+
+    expect(statementReadings(camtFile(newAccountStatement()), workbook, null)[0]).toMatchObject({ statement: { account: '' }, newAccount: { iban: NEW_IBAN, currency: 'EUR' } })
+    const waiting = dryRun(store, newAccountStatement())
+    expect(waiting.statements[0]).toMatchObject({ account: '', refusal: null, start: null, newAccount: { iban: NEW_IBAN, currency: 'EUR', opening: moneyFromCents(25_000), date: '2031-03-11' } })
+    expect(waiting.statements[0]!.rows.every((row) => row.verdict === null)).toBe(true)
+    expect(waiting).toMatchObject({ newRows: 0, accounts: [] })
+  })
+
+  it('files the statement under the name the person gives, starts it at the statement’s opening, and adds the account with the rows in one write', async () => {
+    const { store } = await driveHarness(used, grids())
+    const workbook = store.state.workbook!
+    const readings = statementReadings(camtFile(newAccountStatement()), workbook, null)
+    const run = dryRunFor(readings, workbook, new Map(), new Map([[NEW_IBAN, 'business']]))
+
+    expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR' }])
+    expect(run.added.map((entry) => entry.account)).toEqual(['business'])
+    expect(run.statements[0]).toMatchObject({ account: 'business', refusal: null, newAccount: { iban: NEW_IBAN } })
+    expect(importTitle(run)).toBe('Added business and imported 1 row')
+
+    await store.write(importTitle(run), (unit) => writeImport(unit, run))
+
+    expect(store.state.workbook!.accounts.find((account) => account.slug === 'business')).toMatchObject({ iban: NEW_IBAN, currency: 'EUR' })
+    expect(store.state.workbook!.transactions.filter((row) => row.account === 'business').map((row) => row.balance)).toEqual([moneyFromCents(117_315)])
+    const again = dryRunFor(readings, store.state.workbook!, new Map(), new Map([[NEW_IBAN, 'business']]))
+    expect(again).toMatchObject({ newRows: 0, accounts: [] })
+    expect(again.statements[0]).toMatchObject({ account: 'business', newAccount: null })
+  })
+
+  it('names no account with a name the accounts tab has, or one the app cannot use', async () => {
+    const { store } = await driveHarness(used, grids())
+    const workbook = store.state.workbook!
+    const readings = statementReadings(camtFile(newAccountStatement()), workbook, null)
+
+    for (const name of ['savings', 'Main Account', '']) {
+      expect(dryRunFor(readings, workbook, new Map(), new Map([[NEW_IBAN, name]]))).toMatchObject({ newRows: 0, accounts: [] })
+    }
+    expect(newAccountNameProblem('savings', new Set(['main', 'savings']))).toBe('savings is already an account')
+    expect(newAccountNameProblem('Main Account', new Set())).toMatch(/is not an account name the app can use/)
   })
 })

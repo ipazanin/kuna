@@ -1,10 +1,9 @@
 import type { StatementCell } from '../../../../features/imports/domain/tabularStatement'
 import { civilDate, serialFromCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { FAKE_WORKBOOK_ID } from '../../../../features/workbook/infrastructure/fake/fakeWorkbook'
+import { FAKE_FOLDERS, FAKE_WORKBOOK_ID } from '../../../../features/workbook/infrastructure/fake/fakeWorkbook'
 import type { AccountantFolders, DriveWorkbook } from '../../application/accountantDocuments'
 import type { DocumentTab } from '../../domain/accountant/accountantDocument'
-import { DEFAULT_PAYROLL_FOLDER, DEFAULT_VAT_RETURNS_FOLDER } from '../../domain/companyFacts'
 import { fakePayslipWorkbooks } from './fakeStaff'
 
 type Row = (StatementCell | undefined)[]
@@ -207,12 +206,12 @@ function fakeFiles(variant: string | null): readonly FakeFile[] {
 export function fakeAccountantFolders(variant: string | null = new URLSearchParams(globalThis.location?.search ?? '').get('fake')): AccountantFolders {
   const files = fakeFiles(variant)
   const folderAt = (path: readonly string[]): FakeFile['folder'] | null =>
-    path.join('/') === DEFAULT_VAT_RETURNS_FOLDER.join('/') ? 'vat-returns' : path.join('/') === DEFAULT_PAYROLL_FOLDER.join('/') ? 'payroll' : null
+    path.join('/') === FAKE_FOLDERS.vatReturns.join('/') ? 'vat-returns' : path.join('/') === FAKE_FOLDERS.payroll.join('/') ? 'payroll' : null
   return {
     async files(path) {
       const folder = folderAt(path)
       return folder === null
-        ? { kind: 'refused', reason: `The fake Drive holds the accountant's files only in ${DEFAULT_VAT_RETURNS_FOLDER.join('/')} and ${DEFAULT_PAYROLL_FOLDER.join('/')}, not in ${path.join('/')}` }
+        ? { kind: 'refused', reason: `The fake Drive holds the accountant's files only in ${FAKE_FOLDERS.vatReturns.join('/')} and ${FAKE_FOLDERS.payroll.join('/')}, not in ${path.join('/')}` }
         : { kind: 'listed', files: files.filter((file) => file.folder === folder).map(({ id, name, format, version }) => ({ id, name, format, version })) }
     },
 

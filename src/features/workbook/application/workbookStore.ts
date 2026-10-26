@@ -1,6 +1,6 @@
-import { currentAccessToken, forgetGoogleSignIn, prepareGoogleIdentity, requestToken, signOutOfGoogle } from '../../../shared/google/googleAuth'
+import { currentToken, forgetGoogleSignIn, prepareGoogleIdentity, signOutOfGoogle, tokenFor } from '../../../shared/google/googleAuth'
+import { pathFromMyDrive } from '../../../shared/google/driveClient'
 import { pickFromDrive } from '../../../shared/google/picker'
-import type { PickerKind } from '../../../shared/google/picker'
 import type { WorkbookDocument } from '../infrastructure/documentFormat'
 import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
 import { documentStorePorts } from '../infrastructure/documentStorePorts'
@@ -10,26 +10,29 @@ import { loadWorkbookChoice, saveWorkbookChoice } from '../infrastructure/workbo
 import { createWorkbookStore } from './createWorkbookStore'
 import type { WorkbookStore } from './createWorkbookStore'
 
-/** A token for the Drive file: the kept one, or a new one, which needs the click that asked for it. */
-async function driveToken(): Promise<string> {
-  return currentAccessToken()?.value ?? (await requestToken('none')).value
-}
-
-async function picked(kind: PickerKind, title: string): Promise<string | null> {
-  const [document] = await pickFromDrive(kind, await driveToken(), { title })
-  return document?.id ?? null
+/** The page's token for the Drive file, or a new one, which needs the click that asked for it and on a phone fails instead of leaving the page. */
+function driveToken(): Promise<string> {
+  return tokenFor('drive.file', null)
 }
 
 const GOOGLE_DRIVE_ACCESS: DriveAccess = {
   drive: googleDocumentDrive(driveToken),
   async signIn(then) {
-    if (currentAccessToken() === null) {
-      await requestToken(then)
-    }
+    await tokenFor('drive.file', then)
   },
-  signedIn: () => currentAccessToken() !== null,
-  pickFolder: () => picked('folder', 'Pick the folder for the books'),
-  pickFile: () => picked('json', 'Pick the file with your books'),
+  signedIn: () => currentToken('drive.file') !== null,
+  async pickFolder(title) {
+    const [folder] = await pickFromDrive('folder', await driveToken(), { title, parentId: 'root' })
+    return folder === undefined ? null : { id: folder.id, name: folder.name }
+  },
+  async folderPath(folderId) {
+    const token = currentToken('drive.readonly')
+    return token === null ? null : pathFromMyDrive(token, folderId)
+  },
+  async pickFile() {
+    const [file] = await pickFromDrive('json', await driveToken(), { title: 'Pick the file with your books' })
+    return file?.id ?? null
+  },
 }
 
 async function driveAccess(): Promise<DriveAccess> {
@@ -54,7 +57,7 @@ const workbookStore = createWorkbookStore({
       })
     }
   },
-  hasLiveAccessToken: () => currentAccessToken() !== null,
+  hasLiveAccessToken: () => currentToken('drive.file') !== null,
   forgetGoogleSignIn,
   signOutOfGoogle,
   newLocalId: () => `local-${crypto.randomUUID()}`,

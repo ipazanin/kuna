@@ -6,7 +6,7 @@ import type { AccountantFolders, DriveWorkbook } from '../application/accountant
 type ListedFile = Pick<DriveFile, 'id' | 'name' | 'mimeType' | 'version'>
 
 /**
- * Drive v3 with the Drive read token. Drive lists one folder level at a time, so the folders are
+ * Drive v3 with a token that carries Drive read. Drive lists one folder level at a time, so the folders are
  * walked a level per pair of listings: the files of every folder of the level, and the folders
  * inside them. A Google Sheet is exported as xlsx, so both formats read the same way.
  */

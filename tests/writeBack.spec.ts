@@ -12,7 +12,7 @@ import { previewRulesChange } from '../src/features/rules/domain/rulesChangePrev
 import { rulesChangeInWords } from '../src/features/rules/domain/ruleSummary'
 import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
 import { removeSettings, setSettings } from '../src/features/settings/application/settingWrites'
-import { generalSettingsToSave, heldSettingValue, packSettingsToSave, unreadSettingKeys, unsetSettingKeys } from '../src/features/settings/domain/settings'
+import { changedSettings, unreadSettingKeys } from '../src/features/settings/domain/settings'
 import { installedPack } from '../src/features/packs/packContribution'
 import { recordsOf } from '../src/features/workbook/domain/recordsRead'
 import { canUndo } from '../src/features/workbook/application/createWorkbookStore'
@@ -20,8 +20,7 @@ import type { WorkbookStore } from '../src/features/workbook/application/createW
 import type { WriteReceipt } from '../src/features/workbook/application/recordWrites'
 import type { WorkbookCopy } from '../src/features/workbook/application/workbookPorts'
 import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
-import type { PackSettings, SettingEntry, Settings } from '../src/features/settings/domain/settings'
-import { COMPANY_FACT_SETTINGS } from '../src/packs/hr-doo/domain/companyFacts'
+import type { SettingEntry, Settings } from '../src/features/settings/domain/settings'
 import type { Transaction } from '../src/features/workbook/domain/workbook'
 import { browserHarness, forgetCaches, driveHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
@@ -299,34 +298,18 @@ describe.each([
     )
   })
 
-  it('writes the statements folder, the owner-pay switch and both accountant folders from Settings, General while the settings hold none, the defaults too, and later changes that row', async () => {
+  it('writes the statements folder a save of Settings changes, adding its row once and changing that row after', async () => {
     const { store } = await harnessOf(used)
-    const pack = COMPANY_FACT_SETTINGS
-    const facts = () => hrDooWorkbook(store.state.workbook!).companyFacts
     const held = () => store.state.records!.settings
-    const saveGeneral = (next: Settings) =>
-      store.write('Settings saved', (unit) =>
-        setSettings(unit, held(), [...generalSettingsToSave(settings(store), next, held()), ...packSettingsToSave(pack, facts(), facts(), held())]),
-      )
+    const save = (next: Settings) => store.write('Settings saved', (unit) => setSettings(unit, held(), changedSettings(settings(store), next)))
     const folderRows = () => held().records.filter((stored) => stored.record.key === 'statements_folder')
-    expect(unsetSettingKeys(held(), pack as PackSettings<unknown>)).toEqual(['owner_pay_module', 'statements_folder', 'hr_vat_returns_folder', 'hr_payroll_folder'])
 
-    await saveGeneral(settings(store))
-
-    expect(heldSettingValue(held(), 'statements_folder')).toBe('work/dss/business-bank-account/erste/statements')
-    expect(heldSettingValue(held(), 'owner_pay_module')).toBe('TRUE')
-    expect(heldSettingValue(held(), 'hr_vat_returns_folder')).toBe('work/dss/dss-finance/vat-returns')
-    expect(heldSettingValue(held(), 'hr_payroll_folder')).toBe('work/dss/dss-finance/payroll')
-    expect(unsetSettingKeys(held(), pack as PackSettings<unknown>)).toEqual([])
-    expect(settings(store).ownerPayModule).toBe(true)
-    expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(false)
-    expect(generalSettingsToSave(settings(store), settings(store), held())).toEqual([])
-    expect(packSettingsToSave(pack, facts(), facts(), held())).toEqual([])
-
-    await saveGeneral({ ...settings(store), statementsFolder: ['finance', 'bank statements'] })
+    await save({ ...settings(store), statementsFolder: ['finance', 'statements'] })
+    await save({ ...settings(store), statementsFolder: ['finance', 'bank statements'] })
 
     expect(settings(store).statementsFolder).toEqual(['finance', 'bank statements'])
     expect(folderRows().map((stored) => stored.record.value)).toEqual(['finance/bank statements'])
+    expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(false)
   })
 
   it('refuses a setting the reader would not use', async () => {

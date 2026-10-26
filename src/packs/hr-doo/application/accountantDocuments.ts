@@ -62,9 +62,9 @@ export interface AccountantDocuments {
 }
 
 /**
- * Lists the two folders and takes each workbook's tabs: from the previous read when Drive gives the
- * file the same id and version, otherwise from Drive. A file Drive does not give is kept with why,
- * so one failed download leaves the other periods read.
+ * Lists the two folders, a blank path as one with nothing in it, and takes each workbook's tabs:
+ * from the previous read when Drive gives the file the same id and version, otherwise from Drive. A
+ * file Drive does not give is kept with why, so one failed download leaves the other periods read.
  */
 export async function readAccountantDocuments(folders: AccountantFolders, paths: AccountantFolderPaths, previous: AccountantRead | null, readAt: string): Promise<AccountantRead> {
   const [vatReturns, payroll] = await Promise.all([listed(folders, paths.vatReturns, 'vat-return'), listed(folders, paths.payroll, 'salary')])
@@ -80,6 +80,9 @@ async function listed(
   path: readonly string[],
   kind: AccountantDocumentKind,
 ): Promise<{ readonly files: (AccountantFile & DriveWorkbook)[]; readonly problem: string | null }> {
+  if (path.length === 0) {
+    return { files: [], problem: null }
+  }
   const listing = await folders.files(path)
   if (listing.kind === 'refused') {
     const [documents, folder] = kind === 'vat-return' ? ['VAT returns', 'VAT returns folder'] : ['salary workbooks', 'payroll folder']

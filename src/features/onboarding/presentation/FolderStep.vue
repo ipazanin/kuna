@@ -1,0 +1,126 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import UAlert from '@nuxt/ui/components/Alert.vue'
+import UButton from '@nuxt/ui/components/Button.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
+
+import { folderTrail } from '../../../shared/text/folderPath'
+import type { PickedFolder } from '../../workbook/application/workbookPorts'
+import { useWorkbook } from '../../workbook/application/workbookStore'
+import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
+import { newBooksDocument } from '../../workbook/presentation/workbookFiles'
+import StepCard from './StepCard.vue'
+import { useOnboarding } from './useOnboarding'
+
+/**
+ * The folder the books are saved in: the Picker opens at My Drive, and nothing is made until the
+ * person confirms the folder, by its path from My Drive when the app may read the whole Drive, and by
+ * its name and a link to it in Drive when it may not. "Create the file here" is the only action that writes.
+ */
+const onboarding = useOnboarding()
+const store = useWorkbook()
+const { keeping, keepOnDrive } = useKeepOnDrive()
+
+const picked = ref<PickedFolder | null>(null)
+const picking = ref(false)
+const failure = ref<string | null>(null)
+
+const path = computed(() => onboarding.place.value.path)
+
+/** What the new file holds: new books, the file brought along, or the books this browser keeps. Null when the page no longer holds it. */
+const contents = computed(() => {
+  if (path.value === 'new') return 'new'
+  if (path.value === 'bring') return onboarding.heldFile.value?.document ?? null
+  return store.state.choice?.source === 'browser' ? (store.state.snapshot?.document ?? null) : null
+})
+
+const folderLink = computed(() => (picked.value === null ? null : `https://drive.google.com/drive/folders/${encodeURIComponent(picked.value.id)}`))
+
+async function choose(): Promise<void> {
+  picking.value = true
+  failure.value = null
+  try {
+    picked.value = (await store.pickBooksFolder()) ?? picked.value
+  } catch (refused) {
+    failure.value = refused instanceof Error ? refused.message : String(refused)
+  } finally {
+    picking.value = false
+  }
+}
+
+async function create(): Promise<void> {
+  const folder = picked.value
+  const held = contents.value
+  if (folder === null || held === null) return
+  const document = held === 'new' ? newBooksDocument(onboarding.place.value.statements === 'folder', new Date().toISOString()) : held
+  if (await keepOnDrive(folder, document, path.value === 'new' ? 'created' : 'moved')) {
+    await (path.value === 'move' ? onboarding.finish() : onboarding.next())
+  }
+}
+</script>
+
+<template>
+  <StepCard title="Where the books are saved" subtitle="The Picker opens at My Drive. Nothing is made until you confirm the folder.">
+    <UAlert
+      v-if="contents === null"
+      icon="i-lucide-file-question"
+      color="warning"
+      variant="subtle"
+      :title="path === 'bring' ? 'Open the file again' : 'There are no books in this browser to move'"
+      :description="path === 'bring' ? 'The page let go of the file on the way to Google. Go back and open it again.' : 'Choose your books on Settings, This device.'"
+    />
+    <template v-else-if="picked">
+      <div class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-folder-confirm">
+        <p class="text-sm text-muted">Your books will be saved in</p>
+        <p v-if="picked.path" class="identifier text-sm font-medium break-words text-highlighted" data-testid="onboarding-folder-path">{{ folderTrail(picked.path) }}</p>
+        <p v-else class="text-sm text-toned" data-testid="onboarding-folder-name">
+          <span class="identifier font-medium text-highlighted">{{ picked.name }}</span>, inside folders the app cannot see. Open it in Drive to check where it is.
+        </p>
+        <p class="flex items-center gap-2 text-sm text-toned">
+          <UIcon name="i-lucide-file-json" class="size-4 shrink-0 text-muted" aria-hidden="true" />
+          <span class="min-w-0"><span class="identifier">ledgerboard-company.json</span>, with a backups folder beside it</span>
+        </p>
+        <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target folder-link text-sm" data-testid="onboarding-folder-link">
+          Open this folder in Drive
+          <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
+        </a>
+      </div>
+    </template>
+    <p v-else class="text-sm text-toned">Choose the folder the books go in. The app writes only its file there and the backups folder beside it.</p>
+    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="No folder was chosen" :description="failure" data-testid="onboarding-folder-failure" />
+
+    <template #actions>
+      <template v-if="picked && contents !== null">
+        <UButton label="Choose another" color="neutral" variant="outline" :loading="picking" :disabled="keeping" data-testid="onboarding-folder-another" @click="choose" />
+        <UButton label="Create the file here" icon="i-lucide-hard-drive-upload" :loading="keeping" data-testid="onboarding-create" @click="create" />
+      </template>
+      <UButton
+        v-else
+        label="Choose a folder in Google Drive"
+        icon="i-lucide-folder-search"
+        :loading="picking"
+        :disabled="contents === null"
+        data-testid="onboarding-choose-folder"
+        @click="choose"
+      />
+    </template>
+  </StepCard>
+</template>
+
+<style scoped>
+.folder-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  color: var(--ink-secondary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+
+.folder-link:hover {
+  color: var(--ink-strong);
+  text-decoration-color: var(--accent);
+}
+</style>

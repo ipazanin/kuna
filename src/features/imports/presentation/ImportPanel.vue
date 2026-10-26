@@ -18,8 +18,7 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { NO_RECORDS } from '../../workbook/domain/recordsRead'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
-import { fittingProfiles, statementReadings } from '../application/importStatements'
-import { LEDGER_WRITES } from '../application/ledgerWrites'
+import { fittingProfiles, importTitle, statementReadings, writeImport } from '../application/importStatements'
 import { profileDraftProblem, profileKey, profileValue } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
 import { accountNamedIn, fileShapeOf } from '../domain/profileGuess'
@@ -158,16 +157,17 @@ async function deleteProfile(): Promise<void> {
 const readings = computed(() => (loaded.value === null || workbook.value === null ? [] : statementReadings(loaded.value, workbook.value, activeProfile.value)))
 
 const starts = useDryRun(readings)
-const { dryRun, started, typedOpenings } = starts
+const { dryRun, started, typedOpenings, accountNames, accountNameProblems } = starts
 
 const refused = computed(() => dryRun.value?.statements.filter((statement) => statement.refusal !== null).length ?? 0)
 const waitingStart = computed(() => dryRun.value?.statements.filter((statement) => statement.start !== null && !statement.rows.some((row) => row.verdict !== null)).length ?? 0)
+const waitingName = computed(() => dryRun.value?.statements.filter((statement) => statement.newAccount !== null && !statement.rows.some((row) => row.verdict !== null)).length ?? 0)
 
 
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
-  const written = await writes.write(run.newRows === 1 ? 'Imported 1 row' : `Imported ${run.newRows} rows`, (unit) => run.added.forEach((entry) => unit.of(LEDGER_WRITES).add(entry)), {
+  const written = await writes.write(importTitle(run), (unit) => writeImport(unit, run), {
     failedTitle: 'Not imported',
   })
   if (written) imported.value = new Set(run.added.map((entry) => rowKey(entry.account, entry.reference)))
@@ -189,10 +189,12 @@ const summary = computed(() => {
   const run = dryRun.value
   if (run === null) return ''
   return [
+    run.accounts.length > 0 ? `Confirming adds the account ${run.accounts.map((account) => account.slug).join(' and the account ')} to Settings, Accounts.` : '',
     run.newRows > 0 ? `Confirming adds ${rowsInWords(run.newRows)} to the ledger, each statement where its dates belong.` : 'Confirming would write nothing.',
     run.inLedger > 0 ? `${rowsInWords(run.inLedger)} ${run.inLedger === 1 ? 'is' : 'are'} on the ledger already, found by account and bank reference.` : '',
     refused.value > 0 ? `${refused.value === 1 ? 'One statement is' : `${refused.value} statements are`} refused and not written.` : '',
     waitingStart.value > 0 ? `${waitingStart.value === 1 ? 'One statement waits' : `${waitingStart.value} statements wait`} for you to start its account.` : '',
+    waitingName.value > 0 ? `${waitingName.value === 1 ? 'One statement waits' : `${waitingName.value} statements wait`} for you to name its new account.` : '',
   ]
     .filter((sentence) => sentence !== '')
     .join(' ')
@@ -285,8 +287,11 @@ const summary = computed(() => {
           :collapse-id="`import.statement-${index + 1}`"
           :started="started[statement.account] === true"
           :typed-opening="typedOpenings[statement.account] ?? ''"
+          :account-name="statement.newAccount ? accountNames[statement.newAccount.iban] : undefined"
+          :account-name-problem="statement.newAccount ? accountNameProblems[statement.newAccount.iban] : undefined"
           @update:started="starts.start(statement.account, $event)"
           @update:typed-opening="starts.typeOpening(statement.account, $event)"
+          @update:account-name="statement.newAccount && starts.nameAccount(statement.newAccount.iban, $event)"
         />
 
         <AppCard title="Dry run" data-testid="dry-run">

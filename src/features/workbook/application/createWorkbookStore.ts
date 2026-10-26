@@ -6,7 +6,7 @@ import type { Workbook } from '../domain/workbook'
 import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from './recordWrites'
 import type { RuledChange, WriteReceipt } from './recordWrites'
 import type { UnitOfWork } from './repository'
-import type { CopyMeta, CopyStorage, DriveFileLookup, DriveFilePlace, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
+import type { CopyMeta, CopyStorage, DriveFileLookup, DriveFilePlace, PickedFolder, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
 import { WorkbookWriteRefused } from './workbookWriteRefused'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
@@ -63,7 +63,7 @@ export interface WorkbookStorePorts<Copy extends WorkbookCopy, Contents> {
   openCache(workbookId: string): WorkbookCache<Copy>
   /**
    * The chosen Drive file as it is now, `held` itself while the file has not changed. Asks Google
-   * for a token first when none is kept, so call it from a click unless a token is kept.
+   * for a token first when the page holds none, so call it from a click unless it holds one.
    */
   readDriveFile(choice: WorkbookChoice, held: Copy | null): Promise<Copy>
   /**
@@ -72,19 +72,26 @@ export interface WorkbookStorePorts<Copy extends WorkbookCopy, Contents> {
    */
   findDriveFile(lookup: DriveFileLookup): Promise<Copy | null>
   /**
-   * Creates the app's file in a Drive folder the person picks, holding these contents, reads it
-   * back and throws unless it holds the same records. Null when cancelled.
+   * The folder the person picks in the Picker, opened at My Drive, for the books. Throws before the
+   * Picker opens when Drive already holds the file the app marked as its books. Null when cancelled.
    */
-  createDriveFile(contents: Contents): Promise<Copy | null>
-  /** Where the Drive file sits and its newest backup, or null while no token is kept, since asking for one needs a click. */
+  pickBooksFolder(): Promise<PickedFolder | null>
+  /** A folder the person picks in the Picker, opened at My Drive, under this title. Null when cancelled. */
+  pickDriveFolder(title: string): Promise<PickedFolder | null>
+  /**
+   * Creates the app's file in the folder, holding these contents, reads it back and throws unless it
+   * holds the same records. Throws when Drive already holds the file the app marked as its books.
+   */
+  createDriveFile(folderId: string, contents: Contents): Promise<Copy>
+  /** Where the Drive file sits and its newest backup, or null while the page holds no token, since asking for one needs a click. */
   driveFilePlace(fileId: string): Promise<DriveFilePlace | null>
   /** Loads whatever the next sync's click needs, so the click is not kept waiting. Never called for a workbook kept in this browser. */
   prepareSync(): void
-  /** Whether a Google token kept from an earlier sign-in is still good, so a sync needs no popup. */
+  /** Whether the page's Google token is still good, so a sync needs no popup. */
   hasLiveAccessToken(): boolean
-  /** Forgets the Google token and account kept on this device. */
+  /** Forgets the page's Google token and the account kept on this device. */
   forgetGoogleSignIn(): void
-  /** Revokes the kept token with Google and forgets the sign-in. */
+  /** Revokes the page's token with Google and forgets the sign-in. */
   signOutOfGoogle(): Promise<void>
   /** A new id for a workbook kept in this browser. */
   newLocalId(): string
@@ -113,7 +120,7 @@ export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
    * holds, since a new token needs a popup.
    */
   sync(): Promise<void>
-  /** A Drive file is chosen and a kept token is still good, so a sync opens no popup. */
+  /** A Drive file is chosen and the page's token is still good, so a sync opens no popup. */
   canSyncSilently(): boolean
   /** Revokes and forgets the Google sign-in. The file stays chosen and its copy stays on screen. */
   signOutOfGoogle(): Promise<void>
@@ -122,14 +129,17 @@ export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
    * failure the previous workbook stays chosen. Leaving a workbook kept in this browser deletes it.
    */
   chooseDriveFile(lookup: DriveFileLookup): Promise<void>
+  /** The folder the person picks for the books, as `WorkbookStorePorts.pickBooksFolder` says. */
+  pickBooksFolder(): Promise<PickedFolder | null>
+  /** A folder the person picks, as `WorkbookStorePorts.pickDriveFolder` says. */
+  pickDriveFolder(title: string): Promise<PickedFolder | null>
   /**
    * Keeps the contents, an opened file's, a fresh start's or the workbook kept in this browser, in a
-   * new file in a Drive folder the person picks, and shows that file once it reads back with the
-   * same records. Leaving a workbook kept in this browser deletes it. On a cancel or a failure the
-   * previous workbook stays chosen.
+   * new file in the folder, and shows that file once it reads back with the same records. Leaving a
+   * workbook kept in this browser deletes it. On a failure the previous workbook stays chosen.
    */
-  keepOnDrive(contents: Contents): Promise<void>
-  /** Where the chosen Drive file sits and its newest backup. Null for a workbook kept in this browser, or while no token is kept. */
+  keepOnDrive(folderId: string, contents: Contents): Promise<void>
+  /** Where the chosen Drive file sits and its newest backup. Null for a workbook kept in this browser, or while the page holds no token. */
   driveFilePlace(): Promise<DriveFilePlace | null>
   /**
    * Makes this the workbook kept in this browser, as an import or a fresh start does, and chooses
@@ -381,8 +391,16 @@ export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: 
       return readDrive(() => ports.findDriveFile(lookup))
     },
 
-    keepOnDrive(contents) {
-      return readDrive(() => ports.createDriveFile(contents))
+    pickBooksFolder() {
+      return ports.pickBooksFolder()
+    },
+
+    pickDriveFolder(title) {
+      return ports.pickDriveFolder(title)
+    },
+
+    keepOnDrive(folderId, contents) {
+      return readDrive(() => ports.createDriveFile(folderId, contents))
     },
 
     async driveFilePlace() {

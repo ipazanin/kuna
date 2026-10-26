@@ -6,9 +6,6 @@ export interface StatementFile {
   readonly name: string
 }
 
-/** Where the bank statements are filed, as folder names from My Drive down. */
-export const DEFAULT_STATEMENTS_FOLDER: readonly string[] = ['work', 'dss', 'business-bank-account', 'erste', 'statements']
-
 /**
  * The statement label and the account an archived camt file's name carries, as the fetch names it:
  * `<label>-<account>.xml`, or `<label>.xml` for a statement whose IBAN the accounts tab did not

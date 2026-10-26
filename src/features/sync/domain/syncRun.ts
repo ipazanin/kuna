@@ -1,5 +1,5 @@
-/** A Google permission a sync step needs, by the scope name Google gives it. */
-export type SyncScope = 'drive.file' | 'drive.readonly'
+/** A Google permission a sync step or a setting needs, by the scope name Google gives it. */
+export type SyncScope = 'drive.file' | 'drive.readonly' | 'gmail.compose'
 
 /** A link a step line offers, such as Import for the statements a sync held. */
 export interface StepLink {
@@ -78,6 +78,7 @@ export function finishedRun(run: SyncRun, at: string): SyncRun {
 const ACCESS_LINES: Readonly<Record<SyncScope, string>> = {
   'drive.file': 'Waits for you to sign in to Google',
   'drive.readonly': 'Waits for your Drive read access',
+  'gmail.compose': 'Waits for your Gmail drafts access',
 }
 
 /** A step that needs its scope, said the usual way or with why Google gave no token. */
@@ -123,12 +124,14 @@ export function withAccessLine(run: SyncRun, line: string): SyncRun {
 
 /**
  * What the sync control shows: find the file while none is chosen, the step running with its place
- * among the steps that are on, Allow access while a step lacks its permission, the problems of the
- * last run, or else ready with the time of the last read.
+ * among the steps that are on, Sign in to Google when Google asks for that first, Allow access while
+ * a step or a setting lacks its permission, the problems of the last run, or else ready with the time
+ * of the last read.
  */
 export type SyncControl =
   | { readonly kind: 'find' }
   | { readonly kind: 'running'; readonly label: string; readonly position: number; readonly of: number; readonly line: string }
+  | { readonly kind: 'sign-in' }
   | { readonly kind: 'allow-access'; readonly scopes: readonly SyncScope[]; readonly labels: readonly string[] }
   | { readonly kind: 'problems'; readonly count: number; readonly labels: readonly string[] }
   | { readonly kind: 'ready'; readonly syncedAt: string | null }
@@ -141,7 +144,36 @@ export interface BooksStanding {
   readonly syncedAt: string | null
 }
 
-export function syncControlOf(run: SyncRun | null, books: BooksStanding): SyncControl {
+/** A permission the books' steps or this device's settings need, with the name of what needs it, such as Statements. */
+export interface AccessNeed {
+  readonly scope: SyncScope
+  readonly label: string
+}
+
+/**
+ * How the page's Google token stands against what the settings need: enough, or nothing asked yet,
+ * so a sync asks in its tap. Google asked for a sign-in first, or the token lacks these needs, or
+ * the page holds none since Google turned its ask down.
+ */
+export type PageAccess = { readonly kind: 'enough' } | { readonly kind: 'sign-in' } | { readonly kind: 'lacking'; readonly needs: readonly AccessNeed[] }
+
+/** Google's error when the person is not signed in to Google in this browser. */
+const LOGIN_REQUIRED = 'login_required'
+
+/**
+ * How the page stands: `granted` is the scopes of the page's token, or null while it holds none,
+ * and `refusal` Google's error for the page's last ask or this device's silent trip.
+ */
+export function pageAccessOf(needs: readonly AccessNeed[], granted: readonly SyncScope[] | null, refusal: string | null): PageAccess {
+  if (granted === null) {
+    if (refusal === null) return { kind: 'enough' }
+    return refusal === LOGIN_REQUIRED ? { kind: 'sign-in' } : { kind: 'lacking', needs }
+  }
+  const lacking = needs.filter((need) => !granted.includes(need.scope))
+  return lacking.length === 0 ? { kind: 'enough' } : { kind: 'lacking', needs: lacking }
+}
+
+export function syncControlOf(run: SyncRun | null, books: BooksStanding, access: PageAccess): SyncControl {
   if (!books.chosen) {
     return { kind: 'find' }
   }
@@ -159,9 +191,12 @@ export function syncControlOf(run: SyncRun | null, books: BooksStanding): SyncCo
   if (books.reading) {
     return { kind: 'running', label: BOOKS_STEP.label, position: 1, of: 1, line: 'Reading the file' }
   }
-  const lacking = stepsNeedingAccess(run)
+  if (access.kind === 'sign-in') {
+    return { kind: 'sign-in' }
+  }
+  const lacking = [...stepsNeedingAccess(run), ...(access.kind === 'lacking' ? access.needs : [])]
   if (lacking.length > 0) {
-    return { kind: 'allow-access', scopes: [...new Set(lacking.map((step) => step.scope))], labels: lacking.map((step) => step.label) }
+    return { kind: 'allow-access', scopes: [...new Set(lacking.map((need) => need.scope))], labels: [...new Set(lacking.map((need) => need.label))] }
   }
   const problems = problemsOf(run)
   if (problems.length > 0) {

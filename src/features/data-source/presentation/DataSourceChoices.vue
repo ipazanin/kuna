@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
@@ -12,12 +13,12 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { DriveFileLookup } from '../../workbook/application/workbookPorts'
 import type { WorkbookSource } from '../../workbook/domain/workbook'
 import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
-import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
-import { WORKBOOK_FILE_TYPES, emptyLocalWorkbook } from '../../workbook/presentation/workbookFiles'
+import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
+import { onboardingStart } from '../../onboarding/presentation/useOnboarding'
 
-/** Where a workbook can come from: the file on Drive, a file to open, or an empty start. Each action changes the workbook on screen. */
+/** Where a workbook can come from: the file on Drive, a file to open, or new books, which onboarding sets up. Each action changes the workbook on screen. */
 defineProps<{
-  /** The source in use, which changes how the Drive choice is worded. Null on a first run. */
+  /** The source in use, which changes how the Drive choice is worded. Null while nothing is chosen. */
   current: WorkbookSource | null
 }>()
 
@@ -27,13 +28,12 @@ const emit = defineEmits<{
 }>()
 
 const store = useWorkbook()
-const { keeping, keepOnDrive } = useKeepOnDrive()
+const router = useRouter()
 const { findDriveFile } = useFindDriveFile()
 
 const signInByRedirect = useMediaQuery(REDIRECT_SIGN_IN_QUERY)
 
 const pickedFile = ref<File | null>(null)
-const startingEmpty = ref(false)
 const lookingUp = ref<DriveFileLookup | null>(null)
 
 async function openFromDrive(lookup: DriveFileLookup): Promise<void> {
@@ -45,20 +45,9 @@ async function openFromDrive(lookup: DriveFileLookup): Promise<void> {
   }
 }
 
-async function startEmptyInBrowser(): Promise<void> {
-  startingEmpty.value = true
-  const { document, title } = emptyLocalWorkbook()
-  await store.replaceLocalWorkbook(document, title)
-  startingEmpty.value = false
-  if (store.state.status !== 'error') {
-    emit('chosen')
-  }
-}
-
-async function startEmptyOnDrive(): Promise<void> {
-  if (await keepOnDrive(emptyLocalWorkbook().document)) {
-    emit('chosen')
-  }
+async function startNewBooks(): Promise<void> {
+  emit('chosen')
+  await router.push(onboardingStart('new', 'home'))
 }
 </script>
 
@@ -127,32 +116,11 @@ async function startEmptyOnDrive(): Promise<void> {
     <li class="choice">
       <UIcon name="i-lucide-file-plus" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">Start empty</h3>
-        <p class="mt-1 text-sm text-muted">
-          An empty workbook with the default categories and settings. Set it up here, then import your bank statements.
-        </p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <UButton
-            label="Keep on Google Drive"
-            icon="i-lucide-hard-drive-upload"
-            color="neutral"
-            variant="outline"
-            :loading="keeping"
-            :disabled="keeping || startingEmpty || store.state.status === 'syncing'"
-            data-testid="start-empty-drive"
-            @click="startEmptyOnDrive"
-          />
-          <UButton
-            label="Keep in this browser"
-            icon="i-lucide-monitor-smartphone"
-            color="neutral"
-            variant="outline"
-            :loading="startingEmpty"
-            :disabled="keeping || startingEmpty"
-            data-testid="start-empty-browser"
-            @click="startEmptyInBrowser"
-          />
-        </div>
+        <h3 class="text-sm font-medium text-highlighted">Start new books</h3>
+        <p class="mt-1 text-sm text-muted">The default categories and no rows yet. A few questions set them up, then you import a bank statement.</p>
+      </div>
+      <div class="choice-action">
+        <UButton label="Start new books" icon="i-lucide-file-plus" color="neutral" variant="outline" data-testid="start-new-books" @click="startNewBooks" />
       </div>
     </li>
   </AppCard>

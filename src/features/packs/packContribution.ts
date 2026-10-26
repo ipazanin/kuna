@@ -48,6 +48,23 @@ export interface PackCompanyFacts<Facts> {
   errors(facts: Facts): Readonly<Record<string, string>>
 }
 
+/** A Drive folder the pack reads, by the settings key that names it as a path from My Drive. */
+export interface PackDriveFolder {
+  readonly key: string
+  /** What the folder holds, as a sentence names it, such as "the accountant's VAT returns". */
+  readonly holds: string
+}
+
+/** What onboarding asks for the pack: one question whose Yes switches on the owner-pay module, and the folders the pack reads. */
+export interface PackOnboarding {
+  readonly question: string
+  /** What Yes adds, said as the answer. */
+  readonly yes: string
+  readonly folders: readonly PackDriveFolder[]
+  /** Where the folders are set once onboarding is over. */
+  readonly foldersAt: RouteLocationRaw
+}
+
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
 export interface PackContribution {
   /** The pack's part of the workbook, read whatever the owner-pay switch says. */
@@ -65,6 +82,7 @@ export interface PackContribution {
   costGroupLinks(group: string): { readonly label: string; readonly to: RouteLocationRaw } | null
   /** Steps a sync runs after core's, in order. */
   readonly syncSteps: readonly SyncStep[]
+  readonly onboarding: PackOnboarding | null
 }
 
 const NO_PACK: PackContribution = {
@@ -77,6 +95,7 @@ const NO_PACK: PackContribution = {
   companyFacts: null,
   costGroupLinks: () => null,
   syncSteps: [],
+  onboarding: null,
 }
 
 let installed: PackContribution = NO_PACK

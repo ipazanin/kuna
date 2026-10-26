@@ -12,7 +12,7 @@ export function loadWorkbookChoice(): WorkbookChoice | null {
   }
 }
 
-/** Null forgets the choice, so the next start shows the welcome screen. */
+/** Null forgets the choice, so the next start goes to onboarding. */
 export function saveWorkbookChoice(choice: WorkbookChoice | null): void {
   try {
     if (choice === null) {

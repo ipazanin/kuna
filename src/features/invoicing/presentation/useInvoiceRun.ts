@@ -28,6 +28,7 @@ import type { InvoiceMail } from '../domain/invoiceMail'
 import { linesTotal, plannedLines, registerItemOf } from '../domain/invoiceLines'
 import type { InvoiceLine } from '../domain/invoiceLines'
 import { nextInvoiceNumber, numberTaken } from '../domain/invoiceNumber'
+import { mailDraftsOn, switchMailDrafts } from '../infrastructure/mailDraftSwitch'
 
 /** A new invoice, or the PDF and draft of one on the register made again. */
 export type InvoiceRunMode = { readonly kind: 'new'; readonly client: string | null } | { readonly kind: 'reexport'; readonly id: RecordId }
@@ -46,24 +47,6 @@ export type RunStage =
   | { readonly kind: 'ready'; readonly target: FilingTarget | null; readonly pdf: Uint8Array }
   | { readonly kind: 'running' }
   | { readonly kind: 'finished' }
-
-const DRAFT_PREFERENCE_KEY = 'ledgerboard.invoice-mail-draft'
-
-function storedDraftPreference(): boolean {
-  try {
-    return localStorage.getItem(DRAFT_PREFERENCE_KEY) === 'true'
-  } catch {
-    return false
-  }
-}
-
-function rememberDraftPreference(on: boolean): void {
-  try {
-    localStorage.setItem(DRAFT_PREFERENCE_KEY, String(on))
-  } catch {
-    // Not remembered on this device, so the switch starts off next time.
-  }
-}
 
 function amountText(amount: Money): string {
   return amountOf(amount).toFixed(2)
@@ -95,13 +78,11 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   const periodFrom = ref('')
   const periodTo = ref('')
   const lines = ref<LineDraft[]>([])
-  const mailDraft = ref(storedDraftPreference())
+  const mailDraft = computed({ get: () => mailDraftsOn.value, set: switchMailDrafts })
   const stage = ref<RunStage>({ kind: 'edit', message: null })
   const steps = ref<RunStep[]>([])
   const creatable = ref(new Set<string>())
   let plan: RunPlan | null = null
-
-  watch(mailDraft, rememberDraftPreference)
 
   const reexported = computed((): Invoice | null => {
     const current = mode.value

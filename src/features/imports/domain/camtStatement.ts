@@ -42,8 +42,10 @@ interface CamtEntry {
  * reads, every amount read in cents from its decimal text, booked entries only, in booking-date
  * order with ties kept in document order, and the four checks against the statement's own balances
  * and totals. A document may carry several Stmt, and each is read, or refused, on its own.
- * `accountsByIban` names the account of each IBAN, normalised, as the accounts tab does. Throws
- * `StatementRefused` for a document that holds no statement at all.
+ * `accountsByIban` names the account of each IBAN, normalised, as the accounts tab does. A statement
+ * of an IBAN it lacks is read with a blank account and offers that account, by its IBAN and
+ * currency, never filed under another one. Throws `StatementRefused` for a document that holds no
+ * statement at all.
  */
 export function readCamtDocument(document: Document, fileName: string, accountsByIban: ReadonlyMap<string, string>): StatementReading[] {
   const root = document.documentElement
@@ -54,7 +56,8 @@ export function readCamtDocument(document: Document, fileName: string, accountsB
   return statements.map((statement, index) => {
     const label = statementLabelOf(statement) ?? `statement ${index + 1} of ${fileName}`
     try {
-      return { statement: readStatement(statement, fileName, accountsByIban) }
+      const read = readStatement(statement, fileName, accountsByIban)
+      return read.statement.account === '' ? { statement: read.statement, newAccount: { iban: read.iban, currency: read.currency } } : { statement: read.statement }
     } catch (failure) {
       if (failure instanceof StatementRefused) {
         return { fileName, label, refusal: failure.message }
@@ -64,17 +67,17 @@ export function readCamtDocument(document: Document, fileName: string, accountsB
   })
 }
 
-function readStatement(statement: Element, fileName: string, accountsByIban: ReadonlyMap<string, string>): ImportedStatement {
+function readStatement(statement: Element, fileName: string, accountsByIban: ReadonlyMap<string, string>): { readonly statement: ImportedStatement; readonly iban: string; readonly currency: string } {
   const label = statementLabelOf(statement)
   if (label === null) {
     throw new StatementRefused('The statement carries no CreDtTm or no LglSeqNb, so it cannot be named.')
   }
   const iban = normaliseIban(textAt(statement, ['Acct', 'Id', 'IBAN']))
-  const account = accountsByIban.get(iban)
   // A statement filed under the wrong account corrupts that account's balance chain from that row down.
-  if (account === undefined) {
-    throw new StatementRefused(`The accounts tab names no account for IBAN ${iban || '(none)'}, so the statement cannot be filed. Add the account on Settings, Accounts first.`)
+  if (iban === '') {
+    throw new StatementRefused('The statement names no Acct/Id/IBAN, so the app cannot tell whose account it is.')
   }
+  const account = accountsByIban.get(iban) ?? ''
   const currency = textAt(statement, ['Acct', 'Ccy'])
   if (currency === '') {
     throw new StatementRefused('The statement states no Acct/Ccy, so no entry can be checked against it.')
@@ -120,7 +123,7 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
     checkSummarySide(summary, 'TtlCdtNtries', entries.filter((entry) => entry.credit), 'credit')
   }
   const sequence = Number(textAt(statement, ['LglSeqNb']))
-  return { fileName, source: { kind: 'camt', iban, sequence }, label, account, opening, closing, rows, notes }
+  return { statement: { fileName, source: { kind: 'camt', iban, sequence }, label, account, opening, closing, rows, notes }, iban, currency }
 }
 
 /**

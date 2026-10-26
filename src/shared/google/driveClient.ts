@@ -119,6 +119,33 @@ export async function getFile<Field extends keyof DriveFile>(accessToken: string
   return (await response.json()) as Pick<DriveFile, Field>
 }
 
+/** Deeper than any folder a person keeps books in, so a loop in the parents cannot run on. */
+const DEEPEST_FOLDER = 64
+
+/**
+ * The names of the folders from My Drive down to this one, walked up through each folder's parent
+ * with a token that can read the whole Drive. Null for a folder that is not in My Drive, such as one
+ * shared with the person. Under `drive.file` alone Drive answers 404 for the parents.
+ */
+export async function pathFromMyDrive(accessToken: string, folderId: string): Promise<string[] | null> {
+  const { id: rootId } = await getFile(accessToken, 'root', ['id'])
+  const names: string[] = []
+  let current = folderId
+  for (let depth = 0; depth < DEEPEST_FOLDER; depth += 1) {
+    if (current === rootId) {
+      return names.reverse()
+    }
+    const folder = await getFile(accessToken, current, ['name', 'parents'])
+    const parent = folder.parents?.[0]
+    if (parent === undefined) {
+      return null
+    }
+    names.push(folder.name)
+    current = parent
+  }
+  return null
+}
+
 /** The files a search finds by a property this app gave them, read page by page. */
 export async function filesWithAppProperty<Field extends keyof DriveFile>(accessToken: string, key: string, value: string, fields: readonly Field[]): Promise<Pick<DriveFile, Field>[]> {
   return listChildren(accessToken, `appProperties has { key=${queryLiteral(key)} and value=${queryLiteral(value)} } and trashed = false`, fields)

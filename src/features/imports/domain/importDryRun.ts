@@ -12,7 +12,7 @@ import { ledgerIdOf } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import { newRecordId } from '../../workbook/domain/recordId'
 import type { Transaction } from '../../workbook/domain/workbook'
-import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
+import type { ImportedRow, ImportedStatement, NewAccountOffer, StatementReading } from './importedStatement'
 
 /** One entry of a statement as the dry run sees it: on the ledger already, or new with the verdict the rules give it. */
 export interface DryRunRow extends ImportedRow {
@@ -31,16 +31,32 @@ export interface AccountStart {
   readonly date: CivilDate
 }
 
+/** An account the accounts tab lacks, which a statement names by its IBAN and starts at its opening once the person names it. */
+export interface NewAccountStart extends NewAccountOffer {
+  readonly opening: Money | null
+  /** The day of the statement's first entry. */
+  readonly date: CivilDate | null
+}
+
+/** An account the import adds to the accounts tab, by the name the person gave it. */
+export interface AddedAccount {
+  readonly slug: string
+  readonly iban: string
+  readonly currency: string
+}
+
 export interface DryRunStatement {
   readonly fileName: string
   readonly label: string
-  /** Blank for a statement that could not be read. */
+  /** Blank for a statement that could not be read, or of a new account the person has not named. */
   readonly account: string
   readonly rows: readonly DryRunRow[]
   /** Why nothing of the statement is written, or null. */
   readonly refusal: string | null
   /** Set while the statement waits for the person to start its account. */
   readonly start: AccountStart | null
+  /** Set for a statement of an IBAN the accounts tab lacks, named or not. */
+  readonly newAccount: NewAccountStart | null
   readonly notes: readonly string[]
   readonly opening: Money | null
   readonly closing: Money | null
@@ -50,6 +66,8 @@ export interface ImportDryRun {
   readonly statements: readonly DryRunStatement[]
   /** The ledger entries confirming would write, one statement after another, each newest first as the tab holds them. */
   readonly added: readonly LedgerEntry[]
+  /** The accounts confirming would add before those entries. */
+  readonly accounts: readonly AddedAccount[]
   readonly newRows: number
   readonly inLedger: number
 }
@@ -70,6 +88,11 @@ export interface DryRunInputs {
   readonly categories: readonly ShareDefault[]
   /** The opening each account without ledger rows starts at, as the person confirmed or typed it. */
   readonly starts: ReadonlyMap<string, Money>
+  /**
+   * The name the person gave each new account, by its IBAN. Each is a valid account name no account
+   * on the tab has, which the caller checks, and the account starts at its statement's opening.
+   */
+  readonly named: ReadonlyMap<string, string>
 }
 
 /**
@@ -82,7 +105,9 @@ export interface DryRunInputs {
  * and that still has new rows is refused, since its rows' keys changed since it was imported.
  * Statements of one account are taken oldest first, each against where the one before left the
  * account, and a refused one leaves the account where it was, so a later one is refused for the
- * gap. New rows are categorised by the rules, each with its category's default share.
+ * gap. New rows are categorised by the rules, each with its category's default share. A statement of
+ * an IBAN the accounts tab lacks waits until the person names its account, which the import then
+ * adds and starts at the statement's opening.
  */
 export function importDryRun(readings: readonly StatementReading[], inputs: DryRunInputs): ImportDryRun {
   const states = accountStates(inputs.transactions)
@@ -96,26 +121,66 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
   }
   const statements: DryRunStatement[] = []
   const added: LedgerEntry[] = []
-  for (const reading of inBookingOrder(readings)) {
+  const accounts = new Map<string, AddedAccount>()
+  for (const reading of inBookingOrder(readings, inputs.named)) {
     if (!('statement' in reading)) {
-      statements.push({ fileName: reading.fileName, label: reading.label, account: '', rows: [], refusal: reading.refusal, start: null, notes: [], opening: null, closing: null })
+      statements.push({ fileName: reading.fileName, label: reading.label, account: '', rows: [], refusal: reading.refusal, start: null, newAccount: null, notes: [], opening: null, closing: null })
       continue
     }
-    const planned = planStatement(reading.statement, stateOf(reading.statement.account), inputs)
-    statements.push(planned.statement)
+    if (!('newAccount' in reading)) {
+      const planned = planStatement(reading.statement, stateOf(reading.statement.account), inputs)
+      statements.push({ ...planned.statement, newAccount: null })
+      added.push(...planned.added)
+      continue
+    }
+    const newAccount = newAccountStart(reading.statement, reading.newAccount)
+    const slug = inputs.named.get(reading.newAccount.iban)
+    if (slug === undefined) {
+      statements.push(waitingForName(reading.statement, newAccount))
+      continue
+    }
+    const named = { ...reading.statement, account: slug }
+    const starts = new Map(inputs.starts)
+    if (newAccount.opening !== null && !starts.has(slug)) starts.set(slug, newAccount.opening)
+    const planned = planStatement(named, stateOf(slug), { ...inputs, starts })
+    statements.push({ ...planned.statement, newAccount })
     added.push(...planned.added)
+    if (planned.statement.refusal === null) accounts.set(slug, { slug, iban: newAccount.iban, currency: newAccount.currency })
   }
   const rows = statements.flatMap((statement) => statement.rows)
-  return { statements, added, newRows: added.length, inLedger: rows.filter((row) => row.inLedger).length }
+  return { statements, added, accounts: [...accounts.values()], newRows: added.length, inLedger: rows.filter((row) => row.inLedger).length }
 }
 
-function planStatement(statement: ImportedStatement, state: AccountState, inputs: DryRunInputs): { readonly statement: DryRunStatement; readonly added: readonly LedgerEntry[] } {
+/** Where a statement of a new account would start it: the balance before its first entry, on that entry's day. */
+function newAccountStart(statement: ImportedStatement, offer: NewAccountOffer): NewAccountStart {
+  const first = statement.rows[0]
+  const opening = first === undefined ? statement.opening : first.balance === null ? statement.opening : subtractMoney(first.balance, first.amount)
+  return { ...offer, opening, date: first?.date ?? null }
+}
+
+/** A statement of a new account before the person names it, its entries shown and nothing of it written. */
+function waitingForName(statement: ImportedStatement, newAccount: NewAccountStart): DryRunStatement {
+  return {
+    fileName: statement.fileName,
+    label: statement.label,
+    account: '',
+    rows: withBalances(statement.rows, statement.opening).map((row) => ({ ...row, inLedger: false, verdict: null })),
+    refusal: null,
+    start: null,
+    newAccount,
+    notes: statement.notes,
+    opening: statement.opening,
+    closing: statement.closing,
+  }
+}
+
+function planStatement(statement: ImportedStatement, state: AccountState, inputs: DryRunInputs): { readonly statement: Omit<DryRunStatement, 'newAccount'>; readonly added: readonly LedgerEntry[] } {
   const { account } = statement
   const notes = [...statement.notes]
   const inLedger = statement.rows.map((row) => row.reference !== '' && state.references.has(row.reference))
   const firstNew = inLedger.indexOf(false)
   const shell = { fileName: statement.fileName, label: statement.label, account, opening: statement.opening, closing: statement.closing }
-  const shown = (refusal: string | null, start: AccountStart | null, opening: Money | null): DryRunStatement => ({
+  const shown = (refusal: string | null, start: AccountStart | null, opening: Money | null): Omit<DryRunStatement, 'newAccount'> => ({
     ...shell,
     rows: withBalances(statement.rows, opening).map((row, index) => ({ ...row, inLedger: inLedger[index]!, verdict: null })),
     refusal,
@@ -250,11 +315,13 @@ function withBalances<Row extends ImportedRow>(rows: readonly Row[], from: Money
   })
 }
 
-/** Statements that were read, by account, then by their first entry's day, then by camt sequence. Refused files stay where they are. */
-function inBookingOrder(readings: readonly StatementReading[]): StatementReading[] {
+/** Statements that were read, by account, a new one by the name it was given or else its IBAN, then by their first entry's day, then by camt sequence. Refused files stay where they are. */
+function inBookingOrder(readings: readonly StatementReading[], named: ReadonlyMap<string, string>): StatementReading[] {
+  const accountOf = (reading: StatementReading & { readonly statement: ImportedStatement }): string =>
+    'newAccount' in reading ? (named.get(reading.newAccount.iban) ?? reading.newAccount.iban) : reading.statement.account
   const keyOf = (reading: StatementReading): [string, string, number] =>
     'statement' in reading
-      ? [reading.statement.account, reading.statement.rows[0]?.date ?? '', reading.statement.source.kind === 'camt' ? reading.statement.source.sequence : 0]
+      ? [accountOf(reading), reading.statement.rows[0]?.date ?? '', reading.statement.source.kind === 'camt' ? reading.statement.source.sequence : 0]
       : ['', '', 0]
   return readings
     .map((reading, position) => ({ reading, position, key: keyOf(reading) }))

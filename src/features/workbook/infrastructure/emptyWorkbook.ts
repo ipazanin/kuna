@@ -69,6 +69,9 @@ const DEFAULT_CATEGORIES: readonly CategorySeed[] = [
   },
 ]
 
+/** The names of the categories new books start with. */
+export const DEFAULT_CATEGORY_NAMES: readonly string[] = DEFAULT_CATEGORIES.flatMap((seed) => seed.categories.map(([category]) => category))
+
 /** Rows numbered from 2, under the header, as a tab holds them. */
 function rowsFrom(cellsOfRows: readonly Readonly<Record<string, CellValue>>[]): SheetRow[] {
   return cellsOfRows.map((cells, index) => ({ sheetRow: index + 2, cells: withoutBlanks(cells) }))
@@ -83,8 +86,8 @@ export function settingsTabRows(settings: Settings, keptRows: readonly SheetRow[
   ])
 }
 
-/** A workbook with no transactions or accounts yet, the default categories and the default settings. */
-export function emptyWorkbookTabs(): WorkbookTabs {
+/** A workbook with no transactions or accounts yet, the default categories, and a row for every setting with these values and the pack's defaults. */
+export function emptyWorkbookTabs(settings: Settings = DEFAULT_SETTINGS): WorkbookTabs {
   return {
     ledger: [],
     categories: rowsFrom(
@@ -93,7 +96,7 @@ export function emptyWorkbookTabs(): WorkbookTabs {
       ),
     ),
     accounts: [],
-    settings: settingsTabRows(DEFAULT_SETTINGS),
+    settings: settingsTabRows(settings),
     rules: [],
     invoices: [],
     clients: [],

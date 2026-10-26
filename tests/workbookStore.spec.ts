@@ -44,8 +44,10 @@ interface DriveSide {
   before: (request: keyof DocumentDrive) => Promise<void>
   pickedFile: string | null
   pickedFolder: string | null
+  /** Whether the page's token can read the whole Drive, which the path of a picked folder needs. */
+  readsDrive: boolean
   /** What each sign-in would resume after a redirect, in order. */
-  readonly signIns: RedirectResume[]
+  readonly signIns: (RedirectResume | null)[]
 }
 
 function driveSide(): DriveSide {
@@ -55,6 +57,7 @@ function driveSide(): DriveSide {
     before: async () => {},
     pickedFile: null,
     pickedFolder: null,
+    readsDrive: false,
     signIns: [],
     access: {
       drive: new Proxy(drive, {
@@ -72,7 +75,13 @@ function driveSide(): DriveSide {
         side.signIns.push(then)
       },
       signedIn: () => true,
-      pickFolder: async () => side.pickedFolder,
+      pickFolder: async () => (side.pickedFolder === null ? null : { id: side.pickedFolder, name: drive.file(side.pickedFolder).name }),
+      async folderPath(folderId) {
+        if (!side.readsDrive) return null
+        const names: string[] = []
+        for (let current = folderId; current !== 'root'; current = drive.file(current).parents[0]!) names.unshift(drive.file(current).name)
+        return names
+      },
       pickFile: async () => side.pickedFile,
     },
   }
@@ -553,7 +562,9 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.replaceLocalWorkbook(document, 'Studio')
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    await store.keepOnDrive(document)
+    const folder = await store.pickBooksFolder()
+    expect(chosen()?.source).toBe('browser')
+    await store.keepOnDrive(folder!.id, document)
 
     const choice = chosen()!
     used.add(choice.id)
@@ -571,7 +582,7 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.open()
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    await store.keepOnDrive(documentOf([10, 20, 30]))
+    await store.keepOnDrive(side.pickedFolder, documentOf([10, 20, 30]))
 
     const choice = chosen()!
     used.add(choice.id)
@@ -580,27 +591,45 @@ describe('workbook store with a workbook kept in this browser', () => {
     expect(used.has('local-1')).toBe(false)
   })
 
-  it('keeps the workbook on screen when the folder Picker is cancelled', async () => {
+  it('confirms a picked folder by its path from My Drive with Drive read access, and by its name alone without it, writing nothing', async () => {
+    const side = driveSide()
+    const store = storeOf(harness(null, side).ports)
+    await store.open()
+    const work = await side.drive.createFolder('root', 'work')
+    side.pickedFolder = await side.drive.createFolder(work, 'books')
+    const requests = side.drive.requests.length
+
+    expect(await store.pickBooksFolder()).toEqual({ id: side.pickedFolder, name: 'books', path: null })
+    side.readsDrive = true
+    expect(await store.pickBooksFolder()).toEqual({ id: side.pickedFolder, name: 'books', path: ['work', 'books'] })
+    expect(await store.pickDriveFolder('Choose the folder of your bank statements')).toEqual({ id: side.pickedFolder, name: 'books', path: ['work', 'books'] })
+    expect(side.drive.requests.slice(requests).filter((request) => !request.startsWith('find'))).toEqual([])
+    expect(store.state.choice).toBeNull()
+  })
+
+  it('gives no folder when the folder Picker is cancelled, and the workbook stays on screen', async () => {
     const side = driveSide()
     const store = storeOf(harness(null, side).ports)
     await store.open()
     await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
 
-    await store.keepOnDrive(documentOf([10]))
+    expect(await store.pickBooksFolder()).toBeNull()
 
     expect(store.state.choice).toEqual({ source: 'browser', id: 'local-1', name: 'Studio' })
     expect(store.state.status).toBe('ready')
     expect(await storedCopy('local-1')).not.toBeNull()
   })
 
-  it('makes no second file when Drive holds the app’s file already, and keeps the browser’s workbook', async () => {
+  it('makes no second file when Drive holds the app’s file already, refusing before the Picker opens, and keeps the browser’s workbook', async () => {
     const side = driveSide()
     await onDrive(side, documentOf([1]))
     const store = storeOf(harness(null, side).ports)
     await store.open()
     await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
+    side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    await store.keepOnDrive(documentOf([10]))
+    await expect(store.pickBooksFolder()).rejects.toThrow(/Drive already holds ledgerboard-company.json/)
+    await store.keepOnDrive(side.pickedFolder, documentOf([10]))
 
     expect(store.state.error).toMatch(/Drive already holds ledgerboard-company.json/)
     expect(store.state.choice?.source).toBe('browser')

@@ -12,9 +12,9 @@ import type { SyncControl, SyncRun, SyncScope } from '../domain/syncRun'
 import SyncStepList from './SyncStepList.vue'
 
 /**
- * The sync control: what the sync is doing, Allow access while a step lacks its permission, the
- * problems of the last sync, or how long ago it ran. A tap does what it says: it syncs, asks Google,
- * or opens the steps, in a popover from 640 px and a bottom sheet on a phone.
+ * The sync control: what the sync is doing, Sign in to Google or Allow access while the page lacks
+ * a permission, the problems of the last sync, or how long ago it ran. A tap does what it says: it
+ * syncs, asks Google, or opens the steps, in a popover from 640 px and a bottom sheet on a phone.
  */
 const props = withDefaults(
   defineProps<{
@@ -29,7 +29,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   sync: []
-  /** Asks Google for what the steps lack. */
+  /** Asks Google for what the steps and the settings lack. */
   allow: []
   /** Finds the books on Drive, since no file is chosen yet. */
   find: []
@@ -61,6 +61,7 @@ onBeforeUnmount(() => clearInterval(ticking))
 const SCOPE_WORDS: Readonly<Record<SyncScope, string>> = {
   'drive.file': 'a Google sign-in',
   'drive.readonly': 'your Drive read access',
+  'gmail.compose': 'your Gmail drafts access',
 }
 
 const syncedAt = computed(() => (props.control.kind === 'ready' && props.control.syncedAt !== null ? new Date(props.control.syncedAt) : null))
@@ -88,6 +89,8 @@ const label = computed(() => {
       return props.compact ? 'Find file' : 'Find your file'
     case 'running':
       return props.compact ? `${control.label} ${control.position}/${control.of}` : 'Syncing'
+    case 'sign-in':
+      return 'Sign in to Google'
     case 'allow-access':
       return 'Allow access'
     case 'problems':
@@ -105,6 +108,8 @@ const name = computed(() => {
       return 'Find the file on Google Drive that holds your books'
     case 'running':
       return `Syncing, ${control.label}, step ${control.position} of ${control.of}: ${control.line}`
+    case 'sign-in':
+      return 'Sign in to Google, which the sync needs first'
     case 'allow-access':
       return `Allow access. ${accessWords.value}`
     case 'problems':
@@ -119,6 +124,7 @@ const name = computed(() => {
 const ICONS: Readonly<Record<SyncControl['kind'], string>> = {
   find: 'i-lucide-hard-drive',
   running: 'i-lucide-refresh-cw',
+  'sign-in': 'i-lucide-log-in',
   'allow-access': 'i-lucide-key-round',
   problems: 'i-lucide-triangle-alert',
   ready: 'i-lucide-refresh-cw',
@@ -132,6 +138,8 @@ const statusLine = computed(() => {
       return 'Find the file on Google Drive that holds your books.'
     case 'running':
       return `${control.label} ${control.position}/${control.of}: ${control.line}`
+    case 'sign-in':
+      return 'Google asks you to sign in before the sync.'
     case 'allow-access':
       return accessWords.value
     case 'problems':
@@ -146,6 +154,7 @@ function tap(): void {
     case 'find':
       emit('find')
       return
+    case 'sign-in':
     case 'allow-access':
       emit('allow')
       return
@@ -179,7 +188,7 @@ function syncAgain(): void {
     data-testid="sync-status"
     :data-control="control.kind"
   >
-    <p v-if="compact" class="sr-only" role="status">{{ control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' ? name : '' }}</p>
+    <p v-if="compact" class="sr-only" role="status">{{ control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' || control.kind === 'sign-in' ? name : '' }}</p>
     <p
       v-else
       class="w-full min-w-0 text-xs"
@@ -200,7 +209,7 @@ function syncAgain(): void {
       :color="control.kind === 'find' ? 'primary' : 'neutral'"
       :variant="control.kind === 'find' ? 'solid' : 'outline'"
       size="sm"
-      :class="{ 'top-bar-action': compact, 'text-error': control.kind === 'problems', 'text-warning': control.kind === 'allow-access' }"
+      :class="{ 'top-bar-action': compact, 'text-error': control.kind === 'problems', 'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in' }"
       data-testid="sync-button"
       @click="tap"
     />

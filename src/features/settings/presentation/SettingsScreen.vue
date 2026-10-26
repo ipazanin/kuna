@@ -36,7 +36,7 @@ import { useSettingsSave } from './useSettingsSave'
 
 const { state } = useWorkbook()
 const route = useRoute()
-const { settings, facts: packFacts, unsetKeys, saving: savingSettings, saveGeneral } = useSettingsSave()
+const { settings, facts: packFacts, saving: savingSettings, saveGeneral } = useSettingsSave()
 const pack = computed(() => shownPack(settings.value))
 
 /** The workbook's tabs need a workbook on screen. This device's tab is there before one is. */
@@ -154,7 +154,6 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
           <GeneralSettingsForm
             :settings="settings"
             :facts="packFacts"
-            :unset-keys="unsetKeys"
             :saving="savingSettings || state.writing"
             @save="saveGeneral"
           />

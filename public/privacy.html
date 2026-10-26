@@ -107,6 +107,15 @@
         margin: 0;
       }
 
+      ul {
+        margin: 0.5rem 0;
+        padding-left: 1.25rem;
+      }
+
+      li + li {
+        margin-top: 0.5rem;
+      }
+
       p + p {
         margin-top: 0.5rem;
       }
@@ -140,35 +149,44 @@
         </svg>
         <h1>Privacy</h1>
       </header>
-      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 24 October 2026.</p>
+      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 26 October 2026.</p>
 
       <article>
         <section>
-          <h2>What the app reads</h2>
+          <h2>What the app asks Google for</h2>
           <p>
-            Files you choose, and your bank statements. With Google, it asks for the <code>drive.file</code> permission, which covers only
-            the files and folders you pick in Google's file picker and the files the app makes. It reads your books from
-            <code>ledgerboard-company.json</code>, the file it makes in the folder you pick, and the names of that folder and of the backups
-            beside the file.
+            Each permission is shown with the words Google uses for it on its consent screen, then what Ledgerboard does with it. Where
+            that screen lets you untick one, the app skips what needs it and shows "Allow access" in its sync control.
           </p>
+          <ul>
+            <li>
+              <code>drive.file</code>, "See, edit, create, and delete only the specific Google Drive files you use with this app". Always
+              asked. It covers the files and folders you pick in Google's file picker and the files the app makes. The app reads and saves
+              your books in <code>ledgerboard-company.json</code>, the file it makes in the folder you pick, and reads the names of that
+              folder and of the backups beside the file. When you make an invoice, it lists the folders inside the invoice folder you
+              picked, and files the PDF there.
+            </li>
+            <li>
+              <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank
+              statements from a Drive folder or your accountant's folders. Google's wording covers your whole Drive. The app uses it to read
+              the bank statements in your statements folder that are not on the ledger yet, and your accountant's VAT returns and salary
+              workbooks in the folders you name, since <code>drive.file</code> cannot see files another app filed there. It reads nothing
+              else with it and changes nothing.
+            </li>
+            <li>
+              <code>gmail.compose</code>, "Manage drafts and send emails". Asked only while "Create the mail draft" is on for invoices. The
+              app saves one draft per invoice in your Gmail. It never sends mail, although Google's wording for this permission includes
+              sending.
+            </li>
+            <li>
+              <code>openid</code> and <code>email</code>, "Associate you with your personal info on Google" and "See your primary Google
+              Account email address". Always asked. They tell the app which account signed in, and that is all it reads about your account.
+            </li>
+          </ul>
           <p>
-            It also asks for <code>drive.readonly</code>, which lets it read any file in your Drive and change none. It uses it only to find
-            the bank statements in your statements folder that are not on the ledger yet, and to read your accountant's VAT returns and
-            salary workbooks in the folders you name, since <code>drive.file</code> cannot see files another app filed there. Google's
-            wording for this permission covers your whole Drive. The app reads nothing else with it. Each time the app opens, it asks Google for this permission again, and Google shows you a
-            screen only when it needs your consent.
-          </p>
-          <p>
-            It also asks for <code>openid email</code>, which tells it the email address of the Google account you signed in with. That is
-            all it reads about your account.
-          </p>
-          <p>
-            When you make an invoice, it lists the folders inside the invoice folder you picked, again only those it made or you picked.
-          </p>
-          <p>
-            If you turn on "Create the mail draft", it also asks for <code>gmail.compose</code>, which lets it save a draft in your Gmail.
-            It saves one draft per invoice and never sends mail. Google's wording for this permission includes sending, which the app does
-            not do.
+            Ledgerboard is not verified by Google. Google shows a warning on its consent screen for the restricted permissions
+            <code>drive.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users Google allows an unverified
+            app.
           </p>
           <p>A file you open or drop on the page, an .xlsx workbook or a ledgerboard file, is read in this browser only.</p>
         </section>
@@ -199,10 +217,12 @@
             show at once.
           </p>
           <p>
-            Google's access token is kept in this browser until it expires, about an hour after you sign in, so a reload or a new tab can
-            sync without asking again. Your email address is stored only to skip Google's account chooser the next time you sign in. Sign out
-            of Google in Settings removes both and revokes the token. The tokens of the Gmail and the <code>drive.readonly</code>
-            permissions are kept only in the open page and are gone when you close or reload it, or sign out.
+            Google's access token is kept only in the open page, so it is gone when you close or reload the page, and it expires about an
+            hour after Google issues it. Nothing in this browser's storage holds a token. The app keeps the email address of the account
+            you signed in with, to skip Google's account chooser, and the names of the permissions Google granted and the books need.
+            Each time the app opens your books on Drive, it asks Google for a new token without showing you a screen. Where Google needs your
+            sign-in or your consent first, the app waits for you to tap. Sign out of Google in Settings forgets the email and the granted
+            permissions and revokes the token.
           </p>
           <p>
             With your books kept in this browser, they live in this browser's storage and in the files you export. Clearing this site's data in

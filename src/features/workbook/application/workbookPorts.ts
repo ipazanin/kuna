@@ -53,3 +53,11 @@ export interface DriveFilePlace {
   readonly folderName: string
   readonly lastBackup: CivilDate | null
 }
+
+/** A Drive folder the person picked, with the names of the folders from My Drive down to it, or null where the app cannot see them. */
+export interface PickedFolder {
+  readonly id: string
+  readonly name: string
+  /** The folder's own name last. Null without Drive read access, since `drive.file` cannot read a picked folder's parent. */
+  readonly path: readonly string[] | null
+}

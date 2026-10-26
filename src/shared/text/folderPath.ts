@@ -5,3 +5,8 @@ export function folderPathOf(path: string): string[] {
     .map((name) => name.trim())
     .filter((name) => name !== '')
 }
+
+/** A path of folder names from My Drive as a person reads it, such as `My Drive › work › statements`. */
+export function folderTrail(path: readonly string[]): string {
+  return ['My Drive', ...path].join(' › ')
+}

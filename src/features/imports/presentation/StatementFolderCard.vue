@@ -10,7 +10,7 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
-import { LEDGER_WRITES } from '../application/ledgerWrites'
+import { writeImport } from '../application/importStatements'
 import { filedTitle, stillHeld } from '../application/statementSync'
 import DryRunStatementCard from './DryRunStatementCard.vue'
 import { useDryRun } from './useDryRun'
@@ -26,7 +26,7 @@ const folder = computed(() => store.state.workbook?.settings.statementsFolder.jo
 
 const heldReadings = computed(() => outcome.value?.held ?? [])
 const starts = useDryRun(heldReadings)
-const { dryRun, started, typedOpenings } = starts
+const { dryRun, started, typedOpenings, accountNames, accountNameProblems } = starts
 
 const held = computed(() => dryRun.value?.statements.filter(stillHeld) ?? [])
 
@@ -58,7 +58,7 @@ async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
   const filing = run.statements.filter((statement) => statement.rows.some((row) => row.verdict !== null))
-  await writes.write(filedTitle(filing, run.newRows), (unit) => run.added.forEach((entry) => unit.of(LEDGER_WRITES).add(entry)), { failedTitle: 'Not filed' })
+  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run), { failedTitle: 'Not filed' })
 }
 </script>
 
@@ -90,8 +90,11 @@ async function confirm(): Promise<void> {
       :collapse-id="`import.folder-statement-${index + 1}`"
       :started="started[statement.account] === true"
       :typed-opening="typedOpenings[statement.account] ?? ''"
+      :account-name="statement.newAccount ? accountNames[statement.newAccount.iban] : undefined"
+      :account-name-problem="statement.newAccount ? accountNameProblems[statement.newAccount.iban] : undefined"
       @update:started="starts.start(statement.account, $event)"
       @update:typed-opening="starts.typeOpening(statement.account, $event)"
+      @update:account-name="statement.newAccount && starts.nameAccount(statement.newAccount.iban, $event)"
     />
 
     <div v-if="held.length && (dryRun?.newRows ?? 0) > 0" class="flex justify-end">

@@ -171,11 +171,16 @@ try {
   }, assets), [], 'Every built asset, including lazy screens, SheetJS and fonts, must be available offline.')
   console.log(`PASS: manifest, icons, scoped worker, complete precache${browserName === 'chrome' ? ', installable' : ''}`)
 
-  // The first visit: the welcome screen, then an xlsx file kept in this browser, which keeps the workbook in IndexedDB.
-  await page.waitForSelector('[data-testid="data-source-choices"] input[type="file"]')
-  await (await page.$('[data-testid="data-source-choices"] input[type="file"]')).uploadFile(templateFile)
+  // The first visit: onboarding brings an xlsx file into this browser, which keeps the workbook in IndexedDB.
+  await clickStart(page, '[data-testid="onboarding-path"] label', 'Bring my books')
+  await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
+  await clickStart(page, '[data-testid="onboarding-home"] label', 'Only this browser')
+  await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
+  await (await page.waitForSelector('input[data-testid="onboarding-file"]')).uploadFile(templateFile)
   await page.waitForSelector('[data-testid="import-summary"] dl')
-  await clickText(page, '[role="dialog"] button', 'Keep in this browser')
+  await clickText(page, '[data-testid="onboarding-step"] button', 'Keep in this browser')
+  await page.waitForSelector('[data-testid="onboarding-step"][data-step="company"]')
+  await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
   await waitForTitle(page, 'Overview')
   await page.waitForSelector('.chart-body canvas')
   assert.deepEqual(await cachedForeignUrls(page, origin), [], 'Nothing from another origin may be cached.')
@@ -291,6 +296,17 @@ async function waitForTitle(page, title) {
 async function clickText(page, selector, text) {
   const handle = await page.waitForFunction(
     (css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim() === wanted) ?? null,
+    {},
+    selector,
+    text,
+  )
+  await handle.asElement().click()
+}
+
+/** Clicks the first element under the selector whose text starts with the words, such as a radio choice's label above its description. */
+async function clickStart(page, selector, text) {
+  const handle = await page.waitForFunction(
+    (css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null,
     {},
     selector,
     text,

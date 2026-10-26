@@ -1,7 +1,7 @@
 import type { RedirectResume } from '../../../shared/google/googleRedirect'
 import type { WorkbookStorePorts } from '../application/createWorkbookStore'
 import type { DocumentHome } from '../application/documentHome'
-import type { CopyMeta } from '../application/workbookPorts'
+import type { CopyMeta, PickedFolder } from '../application/workbookPorts'
 import { sameRecord } from '../domain/recordsRead'
 import { browserDocumentHome, deleteBrowserDocument, replaceBrowserDocument } from './browserDocument'
 import { decodeDocument, encodeDocument } from './documentFormat'
@@ -18,19 +18,35 @@ export const COMPANY_APP = 'company'
 /** What the store needs from Google to keep the document on Drive. */
 export interface DriveAccess {
   readonly drive: DocumentDrive
-  /** Asks Google for a token when none is kept, which needs a click. On a phone the tab goes to Google, and `then` is what the app does once back. */
-  signIn(then: RedirectResume): Promise<void>
-  /** Whether a token is kept, so a request to Drive needs no click. */
+  /**
+   * Asks Google for a token when the page holds none, which needs a click. On a phone the tab goes
+   * to Google, and `then` is what the app does once back. With no `then`, as for a write, a phone
+   * fails instead of leaving, since what was tapped could not run again.
+   */
+  signIn(then: RedirectResume | null): Promise<void>
+  /** Whether the page holds a token, so a request to Drive needs no click. */
   signedIn(): boolean
-  /** The folder the person picks for the file, or null when cancelled. */
-  pickFolder(): Promise<string | null>
+  /** The folder the person picks in the Picker opened at My Drive, or null when cancelled. */
+  pickFolder(title: string): Promise<{ readonly id: string; readonly name: string } | null>
+  /** The names of the folders from My Drive down to this one, or null while the page cannot read the whole Drive. */
+  folderPath(folderId: string): Promise<readonly string[] | null>
   /** The file the person picks, or null when cancelled. */
   pickFile(): Promise<string | null>
 }
 
 export type DocumentStorePorts = Pick<
   WorkbookStorePorts<DocumentCopy, WorkbookDocument>,
-  'openCache' | 'readDriveFile' | 'findDriveFile' | 'createDriveFile' | 'driveFilePlace' | 'read' | 'keepInBrowser' | 'forgetBrowserWorkbook' | 'openStorage'
+  | 'openCache'
+  | 'readDriveFile'
+  | 'findDriveFile'
+  | 'pickBooksFolder'
+  | 'pickDriveFolder'
+  | 'createDriveFile'
+  | 'driveFilePlace'
+  | 'read'
+  | 'keepInBrowser'
+  | 'forgetBrowserWorkbook'
+  | 'openStorage'
 >
 
 /**
@@ -44,6 +60,18 @@ export function documentStorePorts(driveAccess: () => Promise<DriveAccess>, now:
     const home = driveHomes.get(fileId) ?? driveDocumentHome((await driveAccess()).drive, fileId, COMPANY_APP)
     driveHomes.set(fileId, home)
     return home
+  }
+
+  async function pickDriveFolder(title: string): Promise<PickedFolder | null> {
+    const access = await driveAccess()
+    const picked = await access.pickFolder(title)
+    return picked === null ? null : { ...picked, path: await access.folderPath(picked.id) }
+  }
+
+  async function refuseSecondFile(drive: DocumentDrive): Promise<void> {
+    if ((await findDriveDocument(drive, COMPANY_APP)) !== null) {
+      throw new Error(`Drive already holds ${documentName(COMPANY_APP)}, so the app does not make a second one. Choose that file, or trash it in Drive first.`)
+    }
   }
 
   function driveMeta(fileId: string, title: string): CopyMeta {
@@ -85,16 +113,16 @@ export function documentStorePorts(driveAccess: () => Promise<DriveAccess>, now:
       return copy
     },
 
-    async createDriveFile(contents) {
+    async pickBooksFolder() {
+      await refuseSecondFile((await driveAccess()).drive)
+      return pickDriveFolder('Choose the folder for your books')
+    },
+
+    pickDriveFolder,
+
+    async createDriveFile(folderId, contents) {
       const access = await driveAccess()
-      await access.signIn('none')
-      if ((await findDriveDocument(access.drive, COMPANY_APP)) !== null) {
-        throw new Error(`Drive already holds ${documentName(COMPANY_APP)}, so the app does not make a second one. Choose that file, or trash it in Drive first.`)
-      }
-      const folderId = await access.pickFolder()
-      if (folderId === null) {
-        return null
-      }
+      await refuseSecondFile(access.drive)
       const document = { ...contents, savedAt: now() }
       const { fileId } = await createDriveDocument(access.drive, folderId, COMPANY_APP, encodeDocument(document))
       const created = await readFile(fileId, null, documentName(COMPANY_APP))
@@ -123,7 +151,7 @@ export function documentStorePorts(driveAccess: () => Promise<DriveAccess>, now:
 
     async openStorage(copy) {
       if (copy.meta.source === 'drive') {
-        await (await driveAccess()).signIn('none')
+        await (await driveAccess()).signIn(null)
         return documentRecordStorage(await driveHome(copy.meta.id), copy, now)
       }
       return documentRecordStorage(browserDocumentHome(copy.meta.id), copy, now)

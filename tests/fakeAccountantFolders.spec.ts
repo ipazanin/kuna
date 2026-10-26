@@ -4,7 +4,7 @@ import { presentedWorkbook } from '../src/features/transactions/application/pres
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
 import { accountantDocumentsOf, readAccountantDocuments } from '../src/packs/hr-doo/application/accountantDocuments'
-import { DEFAULT_PAYROLL_FOLDER, DEFAULT_VAT_RETURNS_FOLDER } from '../src/packs/hr-doo/domain/companyFacts'
+import { FAKE_FOLDERS } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import { fakeAccountantFolders } from '../src/packs/hr-doo/infrastructure/fake/fakeAccountantFolders'
 import { payrollRows, vatReturnRows } from '../src/packs/hr-doo/presentation/taxes/accountantView'
@@ -13,7 +13,7 @@ const workbook = hrDooWorkbook(presentedWorkbook(readSnapshot(fakeWorkbookSnapsh
 const linkOf = () => null
 
 async function fakeDocuments() {
-  const read = await readAccountantDocuments(fakeAccountantFolders(), { vatReturns: DEFAULT_VAT_RETURNS_FOLDER, payroll: DEFAULT_PAYROLL_FOLDER }, null, '2026-10-16T08:00:00.000Z')
+  const read = await readAccountantDocuments(fakeAccountantFolders(), { vatReturns: FAKE_FOLDERS.vatReturns, payroll: FAKE_FOLDERS.payroll }, null, '2026-10-16T08:00:00.000Z')
   return { read, documents: accountantDocumentsOf(read) }
 }
 

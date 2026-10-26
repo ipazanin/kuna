@@ -17,7 +17,6 @@ import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
 import { folderPathOf } from '../../../shared/text/folderPath'
-import { DEFAULT_STATEMENTS_FOLDER } from '../../imports/domain/statementFiles'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
@@ -50,9 +49,9 @@ export interface Settings {
   readonly invoicing: InvoicingTerms
   /** How each bank's spreadsheet export reads, from the `import_profile_<name>` keys, in tab order. */
   readonly importProfiles: readonly ImportProfile[]
-  /** The Drive folder the bank's camt statements are filed in, as folder names from My Drive down. */
+  /** The Drive folder the bank's camt statements are filed in, as folder names from My Drive down. None until one is chosen. */
   readonly statementsFolder: readonly string[]
-  /** Whether a sync files the new statements of that folder. */
+  /** Whether a sync files the new statements of that folder, once one is named. */
   readonly statementsSync: boolean
 }
 
@@ -130,7 +129,7 @@ export const DEFAULT_SETTINGS: Settings = {
   currency: 'EUR',
   numberLocale: 'en-GB',
   bucketLabels: DEFAULT_BUCKET_LABELS,
-  ownerPayModule: true,
+  ownerPayModule: false,
   reviewLabel: 'human',
   cardSettlementIbans: [],
   billing: {
@@ -166,7 +165,7 @@ export const DEFAULT_SETTINGS: Settings = {
     reverseChargeNote: DEFAULT_REVERSE_CHARGE_NOTE,
   },
   importProfiles: [],
-  statementsFolder: DEFAULT_STATEMENTS_FOLDER,
+  statementsFolder: [],
   statementsSync: true,
 }
 
@@ -215,8 +214,6 @@ export interface SettingDefinition<Values> {
 export interface PackSettings<Values> {
   readonly definitions: readonly SettingDefinition<Values>[]
   readonly defaults: Values
-  /** The keys a save of Settings, General writes while the settings hold no value for them, as it does core's. */
-  readonly writtenWhenUnset: readonly string[]
 }
 
 function bucketLabelKey(bucket: DefinedBucket): BucketLabelKey {
@@ -346,16 +343,6 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   invoicingDefinition('invoice_reverse_charge_note', 'reverseChargeNote', 'The note a reverse-charge invoice prints under its totals. Blank means the Croatian VAT law’s Article 17 note.'),
 ]
 
-const STATEMENTS_FOLDER_KEY = 'statements_folder'
-
-const OWNER_PAY_MODULE_KEY = 'owner_pay_module'
-
-/**
- * Core's keys a save of Settings, General writes while the settings hold no value for them, so the
- * books name what the app uses and a later default cannot change it.
- */
-const WRITTEN_WHEN_UNSET: readonly string[] = [OWNER_PAY_MODULE_KEY, STATEMENTS_FOLDER_KEY]
-
 /** Every key the app reads, in the order the template lists them. */
 export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
@@ -405,8 +392,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   ...BUCKET_LABEL_DEFINITIONS,
   {
-    key: OWNER_PAY_MODULE_KEY,
-    note: 'TRUE shows owner pay and owner earns. FALSE hides them, and the owner-pay rows then count as operating cost.',
+    key: 'owner_pay_module',
+    note: 'TRUE shows owner pay and owner earns, and the installed pack with them. FALSE, the default, hides them, and the owner-pay rows then count as operating cost.',
     type: 'flag',
     valueOf: (settings) => flagText(settings.ownerPayModule),
     apply: (settings, value) => {
@@ -439,8 +426,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   ...BILLING_DEFINITIONS,
   ...INVOICING_DEFINITIONS,
   {
-    key: STATEMENTS_FOLDER_KEY,
-    note: `The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside. Blank means ${DEFAULT_STATEMENTS_FOLDER.join('/')}.`,
+    key: 'statements_folder',
+    note: 'The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside. Blank names none, and statements come in through Import.',
     type: 'text',
     valueOf: (settings) => settings.statementsFolder.join('/'),
     apply: (settings, value) => {
@@ -450,7 +437,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'statements_sync',
-    note: 'TRUE files the new statements of the statements folder on every sync. FALSE leaves them to Import.',
+    note: 'TRUE files the new statements of the statements folder on every sync, once statements_folder names one. FALSE leaves them to Import.',
     type: 'flag',
     valueOf: (settings) => flagText(settings.statementsSync),
     apply: (settings, value) => {
@@ -650,7 +637,6 @@ export type SettingsField =
   | 'numberLocale'
   | 'reviewLabel'
   | 'cardSettlementIbans'
-  | 'statementsFolder'
   | BillingAmountField
   | BillingItemField
   | InvoicingField
@@ -670,7 +656,6 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (review !== null) errors.reviewLabel = review
   const cardAccounts = ibanListProblem(settings.cardSettlementIbans)
   if (cardAccounts !== null) errors.cardSettlementIbans = cardAccounts
-  if (settings.statementsFolder.length === 0) errors.statementsFolder = 'name a folder from My Drive, such as finance/statements'
   Object.assign(errors, billingErrors(settings.billing))
   for (const [field, value] of Object.entries(settings.invoicing) as [InvoicingField, string][]) {
     const problem = invoicingProblem(field, value)
@@ -794,50 +779,9 @@ export function changedSettings(current: Settings, next: Settings): SettingEntry
   return changedEntries(settingsTabEntries(current, null), settingsTabEntries(next, null))
 }
 
-/** Whether the settings hold no value the definition takes: no row for its key, a blank one, or one it refuses, so the default is used. */
-function heldNoValue<Values>(held: RecordsRead<SettingRow>, definition: SettingDefinition<Values>, defaults: Values): boolean {
-  const value = heldSettingValue(held, definition.key)
-  return value === null || value.trim() === '' || typeof definition.apply(defaults, value) === 'string'
-}
-
-function unsetKeysOf<Values>(held: RecordsRead<SettingRow>, definitions: readonly SettingDefinition<Values>[], written: readonly string[], defaults: Values): string[] {
-  return definitions.filter((definition) => written.includes(definition.key) && heldNoValue(held, definition, defaults)).map((definition) => definition.key)
-}
-
-/**
- * The keys a save of Settings, General writes although nothing changed, core's and then the pack's:
- * those it writes while unset that the settings hold no value for.
- */
-export function unsetSettingKeys(held: RecordsRead<SettingRow>, pack: PackSettings<unknown> | null): string[] {
-  return [
-    ...unsetKeysOf(held, SETTING_DEFINITIONS, WRITTEN_WHEN_UNSET, DEFAULT_SETTINGS),
-    ...(pack === null ? [] : unsetKeysOf(held, pack.definitions, pack.writtenWhenUnset, pack.defaults)),
-  ]
-}
-
-/** The changed entries, then the entries of `next` for the unset keys the change leaves out. */
-function withUnset(changed: SettingEntry[], next: readonly SettingEntry[], unset: readonly string[]): SettingEntry[] {
-  const written = new Set(changed.map((entry) => entry.key))
-  return [...changed, ...next.filter((entry) => unset.includes(entry.key) && !written.has(entry.key))]
-}
-
-/**
- * What a save of Settings, General writes of core's keys: those whose value changed, and each key it
- * writes while unset that the settings hold no value for, with the value the app uses, the default too.
- */
-export function generalSettingsToSave(current: Settings, next: Settings, held: RecordsRead<SettingRow>): SettingEntry[] {
-  return withUnset(changedSettings(current, next), settingsTabEntries(next, null), unsetKeysOf(held, SETTING_DEFINITIONS, WRITTEN_WHEN_UNSET, DEFAULT_SETTINGS))
-}
-
 /** The keys of a pack whose value differs between two sets of its values, with the new value, in template order. */
 export function changedPackSettings<Values>(settings: PackSettings<Values>, current: Values, next: Values): SettingEntry[] {
   return changedEntries(packSettingEntries({ settings, values: current }), packSettingEntries({ settings, values: next }))
-}
-
-/** What a save of Settings, General writes of a pack's keys: the changed ones and the unset ones it writes, as for core's. */
-export function packSettingsToSave<Values>(settings: PackSettings<Values>, current: Values, next: Values, held: RecordsRead<SettingRow>): SettingEntry[] {
-  const unset = unsetKeysOf(held, settings.definitions, settings.writtenWhenUnset, settings.defaults)
-  return withUnset(changedPackSettings(settings, current, next), packSettingEntries({ settings, values: next }), unset)
 }
 
 function changedEntries(current: readonly SettingEntry[], next: readonly SettingEntry[]): SettingEntry[] {

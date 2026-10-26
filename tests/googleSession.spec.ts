@@ -2,54 +2,59 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import {
-  EXPIRY_MARGIN_MS,
-  forgetAccessToken,
-  loadAccessToken,
+  forgetGoogleDevice,
+  forgetSilentRefusal,
   loadAccountEmail,
-  saveAccessToken,
+  loadGrantedScopes,
+  loadNeededScopes,
+  loadSilentRefusal,
   saveAccountEmail,
+  saveGrantedScopes,
+  saveNeededScopes,
+  saveSilentRefusal,
 } from '../src/shared/google/googleSession'
-
-const ISSUED_AT = Date.parse('2026-10-16T09:00:00.000Z')
-const ONE_HOUR = 3_600_000
-const TOKEN = { value: 'ya29.fake', grantedScope: 'https://www.googleapis.com/auth/drive.file openid email', expiresAt: ISSUED_AT + ONE_HOUR }
 
 afterEach(() => {
   localStorage.clear()
 })
 
-describe('kept Google access token', () => {
-  it('survives a reload within its lifetime', () => {
-    saveAccessToken(TOKEN)
-
-    expect(loadAccessToken(ISSUED_AT + 30 * 60_000)).toEqual(TOKEN)
+describe('what this device keeps about Google', () => {
+  it('has no account email, grants, needs or refusal until one is noted', () => {
+    expect([loadAccountEmail(), loadGrantedScopes(), loadNeededScopes(), loadSilentRefusal()]).toEqual([null, null, null, null])
   })
 
-  it('counts as expired a minute before Google expires it, and is then removed', () => {
-    saveAccessToken(TOKEN)
+  it('keeps the scopes each once, in request order, and reads a damaged entry as none', () => {
+    saveGrantedScopes(['gmail.compose', 'drive.file', 'drive.file'])
+    saveNeededScopes(['drive.readonly'])
 
-    expect(loadAccessToken(TOKEN.expiresAt - EXPIRY_MARGIN_MS)).toBeNull()
-    expect(localStorage.getItem('ledgerboard.google-token')).toBeNull()
+    expect(loadGrantedScopes()).toEqual(['drive.file', 'gmail.compose'])
+    expect(loadNeededScopes()).toEqual(['drive.readonly'])
+
+    localStorage.setItem('ledgerboard.google-granted', '{"drive.file":true}')
+    localStorage.setItem('ledgerboard.google-needed', 'not json')
+    expect(loadGrantedScopes()).toBeNull()
+    expect(loadNeededScopes()).toBeNull()
   })
 
-  it('reads a damaged entry as no token and removes it', () => {
-    localStorage.setItem('ledgerboard.google-token', '{"value":42}')
+  it('notes why Google refused the silent trip until it is forgotten', () => {
+    expect(saveSilentRefusal('interaction_required')).toBe(true)
+    expect(loadSilentRefusal()).toBe('interaction_required')
 
-    expect(loadAccessToken(ISSUED_AT)).toBeNull()
-    expect(localStorage.getItem('ledgerboard.google-token')).toBeNull()
+    forgetSilentRefusal()
+
+    expect(loadSilentRefusal()).toBeNull()
   })
 
-  it('is gone once forgotten, while the account email stays for the login hint', () => {
-    saveAccessToken(TOKEN)
+  it('keeps no token, and forgets the account and its grants on sign-out, but not what the books need', () => {
     saveAccountEmail('owner@example.com')
+    saveGrantedScopes(['drive.file'])
+    saveNeededScopes(['drive.file'])
+    saveSilentRefusal('login_required')
 
-    forgetAccessToken()
+    expect(Object.keys(localStorage).sort()).toEqual(['ledgerboard.google-account', 'ledgerboard.google-granted', 'ledgerboard.google-needed', 'ledgerboard.google-silent-refused'])
 
-    expect(loadAccessToken(ISSUED_AT)).toBeNull()
-    expect(loadAccountEmail()).toBe('owner@example.com')
-  })
+    forgetGoogleDevice()
 
-  it('has no account email until one is read', () => {
-    expect(loadAccountEmail()).toBeNull()
+    expect(Object.keys(localStorage)).toEqual(['ledgerboard.google-needed'])
   })
 })

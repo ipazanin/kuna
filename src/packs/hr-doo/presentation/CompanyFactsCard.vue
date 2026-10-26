@@ -36,7 +36,7 @@ const route = useRoute()
 const revealed = computed(
   () =>
     LINKED_FACTS.includes(route.hash.slice(1)) ||
-    (['ownerLoanInterest', 'vatReturnsFolder', 'payrollFolder'] as const).some((field) => props.errors[field] !== undefined),
+    props.errors.ownerLoanInterest !== undefined,
 )
 const summary = computed(() => {
   const { companyRegistered, ownerLoanInterest } = props.saved
@@ -147,23 +147,21 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
       <USwitch
         :model-value="facts.accountantSync"
         label="Read the accountant's files on sync"
-        description="Each sync reads the VAT returns and salary workbooks of the two folders below for Year, Taxes. Off keeps the last read on this device."
+        description="Each sync reads the VAT returns and salary workbooks of the folders below that are named, for Year, Taxes. Off keeps the last read on this device."
         data-testid="accountant-sync"
         @update:model-value="updateFact('accountantSync', $event)"
       />
       <div id="accountant-folders" class="grid gap-4 sm:grid-cols-2">
         <UFormField
           label="VAT returns folder"
-          :error="errors.vatReturnsFolder ?? false"
-          help="Where Year, Taxes reads the accountant's VAT returns in Google Drive, as a path from My Drive."
+          help="Where Year, Taxes reads the accountant's VAT returns in Google Drive, as a path from My Drive. Blank reads none."
           data-testid="vat-returns-folder"
         >
           <UInput :model-value="vatReturnsFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateVatReturnsFolder(String($event))" />
         </UFormField>
         <UFormField
           label="Payroll folder"
-          :error="errors.payrollFolder ?? false"
-          help="Where Year, Taxes reads the accountant's salary workbooks, with a folder for each year and month inside."
+          help="Where Year, Taxes reads the accountant's salary workbooks, with a folder for each year and month inside. Blank reads none."
           data-testid="payroll-folder"
         >
           <UInput :model-value="payrollFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updatePayrollFolder(String($event))" />

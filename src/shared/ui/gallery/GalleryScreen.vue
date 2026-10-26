@@ -131,6 +131,7 @@ const SYNC_CONTROLS: readonly SyncControl[] = [
   { kind: 'find' },
   { kind: 'ready', syncedAt: '2026-10-16T06:04:00Z' },
   { kind: 'running', label: 'Statements', position: 2, of: 3, line: 'Filing 3 rows' },
+  { kind: 'sign-in' },
   { kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'] },
   { kind: 'problems', count: 1, labels: ['Statements'] },
 ]

@@ -11,8 +11,8 @@
  * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
  * collapses and expands one card.
  *
- * Beyond the screens of the fake workbook on Drive, it renders the first-run welcome screen
- * (`?fake=empty`), each Settings tab and the Year page's editors for a workbook kept in this browser
+ * Beyond the screens of the fake workbook on Drive, it renders onboarding's first steps on a first
+ * run (`?fake=empty`), each Settings tab and the Year page's editors for a workbook kept in this browser
  * (`?fake=browser`), This device for a file a newer app saved (`?fake=newer-file`), Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
@@ -92,15 +92,17 @@ import {
   changeCategoryFlow,
   clientIbansFlow,
   dismissFlow,
-  firstRunBrowserFlow,
-  firstRunDriveFlow,
   heldStatementFlow,
   importCamtFlow,
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
   moveFromBrowserFlow,
-  moveFromXlsxFlow,
+  onboardingBringFlow,
+  onboardingBrowserFlow,
+  onboardingDriveFlow,
+  onboardingDriveReadFlow,
+  onboardingOpenFlow,
   ownerShareFlow,
   salariesFlow,
   planFlow,
@@ -270,7 +272,17 @@ const GALLERY_DONUTS = 2
 
 /** Screens outside the fake workbook on Drive. `query` picks the fake variant, `upload` drops the import file on the page. */
 const SOURCE_SCREENS = [
-  { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: ['Where is your ledger?', 'Open your books on Google Drive', 'Keep in this browser'], cards: false },
+  { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
+  {
+    name: 'onboarding-access',
+    query: 'fake=empty',
+    hash: '#/start?step=access&statements=folder',
+    title: 'Ledgerboard',
+    charts: 0,
+    shows: ['What the app may do in your Google account', 'From a folder in my Drive', 'Continue to Google'],
+    cards: false,
+  },
+  { name: 'onboarding-find', query: 'fake=empty', hash: '#/start?path=open&step=find', title: 'Ledgerboard', charts: 0, shows: ['Find your books on Drive', 'Pick another file'], cards: false },
   { name: 'settings-browser', query: 'fake=browser', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
   { name: 'settings-categories-browser', query: 'fake=browser', hash: '#/settings?tab=categories', title: 'Settings', charts: 0, shows: 'Save categories' },
   { name: 'settings-accounts-browser', query: 'fake=browser', hash: '#/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
@@ -337,7 +349,16 @@ const SOURCE_SCREENS = [
   { name: 'invoicing-plan-browser', query: 'fake=browser', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Fill the rest of 2026' },
   { name: 'invoicing-clients-browser', query: 'fake=browser', hash: '#/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Save clients' },
   { name: 'invoicing-empty-plan-browser', query: 'fake=browser-no-billing-plan', hash: '#/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Add the first row', cards: false },
-  { name: 'import-summary', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: ['rows the app could not use', 'records, by tab', 'Keep on Google Drive'], upload: true, cards: false },
+  {
+    name: 'import-summary',
+    query: 'fake=empty',
+    hash: '#/start?path=bring&home=browser&step=file',
+    title: 'Ledgerboard',
+    charts: 0,
+    shows: ['rows the app could not use', 'records, by tab', 'Keep in this browser'],
+    upload: true,
+    cards: false,
+  },
 ]
 
 const THEMES = ['dark', 'light']
@@ -626,9 +647,11 @@ const FLOWS = [
   { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['drive'] },
   { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['drive'] },
   { name: 'accountant-folders', hash: '#/settings#accountant-folders', title: 'Settings', run: accountantFoldersFlow, modes: ['drive'] },
-  { name: 'first-run-drive', hash: '#/', title: 'Ledgerboard', run: firstRunDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'first-run-browser', hash: '#/', title: 'Ledgerboard', run: firstRunBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
-  { name: 'move-xlsx', hash: '#/', title: 'Ledgerboard', run: moveFromXlsxFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-drive', hash: '#/', title: 'Ledgerboard', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-drive-read', hash: '#/', title: 'Ledgerboard', run: onboardingDriveReadFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-browser', hash: '#/', title: 'Ledgerboard', run: onboardingBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
+  { name: 'onboarding-bring', hash: '#/', title: 'Ledgerboard', run: onboardingBringFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-open', hash: '#/start?path=open', title: 'Ledgerboard', run: onboardingOpenFlow, modes: ['drive'] },
   { name: 'move-browser', hash: '#/settings?tab=device', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
   { name: 'race', hash: '#/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
 ]
@@ -681,13 +704,12 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
       .catch(() => false)
 
     if (visit.upload && rendered) {
-      const input = await page.$('[data-testid="data-source-choices"] input[type="file"]')
+      const input = await page.$('input[data-testid="onboarding-file"]')
       await input?.uploadFile(IMPORT_FILE)
       rendered = await page
         .waitForSelector('[data-testid="import-summary"] dl', { timeout: 10_000 })
         .then(() => true)
         .catch(() => false)
-      // The dialog fades in.
       await new Promise((resolve) => setTimeout(resolve, 600))
     }
 

@@ -24,7 +24,7 @@ function step(id: string, scope: SyncScope, run: (report: (line: string) => void
 
 /** A sync over fake steps, with each scope granted or withheld, and the books on screen once read. */
 function harness(options: { readonly steps: readonly FakeStep[]; readonly books?: FakeStep; readonly grants?: Partial<Record<SyncScope, boolean>> }) {
-  const grants: Record<SyncScope, boolean> = { 'drive.file': true, 'drive.readonly': true, ...options.grants }
+  const grants: Record<SyncScope, boolean> = { 'drive.file': true, 'drive.readonly': true, 'gmail.compose': true, ...options.grants }
   const books = options.books ?? step(BOOKS_STEP.id, BOOKS_STEP.scope)
   let idle: Promise<void> = Promise.resolve()
   const ports: SyncPorts = {
@@ -44,7 +44,7 @@ function harness(options: { readonly steps: readonly FakeStep[]; readonly books?
     ports,
     books,
     states: () => sync.state.run?.steps.map((candidate) => [candidate.id, candidate.state.kind]),
-    control: () => syncControlOf(sync.state.run, { chosen: true, reading: false, syncedAt: AT }),
+    control: () => syncControlOf(sync.state.run, { chosen: true, reading: false, syncedAt: AT }, { kind: 'enough' }),
     holdUntil(save: Promise<void>) {
       idle = save
     },

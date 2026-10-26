@@ -136,7 +136,7 @@ export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbo
     employees: [],
     director: null,
     dismissals: [],
-    settings: DEFAULT_SETTINGS,
+    settings: { ...DEFAULT_SETTINGS, ownerPayModule: true },
     companyFacts: { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: civil('2025-03-03') },
     packParts: {},
     problems: [],

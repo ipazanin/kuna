@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 
 import { dryRunFor, statementReadings } from '../src/features/imports/application/importStatements'
 import { accountNamedIn, fileShapeOf } from '../src/features/imports/domain/profileGuess'
-import { DEFAULT_STATEMENTS_FOLDER, statementFilesToRead } from '../src/features/imports/domain/statementFiles'
+import { statementFilesToRead } from '../src/features/imports/domain/statementFiles'
+import { FAKE_FOLDERS } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { fakeStatementFolder } from '../src/features/imports/infrastructure/fake/fakeStatementFolder'
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtLabel, sampleCamtXml, sampleTableGrid } from '../src/features/imports/infrastructure/fake/sampleImportFiles'
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
@@ -48,7 +49,7 @@ describe('the fake build’s sample statement files', () => {
 describe('the fake build’s statements folder', () => {
   it('holds a name for every statement on the fake ledger and the sample camt statement, the only file the name test reads', async () => {
     const folder = fakeStatementFolder(null)
-    const listing = await folder.files(DEFAULT_STATEMENTS_FOLDER)
+    const listing = await folder.files(FAKE_FOLDERS.statements)
     if (listing.kind !== 'listed') throw new Error(listing.reason)
     const toRead = statementFilesToRead(listing.files, workbook.transactions)
 
@@ -62,21 +63,19 @@ describe('the fake build’s statements folder', () => {
 
   it('holds, under ?fake=held-statement, the first statement of an account the accounts tab lacks, named by its label alone', async () => {
     const folder = fakeStatementFolder('held-statement')
-    const listing = await folder.files(DEFAULT_STATEMENTS_FOLDER)
+    const listing = await folder.files(FAKE_FOLDERS.statements)
     if (listing.kind !== 'listed') throw new Error(listing.reason)
     const toRead = statementFilesToRead(listing.files, workbook.transactions)
 
     expect(toRead.map((file) => file.name)).toEqual([`${sampleCamtLabel()}-main.xml`, `${sampleCamtLabel(1)}.xml`])
     const loaded = await loadImportFile(toRead[1]!.name, await folder.download(toRead[1]!))
-    expect(statementReadings(loaded, workbook, null)).toEqual([
-      { fileName: `${sampleCamtLabel(1)}.xml`, label: sampleCamtLabel(1), refusal: 'The accounts tab names no account for IBAN XX00FAKE0000000000000003, so the statement cannot be filed. Add the account on Settings, Accounts first.' },
-    ])
+    expect(statementReadings(loaded, workbook, null)).toMatchObject([{ statement: { account: '', label: sampleCamtLabel(1) }, newAccount: { iban: 'XX43FAKE0000000000000003', currency: 'EUR' } }])
   })
 
   it('refuses any other path, and a download of a statement it holds only the name of', async () => {
     const folder = fakeStatementFolder(null)
 
-    expect(await folder.files(['work', 'statements'])).toEqual({ kind: 'refused', reason: `The fake Drive holds statements only in ${DEFAULT_STATEMENTS_FOLDER.join('/')}, not in work/statements.` })
+    expect(await folder.files(['work', 'statements'])).toEqual({ kind: 'refused', reason: `The fake Drive holds statements only in ${FAKE_FOLDERS.statements.join('/')}, not in work/statements.` })
     await expect(folder.download({ id: 'fake-statement-1', name: 'filed.xml' })).rejects.toThrow('holds only the name of filed.xml')
   })
 })

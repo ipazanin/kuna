@@ -7,81 +7,63 @@ or the same document kept in this browser. There is no backend. It deploys to Gi
 
 With the file on Drive, the app asks Google for `drive.file`, which covers files the user picks in
 the Google Picker or that the app creates, and for `openid email`, which tells it which account
-signed in. To find new bank statements in Drive it also asks for `drive.readonly`, whose token it
-holds in the page's memory only. See *Google sign-in*. The app reads the file and keeps a copy in
-IndexedDB. It writes only that file, its revisions and a `backups` folder beside it, and only what
-the user saves or a sync files, as *Write-back* describes. An xlsx file opens as the same document,
-and "Export to Excel" writes one. Making an invoice also files its PDF in the Drive folder the user
-picks for invoices, and, only for a user who turns the mail draft on, asks for `gmail.compose` to
-save a Gmail draft. See *Invoices*.
+signed in. To find new bank statements in Drive it also asks for `drive.readonly`, and for a user
+who turns the invoice mail draft on, `gmail.compose` to save a Gmail draft. All of them ride on one
+token held in the page's memory only. See *Google sign-in*. The app reads the file and keeps a copy
+in IndexedDB. It writes only that file, its revisions and a `backups` folder beside it, and only
+what the user saves or a sync files, as *Write-back* describes. An xlsx file opens as the same
+document, and "Export to Excel" writes one. Making an invoice also files its PDF in the Drive folder
+the user picks for invoices. See *Invoices*.
 
 ## Google sign-in
 
 There is no backend, so there is no refresh token: Google issues those only through a server-side
-code exchange. Instead the app keeps the access token in `localStorage` with its expiry, so a reload
-or a new tab within the hour syncs without a click. A token counts as expired a minute before Google
-says, and is then removed. Switching to a workbook kept in the browser removes it too, and "Sign out
-of Google" on Settings, This device revokes it with `google.accounts.oauth2.revoke` and removes it.
+code exchange. The page holds one access token in memory, never in storage, and it carries every
+scope the books and this device's settings need: `drive.file` always, `drive.readonly` while the
+statements or accountant step is on, and `gmail.compose` while invoice mail drafts are on. Every ask
+lists exactly those scopes with `include_granted_scopes` off, so a grant from months ago does not
+ride along. A token counts as expired a minute before Google says. The code is in
+`src/shared/google/googleAuth.ts`.
 
-While a token is good, the app syncs on open and whenever the tab becomes visible again, at most
-once every ten minutes after the last read or attempt, on a device that leaves "Sync as the app
-opens" on, as *Sync* describes. Without one, the Sync button works as before, since a new token
-needs a click to open Google's popup.
+**The silent trip on open.** Each open of the books on Drive while online, on a device that leaves
+"Sync as the app opens" on, first sends the tab to Google with `prompt=none`. Google shows no screen
+and comes straight back with one token. The tab leaves by replacing the page, so Back from the app
+does not land on a page that asks again. A scope never granted makes Google refuse the whole trip,
+so the trip asks only for the scopes Google granted that the books still need. Both lists are kept
+in `localStorage` (`ledgerboard.google-granted` and `ledgerboard.google-needed`), since they are no
+secret. A scope switched on since goes through a tap. A workbook kept in this browser, the fake
+build and an offline open never go to Google.
 
-The kept token carries only those scopes, since the app asks for it with `include_granted_scopes`
-off. The `gmail.compose` grant of *Invoices* comes as a second token, which lives in the page's
-memory for its hour and is never stored, because it can send mail as well as save drafts. Sign out
-forgets it too.
+**A device where it does not work.** Firefox on the Mac answers every silent trip with
+`interaction_required`. When Google refuses the silent trip, the device notes Google's error in
+`ledgerboard.google-silent-refused` and stops going to Google on open. The sync control then shows
+"Sign in to Google" for `login_required` and "Allow access" for any other error, and its tap asks
+Google with a screen where it needs one. A later token clears the note, except a note of
+`interaction_required`, which a tap's token does not disprove. Sign out clears it too.
 
-The Drive read grant is a third token. The Apps Script files the bank statements in a Drive folder,
-and `drive.file` cannot see files another app made, so the app asks for `drive.readonly` to find the
-new ones, and to read the accountant's workbooks on Year, Taxes. That token can read every file in Drive. It is asked for alone, with
-`include_granted_scopes` off, so it can neither write the file nor send mail, and it lives only in
-the page's memory. Each open of the books on Drive while online first sends the tab to Google with
-`prompt=none`, which shows no screen there and comes straight back with the token. The tab leaves
-by replacing the page, so Back from the app does not land on a page that asks again. The token only
-lists and downloads the statements and the accountant's workbooks. The file is read and written with the kept `drive.file` token
-alone, so a sync that files statements always holds a token that can write them, and a sync after
-the kept token ran out still needs the tap that asks for it. A load that is Google's answer to that
-sign-in asks once more the same way, so on a phone one tap on Sync brings back both tokens. What the
-sign-in picks up, such as the sync, waits until the tab is back from that second trip, and runs
-whether Google gave the Drive read token or not. Any other load that is Google's answer never asks
-again. When Google answers with an error instead, such as `consent_required` before the first
-consent, the tab notes it in session storage and opens without going to Google until the tab is
-closed. Then only "Allow access" in the sync control asks, with Google's consent screen if it needs
-one: in the popup on a desktop, by the redirect on a phone. The control shows it after a sync whose
-statements or accountant step found no Drive read token on the page, as *Sync* describes. A token
-that ran out after an hour is asked for again the same way, since a silent ask in the middle of a
-session would reload the page. A device whose "Sync as the app opens" is off skips the silent ask
-on open, so its first sync shows "Allow access". A workbook
-kept in this browser, the fake build and an offline open never go to Google, and sign out forgets this token too, with
-the read of Year, Taxes this device kept.
-`driveReadAccess()` in `src/shared/google/googleAuth.ts` says where the page stands: the token
-held, not asked yet (or run out), or consent needed.
+**A tap.** On a desktop the tap opens Google's popup (the GIS token client) with `prompt: ''`, so
+Google shows a screen only when it needs one. On a phone or in the installed app, the rule being the
+media query `(pointer: coarse), (display-mode: standalone)`, the whole tab goes to Google with the
+OAuth 2.0 implicit flow (`response_type=token`) and comes back to the app's own address with the
+token in the fragment. Google's popup opened its cookie screen zoomed out there. The app reads the
+fragment before the router starts, checks the one-time `state` it kept in `localStorage`, takes the
+token out of the address and returns to the screen and tab the person left. Once back, a sync, a
+find of the books and the Picker carry on by themselves, and onboarding's access step, which the
+route brings back, says what Google allowed. Anything else that needs Google on a phone, such as a
+write, a file made on Drive or an invoice, never leaves the page for it: it says to sync or allow
+access first, which onboarding does before any file is made.
 
-On a phone or in the installed app, the rule being the media query `(pointer: coarse), (display-mode:
-standalone)`, the app signs in without the popup. Google's popup opened its cookie screen zoomed out
-there, so the whole tab goes to Google with the OAuth 2.0 implicit flow (`response_type=token`) and
-comes back to the app's own address with the token in the fragment. The app reads the fragment
-before the router starts, checks the one-time `state` it kept in `localStorage`, takes the token
-out of the address and returns to the screen and tab the person left. A wrong or missing `state`
-keeps no token and says so. After the sign-in a Sync carries on, and so does Connect, which opens
-the Picker. Anything else that needed the token, such as a write, did not run and is tapped again.
-The Gmail grant goes the same way with `include_granted_scopes=true`. The invoice dialog is gone
-once back, so a toast asks to make the invoice again, which then uses the Gmail token this page
-now holds. Nothing is filed or written before the grant is asked for. The Drive read grant asked
-from "Allow access" goes the same way with `include_granted_scopes=false`, and the sync starts by
-itself once back, whether Google gave the token or not, so a refusal leaves "Allow access" in the
-control and shows no message. The silent asks show no message of their own either way. A sync that
-picks up after a sign-in is the tap on Sync carried on, so without the Drive read token it ends in
-"Allow access" too.
+**What Google gave.** The consent screen lets the person untick any scope, so the app reads what
+was granted from the token's `scope`. A step whose scope the token lacks shows "Allow access" in the
+sync control, and so does a setting such as the invoice drafts. A refused consent and an answer the
+tab never asked for keep no token, show no message and leave "Allow access" in the control.
 
-The token model returns no ID token, so after the first sign-in the app reads the email address
-once from the OpenID Connect userinfo endpoint (`https://openidconnect.googleapis.com/v1/userinfo`,
-the `userinfo_endpoint` of Google's discovery document) and keeps it. It is passed as `login_hint`,
-so an expired token renews with one click and no account chooser. Sign out forgets it. A return
-from a sign-in by redirect waits for the email before the silent Drive read ask leaves, for up to
-five seconds, and then goes on without it.
+The token model returns no ID token, so after the first token the app reads the email address once
+from the OpenID Connect userinfo endpoint (`https://openidconnect.googleapis.com/v1/userinfo`, the
+`userinfo_endpoint` of Google's discovery document) and keeps it. It is passed as `login_hint`, so a
+new token comes with no account chooser. "Sign out of Google" on Settings, This device revokes the
+token with `google.accounts.oauth2.revoke` and forgets the email, the granted scopes and the note.
+The needed scopes stay, since the books decide them, not the account.
 
 ## Sync
 
@@ -97,8 +79,8 @@ Each step names the Google scope it needs and whether the settings turn it on:
 | Step | Scope | On when |
 |---|---|---|
 | Books | `drive.file` | Always, for a file on Drive |
-| Statements | `drive.readonly` | `statements_sync` is TRUE, the default |
-| Accountant | `drive.readonly` | The Croatian pack shows and `hr_accountant_sync` is TRUE, the default |
+| Statements | `drive.readonly` | `statements_sync` is TRUE, the default, and `statements_folder` names a folder |
+| Accountant | `drive.readonly` | The Croatian pack shows, `hr_accountant_sync` is TRUE, the default, and one of its two folders is named |
 
 A step that is off does not run and is not counted. Whether a step is on is decided again once the
 books are read, so a switch another device saved counts in the same sync. A tap during a save waits
@@ -112,12 +94,14 @@ such as "Filing 4 rows", done with a line such as "Nothing new", waiting for you
 statement it held, needing access, failed with the message, or skipped because the books could not
 be read. The run is page state and never stored.
 
-The sync control shows one of four things:
+The sync control shows one of these, the first that applies:
 
+- "Find the file" while no file on Drive is chosen.
 - While a sync runs, the step and its place among the steps that are on, such as "Statements 2/3".
   The button takes no tap, and a screen reader hears the step and its line as they change.
-- "Allow access" while a step needs access. The tap asks Google for the Drive read token of *Google
-  sign-in*, with its consent screen when it needs one, and syncs again.
+- "Sign in to Google" when Google asked for a sign-in first, and "Allow access" while a step or a
+  setting needs access. The tap asks Google for one token with every scope the settings need, as
+  *Google sign-in* describes, and syncs again.
 - "1 problem", or the count, while a step failed or waits for you. The tap opens the steps of the
   last sync, in a popover from 640 px and in a bottom sheet on a phone: each step's line, with Undo
   or a link where the step left one, and "Sync again".
@@ -128,11 +112,10 @@ a card. From 1024 px a button beside Sync in the sidebar opens the steps of the 
 Settings, This device has a Sync card with the same steps and the "Sync as the app opens" switch.
 
 **Sync as the app opens** is a switch of each device, on by default. Only an off is kept, in
-`localStorage` under `ledgerboard.auto-sync`. While it is on and a kept token is good, the app
+`localStorage` under `ledgerboard.auto-sync`. While it is on and the page's token is good, the app
 syncs on open and whenever the tab becomes visible again, at most once every ten minutes after the
 last read or attempt (`src/features/sync/application/autoSync.ts`). Off, the open also skips the
-silent trip to Google for the Drive read token, so the device waits for a tap on Sync, and its first
-sync shows "Allow access".
+silent trip to Google, so the device waits for a tap on Sync.
 
 ### The statements step
 
@@ -466,7 +449,7 @@ as before.
 | `label_owner_pay` | `Owner pay` | Same for `owner-pay`. |
 | `label_financing` | `Financing` | Same for `financing`. |
 | `label_neutral` | `Neutral` | Same for `neutral`. |
-| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Owner, Year and Salaries screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. While the tab holds no value for it, Settings, General says so and its Save writes the value shown, as for `statements_folder`. |
+| `owner_pay_module` | `FALSE` | `TRUE` shows owner pay, owner earns and the installed pack, here the Owner, Year and Salaries screens. Onboarding sets it from "Is this a Croatian d.o.o. that pays its owner?". With `FALSE` rows in the `owner-pay` bucket count as operating cost, so costs and net do not change. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
 | `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. Review's rule coverage groups such a row by the merchant after ` · ` in its counterparty, and a rule made from it tests `counterparty_contains` on that merchant, since the IBAN is the bank's. An entry that is not an IBAN is reported and the list stays blank. |
 | `billing_monthly_amount` | blank | The fee invoiced for each worked month. "Fill the rest of the year" adds a row of it for every month to December. |
@@ -483,22 +466,21 @@ as before.
 | `invoice_file_path` | `{yyyy}/{yyyy}-{mm}/{yyyy}-{mm}-{client}-invoice.pdf` | Where under that folder each invoice is filed, with `{yyyy}`, `{yy}`, `{mm}` from the issue date, `{client}` and `{number}`. It must end in `.pdf`. |
 | `invoice_mail_subject`, `invoice_mail_body` | `Invoice {number}, {month}` and a short note signed `{signatory}` | The invoice mail, with `{month}` (the issue month in the client's `mail_language`), `{number}`, `{client}`, `{company}` and `{signatory}`. |
 | `invoice_reverse_charge_note` | the Croatian VAT law's Article 17 note | Printed under the totals, after an asterisk. |
-| `statements_folder` | `work/dss/business-bank-account/erste/statements` | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. The app reads it and never makes or changes a folder there. A path where a folder is missing, or where two folders share a name, is reported. The statement fetch in the Sheet reads the row too and stops without it, so while the tab names no folder for the key, with no row, a blank one or one such as `/`, Settings, General says so and its Save writes the path shown, the default included. |
-| `statements_sync` | `TRUE` | Whether each sync files the new statements of `statements_folder`. `FALSE` leaves statements to Import. Settings, General has it as a switch beside the folder. |
+| `statements_folder` | blank | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. Blank names none, and statements come in through Import. The app reads it and never makes or changes a folder there. A path where a folder is missing, or where two folders share a name, is reported, and so is one such as `/` that names no folder. The statement fetch in the Sheet reads the row too and stops without it. |
+| `statements_sync` | `TRUE` | Whether each sync files the new statements of `statements_folder`, once it names one. `FALSE` leaves statements to Import. Settings, General has it as a switch beside the folder. Onboarding writes `FALSE` for statements by hand and `TRUE` for statements from a Drive folder. |
 | `hr_company_registered` | blank | The day the company was registered, as a date cell or text such as `2025-05-12`. It starts the first tax period. |
 | `hr_cit_return` | `pd` | `pd` for the corporate tax return on the accrual profit, `pd-nn` for the one on cash. |
 | `hr_vat_principle` | `invoice` | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment. |
 | `hr_depreciation_doubled` | `FALSE` | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it. |
 | `hr_owner_loan_interest` | `0%` | The yearly interest rate the owner's loans from the company carry, as a percentage cell such as `2%`, or text such as `2%` or `0.02`. A number above 1, such as `2`, is refused, since it reads as 200%. Below the income tax law's rate the difference is a benefit in kind, as *Taxes and Owner* describes. |
-| `hr_vat_returns_folder` | `work/dss/dss-finance/vat-returns` | The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive, which Year, Taxes reads as *Year screen* describes. A path where a folder is missing, or where two folders share a name, is reported there. |
-| `hr_payroll_folder` | `work/dss/dss-finance/payroll` | The same for the accountant's salary workbooks, with a folder for each year and month inside. While the tab holds no value for either folder, Settings, General says so and its Save writes the path shown, so a later default cannot change them. |
-| `hr_accountant_sync` | `TRUE` | Whether each sync reads the two folders for Year, Taxes. `FALSE` keeps the last read on this device. The facts card has it as a switch above the folders. |
+| `hr_vat_returns_folder` | blank | The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive, which Year, Taxes reads as *Year screen* describes. Blank names none, and nothing is read from it. A path where a folder is missing, or where two folders share a name, is reported there. |
+| `hr_payroll_folder` | blank | The same for the accountant's salary workbooks, with a folder for each year and month inside. |
+| `hr_accountant_sync` | `TRUE` | Whether each sync reads the folders that are named for Year, Taxes. With neither named the step is off. `FALSE` keeps the last read on this device. The facts card has it as a switch above the folders. |
 | `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves and deletes. A profile that cannot be read is reported and not offered, and "Remove the key" beside it on Settings, General takes its row off the tab. |
 
 The `hr_` keys are the company's own facts for the Croatian d.o.o. pack, with where its accountant
 files the returns, which the pack reads and checks itself, as *Core and the pack* describes.
-Nothing outside the app reads the two folder keys, so a save writes them only once they change. Settings, General shows them while
-`owner_pay_module` is on. They belong in the workbook and never in the app. The owner's facts for the payroll, where he lives,
+Settings, General shows the two folder keys while `owner_pay_module` is on. They belong in the workbook and never in the app. The owner's facts for the payroll, where he lives,
 pillar II, dependants and the year of birth, are the director's row on the `employees` tab.
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
@@ -1122,8 +1104,8 @@ The files are read by the accountant step of each sync, as *Sync* describes, nev
 read lists both folders, one level of folders at a time, and downloads only the files whose Drive
 `version` changed since the last read, whose tabs it keeps. That last read stays on this device in
 IndexedDB (`ledgerboard-drive-reads`, `src/shared/google/driveReads.ts`) until the next read or
-sign-out, so before a sync of this page the cards show it at once with its date. A sync without the
-Drive read token shows "Allow access" in the sync control, and the cards keep the read this device
+sign-out, so before a sync of this page the cards show it at once with its date. A token without Drive
+read shows "Allow access" in the sync control, and the cards keep the read this device
 kept until that tap reads Drive again. The fake build's accountant folders, at the
 default paths, hold made-up returns and salaries for 2026 that show a passing, a differing and an
 unread row on each card.
@@ -1339,8 +1321,10 @@ did, and drafts its mail without sending it. The services are in `src/features/i
   to make), save the Gmail draft, and add the register row through the same write as "Record
   invoice". A step that fails stops the run and shows why, and "Retry the remaining steps" runs the
   ones left, so the PDF is never filed twice.
-- **The mail.** "Create the mail draft" is remembered on this device and off at first. The first
-  time it runs, Google asks the user to allow `gmail.compose`. The draft goes to the client's
+- **The mail.** "Create the mail draft" is remembered on this device and off at first. While it is
+  on, `gmail.compose` joins the page's one token, so making an invoice never leaves the page. Until
+  Google grants it, the sync control shows "Allow access", and on a desktop the first draft asks in
+  Google's popup. The draft goes to the client's
   `invoice_mail` with the PDF attached and is never sent. With it off, the PDF downloads and "Write
   the mail in Gmail" opens Gmail's compose window with the recipient, subject and text filled in.
 - **Re-export**, in the editor of an invoice on Invoicing, draws the PDF again with the
@@ -1356,27 +1340,56 @@ generator wrote.
 
 ## Where the books are kept
 
-The first run, and "Switch data source" on Settings, This device, offer three ways in
-(`DataSourceChoices` in `src/features/data-source/presentation/`):
+A first run goes to onboarding at `#/start?step=…` (`src/features/onboarding/`), on the ruled page
+with the brass mark. The route holds the step and the choices made so far, so a phone that leaves
+for Google comes back into the step it left. Each step is one card with one primary button, under a
+row that numbers the steps of the path. The order of each path is `stepsOf` in
+`domain/onboardingSteps.ts`:
 
-- **Open your books on Google Drive**, for a device whose books another device keeps there. After
-  the sign-in the app searches Drive for the file it marked with `appProperties`, and opens the
-  Picker, filtered to JSON files, when the search finds none. Two marked files are refused with a
-  message, since the app cannot tell which one holds the books. So is a backup or another app's file
-  picked there, since the books would then be saved into it. "Pick another file" skips the search and
-  always opens the Picker, with the same refusals, so a file other than the marked one can be opened.
-  A toast names the file and its folder once it is open, or says the file found or picked is the one
-  already on screen.
-- **Open a file**, an xlsx or a ledgerboard file, which shows its summary first, as *A workbook kept
-  in this browser* describes.
-- **Start empty**, with the default categories and settings.
+| Path | Steps |
+|---|---|
+| Start new books on Drive | Welcome, Home, Google, Folder, Company, Statement, then Overview |
+| Start new books in this browser | Welcome, Home, Company, Statement. No Google at all |
+| Bring my books (xlsx or ledgerboard file) to Drive | Welcome, Home, Google, File, Folder, Company |
+| Bring my books into this browser | Welcome, Home, File, Company |
+| Open my books on Drive | Welcome, Google, Find |
+| Move the books kept in this browser to Drive | Google, Folder, from Settings, This device |
 
-An opened file and an empty start then choose their home. "Keep on Google Drive" opens the folder
-Picker, creates `ledgerboard-company.json` there with its mark, reads the file back, and opens it
-only when it holds the same records, with "Moved N records" in a toast. When Drive already holds a
-marked file, nothing is made and the message says so. "Keep in this browser" keeps the document in
-IndexedDB. On a phone the sign-in goes to Google and back, and an opened file is opened again after
-it.
+- **Google** asks for one token before any file is opened: the books file always (`drive.file`),
+  Drive read when statements come from a folder in Drive, and Gmail when invoice mail drafts are on.
+  Statements by hand is the default and asks for nothing more. Once Google answered, each line says
+  Allowed or Not allowed, with "Ask again" beside a refused one.
+- **Folder** opens the Picker at My Drive and makes nothing until the person confirms. With Drive
+  read the confirm shows the folder's path from My Drive, walked up through its parents. With the
+  books file alone Drive answers 404 for the parents, so it shows the folder's name, says the
+  folders above it are not visible to the app, and links to the folder in Drive. "Create the file
+  here" is the only action that writes: it makes `ledgerboard-company.json` with its mark, reads it
+  back and opens it only when it holds the same records. When Drive already holds a marked file the
+  step refuses before the Picker opens. The toast says "Created ledgerboard-company.json in My Drive
+  › …" for new books, and "Moved N records" for books brought from a file or this browser.
+- **New books** carry a row for every setting, so they name each choice: `statements_sync` off for
+  statements by hand and on for a Drive folder, no statements or accountant folder, and the
+  owner-pay module off until the company step says otherwise.
+- **Company** asks the company name, the currency and the number style, and the pack's one
+  question, "Is this a Croatian d.o.o. that pays its owner?", which sets `owner_pay_module`. With
+  Yes and Drive read allowed it chooses the accountant's two folders in the Picker. For books
+  brought along it confirms what the file says.
+- **Statement** takes a camt.053 file, whose new IBAN the dry run offers as an account, as *Import*
+  describes, or skips. With statements from a Drive folder it chooses that folder too.
+- **Find** keeps "Find the file" and "Pick another file": the app searches Drive for the file it
+  marked with `appProperties`, and opens the Picker, filtered to JSON files, when the search finds
+  none. Two marked files are refused, and so is a backup or another app's file picked there.
+
+"Switch data source" on Settings, This device keeps three ways in (`DataSourceChoices` in
+`src/features/data-source/presentation/`): Find the file and Pick another file, "Open a file", whose
+summary keeps the file in this browser or hands it to onboarding's Google and Folder steps, and
+"Start new books", which starts onboarding.
+
+Overview's "Getting set up" card lists what new books still lack, each line linking to its screen
+and gone once done: the first statement, the statements folder while filing on sync is on without
+one, each folder the pack reads while the pack is on, a look over the categories while they are the
+ones new books start with, and the invoice details once there is a client. `gettingSetUp` in
+`src/features/onboarding/presentation/gettingSetUp.ts` builds it.
 
 To move the books from the Google Sheet, download the Sheet as xlsx, open it here, compare the
 counts per tab with the Sheet's, and keep it on Google Drive. Do not edit the Sheet between the
@@ -1398,16 +1411,16 @@ The document lives in IndexedDB, under its own id, as the store of record. The a
 to keep it (`navigator.storage.persist()`, which Firefox shows as a prompt). Clearing the site's data
 deletes it, so the exported files are its only other copies until it moves to Drive.
 
-- **Start empty.** The first run and "Switch data source" start an empty workbook on Drive or in
-  this browser: a default category set for a freelancer or a small company, and the default
-  settings. VAT refunds have their own `vat-refund` category in the operating bucket, and
+- **New books.** Onboarding starts new books on Drive or in this browser: a default category set
+  for a freelancer or a small company, and a row for every setting. VAT refunds have their own `vat-refund` category in the operating bucket, and
   `tax-refund` in the taxes bucket is for income tax refunds. `benefits-from-company-costs` in the
   owner-pay bucket carries the `owner-benefit` role.
 - **Open a file.** Open or drop an xlsx file, such as a download of the Google Sheet, or a
   ledgerboard file, such as a backup from the Drive folder. It opens as the app's document, every
   ledger row with an id, and a summary shows before anything is replaced: transactions, dates,
   accounts, categories, the records of each tab with their total, and every problem. Then "Keep on
-  Google Drive" or "Keep in this browser" chooses where it lives. An xlsx file without a `ledger`
+  Google Drive", through onboarding's Google and Folder steps, or "Keep in this browser" chooses
+  where it lives. An xlsx file without a `ledger`
   tab is refused, and so is a ledgerboard file a newer app saved or another app keeps.
 - **Export.** From either home, "Export to Excel" writes the workbook in the template format as
   `ledgerboard-<company or file name>-<yyyy-mm-dd>.xlsx`. Opening an export gives the same
@@ -1432,6 +1445,13 @@ beside `ImportPanel`. It shows what the last sync did with the folder, as *Sync*
 statements it filed, and each one it held with its dry run, the reason, and for an account with no
 rows yet the start at its opening. "Confirm and file" writes what the held statements' dry run then
 accepts, through the same path. The card is gone when there is nothing to say.
+
+**A new account.** A camt statement whose IBAN no account has is read with no account, and the dry
+run offers to add it: the IBAN, its currency, and the balance before the first entry on that
+entry's day, under a name the person types, `main` while no account has it. Named, the statement
+starts the account at that opening, and the one write adds the account with the rows, "Added main
+and imported 4 rows". A name another account has, or one that is not a valid account name, names
+nothing. A sync holds such a statement, and the Import tab offers the account the same way.
 
 **camt.053.** `readCamtDocument` reads the file with the browser's `DOMParser`. It finds elements by
 local name, so any camt.053 version reads, takes booked entries only, and reads every amount in
@@ -1510,7 +1530,7 @@ are set up, and the law behind the figures, one tab each:
 
 | Tab | What it holds |
 |---|---|
-| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder with its sync switch and the owner-pay module) open, then the company and owner facts with the accountant's two folders and their sync switch and the bucket labels, collapsed, with one Save under them. While the tab holds no value for a key Save writes when unset (`owner_pay_module`, `statements_folder` and the two accountant folders), a line above Save names them and Save is open with nothing changed. Then the loan switch and the rows the app could not use, which opens itself while there are any |
+| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder with its sync switch and the owner-pay module) open, then the company and owner facts with the accountant's two folders and their sync switch and the bucket labels, collapsed, with one Save under them, which writes only what changed. Then the loan switch and the rows the app could not use, which opens itself while there are any |
 | Categories | The categories tab |
 | Accounts | The accounts tab |
 | Ruleset | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as *Ruleset* describes |
@@ -1601,8 +1621,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, the first run kept on the fake Drive and in this browser, an xlsx moved to the fake Drive through its summary, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, and on Year, Taxes the accountant's cards a sync read with the rows a differing badge opens, the read this device kept until Allow access, and the payroll folder saved from Settings, General with 1 problem in the sync control, Salaries for one and for five made-up employees on each tab, and with five a sync's payslips, the one problem's build-up and rows, a name on People and a month of Over time, and This device for a file a newer app saved, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, the accountant's cards on Year, Taxes as a sync read them with a differing badge's rows and the kept read, Salaries for five made-up employees with the gross to net chart's tap-then-drill and the sync's payslips, the one problem's build-up and rows, People and Over time, the payroll folder saved from Settings, General, the first run on the fake Drive and in this browser, an xlsx moved to the fake Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, and with statements from a folder, whose confirm names the path and whose company step chooses the accountant's folder, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, and on Year, Taxes the accountant's cards a sync read with the rows a differing badge opens, the read this device kept until Allow access, and the payroll folder saved from Settings, General with 1 problem in the sync control, Salaries for one and for five made-up employees on each tab, and with five a sync's payslips, the one problem's build-up and rows, a name on People and a month of Over time, and This device for a file a newer app saved, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, the accountant's cards on Year, Taxes as a sync read them with a differing badge's rows and the kept read, Salaries for five made-up employees with the gross to net chart's tap-then-drill and the sync's payslips, the one problem's build-up and rows, People and Over time, the payroll folder saved from Settings, General, onboarding on the fake Drive with statements by hand and from a folder, in this browser, with an xlsx brought along and with books found on Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
 ```
@@ -1642,19 +1662,22 @@ year's and last year's folders with every month inside, made by another app and 
 picked, and the browser's confirm dialog stands in for the Picker, OK picking every folder it names
 and Cancel none. Its settings carry made-up invoice details, and Northwind has an address, an
 invoice mail and reverse charge, while Lumen has none, so its invoice is refused.
-The fake Drive's statements folder, at the default `statements_folder` path, names an XML file for
+The fake books name their folders and switch the owner-pay module on with explicit rows, as books
+saved from the app do. The fake Drive's statements folder, at the path they name, `finance/statements`, names an XML file for
 every statement on the fake ledger and holds the sample camt statement with a PDF beside it, so the
 sample is the only file the app downloads from it. Sync files it, and a second sync finds nothing
 new. `?fake=held-statement` adds a statement of an account the accounts tab lacks, named by its
-label alone, which the sync holds, and `?fake=slow-statements` takes three seconds to list the folder,
-so a check sees the sync control while the step runs. The fake build never goes to Google, so it
-reads this folder as if it held the Drive read token, unless the tab noted a refused ask, which
-leaves "Allow access" in the sync control. It holds the accountant's folders at the default folder
-paths too, as *Year screen* describes for Taxes.
+label alone, which the sync holds until the account is named on Import, and `?fake=slow-statements` takes three seconds to list the folder,
+so a check sees the sync control while the step runs. The fake build never goes to Google. As it opens it holds
+a made-up token for the scopes `ledgerboard.google-granted` lists that the books need, every scope
+when it lists none,
+and "Allow access" grants every scope asked, so a check withholds Drive read by listing the scopes
+without it. It holds the accountant's folders at the paths the fake books name too, as *Year screen* describes for Taxes.
 Every name, IBAN and amount in it is made up. `?fake=browser` keeps it as a workbook kept in this
 browser with changes nine days past their last export and owner loans that carry 2.5%, so they give
-no benefit in kind, and `?fake=empty` starts with nothing, which is the first run, whose folder
-Picker picks a `Books` folder on the fake Drive. A variant that ends in `no-scenarios`, `no-plan` or
+no benefit in kind, and `?fake=empty` starts with nothing, which is the first run: onboarding, whose folder
+Picker picks a `Books` folder on the fake Drive. Any variant reaches onboarding at `#/start`, such as
+`#/start?path=open` to find the fake Drive's books. A variant that ends in `no-scenarios`, `no-plan` or
 `no-billing-plan`, such as `?fake=no-plan` or `?fake=browser-no-plan`, starts without those records,
 so the starting scenarios and the first plan line have nothing before them. `?fake=newer-file` is a
 file a newer app saved, which the app shows and never writes. With `?fake=race` a phone files the

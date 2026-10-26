@@ -20,11 +20,16 @@ const props = defineProps<{
   started: boolean
   /** The opening typed for an account a file without balances starts. */
   typedOpening: string
+  /** The name a new account the statement's IBAN names takes. */
+  accountName?: string | undefined
+  /** Why that name cannot be used, or undefined. */
+  accountNameProblem?: string | undefined
 }>()
 
 const emit = defineEmits<{
   'update:started': [started: boolean]
   'update:typedOpening': [text: string]
+  'update:accountName': [name: string]
 }>()
 
 const names = useDisplayNames()
@@ -39,6 +44,7 @@ const counts = computed(() => {
 const summary = computed(() => {
   const { added, held } = counts.value
   if (props.statement.refusal !== null) return 'Refused, nothing of it is written'
+  if (props.statement.newAccount !== null && added === 0) return 'Waits for you to name the account'
   if (props.statement.start !== null && added === 0) return 'Waits for you to start the account'
   const parts = [added > 0 ? `${added} new` : '', held > 0 ? `${held} on the ledger already` : ''].filter((part) => part !== '')
   return parts.join(', ') || 'No entries'
@@ -46,12 +52,17 @@ const summary = computed(() => {
 
 const subtitle = computed(() => {
   const { account, fileName, opening, closing } = props.statement
-  const where = account === '' ? fileName : names.value.account(account)
+  const where = account === '' ? fileName : props.statement.newAccount !== null ? account : names.value.account(account)
   return opening === null || closing === null ? where : `${where}, ${formatMoney(opening)} to ${formatMoney(closing)}`
 })
 
 function day(date: string): string {
   return dayFormat.format(new Date(date))
+}
+
+/** An IBAN in groups of four, as a bank prints it. */
+function grouped(iban: string): string {
+  return iban.replace(/(.{4})(?=.)/g, '$1 ')
 }
 </script>
 
@@ -66,7 +77,17 @@ function day(date: string): string {
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
       <UAlert v-if="statement.refusal" icon="i-lucide-file-x" color="error" variant="subtle" :title="statement.refusal" data-testid="dry-run-refusal" />
 
-      <div v-if="statement.start" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-start">
+      <div v-if="statement.newAccount" class="flex flex-col gap-3 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-new-account">
+        <p class="text-sm text-toned">
+          <span class="identifier">{{ grouped(statement.newAccount.iban) }}</span> ({{ statement.newAccount.currency }}) is new. Add it as an account<template v-if="statement.newAccount.opening !== null">
+            from {{ formatMoney(statement.newAccount.opening) }}</template><template v-if="statement.newAccount.date"> on {{ day(statement.newAccount.date) }}</template>?
+        </p>
+        <UFormField label="Account name" :error="accountNameProblem ?? false" help="Lower-case letters, digits and single hyphens. The screens show it until you give the account a label.">
+          <UInput :model-value="accountName ?? ''" class="identifier w-48" data-testid="dry-run-account-name" @update:model-value="emit('update:accountName', String($event))" />
+        </UFormField>
+      </div>
+
+      <div v-else-if="statement.start" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-start">
         <p class="text-sm text-toned">
           The ledger has no rows of {{ names.account(statement.start.account) }} yet, so nothing earlier can show this statement follows on.
         </p>

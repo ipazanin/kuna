@@ -16,12 +16,6 @@ export const VAT_PRINCIPLES = ['invoice', 'cash'] as const
 
 export type VatPrinciple = (typeof VAT_PRINCIPLES)[number]
 
-/** Where the accountant's monthly VAT returns are filed, as folder names from My Drive down. */
-export const DEFAULT_VAT_RETURNS_FOLDER: readonly string[] = ['work', 'dss', 'dss-finance', 'vat-returns']
-
-/** Where the accountant's salary workbooks are filed, a folder for each year and month inside. */
-export const DEFAULT_PAYROLL_FOLDER: readonly string[] = ['work', 'dss', 'dss-finance', 'payroll']
-
 /**
  * What the pack needs to know about this company that the law does not say. They are the company's
  * own facts, so they live in the workbook and never in the app. The facts about a person are on the
@@ -36,17 +30,17 @@ export interface CompanyFacts {
   readonly depreciationDoubled: boolean
   /** The yearly interest rate the owner's loans carry, in basis points, so 200 is 2%. */
   readonly ownerLoanInterest: number
-  /** The Drive folder of the accountant's VAT returns, as folder names from My Drive down. */
+  /** The Drive folder of the accountant's VAT returns, as folder names from My Drive down. None until one is chosen. */
   readonly vatReturnsFolder: readonly string[]
-  /** The Drive folder of the accountant's salary workbooks, as folder names from My Drive down. */
+  /** The Drive folder of the accountant's salary workbooks, as folder names from My Drive down. None until one is chosen. */
   readonly payrollFolder: readonly string[]
-  /** Whether a sync reads the two folders. */
+  /** Whether a sync reads the folders that are named. */
   readonly accountantSync: boolean
 }
 
-const VAT_RETURNS_FOLDER_KEY = 'hr_vat_returns_folder'
+export const VAT_RETURNS_FOLDER_KEY = 'hr_vat_returns_folder'
 
-const PAYROLL_FOLDER_KEY = 'hr_payroll_folder'
+export const PAYROLL_FOLDER_KEY = 'hr_payroll_folder'
 
 /** The pack's settings keys, read and checked whatever the owner-pay switch says. */
 export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
@@ -56,11 +50,10 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     vatPrinciple: 'invoice',
     depreciationDoubled: false,
     ownerLoanInterest: 0,
-    vatReturnsFolder: DEFAULT_VAT_RETURNS_FOLDER,
-    payrollFolder: DEFAULT_PAYROLL_FOLDER,
+    vatReturnsFolder: [],
+    payrollFolder: [],
     accountantSync: true,
   },
-  writtenWhenUnset: [VAT_RETURNS_FOLDER_KEY, PAYROLL_FOLDER_KEY],
   definitions: [
   {
     key: 'hr_company_registered',
@@ -114,7 +107,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
   },
   {
     key: VAT_RETURNS_FOLDER_KEY,
-    note: `The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive. Year, Taxes reads them. Blank means ${DEFAULT_VAT_RETURNS_FOLDER.join('/')}.`,
+    note: `The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive. Year, Taxes reads them. Blank names none.`,
     type: 'text',
     valueOf: (facts) => facts.vatReturnsFolder.join('/'),
     apply: (facts, value) => {
@@ -124,7 +117,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
   },
   {
     key: PAYROLL_FOLDER_KEY,
-    note: `The Google Drive folder the accountant's salary workbooks are filed in, as a path from My Drive, with a folder for each year and month inside. Year, Taxes reads them. Blank means ${DEFAULT_PAYROLL_FOLDER.join('/')}.`,
+    note: `The Google Drive folder the accountant's salary workbooks are filed in, as a path from My Drive, with a folder for each year and month inside. Year, Taxes reads them. Blank names none.`,
     type: 'text',
     valueOf: (facts) => facts.payrollFolder.join('/'),
     apply: (facts, value) => {
@@ -134,7 +127,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
   },
   {
     key: 'hr_accountant_sync',
-    note: "TRUE reads the accountant's VAT returns and salary workbooks from the two folders on every sync, for Year, Taxes. FALSE leaves the read this device kept.",
+    note: "TRUE reads the accountant's VAT returns and salary workbooks on every sync from the folders that are named, for Year, Taxes. FALSE leaves the read this device kept.",
     type: 'flag',
     valueOf: (facts) => flagText(facts.accountantSync),
     apply: (facts, value) => {
@@ -150,19 +143,15 @@ function withFacts(facts: CompanyFacts, changed: Partial<CompanyFacts>): Company
 }
 
 /** The facts a typed value can be wrong in, which the facts card shows an error under. */
-export type CompanyFactsField = 'ownerLoanInterest' | 'vatReturnsFolder' | 'payrollFolder'
+export type CompanyFactsField = 'ownerLoanInterest'
 
 /** What is wrong with facts typed in the app, by field. The same rules as reading the keys, so facts saved from the app read back without a problem. */
 export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyFactsField, string>> {
   const errors: Partial<Record<CompanyFactsField, string>> = {}
   const loanInterest = ownerLoanInterestProblem(facts.ownerLoanInterest)
   if (loanInterest !== null) errors.ownerLoanInterest = loanInterest
-  if (facts.vatReturnsFolder.length === 0) errors.vatReturnsFolder = FOLDER_MISSING
-  if (facts.payrollFolder.length === 0) errors.payrollFolder = FOLDER_MISSING
   return errors
 }
-
-const FOLDER_MISSING = 'name a folder from My Drive, such as finance/accountant'
 
 /**
  * A rate in basis points from a fraction such as 0.025, which a percentage cell holds for 2.5%, or

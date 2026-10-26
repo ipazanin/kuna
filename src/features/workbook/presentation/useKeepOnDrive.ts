@@ -2,17 +2,22 @@ import { ref } from 'vue'
 import type { Ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
+import { folderTrail } from '../../../shared/text/folderPath'
+import type { PickedFolder } from '../application/workbookPorts'
 import { useWorkbook } from '../application/workbookStore'
 import type { WorkbookDocument } from '../infrastructure/documentFormat'
+
+/** How the toast words a file made on Drive: new books, or books brought from a file or from this browser, which names how many records moved. */
+export type KeptOnDrive = 'created' | 'moved'
 
 export interface KeepOnDrive {
   readonly keeping: Readonly<Ref<boolean>>
   /**
-   * Keeps the books in a new file in a Drive folder the person picks, from a click, and says in a
-   * toast how it went. The toast names how many records moved once the file read back the same.
-   * Resolves to whether the books are now on Drive. A cancelled Picker says nothing.
+   * Keeps the books in a new file in the folder, from a click, and says in a toast how it went: the
+   * file and where it is for new books, how many records moved for books brought along. Resolves to
+   * whether the books are now on Drive.
    */
-  keepOnDrive(document: WorkbookDocument): Promise<boolean>
+  keepOnDrive(folder: PickedFolder, document: WorkbookDocument, kept: KeptOnDrive): Promise<boolean>
 }
 
 export function useKeepOnDrive(): KeepOnDrive {
@@ -20,23 +25,28 @@ export function useKeepOnDrive(): KeepOnDrive {
   const toast = useToast()
   const keeping = ref(false)
 
-  async function keepOnDrive(document: WorkbookDocument): Promise<boolean> {
+  async function keepOnDrive(folder: PickedFolder, document: WorkbookDocument, kept: KeptOnDrive): Promise<boolean> {
     const before = store.state.choice
     keeping.value = true
     try {
-      await store.keepOnDrive(document)
+      await store.keepOnDrive(folder.id, document)
     } finally {
       keeping.value = false
     }
     const chosen = store.state.choice
     if (chosen !== before && chosen?.source === 'drive') {
-      const records = Object.values(document.records).reduce((sum, kind) => sum + kind.length, 0)
-      toast.add({
-        title: `Moved ${records} ${records === 1 ? 'record' : 'records'}`,
-        description: `${chosen.name} on Google Drive holds them. The app read it back and found the same records.`,
-        icon: 'i-lucide-check',
-        color: 'success',
-      })
+      const where = folder.path === null ? folder.name : folderTrail(folder.path)
+      if (kept === 'created') {
+        toast.add({ title: `Created ${chosen.name} in ${where}`, description: 'The app keeps a copy in this browser, and a backups folder beside the file.', icon: 'i-lucide-check', color: 'success' })
+      } else {
+        const records = Object.values(document.records).reduce((sum, kind) => sum + kind.length, 0)
+        toast.add({
+          title: `Moved ${records} ${records === 1 ? 'record' : 'records'}`,
+          description: `${chosen.name} in ${where} holds them. The app read it back and found the same records.`,
+          icon: 'i-lucide-check',
+          color: 'success',
+        })
+      }
       return true
     }
     if (store.state.status === 'error') {

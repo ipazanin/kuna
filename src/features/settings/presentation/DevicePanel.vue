@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
@@ -9,6 +10,7 @@ import { chooseTheme, themeChoice } from '../../../shared/theme/theme'
 import type { ThemeChoice } from '../../../shared/theme/theme'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import SwitchSourceDialog from '../../data-source/presentation/SwitchSourceDialog.vue'
+import { onboardingStart } from '../../onboarding/presentation/useOnboarding'
 import { exportReminderDue } from '../../excel/domain/exportReminder'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useExport } from '../../excel/presentation/useExport'
@@ -16,7 +18,6 @@ import SyncCard from '../../sync/presentation/SyncCard.vue'
 import type { DriveFilePlace } from '../../workbook/application/workbookPorts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import NewerFileNotice from '../../workbook/presentation/NewerFileNotice.vue'
-import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
 import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 
 /** Where the ledger comes from, how this device syncs it, and how the app looks here. */
@@ -42,7 +43,7 @@ const savedAt = computed(() => {
 })
 const fileLink = computed(() => (source.value === 'drive' && meta.value !== null ? `https://drive.google.com/file/d/${encodeURIComponent(meta.value.id)}/view` : null))
 
-/** Where the Drive file sits and its newest backup, read again after each save or sync while a token is kept, since asking for one needs a click. */
+/** Where the Drive file sits and its newest backup, read again after each save or sync while the page holds a token, since asking for one needs a click. */
 const place = ref<{ readonly fileId: string; readonly found: DriveFilePlace } | null>(null)
 const shownPlace = computed(() => (place.value !== null && place.value.fileId === meta.value?.id ? place.value.found : null))
 watch(
@@ -62,11 +63,11 @@ watch(
 const folderLink = computed(() => (shownPlace.value === null ? null : `https://drive.google.com/drive/folders/${encodeURIComponent(shownPlace.value.folderId)}`))
 const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day.format(new Date(`${shownPlace.value.lastBackup}T12:00:00`)) : null))
 
-const { keeping, keepOnDrive } = useKeepOnDrive()
+const router = useRouter()
 
+/** Onboarding's Google access and folder steps keep the books in a new file on Drive. */
 function moveToDrive(): void {
-  const document = state.snapshot?.document
-  if (document !== undefined) void keepOnDrive(document)
+  void router.push(onboardingStart('move'))
 }
 
 const switching = ref(false)
@@ -170,8 +171,7 @@ const THEME_CHOICES: { label: string; value: ThemeChoice }[] = [
               color="neutral"
               variant="outline"
               size="sm"
-              :loading="keeping"
-              :disabled="keeping || state.workbook === null || state.writing"
+              :disabled="state.workbook === null || state.writing"
               data-testid="keep-on-drive"
               @click="moveToDrive"
             />

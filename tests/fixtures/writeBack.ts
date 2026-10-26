@@ -101,7 +101,7 @@ export interface WriteBackHarness {
 const NOW = '2026-10-17T09:00:00.000Z'
 
 function storePorts(choice: WorkbookChoice, drive: FakeDrive, used: Set<string>): WorkbookStorePorts<DocumentCopy, WorkbookDocument> {
-  const ports = documentStorePorts(async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => 'root', pickFile: async () => null }), () => NOW)
+  const ports = documentStorePorts(async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => null, folderPath: async () => null, pickFile: async () => null }), () => NOW)
   return {
     ...ports,
     openCache: (id) => {

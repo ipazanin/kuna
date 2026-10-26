@@ -171,7 +171,7 @@ const CATEGORY_SEED: readonly { readonly family: string; readonly colour: string
 
 const ACCOUNTS = {
   legacy: 'XX00FAKE0000000000000001',
-  main: 'XX00FAKE0000000000000002',
+  main: 'XX70FAKE0000000000000002',
 } as const
 
 type AccountSlug = keyof typeof ACCOUNTS
@@ -277,6 +277,21 @@ function money(amount: number): string {
   return amountText(moneyFromAmount(amount))
 }
 
+/** The folders of the fake Drive the made-up books name, which the fake statements and accountant folders answer for. */
+export const FAKE_FOLDERS = {
+  statements: ['finance', 'statements'],
+  vatReturns: ['finance', 'vat-returns'],
+  payroll: ['finance', 'payroll'],
+} as const satisfies Readonly<Record<string, readonly string[]>>
+
+/** The rows the made-up books name their folders and the owner-pay module in, as the books saved from the app hold them. */
+const FAKE_CHOICES: readonly (readonly [key: string, value: FieldValue])[] = [
+  ['owner_pay_module', true],
+  ['statements_folder', FAKE_FOLDERS.statements.join('/')],
+  ['hr_vat_returns_folder', FAKE_FOLDERS.vatReturns.join('/')],
+  ['hr_payroll_folder', FAKE_FOLDERS.payroll.join('/')],
+]
+
 /** What the made-up company's invoices print. The invoice folder is left to pick, as on a first run. */
 const FAKE_INVOICING: readonly (readonly [key: string, value: string])[] = [
   ['invoice_company_name', 'Example Studio d.o.o.'],
@@ -307,7 +322,7 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
   return {
     setting:
       source === 'drive'
-        ? [{ key: 'card_settlement_ibans' }, ...FAKE_INVOICING.map(setting)]
+        ? [{ key: 'card_settlement_ibans' }, ...FAKE_CHOICES.map(setting), ...FAKE_INVOICING.map(setting)]
         : [
             ...(
               [
@@ -316,8 +331,6 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
                 ['currency', 'EUR'],
                 ['hr_company_registered', '2025-05-12'],
                 ['hr_owner_loan_interest', 0.025],
-                ['hr_vat_returns_folder', 'work/dss/dss-finance/vat-returns'],
-                ['hr_payroll_folder', 'work/dss/dss-finance/payroll'],
                 ['billing_monthly_amount', 7200],
                 ['billing_monthly_item', 'Monthly Fee'],
                 ['billing_subscription_amount', 60],
@@ -327,6 +340,7 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
                 ['billing_client', 'northwind'],
               ] as const
             ).map(setting),
+            ...FAKE_CHOICES.map(setting),
             ...FAKE_INVOICING.map(setting),
           ],
     'ledger-row': ledger,

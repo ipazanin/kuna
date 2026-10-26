@@ -26,7 +26,7 @@ async function withDatabase<Result>(use: (database: DriveReadsDatabase) => Promi
 }
 
 /**
- * What a screen last read from Drive with the Drive read token, by the name it was kept under, or
+ * What a screen last read from Drive with the Drive read scope, by the name it was kept under, or
  * null when this device keeps none or cannot store it. The token itself is never kept.
  */
 export async function keptDriveRead(name: string): Promise<unknown> {

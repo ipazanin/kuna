@@ -10,7 +10,7 @@ export interface AutoSyncMoment {
   /** The device switch for auto-sync. */
   readonly switchedOn: boolean
   readonly status: WorkbookStatus
-  /** A file on Drive is chosen and a kept token is still good. */
+  /** A file on Drive is chosen and the page's token is still good. */
   readonly silent: boolean
   readonly online: boolean
   /** ISO timestamp of the read on screen, or null. */

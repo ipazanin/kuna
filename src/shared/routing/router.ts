@@ -42,6 +42,7 @@ export function createAppRouter(): Router {
   const routes: RouteRecordRaw[] = [
     ...SCREENS.map((screen) => ({ path: screen.path, component: SCREEN_COMPONENTS[screen.path] })),
     ...pack.screens.map((screen) => ({ path: screen.path, component: screen.component })),
+    { path: '/start', component: () => import('../../features/onboarding/presentation/OnboardingScreen.vue') },
   ]
   // Written inline so the production build folds it to false and drops the gallery chunk entirely.
   // The fake build keeps it, because the visual check screenshots the gallery from that build.
