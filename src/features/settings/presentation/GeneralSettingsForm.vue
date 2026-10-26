@@ -11,6 +11,7 @@ import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { folderPathOf } from '../../../shared/text/folderPath'
+import { listInWords } from '../../workbook/domain/slug'
 import { currencyProblem, settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
 import IbanTagsField from './IbanTagsField.vue'
@@ -19,14 +20,14 @@ import IbanTagsField from './IbanTagsField.vue'
  * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
  * them. A card with a field in error opens. While the owner-pay switch is on in the draft, the
  * pack's facts card sits between the basics and the bucket labels, and Save waits for its checks too.
- * While the settings name no statements folder, Save is open with nothing changed, since it writes one.
+ * While the settings hold no value for a key Save writes when unset, Save is open with nothing changed.
  */
 const props = defineProps<{
   settings: Settings
   /** The pack's facts as the workbook holds them, which its card edits. */
   facts: unknown
-  /** The settings name no statements folder, so the save writes the path shown. */
-  statementsFolderUnset: boolean
+  /** The keys the settings hold no value for, which the save writes with the values shown. */
+  unsetKeys: readonly string[]
   saving: boolean
 }>()
 
@@ -49,7 +50,13 @@ const packFacts = computed(() => shownPack(draft.value).companyFacts)
 const errors = computed(() => settingsErrors(draft.value))
 const factErrors = computed(() => packFacts.value?.errors(factsDraft.value) ?? {})
 const valid = computed(() => Object.keys(errors.value).length === 0 && Object.keys(factErrors.value).length === 0)
-const savable = computed(() => valid.value && (dirty.value || props.statementsFolderUnset))
+const statementsFolderUnset = computed(() => props.unsetKeys.includes('statements_folder'))
+const savable = computed(() => valid.value && (dirty.value || props.unsetKeys.length > 0))
+const unsetNote = computed(() => {
+  const keys = props.unsetKeys
+  if (keys.length === 0) return ''
+  return `The settings tab holds no value for ${listInWords(keys)}, so the app uses its defaults. Save settings writes them there.`
+})
 
 const inError = (fields: readonly SettingsField[]): boolean => fields.some((field) => errors.value[field] !== undefined)
 const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'reviewLabel', 'cardSettlementIbans', 'statementsFolder']))
@@ -162,6 +169,14 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
         </div>
 
         <USwitch
+          :model-value="draft.statementsSync"
+          label="File new statements on sync"
+          description="Each sync files the statements of the folder that the ledger lacks. Off leaves statements to Import."
+          data-testid="statements-sync"
+          @update:model-value="update('statementsSync', $event)"
+        />
+
+        <USwitch
           :model-value="draft.ownerPayModule"
           label="Owner-pay module"
           description="Shows owner pay and owner earns. Off hides them, and rows in the owner-pay bucket then count as operating cost, so every total stays the same."
@@ -200,6 +215,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
       </div>
     </AppCard>
 
+    <p v-if="unsetNote" class="text-sm text-muted" data-testid="settings-unset">{{ unsetNote }}</p>
     <div class="flex flex-wrap items-center gap-2">
       <UButton type="submit" label="Save settings" icon="i-lucide-save" :loading="saving" :disabled="!savable || saving" />
       <UButton label="Discard changes" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />

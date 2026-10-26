@@ -4,6 +4,7 @@ import type { RouteComponent, RouteLocationRaw } from 'vue-router'
 import type { CivilDate } from '../../shared/calendar/civilDate'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
+import type { SyncStep } from '../sync/application/sync'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
 import type { PackPart } from '../workbook/domain/packPart'
 import type { Workbook } from '../workbook/domain/workbook'
@@ -62,6 +63,8 @@ export interface PackContribution {
   readonly companyFacts: PackCompanyFacts<unknown> | null
   /** Where the spending breakdown links a cost group the pack breaks down further. */
   costGroupLinks(group: string): { readonly label: string; readonly to: RouteLocationRaw } | null
+  /** Steps a sync runs after core's, in order. */
+  readonly syncSteps: readonly SyncStep[]
 }
 
 const NO_PACK: PackContribution = {
@@ -73,6 +76,7 @@ const NO_PACK: PackContribution = {
   settingsCards: [],
   companyFacts: null,
   costGroupLinks: () => null,
+  syncSteps: [],
 }
 
 let installed: PackContribution = NO_PACK

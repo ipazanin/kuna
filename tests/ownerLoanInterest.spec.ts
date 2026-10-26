@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
-import { loanBenefit, loanBenefitByYear, relatedPartyInterest, shortfallRate } from '../src/packs/hr-doo/domain/ownerLoanInterest'
+import { loanBenefit, relatedPartyInterest, shortfallRate } from '../src/packs/hr-doo/domain/ownerLoanInterest'
 import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset'
 import type { Rate } from '../src/packs/hr-doo/ruleset/schema'
 import { exampleStudio } from './fixtures/exampleStudio'
@@ -71,8 +71,6 @@ describe('loanBenefit', () => {
     const repaid = studio([...LENT_ON_NEW_YEAR, { date: '2025-03-01', amount: 3650, category: 'owner-loan-repaid' }])
 
     expect(loanBenefit(repaid, 2026, civil('2026-12-31'), ruleValue)).toBeNull()
-    expect(loanBenefitByYear(repaid, civil('2026-10-01'), ruleValue).map((benefit) => benefit.year)).toEqual([2025])
-    expect(loanBenefitByYear(studio(LENT_ON_NEW_YEAR), civil('2026-10-01'), ruleValue).map((benefit) => benefit.year)).toEqual([2026, 2025])
   })
 })
 

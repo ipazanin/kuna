@@ -11,6 +11,7 @@ import type { StatementFolder } from '../src/features/imports/application/statem
 import { NOTHING_FILED, fileNewStatements, filedTitle } from '../src/features/imports/application/statementSync'
 import type { StatementSyncStep } from '../src/features/imports/application/statementSync'
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
+import { GoogleApiError } from '../src/shared/google/googleApi'
 import { moneyFromCents } from '../src/shared/money/money'
 import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
 import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
@@ -262,5 +263,21 @@ describe('the statements step against another device\'s sync', () => {
     expect(writesTo(harness)).toBe(0)
     expect(store.state.writes).toEqual([])
     expect(ledgerOf(store, 'main')).toContain('2026-10-06 M3-1 110000')
+  })
+})
+
+describe('the statements step when Google turns the token away', () => {
+  it('throws for a token Google refuses, so the sync asks for access, and says any other failure as its problem', async () => {
+    const { store } = await driveHarness(used, grids())
+    const failing = (failure: Error): StatementFolder => ({
+      files: async () => {
+        throw failure
+      },
+      download: async () => new ArrayBuffer(0),
+    })
+    const refused = new GoogleApiError('https://www.googleapis.com/drive/v3/files', 401, '{}')
+
+    await expect(syncOf(store, failing(refused))).rejects.toBe(refused)
+    expect(await syncOf(store, failing(new Error('Offline')))).toEqual({ ...NOTHING_FILED, problem: 'The statements folder could not be read: Offline' })
   })
 })

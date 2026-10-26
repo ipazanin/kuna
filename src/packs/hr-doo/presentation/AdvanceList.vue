@@ -36,6 +36,8 @@ import MoneyText from '../../../shared/ui/MoneyText.vue'
 /** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it. */
 defineProps<{
   advances: readonly AdvanceLine[]
+  /** What the card says when no cost is listed, such as "No cost the owner paid privately was owed in 2025." */
+  empty: string
   /** True while another write runs. */
   busy: boolean
 }>()
@@ -46,7 +48,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <p v-if="advances.length === 0" class="py-6 text-sm text-muted">No cost the owner paid is on the owner-advances tab yet.</p>
+  <p v-if="advances.length === 0" class="py-6 text-sm text-muted" data-testid="advance-list-empty">{{ empty }}</p>
   <ul v-else class="flex flex-col" data-testid="advance-list">
     <li v-for="advance in advances" :key="advance.id" class="advance-row">
       <div class="advance-head">

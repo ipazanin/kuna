@@ -35,7 +35,7 @@ export function rowDrill(row: Transaction): DrillTarget {
 }
 
 /** The one owner advance, found again by its day and the exact amount it books. */
-export function advanceDrill(advance: OwnerAdvance): DrillTarget {
+export function advanceDrill(advance: Pick<OwnerAdvance, 'date' | 'amount'>): DrillTarget {
   const booked = negateMoney(advance.amount)
   return drillToTransactions({
     period: { preset: 'custom', range: { from: advance.date, to: advance.date } },

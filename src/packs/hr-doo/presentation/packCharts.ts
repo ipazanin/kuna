@@ -321,7 +321,7 @@ export interface LoanColours {
   readonly repaid: string
 }
 
-/** Money lent as bars below zero, repayments as bars above it, and what is still owed as a line. */
+/** Money lent as bars below zero and repayments as bars above it, month by month. */
 export function loanTimelineChart(months: readonly LoanMonth[], colours: LoanColours, tokens: ChartTokens): DrillChart {
   const incomplete = months.map((month) => !month.complete)
   const bars: BarSeries[] = [
@@ -350,29 +350,20 @@ export function loanTimelineChart(months: readonly LoanMonth[], colours: LoanCol
       ),
     },
   ]
-  const outstanding: LineSeries = {
-    type: 'line',
-    name: OUTSTANDING_SERIES,
-    color: tokens.ink,
-    showSymbol: true,
-    symbolSize: 6,
-    data: months.map((month) => month.outstanding.amount),
-    z: 4,
-  }
-  const last = months[months.length - 1]
+  const lent = months.reduce((sum, month) => sum + month.lent.amount, 0)
+  const repaid = months.reduce((sum, month) => sum + month.repaid.amount, 0)
   return {
     option: {
       grid: { top: 16 },
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: monthTooltip(months, tokens, 'negative') },
       xAxis: monthAxis(months, tokens, true),
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
-      series: [...bars, outstanding],
+      series: bars,
     },
     description:
-      last === undefined
+      months.length === 0
         ? 'No months to show.'
-        : `Loans to the owner by month ${spanOf(months)}: money lent below zero, repayments above it, and what the owner still owes as a line. ` +
-          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the owner owed ${formatWholeMoney(last.outstanding.amount)}.`,
+        : `Loans to the owner by month ${spanOf(months)}: money lent below zero and repayments above it. ${formatWholeMoney(lent)} lent and ${formatWholeMoney(repaid)} repaid in all.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {
@@ -380,7 +371,41 @@ export function loanTimelineChart(months: readonly LoanMonth[], colours: LoanCol
       }
       if (seriesName === LENT_SERIES) return month.lent.drill
       if (seriesName === REPAID_SERIES) return month.repaid.drill
-      return month.outstanding.drill
+      // Between the bars, the month's rows on every loan and repayment category.
+      const { period } = month.lent.drill.filters
+      return drillToTransactions({ ...(period === undefined ? {} : { period }), categories: [...(month.lent.drill.filters.categories ?? []), ...(month.repaid.drill.filters.categories ?? [])] })
     },
+  }
+}
+
+/** What the owner owed the company at each month's end, one bar per month, whose rows are every loan row up to that day. */
+export function loanBalanceChart(months: readonly LoanMonth[], colour: string, tokens: ChartTokens): DrillChart {
+  const last = months[months.length - 1]
+  return {
+    option: {
+      grid: { top: 16, right: 8 },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: monthTooltip(months, tokens, 'negative') },
+      xAxis: monthAxis(months, tokens, true),
+      yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
+      series: [
+        {
+          type: 'bar',
+          name: OUTSTANDING_SERIES,
+          color: colour,
+          itemStyle: { borderRadius: BAR_END_UP },
+          data: markIncomplete(
+            months.map((month) => month.outstanding.amount),
+            months.map((month) => !month.complete),
+            tokens,
+          ),
+        },
+      ],
+    },
+    description:
+      last === undefined
+        ? 'No months to show.'
+        : `What the owner owed the company at each month's end ${spanOf(months)}. ` +
+          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the owner owed ${formatWholeMoney(last.outstanding.amount)}.`,
+    drillAt: ({ dataIndex }) => months[dataIndex]?.outstanding.drill ?? null,
   }
 }

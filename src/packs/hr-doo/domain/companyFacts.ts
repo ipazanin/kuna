@@ -54,7 +54,13 @@ export interface CompanyFacts {
   readonly vatReturnsFolder: readonly string[]
   /** The Drive folder of the accountant's salary workbooks, as folder names from My Drive down. */
   readonly payrollFolder: readonly string[]
+  /** Whether a sync reads the two folders. */
+  readonly accountantSync: boolean
 }
+
+const VAT_RETURNS_FOLDER_KEY = 'hr_vat_returns_folder'
+
+const PAYROLL_FOLDER_KEY = 'hr_payroll_folder'
 
 /** The pack's settings keys, read and checked whatever the owner-pay switch says. */
 export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
@@ -70,7 +76,9 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     ownerLoanInterest: 0,
     vatReturnsFolder: DEFAULT_VAT_RETURNS_FOLDER,
     payrollFolder: DEFAULT_PAYROLL_FOLDER,
+    accountantSync: true,
   },
+  writtenWhenUnset: [VAT_RETURNS_FOLDER_KEY, PAYROLL_FOLDER_KEY],
   definitions: [
   {
     key: 'hr_residence_city',
@@ -163,7 +171,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
   },
   {
-    key: 'hr_vat_returns_folder',
+    key: VAT_RETURNS_FOLDER_KEY,
     note: `The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive. Year, Taxes reads them. Blank means ${DEFAULT_VAT_RETURNS_FOLDER.join('/')}.`,
     type: 'text',
     valueOf: (facts) => facts.vatReturnsFolder.join('/'),
@@ -173,13 +181,23 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
   },
   {
-    key: 'hr_payroll_folder',
+    key: PAYROLL_FOLDER_KEY,
     note: `The Google Drive folder the accountant's salary workbooks are filed in, as a path from My Drive, with a folder for each year and month inside. Year, Taxes reads them. Blank means ${DEFAULT_PAYROLL_FOLDER.join('/')}.`,
     type: 'text',
     valueOf: (facts) => facts.payrollFolder.join('/'),
     apply: (facts, value) => {
       const folders = folderPathOf(value)
       return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { payrollFolder: folders })
+    },
+  },
+  {
+    key: 'hr_accountant_sync',
+    note: "TRUE reads the accountant's VAT returns and salary workbooks from the two folders on every sync, for Year, Taxes. FALSE leaves the read this device kept.",
+    type: 'flag',
+    valueOf: (facts) => flagText(facts.accountantSync),
+    apply: (facts, value) => {
+      const enabled = booleanOf(value)
+      return enabled === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { accountantSync: enabled })
     },
   },
 ],

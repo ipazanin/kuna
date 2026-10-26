@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ownerCost } from '../src/packs/hr-doo/domain/ownerCost'
-import { ownerTake, ownerTakeByMonth } from '../src/packs/hr-doo/domain/ownerTake'
+import { netPayPerMonth, ownerTake, ownerTakeByMonth } from '../src/packs/hr-doo/domain/ownerTake'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { withPackBuckets, PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import type { Period } from '../src/features/filters/domain/filterState'
@@ -43,6 +43,8 @@ describe('owner take', () => {
       ['owner-loan-repaid', euros(-1000)],
     ])
     expect(take.total.drill.filters).toEqual({ period: lastThree, buckets: ['owner-pay'] })
+    expect(take.withoutLoans.amount).toBe(euros(2200 + 4000))
+    expect(take.withoutLoans.drill.filters.categories).not.toContain('owner-loan-out')
   })
 
   it('lists reimbursements beside owner pay, paid to the owner read positive, and leaves them out of the total', () => {
@@ -64,6 +66,29 @@ describe('owner take', () => {
   })
 })
 
+describe('net pay per month', () => {
+  it('divides the take without loans by the months of a rolling period', () => {
+    const take = ownerTake(transactions, PACK_CATEGORIES, lastThree, window)
+
+    // July to September: salary 2,200 and dividend 4,000, the 2,000 of loans left out, over 3 months.
+    expect(netPayPerMonth(take, lastThree, window)).toEqual({ perMonth: euros(2066.67), months: 3 })
+  })
+
+  it('counts each month the ledger covers only in part as a whole month', () => {
+    const allTime = { preset: 'all' } as const
+    const take = ownerTake(transactions, PACK_CATEGORIES, allTime, window)
+
+    // July from the 4th and October so far count as one month each: 7,300 over 4 months.
+    expect(netPayPerMonth(take, allTime, window)).toEqual({ perMonth: euros(1825), months: 4 })
+  })
+
+  it('has no figure for a period outside the ledger', () => {
+    const outside = days('2025-01-01', '2025-03-31')
+
+    expect(netPayPerMonth(ownerTake(transactions, PACK_CATEGORIES, outside, window), outside, window)).toBeNull()
+  })
+})
+
 describe('gross cost of the owner', () => {
   it('adds the taxes with the owner-pay-tax role and leaves corporate income tax out', () => {
     const cost = ownerCost(transactions, PACK_CATEGORIES, lastThree, window)
@@ -71,13 +96,29 @@ describe('gross cost of the owner', () => {
     expect(cost.take.amount).toBe(euros(8200))
     expect(cost.taxOnPay.amount).toBe(euros(460 + 94 + 400))
     expect(cost.gross.amount).toBe(euros(8200 + 954))
-    expect(cost.costPerEuroReceived).toBeCloseTo((8200 + 954) / 8200, 10)
+    expect(cost.grossWithoutLoans).toBe(euros(6200 + 954))
+    // 6,200 without the 2,000 of loans, over 6,200 plus 954 of tax on it.
+    expect(cost.netShare).toBeCloseTo(6200 / 7154, 10)
+    expect(cost.netShare?.toFixed(3)).toBe('0.867')
     expect(cost.taxOnPay.drill.filters.categories).toEqual(['payroll-contributions', 'payroll-tax', 'dividend-tax'])
   })
 
-  it('has no ratio when nothing was paid to the owner', () => {
+  it('reads a take of 60,000 on a gross cost of 100,000 as 60%', () => {
+    const rows = withPackBuckets(
+      ledger([
+        { date: '2026-03-10', amount: -60000, category: 'salary-net' },
+        { date: '2026-03-10', amount: -40000, category: 'payroll-contributions' },
+        { date: '2026-03-20', amount: -5000, category: 'owner-loan-out' },
+      ]),
+    )
+    const cost = ownerCost(rows, PACK_CATEGORIES, { preset: 'all' }, windowOf('2026-03-10', '2026-03-20'))
+
+    expect([cost.gross.amount, cost.grossWithoutLoans, cost.netShare]).toEqual([euros(105000), euros(100000), 0.6])
+  })
+
+  it('has no share when nothing was paid to the owner', () => {
     const cost = ownerCost(transactions, PACK_CATEGORIES, days('2026-07-01', '2026-07-03'), window)
 
-    expect(cost.costPerEuroReceived).toBeNull()
+    expect(cost.netShare).toBeNull()
   })
 })

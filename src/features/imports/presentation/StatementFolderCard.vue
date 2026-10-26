@@ -40,7 +40,7 @@ const filed = computed(() => {
   })
 })
 
-const shows = computed(() => store.state.choice?.source === 'drive' && (statements.unchecked.value !== null || outcome.value?.problem || held.value.length > 0 || filed.value.length > 0))
+const shows = computed(() => store.state.choice?.source === 'drive' && (outcome.value?.problem || held.value.length > 0 || filed.value.length > 0))
 
 const summary = computed(() => {
   const count = held.value.length
@@ -66,17 +66,6 @@ async function confirm(): Promise<void> {
   <section v-if="shows" class="flex flex-col gap-4" data-testid="statement-folder">
     <AppCard title="From the statements folder" :subtitle="`${folder} in Drive. Each sync files the statements there that the ledger lacks.`">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-        <div v-if="statements.unchecked.value" class="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <p class="min-w-0 flex-1 text-sm text-toned">{{ statements.unchecked.value }}.</p>
-          <UButton
-            label="Check for new statements"
-            icon="i-lucide-folder-search"
-            color="neutral"
-            variant="outline"
-            data-testid="folder-check-statements"
-            @click="statements.checkForNewStatements"
-          />
-        </div>
         <UAlert v-if="outcome?.problem" icon="i-lucide-folder-x" color="error" variant="subtle" :title="outcome.problem" data-testid="statement-folder-problem" />
         <div v-if="filed.length" class="flex flex-col gap-1" data-testid="statement-folder-filed">
           <p class="text-sm font-medium text-highlighted">Filed by the last sync</p>

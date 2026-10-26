@@ -4,11 +4,12 @@ import { useRouter } from 'vue-router'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
 
 import { useExport } from '../../excel/presentation/useExport'
+import { useSync } from '../../sync/presentation/useSync'
 import { useWorkbook } from '../application/workbookStore'
-import { syncStateOf } from './syncState'
 
 /** Shows its slot once a workbook with transactions is on screen, and says what is missing until then. */
-const { state, sync } = useWorkbook()
+const { state } = useWorkbook()
+const { sync } = useSync()
 const router = useRouter()
 const { exportNow } = useExport()
 
@@ -24,7 +25,7 @@ const gate = computed(() => {
   if (state.workbook !== null) {
     return 'empty-ledger'
   }
-  return syncStateOf(state)
+  return state.status === 'error' || state.status === 'syncing' ? state.status : 'ready'
 })
 </script>
 

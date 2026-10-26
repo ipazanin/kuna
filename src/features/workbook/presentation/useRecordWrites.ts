@@ -33,6 +33,8 @@ export interface RecordWrites {
   write(title: string, work: (unit: UnitOfWork) => void, options?: RecordWriteOptions): Promise<boolean>
   /** Says in a toast what a write of this session did, under its title, with Undo where it keeps one. */
   announce(receipt: WriteReceipt, options?: Pick<RecordWriteOptions, 'description' | 'follow'>): void
+  /** Puts back what a write of this session changed, and says so in a toast, or why it could not. */
+  undo(write: SessionWrite): Promise<void>
 }
 
 /** Record writes with their toasts: what was written with Undo beside it, or why nothing was. */
@@ -93,5 +95,5 @@ export function useRecordWrites(): RecordWrites {
     }
   }
 
-  return { busy, write, announce }
+  return { busy, write, announce, undo }
 }

@@ -113,7 +113,7 @@ export function ownerLoans(transactions: readonly Transaction[], categories: rea
     }
   })
 
-  const drills = bookDrills(categories)
+  const drills = loanBookFilters(categories)
   const lentTotal = sumOf(lent)
   const repaidTotal = sumOf(repayments)
   const openLoans = loans.filter((loan) => loan.status === 'open')
@@ -132,7 +132,7 @@ export function ownerLoans(transactions: readonly Transaction[], categories: rea
 export function loanMonths(transactions: readonly Transaction[], categories: readonly Category[], months: readonly MonthKey[], window: LedgerWindow): LoanMonth[] {
   const lent = lentOf(transactions, categories).filter((entry) => entry.amount > 0)
   const repayments = repaymentsOf(transactions, categories)
-  const drills = bookDrills(categories)
+  const drills = loanBookFilters(categories)
   return months.map((month) => {
     const lentIn = sumOf(lent.filter((entry) => monthOf(entry.lentOn) === month))
     const repaidIn = sumOf(repayments.filter((repayment) => monthOf(repayment.payment.date) === month))
@@ -171,8 +171,8 @@ function repaymentsOf(transactions: readonly Transaction[], categories: readonly
   return repayments.sort((earlier, later) => earlier.payment.date.localeCompare(later.payment.date) || earlier.payment.sequence - later.payment.sequence)
 }
 
-/** The filters behind lent, repaid and the balance. */
-function bookDrills(categories: readonly Category[]): Record<'lent' | 'repaid' | 'outstanding', Partial<FilterState>> {
+/** The filters behind lent, repaid and the balance, without a period. */
+export function loanBookFilters(categories: readonly Category[]): Record<'lent' | 'repaid' | 'outstanding', Partial<FilterState>> {
   const loanOut = categoriesWithRole(categories, PACK_ROLES.ownerLoanOut)
   const loanRepaid = categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)

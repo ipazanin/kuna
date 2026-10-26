@@ -1,21 +1,11 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import type { RouteLocationRaw } from 'vue-router'
-import UButton from '@nuxt/ui/components/Button.vue'
-
-import { monthAxisLabel } from '../../../shared/calendar/monthLabel'
-import { usePhoneLayout } from '../../../shared/layout/viewport'
 import ChartCard from '../../../shared/ui/ChartCard.vue'
-import type { ChartPointSelection, ChartZoomWindow } from '../../../shared/ui/ChartCard.vue'
-import { useFilters } from '../application/filterStore'
+import type { ChartZoomWindow } from '../../../shared/ui/ChartCard.vue'
+import ChartDrillBar from './ChartDrillBar.vue'
 import type { DrillChart } from './chartDrill'
+import { useChartDrill } from './useChartDrill'
 
-/**
- * A chart whose marks open the rows behind them. A click drills at once. On a phone a tap first
- * shows the tooltip and offers "View rows", and a second tap on the same mark drills, so one tap
- * never both shows a figure and leaves the screen.
- */
+/** A chart in its own card whose marks open the rows behind them, as `useChartDrill` describes. */
 const props = defineProps<{
   chart: DrillChart
   title: string
@@ -34,48 +24,7 @@ const emit = defineEmits<{
   zoom: [window: ChartZoomWindow]
 }>()
 
-const { drillLocation } = useFilters()
-const router = useRouter()
-const phone = usePhoneLayout()
-const chosen = shallowRef<ChartPointSelection | null>(null)
-
-watch(
-  () => props.chart,
-  () => {
-    chosen.value = null
-  },
-)
-
-const readableCategory = monthAxisLabel('long')
-const chosenLabel = computed(() => {
-  const selection = chosen.value
-  return selection === null ? '' : [selection.seriesName, readableCategory(selection.category)].filter((part) => part !== '').join(', ')
-})
-
-function linkAt(selection: ChartPointSelection): RouteLocationRaw | null {
-  const target = props.chart.drillAt(selection)
-  return target === null ? null : drillLocation(target)
-}
-
-function drill(selection: ChartPointSelection): void {
-  const location = linkAt(selection)
-  if (location !== null) {
-    void router.push(location)
-  }
-}
-
-function select(selection: ChartPointSelection): void {
-  if (!phone.value) {
-    drill(selection)
-    return
-  }
-  const previous = chosen.value
-  if (previous !== null && previous.seriesName === selection.seriesName && previous.dataIndex === selection.dataIndex) {
-    drill(selection)
-    return
-  }
-  chosen.value = linkAt(selection) === null ? null : selection
-}
+const { phone, chosen, chosenLabel, linkAt, drill, select } = useChartDrill(() => props.chart)
 </script>
 
 <template>
@@ -98,10 +47,7 @@ function select(selection: ChartPointSelection): void {
   >
     <template v-if="$slots.legend" #legend><slot name="legend" /></template>
     <template v-if="phone && chosen" #footer>
-      <div class="flex items-center gap-3 border-t border-default px-4 py-2" data-testid="chart-drill">
-        <p class="min-w-0 flex-1 truncate text-xs text-toned">{{ chosenLabel }}</p>
-        <UButton label="View rows" icon="i-lucide-list" size="sm" color="neutral" variant="outline" @click="drill(chosen)" />
-      </div>
+      <ChartDrillBar :label="chosenLabel" @view="drill(chosen)" />
     </template>
   </ChartCard>
 </template>

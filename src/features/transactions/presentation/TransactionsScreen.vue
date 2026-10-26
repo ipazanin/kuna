@@ -39,6 +39,7 @@ import { useFilteredLedger } from '../application/useFilteredLedger'
 import { categoryChangeOf } from '../domain/categoryChange'
 import { ownerShareChangeOf } from '../domain/ownerShareChange'
 import { advancesLeftOutByBankFilters } from '../domain/filterTransactions'
+import { ownerPartOrigin } from '../../owner-share/domain/ownerParts'
 import { OWNER_ADVANCE_LABEL, bookedRowOf, inBookingOrder, listedOwnerPart, listedRows, partPlace, withPartHeadings } from '../domain/listedRows'
 import type { ListedAdvanceRow, ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
 import { groupTransactions } from '../domain/transactionGroups'
@@ -230,10 +231,10 @@ function reviewBadge(listed: ListedRow) {
   return null
 }
 
-/** The owner's part of a shared row names the category and share it comes from. */
-function ownerPartOrigin(listed: ListedRow) {
-  const part = listedOwnerPart(listed)
-  return part?.side === 'owner' ? h('span', { class: 'text-xs text-muted' }, `from ${names.value.category(part.sourceCategory)}, ${part.share}%`) : null
+/** The owner's part of a shared row names the share and the category it comes from. */
+function ownerPartNote(listed: ListedRow) {
+  const origin = ownerPartOrigin(listedOwnerPart(listed), names.value.category)
+  return origin === null ? null : h('span', { class: 'text-xs text-muted' }, origin)
 }
 
 function categoryOf(listed: ListedRow) {
@@ -244,7 +245,7 @@ function categoryOf(listed: ListedRow) {
         ? h('span', { class: 'text-muted' }, 'No category')
         : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
     ]),
-    ownerPartOrigin(listed),
+    ownerPartNote(listed),
     reviewBadge(listed),
   ])
 }

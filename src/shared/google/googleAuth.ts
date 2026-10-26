@@ -205,7 +205,7 @@ export function currentDriveReadToken(): string | null {
  * had ran out, or Google gave none on this tab's last ask, so only an ask that can show Google's
  * consent screen gets one.
  */
-export type DriveReadAccess = 'held' | 'not-asked' | 'needs-consent'
+type DriveReadAccess = 'held' | 'not-asked' | 'needs-consent'
 
 export function driveReadAccess(): DriveReadAccess {
   if (currentDriveReadToken() !== null) {

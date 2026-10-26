@@ -7,8 +7,8 @@
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the payroll calendar of Year, Taxes, the
  * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
  * asset rows and grant rows on Year, a line's build-up on Year, Forecast, a payout option, the next year and the Plan tab from Year, Pay,
- * a pay scenario's figure, warnings and starting figures on Year, Pay, a paid corporate tax advance on Year, Taxes, a repayment on the Owner loan list, the build-up of
- * the loans' benefit in kind and its link to the rate on Settings, the owner take under the ring against its tile, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header,
+ * a pay scenario's figure, warnings and starting figures on Year, Pay, a paid corporate tax advance on Year, Taxes, a repayment on the Owner loan list, the
+ * Taken tab as Owner's default with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting the period of both tabs, the owner take under the ring against its tile, a month of the loan balance beside the ring, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header, an advance added outside the period opened from its toast,
  * the cost of a reimbursement with no cost on file added from Review,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
@@ -18,10 +18,11 @@
  * changed, deleted and brought back, a payment split, edited, deleted and
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google's sign-in page with a token, with a forged state and with Gmail refused, the Drive read grant back from a
- * silent ask with a token and with consent required and no message, from an ask the person made with the sync carrying on or a refusal, and from the
- * silent ask a sign-in's return makes, with the sync it resumes run with the token or with the offer to check, and the note to tap again,
- * a statement filed on Sync from the fake statements folder with Undo, one held and shown on Import from Overview, a sync with nothing new, the check for new statements,
- * the accountant's VAT returns and payroll on Year, Taxes with a differing badge opening its rows, the read this device kept with the check that reads again,
+ * silent ask with a token and with consent required and no message, from an ask the person made with the sync carrying on or a refusal that leaves Allow access, and from the
+ * silent ask a sign-in's return makes, with the sync it resumes run with the token or ending in Allow access, and the note to tap again,
+ * a statement filed on Sync from the fake statements folder with Undo in its step on Settings, This device and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
+ * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
+ * the accountant's VAT returns and payroll on Year, Taxes as a sync read them with a differing badge opening its rows, the read this device kept until Allow access reads again,
  * and the payroll folder saved on Settings, General,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
@@ -30,7 +31,8 @@
  * its editor, each undone, in both modes, the Ruleset search on Settings, a
  * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, the first run kept
  * on the fake Drive and in this browser, an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
- * moved there from Settings, This device, a row confirmed while another device files the other one, the notice for a file a
+ * moved there from Settings, This device, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
+ * and a row edited while filtered and sorted, saved and undone, a row confirmed while another device files the other one, the notice for a file a
  * newer app saved, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
@@ -63,6 +65,7 @@ import {
   advanceFlow,
   assetFlow,
   cardSettlementIbansFlow,
+  categoryFiltersFlow,
   categoryFlow,
   changeCategoryFlow,
   clientIbansFlow,
@@ -86,9 +89,10 @@ import {
   shareFillFlow,
   splitFlow,
   startingScenariosFlow,
-  statementCheckFlow,
+  statementAccessFlow,
   statementSyncFlow,
   statementsFolderFlow,
+  syncRunningFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
@@ -120,7 +124,7 @@ const SCREENS = [
   { name: 'year-forecast', hash: '#/year?p=all', title: 'Year', ready: '[data-testid="forecast-unregistered"]', cards: false },
   { name: 'year-plan', hash: '#/year?tab=plan&p=all', title: 'Year', ready: '[data-testid="plan-editor"]', cards: false },
   { name: 'year-pay', hash: '#/year?year=2027&tab=pay&p=all', title: 'Year', ready: '[data-testid="scenario-editor"]' },
-  { hash: '#/owner?p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
+  { hash: '#/owner?tab=owed&p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
   { name: 'settings', hash: '#/settings', title: 'Settings', ready: '[data-testid="settings-tabs"]' },
   { name: 'settings-ruleset', hash: '#/settings?tab=ruleset', title: 'Settings', ready: '[data-testid="rule-row"]' },
@@ -204,7 +208,7 @@ async function checkWidth(width) {
       page.evaluate(() => {
         const bar = document.querySelector('header')
         const menu = bar?.querySelector('[data-testid="open-navigation"]')?.getBoundingClientRect()
-        const button = bar?.querySelector('[data-testid="compact-sync"]')
+        const button = bar?.querySelector('[data-testid="sync-button"]')
         const sync = button?.getBoundingClientRect()
         return {
           menuAtLeft: menu !== undefined && menu.left < 24,
@@ -534,7 +538,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-loan-drill', async () => {
-    await open(page, '#/owner?p=all', 'Owner')
+    await open(page, '#/owner?tab=owed&p=all', 'Owner')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="loan-list"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-owner.png`))
@@ -543,29 +547,44 @@ async function checkWidth(width) {
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the repayment opened Transactions without its filters')
   })
 
-  await step('owner-benefit-build-up', async () => {
-    await open(page, '#/owner?p=all', 'Owner')
-    const benefit = await page.waitForSelector('[data-testid="owner-loan-benefit"] [data-testid="build-up-button"]')
-    await benefit.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await benefit.tap()
-    await page.waitForSelector('[data-testid="figure-detail"]')
-    await delay(400)
+  await step('owner-period', async () => {
+    await open(page, '#/owner?tab=owed&p=all', 'Owner')
+    await page.waitForSelector('[data-testid="owner-owed-tiles"]')
     await expect(
-      page.$$eval('[data-testid="figure-detail"] a', (links) => links.some((link) => link.getAttribute('href')?.includes('hr.pit.loan-benefit'))),
-      (linked) => linked,
-      'the loan benefit build-up does not link its rule',
+      page.evaluate(() => {
+        const button = document.querySelector('[data-testid="page-tab-actions"] [data-testid="open-filters"]')
+        const word = button?.querySelector('.filters-label')?.getBoundingClientRect()
+        return button !== null && word !== undefined && word.width <= 1
+      }),
+      (onTabRow) => onTabRow,
+      'the Filters button is not on the tab row as an icon alone',
     )
-    await inspect(page, `${width}px owner loan benefit build-up`)
-    await shoot('owner-loan-benefit')
-    await page.keyboard.press('Escape')
-    await page.waitForFunction(() => !document.querySelector('[data-testid="figure-detail"]'))
+    await shoot('owner-tab-row')
+    await delay(300)
+    await page.tap('[data-testid="page-tab-actions"] [data-testid="open-filters"]')
+    // The sheet slides up, so its buttons are tapped once it has landed.
+    const year = await waitForText(page, '[role="dialog"] button[aria-pressed]', 'Year')
+    await delay(400)
+    await year.tap()
+    await page.waitForFunction(() => window.location.hash.includes('p=2026'))
+    await (await waitForText(page, '[role="dialog"] button', 'Show results')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+    // 2026 runs past the newest booking, so its balances stand on that day.
+    await waitForText(page, '[data-testid="owner-owed-tiles"] p', 'The owner owes the company on 8 Oct 2026')
+    await (await waitForText(page, '[role="tab"]', 'Taken')).tap()
+    await waitForText(page, '[data-testid="period-range"]', 'Jan 2026 – Dec 2026')
+    await inspect(page, `${width}px owner, the period on both tabs`)
   })
 
   await step('owner-taken', async () => {
-    await open(page, '#/owner?tab=taken&p=all', 'Owner')
+    await open(page, '#/owner?p=all', 'Owner')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="owner-take-total"]')
+    await expect(
+      page.$eval('[data-testid="owner-taken-tiles"]', (tiles) => tiles.textContent ?? ''),
+      (tiles) => tiles.includes('Net share of gross cost') && tiles.includes('Monthly net pay'),
+      'the Taken tab, the default one, lacks the net share or the monthly net pay tile',
+    )
     await expect(
       page.evaluate(() => [
         document.querySelector('[data-testid="owner-taken-tiles"] .text-figure-lg')?.textContent?.trim(),
@@ -578,8 +597,21 @@ async function checkWidth(width) {
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-owner-taken.png`))
   })
 
+  await step('owner-taken-loan-balance', async () => {
+    await open(page, '#/owner?p=all', 'Owner')
+    await settleCharts(page)
+    const plot = '[data-testid="owner-loan-balance"] .chart-body canvas'
+    await tapUntilDrillOffered(page, plot)
+    await expect(hashOf(page), (hash) => hash.startsWith('#/owner'), 'one tap on the loan balance left the screen')
+    await shoot('owner-loan-balance')
+    const viewRows = await waitForText(page, '[data-testid="owner-loan-balance"] [data-testid="chart-drill"] button', 'View rows')
+    await viewRows.tap()
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 1, 'the loan balance opened Transactions without its filters')
+  })
+
   await step('owner-taken-dividend', async () => {
-    await openFreshBrowser(page, '#/owner?tab=taken&p=all', 'Owner')
+    await openFreshBrowser(page, '#/owner?p=all', 'Owner')
     const avoided = await page.waitForSelector('[data-testid="owner-benefits-dividend"] [data-testid="build-up-button"]')
     await avoided.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -620,7 +652,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-advance-undo', async () => {
-    await openFreshBrowser(page, '#/owner?p=all', 'Owner')
+    await openFreshBrowser(page, '#/owner?tab=owed&p=all', 'Owner')
     const advances = () => page.evaluate(() => document.querySelectorAll('[data-testid="advance-list"] > li').length)
     const before = await advances()
     const opener = await page.$('[data-testid="open-add-advance"]')
@@ -644,6 +676,35 @@ async function checkWidth(width) {
     await (await waitForText(page, 'button', 'Undo')).tap()
     await waitForText(page, '[data-slot="title"]', 'Undone')
     await expect(advances(), (count) => count === before, 'Undo did not take the advance off the list')
+  })
+
+  await step('owner-advance-outside', async () => {
+    // Add advance starts on the newest booking, 8 Oct 2026, so under 2025 the toast says the page does not list it and opens it.
+    await openFreshBrowser(page, '#/owner?tab=owed&p=2025', 'Owner')
+    const opener = await page.$('[data-testid="open-add-advance"]')
+    await opener.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await opener.tap()
+    await page.waitForSelector('[data-testid="add-advance"]')
+    await delay(300)
+    await page.type('[data-testid="add-advance"] input[inputmode="decimal"]', '48.50')
+    await page.tap('[data-testid="advance-category"]')
+    await page.waitForSelector('[role="listbox"] [role="option"]')
+    await page.keyboard.type('travel')
+    await (await waitForText(page, '[role="option"]', 'Travel')).tap()
+    await delay(200)
+    await page.tap('button[form="add-advance"]')
+    await waitForText(page, '[data-slot="title"]', 'Advance added')
+    await expect(
+      page.$eval('li[data-slot="base"] [data-slot="description"]', (element) => element.textContent ?? ''),
+      (said) => said.includes('Outside the period in view, Jan 2025 – Dec 2025'),
+      'the toast does not say the advance is outside the period in view',
+    )
+    await delay(700)
+    await shoot('owner-advance-outside')
+    await (await waitForText(page, 'li[data-slot="base"] button', 'Open it')).tap()
+    await waitForTitle(page, 'Transactions')
+    await expect(hashOf(page), (hash) => hash.includes('2026-10-08'), 'Open it did not open the day of the advance')
   })
 
   for (const [screen, title] of [['review', 'Review']]) {
@@ -843,11 +904,12 @@ async function checkWidth(width) {
   ]) {
     for (const [name, hash, title, run, variant] of [
       ['categories', '#/settings?tab=categories', 'Settings', categoryFlow],
+      ['categories-filters', '#/settings?tab=categories', 'Settings', categoryFiltersFlow],
       ['settings-statements-folder', '#/settings', 'Settings', statementsFolderFlow],
       ['settings-card-ibans', '#/settings', 'Settings', cardSettlementIbansFlow],
       ['clients-ibans', '#/invoicing?tab=clients', 'Invoicing', clientIbansFlow],
       ['assets', '#/year?tab=assets#asset-rows', 'Year', assetFlow],
-      ['advances', '#/owner', 'Owner', advanceFlow],
+      ['advances', '#/owner?tab=owed', 'Owner', advanceFlow],
       ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],
       ['invoice-run', '#/invoicing?p=all', 'Invoicing', invoiceRunFlow],
       ['scenarios', '#/year?year=2027&tab=pay', 'Year', scenarioFlow],
@@ -882,7 +944,8 @@ async function checkWidth(width) {
   for (const [name, variant, run, hash = '#/', title = 'Overview'] of [
     ['statements-sync', '', statementSyncFlow],
     ['statements-held', '&fake=held-statement', heldStatementFlow],
-    ['statements-check', '', statementCheckFlow],
+    ['statements-access', '', statementAccessFlow],
+    ['sync-running', '&fake=slow-statements', syncRunningFlow],
     ['accountant-returns', '', accountantReturnsFlow, '#/year?tab=taxes', 'Year'],
     ['accountant-kept-read', '', accountantKeptReadFlow, '#/year?tab=taxes', 'Year'],
     ['accountant-folders', '', accountantFoldersFlow, '#/settings#accountant-folders', 'Settings'],
@@ -1023,29 +1086,6 @@ async function checkWidth(width) {
       await inspect(page, `${width}px settings ${label.toLowerCase()}`)
     }
     await shoot('settings-accounts')
-  })
-
-  await step('owner-loan-rate', async () => {
-    await open(page, '#/owner?p=all#owner-loan-benefit', 'Owner')
-    const link = await page.waitForSelector('[data-testid="loan-rate-setting"]', { visible: true })
-    await link.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await link.tap()
-    await waitForTitle(page, 'Settings')
-    await page
-      .waitForFunction(
-        () => {
-          const field = document.getElementById('owner-loan-interest')
-          const band = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-band')) || 0
-          const top = field?.getBoundingClientRect().top ?? -1
-          return field?.closest('[data-card]')?.dataset.collapsed === 'false' && top >= band - 1 && top < window.innerHeight / 2
-        },
-        { timeout: 5_000 },
-      )
-      .catch(() => {
-        throw new Error('the link from Owner did not open the facts card at the loan rate')
-      })
-    await shoot('owner-loan-rate')
   })
 
   await step('year-editors', async () => {
@@ -1364,12 +1404,16 @@ async function checkWidth(width) {
     await expect(fragmentGone(), (gone) => gone, 'the consent error stayed in the address')
     await expect(refusedInTab(), (refused) => refused, 'the tab did not note that Google gave no Drive read token')
 
-    // Asked from "Check for new statements" on a phone: once back, the sync starts with no second tap.
+    // Asked from Allow access on a phone: once back, the sync starts with no second tap.
     const watchSync = await page.evaluateOnNewDocument(() => {
       new MutationObserver(() => {
-        if (document.querySelector('[data-testid="sync-status"]')?.textContent?.includes('Syncing')) window.sawSyncing = true
-      }).observe(document, { subtree: true, childList: true, characterData: true })
+        if (document.querySelector('[data-testid="sync-status"]')?.dataset.control === 'running') window.sawSyncing = true
+      }).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['data-control'] })
     })
+    const controlShows = (kind, failure) =>
+      page.waitForFunction((wanted) => document.querySelector('[data-testid="sync-status"]')?.dataset.control === wanted, { timeout: 12_000 }, kind).catch(() => {
+        throw new Error(failure)
+      })
     const syncStarted = (after) =>
       page.waitForFunction(() => window.sawSyncing === true, { timeout: 10_000 }).catch(() => {
         throw new Error(`the sync did not start by itself after ${after}`)
@@ -1379,13 +1423,14 @@ async function checkWidth(width) {
     await syncStarted('the Drive read grant')
     await expect(refusedInTab(), (refused) => !refused, 'the Drive read grant left the tab noted as refused')
 
-    // The silent ask a sign-in's return makes comes back with what the sign-in resumes: Sync runs with the Drive read token, or without it and offers the check.
+    // The silent ask a sign-in's return makes comes back with what the sign-in resumes: Sync runs with the Drive read token, or without it and shows Allow access.
     const afterSignIn = { ...silentAsk, ask: 'silent-after-sign-in' }
     await comeBack('drive', { ...afterSignIn, resume: 'sync', route: '#/transactions' }, driveRead)
     await waitForTitle(page, 'Transactions')
     await syncStarted('a sign-in and the silent Drive read ask')
     await expect(refusedInTab(), (refused) => !refused, 'the Drive read token after a sign-in left the tab noted as refused')
-    await waitForText(page, 'li[data-slot="base"] [data-slot="title"]', 'Filed statement')
+    await controlShows('ready', 'the sync after a sign-in and the Drive read token did not end ready')
+    await expect(noMessage(), (none) => none, 'the sync after a sign-in and the Drive read token showed a message')
     await inspect(page, `${width}px sign-in and drive read return`)
 
     await comeBack('drive', { ...afterSignIn, resume: 'sync', route: '#/' }, 'error=consent_required&state=touch-check')
@@ -1393,8 +1438,8 @@ async function checkWidth(width) {
     await syncStarted('a sign-in whose silent Drive read ask Google refused')
     await page.removeScriptToEvaluateOnNewDocument(watchSync.identifier)
     await expect(refusedInTab(), (refused) => refused, 'the tab did not note that Google gave no Drive read token after the sign-in')
-    await waitForText(page, 'li[data-slot="base"] button', 'Check for new statements')
-    await page.waitForSelector('[data-job="check-statements"]', { visible: true, timeout: 10_000 })
+    await controlShows('allow-access', 'the sync without the Drive read token did not show Allow access')
+    await expect(noMessage(), (none) => none, 'the sync without the Drive read token showed a message')
     await inspect(page, `${width}px sign-in return without drive read`)
     await shoot('sign-in-without-drive-read')
 
@@ -1404,7 +1449,8 @@ async function checkWidth(width) {
 
     await comeBack('drive', { ...silentAsk, resume: 'sync', route: '#/', ask: 'tap' }, 'error=access_denied&state=touch-check')
     await waitForTitle(page, 'Overview')
-    await waitForText(page, 'li[data-slot="base"]', 'No Drive read access')
+    await controlShows('allow-access', 'a refused Drive read grant did not leave Allow access in the sync control')
+    await expect(noMessage(), (none) => none, 'a refused Drive read grant showed a message')
     await expect(fragmentGone(), (gone) => gone, 'the Drive read refusal stayed in the address')
     await inspect(page, `${width}px drive read refused`)
     await shoot('drive-read-refused')
@@ -1515,21 +1561,21 @@ async function settleCharts(page) {
   await delay(1500)
 }
 
-/** Taps across the first chart until a mark answers with the drill offer, and returns where it hit, as fractions of the plot. */
-async function tapUntilDrillOffered(page) {
+/** Taps across the first chart, or the one `canvas` names, until a mark answers with the drill offer, and returns where it hit, as fractions of the plot. */
+async function tapUntilDrillOffered(page, canvas = '.chart-body canvas') {
   for (const row of [0.3, 0.45, 0.6, 0.2, 0.7]) {
     for (const column of [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]) {
       const spot = { row, column }
-      await tapChart(page, spot)
+      await tapChart(page, spot, canvas)
       await delay(150)
       if (await page.$('[data-testid="chart-drill"]')) return spot
     }
   }
-  throw new Error('no tap on the first chart offered "View rows"')
+  throw new Error(`no tap on ${canvas} offered "View rows"`)
 }
 
-async function tapChart(page, { row, column }) {
-  const canvas = await page.$('.chart-body canvas')
+async function tapChart(page, { row, column }, selector = '.chart-body canvas') {
+  const canvas = await page.$(selector)
   await canvas.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await delay(200)
   const box = await canvas.boundingBox()

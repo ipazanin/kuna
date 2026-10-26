@@ -28,7 +28,8 @@ import FilterChipRow from '../../../features/filters/presentation/FilterChipRow.
 import PeriodBar from '../../../features/filters/presentation/PeriodBar.vue'
 import type { FilterChip } from '../../../features/filters/domain/filterChips'
 import type { Period } from '../../../features/filters/domain/filterState'
-import SyncStatus from '../SyncStatus.vue'
+import SyncStatus from '../../../features/sync/presentation/SyncStatus.vue'
+import type { SyncControl, SyncRun } from '../../../features/sync/domain/syncRun'
 import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, incomeByMonth } from './sampleCharts'
 import { SAMPLE_TRANSACTIONS } from './sampleTransactions'
 import type { SampleTransaction } from './sampleTransactions'
@@ -125,6 +126,25 @@ const TAX_PARTS: readonly DonutPart[] = [
   { key: 'payroll-tax', label: 'Payroll tax', value: 98_400, colour: '--series-1', to: transactionsLink },
   { key: 'dividend', label: 'Dividend tax', value: 31_000, colour: '--series-5', to: transactionsLink },
 ]
+/** One of each state of the sync control, over a last sync whose statements step filed a statement. */
+const SYNC_CONTROLS: readonly SyncControl[] = [
+  { kind: 'find' },
+  { kind: 'ready', syncedAt: '2026-10-16T06:04:00Z' },
+  { kind: 'running', label: 'Statements', position: 2, of: 3, line: 'Filing 3 rows' },
+  { kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'] },
+  { kind: 'problems', count: 1, labels: ['Statements'] },
+]
+
+const SYNC_RUN: SyncRun = {
+  startedAt: '2026-10-16T06:03:52Z',
+  finishedAt: '2026-10-16T06:04:00Z',
+  steps: [
+    { id: 'books', label: 'Books', scope: 'drive.file', state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
+    { id: 'statements', label: 'Statements', scope: 'drive.readonly', state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/transactions?tab=import' } } },
+    { id: 'hr-doo.accountant', label: 'Accountant', scope: 'drive.readonly', state: { kind: 'done', line: 'Read 12 workbooks.', writeId: null, link: null } },
+  ],
+}
+
 const GALLERY_TABS = [
   { value: 'first', label: 'Queue', count: 3 },
   { value: 'second', label: 'Rules' },
@@ -273,20 +293,11 @@ const columns: TableColumn<SampleTransaction>[] = [
     <section class="gallery-section">
       <h2 class="gallery-heading">Sync status</h2>
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div class="gallery-frame"><SyncStatus state="first-run" /></div>
-        <div class="gallery-frame"><SyncStatus state="ready" synced-at="2026-10-16T06:04:00Z" /></div>
-        <div class="gallery-frame"><SyncStatus state="syncing" synced-at="2026-10-15T06:04:00Z" :step="{ kind: 'looking' }" /></div>
-        <div class="gallery-frame">
-          <SyncStatus state="error" synced-at="2026-10-15T06:04:00Z" error-message="Google did not answer. Check the connection and try again." />
-        </div>
+        <div v-for="control in SYNC_CONTROLS" :key="control.kind" class="gallery-frame"><SyncStatus :control="control" :run="SYNC_RUN" /></div>
       </div>
       <h3 class="text-xs text-muted">Compact, as in the phone top bar</h3>
       <div class="flex flex-wrap gap-3">
-        <div class="gallery-frame"><SyncStatus state="first-run" compact /></div>
-        <div class="gallery-frame"><SyncStatus state="ready" synced-at="2026-10-16T06:04:00Z" compact /></div>
-        <div class="gallery-frame"><SyncStatus state="syncing" synced-at="2026-10-16T06:04:00Z" compact /></div>
-        <div class="gallery-frame"><SyncStatus state="syncing" synced-at="2026-10-16T06:04:00Z" :step="{ kind: 'filing', rows: 3 }" compact /></div>
-        <div class="gallery-frame"><SyncStatus state="error" error-message="Google did not answer." compact /></div>
+        <div v-for="control in SYNC_CONTROLS" :key="control.kind" class="gallery-frame"><SyncStatus :control="control" :run="SYNC_RUN" compact /></div>
       </div>
     </section>
 

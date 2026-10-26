@@ -24,8 +24,9 @@ says, and is then removed. Switching to a workbook kept in the browser removes i
 of Google" on Settings, This device revokes it with `google.accounts.oauth2.revoke` and removes it.
 
 While a token is good, the app syncs on open and whenever the tab becomes visible again, at most
-once every ten minutes after the last read or attempt. Without one, the Sync button works as before,
-since a new token needs a click to open Google's popup.
+once every ten minutes after the last read or attempt, on a device that leaves "Sync as the app
+opens" on, as *Sync* describes. Without one, the Sync button works as before, since a new token
+needs a click to open Google's popup.
 
 The kept token carries only those scopes, since the app asks for it with `include_granted_scopes`
 off. The `gmail.compose` grant of *Invoices* comes as a second token, which lives in the page's
@@ -47,10 +48,12 @@ sign-in picks up, such as the sync, waits until the tab is back from that second
 whether Google gave the Drive read token or not. Any other load that is Google's answer never asks
 again. When Google answers with an error instead, such as `consent_required` before the first
 consent, the tab notes it in session storage and opens without going to Google until the tab is
-closed. Then only "Check for new statements" asks, with Google's consent screen if it needs one: in
-the popup on a desktop, by the redirect on a phone. Overview offers it, and so does a toast after a
-tap on Sync, while the page holds no Drive read token. A token that ran out after an hour is offered
-again the same way, since a silent ask in the middle of a session would reload the page. A workbook
+closed. Then only "Allow access" in the sync control asks, with Google's consent screen if it needs
+one: in the popup on a desktop, by the redirect on a phone. The control shows it after a sync whose
+statements or accountant step found no Drive read token on the page, as *Sync* describes. A token
+that ran out after an hour is asked for again the same way, since a silent ask in the middle of a
+session would reload the page. A device whose "Sync as the app opens" is off skips the silent ask
+on open, so its first sync shows "Allow access". A workbook
 kept in this browser, the fake build and an offline open never go to Google, and sign out forgets this token too, with
 the read of Year, Taxes this device kept.
 `driveReadAccess()` in `src/shared/google/googleAuth.ts` says where the page stands: the token
@@ -67,10 +70,11 @@ the Picker. Anything else that needed the token, such as a write, did not run an
 The Gmail grant goes the same way with `include_granted_scopes=true`. The invoice dialog is gone
 once back, so a toast asks to make the invoice again, which then uses the Gmail token this page
 now holds. Nothing is filed or written before the grant is asked for. The Drive read grant asked
-from "Check for new statements" goes the same way with `include_granted_scopes=false`, and the sync
-starts by itself once back. The silent asks show no message of their own either way. A sync that
-picks up after a sign-in is the tap on Sync carried on, so without the Drive read token its toast
-offers "Check for new statements" too.
+from "Allow access" goes the same way with `include_granted_scopes=false`, and the sync starts by
+itself once back, whether Google gave the token or not, so a refusal leaves "Allow access" in the
+control and shows no message. The silent asks show no message of their own either way. A sync that
+picks up after a sign-in is the tap on Sync carried on, so without the Drive read token it ends in
+"Allow access" too.
 
 The token model returns no ID token, so after the first sign-in the app reads the email address
 once from the OpenID Connect userinfo endpoint (`https://openidconnect.googleapis.com/v1/userinfo`,
@@ -81,16 +85,59 @@ five seconds, and then goes on without it.
 
 ## Sync
 
-A sync reads the file on Drive, downloading it only when its head revision moved, then files the
-new bank statements of the statements folder in Drive. The Sync button, the sync on open and on a
-return to the tab, and the way back from Google run both steps, through `useStatementSync` in
-`src/features/imports/presentation/`. The workbook store reads the file and knows nothing of
-statements. A workbook kept in this browser has no sync, and its statements come in on the Import
-tab.
+A sync is an ordered list of steps, run one after another: the books, then the statements, then the
+pack's steps, the accountant's folders today. The Sync button, the sync on open and on a return to
+the tab, LedgerGate's Sync and Try again, and the way back from Google all run the same sync,
+`createSync` in `src/features/sync/application/sync.ts`, through `useSync` in
+`src/features/sync/presentation/`. A workbook kept in this browser has no sync, and its statements
+come in on the Import tab.
 
-The statements step runs for a file on Drive after a read that went through, while the page holds
-the Drive read token of *Google sign-in*. `fileNewStatements` in
-`src/features/imports/application/statementSync.ts`:
+Each step names the Google scope it needs and whether the settings turn it on:
+
+| Step | Scope | On when |
+|---|---|---|
+| Books | `drive.file` | Always, for a file on Drive |
+| Statements | `drive.readonly` | `statements_sync` is TRUE, the default |
+| Accountant | `drive.readonly` | The Croatian pack shows and `hr_accountant_sync` is TRUE, the default |
+
+A step that is off does not run and is not counted. Whether a step is on is decided again once the
+books are read, so a switch another device saved counts in the same sync. A tap during a save waits
+for the save and then syncs, and a tap during a sync joins it, so one sync runs at a time. A step
+whose scope the page holds no token for does not run and needs access. A step that fails leaves
+the others running. Google turning a step's token away inside the step makes that step, and the
+later steps of the same scope, need access. A failed read of the books skips every later step.
+
+The states of a step are in `src/features/sync/domain/syncRun.ts`: off, queued, running with a line
+such as "Filing 4 rows", done with a line such as "Nothing new", waiting for you, such as with a
+statement it held, needing access, failed with the message, or skipped because the books could not
+be read. The run is page state and never stored.
+
+The sync control shows one of four things:
+
+- While a sync runs, the step and its place among the steps that are on, such as "Statements 2/3".
+  The button takes no tap, and a screen reader hears the step and its line as they change.
+- "Allow access" while a step needs access. The tap asks Google for the Drive read token of *Google
+  sign-in*, with its consent screen when it needs one, and syncs again.
+- "1 problem", or the count, while a step failed or waits for you. The tap opens the steps of the
+  last sync, in a popover from 640 px and in a bottom sheet on a phone: each step's line, with Undo
+  or a link where the step left one, and "Sync again".
+- Otherwise how long ago the books were read. The tap syncs.
+
+A missing permission shows only there and in its step's line, never in a toast, an Overview line or
+a card. From 1024 px a button beside Sync in the sidebar opens the steps of the last sync too.
+Settings, This device has a Sync card with the same steps and the "Sync as the app opens" switch.
+
+**Sync as the app opens** is a switch of each device, on by default. Only an off is kept, in
+`localStorage` under `ledgerboard.auto-sync`. While it is on and a kept token is good, the app
+syncs on open and whenever the tab becomes visible again, at most once every ten minutes after the
+last read or attempt (`src/features/sync/application/autoSync.ts`). Off, the open also skips the
+silent trip to Google for the Drive read token, so the device waits for a tap on Sync, and its first
+sync shows "Allow access".
+
+### The statements step
+
+`useStatementSync` in `src/features/imports/presentation/` makes the step. It runs
+`fileNewStatements` in `src/features/imports/application/statementSync.ts` after the books are read:
 
 1. Finds the folder the `statements_folder` setting names, a path from My Drive, one folder name at
    a time, and lists the files of the folders inside it, one per year. A missing folder, or two
@@ -110,12 +157,23 @@ the Drive read token of *Google sign-in*. `fileNewStatements` in
    written.
 
 What the step did is page state and never stored: the statements it filed, the ones it held, and a
-folder it could not read. A sync that filed rows says so in a toast with Undo, such as "Filed
-statement 028, 2 rows" over "1 row waits on Review.", with Open Review. The toast carries the notes
-of each statement, such as a gap in the statement numbers whose balances still join, and how many
-statements were not filed. A sync that files nothing shows no toast and adds nothing to "Changes in
-this session". Overview then says how many statements were not filed and links to Import, which
-shows each one.
+folder it could not read. Its line says what it filed with how many of the new rows wait on Review,
+such as "Filed statement 028, 2 rows, 1 on Review.", then the notes of each statement, such as a gap
+in the statement numbers whose balances still join, and how many statements were not filed. Undo
+sits on the line, and in "Changes in this session" on Review. The line links to Review while filed
+rows wait there, and to Import while a statement was held, which makes the step wait for you. A
+sync that files nothing says "Nothing new" and adds nothing to "Changes in this session". No toast
+says any of it. Overview then says how many statements were not filed and links to Import, which
+shows each one. A save Google turns away still reads the file again, and the line says "Not filed.
+Sync again."
+
+### The accountant step
+
+The pack adds it through `syncSteps` on its contribution. `readAccountantFiles` in
+`src/packs/hr-doo/presentation/taxes/useAccountantDocuments.ts` reads the two folders for Year,
+Taxes, as *Year screen* describes, and keeps the read on this device. Its line says how many
+workbooks it read. A folder that could not be listed makes it wait for you, with a link to Year,
+Taxes.
 
 ## Install and offline
 
@@ -146,10 +204,10 @@ square, and the installed app keeps clear of the system bars through the safe-ar
 
 The top bar's sync control is one rounded 44 px button with the icon and how long ago the last sync
 was, such as "3 h ago", on one line. A screen reader hears the full time of that sync with it.
-While a sync runs its icon turns and it says the step: "Syncing…" while it reads the file,
-"Checking Drive…" while it looks for new statements, and "Filing 3 rows…" while it writes them. A
-screen reader hears the steps as "Reading the file", "Looking for new statements" and "Filing 3
-rows", and so does the sidebar's status line from 1024 px up. The menu shows beside Review how many
+While a sync runs its icon turns and it says the step and its place, such as "Statements 2/3", and
+a screen reader hears the step's line too, such as "Filing 3 rows", as does the sidebar's status
+line from 1024 px up. "Allow access" and "1 problem" take the button's place as *Sync* describes,
+and the steps of a problem open in a bottom sheet. The menu shows beside Review how many
 rows wait there, whatever the filters. For a workbook kept in this browser the Export button in the top bar has the same
 rounded 44 px shape.
 
@@ -179,7 +237,8 @@ summary and start state as any card. `DonutCard` shows one snapshot of at most f
 ring, 62 to 82% of its radius from 12 o'clock, with the total in the middle as page text. The
 list beside it gives each part's value and share and opens its rows, so it is the chart's table
 too. A part may carry a note in place of its share, and the card may set more content beside the
-list. Each part keeps the colour of what it stands for, such as its bucket, never one picked by its
+list, whose rows keep the list's height and dividers from the same top, and a chart beside the ring,
+which a phone sets under it. Each part keeps the colour of what it stands for, such as its bucket, never one picked by its
 rank. A phone sets the ring above the list. A card with a long list or table, such
 as plan rows, invoices, rules or a tab editor, has a toggle at the end of its header. Collapsed,
 it shows its title and one summary line, such as the row count or a total. Each card opens
@@ -210,8 +269,6 @@ reimbursements with no cost on file (Review), a complete month in which a watche
 payroll contributions had no payment, and a corporate tax payment due this month or overdue (both
 Year, Taxes, at their cards). The pack's jobs need the `owner_pay_module`, and the corporate tax one
 `hr_company_registered`. A job already late has a red dot, and the card is gone when nothing waits.
-While the page of a file on Drive holds no Drive read token, the card starts with "Check for new
-statements", as *Google sign-in* describes.
 `waitingJobs` in `src/features/overview/presentation/waitingForYou.ts` builds it, and the pack's
 jobs come from `src/packs/hr-doo/presentation/packWaitingJobs.ts`. Below it sit the tiles (cash on hand, net over
 the last 12 months, monthly costs, and runway at the last three months' cost with the twelve months'
@@ -224,8 +281,8 @@ account's newest balance.
 **Transactions** has two tabs. Rows is the filtered list of every row behind the figures, and Import
 adds a statement, as *Import* describes. A click on any figure opens Rows with the filters that
 reproduce it. A row shared with the owner, as *Owner share* describes, heads its two parts the way a
-split row does, badged with the share, and the owner's part names the category and share it comes
-from. "Change category" on either part, or on a row a rule or a person settled, files the row in another category: it
+split row does, badged with the share, and the owner's part says its share and the category it comes
+from, such as "30% to owner, from Equipment". "Change category" on either part, or on a row a rule or a person settled, files the row in another category: it
 writes the row's `category` and `flagged_by` with the review label, and the new category's owner share, as Review's Recategorise does,
 with Undo in the toast and under "Changes in this session". Before the write the dialog names the
 rule that files such rows elsewhere, since the row then shows on Review's Rules tab among that
@@ -379,7 +436,10 @@ refund gives its share back. Operating cost goes down and owner pay goes up by t
 while all costs and net stay as they were. A split row's own share is ignored, and each part counts
 with its own. `ownerPartsOf` in `src/features/owner-share/domain/ownerParts.ts` makes the parts, and
 `useFilteredLedger` gives the cash screens the workbook with them and the rest the workbook as booked,
-`booked`. With `owner_pay_module` off nothing about shares shows and every figure is as booked.
+`booked`. A filter on a category also selects the owner's part of a row filed in that category,
+so a row shared in full, which has no business part, still shows under it. The part still counts in
+the benefit category, so totals by category do not change, and a screen filtered to the category
+counts it as owner pay. With `owner_pay_module` off nothing about shares shows and every figure is as booked.
 While rows hold a share and no single owner-pay category carries the role, every share counts as 0
 and Settings, General says why.
 
@@ -405,7 +465,7 @@ as before.
 | `label_owner_pay` | `Owner pay` | Same for `owner-pay`. |
 | `label_financing` | `Financing` | Same for `financing`. |
 | `label_neutral` | `Neutral` | Same for `neutral`. |
-| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Owner and Year screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. |
+| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Owner and Year screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. While the tab holds no value for it, Settings, General says so and its Save writes the value shown, as for `statements_folder`. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
 | `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. Review's rule coverage groups such a row by the merchant after ` · ` in its counterparty, and a rule made from it tests `counterparty_contains` on that merchant, since the IBAN is the bank's. An entry that is not an IBAN is reported and the list stays blank. |
 | `billing_monthly_amount` | blank | The fee invoiced for each worked month. "Fill the rest of the year" adds a row of it for every month to December. |
@@ -423,6 +483,7 @@ as before.
 | `invoice_mail_subject`, `invoice_mail_body` | `Invoice {number}, {month}` and a short note signed `{signatory}` | The invoice mail, with `{month}` (the issue month in the client's `mail_language`), `{number}`, `{client}`, `{company}` and `{signatory}`. |
 | `invoice_reverse_charge_note` | the Croatian VAT law's Article 17 note | Printed under the totals, after an asterisk. |
 | `statements_folder` | `work/dss/business-bank-account/erste/statements` | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. The app reads it and never makes or changes a folder there. A path where a folder is missing, or where two folders share a name, is reported. The statement fetch in the Sheet reads the row too and stops without it, so while the tab names no folder for the key, with no row, a blank one or one such as `/`, Settings, General says so and its Save writes the path shown, the default included. |
+| `statements_sync` | `TRUE` | Whether each sync files the new statements of `statements_folder`. `FALSE` leaves statements to Import. Settings, General has it as a switch beside the folder. |
 | `hr_residence_city` | blank | The city or municipality the owner lives in, such as `Grad Zagreb`, which sets the local income tax rates. Settings offers every unit to pick from. A name typed in the workbook is read regardless of case, diacritics and a leading `Grad` or `Općina`, and a name two units share takes the county in brackets, such as `Općina Privlaka (Zadarska)`. Payroll figures need it, so they stay empty while it is blank. |
 | `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
 | `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
@@ -433,7 +494,8 @@ as before.
 | `hr_depreciation_doubled` | `FALSE` | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it. |
 | `hr_owner_loan_interest` | `0%` | The yearly interest rate the owner's loans from the company carry, as a percentage cell such as `2%`, or text such as `2%` or `0.02`. A number above 1, such as `2`, is refused, since it reads as 200%. Below the income tax law's rate the difference is a benefit in kind, as *Taxes and Owner* describes. |
 | `hr_vat_returns_folder` | `work/dss/dss-finance/vat-returns` | The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive, which Year, Taxes reads as *Year screen* describes. A path where a folder is missing, or where two folders share a name, is reported there. |
-| `hr_payroll_folder` | `work/dss/dss-finance/payroll` | The same for the accountant's salary workbooks, with a folder for each year and month inside. |
+| `hr_payroll_folder` | `work/dss/dss-finance/payroll` | The same for the accountant's salary workbooks, with a folder for each year and month inside. While the tab holds no value for either folder, Settings, General says so and its Save writes the path shown, so a later default cannot change them. |
+| `hr_accountant_sync` | `TRUE` | Whether each sync reads the two folders for Year, Taxes. `FALSE` keeps the last read on this device. The facts card has it as a switch above the folders. |
 | `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves and deletes. A profile that cannot be read is reported and not offered, and "Remove the key" beside it on Settings, General takes its row off the tab. |
 
 The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack, with where
@@ -515,33 +577,56 @@ tab, in a category with the `owner-loan-out` role, as *Split rows* describes. Th
 as lent to the owner until a payment from the owner on a `reimbursement` category repays it, and
 Owner lists it among the loans with the payment it is a part of.
 
-Net owed, on Owner, is one signed balance. The owner owes the company the loan balance,
+Net owed, on Owner, is one signed balance on a day, as Who owes whom below describes. The owner owes the company the loan balance,
 private costs and the owner's parts of split payments included. The company owes the owner the costs
 the owner paid, less what it reimbursed. Positive means the owner owes the company. A private cost
 the company paid in full counts as lent only when its row is in a category with the `owner-loan-out`
 role. Filed as an ordinary cost with no part split off, it counts in costs and not in net owed.
 
 **Owner** has Add advance and Compare pay mixes, which opens Year, Pay for the year after the newest booking, in its header, and two
-tabs. Who owes whom is all time over the whole ledger, so it has no filters: the Net owed tile, this
-year's benefit in kind when a loan had a balance this year, a line saying how many reimbursements with no cost on file wait on Review,
-the benefit in kind year by year, every loan with the repayments that closed it and every cost the
-owner paid privately, ten at a time, and the loans by month, collapsed. Taken follows the filter
-bar: the owner take, the gross cost of the owner and the cost per euro received, "Owner take by
-type" as a ring, and owner pay by month with the loans and their repayments as one "Loans, net" band.
+tabs under one filter bar, as Analysis has, so both tabs read the same period. On a phone its Filters
+button ends the tab row as an icon with its count. Taken, the default, follows every filter: the owner take, the gross cost of the owner, the
+owner's net share of that cost and the monthly net pay, "Owner take by type" as a ring with the loan
+balance beside it, and owner pay by month with the loans and their repayments as one "Loans, net"
+band. The net share is the owner take without loans over itself plus the taxes owed because the
+owner was paid, so 60,000 on 100,000 reads 60%. A loan is neither pay nor a cost, so it stays out of
+both, and the gross cost it divides by can be lower than the gross cost tile when loans count as
+owner pay. The monthly net pay is the owner take without loans over the months of the period: every
+owner pay category, benefits from company costs included, and no loan. A month the ledger covers
+only in part, such as the month so far or the ledger's first, counts as a whole month, as it does in
+owner pay by month. Rolling periods hold complete months only. `ownerCost` in
+`src/packs/hr-doo/domain/ownerCost.ts` and `netPayPerMonth` in `ownerTake.ts` work them out.
 The ring holds each owner pay category paid out on balance, in the colour its band has in the
 chart. Loans can be negative, so "Loans, net" sits under the ring with any category that took back
 more than it paid, and the ring and those lines add up to the Owner take tile. `ownerTakeRing` in
-`packCharts.ts` builds it. Reimbursements stay outside the take and are named under it. The
+`packCharts.ts` builds it. Beside the ring, while a category carries the `owner-loan-out` role, a
+bar for each month of the period gives what the owner owed the company at its end, over every loan
+row since the ledger began, from the same loan book as Who owes whom. A bar opens those rows up to
+that month's end. Reimbursements stay outside the take and are named under it. The
 owner's parts of shared costs count in the take, untaxed, as *Owner share* describes, while Who
-owes whom reads the advances as booked.
+owes whom reads the advances as booked. Who owes whom, at `?tab=owed`, follows the period only,
+since a balance of one account or category is no debt anyone owes, and a line says so while other
+filters are set. It reads the books as they stood on the period's last day, or on the newest booking
+when the period runs past it, a cost the owner paid after the last bank row included, so last 12 months stand on the last day of the last complete month and
+all time on the newest booking. `owedInPeriod` in `src/packs/hr-doo/domain/owedInPeriod.ts` cuts the
+rows and advances at that day and runs the same matching, so a repayment after it is not known and a
+loan can read open there though the whole ledger shows it repaid. The tab holds the Net owed tile,
+which names the day, a line saying how many reimbursements with no cost on file wait on Review
+whatever the period, every loan that had a balance in the period with the repayments that closed it
+by that day, and every cost the owner paid privately that was owed in it, ten at a time. Each card
+heads its list with what was owed at the start, what was lent or paid by the owner in the period,
+what came back in it, and what was owed at the end, which add up. Last are the loans by month,
+collapsed: lent and repaid bars over the period's months, whose month-end balance is beside the ring
+on Taken. A new or changed advance dated outside the period says so in its toast, since the page does
+not list it, and the toast's Open it opens it on Transactions. Add advance starts on the newest booking whatever the period.
 
-While a category carries the `owner-benefit` role, Taken has a fourth tile and a card for those
+While a category carries the `owner-benefit` role, Taken has one more tile and a card for those
 parts, both named after that category, such as "Benefits from company costs". The tile gives their
 total with the number of payments and opens the category on Transactions, and the Owner take tile
 says how much of the take they are. The card is a ring of the parts by the category each comes
 from, in that category's chart colour, with the share its rows were counted at, or "mixed" when
-they differ. Each opens the benefit category, since a category filter keeps only the business
-part of a shared row, and there each part names the category it comes from. Beside the ring, "Tax avoided against a dividend" opens
+they differ. Each opens the benefit category, which holds the owner's parts and none of the
+business parts, and there each part names the category it comes from. Beside the ring, "Tax avoided against a dividend" opens
 its build-up: the corporate tax the same money would have paid at the rate Year works out for the
 year it was paid in, on the rows as booked, then the dividend tax on what is left at the
 `hr.pit.dividend` rate of the year after. "As a dividend you would net" is what is left of it. A
@@ -559,11 +644,10 @@ the rate the loans carry, `hr_owner_loan_interest` (0% by default), on each day'
 loan, from the day after it was lent to the day it was repaid, a day being a 365th of the year, or a
 366th in a leap year. Each loan is rounded to the cent and the year adds them up. The law reaches a
 loan from the employer to the employee, so the benefit reads the loan book, what the owner owes the
-company, and never the costs the owner paid for the company. Owner shows it for each year a loan had
-a balance in, the current year up to the newest booking, and each figure opens its build-up: one
-line per loan with its days owed and its rows, and the rule. Year, Accountant shows the closed year's figure
-as an open item with the same build-up, up to the newest booking as Owner counts it, and as settled
-when the loans carry at least the law's rate.
+company, and never the costs the owner paid for the company. Year, Accountant shows a year's figure
+as an open item, a year still open up to the newest booking, with its build-up: one line per loan
+with its days owed and its rows, and the rule. It reads as settled when the loans carry at least the
+law's rate.
 Whether the benefit is grossed up through payroll is unconfirmed, as the rule's note says. The same
 rate the loans carry comes off the related-party rate of `hr.cit.related-party-rate`, the corporate
 tax adjustment that reaches a resident owner only while the company has a tax loss, and off the
@@ -1028,13 +1112,13 @@ each bank figure, opens Transactions on the rows it compared, and a differing Sa
 month on Invoicing, Plan. A workbook the reader refuses shows "Could not read" with its name, tab, row
 and reason, and so does one Drive did not give.
 
-The files are read when Taxes opens while the page holds the Drive read token of *Google sign-in*, at
-most once every ten minutes as a sync does, and again with "Read again". A read lists both folders,
-one level of folders at a time, and downloads only the files whose Drive `version` changed since the
-last read, whose tabs it keeps. That last read stays on this device in IndexedDB
-(`ledgerboard-drive-reads`, `src/shared/google/driveReads.ts`) until the next read or sign-out, so
-without the token the cards show it at once with its date, and offer "Check for new statements",
-which asks for the token as Overview does and then reads. The fake build's accountant folders, at the
+The files are read by the accountant step of each sync, as *Sync* describes, never by the screen. A
+read lists both folders, one level of folders at a time, and downloads only the files whose Drive
+`version` changed since the last read, whose tabs it keeps. That last read stays on this device in
+IndexedDB (`ledgerboard-drive-reads`, `src/shared/google/driveReads.ts`) until the next read or
+sign-out, so before a sync of this page the cards show it at once with its date. A sync without the
+Drive read token shows "Allow access" in the sync control, and the cards keep the read this device
+kept until that tap reads Drive again. The fake build's accountant folders, at the
 default paths, hold made-up returns and salaries for 2026 that show a passing, a differing and an
 unread row on each card.
 
@@ -1264,8 +1348,7 @@ With the file on Drive, "From the statements folder" sits above the file drop, `
 beside `ImportPanel`. It shows what the last sync did with the folder, as *Sync* describes: the
 statements it filed, and each one it held with its dry run, the reason, and for an account with no
 rows yet the start at its opening. "Confirm and file" writes what the held statements' dry run then
-accepts, through the same path. While the page holds no Drive read token, the card offers "Check for
-new statements". The card is gone when there is nothing to say.
+accepts, through the same path. The card is gone when there is nothing to say.
 
 **camt.053.** `readCamtDocument` reads the file with the browser's `DOMParser`. It finds elements by
 local name, so any camt.053 version reads, takes booked entries only, and reads every amount in
@@ -1344,14 +1427,14 @@ are set up, and the law behind the figures, one tab each:
 
 | Tab | What it holds |
 |---|---|
-| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder and the owner-pay module) open, then the company and owner facts with the accountant's two folders and the bucket labels, collapsed, with one Save under them. Then the loan switch and the rows the app could not use, which opens itself while there are any |
+| General | The settings tab as three cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder with its sync switch and the owner-pay module) open, then the company and owner facts with the accountant's two folders and their sync switch and the bucket labels, collapsed, with one Save under them. While the tab holds no value for a key Save writes when unset (`owner_pay_module`, `statements_folder` and the two accountant folders), a line above Save names them and Save is open with nothing changed. Then the loan switch and the rows the app could not use, which opens itself while there are any |
 | Categories | The categories tab |
 | Accounts | The accounts tab |
 | Ruleset | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as *Ruleset* describes |
-| This device | Where the books are kept, with export, import, the move to Drive, switch and sign-out, and the theme and privacy notes |
+| This device | Where the books are kept, with export, import, the move to Drive, switch and sign-out, for a file on Drive the Sync card with the steps of the last sync and "Sync as the app opens", and the theme and privacy notes |
 
 Without a workbook on screen only This device is there. A card with a field in error opens. A link
-that names a fact by its field, such as `#/settings#owner-loan-interest` from Owner or
+that names a fact by its field, such as `#/settings#owner-loan-interest` or
 `#company-registered` from Year, opens the facts card and lands on the field. The clients tab and
 the billing and invoice terms are on Invoicing, Clients, the rules on Review, Rules, and the assets,
 grants and year-end tabs on the Year screen. Each of those is `FactTabCard` in
@@ -1383,6 +1466,28 @@ menu of the roles core and the pack pick categories by, shown as chips. A role t
 know, such as `revenu` typed in a file, shows as a red chip with the error under it and blocks the
 save until it is taken off.
 
+A search and quick filters sit above the categories. The search matches every word typed against
+the category, the name it shows as, its family, its bucket and its roles. Bucket and Role narrow the
+list to one of each, and "Has an owner share", while the column shows, and "Unsaved changes" to the
+rows that hold one. A line says how many show, such as "5 of 33 categories", with Clear filters. On
+a phone the search sits beside a Filters button that counts the filters on and opens the rest in a
+sheet. Every column but the colour sorts from its header, by a press or by Enter or Space:
+ascending, descending, then the tab's own order again, which is where it starts. The header tells a
+screen reader the sort too. The table scrolls inside its card under a header that stays in view. Its
+height leaves the page header, the tabs, the card's header and filters and Save on the window, and
+never drops under 24rem, about seven rows. Filters and sort belong to the screen. They are not in
+the address or the books, so they start empty when the tab opens again, as unsaved rows do.
+
+The rows are listed again only when a filter or the sort changes, or the tab reloads after a save
+or Undo, so a row never moves or disappears while it is typed in. A row with an unsaved change or an
+error shows whatever the filters say, and the count line says how many show only for that, so
+nothing Save would write or refuse is out of view. A row that another row's change puts in error
+while it is hidden, such as a name taken twice, joins the foot of the list. Add category puts the
+new row at the foot, whatever the sort, scrolls the table to it and focuses its name, and it stays
+at the foot until it is saved. `categoryListing` in `src/features/settings/domain/categoryListing.ts`
+decides what shows and in which order. `SortableHeader` in `src/shared/ui/` is the header cell of a
+plain table's column that sorts.
+
 While `owner_pay_module` is on, the last column is "Owner share", the default a row filed in the
 category takes, as *Owner share* describes. A category outside the operating bucket shows a dash
 there unless it holds a share, which can then be cleared. The field blocks the save when it holds
@@ -1413,8 +1518,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, the first run kept on the fake Drive and in this browser, an xlsx moved to the fake Drive through its summary, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo, one that holds a statement and links to Import from Overview, one that finds nothing new and says nothing, the check for new statements Overview offers, and on Year, Taxes the accountant's cards with the rows a differing badge opens, the read this device kept with the check, and the payroll folder saved from Settings, General, and This device for a file a newer app saved, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the owner loans' benefit in kind with its build-up and its link to the rate, the owner take under its ring against its tile, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed, held and checked for on sync, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, the accountant's cards on Year, Taxes with a differing badge's rows and the kept read, the payroll folder saved from Settings, General, the first run on the fake Drive and in this browser, an xlsx moved to the fake Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, the first run kept on the fake Drive and in this browser, an xlsx moved to the fake Drive through its summary, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, and on Year, Taxes the accountant's cards a sync read with the rows a differing badge opens, the read this device kept until Allow access, and the payroll folder saved from Settings, General with 1 problem in the sync control, and This device for a file a newer app saved, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, the accountant's cards on Year, Taxes as a sync read them with a differing badge's rows and the kept read, the payroll folder saved from Settings, General, the first run on the fake Drive and in this browser, an xlsx moved to the fake Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
 ```
@@ -1448,10 +1553,11 @@ The fake Drive's statements folder, at the default `statements_folder` path, nam
 every statement on the fake ledger and holds the sample camt statement with a PDF beside it, so the
 sample is the only file the app downloads from it. Sync files it, and a second sync finds nothing
 new. `?fake=held-statement` adds a statement of an account the accounts tab lacks, named by its
-label alone, which the sync holds. The fake build never goes to Google, so it reads this folder as
-if it held the Drive read token, unless the tab noted a refused ask, which offers "Check for new
-statements". It holds the accountant's folders at the default folder paths too, as *Year screen*
-describes for Taxes.
+label alone, which the sync holds, and `?fake=slow-statements` takes three seconds to list the folder,
+so a check sees the sync control while the step runs. The fake build never goes to Google, so it
+reads this folder as if it held the Drive read token, unless the tab noted a refused ask, which
+leaves "Allow access" in the sync control. It holds the accountant's folders at the default folder
+paths too, as *Year screen* describes for Taxes.
 Every name, IBAN and amount in it is made up. `?fake=browser` keeps it as a workbook kept in this
 browser with changes nine days past their last export and owner loans that carry 2.5%, so they give
 no benefit in kind, and `?fake=empty` starts with nothing, which is the first run, whose folder
@@ -1500,7 +1606,7 @@ The pack reaches core screens through one contribution, `hrDooPack` in
 `src/features/packs/packContribution.ts`. Its slots are the pack's part of the workbook, the Owner
 and Year screens, Overview's jobs after the core ones, the Review card of reimbursements with no
 cost on file, the Ruleset tab and the loan card of Settings, the company and owner facts card with
-its checks, and the links of the spending breakdown. `main.ts` loads the contribution and the pack's
+its checks, the links of the spending breakdown, and the accountant step of a sync. `main.ts` loads the contribution and the pack's
 tabs with a dynamic import and installs both before it makes the router or reads a workbook, so the
 pack stays out of the entry chunk. While `owner_pay_module` is off, core shows none of it but the
 routes, and the pack's part is still read, so the rows the pack keeps whole still count whole. Every

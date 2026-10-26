@@ -5,12 +5,13 @@ import {
   SETTING_DEFINITIONS,
   changedPackSettings,
   generalSettingsToSave,
+  packSettingsToSave,
   parseSettings,
   readPackSettings,
   settingCodec,
   settingsErrors,
   settingsTabEntries,
-  statementsFolderUnset,
+  unsetSettingKeys,
 } from '../src/features/settings/domain/settings'
 import type { PackSettings, SettingRow } from '../src/features/settings/domain/settings'
 import {
@@ -187,24 +188,35 @@ describe('statements_folder', () => {
   })
 
   it('counts as unset with no row, a blank one or one that names no folder, since the statement fetch reads the row', () => {
-    expect(statementsFolderUnset(held())).toBe(true)
-    expect(statementsFolderUnset(held(['statements_folder', ' ']))).toBe(true)
-    expect(statementsFolderUnset(held(['statements_folder', undefined]))).toBe(true)
-    expect(statementsFolderUnset(held(['statements_folder', ' / ']))).toBe(true)
-    expect(statementsFolderUnset(held(['Statements_Folder', 'finance/statements']))).toBe(false)
+    const unset = (...entries: [string, Cell][]) => unsetSettingKeys(held(...entries), null).includes('statements_folder')
+
+    expect(unset()).toBe(true)
+    expect(unset(['statements_folder', ' '])).toBe(true)
+    expect(unset(['statements_folder', undefined])).toBe(true)
+    expect(unset(['statements_folder', ' / '])).toBe(true)
+    expect(unset(['Statements_Folder', 'finance/statements'])).toBe(false)
   })
 
   it('is written by a save of Settings, General while unset, at the default too, and only when changed once set', () => {
     const fetchPath = { key: 'statements_folder', value: 'work/dss/business-bank-account/erste/statements' }
+    const ownerPay = { key: 'owner_pay_module', value: 'TRUE' }
     const renamed = { ...DEFAULT_SETTINGS, companyName: 'Example Studio' }
     const moved = { ...DEFAULT_SETTINGS, statementsFolder: ['finance', 'statements'] }
+    const withOwnerPay = (...entries: [string, Cell][]) => held(['owner_pay_module', true], ...entries)
 
-    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, held())).toEqual([fetchPath])
-    expect(generalSettingsToSave(DEFAULT_SETTINGS, renamed, held(['statements_folder', '']))).toEqual([{ key: 'company_name', value: 'Example Studio' }, fetchPath])
-    expect(generalSettingsToSave(DEFAULT_SETTINGS, moved, held())).toEqual([{ key: 'statements_folder', value: 'finance/statements' }])
-    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, held([fetchPath.key, fetchPath.value]))).toEqual([])
-    expect(generalSettingsToSave(DEFAULT_SETTINGS, moved, held([fetchPath.key, fetchPath.value]))).toEqual([{ key: 'statements_folder', value: 'finance/statements' }])
-    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, held([fetchPath.key, '/']))).toEqual([fetchPath])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, withOwnerPay())).toEqual([fetchPath])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, renamed, withOwnerPay(['statements_folder', '']))).toEqual([{ key: 'company_name', value: 'Example Studio' }, fetchPath])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, moved, withOwnerPay())).toEqual([{ key: 'statements_folder', value: 'finance/statements' }])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, withOwnerPay([fetchPath.key, fetchPath.value]))).toEqual([])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, moved, withOwnerPay([fetchPath.key, fetchPath.value]))).toEqual([{ key: 'statements_folder', value: 'finance/statements' }])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, withOwnerPay([fetchPath.key, '/']))).toEqual([fetchPath])
+    expect(generalSettingsToSave(DEFAULT_SETTINGS, DEFAULT_SETTINGS, held([fetchPath.key, fetchPath.value]))).toEqual([ownerPay])
+  })
+
+  it('files statements on sync by default, and a FALSE switch leaves them to Import', () => {
+    expect(DEFAULT_SETTINGS.statementsSync).toBe(true)
+    expect(parseSettings(rows(['statements_sync', false])).settings.statementsSync).toBe(false)
+    expect(settingsTabEntries(DEFAULT_SETTINGS, null)).toContainEqual({ key: 'statements_sync', value: 'TRUE' })
   })
 
   it('needs a folder when typed in the app', () => {
@@ -214,7 +226,7 @@ describe('statements_folder', () => {
 })
 
 describe('company facts', () => {
-  it('default to no city, no birth year, the second pillar, no dependants, the accrual return, the invoice principle, owner loans at 0% and today’s accountant folders', () => {
+  it('default to no city, no birth year, the second pillar, no dependants, the accrual return, the invoice principle, owner loans at 0%, today’s accountant folders and their read on sync', () => {
     expect(COMPANY_FACT_SETTINGS.defaults).toEqual({
       residenceCity: '',
       birthYear: null,
@@ -227,6 +239,7 @@ describe('company facts', () => {
       ownerLoanInterest: 0,
       vatReturnsFolder: ['work', 'dss', 'dss-finance', 'vat-returns'],
       payrollFolder: ['work', 'dss', 'dss-finance', 'payroll'],
+      accountantSync: true,
     })
   })
 
@@ -244,6 +257,7 @@ describe('company facts', () => {
         ['hr_owner_loan_interest', 0.025],
         ['hr_vat_returns_folder', ' finance / vat '],
         ['hr_payroll_folder', 'finance/payroll/'],
+        ['hr_accountant_sync', false],
       ),
       COMPANY_FACT_SETTINGS,
     )
@@ -261,6 +275,7 @@ describe('company facts', () => {
       ownerLoanInterest: 250,
       vatReturnsFolder: ['finance', 'vat'],
       payrollFolder: ['finance', 'payroll'],
+      accountantSync: false,
     })
     expect(readPackSettings(rows(['hr_company_registered', '2025-05-12']), COMPANY_FACT_SETTINGS).values.companyRegistered).toBe('2025-05-12')
     const written = settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values })
@@ -284,6 +299,30 @@ describe('company facts', () => {
 
     expect(parseSettings(rows(['hr_residence_city', 'Zagreb'], ['hr_birth_year', 'unknown']), packKeys)).toEqual({ settings: DEFAULT_SETTINGS, problems: [] })
     expect(parseSettings(rows(['hr_residence_city', 'Zagreb'])).problems).toEqual([settingProblem('hr_residence_city', 'not a setting this app knows, so it is kept but not used')])
+  })
+
+  it('write the switch and both accountant folders with a save of Settings, General while the settings hold none, so a later default cannot turn them off', () => {
+    const facts = COMPANY_FACT_SETTINGS.defaults
+    const folders = [
+      { key: 'hr_vat_returns_folder', value: 'work/dss/dss-finance/vat-returns' },
+      { key: 'hr_payroll_folder', value: 'work/dss/dss-finance/payroll' },
+    ]
+    const holding = held(['statements_folder', 'finance/statements'], ['hr_payroll_folder', 'finance/payroll'])
+
+    expect(unsetSettingKeys(held(), COMPANY_FACT_SETTINGS as PackSettings<unknown>)).toEqual(['owner_pay_module', 'statements_folder', 'hr_vat_returns_folder', 'hr_payroll_folder'])
+    expect(unsetSettingKeys(holding, COMPANY_FACT_SETTINGS as PackSettings<unknown>)).toEqual(['owner_pay_module', 'hr_vat_returns_folder'])
+    expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, facts, held())).toEqual(folders)
+    expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, facts, holding)).toEqual([folders[0]])
+    expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, { ...facts, residenceCity: 'Zagreb' }, held(...folders.map(({ key, value }) => [key, value] as [string, Cell])))).toEqual([
+      { key: 'hr_residence_city', value: 'Zagreb' },
+    ])
+    expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, { ...facts, vatReturnsFolder: ['finance', 'vat'] }, held())).toEqual([{ key: 'hr_vat_returns_folder', value: 'finance/vat' }, folders[1]])
+  })
+
+  it('turn the accountant read on or off by its switch, on by default', () => {
+    expect(COMPANY_FACT_SETTINGS.defaults.accountantSync).toBe(true)
+    expect(readPackSettings(rows(['hr_accountant_sync', false]), COMPANY_FACT_SETTINGS).values.accountantSync).toBe(false)
+    expect(readPackSettings(rows(['hr_accountant_sync', 'maybe']), COMPANY_FACT_SETTINGS).problems).toEqual([settingProblem('hr_accountant_sync', '"maybe" is neither TRUE nor FALSE, so the default is used')])
   })
 
   it('change only the keys whose value differs, in template order', () => {
@@ -353,6 +392,7 @@ describe('company facts', () => {
       { key: 'hr_owner_loan_interest', value: '0' },
       { key: 'hr_vat_returns_folder', value: 'work/dss/dss-finance/vat-returns' },
       { key: 'hr_payroll_folder', value: 'work/dss/dss-finance/payroll' },
+      { key: 'hr_accountant_sync', value: 'TRUE' },
     ])
   })
 })

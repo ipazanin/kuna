@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { bucketTone } from '../../../shared/charts/chartTokens'
 import ColourSwatchPicker from '../../../shared/ui/ColourSwatchPicker.vue'
+import SortableHeader from '../../../shared/ui/SortableHeader.vue'
+import type { SortDirection } from '../../../shared/ui/SortableHeader.vue'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { SWATCHES, swatchOf } from '../../workbook/domain/categoryColour'
 import { listInWords } from '../../workbook/domain/slug'
@@ -16,8 +18,11 @@ import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { RecordsRead } from '../../workbook/domain/recordsRead'
 import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName, pickedColour } from '../domain/categoryDrafts'
 import type { CategoryDraft } from '../domain/categoryDrafts'
+import { NO_FILTERS, categoryListing, matchesFilters } from '../domain/categoryListing'
+import type { CategoryFilters, CategorySort, CategorySortColumn } from '../domain/categoryListing'
 import { storedOf } from '../../workbook/domain/recordsRead'
 import { swatchToken } from '../../workbook/presentation/categoryColours'
+import CategoryFilterBar from './CategoryFilterBar.vue'
 import RolesSelect from './RolesSelect.vue'
 
 const props = defineProps<{
@@ -37,14 +42,59 @@ const emit = defineEmits<{
 }>()
 
 const stored = computed(() => storedOf(props.records))
-const drafts = ref<CategoryDraft[]>(categoryDraftsOf(stored.value))
-watch(stored, (records) => {
-  drafts.value = categoryDraftsOf(records)
-})
+const baseline = computed(() => categoryDraftsOf(stored.value))
+const drafts = ref<CategoryDraft[]>([...baseline.value])
 
 const usedNames = computed(() => new Set(props.uses.keys()))
-const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(categoryDraftsOf(stored.value)))
+const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(baseline.value))
 const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value, props.roles, props.shares))
+
+const filters = ref<CategoryFilters>(NO_FILTERS)
+const sort = ref<CategorySort | null>(null)
+
+/**
+ * The positions of the drafts on screen, in their order. Typing never moves or hides a row. Only a
+ * change of the filters or the sort, or a reload of the tab, lists the drafts again.
+ */
+const listed = ref<number[]>([])
+
+function unsaved(draft: CategoryDraft): boolean {
+  return draft.saved === null || JSON.stringify(draft) !== JSON.stringify(baseline.value[draft.saved])
+}
+
+function relist(): void {
+  listed.value = categoryListing(
+    drafts.value.map((draft, position) => ({ draft, unsaved: unsaved(draft), inError: errors.value.has(position) })),
+    filters.value,
+    sort.value,
+  )
+}
+
+relist()
+watch([filters, sort], relist)
+watch(baseline, (reloaded) => {
+  drafts.value = [...reloaded]
+  relist()
+})
+
+/** A row that another row's change puts in error while the filters hide it, such as a name taken twice, joins the foot of the list. */
+watch(errors, (found) => {
+  const hidden = [...found.keys()].filter((position) => !listed.value.includes(position))
+  if (hidden.length > 0) listed.value = [...listed.value, ...hidden]
+})
+
+const rows = computed(() => listed.value.map((index) => ({ index, draft: drafts.value[index]! })))
+
+/** The rows on screen that no longer match the filters, shown for their unsaved change or error. */
+const kept = computed(() => rows.value.filter(({ draft }) => !matchesFilters({ draft, unsaved: unsaved(draft), inError: false }, filters.value)).length)
+
+function directionOf(column: CategorySortColumn): SortDirection | null {
+  return sort.value?.column !== column ? null : sort.value.descending ? 'descending' : 'ascending'
+}
+
+function sortBy(column: CategorySortColumn, direction: SortDirection | null): void {
+  sort.value = direction === null ? null : { column, descending: direction === 'descending' }
+}
 
 const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: bucket }))
 const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: treatment }))
@@ -78,12 +128,27 @@ function inUse(draft: CategoryDraft): string {
   return `Used by ${listInWords(props.uses.get(draft.savedName.trim().toLowerCase()) ?? [])}, so it keeps its name and its row`
 }
 
-function addCategory(): void {
+const body = useTemplateRef<HTMLElement>('body')
+
+/** A new row joins the foot of the list, scrolled into view with its name field focused. */
+async function addCategory(): Promise<void> {
   drafts.value = [...drafts.value, { saved: null, savedName: '', category: '', label: '', family: '', bucket: 'operating', colour: '', roles: '', vat: '', ownerShare: '' }]
+  const added = drafts.value.length - 1
+  listed.value = [...listed.value, added]
+  await nextTick()
+  const row = body.value?.querySelector<HTMLElement>(`[data-position="${added}"]`)
+  row?.scrollIntoView({ block: 'nearest' })
+  row?.querySelector('input')?.focus({ preventScroll: true })
 }
 
 function remove(index: number): void {
   drafts.value = drafts.value.filter((_, position) => position !== index)
+  listed.value = listed.value.filter((position) => position !== index).map((position) => (position > index ? position - 1 : position))
+}
+
+function discard(): void {
+  drafts.value = [...baseline.value]
+  relist()
 }
 
 function save(): void {
@@ -95,23 +160,30 @@ function save(): void {
 </script>
 
 <template>
-  <div class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
+  <CategoryFilterBar v-model="filters" :roles="roles" :shares="shares" :shown="rows.length" :total="drafts.length" :kept="kept" />
+  <div class="table-frame relative mx-1 my-2 sm:mx-2" data-testid="categories-frame">
     <table class="data-table editor-table w-full text-sm" data-testid="categories-editor">
       <thead>
         <tr>
-          <th scope="col" class="text-start">Category</th>
-          <th scope="col" class="text-start">Shown as</th>
-          <th scope="col" class="text-start">Family</th>
-          <th scope="col" class="text-start">Bucket</th>
+          <SortableHeader label="Category" :model-value="directionOf('category')" @update:model-value="sortBy('category', $event)" />
+          <SortableHeader label="Shown as" :model-value="directionOf('label')" @update:model-value="sortBy('label', $event)" />
+          <SortableHeader label="Family" :model-value="directionOf('family')" @update:model-value="sortBy('family', $event)" />
+          <SortableHeader label="Bucket" :model-value="directionOf('bucket')" @update:model-value="sortBy('bucket', $event)" />
           <th scope="col" class="text-start">Colour</th>
-          <th scope="col" class="text-start">Roles</th>
-          <th scope="col" class="text-start">VAT</th>
-          <th v-if="shares" scope="col" class="text-start">Owner share</th>
+          <SortableHeader label="Roles" :model-value="directionOf('roles')" @update:model-value="sortBy('roles', $event)" />
+          <SortableHeader label="VAT" :model-value="directionOf('vat')" @update:model-value="sortBy('vat', $event)" />
+          <SortableHeader v-if="shares" label="Owner share" :model-value="directionOf('ownerShare')" @update:model-value="sortBy('ownerShare', $event)" />
           <th scope="col"><span class="sr-only">Delete</span></th>
         </tr>
       </thead>
-      <tbody>
-        <tr v-for="(draft, index) in drafts" :key="draft.saved ?? `new-${index}`" data-testid="category-row">
+      <tbody ref="body">
+        <tr v-if="rows.length === 0 && drafts.length > 0">
+          <td :colspan="shares ? 9 : 8" class="py-6 text-muted" data-testid="no-category-matches">
+            No category matches these filters.
+            <UButton label="Clear filters" color="neutral" variant="link" size="sm" class="inline-target" @click="filters = NO_FILTERS" />
+          </td>
+        </tr>
+        <tr v-for="{ index, draft } in rows" :key="draft.saved ?? `new-${index}`" :data-position="index" data-testid="category-row">
           <td>
             <UInput
               :model-value="draft.category"
@@ -228,12 +300,40 @@ function save(): void {
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton label="Add category" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-category" @click="addCategory" />
     <span class="flex-1" />
-    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = categoryDraftsOf(stored)" />
+    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="discard" />
     <UButton label="Save categories" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" data-testid="save-categories" @click="save" />
   </div>
 </template>
 
 <style scoped>
+/*
+ * The table scrolls inside the card under its own header, so a long tab never grows the page. The
+ * page header, the tabs, the card's header and the filters take about 21rem above it and Save 4rem
+ * below, so the whole card fits the window at the top of the page. On a 900 px laptop screen that
+ * leaves the 24rem floor, seven rows. On a phone the top bar and the tab row stay on screen, so
+ * the table takes what the window leaves under them and above Add and Save, its header in view.
+ */
+.table-frame {
+  max-height: max(24rem, calc(100dvh - 25rem));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 639px) {
+  .table-frame {
+    max-height: max(18rem, calc(100dvh - 22rem));
+  }
+}
+
+.editor-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-raised);
+  border-bottom: 0;
+  box-shadow: inset 0 -1px 0 var(--border-default);
+}
+
 .editor-table td {
   vertical-align: top;
 }

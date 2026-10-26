@@ -5,6 +5,7 @@ import ui from '@nuxt/ui/vue-plugin'
 
 import App from './App.vue'
 import { installPack } from './features/packs/packContribution'
+import { autoSyncOn } from './features/sync/infrastructure/autoSyncSwitch'
 import { installPackTabs } from './features/workbook/infrastructure/packTabs'
 import { loadWorkbookChoice } from './features/workbook/infrastructure/workbookChoice'
 import { askForDriveReadSilently, takeGoogleRedirect } from './shared/google/googleAuth'
@@ -25,11 +26,12 @@ async function start(): Promise<void> {
     await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'))
   }
   const googleReturn = await takeGoogleRedirect()
-  // Each open of the books on Drive online, and each return from a sign-in, fetches the Drive read token first, with no screen at Google.
+  // Each open of the books on Drive online on a device that syncs as it opens, and each return from a sign-in, fetches the Drive read token first, with no screen at Google.
   if (
     import.meta.env.VITE_FAKE_WORKBOOK !== 'true' &&
     navigator.onLine &&
     loadWorkbookChoice()?.source === 'drive' &&
+    (googleReturn !== null || autoSyncOn.value) &&
     askForDriveReadSilently(googleReturn)
   ) {
     return

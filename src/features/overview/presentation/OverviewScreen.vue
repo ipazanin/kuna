@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
-import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../shared/calendar/monthLabel'
@@ -68,7 +67,6 @@ const waiting = computed(() => {
   const held = statementsJob(statements.held.value?.length ?? 0, statements.state.outcome?.problem ?? null)
   return [...(held === null ? [] : [held]), ...waitingJobs(ledger.value.booked, state.workbook.transactions)]
 })
-const checkText = statements.unchecked
 
 const overview = computed(() => {
   const current = ledger.value
@@ -211,21 +209,8 @@ const overview = computed(() => {
             <MoneyText :cents="overview.headline.loss" precision="whole" class="text-negative" /></template>.
         </p>
 
-        <AppCard v-if="waiting.length || checkText" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
+        <AppCard v-if="waiting.length" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
           <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
-            <li v-if="checkText" class="waiting-line flex-wrap py-1" data-job="check-statements">
-              <span class="waiting-dot warning" aria-hidden="true" />
-              <span class="min-w-48 flex-1 text-sm text-toned">{{ checkText }}</span>
-              <UButton
-                label="Check for new statements"
-                icon="i-lucide-folder-search"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                data-testid="check-statements"
-                @click="statements.checkForNewStatements"
-              />
-            </li>
             <li v-for="job in waiting" :key="job.key" class="waiting-line" :data-job="job.key">
               <span class="waiting-dot" :class="job.tone" aria-hidden="true" />
               <span class="min-w-0 flex-1 text-sm text-toned">{{ job.text }}</span>

@@ -12,13 +12,14 @@ import SwitchSourceDialog from '../../data-source/presentation/SwitchSourceDialo
 import { exportReminderDue } from '../../excel/domain/exportReminder'
 import ImportDialog from '../../excel/presentation/ImportDialog.vue'
 import { useExport } from '../../excel/presentation/useExport'
+import SyncCard from '../../sync/presentation/SyncCard.vue'
 import type { DriveFilePlace } from '../../workbook/application/workbookPorts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import NewerFileNotice from '../../workbook/presentation/NewerFileNotice.vue'
 import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
 import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 
-/** Where the ledger comes from, and how the app looks on this device. */
+/** Where the ledger comes from, how this device syncs it, and how the app looks here. */
 const store = useWorkbook()
 const { state } = store
 const toast = useToast()
@@ -198,6 +199,8 @@ const THEME_CHOICES: { label: string; value: ThemeChoice }[] = [
           <input ref="fileInput" type="file" :accept="WORKBOOK_FILE_TYPES" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
         </div>
       </AppCard>
+
+      <SyncCard v-if="source === 'drive'" />
 
       <AppCard title="Appearance and privacy">
         <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">

@@ -20,6 +20,11 @@ export interface OwnerPartOf<Whole> extends OwnerPart {
   readonly whole: Whole
 }
 
+/** What the owner's part of a shared row says beside its category, such as "100% to owner, from Equipment". Null on any other row. */
+export function ownerPartOrigin(part: OwnerPart | undefined, categoryName: (slug: string) => string): string | null {
+  return part?.side === 'owner' ? `${part.share}% to owner, from ${categoryName(part.sourceCategory)}` : null
+}
+
 /** A key for a part as a screen lists it: the row's own key, marked on the owner's part so the two parts differ. */
 export function ownerPartKey(key: string, part: OwnerPart | undefined): string {
   return part?.side === 'owner' ? `${key}:owner` : key

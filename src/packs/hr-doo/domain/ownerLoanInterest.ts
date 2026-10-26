@@ -1,5 +1,5 @@
 import type { HrDooWorkbook } from './hrDooPart'
-import { civilDate, daysBetween, yearOf } from '../../../shared/calendar/civilDate'
+import { civilDate, daysBetween } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { ZERO, moneyFromCents, sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
@@ -133,15 +133,4 @@ export function relatedPartyInterest(workbook: HrDooWorkbook, year: number, prof
     shortfallRate(rate.value.rate.basisPoints, carried),
     [rate.citation],
   )
-}
-
-/** The benefit of each year a loan had a balance in, newest first, the year of `asOf` up to that day. */
-export function loanBenefitByYear(workbook: HrDooWorkbook, asOf: CivilDate, rules: RuleSource): LoanBenefit[] {
-  const first = ownerLoans(workbook.transactions, workbook.categories).loans[0]
-  if (first === undefined) return []
-  const years = Array.from({ length: yearOf(asOf) - yearOf(first.lentOn) + 1 }, (_, offset) => yearOf(asOf) - offset)
-  return years.flatMap((year) => {
-    const benefit = loanBenefit(workbook, year, asOf, rules)
-    return benefit === null ? [] : [benefit]
-  })
 }

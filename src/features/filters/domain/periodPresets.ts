@@ -44,15 +44,20 @@ export function ledgerYears(window: LedgerWindow): number[] {
   return years
 }
 
+/** The months a period's rows fall in, within the ledger. A month the ledger covers only in part counts as one. */
+export function periodMonths(period: Period, window: LedgerWindow): MonthKey[] {
+  const range = periodRange(period, window)
+  const months = range === null ? monthsFrom(window.firstMonth, window.partMonth) : monthsOfRange(range)
+  return months.filter((month) => window.firstMonth <= month && month <= window.partMonth)
+}
+
 /**
  * The months a monthly chart of a period draws, within the ledger. A rolling window ends with the
  * last complete month, so the part-month after it is added: it is always drawn, never averaged.
  */
 export function chartedMonths(period: Period, window: LedgerWindow): MonthKey[] {
-  const range = periodRange(period, window)
-  const months = range === null ? monthsFrom(window.firstMonth, window.partMonth) : monthsOfRange(range)
-  const charted = months.filter((month) => window.firstMonth <= month && month <= window.partMonth)
-  return period.preset === 'l3' || period.preset === 'l12' ? [...charted, window.partMonth] : charted
+  const months = periodMonths(period, window)
+  return period.preset === 'l3' || period.preset === 'l12' ? [...months, window.partMonth] : months
 }
 
 function quarterOf(month: MonthKey): Quarter {

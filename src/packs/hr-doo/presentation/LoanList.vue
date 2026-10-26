@@ -31,11 +31,13 @@ import MoneyText from '../../../shared/ui/MoneyText.vue'
 /** Each loan to the owner, newest first, with the repayments the matching gave it. */
 defineProps<{
   loans: readonly LoanLine[]
+  /** What the card says when no loan is listed, such as "No loan to the owner had a balance in 2025." */
+  empty: string
 }>()
 </script>
 
 <template>
-  <p v-if="loans.length === 0" class="px-5 py-8 text-sm text-muted">The ledger holds no loan to the owner.</p>
+  <p v-if="loans.length === 0" class="py-6 text-sm text-muted" data-testid="loan-list-empty">{{ empty }}</p>
   <ul v-else class="flex flex-col" data-testid="loan-list">
     <li v-for="loan in loans" :key="loan.key" class="loan-row">
       <div class="loan-head">

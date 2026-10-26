@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { monthKey } from '../src/shared/calendar/monthKey'
 import { euroSplit } from '../src/features/overview/domain/euroSplit'
-import { ownerPartsOf, ownerShareProblems, withOwnerParts } from '../src/features/owner-share/domain/ownerParts'
+import { ownerPartOrigin, ownerPartsOf, ownerShareProblems, withOwnerParts } from '../src/features/owner-share/domain/ownerParts'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import { categoryTotals } from '../src/features/spending/domain/categoryTotals'
 import { transactionsCsv } from '../src/features/transactions/application/transactionsCsv'
 import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
 import { categoryChangeOf } from '../src/features/transactions/domain/categoryChange'
+import { scopeOwnerAdvances, scopeTransactions } from '../src/features/transactions/domain/filterTransactions'
+import { DEFAULT_FILTERS } from '../src/features/filters/domain/filterState'
 import { listedRows, withPartHeadings } from '../src/features/transactions/domain/listedRows'
 import type { ListedEntry } from '../src/features/transactions/domain/listedRows'
 import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
@@ -57,9 +59,10 @@ describe('the worked example', () => {
 
     const before = ownerCost(booked, CATEGORIES, YEAR, WINDOW)
     const after = ownerCost(shared, CATEGORIES, YEAR, WINDOW)
-    expect([before.gross.amount, before.taxOnPay.amount, before.costPerEuroReceived]).toEqual([euros(25000), euros(5000), 1.25])
+    expect([before.gross.amount, before.taxOnPay.amount, before.netShare]).toEqual([euros(25000), euros(5000), 0.8])
     expect([after.gross.amount, after.taxOnPay.amount]).toEqual([euros(26200), euros(5000)])
-    expect(after.costPerEuroReceived?.toFixed(2)).toBe('1.24')
+    // 21,200 of 26,200: the benefits raise the share, since they carry no tax.
+    expect(after.netShare?.toFixed(4)).toBe('0.8092')
   })
 
   it('leaves the rows as booked to the books', () => {
@@ -243,5 +246,46 @@ describe('a shared row on Transactions', () => {
       '-75.00,,ai-services,operating,,,,25,owner-advances',
       '-25.00,,benefits,owner-pay,,,,25,owner-advances',
     ])
+  })
+})
+
+describe('a category filter on shared rows', () => {
+  const cash = withOwnerParts(
+    workbookOf(
+      rows([
+        { date: '2026-04-02', amount: -1500, category: 'equipment', share: 100, counterparty: 'Bike shop' },
+        { date: '2026-04-03', amount: -500, category: 'equipment', share: 40, counterparty: 'Computer store' },
+        { date: '2026-04-04', amount: -90, category: 'ai-services', share: 50, counterparty: 'Model host' },
+      ]),
+      { ownerAdvances: [{ date: civil('2026-04-05'), amount: euros(80), description: 'Chair', category: 'equipment', family: 'operating', bucket: 'operating', ownerShare: share(100), id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-3') }] },
+    ),
+  )
+  const equipment = { ...DEFAULT_FILTERS, categories: ['equipment'] }
+  const parts = (bookings: readonly (Transaction | OwnerAdvance)[]) => bookings.map((row) => [row.category, row.amount, ownerPartOrigin(row.ownerPart, (slug) => slug)])
+
+  it('finds the owner’s part of a row filed in the category, the whole of a 100% share among them', () => {
+    // 100% of 1,500.00 leaves no business part, and 40% of 500.00 is 200.00 to the owner and 300.00 left in equipment.
+    expect(parts(scopeTransactions(cash.transactions, equipment))).toEqual([
+      ['benefits', euros(-1500), '100% to owner, from equipment'],
+      ['equipment', euros(-300), null],
+      ['benefits', euros(-200), '40% to owner, from equipment'],
+    ])
+    expect(parts(scopeOwnerAdvances(cash.ownerAdvances, equipment))).toEqual([['benefits', euros(80), '100% to owner, from equipment']])
+  })
+
+  it('still counts the owner’s parts in owner pay, so the category’s total is its business parts alone', () => {
+    const totals = Object.fromEntries(categoryTotals(scopeTransactions(cash.transactions, equipment), YEAR, WINDOW).map((total) => [total.category, total.amount.amount]))
+
+    expect(totals).toEqual({ equipment: euros(300), benefits: euros(1700) })
+    expect(Object.fromEntries(categoryTotals(cash.transactions, YEAR, WINDOW).map((total) => [total.category, total.amount.amount]))).toEqual({
+      equipment: euros(300),
+      'ai-services': euros(45),
+      benefits: euros(1745),
+    })
+  })
+
+  it('leaves out the owner’s part of a row filed in another category', () => {
+    expect(scopeTransactions(cash.transactions, { ...DEFAULT_FILTERS, categories: ['ai-services'] }).map((row) => row.amount)).toEqual([euros(-45), euros(-45)])
+    expect(scopeTransactions(cash.transactions, { ...DEFAULT_FILTERS, categories: ['benefits'] })).toHaveLength(3)
   })
 })

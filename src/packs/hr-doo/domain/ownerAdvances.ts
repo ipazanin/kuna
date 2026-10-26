@@ -5,7 +5,7 @@ import { settlePayments } from '../../../shared/money/settleOpenRows'
 import { advanceDrill, drillToTransactions, rowDrill } from '../../../features/filters/domain/drillTarget'
 import type { DrillTarget, Figure } from '../../../features/filters/domain/drillTarget'
 import { EVERY_OWNER_ADVANCE } from '../../../features/filters/domain/filterState'
-import type { AmountRange } from '../../../features/filters/domain/filterState'
+import type { AmountRange, FilterState } from '../../../features/filters/domain/filterState'
 import { ownerAdvanceOrder } from '../../../features/workbook/domain/workbook'
 import type { Category, OwnerAdvance, Transaction } from '../../../features/workbook/domain/workbook'
 import type { OwnerLoanBook } from './ownerLoans'
@@ -79,7 +79,6 @@ const DEBITS: AmountRange = { min: null, max: moneyFromCents(-1) }
  * from the rows themselves, so it states a reimbursement no advance accounts for.
  */
 export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): OwnerAdvanceBook {
-  const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
   const repayments = netReimbursements(transactions, categories).toOwner
   const paidByOwner = [...advances].sort(ownerAdvanceOrder)
 
@@ -117,18 +116,28 @@ export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: r
 
   const advanced = paidByOwner.reduce((total, advance) => addMoney(total, advance.amount), ZERO)
   const reimbursed = repayments.reduce((total, repayment) => addMoney(total, repayment.amount), ZERO)
-  // The debit bound leaves out the reimbursements from the owner, which repay the loan book.
+  const filters = advanceBookFilters(categories)
   return {
     advances: lines,
-    advanced: { amount: advanced, drill: drillToTransactions({ period: { preset: 'all' }, categories: [EVERY_OWNER_ADVANCE], amount: DEBITS }) },
-    reimbursed: { amount: reimbursed, drill: drillToTransactions({ period: { preset: 'all' }, categories: reimbursement, amount: DEBITS }) },
-    outstanding: {
-      amount: subtractMoney(advanced, reimbursed),
-      drill: drillToTransactions({ period: { preset: 'all' }, categories: [...reimbursement, EVERY_OWNER_ADVANCE], amount: DEBITS }),
-    },
+    advanced: { amount: advanced, drill: drillToTransactions({ period: { preset: 'all' }, ...filters.advanced }) },
+    reimbursed: { amount: reimbursed, drill: drillToTransactions({ period: { preset: 'all' }, ...filters.reimbursed }) },
+    outstanding: { amount: subtractMoney(advanced, reimbursed), drill: drillToTransactions({ period: { preset: 'all' }, ...filters.outstanding }) },
     openCount: lines.filter((line) => line.status === 'open').length,
     unaccounted,
     unaccountedTotal: unaccounted.reduce((total, line) => addMoney(total, line.amount), ZERO),
+  }
+}
+
+/**
+ * The filters behind the costs the owner paid, the reimbursements and the balance, without a period.
+ * The debit bound leaves out the reimbursements from the owner, which repay the loan book.
+ */
+export function advanceBookFilters(categories: readonly Category[]): Record<'advanced' | 'reimbursed' | 'outstanding', Partial<FilterState>> {
+  const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
+  return {
+    advanced: { categories: [EVERY_OWNER_ADVANCE], amount: DEBITS },
+    reimbursed: { categories: reimbursement, amount: DEBITS },
+    outstanding: { categories: [...reimbursement, EVERY_OWNER_ADVANCE], amount: DEBITS },
   }
 }
 

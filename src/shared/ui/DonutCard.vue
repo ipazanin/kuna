@@ -32,7 +32,8 @@ import DrillLink from './DrillLink.vue'
 
 /**
  * One snapshot of at most five parts as a ring, with the total in its middle. The list beside it
- * gives each part's value and share and opens its rows, so it is also the table of the chart.
+ * gives each part's value and share and opens its rows, so it is also the table of the chart. The
+ * `beside` slot sets another chart next to the ring, and the `aside` slot more content beside the list.
  */
 const props = withDefaults(
   defineProps<{
@@ -119,7 +120,7 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
     :definition="definition"
     v-bind="collapseId === undefined ? {} : { collapseId, summary, startCollapsed, reveal }"
   >
-    <div class="donut px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
+    <div class="donut px-4 pt-3 pb-4 sm:px-5 sm:pb-5" :class="{ 'has-beside': $slots.beside }">
       <div class="donut-ring">
         <VChart :option="option" :theme="theme" autoresize class="ring-chart" @click="onSliceClick" />
         <p class="ring-middle" aria-hidden="true">
@@ -127,22 +128,27 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
           <span class="text-xs text-muted">{{ totalLabel }}</span>
         </p>
       </div>
-      <div class="legend">
-        <p class="sr-only">{{ totalLabel }}: {{ total }}</p>
-        <ul class="flex flex-col" data-testid="donut-legend">
-          <li v-for="part in parts" :key="part.key" class="legend-row">
-            <span class="swatch" :style="{ background: `var(${part.colour})` }" aria-hidden="true" />
-            <DrillLink :to="part.to" :label="`${part.label}, ${formatValue(part.value)}, open ${opens}`" class="min-w-0 text-toned">
-              {{ part.label }}
-            </DrillLink>
-            <span class="figure text-end text-highlighted">{{ formatValue(part.value) }}</span>
-            <span class="figure text-end text-xs text-muted">{{ part.note ?? share(part.value) }}</span>
-          </li>
-        </ul>
-        <slot name="below" />
+      <div v-if="$slots.beside" class="donut-beside">
+        <slot name="beside" />
       </div>
-      <div v-if="$slots.aside" class="donut-aside">
-        <slot name="aside" />
+      <div class="donut-table">
+        <div class="legend">
+          <p class="sr-only">{{ totalLabel }}: {{ total }}</p>
+          <ul class="flex flex-col" data-testid="donut-legend">
+            <li v-for="part in parts" :key="part.key" class="legend-row">
+              <span class="swatch" :style="{ background: `var(${part.colour})` }" aria-hidden="true" />
+              <DrillLink :to="part.to" :label="`${part.label}, ${formatValue(part.value)}, open ${opens}`" class="min-w-0 text-toned">
+                {{ part.label }}
+              </DrillLink>
+              <span class="figure text-end text-highlighted">{{ formatValue(part.value) }}</span>
+              <span class="figure text-end text-xs text-muted">{{ part.note ?? share(part.value) }}</span>
+            </li>
+          </ul>
+          <slot name="below" />
+        </div>
+        <div v-if="$slots.aside" class="donut-aside">
+          <slot name="aside" />
+        </div>
       </div>
     </div>
   </AppCard>
@@ -182,10 +188,38 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
   pointer-events: none;
 }
 
+/* A chart beside the ring takes the rest of its row, so the list and the aside start a row below. */
+.donut-beside {
+  flex: 1;
+  min-width: min(100%, 12rem);
+}
+
+/* The list and the aside share one top, so their rows line up across the card. */
+.donut-table {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.25rem 2rem;
+  min-width: min(100%, 16rem);
+}
+
+.donut.has-beside .donut-table {
+  flex-basis: 100%;
+}
+
 .legend,
 .donut-aside {
   flex: 1;
   min-width: min(100%, 16rem);
+}
+
+/* A row of the aside, such as a figure beside the ring's parts, keeps the height and divider of a legend row. */
+.legend-row,
+.donut-aside :slotted(.donut-row) {
+  min-height: 2.25rem;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 0.875rem;
 }
 
 .legend-row {
@@ -193,9 +227,6 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
   grid-template-columns: 10px minmax(0, 1fr) auto 3rem;
   align-items: center;
   gap: 0.625rem;
-  min-height: 2.25rem;
-  border-bottom: 1px solid var(--border-default);
-  font-size: 0.875rem;
 }
 
 .legend-row:last-child {
@@ -208,10 +239,11 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
   border-radius: 2px;
 }
 
-/* A phone sets the ring above its list, which then takes the card's whole width. */
+/* A phone sets the ring above the chart beside it and its list, which then take the card's whole width. */
 @media (max-width: 639px) {
   .donut {
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
   }
 

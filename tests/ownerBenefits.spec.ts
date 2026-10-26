@@ -50,7 +50,7 @@ describe('ownerBenefits on the worked example', () => {
     expect(comparison.taxAvoided.rules.map((citation) => citation.ruleId)).toEqual(['hr.pit.dividend'])
   })
 
-  it('opens each source on rows that hold its owner parts, which a filter on the source category would leave out', () => {
+  it('opens each source on the benefit category, whose rows hold its owner parts and none of its business parts', () => {
     const listedBy = (drill: DrillTarget) => filterTransactions(shared as readonly Transaction[], { ...DEFAULT_FILTERS, ...drill.filters }, WINDOW)
 
     for (const source of benefits.bySource) {
@@ -59,8 +59,8 @@ describe('ownerBenefits on the worked example', () => {
     }
   })
 
-  it('makes a euro received read cheaper, since the benefits carry no tax', () => {
-    expect(ownerCost(shared, CATEGORIES, YEAR, WINDOW).costPerEuroReceived?.toFixed(2)).toBe('1.24')
+  it('raises the owner’s net share of the gross cost, since the benefits carry no tax', () => {
+    expect(ownerCost(shared, CATEGORIES, YEAR, WINDOW).netShare?.toFixed(2)).toBe('0.81')
   })
 })
 

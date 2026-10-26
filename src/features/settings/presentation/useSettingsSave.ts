@@ -6,7 +6,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../workbook/domain/recordsRead'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import { setSettings } from '../application/settingWrites'
-import { DEFAULT_SETTINGS, changedPackSettings, changedSettings, generalSettingsToSave, statementsFolderUnset } from '../domain/settings'
+import { DEFAULT_SETTINGS, changedSettings, generalSettingsToSave, packSettingsToSave, unsetSettingKeys } from '../domain/settings'
 import type { SettingEntry, Settings } from '../domain/settings'
 
 export interface SettingsSave {
@@ -14,19 +14,19 @@ export interface SettingsSave {
   readonly settings: ComputedRef<Settings>
   /** The installed pack's facts as the workbook holds them, or null without a pack that keeps any. */
   readonly facts: ComputedRef<unknown>
-  /** Whether the settings name no statements folder, which a save of Settings, General then writes. */
-  readonly statementsFolderUnset: ComputedRef<boolean>
+  /** The keys the settings hold no value for, which a save of Settings, General then writes. */
+  readonly unsetKeys: ComputedRef<readonly string[]>
   readonly saving: Readonly<Ref<boolean>>
   /** Writes the settings a form changed. */
   save(next: Settings): Promise<void>
-  /** Writes what Settings, General changed: core's keys, the statements folder while the settings name none, and the pack's facts. */
+  /** Writes what Settings, General changed, core's keys and the pack's facts, and the keys it writes while the settings hold no value for them. */
   saveGeneral(next: Settings, nextFacts: unknown): Promise<void>
 }
 
 /**
  * Writes the settings a form changed, core's keys and then the pack's. Only the keys that changed
- * are written, and the statements folder from Settings, General while the settings name none, each
- * checked against the value the app read for it, and a toast says how it went.
+ * are written, and from Settings, General the keys it writes while the settings hold no value for
+ * them, each checked against the value the app read for it, and a toast says how it went.
  */
 export function useSettingsSave(): SettingsSave {
   const { state } = useWorkbook()
@@ -42,14 +42,14 @@ export function useSettingsSave(): SettingsSave {
   return {
     settings,
     facts,
-    statementsFolderUnset: computed(() => statementsFolderUnset(held.value)),
+    unsetKeys: computed(() => unsetSettingKeys(held.value, installedPack().workbook?.settings ?? null)),
     saving: writes.busy,
     async save(next) {
       await write(changedSettings(settings.value, next))
     },
     async saveGeneral(next, nextFacts) {
       const packSettings = installedPack().workbook?.settings ?? null
-      const packChanges = packSettings === null ? [] : changedPackSettings(packSettings, facts.value, nextFacts)
+      const packChanges = packSettings === null ? [] : packSettingsToSave(packSettings, facts.value, nextFacts, held.value)
       await write([...generalSettingsToSave(settings.value, next, held.value), ...packChanges])
     },
   }

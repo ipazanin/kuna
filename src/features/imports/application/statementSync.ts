@@ -1,3 +1,4 @@
+import { isUnauthorized } from '../../../shared/google/googleApi'
 import { listInWords } from '../../workbook/domain/slug'
 import type { WorkbookStore } from '../../workbook/application/createWorkbookStore'
 import type { WriteReceipt } from '../../workbook/application/recordWrites'
@@ -42,7 +43,8 @@ export interface StatementSyncPorts {
  * name the ledger does not hold are downloaded and read, one dry run takes them all, and one write
  * adds every statement it accepts through the ledger's write rules, as Import does. A statement it
  * refuses or that waits for its account to start is held, and nothing after it is written for that
- * account. A sync with nothing new downloads nothing and writes nothing.
+ * account. A sync with nothing new downloads nothing and writes nothing. Google turning the Drive
+ * read token away throws, so the sync can ask for access.
  */
 export async function fileNewStatements(ports: StatementSyncPorts): Promise<StatementSyncOutcome> {
   const workbook = ports.store.state.workbook
@@ -62,6 +64,9 @@ export async function fileNewStatements(ports: StatementSyncPorts): Promise<Stat
     }
     readings = (await Promise.all(toRead.map((file) => readingsOf(file, ports, workbook)))).flat()
   } catch (failure) {
+    if (isUnauthorized(failure)) {
+      throw failure
+    }
     return { ...NOTHING_FILED, problem: `The statements folder could not be read: ${messageOf(failure)}` }
   }
   return await fileReadings(readings, ports, true)
@@ -101,7 +106,7 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
   } catch (failure) {
     if (!(failure instanceof WorkbookWriteRefused) || !mayRetry) {
       const unwritten = new Set(filed.map(statementKey))
-      return { problem: messageOf(failure), held: readings.filter((reading) => kept.has(readingKey(reading)) || unwritten.has(readingKey(reading))), filed: [], receipt: null }
+      return { problem: isUnauthorized(failure) ? 'Not filed. Sync again.' : messageOf(failure), held: readings.filter((reading) => kept.has(readingKey(reading)) || unwritten.has(readingKey(reading))), filed: [], receipt: null }
     }
     await store.sync()
     if (store.state.status !== 'ready' || store.state.workbook === null) {

@@ -1,5 +1,5 @@
-import type { WorkbookStatus, WorkbookStore } from './createWorkbookStore'
-import type { WorkbookCopy } from './workbookPorts'
+import type { WorkbookStatus, WorkbookStore } from '../../workbook/application/createWorkbookStore'
+import type { WorkbookCopy } from '../../workbook/application/workbookPorts'
 
 /** An automatic sync waits this long after the last read or attempt, so returning to the tab does not refetch every time. */
 export const AUTO_SYNC_INTERVAL_MS = 10 * 60_000
@@ -7,6 +7,8 @@ export const AUTO_SYNC_INTERVAL_MS = 10 * 60_000
 export interface AutoSyncMoment {
   /** Epoch milliseconds. */
   readonly now: number
+  /** The device switch for auto-sync. */
+  readonly switchedOn: boolean
   readonly status: WorkbookStatus
   /** A file on Drive is chosen and a kept token is still good. */
   readonly silent: boolean
@@ -17,9 +19,9 @@ export interface AutoSyncMoment {
   readonly lastAttemptAt: number | null
 }
 
-/** Whether to sync without a click now: only with no popup needed, and at most once per interval. */
+/** Whether to sync without a click now: only while this device has it on, with no popup needed, and at most once per interval. */
 export function autoSyncDue(moment: AutoSyncMoment): boolean {
-  if (!moment.silent || !moment.online || moment.status === 'opening' || moment.status === 'syncing') {
+  if (!moment.switchedOn || !moment.silent || !moment.online || moment.status === 'opening' || moment.status === 'syncing') {
     return false
   }
   const syncedAt = moment.syncedAt === null ? Number.NEGATIVE_INFINITY : Date.parse(moment.syncedAt)
@@ -29,8 +31,10 @@ export function autoSyncDue(moment: AutoSyncMoment): boolean {
 
 export interface AutoSyncPorts {
   readonly store: Pick<WorkbookStore<WorkbookCopy>, 'state' | 'open' | 'canSyncSilently'>
-  /** The whole sync: the file read and whatever follows it. */
+  /** Every step of a sync, the books first. */
   sync(): Promise<void>
+  /** The device switch for auto-sync. */
+  switchedOn(): boolean
   now(): number
   online(): boolean
   /** Calls back whenever the page becomes visible again. Returns the function that stops it. */
@@ -47,6 +51,7 @@ export function startAutoSync(ports: AutoSyncPorts): () => void {
     const now = ports.now()
     const due = autoSyncDue({
       now,
+      switchedOn: ports.switchedOn(),
       status: store.state.status,
       silent: store.canSyncSilently(),
       online: ports.online(),

@@ -30,7 +30,7 @@ export function scopeTransactions(transactions: readonly Transaction[], filters:
       includes(filters.accounts, transaction.account) &&
       includes(filters.buckets, transaction.bucket) &&
       includes(filters.families, transaction.family) &&
-      includes(filters.categories, transaction.category) &&
+      inCategories(filters.categories, transaction) &&
       includes(filters.counterparties, counterpartyIdentity(transaction).key) &&
       (min === null || transaction.amount >= min) &&
       (max === null || transaction.amount <= max) &&
@@ -58,7 +58,7 @@ export function scopeOwnerAdvances(advances: readonly OwnerAdvance[], filters: F
     (advance) =>
       includes(filters.buckets, advance.bucket) &&
       includes(filters.families, advance.family) &&
-      (includes(filters.categories, advance.category) || filters.categories.includes(EVERY_OWNER_ADVANCE)) &&
+      (inCategories(filters.categories, advance) || filters.categories.includes(EVERY_OWNER_ADVANCE)) &&
       (min === null || -advance.amount >= min) &&
       (max === null || -advance.amount <= max) &&
       (text === '' || fold([OWNER_COUNTERPARTY, advance.description, advance.category].join(' ')).includes(text)),
@@ -75,6 +75,15 @@ export function advancesLeftOutByBankFilters(advances: readonly OwnerAdvance[], 
   }
   const withoutBankFilters = { ...filters, accounts: [], counterparties: [], needsReview: false }
   return transactionsInPeriod(scopeOwnerAdvances(advances, withoutBankFilters), filters.period, window).length
+}
+
+/**
+ * Whether a row is in the categories chosen. The owner's part of a shared row counts in the benefit
+ * category, but the row was filed in its source category, so a choice of either finds it.
+ */
+function inCategories(categories: readonly string[], row: Pick<Transaction, 'category' | 'ownerPart'> | Pick<OwnerAdvance, 'category' | 'ownerPart'>): boolean {
+  const part = row.ownerPart
+  return includes(categories, row.category) || (part?.side === 'owner' && categories.includes(part.sourceCategory))
 }
 
 function includes<Value>(selection: readonly Value[], candidate: Value): boolean {

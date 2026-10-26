@@ -33,3 +33,8 @@ export async function googleFetch(url: string, accessToken: string, init: Reques
   }
   return response
 }
+
+/** Whether Google turned the call's token away, as it does once the token runs out or loses its grant. */
+export function isUnauthorized(failure: unknown): boolean {
+  return failure instanceof GoogleApiError && failure.status === 401
+}

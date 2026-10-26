@@ -2,9 +2,7 @@
 import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { yearOf } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
-import { monthLabel } from '../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { negateMoney } from '../../../shared/money/money'
 import { formatMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
@@ -15,6 +13,9 @@ import KpiTile from '../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../shared/ui/ShowAllButton.vue'
 import { useFilters } from '../../../features/filters/application/filterStore'
+import { filterChips } from '../../../features/filters/domain/filterChips'
+import { periodRange } from '../../../features/filters/domain/filterState'
+import { periodInWords } from '../../../features/filters/domain/periodInWords'
 import { chartedMonths } from '../../../features/filters/domain/periodPresets'
 import DrillChartCard from '../../../features/filters/presentation/DrillChartCard.vue'
 import type { FilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
@@ -24,30 +25,29 @@ import { recordsOfKindIn } from '../../../features/workbook/domain/readWorkbook'
 import type { RecordId } from '../../../features/workbook/domain/recordId'
 import { NO_RECORDS, recordWithId } from '../../../features/workbook/domain/recordsRead'
 import type { Transaction } from '../../../features/workbook/domain/workbook'
-import { netOwed, ownerAdvances } from '../domain/ownerAdvances'
-import { loanBenefitByYear } from '../domain/ownerLoanInterest'
-import { loanMonths, ownerLoans } from '../domain/ownerLoans'
+import { owedInPeriod } from '../domain/owedInPeriod'
+import type { PeriodBalance } from '../domain/owedInPeriod'
+import { ownerAdvances } from '../domain/ownerAdvances'
+import { loanMonths } from '../domain/ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from '../domain/packRoles'
-import { percentText } from '../domain/payroll/payrollArithmetic'
-import { ruleValue } from '../ruleset/ruleset'
 import AdvanceList from './AdvanceList.vue'
 import type { AdvanceLine } from './AdvanceList.vue'
-import LoanBenefitCard from './LoanBenefitCard.vue'
 import LoanList from './LoanList.vue'
 import type { LoanLine } from './LoanList.vue'
-import { LENT_SERIES, OUTSTANDING_SERIES, REPAID_SERIES, loanTimelineChart } from './packCharts'
+import { LENT_SERIES, REPAID_SERIES, loanTimelineChart } from './packCharts'
 import { hrDooWorkbook } from '../domain/hrDooPart'
 import { OWNER_ADVANCE_RECORDS } from '../domain/hrDooKinds'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
 import AdvanceDialog from './AdvanceDialog.vue'
 
 /**
- * Who owes whom between the owner and the company, over the whole ledger whatever the filters, since
- * a loan stays owed however long ago it was lent.
+ * Who owes whom between the owner and the company over the period in view: the balances as the books
+ * stood on its last day, and what was lent, repaid, paid and reimbursed in it. The other filters do
+ * not apply, since a balance of one account or category is no debt anyone owes.
  */
 const props = defineProps<{
   ledger: FilteredLedger
-  /** The newest booking, which ends this year's benefit in kind. */
+  /** The newest booking, the day a new advance defaults to. */
   asOf: CivilDate
 }>()
 
@@ -79,75 +79,61 @@ function partOfPayment(whole: Transaction, note: string): string {
 }
 
 const owed = computed(() => {
-  const { window } = props.ledger
+  const { window, filters } = props.ledger
   const workbook = hrDooWorkbook(props.ledger.booked)
   const { categories, transactions } = workbook
   const tokens = chartTokens()
-  const loans = ownerLoans(transactions, categories)
-  const advances = ownerAdvances(workbook.ownerAdvances, transactions, categories)
-  const balance = netOwed(loans, advances, categories)
-  const benefits = loanBenefitByYear(workbook, props.asOf, ruleValue)
-  const thisYear = benefits.find((benefit) => benefit.year === yearOf(props.asOf)) ?? null
-  const months = loanMonths(transactions, categories, chartedMonths({ preset: 'all' }, window), window)
-  const lastMonth = months[months.length - 1]
+  const period = periodInWords(filters.period, window)
+  const inPeriod = owedInPeriod(workbook, filters.period, window, props.asOf)
+  const balance = inPeriod.net
+  const on = day(inPeriod.on)
+  const unaccounted = ownerAdvances(workbook.ownerAdvances, transactions, categories).unaccounted
+  const months = loanMonths(transactions, categories, chartedMonths(filters.period, window), window)
+  const lentInMonths = months.reduce((sum, month) => sum + month.lent.amount, 0)
+  const repaidInMonths = months.reduce((sum, month) => sum + month.repaid.amount, 0)
   const colours = { lent: tokens.buckets['owner-pay'], repaid: tokens.buckets.income }
+  const figuresOf = (balances: PeriodBalance, labels: readonly [string, string, string, string]) =>
+    [balances.start, balances.added, balances.settled, balances.end].map((figure, index) => ({
+      label: labels[index]!,
+      amount: figure.amount,
+      to: figure.drill === null ? null : drillLocation(figure.drill),
+    }))
   return {
-    benefits,
+    period,
+    on,
+    inView: { range: periodRange(filters.period, window), words: period },
     tiles: [
       {
         label: 'Net owed',
         value: formatWholeMoney(balance.amount),
         to: drillLocation(balance.drill),
-        caption: balance.amount > 0 ? 'The owner owes the company' : balance.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way',
+        caption: `${balance.amount > 0 ? 'The owner owes the company' : balance.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way'} on ${on}`,
         definition:
-          `All time, one balance across both directions. The owner owes the company what was lent, private costs and the owner's parts of split company payments included, ` +
+          `One balance across both directions, as the books stood on ${on}, the last day of the period or the newest booking. The owner owes the company what was lent, private costs and the owner's parts of split company payments included, ` +
           `less what the owner paid back on a loan or reimbursement category (${formatWholeMoney(balance.loanBalance)}). ` +
           `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(balance.advancesOutstanding)}). ` +
-          (advances.unaccountedTotal > 0
-            ? `That figure counts the reimbursements with no cost on file (${formatMoney(advances.unaccountedTotal)}) as paid to the owner until their costs are added. `
+          (inPeriod.unaccountedTotal > 0
+            ? `That figure counts the reimbursements with no cost on file (${formatMoney(inPeriod.unaccountedTotal)}) as paid to the owner until their costs are added. `
             : '') +
           'Positive means the owner owes the company. A private cost the company paid in full counts as lent only when its row is in a category with the owner-loan-out role.',
       },
-      ...(thisYear === null
-        ? []
-        : [
-            {
-              label: 'Benefit in kind',
-              value: formatMoney(thisYear.figure.amount),
-              to: { path: '/owner', hash: '#owner-loan-benefit' },
-              caption:
-                thisYear.carried >= thisYear.prescribed
-                  ? `None at the ${percentText(thisYear.carried)} the loans carry`
-                  : `${thisYear.year} so far, ${percentText(thisYear.prescribed)} less ${percentText(thisYear.carried)} charged`,
-              definition:
-                'What the loans to the owner are worth as pay in kind this year: the income tax law’s rate less the rate the loans carry, on each day’s balance. It is taxed through payroll.',
-            },
-          ]),
     ],
     hasLoanRoles: categoriesWithRole(categories, PACK_ROLES.ownerLoanOut).length > 0 && categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid).length > 0,
-    unaccounted: advances.unaccounted.length,
-    openCount: loans.openCount,
-    oldestOpen: loans.oldestOpen === null ? null : day(loans.oldestOpen),
+    otherFilters: filters.accounts.length > 0 || filterChips(filters, { counterparty: String, bucket: String, category: String }).length > 0,
+    unaccounted: unaccounted.length,
+    openCount: inPeriod.openLoans,
+    oldestOpen: inPeriod.oldestOpenLoan === null ? null : day(inPeriod.oldestOpenLoan),
     timeline: loanTimelineChart(months, colours, tokens),
     timelineLegend: [
       { label: LENT_SERIES, colour: colours.lent },
       { label: REPAID_SERIES, colour: colours.repaid },
-      { label: OUTSTANDING_SERIES, colour: 'var(--chart-ink)', mark: 'line' as const },
     ],
-    timelineSummary: lastMonth === undefined ? 'No months to show' : `${formatWholeMoney(lastMonth.outstanding.amount)} owed at the end of ${monthLabel(lastMonth.month)}`,
-    loanSummary: [
-      { label: 'Lent', amount: loans.lent.amount, to: drillLocation(loans.lent.drill) },
-      { label: 'Repaid', amount: loans.repaid.amount, to: drillLocation(loans.repaid.drill) },
-      { label: 'Still owed', amount: loans.outstanding.amount, to: drillLocation(loans.outstanding.drill) },
-    ],
-    advanceSummary: [
-      { label: 'Paid by the owner', amount: advances.advanced.amount, to: drillLocation(advances.advanced.drill) },
-      { label: 'Reimbursed', amount: advances.reimbursed.amount, to: drillLocation(advances.reimbursed.drill) },
-      { label: 'Owed to the owner', amount: advances.outstanding.amount, to: drillLocation(advances.outstanding.drill) },
-    ],
-    advancesSummary: `${advances.advances.length} ${advances.advances.length === 1 ? 'cost' : 'costs'}, ${formatWholeMoney(advances.outstanding.amount)} owed to the owner`,
-    loansSummary: `${loans.loans.length} ${loans.loans.length === 1 ? 'loan' : 'loans'}, ${loans.openCount === 0 ? 'none open' : `${loans.openCount} open`}`,
-    advances: [...advances.advances].reverse().map(
+    timelineSummary: months.length === 0 ? 'No months to show' : `${formatWholeMoney(lentInMonths)} lent, ${formatWholeMoney(repaidInMonths)} repaid`,
+    loanSummary: figuresOf(inPeriod.loans, ['Owed at the start', 'Lent', 'Repaid', 'Owed at the end']),
+    advanceSummary: figuresOf(inPeriod.advances, ['Owed at the start', 'Paid by the owner', 'Reimbursed', 'Owed at the end']),
+    advancesSummary: `${inPeriod.advanceList.length} ${inPeriod.advanceList.length === 1 ? 'cost' : 'costs'}, ${formatWholeMoney(inPeriod.advances.end.amount)} owed to the owner on ${on}`,
+    loansSummary: `${inPeriod.loanList.length} ${inPeriod.loanList.length === 1 ? 'loan' : 'loans'}, ${inPeriod.openLoans === 0 ? 'none open' : `${inPeriod.openLoans} open`} on ${on}`,
+    advances: [...inPeriod.advanceList].reverse().map(
       (line): AdvanceLine => ({
         id: line.advance.id,
         paidOn: day(line.advance.date),
@@ -166,7 +152,7 @@ const owed = computed(() => {
         })),
       }),
     ),
-    loans: [...loans.loans].reverse().map(
+    loans: [...inPeriod.loanList].reverse().map(
       (loan, index): LoanLine => ({
         key: `${loan.lentOn}-${index}`,
         lentOn: day(loan.lentOn),
@@ -193,6 +179,11 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
 
 <template>
   <div class="flex flex-col gap-6">
+    <p v-if="owed.otherFilters" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="owner-owed-filters">
+      <UIcon name="i-lucide-funnel-x" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+      <span>Who owes whom follows the period only. The accounts and the other filters apply on Taken.</span>
+    </p>
+
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="owner-owed-tiles">
       <KpiTile v-for="tile in owed.tiles" :key="tile.label" v-bind="tile" />
     </div>
@@ -200,13 +191,11 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
     <p v-if="owed.unaccounted > 0" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="owner-unaccounted">
       <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
       <span>
-        {{ owed.unaccounted }} {{ owed.unaccounted === 1 ? 'reimbursement' : 'reimbursements' }} to the owner with no cost on file
+        Whatever the period, {{ owed.unaccounted }} {{ owed.unaccounted === 1 ? 'reimbursement' : 'reimbursements' }} to the owner with no cost on file
         {{ owed.unaccounted === 1 ? 'waits' : 'wait' }} on Review. Net owed counts {{ owed.unaccounted === 1 ? 'it' : 'them' }} as paid to the owner until the cost is added.
         <DrillLink to="/review" in-prose class="font-medium text-highlighted">Open Review</DrillLink>
       </span>
     </p>
-
-    <LoanBenefitCard v-if="owed.hasLoanRoles" :benefits="owed.benefits" :as-of="asOf" />
 
     <div class="wide-pair">
       <AppCard
@@ -217,13 +206,13 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
         data-testid="owner-loans"
       >
         <template #subtitle>
-          All time, private costs and the owner's parts of split company payments included. Repayments first close the loans they equal exactly. The rest go to the
-          oldest open loan first, and one that outruns a loan carries on to the next.
+          {{ owed.period }}. Each loan with a balance in the period, as it stood on {{ owed.on }}, private costs and the owner's parts of split company payments
+          included. Repayments first close the loans they equal exactly. The rest go to the oldest open loan first, and one that outruns a loan carries on to the next.
           <template v-if="owed.openCount > 0">{{ owed.openCount }} open, the oldest from {{ owed.oldestOpen }}.</template>
           <template v-else>None open.</template>
         </template>
         <template #header>
-          <dl class="grid grid-cols-3 gap-3">
+          <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="owner-loans-figures">
             <div v-for="figure in owed.loanSummary" :key="figure.label" class="min-w-0">
               <dt class="text-xs text-muted">{{ figure.label }}</dt>
               <dd class="text-sm font-medium text-highlighted">
@@ -233,7 +222,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
           </dl>
         </template>
         <div class="px-4 pt-1 pb-2 sm:px-5">
-          <LoanList :loans="shownLoans" />
+          <LoanList :loans="shownLoans" :empty="`No loan to the owner had a balance in ${owed.period}.`" />
         </div>
         <ShowAllButton v-if="owed.loans.length > FIRST_SHOWN" v-model:expanded="showAllLoans" :total="owed.loans.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>
@@ -241,12 +230,12 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
       <AppCard title="Costs the owner paid privately" collapse-id="owner.advances" :summary="owed.advancesSummary" data-testid="owner-advances">
         <template #subtitle>
           <span class="block max-w-[65ch]">
-            All time, from the owner-advances tab. Each counts as a cost on its date, in its category. Reimbursements to the owner first repay the costs they
-            equal exactly, and the rest repay the oldest first. They stay outside profit and loss.
+            {{ owed.period }}, from the owner-advances tab. Each cost owed in the period, as it stood on {{ owed.on }}. Each counts as a cost on its date, in its
+            category. Reimbursements to the owner first repay the costs they equal exactly, and the rest repay the oldest first. They stay outside profit and loss.
           </span>
         </template>
         <template #header>
-          <dl class="grid grid-cols-3 gap-3">
+          <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="owner-advances-figures">
             <div v-for="figure in owed.advanceSummary" :key="figure.label" class="min-w-0">
               <dt class="text-xs text-muted">{{ figure.label }}</dt>
               <dd class="text-sm font-medium text-highlighted">
@@ -256,7 +245,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
           </dl>
         </template>
         <div class="px-4 pt-1 pb-2 sm:px-5">
-          <AdvanceList :advances="shownAdvances" :busy="state.writing" @edit="editAdvance" />
+          <AdvanceList :advances="shownAdvances" :busy="state.writing" :empty="`No cost the owner paid privately was owed in ${owed.period}.`" @edit="editAdvance" />
         </div>
         <ShowAllButton v-if="owed.advances.length > FIRST_SHOWN" v-model:expanded="showAllAdvances" :total="owed.advances.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>
@@ -266,8 +255,8 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
       v-if="owed.hasLoanRoles"
       :chart="owed.timeline"
       title="Loans to the owner, by month"
-      subtitle="Lent below zero, repaid above it, and the balance since the ledger began."
-      definition="The line is lent less repaid over every row since the ledger began."
+      :subtitle="`${owed.period}. Lent below zero and repaid above it.`"
+      definition="What was lent to the owner and repaid each month. The balance at each month's end is beside the ring on Taken."
       collapse-id="owner.loan-months"
       :summary="owed.timelineSummary"
       start-collapsed
@@ -276,6 +265,6 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
     >
       <template #legend><ChartLegend :entries="owed.timelineLegend" /></template>
     </DrillChartCard>
-    <AdvanceDialog v-model:open="editingOpen" :categories="ledger.workbook.categories" :default-date="asOf" :editing="editing" />
+    <AdvanceDialog v-model:open="editingOpen" :categories="ledger.workbook.categories" :default-date="asOf" :editing="editing" :in-view="owed.inView" />
   </div>
 </template>

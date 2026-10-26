@@ -167,9 +167,29 @@ async function chooseRole(page, press, row, role) {
   if (chips !== role) throw new Error(`the roles menu shows "${chips}" after picking ${role}`)
 }
 
-/** Categories: add stationery, give it a colour from the pop-up, a label on a tab without the column and a role, delete it, and Undo the delete. */
+/**
+ * Categories: add stationery, which scrolls the table to the new row under its sticky header and
+ * focuses its name, give it a colour from the pop-up, a label on a tab without the column and a
+ * role, delete it, and Undo the delete.
+ */
 export async function categoryFlow(page, { press, shoot }) {
   await pressSelector(page, press, '[data-testid="add-category"]')
+  await page
+    .waitForFunction(
+      () => {
+        const added = [...document.querySelectorAll('[data-testid="category-row"]')].at(-1)
+        const frame = document.querySelector('[data-testid="categories-frame"]')
+        const header = frame?.querySelector('thead th')
+        if (!added || !frame || !header || document.activeElement !== added.querySelector('input[aria-label="Category"]')) return false
+        const frameBox = frame.getBoundingClientRect()
+        const rowBox = added.getBoundingClientRect()
+        return frame.scrollTop > 0 && Math.abs(header.getBoundingClientRect().top - frameBox.top) < 1 && rowBox.top >= frameBox.top && rowBox.bottom <= frameBox.bottom + 1
+      },
+      { timeout: 5_000 },
+    )
+    .catch(() => {
+      throw new Error('Add category did not scroll the table to the new row under its header and focus its name')
+    })
   const added = (await page.$$('[data-testid="category-row"]')).at(-1)
   await setField(await fieldIn(added, 'Category'), 'stationery')
   await setField(await fieldIn(added, 'Family'), 'operating')
@@ -208,6 +228,115 @@ export async function categoryFlow(page, { press, shoot }) {
   const colour = await (await back.$('[data-testid="colour-swatch-button"]')).evaluate((button) => button.getAttribute('aria-label'))
   if (colour !== 'Colour of Paper and pens: Blue') throw new Error(`Undo brought stationery back as "${colour}"`)
   await dismissToasts(page)
+}
+
+/** The names of the categories rows on screen, in their order. */
+function categoriesShown(page) {
+  return page.$$eval('[data-testid="category-row"]', (rows) => rows.map((row) => row.querySelector('input')?.value ?? ''))
+}
+
+async function categoriesShow(page, wanted, why) {
+  await page
+    .waitForFunction(
+      (names) => JSON.stringify([...document.querySelectorAll('[data-testid="category-row"]')].map((row) => row.querySelector('input')?.value ?? '')) === JSON.stringify(names),
+      { timeout: 5_000 },
+      wanted,
+    )
+    .catch(async () => {
+      throw new Error(`${why}: the table shows ${(await categoriesShown(page)).join(', ')}`)
+    })
+}
+
+async function categoryCountSays(page, wanted) {
+  await page
+    .waitForFunction((text) => document.querySelector('[data-testid="category-count"]')?.textContent?.trim() === text, { timeout: 5_000 }, wanted)
+    .catch(async () => {
+      throw new Error(`the count says "${await page.$eval('[data-testid="category-count"]', (element) => element.textContent?.trim())}", not "${wanted}"`)
+    })
+}
+
+/** Picks a bucket in the categories filters, from the sheet behind the Filters button on a phone. */
+async function filterCategoriesByBucket(page, press, bucket) {
+  const sheet = await page.$('[data-testid="open-category-filters"]')
+  if (sheet !== null) {
+    await press(sheet)
+    await page.waitForSelector('[role="dialog"] [data-testid="category-bucket-filter"]', { visible: true, timeout: 5_000 })
+    await delay(400)
+  }
+  await choose(page, press, await page.$('[data-testid="category-bucket-filter"]'), bucket)
+  if (sheet !== null) {
+    const close = await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.trim() === 'Show categories') ?? null)
+    await press(close.asElement())
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
+    await delay(300)
+  }
+}
+
+async function sortDirection(page, label) {
+  return page.$eval(`th:has(> button[aria-label="Sort by ${label}"])`, (header) => header.getAttribute('aria-sort'))
+}
+
+/**
+ * Categories, found and sorted: a search with its count, the taxes bucket sorted by name with a
+ * press and then the keyboard, and an edit while filtered and sorted by family. The row stays in
+ * place while it is typed in, stays in view with its error once its new bucket leaves the filter,
+ * leaves the list once saved and comes back with Undo.
+ */
+export async function categoryFiltersFlow(page, { press, shoot }) {
+  await page.waitForSelector('input[data-testid="category-search"]', { visible: true })
+  await categoryCountSays(page, '33 categories')
+  await setField(await page.$('input[data-testid="category-search"]'), 'reimbursement')
+  await categoriesShow(page, ['reimbursement-to-owner', 'reimbursement-from-owner'], 'a search for reimbursement')
+  await categoryCountSays(page, '2 of 33 categories')
+  await shoot('categories-search')
+  await pressSelector(page, press, '[data-testid="category-filters"] button[aria-label="Clear the search"]')
+  await categoryCountSays(page, '33 categories')
+
+  await filterCategoriesByBucket(page, press, 'taxes')
+  await categoriesShow(page, ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'the taxes bucket in the tab order')
+  await categoryCountSays(page, '5 of 33 categories')
+  await pressSelector(page, press, 'button[aria-label="Sort by category"]')
+  await categoriesShow(page, ['corporate-income-tax', 'dividend-tax', 'payroll-contributions', 'payroll-tax', 'tax-refund'], 'a press on Category')
+  if ((await sortDirection(page, 'category')) !== 'ascending') throw new Error('the Category header does not say it sorts ascending')
+  await page.focus('button[aria-label="Sort by category"]')
+  await page.keyboard.press('Enter')
+  await categoriesShow(page, ['tax-refund', 'payroll-tax', 'payroll-contributions', 'dividend-tax', 'corporate-income-tax'], 'Enter on Category')
+  if ((await sortDirection(page, 'category')) !== 'descending') throw new Error('the Category header does not say it sorts descending')
+  await shoot('categories-sorted')
+  await page.keyboard.press('Space')
+  await categoriesShow(page, ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'a third press on Category')
+  if ((await sortDirection(page, 'category')) !== null) throw new Error('the Category header still says it sorts')
+
+  await pressSelector(page, press, 'button[aria-label="Sort by family"]')
+  const order = ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax']
+  await categoriesShow(page, order, 'a press on Family')
+  const row = await rowNamed(page, '[data-testid="category-row"]', 'tax-refund')
+  await setField(await fieldIn(row, 'Family'), '')
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('[data-testid="category-row"]')][0]?.querySelector('.field-error')?.textContent?.trim() === 'Required', { timeout: 5_000 })
+    .catch(() => {
+      throw new Error('a blank family shows no error while the table is filtered and sorted')
+    })
+  if (!(await page.$eval('[data-testid="save-categories"]', (button) => button.disabled))) throw new Error('Save is on while a row is in error')
+  await setField(await fieldIn(row, 'Family'), 'zz-refunds')
+  await delay(200)
+  await categoriesShow(page, order, 'typing a family that sorts last')
+  await choose(page, press, await row.$('[aria-label="Bucket"]'), 'income')
+  await categoriesShow(page, order, 'a new bucket outside the filter')
+  await page.waitForFunction(() => document.querySelector('[data-testid="category-kept"]')?.textContent?.trim() === '1 of them shows only for an unsaved change or an error.', { timeout: 5_000 }).catch(() => {
+    throw new Error('the count does not say a row shows only for its unsaved change')
+  })
+  await shoot('categories-edit-filtered')
+
+  await pressSelector(page, press, '[data-testid="save-categories"]')
+  await toast(page, 'Categories saved')
+  await categoriesShow(page, ['payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'tax-refund saved in the income bucket')
+  await undo(page, press)
+  await categoriesShow(page, order, 'Undo of the save')
+  if ((await sortDirection(page, 'family')) !== 'ascending') throw new Error('the sort by family did not outlast the save')
+  await dismissToasts(page)
+  await pressSelector(page, press, '[data-testid="clear-category-filters"]')
+  await categoryCountSays(page, '33 categories')
 }
 
 /** Owner: change the newest advance's description, delete it, and Undo the delete. */
@@ -959,7 +1088,9 @@ export function importTableFlow(path) {
   }
 }
 
-const SYNC_BUTTON = '[data-testid="sync-status"] button'
+const SYNC_BUTTON = '[data-testid="sync-button"]'
+const SYNC_STEPS = '[data-testid="sync-steps"]'
+const SYNC_CARD = '[data-testid="sync-card"]'
 
 /** Waits for a toast whose title matches the pattern, which must be the only one, since earlier ones were dismissed. Returns its text. */
 async function toastMatching(page, pattern) {
@@ -978,39 +1109,100 @@ async function toastMatching(page, pattern) {
   return shown.jsonValue()
 }
 
-/** Presses the Sync button on screen, the top bar's or the sidebar's, and waits until the sync and its statements step are done. */
-async function syncAndSettle(page, press) {
-  const button = await page
+/** Fails when a toast shows within a moment, since a sync reports in its control and its steps only. */
+async function noToast(page, failure) {
+  await delay(1_000)
+  const said = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((element) => element.textContent?.trim()).join(' | '), TOAST)
+  if (said !== '') throw new Error(`${failure}: ${said}`)
+}
+
+/** The sync control on screen, the top bar's or the sidebar's. */
+async function syncButton(page) {
+  return page
     .waitForFunction((selector) => [...document.querySelectorAll(selector)].find((element) => element.offsetParent !== null) ?? null, { timeout: 10_000 }, SYNC_BUTTON)
     .then((handle) => handle.asElement())
     .catch(() => {
       throw new Error('no Sync button on screen')
     })
-  await press(button)
+}
+
+/** Waits until the sync control shows the state, and returns what its button says and what a screen reader hears. */
+async function controlShows(page, kind) {
   await page
-    .waitForFunction((selector) => [...document.querySelectorAll(selector)].some((element) => element.offsetParent !== null && !element.disabled), { timeout: 10_000, polling: 100 }, SYNC_BUTTON)
+    .waitForFunction((wanted) => [...document.querySelectorAll('[data-testid="sync-status"]')].some((element) => element.offsetParent !== null && element.dataset.control === wanted), { timeout: 12_000, polling: 100 }, kind)
+    .catch(async () => {
+      const shown = await page.evaluate(() => [...document.querySelectorAll('[data-testid="sync-status"]')].map((element) => element.dataset.control).join(', '))
+      throw new Error(`the sync control does not show ${kind}, it shows ${shown || 'nothing'}`)
+    })
+  return (await syncButton(page)).evaluate((element) => ({ label: element.textContent?.trim() ?? '', name: element.getAttribute('aria-label') ?? '', disabled: element.disabled }))
+}
+
+/** Presses the sync control, the top bar's or the sidebar's, and waits until the sync and its steps are done. */
+async function syncAndSettle(page, press) {
+  await press(await syncButton(page))
+  await page
+    .waitForFunction((selector) => [...document.querySelectorAll(selector)].some((element) => element.offsetParent !== null && !element.disabled), { timeout: 12_000, polling: 100 }, SYNC_BUTTON)
     .catch(() => {
-      throw new Error('the sync did not finish within 10 s')
+      throw new Error('the sync did not finish within 12 s')
     })
 }
 
-const FILED = /^Filed statement \d+, 4 rows$/
+/** Waits until a step's line in the steps under `scope` is in the state and says the text. Returns the line's text. */
+async function stepSays(page, scope, step, state, pattern) {
+  const selector = `${scope} ${SYNC_STEPS} [data-step="${step}"]`
+  return page
+    .waitForFunction(
+      (css, wanted, source) => {
+        const line = [...document.querySelectorAll(css)].find((element) => element.offsetParent !== null)
+        return line !== undefined && line.dataset.state === wanted && new RegExp(source).test(line.textContent ?? '') ? line.textContent : null
+      },
+      { timeout: 10_000 },
+      selector,
+      state,
+      pattern.source,
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(async () => {
+      const said = await page.evaluate((css) => [...document.querySelectorAll(css)].map((line) => `${line.dataset.state}: ${line.textContent?.trim()}`).join(' | '), selector)
+      throw new Error(`the ${step} step is not ${state} matching ${pattern}, it says: ${said || 'nothing'}`)
+    })
+}
+
+async function openDeviceSettings(page) {
+  await page.evaluate(() => {
+    window.location.hash = '#/settings?tab=device'
+  })
+  await page.waitForSelector(SYNC_CARD, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, This device has no Sync card')
+  })
+}
+
+const FILED = /Filed statement \d+, 4 rows/
 
 /**
- * Sync files the sample statement from the fake statements folder with Undo, files it again once
- * undone, and Import lists it. A last sync finds nothing new, so it writes nothing and says nothing.
+ * Sync files the sample statement from the fake statements folder and says so in the statements
+ * step, not in a toast. Undo in the step's line on Settings, This device takes it out, the card's
+ * Sync again files it again, and Import lists it. A last sync finds nothing new and says so there.
  */
 export async function statementSyncFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
-  await toastMatching(page, FILED)
+  await noToast(page, 'a sync that filed a statement showed a toast')
+  await openDeviceSettings(page)
+  await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
+  await page.$eval(SYNC_CARD, (element) => element.scrollIntoView({ block: 'start' }))
+  await delay(300)
   await inspect?.('the statements filed')
   await shoot('statements-filed')
-  await undo(page, press)
+  await pressSelector(page, press, `${SYNC_CARD} [data-step="statements"] [data-testid="sync-step-undo"]`)
+  await toast(page, 'Undone')
+  await page.waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, `${SYNC_CARD} [data-testid="sync-step-undo"]`).catch(() => {
+    throw new Error('the statements step still offers Undo after it was undone')
+  })
   await dismissToasts(page)
 
-  await syncAndSettle(page, press)
-  await toastMatching(page, FILED)
-  await dismissToasts(page)
+  await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)
+  await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
+  await noToast(page, 'a sync from the Sync card showed a toast')
   await page.evaluate(() => {
     window.location.hash = '#/transactions?tab=import'
   })
@@ -1021,51 +1213,93 @@ export async function statementSyncFlow(page, { press, shoot, inspect }) {
   await shoot('statements-folder-filed')
 
   await syncAndSettle(page, press)
-  await delay(1_500)
-  const toasts = await page.evaluate((selector) => document.querySelectorAll(selector).length, TOAST)
-  if (toasts > 0) throw new Error('a sync that found nothing new showed a toast')
+  await noToast(page, 'a sync that found nothing new showed a toast')
   if (await page.$('[data-testid="statement-folder"]')) throw new Error('the folder card stayed after a sync that found nothing new')
+  await openDeviceSettings(page)
+  await stepSays(page, SYNC_CARD, 'statements', 'done', /Nothing new/)
 }
 
-/** With a statement of an account the accounts tab lacks in the folder, Sync files the sample, holds the other, and Overview links to Import, which says why. */
+/**
+ * With a statement of an account the accounts tab lacks in the folder, Sync files the sample and
+ * holds the other: the control says 1 problem, and its steps, in a popover from 640 px and a bottom
+ * sheet on a phone, link to Import, which says why. Overview lists the held statement too.
+ */
 export async function heldStatementFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
-  const said = await toastMatching(page, FILED)
-  if (!said.includes('1 statement was not filed')) throw new Error(`the toast does not say a statement was not filed, it says: ${said}`)
-  await dismissToasts(page)
-  const job = await page.waitForSelector('[data-job="statements"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('Overview has no line for the statement the sync held')
-  })
-  const text = await job.evaluate((element) => element.textContent ?? '')
-  if (!text.includes('1 statement was not filed')) throw new Error(`the held statement's line says: ${text}`)
-  await inspect?.('the held statement on Overview')
-  await shoot('statements-held-overview')
-  await pressSelector(page, press, '[data-job="statements"] a')
+  const control = await controlShows(page, 'problems')
+  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
+  await noToast(page, 'a sync that held a statement showed a toast')
+  await inspect?.('the sync control with a problem')
+  await shoot('sync-problem')
+  await press(await syncButton(page))
+  const said = await stepSays(page, '', 'statements', 'waits', /1 statement was not filed/)
+  if (!FILED.test(said)) throw new Error(`the statements step does not say what it filed, it says: ${said}`)
+  await delay(400)
+  await inspect?.('the steps of the last sync')
+  await shoot('sync-steps')
+  await pressSelector(page, press, `${SYNC_STEPS} [data-step="statements"] a`)
   await page
     .waitForFunction(() => document.querySelector('[data-testid="statement-folder"] [data-testid="dry-run-refusal"]')?.textContent?.includes('names no account for IBAN') ?? false, { timeout: 10_000 })
     .catch(() => {
       throw new Error('Import does not show why the statement was held')
     })
+  await page.waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, SYNC_STEPS).catch(() => {
+    throw new Error('the steps stayed open over Import')
+  })
   await delay(300)
   await inspect?.('the held statement on Import')
   await shoot('statements-held-import')
+  await page.evaluate(() => {
+    window.location.hash = '#/'
+  })
+  const job = await page.waitForSelector('[data-job="statements"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Overview has no line for the statement the sync held')
+  })
+  const text = await job.evaluate((element) => element.textContent ?? '')
+  if (!text.includes('1 statement was not filed')) throw new Error(`the held statement's line says: ${text}`)
 }
 
-/** A tab Google gave no Drive read token: Overview offers to check for new statements, and the check files the sample. */
-export async function statementCheckFlow(page, { press, shoot, inspect }) {
+/**
+ * A tab Google gave no Drive read token: Overview offers nothing, Sync reads the books and shows
+ * Allow access in its control, and that tap asks Google and files the sample, with no toast.
+ */
+export async function statementAccessFlow(page, { press, shoot, inspect }) {
   await page.evaluate(() => sessionStorage.setItem('ledgerboard.drive-read-refused', 'true'))
   await page.reload({ waitUntil: 'networkidle0' })
-  await page.waitForSelector('[data-job="check-statements"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('Overview does not offer to check for new statements')
-  })
-  await inspect?.('the offer to check for new statements')
-  await shoot('statements-check')
-  await pressSelector(page, press, '[data-testid="check-statements"]')
-  await toastMatching(page, FILED)
-  await page.waitForFunction(() => !document.querySelector('[data-job="check-statements"]'), { timeout: 5_000 }).catch(() => {
-    throw new Error('the offer to check stayed after the check')
-  })
-  await dismissToasts(page)
+  await controlShows(page, 'ready')
+  if (await page.$('[data-job="check-statements"]')) throw new Error('Overview still offers to check for new statements')
+  await syncAndSettle(page, press)
+  const control = await controlShows(page, 'allow-access')
+  if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
+  if (!control.name.includes('Statements and Accountant need your Drive read access')) throw new Error(`a screen reader hears "${control.name}"`)
+  await inspect?.('the sync control asking for access')
+  await shoot('sync-allow-access')
+  await syncAndSettle(page, press)
+  await controlShows(page, 'ready')
+  await noToast(page, 'the sync after Allow access showed a toast')
+  await openDeviceSettings(page)
+  await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
+  await stepSays(page, SYNC_CARD, 'hr-doo.accountant', 'done', /Read \d+ workbooks/)
+}
+
+/** With a slow statements folder, the control names the running step and its place, and a screen reader hears it, until the sync is done. */
+export async function syncRunningFlow(page, { press, shoot, inspect }) {
+  await press(await syncButton(page))
+  const running = await controlShows(page, 'running')
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="sync-button"]')?.getAttribute('aria-label')?.startsWith('Syncing, Statements, step 2 of 3') ?? false, { timeout: 10_000 })
+    .catch(async () => {
+      throw new Error(`the running control does not name the statements step, a screen reader hears "${running.name}"`)
+    })
+  const shown = await controlShows(page, 'running')
+  if (!shown.disabled) throw new Error('the sync control takes a tap while the sync runs')
+  if (!/^Statements 2\/3$|^Syncing$/.test(shown.label)) throw new Error(`the running control says "${shown.label}"`)
+  await inspect?.('the sync control while the statements step runs')
+  await shoot('sync-running')
+  const ready = await controlShows(page, 'ready')
+  if (!ready.name.startsWith('Synced ')) throw new Error(`the ready control is heard as "${ready.name}"`)
+  await inspect?.('the sync control once the sync is done')
+  await shoot('sync-ready')
 }
 
 /** Review: open the gadget purchase in the queue, then split it, edit and delete the split and Undo, as on Transactions. */
@@ -1171,6 +1405,8 @@ export async function statementsFolderFlow(page, { press, shoot, inspect }) {
   if (!(await said()).includes(unsetNote)) throw new Error(`the field does not say the settings name no folder, it says: ${await said()}`)
   const shown = await field.evaluate((element) => element.value)
   if (shown !== 'work/dss/business-bank-account/erste/statements') throw new Error(`the field shows "${shown}", not the path the app uses`)
+  const unsetKeys = await page.$eval('[data-testid="settings-unset"]', (element) => element.textContent ?? '').catch(() => '')
+  if (!unsetKeys.includes('statements_folder')) throw new Error(`Settings, General does not name the keys Save writes, it says: ${unsetKeys || 'nothing'}`)
   await inspect?.('the statements folder the settings lack')
   await shoot('statements-folder-unset')
 
@@ -1179,6 +1415,7 @@ export async function statementsFolderFlow(page, { press, shoot, inspect }) {
   await page.waitForFunction((selector, note) => !document.querySelector(selector)?.textContent?.includes(note), { timeout: 5_000 }, STATEMENTS_FOLDER, unsetNote).catch(() => {
     throw new Error('the field still says the settings name no folder after the save')
   })
+  if (await page.$('[data-testid="settings-unset"]')) throw new Error('Settings, General still names keys the settings lack after the save')
   await saveSettingsButton(page, false)
   await dismissToasts(page)
 
@@ -1459,11 +1696,12 @@ async function scrollToTopOf(page, selector) {
 }
 
 /**
- * Year, Taxes in Google mode reads the fake accountant folders: each card shows passing, differing
- * and unread rows, a file that does not read names its tab and row, and a differing badge opens the
- * rows it compared.
+ * Year, Taxes in Google mode shows the fake accountant folders as a sync read them: each card shows
+ * passing, differing and unread rows, a file that does not read names its tab and row, and a
+ * differing badge opens the rows it compared.
  */
 export async function accountantReturnsFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
   await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok', 'Sales ok'])
   await accountantRow(page, VAT_RETURNS, '2026-08', ['Could not read', 'Lokalni U, row 5: the lines do not add up to the total row'])
   await accountantRow(page, VAT_RETURNS, '2026-05', ['No return filed'])
@@ -1492,24 +1730,28 @@ export async function accountantReturnsFlow(page, { press, shoot, inspect }) {
 
 /**
  * A tab Google gave no Drive read token shows the read this device kept, with its date, and offers
- * the check for new statements, after which the cards read Drive again.
+ * no button of its own: Sync shows Allow access, after which the cards read Drive again.
  */
 export async function accountantKeptReadFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
   await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok'])
   await page.evaluate(() => sessionStorage.setItem('ledgerboard.drive-read-refused', 'true'))
   await page.reload({ waitUntil: 'networkidle0' })
   await accountantReadSays(page, 'kept on this device', 'the cards do not show the read this device kept')
   await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok'])
+  if (await page.$(`${ACCOUNTANT_READ} button`)) throw new Error('the accountant cards offer a button of their own')
   await scrollToTopOf(page, ACCOUNTANT_RETURNS)
   await inspect?.('the read this device kept')
   await shoot('accountant-kept-read')
-  await pressSelector(page, press, '[data-testid="accountant-check-statements"]')
-  await accountantReadSays(page, 'Read from Drive on', 'the cards did not read Drive after the check')
-  await toastMatching(page, FILED)
-  await dismissToasts(page)
+  await syncAndSettle(page, press)
+  await controlShows(page, 'allow-access')
+  await accountantReadSays(page, 'kept on this device', 'the cards read Drive without the Drive read token')
+  await syncAndSettle(page, press)
+  await accountantReadSays(page, 'Read from Drive on', 'the cards did not read Drive after Allow access')
+  await noToast(page, 'the sync after Allow access showed a toast')
 }
 
-/** Settings, General: the payroll folder saved as a new path, which Year, Taxes then reads and the fake Drive does not hold. */
+/** Settings, General: the payroll folder saved as a new path, which the next sync reads for Year, Taxes and the fake Drive does not hold, so the accountant step waits for you. */
 export async function accountantFoldersFlow(page, { press, shoot, inspect }) {
   const field = await page.waitForSelector('[data-testid="payroll-folder"] input', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('the facts card has no payroll folder field')
@@ -1528,6 +1770,9 @@ export async function accountantFoldersFlow(page, { press, shoot, inspect }) {
   await page.evaluate(() => {
     window.location.hash = '#/year?tab=taxes'
   })
+  await syncAndSettle(page, press)
+  const control = await controlShows(page, 'problems')
+  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}" for the folder the fake Drive lacks`)
   await page
     .waitForFunction((selector) => document.querySelector(`${selector} [data-testid="accountant-payroll-problem"]`)?.textContent?.includes('not in finance/payroll') ?? false, { timeout: 10_000 }, ACCOUNTANT_PAYROLL)
     .catch(() => {

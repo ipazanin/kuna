@@ -19,7 +19,8 @@
  * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
  * category, with its colour, a label and a role, an asset and an
  * invoice, changes and deletes an owner advance and undoes the delete, and screenshots the editors
- * and the invoice dialog on the way. On Settings, General it saves the statements folder the
+ * and the invoice dialog on the way. On Settings, Categories it searches, filters to a bucket, sorts
+ * by a press and the keyboard, and edits, saves and undoes a row while filtered and sorted. On Settings, General it saves the statements folder the
  * settings lack at the path the app uses, then a new path, and adds, refuses and removes card
  * settlement IBANs as tags. On Invoicing, Clients it gives a client a second IBAN, saves it and
  * undoes it, and takes a new IBAN off with its tag's remove button.
@@ -36,13 +37,16 @@
  * then deletes the rule from its editor and brings it back with Undo. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
  * new rows wait on Review and undoes it, then deletes the profile, at 360, 430 and 1440 px. With the
- * file on Drive, from Overview, Sync files the fake statements folder's sample statement, which Undo takes out
- * and Import lists, and a last sync finds nothing new and shows no toast. With a held statement in the
- * folder, Overview links to Import, which says why. A tab Google gave no Drive read token is offered
- * the check for new statements, which files the sample. On Year, Taxes the accountant's cards read the
- * fake accountant folders, name the tab and row of a file that does not read, and open the rows a
- * differing badge compared. Without the Drive read token they show the read this device kept and
- * offer the check, and a payroll folder saved on Settings, General that the fake Drive lacks is said.
+ * file on Drive, from Overview, Sync files the fake statements folder's sample statement with no
+ * toast, its step on Settings, This device says so with Undo, which takes it out, Import lists it,
+ * and a last sync finds nothing new. With a held statement in the folder, the sync control says 1
+ * problem and opens its steps, a popover at 1440 and a bottom sheet at 360, whose link opens Import,
+ * which says why. A tab Google gave no Drive read token gets Allow access in the sync control, which
+ * files the sample, and a slow statements folder shows the control while its step runs and once it
+ * is ready. On Year, Taxes the accountant's cards show the fake accountant folders a sync read, name
+ * the tab and row of a file that does not read, and open the rows a differing badge compared. Without
+ * the Drive read token they show the read this device kept until Allow access, and a payroll folder
+ * saved on Settings, General that the fake Drive lacks is said, with 1 problem in the sync control.
  * The first run keeps an empty workbook on the fake Drive and one in this browser, an xlsx file
  * moves to the fake Drive through its summary, Settings, This device moves a workbook kept in this
  * browser there, and a row confirmed on Review while another device files the other row keeps both.
@@ -78,6 +82,7 @@ import {
   advanceFlow,
   assetFlow,
   cardSettlementIbansFlow,
+  categoryFiltersFlow,
   categoryFlow,
   changeCategoryFlow,
   clientIbansFlow,
@@ -101,9 +106,10 @@ import {
   shareFillFlow,
   splitFlow,
   startingScenariosFlow,
-  statementCheckFlow,
+  statementAccessFlow,
   statementSyncFlow,
   statementsFolderFlow,
+  syncRunningFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -145,6 +151,7 @@ const CARD_SELECTOR = '.rounded-card, .gallery-frame'
 const SCREENS = [
   { name: 'overview', hash: '#/', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
   { name: 'transactions', hash: '#/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics', cards: false },
+  { name: 'transactions-owner-part', hash: '#/transactions?p=all&cat=equipment', title: 'Transactions', charts: 0, shows: ['30% to owner, from Equipment', 'Laptop Store'], cards: false },
   { name: 'import', hash: '#/transactions?tab=import', title: 'Transactions', charts: 0, shows: 'Drop a statement file here', cards: false },
   { name: 'analysis', hash: '#/analysis', title: 'Analysis', charts: 0, shows: ['External contractors', 'Who the company paid most'] },
   { name: 'analysis-over-time', hash: '#/analysis?tab=over-time', title: 'Analysis', charts: 2, shows: ['Rolling net', 'Cumulative net'] },
@@ -174,7 +181,7 @@ const SCREENS = [
     hash: '#/year?tab=taxes',
     title: 'Year',
     charts: 0,
-    shows: ['Corporate income tax, expected against paid', 'Payroll cadence', 'VAT returns', 'Carry differs', 'Payroll from the accountant', 'Rules differ', 'Could not read', 'Tax by type'],
+    shows: ['Corporate income tax, expected against paid', 'Payroll cadence', 'VAT returns', 'Payroll from the accountant', 'Tax by type'],
   },
   { name: 'year-forecast', hash: '#/year', title: 'Year', charts: 0, shows: 'The forecast needs the day the company was registered', cards: false },
   { name: 'year-plan', hash: '#/year?tab=plan', title: 'Year', charts: 0, shows: ['Plan for 2026', 'Revenue comes from the billing plan'], cards: false },
@@ -192,17 +199,11 @@ const SCREENS = [
     collapsedBefore: ['year.grant-rows'],
     linkedPart: 'grant-rows',
   },
-  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'Benefit in kind on the loans'] },
-  { name: 'owner-taken', hash: '#/owner?tab=taken', title: 'Owner', charts: 1, shows: ['Owner take by type', 'Loans, net', 'Benefits from company costs', 'of it from company costs', 'needs hr_company_registered'], cards: false },
-  {
-    name: 'owner-benefit',
-    hash: '#/owner#owner-loan-benefit',
-    title: 'Owner',
-    charts: 0,
-    shows: '3 loans with a balance',
-    collapsedBefore: ['owner.loan-benefit'],
-    linkedPart: 'owner-loan-benefit',
-  },
+  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Owner take by type', 'Loans, net', 'Owed by the owner at each month end', 'Net share of gross cost', 'Monthly net pay', 'Benefits from company costs', 'of it from company costs', 'needs hr_company_registered'], cards: false },
+  { name: 'owner-2025', hash: '#/owner?p=2025', title: 'Owner', charts: 2, shows: ['Jan 2025 – Dec 2025', 'Owner take by type', 'Monthly net pay', 'over 8 months'], cards: false },
+  { name: 'owner-owed', hash: '#/owner?tab=owed', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'The company owes the owner on 30 Sept 2026', 'Owed at the end'] },
+  { name: 'owner-owed-2025', hash: '#/owner?tab=owed&p=2025', title: 'Owner', charts: 0, shows: ['The owner owes the company on 31 Dec 2025', 'No cost the owner paid privately was owed in Jan 2025 – Dec 2025'] },
+  { name: 'owner-owed-filtered', hash: '#/owner?tab=owed&p=all&cat=equipment', title: 'Owner', charts: 0, shows: ['Who owes whom follows the period only', 'The owner owes the company on 8 Oct 2026'] },
   { name: 'review', hash: '#/review', title: 'Review', charts: 0, shows: ['GADGET CORNER', 'Refund of a parking fee'] },
   { name: 'review-rules', hash: '#/review?tab=rules', title: 'Review', charts: 0, shows: ['merchant-airline', 'Confirmed rows no rule repeats'] },
   {
@@ -280,8 +281,8 @@ const SOURCE_SCREENS = [
     linkedPart: 'accountant-lines',
   },
   { name: 'year-asset-rows-browser', query: 'fake=browser', hash: '#/year?tab=assets#asset-rows', title: 'Year', charts: 0, shows: 'Save assets', linkedPart: 'asset-rows' },
-  { name: 'owner-browser', query: 'fake=browser', hash: '#/owner', title: 'Owner', charts: 0, shows: 'so they give no benefit in kind' },
-  { name: 'owner-taken-browser', query: 'fake=browser', hash: '#/owner?tab=taken', title: 'Owner', charts: 1, shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults'], cards: false },
+  { name: 'owner-browser', query: 'fake=browser', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults', 'Monthly net pay'], cards: false },
+  { name: 'owner-owed-browser', query: 'fake=browser', hash: '#/owner?tab=owed&p=all', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'Net owed'] },
   { name: 'year-forecast-browser', query: 'fake=browser', hash: '#/year?year=2026', title: 'Year', charts: 1, shows: ['Month by month, 2026', 'plan rows of 2026 are not invoiced yet', 'Plan against actual, 2026'] },
   { name: 'year-forecast-2027-browser', query: 'fake=browser', hash: '#/year?year=2027', title: 'Year', charts: 1, shows: ['Month by month, 2027', 'Values the ruleset only estimates for 2027'] },
   { name: 'year-pay-browser', query: 'fake=browser', hash: '#/year?year=2027&tab=pay', title: 'Year', charts: 1, shows: ['Dividend capacity', 'Where the profit before owner pay goes, 2027', '1 warning', 'Side by side'] },
@@ -544,11 +545,12 @@ const FLOWS = [
   { name: 'page-tabs', hash: '#/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
   { name: 'categories', hash: '#/settings?tab=categories', title: 'Settings', run: categoryFlow },
+  { name: 'categories-filters', hash: '#/settings?tab=categories', title: 'Settings', run: categoryFiltersFlow },
   { name: 'settings-statements-folder', hash: '#/settings', title: 'Settings', run: statementsFolderFlow },
   { name: 'settings-card-ibans', hash: '#/settings', title: 'Settings', run: cardSettlementIbansFlow },
   { name: 'clients-ibans', hash: '#/invoicing?tab=clients', title: 'Invoicing', run: clientIbansFlow },
   { name: 'assets', hash: '#/year?tab=assets#asset-rows', title: 'Year', run: assetFlow },
-  { name: 'advances', hash: '#/owner', title: 'Owner', run: advanceFlow },
+  { name: 'advances', hash: '#/owner?tab=owed', title: 'Owner', run: advanceFlow },
   { name: 'invoices', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceFlow },
   { name: 'invoice-run', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceRunFlow },
   { name: 'scenarios', hash: '#/year?year=2027&tab=pay', title: 'Year', run: scenarioFlow, viewports: ['phone', 'phone-large', 'desktop'] },
@@ -580,7 +582,8 @@ const FLOWS = [
   { name: 'import-table', hash: '#/transactions?tab=import', title: 'Transactions', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'statements-sync', hash: '#/', title: 'Overview', run: statementSyncFlow, modes: ['drive'] },
   { name: 'statements-held', hash: '#/', title: 'Overview', run: heldStatementFlow, modes: ['drive'], queries: { drive: '&fake=held-statement' } },
-  { name: 'statements-check', hash: '#/', title: 'Overview', run: statementCheckFlow, modes: ['drive'] },
+  { name: 'statements-access', hash: '#/', title: 'Overview', run: statementAccessFlow, modes: ['drive'] },
+  { name: 'sync-running', hash: '#/', title: 'Overview', run: syncRunningFlow, modes: ['drive'], queries: { drive: '&fake=slow-statements' } },
   { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['drive'] },
   { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['drive'] },
   { name: 'accountant-folders', hash: '#/settings#accountant-folders', title: 'Settings', run: accountantFoldersFlow, modes: ['drive'] },

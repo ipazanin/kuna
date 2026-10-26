@@ -120,22 +120,24 @@ const dialogOpen = ref(false)
     <template #aside>
       <div class="flex flex-col" data-testid="owner-benefits-dividend">
         <template v-if="comparison.state === 'ready'">
-          <p class="comparison-row">
+          <p class="donut-row comparison-row">
             <span class="min-w-0 text-toned">Tax avoided against a dividend</span>
             <BuildUpButton :cents="comparison.taxAvoided.cents" label="Tax avoided against a dividend" class="shrink-0 font-medium text-highlighted" @open="dialogOpen = true" />
           </p>
-          <p class="comparison-row">
+          <p class="donut-row comparison-row">
             <span class="min-w-0 text-toned">As a dividend you would net</span>
             <MoneyText :cents="comparison.asDividend" class="shrink-0 text-highlighted" />
           </p>
         </template>
-        <p v-else-if="comparison.state === 'unregistered'" class="text-sm text-toned">
+        <p v-else-if="comparison.state === 'unregistered'" class="note text-sm text-toned">
           The tax a dividend would cost needs <span class="identifier">hr_company_registered</span>, the day the first tax period starts.
           <DrillLink :to="{ path: '/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
         </p>
-        <p v-else class="text-sm text-toned">The tax a dividend would cost could not be worked out. {{ comparison.failure }}</p>
-        <p class="mt-2 text-xs text-muted">{{ ESTIMATE }}</p>
-        <DrillLink :to="DEFAULTS" class="mt-1 self-start text-xs text-highlighted" data-testid="owner-benefits-defaults">Set the defaults</DrillLink>
+        <p v-else class="note text-sm text-toned">The tax a dividend would cost could not be worked out. {{ comparison.failure }}</p>
+        <div class="note flex flex-col items-start gap-1 text-xs">
+          <p class="text-muted">{{ ESTIMATE }}</p>
+          <DrillLink :to="DEFAULTS" class="text-highlighted" data-testid="owner-benefits-defaults">Set the defaults</DrillLink>
+        </div>
       </div>
       <FigureDialog v-if="comparison.state === 'ready'" v-model:open="dialogOpen" :detail="comparison.taxAvoided" />
     </template>
@@ -148,8 +150,10 @@ const dialogOpen = ref(false)
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  min-height: 2.75rem;
-  border-bottom: 1px solid var(--border-default);
-  font-size: 0.875rem;
+}
+
+/* Padded so its first line sits level with the text of the legend row beside it. */
+.note {
+  padding-top: 0.5rem;
 }
 </style>

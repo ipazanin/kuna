@@ -13,6 +13,7 @@ export interface AdvancePrefill {
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -20,6 +21,8 @@ import UModal from '@nuxt/ui/components/Modal.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
+import { rangeContains } from '../../../shared/calendar/dateRange'
+import type { DateRange } from '../../../shared/calendar/dateRange'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { amountOf } from '../../../shared/money/money'
 import { typedAmount } from '../../../shared/money/typedAmount'
@@ -27,6 +30,8 @@ import { formatMoney } from '../../../shared/money/moneyFormat'
 import { ownerAdvanceOfDraft } from '../application/ownerAdvanceWrites'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
+import { useFilters } from '../../../features/filters/application/filterStore'
+import { advanceDrill } from '../../../features/filters/domain/drillTarget'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import { ADVANCE_BUCKETS } from '../../../features/workbook/domain/workbook'
 import type { Category } from '../../../features/workbook/domain/workbook'
@@ -43,12 +48,16 @@ const props = withDefaults(
     prefill?: AdvancePrefill | null
     /** The advance the form changes, as the tab holds it. Null adds a new one. */
     editing?: OwnerAdvanceEntry | null
+    /** The days the page shows, all of them when the range is null. A cost saved outside them says so. */
+    inView?: { readonly range: DateRange | null; readonly words: string } | null
   }>(),
-  { prefill: null, editing: null },
+  { prefill: null, editing: null, inView: null },
 )
 
 const writes = useRecordWrites()
 const names = useDisplayNames()
+const router = useRouter()
+const { drillLocation } = useFilters()
 const phone = usePhoneLayout()
 
 const date = ref<string>(props.defaultDate)
@@ -97,15 +106,24 @@ async function save(): Promise<void> {
   const draft = { date: day, amount: parsedAmount.value, description: description.value, category: category.value }
   const before = props.editing
   const advance = ownerAdvanceOfDraft(draft, props.categories, before)
+  const outside = outsideView(advance.date)
+  const rows = outside === '' ? null : drillLocation(advanceDrill(advance))
   const written = await writes.write(
     before === null ? 'Advance added' : 'Advance changed',
     (unit) => (before === null ? unit.of(OWNER_ADVANCE_WRITES).add(advance) : unit.of(OWNER_ADVANCE_WRITES).change(before, advance)),
     {
-      description: `${formatMoney(advance.amount)} as ${names.value.category(advance.category)}.`,
+      description: `${formatMoney(advance.amount)} as ${names.value.category(advance.category)}.${outside}`,
       failedTitle: before === null ? 'Not added' : 'Not changed',
+      ...(rows === null ? {} : { follow: { label: 'Open it', icon: 'i-lucide-list', run: () => void router.push(rows) } }),
     },
   )
   if (written) open.value = false
+}
+
+/** Says that a cost dated outside the period in view is saved but not listed. */
+function outsideView(day: CivilDate): string {
+  const shown = props.inView
+  return shown === null || shown.range === null || rangeContains(shown.range, day) ? '' : ` Outside the period in view, ${shown.words}, so the page does not list it.`
 }
 
 async function remove(): Promise<void> {

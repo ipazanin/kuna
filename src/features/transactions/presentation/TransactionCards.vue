@@ -17,6 +17,7 @@ import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import type { ShareTarget } from '../../owner-share/domain/ownerShare'
 import { categoryChangeOf } from '../domain/categoryChange'
+import { ownerPartOrigin } from '../../owner-share/domain/ownerParts'
 import { OWNER_ADVANCE_LABEL, listedOwnerPart, partPlace, withPartHeadings } from '../domain/listedRows'
 import type { ListedBankRow, ListedRow } from '../domain/listedRows'
 import type { Transaction } from '../../workbook/domain/workbook'
@@ -93,10 +94,9 @@ function partLabel(row: ListedRow): string | null {
   return place === null ? null : `Part ${place.number} of ${place.count}${note === '' ? '' : `, ${note}`}`
 }
 
-/** The owner's part of a shared row names the category and share it comes from. */
-function ownerPartOrigin(row: ListedRow): string | null {
-  const part = listedOwnerPart(row)
-  return part?.side === 'owner' ? `from ${names.value.category(part.sourceCategory)}, ${part.share}%` : null
+/** The owner's part of a shared row names the share and the category it comes from. */
+function ownerPartNote(row: ListedRow): string | null {
+  return ownerPartOrigin(listedOwnerPart(row), names.value.category)
 }
 </script>
 
@@ -187,7 +187,7 @@ function ownerPartOrigin(row: ListedRow): string | null {
             <span class="flex items-center justify-between gap-3 text-xs text-muted">
               <span class="flex min-w-0 items-center gap-1.5">
                 <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
-                <span v-if="ownerPartOrigin(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartOrigin(entry.row) }}</span>
+                <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
                 <span v-else class="truncate text-toned">{{ entry.row.category === '' ? 'No category' : names.category(entry.row.category) }}</span>
                 <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
               </span>

@@ -11,6 +11,9 @@ import { useFilteredLedger } from '../../../features/transactions/application/us
 import { useWorkbook } from '../../../features/workbook/application/workbookStore'
 import { newestBookingOf } from '../../../features/workbook/domain/workbook'
 import LedgerGate from '../../../features/workbook/presentation/LedgerGate.vue'
+import { periodRange } from '../../../features/filters/domain/filterState'
+import { periodInWords } from '../../../features/filters/domain/periodInWords'
+import FilterBar from '../../../features/filters/presentation/FilterBar.vue'
 import { PACK_ROLES, categoriesWithRole } from '../domain/packRoles'
 import type { PackRole } from '../domain/packRoles'
 import AdvanceDialog from './AdvanceDialog.vue'
@@ -20,8 +23,8 @@ import OwnerPayOff from './OwnerPayOff.vue'
 import TakenPanel from './TakenPanel.vue'
 
 const TABS: readonly PageTab[] = [
-  { label: 'Who owes whom', value: 'owed', icon: 'i-lucide-arrow-left-right' },
   { label: 'Taken', value: 'taken', icon: 'i-lucide-hand-coins' },
+  { label: 'Who owes whom', value: 'owed', icon: 'i-lucide-arrow-left-right' },
 ]
 
 const ledger = useFilteredLedger()
@@ -33,6 +36,12 @@ const asOf = computed(() => newestBookingOf(ledger.value?.workbook.transactions 
 
 /** The pay mixes look a year ahead, so the link opens the year after the newest booking. */
 const payMixes = computed(() => ({ path: '/year', query: { tab: 'pay', ...(asOf.value === null ? {} : { year: String(yearOf(asOf.value) + 1) }) } }))
+
+/** The days both tabs show, so a new advance outside them says so. */
+const inView = computed(() => {
+  const current = ledger.value
+  return current === null ? null : { range: periodRange(current.filters.period, current.window), words: periodInWords(current.filters.period, current.window) }
+})
 
 /** The roles both tabs read, said once under the header. */
 const missing = computed(() => {
@@ -49,7 +58,7 @@ const missing = computed(() => {
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Owner" description="Who owes whom between the owner and the company, and what the owner took out.">
+    <PageHeader title="Owner" description="What the owner took out, and who owes whom between the owner and the company.">
       <template v-if="settings.ownerPayModule" #actions>
         <UButton
           label="Add advance"
@@ -66,15 +75,18 @@ const missing = computed(() => {
     <LedgerGate v-else>
       <template v-if="ledger && asOf">
         <MissingRoles :missing="missing" />
-        <PageTabs :tabs="TABS" label="Who owes whom and what the owner took">
-          <template #owed>
-            <OwedPanel :ledger="ledger" :as-of="asOf" />
+        <PageTabs :tabs="TABS" label="What the owner took and who owes whom">
+          <template #above>
+            <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
           </template>
           <template #taken>
             <TakenPanel :ledger="ledger" :as-of="asOf" />
           </template>
+          <template #owed>
+            <OwedPanel :ledger="ledger" :as-of="asOf" />
+          </template>
         </PageTabs>
-        <AdvanceDialog v-model:open="addingAdvance" :categories="ledger.workbook.categories" :default-date="asOf" />
+        <AdvanceDialog v-model:open="addingAdvance" :categories="ledger.workbook.categories" :default-date="asOf" :in-view="inView" />
       </template>
     </LedgerGate>
   </section>

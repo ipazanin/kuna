@@ -191,7 +191,7 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
           id="owner-loan-interest"
           label="Interest the owner's loans carry, % a year"
           :error="errors.ownerLoanInterest ?? false"
-          help="Below the income tax law's rate, the difference on each day's balance is a benefit in kind, which Owner and Year work out."
+          help="Below the income tax law's rate, the difference on each day's balance is a benefit in kind, which Year works out."
         >
           <UInput :model-value="loanInterestText" inputmode="decimal" class="w-full" data-testid="owner-loan-interest" @update:model-value="updateLoanInterest(String($event))" />
         </UFormField>
@@ -213,6 +213,13 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
         label="Depreciation rates are doubled"
         description="The default for assets. An asset row can still say otherwise."
         @update:model-value="updateFact('depreciationDoubled', $event)"
+      />
+      <USwitch
+        :model-value="facts.accountantSync"
+        label="Read the accountant's files on sync"
+        description="Each sync reads the VAT returns and salary workbooks of the two folders below for Year, Taxes. Off keeps the last read on this device."
+        data-testid="accountant-sync"
+        @update:model-value="updateFact('accountantSync', $event)"
       />
       <div id="accountant-folders" class="grid gap-4 sm:grid-cols-2">
         <UFormField

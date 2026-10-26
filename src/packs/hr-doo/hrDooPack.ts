@@ -12,7 +12,7 @@ import { findLocalUnit } from './ruleset/localUnits'
 /** The pages that break the taxes and the owner pay further down than the spending breakdown. */
 const COST_GROUP_LINKS: Readonly<Record<string, { readonly label: string; readonly to: RouteLocationRaw }>> = {
   taxes: { label: 'Year, Taxes', to: { path: '/year', query: { tab: 'taxes' } } },
-  'owner-pay': { label: 'Owner, Taken', to: { path: '/owner', query: { tab: 'taken' } } },
+  'owner-pay': { label: 'Owner, Taken', to: { path: '/owner' } },
 }
 
 /** The Croatian d.o.o. pack: owner pay, taxes, the accountant's year end and the assets, on core's screens and its own. */
@@ -44,4 +44,15 @@ export const hrDooPack: PackContribution = {
     },
   },
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,
+  syncSteps: [
+    {
+      id: 'hr-doo.accountant',
+      label: 'Accountant',
+      scope: 'drive.readonly',
+      startLine: 'Reading the accountant’s files',
+      on: (workbook) => hrDooWorkbook(workbook).companyFacts.accountantSync,
+      // Loaded with its first run, so the readers of the accountant's files stay out of the pack's entry chunk.
+      run: async () => (await import('./presentation/taxes/useAccountantDocuments')).readAccountantFiles(),
+    },
+  ],
 }

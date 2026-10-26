@@ -5,21 +5,22 @@ import UApp from '@nuxt/ui/components/App.vue'
 
 import WelcomeScreen from './features/data-source/presentation/WelcomeScreen.vue'
 import LocalWorkbookStatus from './features/excel/presentation/LocalWorkbookStatus.vue'
-import { useStatementSync } from './features/imports/presentation/useStatementSync'
 import { bindFiltersToRouter } from './features/filters/application/filterStore'
 import { shownPack } from './features/packs/packContribution'
 import { useSettings } from './features/settings/application/useSettings'
-import { startAutoSync } from './features/workbook/application/autoSync'
+import { startAutoSync } from './features/sync/application/autoSync'
+import { autoSyncOn } from './features/sync/infrastructure/autoSyncSwitch'
+import SyncStatus from './features/sync/presentation/SyncStatus.vue'
+import { useSync } from './features/sync/presentation/useSync'
 import { useWorkbook } from './features/workbook/application/workbookStore'
 import type { RedirectReturn } from './shared/google/googleRedirect'
 import { needsReview } from './features/workbook/domain/needsReview'
-import { syncStateOf } from './features/workbook/presentation/syncState'
+import { useFindDriveFile } from './features/workbook/presentation/useFindDriveFile'
 import { useGoogleReturn } from './features/workbook/presentation/useGoogleReturn'
 import { screenLoading } from './shared/routing/router'
 import { screensWith } from './shared/routing/screens'
 import AppShell from './shared/ui/AppShell.vue'
 import ScreenSkeleton from './shared/ui/ScreenSkeleton.vue'
-import SyncStatus from './shared/ui/SyncStatus.vue'
 import UpdatePrompt from './shared/ui/UpdatePrompt.vue'
 
 const props = defineProps<{
@@ -30,7 +31,8 @@ const props = defineProps<{
 const settings = useSettings()
 const store = useWorkbook()
 const { state } = store
-const statements = useStatementSync()
+const sync = useSync()
+const { findDriveFile } = useFindDriveFile()
 
 /** Review's menu item counts every row that waits, whatever the filters, since the queue has no period. */
 const rowsToReview = computed(() => state.workbook?.transactions.filter(needsReview).length ?? 0)
@@ -45,10 +47,11 @@ const navigation = computed(() =>
 )
 
 bindFiltersToRouter(useRouter())
-useGoogleReturn(props.googleReturn, statements.syncByHand)
+useGoogleReturn(props.googleReturn, sync.sync)
 const stopAutoSync = startAutoSync({
   store,
-  sync: statements.sync,
+  sync: sync.sync,
+  switchedOn: () => autoSyncOn.value,
   now: () => Date.now(),
   online: () => navigator.onLine,
   onVisible(callback) {
@@ -60,10 +63,6 @@ const stopAutoSync = startAutoSync({
   },
 })
 onBeforeUnmount(stopAutoSync)
-
-/** A sync reads the file on Drive, then looks for new statements there, and the control says which. */
-const syncState = computed(() => (statements.state.step === null ? syncStateOf(state) : 'syncing'))
-const syncStep = computed(() => statements.state.step ?? { kind: 'reading' as const })
 
 /** Nothing chosen and nothing kept: the first run, which asks where the ledger lives. */
 const firstRun = computed(() => state.status !== 'opening' && state.choice === null && state.workbook === null)
@@ -85,12 +84,12 @@ const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))
         <LocalWorkbookStatus v-if="state.choice?.source === 'browser'" :compact="compact" />
         <SyncStatus
           v-else
-          :state="syncState"
-          :synced-at="state.syncedAt"
-          :error-message="state.error ?? ''"
+          :control="sync.control.value"
+          :run="sync.run.value"
           :compact="compact"
-          :step="syncStep"
-          @sync="statements.syncByHand"
+          @sync="sync.sync"
+          @allow="sync.allowAccess"
+          @find="findDriveFile('find')"
         />
       </template>
     </AppShell>
