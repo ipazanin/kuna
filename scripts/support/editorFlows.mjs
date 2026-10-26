@@ -1492,7 +1492,7 @@ export async function mailFailedFlow(page, { press, shoot, inspect }) {
 
 /** A token without Gmail read shows Allow access for the mail step as the app opens, and that tap runs it. */
 export async function mailAccessFlow(page, { press, shoot, inspect }) {
-  await page.evaluate(() => localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly'])))
+  await page.evaluate(() => localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose'])))
   await page.reload({ waitUntil: 'networkidle0' })
   const control = await controlShows(page, 'allow-access')
   if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
