@@ -1,8 +1,9 @@
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { folderPathOf } from '../../../shared/text/folderPath'
+import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../features/mail/domain/mailSource'
 import { booleanOf, flagText } from '../../../features/settings/domain/settings'
-import type { PackSettings } from '../../../features/settings/domain/settings'
+import type { PackSettings, SettingDefinition } from '../../../features/settings/domain/settings'
 
 const BASIS_POINTS_PER_WHOLE = 10_000
 
@@ -36,11 +37,21 @@ export interface CompanyFacts {
   readonly payrollFolder: readonly string[]
   /** Whether a sync reads the folders that are named. */
   readonly accountantSync: boolean
+  /** The addresses the accountant mails from, in lower case. None leaves the accountant's mail unread. */
+  readonly accountantMailFrom: readonly string[]
+  /** The words the subject of each kind of the accountant's mail starts with. Blank leaves that kind unread. */
+  readonly payrollMailSubject: string
+  readonly vatMailSubject: string
+  readonly invoicesMailSubject: string
+  /** The Drive folder the accountant's own invoices are filed in, as folder names from My Drive down. None until one is chosen. */
+  readonly incomingInvoicesFolder: readonly string[]
 }
 
 export const VAT_RETURNS_FOLDER_KEY = 'hr_vat_returns_folder'
 
 export const PAYROLL_FOLDER_KEY = 'hr_payroll_folder'
+
+export const INCOMING_INVOICES_FOLDER_KEY = 'hr_incoming_invoices_folder'
 
 /** The pack's settings keys, read and checked whatever the owner-pay switch says. */
 export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
@@ -53,6 +64,11 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     vatReturnsFolder: [],
     payrollFolder: [],
     accountantSync: true,
+    accountantMailFrom: [],
+    payrollMailSubject: '',
+    vatMailSubject: '',
+    invoicesMailSubject: '',
+    incomingInvoicesFolder: [],
   },
   definitions: [
   {
@@ -135,7 +151,45 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       return enabled === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { accountantSync: enabled })
     },
   },
+  {
+    key: 'hr_accountant_mail_from',
+    note: "The addresses the accountant mails from, comma separated. Each sync then looks in Gmail for the payroll, the VAT returns and the accountant's invoices whose subject is set. Blank leaves the accountant's mail unread.",
+    type: 'text',
+    valueOf: (facts) => facts.accountantMailFrom.join(', '),
+    apply: (facts, value) => {
+      const senders = mailAddressesOf(value)
+      return mailAddressesProblem(senders) ?? withFacts(facts, { accountantMailFrom: senders })
+    },
+  },
+  mailSubjectDefinition('hr_payroll_mail_subject', 'payrollMailSubject', 'The words the subject of the payroll mail starts with, before the month, such as Plaća za. Blank leaves it unread.'),
+  mailSubjectDefinition('hr_vat_mail_subject', 'vatMailSubject', 'The words the subject of the VAT return mail starts with, before the period, such as PDV za. Blank leaves it unread.'),
+  mailSubjectDefinition('hr_invoices_mail_subject', 'invoicesMailSubject', "The words the subject of the accountant's invoice mail starts with, such as Račun za. Blank leaves it unread."),
+  {
+    key: INCOMING_INVOICES_FOLDER_KEY,
+    note: "The Google Drive folder the accountant's own invoices are filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
+    type: 'text',
+    valueOf: (facts) => facts.incomingInvoicesFolder.join('/'),
+    apply: (facts, value) => {
+      const folders = folderPathOf(value)
+      return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { incomingInvoicesFolder: folders })
+    },
+  },
 ],
+}
+
+type MailSubjectFact = 'payrollMailSubject' | 'vatMailSubject' | 'invoicesMailSubject'
+
+function mailSubjectDefinition(key: string, fact: MailSubjectFact, note: string): SettingDefinition<CompanyFacts> {
+  return {
+    key,
+    note,
+    type: 'text',
+    valueOf: (facts) => facts[fact],
+    apply: (facts, value) => {
+      const subject = value.trim()
+      return mailSubjectProblem(subject) ?? withFacts(facts, { [fact]: subject })
+    },
+  }
 }
 
 function withFacts(facts: CompanyFacts, changed: Partial<CompanyFacts>): CompanyFacts {
@@ -143,13 +197,19 @@ function withFacts(facts: CompanyFacts, changed: Partial<CompanyFacts>): Company
 }
 
 /** The facts a typed value can be wrong in, which the facts card shows an error under. */
-export type CompanyFactsField = 'ownerLoanInterest'
+export type CompanyFactsField = 'ownerLoanInterest' | 'accountantMailFrom' | MailSubjectFact
 
 /** What is wrong with facts typed in the app, by field. The same rules as reading the keys, so facts saved from the app read back without a problem. */
 export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyFactsField, string>> {
   const errors: Partial<Record<CompanyFactsField, string>> = {}
   const loanInterest = ownerLoanInterestProblem(facts.ownerLoanInterest)
   if (loanInterest !== null) errors.ownerLoanInterest = loanInterest
+  const senders = mailAddressesProblem(facts.accountantMailFrom)
+  if (senders !== null) errors.accountantMailFrom = senders
+  for (const fact of ['payrollMailSubject', 'vatMailSubject', 'invoicesMailSubject'] as const) {
+    const subject = mailSubjectProblem(facts[fact])
+    if (subject !== null) errors[fact] = subject
+  }
   return errors
 }
 

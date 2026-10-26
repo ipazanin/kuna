@@ -22,6 +22,7 @@
  * for a sign-in, the find and the Picker a tap resumes, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Settings, This device and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
+ * the mail step off and then saved on the Mail card, saying what it would file with its list, nothing new, a failed source in a bottom sheet and Allow access for Gmail read,
  * Salaries with five made-up employees, its gross to net chart's tap-then-drill, a sync's payslips with the one problem's build-up and rows, the People tab and the Over time table,
  * the accountant's VAT returns and payroll on Year, Taxes as a sync read them with a differing badge opening its rows, the read this device kept until Allow access reads again,
  * and the payroll folder saved on Settings, General,
@@ -77,6 +78,11 @@ import {
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
+  mailAccessFlow,
+  mailFailedFlow,
+  mailNothingNewFlow,
+  mailOffFlow,
+  mailWouldFileFlow,
   moveFromBrowserFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
@@ -964,6 +970,11 @@ async function checkWidth(width) {
     ['statements-held', '&fake=held-statement', heldStatementFlow],
     ['statements-access', '', statementAccessFlow],
     ['sync-running', '&fake=slow-statements', syncRunningFlow],
+    ['mail-off', '', mailOffFlow],
+    ['mail-would-file', '&fake=mail', mailWouldFileFlow],
+    ['mail-nothing-new', '&fake=mail-nothing-new', mailNothingNewFlow],
+    ['mail-failed', '&fake=mail-failed', mailFailedFlow],
+    ['mail-access', '&fake=mail', mailAccessFlow],
     ['salaries', '&fake=five-employees', salariesFlow, '#/salaries', 'Salaries'],
     ['accountant-returns', '', accountantReturnsFlow, '#/year?tab=taxes', 'Year'],
     ['accountant-kept-read', '', accountantKeptReadFlow, '#/year?tab=taxes', 'Year'],
@@ -1354,8 +1365,8 @@ async function checkWidth(width) {
   await step('google-return', async () => {
     const scopeOf = (...names) => encodeURIComponent(['openid', ...names.map((name) => `https://www.googleapis.com/auth/${name}`)].join(' '))
     const tokenOf = (scope, state = 'touch-check') => `access_token=fake-one-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=${state}`
-    const everyScope = scopeOf('drive.file', 'drive.readonly', 'gmail.compose')
-    const tapAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], resume: 'sync', route: '#/transactions', ask: 'tap' }
+    const everyScope = scopeOf('drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose')
+    const tapAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose'], resume: 'sync', route: '#/transactions', ask: 'tap' }
     const silentAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/review', ask: 'silent' }
     /** Loads the app as Google sends the tab back, with what the tab remembered before it left, nothing kept from an earlier grant and invoice drafts off. */
     const comeBack = async (variant, pending, fragment) => {
@@ -1403,7 +1414,7 @@ async function checkWidth(width) {
     await expect(hashOf(page), (hash) => hash === '#/transactions', 'the return did not land on the route the tap left')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address')
     await expect(tokenKept(), (kept) => !kept, 'the token was kept in site storage, not in page memory only')
-    await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']), 'the full grant was not noted')
+    await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose']), 'the full grant was not noted')
     await expect(noMessage(), (none) => none, 'the full grant showed a message')
     await inspect(page, `${width}px full grant return`)
     await shoot('google-return-full-grant')

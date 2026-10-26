@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { PackContribution } from '../../features/packs/packContribution'
+import { ACCOUNTANT_MAIL_SOURCES } from './application/accountantMailSources'
 import { COMPANY_FACT_SETTINGS, PAYROLL_FOLDER_KEY, VAT_RETURNS_FOLDER_KEY, companyFactsErrors } from './domain/companyFacts'
 import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
@@ -42,7 +43,7 @@ export const hrDooPack: PackContribution = {
     {
       id: 'hr-doo.accountant',
       label: 'Accountant',
-      scope: 'drive.readonly',
+      scopes: ['drive.readonly'],
       startLine: 'Reading the accountant’s files',
       on: (workbook) => {
         const { accountantSync, vatReturnsFolder, payrollFolder } = hrDooWorkbook(workbook).companyFacts
@@ -52,6 +53,7 @@ export const hrDooPack: PackContribution = {
       run: async () => (await import('./presentation/taxes/useAccountantDocuments')).readAccountantFiles(),
     },
   ],
+  mailSources: ACCOUNTANT_MAIL_SOURCES,
   onboarding: {
     question: 'Is this a Croatian d.o.o. that pays its owner?',
     yes: "Yes, add owner pay, taxes, year end and the accountant's files",

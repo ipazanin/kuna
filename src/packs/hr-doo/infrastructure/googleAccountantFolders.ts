@@ -23,7 +23,7 @@ export function googleAccountantFolders(accessToken: string): AccountantFolders 
           const files: ListedFile[] = []
           let level = [folder.id]
           while (level.length > 0) {
-            const [inLevel, inside] = await Promise.all([filesInside(accessToken, level, ['id', 'name', 'mimeType', 'version']), foldersInside(accessToken, level)])
+            const [inLevel, inside] = await Promise.all([filesInside(accessToken, level, ['id', 'name', 'mimeType', 'version']), foldersInside(accessToken, level, ['id'])])
             files.push(...inLevel)
             level = inside.map((child) => child.id)
           }

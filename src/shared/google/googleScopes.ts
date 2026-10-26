@@ -1,14 +1,15 @@
 /** A Google permission the app asks for, by the short name the sync and the settings use. */
-export type GoogleScope = 'drive.file' | 'drive.readonly' | 'gmail.compose'
+export type GoogleScope = 'drive.file' | 'drive.readonly' | 'gmail.readonly' | 'gmail.compose'
 
 const SCOPE_NAMES: Readonly<Record<GoogleScope, string>> = {
   'drive.file': 'https://www.googleapis.com/auth/drive.file',
   'drive.readonly': 'https://www.googleapis.com/auth/drive.readonly',
+  'gmail.readonly': 'https://www.googleapis.com/auth/gmail.readonly',
   'gmail.compose': 'https://www.googleapis.com/auth/gmail.compose',
 }
 
 /** Every scope the app knows, in the order a request lists them. */
-export const GOOGLE_SCOPES: readonly GoogleScope[] = ['drive.file', 'drive.readonly', 'gmail.compose']
+export const GOOGLE_SCOPES: readonly GoogleScope[] = ['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose']
 
 /** Asked for with every request, so the app can read which account signed in, for the login hint. */
 const SIGN_IN_SCOPES = 'openid email'
@@ -34,5 +35,6 @@ export function scopesOf(scopes: Iterable<GoogleScope>): GoogleScope[] {
 export const NOT_GRANTED: Readonly<Record<GoogleScope, string>> = {
   'drive.file': 'Google Drive access was not allowed, so the app cannot read or save the books.',
   'drive.readonly': 'Drive read access was not allowed, so the app cannot read your Drive folders.',
+  'gmail.readonly': 'Gmail read access was not allowed, so the app cannot look for the mail it would file.',
   'gmail.compose': 'Gmail access was not allowed, so no draft can be saved. Leave "Create the mail draft" off to write the mail yourself.',
 }

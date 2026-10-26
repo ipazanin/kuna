@@ -61,7 +61,7 @@ export function useStatementSync(): StatementSync {
   /** What the step did, in one line: what it filed with the rows that wait on Review, the notes of each statement, and how many it held. */
   function resultOf(outcome: StatementSyncOutcome): StepResult {
     if (outcome.problem !== null) {
-      return { kind: 'failed', line: outcome.problem }
+      return { kind: 'failed', line: outcome.problem, link: null }
     }
     const receipt = outcome.receipt
     const write = receipt === null ? undefined : store.state.writes.find((written) => written.receipt === receipt)
@@ -88,7 +88,7 @@ export function useStatementSync(): StatementSync {
     step: {
       id: 'statements',
       label: 'Statements',
-      scope: 'drive.readonly',
+      scopes: ['drive.readonly'],
       startLine: lineOf({ kind: 'looking' }),
       on: (workbook) => workbook.settings.statementsSync && workbook.settings.statementsFolder.length > 0,
       async run(report) {

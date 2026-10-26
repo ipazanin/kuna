@@ -8,7 +8,8 @@ import USlideover from '@nuxt/ui/components/Slideover.vue'
 import { syncAge } from '../../../shared/calendar/syncAge'
 import { usePhoneLayout } from '../../../shared/layout/viewport'
 import { listInWords } from '../../workbook/domain/slug'
-import type { SyncControl, SyncRun, SyncScope } from '../domain/syncRun'
+import { SCOPE_WORDS } from '../domain/syncRun'
+import type { SyncControl, SyncRun } from '../domain/syncRun'
 import SyncStepList from './SyncStepList.vue'
 
 /**
@@ -57,12 +58,6 @@ const ticking = setInterval(() => {
   now.value = new Date()
 }, 60_000)
 onBeforeUnmount(() => clearInterval(ticking))
-
-const SCOPE_WORDS: Readonly<Record<SyncScope, string>> = {
-  'drive.file': 'a Google sign-in',
-  'drive.readonly': 'your Drive read access',
-  'gmail.compose': 'your Gmail drafts access',
-}
 
 const syncedAt = computed(() => (props.control.kind === 'ready' && props.control.syncedAt !== null ? new Date(props.control.syncedAt) : null))
 

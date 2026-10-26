@@ -12,7 +12,7 @@ export function googleStatementFolder(accessToken: string): StatementFolder {
         case 'ambiguous':
           return { kind: 'refused', reason: `${folder.where} holds ${folder.count} folders named "${folder.name}", so the app cannot tell which one holds the statements. Rename or remove the others in Drive.` }
         case 'found': {
-          const years = await foldersInside(accessToken, [folder.id])
+          const years = await foldersInside(accessToken, [folder.id], ['id'])
           return { kind: 'listed', files: await filesInside(accessToken, years.map((year) => year.id), ['id', 'name']) }
         }
       }

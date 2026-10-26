@@ -190,8 +190,45 @@ describe('statements_folder', () => {
   })
 })
 
+describe('the mail keys', () => {
+  it('read no bank mail and the start of this year by default, all listed blank in the template', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ statementsMailFrom: [], statementsMailSubject: '', mailSince: null })
+    expect(settingsTabEntries(DEFAULT_SETTINGS, null).filter((entry) => ['statements_mail_from', 'statements_mail_subject', 'mail_since'].includes(entry.key))).toEqual([
+      { key: 'statements_mail_from', value: '' },
+      { key: 'statements_mail_subject', value: '' },
+      { key: 'mail_since', value: '' },
+    ])
+  })
+
+  it('read the senders as lower-case addresses, the subject trimmed and the day from a date cell or text, and write them back the same way', () => {
+    const { settings, problems } = parseSettings(rows(['statements_mail_from', 'Statements@Bank.example.com, notices@bank.example.com'], ['statements_mail_subject', ' Izvadak '], ['mail_since', 45658]))
+
+    expect(problems).toEqual([])
+    expect(settings).toMatchObject({ statementsMailFrom: ['statements@bank.example.com', 'notices@bank.example.com'], statementsMailSubject: 'Izvadak', mailSince: '2025-01-01' })
+    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, Cell]))).settings).toEqual(settings)
+  })
+
+  it('fall back for an address that is not one, a subject with a double quote and a day that is not one, and say which key', () => {
+    const { settings, problems } = parseSettings(rows(['statements_mail_from', 'bank'], ['statements_mail_subject', '"Izvadak"'], ['mail_since', '1.1.2025.']))
+
+    expect(settings).toMatchObject({ statementsMailFrom: [], statementsMailSubject: '', mailSince: null })
+    expect(problems).toEqual([
+      settingProblem('statements_mail_from', '"bank" is not a mail address, so the default is used'),
+      settingProblem('statements_mail_subject', 'a subject cannot hold a double quote, which would end the phrase Gmail searches for, so the default is used'),
+      settingProblem('mail_since', '"1.1.2025." is not a date such as 2026-01-01, so the default is used'),
+    ])
+  })
+
+  it('need a subject with a sender when typed in the app, so other mail from the bank is left alone', () => {
+    expect(settingsErrors({ ...DEFAULT_SETTINGS, statementsMailFrom: ['statements@bank.example.com'] })).toEqual({
+      statementsMailSubject: 'name the words before the statement number in the subject, so other mail from the bank is left alone',
+    })
+    expect(settingsErrors({ ...DEFAULT_SETTINGS, statementsMailFrom: ['statements@bank.example.com'], statementsMailSubject: 'Izvadak' })).toEqual({})
+  })
+})
+
 describe('company facts', () => {
-  it('default to no registration day, the accrual return, the invoice principle, owner loans at 0%, no accountant folders and their read on sync', () => {
+  it('default to no registration day, the accrual return, the invoice principle, owner loans at 0%, no accountant folders and their read on sync, and no accountant mail', () => {
     expect(COMPANY_FACT_SETTINGS.defaults).toEqual({
       companyRegistered: null,
       citReturn: 'pd',
@@ -201,6 +238,11 @@ describe('company facts', () => {
       vatReturnsFolder: [],
       payrollFolder: [],
       accountantSync: true,
+      accountantMailFrom: [],
+      payrollMailSubject: '',
+      vatMailSubject: '',
+      invoicesMailSubject: '',
+      incomingInvoicesFolder: [],
     })
   })
 
@@ -215,6 +257,11 @@ describe('company facts', () => {
         ['hr_vat_returns_folder', ' finance / vat '],
         ['hr_payroll_folder', 'finance/payroll/'],
         ['hr_accountant_sync', false],
+        ['hr_accountant_mail_from', 'Office@Accountant.example.com, desk@accountant.example.com'],
+        ['hr_payroll_mail_subject', ' Plaća za '],
+        ['hr_vat_mail_subject', 'PDV za'],
+        ['hr_invoices_mail_subject', 'Račun za'],
+        ['hr_incoming_invoices_folder', 'finance/incoming-invoices'],
       ),
       COMPANY_FACT_SETTINGS,
     )
@@ -229,6 +276,11 @@ describe('company facts', () => {
       vatReturnsFolder: ['finance', 'vat'],
       payrollFolder: ['finance', 'payroll'],
       accountantSync: false,
+      accountantMailFrom: ['office@accountant.example.com', 'desk@accountant.example.com'],
+      payrollMailSubject: 'Plaća za',
+      vatMailSubject: 'PDV za',
+      invoicesMailSubject: 'Račun za',
+      incomingInvoicesFolder: ['finance', 'incoming-invoices'],
     })
     expect(readPackSettings(rows(['hr_company_registered', '2025-05-12']), COMPANY_FACT_SETTINGS).values.companyRegistered).toBe('2025-05-12')
     const written = settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values })
@@ -331,7 +383,26 @@ describe('company facts', () => {
       { key: 'hr_vat_returns_folder', value: '' },
       { key: 'hr_payroll_folder', value: '' },
       { key: 'hr_accountant_sync', value: 'TRUE' },
+      { key: 'hr_accountant_mail_from', value: '' },
+      { key: 'hr_payroll_mail_subject', value: '' },
+      { key: 'hr_vat_mail_subject', value: '' },
+      { key: 'hr_invoices_mail_subject', value: '' },
+      { key: 'hr_incoming_invoices_folder', value: '' },
     ])
+  })
+
+  it('refuse an accountant address that is not one and a subject with a double quote, in the tab and in the app', () => {
+    const { values, problems } = readPackSettings(rows(['hr_accountant_mail_from', 'accountant.example.com'], ['hr_vat_mail_subject', 'PDV "za"']), COMPANY_FACT_SETTINGS)
+
+    expect(values).toEqual(COMPANY_FACT_SETTINGS.defaults)
+    expect(problems).toEqual([
+      settingProblem('hr_accountant_mail_from', '"accountant.example.com" is not a mail address, so the default is used'),
+      settingProblem('hr_vat_mail_subject', 'a subject cannot hold a double quote, which would end the phrase Gmail searches for, so the default is used'),
+    ])
+    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, accountantMailFrom: ['accountant'], payrollMailSubject: 'Plaća "za"' })).toEqual({
+      accountantMailFrom: '"accountant" is not a mail address',
+      payrollMailSubject: 'a subject cannot hold a double quote, which would end the phrase Gmail searches for',
+    })
   })
 })
 

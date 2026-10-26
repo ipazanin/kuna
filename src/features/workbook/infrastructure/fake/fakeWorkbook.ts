@@ -282,6 +282,7 @@ export const FAKE_FOLDERS = {
   statements: ['finance', 'statements'],
   vatReturns: ['finance', 'vat-returns'],
   payroll: ['finance', 'payroll'],
+  incomingInvoices: ['finance', 'incoming-invoices'],
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
 /** The rows the made-up books name their folders and the owner-pay module in, as the books saved from the app hold them. */

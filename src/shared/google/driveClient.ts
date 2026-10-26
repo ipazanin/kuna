@@ -21,6 +21,12 @@ export interface DriveFile {
   /** The revision the file's content stands at. Only files with binary content, such as JSON, have one. */
   readonly headRevisionId: string
   readonly parents: readonly string[]
+  /** RFC 3339 time the file was made in Drive. */
+  readonly createdTime: string
+  /** The SHA-256 of the file's content in lower-case hex. Drive leaves it out for a Google document and for some uploads. */
+  readonly sha256Checksum?: string
+  /** The properties this app gave the file, which only it sees. */
+  readonly appProperties?: Readonly<Record<string, string>>
 }
 
 /** What a new file is called, what it holds and where it goes. */
@@ -92,9 +98,9 @@ export async function folderOfPath(accessToken: string, path: readonly string[])
   return { kind: 'found', id: folderId }
 }
 
-/** The folders directly inside the given ones, or none when none are given. */
-export async function foldersInside(accessToken: string, folderIds: readonly string[]): Promise<Pick<DriveFile, 'id'>[]> {
-  return folderIds.length === 0 ? [] : listChildren(accessToken, `(${inAnyOf(folderIds)}) and ${IS_FOLDER}`, ['id'])
+/** The folders directly inside the given ones, with the fields asked for, or none when none are given. */
+export async function foldersInside<Field extends keyof DriveFile>(accessToken: string, folderIds: readonly string[], fields: readonly Field[]): Promise<Pick<DriveFile, Field>[]> {
+  return folderIds.length === 0 ? [] : listChildren(accessToken, `(${inAnyOf(folderIds)}) and ${IS_FOLDER}`, fields)
 }
 
 /** The files directly inside the given folders, folders left out, with the fields asked for. */

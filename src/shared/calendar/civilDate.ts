@@ -77,6 +77,28 @@ export function dayOfMonth(date: CivilDate): number {
   return Number(date.slice(8, 10))
 }
 
+/** The day an instant, in epoch milliseconds, falls on in a time zone such as Europe/Zagreb. */
+export function civilDateIn(instant: number, timeZone: string): CivilDate {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(instant)
+  const part = (type: Intl.DateTimeFormatPartTypes): number => Number(parts.find((candidate) => candidate.type === type)?.value)
+  return civilDate(part('year'), part('month'), part('day'))
+}
+
+/** The instant, in epoch milliseconds, a day starts in a time zone such as Europe/Zagreb. */
+export function startOfDayIn(date: CivilDate, timeZone: string): number {
+  const midnightUtc = toUtc(date)
+  const once = midnightUtc - zoneOffset(midnightUtc, timeZone)
+  return midnightUtc - zoneOffset(once, timeZone)
+}
+
+/** How far a time zone's clock is ahead of UTC at an instant, in milliseconds. */
+function zoneOffset(instant: number, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(instant)
+  const part = (type: Intl.DateTimeFormatPartTypes): number => Number(parts.find((candidate) => candidate.type === type)?.value)
+  const wallClock = Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'), part('second'))
+  return wallClock - Math.floor(instant / 1000) * 1000
+}
+
 function toUtc(date: CivilDate): number {
   return Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)))
 }

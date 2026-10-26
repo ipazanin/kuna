@@ -1352,6 +1352,159 @@ export async function syncRunningFlow(page, { press, shoot, inspect }) {
   await shoot('sync-ready')
 }
 
+const MAIL_CARD = '[data-testid="mail-settings"]'
+const MAIL_PLAN = '[data-testid="mail-plan"]'
+const WOULD_FILE = /Would file 8, already there 5, 1 correction, 1 not compared, 2 unmatched/
+
+/** Waits until the mail card lists the sources in these states, and returns what each source's line says. */
+async function mailListShows(page, wanted) {
+  return page
+    .waitForFunction(
+      (selector, expected) => {
+        const sources = [...document.querySelectorAll(`${selector} [data-source]`)].map((source) => `${source.dataset.source}:${source.dataset.state}`)
+        return JSON.stringify(sources) === JSON.stringify(expected) ? [...document.querySelectorAll(`${selector} [data-testid="mail-source-line"]`)].map((line) => line.textContent?.trim()) : null
+      },
+      { timeout: 10_000 },
+      MAIL_PLAN,
+      wanted,
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(async () => {
+      const shown = await page.evaluate((selector) => [...document.querySelectorAll(`${selector} [data-source]`)].map((source) => `${source.dataset.source}:${source.dataset.state}`).join(', '), MAIL_PLAN)
+      throw new Error(`the mail card does not list ${wanted.join(', ')}, it lists ${shown || 'nothing'}`)
+    })
+}
+
+/** Presses the link of the mail step's line, the one in the steps on screen, and waits for the mail card to open on its list. */
+async function openMailList(page, press, scope) {
+  await pressSelector(page, press, `${scope} ${SYNC_STEPS} [data-step="mail"] a`)
+  await page.waitForFunction((selector) => document.querySelector(selector)?.getAttribute('data-collapsed') === 'false', { timeout: 10_000 }, MAIL_CARD).catch(() => {
+    throw new Error('the link of the mail step did not open the mail card')
+  })
+}
+
+/** Scrolls the element under the selector to the top of the window, below the bars that stick there. */
+async function scrollToTop(page, selector) {
+  await page.$eval(selector, (element) => element.scrollIntoView({ block: 'start' }))
+  await delay(300)
+}
+
+const ALL_SOURCES = ['statements:planned', 'hr-doo.payroll:planned', 'hr-doo.vat-returns:planned', 'hr-doo.invoices:planned']
+
+/**
+ * With no sender named, the mail step is off in the steps of a sync. On Settings, General the mail
+ * card takes a sender, asks for the subject a sender needs, and saves both, and the next sync's mail
+ * step lists what it would file.
+ */
+export async function mailOffFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  await openDeviceSettings(page)
+  await stepSays(page, SYNC_CARD, 'mail', 'off', /Off in Settings/)
+  await page.evaluate(() => {
+    window.location.hash = '#/settings#mail'
+  })
+  const senders = await page.waitForSelector(`${MAIL_CARD} [data-testid="statements-mail-from"] input`, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, General has no mail card open at #mail')
+  })
+  await scrollToTop(page, MAIL_CARD)
+  await inspect?.('the mail card with no sender')
+  await shoot('mail-card-off')
+  await setField(senders, 'statements@bank.example.com')
+  await page
+    .waitForFunction((selector) => document.querySelector(`${selector} [data-testid="statements-mail-subject"]`)?.textContent?.includes('name the words before the statement number') ?? false, { timeout: 5_000 }, MAIL_CARD)
+    .catch(() => {
+      throw new Error('the mail card does not ask for a subject beside a sender')
+    })
+  await saveSettingsButton(page, false)
+  await setField(await page.$(`${MAIL_CARD} [data-testid="statements-mail-subject"] input`), 'Izvadak')
+  await press(await saveSettingsButton(page, true))
+  await toast(page, 'Settings saved')
+  await dismissToasts(page)
+  await syncAndSettle(page, press)
+  await noToast(page, 'a sync with mail on showed a toast')
+  const lines = await mailListShows(page, ['statements:planned'])
+  if (!/^Would file 1, already there 3, 1 unmatched\.$/.test(lines[0] ?? '')) throw new Error(`the bank's mail reads "${lines[0]}"`)
+  await scrollToTop(page, MAIL_CARD)
+  await inspect?.('the mail card once saved and synced')
+  await shoot('mail-card-saved')
+}
+
+/** With the bank's and the accountant's mail named, the mail step says what it would file, and its link opens the list on the mail card, with the accountant's mail fields on the facts card. */
+export async function mailWouldFileFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  await controlShows(page, 'ready')
+  await noToast(page, 'a sync that read the mail showed a toast')
+  await openDeviceSettings(page)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', WOULD_FILE)
+  await scrollToTop(page, SYNC_CARD)
+  await inspect?.('the mail step of the sync')
+  await shoot('mail-step')
+  await openMailList(page, press, SYNC_CARD)
+  const lines = await mailListShows(page, ALL_SOURCES)
+  const expected = ['Would file 1, already there 3, 1 unmatched.', 'Would file 5, already there 1, 1 unmatched.', 'Would file 1, 1 correction, 1 not compared.', 'Would file 1, already there 1.']
+  if (JSON.stringify(lines) !== JSON.stringify(expected)) throw new Error(`the sources read ${JSON.stringify(lines)}`)
+  for (const kind of ['file', 'already', 'correction', 'unchecked', 'unmatched']) {
+    if ((await page.$(`${MAIL_PLAN} [data-entry="${kind}"]`)) === null) throw new Error(`the list has no ${kind} entry`)
+  }
+  await scrollToTop(page, MAIL_PLAN)
+  await inspect?.('the list of what the mail step found')
+  await shoot('mail-list')
+  await page.evaluate(() => {
+    window.location.hash = '#/settings#accountant-mail'
+  })
+  const sender = await page.waitForSelector('[data-testid="accountant-mail-from"] input', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the facts card has no accountant mail fields at #accountant-mail')
+  })
+  if ((await sender.evaluate((element) => element.value)) !== 'office@accountant.example.com') throw new Error('the accountant mail field does not show the sender the books name')
+  await scrollToTop(page, '[data-testid="accountant-mail"]')
+  await inspect?.("the accountant's mail fields")
+  await shoot('accountant-mail-fields')
+}
+
+/** Mail that is all filed already says nothing new, and opens no problem. */
+export async function mailNothingNewFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  await controlShows(page, 'ready')
+  await openDeviceSettings(page)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 5\./)
+  await scrollToTop(page, SYNC_CARD)
+  await inspect?.('the mail step with nothing new')
+  await shoot('mail-nothing-new')
+}
+
+/** A source whose search fails fails the mail step with the others' counts in its line: 1 problem in the control, and the steps open on it with the list a link away. */
+export async function mailFailedFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  const control = await controlShows(page, 'problems')
+  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
+  await press(await syncButton(page))
+  await stepSays(page, '', 'mail', 'failed', /Would file 7, already there 5, 2 unmatched\. VAT returns: Gmail did not answer the search/)
+  await delay(400)
+  await inspect?.('the steps with a mail source that failed')
+  await shoot('mail-failed-steps')
+  await openMailList(page, press, '')
+  const lines = await mailListShows(page, ['statements:planned', 'hr-doo.payroll:planned', 'hr-doo.vat-returns:failed', 'hr-doo.invoices:planned'])
+  if (lines[2] !== 'Gmail did not answer the search. Sync again later.') throw new Error(`the failed source reads "${lines[2]}"`)
+  await page.$eval(`${MAIL_PLAN} [data-source="hr-doo.vat-returns"]`, (element) => element.scrollIntoView({ block: 'center' }))
+  await delay(300)
+  await shoot('mail-failed-list')
+}
+
+/** A token without Gmail read shows Allow access for the mail step as the app opens, and that tap runs it. */
+export async function mailAccessFlow(page, { press, shoot, inspect }) {
+  await page.evaluate(() => localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly'])))
+  await page.reload({ waitUntil: 'networkidle0' })
+  const control = await controlShows(page, 'allow-access')
+  if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
+  if (!control.name.includes('Mail needs your Gmail read access')) throw new Error(`a screen reader hears "${control.name}"`)
+  await inspect?.('the sync control asking for Gmail read access')
+  await shoot('mail-allow-access')
+  await syncAndSettle(page, press)
+  await controlShows(page, 'ready')
+  await openDeviceSettings(page)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', WOULD_FILE)
+}
+
 /** Review: open the gadget purchase in the queue, then split it, edit and delete the split and Undo, as on Transactions. */
 export async function reviewSplitFlow(page, context) {
   const summary = await page

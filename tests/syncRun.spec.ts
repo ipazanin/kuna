@@ -28,9 +28,9 @@ function started(): SyncRun {
   return startedRun(
     [
       { ...BOOKS_STEP, on: true },
-      { id: 'statements', label: 'Statements', scope: 'drive.readonly', on: true },
-      { id: 'mail', label: 'Mail', scope: 'drive.file', on: false },
-      { id: 'accountant', label: 'Accountant', scope: 'drive.readonly', on: true },
+      { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], on: true },
+      { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: false },
+      { id: 'accountant', label: 'Accountant', scopes: ['drive.readonly'], on: true },
     ],
     STARTED,
   )
@@ -61,7 +61,7 @@ describe('a sync run', () => {
   })
 
   it('skips every step still to run after the books failed, and leaves the off ones off', () => {
-    const run = skippedAfter(withStep(started(), 'books', { kind: 'failed', line: 'Google did not answer.' }), 'books')
+    const run = skippedAfter(withStep(started(), 'books', { kind: 'failed', line: 'Google did not answer.', link: null }), 'books')
 
     expect(kinds(run)).toEqual([
       ['books', 'failed'],
@@ -80,7 +80,14 @@ describe('a sync run', () => {
       ['mail', 'off'],
       ['accountant', 'needs-access'],
     ])
-    expect(run.steps[1]!.state).toEqual({ kind: 'needs-access', scope: 'drive.readonly', line: 'Waits for your Drive read access' })
+    expect(run.steps[1]!.state).toEqual({ kind: 'needs-access', scopes: ['drive.readonly'], line: 'Waits for your Drive read access' })
+  })
+
+  it('turns a later step that shares any scope with the one Google turned away into Allow access, and names every scope in its line', () => {
+    const mailOn = replanned(withStep(started(), 'books', DONE), () => true)
+    const run = accessLostFrom(withStep(mailOn, 'statements', { kind: 'running', line: 'Filing 4 rows' }), 'statements')
+
+    expect(run.steps[2]!.state).toEqual({ kind: 'needs-access', scopes: ['gmail.readonly', 'drive.readonly'], line: 'Waits for your Gmail read access and your Drive read access' })
   })
 
   it('says why Google gave no token on every step that needs access', () => {
@@ -113,14 +120,14 @@ describe('the sync control', () => {
   })
 
   it('offers Allow access before the problems, with the steps that lack it', () => {
-    const run = finishedRun(withStep(accessLostFrom(withStep(started(), 'books', DONE), 'statements'), 'books', { kind: 'failed', line: 'x' }), FINISHED)
+    const run = finishedRun(withStep(accessLostFrom(withStep(started(), 'books', DONE), 'statements'), 'books', { kind: 'failed', line: 'x', link: null }), FINISHED)
 
     expect(syncControlOf(run, BOOKS_READ, ENOUGH)).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'] })
   })
 
   it('counts the steps that failed or wait for you as problems, and is ready otherwise', () => {
     const waits: StepState = { kind: 'waits', line: '1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/transactions?tab=import' } }
-    const problems = finishedRun(withStep(withStep(withStep(started(), 'books', DONE), 'statements', waits), 'accountant', { kind: 'failed', line: 'No folder.' }), FINISHED)
+    const problems = finishedRun(withStep(withStep(withStep(started(), 'books', DONE), 'statements', waits), 'accountant', { kind: 'failed', line: 'No folder.', link: null }), FINISHED)
     const clean = finishedRun(withStep(withStep(withStep(started(), 'books', DONE), 'statements', DONE), 'accountant', DONE), FINISHED)
 
     expect(syncControlOf(problems, BOOKS_READ, ENOUGH)).toEqual({ kind: 'problems', count: 2, labels: ['Statements', 'Accountant'] })

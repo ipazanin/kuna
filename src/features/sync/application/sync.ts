@@ -10,7 +10,8 @@ export interface SyncStep {
   readonly id: string
   /** Its name in the control and the step list, such as Statements. */
   readonly label: string
-  readonly scope: SyncScope
+  /** Every scope its run needs. */
+  readonly scopes: readonly SyncScope[]
   /** The line it shows as it starts. */
   readonly startLine: string
   /** Whether the settings of these books turn it on. */
@@ -62,8 +63,9 @@ export function createSync(ports: SyncPorts): Sync {
   }
 
   async function runStep(step: SyncStep): Promise<void> {
-    if (!ports.granted(step.scope)) {
-      update((run) => withStep(run, step.id, needsAccess(step.scope)))
+    const missing = step.scopes.filter((scope) => !ports.granted(scope))
+    if (missing.length > 0) {
+      update((run) => withStep(run, step.id, needsAccess(missing)))
       return
     }
     update((run) => withStep(run, step.id, { kind: 'running', line: step.startLine }))
@@ -74,7 +76,7 @@ export function createSync(ports: SyncPorts): Sync {
       if (isUnauthorized(failure)) {
         update((run) => accessLostFrom(run, step.id))
       } else {
-        update((run) => withStep(run, step.id, { kind: 'failed', line: failure instanceof Error ? failure.message : String(failure) }))
+        update((run) => withStep(run, step.id, { kind: 'failed', line: failure instanceof Error ? failure.message : String(failure), link: null }))
       }
     }
   }
@@ -89,7 +91,7 @@ export function createSync(ports: SyncPorts): Sync {
     const steps = ports.steps()
     const before = ports.workbook()
     state.run = startedRun(
-      [books, ...steps].map((step) => ({ id: step.id, label: step.label, scope: step.scope, on: step === books || planned(step, before) })),
+      [books, ...steps].map((step) => ({ id: step.id, label: step.label, scopes: step.scopes, on: step === books || planned(step, before) })),
       ports.now(),
     )
     await runStep(books)
@@ -118,7 +120,7 @@ export function createSync(ports: SyncPorts): Sync {
     state: shallowReadonly(state),
     sync,
     async allowAccess() {
-      const scopes = [...new Set(stepsNeedingAccess(state.run).map((step) => step.scope))]
+      const scopes = [...new Set(stepsNeedingAccess(state.run).flatMap((step) => (step.state.kind === 'needs-access' ? step.state.scopes : [])))]
       try {
         await ports.askForAccess(scopes)
       } catch (failure) {

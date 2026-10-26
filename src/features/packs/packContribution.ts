@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { RouteComponent, RouteLocationRaw } from 'vue-router'
 
 import type { CivilDate } from '../../shared/calendar/civilDate'
+import type { MailSource } from '../mail/application/mailFiling'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
 import type { SyncStep } from '../sync/application/sync'
@@ -82,6 +83,8 @@ export interface PackContribution {
   costGroupLinks(group: string): { readonly label: string; readonly to: RouteLocationRaw } | null
   /** Steps a sync runs after core's, in order. */
   readonly syncSteps: readonly SyncStep[]
+  /** Kinds of mail the sync's mail step looks for after core's, in order. */
+  readonly mailSources: readonly MailSource[]
   readonly onboarding: PackOnboarding | null
 }
 
@@ -95,6 +98,7 @@ const NO_PACK: PackContribution = {
   companyFacts: null,
   costGroupLinks: () => null,
   syncSteps: [],
+  mailSources: [],
   onboarding: null,
 }
 

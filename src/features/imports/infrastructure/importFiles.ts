@@ -1,3 +1,4 @@
+import { sha256Hex } from '../../../shared/files/sha256'
 import { readFirstSheet } from '../../../shared/xlsx/sheetGrids'
 import type { LoadedImportFile } from '../application/importStatements'
 import type { CellGrid } from '../domain/tabularStatement'
@@ -33,9 +34,4 @@ function csvText(bytes: ArrayBuffer): string {
   } catch {
     return new TextDecoder('windows-1250').decode(bytes)
   }
-}
-
-async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }

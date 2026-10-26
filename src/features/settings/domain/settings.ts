@@ -1,3 +1,5 @@
+import { parseCivilDate } from '../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { normaliseIban } from '../../../shared/text/fold'
@@ -20,6 +22,7 @@ import { folderPathOf } from '../../../shared/text/folderPath'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
+import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../mail/domain/mailSource'
 
 /** The workbook format this app writes. A higher number comes from a newer app. */
 export const TEMPLATE_VERSION = 1
@@ -53,6 +56,12 @@ export interface Settings {
   readonly statementsFolder: readonly string[]
   /** Whether a sync files the new statements of that folder, once one is named. */
   readonly statementsSync: boolean
+  /** The addresses the bank mails statements from, in lower case. None leaves the bank's mail unread. */
+  readonly statementsMailFrom: readonly string[]
+  /** The phrase before the statement number in the subject of the bank's statement mail. Blank leaves the bank's mail unread. */
+  readonly statementsMailSubject: string
+  /** The day the earliest mail a source reads may come, for a source the app filed nothing for yet. Null means the first day of this year. */
+  readonly mailSince: CivilDate | null
 }
 
 /**
@@ -167,6 +176,9 @@ export const DEFAULT_SETTINGS: Settings = {
   importProfiles: [],
   statementsFolder: [],
   statementsSync: true,
+  statementsMailFrom: [],
+  statementsMailSubject: '',
+  mailSince: null,
 }
 
 /** `flagged_by` values the categoriser writes, which a person's label must not reuse. */
@@ -445,6 +457,36 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
       return enabled === null ? `"${value}" is neither TRUE nor FALSE` : { ...settings, statementsSync: enabled }
     },
   },
+  {
+    key: 'statements_mail_from',
+    note: 'The addresses the bank mails its statements from, comma separated. Each sync then looks in Gmail for them. Blank leaves the bank’s mail unread.',
+    type: 'text',
+    valueOf: (settings) => settings.statementsMailFrom.join(', '),
+    apply: (settings, value) => {
+      const senders = mailAddressesOf(value)
+      return mailAddressesProblem(senders) ?? { ...settings, statementsMailFrom: senders }
+    },
+  },
+  {
+    key: 'statements_mail_subject',
+    note: 'The words before the statement number in the subject of the bank’s statement mail, such as Izvadak. Needed with statements_mail_from.',
+    type: 'text',
+    valueOf: (settings) => settings.statementsMailSubject,
+    apply: (settings, value) => {
+      const subject = value.trim()
+      return mailSubjectProblem(subject) ?? { ...settings, statementsMailSubject: subject }
+    },
+  },
+  {
+    key: 'mail_since',
+    note: 'The day the earliest mail a sync looks at may come, until the app has filed mail of its kind, as a date or as text such as 2026-01-01. Blank means the first day of this year.',
+    type: 'date',
+    valueOf: (settings) => settings.mailSince ?? '',
+    apply: (settings, value) => {
+      const since = parseCivilDate(value.trim())
+      return since === null ? `"${value}" is not a date such as 2026-01-01` : { ...settings, mailSince: since }
+    },
+  },
 ]
 
 const DEFINITION_BY_KEY = new Map(SETTING_DEFINITIONS.map((definition) => [definition.key, definition]))
@@ -637,6 +679,8 @@ export type SettingsField =
   | 'numberLocale'
   | 'reviewLabel'
   | 'cardSettlementIbans'
+  | 'statementsMailFrom'
+  | 'statementsMailSubject'
   | BillingAmountField
   | BillingItemField
   | InvoicingField
@@ -656,6 +700,11 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (review !== null) errors.reviewLabel = review
   const cardAccounts = ibanListProblem(settings.cardSettlementIbans)
   if (cardAccounts !== null) errors.cardSettlementIbans = cardAccounts
+  const senders = mailAddressesProblem(settings.statementsMailFrom)
+  if (senders !== null) errors.statementsMailFrom = senders
+  const subject = mailSubjectProblem(settings.statementsMailSubject)
+  if (subject !== null) errors.statementsMailSubject = subject
+  else if (settings.statementsMailFrom.length > 0 && settings.statementsMailSubject === '') errors.statementsMailSubject = 'name the words before the statement number in the subject, so other mail from the bank is left alone'
   Object.assign(errors, billingErrors(settings.billing))
   for (const [field, value] of Object.entries(settings.invoicing) as [InvoicingField, string][]) {
     const problem = invoicingProblem(field, value)

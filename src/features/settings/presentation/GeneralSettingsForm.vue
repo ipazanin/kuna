@@ -11,6 +11,7 @@ import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { folderPathOf } from '../../../shared/text/folderPath'
+import MailSettingsCard from '../../mail/presentation/MailSettingsCard.vue'
 import { settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
 import IbanTagsField from './IbanTagsField.vue'
@@ -18,8 +19,9 @@ import { CURRENCY_ITEMS } from './moneyChoices'
 
 /**
  * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
- * them. A card with a field in error opens. While the owner-pay switch is on in the draft, the
- * pack's facts card sits between the basics and the bucket labels, and Save waits for its checks too.
+ * them. A card with a field in error opens. The mail card follows the basics. While the owner-pay
+ * switch is on in the draft, the pack's facts card sits between the mail and the bucket labels,
+ * and Save waits for its checks too.
  */
 const props = defineProps<{
   settings: Settings
@@ -165,6 +167,8 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
         />
       </div>
     </AppCard>
+
+    <MailSettingsCard :settings="draft" :saved="settings" :errors="errors" @update="draft = $event" />
 
     <component
       :is="packFacts.card"

@@ -8,6 +8,7 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import { folderPathOf } from '../../../shared/text/folderPath'
+import { mailAddressesOf } from '../../../features/mail/domain/mailSource'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import type { CitReturn, CompanyFacts, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
 import { dayLabel } from '../ruleset/presentation/ruleWording'
@@ -30,13 +31,13 @@ const emit = defineEmits<{
 }>()
 
 /** The facts other screens link to, by the id their link's hash names. */
-const LINKED_FACTS = ['company-registered', 'owner-loan-interest', 'accountant-folders']
+const LINKED_FACTS = ['company-registered', 'owner-loan-interest', 'accountant-folders', 'accountant-mail']
 
 const route = useRoute()
 const revealed = computed(
   () =>
     LINKED_FACTS.includes(route.hash.slice(1)) ||
-    props.errors.ownerLoanInterest !== undefined,
+    Object.keys(props.errors).length > 0,
 )
 const summary = computed(() => {
   const { companyRegistered, ownerLoanInterest } = props.saved
@@ -90,6 +91,27 @@ function updateVatReturnsFolder(text: string): void {
 function updatePayrollFolder(text: string): void {
   payrollFolderText.value = text
   updateFact('payrollFolder', folderPathOf(text))
+}
+
+/** The accountant's addresses and the invoices folder as typed, for the same reason. */
+const accountantMailText = ref(props.facts.accountantMailFrom.join(', '))
+const invoicesFolderText = ref(props.facts.incomingInvoicesFolder.join('/'))
+watch(
+  () => [props.facts.accountantMailFrom, props.facts.incomingInvoicesFolder] as const,
+  ([senders, invoices]) => {
+    if (JSON.stringify(mailAddressesOf(accountantMailText.value)) !== JSON.stringify(senders)) accountantMailText.value = senders.join(', ')
+    if (JSON.stringify(folderPathOf(invoicesFolderText.value)) !== JSON.stringify(invoices)) invoicesFolderText.value = invoices.join('/')
+  },
+)
+
+function updateAccountantMail(text: string): void {
+  accountantMailText.value = text
+  updateFact('accountantMailFrom', mailAddressesOf(text))
+}
+
+function updateInvoicesFolder(text: string): void {
+  invoicesFolderText.value = text
+  updateFact('incomingInvoicesFolder', folderPathOf(text))
 }
 
 const citReturnItems: { value: CitReturn; label: string }[] = [
@@ -166,6 +188,41 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
         >
           <UInput :model-value="payrollFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updatePayrollFolder(String($event))" />
         </UFormField>
+      </div>
+      <div id="accountant-mail" class="flex flex-col gap-4 border-t border-default pt-4" data-testid="accountant-mail">
+        <div class="flex flex-col gap-1">
+          <h3 class="text-sm font-medium text-highlighted">The accountant's mail</h3>
+          <p class="text-sm text-muted">
+            Each sync looks in Gmail for the kinds whose subject is set, and the Mail card lists what it would file into the folders above. It files nothing yet.
+          </p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UFormField
+            label="The accountant mails from"
+            :error="errors.accountantMailFrom ?? false"
+            help="Mail addresses, comma separated. Blank leaves the accountant's mail unread."
+            class="sm:col-span-2"
+            data-testid="accountant-mail-from"
+          >
+            <UInput :model-value="accountantMailText" inputmode="email" autocapitalize="off" :spellcheck="false" placeholder="Not read" class="w-full" @update:model-value="updateAccountantMail(String($event))" />
+          </UFormField>
+          <UFormField label="Payroll subject starts with" :error="errors.payrollMailSubject ?? false" help="The words before the month, such as Plaća za." data-testid="payroll-mail-subject">
+            <UInput :model-value="facts.payrollMailSubject" placeholder="Not read" class="w-full" @update:model-value="updateFact('payrollMailSubject', String($event))" />
+          </UFormField>
+          <UFormField label="VAT return subject starts with" :error="errors.vatMailSubject ?? false" help="The words before the period, such as PDV za." data-testid="vat-mail-subject">
+            <UInput :model-value="facts.vatMailSubject" placeholder="Not read" class="w-full" @update:model-value="updateFact('vatMailSubject', String($event))" />
+          </UFormField>
+          <UFormField label="Invoice subject starts with" :error="errors.invoicesMailSubject ?? false" help="The accountant's own invoice, such as Račun za." data-testid="invoices-mail-subject">
+            <UInput :model-value="facts.invoicesMailSubject" placeholder="Not read" class="w-full" @update:model-value="updateFact('invoicesMailSubject', String($event))" />
+          </UFormField>
+          <UFormField
+            label="Accountant's invoices folder"
+            help="Where the accountant's invoices go in Google Drive, as a path from My Drive, with a folder for each year and month inside."
+            data-testid="incoming-invoices-folder"
+          >
+            <UInput :model-value="invoicesFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateInvoicesFolder(String($event))" />
+          </UFormField>
+        </div>
       </div>
     </div>
   </AppCard>

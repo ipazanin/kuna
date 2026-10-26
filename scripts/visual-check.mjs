@@ -51,6 +51,11 @@
  * the tab and row of a file that does not read, and open the rows a differing badge compared. Without
  * the Drive read token they show the read this device kept until Allow access, and a payroll folder
  * saved on Settings, General that the fake Drive lacks is said, with 1 problem in the sync control.
+ * The mail step is off until the Mail card on Settings, General saves a sender with the subject it
+ * asks for, and the next sync lists what the bank's mail would file. With the fake mailbox it says
+ * what it would file, its link opens the list on the Mail card, and the facts card shows the
+ * accountant's mail. Mail all filed already says nothing new, a source that fails gives 1 problem
+ * with the steps open, and a token without Gmail read gets Allow access, which runs the step.
  * The first run keeps an empty workbook on the fake Drive and one in this browser, an xlsx file
  * moves to the fake Drive through its summary, Settings, This device moves a workbook kept in this
  * browser there, and a row confirmed on Review while another device files the other row keeps both.
@@ -97,6 +102,11 @@ import {
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
+  mailAccessFlow,
+  mailFailedFlow,
+  mailNothingNewFlow,
+  mailOffFlow,
+  mailWouldFileFlow,
   moveFromBrowserFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
@@ -224,7 +234,7 @@ const SCREENS = [
     collapsedBefore: ['review.rules'],
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
-  { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
+  { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
   {
     name: 'settings-loan-rate',
     hash: '#/settings#owner-loan-interest',
@@ -643,6 +653,11 @@ const FLOWS = [
   { name: 'statements-held', hash: '#/', title: 'Overview', run: heldStatementFlow, modes: ['drive'], queries: { drive: '&fake=held-statement' } },
   { name: 'statements-access', hash: '#/', title: 'Overview', run: statementAccessFlow, modes: ['drive'] },
   { name: 'sync-running', hash: '#/', title: 'Overview', run: syncRunningFlow, modes: ['drive'], queries: { drive: '&fake=slow-statements' } },
+  { name: 'mail-off', hash: '#/', title: 'Overview', run: mailOffFlow, modes: ['drive'] },
+  { name: 'mail-would-file', hash: '#/', title: 'Overview', run: mailWouldFileFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
+  { name: 'mail-nothing-new', hash: '#/', title: 'Overview', run: mailNothingNewFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
+  { name: 'mail-failed', hash: '#/', title: 'Overview', run: mailFailedFlow, modes: ['drive'], queries: { drive: '&fake=mail-failed' } },
+  { name: 'mail-access', hash: '#/', title: 'Overview', run: mailAccessFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
   { name: 'salaries', hash: '#/salaries', title: 'Salaries', run: salariesFlow, modes: ['drive'], queries: { drive: '&fake=five-employees' } },
   { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['drive'] },
   { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['drive'] },

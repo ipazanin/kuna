@@ -3,6 +3,7 @@ import type { ComputedRef } from 'vue'
 
 import { currentToken, googleAccess, needScopes, requestAccess } from '../../../shared/google/googleAuth'
 import { useStatementSync } from '../../imports/presentation/useStatementSync'
+import { useMailSync } from '../../mail/presentation/useMailSync'
 import { mailDraftsOn } from '../../invoicing/infrastructure/mailDraftSwitch'
 import { installedPack, shownPack } from '../../packs/packContribution'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -24,6 +25,7 @@ function askForAccess(scopes: readonly SyncScope[]): Promise<void> {
 function createPageSync(): { readonly sync: Sync; readonly steps: readonly SyncStep[] } {
   const store = useWorkbook()
   const statements = useStatementSync()
+  const mail = useMailSync()
   const books: SyncStep = {
     ...BOOKS_STEP,
     startLine: 'Reading the file',
@@ -31,12 +33,12 @@ function createPageSync(): { readonly sync: Sync; readonly steps: readonly SyncS
     async run() {
       await store.sync()
       return store.state.status === 'error'
-        ? { kind: 'failed', line: store.state.error ?? 'The file on Drive could not be read.' }
+        ? { kind: 'failed', line: store.state.error ?? 'The file on Drive could not be read.', link: null }
         : { kind: 'done', line: 'Up to date', writeId: null, link: null }
     },
   }
   const packSteps = installedPack().syncSteps.map((step): SyncStep => ({ ...step, on: (workbook) => shownPack(workbook.settings).syncSteps.includes(step) && step.on(workbook) }))
-  const steps = [statements.step, ...packSteps]
+  const steps = [mail.step, statements.step, ...packSteps]
   // Every ask for a token carries what the books on screen and this device's settings need, and the silent trip on the next open asks for it too.
   watch(
     () => needsOf(steps),
@@ -76,8 +78,8 @@ function needsOf(steps: readonly SyncStep[]): AccessNeed[] {
     return []
   }
   return [
-    { scope: BOOKS_STEP.scope, label: BOOKS_STEP.label },
-    ...(workbook === null ? [] : steps.filter((step) => step.on(workbook)).map((step) => ({ scope: step.scope, label: step.label }))),
+    ...BOOKS_STEP.scopes.map((scope) => ({ scope, label: BOOKS_STEP.label })),
+    ...(workbook === null ? [] : steps.filter((step) => step.on(workbook)).flatMap((step) => step.scopes.map((scope) => ({ scope, label: step.label })))),
     ...(mailDraftsOn.value ? [{ scope: 'gmail.compose' as const, label: 'Invoicing' }] : []),
   ]
 }
@@ -94,7 +96,7 @@ export interface PageSync {
   allowAccess(): Promise<void>
 }
 
-/** The one sync of the page: the books, then statements, then the pack's steps, and the control that shows it with what the page's token lacks. */
+/** The one sync of the page: the books, then mail, then statements, then the pack's steps, and the control that shows it with what the page's token lacks. */
 export function useSync(): PageSync {
   pageSync ??= createPageSync()
   const { state, sync, allowAccess } = pageSync.sync

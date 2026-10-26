@@ -67,6 +67,18 @@ export function readCamtDocument(document: Document, fileName: string, accountsB
   })
 }
 
+/**
+ * The label and the account of a camt.053 document's first statement, which the archived file's
+ * name carries, without the checks a read makes. The account is blank for an IBAN `accountsByIban`
+ * lacks. Null for a document with no statement, or one with no label.
+ */
+export function camtStatementHead(document: Document, accountsByIban: ReadonlyMap<string, string>): { readonly label: string; readonly account: string } | null {
+  const root = document.documentElement
+  const statement = root === null || root.localName !== 'Document' ? undefined : childrenNamed(childNamed(root, 'BkToCstmrStmt'), 'Stmt')[0]
+  const label = statement === undefined ? null : statementLabelOf(statement)
+  return statement === undefined || label === null ? null : { label, account: accountsByIban.get(normaliseIban(textAt(statement, ['Acct', 'Id', 'IBAN']))) ?? '' }
+}
+
 function readStatement(statement: Element, fileName: string, accountsByIban: ReadonlyMap<string, string>): { readonly statement: ImportedStatement; readonly iban: string; readonly currency: string } {
   const label = statementLabelOf(statement)
   if (label === null) {

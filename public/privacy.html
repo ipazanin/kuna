@@ -168,10 +168,19 @@
             </li>
             <li>
               <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank
-              statements from a Drive folder or your accountant's folders. Google's wording covers your whole Drive. The app uses it to read
+              statements from a Drive folder, your accountant's folders or your mail. Google's wording covers your whole Drive. The app uses it to read
               the bank statements in your statements folder that are not on the ledger yet, and your accountant's VAT returns and salary
-              workbooks in the folders you name, since <code>drive.file</code> cannot see files another app filed there. It reads nothing
-              else with it and changes nothing.
+              workbooks in the folders you name, since <code>drive.file</code> cannot see files another app filed there. While it reads
+              your mail, it also lists the names, dates and checksums of the files in the folders that mail goes into, to tell what is
+              filed already. It reads nothing else with it and changes nothing.
+            </li>
+            <li>
+              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank,
+              or your accountant, mails from. Google's wording covers your whole mailbox. On each sync the app searches it for mail from
+              those addresses whose subject starts with the words you set, reads each one's subject, date and attachment names, downloads
+              a bank statement's XML to read its number and account, and downloads an attachment only to compare it with a file of the
+              same name in your Drive. Nothing it reads leaves your browser. For now it only lists what it would file and files nothing.
+              It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
             </li>
             <li>
               <code>gmail.compose</code>, "Manage drafts and send emails". Asked only while "Create the mail draft" is on for invoices. The
@@ -185,8 +194,8 @@
           </ul>
           <p>
             Ledgerboard is not verified by Google. Google shows a warning on its consent screen for the restricted permissions
-            <code>drive.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users Google allows an unverified
-            app.
+            <code>drive.readonly</code>, <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users
+            Google allows an unverified app.
           </p>
           <p>A file you open or drop on the page, an .xlsx workbook or a ledgerboard file, is read in this browser only.</p>
         </section>

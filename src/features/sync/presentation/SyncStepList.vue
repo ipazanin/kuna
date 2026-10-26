@@ -63,7 +63,7 @@ function undoable(step: RunStep) {
 }
 
 function linkOf(step: RunStep) {
-  return step.state.kind === 'done' || step.state.kind === 'waits' ? step.state.link : null
+  return step.state.kind === 'done' || step.state.kind === 'waits' || step.state.kind === 'failed' ? step.state.link : null
 }
 </script>
 

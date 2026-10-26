@@ -140,9 +140,9 @@ const SYNC_RUN: SyncRun = {
   startedAt: '2026-10-16T06:03:52Z',
   finishedAt: '2026-10-16T06:04:00Z',
   steps: [
-    { id: 'books', label: 'Books', scope: 'drive.file', state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
-    { id: 'statements', label: 'Statements', scope: 'drive.readonly', state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/transactions?tab=import' } } },
-    { id: 'hr-doo.accountant', label: 'Accountant', scope: 'drive.readonly', state: { kind: 'done', line: 'Read 12 workbooks.', writeId: null, link: null } },
+    { id: 'books', label: 'Books', scopes: ['drive.file'], state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
+    { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/transactions?tab=import' } } },
+    { id: 'hr-doo.accountant', label: 'Accountant', scopes: ['drive.readonly'], state: { kind: 'done', line: 'Read 12 workbooks.', writeId: null, link: null } },
   ],
 }
 

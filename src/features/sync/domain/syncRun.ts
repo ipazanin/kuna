@@ -1,5 +1,7 @@
+import { listInWords } from '../../workbook/domain/slug'
+
 /** A Google permission a sync step or a setting needs, by the scope name Google gives it. */
-export type SyncScope = 'drive.file' | 'drive.readonly' | 'gmail.compose'
+export type SyncScope = 'drive.file' | 'drive.readonly' | 'gmail.readonly' | 'gmail.compose'
 
 /** A link a step line offers, such as Import for the statements a sync held. */
 export interface StepLink {
@@ -11,8 +13,8 @@ export interface StepLink {
 /**
  * Where one step of a sync stands. `writeId` is the session write the step made, which Undo puts
  * back, or null. A step waits for you when it left something for a person, such as a statement it
- * held. It needs access when the page holds no token for its scope, and it is skipped when the
- * books could not be read.
+ * held. It needs access when the page's token lacks one of its scopes, which `scopes` lists, and it
+ * is skipped when the books could not be read.
  */
 export type StepState =
   | { readonly kind: 'off' }
@@ -20,8 +22,8 @@ export type StepState =
   | { readonly kind: 'running'; readonly line: string }
   | { readonly kind: 'done'; readonly line: string; readonly writeId: number | null; readonly link: StepLink | null }
   | { readonly kind: 'waits'; readonly line: string; readonly writeId: number | null; readonly link: StepLink | null }
-  | { readonly kind: 'needs-access'; readonly scope: SyncScope; readonly line: string }
-  | { readonly kind: 'failed'; readonly line: string }
+  | { readonly kind: 'needs-access'; readonly scopes: readonly SyncScope[]; readonly line: string }
+  | { readonly kind: 'failed'; readonly line: string; readonly link: StepLink | null }
   | { readonly kind: 'skipped'; readonly line: string }
 
 /** What a step's own run ends in. Access and skipping are the run's to decide. */
@@ -31,7 +33,7 @@ export interface RunStep {
   readonly id: string
   /** The step's name in the control and the step list, such as Statements. */
   readonly label: string
-  readonly scope: SyncScope
+  readonly scopes: readonly SyncScope[]
   readonly state: StepState
 }
 
@@ -44,19 +46,19 @@ export interface SyncRun {
 }
 
 /** The books step, which every sync of a file on Drive runs first. */
-export const BOOKS_STEP: Pick<RunStep, 'id' | 'label' | 'scope'> = { id: 'books', label: 'Books', scope: 'drive.file' }
+export const BOOKS_STEP: Pick<RunStep, 'id' | 'label' | 'scopes'> = { id: 'books', label: 'Books', scopes: ['drive.file'] }
 
 /** A step as a run starts it: on or off, as the settings say. */
 export interface PlannedStep {
   readonly id: string
   readonly label: string
-  readonly scope: SyncScope
+  readonly scopes: readonly SyncScope[]
   readonly on: boolean
 }
 
 /** A run with every step that is on queued, in the order given. */
 export function startedRun(steps: readonly PlannedStep[], at: string): SyncRun {
-  return { steps: steps.map(({ id, label, scope, on }) => ({ id, label, scope, state: on ? { kind: 'queued' } : { kind: 'off' } })), startedAt: at, finishedAt: null }
+  return { steps: steps.map(({ id, label, scopes, on }) => ({ id, label, scopes, state: on ? { kind: 'queued' } : { kind: 'off' } })), startedAt: at, finishedAt: null }
 }
 
 export function withStep(run: SyncRun, id: string, state: StepState): SyncRun {
@@ -75,25 +77,32 @@ export function finishedRun(run: SyncRun, at: string): SyncRun {
   return { ...run, finishedAt: at }
 }
 
-const ACCESS_LINES: Readonly<Record<SyncScope, string>> = {
-  'drive.file': 'Waits for you to sign in to Google',
-  'drive.readonly': 'Waits for your Drive read access',
-  'gmail.compose': 'Waits for your Gmail drafts access',
+/** What the person grants for each scope, as a line or a sentence names it. */
+export const SCOPE_WORDS: Readonly<Record<SyncScope, string>> = {
+  'drive.file': 'a Google sign-in',
+  'drive.readonly': 'your Drive read access',
+  'gmail.readonly': 'your Gmail read access',
+  'gmail.compose': 'your Gmail drafts access',
 }
 
-/** A step that needs its scope, said the usual way or with why Google gave no token. */
-export function needsAccess(scope: SyncScope, line: string = ACCESS_LINES[scope]): StepState {
-  return { kind: 'needs-access', scope, line }
+/** "Waits for your Gmail read access", or for a sign-in when the books file is among them. */
+function accessLine(scopes: readonly SyncScope[]): string {
+  return scopes.includes('drive.file') ? 'Waits for you to sign in to Google' : `Waits for ${listInWords(scopes.map((scope) => SCOPE_WORDS[scope]))}`
 }
 
-/** After Google turned a step's token away mid-step: that step and every later queued step of the same scope need access. */
+/** A step that needs these scopes, said the usual way or with why Google gave no token. */
+export function needsAccess(scopes: readonly SyncScope[], line: string = accessLine(scopes)): StepState {
+  return { kind: 'needs-access', scopes, line }
+}
+
+/** After Google turned a step's token away mid-step: that step and every later queued step that shares a scope with it need access. */
 export function accessLostFrom(run: SyncRun, id: string): SyncRun {
   const from = run.steps.findIndex((step) => step.id === id)
-  const scope = run.steps[from]?.scope
+  const lost = run.steps[from]?.scopes ?? []
   return {
     ...run,
     steps: run.steps.map((step, index) =>
-      index === from || (index > from && step.scope === scope && step.state.kind === 'queued') ? { ...step, state: needsAccess(step.scope) } : step,
+      index === from || (index > from && step.scopes.some((scope) => lost.includes(scope)) && step.state.kind === 'queued') ? { ...step, state: needsAccess(step.scopes) } : step,
     ),
   }
 }
@@ -119,7 +128,7 @@ export function problemsOf(run: SyncRun | null): readonly RunStep[] {
 
 /** Every step that needs access gets this line, such as why Google gave no token. */
 export function withAccessLine(run: SyncRun, line: string): SyncRun {
-  return { ...run, steps: run.steps.map((step) => (step.state.kind === 'needs-access' ? { ...step, state: needsAccess(step.state.scope, line) } : step)) }
+  return { ...run, steps: run.steps.map((step) => (step.state.kind === 'needs-access' ? { ...step, state: needsAccess(step.state.scopes, line) } : step)) }
 }
 
 /**
@@ -194,7 +203,10 @@ export function syncControlOf(run: SyncRun | null, books: BooksStanding, access:
   if (access.kind === 'sign-in') {
     return { kind: 'sign-in' }
   }
-  const lacking = [...stepsNeedingAccess(run), ...(access.kind === 'lacking' ? access.needs : [])]
+  const lacking = [
+    ...stepsNeedingAccess(run).flatMap((step) => (step.state.kind === 'needs-access' ? step.state.scopes : []).map((scope) => ({ scope, label: step.label }))),
+    ...(access.kind === 'lacking' ? access.needs : []),
+  ]
   if (lacking.length > 0) {
     return { kind: 'allow-access', scopes: [...new Set(lacking.map((need) => need.scope))], labels: [...new Set(lacking.map((need) => need.label))] }
   }
@@ -208,5 +220,5 @@ export function syncControlOf(run: SyncRun | null, books: BooksStanding, access:
 /** A run with the books failed, for a read of the file that failed outside a run, such as when it was found. */
 export function withBooksFailure(run: SyncRun | null, line: string, at: string): SyncRun {
   const base = run ?? { steps: [{ ...BOOKS_STEP, state: { kind: 'queued' } }], startedAt: at, finishedAt: at }
-  return withStep(base, BOOKS_STEP.id, { kind: 'failed', line })
+  return withStep(base, BOOKS_STEP.id, { kind: 'failed', line, link: null })
 }

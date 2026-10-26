@@ -19,13 +19,13 @@ interface FakeStep extends SyncStep {
 
 function step(id: string, scope: SyncScope, run: (report: (line: string) => void) => Promise<StepResult> = async () => DONE, on = () => true): FakeStep {
   const runs = vi.fn(run)
-  return { id, label: id[0]!.toUpperCase() + id.slice(1), scope, startLine: `Starting ${id}`, on, run: runs, runs }
+  return { id, label: id[0]!.toUpperCase() + id.slice(1), scopes: [scope], startLine: `Starting ${id}`, on, run: runs, runs }
 }
 
 /** A sync over fake steps, with each scope granted or withheld, and the books on screen once read. */
 function harness(options: { readonly steps: readonly FakeStep[]; readonly books?: FakeStep; readonly grants?: Partial<Record<SyncScope, boolean>> }) {
-  const grants: Record<SyncScope, boolean> = { 'drive.file': true, 'drive.readonly': true, 'gmail.compose': true, ...options.grants }
-  const books = options.books ?? step(BOOKS_STEP.id, BOOKS_STEP.scope)
+  const grants: Record<SyncScope, boolean> = { 'drive.file': true, 'drive.readonly': true, 'gmail.readonly': true, 'gmail.compose': true, ...options.grants }
+  const books = options.books ?? step(BOOKS_STEP.id, 'drive.file')
   let idle: Promise<void> = Promise.resolve()
   const ports: SyncPorts = {
     books,
@@ -86,12 +86,12 @@ describe('a sync', () => {
       ['statements', 'failed'],
       ['accountant', 'done'],
     ])
-    expect(sync.state.run?.steps[1]?.state).toEqual({ kind: 'failed', line: 'The statements folder could not be read.' })
+    expect(sync.state.run?.steps[1]?.state).toEqual({ kind: 'failed', line: 'The statements folder could not be read.', link: null })
     expect(control()).toEqual({ kind: 'problems', count: 1, labels: ['Statements'] })
   })
 
   it('skips every later step when the books cannot be read', async () => {
-    const books = step('books', 'drive.file', async () => ({ kind: 'failed', line: 'Google did not answer.' }))
+    const books = step('books', 'drive.file', async () => ({ kind: 'failed', line: 'Google did not answer.', link: null }))
     const statements = step('statements', 'drive.readonly')
     const { sync, states, control } = harness({ books, steps: [statements] })
 
@@ -136,7 +136,7 @@ describe('a sync', () => {
     await sync.allowAccess()
 
     expect(books.runs).toHaveBeenCalledOnce()
-    expect(sync.state.run?.steps[1]?.state).toEqual({ kind: 'needs-access', scope: 'drive.readonly', line: 'Drive read access was not granted.' })
+    expect(sync.state.run?.steps[1]?.state).toEqual({ kind: 'needs-access', scopes: ['drive.readonly'], line: 'Drive read access was not granted.' })
   })
 
   it('turns a step Google refuses mid-way, and the later steps of its scope, into Allow access, and runs the rest', async () => {
