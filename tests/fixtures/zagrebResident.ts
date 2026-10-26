@@ -4,6 +4,7 @@ import type { EmployeeFacts } from '../../src/packs/hr-doo/domain/payroll/income
 export const ZAGREB_RESIDENT: EmployeeFacts = {
   residenceCity: 'Zagreb',
   pensionPillarTwo: true,
+  director: true,
   dependants: 0,
   birthYear: null,
 }

@@ -9,12 +9,14 @@ import { pickedEdits, pickedUntouched } from '../../../features/workbook/domain/
 import type { FreshRecords, KindChange, WriteRules } from '../../../features/workbook/domain/writeRules'
 import { readAssets } from './assets/assetsReading'
 import type { Asset } from './assets/assets'
+import type { Employee } from './employees/employees'
+import { readEmployees } from './employees/employeesReading'
 import { planGuards } from './forecast/planGuards'
 import type { PlanLine } from './forecast/plan'
 import { readPlan } from './forecast/planReading'
 import type { Grant } from './grants/grants'
 import { readGrants } from './grants/grantsReading'
-import { ASSET_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from './hrDooKinds'
+import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from './hrDooKinds'
 import { readOwnerAdvances } from './ownerAdvancesReading'
 import type { OwnerAdvanceEntry } from './ownerAdvancesReading'
 import { scenarioGuards } from './scenarios/scenarioGuards'
@@ -161,4 +163,13 @@ export const SCENARIO_WRITES: WriteRules<ScenarioRow> = {
     return { facts: scenarios.flatMap((scenario) => scenario.components), problems }
   },
   refusals: scenarioRefusals,
+}
+
+/** An employee keeps to the slug format and is on its tab once. */
+export const EMPLOYEE_WRITES: WriteRules<Employee> = {
+  kind: EMPLOYEE_RECORDS,
+  reads: [],
+  undoable: true,
+  read: (read) => readEmployees(read),
+  refusals: (change) => slugChangeRefusals('employee', { edits: slugEdits(change, 'employee'), untouched: untouchedSlugs(change, 'employee') }, usesOf([]), true),
 }

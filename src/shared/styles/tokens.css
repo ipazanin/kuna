@@ -169,6 +169,17 @@
   --bucket-neutral: var(--chart-deemphasis);
 
   /*
+   * Where a salary's cost goes, in the order the ring and the bars set them. Slots 1 to 5 once
+   * each, validated in this order and around the ring's join against both chart surfaces. The
+   * employee's pay wears the owner pay bucket and the income tax the taxes bucket.
+   */
+  --pay-employee: var(--series-4);
+  --pay-pension-savings: var(--series-1);
+  --pay-pension: var(--series-2);
+  --pay-income-tax: var(--series-3);
+  --pay-health: var(--series-5);
+
+  /*
    * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an
    * icon or large text. Small text needs 4.5:1, which Blue (4.1:1), Dark green (3.7:1) and Violet
    * (3.2:1) miss in the light theme and Dark green misses in the dark one.

@@ -51,7 +51,7 @@ const summary = computed(() => {
     <p v-if="problem" class="px-4 py-6 text-sm text-error sm:px-5" data-testid="accountant-payroll-problem">{{ problem }}</p>
     <p v-else-if="rows.length === 0" class="px-4 py-6 text-sm text-muted sm:px-5">{{ empty || `No salary workbook for ${year} in the folder.` }}</p>
     <ul v-else-if="phone" class="flex flex-col gap-2 px-4 pt-3 pb-4">
-      <li v-for="row in rows" :key="row.key" class="return-card" :data-kind="row.kind" :data-period="row.key">
+      <li v-for="row in rows" :key="row.key" class="return-card" :data-kind="row.kind" :data-period="row.period">
         <p class="text-sm font-medium text-highlighted">
           {{ row.month }}<span v-if="row.paidOn" class="font-normal text-muted">, paid {{ row.paidOn }}</span>
         </p>
@@ -103,7 +103,7 @@ const summary = computed(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="row.key" :data-kind="row.kind" :data-period="row.key">
+          <tr v-for="row in rows" :key="row.key" :data-kind="row.kind" :data-period="row.period">
             <th scope="row" class="text-start font-normal text-toned">{{ row.month }}</th>
             <td class="figure hidden text-muted @3xl:table-cell">{{ row.paidOn }}</td>
             <td class="hidden text-end @3xl:table-cell"><MoneyText v-if="row.gross !== null" :cents="row.gross" /></td>

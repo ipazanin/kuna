@@ -107,6 +107,7 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
     'year-end': gridFor('year-end', tabs['year-end']),
     plan: gridFor('plan', tabs.plan),
     scenarios: gridFor('scenarios', tabs.scenarios),
+    employees: gridFor('employees', tabs.employees),
     splits: gridFor('splits', tabs.splits),
     dismissed: gridFor('dismissed', tabs.dismissed),
   }

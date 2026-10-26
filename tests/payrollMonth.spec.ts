@@ -111,7 +111,7 @@ describe('payroll month of an employed director in Zagreb', () => {
     expect(ruleIds(payroll.nontaxablePayments)).toEqual(['hr.pit.nontaxable-caps'])
     expect(payroll.gross.rules[0]?.validFrom).toBe(civil('2026-01-01'))
     expect(ruleIds(payroll.stateTake)).toEqual(['hr.contrib.rates', 'hr.pit.monthly-advance', 'hr.pit.brackets', 'hr.pit.local-rates'])
-    const { workedMonth, paidOn, ...figures } = payroll
+    const { workedMonth, paidOn, warnings, ...figures } = payroll
     expect([workedMonth, paidOn]).toEqual(['2026-03', civil('2026-04-10')])
     expect(Object.values(figures).every((figure) => figure.rules.length > 0)).toBe(true)
     for (const figure of [payroll.income, payroll.taxableIncome, payroll.net, payroll.employerCost, payroll.paidToEmployee, payroll.stateTake]) {

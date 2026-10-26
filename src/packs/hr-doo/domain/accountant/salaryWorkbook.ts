@@ -12,8 +12,10 @@ export type PaymentBesideSalary =
   | { readonly kind: 'nontaxable'; readonly label: string; readonly amount: Money; readonly payment: string }
   | { readonly kind: 'rent' | 'cost-refund' | 'unknown'; readonly label: string; readonly amount: Money }
 
-/** One month's salary as the accountant computed it, named as `PayrollMonth` names the same lines. */
+/** One employee's month as the accountant computed it, named as `PayrollMonth` names the same lines. */
 export interface SalaryWorkbook {
+  /** As the tab's name gives it after `Obračun plaće_`, blank when it gives none. */
+  readonly employeeName: string
   readonly workedMonth: MonthKey
   readonly paidOn: CivilDate
   /** Gross II. */

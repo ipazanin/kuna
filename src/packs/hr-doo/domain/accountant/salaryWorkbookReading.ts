@@ -3,12 +3,13 @@ import { monthKey } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { ZERO } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { fold } from '../../../../shared/text/fold'
 import { basisPoints } from '../../ruleset/schema'
 import { amountCell, labelText, gridRow, isBlankRow, readingOf, refuse } from './accountantDocument'
 import type { DocumentReading, DocumentTab } from './accountantDocument'
 import type { PaymentBesideSalary, SalaryWorkbook } from './salaryWorkbook'
 
-/** The one tab, named after the employee as `Obračun plaće_<name>`. */
+/** One tab per employee, named after them as `Obračun plaće_<name>`. */
 const SALARY_TAB = 'Obračun plaće'
 const HEADER = 'Stavka'
 const TITLE = /^Plaća (\d{1,2})\/(\d{2}) - datum isplate (\d{1,2})\.(\d{1,2})\.(\d{4})$/
@@ -51,22 +52,30 @@ interface SalaryEntry {
 }
 
 /**
- * A salary workbook from its tab, read by the labels in column A with amounts in B and notes in C.
+ * A salary workbook, one employee's month from each tab, named in the tab's name after
+ * `Obračun plaće_`. Each tab reads by the labels in column A with amounts in B and notes in C.
  * The title names the worked month, which must be the file's, and the payout date. The rows under
  * `Neoporezive isplate` up to `Ukupni trošak` are the payments beside the salary. The employee's
  * share of the total is the `- ` line other than the state's, since it carries the employee's name.
  */
-export function readSalaryWorkbook(period: MonthKey, tabs: readonly DocumentTab[]): DocumentReading<SalaryWorkbook> {
+export function readSalaryWorkbook(period: MonthKey, tabs: readonly DocumentTab[]): DocumentReading<readonly SalaryWorkbook[]> {
   return readingOf(() => salaryWorkbookOf(period, tabs))
 }
 
-function salaryWorkbookOf(period: MonthKey, tabs: readonly DocumentTab[]): SalaryWorkbook {
+function salaryWorkbookOf(period: MonthKey, tabs: readonly DocumentTab[]): SalaryWorkbook[] {
   const unknown = tabs.find((tab) => !labelText(tab.name).startsWith(SALARY_TAB))
   if (unknown !== undefined) refuse(labelText(unknown.name), null, 'a tab this reader does not know')
-  const [tab, second] = tabs
-  if (tab === undefined) return refuse(null, null, `no ${SALARY_TAB} tab`)
-  if (second !== undefined) refuse(labelText(second.name), null, `a second ${SALARY_TAB} tab`)
+  if (tabs.length === 0) return refuse(null, null, `no ${SALARY_TAB} tab`)
+  const salaries = tabs.map((tab) => salaryOfTab(period, tab))
+  const names = salaries.map((salary) => fold(salary.employeeName))
+  const twice = names.findIndex((key, index) => names.indexOf(key) !== index)
+  if (twice !== -1) refuse(labelText(tabs[twice]?.name), null, `a second ${SALARY_TAB} tab for the same employee`)
+  return salaries
+}
+
+function salaryOfTab(period: MonthKey, tab: DocumentTab): SalaryWorkbook {
   const name = labelText(tab.name)
+  const employeeName = name.slice(SALARY_TAB.length).replace(/^[\s_]+/, '')
 
   const title = TITLE.exec(labelText(gridRow(tab.grid, 0)[0]))
   if (title === null) return refuse(name, 1, 'the title names no worked month and payout date')
@@ -119,6 +128,7 @@ function salaryWorkbookOf(period: MonthKey, tabs: readonly DocumentTab[]): Salar
   if (taxNote === null) return refuse(name, null, 'the note on Porez na dohodak names no city and rate')
 
   return {
+    employeeName,
     workedMonth,
     paidOn,
     employerCost: required('employerCost').amount,

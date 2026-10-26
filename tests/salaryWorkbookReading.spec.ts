@@ -45,10 +45,16 @@ function read(tabs: readonly DocumentTab[], period = '2026-03') {
   return readSalaryWorkbook(month(period), tabs)
 }
 
-function salaryOf(spec: SalarySpec) {
-  const reading = read(salaryTabs(spec), spec.worked)
+function salariesOf(tabs: readonly DocumentTab[], period: string) {
+  const reading = read(tabs, period)
   if ('refusal' in reading) throw new Error(`refused: ${reading.refusal.reason}`)
   return reading.document
+}
+
+function salaryOf(spec: SalarySpec) {
+  const [salary, ...others] = salariesOf(salaryTabs(spec), spec.worked)
+  if (salary === undefined || others.length > 0) throw new Error('not one salary')
+  return salary
 }
 
 function refusalOf(tabs: readonly DocumentTab[]) {
@@ -60,6 +66,7 @@ function refusalOf(tabs: readonly DocumentTab[]) {
 describe('readSalaryWorkbook', () => {
   it('reads the 2026 layout, its title, its notes and the payments beside the salary', () => {
     const salary = salaryOf(MARCH_2026)
+    expect(salary.employeeName).toBe('Ana Primjer')
     expect(salary.workedMonth).toBe(month('2026-03'))
     expect(salary.paidOn).toBe(civil('2026-04-10'))
     expect(salary.gross).toBe(euros(1500))
@@ -84,8 +91,8 @@ describe('readSalaryWorkbook', () => {
 
   it('keeps a payment beside the salary it does not know, for the rules check to fail on', () => {
     // Row 15 is the first row under Neoporezive isplate, the meal allowance.
-    const salary = read(withCell(salaryTabs(MARCH_2026), TAB, 15, 1, 'Dar za dijete'))
-    expect('document' in salary && salary.document.besideSalary[1]).toEqual({ kind: 'unknown', label: 'Dar za dijete', amount: euros(100) })
+    const [salary] = salariesOf(withCell(salaryTabs(MARCH_2026), TAB, 15, 1, 'Dar za dijete'), '2026-03')
+    expect(salary?.besideSalary[1]).toEqual({ kind: 'unknown', label: 'Dar za dijete', amount: euros(100) })
   })
 
   it('refuses a title that names another month than the file', () => {
@@ -108,6 +115,20 @@ describe('readSalaryWorkbook', () => {
 
   it('refuses an amount that is not a number', () => {
     expect(refusalOf(withCell(salaryTabs(MARCH_2026), TAB, 12, 2, 'n/a'))).toEqual({ tab: TAB, row: 12, reason: 'Neto plaća is not a number' })
+  })
+
+  it('reads a tab per employee, each named after its employee', () => {
+    const tabs = [...salaryTabs(MARCH_2026), ...salaryTabs({ ...MARCH_2026, agreed: 2400, employee: 'Ivo Uzorak' })]
+    const salaries = salariesOf(tabs, '2026-03')
+    expect(salaries.map((salary) => [salary.employeeName, salary.gross])).toEqual([
+      ['Ana Primjer', euros(1500)],
+      ['Ivo Uzorak', euros(2400)],
+    ])
+  })
+
+  it('refuses a second tab for the same employee', () => {
+    const tabs = [...salaryTabs(MARCH_2026), ...salaryTabs(MARCH_2026).map((tab) => ({ ...tab, name: 'Obračun plaće_ANA PRIMJER' }))]
+    expect(refusalOf(tabs)).toEqual({ tab: 'Obračun plaće_ANA PRIMJER', row: null, reason: 'a second Obračun plaće tab for the same employee' })
   })
 
   it('refuses a tab it does not know', () => {

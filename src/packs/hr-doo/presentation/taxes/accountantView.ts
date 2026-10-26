@@ -59,6 +59,9 @@ interface RuleLineView {
 
 export interface PayrollRow {
   readonly key: string
+  /** The worked month, `YYYY-MM`. */
+  readonly period: string
+  /** The worked month, with the employee's name when the year's workbooks name more than one. */
   readonly month: string
   readonly kind: 'read' | 'unread'
   readonly paidOn: string | null
@@ -180,12 +183,14 @@ function refundNote(refund: ClaimedRefund): string {
 /** The year's salary workbooks by worked month, newest first, each against the bank and the ruleset, and each file that could not be read. */
 export function payrollRows(workbook: HrDooWorkbook, documents: AccountantDocuments, year: number, linkOf: LinkOf): PayrollRow[] {
   const salaries = documents.salaries.filter((salary) => yearOfMonth(salary.workedMonth) === year)
-  const rows = salaryMonthChecks(workbook, salaries).map((check) => payrollRow(check, linkOf))
+  const named = new Set(salaries.map((salary) => salary.employeeName)).size > 1
+  const rows = salaryMonthChecks(workbook, salaries).map((check) => payrollRow(check, named, linkOf))
   const unread = documents.unread
     .filter((entry) => entry.kind === 'salary' && yearOfMonth(entry.period) === year)
     .map(
       (entry): PayrollRow => ({
         key: entry.period,
+        period: entry.period,
         month: monthLabel(entry.period),
         kind: 'unread',
         paidOn: null,
@@ -202,9 +207,9 @@ export function payrollRows(workbook: HrDooWorkbook, documents: AccountantDocume
   return [...rows, ...unread].sort((earlier, later) => later.key.localeCompare(earlier.key))
 }
 
-function payrollRow(check: SalaryMonthCheck, linkOf: LinkOf): PayrollRow {
+function payrollRow(check: SalaryMonthCheck, named: boolean, linkOf: LinkOf): PayrollRow {
   const { salary } = check
-  const month = monthLabel(salary.workedMonth)
+  const month = named ? `${monthLabel(salary.workedMonth)}, ${salary.employeeName}` : monthLabel(salary.workedMonth)
   const ours = (figure: FigureCheck): OurFigure => ({ cents: figure.ours.amount, to: linkOf(figure.ours.drill) })
   const state = ours(check.stateTake)
   const employee = ours(check.payout)
@@ -212,7 +217,8 @@ function payrollRow(check: SalaryMonthCheck, linkOf: LinkOf): PayrollRow {
   const ruleLines = check.rules.kind === 'checked' ? check.rules.lines.filter((line) => line.verdict === 'fail') : []
   const corrected = check.rules.kind === 'checked' && check.rules.lines.some((line) => line.verdict === 'total-adds-gross-one')
   return {
-    key: salary.workedMonth,
+    key: `${salary.workedMonth} ${salary.employeeName}`,
+    period: salary.workedMonth,
     month,
     kind: 'read',
     paidOn: dayLabel(salary.paidOn),
@@ -225,6 +231,7 @@ function payrollRow(check: SalaryMonthCheck, linkOf: LinkOf): PayrollRow {
     ruleLines: ruleLines.map((line) => ({ key: line.line, label: RULE_LINE_LABELS[line.line], theirs: line.theirs, ours: line.ours })),
     notes: [
       ...(check.rules.kind === 'unknown-city' ? [`The city in the tax note: ${check.rules.problem}`] : []),
+      ...(check.rules.kind === 'part-month' ? ["A part month's rules need its days worked, which the employment dates of the director's row on Salaries give."] : []),
       ...(corrected ? ['The total adds gross I instead of gross II, and its two shares add up to ours.'] : []),
     ],
   }

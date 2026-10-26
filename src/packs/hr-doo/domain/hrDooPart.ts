@@ -10,14 +10,16 @@ import type { Asset } from './assets/assets'
 import { ASSET_CODEC, readAssets } from './assets/assetsReading'
 import { COMPANY_FACT_SETTINGS } from './companyFacts'
 import type { CompanyFacts } from './companyFacts'
+import type { Employee } from './employees/employees'
+import { EMPLOYEE_CODEC, readEmployees } from './employees/employeesReading'
 import type { PlanLine } from './forecast/plan'
 import { PLAN_CODEC, readPlan } from './forecast/planReading'
 import type { Grant } from './grants/grants'
 import { GRANT_CODEC, readGrants } from './grants/grantsReading'
-import { ASSET_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from './hrDooKinds'
-import { ASSET_WRITES, GRANT_WRITES, OWNER_ADVANCE_WRITES, PLAN_WRITES, SCENARIO_WRITES, YEAR_END_WRITES } from './hrDooWrites'
+import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from './hrDooKinds'
+import { ASSET_WRITES, EMPLOYEE_WRITES, GRANT_WRITES, OWNER_ADVANCE_WRITES, PLAN_WRITES, SCENARIO_WRITES, YEAR_END_WRITES } from './hrDooWrites'
 import { OWNER_ADVANCE_CODEC, readOwnerAdvances } from './ownerAdvancesReading'
-import { PACK_ROLES } from './packRoles'
+import { PACK_ROLES, TAX_FREE_ROLES } from './packRoles'
 import type { OwnerPayScenario } from './scenarios/ownerPayScenarios'
 import { SCENARIO_CODEC, readScenarios } from './scenarios/scenariosReading'
 import type { YearEndLine } from './yearEnd/yearEnd'
@@ -37,6 +39,10 @@ export interface HrDooPart {
   readonly planLines: readonly PlanLine[]
   /** In the order their first rows appear on the tab. */
   readonly payScenarios: readonly OwnerPayScenario[]
+  /** In the order the tab holds them. */
+  readonly employees: readonly Employee[]
+  /** The director among the employees, whose facts the owner's pay is worked out on, or null when no single row is the director's. */
+  readonly director: Employee | null
   readonly companyFacts: CompanyFacts
 }
 
@@ -69,8 +75,8 @@ const OWNER_ADVANCE_NAMING: CategoryNaming = { kind: OWNER_ADVANCE_RECORDS, one:
  */
 export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   key: HR_DOO,
-  kinds: [OWNER_ADVANCE_WRITES, ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES, PLAN_WRITES, SCENARIO_WRITES],
-  codecs: [OWNER_ADVANCE_CODEC, ASSET_CODEC, GRANT_CODEC, YEAR_END_CODEC, PLAN_CODEC, SCENARIO_CODEC] as readonly RecordCodec<unknown>[],
+  kinds: [OWNER_ADVANCE_WRITES, ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES, PLAN_WRITES, SCENARIO_WRITES, EMPLOYEE_WRITES],
+  codecs: [OWNER_ADVANCE_CODEC, ASSET_CODEC, GRANT_CODEC, YEAR_END_CODEC, PLAN_CODEC, SCENARIO_CODEC, EMPLOYEE_CODEC] as readonly RecordCodec<unknown>[],
   schemaVersion: 1,
   settings: COMPANY_FACT_SETTINGS,
   categoryNaming: [
@@ -79,7 +85,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
     { kind: PLAN_RECORDS, one: 'plan tab row', many: 'plan tab rows', categoriesOf: (fields) => [slugOf(fields.item)] },
   ],
   ownerAdvanceNaming: OWNER_ADVANCE_NAMING,
-  categoryRoles: Object.values(PACK_ROLES),
+  categoryRoles: [...Object.values(PACK_ROLES), ...TAX_FREE_ROLES],
   assemble: (records, companyFacts, core) => {
     const categorySlugs = new Set(core.categories.map((category) => category.slug))
     const grants = readGrants(recordsOfKind(records, GRANT_RECORDS))
@@ -87,6 +93,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
     const ownerAdvances = readOwnerAdvances(recordsOfKind(records, OWNER_ADVANCE_RECORDS), core.categories)
     const assets = readAssets(recordsOfKind(records, ASSET_RECORDS), new Set(grants.facts.map((grant) => grant.slug)))
     const yearEndLines = readYearEnd(recordsOfKind(records, YEAR_END_RECORDS), categorySlugs)
+    const employees = readEmployees(recordsOfKind(records, EMPLOYEE_RECORDS))
     const planLines = readPlan(recordsOfKind(records, PLAN_RECORDS), categorySlugs, new Set(scenarios.scenarios.map((scenario) => scenario.slug)))
     return {
       part: {
@@ -96,6 +103,8 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
         yearEndLines: yearEndLines.facts,
         planLines: planLines.facts,
         payScenarios: scenarios.scenarios,
+        employees: employees.facts,
+        director: employees.director,
         companyFacts,
       },
       problems: [
@@ -105,6 +114,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
         ...tabProblems('assets', [...assets.problems, ...uncheckedClaimProblems(assets.facts, core.transactions, core.categories)]),
         ...tabProblems('year-end', yearEndLines.problems),
         ...tabProblems('plan', planLines.problems),
+        ...tabProblems('employees', employees.problems),
       ],
     }
   },

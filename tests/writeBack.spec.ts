@@ -265,7 +265,7 @@ describe.each([
 
     expect(hrDooWorkbook(store.state.workbook!).companyFacts.ownerLoanInterest).toBe(200)
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
-    await expect(changeSettings(store, [{ key: 'hr_birth_year', value: 'soon' }])).rejects.toThrow('use a year of birth such as 1990')
+    await expect(changeSettings(store, [{ key: 'hr_company_registered', value: 'soon' }])).rejects.toThrow('"soon" is not a date such as 2025-05-12')
   })
 
   it('takes import profiles, one it cannot read among them, and a key the app does not know off the settings, so none is offered or reported again', async () => {

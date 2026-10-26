@@ -5,6 +5,7 @@ import { FAKE_WORKBOOK_ID } from '../../../../features/workbook/infrastructure/f
 import type { AccountantFolders, DriveWorkbook } from '../../application/accountantDocuments'
 import type { DocumentTab } from '../../domain/accountant/accountantDocument'
 import { DEFAULT_PAYROLL_FOLDER, DEFAULT_VAT_RETURNS_FOLDER } from '../../domain/companyFacts'
+import { fakePayslipWorkbooks } from './fakeStaff'
 
 type Row = (StatementCell | undefined)[]
 
@@ -155,7 +156,7 @@ interface FakeFile extends DriveWorkbook {
  * July's follows the ruleset but the bank paid the state less, and August's title names July. July's
  * VAT return and salary are Google Sheets.
  */
-const FAKE_FILES: readonly FakeFile[] = [
+const VAT_AND_SALARY_FILES: readonly FakeFile[] = [
   vatFile('2026-04-pdv.xlsx', 'xlsx', { sale: { number: '5-1-26', issued: civilDate(2026, 4, 30), amount: 7109.87 }, local: [[120, 30]], carriedForward: -2859.41 }),
   vatFile('2026-06-pdv.xlsx', 'xlsx', {
     sale: { number: '7-1-26', issued: civilDate(2026, 6, 30), amount: 7478.75 },
@@ -188,7 +189,23 @@ function salaryFile(name: string, format: DriveWorkbook['format'], spec: FakeSal
   return { id: `${FAKE_WORKBOOK_ID}/${name}`, name, format, version: '1', folder: 'payroll', tabs: salaryTabs(spec) }
 }
 
-export function fakeAccountantFolders(): AccountantFolders {
+/**
+ * The files of the fake variant in the address. A variant with a made-up staff holds a salary
+ * workbook for each month it worked, with a tab per employee, in place of the owner's three.
+ */
+function fakeFiles(variant: string | null): readonly FakeFile[] {
+  const staffed = fakePayslipWorkbooks(variant)
+  if (staffed.length === 0) return VAT_AND_SALARY_FILES
+  const payslips = staffed.map(({ worked, tabs }): FakeFile => {
+    const name = `${worked}-salary.xlsx`
+    // The variant is in the id, so a read this device kept of another variant is not taken for this one.
+    return { id: `${FAKE_WORKBOOK_ID}/${variant}/${name}`, name, format: 'xlsx', version: '1', folder: 'payroll', tabs }
+  })
+  return [...VAT_AND_SALARY_FILES.filter((file) => file.folder === 'vat-returns'), ...payslips]
+}
+
+export function fakeAccountantFolders(variant: string | null = new URLSearchParams(globalThis.location?.search ?? '').get('fake')): AccountantFolders {
+  const files = fakeFiles(variant)
   const folderAt = (path: readonly string[]): FakeFile['folder'] | null =>
     path.join('/') === DEFAULT_VAT_RETURNS_FOLDER.join('/') ? 'vat-returns' : path.join('/') === DEFAULT_PAYROLL_FOLDER.join('/') ? 'payroll' : null
   return {
@@ -196,11 +213,11 @@ export function fakeAccountantFolders(): AccountantFolders {
       const folder = folderAt(path)
       return folder === null
         ? { kind: 'refused', reason: `The fake Drive holds the accountant's files only in ${DEFAULT_VAT_RETURNS_FOLDER.join('/')} and ${DEFAULT_PAYROLL_FOLDER.join('/')}, not in ${path.join('/')}` }
-        : { kind: 'listed', files: FAKE_FILES.filter((file) => file.folder === folder).map(({ id, name, format, version }) => ({ id, name, format, version })) }
+        : { kind: 'listed', files: files.filter((file) => file.folder === folder).map(({ id, name, format, version }) => ({ id, name, format, version })) }
     },
 
     async tabs(file) {
-      const found = FAKE_FILES.find((candidate) => candidate.id === file.id)
+      const found = files.find((candidate) => candidate.id === file.id)
       if (found === undefined) throw new Error(`The fake Drive holds no file ${file.name}.`)
       return found.tabs
     },

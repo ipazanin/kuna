@@ -42,11 +42,11 @@ const rules = computed(() => {
   return generalRules.map((rule) => ruleView(rule, format, day))
 })
 
-/** The local rates open on the unit the owner lives in, found by its name and its county. */
+/** The local rates open on the unit the director lives in, found by its name and its county. */
 const localRatesFocus = computed((): TableFocus => {
-  const { unit } = findLocalUnit(state.workbook === null ? '' : hrDooWorkbook(state.workbook).companyFacts.residenceCity)
+  const { unit } = findLocalUnit((state.workbook === null ? null : hrDooWorkbook(state.workbook).director)?.residenceCity ?? '')
   return unit === null
-    ? { cells: null, hint: 'Search for a city or municipality, or show them all. Set where the owner lives on the General tab to open on that one.' }
+    ? { cells: null, hint: 'Search for a city or municipality, or show them all. Set where the director lives on Salaries to open on that one.' }
     : { cells: [unit.unit, unit.county], hint: '' }
 })
 

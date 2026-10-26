@@ -7,7 +7,7 @@ import { dividendCapacity } from '../src/packs/hr-doo/domain/dividend/dividendCa
 import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
 import { civil, euros } from './fixtures/ledger'
 import { planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
-import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
+import { director } from './fixtures/employees'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
@@ -31,9 +31,10 @@ const BOARD = scenario('board', [
  * June. Revenue and the other costs take their averages.
  */
 function planned(): HrDooWorkbook {
-  const base = steadyStudio()
+  const owner = director()
   return steadyStudio({
-    companyFacts: { ...base.companyFacts, ...ZAGREB_RESIDENT },
+    employees: [owner],
+    director: owner,
     payScenarios: [FLOOR, BOARD],
     planLines: [
       planOwnerPay(2027, 'floor', null, 2),

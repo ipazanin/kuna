@@ -134,9 +134,9 @@ function openDetail(opened: FigureDetail): void {
     <UEmpty
       v-if="pay.state === 'needs'"
       icon="i-lucide-settings-2"
-      :title="`The figures need ${pay.key}`"
+      :title="`The figures need ${pay.need}`"
       :description="`${pay.why} The scenarios below can be edited meanwhile.`"
-      :actions="[{ label: 'Set it on Settings', to: pay.setting, color: 'neutral', variant: 'outline' }]"
+      :actions="[{ label: pay.action.label, to: pay.action.to, color: 'neutral', variant: 'outline' }]"
       variant="outline"
       class="rounded-card border-dashed bg-raised/40"
       data-testid="scenarios-needs-setting"

@@ -176,6 +176,9 @@ const taken = computed(() => {
               </DrillLink>
             </li>
           </ul>
+          <p class="mt-3 text-xs text-muted" data-testid="owner-salaries">
+            <DrillLink to="/salaries" in-prose class="text-toned">Salaries</DrillLink> splits each salary into net pay, pension savings, tax and health.
+          </p>
           <p v-if="taken.reimbursements.length > 0" class="mt-3 text-xs text-muted" data-testid="owner-reimbursements">
             Outside the owner take, since they settle costs:
             <template v-for="(line, index) in taken.reimbursements" :key="line.key">

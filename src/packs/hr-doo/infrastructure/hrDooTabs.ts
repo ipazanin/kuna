@@ -5,11 +5,12 @@ import { ID_TEMPLATE_COLUMN, OWNER_SHARE_TEMPLATE_COLUMN } from '../../../featur
 import type { TemplateColumn } from '../../../features/workbook/infrastructure/workbookTemplate'
 import { ASSET_GROUPS } from '../domain/assets/assets'
 import type { Asset } from '../domain/assets/assets'
+import type { Employee } from '../domain/employees/employees'
 import type { PlanLine } from '../domain/forecast/plan'
 import { GRANT_RELEASES } from '../domain/grants/grants'
 import type { Grant } from '../domain/grants/grants'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
-import { ASSET_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../domain/hrDooKinds'
+import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../domain/hrDooKinds'
 import { DIRECTOR_BASES } from '../domain/scenarios/ownerPayScenarios'
 import type { ScenarioRow } from '../domain/scenarios/scenariosReading'
 import { YEAR_END_STATEMENTS, yearEndLineDefinition } from '../domain/yearEnd/yearEnd'
@@ -121,6 +122,24 @@ const SCENARIO_COLUMNS: readonly TemplateColumn[] = [
   { name: 'to', note: 'The last day it holds, as a date cell in the scenario year. Blank means the end of the year.' },
 ]
 
+const EMPLOYEE_COLUMNS: readonly TemplateColumn[] = [
+  { name: 'employee', note: 'A short name in lower case, such as alex. Each employee once. Required.' },
+  { name: 'name', note: 'The full name. Optional.' },
+  {
+    name: 'residence_city',
+    note: 'The city or municipality the employee lives in, such as Zagreb, which sets the local income tax rates. The payroll leaves the employee out while it is blank.',
+  },
+  { name: 'pension_pillar_2', note: 'TRUE when the employee pays into the second pension pillar. Blank or FALSE sends the whole pension contribution to the first.' },
+  { name: 'dependants', note: 'How many dependants raise the personal allowance, a whole number from 0 to 20. Blank means 0.' },
+  { name: 'birth_year', note: 'The year of birth, such as 1990, for the youth income tax relief. Blank means no relief is assumed.' },
+  { name: 'from', note: 'The first day of the employment, as a date cell. A month it starts or ends in counts its working days from here. Required.' },
+  { name: 'to', note: 'The last day of the employment, as a date cell. Blank while it lasts.' },
+  {
+    name: 'director',
+    note: "TRUE for a member of the company who is its director, whose salary has the director floor. One row at most. The pay scenarios and the forecast work out the owner's pay on it.",
+  },
+]
+
 const FIGURE_FORMATS: Readonly<Record<YearEndFigureKind, CellFormat>> = { money: 'amount', date: 'date', rate: 'rate', count: 'count' }
 
 export const OWNER_ADVANCES_TAB: PackSpreadsheetTab<OwnerAdvanceEntry> = {
@@ -189,5 +208,12 @@ export const SCENARIOS_TAB: PackSpreadsheetTab<ScenarioRow> = {
   columns: SCENARIO_COLUMNS,
 }
 
+export const EMPLOYEES_TAB: PackSpreadsheetTab<Employee> = {
+  tab: 'employees',
+  kind: EMPLOYEE_RECORDS,
+  formatOf: byColumn({ dependants: 'number', birth_year: 'number', from: 'date', to: 'date' }),
+  columns: EMPLOYEE_COLUMNS,
+}
+
 /** The pack's tabs, which main.ts installs with the spreadsheet adapter. */
-export const HR_DOO_TABS: readonly PackSpreadsheetTab<unknown>[] = [OWNER_ADVANCES_TAB, ASSETS_TAB, GRANTS_TAB, YEAR_END_TAB, PLAN_TAB, SCENARIOS_TAB]
+export const HR_DOO_TABS: readonly PackSpreadsheetTab<unknown>[] = [OWNER_ADVANCES_TAB, ASSETS_TAB, GRANTS_TAB, YEAR_END_TAB, PLAN_TAB, SCENARIOS_TAB, EMPLOYEES_TAB]

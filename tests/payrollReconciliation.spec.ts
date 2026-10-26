@@ -14,7 +14,9 @@ import { exampleStudio } from './fixtures/exampleStudio'
 import { withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
+import { director } from './fixtures/employees'
 import { withSplit } from './fixtures/splits'
+import type { Employee } from '../src/packs/hr-doo/domain/employees/employees'
 
 function category(slug: string, bucket: DefinedBucket, roles: readonly string[]): Category {
   return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat: 'none', ownerShare: null }
@@ -40,8 +42,8 @@ const MARCH: SalarySpec = {
 
 function salaryOf(spec: SalarySpec): SalaryWorkbook {
   const reading = readSalaryWorkbook(month(spec.worked), salaryTabs(spec))
-  if ('refusal' in reading) throw new Error(`refused: ${reading.refusal.reason}`)
-  return reading.document
+  if ('refusal' in reading || reading.document[0] === undefined) throw new Error('not read')
+  return reading.document[0]
 }
 
 const SALARY = salaryOf(MARCH)
@@ -58,8 +60,8 @@ const PAYOUT_WEEK: readonly RowSpec[] = [
   { date: '2026-04-20', amount: -12, category: 'payroll-contributions' },
 ]
 
-function checksOf(transactions: readonly Transaction[], categories: readonly Category[] = CATEGORIES, salary: SalaryWorkbook = SALARY, daysWorked = new Map()) {
-  const [check] = salaryMonthChecks(exampleStudio({ categories, transactions }), [salary], daysWorked)
+function checksOf(transactions: readonly Transaction[], categories: readonly Category[] = CATEGORIES, salary: SalaryWorkbook = SALARY, employed: Employee | null = null) {
+  const [check] = salaryMonthChecks(exampleStudio({ categories, transactions, employees: employed === null ? [] : [employed], director: employed }), [salary])
   if (check === undefined) throw new Error('no check')
   return check
 }
@@ -100,28 +102,35 @@ describe('salaryMonthChecks', () => {
     expect(check.payout.ours.drill?.filters.period).toEqual({ preset: 'custom', range: { from: civil('2026-04-05'), to: civil('2026-04-15') } })
   })
 
-  it('runs a part month at the director floor through the engine only with its days worked', () => {
+  it("runs a part month at the director floor through the engine only with its days worked from the director's row", () => {
+    // From Monday 16 March 2026, 12 of the month's 22 weekdays.
     const partMonth = salaryOf({ ...MARCH, agreed: 'director-minimum', daysWorked: 12 })
     expect(checksOf(ROWS, CATEGORIES, partMonth).rules).toEqual({ kind: 'part-month' })
-    const checked = checksOf(ROWS, CATEGORIES, partMonth, new Map([[month('2026-03'), 12]])).rules
+    expect(checksOf(ROWS, CATEGORIES, partMonth, director({ from: '2026-04-01' })).rules).toEqual({ kind: 'part-month' })
+    const checked = checksOf(ROWS, CATEGORIES, partMonth, director({ from: '2026-03-16' })).rules
     expect(checked.kind === 'checked' && checked.lines.every((line) => line.verdict === 'pass')).toBe(true)
   })
 
   it('leaves a part month above the floor unchecked even with its days, since its full-month gross is not in the workbook', () => {
     const partMonth = salaryOf({ ...MARCH, daysWorked: 12 })
-    expect(checksOf(ROWS, CATEGORIES, partMonth, new Map([[month('2026-03'), 12]])).rules).toEqual({ kind: 'part-month' })
+    expect(checksOf(ROWS, CATEGORIES, partMonth, director({ from: '2026-03-16' })).rules).toEqual({ kind: 'part-month' })
+  })
+
+  it("takes the dependants from the director's row", () => {
+    const withChild = checksOf(ROWS, CATEGORIES, SALARY, director({ dependants: '1' })).rules
+    expect(withChild.kind === 'checked' && withChild.lines.filter((line) => line.verdict === 'fail').map((line) => line.line)).toContain('personalAllowance')
   })
 })
 
 describe('salaryRules', () => {
   it('fails the line the engine computes otherwise', () => {
-    const rules = salaryRules({ ...SALARY, net: addMoney(SALARY.net, moneyFromCents(1)) }, 0, null)
+    const rules = salaryRules({ ...SALARY, net: addMoney(SALARY.net, moneyFromCents(1)) }, { dependants: 0, director: true }, null)
     expect(rules.kind === 'checked' && rules.lines.filter((line) => line.verdict !== 'pass')).toEqual([{ line: 'net', verdict: 'fail', theirs: addMoney(SALARY.net, moneyFromCents(1)), ours: SALARY.net }])
   })
 
   it('states the correction of a total that adds gross I instead of gross II', () => {
     const totalWithoutHealth = sumMoney([SALARY.gross, euros(100), euros(300)])
-    const rules = salaryRules({ ...SALARY, totalCompanyCost: totalWithoutHealth }, 0, null)
+    const rules = salaryRules({ ...SALARY, totalCompanyCost: totalWithoutHealth }, { dependants: 0, director: true }, null)
     expect(rules.kind === 'checked' && rules.lines.find((line) => line.line === 'totalCompanyCost')).toEqual({
       line: 'totalCompanyCost',
       verdict: 'total-adds-gross-one',
@@ -131,11 +140,11 @@ describe('salaryRules', () => {
   })
 
   it('fails a payment beside the salary it does not know', () => {
-    const rules = salaryRules({ ...SALARY, besideSalary: [...SALARY.besideSalary, { kind: 'unknown', label: 'Dar za dijete', amount: euros(50) }] }, 0, null)
+    const rules = salaryRules({ ...SALARY, besideSalary: [...SALARY.besideSalary, { kind: 'unknown', label: 'Dar za dijete', amount: euros(50) }] }, { dependants: 0, director: true }, null)
     expect(rules.kind === 'checked' && rules.lines.find((line) => line.line === 'besideSalary')?.verdict).toBe('fail')
   })
 
   it('names a city the ruleset has no rates for instead of running the engine', () => {
-    expect(salaryRules({ ...SALARY, residenceCity: 'Atlantida' }, 0, null).kind).toBe('unknown-city')
+    expect(salaryRules({ ...SALARY, residenceCity: 'Atlantida' }, { dependants: 0, director: true }, null).kind).toBe('unknown-city')
   })
 })

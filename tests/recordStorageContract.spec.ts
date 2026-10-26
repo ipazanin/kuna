@@ -395,6 +395,20 @@ const FIXTURES: Readonly<Record<string, KindFixture>> = {
       fixed: { scenario: 'third', year: '2027', component: 'salary_gross', amount: 'floor', from: '2027-01-13' },
     },
   },
+  'hr-doo.employee': {
+    records: [
+      { employee: 'dora', name: 'Dora Example', residence_city: 'Zagreb', pension_pillar_2: true, dependants: '2', birth_year: '1990', from: '2025-06-05', director: true },
+      { employee: 'ivo', name: 'Ivo Example', residence_city: 'Split', from: '2026-01-12', to: '2026-12-31' },
+    ],
+    outside: { employee: 'ana', residence_city: 'Rijeka', pension_pillar_2: true, from: '2026-03-01' },
+    change: { field: 'name', value: 'Dora Example-Horvat' },
+    cleared: 'name',
+    refused: {
+      fields: { employee: 'mia', residence_city: 'Atlantida', from: '2026-02-01' },
+      reason: 'is not a Croatian city or municipality',
+      fixed: { employee: 'mia', residence_city: 'Osijek', from: '2026-02-01' },
+    },
+  },
 }
 
 const CORE_WRITES: readonly WriteRules<unknown>[] = [
@@ -419,7 +433,7 @@ const STORAGES = [
 
 it('has a fixture for every kind, core’s and the pack’s', () => {
   expect(KINDS.map(([name]) => name).filter((name) => FIXTURES[name] === undefined)).toEqual([])
-  expect(KINDS).toHaveLength(16)
+  expect(KINDS).toHaveLength(17)
 })
 
 describe.each(STORAGES)('records kept in %s', (_storage, open) => {

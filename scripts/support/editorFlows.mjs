@@ -395,6 +395,35 @@ export async function assetFlow(page, { press, shoot }) {
   await dismissToasts(page)
 }
 
+/** Salaries: add an employee, change the dependants, delete the row, and Undo the delete. */
+export async function employeeFlow(page, { press, shoot }) {
+  const rows = '#employee-rows [data-testid="fact-row"]'
+  await pressSelector(page, press, '#employee-rows [data-testid="add-row"]')
+  const added = (await page.$$(rows)).at(-1)
+  await setField(await fieldIn(added, 'Employee'), 'sam')
+  await setField(await fieldIn(added, 'Lives in'), 'Split')
+  await setField(await fieldIn(added, 'Employed from'), '2026-03-02')
+  await shoot('employees-draft')
+  await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
+  await toast(page, 'Employees saved')
+  await dismissToasts(page)
+
+  await setField(await fieldIn(await rowNamed(page, rows, 'sam'), 'Dependants'), '1')
+  await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
+  await toast(page, 'Employees saved')
+  await shoot('employees-saved')
+  await dismissToasts(page)
+
+  const row = await rowNamed(page, rows, 'sam')
+  await press(await row.$('[data-testid="remove-row"]'))
+  await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
+  await toast(page, 'Employees saved')
+  await rowGone(page, rows, 'sam')
+  await undo(page, press)
+  await rowNamed(page, rows, 'sam')
+  await dismissToasts(page)
+}
+
 function invoiceListed(page, number) {
   return page.evaluate((wanted) => [...document.querySelectorAll('[data-testid="invoice-list"] .figure')].some((element) => element.textContent?.trim() === wanted), number)
 }
@@ -1927,4 +1956,72 @@ export async function raceFlow(page, { press, shoot, inspect }) {
   await queueHolds(page, 1, "Undo did not bring back this device's row alone")
   await pageSays(page, 'GADGET CORNER', true)
   await shoot('race-undone')
+}
+
+const SALARIES_TABS = '[data-testid="salaries-tabs"] [role="tab"]'
+
+/** Waits until the element under `selector` says every text given. */
+async function elementSays(page, selector, texts, failure) {
+  await page
+    .waitForFunction((css, wanted) => [...document.querySelectorAll(css)].some((element) => wanted.every((text) => element.textContent?.includes(text))), { timeout: 10_000 }, selector, texts)
+    .catch(async () => {
+      const said = await page.evaluate((css) => document.querySelector(css)?.textContent?.trim().slice(0, 300) ?? 'nothing', selector)
+      throw new Error(`${failure}, it says: ${said}`)
+    })
+}
+
+async function screenTitled(page, title) {
+  await page.waitForFunction((wanted) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === wanted, { timeout: 10_000 }, title).catch(() => {
+    throw new Error(`${title} did not open`)
+  })
+}
+
+/**
+ * Salaries with the five made-up employees, as a sync read their payslips: the newest payday's net
+ * row 10.00 short is the one problem, its build-up opens and its bank figure opens the rows, the
+ * People tab opens one employee's month, and a month of the Over time table opens on the Month tab.
+ */
+export async function salariesFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  await elementSays(page, '[data-testid="salaries-tiles"]', ['10.00 less'], 'the paid tile does not say the bank paid 10.00 less')
+  await elementSays(page, '[data-testid="salaries-problem"]', ['Mia Primjer, paid to the employee'], 'the problems do not name the row 10.00 short')
+  const problems = await page.$$('[data-testid="salaries-problem"]')
+  if (problems.length !== 1) throw new Error(`the payday shows ${problems.length} problems, not the one row 10.00 short`)
+  await inspect?.('the month of five employees')
+  await shoot('salaries-month')
+
+  await pressButton(page, press, '[data-testid="salaries-problem"] button', 'How it is worked out')
+  await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
+  // The dialog grows in, and its controls reach their size once it has.
+  await delay(400)
+  await inspect?.('the build-up of the line that differs')
+  await shoot('salaries-build-up')
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('[data-testid="figure-detail"]') && !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+  // The dialog's overlay fades out after its content, and would take the next press.
+  await delay(400)
+
+  await pressSelector(page, press, '[data-testid="salaries-reconciliation"] [data-section="mia"] [data-agrees="false"] a')
+  await screenTitled(page, 'Transactions')
+  await shoot('salaries-bank-rows')
+  await page.goBack()
+  await screenTitled(page, 'Salaries')
+
+  await pressButton(page, press, SALARIES_TABS, 'People')
+  await elementSays(page, '[data-testid="salaries-people"]', ['Mia Primjer', 'Everyone'], 'the People tab does not list everyone paid')
+  await inspect?.('the People tab')
+  await shoot('salaries-people')
+  await pressSelector(page, press, '[data-testid="salaries-people"] [data-person="mia"] a')
+  await elementSays(page, '[data-testid="salaries-strip"]', ['Mia Primjer'], 'a name on the People tab did not open that employee’s month')
+  await shoot('salaries-employee')
+
+  await pressButton(page, press, SALARIES_TABS, 'Over time')
+  await page.waitForSelector('[data-testid="salaries-over-time"] canvas', { visible: true, timeout: 10_000 })
+  await inspect?.('the Over time tab')
+  await shoot('salaries-over-time')
+  await pressSelector(page, press, '[data-testid="salaries-months"] [data-payday="2026-04"] a')
+  await page.waitForSelector('[data-testid="salaries-paydays"] [data-payday="2026-04"][aria-pressed="true"]', { timeout: 10_000 }).catch(() => {
+    throw new Error('a month of the Over time table did not open on the Month tab')
+  })
+  await elementSays(page, '[data-testid="salaries-strip"]', ['Mia Primjer'], 'the month opened without the employee picked')
 }

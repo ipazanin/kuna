@@ -18,7 +18,24 @@ import { COMPANY_APP } from '../documentStorePorts'
 export const FAKE_WORKBOOK_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP'
 
 /** A record's fields as the fake writes them, a blank one left out. */
-type FakeFields = Readonly<Record<string, FieldValue | number | null | undefined>>
+export type FakeFields = Readonly<Record<string, FieldValue | number | null | undefined>>
+
+/** A row a made-up payroll pays, to an employee or to a payee of the contributions. */
+export interface FakePayment {
+  readonly counterparty: string
+  readonly iban: string
+  readonly description: string
+  readonly amount: number
+  readonly category: string
+}
+
+/** The people a fake variant pays in place of the owner's flat salary, with each payday's rows. */
+export interface FakeStaff {
+  /** The rows of the employees tab. */
+  readonly employees: readonly FakeFields[]
+  /** The rows paid on the 12th of `paidIn` for `worked`, the month before it, both `YYYY-MM`. */
+  payday(paidIn: string, worked: string): readonly FakePayment[]
+}
 
 /** The `roles` column as the shadow-accounting Sheet seeds it. Salary and rent are paid in the month after the work, hence `arrears`. */
 const CATEGORY_ROLES: Readonly<Record<string, string>> = {
@@ -29,7 +46,7 @@ const CATEGORY_ROLES: Readonly<Record<string, string>> = {
   'payroll-tax': 'owner-pay-tax, arrears',
   'corporate-income-tax': 'corporate-income-tax',
   'dividend-tax': 'owner-pay-tax, profit-distribution',
-  'salary-net': 'arrears',
+  'salary-net': 'salary, arrears',
   dividend: 'profit-distribution',
   'rent-owner': 'watched, arrears',
   accounting: 'watched',
@@ -204,6 +221,9 @@ interface Booking {
   readonly ownerShare?: number
 }
 
+/** What the owner's flat salary and its contributions take out of the bank each payday. */
+const FLAT_PAYROLL = -(1100 + 250.4 + 209.6 + 94.2)
+
 const MONTHS = [
   '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01',
   '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10',
@@ -215,18 +235,19 @@ const LOSS_MONTH = '2025-11'
 /**
  * The made-up company's records, by kind. As a Drive file its settings hold a blank
  * `card_settlement_ibans` and the invoice details, so every other default applies. As a workbook
- * kept in this browser they also name the company, the way a new user would. Rows the rules do not
+ * kept in this browser they also name the company, the way a new user would, and its director is on
+ * the employees tab. Rows the rules do not
  * reproduce are flagged as a person's, so Review has coverage gaps to show. The records of the
  * kinds without a business key, and every ledger row, carry a fixed id.
  */
-export function fakeWorkbookRecords(source: WorkbookSource = 'drive'): Readonly<Record<string, readonly RecordFields[]>> {
-  const records = fakeKinds(source)
+export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: FakeStaff | null = null): Readonly<Record<string, readonly RecordFields[]>> {
+  const records = fakeKinds(source, staff)
   return Object.fromEntries(Object.entries(records).map(([kind, held]) => [kind, held.map((fields, index) => recordFields(withFixedId(kind, fields, index)))]))
 }
 
 /** The made-up company's books as the document a Drive file or this browser holds. */
-export function fakeWorkbookDocument(savedAt: string, source: WorkbookSource = 'drive'): WorkbookDocument {
-  return newDocument(COMPANY_APP, fakeWorkbookRecords(source), savedAt)
+export function fakeWorkbookDocument(savedAt: string, source: WorkbookSource = 'drive', staff: FakeStaff | null = null): WorkbookDocument {
+  return newDocument(COMPANY_APP, fakeWorkbookRecords(source, staff), savedAt)
 }
 
 /** The kinds whose records carry an id, each with its place in the fixed ids, so every run gives the same ids. */
@@ -275,10 +296,13 @@ const FAKE_INVOICING: readonly (readonly [key: string, value: string])[] = [
   ['invoice_signatory_title', 'director'],
 ]
 
+/** The owner, whom a fake payroll pays under the name and account the rest of the fake knows. */
+export const FAKE_OWNER = PAYEES.owner
+
 const setting = ([key, value]: readonly [string, FieldValue | number]): FakeFields => ({ key, value })
 
-function fakeKinds(source: WorkbookSource): Readonly<Record<string, readonly FakeFields[]>> {
-  const { bookings, invoices } = fakeBooks()
+function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Record<string, readonly FakeFields[]>> {
+  const { bookings, invoices } = fakeBooks(staff)
   const ledger = ledgerRecords(bookings)
   return {
     setting:
@@ -290,9 +314,6 @@ function fakeKinds(source: WorkbookSource): Readonly<Record<string, readonly Fak
                 ['template_version', 1],
                 ['company_name', 'Example Studio'],
                 ['currency', 'EUR'],
-                ['hr_residence_city', 'Zagreb'],
-                ['hr_birth_year', 1990],
-                ['hr_pension_pillar_2', true],
                 ['hr_company_registered', '2025-05-12'],
                 ['hr_owner_loan_interest', 0.025],
                 ['hr_vat_returns_folder', 'work/dss/dss-finance/vat-returns'],
@@ -355,6 +376,11 @@ function fakeKinds(source: WorkbookSource): Readonly<Record<string, readonly Fak
     'split-part': splitRecords(ledger),
     dismissal: [],
     ...planningRecords(),
+    ...(staff !== null
+      ? { 'hr-doo.employee': staff.employees }
+      : source === 'drive'
+        ? {}
+        : { 'hr-doo.employee': [{ employee: 'alex', name: 'Alex Čolić', iban: PAYEES.owner.iban, residence_city: 'Zagreb', pension_pillar_2: true, birth_year: 1990, from: '2025-06-01', director: true }] }),
   }
 }
 
@@ -602,8 +628,9 @@ function ruleRecords(): FakeFields[] {
  * its invoice and is refunded, and one runs 500 short, so the newest invoice is part paid. A second
  * client leaves two invoices open, and one credit comes from an IBAN no client names.
  */
-function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInvoice[] } {
+function fakeBooks(staff: FakeStaff | null): { readonly bookings: Booking[]; readonly invoices: FakeInvoice[] } {
   const random = seededRandom(20251)
+  let staffDifference = 0
   const vary = (base: number, spread: number): number => roundToCent(base + (random() - 0.5) * 2 * spread)
   const invoices: FakeInvoice[] = []
   const invoice = (client: string, item: string, amount: number, issued: string, due = addOneMonth(issued), workedIn = ''): void => {
@@ -645,12 +672,19 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
     if (isPartMonth) {
       continue
     }
+    const rent = booking(day(12), PAYEES.owner.name, PAYEES.owner.iban, `Home office rent ${previous}`, -300, 'rent-owner')
+    const staffPaid = staff?.payday(month, previous) ?? []
+    staffDifference = roundToCent(staffDifference + FLAT_PAYROLL - staffPaid.reduce((sum, paid) => sum + paid.amount, 0))
     all.push(
-      booking(day(12), PAYEES.owner.name, PAYEES.owner.iban, `Salary for ${previous}`, -1100, 'salary-net'),
-      booking(day(12), PAYEES.owner.name, PAYEES.owner.iban, `Home office rent ${previous}`, -300, 'rent-owner'),
-      booking(day(12), PAYEES.pension.name, PAYEES.pension.iban, `Salary for ${previous}`, -250.4, 'payroll-contributions'),
-      booking(day(12), PAYEES.health.name, PAYEES.health.iban, `Salary for ${previous}`, -209.6, 'payroll-contributions'),
-      booking(day(12), PAYEES.taxOffice.name, PAYEES.taxOffice.iban, `Salary for ${previous}`, -94.2, 'payroll-tax'),
+      ...(staff === null
+        ? [
+            booking(day(12), PAYEES.owner.name, PAYEES.owner.iban, `Salary for ${previous}`, -1100, 'salary-net'),
+            rent,
+            booking(day(12), PAYEES.pension.name, PAYEES.pension.iban, `Salary for ${previous}`, -250.4, 'payroll-contributions'),
+            booking(day(12), PAYEES.health.name, PAYEES.health.iban, `Salary for ${previous}`, -209.6, 'payroll-contributions'),
+            booking(day(12), PAYEES.taxOffice.name, PAYEES.taxOffice.iban, `Salary for ${previous}`, -94.2, 'payroll-tax'),
+          ]
+        : [...staffPaid.map((paid) => booking(day(12), paid.counterparty, paid.iban, paid.description, paid.amount, paid.category)), rent]),
       booking(day(20), PAYEES.accountant.name, PAYEES.accountant.iban, `Bookkeeping ${previous}`, -150, 'accounting'),
       booking(day(28), PAYEES.bank.name, PAYEES.bank.iban, 'Account fee', -vary(9, 5), 'bank-fees'),
     )
@@ -692,6 +726,10 @@ function fakeBooks(): { readonly bookings: Booking[]; readonly invoices: FakeInv
     booking('2026-10-06', PAYEES.owner.name, PAYEES.owner.iban, 'Refund of a parking fee', -38.5, 'reimbursement-to-owner', undefined, 'human'),
     booking('2026-10-08', 'SNACK KIOSK', '', 'Card purchase', -6.4, 'card-purchase-unknown', undefined, 'ai'),
   )
+  if (staff !== null && staffDifference !== 0) {
+    // The main account then ends where the flat salary leaves it, so the statements folder's sample carries it on.
+    all.push(booking('2026-10-05', PAYEES.owner.name, PAYEES.owner.iban, staffDifference > 0 ? 'Share capital paid in' : 'Share capital paid back', staffDifference, 'share-capital', undefined, 'human'))
+  }
   invoice('lumen', 'Workshop', 1500, '2026-05-12')
   invoice('lumen', 'Data audit', 2400, '2026-06-15', '')
   invoice('lumen', 'Follow-up review', 1800, '2026-08-14')

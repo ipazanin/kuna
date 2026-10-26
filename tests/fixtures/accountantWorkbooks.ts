@@ -169,6 +169,13 @@ export interface SalarySpec {
   readonly daysWorked?: number
   /** The 2025-06 layout's range down to row 1000, with blank rows below the last line. */
   readonly blankRowsBelow?: number
+  /** The name the tab is titled after, Ana Primjer unless given. */
+  readonly employee?: string
+  /** In pillar II unless false. */
+  readonly pensionPillarTwo?: boolean
+  /** A director, whose salary has the floor, unless false. */
+  readonly director?: boolean
+  readonly dependants?: number
 }
 
 function grossNote(spec: SalarySpec): string | undefined {
@@ -178,8 +185,8 @@ function grossNote(spec: SalarySpec): string | undefined {
 }
 
 /**
- * A made-up salary workbook for a director living in Zagreb, in pillar II, whose every line is the
- * payroll engine's own figure, laid out as the accountant's files are.
+ * A made-up salary workbook for an employee living in Zagreb, by default in pillar II and without
+ * dependants, whose every line is the payroll engine's own figure, laid out as the accountant's files are.
  */
 export function salaryTabs(spec: SalarySpec): DocumentTab[] {
   const worked = month(spec.worked)
@@ -197,16 +204,17 @@ export function salaryTabs(spec: SalarySpec): DocumentTab[] {
       nontaxablePayments: nontaxable.map((line) => ({ payment: line.payment, amount: euros(line.amount) })),
       basis: 'plan',
     },
-    { residenceCity: 'Zagreb', pensionPillarTwo: true, dependants: 0, birthYear: null },
+    { residenceCity: 'Zagreb', pensionPillarTwo: spec.pensionPillarTwo ?? true, director: spec.director ?? true, dependants: spec.dependants ?? 0, birthYear: null },
   )
   const lowerRate = localRates('Zagreb', paidOn, ruleValue).lowerRate
   const outsideTotal = total(outside.map((line) => line.amount))
   const [year, monthNumber] = spec.worked.split('-').map(Number)
   const [paidYear, paidMonth, paidDay] = spec.paid.split('-').map(Number)
   const amount = (figure: TracedFigure) => amountOf(figure.amount)
+  const employee = spec.employee ?? 'Ana Primjer'
   return [
     {
-      name: 'Obračun plaće_Ana Primjer',
+      name: `Obračun plaće_${employee}`,
       grid: [
         [`Plaća ${monthNumber}/${String(year).slice(2)} - datum isplate ${paidDay}.${paidMonth}.${paidYear}`],
         ['Stavka', 'Iznos', 'Napomena'],
@@ -225,7 +233,7 @@ export function salaryTabs(spec: SalarySpec): DocumentTab[] {
         [],
         ['Ukupni trošak', total([amount(payroll.totalCompanyCost), outsideTotal])],
         ['  - Država', amount(payroll.stateTake), 'Doprinosi i porez'],
-        ['- Ana Primjer', total([amount(payroll.paidToEmployee), outsideTotal]), 'Na račun'],
+        [`- ${employee}`, total([amount(payroll.paidToEmployee), outsideTotal]), 'Na račun'],
         ...Array.from({ length: spec.blankRowsBelow ?? 0 }, (): Row => []),
       ],
     },

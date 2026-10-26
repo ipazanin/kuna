@@ -1,11 +1,11 @@
-import { moneyAxisLabel } from '../../../../shared/charts/chartTheme'
-import type { ChartTokens } from '../../../../shared/charts/chartTokens'
-import { axisTooltip } from '../../../../shared/charts/chartTooltip'
-import type { BarSeries } from '../../../../shared/charts/echarts'
-import { formatMoney, formatWholeMoney } from '../../../../shared/money/moneyFormat'
-import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
-import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import type { DrillChart } from '../../../../features/filters/presentation/chartDrill'
+import { moneyAxisLabel } from '../../../shared/charts/chartTheme'
+import type { ChartTokens } from '../../../shared/charts/chartTokens'
+import { axisTooltip } from '../../../shared/charts/chartTooltip'
+import type { BarSeries } from '../../../shared/charts/echarts'
+import { formatMoney, formatWholeMoney } from '../../../shared/money/moneyFormat'
+import type { LegendEntry } from '../../../shared/ui/ChartLegend.vue'
+import type { DrillTarget } from '../../../features/filters/domain/drillTarget'
+import type { DrillChart } from '../../../features/filters/presentation/chartDrill'
 
 /** One bar of the bridge: a total that starts at zero, or a step that starts where the one before ended. */
 export interface BridgeBar {
@@ -15,8 +15,14 @@ export interface BridgeBar {
   readonly drill: DrillTarget | null
 }
 
-const RAISES = 'Raises profit'
-const LOWERS = 'Lowers profit'
+/** What the legend calls a step up and a step down. */
+export interface BridgeWording {
+  readonly raises: string
+  readonly lowers: string
+}
+
+const PROFIT: BridgeWording = { raises: 'Raises profit', lowers: 'Lowers profit' }
+
 const TOTAL = 'Total'
 const RESIDUAL = 'Not explained'
 const AMOUNT = 'Amount'
@@ -27,16 +33,16 @@ const AMOUNT = 'Amount'
  * sign added in order, so a step that crosses zero still spans exactly its own amount. The legend's
  * names are colours of the one series, not series of their own.
  */
-export function bridgeChart(bars: readonly BridgeBar[], tokens: ChartTokens): DrillChart & { readonly legend: readonly LegendEntry[] } {
+export function bridgeChart(bars: readonly BridgeBar[], tokens: ChartTokens, wording: BridgeWording = PROFIT): DrillChart & { readonly legend: readonly LegendEntry[] } {
   let running = 0
   const placed = bars.map((bar) => {
     const start = bar.kind === 'total' ? 0 : running
     running = bar.kind === 'total' ? bar.amount : running + bar.amount
     return { bar, start }
   })
-  const legendGroupOf = (bar: BridgeBar): string => (bar.kind === 'total' ? TOTAL : bar.kind === 'residual' ? RESIDUAL : bar.amount >= 0 ? RAISES : LOWERS)
-  const colours: Readonly<Record<string, string>> = { [RAISES]: tokens.positive, [LOWERS]: tokens.negative, [TOTAL]: tokens.inkSecondary, [RESIDUAL]: tokens.deemphasis }
-  const named = [RAISES, LOWERS, TOTAL, RESIDUAL].filter((name) => bars.some((bar) => legendGroupOf(bar) === name))
+  const legendGroupOf = (bar: BridgeBar): string => (bar.kind === 'total' ? TOTAL : bar.kind === 'residual' ? RESIDUAL : bar.amount >= 0 ? wording.raises : wording.lowers)
+  const colours: Readonly<Record<string, string>> = { [wording.raises]: tokens.positive, [wording.lowers]: tokens.negative, [TOTAL]: tokens.inkSecondary, [RESIDUAL]: tokens.deemphasis }
+  const named = [wording.raises, wording.lowers, TOTAL, RESIDUAL].filter((name) => bars.some((bar) => legendGroupOf(bar) === name))
   const base: BarSeries = {
     type: 'bar',
     stack: 'bridge',
@@ -73,7 +79,7 @@ export function bridgeChart(bars: readonly BridgeBar[], tokens: ChartTokens): Dr
     description:
       bars.length === 0
         ? 'No bridge to show.'
-        : `From ${bars[0]?.label} of ${formatWholeMoney(bars[0]?.amount ?? 0)}, one bar per adjustment: ` +
+        : `From ${bars[0]?.label} of ${formatWholeMoney(bars[0]?.amount ?? 0)}, one bar per step: ` +
           bars
             .slice(1)
             .map((bar) => `${bar.label} ${formatWholeMoney(bar.amount, bar.kind === 'total' ? 'negative' : 'always')}`)

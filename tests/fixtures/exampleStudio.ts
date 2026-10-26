@@ -133,6 +133,8 @@ export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbo
     yearEndLines: [],
     planLines: [],
     payScenarios: [],
+    employees: [],
+    director: null,
     dismissals: [],
     settings: DEFAULT_SETTINGS,
     companyFacts: { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: civil('2025-03-03') },
@@ -144,8 +146,8 @@ export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbo
 
 /** The workbook with its pack part made of its pack fields, as a read gives it. */
 function withPart(workbook: HrDooWorkbook): HrDooWorkbook {
-  const { ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, companyFacts } = workbook
-  const part: HrDooPart = { ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, companyFacts }
+  const { ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, employees, director, companyFacts } = workbook
+  const part: HrDooPart = { ownerAdvances, assets, grants, yearEndLines, planLines, payScenarios, employees, director, companyFacts }
   return { ...workbook, packParts: { [HR_DOO.name]: part } }
 }
 

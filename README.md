@@ -347,6 +347,7 @@ take their defaults.
 | `splits` | `date` (a date cell), `account`, `row_amount` and `row_balance`, which find one ledger row, then the part's `amount`, `category` and the optional `note` and `owner_share`: one row per part of a bank row that paid for more than one thing. The parts of a row share its four key cells, as *Split rows* describes. |
 | `dismissed` | `kind` (`not-covered` or `exception`), `key`, the optional `category` and the optional `dismissed_on` (a date cell): one row per group of "Confirmed rows no rule repeats" that a person dismissed on Review. `key` is the group's counterparty as counterparty filters key it, `iban:` and the IBAN or `name:` and the folded name, so the group stays hidden as new rows join it. An exception adds `|` and the id of the rule it differs from, so dismissing it leaves the same counterparty's exceptions to other rules in view. `category` is where most of its rows were on the day. A row without a kind or a key is reported and left out, and so is every row of a kind and key dismissed twice. |
 | `scenarios` | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (a month's gross or `floor`), `nontaxable:<item>` such as `nontaxable:occasional-gift` (a year's amount of a tax-free item), `rent_monthly` (a month's rent), `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. A tax-free item is paid with the salary of the month its `from` falls in, January when blank, and a dividend once the year's statements are adopted, so their `to` is not read. The label is read from the rows that give one, and reads blank when they give it differently. A scenario whose rows name two years is reported and left out whole, and the same component for the same days on two rows leaves out both. |
+| `employees` | `employee`, `name`, `iban`, `residence_city`, `pension_pillar_2`, `dependants`, `birth_year`, `agreed_gross`, `from`, `to` and `director`: one row per person the company pays a salary, for the Croatian d.o.o. pack. `employee` is a short name in lower case. `name` is the name as the accountant's salary workbook titles the employee's tab, compared regardless of case and diacritics. `iban` is the account or accounts the salary is paid into, separated by commas, and an IBAN two employees name counts for neither. `residence_city` is the city or municipality, such as `Grad Zagreb`, which sets the local income tax rates, read regardless of case, diacritics and a leading `Grad` or `Općina`, with the county in brackets for a name two units share, such as `Općina Privlaka (Zadarska)`. A blank city is reported and the row kept, and the payroll leaves it out. A city the ruleset does not know is reported and the row left out. `pension_pillar_2` and `director` are TRUE or FALSE, blank for FALSE. `dependants` is a whole number from 0 to 20, blank for 0, and `birth_year`, for the youth income tax relief, a year or blank for no relief. `agreed_gross` is the full-time monthly gross of the contract, more than zero, which *Salaries screen* works a month without a payslip out on, and blank for a director paid at the floor. `from` (a date cell) is the first day of the employment and required, and `to` the last, blank while it lasts. `director` marks a member of the company who is its director, whose salary has the director floor: the owner, whose pay *Pay scenarios*, *Forecast* and the payroll check of *Year screen* work out on this row. An employee is listed once, or every row of the name is reported and left out, and so is every director row when more than one row is marked so. |
 
 The rows of `outgoing-plan`, `owner-advances`, `assets`, `year-end`, `plan`, `splits` and
 `dismissed` carry an `id`, the tab's last column: a version 4 UUID the app makes, written as text.
@@ -358,7 +359,7 @@ give it an id there, any text no other row of the tab holds, or delete it and ad
 
 Every record is known by its key or its id, never by its row: a ledger row by its account and
 reference, or for a row without a reference by its account, day, amount, balance and description,
-a category, an account, a client, a grant or a setting by its name, a rule by its id, an invoice by its client
+a category, an account, a client, a grant, an employee or a setting by its name, a rule by its id, an invoice by its client
 and number, a `scenarios` row by its scenario, component and days, and
 a row of the seven tabs above by its id. A write finds its rows that way, lists and links key on it,
 and a problem names its record by a label, such as an invoice's number, an asset's name, a plan
@@ -465,7 +466,7 @@ as before.
 | `label_owner_pay` | `Owner pay` | Same for `owner-pay`. |
 | `label_financing` | `Financing` | Same for `financing`. |
 | `label_neutral` | `Neutral` | Same for `neutral`. |
-| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Owner and Year screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. While the tab holds no value for it, Settings, General says so and its Save writes the value shown, as for `statements_folder`. |
+| `owner_pay_module` | `TRUE` | `FALSE` hides owner pay, owner earns and the Owner, Year and Salaries screens. Rows in the `owner-pay` bucket then count as operating cost, so costs and net do not change. While the tab holds no value for it, Settings, General says so and its Save writes the value shown, as for `statements_folder`. |
 | `review_label` | `human` | The `flagged_by` value a person's confirmation will write. `rule` and `ai` are taken. |
 | `card_settlement_ibans` | blank | Comma-separated IBANs a card purchase settles against. A row with one as its counterparty reads as a card purchase to the rules. Review's rule coverage groups such a row by the merchant after ` · ` in its counterparty, and a rule made from it tests `counterparty_contains` on that merchant, since the IBAN is the bank's. An entry that is not an IBAN is reported and the list stays blank. |
 | `billing_monthly_amount` | blank | The fee invoiced for each worked month. "Fill the rest of the year" adds a row of it for every month to December. |
@@ -484,10 +485,6 @@ as before.
 | `invoice_reverse_charge_note` | the Croatian VAT law's Article 17 note | Printed under the totals, after an asterisk. |
 | `statements_folder` | `work/dss/business-bank-account/erste/statements` | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. The app reads it and never makes or changes a folder there. A path where a folder is missing, or where two folders share a name, is reported. The statement fetch in the Sheet reads the row too and stops without it, so while the tab names no folder for the key, with no row, a blank one or one such as `/`, Settings, General says so and its Save writes the path shown, the default included. |
 | `statements_sync` | `TRUE` | Whether each sync files the new statements of `statements_folder`. `FALSE` leaves statements to Import. Settings, General has it as a switch beside the folder. |
-| `hr_residence_city` | blank | The city or municipality the owner lives in, such as `Grad Zagreb`, which sets the local income tax rates. Settings offers every unit to pick from. A name typed in the workbook is read regardless of case, diacritics and a leading `Grad` or `Općina`, and a name two units share takes the county in brackets, such as `Općina Privlaka (Zadarska)`. Payroll figures need it, so they stay empty while it is blank. |
-| `hr_birth_year` | blank | The owner's year of birth, for the youth income tax relief. Blank assumes no relief. |
-| `hr_pension_pillar_2` | `TRUE` | Whether the owner pays into the second pension pillar. |
-| `hr_dependants` | `0` | Dependants who raise the personal allowance, 0 to 20. |
 | `hr_company_registered` | blank | The day the company was registered, as a date cell or text such as `2025-05-12`. It starts the first tax period. |
 | `hr_cit_return` | `pd` | `pd` for the corporate tax return on the accrual profit, `pd-nn` for the one on cash. |
 | `hr_vat_principle` | `invoice` | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment. |
@@ -498,10 +495,11 @@ as before.
 | `hr_accountant_sync` | `TRUE` | Whether each sync reads the two folders for Year, Taxes. `FALSE` keeps the last read on this device. The facts card has it as a switch above the folders. |
 | `import_profile_<name>` | none | How one bank's spreadsheet export imports, as `word=column` pairs split by `; `, as *Import* describes. One key per profile, which Import saves and deletes. A profile that cannot be read is reported and not offered, and "Remove the key" beside it on Settings, General takes its row off the tab. |
 
-The `hr_` keys are the owner's and the company's own facts for the Croatian d.o.o. pack, with where
-its accountant files the returns, which the pack reads and checks itself, as *Core and the pack* describes.
+The `hr_` keys are the company's own facts for the Croatian d.o.o. pack, with where its accountant
+files the returns, which the pack reads and checks itself, as *Core and the pack* describes.
 Nothing outside the app reads the two folder keys, so a save writes them only once they change. Settings, General shows them while
-`owner_pay_module` is on. They belong in the workbook and never in the app.
+`owner_pay_module` is on. They belong in the workbook and never in the app. The owner's facts for the payroll, where he lives,
+pillar II, dependants and the year of birth, are the director's row on the `employees` tab.
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
 Owner earns, Kept). The theme is a choice of this device on Settings, This device, not a workbook setting:
@@ -523,6 +521,8 @@ the `roles` column, never by name:
 | `reimbursement` | Reimbursements between owner and company, listed beside owner pay. A payment to the owner on one repays the owner's advances. A payment from the owner on one repays a private cost the company paid for the owner |
 | `client-refund` | Money paid back to a client, such as an overpayment, on Invoicing |
 | `arrears` | Paid in the month after the work, such as salary, its taxes and rent |
+| `salary` | An employee's net salary, with the tax-free payments of the payslip paid in the same row, as *Salaries screen* reads it |
+| `tax-free:<payment>` | A tax-free payment to an employee paid in a row of its own, such as `tax-free:results-bonus` or `tax-free:occasional-gift`, one role for each payment the ruleset's `hr.pit.nontaxable-caps` lists |
 | `representation` | Representation, such as a client lunch |
 | `personal-transport` | Personal transport costs |
 | `capital-purchase` | Purchases kept as assets on the `assets` tab |
@@ -853,8 +853,9 @@ The plan's other rows count in months the ledger has not reached:
   the tax-free items count as personnel costs, and the rent as material costs. They take the place
   of the categories in the `owner-pay` bucket and the taxes with the `owner-pay-tax` role from the
   month after the earliest of those categories' last actual months, and are paid in arrears when
-  those categories are. Without `hr_residence_city` the payroll has no tax rates, so the rows are
-  listed as not counted and the categories carry on. A grant whose employment condition ends in the
+  those categories are. The payroll runs on the director's row of the `employees` tab. Without one
+  that names a city it has no tax rates, so the rows are listed as not counted and the categories
+  carry on. A grant whose employment condition ends in the
   year says whether the planned pay keeps a salary until then.
 - Purchases become asset rows bought and put in use on their day, so the asset engine depreciates
   one above the threshold from the month after and writes one at or below it off in its month.
@@ -931,8 +932,9 @@ own year, plan included, and one for a later year takes the year after the newes
 figures and applies the rules of its own year. The owner pay the forecast counts, the `owner-pay` bucket and the taxes with
 the `owner-pay-tax` role, is taken back out of profit, cash and the PD build-up, so each scenario
 sets its own. Cash starts from cash at the year end with December settled, before the owner pay
-and the year's corporate tax. The owner's own facts are the `hr_` settings keys: city, birth year,
-pillar II and dependants.
+and the year's corporate tax. The owner's own facts are the director's row on the `employees` tab:
+city, birth year, pillar II and dependants. Without that row, or with a blank city, `payScenarios`
+throws a RangeError.
 
 A scenario is laid out over its year. A day a `salary_gross` row covers is a day as an employee of
 the company. A day without one is a day insured elsewhere when a `director_basis` row says
@@ -1062,7 +1064,8 @@ A row the forecast does not count shows why under it. Revenue is planned on the 
 whose "Fill 2027" writes a later year's fees.
 
 **Pay** compares the year's owner pay scenarios, as *Pay scenarios* works them out, and needs
-`hr_company_registered` and `hr_residence_city` for the figures. The scenarios can be edited
+`hr_company_registered` and the director's row on the `employees` tab with a city for the figures,
+and links to Settings or to Salaries for whichever is missing. The scenarios can be edited
 without them. Two to four scenarios are compared, picked with `compare=` in the address, with
 `base=` the one the others are compared against, by default the starting floor salary scenario.
 "What the scenarios start from" opens the company figures, each on its build-up. Dividend capacity
@@ -1102,12 +1105,15 @@ forward against our VAT position to the month's end, less the refund the return 
 each sales line against the invoice of its number, delivered in the month. A return that claims a
 refund says how much and the day the bank received it, or that it has not been received yet. Our
 VAT position stays as booked, here and everywhere else. The payroll card follows the year by the worked month: each
-workbook with its payout day, gross, the state's share and the employee's, each beside the bank
+employee's tab of each workbook, named after the month when the year's workbooks name more than one employee, with its payout day, gross, the state's share and the employee's, each beside the bank
 figure it is set against. "Bank" needs both to hold, the state's share against the owner-pay taxes
 within 5 days of the payout day, dividend tax left out, and the employee's share less rent and
 refunds against one owner pay row of that week. "Rules" runs every line through the payroll engine,
 and when it differs, the lines the ruleset works out otherwise are listed under the row. A part month
-shows "Part month", since the days worked are nowhere in the app. A differing Carry or Bank badge, and
+at the director floor takes its days worked from the employment dates of the director's row on the
+`employees` tab, the weekdays from `from` to `to` within the month, public holidays included. Without
+that row, or for a part month above the floor, it shows "Part month" with why. The payslips are the
+director's, so the dependants come from that row too. A differing Carry or Bank badge, and
 each bank figure, opens Transactions on the rows it compared, and a differing Sales badge opens the
 month on Invoicing, Plan. A workbook the reader refuses shows "Could not read" with its name, tab, row
 and reason, and so does one Drive did not give.
@@ -1125,6 +1131,83 @@ unread row on each card.
 **Assets** is *Assets* above.
 
 The figures are for planning with the accountant, never filing advice.
+
+## Salaries screen
+
+A pack screen at `#/salaries`, after Year in the menu, shown while `owner_pay_module` is on. It shows
+each payday's pay split into where the money went, and sets the accountant's payslip, the app's
+payroll and the bank against each other, as `salaryReconciliation` below works them out. The
+`employees` tab is the card at its foot with its editor, as *Settings screen* describes for the
+editors, collapsed once a payday shows, and `#employee-rows` opens it. A new row starts with pillar II
+ticked. While no single row is marked director, a line at the top says what the director's row is
+for, since Year, Pay and the forecast's owner pay wait for it. A workbook kept in this browser reads
+no payslips, which a line says, so each of its months shows "Payslip not read".
+
+Above the tabs sit the years with a payday, the paydays of the year picked and, from two employees,
+a choice of everyone or one employee, kept in the address as `year=`, `month=` and `employee=`.
+Without a month the page opens on the newest payday that is not the month still running. Every
+figure is the payslip's where one was read, else the app's, else the bank's, and a tile with a bank
+figure says when the bank paid otherwise, such as "Bank 0.50 less". A line no source states counts
+as nothing, and what was paid then stands for the net.
+
+- **Month**, the default: five tiles, Company cost, what was paid to the employees, Pension savings
+  (pillar II), To the state (pillar I, the income tax and health) and Problems, each with a bank
+  figure opening its rows. For one person, a line gives the gross, the net with how it is worked out
+  and the day the bank paid. "Where the company's money goes" is a ring of the company cost in five
+  parts: to the employee, pillar II, pillar I, the income tax and health. Pillar II is the employee's
+  own savings, so it sits beside what they were paid and stays out of the state's share. Under the ring
+  the paid part splits into the net and what was paid beside it, with the rent and refunds the
+  payslips list, which are not pay. "Gross to net" is the waterfall of `bridgeChart` from Gross II down
+  to the net and up to what was paid, each payee's bar opening its rows. Then the problems, each with
+  how it is worked out, its rows or the employees tab, and "Payslip, app and bank", every line of each
+  employee with the three sources and whether they agree, collapsed while all agree. With more than
+  one employee paid, the contributions of everyone sit in their own section, since the payees' rows
+  pay for all of them together.
+- **Over time**: the year's paydays as bars stacked in the ring's five parts, the month still running
+  hatched, a band opening its bank rows. A table under it gives each month's cost, what was paid,
+  pillar II, the state's share and its problems, and a month opens on the Month tab.
+- **People**, from two employees: everyone paid on the payday with their gross, net, pillar II, the
+  state's share, the cost and their problems, and the total, a card each on a phone. A name opens
+  that person's month.
+
+The ring and the bars wear the `--pay-*` tokens in `tokens.css`, series slots 1 to 5 once each,
+checked with the dataviz palette validator in that order and around the ring's join against both
+chart surfaces. Owner, Taken and the payroll cadence on Year, Taxes link here. `SalariesScreen.vue` and
+`salariesView.ts` in `src/packs/hr-doo/presentation/salaries/` are the screen and its figures, and
+`readEmployees` in `src/packs/hr-doo/domain/employees/` reads the tab.
+
+`salaryReconciliation` in `src/packs/hr-doo/domain/salaries/` sets the accountant's payslips, the
+payroll engine and the bank against each other per payday month, employee and line. No source wins:
+every line the sources state differently is a problem, with the figures and the bank rows behind it.
+The screen shows it, and `npm run parity:accountant` prints it, as *Accountant parity* describes.
+
+- **Payday.** A month is the month the bank paid in. A payslip belongs to the month its payout date
+  falls in and to the employee its tab names by the row's `name`. A bank row belongs to the month of
+  its date.
+- **The employee's lines.** Gross II, health, gross I, both pension pillars, income, the personal
+  allowance, taxable income, income tax, net, the tax-free payments and what the employee was paid,
+  each from the payslip and from the engine. The engine runs each payslip as the payroll card's rules
+  do. A month without a payslip runs each employee on the row's `agreed_gross`, a director at least
+  at the floor, for the month before it, the month salaries are paid in arrears for. An employee who
+  is not the director and has no `agreed_gross` is not run, which is a problem.
+- **What the bank paid the employee.** Every row to one of the row's `iban` accounts with a part in a
+  `salary` or `tax-free:` category, as booked before any split, against the payslip's share less rent
+  and refunds. A bonus paid apart from the payslip is pay the payslip does not list, so it shows as a
+  difference until the accountant lists it.
+- **Contributions.** The rows of the taxes bucket with `owner-pay-tax` and without
+  `profit-distribution`, split by payee: the state budget's account is pension pillar I, the pillar II
+  account pillar II and the health insurance fund's account health, as the Naputak on paying budget
+  revenues names them (`contributionAccounts.ts`). Any other payee, the account of the employee's
+  city, is income tax. They are set against the sum of everyone paid that month. A payslip that differs
+  from the engine is reported on the employee's line, so a contribution line is a problem when the bank
+  says the same as neither. In a month no one was paid, any contribution row is a problem.
+- **Tax-free payments paid on their own.** The rows in `tax-free:` categories, by employee and year,
+  against the caps of `hr.pit.nontaxable-caps`, and a payment over its cap is a problem in the month of
+  its last payment.
+- **Other problems.** A payslip not read for an employee paid that month, a payslip whose tab names no
+  employee, a payslip whose city or pillar II is not the row's, the engine not run with why, an
+  employee with no `iban`, a complete month with no pay rows to an employee expected to be paid, and
+  pay to an account no employee has.
 
 ## Billing plan
 
@@ -1518,8 +1601,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, the first run kept on the fake Drive and in this browser, an xlsx moved to the fake Drive through its summary, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, and on Year, Taxes the accountant's cards a sync read with the rows a differing badge opens, the read this device kept until Allow access, and the payroll folder saved from Settings, General with 1 problem in the sync control, and This device for a file a newer app saved, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, the accountant's cards on Year, Taxes as a sync read them with a differing badge's rows and the kept read, the payroll folder saved from Settings, General, the first run on the fake Drive and in this browser, an xlsx moved to the fake Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder the settings lack saved from Settings, General and then changed, the first run kept on the fake Drive and in this browser, an xlsx moved to the fake Drive through its summary, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, and on Year, Taxes the accountant's cards a sync read with the rows a differing badge opens, the read this device kept until Allow access, and the payroll folder saved from Settings, General with 1 problem in the sync control, Salaries for one and for five made-up employees on each tab, and with five a sync's payslips, the one problem's build-up and rows, a name on People and a month of Over time, and This device for a file a newer app saved, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, the accountant's cards on Year, Taxes as a sync read them with a differing badge's rows and the kept read, Salaries for five made-up employees with the gross to net chart's tap-then-drill and the sync's payslips, the one problem's build-up and rows, People and Over time, the payroll folder saved from Settings, General, the first run on the fake Drive and in this browser, an xlsx moved to the fake Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
 ```
@@ -1543,7 +1626,17 @@ costs" carrying the `owner-benefit` role, so its AI services rows hold 50, the l
 camt.053 statement with a client payment, a card purchase in dollars, a bank fee and a reversal,
 and a Croatian bank's xlsx export with a title above the header, text dates, a decimal comma, split
 debit and credit columns and a total below, which no saved profile fits yet. Both start from the
-same balance, so once one is imported the other is refused. The variant kept in this browser sets the billing settings. The fake workbook is built as records in `fakeWorkbook.ts`. In the fake build it is a file on a Drive held in memory (`fake/fakeDriveSession.ts`), which answers syncs and saves, keeps revisions and makes the day's backup, until the page reloads. A
+same balance, so once one is imported the other is refused. The variant kept in this browser sets the billing settings and has its director, Alex, on the `employees` tab, so the Drive variant shows Salaries without one.
+`?fake=one-employee` and `?fake=five-employees` are the file on Drive with a made-up staff in place of
+the owner's flat salary, from `src/packs/hr-doo/infrastructure/fake/fakeStaff.ts`: the owner alone at
+the director floor, or with four ordinary employees on agreed salaries in three cities, one outside
+pillar II, one with two children and one who joins in February 2026. Each payday pays every net
+salary with a meal allowance to its employee and each contribution in one sum to its payee, as the
+payroll engine works them out, and one share capital row in October leaves the main account where the
+flat salary leaves it, so the sample statement still carries it on. Their payroll folder holds a
+salary workbook for every worked month with a tab per employee. One month's tab is left out and one
+misprinted for the owner alone, and for the five one tab is left out and the newest net row to one
+employee is 10.00 short, so Salaries has a problem of each kind to show. The fake workbook is built as records in `fakeWorkbook.ts`. In the fake build it is a file on a Drive held in memory (`fake/fakeDriveSession.ts`), which answers syncs and saves, keeps revisions and makes the day's backup, until the page reloads. A
 Drive and a Gmail held in memory answer "Make invoice" the same way: the invoice folder holds this
 year's and last year's folders with every month inside, made by another app and out of view until
 picked, and the browser's confirm dialog stands in for the Picker, OK picking every folder it names
@@ -1603,8 +1696,8 @@ in a production build.
 `src/features` and `src/shared` are the core, and `src/packs/hr-doo` is the Croatian d.o.o. pack.
 The pack reaches core screens through one contribution, `hrDooPack` in
 `src/packs/hr-doo/hrDooPack.ts`, of the type `PackContribution` in
-`src/features/packs/packContribution.ts`. Its slots are the pack's part of the workbook, the Owner
-and Year screens, Overview's jobs after the core ones, the Review card of reimbursements with no
+`src/features/packs/packContribution.ts`. Its slots are the pack's part of the workbook, the Owner,
+Year and Salaries screens, Overview's jobs after the core ones, the Review card of reimbursements with no
 cost on file, the Ruleset tab and the loan card of Settings, the company and owner facts card with
 its checks, the links of the spending breakdown, and the accountant step of a sync. `main.ts` loads the contribution and the pack's
 tabs with a dynamic import and installs both before it makes the router or reads a workbook, so the
@@ -1613,8 +1706,8 @@ routes, and the pack's part is still read, so the rows the pack keeps whole stil
 spec runs with the pack installed, through `tests/setup/installPack.ts`, and so do the scripts that
 read or write a workbook, through `scripts/support/installPack.mjs`.
 
-The pack owns its records. Owner advances, assets, grants, year-end lines, plan lines and pay
-scenario rows have their types, factories and codecs in `src/packs/hr-doo/domain/`, their kinds in
+The pack owns its records. Owner advances, assets, grants, year-end lines, plan lines, pay
+scenario rows and employees have their types, factories and codecs in `src/packs/hr-doo/domain/`, their kinds in
 `hrDooKinds.ts`, each named with the pack's `hr-doo.` prefix, such as `hr-doo.asset`, their `WriteRules` in `hrDooWrites.ts` and `HR_DOO_PART`, which lists the kinds with
 their rules, in `hrDooPart.ts` there. Their tab mappings are in
 `src/packs/hr-doo/infrastructure/hrDooTabs.ts`, the records the plan, scenario and advance dialogs
@@ -1870,7 +1963,7 @@ Excel" writes the document back as the tabs of *The workbook format*.
 
 ## Accountant parity
 
-`npm run parity:accountant -- --workbook <export.xlsx> --worked 2025-06=<days>` reads the
+`npm run parity:accountant -- --workbook <export.xlsx>` reads the
 accountant's VAT returns and salary workbooks with the pack's readers in
 `src/packs/hr-doo/domain/accountant/` and checks each against an xlsx export of the books, through `accountantDocumentsOf` in
 `src/packs/hr-doo/application/accountantDocuments.ts` as Year, Taxes does. VAT returns are the `YYYY-MM-pdv.xlsx` files of
@@ -1883,9 +1976,10 @@ the same.
 
 A VAT return reads by the labels of `Rekapitulacija` inside its two sections and by the form code on
 each detail tab's total row. Every summary line must equal the detail tab it stands for, and a tab
-the reader does not know is refused, so a new kind of supply fails loudly. A salary workbook reads by
-the labels in column A. Its title gives the worked month, which must be the file's, and the payout
-date. A refused workbook prints its tab, row and reason.
+the reader does not know is refused, so a new kind of supply fails loudly. A salary workbook has one
+`Obračun plaće_<name>` tab per employee, each read by the labels in column A. Its title gives the
+worked month, which must be the file's, and the payout date. Two tabs for the same name are refused.
+A refused workbook prints its tab, row and reason.
 
 Each return then gets two checks. The carry passes when the VAT position through the month, with the
 `vat-settlement` rows to the month as booked so a refund lowers it, less the refund the return
@@ -1902,14 +1996,20 @@ The employee's share less rent and refunds must be one owner-pay bank row of tha
 before any split.
 
 The rules run every line through the payroll engine and compare it to the cent. The city comes from
-the note on the tax line and pillar II from its own line, and the dependants from the export's
-`hr_dependants`. A salary noted as the director's minimum base runs as an agreed gross below the
-floor, so the engine finds the floor itself. A part month at the floor needs its days worked as
-`--worked YYYY-MM=<days>`, counted against Monday to Friday of that month with public holidays
-included, as the monthly fund of hours counts them. Without them, or above the floor, its rules are
-not run. Rent and refunds of costs listed beside the salary are not payroll, so they count only in
+the note on the tax line and pillar II from its own line, and the dependants from the director's row
+on the export's `employees` tab. A salary noted as the director's minimum base runs as an agreed
+gross below the floor, so the engine finds the floor itself. A part month at the floor takes its days
+worked from that row's `from` and `to`, counted against Monday to Friday of that month with public
+holidays included, as the monthly fund of hours counts them. Without the row, or above the floor, its
+rules are not run. Rent and refunds of costs listed beside the salary are not payroll, so they count only in
 the total cost and in what the employee is paid. A total that adds gross I instead of gross II while
 its two shares add up to the engine's total is a stated correction.
+
+Then every payday month runs through `salaryReconciliation`, as *Salaries screen* describes, against
+the salary workbooks read. Each month prints whether its lines agree and how many were compared,
+each problem to resolve with the employee and line, and each year's tax-free payments paid apart
+from the salary as in or over their cap. The problems are the books' to resolve, so they do not
+change the exit code.
 
 Each check prints as pass, FAIL, or corrected with the reason, then the counts. Any FAIL makes the
 exit code non-zero. The workbooks and the export hold real figures, so the script prints no figure.
@@ -1920,6 +2020,15 @@ month worked, so a December salary paid in January keeps December's director flo
 follows the payment date. The low-pay relief reduces only the pillar I base, which is practice and
 not statute. A part month keeps the whole personal allowance. Youth relief is never applied in a
 month, only in the annual settlement.
+
+`payrollMonth` pays an employee who is not the director what the contract says, with no floor. The
+`director` fact on the employees row turns the floor on. A non-director whose agreed full-time
+gross is under the minimum wage (`hr.minwage`) gets a `below-minimum-wage` warning, which Salaries
+lists as a problem. The monthly maximum base caps both pension pillars. The annual maximum base
+(Art. 7(1)(19) of the Zakon o doprinosima) caps pillar I only, across every base of the year, so
+the caller passes the earlier months' pension bases as `pensionBaseEarlierInYear` and pillar I
+stops in the month the sum reaches the maximum. `taxableExtras` adds overtime, supplements or a
+taxable bonus to the month's gross. Neither input is read from the books yet.
 
 ## Year-end parity
 
@@ -2012,7 +2121,7 @@ articles and NN issues. The area buttons narrow the list further.
 
 A table term with more than 60 rows in a version opens on a search of its own and a Show all
 button instead of every row. Today that is only the local income tax rates, which open on the unit
-`hr_residence_city` names.
+the director's row on the `employees` tab names.
 
 ### Local income tax rates
 

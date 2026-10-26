@@ -5,11 +5,14 @@
  * anywhere under `--payroll`, and `--downloads` adds xlsx downloads of the Google Sheets, named as in
  * Drive. A period held only as a Google Sheet is a stub on disk, so it is listed as not read.
  *
- *   npm run parity:accountant -- --workbook <export.xlsx> [--vat-returns <folder>] [--payroll <folder>] [--downloads <folder>] [--worked 2025-06=18]
+ *   npm run parity:accountant -- --workbook <export.xlsx> [--vat-returns <folder>] [--payroll <folder>] [--downloads <folder>]
  *
- * A part month needs its days worked as `--worked YYYY-MM=<days>` for its rules check. The
- * workbooks and the export hold real figures, so this prints only pass or fail and counts. Never
- * copy a figure from them into the repository.
+ * A part month takes its days worked from the director's row on the export's employees tab, as
+ * Year, Taxes does. Then each payday month runs through the salary reconciliation, payslip against
+ * engine against bank per employee and line, which prints what agrees and each problem to resolve.
+ * Those problems are the books' to resolve, so they do not fail the run. The workbooks and the
+ * export hold real figures, so this prints only verdicts and counts. Never copy a figure from them
+ * into the repository.
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -25,6 +28,7 @@ import { accountantFileNameOf } from '../src/packs/hr-doo/domain/accountant/acco
 import { salaryMonthChecks } from '../src/packs/hr-doo/domain/accountant/payrollReconciliation.ts'
 import { vatMonthsOf, vatPeriods } from '../src/packs/hr-doo/domain/accountant/vatReconciliation.ts'
 import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart.ts'
+import { salaryReconciliation } from '../src/packs/hr-doo/domain/salaries/salaryReconciliation.ts'
 import { readEveryTab } from '../src/shared/xlsx/sheetGrids.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 
@@ -34,23 +38,12 @@ const { values: options } = parseArgs({
     'vat-returns': { type: 'string', default: join(homedir(), 'gdrive/work/dss/dss-finance/vat-returns') },
     payroll: { type: 'string', default: join(homedir(), 'gdrive/work/dss/dss-finance/payroll') },
     downloads: { type: 'string', default: join(homedir(), 'Projects/personal/ledgerboard-exports/accountant') },
-    worked: { type: 'string', multiple: true, default: [] },
   },
 })
 if (options.workbook === undefined) {
-  console.error('Usage: npm run parity:accountant -- --workbook <path to export.xlsx> [--vat-returns <folder>] [--payroll <folder>] [--downloads <folder>] [--worked YYYY-MM=<days>]')
+  console.error('Usage: npm run parity:accountant -- --workbook <path to export.xlsx> [--vat-returns <folder>] [--payroll <folder>] [--downloads <folder>]')
   process.exit(2)
 }
-const daysWorked = new Map(
-  options.worked.map((entry) => {
-    const match = /^(\d{4}-\d{2})=(\d+)$/.exec(entry)
-    if (match === null) {
-      console.error(`--worked takes YYYY-MM=<days>, not ${entry}.`)
-      process.exit(2)
-    }
-    return [match[1], Number(match[2])]
-  }),
-)
 
 installHrDooPack()
 const { tabs } = await readWorkbookFile(readFileSync(options.workbook))
@@ -133,14 +126,14 @@ const RULE_WORDS = { pass: 'pass', fail: 'FAIL', 'total-adds-gross-one': 'correc
 let banks = 0
 const ruleCounts = { pass: 0, fail: 0, 'total-adds-gross-one': 0 }
 const partMonths = []
-for (const check of salaryMonthChecks(workbook, documents.salaries, daysWorked)) {
+for (const check of salaryMonthChecks(workbook, documents.salaries)) {
   const month = check.salary.workedMonth
   banks += check.stateTake.holds && check.payout.holds ? 1 : 0
   report(month, 'bank, paid to the state in the payout week', verdictOf(check.stateTake.holds))
   report(month, 'bank, paid to the employee in the payout week', verdictOf(check.payout.holds))
   if (check.rules.kind === 'part-month') {
     partMonths.push(month)
-    report(month, 'rules', 'not run', `a part month, which needs --worked ${month}=<days>`)
+    report(month, 'rules', 'not run', "a part month, whose days worked need the director's row on the employees tab")
   } else if (check.rules.kind === 'unknown-city') {
     report(month, 'rules', 'FAIL', `the city in the tax note: ${check.rules.problem}`)
   } else {
@@ -151,11 +144,47 @@ for (const check of salaryMonthChecks(workbook, documents.salaries, daysWorked))
   }
 }
 
+const reconciliation = salaryReconciliation(workbook, documents.salaries)
+const PROBLEM_WORDS = {
+  'payslip-not-read': 'payslip not read',
+  'payslip-of-no-employee': 'a payslip tab names no employee',
+  'payslip-facts-differ': 'the payslip states another fact than the employees tab',
+  'engine-not-run': 'engine not run',
+  'no-account': 'no account on the employees tab',
+  'no-pay-rows': 'no pay rows',
+  'pay-to-no-employee': 'pay to an account no employee has',
+  'over-cap': 'a tax-free payment over its cap',
+  'below-minimum-wage': 'an agreed gross under the minimum wage',
+}
+let agreeing = 0
+let clean = 0
+for (const payday of reconciliation.paydays) {
+  const checks = [...payday.employees.flatMap((entry) => entry.lines), ...payday.contributions]
+  const compared = checks.filter((check) => [check.payslip, check.app, check.bank].filter((value) => value !== null).length > 1)
+  const agrees = checks.every((check) => check.agrees)
+  agreeing += agrees ? 1 : 0
+  clean += payday.problems.length === 0 ? 1 : 0
+  console.log(`${payday.payday}  ${(agrees ? 'agrees' : 'differs').padEnd(9)}  salaries paid, ${compared.length} lines compared, ${payday.employees.length} employee(s)`)
+  for (const problem of payday.problems) {
+    const who = 'employee' in problem && problem.employee !== null ? `${problem.employee.slug}, ` : ''
+    const what = problem.kind === 'line-differs' ? `${problem.check.line} differs (${[problem.check.payslip === null ? null : 'payslip', problem.check.app === null ? null : 'engine', problem.check.bank === null ? null : `bank of ${problem.check.bank.steps.length} row(s)`].filter((part) => part !== null).join(', ')})` : PROBLEM_WORDS[problem.kind]
+    console.log(`${payday.payday}  ${'problem'.padEnd(9)}  ${who}${what}${problem.kind === 'payslip-facts-differ' ? `: ${problem.fact}` : ''}`)
+  }
+}
+for (const extra of reconciliation.extras) {
+  for (const usage of extra.usage) {
+    console.log(`${extra.year}     ${(usage.excess.amount > 0 ? 'over cap' : 'in cap').padEnd(9)}  ${extra.employee.slug}, tax-free ${usage.payment} paid apart from the salary`)
+  }
+}
+
 const vat = counts['vat-return']
 const salary = counts.salary
 console.log(`VAT returns: ${vat.read} of ${vat.files} xlsx read, carry ${carries} of ${returns.length}, sales ${salesHeld} of ${returns.length}.`)
 console.log(
   `Salary workbooks: ${salary.read} of ${salary.files} xlsx read, bank ${banks} of ${documents.salaries.length}, rules ${ruleCounts.pass} lines pass, ${ruleCounts['total-adds-gross-one']} stated correction(s), ${ruleCounts.fail} fail.`,
+)
+console.log(
+  `Salaries by payday: ${agreeing} of ${reconciliation.paydays.length} months agree on every line, ${clean} with no problem to resolve. Problems are the books' to resolve and do not fail the run.`,
 )
 if (partMonths.length > 0) {
   console.log(`Rules not run for the part month ${partMonths.join(', ')}.`)

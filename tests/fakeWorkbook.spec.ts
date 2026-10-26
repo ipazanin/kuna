@@ -154,12 +154,14 @@ describe('fake workbook', () => {
     expect(planAgainstActual(forecastYear(inBrowser, 2026, asOf)).map((line) => line.key)).toContain('ai-services')
   })
 
-  it('names a Zagreb resident in the company facts of its browser variant, and leaves the Drive one on the defaults', () => {
+  it('has a director living in Zagreb on the employees tab of its browser variant, and leaves the Drive one without employees', () => {
     const inBrowser = fakeBooks('browser')
 
     expect(inBrowser.problems).toEqual([])
-    expect(inBrowser.companyFacts).toMatchObject({ residenceCity: 'Zagreb', companyRegistered: '2025-05-12' })
-    expect(workbook.companyFacts.residenceCity).toBe('')
+    expect(inBrowser.companyFacts.companyRegistered).toBe('2025-05-12')
+    expect(inBrowser.director).toMatchObject({ slug: 'alex', residenceCity: 'Zagreb', pensionPillarTwo: true, birthYear: 1990, director: true })
+    expect(workbook.employees).toEqual([])
+    expect(workbook.director).toBeNull()
   })
 
   it('uses no real IBAN, only the fake ones', () => {

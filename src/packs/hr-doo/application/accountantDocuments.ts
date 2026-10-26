@@ -52,7 +52,7 @@ export interface UnreadWorkbook {
   readonly refusal: DocumentRefusal
 }
 
-/** The returns and salaries a read holds, one per period, and the periods whose workbook could not be read. */
+/** The returns a read holds, one per period, the salaries, one per employee and period, and the periods whose workbook could not be read. */
 export interface AccountantDocuments {
   readonly vatReturns: readonly VatReturn[]
   readonly salaries: readonly SalaryWorkbook[]
@@ -110,7 +110,7 @@ export function accountantDocumentsOf(read: AccountantRead): AccountantDocuments
   const salary = periodsRead(read.files.filter((file) => file.kind === 'salary'), readSalaryWorkbook)
   return {
     vatReturns: vat.documents,
-    salaries: salary.documents,
+    salaries: salary.documents.flat(),
     unread: [...vat.unread, ...salary.unread],
     filedVatPeriods: [...new Set(vatFiles.map((file) => file.period))].sort(),
   }

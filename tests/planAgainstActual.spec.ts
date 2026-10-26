@@ -7,7 +7,7 @@ import { planRow } from './fixtures/billingPlan'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { STEADY_CATEGORIES, STEADY_ROWS, planLine, planOwnerPay, steadyStudio } from './fixtures/steadyStudio'
-import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
+import { director } from './fixtures/employees'
 import { recordIdOf } from '../src/features/workbook/domain/recordId'
 import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
 
@@ -15,10 +15,11 @@ const FLOOR_2026: OwnerPayScenario = { slug: 'floor-2026', label: 'Floor salary'
 
 /** Steady Studio's 2026 with a plan made in January: the tool at 150.00, the floor salary, and a fee of 6,000.00 a month but 5,500.00 in March. */
 function plannedIn2026() {
-  const base = steadyStudio()
+  const owner = director()
   const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09']
   return steadyStudio({
-    companyFacts: { ...base.companyFacts, ...ZAGREB_RESIDENT },
+    employees: [owner],
+    director: owner,
     payScenarios: [FLOOR_2026],
     planLines: [planLine(null, 'ai-services', 150), planOwnerPay(2026, 'floor-2026', null, 3)],
     billingPlan: months.map((month) => planRow('Monthly fee', `2026-${month}-28`, month === '03' ? 5500 : 6000, 'example-client')),

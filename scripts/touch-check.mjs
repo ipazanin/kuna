@@ -12,7 +12,7 @@
  * the cost of a reimbursement with no cost on file added from Review,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
- * its colour, a label and a role, an asset and an invoice added, edited, deleted and brought back with Undo in the fake file on Drive and in a workbook kept in this browser, the statements
+ * its colour, a label and a role, an asset, an employee on Salaries and an invoice added, edited, deleted and brought back with Undo in the fake file on Drive and in a workbook kept in this browser, the statements
  * folder the settings lack saved at the path the app uses and then at a new one, the card settlement IBANs and a client's second
  * IBAN typed as tags, refused, removed and saved, the client's with Undo, in both modes, an owner advance
  * changed, deleted and brought back, a payment split, edited, deleted and
@@ -22,6 +22,7 @@
  * silent ask a sign-in's return makes, with the sync it resumes run with the token or ending in Allow access, and the note to tap again,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Settings, This device and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
+ * Salaries with five made-up employees, its gross to net chart's tap-then-drill, a sync's payslips with the one problem's build-up and rows, the People tab and the Over time table,
  * the accountant's VAT returns and payroll on Year, Taxes as a sync read them with a differing badge opening its rows, the read this device kept until Allow access reads again,
  * and the payroll folder saved on Settings, General,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
@@ -64,6 +65,7 @@ import {
   accountantReturnsFlow,
   advanceFlow,
   assetFlow,
+  employeeFlow,
   cardSettlementIbansFlow,
   categoryFiltersFlow,
   categoryFlow,
@@ -80,6 +82,7 @@ import {
   moveFromBrowserFlow,
   moveFromXlsxFlow,
   ownerShareFlow,
+  salariesFlow,
   planFlow,
   planTabFlow,
   raceFlow,
@@ -426,6 +429,18 @@ async function checkWidth(width) {
     // The second tap on the same mark drills too, without "View rows".
     await tapChart(page, await tapUntilDrillOffered(page))
     await waitForTitle(page, 'Transactions')
+  })
+
+  await step('salaries-drill', async () => {
+    await open(page, '&fake=five-employees#/salaries', 'Salaries')
+    await settleCharts(page)
+    await tapUntilDrillOffered(page, '[data-testid="salaries-bridge"] .chart-body canvas')
+    await expect(hashOf(page), (hash) => hash.startsWith('#/salaries'), 'one tap on the gross to net chart left the screen')
+    await shoot('salaries-bridge-tooltip')
+    const viewRows = await waitForText(page, '[data-testid="salaries-bridge"] [data-testid="chart-drill"] button', 'View rows')
+    await viewRows.tap()
+    await waitForTitle(page, 'Transactions')
+    await expect(filterCount(page), (count) => Number(count) >= 1, 'the gross to net drill opened Transactions without its filters')
   })
 
   await step('taxes-cadence-drill', async () => {
@@ -909,6 +924,7 @@ async function checkWidth(width) {
       ['settings-card-ibans', '#/settings', 'Settings', cardSettlementIbansFlow],
       ['clients-ibans', '#/invoicing?tab=clients', 'Invoicing', clientIbansFlow],
       ['assets', '#/year?tab=assets#asset-rows', 'Year', assetFlow],
+      ['employees', '#/salaries#employee-rows', 'Salaries', employeeFlow],
       ['advances', '#/owner?tab=owed', 'Owner', advanceFlow],
       ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],
       ['invoice-run', '#/invoicing?p=all', 'Invoicing', invoiceRunFlow],
@@ -946,6 +962,7 @@ async function checkWidth(width) {
     ['statements-held', '&fake=held-statement', heldStatementFlow],
     ['statements-access', '', statementAccessFlow],
     ['sync-running', '&fake=slow-statements', syncRunningFlow],
+    ['salaries', '&fake=five-employees', salariesFlow, '#/salaries', 'Salaries'],
     ['accountant-returns', '', accountantReturnsFlow, '#/year?tab=taxes', 'Year'],
     ['accountant-kept-read', '', accountantKeptReadFlow, '#/year?tab=taxes', 'Year'],
     ['accountant-folders', '', accountantFoldersFlow, '#/settings#accountant-folders', 'Settings'],

@@ -1,5 +1,6 @@
 import type { DefinedBucket } from '../../../features/workbook/domain/bucket'
 import type { Category } from '../../../features/workbook/domain/workbook'
+import { RULESET_FIRST_DAY, ruleValue } from '../ruleset/ruleset'
 
 /** The category roles the pack selects by, as the `roles` column of `categories` spells them. */
 export const PACK_ROLES = {
@@ -11,6 +12,8 @@ export const PACK_ROLES = {
   watched: 'watched',
   /** Paid in the month after the work, such as salary, its taxes and rent. */
   arrears: 'arrears',
+  /** An employee's net salary, with the tax-free payments of the payslip paid in the same row. */
+  salary: 'salary',
   representation: 'representation',
   personalTransport: 'personal-transport',
   /** A purchase kept as an asset on the assets tab. */
@@ -27,6 +30,29 @@ export const PACK_ROLES = {
 } as const
 
 export type PackRole = (typeof PACK_ROLES)[keyof typeof PACK_ROLES]
+
+const TAX_FREE_ROLE = 'tax-free:'
+
+/**
+ * A role per tax-free payment of the ruleset, such as `tax-free:results-bonus`: the category holds
+ * that payment to an employee, paid in a row of its own.
+ */
+export const TAX_FREE_ROLES: readonly string[] = [
+  ...new Set(ruleValue('hr.pit.nontaxable-caps', RULESET_FIRST_DAY).value.caps.rows.map((row) => `${TAX_FREE_ROLE}${row.payment.text}`)),
+]
+
+/** The ruleset's key of the tax-free payment the category holds, or null for a category with no such role. */
+export function taxFreePaymentOf(category: Category): string | null {
+  const role = category.roles.find((candidate) => TAX_FREE_ROLES.includes(candidate))
+  return role === undefined ? null : role.slice(TAX_FREE_ROLE.length)
+}
+
+/** The taxes and contributions owed because an employee was paid, a dividend's tax left out. */
+export function payrollTaxCategories(categories: readonly Category[]): string[] {
+  return categories
+    .filter((category) => category.bucket === 'taxes' && category.roles.includes(PACK_ROLES.ownerPayTax) && !category.roles.includes(PACK_ROLES.profitDistribution))
+    .map((category) => category.slug)
+}
 
 /** The slugs of the categories that carry a role, in the order the tab lists them. */
 export function categoriesWithRole(categories: readonly Category[], role: PackRole): string[] {

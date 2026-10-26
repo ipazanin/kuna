@@ -47,6 +47,8 @@ import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '..
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { salaryDropped } from '../scenarios/scenarioOutcome'
 import type { ScenarioWarning } from '../scenarios/scenarioOutcome'
+import type { Employee } from '../employees/employees'
+import { payrollDirector } from '../employees/employees'
 import { scenarioPay } from '../scenarios/scenarioPay'
 import type { ScenarioPay } from '../scenarios/scenarioPay'
 import { cashProjection, paymentLagOf } from './forecastCash'
@@ -257,10 +259,10 @@ function forecastOne(context: ForecastContext): YearForecast {
   const usable = plan.filter((line) => guarded(line) === null || line.kind === 'owner-pay-scenario')
 
   const ownerPayChoice = ownerPayPlan(plan, known.payScenarios, rules)
-  const facts = known.companyFacts
+  const director = payrollDirector(known)
   const shares = categoryShares(known, year, rules)
-  const handover: OwnerPayHandover | null = ownerPayChoice.kind === 'planned' && facts.residenceCity !== '' ? { lastActual: ownerPayLastActual(known, calendar, shares) } : null
-  const ownerPay = handover === null || ownerPayChoice.kind !== 'planned' ? null : ownerPayForecast(ownerPayChoice.pay, known, calendar, handover, rules)
+  const handover: OwnerPayHandover | null = ownerPayChoice.kind === 'planned' && director !== null ? { lastActual: ownerPayLastActual(known, calendar, shares) } : null
+  const ownerPay = handover === null || director === null || ownerPayChoice.kind !== 'planned' ? null : ownerPayForecast(ownerPayChoice.pay, director, known, calendar, handover, rules)
   const categories = [...categoryForecasts(known, year, calendar, usable, handover, shares), ...(ownerPay?.lines ?? [])]
 
   const delivered = new Map<number, DeliveredRevenue>()
@@ -288,7 +290,7 @@ function forecastOne(context: ForecastContext): YearForecast {
   })
 
   const plannedAssets = plannedAssetsOf(known.planLines.filter((line) => line.year <= year && guarded(line) === null), calendar)
-  const books = assetBooks([...known.assets, ...plannedAssets], known.grants, facts, rules)
+  const books = assetBooks([...known.assets, ...plannedAssets], known.grants, known.companyFacts, rules)
   const scheduled = scheduledLines(calendar, books, year)
 
   const partsOn = (line: ForecastPlLine['line']): LinePart[] =>
@@ -485,8 +487,8 @@ function ownerPayLastActual(known: HrDooWorkbook, calendar: ForecastCalendar, sh
  * last actual month: the salary with health on top and the tax-free items within their caps, and
  * the rent. Paid in arrears when the owner pay categories are.
  */
-function ownerPayForecast(plan: PlannedOwnerPay, known: HrDooWorkbook, calendar: ForecastCalendar, handover: OwnerPayHandover, rules: RuleSource): OwnerPayForecast {
-  const pay = scenarioPay(plan.scenario, known.companyFacts, rules)
+function ownerPayForecast(plan: PlannedOwnerPay, director: Employee, known: HrDooWorkbook, calendar: ForecastCalendar, handover: OwnerPayHandover, rules: RuleSource): OwnerPayForecast {
+  const pay = scenarioPay(plan.scenario, director, rules)
   const arrears = known.categories.some((category) => isOwnerPayCost(category) && category.roles.includes(PACK_ROLES.arrears))
   const scenarioName = plan.scenario.label || plan.scenario.slug
   const lineOf = (slug: string, label: string, line: CategoryForecast['line'], monthly: (month: MonthKey) => TracedFigure): CategoryForecast => ({
@@ -755,7 +757,7 @@ function unmodelled(
       if (ownerPayChoice.kind === 'refused') {
         return [{ line, reason: ownerPayChoice.guards.map((guard) => guard.reason).join(' ') }]
       }
-      return ownerPay === null ? [{ line, reason: 'The payroll needs hr_residence_city for its income tax rates, so the owner pay categories follow their own plan rows or averages.' }] : []
+      return ownerPay === null ? [{ line, reason: "The payroll needs the director's row on the employees tab, with the city that sets its income tax rates, so the owner pay categories follow their own plan rows or averages." }] : []
     }
     const guard = guards.find((candidate) => candidate.ids.includes(line.id))
     if (guard !== undefined) {

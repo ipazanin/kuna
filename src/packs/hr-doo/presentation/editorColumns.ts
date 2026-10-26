@@ -77,3 +77,17 @@ export const YEAR_END_COLUMNS: readonly EditorColumn[] = [
   { name: 'source', label: 'Source', kind: 'text', width: 'w-44' },
   { name: 'note', label: 'Note', kind: 'text', width: 'w-56' },
 ]
+
+export const EMPLOYEE_COLUMNS: readonly EditorColumn[] = [
+  { name: 'employee', label: 'Employee', kind: 'word', width: 'w-32' },
+  { name: 'name', label: 'Name', kind: 'text', width: 'w-48', placeholderOf: () => 'As the payslip names them' },
+  { name: 'iban', label: 'Paid into', kind: 'iban-list', width: 'w-72' },
+  { name: 'residence_city', label: 'Lives in', kind: 'text', width: 'w-44', placeholderOf: () => 'Such as Zagreb' },
+  { name: 'pension_pillar_2', label: 'Pillar II', kind: 'flag', width: 'w-28' },
+  { name: 'dependants', label: 'Dependants', kind: 'whole-number', width: 'w-24', placeholderOf: () => '0' },
+  { name: 'birth_year', label: 'Year of birth', kind: 'whole-number', width: 'w-28' },
+  { name: 'agreed_gross', label: 'Agreed gross', kind: 'amount', width: 'w-32' },
+  { name: 'from', label: 'Employed from', kind: 'date', width: 'w-40' },
+  { name: 'to', label: 'Employed to', kind: 'date', width: 'w-40' },
+  { name: 'director', label: 'Director', kind: 'flag', width: 'w-28' },
+]

@@ -50,11 +50,11 @@ describe('the fake accountant folders', () => {
     const { documents } = await fakeDocuments()
     const rows = payrollRows(workbook, documents, 2026, linkOf)
 
-    expect(rows.map((row) => [row.key, row.kind, row.badges.map((badge) => badge.label)])).toEqual([
+    expect(rows.map((row) => [row.period, row.kind, row.badges.map((badge) => badge.label)])).toEqual([
       ['2026-08', 'unread', ['Could not read']],
       ['2026-07', 'read', ['Bank differs', 'Rules ok']],
       ['2026-06', 'read', ['Bank ok', 'Rules differ']],
     ])
-    expect(rows.find((row) => row.key === '2026-06')?.ruleLines.map((line) => line.label)).toEqual(['Income tax', 'Net salary', 'To the state', 'To the employee'])
+    expect(rows.find((row) => row.period === '2026-06')?.ruleLines.map((line) => line.label)).toEqual(['Income tax', 'Net salary', 'To the state', 'To the employee'])
   })
 })

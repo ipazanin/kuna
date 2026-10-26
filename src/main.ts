@@ -22,8 +22,11 @@ async function start(): Promise<void> {
   installPackTabs(HR_DOO_TABS)
   // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    const { seedFakeWorkbook } = await import('./features/workbook/infrastructure/fake/seedFakeWorkbook')
-    await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'))
+    const [{ seedFakeWorkbook }, { fakeStaffOf }] = await Promise.all([
+      import('./features/workbook/infrastructure/fake/seedFakeWorkbook'),
+      import('./packs/hr-doo/infrastructure/fake/fakeStaff'),
+    ])
+    await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'), fakeStaffOf)
   }
   const googleReturn = await takeGoogleRedirect()
   // Each open of the books on Drive online on a device that syncs as it opens, and each return from a sign-in, fetches the Drive read token first, with no screen at Google.

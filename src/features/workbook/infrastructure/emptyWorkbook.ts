@@ -104,6 +104,7 @@ export function emptyWorkbookTabs(): WorkbookTabs {
     'year-end': [],
     plan: [],
     scenarios: [],
+    employees: [],
     splits: [],
     dismissed: [],
   }

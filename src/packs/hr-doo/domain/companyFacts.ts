@@ -4,13 +4,6 @@ import { folderPathOf } from '../../../shared/text/folderPath'
 import { booleanOf, flagText } from '../../../features/settings/domain/settings'
 import type { PackSettings } from '../../../features/settings/domain/settings'
 
-const CITY_MAX_LENGTH = 60
-
-const EARLIEST_BIRTH_YEAR = 1900
-const LATEST_BIRTH_YEAR = 2100
-
-const MOST_DEPENDANTS = 20
-
 const BASIS_POINTS_PER_WHOLE = 10_000
 
 /** Which corporate tax return the company files: `pd` on the accrual profit, `pd-nn` on cash received and paid. */
@@ -30,18 +23,11 @@ export const DEFAULT_VAT_RETURNS_FOLDER: readonly string[] = ['work', 'dss', 'ds
 export const DEFAULT_PAYROLL_FOLDER: readonly string[] = ['work', 'dss', 'dss-finance', 'payroll']
 
 /**
- * What the pack needs to know about this company and its owner that the law does not say. These
- * are the owner's own facts, so they live in the workbook and never in the app.
+ * What the pack needs to know about this company that the law does not say. They are the company's
+ * own facts, so they live in the workbook and never in the app. The facts about a person are on the
+ * employees tab.
  */
 export interface CompanyFacts {
-  /** Where the owner lives, which sets the local income tax rates. Blank when not given. */
-  readonly residenceCity: string
-  /** For the youth income tax relief. Null when not given. */
-  readonly birthYear: number | null
-  /** Whether the owner pays into the second pension pillar, which splits the pension contribution. */
-  readonly pensionPillarTwo: boolean
-  /** Dependants who raise the personal allowance. */
-  readonly dependants: number
   /** The day the company was registered, which starts its first tax period. Null when not given. */
   readonly companyRegistered: CivilDate | null
   readonly citReturn: CitReturn
@@ -65,10 +51,6 @@ const PAYROLL_FOLDER_KEY = 'hr_payroll_folder'
 /** The pack's settings keys, read and checked whatever the owner-pay switch says. */
 export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
   defaults: {
-    residenceCity: '',
-    birthYear: null,
-    pensionPillarTwo: true,
-    dependants: 0,
     companyRegistered: null,
     citReturn: 'pd',
     vatPrinciple: 'invoice',
@@ -80,46 +62,6 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
   },
   writtenWhenUnset: [VAT_RETURNS_FOLDER_KEY, PAYROLL_FOLDER_KEY],
   definitions: [
-  {
-    key: 'hr_residence_city',
-    note: 'The city or municipality the owner lives in, such as Zagreb. It sets the local income tax rates, so payroll figures stay empty while it is blank.',
-    type: 'text',
-    valueOf: (facts) => facts.residenceCity,
-    apply: (facts, value) => {
-      const city = value.trim()
-      return residenceCityProblem(city) ?? withFacts(facts, { residenceCity: city })
-    },
-  },
-  {
-    key: 'hr_birth_year',
-    note: "The owner's year of birth, such as 1990, for the youth income tax relief. Blank means no relief is assumed.",
-    type: 'number',
-    valueOf: (facts) => (facts.birthYear === null ? '' : String(facts.birthYear)),
-    apply: (facts, value) => {
-      const year = Number(value.trim())
-      return birthYearProblem(year) ?? withFacts(facts, { birthYear: year })
-    },
-  },
-  {
-    key: 'hr_pension_pillar_2',
-    note: 'TRUE when the owner pays into the second pension pillar, FALSE when the whole pension contribution goes to the first.',
-    type: 'flag',
-    valueOf: (facts) => flagText(facts.pensionPillarTwo),
-    apply: (facts, value) => {
-      const pillarTwo = booleanOf(value)
-      return pillarTwo === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { pensionPillarTwo: pillarTwo })
-    },
-  },
-  {
-    key: 'hr_dependants',
-    note: 'How many dependants raise the personal allowance, as a whole number. Blank means 0.',
-    type: 'number',
-    valueOf: (facts) => String(facts.dependants),
-    apply: (facts, value) => {
-      const dependants = Number(value.trim())
-      return dependantsProblem(dependants) ?? withFacts(facts, { dependants })
-    },
-  },
   {
     key: 'hr_company_registered',
     note: 'The day the company was registered, as a date or as text such as 2025-05-12. It starts the first tax period.',
@@ -208,17 +150,11 @@ function withFacts(facts: CompanyFacts, changed: Partial<CompanyFacts>): Company
 }
 
 /** The facts a typed value can be wrong in, which the facts card shows an error under. */
-export type CompanyFactsField = 'residenceCity' | 'birthYear' | 'dependants' | 'ownerLoanInterest' | 'vatReturnsFolder' | 'payrollFolder'
+export type CompanyFactsField = 'ownerLoanInterest' | 'vatReturnsFolder' | 'payrollFolder'
 
 /** What is wrong with facts typed in the app, by field. The same rules as reading the keys, so facts saved from the app read back without a problem. */
 export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyFactsField, string>> {
   const errors: Partial<Record<CompanyFactsField, string>> = {}
-  const city = residenceCityProblem(facts.residenceCity)
-  if (city !== null) errors.residenceCity = city
-  const born = facts.birthYear === null ? null : birthYearProblem(facts.birthYear)
-  if (born !== null) errors.birthYear = born
-  const dependantCount = dependantsProblem(facts.dependants)
-  if (dependantCount !== null) errors.dependants = dependantCount
   const loanInterest = ownerLoanInterestProblem(facts.ownerLoanInterest)
   if (loanInterest !== null) errors.ownerLoanInterest = loanInterest
   if (facts.vatReturnsFolder.length === 0) errors.vatReturnsFolder = FOLDER_MISSING
@@ -227,18 +163,6 @@ export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyF
 }
 
 const FOLDER_MISSING = 'name a folder from My Drive, such as finance/accountant'
-
-function residenceCityProblem(city: string): string | null {
-  return city.length > CITY_MAX_LENGTH ? `a city name can be at most ${CITY_MAX_LENGTH} characters` : null
-}
-
-function birthYearProblem(year: number): string | null {
-  return Number.isInteger(year) && year >= EARLIEST_BIRTH_YEAR && year <= LATEST_BIRTH_YEAR ? null : 'use a year of birth such as 1990'
-}
-
-function dependantsProblem(dependants: number): string | null {
-  return Number.isInteger(dependants) && dependants >= 0 && dependants <= MOST_DEPENDANTS ? null : `use a whole number from 0 to ${MOST_DEPENDANTS}`
-}
 
 /**
  * A rate in basis points from a fraction such as 0.025, which a percentage cell holds for 2.5%, or

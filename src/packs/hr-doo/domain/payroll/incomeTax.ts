@@ -7,11 +7,13 @@ import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 import { atRate, percentText, tracedFigure } from './payrollArithmetic'
 import type { RuleSource } from './payrollArithmetic'
 
-/** The employee's own facts, which are workbook settings and never part of the ruleset. */
+/** The employee's own facts, which the employees tab holds and the ruleset never does. */
 export interface EmployeeFacts {
   /** The city or municipality of residence, which sets the income tax rates, as `findLocalUnit` reads a name. */
   readonly residenceCity: string
   readonly pensionPillarTwo: boolean
+  /** A member of the company who is its director, whose salary has the director floor. Any other employee is paid what the contract says. */
+  readonly director: boolean
   /** Dependent family members and children on the tax card, each adding a multiple of the allowance. */
   readonly dependants: number
   /** Read only by the annual settlement, for the youth relief. Null when the workbook does not say. */

@@ -13,11 +13,12 @@
  *
  * Beyond the screens of the fake workbook on Drive, it renders the first-run welcome screen
  * (`?fake=empty`), each Settings tab and the Year page's editors for a workbook kept in this browser
- * (`?fake=browser`), This device for a file a newer app saved (`?fake=newer-file`), and the summary
+ * (`?fake=browser`), This device for a file a newer app saved (`?fake=newer-file`), Salaries for one
+ * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
  *
  * At 360 and 1440 px, in both themes and both modes, it then adds, edits, deletes and undoes a
- * category, with its colour, a label and a role, an asset and an
+ * category, with its colour, a label and a role, an asset, an employee on Salaries and an
  * invoice, changes and deletes an owner advance and undoes the delete, and screenshots the editors
  * and the invoice dialog on the way. On Settings, Categories it searches, filters to a bucket, sorts
  * by a press and the keyboard, and edits, saves and undoes a row while filtered and sorted. On Settings, General it saves the statements folder the
@@ -43,7 +44,10 @@
  * problem and opens its steps, a popover at 1440 and a bottom sheet at 360, whose link opens Import,
  * which says why. A tab Google gave no Drive read token gets Allow access in the sync control, which
  * files the sample, and a slow statements folder shows the control while its step runs and once it
- * is ready. On Year, Taxes the accountant's cards show the fake accountant folders a sync read, name
+ * is ready. On Salaries with five employees a sync reads their payslips, the one problem opens its
+ * build-up and its bank rows, the People tab opens one employee's month and a month of the Over time
+ * table opens on the Month tab.
+ * On Year, Taxes the accountant's cards show the fake accountant folders a sync read, name
  * the tab and row of a file that does not read, and open the rows a differing badge compared. Without
  * the Drive read token they show the read this device kept until Allow access, and a payroll folder
  * saved on Settings, General that the fake Drive lacks is said, with 1 problem in the sync control.
@@ -81,6 +85,7 @@ import {
   accountantReturnsFlow,
   advanceFlow,
   assetFlow,
+  employeeFlow,
   cardSettlementIbansFlow,
   categoryFiltersFlow,
   categoryFlow,
@@ -97,6 +102,7 @@ import {
   moveFromBrowserFlow,
   moveFromXlsxFlow,
   ownerShareFlow,
+  salariesFlow,
   planFlow,
   planTabFlow,
   raceFlow,
@@ -199,6 +205,7 @@ const SCREENS = [
     collapsedBefore: ['year.grant-rows'],
     linkedPart: 'grant-rows',
   },
+  { name: 'salaries', hash: '#/salaries', title: 'Salaries', charts: 0, shows: ["No row is the director's yet", 'No employees yet.', 'Add employee'] },
   { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Owner take by type', 'Loans, net', 'Owed by the owner at each month end', 'Net share of gross cost', 'Monthly net pay', 'Benefits from company costs', 'of it from company costs', 'needs hr_company_registered'], cards: false },
   { name: 'owner-2025', hash: '#/owner?p=2025', title: 'Owner', charts: 2, shows: ['Jan 2025 – Dec 2025', 'Owner take by type', 'Monthly net pay', 'over 8 months'], cards: false },
   { name: 'owner-owed', hash: '#/owner?tab=owed', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'The company owes the owner on 30 Sept 2026', 'Owed at the end'] },
@@ -281,6 +288,35 @@ const SOURCE_SCREENS = [
     linkedPart: 'accountant-lines',
   },
   { name: 'year-asset-rows-browser', query: 'fake=browser', hash: '#/year?tab=assets#asset-rows', title: 'Year', charts: 0, shows: 'Save assets', linkedPart: 'asset-rows' },
+  {
+    name: 'salaries-browser',
+    query: 'fake=browser',
+    hash: '#/salaries#employee-rows',
+    title: 'Salaries',
+    charts: 1,
+    shows: 'Save employees',
+    collapsedBefore: ['salaries.employees'],
+    linkedPart: 'employee-rows',
+  },
+  {
+    name: 'salaries-one-employee',
+    query: 'fake=one-employee',
+    hash: '#/salaries',
+    title: 'Salaries',
+    charts: 1,
+    shows: ['Where the company’s money goes', 'Gross to net', 'Payslip, app and bank', 'Pension savings', 'Alex Example: payslip not read'],
+  },
+  { name: 'salaries-one-employee-over-time', query: 'fake=one-employee', hash: '#/salaries?tab=over-time', title: 'Salaries', charts: 1, shows: ['Cost to the company by payday, 2026', 'Paydays of 2026'] },
+  {
+    name: 'salaries-five-employees',
+    query: 'fake=five-employees',
+    hash: '#/salaries',
+    title: 'Salaries',
+    charts: 1,
+    shows: ['Paid to the employees', 'Niko Test: payslip not read', 'Everyone'],
+  },
+  { name: 'salaries-five-employees-people', query: 'fake=five-employees', hash: '#/salaries?tab=people', title: 'Salaries', charts: 0, shows: ['Everyone paid in Sept 2026', 'Niko Test'] },
+  { name: 'salaries-five-employees-one', query: 'fake=five-employees', hash: '#/salaries?employee=lea', title: 'Salaries', charts: 1, shows: ['Lea Proba', 'Paid to the employee'] },
   { name: 'owner-browser', query: 'fake=browser', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults', 'Monthly net pay'], cards: false },
   { name: 'owner-owed-browser', query: 'fake=browser', hash: '#/owner?tab=owed&p=all', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'Net owed'] },
   { name: 'year-forecast-browser', query: 'fake=browser', hash: '#/year?year=2026', title: 'Year', charts: 1, shows: ['Month by month, 2026', 'plan rows of 2026 are not invoiced yet', 'Plan against actual, 2026'] },
@@ -334,6 +370,7 @@ const SIDEWAYS_SCROLL_ALLOWED = [
   { card: 'year.asset-rows', upTo: Infinity, reason: 'Ten input columns are wider than the 100rem measure the Year screen keeps.' },
   { card: 'year.grant-rows', upTo: Infinity, reason: 'Twelve input columns are wider than the 100rem measure the Year screen keeps.' },
   { card: 'year.accountant-lines', upTo: Infinity, reason: 'Nine input columns are wider than the 100rem measure the Year screen keeps.' },
+  { card: 'salaries.employees', upTo: Infinity, reason: 'Eleven input columns are wider than the 100rem measure the Salaries screen keeps.' },
 ]
 
 const failures = []
@@ -550,6 +587,7 @@ const FLOWS = [
   { name: 'settings-card-ibans', hash: '#/settings', title: 'Settings', run: cardSettlementIbansFlow },
   { name: 'clients-ibans', hash: '#/invoicing?tab=clients', title: 'Invoicing', run: clientIbansFlow },
   { name: 'assets', hash: '#/year?tab=assets#asset-rows', title: 'Year', run: assetFlow },
+  { name: 'employees', hash: '#/salaries#employee-rows', title: 'Salaries', run: employeeFlow },
   { name: 'advances', hash: '#/owner?tab=owed', title: 'Owner', run: advanceFlow },
   { name: 'invoices', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceFlow },
   { name: 'invoice-run', hash: '#/invoicing?p=all', title: 'Invoicing', run: invoiceRunFlow },
@@ -584,6 +622,7 @@ const FLOWS = [
   { name: 'statements-held', hash: '#/', title: 'Overview', run: heldStatementFlow, modes: ['drive'], queries: { drive: '&fake=held-statement' } },
   { name: 'statements-access', hash: '#/', title: 'Overview', run: statementAccessFlow, modes: ['drive'] },
   { name: 'sync-running', hash: '#/', title: 'Overview', run: syncRunningFlow, modes: ['drive'], queries: { drive: '&fake=slow-statements' } },
+  { name: 'salaries', hash: '#/salaries', title: 'Salaries', run: salariesFlow, modes: ['drive'], queries: { drive: '&fake=five-employees' } },
   { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['drive'] },
   { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['drive'] },
   { name: 'accountant-folders', hash: '#/settings#accountant-folders', title: 'Settings', run: accountantFoldersFlow, modes: ['drive'] },

@@ -16,7 +16,7 @@ describe('the pack part', () => {
     expect(Object.keys(workbook.packParts)).toEqual([HR_DOO.name])
     expect(books.assets.length).toBeGreaterThan(0)
     expect(books.yearEndLines.length).toBeGreaterThan(0)
-    expect(books.companyFacts.residenceCity).toBe('Zagreb')
+    expect(books.director?.residenceCity).toBe('Zagreb')
     expect(workbook.ownerAdvances).toBe(books.ownerAdvances)
     expect(workbook.ownerAdvances.length).toBeGreaterThan(0)
     expect(workbook.rowsKeptWhole.size).toBeGreaterThan(0)

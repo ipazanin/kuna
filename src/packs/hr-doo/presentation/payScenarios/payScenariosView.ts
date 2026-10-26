@@ -13,24 +13,32 @@ import type { ScenarioNote, ScenarioOutcome, ScenarioWarning } from '../../domai
 import { figureDetail } from '../tracedFigureView'
 import type { FigureDetail } from '../tracedFigureView'
 
-/** The pay scenarios of a year, the setting their figures wait for, or why they could not be worked out. */
+/** The pay scenarios of a year, the fact their figures wait for and where it is set, or why they could not be worked out. */
 export type PayState =
-  | { readonly state: 'needs'; readonly key: string; readonly why: string; readonly setting: RouteLocationRaw }
+  | { readonly state: 'needs'; readonly need: string; readonly why: string; readonly action: { readonly label: string; readonly to: RouteLocationRaw } }
   | { readonly state: 'failed'; readonly failure: string }
   | { readonly state: 'ready'; readonly figures: PayScenarios }
 
 export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate): PayState {
-  const facts = workbook.companyFacts
-  if (facts.companyRegistered === null) {
+  if (workbook.companyFacts.companyRegistered === null) {
     return {
       state: 'needs',
-      key: 'hr_company_registered',
+      need: 'hr_company_registered',
       why: 'The tax periods and the corporate tax count from the day the company was registered.',
-      setting: { path: '/settings', hash: '#company-registered' },
+      action: { label: 'Set it on Settings', to: { path: '/settings', hash: '#company-registered' } },
     }
   }
-  if (facts.residenceCity === '') {
-    return { state: 'needs', key: 'hr_residence_city', why: 'Your city of residence sets the income tax rates of the salary.', setting: { path: '/settings', hash: '#residence-city' } }
+  const employees = { path: '/salaries', hash: '#employee-rows' }
+  if (workbook.director === null) {
+    return {
+      state: 'needs',
+      need: 'a director on the employees tab',
+      why: "The director's row holds where you live, pillar II and your dependants, which the salary of each scenario is worked out on.",
+      action: { label: 'Add it on Salaries', to: employees },
+    }
+  }
+  if (workbook.director.residenceCity === '') {
+    return { state: 'needs', need: "the director's city", why: 'Your city of residence sets the income tax rates of the salary.', action: { label: 'Set it on Salaries', to: employees } }
   }
   try {
     return { state: 'ready', figures: payScenarios(workbook, year, asOf) }

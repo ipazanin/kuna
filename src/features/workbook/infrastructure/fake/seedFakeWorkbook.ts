@@ -7,6 +7,7 @@ import { openWorkbookCache } from '../workbookCache'
 import { saveWorkbookChoice } from '../workbookChoice'
 import { fakeBooksFolder, fakeDriveSession, raceTheNextSave } from './fakeDriveSession'
 import { FAKE_WORKBOOK_ID, fakeWorkbookDocument } from './fakeWorkbook'
+import type { FakeStaff } from './fakeWorkbook'
 
 const DAY = 86_400_000
 
@@ -23,10 +24,11 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * days past their last export. `?fake=empty` keeps nothing, which is a first run. A variant that ends
  * in `no-billing-plan`, `no-scenarios` or `no-plan` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
- * first save. Only main.ts imports this, behind an inline VITE_FAKE_WORKBOOK comparison, so the
- * module and its fixture never reach a production chunk.
+ * first save. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
+ * the owner's flat salary. Only main.ts imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
+ * so the module and its fixture never reach a production chunk.
  */
-export async function seedFakeWorkbook(variant: string | null): Promise<void> {
+export async function seedFakeWorkbook(variant: string | null, staffOf: (variant: string | null) => FakeStaff | null): Promise<void> {
   if (variant === 'empty') {
     saveWorkbookChoice(null)
     return
@@ -34,7 +36,7 @@ export async function seedFakeWorkbook(variant: string | null): Promise<void> {
   const source = variant?.startsWith('browser') ? 'browser' : 'drive'
   const now = Date.now()
   const savedAt = new Date(now).toISOString()
-  const full = fakeWorkbookDocument(savedAt, source)
+  const full = fakeWorkbookDocument(savedAt, source, staffOf(variant))
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const kept = missing === null ? full : { ...full, records: { ...full.records, [missing]: [] } }
   const document = variant === 'newer-file' ? { ...kept, schema: { ...kept.schema, core: (kept.schema.core ?? 0) + 1 } } : kept

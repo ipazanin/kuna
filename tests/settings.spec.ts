@@ -226,12 +226,8 @@ describe('statements_folder', () => {
 })
 
 describe('company facts', () => {
-  it('default to no city, no birth year, the second pillar, no dependants, the accrual return, the invoice principle, owner loans at 0%, today’s accountant folders and their read on sync', () => {
+  it('default to no registration day, the accrual return, the invoice principle, owner loans at 0%, today’s accountant folders and their read on sync', () => {
     expect(COMPANY_FACT_SETTINGS.defaults).toEqual({
-      residenceCity: '',
-      birthYear: null,
-      pensionPillarTwo: true,
-      dependants: 0,
       companyRegistered: null,
       citReturn: 'pd',
       vatPrinciple: 'invoice',
@@ -246,10 +242,6 @@ describe('company facts', () => {
   it('read every key, a registration day from a date cell or from text, and write them back the same way', () => {
     const { values, problems } = readPackSettings(
       rows(
-        ['hr_residence_city', ' Zagreb '],
-        ['hr_birth_year', '1990'],
-        ['hr_pension_pillar_2', false],
-        ['hr_dependants', 2],
         ['hr_company_registered', 45789],
         ['hr_cit_return', 'PD-NN'],
         ['hr_vat_principle', 'cash'],
@@ -264,10 +256,6 @@ describe('company facts', () => {
 
     expect(problems).toEqual([])
     expect(values).toEqual({
-      residenceCity: 'Zagreb',
-      birthYear: 1990,
-      pensionPillarTwo: false,
-      dependants: 2,
       companyRegistered: '2025-05-12',
       citReturn: 'pd-nn',
       vatPrinciple: 'cash',
@@ -283,22 +271,33 @@ describe('company facts', () => {
   })
 
   it('are stored typed by their key: a date cell as its day, a flag the app wrote as a flag, and anything else as text', () => {
-    expect(rows(['hr_company_registered', 45789], ['hr_pension_pillar_2', false], ['hr_dependants', 2])).toEqual([
+    expect(rows(['hr_company_registered', 45789], ['hr_depreciation_doubled', false], ['hr_owner_loan_interest', 0.02])).toEqual([
       { key: 'hr_company_registered', value: '2025-05-12' },
-      { key: 'hr_pension_pillar_2', value: 'FALSE' },
-      { key: 'hr_dependants', value: '2' },
+      { key: 'hr_depreciation_doubled', value: 'FALSE' },
+      { key: 'hr_owner_loan_interest', value: '0.02' },
     ])
-    expect(SETTINGS.fieldsOf({ key: 'hr_pension_pillar_2', value: 'TRUE' })).toEqual({ key: 'hr_pension_pillar_2', value: true })
-    expect(SETTINGS.fieldsOf({ key: 'hr_pension_pillar_2', value: 'yes' })).toEqual({ key: 'hr_pension_pillar_2', value: 'yes' })
+    expect(SETTINGS.fieldsOf({ key: 'hr_depreciation_doubled', value: 'TRUE' })).toEqual({ key: 'hr_depreciation_doubled', value: true })
+    expect(SETTINGS.fieldsOf({ key: 'hr_depreciation_doubled', value: 'yes' })).toEqual({ key: 'hr_depreciation_doubled', value: 'yes' })
     expect(SETTINGS.fieldsOf({ key: 'company_name', value: 'TRUE' })).toEqual({ key: 'company_name', value: 'TRUE' })
-    expect(SETTINGS.fieldsOf({ key: 'hr_birth_year', value: '' })).toEqual({ key: 'hr_birth_year' })
+    expect(SETTINGS.fieldsOf({ key: 'hr_company_registered', value: '' })).toEqual({ key: 'hr_company_registered' })
   })
 
   it('are left to the pack by the core parser, which neither reads nor reports them', () => {
     const packKeys = new Set(COMPANY_FACT_SETTINGS.definitions.map((definition) => definition.key))
 
-    expect(parseSettings(rows(['hr_residence_city', 'Zagreb'], ['hr_birth_year', 'unknown']), packKeys)).toEqual({ settings: DEFAULT_SETTINGS, problems: [] })
-    expect(parseSettings(rows(['hr_residence_city', 'Zagreb'])).problems).toEqual([settingProblem('hr_residence_city', 'not a setting this app knows, so it is kept but not used')])
+    expect(parseSettings(rows(['hr_cit_return', 'pd'], ['hr_company_registered', 'unknown']), packKeys)).toEqual({ settings: DEFAULT_SETTINGS, problems: [] })
+    expect(parseSettings(rows(['hr_cit_return', 'pd'])).problems).toEqual([settingProblem('hr_cit_return', 'not a setting this app knows, so it is kept but not used')])
+  })
+
+  it('report the owner keys that the director row on the employees tab holds as keys the app does not know', () => {
+    const packKeys = new Set(COMPANY_FACT_SETTINGS.definitions.map((definition) => definition.key))
+
+    expect(parseSettings(rows(['hr_residence_city', 'Zagreb'], ['hr_birth_year', 1990], ['hr_pension_pillar_2', true], ['hr_dependants', 0]), packKeys).problems.map((problem) => problem.label)).toEqual([
+      'hr_residence_city',
+      'hr_birth_year',
+      'hr_pension_pillar_2',
+      'hr_dependants',
+    ])
   })
 
   it('write the switch and both accountant folders with a save of Settings, General while the settings hold none, so a later default cannot turn them off', () => {
@@ -313,8 +312,8 @@ describe('company facts', () => {
     expect(unsetSettingKeys(holding, COMPANY_FACT_SETTINGS as PackSettings<unknown>)).toEqual(['owner_pay_module', 'hr_vat_returns_folder'])
     expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, facts, held())).toEqual(folders)
     expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, facts, holding)).toEqual([folders[0]])
-    expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, { ...facts, residenceCity: 'Zagreb' }, held(...folders.map(({ key, value }) => [key, value] as [string, Cell])))).toEqual([
-      { key: 'hr_residence_city', value: 'Zagreb' },
+    expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, { ...facts, citReturn: 'pd-nn' }, held(...folders.map(({ key, value }) => [key, value] as [string, Cell])))).toEqual([
+      { key: 'hr_cit_return', value: 'pd-nn' },
     ])
     expect(packSettingsToSave(COMPANY_FACT_SETTINGS, facts, { ...facts, vatReturnsFolder: ['finance', 'vat'] }, held())).toEqual([{ key: 'hr_vat_returns_folder', value: 'finance/vat' }, folders[1]])
   })
@@ -328,8 +327,8 @@ describe('company facts', () => {
   it('change only the keys whose value differs, in template order', () => {
     const before = COMPANY_FACT_SETTINGS.defaults
 
-    expect(changedPackSettings(COMPANY_FACT_SETTINGS, before, { ...before, ownerLoanInterest: 200, residenceCity: 'Zagreb' })).toEqual([
-      { key: 'hr_residence_city', value: 'Zagreb' },
+    expect(changedPackSettings(COMPANY_FACT_SETTINGS, before, { ...before, ownerLoanInterest: 200, citReturn: 'pd-nn' })).toEqual([
+      { key: 'hr_cit_return', value: 'pd-nn' },
       { key: 'hr_owner_loan_interest', value: '0.02' },
     ])
   })
@@ -337,12 +336,10 @@ describe('company facts', () => {
   it('fall back to the default for a value that does not hold, and say which key', () => {
     const { values, problems } = readPackSettings(
       rows(
-        ['hr_birth_year', 'nineteen ninety'],
-        ['hr_dependants', -1],
         ['hr_company_registered', '12.05.2025.'],
         ['hr_cit_return', 'cash'],
         ['hr_vat_principle', 'monthly'],
-        ['hr_pension_pillar_2', 'perhaps'],
+        ['hr_depreciation_doubled', 'perhaps'],
         ['hr_payroll_folder', ' / '],
       ),
       COMPANY_FACT_SETTINGS,
@@ -350,12 +347,10 @@ describe('company facts', () => {
 
     expect(values).toEqual(COMPANY_FACT_SETTINGS.defaults)
     expect(problems).toEqual([
-      settingProblem('hr_birth_year', 'use a year of birth such as 1990, so the default is used'),
-      settingProblem('hr_dependants', 'use a whole number from 0 to 20, so the default is used'),
       settingProblem('hr_company_registered', '"12.05.2025." is not a date such as 2025-05-12, so the default is used'),
       settingProblem('hr_cit_return', '"cash" is neither pd nor pd-nn, so the default is used'),
       settingProblem('hr_vat_principle', '"monthly" is neither invoice nor cash, so the default is used'),
-      settingProblem('hr_pension_pillar_2', '"perhaps" is neither TRUE nor FALSE, so the default is used'),
+      settingProblem('hr_depreciation_doubled', '"perhaps" is neither TRUE nor FALSE, so the default is used'),
       settingProblem('hr_payroll_folder', '"/" names no folder, so the default is used'),
     ])
     expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, vatReturnsFolder: [] })).toEqual({ vatReturnsFolder: 'name a folder from My Drive, such as finance/accountant' })
@@ -379,12 +374,8 @@ describe('company facts', () => {
     )
   })
 
-  it('are listed in the template with their defaults, a blank birth year and registration day among them', () => {
+  it('are listed in the template with their defaults, a blank registration day among them', () => {
     expect(settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values: COMPANY_FACT_SETTINGS.defaults }).filter((entry) => entry.key.startsWith('hr_'))).toEqual([
-      { key: 'hr_residence_city', value: '' },
-      { key: 'hr_birth_year', value: '' },
-      { key: 'hr_pension_pillar_2', value: 'TRUE' },
-      { key: 'hr_dependants', value: '0' },
       { key: 'hr_company_registered', value: '' },
       { key: 'hr_cit_return', value: 'pd' },
       { key: 'hr_vat_principle', value: 'invoice' },
@@ -485,12 +476,11 @@ describe('settingsErrors', () => {
   })
 
   it('names the company facts the editor must not save', () => {
-    const errors = companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, residenceCity: 'x'.repeat(61), birthYear: Number.NaN, dependants: 1.5 })
+    const errors = companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: 1.5, payrollFolder: [] })
 
     expect(errors).toEqual({
-      residenceCity: 'a city name can be at most 60 characters',
-      birthYear: 'use a year of birth such as 1990',
-      dependants: 'use a whole number from 0 to 20',
+      ownerLoanInterest: 'use a rate from 0% to 100% with at most two decimals, such as 2%',
+      payrollFolder: 'name a folder from My Drive, such as finance/accountant',
     })
   })
 })

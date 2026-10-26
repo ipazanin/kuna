@@ -4,6 +4,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ruleValue } from '../../ruleset/ruleset'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import { taxBase } from '../cit/taxBase'
+import { payrollDirector } from '../employees/employees'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { marginalEuro } from './marginalEuro'
 import type { MarginalRoute } from './marginalEuro'
@@ -27,10 +28,17 @@ export interface PayScenarios {
   readonly marginal: readonly MarginalRoute[]
 }
 
-/** The year's scenarios worked out on the forecast seen on `asOf` and the owner's facts from the settings. A scenario a guard stops is listed with why. */
+/**
+ * The year's scenarios worked out on the forecast seen on `asOf` and the facts of the director's row
+ * on the employees tab. A scenario a guard stops is listed with why. Throws a RangeError without a
+ * director's row with a city, since the payroll has no tax rates then.
+ */
 export function payScenarios(workbook: HrDooWorkbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): PayScenarios {
   const company = scenarioCompany(workbook, year, asOf, rules)
-  const facts = workbook.companyFacts
+  const facts = payrollDirector(workbook)
+  if (facts === null) {
+    throw new RangeError('The employees tab has no director with a city of residence, which the payroll needs for its income tax rates.')
+  }
   const entries = workbook.payScenarios
     .filter((scenario) => scenario.year === year)
     .map((scenario): ScenarioEntry => {

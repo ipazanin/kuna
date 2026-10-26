@@ -2,16 +2,17 @@ import { drillToTransactions, rowDrill } from '../../../../features/filters/doma
 import type { Transaction } from '../../../../features/workbook/domain/workbook'
 import { addDays, daysBetween, weekdaysBetween } from '../../../../shared/calendar/civilDate'
 import { firstDayOf, lastDayOf } from '../../../../shared/calendar/monthKey'
-import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { ZERO, addMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { findLocalUnit } from '../../ruleset/localUnits'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
+import { weekdaysEmployed } from '../employees/employees'
 import type { HrDooWorkbook } from '../hrDooPart'
-import { PACK_ROLES, categoriesInBucket } from '../packRoles'
+import { categoriesInBucket, payrollTaxCategories } from '../packRoles'
 import { localRates } from '../payroll/incomeTax'
+import type { EmployeeFacts } from '../payroll/incomeTax'
 import { tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { payrollMonth } from '../payroll/payrollMonth'
@@ -65,8 +66,8 @@ interface SalaryRuleCheck {
 
 /**
  * The workbook run through the payroll engine. A part month runs only at the director floor with
- * its days worked given, since the workbook holds neither the days nor an agreed full-month
- * gross. A city the ruleset has no rates for cannot run either.
+ * its days worked from the director's row, since the workbook holds neither the days nor an agreed
+ * full-month gross. A city the ruleset has no rates for cannot run either.
  */
 export type SalaryRules =
   | { readonly kind: 'checked'; readonly payroll: PayrollMonth; readonly lines: readonly SalaryRuleCheck[] }
@@ -101,17 +102,12 @@ const RULE_LINES: readonly (keyof PayrollMonth & SalaryRuleLine)[] = [
  * Each salary workbook against the bank and against the ruleset. Rent and net salary share a
  * bucket and roles, so the payout is found by its amount, not its category. A dividend tax row is
  * also a tax caused by owner pay and can land in the same week, so the state's share leaves it out.
- * `daysWorked` gives a part month's days, which the app does not hold.
+ * The payslips are the director's, so the dependants and a part month's days come from the
+ * director's row.
  */
-export function salaryMonthChecks(
-  workbook: HrDooWorkbook,
-  salaries: readonly SalaryWorkbook[],
-  daysWorked: ReadonlyMap<MonthKey, number> = new Map(),
-  rules: RuleSource = ruleValue,
-): SalaryMonthCheck[] {
-  const stateCategories = workbook.categories
-    .filter((category) => category.bucket === 'taxes' && category.roles.includes(PACK_ROLES.ownerPayTax) && !category.roles.includes(PACK_ROLES.profitDistribution))
-    .map((category) => category.slug)
+export function salaryMonthChecks(workbook: HrDooWorkbook, salaries: readonly SalaryWorkbook[], rules: RuleSource = ruleValue): SalaryMonthCheck[] {
+  const { director } = workbook
+  const stateCategories = payrollTaxCategories(workbook.categories)
   const ownerPayCategories = categoriesInBucket(workbook.categories, 'owner-pay')
   const wholeRows = [...new Map(workbook.transactions.map((row) => row.split?.whole ?? row).map((row) => [row.id, row] as const)).values()]
   return salaries.map((salary) => {
@@ -135,7 +131,12 @@ export function salaryMonthChecks(
       salary,
       stateTake: { theirs: salary.stateTake, ours: paidToState, holds: paidToState.amount === salary.stateTake },
       payout: { theirs: expected, ours: paidOut, holds: payoutRow !== null },
-      rules: salaryRules(salary, workbook.companyFacts.dependants, daysWorked.get(salary.workedMonth) ?? null, rules),
+      rules: salaryRules(
+        salary,
+        { dependants: director?.dependants ?? 0, director: true },
+        director === null ? null : weekdaysEmployed(director, salary.workedMonth),
+        rules,
+      ),
     }
   })
 }
@@ -146,7 +147,7 @@ export function salaryMonthChecks(
  * base runs as an agreed gross of nothing, so the engine pays the floor. Rent and refunds are not
  * pay, so they count only in the total and in what the employee is paid.
  */
-export function salaryRules(salary: SalaryWorkbook, dependants: number, daysWorked: number | null, rules: RuleSource = ruleValue): SalaryRules {
+export function salaryRules(salary: SalaryWorkbook, person: Pick<EmployeeFacts, 'dependants' | 'director'>, daysWorked: number | null, rules: RuleSource = ruleValue): SalaryRules {
   const workingDaysInMonth = weekdaysBetween(firstDayOf(salary.workedMonth), lastDayOf(salary.workedMonth))
   const days = salary.partMonth ? daysWorked : workingDaysInMonth
   if (days === null || (salary.partMonth && !salary.directorMinimum)) {
@@ -156,7 +157,7 @@ export function salaryRules(salary: SalaryWorkbook, dependants: number, daysWork
   if (unit === null) {
     return { kind: 'unknown-city', problem }
   }
-  const facts = { residenceCity: salary.residenceCity, pensionPillarTwo: salary.pensionPillarTwo !== ZERO, dependants, birthYear: null }
+  const facts = { residenceCity: salary.residenceCity, pensionPillarTwo: salary.pensionPillarTwo !== ZERO, director: person.director, dependants: person.dependants, birthYear: null }
   const payroll = payrollMonth(
     {
       workedMonth: salary.workedMonth,

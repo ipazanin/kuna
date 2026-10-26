@@ -18,10 +18,16 @@ export interface NontaxablePayment {
   readonly amount: Money
 }
 
+/** Pay on top of the salary that is taxed with it, such as overtime, night and Sunday supplements or a taxable bonus. */
+export interface TaxableExtra {
+  readonly label: string
+  readonly amount: Money
+}
+
 export interface PayrollMonthInput {
   readonly workedMonth: MonthKey
   readonly paidOn: CivilDate
-  /** The full-time monthly gross of the contract. Below the director floor, the floor is paid instead. */
+  /** The full-time monthly gross of the contract. A director is paid at least the director floor. */
   readonly agreedMonthlyGross: Money
   readonly daysWorked: number
   /** Monday to Friday, public holidays included, as the monthly fund of hours counts them. */
@@ -29,10 +35,18 @@ export interface PayrollMonthInput {
   readonly nontaxablePayments: readonly NontaxablePayment[]
   /** The part of tax-free payments over their caps, which is taxed as salary on top of the gross. */
   readonly overCaps?: TracedFigure
+  readonly taxableExtras?: readonly TaxableExtra[]
+  /**
+   * The pension bases of the earlier months of the worked month's year, from every payroll the
+   * employee had, which the annual maximum base counts. Nothing when this is the first month.
+   */
+  readonly pensionBaseEarlierInYear?: Money
   readonly basis: FigureBasis
 }
 
-/** One month's salary of a director employed by the company, gross to net and to the company's total cost. */
+export type PayrollWarning = { readonly kind: 'below-minimum-wage'; readonly agreed: TracedFigure; readonly minimum: TracedFigure }
+
+/** One month's salary of an employee, gross to net and to the company's total cost. */
 export interface PayrollMonth {
   readonly workedMonth: MonthKey
   readonly paidOn: CivilDate
@@ -56,20 +70,22 @@ export interface PayrollMonth {
   readonly totalCompanyCost: TracedFigure
   /** Pension pillars I and II, income tax and health. */
   readonly stateTake: TracedFigure
+  readonly warnings: readonly PayrollWarning[]
 }
 
 export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rules: RuleSource = ruleValue): PayrollMonth {
   if (input.paidOn < firstDayOf(input.workedMonth)) {
     throw new RangeError(`A salary for ${input.workedMonth} cannot be paid on ${input.paidOn}.`)
   }
-  if (input.agreedMonthlyGross < 0 || (input.overCaps?.amount ?? 0) < 0) {
-    throw new RangeError('The agreed gross and the pay over the tax-free caps cannot be negative.')
+  const extras = input.taxableExtras ?? []
+  const earlierBase = input.pensionBaseEarlierInYear ?? ZERO
+  if (input.agreedMonthlyGross < 0 || (input.overCaps?.amount ?? 0) < 0 || extras.some((extra) => extra.amount < 0) || earlierBase < 0) {
+    throw new RangeError('The agreed gross, the pay over the tax-free caps, the taxable extras and the earlier pension base cannot be negative.')
   }
   const { basis } = input
   // The accountant takes the contribution bases of the month worked, so a December salary paid in
   // January keeps December's director floor. Income tax follows the payment date.
   const contributionsDay = firstDayOf(input.workedMonth)
-  const floorRule = rules('hr.contrib.director-floor', contributionsDay)
   const contributionRates = rules('hr.contrib.rates', contributionsDay)
   const maximumBase = rules('hr.contrib.max-base', contributionsDay)
   const reliefRule = rules('hr.contrib.low-pay-relief', contributionsDay)
@@ -78,14 +94,21 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
   const cityRates = localRates(facts.residenceCity, input.paidOn, rules)
   const capsRule = rules('hr.pit.nontaxable-caps', input.paidOn)
 
-  const salary = grossSalary(input, floorRule)
+  const salary = grossSalary(input, facts.director, contributionsDay, rules)
+  const added = [
+    ...(input.overCaps === undefined || input.overCaps.amount === 0 ? [] : [input.overCaps]),
+    ...extras.filter((extra) => extra.amount > 0).map((extra) => tracedFigure(extra.label, extra.amount, basis, [])),
+  ]
   const gross =
-    input.overCaps === undefined || input.overCaps.amount === 0
+    added.length === 0
       ? salary
-      : tracedFigure('Gross salary with the payments over their tax-free caps', addMoney(salary.amount, input.overCaps.amount), basis, rulesOf([salary, input.overCaps]), [
-          salary,
-          input.overCaps,
-        ])
+      : tracedFigure(
+          extras.length === 0 ? 'Gross salary with the payments over their tax-free caps' : 'Gross salary with taxable extras',
+          addMoney(salary.amount, sumMoney(added.map((step) => step.amount))),
+          basis,
+          rulesOf([salary, ...added]),
+          [salary, ...added],
+        )
   const pensionRelief = lowPayRelief(gross.amount, reliefRule, basis)
 
   const monthlyMaximum = maximumBase.value.monthlyMaximum.cents
@@ -97,9 +120,15 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
     basis,
     [maximumBase.citation],
   )
-  const pillarOneBaseAmount = pensionable.amount > pensionRelief.amount ? subtractMoney(pensionable.amount, pensionRelief.amount) : ZERO
+  const annualRoom = maximumBase.value.annualMaximum.cents > earlierBase ? subtractMoney(maximumBase.value.annualMaximum.cents, earlierBase) : ZERO
+  const pillarOneCapped = pensionable.amount > annualRoom
+  // Only pillar I has an annual maximum base, which counts the bases of the whole year.
+  const pillarOnePensionable = pillarOneCapped
+    ? tracedFigure('Gross, capped at what is left of the annual maximum pension base', annualRoom, basis, [maximumBase.citation], [pensionable])
+    : pensionable
+  const pillarOneBaseAmount = pillarOnePensionable.amount > pensionRelief.amount ? subtractMoney(pillarOnePensionable.amount, pensionRelief.amount) : ZERO
   const pillarOneBase = tracedFigure('Pillar I base', pillarOneBaseAmount, basis, [maximumBase.citation, reliefRule.citation], [
-    pensionable,
+    pillarOnePensionable,
     deducted(pensionRelief),
   ])
   const rates = contributionRates.value
@@ -193,22 +222,41 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
     paidToEmployee,
     totalCompanyCost,
     stateTake,
+    warnings: minimumWageWarnings(input, facts.director, rules),
   }
 }
 
-function grossSalary(input: PayrollMonthInput, floorRule: RuleLookup<RuleValues['hr.contrib.director-floor']>): TracedFigure {
-  const floor = floorRule.value.monthlyFloor.cents
+function grossSalary(input: PayrollMonthInput, director: boolean, contributionsDay: CivilDate, rules: RuleSource): TracedFigure {
   const agreed = tracedFigure('Agreed monthly gross', input.agreedMonthlyGross, input.basis, [])
+  const partMonth = input.daysWorked !== input.workingDaysInMonth
+  const label = partMonth ? `Gross salary for ${input.daysWorked} of ${input.workingDaysInMonth} working days` : 'Gross salary'
+  if (!director) {
+    return tracedFigure(label, prorated(input.agreedMonthlyGross, input.daysWorked, input.workingDaysInMonth), input.basis, [], [agreed])
+  }
+  const floorRule = rules('hr.contrib.director-floor', contributionsDay)
+  const floor = floorRule.value.monthlyFloor.cents
   const directorFloor = tracedFigure('Director floor for a full month', floor, input.basis, [floorRule.citation])
   const fullMonth = input.agreedMonthlyGross > floor ? input.agreedMonthlyGross : floor
-  const partMonth = input.daysWorked !== input.workingDaysInMonth
-  return tracedFigure(
-    partMonth ? `Gross salary for ${input.daysWorked} of ${input.workingDaysInMonth} working days` : 'Gross salary',
-    prorated(fullMonth, input.daysWorked, input.workingDaysInMonth),
-    input.basis,
-    [floorRule.citation],
-    [agreed, directorFloor],
-  )
+  return tracedFigure(label, prorated(fullMonth, input.daysWorked, input.workingDaysInMonth), input.basis, [floorRule.citation], [agreed, directorFloor])
+}
+
+/** The minimum wage binds an employee's full-time gross. A director has the director floor instead. */
+function minimumWageWarnings(input: PayrollMonthInput, director: boolean, rules: RuleSource): PayrollWarning[] {
+  if (director) {
+    return []
+  }
+  const minimumWage = rules('hr.minwage', input.paidOn)
+  const minimum = minimumWage.value.monthlyGrossAmount.cents
+  if (input.agreedMonthlyGross >= minimum) {
+    return []
+  }
+  return [
+    {
+      kind: 'below-minimum-wage',
+      agreed: tracedFigure('Agreed monthly gross', input.agreedMonthlyGross, input.basis, []),
+      minimum: tracedFigure('Minimum wage for a full month', minimum, input.basis, [minimumWage.citation]),
+    },
+  ]
 }
 
 function lowPayRelief(gross: Money, reliefRule: RuleLookup<RuleValues['hr.contrib.low-pay-relief']>, basis: FigureBasis): TracedFigure {

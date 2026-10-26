@@ -177,6 +177,12 @@ const directorFloorSource = zdopSource(
   'ne može biti niža od umnoška iznosa prosječne plaće i koeficijenta 0,65',
 )
 
+const annualMaximumBaseSource = zdopSource(
+  '7(1)(19)',
+  ACTS.ZDop.nn,
+  'najviša godišnja osnovica najviši je iznos do kojega je obveza uplatiti doprinos za mirovinsko osiguranje na temelju generacijske solidarnosti',
+)
+
 const contributionRateSources: readonly LegalSource[] = [
   zdopSource('13(1)', ['148/13', '115/16', '106/18']),
   zdopSource('14(1)(1)', ['148/13', '41/14', '115/16', '106/18', '33/23']),
@@ -482,23 +488,23 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         validFrom: day('2025-01-01'),
         validTo: day('2025-12-31'),
         value: { coefficient: basisPoints(60_000), monthlyMaximum: cents(1_078_800), annualMaximum: cents(12_945_600) },
-        sources: [zdopSource('7 item 18, 204 to 208'), naredbaSource(2025, '4, 5')],
+        sources: [zdopSource('7 item 18, 204 to 208'), annualMaximumBaseSource, naredbaSource(2025, '4, 5')],
         confidence: 'confirmed-consolidated',
-        note: 'Health contributions have no cap in the definitions that were read.',
+        note: 'Health contributions have no cap in the definitions that were read. The monthly maximum caps both pension pillars. The annual maximum caps pillar I only, across all bases of the year.',
       },
       {
         validFrom: day('2026-01-01'),
         validTo: day('2026-12-31'),
         value: { coefficient: basisPoints(60_000), monthlyMaximum: cents(1_195_800), annualMaximum: cents(14_349_600) },
-        sources: [zdopSource('7 item 18, 204 to 208'), naredbaSource(2026, '4, 5')],
+        sources: [zdopSource('7 item 18, 204 to 208'), annualMaximumBaseSource, naredbaSource(2026, '4, 5')],
         confidence: 'confirmed-nn',
-        note: 'Health contributions have no cap in the definitions that were read.',
+        note: 'Health contributions have no cap in the definitions that were read. The monthly maximum caps both pension pillars. The annual maximum caps pillar I only, across all bases of the year.',
       },
       {
         validFrom: day('2027-01-01'),
         validTo: day('2027-12-31'),
         value: { coefficient: basisPoints(60_000), monthlyMaximum: cents(1_305_000), annualMaximum: cents(15_660_000) },
-        sources: [zdopSource('7 item 18, 204 to 208')],
+        sources: [zdopSource('7 item 18, 204 to 208'), annualMaximumBaseSource],
         confidence: 'estimate',
         note: `6.0 of the estimated 2027 average wage. ${AVERAGE_WAGE_ESTIMATE_NOTE} ${NAREDBA_2027_NOTE}`,
       },

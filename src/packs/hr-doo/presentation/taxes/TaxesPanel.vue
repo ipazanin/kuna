@@ -261,13 +261,16 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
     <AppCard
       id="payroll-cadence"
       title="Payroll cadence"
-      subtitle="Every watched tax, month by month since its first payment, whatever the year. A month counts as paid when any payment landed in it."
       collapse-id="year.payroll-cadence"
       :summary="taxes.cadenceSummary"
       start-collapsed
       :reveal="taxes.missed > 0 || route.hash === '#payroll-cadence'"
       data-testid="payroll-cadence"
     >
+      <template #subtitle>
+        Every watched tax, month by month since its first payment, whatever the year. A month counts as paid when any payment landed in it.
+        <DrillLink to="/salaries" in-prose class="text-highlighted" data-testid="payroll-cadence-salaries">Salaries</DrillLink> checks each payday by employee and line.
+      </template>
       <p v-if="taxes.cadences.length === 0" class="px-5 py-8 text-sm text-muted">No watched tax category has a payment yet.</p>
       <div v-else class="flex flex-col gap-6 px-4 pt-3 pb-4 sm:px-5">
         <section v-for="cadence in taxes.cadences" :key="cadence.category" :aria-label="cadence.name" class="flex flex-col gap-3">

@@ -226,6 +226,7 @@ export interface WorkbookProblem extends RecordProblem {
     | 'year-end'
     | 'plan'
     | 'scenarios'
+    | 'employees'
     | 'splits'
     | 'dismissed'
 }
