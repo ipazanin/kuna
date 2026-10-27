@@ -1320,7 +1320,7 @@ export async function statementAccessFlow(page, { press, shoot, inspect }) {
   await withoutDriveRead(page)
   const control = await controlShows(page, 'allow-access')
   if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
-  if (!control.name.includes('Statements and Accountant need your Drive read access')) throw new Error(`a screen reader hears "${control.name}"`)
+  if (!control.name.includes('Statements needs your Drive read access')) throw new Error(`a screen reader hears "${control.name}"`)
   if (await page.$('[data-job="check-statements"]')) throw new Error('Overview still offers to check for new statements')
   await inspect?.('the sync control asking for access')
   await shoot('sync-allow-access')
@@ -1329,7 +1329,6 @@ export async function statementAccessFlow(page, { press, shoot, inspect }) {
   await noToast(page, 'the sync after Allow access showed a toast')
   await openDeviceSettings(page)
   await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
-  await stepSays(page, SYNC_CARD, 'hr-doo.accountant', 'done', /Read \d+ workbooks/)
 }
 
 /** With a slow statements folder, the control names the running step and its place, and a screen reader hears it, until the sync is done. */
@@ -1337,13 +1336,13 @@ export async function syncRunningFlow(page, { press, shoot, inspect }) {
   await press(await syncButton(page))
   const running = await controlShows(page, 'running')
   await page
-    .waitForFunction(() => document.querySelector('[data-testid="sync-button"]')?.getAttribute('aria-label')?.startsWith('Syncing, Statements, step 2 of 3') ?? false, { timeout: 10_000 })
+    .waitForFunction(() => document.querySelector('[data-testid="sync-button"]')?.getAttribute('aria-label')?.startsWith('Syncing, Statements, step 2 of 2') ?? false, { timeout: 10_000 })
     .catch(async () => {
       throw new Error(`the running control does not name the statements step, a screen reader hears "${running.name}"`)
     })
   const shown = await controlShows(page, 'running')
   if (!shown.disabled) throw new Error('the sync control takes a tap while the sync runs')
-  if (!/^Statements 2\/3$|^Syncing$/.test(shown.label)) throw new Error(`the running control says "${shown.label}"`)
+  if (!/^Statements 2\/2$|^Syncing$/.test(shown.label)) throw new Error(`the running control says "${shown.label}"`)
   await inspect?.('the sync control while the statements step runs')
   await shoot('sync-running')
   const ready = await controlShows(page, 'ready')
@@ -1584,6 +1583,118 @@ export async function mailSaveAsksFlow(page, { press, shoot, inspect }) {
   await inspect?.('the mail card saved with Gmail read asked in the same tap')
   await shoot('mail-save-asks')
   await page.evaluate(() => localStorage.removeItem('ledgerboard.google-granted'))
+}
+
+/** Waits until the switch under the test id is on or off, and returns it. */
+async function switchIs(page, testId, checked) {
+  const selector = `:is([data-testid="${testId}"][role="switch"], [data-testid="${testId}"] [role="switch"])`
+  await page
+    .waitForFunction((css, wanted) => document.querySelector(css)?.getAttribute('aria-checked') === wanted, { timeout: 10_000 }, selector, String(checked))
+    .catch(() => {
+      throw new Error(`the ${testId} switch is not ${checked ? 'on' : 'off'}`)
+    })
+  return page.$(selector)
+}
+
+/** Opens the facts card on the accountant's mail and scrolls to it. */
+async function openAccountantMail(page) {
+  await page.evaluate(() => {
+    window.location.hash = '#/settings#accountant-mail'
+  })
+  await page.waitForSelector('[data-testid="accountant-mail-from"] input', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the facts card has no accountant mail fields at #accountant-mail')
+  })
+  await scrollToTop(page, '[data-testid="accountant-mail"]')
+}
+
+/**
+ * With every kind of the accountant's mail switched off, as new books have them, the mail step reads
+ * the bank's mail alone, and the facts card shows the three switches off above their subjects and
+ * folders.
+ */
+export async function mailSwitchesOffFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  await controlShows(page, 'ready')
+  await openDeviceSettings(page)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', /Filed 2, already there 2, 1 unmatched\./)
+  await page.evaluate(() => {
+    window.location.hash = '#/settings#mail'
+  })
+  await mailListShows(page, ['statements:planned'])
+  await openAccountantMail(page)
+  for (const kind of ['payroll', 'vat', 'invoices']) await switchIs(page, `${kind}-mail-sync`, false)
+  if (await page.$('[data-testid="mail-kind-missing"]')) throw new Error('a kind switched off says what it lacks')
+  await inspect?.("the accountant's mail switched off")
+  await shoot('mail-switches-off')
+}
+
+/**
+ * The payroll switched on without the accountant's address fails the mail step with what it lacks:
+ * 1 problem in the control, the step's line naming the sender, the list marking the payroll failed,
+ * and the facts card saying it under the switch.
+ */
+export async function mailNoSenderFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  const control = await controlShows(page, 'problems')
+  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
+  await press(await syncButton(page))
+  await stepSays(page, '', 'mail', 'failed', /Filed 2, already there 2, 1 unmatched\. Payroll: It is on, but has no sender on Settings, General\./)
+  await delay(400)
+  await inspect?.('the steps with the payroll switched on without a sender')
+  await shoot('mail-no-sender-steps')
+  await openMailList(page, press, '')
+  const lines = await mailListShows(page, ['statements:planned', 'hr-doo.payroll:failed'])
+  if (lines[1] !== 'It is on, but has no sender on Settings, General.') throw new Error(`the payroll reads "${lines[1]}"`)
+  await openAccountantMail(page)
+  await switchIs(page, 'payroll-mail-sync', true)
+  const missing = await page.$eval('[data-testid="payroll-mail-kind"] [data-testid="mail-kind-missing"]', (element) => element.textContent?.trim()).catch(() => null)
+  if (missing !== 'It is on, but has no sender.') throw new Error(`the payroll switch says "${missing}" under it`)
+  await inspect?.("the payroll switched on without the accountant's address")
+  await shoot('mail-no-sender-card')
+}
+
+/** Gmail still asking to slow down after the retries fails the mail step with one plain sentence, and none of Google's answer. The mail card says the same sentence in place of its list. */
+export async function mailRateLimitedFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  const control = await controlShows(page, 'problems')
+  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
+  await press(await syncButton(page))
+  const line = await stepSays(page, '', 'mail', 'failed', /Mail: Gmail asked us to slow down\. Sync again in a minute\.$/)
+  if (/[{}]|rateLimit|403|429/.test(line)) throw new Error(`the mail step shows Google's answer: "${line}"`)
+  await delay(400)
+  await inspect?.('the steps after Gmail asked to slow down')
+  await shoot('mail-rate-limited')
+  await page.keyboard.press('Escape')
+  await delay(300)
+  await page.evaluate(() => {
+    window.location.hash = '#/settings#mail'
+  })
+  const said = await page
+    .waitForSelector(`${MAIL_PLAN} [data-testid="mail-stopped"]`, { visible: true, timeout: 10_000 })
+    .then((element) => element.evaluate((paragraph) => paragraph.textContent?.trim() ?? ''))
+    .catch(() => {
+      throw new Error('the mail card does not say why the last sync stopped')
+    })
+  if (said !== 'Gmail asked us to slow down. Sync again in a minute.') throw new Error(`the mail card says "${said}"`)
+  await page.$eval(`${MAIL_PLAN} [data-testid="mail-stopped"]`, (paragraph) => paragraph.scrollIntoView({ block: 'center' }))
+  await delay(300)
+  await inspect?.('the mail card after Gmail asked to slow down')
+  await shoot('mail-rate-limited-card')
+}
+
+/** With every mail already in its folder, filed by another app, each source searches from a week before the newest file there and not from the mail-since day. */
+export async function mailWindowFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  await controlShows(page, 'ready')
+  await page.evaluate(() => {
+    window.location.hash = '#/settings#mail'
+  })
+  await mailListShows(page, ALL_SOURCES)
+  const windows = await page.$$eval(`${MAIL_PLAN} [data-testid="mail-source-window"]`, (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
+  if (windows.length !== 4 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the newest file in its folder$/.test(line))) throw new Error(`the sources searched ${JSON.stringify(windows)}`)
+  await scrollToTop(page, MAIL_PLAN)
+  await inspect?.('the list searched from a week before the newest file in each folder')
+  await shoot('mail-window')
 }
 
 /**
@@ -1946,140 +2057,6 @@ export async function rulesEditorFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 }
 
-const VAT_RETURNS = '[data-testid="vat-returns"]'
-const ACCOUNTANT_PAYROLL = '[data-testid="accountant-payroll"]'
-const ACCOUNTANT_READ = '[data-testid="accountant-read"]'
-const ACCOUNTANT_RETURNS = '[data-testid="accountant-returns"]'
-
-/** Waits until a row of an accountant card, by its period, says every text given. Returns the row. */
-async function accountantRow(page, card, period, texts) {
-  const selector = `${card} [data-period="${period}"]`
-  return page
-    .waitForFunction(
-      (rowSelector, wanted) => {
-        const row = document.querySelector(rowSelector)
-        return row !== null && wanted.every((text) => row.textContent?.includes(text)) ? row : null
-      },
-      { timeout: 10_000 },
-      selector,
-      texts,
-    )
-    .then((handle) => handle.asElement())
-    .catch(async () => {
-      const said = await page.evaluate((rowSelector) => document.querySelector(rowSelector)?.textContent?.trim() ?? 'no such row', selector)
-      throw new Error(`${period} in ${card} does not say ${texts.join(', ')}, it says: ${said}`)
-    })
-}
-
-/** Waits until the read line above the accountant cards says the text. */
-async function accountantReadSays(page, text, failure) {
-  await page.waitForFunction((selector, wanted) => document.querySelector(selector)?.textContent?.includes(wanted) ?? false, { timeout: 10_000 }, ACCOUNTANT_READ, text).catch(async () => {
-    const said = await page.evaluate((selector) => document.querySelector(selector)?.textContent?.trim() ?? 'nothing', ACCOUNTANT_READ)
-    throw new Error(`${failure}, the read line says: ${said}`)
-  })
-}
-
-/** Presses the badge of a row that says the label, which opens the rows it compared on Transactions. */
-async function pressBadge(page, press, row, label) {
-  const link = (await row.evaluateHandle((element, wanted) => [...element.querySelectorAll('a')].find((anchor) => anchor.textContent?.trim() === wanted) ?? null, label)).asElement()
-  if (link === null) throw new Error(`the ${label} badge opens nothing`)
-  await link.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await delay(200)
-  await press(link)
-  await page.waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Transactions', { timeout: 10_000 }).catch(() => {
-    throw new Error(`the ${label} badge did not open Transactions`)
-  })
-}
-
-async function scrollToTopOf(page, selector) {
-  await page.$eval(selector, (element) => element.scrollIntoView({ block: 'start' }))
-  await delay(200)
-}
-
-/**
- * Year, Taxes in Google mode shows the fake accountant folders as a sync read them: each card shows
- * passing, differing and unread rows, a file that does not read names its tab and row, and a
- * differing badge opens the rows it compared.
- */
-export async function accountantReturnsFlow(page, { press, shoot, inspect }) {
-  await syncAndSettle(page, press)
-  await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok', 'Sales ok'])
-  await accountantRow(page, VAT_RETURNS, '2026-08', ['Could not read', 'Lokalni U, row 5: the lines do not add up to the total row'])
-  await accountantRow(page, VAT_RETURNS, '2026-05', ['No return filed'])
-  await accountantRow(page, VAT_RETURNS, '2026-09', ['Sales differ', 'Sale 10-1-26'])
-  await accountantRow(page, ACCOUNTANT_PAYROLL, '2026-06', ['Bank ok', 'Rules differ', 'Income tax'])
-  await accountantRow(page, ACCOUNTANT_PAYROLL, '2026-08', ['Could not read', 'Obračun plaće_Alex Example, row 1'])
-  await accountantReadSays(page, 'Read from Drive on', 'the cards do not say when they read Drive')
-  await scrollToTopOf(page, ACCOUNTANT_RETURNS)
-  await inspect?.('the accountant cards')
-  await shoot('accountant-vat-returns')
-  await scrollToTopOf(page, ACCOUNTANT_PAYROLL)
-  await shoot('accountant-payroll')
-
-  await pressBadge(page, press, await accountantRow(page, VAT_RETURNS, '2026-07', ['Carry differs']), 'Carry differs')
-  await delay(400)
-  await inspect?.('the rows the carry compared')
-  await shoot('accountant-carry-rows')
-  // The drill's filters stay set, so the next drill starts from Taxes with every row in view.
-  await page.evaluate(() => {
-    window.location.hash = '#/year?tab=taxes&p=all'
-  })
-  await pressBadge(page, press, await accountantRow(page, ACCOUNTANT_PAYROLL, '2026-07', ['Bank differs', 'Rules ok']), 'Bank differs')
-  await delay(400)
-  await shoot('accountant-bank-rows')
-}
-
-/**
- * A token without Drive read shows the read this device kept, with its date, and offers no button
- * of its own: the sync control shows Allow access, after which the cards read Drive again.
- */
-export async function accountantKeptReadFlow(page, { press, shoot, inspect }) {
-  await syncAndSettle(page, press)
-  await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok'])
-  await withoutDriveRead(page)
-  await controlShows(page, 'allow-access')
-  await accountantReadSays(page, 'kept on this device', 'the cards do not show the read this device kept')
-  await accountantRow(page, VAT_RETURNS, '2026-06', ['Carry ok'])
-  if (await page.$(`${ACCOUNTANT_READ} button`)) throw new Error('the accountant cards offer a button of their own')
-  await scrollToTopOf(page, ACCOUNTANT_RETURNS)
-  await inspect?.('the read this device kept')
-  await shoot('accountant-kept-read')
-  await syncAndSettle(page, press)
-  await accountantReadSays(page, 'Read from Drive on', 'the cards did not read Drive after Allow access')
-  await noToast(page, 'the sync after Allow access showed a toast')
-}
-
-/** Settings, General: the payroll folder saved as a new path, which the next sync reads for Year, Taxes and the fake Drive does not hold, so the accountant step waits for you. */
-export async function accountantFoldersFlow(page, { press, shoot, inspect }) {
-  const field = await page.waitForSelector('[data-testid="payroll-folder"] input', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('the facts card has no payroll folder field')
-  })
-  const shown = await field.evaluate((element) => element.value)
-  if (shown !== 'finance/payroll') throw new Error(`the payroll folder shows "${shown}", not the one the books name`)
-  await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await delay(200)
-  await inspect?.('the accountant folders')
-  await shoot('accountant-folders')
-  await setField(field, 'finance/salaries/')
-  await press(await saveSettingsButton(page, true))
-  await toast(page, 'Settings saved')
-  await saveSettingsButton(page, false)
-  await dismissToasts(page)
-  await page.evaluate(() => {
-    window.location.hash = '#/year?tab=taxes'
-  })
-  await syncAndSettle(page, press)
-  const control = await controlShows(page, 'problems')
-  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}" for the folder the fake Drive lacks`)
-  await page
-    .waitForFunction((selector) => document.querySelector(`${selector} [data-testid="accountant-payroll-problem"]`)?.textContent?.includes('not in finance/salaries') ?? false, { timeout: 10_000 }, ACCOUNTANT_PAYROLL)
-    .catch(() => {
-      throw new Error('the payroll card does not say the folder the settings name holds no workbooks')
-    })
-  await scrollToTopOf(page, ACCOUNTANT_PAYROLL)
-  await shoot('accountant-folder-missing')
-}
-
 /** Presses the visible button under `selector` whose text starts with `label`. */
 async function pressButton(page, press, selector, label) {
   const button = await page
@@ -2217,9 +2194,10 @@ export async function onboardingDriveFlow(page, { press, shoot, inspect }) {
 
 /**
  * New books on the fake Drive with statements from a Drive folder: the token carries Drive read, so
- * the folder confirm names the full path, and the toast does too. A Croatian d.o.o. chooses the VAT
- * returns folder in the company step and the statements folder in the statement step, skips the
- * statement, and Getting set up lists the first statement, the payslips folder, which shows only while the pack is on, and the categories.
+ * the folder confirm names the full path, and the toast does too. A Croatian d.o.o. answers Yes in
+ * the company step, which asks for no folder of the accountant's, chooses the statements folder in
+ * the statement step, skips the statement, and Getting set up lists the first statement and the
+ * categories.
  */
 export async function onboardingDriveReadFlow(page, { press, shoot, inspect }) {
   await onboardingAt(page, 'welcome')
@@ -2237,10 +2215,8 @@ export async function onboardingDriveReadFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
   await onboardingAt(page, 'company')
   await chooseOption(page, press, 'onboarding-pack', 'Yes')
-  await pressButton(page, press, '[data-testid="onboarding-pack-folders"] button', 'Choose folder')
-  await page.waitForFunction(() => document.querySelector('[data-testid="onboarding-pack-folders"]')?.textContent?.includes('My Drive › Books') ?? false, { timeout: 10_000 }).catch(() => {
-    throw new Error('the company step does not show the path of the folder chosen')
-  })
+  const asksFolder = await page.$$eval('[data-testid="onboarding-step"] button', (buttons) => buttons.some((button) => button.textContent?.trim() === 'Choose folder'))
+  if (asksFolder) throw new Error('the company step of a Croatian d.o.o. still asks for a folder')
   await inspect?.('the company step of a Croatian d.o.o.')
   await shoot('onboarding-company-pack')
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
@@ -2253,7 +2229,7 @@ export async function onboardingDriveReadFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="onboarding-skip"]')
   await onboardingAt(page, 'overview')
   const lines = await setUpLines(page)
-  if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'hr_payroll_folder', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
+  if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
   await shoot('onboarding-overview-pack')
 }
 
@@ -2421,7 +2397,7 @@ export async function onboardingOpenFlow(page, { press, shoot, inspect }) {
 /**
  * Settings, This device: the books kept in this browser move to a new file on the fake Drive through
  * onboarding's access and folder steps. The access step asks for the Drive read their statements
- * and accountant folders need, so the folder confirm names the full path, and the sync control
+ * folder needs, so the folder confirm names the full path, and the sync control
  * shows no Allow access once they are there.
  */
 export async function moveFromBrowserFlow(page, { press, shoot, inspect }) {
@@ -2519,14 +2495,13 @@ async function screenTitled(page, title) {
 }
 
 /**
- * Salaries with the five made-up employees, as a sync read their payslips: the newest payday's net
- * row 10.00 short is the one problem, its build-up opens and its bank figure opens the rows, the
- * People tab opens one employee's month, and a month of the Over time table opens on the Month tab.
+ * Salaries with the five made-up employees: the newest payday's health insurance row 10.00 short
+ * is the one problem, its build-up opens and its bank figure opens the rows, the People tab opens
+ * one employee's month, and a month of the Over time table opens on the Month tab.
  */
 export async function salariesFlow(page, { press, shoot, inspect }) {
-  await syncAndSettle(page, press)
-  await elementSays(page, '[data-testid="salaries-tiles"]', ['10.00 less'], 'the paid tile does not say the bank paid 10.00 less')
-  await elementSays(page, '[data-testid="salaries-problem"]', ['Mia Primjer, paid to the employee'], 'the problems do not name the row 10.00 short')
+  await elementSays(page, '[data-testid="salaries-tiles"]', ['10.00 less'], 'the state tile does not say the bank paid 10.00 less')
+  await elementSays(page, '[data-testid="salaries-problem"]', ['Health insurance, everyone paid'], 'the problems do not name the health insurance row 10.00 short')
   const problems = await page.$$('[data-testid="salaries-problem"]')
   if (problems.length !== 1) throw new Error(`the payday shows ${problems.length} problems, not the one row 10.00 short`)
   await inspect?.('the month of five employees')
@@ -2543,7 +2518,7 @@ export async function salariesFlow(page, { press, shoot, inspect }) {
   // The dialog's overlay fades out after its content, and would take the next press.
   await delay(400)
 
-  await pressSelector(page, press, '[data-testid="salaries-reconciliation"] [data-section="mia"] [data-agrees="false"] a')
+  await pressSelector(page, press, '[data-testid="salaries-reconciliation"] [data-section="contributions"] [data-verdict="differs"] a')
   await screenTitled(page, 'Transactions')
   await shoot('salaries-bank-rows')
   await page.goBack()

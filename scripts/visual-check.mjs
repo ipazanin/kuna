@@ -44,13 +44,9 @@
  * problem and opens its steps, a popover at 1440 and a bottom sheet at 360, whose link opens Import,
  * which says why. A tab Google gave no Drive read token gets Allow access in the sync control, which
  * files the sample, and a slow statements folder shows the control while its step runs and once it
- * is ready. On Salaries with five employees a sync reads their payslips, the one problem opens its
- * build-up and its bank rows, the People tab opens one employee's month and a month of the Over time
- * table opens on the Month tab.
- * On Year, Taxes the accountant's cards show the fake accountant folders a sync read, name
- * the tab and row of a file that does not read, and open the rows a differing badge compared. Without
- * the Drive read token they show the read this device kept until Allow access, and a payroll folder
- * saved on Settings, General that the fake Drive lacks is said, with 1 problem in the sync control.
+ * is ready. On Salaries with five employees the one problem opens its build-up and its bank rows,
+ * the People tab opens one employee's month and a month of the Over time table opens on the Month
+ * tab.
  * The mail step is off until the Mail card on Settings, General saves a sender with the subject it
  * asks for, and the next sync files the bank's new mail. With the fake mailbox it files the bank's
  * PDF and statement, the statements step of the same sync files the statement on the ledger, its
@@ -58,7 +54,11 @@
  * accountant's mail. Mail all filed already says nothing new, a source that fails and an upload that
  * fails each give 1 problem with the steps open, and a token without Gmail read gets Allow access,
  * which runs the step. Saving a sender on the Mail card without Gmail read asks for it in the same
- * tap and syncs, and Allow access whose Google window closed says so beside the button.
+ * tap and syncs, and Allow access whose Google window closed says so beside the button. With the
+ * accountant's kinds switched off the step reads the bank's mail alone, the payroll switched on
+ * without a sender fails with what it lacks in the line and under its switch, Gmail asking to slow
+ * down fails the step with one plain sentence, which the Mail card says too, and mail all filed by another app moves every
+ * source's search to a week before the newest file in its folder.
  * The first run keeps an empty workbook on the fake Drive and one in this browser, and new books
  * on the fake Drive with statements from mail name the bank, make the statements folder beside the
  * books file and file the bank's mail there on the first sync. The statement step asks for Drive
@@ -92,9 +92,6 @@ import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
   accessClosedFlow,
-  accountantFoldersFlow,
-  accountantKeptReadFlow,
-  accountantReturnsFlow,
   advanceFlow,
   assetFlow,
   employeeFlow,
@@ -116,6 +113,10 @@ import {
   mailOffFlow,
   mailSaveAsksFlow,
   mailUploadFailedFlow,
+  mailNoSenderFlow,
+  mailRateLimitedFlow,
+  mailSwitchesOffFlow,
+  mailWindowFlow,
   moveFromBrowserFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
@@ -210,7 +211,7 @@ const SCREENS = [
     hash: '#/year?tab=taxes',
     title: 'Year',
     charts: 0,
-    shows: ['Corporate income tax, expected against paid', 'Payroll cadence', 'VAT returns', 'Payroll from the accountant', 'Tax by type'],
+    shows: ['Corporate income tax, expected against paid', 'Payroll cadence', 'Tax by type'],
   },
   { name: 'year-forecast', hash: '#/year', title: 'Year', charts: 0, shows: 'The forecast needs the day the company was registered', cards: false },
   { name: 'year-plan', hash: '#/year?tab=plan', title: 'Year', charts: 0, shows: ['Plan for 2026', 'Revenue comes from the billing plan'], cards: false },
@@ -337,7 +338,7 @@ const SOURCE_SCREENS = [
     hash: '#/salaries',
     title: 'Salaries',
     charts: 1,
-    shows: ['Where the company’s money goes', 'Gross to net', 'Payslip, app and bank', 'Pension savings', 'Alex Example: payslip not read'],
+    shows: ['Where the company’s money goes', 'Gross to net', 'App and bank', 'Pension savings', 'The app and the bank agree on every line they both state'],
   },
   { name: 'salaries-one-employee-over-time', query: 'fake=one-employee', hash: '#/salaries?tab=over-time', title: 'Salaries', charts: 1, shows: ['Cost to the company by payday, 2026', 'Paydays of 2026'] },
   {
@@ -346,7 +347,7 @@ const SOURCE_SCREENS = [
     hash: '#/salaries',
     title: 'Salaries',
     charts: 1,
-    shows: ['Paid to the employees', 'Niko Test: payslip not read', 'Everyone'],
+    shows: ['Paid to the employees', 'Health insurance, everyone paid', 'Everyone'],
   },
   { name: 'salaries-five-employees-people', query: 'fake=five-employees', hash: '#/salaries?tab=people', title: 'Salaries', charts: 0, shows: ['Everyone paid in Sept 2026', 'Niko Test'] },
   { name: 'salaries-five-employees-one', query: 'fake=five-employees', hash: '#/salaries?employee=lea', title: 'Salaries', charts: 1, shows: ['Lea Proba', 'Paid to the employee'] },
@@ -671,11 +672,12 @@ const FLOWS = [
   { name: 'mail-failed', hash: '#/', title: 'Overview', run: mailFailedFlow, modes: ['drive'], queries: { drive: '&fake=mail-failed' } },
   { name: 'mail-access', hash: '#/', title: 'Overview', run: mailAccessFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
   { name: 'mail-save-asks', hash: '#/', title: 'Overview', run: mailSaveAsksFlow, modes: ['drive'] },
+  { name: 'mail-switches-off', hash: '#/', title: 'Overview', run: mailSwitchesOffFlow, modes: ['drive'], queries: { drive: '&fake=mail-switches-off' } },
+  { name: 'mail-no-sender', hash: '#/', title: 'Overview', run: mailNoSenderFlow, modes: ['drive'], queries: { drive: '&fake=mail-no-sender' } },
+  { name: 'mail-rate-limited', hash: '#/', title: 'Overview', run: mailRateLimitedFlow, modes: ['drive'], queries: { drive: '&fake=mail-rate-limited' } },
+  { name: 'mail-window', hash: '#/', title: 'Overview', run: mailWindowFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
   { name: 'sync-access-closed', hash: '#/', title: 'Overview', run: accessClosedFlow, modes: ['drive'], queries: { drive: '&fake=google-closed' } },
   { name: 'salaries', hash: '#/salaries', title: 'Salaries', run: salariesFlow, modes: ['drive'], queries: { drive: '&fake=five-employees' } },
-  { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['drive'] },
-  { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['drive'] },
-  { name: 'accountant-folders', hash: '#/settings#accountant-folders', title: 'Settings', run: accountantFoldersFlow, modes: ['drive'] },
   { name: 'onboarding-drive', hash: '#/', title: 'Ledgerboard', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-drive-read', hash: '#/', title: 'Ledgerboard', run: onboardingDriveReadFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-mail', hash: '#/', title: 'Ledgerboard', run: onboardingMailFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },

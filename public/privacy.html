@@ -169,15 +169,14 @@
             </li>
             <li>
               <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank
-              statements from a Drive folder, your accountant's folders or your mail. Google's wording covers your whole Drive. The app uses it to read
-              the bank statements in your statements folder that are not on the ledger yet, and your accountant's VAT returns and salary
-              workbooks in the folders you name, since <code>drive.file</code> cannot see files another app filed there. While it reads
-              your mail, it also lists the names, dates and checksums of the files in the folders that mail goes into, to tell what is
-              filed already. It reads nothing else with it and changes nothing.
+              statements from a Drive folder or file your mail into one. Google's wording covers your whole Drive. The app uses it to read
+              the bank statements in your statements folder that are not on the ledger yet, since <code>drive.file</code> cannot see
+              files another app filed there. While it reads your mail, it also lists the names, dates and checksums of the files in the
+              folders that mail goes into, to tell what is filed already. It reads nothing else with it and changes nothing.
             </li>
             <li>
-              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank,
-              or your accountant, mails from. Google's wording covers your whole mailbox. On each sync the app searches it for mail from
+              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank
+              mails from, or switch on a kind of your accountant's mail. Google's wording covers your whole mailbox. On each sync the app searches it for mail from
               those addresses whose subject starts with the words you set, reads each one's subject, date and attachment names, downloads
               a bank statement's XML to read its number and account, and downloads an attachment to file it or to compare it with a
               file of the same name in your Drive. It files your bank's new statements into your Drive, as "What the app writes" says.
@@ -217,14 +216,14 @@
             While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the
             statement PDF and XML, into your statements folder in Drive, in a folder for the year that it makes when it is missing. Each
             file it makes carries three labels only this app sees: that the app filed it from mail, the Gmail id of the mail, and the
-            mail's date, so the next sync knows where to start. It never trashes, renames or overwrites a file there, and it never
+            mail's date. The next sync starts a week before the newest file in the folder, whoever filed it. It never trashes, renames or overwrites a file there, and it never
             changes your mail.
           </p>
         </section>
         <section>
           <h2>Where your data goes</h2>
           <p>
-            There is no server. The page talks only to Google's own APIs, and only to read and write your books on Drive, read your bank statements and your accountant's files, file the invoices you make and save their drafts. No analytics, no tracking, no
+            There is no server. The page talks only to Google's own APIs, and only to read and write your books on Drive, read your bank statements and your mail, file the invoices you make and save their drafts. No analytics, no tracking, no
             third-party scripts beyond Google's sign-in and file picker.
           </p>
         </section>

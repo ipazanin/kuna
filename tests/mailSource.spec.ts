@@ -7,14 +7,19 @@ import {
   mailAddressesOf,
   mailAddressesProblem,
   mailQuery,
+  mailSinceDefault,
   mailSubjectProblem,
   mailWindow,
+  missingTerms,
+  missingWords,
   notFiledSentence,
+  sourceTerms,
   strippedSubject,
   windowReaches,
   yearFolderName,
+  yearsSince,
 } from '../src/features/mail/domain/mailSource'
-import { civilDateIn, parseCivilDate, startOfDayIn } from '../src/shared/calendar/civilDate'
+import { civilDate, civilDateIn, parseCivilDate, startOfDayIn } from '../src/shared/calendar/civilDate'
 
 const SINCE = Date.parse('2024-12-31T23:00:00Z')
 
@@ -28,11 +33,35 @@ describe('a mail source', () => {
     expect(mailQuery({ senders: ['office@accountant.example.com'], subject: 'Plaća za' }, window)).toBe('from:(office@accountant.example.com) subject:"Plaća za" has:attachment after:1735686000')
   })
 
-  it('starts from the mail-since day while the app filed nothing for it, and a week before the newest mail it filed once it did', () => {
-    const filed = Date.parse('2026-10-20T08:30:00Z')
+  it('starts from the mail-since day while its folder holds nothing, and a week before the newest file once that is later', () => {
+    const newest = Date.parse('2026-10-20T08:30:00Z')
 
     expect(mailWindow(null, SINCE)).toEqual({ from: SINCE, after: 'since' })
-    expect(mailWindow(filed, SINCE)).toEqual({ from: Date.parse('2026-10-13T08:30:00Z'), after: 'filed' })
+    expect(mailWindow(newest, SINCE)).toEqual({ from: Date.parse('2026-10-13T08:30:00Z'), after: 'newest' })
+    expect(mailWindow(SINCE + 86_400_000, SINCE)).toEqual({ from: SINCE, after: 'since' })
+  })
+
+  it('starts a blank mail-since day on 1 January of last year', () => {
+    expect(mailSinceDefault(civilDate(2026, 10, 27))).toBe('2025-01-01')
+    expect(mailSinceDefault(civilDate(2027, 1, 3))).toBe('2026-01-01')
+  })
+
+  it('lists the years from the mail-since day’s to today’s', () => {
+    expect(yearsSince(civilDate(2026, 1, 1), civilDate(2026, 10, 27))).toEqual([2026])
+    expect(yearsSince(civilDate(2024, 6, 1), civilDate(2026, 1, 2))).toEqual([2024, 2025, 2026])
+    expect(yearsSince(civilDate(2027, 1, 1), civilDate(2026, 12, 31))).toEqual([2027])
+  })
+
+  it('is off while the books turn it off, and on without all it needs names what it lacks', () => {
+    const terms = { senders: ['office@accountant.example.com'], subject: 'PDV za', folder: ['finance', 'vat-returns'] }
+
+    expect(sourceTerms(false, { senders: [], subject: '', folder: [] })).toEqual({ kind: 'off' })
+    expect(sourceTerms(true, terms)).toEqual({ kind: 'on', terms })
+    expect(sourceTerms(true, { ...terms, senders: [] })).toEqual({ kind: 'incomplete', missing: ['sender'] })
+    expect(missingTerms({ senders: [], subject: '', folder: [] })).toEqual(['sender', 'subject', 'folder'])
+    expect(missingWords(['sender'])).toBe('no sender')
+    expect(missingWords(['sender', 'folder'])).toBe('no sender and no folder')
+    expect(missingWords(['sender', 'subject', 'folder'])).toBe('no sender, no subject and no folder')
   })
 
   it('reaches back to a mail less than a week older than the newest it files, and no further', () => {

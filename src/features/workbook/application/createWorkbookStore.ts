@@ -1,5 +1,6 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
+import { backoff } from '../../../shared/google/googleApi'
 import { setMoneyFormat } from '../../../shared/money/moneyFormat'
 import type { WorkbookRecords } from '../domain/readWorkbook'
 import type { Workbook } from '../domain/workbook'
@@ -169,11 +170,6 @@ export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
 
 /** How often a write starts again on a file another device saved since the write's read. */
 const MOVED_RETRIES = 3
-
-/** Google's backoff for a request that may succeed later: 1, 2 and 4 seconds, each with up to a second more at random. */
-function backoff(retry: number): number {
-  return 2 ** retry * 1000 + Math.floor(Math.random() * 1000)
-}
 
 /** Cache first: the copy this browser holds is on screen at once, and a sync or an import replaces it. */
 export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: WorkbookStorePorts<Copy, Contents>): WorkbookStore<Copy, Contents> {

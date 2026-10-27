@@ -43,7 +43,6 @@ describe('new books', () => {
       statements_folder: '',
       hr_vat_returns_folder: '',
       hr_payroll_folder: '',
-      hr_accountant_sync: 'true',
       currency: 'EUR',
     })
     const { workbook } = read(document)
@@ -69,27 +68,24 @@ describe('new books', () => {
       hr_accountant_mail_from: '',
       hr_payroll_mail_subject: '',
     })
-    const { workbook, records } = read(document)
+    const { workbook } = read(document)
     expect(workbook.settings).toMatchObject({ statementsSync: true, statementsFolder: ['.', 'statements'], statementsMailFrom: ['netbanking.support@erstebank.hr'], mailSince: '2026-01-01' })
     expect(workbook.problems).toEqual([])
-    expect(gettingSetUp(workbook, records.settings).map((line) => line.key)).toEqual(['first-statement', 'categories'])
+    expect(gettingSetUp(workbook).map((line) => line.key)).toEqual(['first-statement', 'categories'])
   })
 })
 
 describe('getting set up', () => {
-  const keysOf = (document: WorkbookDocument) => {
-    const { workbook, records } = read(document)
-    return gettingSetUp(workbook, records.settings).map((line) => line.key)
-  }
+  const keysOf = (document: WorkbookDocument) => gettingSetUp(read(document).workbook).map((line) => line.key)
 
-  it('lists what new books lack, and each line goes once it is done', () => {
+  it('lists what new books lack, asks a Croatian d.o.o. for nothing more, and each line goes once it is done', () => {
     const fresh = newBooks('folder')
     expect(keysOf(fresh)).toEqual(['first-statement', 'statements-folder', 'categories'])
 
     const croatian = withRows(fresh, { owner_pay_module: true })
-    expect(keysOf(croatian)).toEqual(['first-statement', 'statements-folder', 'hr_vat_returns_folder', 'hr_payroll_folder', 'categories'])
+    expect(keysOf(croatian)).toEqual(['first-statement', 'statements-folder', 'categories'])
 
-    const named = withRows(croatian, { statements_folder: 'finance/statements', hr_vat_returns_folder: 'finance/vat', hr_payroll_folder: 'finance/payroll' })
+    const named = withRows(croatian, { statements_folder: 'finance/statements' })
     expect(keysOf(named)).toEqual(['first-statement', 'categories'])
 
     const recategorised = { ...named, records: { ...named.records, category: [...(named.records.category ?? []), { category: 'hosting', family: 'operating', bucket: 'operating' }] } }
@@ -97,8 +93,7 @@ describe('getting set up', () => {
   })
 
   it('leaves the statements folder alone for statements by hand, and links each line to its screen', () => {
-    const { workbook, records } = read(newBooks('hand'))
-    expect(gettingSetUp(workbook, records.settings)).toEqual([
+    expect(gettingSetUp(read(newBooks('hand')).workbook)).toEqual([
       { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: { path: '/transactions', query: { tab: 'import' } } } },
       { key: 'categories', text: 'Look over the categories, which are still the ones new books start with', link: { label: 'Categories', to: { path: '/settings', query: { tab: 'categories' } } } },
     ])

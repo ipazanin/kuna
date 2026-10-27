@@ -10,7 +10,6 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { DonutPart } from '../../../../shared/ui/DonutCard.vue'
 import { drillToTransactions } from '../../../../features/filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../features/filters/domain/drillTarget'
-import { outsidePayroll } from '../../domain/accountant/salaryWorkbook'
 import type { Employee } from '../../domain/employees/employees'
 import type { ContributionLine, EmployeeLine, EmployeePayday, LineCheck, SalaryPayday, SalaryProblem, SalaryReconciliation } from '../../domain/salaries/salaryReconciliation'
 import { dayLabel } from '../../ruleset/presentation/ruleWording'
@@ -53,7 +52,6 @@ const LINE_LABELS: Readonly<Record<EmployeeLine, string>> = {
   taxableIncome: 'Taxable income',
   incomeTax: 'Income tax',
   net: 'Net salary',
-  nontaxablePayments: 'Tax-free payments',
   paidToEmployee: 'Paid to the employee',
 }
 
@@ -94,19 +92,14 @@ export function chosenPayday(reconciliation: SalaryReconciliation, asked: { read
   return settled[settled.length - 1] ?? inYear[inYear.length - 1] ?? null
 }
 
-/** A line as the page states it: the payslip's, else the engine's, else the bank's, or null when no source states it. */
+/** A line as the page states it: the engine's, else the bank's, or null when neither states it. */
 function stated(check: LineCheck<string> | undefined): Money | null {
-  return check?.payslip ?? check?.app?.amount ?? check?.bank?.amount ?? null
+  return check?.app?.amount ?? check?.bank?.amount ?? null
 }
 
 /** Whether some source states the salary down to the net, which the cost and what was paid beside it rest on. */
 function netStated(lines: readonly LineCheck<EmployeeLine>[]): boolean {
   return stated(lines.find((check) => check.line === 'net')) !== null && stated(lines.find((check) => check.line === 'employerCost')) !== null
-}
-
-function agreeing(payslip: Money | null, app: TracedFigure | null, bank: TracedFigure | null): boolean {
-  const amounts = [payslip, app?.amount ?? null, bank?.amount ?? null].filter((amount) => amount !== null)
-  return amounts.every((amount) => amount === amounts[0])
 }
 
 /**
@@ -117,11 +110,11 @@ function linesWithBank(entry: EmployeePayday, payday: SalaryPayday): readonly Li
   if (payday.employees.length !== 1) return entry.lines
   return entry.lines.map((check) => {
     const company = payday.contributions.find((contribution) => contribution.line === check.line)
-    return company === undefined ? check : { ...check, bank: company.bank, agrees: agreeing(check.payslip, check.app, company.bank) }
+    return company === undefined ? check : { ...check, bank: company.bank, agrees: company.agrees }
   })
 }
 
-/** One employee's month as the page states it, every line from the payslip, else the engine, else the bank. */
+/** One employee's month as the page states it, every line from the engine, else the bank. */
 interface PersonFigures {
   readonly employerCost: Money
   readonly health: Money
@@ -233,10 +226,10 @@ export interface TileView {
 export interface LineRow {
   readonly key: string
   readonly label: string
-  readonly payslip: Money | null
   readonly app: FigureDetail | null
   readonly bank: { readonly cents: Money; readonly to: RouteLocationRaw | null } | null
-  readonly agrees: boolean
+  /** Null for a line only one source states, which nothing compares. */
+  readonly verdict: 'agrees' | 'differs' | null
 }
 
 export interface ReconciliationSection {
@@ -276,24 +269,23 @@ export interface SalaryMonthView {
     readonly description: string
     /** What reached the employees split into the net and what was paid beside it, or null while no source works a net out. */
     readonly split: { readonly net: Money; readonly beside: Money } | null
-    /** Rent and refunds of costs the payslips list, paid with the salary and not pay. */
-    readonly outside: Money
   }
   readonly bridge: readonly BridgeBar[]
   /** Set when the view is one person's month. */
   readonly strip: PersonStrip | null
   readonly sections: readonly ReconciliationSection[]
+  /** The lines both sources state. */
   readonly compared: number
   readonly agreeing: number
   readonly problems: readonly ProblemView[]
 }
 
 const DEFINITIONS = {
-  cost: 'Gross II, which is the gross salary with the health insurance the company pays on top of it, and every payment beside the salary such as a meal allowance. Rent and refunds of costs paid with the salary are not pay and stay out.',
-  paid: 'What reached the employee: the net salary and the tax-free payments beside it. Each figure is the payslip’s, or without one the app’s, or without that the bank’s, and the caption says when the bank paid otherwise.',
+  cost: 'Gross II, which is the gross salary with the health insurance the company pays on top of it, and every payment beside the salary such as a meal allowance.',
+  paid: 'What reached the employee: the net salary and the tax-free payments beside it. Each figure is the app’s, or without it the bank’s, and the caption says when the bank paid otherwise.',
   savings: 'Pension pillar II, paid to the employee’s own pension fund. It is withheld from the gross salary, but it stays the employee’s money, so it is not counted as the state’s.',
   state: 'Pension pillar I, the income tax and the health insurance. Pillar II goes to the employee’s own fund and is left out.',
-  problems: 'Every line on which the payslip, the app and the bank do not say the same, and every source missing for a month that should have it. No source wins over another.',
+  problems: 'Every line on which the app and the bank do not say the same, and every source missing for a month that should have it. Neither source wins over the other.',
 } as const
 
 /** The month of one payday, for everyone paid on it or for one of them. */
@@ -352,7 +344,7 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
       label: 'Problems',
       value: String(problems.length),
       to: problems.length === 0 ? null : problemsLink,
-      caption: problems.length === 0 ? 'Payslip, app and bank agree' : problems.length === 1 ? 'One to resolve, below' : 'To resolve, below',
+      caption: problems.length === 0 ? 'App and bank agree' : problems.length === 1 ? 'One to resolve, below' : 'To resolve, below',
       definition: DEFINITIONS.problems,
     },
   ]
@@ -362,7 +354,6 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
     const drill = part === 'employee' ? drillOfAll(paidBank) : line === undefined ? null : (bankOf(line)?.drill ?? null)
     return { key: part, label: PAY_PART_LABELS[part], value: partValue(figures, part), colour: PAY_PART_COLOURS[part], to: linkOf(drill) }
   })
-  const outside = sumMoney(people.flatMap((entry) => entry.payslips.map(outsidePayroll)))
 
   const sections: ReconciliationSection[] = [
     ...people.map((entry) => ({
@@ -393,13 +384,12 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
       description:
         `Where the cost to the company of ${formatMoney(figures.cost)} went in ${label}: ` + parts.map((part) => `${part.label} ${formatMoney(part.value)}`).join(', ') + '.',
       split: complete ? { net: figures.net, beside: figures.beside } : null,
-      outside,
     },
     bridge: bridgeBars(figures, drillOfAll(paidBank), bankOf),
     strip: single === undefined ? null : personStrip(single, figures, label, linkOf),
     sections,
-    compared: rows.length,
-    agreeing: rows.filter((row) => row.agrees).length,
+    compared: rows.filter((row) => row.verdict !== null).length,
+    agreeing: rows.filter((row) => row.verdict === 'agrees').length,
     problems,
   }
 }
@@ -408,10 +398,9 @@ function lineRow<Line extends EmployeeLine>(check: LineCheck<Line>, subject: str
   return {
     key: check.line,
     label: LINE_LABELS[check.line],
-    payslip: check.payslip,
     app: check.app === null ? null : figureDetail(check.app, `${subject}, as the app works it out from the employees tab and the ruleset.`, linkOf),
     bank: check.bank === null ? null : { cents: check.bank.amount, to: linkOf(check.bank.drill) },
-    agrees: check.agrees,
+    verdict: check.app === null || check.bank === null ? null : check.agrees ? 'agrees' : 'differs',
   }
 }
 
@@ -433,7 +422,7 @@ function bridgeBars(figures: PersonFigures, paidDrill: DrillTarget | null, bankO
 
 function personStrip(entry: EmployeePayday, figures: PersonFigures, label: string, linkOf: LinkOf): PersonStrip {
   const paid = entry.lines.find((check) => check.line === 'paidToEmployee')?.bank ?? null
-  const paidOn = paid?.steps.reduce<CivilDate | null>((latest, step) => (step.on !== null && (latest === null || step.on > latest) ? step.on : latest), null) ?? entry.payslips[0]?.paidOn ?? null
+  const paidOn = paid?.steps.reduce<CivilDate | null>((latest, step) => (step.on !== null && (latest === null || step.on > latest) ? step.on : latest), null) ?? null
   const net = entry.lines.find((check) => check.line === 'net')?.app ?? null
   return {
     name: employeeName(entry.employee),
@@ -453,14 +442,8 @@ function inView(problem: SalaryProblem, employee: string | null): boolean {
   return employee === null || problemEmployee(problem)?.slug === employee
 }
 
-const FACTS: Readonly<Record<'residence-city' | 'pension-pillar-2', string>> = {
-  'residence-city': 'city',
-  'pension-pillar-2': 'pillar II membership',
-}
-
 function amountsText(check: LineCheck<string>): string {
   return [
-    check.payslip === null ? null : `payslip ${formatMoney(check.payslip)}`,
     check.app === null ? null : `app ${formatMoney(check.app.amount)}`,
     check.bank === null ? null : `bank ${formatMoney(check.bank.amount)}`,
   ]
@@ -484,23 +467,6 @@ function problemView(problem: SalaryProblem, index: number, month: string, linkO
         rows: linkOf(problem.check.bank?.drill ?? null),
       }
     }
-    case 'payslip-not-read':
-      return { ...plain, text: `${name}: payslip not read. No salary workbook read from the payroll folder names ${name} with a payout in ${month}, so only the app and the bank are compared.` }
-    case 'payslip-of-no-employee':
-      return {
-        ...plain,
-        text: `A payslip names ${problem.payslip.employeeName === '' ? 'no one' : problem.payslip.employeeName}, and no row of the employees tab has that name.`,
-        fact: true,
-      }
-    case 'payslip-facts-differ':
-      return {
-        ...plain,
-        text:
-          problem.fact === 'residence-city'
-            ? `${name}: the payslip’s city is ${problem.payslip.residenceCity === '' ? 'blank' : problem.payslip.residenceCity}, the employees tab says ${problem.employee.residenceCity === '' ? 'nothing' : problem.employee.residenceCity}.`
-            : `${name}: the payslip and the employees tab disagree on ${FACTS[problem.fact]}.`,
-        fact: true,
-      }
     case 'engine-not-run':
       return { ...plain, text: `${name}: the app did not work the pay out, since ${problem.reason}.`, fact: true }
     case 'no-account':

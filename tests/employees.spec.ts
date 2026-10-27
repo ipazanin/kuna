@@ -12,10 +12,9 @@ import { EMPLOYEE_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
 import { payrollMonth } from '../src/packs/hr-doo/domain/payroll/payrollMonth'
 import { payScenarios } from '../src/packs/hr-doo/domain/scenarios/payScenarios'
 import { payState } from '../src/packs/hr-doo/presentation/payScenarios/payScenariosView'
-import { month } from './fixtures/accountantWorkbooks'
 import { director } from './fixtures/employees'
 import { exampleStudio } from './fixtures/exampleStudio'
-import { civil, euros } from './fixtures/ledger'
+import { civil, euros, month } from './fixtures/ledger'
 
 /** The employees tab as a storage holds it, each record made by the codec from its fields. */
 function tab(...rows: RecordFields[]): RecordsRead<Employee> {

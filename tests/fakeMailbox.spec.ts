@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import { fileMail, planLine } from '../src/features/mail/application/mailFiling'
+import { MailRateLimited, fileMail, planLine } from '../src/features/mail/application/mailFiling'
 import { statementMailSource } from '../src/features/mail/application/statementMailSource'
-import { FAKE_MAIL_SETTINGS, fakeMailFolders, fakeMailbox } from '../src/features/mail/infrastructure/fake/fakeMailbox'
+import { fakeMailFolders, fakeMailSettings, fakeMailbox } from '../src/features/mail/infrastructure/fake/fakeMailbox'
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
 import { FAKE_WORKBOOK_ID, fakeWorkbookDocument } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
 import { tabsOfDocument } from '../src/features/workbook/infrastructure/spreadsheetDocument'
@@ -17,22 +17,22 @@ import { FAKE_FOLDERS } from '../src/features/workbook/infrastructure/fake/fakeW
 
 const AT = '2026-10-16T08:00:00.000Z'
 
-/** The fake books with the mail rows the `?fake=mail` variants add, read as the app reads them. */
-function mailBooks() {
+/** The fake books with the mail rows a `?fake=mail` variant adds, read as the app reads them. */
+function mailBooks(variant: string) {
   const document = fakeWorkbookDocument(AT)
-  const mailed = { ...document, records: { ...document.records, setting: [...(document.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } }
+  const mailed = { ...document, records: { ...document.records, setting: [...(document.records.setting ?? []), ...fakeMailSettings(variant)] } }
   return readSnapshot({ meta: { id: FAKE_WORKBOOK_ID, source: 'drive', title: 'Fake workbook', syncedAt: AT, lastExportedAt: null, unexportedSince: null }, ...tabsOfDocument(mailed) })
 }
 
 function planFake(variant: string, made: FakeMadeFile[] = []) {
-  const { workbook } = mailBooks()
+  const { workbook } = mailBooks(variant)
   expect(workbook.problems).toEqual([])
   return fileMail({
-    mailbox: fakeMailbox(variant),
-    folders: fakeMailFolders(variant, made),
+    open: async () => ({ mailbox: fakeMailbox(variant), folders: fakeMailFolders(variant, made) }),
     sources: [statementMailSource(loadImportFile, 'Europe/Zagreb'), ...ACCOUNTANT_MAIL_SOURCES],
     workbook,
     sinceStart: Date.parse('2025-12-31T23:00:00Z'),
+    years: [2026],
     hash: sha256Hex,
     report: () => {},
   })
@@ -82,5 +82,21 @@ describe('the fake mailbox', () => {
     expect(planLine(await planFake('mail-failed'))).toBe('Filed 2, would file 6, already there 4, 2 unmatched. VAT returns: Gmail did not answer the search. Sync again later.')
     expect(planLine(uploadFailed)).toMatch(/^Filed 1, would file 7, already there 4, 1 correction, 1 not compared, 2 unmatched\. Bank statements: \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\.$/)
     expect(made.map((file) => file.name)).toEqual([`${sampleCamtLabel()}-main.xml`])
+  })
+
+  it('stops on Gmail asking to slow down, reads only the bank’s mail with the accountant’s switches off, and fails the payroll switched on without the accountant’s address', async () => {
+    await expect(planFake('mail-rate-limited')).rejects.toBeInstanceOf(MailRateLimited)
+    const off = await planFake('mail-switches-off')
+    const noSender = await planFake('mail-no-sender')
+
+    expect(off.sources.map((source) => source.id)).toEqual(['statements'])
+    expect(planLine(off)).toBe('Filed 2, already there 2, 1 unmatched.')
+    expect(planLine(noSender)).toBe('Filed 2, already there 2, 1 unmatched. Payroll: It is on, but has no sender on Settings, General.')
+  })
+
+  it('searches from a week before the newest file in each folder once the mail is already there, not from the mail-since day', async () => {
+    const plan = await planFake('mail-nothing-new')
+
+    expect(plan.sources.map((source) => source.kind === 'planned' && source.window.after)).toEqual(['newest', 'newest', 'newest', 'newest'])
   })
 })

@@ -36,7 +36,7 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
 
 const summary = computed(() => {
   const { statementsMailFrom, mailSince } = props.saved
-  const since = mailSince === null ? 'the start of this year' : dayFormat.format(new Date(mailSince))
+  const since = mailSince === null ? 'the start of last year' : dayFormat.format(new Date(mailSince))
   return statementsMailFrom.length === 0 ? 'Bank mail is not read.' : `Bank mail from ${statementsMailFrom.join(', ')}, since ${since}.`
 })
 
@@ -89,13 +89,13 @@ function updateSenders(text: string): void {
         >
           <UInput :model-value="settings.statementsMailSubject" class="w-full" @update:model-value="update('statementsMailSubject', String($event))" />
         </UFormField>
-        <UFormField label="Mail since" help="The earliest mail a sync reads, until the app has filed mail of its kind. Blank is the start of this year." data-testid="mail-since">
+        <UFormField label="Mail since" help="The earliest mail a sync reads. Once a folder holds files, a sync starts a week before the newest one. Blank is the start of last year, so a sync early in January still finds mail from December." data-testid="mail-since">
           <UInput :model-value="settings.mailSince ?? ''" type="date" class="w-full" @update:model-value="update('mailSince', parseCivilDate(String($event ?? '')))" />
         </UFormField>
       </div>
       <div class="flex flex-col gap-3">
         <h3 class="text-sm font-medium text-highlighted">What the last sync found</h3>
-        <MailPlanList :plan="mail.state.plan" />
+        <MailPlanList :plan="mail.state.plan" :stopped="mail.state.stopped" />
       </div>
     </div>
   </AppCard>

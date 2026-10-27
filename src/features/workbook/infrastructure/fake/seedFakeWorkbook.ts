@@ -5,7 +5,7 @@ import { COMPANY_APP } from '../documentStorePorts'
 import { createDriveDocument, documentName } from '../driveDocument'
 import { openWorkbookCache } from '../workbookCache'
 import { saveWorkbookChoice } from '../workbookChoice'
-import { FAKE_MAIL_SETTINGS } from '../../../mail/infrastructure/fake/fakeMailbox'
+import { fakeMailSettings } from '../../../mail/infrastructure/fake/fakeMailbox'
 import { fakeBooksFolder, fakeDriveSession, raceTheNextSave } from './fakeDriveSession'
 import { FAKE_WORKBOOK_ID, fakeWorkbookDocument } from './fakeWorkbook'
 import type { FakeStaff } from './fakeWorkbook'
@@ -25,8 +25,8 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * days past their last export. `?fake=empty` keeps nothing, which is a first run. A variant that ends
  * in `no-billing-plan`, `no-scenarios` or `no-plan` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
- * first save. `?fake=mail`, `?fake=mail-nothing-new` and `?fake=mail-failed` name the bank's and the
- * accountant's mail, which the fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
+ * first save. A variant that starts with `mail` names the bank's and the accountant's mail, which the
+ * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only main.ts imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk.
  */
@@ -41,7 +41,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const full = fakeWorkbookDocument(savedAt, source, staffOf(variant))
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const kept = missing === null ? full : { ...full, records: { ...full.records, [missing]: [] } }
-  const mailed = variant?.startsWith('mail') ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : kept
+  const mailed = variant?.startsWith('mail') ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...fakeMailSettings(variant)] } } : kept
   const document = variant === 'newer-file' ? { ...mailed, schema: { ...mailed.schema, core: (mailed.schema.core ?? 0) + 1 } } : mailed
   if (variant === 'race') {
     raceTheNextSave()

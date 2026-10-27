@@ -36,6 +36,11 @@ function unmatched(attachments: readonly MailAttachment[], reason: string): Atta
   return attachments.map((attachment) => ({ kind: 'unmatched', attachment, reason }))
 }
 
+/** Every attachment of a mail unmatched because its subject, once the replies' prefixes are off, does not start with the phrase, or null when it does. */
+function notStartingWith(message: MailMessage, phrase: string): AttachmentNaming[] | null {
+  return afterPhrase(message.subject, phrase) === null ? unmatched(message.attachments, `The subject does not start with ${phrase}.`) : null
+}
+
 function named(attachment: MailAttachment, folders: readonly string[], name: string): AttachmentNaming {
   return { kind: 'named', attachment, folders, name, redelivery: null }
 }
@@ -71,6 +76,8 @@ function fileWords(name: string): string {
  * an unknown kind and an XML without an order beside it match no rule.
  */
 export function payrollNamings(message: MailMessage, phrase: string, folder: readonly string[], employees: readonly Employee[]): AttachmentNaming[] {
+  const elsewhere = notStartingWith(message, phrase)
+  if (elsewhere !== null) return elsewhere
   const month = payrollMonthOf(message.subject, phrase)
   if (month === null) return unmatched(message.attachments, 'The subject names no month, such as 9/2026.')
   const folders = [yearFolderName(month.slice(0, 4), folder), month]
@@ -96,6 +103,8 @@ export function payrollNamings(message: MailMessage, phrase: string, folder: rea
 
 /** Where each attachment of a VAT return mail goes: the workbook as `<period>-pdv.xlsx` in its year's folder, by the period the subject names. */
 export function vatNamings(message: MailMessage, phrase: string, folder: readonly string[]): AttachmentNaming[] {
+  const elsewhere = notStartingWith(message, phrase)
+  if (elsewhere !== null) return elsewhere
   const period = vatPeriodOf(message.subject, phrase)
   if (period === null) return unmatched(message.attachments, 'The subject names no period, such as 9/2026.')
   return message.attachments.map((attachment) =>
@@ -108,9 +117,11 @@ export function vatNamings(message: MailMessage, phrase: string, folder: readonl
 /**
  * Where each attachment of the accountant's invoice mail goes: the PDF named for its number, such
  * as 135-1-1_Example.pdf, as `<day>-accounting.pdf` in `<year>-<folder>/<month>` of the day it was
- * mailed in Croatia. The subject's month is whatever the accountant last typed, so it is not read.
+ * mailed in Croatia. The month after the phrase is whatever the accountant last typed, so it is not read.
  */
-export function invoiceNamings(message: MailMessage, folder: readonly string[]): AttachmentNaming[] {
+export function invoiceNamings(message: MailMessage, phrase: string, folder: readonly string[]): AttachmentNaming[] {
+  const elsewhere = notStartingWith(message, phrase)
+  if (elsewhere !== null) return elsewhere
   const day = civilDateIn(message.date, ACCOUNTANT_TIME_ZONE)
   return message.attachments.map((attachment) =>
     /^\d+-\d+-\d+_.+\.PDF$/.test(fold(attachment.name))

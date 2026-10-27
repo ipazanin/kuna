@@ -3,13 +3,16 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { fileMail, hasProblem, planLine } from '../src/features/mail/application/mailFiling'
+import { MailRateLimited, fileMail, hasProblem, planLine } from '../src/features/mail/application/mailFiling'
 import type { MailFolders, MailSource, Mailbox, PlanEntry, SourcePlan } from '../src/features/mail/application/mailFiling'
 import { statementMailSource } from '../src/features/mail/application/statementMailSource'
+import { mailSinceDefault, yearsSince } from '../src/features/mail/domain/mailSource'
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
 import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
 import type { Settings } from '../src/features/settings/domain/settings'
 import type { Workbook } from '../src/features/workbook/domain/workbook'
+import { startOfDayIn } from '../src/shared/calendar/civilDate'
+import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 import { exampleStudio } from './fixtures/exampleStudio'
 import { hashOf, testFolders, testMailbox } from './fixtures/mailbox'
@@ -32,13 +35,22 @@ function books(settings: Partial<Settings> = {}): Workbook {
   })
 }
 
-async function plan(mails: readonly TestMail[], filed: readonly TestFiled[] = [], options: { readonly workbook?: Workbook; readonly mailbox?: Mailbox; readonly folders?: MailFolders; readonly sources?: readonly MailSource[] } = {}) {
+async function plan(
+  mails: readonly TestMail[],
+  filed: readonly TestFiled[] = [],
+  options: { readonly workbook?: Workbook; readonly mailbox?: Mailbox; readonly folders?: MailFolders; readonly sources?: readonly MailSource[]; readonly opened?: string[] } = {},
+) {
+  const mailbox = options.mailbox ?? testMailbox(mails)
+  const folders = options.folders ?? testFolders(filed)
   return fileMail({
-    mailbox: options.mailbox ?? testMailbox(mails),
-    folders: options.folders ?? testFolders(filed),
+    open: async () => {
+      options.opened?.push('opened')
+      return { mailbox, folders }
+    },
     sources: options.sources ?? [STATEMENTS],
     workbook: options.workbook ?? books(),
     sinceStart: SINCE,
+    years: [2031],
     hash: hashOf,
     report: () => {},
   })
@@ -133,25 +145,75 @@ describe('the bank statements in mail', () => {
     expect(targets(sources[0])).toEqual(['already work/bank/statements/2031-statements/2031-03-12-statement-042.pdf'])
   })
 
-  it('stays off without a sender or a subject, and fails without a folder to check against', async () => {
-    expect((await plan([], [], { workbook: books({ statementsMailFrom: [] }) })).sources).toEqual([])
-    expect((await plan([], [], { workbook: books({ statementsMailSubject: '' }) })).sources).toEqual([])
-    expect((await plan([], [], { workbook: books({ statementsFolder: [] }) })).sources).toEqual([
-      { kind: 'failed', id: 'statements', label: 'Bank statements', reason: 'Settings, General names no folder for it, so there is nowhere to look for what is filed' },
-    ])
+  it('stays off without a sender or a subject, and fails without a folder to check against, opening neither Gmail nor Drive', async () => {
+    const opened: string[] = []
+
+    expect((await plan([], [], { workbook: books({ statementsMailFrom: [] }), opened })).sources).toEqual([])
+    expect((await plan([], [], { workbook: books({ statementsMailSubject: '' }), opened })).sources).toEqual([])
+    const folderless = await plan([], [], { workbook: books({ statementsFolder: [] }), opened })
+
+    expect(folderless.sources).toEqual([{ kind: 'failed', id: 'statements', label: 'Bank statements', reason: 'It is on, but has no folder on Settings, General' }])
+    expect(planLine(folderless)).toBe('Bank statements: It is on, but has no folder on Settings, General.')
+    expect(opened).toEqual([])
   })
 })
 
 describe('the mail step', () => {
-  it('searches from the mail-since day before the app filed anything for a source, and from a week before the newest mail it filed after', async () => {
+  it('searches from the mail-since day while its year folders are empty, and from a week before the mail of the newest file the app filed', async () => {
     const fresh = testMailbox([])
     const later = testMailbox([])
+    const filed: TestFiled = { folders: ['2031-statements'], name: '2031-03-20-statement-050.pdf', created: '2031-03-21T09:00:00Z', content: null, filedFrom: '2031-03-20T08:00:00Z' }
 
     await plan([], [], { mailbox: fresh })
-    await plan([], [], { mailbox: later, folders: testFolders([], { statements: '2031-03-20T08:00:00Z' }) })
+    await plan([], [filed], { mailbox: later })
 
     expect(fresh.queries).toEqual([`from:(statements@bank.example.com) subject:"Izvadak" has:attachment after:${SINCE / 1000}`])
     expect(later.queries).toEqual([`from:(statements@bank.example.com) subject:"Izvadak" has:attachment after:${Date.parse('2031-03-13T08:00:00Z') / 1000}`])
+  })
+
+  it('moves the window past mail another app filed, from when Drive made its newest file, so mail found already there is not read again on every sync', async () => {
+    const mails: TestMail[] = Array.from({ length: 3 }, (_, index) => ({
+      id: `m${index}`,
+      subject: `Izvadak 04${index}`,
+      at: `2031-03-1${index}T04:00:00Z`,
+      attachments: [[`IZV_2031_03_1${index} 03_05_19_314_503.pdf`, `pdf ${index}`]],
+    }))
+    const byOtherApp: TestFiled[] = mails.map((_, index) => ({ folders: ['2031-statements'], name: `2031-03-1${index}-statement-04${index}.pdf`, created: `2031-03-1${index}T06:00:00Z`, content: null }))
+    const mailbox = testMailbox(mails)
+
+    const result = await plan([], byOtherApp, { mailbox })
+
+    expect(mailbox.queries).toEqual([`from:(statements@bank.example.com) subject:"Izvadak" has:attachment after:${Date.parse('2031-03-05T06:00:00Z') / 1000}`])
+    expect(result.sources[0]).toMatchObject({ window: { from: Date.parse('2031-03-05T06:00:00Z'), after: 'newest' } })
+    expect(planLine(result)).toBe('Nothing new, already there 3.')
+  })
+
+  it('never searches from before the mail-since day, however old the newest file', async () => {
+    const mailbox = testMailbox([])
+
+    const result = await plan([], [{ folders: ['2031-statements'], name: '2031-01-02-statement-001.pdf', created: '2031-01-02T06:00:00Z', content: null }], { mailbox })
+
+    expect(result.sources[0]).toMatchObject({ window: { from: SINCE, after: 'since' } })
+  })
+
+  it('lists the year folders from the mail-since year before it searches, and a folder of an older year a mail names after', async () => {
+    const folders = testFolders([{ folders: ['2030-statements'], name: '2030-12-31-statement-099.pdf', created: '2031-01-01T06:00:00Z', content: null }])
+    const mailbox = testMailbox([
+      { id: 'late', subject: 'Izvadak 099', at: '2031-01-01T05:00:00Z', attachments: [['IZV_2030_12_31 03_05_19_314_503.pdf', 'pdf 099']] },
+      { id: 'new', subject: 'Izvadak 001', at: '2031-01-02T05:00:00Z', attachments: [['IZV_2031_01_02 03_05_19_314_503.pdf', 'pdf 001']] },
+    ])
+
+    const result = await plan([], [], { folders, mailbox })
+
+    expect(folders.asked).toEqual([[['2031-statements']], [['2030-statements']]])
+    expect(targets(result.sources[0]).map((target) => target.split(' ')[0])).toEqual(['already', 'filed'])
+  })
+
+  it('stops the step when Gmail still asks to slow down, with a plain sentence and none of Google’s answer', async () => {
+    const failure = plan([], [], { mailbox: testMailbox([], 500, true) })
+
+    await expect(failure).rejects.toBeInstanceOf(MailRateLimited)
+    await expect(failure).rejects.toThrow(/^Gmail asked us to slow down\. Sync again in a minute\.$/)
   })
 
   it('reads every page of a search and plans the mail oldest first', async () => {
@@ -175,7 +237,7 @@ describe('the mail step', () => {
       label: 'VAT returns',
       duplicates: 'correction',
       dryRun: true,
-      terms: () => ({ senders: ['office@accountant.example.com'], subject: 'PDV za', folder: ['finance', 'vat'] }),
+      terms: () => ({ kind: 'on', terms: { senders: ['office@accountant.example.com'], subject: 'PDV za', folder: ['finance', 'vat'] } }),
       name: async () => [],
     }
     const mails: TestMail[] = [{ id: 'pdf', subject: 'Izvadak 042', at: '2031-03-12T04:00:00Z', attachments: [['IZV_2031_03_12 03_05_19_314_503.pdf', 'pdf']] }]
@@ -275,7 +337,7 @@ describe('filing the bank statements', () => {
   })
 
   it('files the others when one upload fails, names the one in the line, and lists why', async () => {
-    const folders = testFolders([], {}, { refuse: (name) => (name.endsWith('042.pdf') ? new Error('Drive did not take the upload') : null) })
+    const folders = testFolders([], { refuse: (name) => (name.endsWith('042.pdf') ? new Error('Drive did not take the upload') : null) })
 
     const result = await plan([PAIR, NEXT], [], { folders })
 
@@ -291,7 +353,7 @@ describe('filing the bank statements', () => {
 
   it('files the rest on the next run after Google turned the token away mid-filing, and none twice', async () => {
     let uploads = 0
-    const folders = testFolders([], {}, {
+    const folders = testFolders([], {
       refuse: () => {
         uploads += 1
         return uploads === 2 ? new GoogleApiError('https://www.googleapis.com/upload/drive/v3/files', 401, '{"error":{"code":401}}') : null
@@ -308,7 +370,7 @@ describe('filing the bank statements', () => {
 
   it('files the rest on the next run after the page lost the network for an upload, as a phone sent to the background does', async () => {
     let offline = false
-    const folders = testFolders([], {}, { refuse: (name) => (offline && name.includes('043') ? new TypeError('NetworkError when attempting to fetch resource.') : null) })
+    const folders = testFolders([], { refuse: (name) => (offline && name.includes('043') ? new TypeError('NetworkError when attempting to fetch resource.') : null) })
     const mailbox = testMailbox([PAIR, NEXT])
 
     offline = true
@@ -324,7 +386,7 @@ describe('filing the bank statements', () => {
   it('holds mail more than a week newer than an upload that failed, so the next run still searches back to that mail and files both', async () => {
     const LATER: TestMail = { id: '18d0aa11bb22cc33', subject: 'Izvadak 060, Example Studio d.o.o.', at: '2031-04-02T04:00:00Z', attachments: [['IZV_2031_04_02 03_05_19_314_503.pdf', 'pdf 060']] }
     let failing = true
-    const folders = testFolders([], {}, { refuse: (name) => (failing && name === '2031-03-12-statement-042.pdf' ? new Error('Drive did not take the upload') : null) })
+    const folders = testFolders([], { refuse: (name) => (failing && name === '2031-03-12-statement-042.pdf' ? new Error('Drive did not take the upload') : null) })
     const mailbox = testMailbox([PAIR, NEXT, LATER])
 
     const first = await plan([], [], { folders, mailbox })
@@ -339,7 +401,7 @@ describe('filing the bank statements', () => {
   })
 
   it('says nothing was filed when every upload failed', async () => {
-    const folders = testFolders([], {}, { refuse: () => new Error('Drive did not take the upload') })
+    const folders = testFolders([], { refuse: () => new Error('Drive did not take the upload') })
 
     const result = await plan([NEXT], [], { folders })
 
@@ -355,5 +417,29 @@ describe('filing the bank statements', () => {
     expect(targets(result.sources[0]).map((target) => target.split(' ')[0])).toEqual(['file', 'file'])
     expect(planLine(result)).toBe('Would file 2.')
     expect(folders.created).toEqual([])
+  })
+})
+
+describe('a blank mail-since day at the turn of the year', () => {
+  it('still finds a December mail on 3 January, since it lists last year’s folder and starts from the newest file there', async () => {
+    const today = '2032-01-03' as CivilDate
+    const since = mailSinceDefault(today)
+    const mailbox = testMailbox([{ id: 'dec30', subject: 'Izvadak 250', at: '2031-12-30T05:00:00Z', attachments: [['IZV_2031_12_30 03_05_19_314_503.pdf', 'pdf 250']] }])
+    const folders = testFolders([{ folders: ['2031-statements'], name: '2031-12-29-statement-249.pdf', created: '2031-12-29T06:00:00Z', content: null, filedFrom: '2031-12-29T05:00:00Z' }])
+
+    const found = await fileMail({
+      open: async () => ({ mailbox, folders }),
+      sources: [STATEMENTS],
+      workbook: books(),
+      sinceStart: startOfDayIn(since, 'Europe/Zagreb'),
+      years: yearsSince(since, today),
+      hash: hashOf,
+      report: () => {},
+    })
+
+    expect(since).toBe('2031-01-01')
+    expect(folders.asked[0]).toEqual([['2031-statements'], ['2032-statements']])
+    expect(mailbox.reads).toEqual(['dec30'])
+    expect(targets(found.sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-12-30-statement-250.pdf'])
   })
 })

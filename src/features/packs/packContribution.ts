@@ -5,7 +5,6 @@ import type { CivilDate } from '../../shared/calendar/civilDate'
 import type { MailSource } from '../mail/application/mailFiling'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
-import type { SyncStep } from '../sync/application/sync'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
 import type { PackPart } from '../workbook/domain/packPart'
 import type { Workbook } from '../workbook/domain/workbook'
@@ -51,21 +50,11 @@ export interface PackCompanyFacts<Facts> {
   withFacts(workbook: Workbook, facts: Facts): Workbook
 }
 
-/** A Drive folder the pack reads, by the settings key that names it as a path from My Drive. */
-export interface PackDriveFolder {
-  readonly key: string
-  /** What the folder holds, as a sentence names it, such as "the accountant's VAT returns". */
-  readonly holds: string
-}
-
-/** What onboarding asks for the pack: one question whose Yes switches on the owner-pay module, and the folders the pack reads. */
+/** What onboarding asks for the pack: one question whose Yes switches on the owner-pay module. */
 export interface PackOnboarding {
   readonly question: string
   /** What Yes adds, said as the answer. */
   readonly yes: string
-  readonly folders: readonly PackDriveFolder[]
-  /** Where the folders are set once onboarding is over. */
-  readonly foldersAt: RouteLocationRaw
 }
 
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
@@ -83,8 +72,6 @@ export interface PackContribution {
   readonly companyFacts: PackCompanyFacts<unknown> | null
   /** Where the spending breakdown links a cost group the pack breaks down further. */
   costGroupLinks(group: string): { readonly label: string; readonly to: RouteLocationRaw } | null
-  /** Steps a sync runs after core's, in order. */
-  readonly syncSteps: readonly SyncStep[]
   /** Kinds of mail the sync's mail step looks for after core's, in order. */
   readonly mailSources: readonly MailSource[]
   readonly onboarding: PackOnboarding | null
@@ -99,7 +86,6 @@ const NO_PACK: PackContribution = {
   settingsCards: [],
   companyFacts: null,
   costGroupLinks: () => null,
-  syncSteps: [],
   mailSources: [],
   onboarding: null,
 }

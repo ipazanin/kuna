@@ -12,7 +12,7 @@ export const PACK_ROLES = {
   watched: 'watched',
   /** Paid in the month after the work, such as salary, its taxes and rent. */
   arrears: 'arrears',
-  /** An employee's net salary, with the tax-free payments of the payslip paid in the same row. */
+  /** An employee's net salary, with any tax-free payments paid in the same row. */
   salary: 'salary',
   representation: 'representation',
   personalTransport: 'personal-transport',

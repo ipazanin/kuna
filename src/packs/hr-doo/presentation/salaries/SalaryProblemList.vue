@@ -6,7 +6,7 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import type { FigureDetail } from '../tracedFigureView'
 import type { ProblemView } from './salariesView'
 
-/** What the payslip, the app and the bank do not agree on, or what is missing, each with what to open to resolve it. */
+/** What the app and the bank do not agree on, or what is missing, each with what to open to resolve it. */
 defineProps<{
   problems: readonly ProblemView[]
   /** The payday, such as "Sep 2026". */
@@ -21,10 +21,10 @@ const FACT = { hash: '#employee-rows' }
 </script>
 
 <template>
-  <AppCard id="salary-problems" title="Problems" :subtitle="`Paid in ${label}. No source wins, so each stays until the books or the payslip say the same.`" data-testid="salaries-problems">
+  <AppCard id="salary-problems" title="Problems" :subtitle="`Paid in ${label}. Neither source wins, so each stays until the books say the same.`" data-testid="salaries-problems">
     <p v-if="problems.length === 0" class="flex items-center gap-2 px-4 pt-1 pb-4 text-sm text-toned sm:px-5">
       <UIcon name="i-lucide-circle-check" class="size-4 shrink-0 text-positive" aria-hidden="true" />
-      The payslip, the app and the bank agree on every line they state.
+      The app and the bank agree on every line they both state.
     </p>
     <ul v-else class="flex flex-col px-4 pb-3 sm:px-5">
       <li v-for="problem in problems" :key="problem.key" class="problem-row" data-testid="salaries-problem">

@@ -52,14 +52,15 @@ export function filedMailProperties(source: string, mail: Pick<MailMessage, 'id'
 
 const WINDOW_OVERLAP_MS = 7 * 86_400_000
 
-/** Where a source's search starts, in epoch milliseconds, and why: 7 days before the newest mail the app filed for it, or the start of the mail-since day. */
+/** Where a source's search starts, in epoch milliseconds, and why: 7 days before the newest file in its folder, or the start of the mail-since day when that is later. */
 export interface MailWindow {
   readonly from: number
-  readonly after: 'filed' | 'since'
+  readonly after: 'newest' | 'since'
 }
 
-export function mailWindow(newestFiled: number | null, sinceStart: number): MailWindow {
-  return newestFiled === null ? { from: sinceStart, after: 'since' } : { from: newestFiled - WINDOW_OVERLAP_MS, after: 'filed' }
+/** `newest` is the newest file in the source's folder: the date of the mail the app filed it from, or when Drive made a file another app filed. */
+export function mailWindow(newest: number | null, sinceStart: number): MailWindow {
+  return newest === null || newest - WINDOW_OVERLAP_MS <= sinceStart ? { from: sinceStart, after: 'since' } : { from: newest - WINDOW_OVERLAP_MS, after: 'newest' }
 }
 
 /** Whether the next sync still searches back to a mail of the earlier date once mail of this date is filed. */
@@ -67,9 +68,15 @@ export function windowReaches(earlier: number, filed: number): boolean {
   return filed - WINDOW_OVERLAP_MS < earlier
 }
 
-/** The day the earliest mail starts at while `mail_since` is blank: the first day of this year. */
+/** The day the earliest mail starts at while `mail_since` is blank: the first day of last year, so a sync early in January still finds mail from December. */
 export function mailSinceDefault(today: CivilDate): CivilDate {
-  return civilDate(Number(today.slice(0, 4)), 1, 1)
+  return civilDate(Number(today.slice(0, 4)) - 1, 1, 1)
+}
+
+/** The years from the mail-since day's to today's, both in, whose folders a source lists before it searches. */
+export function yearsSince(since: CivilDate, today: CivilDate): number[] {
+  const first = Number(since.slice(0, 4))
+  return Array.from({ length: Math.max(1, Number(today.slice(0, 4)) - first + 1) }, (_, index) => first + index)
 }
 
 /**
@@ -79,6 +86,32 @@ export function mailSinceDefault(today: CivilDate): CivilDate {
  */
 export function mailQuery(terms: Pick<MailTerms, 'senders' | 'subject'>, window: MailWindow): string {
   return `from:(${terms.senders.join(' OR ')}) subject:"${terms.subject}" has:attachment after:${Math.floor(window.from / 1000)}`
+}
+
+/** What a source's search needs from the books. */
+export type MailTermPiece = 'sender' | 'subject' | 'folder'
+
+/** Whether the books turn a source off, turn it on without all it needs, or turn it on with its search and folder. */
+export type SourceTerms =
+  | { readonly kind: 'off' }
+  | { readonly kind: 'incomplete'; readonly missing: readonly MailTermPiece[] }
+  | { readonly kind: 'on'; readonly terms: MailTerms }
+
+/** What a source the books turn on lacks, in the order the settings ask for it. */
+export function missingTerms(terms: MailTerms): MailTermPiece[] {
+  return [terms.senders.length === 0 ? 'sender' : null, terms.subject === '' ? 'subject' : null, terms.folder.length === 0 ? 'folder' : null].filter((piece): piece is MailTermPiece => piece !== null)
+}
+
+export function sourceTerms(on: boolean, terms: MailTerms): SourceTerms {
+  if (!on) return { kind: 'off' }
+  const missing = missingTerms(terms)
+  return missing.length === 0 ? { kind: 'on', terms } : { kind: 'incomplete', missing }
+}
+
+/** "no sender", "no sender and no folder" or "no sender, no subject and no folder". */
+export function missingWords(missing: readonly MailTermPiece[]): string {
+  const words = missing.map((piece) => `no ${piece}`)
+  return words.length < 2 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`
 }
 
 /** The folder for one year inside a source's folder: the year and the folder's own name, such as 2026-statements inside statements. */

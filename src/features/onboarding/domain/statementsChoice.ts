@@ -1,13 +1,19 @@
+import { civilDate } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { BOOKS_FOLDER } from '../../../shared/text/folderPath'
 import { BANK_PRESETS } from '../../mail/domain/bankPresets'
-import { mailAddressesOf, mailAddressesProblem, mailSinceDefault, mailSubjectProblem } from '../../mail/domain/mailSource'
+import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../mail/domain/mailSource'
 import type { Settings } from '../../settings/domain/settings'
 import { OTHER_BANK } from './onboardingSteps'
 import type { StatementMail, StatementsSource } from './onboardingSteps'
 
 /** The folder the app makes beside the books file for the statements it files from mail, which `drive.file` can then read. */
 export const MAIL_STATEMENTS_FOLDER = 'statements'
+
+/** The earliest mail new books propose to read: the first day of this year, so last year's statements stay out of them. */
+export function firstMailDay(today: CivilDate): CivilDate {
+  return civilDate(Number(today.slice(0, 4)), 1, 1)
+}
 
 /** The settings that say how statements reach the app. */
 export type StatementSettings = Pick<Settings, 'statementsSync' | 'statementsFolder' | 'statementsMailFrom' | 'statementsMailSubject' | 'mailSince'>
@@ -42,7 +48,7 @@ export function statementSettingsOf(source: StatementsSource, mail: StatementMai
       return { ...none, statementsSync: true }
     case 'mail': {
       const { senders, subject } = mailTermsOf(mail)
-      return { statementsSync: true, statementsFolder: [BOOKS_FOLDER, MAIL_STATEMENTS_FOLDER], statementsMailFrom: senders, statementsMailSubject: subject, mailSince: mail.since ?? mailSinceDefault(today) }
+      return { statementsSync: true, statementsFolder: [BOOKS_FOLDER, MAIL_STATEMENTS_FOLDER], statementsMailFrom: senders, statementsMailSubject: subject, mailSince: mail.since ?? firstMailDay(today) }
     }
   }
 }

@@ -24,9 +24,8 @@
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
  * a save on the Mail card that asks for Gmail read in its own tap and syncs, Allow access whose Google window closed with why in what a screen reader hears,
- * Salaries with five made-up employees, its gross to net chart's tap-then-drill, a sync's payslips with the one problem's build-up and rows, the People tab and the Over time table,
- * the accountant's VAT returns and payroll on Year, Taxes as a sync read them with a differing badge opening its rows, the read this device kept until Allow access reads again,
- * and the payroll folder saved on Settings, General,
+ * the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, and the window after mail already there,
+ * Salaries with five made-up employees, its gross to net chart's tap-then-drill, the one problem's build-up and rows, the People tab and the Over time table,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
  * with a profile made for it, each confirmed and undone, and the profile deleted, an invoice made and re-exported, a rule made from a row and applied to
@@ -64,9 +63,6 @@ import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
   accessClosedFlow,
-  accountantFoldersFlow,
-  accountantKeptReadFlow,
-  accountantReturnsFlow,
   advanceFlow,
   assetFlow,
   employeeFlow,
@@ -88,6 +84,10 @@ import {
   mailOffFlow,
   mailSaveAsksFlow,
   mailUploadFailedFlow,
+  mailNoSenderFlow,
+  mailRateLimitedFlow,
+  mailSwitchesOffFlow,
+  mailWindowFlow,
   moveFromBrowserFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
@@ -984,11 +984,12 @@ async function checkWidth(width) {
     ['mail-failed', '&fake=mail-failed', mailFailedFlow],
     ['mail-access', '&fake=mail', mailAccessFlow],
     ['mail-save-asks', '', mailSaveAsksFlow],
+    ['mail-switches-off', '&fake=mail-switches-off', mailSwitchesOffFlow],
+    ['mail-no-sender', '&fake=mail-no-sender', mailNoSenderFlow],
+    ['mail-rate-limited', '&fake=mail-rate-limited', mailRateLimitedFlow],
+    ['mail-window', '&fake=mail-nothing-new', mailWindowFlow],
     ['sync-access-closed', '&fake=google-closed', accessClosedFlow],
     ['salaries', '&fake=five-employees', salariesFlow, '#/salaries', 'Salaries'],
-    ['accountant-returns', '', accountantReturnsFlow, '#/year?tab=taxes', 'Year'],
-    ['accountant-kept-read', '', accountantKeptReadFlow, '#/year?tab=taxes', 'Year'],
-    ['accountant-folders', '', accountantFoldersFlow, '#/settings#accountant-folders', 'Settings'],
   ]) {
     await step(name, async () => {
       await page.goto(`${BASE}?theme=dark${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
@@ -1435,7 +1436,7 @@ async function checkWidth(width) {
     await syncStarted('a partial grant')
     await controlShows('allow-access', 'a grant without Drive read did not leave Allow access in the sync control')
     const partial = await control()
-    if (!partial.name.includes('Statements and Accountant need your Drive read access')) throw new Error(`after a partial grant a screen reader hears "${partial.name}"`)
+    if (!partial.name.includes('Statements needs your Drive read access')) throw new Error(`after a partial grant a screen reader hears "${partial.name}"`)
     await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'gmail.compose']), 'the partial grant was not noted without Drive read')
     await expect(noMessage(), (none) => none, 'the partial grant showed a message')
     await inspect(page, `${width}px partial grant return`)

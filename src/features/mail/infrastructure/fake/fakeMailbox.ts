@@ -5,32 +5,41 @@ import { sampleCamtLabel, sampleCamtXml } from '../../../imports/infrastructure/
 import { FAKE_BOOKS_STATEMENTS, PAGE_FAKE_MADE_FILES, sampleStatementByMail } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
 import type { FakeMadeFile } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
 import { FAKE_FOLDERS, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
+import { MailRateLimited } from '../../application/mailFiling'
 import type { FiledFile, MailFolders, Mailbox } from '../../application/mailFiling'
-import { MAIL_DATE_PROPERTY, MAIL_SOURCE_PROPERTY } from '../../domain/mailSource'
+import { MAIL_DATE_PROPERTY } from '../../domain/mailSource'
 import type { MailMessage } from '../../domain/mailSource'
 
 /**
  * The fake build's Gmail and the folders its mail goes into, for `?fake=mail`, `?fake=mail-nothing-new`,
- * `?fake=mail-failed` and `?fake=mail-upload-failed`. The bank and the accountant mail from example.com
- * addresses, and every subject and file name copies the shape of a real one with made-up names. The
- * mailbox answers a search by its subject phrase and its window, three ids a page, so a run reads
- * more than one page.
+ * `?fake=mail-failed`, `?fake=mail-upload-failed`, `?fake=mail-rate-limited`, `?fake=mail-switches-off`
+ * and `?fake=mail-no-sender`. The bank and the accountant mail from example.com addresses, and every
+ * subject and file name copies the shape of a real one with made-up names. The mailbox answers a
+ * search by its subject phrase and its window, three ids a page, so a run reads more than one page.
  */
 
 const BANK = 'statements@bank.example.com'
 const ACCOUNTANT = 'office@accountant.example.com'
 
-/** The rows `?fake=mail` variants add to the books, as the person would type them on Settings, General. */
-export const FAKE_MAIL_SETTINGS: readonly { readonly key: string; readonly value: string }[] = [
-  { key: 'statements_mail_from', value: BANK },
-  { key: 'statements_mail_subject', value: 'Izvadak' },
-  { key: 'mail_since', value: '2026-01-01' },
-  { key: 'hr_accountant_mail_from', value: ACCOUNTANT },
-  { key: 'hr_payroll_mail_subject', value: 'Plaća za' },
-  { key: 'hr_vat_mail_subject', value: 'PDV za' },
-  { key: 'hr_invoices_mail_subject', value: 'Račun za' },
-  { key: 'hr_incoming_invoices_folder', value: FAKE_FOLDERS.incomingInvoices.join('/') },
-]
+/**
+ * The rows `?fake=mail` variants add to the books, as the person would type them on Settings,
+ * General: every kind of the accountant's mail switched on, none with `?fake=mail-switches-off`, and
+ * with `?fake=mail-no-sender` the payroll alone, without the accountant's address.
+ */
+export function fakeMailSettings(variant: string | null): readonly { readonly key: string; readonly value: string }[] {
+  const switches = variant === 'mail-switches-off' ? [] : variant === 'mail-no-sender' ? ['hr_payroll_mail_sync'] : ['hr_payroll_mail_sync', 'hr_vat_mail_sync', 'hr_invoices_mail_sync']
+  return [
+    { key: 'statements_mail_from', value: BANK },
+    { key: 'statements_mail_subject', value: 'Izvadak' },
+    { key: 'mail_since', value: '2026-01-01' },
+    ...(variant === 'mail-no-sender' ? [] : [{ key: 'hr_accountant_mail_from', value: ACCOUNTANT }]),
+    ...switches.map((key) => ({ key, value: 'TRUE' })),
+    { key: 'hr_payroll_mail_subject', value: 'Plaća za' },
+    { key: 'hr_vat_mail_subject', value: 'PDV za' },
+    { key: 'hr_invoices_mail_subject', value: 'Račun za' },
+    { key: 'hr_incoming_invoices_folder', value: FAKE_FOLDERS.incomingInvoices.join('/') },
+  ]
+}
 
 const PAGE_SIZE = 3
 
@@ -94,7 +103,7 @@ function fakeMails(): FakeMail[] {
     { id: 'bank-xml', subject: `Izvadak ${sampleNumber}, Example Studio d.o.o.`, at: `${sampleDay}T05:11:00Z`, attachments: [{ name: bankFileName(sampleDay, 'xml'), content: 'sample-camt' }], filed: true },
     { id: 'bank-xml-again', subject: `Izvadak ${sampleNumber}, Example Studio d.o.o.`, at: `${nextDay}T05:11:00Z`, attachments: [{ name: bankFileName(nextDay, 'xml'), content: 'sample-camt' }], filed: true },
     { id: 'bank-pdf-filed', subject: `Izvadak ${newest.number}, Example Studio d.o.o.`, at: `${newest.day}T05:10:00Z`, attachments: [{ name: bankFileName(newest.day, 'pdf'), content: 'older statement pdf' }], filed: true },
-    { id: 'bank-terms', subject: 'Izvadak 000, novi opći uvjeti poslovanja', at: '2026-03-02T09:00:00Z', attachments: [{ name: 'Opći uvjeti poslovanja.xml', content: '<obavijest>Opći uvjeti poslovanja</obavijest>' }], filed: false },
+    { id: 'bank-terms', subject: 'Izvadak 000, novi opći uvjeti poslovanja', at: `${addDays(parseCivilDate(newest.day)!, -2)}T09:00:00Z`, attachments: [{ name: 'Opći uvjeti poslovanja.xml', content: '<obavijest>Opći uvjeti poslovanja</obavijest>' }], filed: false },
     {
       id: 'payroll-09',
       subject: 'Plaća za 9/2026',
@@ -145,7 +154,7 @@ function bytesOf(content: string | 'sample-camt'): ArrayBuffer {
   return new TextEncoder().encode(content === 'sample-camt' ? sampleCamtXml() : content).buffer as ArrayBuffer
 }
 
-/** The fake Gmail. `?fake=mail-failed` fails the VAT return search, so one source fails beside the others. */
+/** The fake Gmail. `?fake=mail-failed` fails the VAT return search, so one source fails beside the others, and `?fake=mail-rate-limited` answers every search as Gmail still asking to slow down after the retries. */
 export function fakeMailbox(variant: string | null): Mailbox {
   const mails = fakeMails().filter((mail) => variant !== 'mail-nothing-new' || mail.filed)
   const byId = new Map(mails.map((mail) => [mail.id, mail]))
@@ -155,6 +164,9 @@ export function fakeMailbox(variant: string | null): Mailbox {
       const after = Number(/after:(\d+)/.exec(query)?.[1] ?? '0') * 1000
       if (variant === 'mail-failed' && phrase === 'PDV za') {
         throw new Error('Gmail did not answer the search. Sync again later')
+      }
+      if (variant === 'mail-rate-limited') {
+        throw new MailRateLimited()
       }
       const found = mails.filter((mail) => fold(mail.subject).includes(fold(phrase)) && Date.parse(mail.at) > after).map((mail) => mail.id)
       const start = pageToken === null ? 0 : Number(pageToken)
@@ -189,22 +201,19 @@ export function fakeMailFolders(variant: string | null, made: FakeMadeFile[] = P
       if (!known.includes(where)) {
         return { kind: 'refused', reason: `The fake Drive holds no folder at ${where}` }
       }
-      const wanted = new Set(below.map((folders) => folders.join('/')))
-      const inFolder = (file: { readonly folder: readonly string[]; readonly folders: readonly string[] }): boolean => file.folder.join('/') === where && wanted.has(file.folders.join('/'))
+      const inFolder = (file: { readonly folder: readonly string[]; readonly folders: readonly string[] }): boolean =>
+        file.folder.join('/') === where && below.some((path) => path.every((name, index) => file.folders[index] === name))
       const byOthers: Promise<FiledFile>[] = filed.filter(inFolder).map(async (file) => ({
         folders: file.folders,
         name: file.name,
         createdTime: Date.parse(file.created),
         sha256: file.content === null ? null : await sha256Hex(bytesOf(file.content)),
-        filedByApp: false,
+        filedFrom: null,
       }))
-      const byApp: Promise<FiledFile>[] = made.filter(inFolder).map(async (file) => ({ folders: file.folders, name: file.name, createdTime: Date.parse(file.created), sha256: await sha256Hex(file.bytes), filedByApp: true }))
+      const byApp: Promise<FiledFile>[] = made
+        .filter(inFolder)
+        .map(async (file) => ({ folders: file.folders, name: file.name, createdTime: Date.parse(file.created), sha256: await sha256Hex(file.bytes), filedFrom: Date.parse(file.appProperties[MAIL_DATE_PROPERTY] ?? file.created) }))
       return { kind: 'listed', files: await Promise.all([...byOthers, ...byApp]) }
-    },
-
-    async newestFiled(source) {
-      const dates = made.filter((file) => file.appProperties[MAIL_SOURCE_PROPERTY] === source).map((file) => Date.parse(file.appProperties[MAIL_DATE_PROPERTY] ?? ''))
-      return dates.length === 0 ? null : Math.max(...dates)
     },
 
     async create(folder, below, file) {

@@ -87,7 +87,7 @@ export const EMPLOYEE_CODEC: RecordCodec<Employee> = {
     }),
 }
 
-/** The employees, and the one director among them, whom the pay scenarios, the forecast and the payroll check read. */
+/** The employees, and the one director among them, whom the pay scenarios, the forecast and Salaries read. */
 export interface EmployeesReading extends Reading<Employee> {
   /** Null when no row is the director's, or when several are and so none counts. */
   readonly director: Employee | null

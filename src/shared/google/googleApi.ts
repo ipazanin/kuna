@@ -38,3 +38,15 @@ export async function googleFetch(url: string, accessToken: string, init: Reques
 export function isUnauthorized(failure: unknown): boolean {
   return failure instanceof GoogleApiError && failure.status === 401
 }
+
+const RATE_LIMIT_REASONS: readonly string[] = ['rateLimitExceeded', 'userRateLimitExceeded']
+
+/** Whether Google asked the app to slow down: a 429, or a 403 whose reason is a rate limit. */
+export function isRateLimited(failure: unknown): boolean {
+  return failure instanceof GoogleApiError && (failure.status === 429 || (failure.status === 403 && RATE_LIMIT_REASONS.includes(failure.reason ?? '')))
+}
+
+/** Google's backoff before the retry with this index, from 0: 1, 2, 4 seconds and on, each with up to a second more at random. */
+export function backoff(retry: number): number {
+  return 2 ** retry * 1000 + Math.floor(Math.random() * 1000)
+}

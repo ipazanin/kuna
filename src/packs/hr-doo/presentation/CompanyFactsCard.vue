@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -8,7 +8,8 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { parseCivilDate } from '../../../shared/calendar/civilDate'
 import { folderPathOf } from '../../../shared/text/folderPath'
-import { mailAddressesOf } from '../../../features/mail/domain/mailSource'
+import { mailAddressesOf, missingTerms, missingWords } from '../../../features/mail/domain/mailSource'
+import type { MailTermPiece } from '../../../features/mail/domain/mailSource'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import type { CitReturn, CompanyFacts, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
 import { dayLabel } from '../ruleset/presentation/ruleWording'
@@ -31,13 +32,61 @@ const emit = defineEmits<{
 }>()
 
 /** The facts other screens link to, by the id their link's hash names. */
-const LINKED_FACTS = ['company-registered', 'owner-loan-interest', 'accountant-folders', 'accountant-mail']
+const LINKED_FACTS = ['company-registered', 'owner-loan-interest', 'accountant-mail']
+
+type FolderFact = 'payrollFolder' | 'vatReturnsFolder' | 'incomingInvoicesFolder'
+
+/** The accountant's three kinds of mail, each with its switch, its subject and its folder. */
+const MAIL_KINDS = [
+  {
+    id: 'payroll',
+    on: 'payrollMailSync',
+    subject: 'payrollMailSubject',
+    folder: 'payrollFolder',
+    label: 'Read the payroll mail',
+    subjectLabel: 'Payroll subject starts with',
+    subjectHelp: 'The words before the month, such as Plaća za.',
+    folderLabel: 'Payroll folder',
+    folderHelp: 'Where it would go in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
+  },
+  {
+    id: 'vat',
+    on: 'vatMailSync',
+    subject: 'vatMailSubject',
+    folder: 'vatReturnsFolder',
+    label: 'Read the VAT return mail',
+    subjectLabel: 'VAT return subject starts with',
+    subjectHelp: 'The words before the period, such as PDV za.',
+    folderLabel: 'VAT returns folder',
+    folderHelp: 'Where it would go in Google Drive, as a path from My Drive, with a folder for each year inside.',
+  },
+  {
+    id: 'invoices',
+    on: 'invoicesMailSync',
+    subject: 'invoicesMailSubject',
+    folder: 'incomingInvoicesFolder',
+    label: "Read the accountant's invoice mail",
+    subjectLabel: 'Invoice subject starts with',
+    subjectHelp: "The words the accountant's own invoice mail starts with, such as Račun za.",
+    folderLabel: "Accountant's invoices folder",
+    folderHelp: 'Where it would go in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
+  },
+] as const
+
+type MailKind = (typeof MAIL_KINDS)[number]
+
+/** What a kind switched on lacks before a sync can read it, or nothing while it is off. */
+function missingFor(kind: MailKind): MailTermPiece[] {
+  const facts = props.facts
+  return facts[kind.on] ? missingTerms({ senders: facts.accountantMailFrom, subject: facts[kind.subject].trim(), folder: facts[kind.folder] }) : []
+}
 
 const route = useRoute()
 const revealed = computed(
   () =>
     LINKED_FACTS.includes(route.hash.slice(1)) ||
-    Object.keys(props.errors).length > 0,
+    Object.keys(props.errors).length > 0 ||
+    MAIL_KINDS.some((kind) => missingFor(kind).length > 0),
 )
 const summary = computed(() => {
   const { companyRegistered, ownerLoanInterest } = props.saved
@@ -73,45 +122,38 @@ function updateLoanInterest(text: string): void {
 }
 
 /** The folder paths as typed, so a trailing slash survives until the next folder name is written. */
-const vatReturnsFolderText = ref(props.facts.vatReturnsFolder.join('/'))
-const payrollFolderText = ref(props.facts.payrollFolder.join('/'))
+const folderTexts = reactive<Record<FolderFact, string>>({
+  payrollFolder: props.facts.payrollFolder.join('/'),
+  vatReturnsFolder: props.facts.vatReturnsFolder.join('/'),
+  incomingInvoicesFolder: props.facts.incomingInvoicesFolder.join('/'),
+})
 watch(
-  () => [props.facts.vatReturnsFolder, props.facts.payrollFolder] as const,
-  ([vatReturns, payroll]) => {
-    if (JSON.stringify(folderPathOf(vatReturnsFolderText.value)) !== JSON.stringify(vatReturns)) vatReturnsFolderText.value = vatReturns.join('/')
-    if (JSON.stringify(folderPathOf(payrollFolderText.value)) !== JSON.stringify(payroll)) payrollFolderText.value = payroll.join('/')
+  () => MAIL_KINDS.map((kind) => props.facts[kind.folder]),
+  (folders) => {
+    for (const [index, kind] of MAIL_KINDS.entries()) {
+      const folder = folders[index] ?? []
+      if (JSON.stringify(folderPathOf(folderTexts[kind.folder])) !== JSON.stringify(folder)) folderTexts[kind.folder] = folder.join('/')
+    }
   },
 )
 
-function updateVatReturnsFolder(text: string): void {
-  vatReturnsFolderText.value = text
-  updateFact('vatReturnsFolder', folderPathOf(text))
+function updateFolder(fact: FolderFact, text: string): void {
+  folderTexts[fact] = text
+  updateFact(fact, folderPathOf(text))
 }
 
-function updatePayrollFolder(text: string): void {
-  payrollFolderText.value = text
-  updateFact('payrollFolder', folderPathOf(text))
-}
-
-/** The accountant's addresses and the invoices folder as typed, for the same reason. */
+/** The accountant's addresses as typed, so a trailing comma survives until the next address is written. */
 const accountantMailText = ref(props.facts.accountantMailFrom.join(', '))
-const invoicesFolderText = ref(props.facts.incomingInvoicesFolder.join('/'))
 watch(
-  () => [props.facts.accountantMailFrom, props.facts.incomingInvoicesFolder] as const,
-  ([senders, invoices]) => {
+  () => props.facts.accountantMailFrom,
+  (senders) => {
     if (JSON.stringify(mailAddressesOf(accountantMailText.value)) !== JSON.stringify(senders)) accountantMailText.value = senders.join(', ')
-    if (JSON.stringify(folderPathOf(invoicesFolderText.value)) !== JSON.stringify(invoices)) invoicesFolderText.value = invoices.join('/')
   },
 )
 
 function updateAccountantMail(text: string): void {
   accountantMailText.value = text
   updateFact('accountantMailFrom', mailAddressesOf(text))
-}
-
-function updateInvoicesFolder(text: string): void {
-  invoicesFolderText.value = text
-  updateFact('incomingInvoicesFolder', folderPathOf(text))
 }
 
 const citReturnItems: { value: CitReturn; label: string }[] = [
@@ -166,62 +208,40 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
         description="The default for assets. An asset row can still say otherwise."
         @update:model-value="updateFact('depreciationDoubled', $event)"
       />
-      <USwitch
-        :model-value="facts.accountantSync"
-        label="Read the accountant's files on sync"
-        description="Each sync reads the VAT returns and salary workbooks of the folders below that are named, for Year, Taxes. Off keeps the last read on this device."
-        data-testid="accountant-sync"
-        @update:model-value="updateFact('accountantSync', $event)"
-      />
-      <div id="accountant-folders" class="grid gap-4 sm:grid-cols-2">
-        <UFormField
-          label="VAT returns folder"
-          help="Where Year, Taxes reads the accountant's VAT returns in Google Drive, as a path from My Drive. Blank reads none."
-          data-testid="vat-returns-folder"
-        >
-          <UInput :model-value="vatReturnsFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateVatReturnsFolder(String($event))" />
-        </UFormField>
-        <UFormField
-          label="Payroll folder"
-          help="Where Year, Taxes reads the accountant's salary workbooks, with a folder for each year and month inside. Blank reads none."
-          data-testid="payroll-folder"
-        >
-          <UInput :model-value="payrollFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updatePayrollFolder(String($event))" />
-        </UFormField>
-      </div>
       <div id="accountant-mail" class="flex flex-col gap-4 border-t border-default pt-4" data-testid="accountant-mail">
         <div class="flex flex-col gap-1">
           <h3 class="text-sm font-medium text-highlighted">The accountant's mail</h3>
           <p class="text-sm text-muted">
-            Each sync looks in Gmail for the kinds whose subject is set, and the Mail card lists what it would file into the folders above. It files nothing yet.
+            Each sync looks in Gmail for the kinds switched on, and the Mail card lists what it would file into their folders. It files nothing yet, and nothing in the app reads those files.
           </p>
         </div>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField
-            label="The accountant mails from"
-            :error="errors.accountantMailFrom ?? false"
-            help="Mail addresses, comma separated. Blank leaves the accountant's mail unread."
-            class="sm:col-span-2"
-            data-testid="accountant-mail-from"
-          >
-            <UInput :model-value="accountantMailText" inputmode="email" autocapitalize="off" :spellcheck="false" placeholder="Not read" class="w-full" @update:model-value="updateAccountantMail(String($event))" />
-          </UFormField>
-          <UFormField label="Payroll subject starts with" :error="errors.payrollMailSubject ?? false" help="The words before the month, such as Plaća za." data-testid="payroll-mail-subject">
-            <UInput :model-value="facts.payrollMailSubject" placeholder="Not read" class="w-full" @update:model-value="updateFact('payrollMailSubject', String($event))" />
-          </UFormField>
-          <UFormField label="VAT return subject starts with" :error="errors.vatMailSubject ?? false" help="The words before the period, such as PDV za." data-testid="vat-mail-subject">
-            <UInput :model-value="facts.vatMailSubject" placeholder="Not read" class="w-full" @update:model-value="updateFact('vatMailSubject', String($event))" />
-          </UFormField>
-          <UFormField label="Invoice subject starts with" :error="errors.invoicesMailSubject ?? false" help="The accountant's own invoice, such as Račun za." data-testid="invoices-mail-subject">
-            <UInput :model-value="facts.invoicesMailSubject" placeholder="Not read" class="w-full" @update:model-value="updateFact('invoicesMailSubject', String($event))" />
-          </UFormField>
-          <UFormField
-            label="Accountant's invoices folder"
-            help="Where the accountant's invoices go in Google Drive, as a path from My Drive, with a folder for each year and month inside."
-            data-testid="incoming-invoices-folder"
-          >
-            <UInput :model-value="invoicesFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateInvoicesFolder(String($event))" />
-          </UFormField>
+        <UFormField
+          label="The accountant mails from"
+          :error="errors.accountantMailFrom ?? false"
+          help="Mail addresses, comma separated, which every kind below searches for."
+          data-testid="accountant-mail-from"
+        >
+          <UInput :model-value="accountantMailText" inputmode="email" autocapitalize="off" :spellcheck="false" placeholder="Not read" class="w-full" @update:model-value="updateAccountantMail(String($event))" />
+        </UFormField>
+        <div class="flex flex-col divide-y divide-default">
+          <section v-for="kind in MAIL_KINDS" :key="kind.id" class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0" :data-testid="`${kind.id}-mail-kind`">
+            <USwitch
+              :model-value="facts[kind.on]"
+              :label="kind.label"
+              description="Off makes no Gmail or Drive call for it."
+              :data-testid="`${kind.id}-mail-sync`"
+              @update:model-value="updateFact(kind.on, $event)"
+            />
+            <p v-if="missingFor(kind).length > 0" class="text-sm text-warning" data-testid="mail-kind-missing">It is on, but has {{ missingWords(missingFor(kind)) }}.</p>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <UFormField :label="kind.subjectLabel" :error="errors[kind.subject] ?? false" :help="kind.subjectHelp" :data-testid="`${kind.id}-mail-subject`">
+                <UInput :model-value="facts[kind.subject]" placeholder="Not set" class="w-full" @update:model-value="updateFact(kind.subject, String($event))" />
+              </UFormField>
+              <UFormField :label="kind.folderLabel" :help="kind.folderHelp" :data-testid="`${kind.id}-mail-folder`">
+                <UInput :model-value="folderTexts[kind.folder]" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateFolder(kind.folder, String($event))" />
+              </UFormField>
+            </div>
+          </section>
         </div>
       </div>
     </div>

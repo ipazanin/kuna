@@ -3,12 +3,13 @@ import { accountsByIban } from '../../imports/application/importStatements'
 import type { LoadedImportFile } from '../../imports/application/importStatements'
 import { camtStatementHead } from '../../imports/domain/camtStatement'
 import { statementPdfNaming, statementXmlNaming } from '../domain/statementMailFiling'
+import { sourceTerms } from '../domain/mailSource'
 import type { AttachmentNaming } from '../domain/mailSource'
 import type { MailSource } from './mailFiling'
 
 /**
  * The bank's statement mail, filed into the statements folder, which the statements step of the
- * same sync then reads. A PDF is named by its rule, and a camt XML is read as Import reads it and
+ * same sync then reads. A sender and a subject turn it on. A PDF is named by its rule, and a camt XML is read as Import reads it and
  * named by its label and the account the books give its IBAN. Any other attachment, such as the
  * HTML copy the bank mails beside each PDF, is passed over. `timeZone` is this device's, which the
  * day of a mail is read in.
@@ -21,7 +22,7 @@ export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer)
     dryRun: false,
     terms: (workbook) => {
       const { statementsMailFrom, statementsMailSubject, statementsFolder } = workbook.settings
-      return statementsMailFrom.length === 0 || statementsMailSubject === '' ? null : { senders: statementsMailFrom, subject: statementsMailSubject, folder: statementsFolder }
+      return sourceTerms(statementsMailFrom.length > 0 && statementsMailSubject !== '', { senders: statementsMailFrom, subject: statementsMailSubject, folder: statementsFolder })
     },
     name: (message, terms, reading) =>
       Promise.all(

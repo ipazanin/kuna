@@ -277,7 +277,7 @@ function money(amount: number): string {
   return amountText(moneyFromAmount(amount))
 }
 
-/** The folders of the fake Drive the made-up books name, which the fake statements and accountant folders answer for. */
+/** The folders of the fake Drive the made-up books name, which the fake statements folder and the fake mail folders answer for. */
 export const FAKE_FOLDERS = {
   statements: ['finance', 'statements'],
   vatReturns: ['finance', 'vat-returns'],

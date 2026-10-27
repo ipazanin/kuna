@@ -116,18 +116,39 @@ describe('the VAT return and invoice mail', () => {
   })
 
   it('files the invoice PDF by the day it was mailed in Croatia, whatever month the subject names', () => {
-    const late = invoiceNamings(mail('Račun za 8/2026', ['142-1-1_Example.pdf', 'Opis.pdf'], '2026-09-30T22:30:00Z'), INVOICES)
+    const late = invoiceNamings(mail('Račun za 8/2026', ['142-1-1_Example.pdf', 'Opis.pdf'], '2026-09-30T22:30:00Z'), 'Račun za', INVOICES)
 
     expect(named(late)).toEqual(['2026-incoming-invoices/2026-10/2026-10-01-accounting.pdf', 'unmatched Opis.pdf'])
+  })
+})
+
+describe("the accountant's subject words", () => {
+  it('take only mail whose subject starts with them, past RE: and FW:, whatever the case and the Croatian characters, as Gmail finds them anywhere in a subject', () => {
+    const invoice = (subject: string) => named(invoiceNamings(mail(subject, ['142-1-1_Example.pdf']), 'Račun za', INVOICES))
+
+    expect(invoice('Račun za 9/2026')).toEqual(['2026-incoming-invoices/2026-10/2026-10-05-accounting.pdf'])
+    expect(invoice('  RE: racun ZA 9/2026')).toEqual(['2026-incoming-invoices/2026-10/2026-10-05-accounting.pdf'])
+    expect(invoice('Upit: Račun za rujan')).toEqual(['unmatched 142-1-1_Example.pdf'])
+    expect(invoiceNamings(mail('Opomena, Račun za 9/2026', ['142-1-1_Example.pdf']), 'Račun za', INVOICES)).toEqual([
+      { kind: 'unmatched', attachment: { id: '0', name: '142-1-1_Example.pdf' }, reason: 'The subject does not start with Račun za.' },
+    ])
+  })
+
+  it('hold the payroll and VAT mail to the same rule', () => {
+    expect(payrollNamings(mail('Pitanje: Plaća za 9/2026', ['Example plaća 9 2026.xlsx']), 'Plaća za', PAYROLL, [])).toMatchObject([{ kind: 'unmatched', reason: 'The subject does not start with Plaća za.' }])
+    expect(vatNamings(mail('Fwd: Upit, PDV za 8/2026', ['PDV 8 2026_Example.xlsx']), 'PDV za', VAT)).toMatchObject([{ kind: 'unmatched', reason: 'The subject does not start with PDV za.' }])
+    expect(payrollNamings(mail('Plaća za rujan', ['Example plaća 9 2026.xlsx']), 'Plaća za', PAYROLL, [])).toMatchObject([{ kind: 'unmatched', reason: 'The subject names no month, such as 9/2026.' }])
   })
 })
 
 const FACTS: CompanyFacts = {
   ...COMPANY_FACT_SETTINGS.defaults,
   accountantMailFrom: ['office@accountant.example.com'],
+  payrollMailSync: true,
+  vatMailSync: true,
   payrollMailSubject: 'Plaća za',
   vatMailSubject: 'PDV za',
-  invoicesMailSubject: '',
+  invoicesMailSubject: 'Račun za',
   payrollFolder: PAYROLL,
   vatReturnsFolder: VAT,
   incomingInvoicesFolder: INVOICES,
@@ -136,30 +157,53 @@ const FACTS: CompanyFacts = {
 async function planVat(mails: readonly TestMail[], filed: readonly TestFiled[], facts: CompanyFacts = FACTS) {
   const mailbox = testMailbox(mails)
   const folders = testFolders(filed)
+  let opened = 0
   const plan = await fileMail({
-    mailbox,
-    folders,
+    open: async () => {
+      opened += 1
+      return { mailbox, folders }
+    },
     sources: ACCOUNTANT_MAIL_SOURCES,
     workbook: exampleStudio({ companyFacts: facts, employees: [director()] }),
     sinceStart: Date.parse('2025-12-31T23:00:00Z'),
+    years: [2026],
     hash: hashOf,
     report: () => {},
   })
   const vat = plan.sources.find((source) => source.id === 'hr-doo.vat-returns')
   const entries: readonly PlanEntry[] = vat?.kind === 'planned' ? vat.entries : []
-  return { plan, mailbox, folders, kinds: entries.map((entry) => entry.kind), entries }
+  return { plan, mailbox, folders, opened, kinds: entries.map((entry) => entry.kind), entries }
 }
 
 const AUGUST = (at: string, content: string): TestMail => ({ id: `vat-${at}`, subject: 'RE: PDV za 8/2026', at, attachments: [['PDV 8 2026_Example.xlsx', content]] })
-const FILED_AUGUST = (content: string | null, filedByApp = false): TestFiled => ({ folders: ['2026-vat-returns'], name: '2026-08-pdv.xlsx', created: '2026-09-15T10:00:00Z', content, filedByApp })
+const FILED_AUGUST = (content: string | null, filedByApp = false): TestFiled => ({
+  folders: ['2026-vat-returns'],
+  name: '2026-08-pdv.xlsx',
+  created: '2026-09-15T10:00:00Z',
+  content,
+  ...(filedByApp ? { filedFrom: '2026-09-14T12:00:00Z' } : {}),
+})
 
 describe("the accountant's resends", () => {
-  it('runs the kinds whose subject is set, and none without the sender', async () => {
-    const { plan } = await planVat([], [])
-    const off = await planVat([], [], { ...FACTS, accountantMailFrom: [] })
+  it('runs only the kinds switched on, and makes no call for the others', async () => {
+    const { plan, mailbox } = await planVat([], [])
+    const off = await planVat([], [], { ...FACTS, payrollMailSync: false, vatMailSync: false })
 
     expect(plan.sources.map((source) => source.id)).toEqual(['hr-doo.payroll', 'hr-doo.vat-returns'])
+    expect(mailbox.queries.map((query) => /subject:"([^"]*)"/.exec(query)?.[1])).toEqual(['Plaća za', 'PDV za'])
     expect(off.plan.sources).toEqual([])
+    expect(off.opened).toBe(0)
+  })
+
+  it('fails a kind switched on without the sender, the subject or the folder, naming what it lacks, before any call', async () => {
+    const { plan, opened } = await planVat([], [], { ...FACTS, accountantMailFrom: [], vatMailSync: false, invoicesMailSync: true, incomingInvoicesFolder: [] })
+
+    expect(plan.sources).toEqual([
+      { kind: 'failed', id: 'hr-doo.payroll', label: 'Payroll', reason: 'It is on, but has no sender on Settings, General' },
+      { kind: 'failed', id: 'hr-doo.invoices', label: "Accountant's invoices", reason: 'It is on, but has no sender and no folder on Settings, General' },
+    ])
+    expect(planLine(plan)).toBe("Payroll: It is on, but has no sender on Settings, General. Accountant's invoices: It is on, but has no sender and no folder on Settings, General.")
+    expect(opened).toBe(0)
   })
 
   it('only lists what a new return would file, and files nothing', async () => {

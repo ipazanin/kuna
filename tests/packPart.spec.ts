@@ -23,15 +23,15 @@ describe('the pack part', () => {
     expect(workbook.rowsKeptWhole.size).toBeGreaterThan(0)
   })
 
-  it('puts drafted company facts on the books, so the steps a save of them switches on read before it', () => {
-    const facts = { ...hrDooWorkbook(workbook).companyFacts, accountantSync: false }
+  it('puts drafted company facts on the books, so the mail a save of them switches on is read before it', () => {
+    const facts = { ...hrDooWorkbook(workbook).companyFacts, accountantMailFrom: ['office@accountant.example.com'], payrollMailSync: true, payrollMailSubject: 'Plaća za', payrollFolder: ['finance', 'payroll'] }
     const drafted = hrDooPack.companyFacts!.withFacts(workbook, facts)
-    const accountant = hrDooPack.syncSteps[0]!
+    const payroll = hrDooPack.mailSources[0]!
 
     expect(hrDooWorkbook(drafted).companyFacts).toEqual(facts)
     expect(drafted.transactions).toBe(workbook.transactions)
-    expect(accountant.on(workbook)).toBe(true)
-    expect(accountant.on(drafted)).toBe(false)
+    expect(payroll.terms(workbook)).toEqual({ kind: 'off' })
+    expect(payroll.terms(drafted)).toMatchObject({ kind: 'on', terms: { senders: ['office@accountant.example.com'], subject: 'Plaća za' } })
   })
 
   it('leaves core as it is without the pack, which then reads none of its records and reports its keys as unknown', () => {

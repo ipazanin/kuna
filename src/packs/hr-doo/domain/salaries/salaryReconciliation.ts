@@ -6,16 +6,11 @@ import { weekdaysBetween, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
-import { fold, normaliseIban } from '../../../../shared/text/fold'
-import { findLocalUnit } from '../../ruleset/localUnits'
+import { ZERO, negateMoney } from '../../../../shared/money/money'
+import { normaliseIban } from '../../../../shared/text/fold'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
-import { salaryRules } from '../accountant/payrollReconciliation'
-import { outsidePayroll } from '../accountant/salaryWorkbook'
-import type { SalaryWorkbook } from '../accountant/salaryWorkbook'
 import { weekdaysEmployed } from '../employees/employees'
 import type { Employee } from '../employees/employees'
 import type { HrDooWorkbook } from '../hrDooPart'
@@ -28,7 +23,7 @@ import { payrollMonth } from '../payroll/payrollMonth'
 import type { PayrollMonth, PayrollWarning } from '../payroll/payrollMonth'
 import { CONTRIBUTION_ACCOUNTS } from './contributionAccounts'
 
-/** The lines of one employee's pay that the payslip and the engine both state, named as `PayrollMonth` names them. */
+/** The lines of one employee's pay, named as `PayrollMonth` names them. */
 export const EMPLOYEE_LINES = [
   'employerCost',
   'health',
@@ -40,7 +35,6 @@ export const EMPLOYEE_LINES = [
   'taxableIncome',
   'incomeTax',
   'net',
-  'nontaxablePayments',
   'paidToEmployee',
 ] as const satisfies readonly (keyof PayrollMonth)[]
 
@@ -51,12 +45,10 @@ export const CONTRIBUTION_LINES = ['pensionPillarOne', 'pensionPillarTwo', 'heal
 
 export type ContributionLine = (typeof CONTRIBUTION_LINES)[number]
 
-/** One line as each source states it. */
+/** One line as the app and the bank state it. */
 export interface LineCheck<Line extends string> {
   readonly line: Line
-  /** Null without a payslip read. */
-  readonly payslip: Money | null
-  /** Null when the engine did not run, or cannot work the line out without the payslip. */
+  /** Null when the engine did not run, or cannot work the line out from the books. */
   readonly app: TracedFigure | null
   /** Null for a line the bank does not pay apart, or a payday the ledger has no rows for yet. */
   readonly bank: TracedFigure | null
@@ -64,24 +56,19 @@ export interface LineCheck<Line extends string> {
   readonly agrees: boolean
 }
 
-export type EngineRun = { readonly kind: 'run'; readonly months: readonly PayrollMonth[] } | { readonly kind: 'not-run'; readonly reason: string }
+export type EngineRun = { readonly kind: 'run'; readonly month: PayrollMonth } | { readonly kind: 'not-run'; readonly reason: string }
 
 /** One employee on one payday. */
 export interface EmployeePayday {
   readonly employee: Employee
-  /** The payslips whose payout date falls in the payday's month, one per worked month. */
-  readonly payslips: readonly SalaryWorkbook[]
   readonly engine: EngineRun
   /** The bank column is filled for what was paid to the employee only. */
   readonly lines: readonly LineCheck<EmployeeLine>[]
 }
 
-/** Something a person has to resolve, since no source wins over another. */
+/** Something a person has to resolve, since neither source wins over the other. */
 export type SalaryProblem =
   | { readonly kind: 'line-differs'; readonly employee: Employee | null; readonly check: LineCheck<EmployeeLine> }
-  | { readonly kind: 'payslip-not-read'; readonly employee: Employee }
-  | { readonly kind: 'payslip-of-no-employee'; readonly payslip: SalaryWorkbook }
-  | { readonly kind: 'payslip-facts-differ'; readonly employee: Employee; readonly payslip: SalaryWorkbook; readonly fact: 'residence-city' | 'pension-pillar-2' }
   | { readonly kind: 'engine-not-run'; readonly employee: Employee; readonly reason: string }
   | { readonly kind: 'no-account'; readonly employee: Employee }
   | { readonly kind: 'no-pay-rows'; readonly employee: Employee }
@@ -119,15 +106,14 @@ interface PayPart {
 }
 
 /**
- * The payslips, the payroll engine and the bank, per payday month, employee and line. The bank
- * column comes from the ledger alone: what was paid to an employee is every row to one of their
- * accounts with a part in a `salary` or `tax-free:` category, as booked before any split, and each
- * contribution is the payroll tax rows to its payee, any other payee being the income tax. A
- * payslip belongs to the employee its tab names and to the month its payout date falls in. A month
- * without a payslip runs each employee on the agreed gross of their row, a director at least at the
- * floor, for the month before it, the month salaries are paid in arrears for.
+ * The payroll engine and the bank, per payday month, employee and line. The bank column comes from
+ * the ledger alone: what was paid to an employee is every row to one of their accounts with a part
+ * in a `salary` or `tax-free:` category, as booked before any split, and each contribution is the
+ * payroll tax rows to its payee, any other payee being the income tax. The engine runs each
+ * employee on the agreed gross of their row, a director at least at the floor, for the month before
+ * the payday, the month salaries are paid in arrears for.
  */
-export function salaryReconciliation(workbook: HrDooWorkbook, payslips: readonly SalaryWorkbook[], rules: RuleSource = ruleValue): SalaryReconciliation {
+export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource = ruleValue): SalaryReconciliation {
   const window = ledgerWindowOf(workbook.transactions)
   if (window === null) {
     return { paydays: [], extras: [] }
@@ -151,7 +137,6 @@ export function salaryReconciliation(workbook: HrDooWorkbook, payslips: readonly
   )
   const extras = employees.flatMap((employee) => extrasOf(employee, payParts, taxFree, rules))
   const overCaps = extras.flatMap((extra) => extra.usage.filter((usage) => usage.excess.amount > 0).map((usage) => ({ payday: lastPaidMonth(usage), employee: extra.employee, usage })))
-  const named = (payslip: SalaryWorkbook) => employees.find((employee) => employee.name !== '' && fold(employee.name) === fold(payslip.employeeName)) ?? null
   const inLedger = (month: MonthKey) => window.firstMonth <= month && month <= window.partMonth
   const expected = (employee: Employee, payday: MonthKey) =>
     window.firstCompleteMonth <= payday && payday <= window.lastCompleteMonth && weekdaysEmployed(employee, addMonths(payday, -1)) !== null
@@ -160,7 +145,6 @@ export function salaryReconciliation(workbook: HrDooWorkbook, payslips: readonly
     ...new Set([
       ...payParts.map((pay) => monthOf(pay.part.date)),
       ...taxRows.map((row) => monthOf(row.date)),
-      ...payslips.map((payslip) => monthOf(payslip.paidOn)),
       ...employees.flatMap((employee) => monthsFrom(window.firstCompleteMonth, window.lastCompleteMonth).filter((payday) => expected(employee, payday))),
     ]),
   ]
@@ -168,46 +152,29 @@ export function salaryReconciliation(workbook: HrDooWorkbook, payslips: readonly
     .sort()
 
   const paydays = paydayMonths.map((payday): SalaryPayday => {
-    const payslipsOfDay = payslips.filter((payslip) => monthOf(payslip.paidOn) === payday)
     const partsOfDay = payParts.filter((pay) => monthOf(pay.part.date) === payday)
-    const people = employees.filter(
-      (employee) => expected(employee, payday) || partsOfDay.some((pay) => pay.employee === employee) || payslipsOfDay.some((payslip) => named(payslip) === employee),
-    )
+    const people = employees.filter((employee) => expected(employee, payday) || partsOfDay.some((pay) => pay.employee === employee))
     const unpaid = payday === window.partMonth
-    const problems: SalaryProblem[] = payslipsOfDay.filter((payslip) => named(payslip) === null).map((payslip) => ({ kind: 'payslip-of-no-employee', payslip }))
+    const problems: SalaryProblem[] = []
     const employeePaydays = people.map((employee): EmployeePayday => {
-      const own = payslipsOfDay.filter((payslip) => named(payslip) === employee)
-      const engine = engineRun(employee, payday, own, rules)
+      const engine = engineRun(employee, payday, rules)
       const bank = paidTo(employee, partsOfDay.filter((pay) => pay.employee === employee), payCategories, payday)
-      if (own.length === 0) problems.push({ kind: 'payslip-not-read', employee })
-      problems.push(...own.flatMap((payslip) => factsDiffering(employee, payslip)))
       if (engine.kind === 'not-run') problems.push({ kind: 'engine-not-run', employee, reason: engine.reason })
-      else problems.push(...engine.months.flatMap((month) => month.warnings).map((warning): SalaryProblem => ({ kind: 'below-minimum-wage', employee, warning })))
+      else problems.push(...engine.month.warnings.map((warning): SalaryProblem => ({ kind: 'below-minimum-wage', employee, warning })))
       if (employee.ibans.length === 0) problems.push({ kind: 'no-account', employee })
       else if (bank === null && !unpaid) problems.push({ kind: 'no-pay-rows', employee })
-      const lines = EMPLOYEE_LINES.map((line) =>
-        lineCheck(
-          line,
-          own.length === 0 ? null : sumMoney(own.map((payslip) => payslipLine(payslip, line))),
-          appLine(engine, line, own.length > 0),
-          line === 'paidToEmployee' ? bank : null,
-        ),
-      )
+      const lines = EMPLOYEE_LINES.map((line) => lineCheck(line, appLine(engine, line), line === 'paidToEmployee' ? bank : null))
       problems.push(...lines.filter((check) => !check.agrees).map((check): SalaryProblem => ({ kind: 'line-differs', employee, check })))
-      return { employee, payslips: own, engine, lines }
+      return { employee, engine, lines }
     })
     const taxRowsOfDay = taxRows.filter((row) => monthOf(row.date) === payday)
     const employeeChecks = (line: ContributionLine) => employeePaydays.flatMap((entry) => entry.lines.filter((check) => check.line === line))
     const contributions = CONTRIBUTION_LINES.map((line) => {
-      const checks = employeeChecks(line)
-      const payslip = everyStated(checks.map((check) => check.payslip))
-      const app = everyStated(checks.map((check) => check.app))
+      const app = everyStated(employeeChecks(line).map((check) => check.app))
       const bank = unpaid && taxRowsOfDay.length === 0 ? null : paidToPayee(line, taxRowsOfDay, taxCategories, payday)
-      return lineCheck(line, payslip === null ? null : sumMoney(payslip), app === null ? null : summedFigure(app), bank)
+      return lineCheck(line, app === null ? null : summedFigure(app), bank)
     })
-    // A payslip that differs from the engine is the employee's problem already, so the company's line reports a bank that says the same as neither.
-    const bankDiffers = (check: LineCheck<ContributionLine>) => !check.agrees && check.bank !== null && check.bank.amount !== check.payslip && check.bank.amount !== check.app?.amount
-    problems.push(...contributions.filter(bankDiffers).map((check): SalaryProblem => ({ kind: 'line-differs', employee: null, check })))
+    problems.push(...contributions.filter((check) => !check.agrees).map((check): SalaryProblem => ({ kind: 'line-differs', employee: null, check })))
     const strays = partsOfDay.filter((pay) => pay.employee === null)
     if (strays.length > 0) problems.push({ kind: 'pay-to-no-employee', paid: paidFigure('Paid to no employee on the employees tab', strays, payCategories, payday) })
     problems.push(...overCaps.filter((over) => over.payday === payday).map(({ employee, usage }): SalaryProblem => ({ kind: 'over-cap', employee, usage })))
@@ -216,21 +183,8 @@ export function salaryReconciliation(workbook: HrDooWorkbook, payslips: readonly
   return { paydays, extras }
 }
 
-/**
- * The engine on each payslip of the payday, with the payslip's own city, pillar II and payments,
- * or without a payslip on the row's agreed gross for the month before the payday.
- */
-function engineRun(employee: Employee, payday: MonthKey, payslips: readonly SalaryWorkbook[], rules: RuleSource): EngineRun {
-  if (payslips.length > 0) {
-    const months: PayrollMonth[] = []
-    for (const payslip of payslips) {
-      const run = salaryRules(payslip, employee, weekdaysEmployed(employee, payslip.workedMonth), rules)
-      if (run.kind === 'part-month') return { kind: 'not-run', reason: `${payslip.workedMonth} is a part month, which the engine works out only at the director floor with the days the employment dates give` }
-      if (run.kind === 'unknown-city') return { kind: 'not-run', reason: `the city in the payslip's tax note: ${run.problem}` }
-      months.push(run.payroll)
-    }
-    return { kind: 'run', months }
-  }
+/** The engine on the row's agreed gross for the month before the payday. */
+function engineRun(employee: Employee, payday: MonthKey, rules: RuleSource): EngineRun {
   const worked = addMonths(payday, -1)
   const days = weekdaysEmployed(employee, worked)
   if (!employee.director && employee.agreedGross === null) return { kind: 'not-run', reason: 'the employees tab names no agreed_gross for an employee who is not the director' }
@@ -249,35 +203,12 @@ function engineRun(employee: Employee, payday: MonthKey, payslips: readonly Sala
     employee,
     rules,
   )
-  return { kind: 'run', months: [month] }
+  return { kind: 'run', month }
 }
 
-/** The engine's line, null when it did not run, and for what was paid beside the salary when no payslip lists it. */
-function appLine(engine: EngineRun, line: EmployeeLine, withPayslip: boolean): TracedFigure | null {
-  if (engine.kind === 'not-run' || (!withPayslip && (line === 'nontaxablePayments' || line === 'paidToEmployee'))) {
-    return null
-  }
-  return summedFigure(engine.months.map((month) => month[line]))
-}
-
-/** Tax-free payments are the ones the ruleset knows by name. What the employee is paid leaves out rent and refunds of costs, which ride on the same payroll and are not pay. */
-function payslipLine(payslip: SalaryWorkbook, line: EmployeeLine): Money {
-  switch (line) {
-    case 'nontaxablePayments':
-      return sumMoney(payslip.besideSalary.flatMap((payment) => (payment.kind === 'nontaxable' ? [payment.amount] : [])))
-    case 'paidToEmployee':
-      return subtractMoney(payslip.paidToEmployee, outsidePayroll(payslip))
-    default:
-      return payslip[line]
-  }
-}
-
-function factsDiffering(employee: Employee, payslip: SalaryWorkbook): SalaryProblem[] {
-  const city = findLocalUnit(payslip.residenceCity).unit
-  const problems: SalaryProblem[] = []
-  if (city === null || city !== findLocalUnit(employee.residenceCity).unit) problems.push({ kind: 'payslip-facts-differ', employee, payslip, fact: 'residence-city' })
-  if ((payslip.pensionPillarTwo !== ZERO) !== employee.pensionPillarTwo) problems.push({ kind: 'payslip-facts-differ', employee, payslip, fact: 'pension-pillar-2' })
-  return problems
+/** The engine's line, null when it did not run, and for what was paid to the employee, since the books do not tell the engine what was paid beside the salary. */
+function appLine(engine: EngineRun, line: EmployeeLine): TracedFigure | null {
+  return engine.kind === 'not-run' || line === 'paidToEmployee' ? null : engine.month[line]
 }
 
 /** What the bank paid to the employee, or null when no row reached them. */
@@ -324,15 +255,14 @@ function everyStated<Value>(values: readonly (Value | null)[]): Value[] | null {
   return stated.length < values.length ? null : stated
 }
 
-/** One figure, or the sum of several months' with each month a step. */
+/** One employee's figure, or the sum of everyone's with each a step. */
 function summedFigure(figures: readonly TracedFigure[]): TracedFigure {
   const [only] = figures
   return figures.length === 1 && only !== undefined ? only : summed(only?.label ?? 'Sum', figures, only?.basis ?? 'ledger')
 }
 
-function lineCheck<Line extends string>(line: Line, payslip: Money | null, app: TracedFigure | null, bank: TracedFigure | null): LineCheck<Line> {
-  const stated = [payslip, app?.amount ?? null, bank?.amount ?? null].filter((amount) => amount !== null)
-  return { line, payslip, app, bank, agrees: stated.every((amount) => amount === stated[0]) }
+function lineCheck<Line extends string>(line: Line, app: TracedFigure | null, bank: TracedFigure | null): LineCheck<Line> {
+  return { line, app, bank, agrees: app === null || bank === null || app.amount === bank.amount }
 }
 
 /** The employee's rows in `tax-free:` categories, by year, against the caps. A credit, such as a bonus paid back, is not a payment and is left out. */

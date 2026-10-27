@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { MailRateLimited } from '../src/features/mail/application/mailFiling'
 import { gmailMailbox } from '../src/features/mail/infrastructure/gmailMailbox'
 import { googleMailFolders } from '../src/features/mail/infrastructure/googleMailFolders'
 
@@ -66,11 +67,67 @@ describe('gmailMailbox', () => {
   })
 })
 
+/** A Gmail that answers the first `limited` requests with this rate limit, and then with an empty page. */
+function stubRateLimit(limited: number, answer: () => Response): number[] {
+  const calls: number[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      calls.push(calls.length)
+      return calls.length <= limited ? answer() : Response.json({})
+    }),
+  )
+  return calls
+}
+
+const USER_RATE_LIMIT = JSON.stringify({ error: { code: 403, message: 'User Rate Limit Exceeded', errors: [{ domain: 'usageLimits', reason: 'userRateLimitExceeded', message: 'User Rate Limit Exceeded' }] } })
+
+describe('gmailMailbox asked to slow down', () => {
+  it('waits by Google’s backoff after a 403 rate limit and sends the call again', async () => {
+    const calls = stubRateLimit(2, () => new Response(USER_RATE_LIMIT, { status: 403 }))
+    const waits: number[] = []
+
+    expect(await gmailMailbox('token', async (milliseconds) => void waits.push(milliseconds)).search('q', null)).toEqual({ ids: [], next: null })
+    expect(calls).toHaveLength(3)
+    expect(waits).toHaveLength(2)
+    expect(waits[0]).toBeGreaterThanOrEqual(1000)
+    expect(waits[0]).toBeLessThan(2000)
+    expect(waits[1]).toBeGreaterThanOrEqual(2000)
+    expect(waits[1]).toBeLessThan(3000)
+  })
+
+  it('takes a 429 for a rate limit too, and waits by the same backoff', async () => {
+    const calls = stubRateLimit(1, () => new Response('{}', { status: 429 }))
+    const waits: number[] = []
+
+    await gmailMailbox('token', async (milliseconds) => void waits.push(milliseconds)).search('q', null)
+    expect(calls).toHaveLength(2)
+    expect(waits).toHaveLength(1)
+    expect(waits[0]).toBeGreaterThanOrEqual(1000)
+    expect(waits[0]).toBeLessThan(2000)
+  })
+
+  it('gives up after five retries with a plain sentence, and sends another 403 back at once', async () => {
+    const calls = stubRateLimit(Infinity, () => new Response(USER_RATE_LIMIT, { status: 403 }))
+    const waits: number[] = []
+    const failure = gmailMailbox('token', async (milliseconds) => void waits.push(milliseconds)).attachment('m1', 'a1')
+
+    await expect(failure).rejects.toBeInstanceOf(MailRateLimited)
+    await expect(failure).rejects.toThrow('Gmail asked us to slow down. Sync again in a minute.')
+    expect(calls).toHaveLength(6)
+    expect(waits.map((milliseconds) => Math.floor(milliseconds / 1000))).toEqual([1, 2, 4, 8, 16])
+
+    const forbidden = stubRateLimit(Infinity, () => new Response(JSON.stringify({ error: { code: 403, errors: [{ reason: 'insufficientPermissions' }] } }), { status: 403 }))
+    await expect(gmailMailbox('token', async () => {}).search('q', null)).rejects.toThrow(/^403 from/)
+    expect(forbidden).toHaveLength(1)
+  })
+})
+
 const FOLDER = "mimeType = 'application/vnd.google-apps.folder' and trashed = false"
 const FILES = "mimeType != 'application/vnd.google-apps.folder' and trashed = false"
 
 describe('googleMailFolders', () => {
-  it('lists only the folders on the way to the ones asked for, then their files with when Drive made them, their checksum and whether the app filed them', async () => {
+  it('lists only the folders on the way to the ones asked for and those inside them, then their files with when Drive made them, their checksum and the mail the app filed them from', async () => {
     const pages: Readonly<Record<string, unknown>> = {
       [`'root' in parents and name = 'finance' and ${FOLDER}`]: { files: [{ id: 'finance' }] },
       [`'finance' in parents and name = 'payroll' and ${FOLDER}`]: { files: [{ id: 'payroll' }] },
@@ -86,40 +143,35 @@ describe('googleMailFolders', () => {
           { id: 'm09', name: '2026-09', parents: ['y2026'] },
         ],
       },
-      [`('m09' in parents) and ${FILES}`]: {
+      [`('m08' in parents or 'm09' in parents) and ${FOLDER}`]: { files: [] },
+      [`('y2026' in parents or 'm08' in parents or 'm09' in parents) and ${FILES}`]: {
         files: [
+          { name: '2026-08-salary.xlsx', parents: ['m08'], createdTime: '2026-09-05T10:00:00.000Z', sha256Checksum: 'def' },
           { name: '2026-09-salary.xlsx', parents: ['m09'], createdTime: '2026-10-05T10:00:00.000Z', sha256Checksum: 'abc' },
-          { name: '2026-09-salary', parents: ['m09'], createdTime: '2026-10-06T10:00:00.000Z', appProperties: { 'ledgerboard-mail': 'hr-doo.payroll' } },
+          { name: '2026-09-salary', parents: ['m09'], createdTime: '2026-10-06T10:00:00.000Z', appProperties: { 'ledgerboard-mail': 'hr-doo.payroll', 'ledgerboard-mail-date': '2026-10-05T08:30:00.000Z' } },
         ],
       },
     }
     const requests = stubGoogle((url) => pages[url.searchParams.get('q') ?? ''])
 
-    const listing = await googleMailFolders('token', 'books-file').filesIn(['finance', 'payroll'], [['2026-payroll', '2026-09']])
+    const listing = await googleMailFolders('token', 'books-file').filesIn(['finance', 'payroll'], [['2026-payroll']])
 
     expect(listing).toEqual({
       kind: 'listed',
       files: [
-        { folders: ['2026-payroll', '2026-09'], name: '2026-09-salary.xlsx', createdTime: Date.parse('2026-10-05T10:00:00.000Z'), sha256: 'abc', filedByApp: false },
-        { folders: ['2026-payroll', '2026-09'], name: '2026-09-salary', createdTime: Date.parse('2026-10-06T10:00:00.000Z'), sha256: null, filedByApp: true },
+        { folders: ['2026-payroll', '2026-08'], name: '2026-08-salary.xlsx', createdTime: Date.parse('2026-09-05T10:00:00.000Z'), sha256: 'def', filedFrom: null },
+        { folders: ['2026-payroll', '2026-09'], name: '2026-09-salary.xlsx', createdTime: Date.parse('2026-10-05T10:00:00.000Z'), sha256: 'abc', filedFrom: null },
+        { folders: ['2026-payroll', '2026-09'], name: '2026-09-salary', createdTime: Date.parse('2026-10-06T10:00:00.000Z'), sha256: null, filedFrom: Date.parse('2026-10-05T08:30:00.000Z') },
       ],
     })
+    expect(requests.some((url) => url.searchParams.get('q')?.includes("'y2025'"))).toBe(false)
     expect(requests.at(-1)!.searchParams.get('fields')).toBe('nextPageToken,files(name,parents,createdTime,sha256Checksum,appProperties)')
   })
 
-  it('refuses a path where a folder is missing, and finds the newest mail the app filed for a source by its properties', async () => {
-    stubGoogle((url) => {
-      const query = url.searchParams.get('q') ?? ''
-      if (query.startsWith('appProperties')) {
-        expect(query).toBe("appProperties has { key='ledgerboard-mail' and value='statements' } and trashed = false")
-        return { files: [{ appProperties: { 'ledgerboard-mail-date': '2026-10-01T05:00:00.000Z' } }, { appProperties: { 'ledgerboard-mail-date': '2026-10-20T05:00:00.000Z' } }, { appProperties: {} }] }
-      }
-      return { files: [] }
-    })
-    const folders = googleMailFolders('token', 'books-file')
+  it('refuses a path where a folder is missing', async () => {
+    stubGoogle(() => ({ files: [] }))
 
-    expect(await folders.filesIn(['finance', 'statements'], [['2026-statements']])).toEqual({ kind: 'refused', reason: 'My Drive holds no folder named "finance"' })
-    expect(await folders.newestFiled('statements')).toBe(Date.parse('2026-10-20T05:00:00.000Z'))
+    expect(await googleMailFolders('token', 'books-file').filesIn(['finance', 'statements'], [['2026-statements']])).toEqual({ kind: 'refused', reason: 'My Drive holds no folder named "finance"' })
   })
 })
 

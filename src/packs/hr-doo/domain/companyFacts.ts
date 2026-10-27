@@ -31,27 +31,23 @@ export interface CompanyFacts {
   readonly depreciationDoubled: boolean
   /** The yearly interest rate the owner's loans carry, in basis points, so 200 is 2%. */
   readonly ownerLoanInterest: number
-  /** The Drive folder of the accountant's VAT returns, as folder names from My Drive down. None until one is chosen. */
+  /** The Drive folder the accountant's VAT return mail is filed in, as folder names from My Drive down. None until one is chosen. */
   readonly vatReturnsFolder: readonly string[]
-  /** The Drive folder of the accountant's salary workbooks, as folder names from My Drive down. None until one is chosen. */
+  /** The Drive folder the accountant's payroll mail is filed in, as folder names from My Drive down. None until one is chosen. */
   readonly payrollFolder: readonly string[]
-  /** Whether a sync reads the folders that are named. */
-  readonly accountantSync: boolean
-  /** The addresses the accountant mails from, in lower case. None leaves the accountant's mail unread. */
+  /** The addresses the accountant mails from, in lower case. */
   readonly accountantMailFrom: readonly string[]
-  /** The words the subject of each kind of the accountant's mail starts with. Blank leaves that kind unread. */
+  /** Whether each sync reads each kind of the accountant's mail. Each is off until the person switches it on. */
+  readonly payrollMailSync: boolean
+  readonly vatMailSync: boolean
+  readonly invoicesMailSync: boolean
+  /** The words the subject of each kind of the accountant's mail starts with. */
   readonly payrollMailSubject: string
   readonly vatMailSubject: string
   readonly invoicesMailSubject: string
   /** The Drive folder the accountant's own invoices are filed in, as folder names from My Drive down. None until one is chosen. */
   readonly incomingInvoicesFolder: readonly string[]
 }
-
-export const VAT_RETURNS_FOLDER_KEY = 'hr_vat_returns_folder'
-
-export const PAYROLL_FOLDER_KEY = 'hr_payroll_folder'
-
-export const INCOMING_INVOICES_FOLDER_KEY = 'hr_incoming_invoices_folder'
 
 /** The pack's settings keys, read and checked whatever the owner-pay switch says. */
 export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
@@ -63,8 +59,10 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     ownerLoanInterest: 0,
     vatReturnsFolder: [],
     payrollFolder: [],
-    accountantSync: true,
     accountantMailFrom: [],
+    payrollMailSync: false,
+    vatMailSync: false,
+    invoicesMailSync: false,
     payrollMailSubject: '',
     vatMailSubject: '',
     invoicesMailSubject: '',
@@ -122,8 +120,8 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
   },
   {
-    key: VAT_RETURNS_FOLDER_KEY,
-    note: `The Google Drive folder the accountant's VAT returns are filed in, as a path from My Drive. Year, Taxes reads them. Blank names none.`,
+    key: 'hr_vat_returns_folder',
+    note: "The Google Drive folder the accountant's VAT return mail is filed in, as a path from My Drive, with a folder for each year inside. Blank names none.",
     type: 'text',
     valueOf: (facts) => facts.vatReturnsFolder.join('/'),
     apply: (facts, value) => {
@@ -132,8 +130,8 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
   },
   {
-    key: PAYROLL_FOLDER_KEY,
-    note: `The Google Drive folder the accountant's salary workbooks are filed in, as a path from My Drive, with a folder for each year and month inside. Year, Taxes reads them. Blank names none.`,
+    key: 'hr_payroll_folder',
+    note: "The Google Drive folder the accountant's payroll mail is filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
     type: 'text',
     valueOf: (facts) => facts.payrollFolder.join('/'),
     apply: (facts, value) => {
@@ -142,18 +140,8 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
   },
   {
-    key: 'hr_accountant_sync',
-    note: "TRUE reads the accountant's VAT returns and salary workbooks on every sync from the folders that are named, for Year, Taxes. FALSE leaves the read this device kept.",
-    type: 'flag',
-    valueOf: (facts) => flagText(facts.accountantSync),
-    apply: (facts, value) => {
-      const enabled = booleanOf(value)
-      return enabled === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { accountantSync: enabled })
-    },
-  },
-  {
     key: 'hr_accountant_mail_from',
-    note: "The addresses the accountant mails from, comma separated. Each sync then looks in Gmail for the payroll, the VAT returns and the accountant's invoices whose subject is set. Blank leaves the accountant's mail unread.",
+    note: "The addresses the accountant mails from, comma separated, which each kind of the accountant's mail that is switched on searches Gmail for.",
     type: 'text',
     valueOf: (facts) => facts.accountantMailFrom.join(', '),
     apply: (facts, value) => {
@@ -161,11 +149,14 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       return mailAddressesProblem(senders) ?? withFacts(facts, { accountantMailFrom: senders })
     },
   },
-  mailSubjectDefinition('hr_payroll_mail_subject', 'payrollMailSubject', 'The words the subject of the payroll mail starts with, before the month, such as Plaća za. Blank leaves it unread.'),
-  mailSubjectDefinition('hr_vat_mail_subject', 'vatMailSubject', 'The words the subject of the VAT return mail starts with, before the period, such as PDV za. Blank leaves it unread.'),
-  mailSubjectDefinition('hr_invoices_mail_subject', 'invoicesMailSubject', "The words the subject of the accountant's invoice mail starts with, such as Račun za. Blank leaves it unread."),
+  mailSyncDefinition('hr_payroll_mail_sync', 'payrollMailSync', "TRUE to have each sync read the accountant's payroll mail. FALSE, the default, makes no Gmail or Drive call for it."),
+  mailSyncDefinition('hr_vat_mail_sync', 'vatMailSync', "TRUE to have each sync read the accountant's VAT return mail. FALSE, the default, makes no Gmail or Drive call for it."),
+  mailSyncDefinition('hr_invoices_mail_sync', 'invoicesMailSync', "TRUE to have each sync read the accountant's invoice mail. FALSE, the default, makes no Gmail or Drive call for it."),
+  mailSubjectDefinition('hr_payroll_mail_subject', 'payrollMailSubject', 'The words the subject of the payroll mail starts with, before the month, such as Plaća za.'),
+  mailSubjectDefinition('hr_vat_mail_subject', 'vatMailSubject', 'The words the subject of the VAT return mail starts with, before the period, such as PDV za.'),
+  mailSubjectDefinition('hr_invoices_mail_subject', 'invoicesMailSubject', "The words the subject of the accountant's invoice mail starts with, such as Račun za. Mail whose subject does not start with them is not filed."),
   {
-    key: INCOMING_INVOICES_FOLDER_KEY,
+    key: 'hr_incoming_invoices_folder',
     note: "The Google Drive folder the accountant's own invoices are filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
     type: 'text',
     valueOf: (facts) => facts.incomingInvoicesFolder.join('/'),
@@ -178,6 +169,19 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
 }
 
 type MailSubjectFact = 'payrollMailSubject' | 'vatMailSubject' | 'invoicesMailSubject'
+
+function mailSyncDefinition(key: string, fact: 'payrollMailSync' | 'vatMailSync' | 'invoicesMailSync', note: string): SettingDefinition<CompanyFacts> {
+  return {
+    key,
+    note,
+    type: 'flag',
+    valueOf: (facts) => flagText(facts[fact]),
+    apply: (facts, value) => {
+      const on = booleanOf(value)
+      return on === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { [fact]: on })
+    },
+  }
+}
 
 function mailSubjectDefinition(key: string, fact: MailSubjectFact, note: string): SettingDefinition<CompanyFacts> {
   return {

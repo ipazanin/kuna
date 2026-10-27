@@ -27,7 +27,7 @@ const chart = computed(() => salaryMonthsChart(props.rows, chartTokens()))
       :chart="chart"
       :title="`Cost to the company by payday, ${year}`"
       subtitle="Each month a payroll was paid in, stacked by where its money went. A band opens its bank rows."
-      definition="The figures are the payslip’s where one was read, else the app’s, else the bank’s, as on the Month tab. The month still running is hatched and may not be paid yet."
+      definition="The figures are the app’s, else the bank’s, as on the Month tab. The month still running is hatched and may not be paid yet."
       :height="320"
       :phone-height="260"
       data-testid="salaries-over-time"

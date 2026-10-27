@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { ledgerWindowOf } from '../src/features/workbook/domain/workbook'
-import { fakeWorkbookRecords } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { readDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import { fakeWorkbookDocument, fakeWorkbookRecords } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
 import { salaryReconciliation } from '../src/packs/hr-doo/domain/salaries/salaryReconciliation'
 import type { SalaryProblem, SalaryReconciliation } from '../src/packs/hr-doo/domain/salaries/salaryReconciliation'
 import { fakeStaffOf } from '../src/packs/hr-doo/infrastructure/fake/fakeStaff'
@@ -10,17 +12,20 @@ import type { SalaryMonthView } from '../src/packs/hr-doo/presentation/salaries/
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { sumMoney } from '../src/shared/money/money'
 import { formatMoney } from '../src/shared/money/moneyFormat'
-import { fakeStaffBooks } from './fixtures/fakeStaffBooks'
 import { euros } from './fixtures/ledger'
 
 const linkOf = () => null
 const PROBLEMS = { hash: '#salary-problems' }
 
-async function reconciled(variant: 'one-employee' | 'five-employees') {
-  const { workbook, documents } = await fakeStaffBooks(variant)
+const SYNCED = '2026-10-16T08:00:00.000Z'
+
+/** A fake variant's books as the fake build opens them on Drive, reconciled. */
+function reconciled(variant: 'one-employee' | 'five-employees') {
+  const read = readDocument({ id: 'fake', source: 'drive', title: 'Fake workbook', syncedAt: SYNCED }, fakeWorkbookDocument(SYNCED, 'drive', fakeStaffOf(variant)))
+  const workbook = hrDooWorkbook(read.workbook)
   const window = ledgerWindowOf(workbook.transactions)
   if (window === null) throw new Error('the fake ledger is empty')
-  return { workbook, reconciliation: salaryReconciliation(workbook, documents.salaries), partMonth: window.partMonth }
+  return { workbook, reconciliation: salaryReconciliation(workbook), partMonth: window.partMonth }
 }
 
 function paydayOf(reconciliation: SalaryReconciliation, payday: string) {
@@ -58,43 +63,37 @@ describe('the fake staffs', () => {
     }
   })
 
-  it('read without a problem and pay the owner alone, with one month whose payslip is not read and one misprinted', async () => {
-    const { workbook, reconciliation } = await reconciled('one-employee')
+  it('read without a problem and pay the owner alone, every payday as the engine works it out', () => {
+    const { workbook, reconciliation } = reconciled('one-employee')
 
     expect(workbook.problems).toEqual([])
     expect(workbook.director?.slug).toBe('alex')
     expect(reconciliation.paydays.map((payday) => payday.payday)).toEqual([
       '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09',
     ])
-    const troubled = reconciliation.paydays.filter((payday) => payday.problems.length > 0)
-    expect(troubled.map((payday) => [payday.payday, problemKinds(payday.problems)])).toEqual([
-      ['2026-01', ['payslip-not-read alex']],
-      ['2026-05', ['line-differs alex incomeTax', 'line-differs alex net', 'line-differs alex paidToEmployee']],
-    ])
+    expect(reconciliation.paydays.filter((payday) => payday.problems.length > 0)).toEqual([])
   })
 
-  it('pay five, with a payslip left out for one and a net row 10.00 short for another', async () => {
-    const { workbook, reconciliation } = await reconciled('five-employees')
+  it('pay five, with a health insurance row 10.00 short on one payday', () => {
+    const { workbook, reconciliation } = reconciled('five-employees')
 
     expect(workbook.problems).toEqual([])
     expect(workbook.employees.map((employee) => employee.slug)).toEqual(['alex', 'mia', 'tomo', 'lea', 'niko'])
     expect(paydayOf(reconciliation, '2026-09').employees).toHaveLength(5)
     const troubled = reconciliation.paydays.filter((payday) => payday.problems.length > 0)
-    expect(troubled.map((payday) => [payday.payday, problemKinds(payday.problems)])).toEqual([
-      ['2026-04', ['payslip-not-read niko']],
-      ['2026-09', ['line-differs mia paidToEmployee']],
-    ])
-    // Without his payslip the engine works Niko out on the agreed gross of his row, and the bank agrees with it.
+    expect(troubled.map((payday) => [payday.payday, problemKinds(payday.problems)])).toEqual([['2026-09', ['line-differs health']]])
+    // The engine works Niko out on the agreed gross of his row from the month he joins, and the bank agrees with it.
     const april = paydayOf(reconciliation, '2026-04')
     expect(april.employees.find((entry) => entry.employee.slug === 'niko')?.engine.kind).toBe('run')
-    expect(april.contributions.every((check) => check.agrees && check.payslip === null && check.app !== null)).toBe(true)
-    expect(paydayOf(reconciliation, '2026-09').contributions.every((check) => check.agrees && check.bank !== null)).toBe(true)
+    expect(april.contributions.every((check) => check.agrees && check.app !== null)).toBe(true)
+    const health = paydayOf(reconciliation, '2026-09').contributions.find((check) => check.line === 'health')
+    expect(health?.bank?.amount).toBe((health?.app?.amount ?? 0) - euros(10))
   })
 })
 
 describe('salaryMonthView', () => {
-  it('opens on the newest payday that is not the month still running', async () => {
-    const { reconciliation, partMonth } = await reconciled('one-employee')
+  it('opens on the newest payday that is not the month still running', () => {
+    const { reconciliation, partMonth } = reconciled('one-employee')
 
     expect(chosenPayday(reconciliation, { year: null, payday: null }, partMonth)?.payday).toBe('2026-09')
     expect(chosenPayday(reconciliation, { year: 2025, payday: null }, partMonth)?.payday).toBe('2025-12')
@@ -102,8 +101,8 @@ describe('salaryMonthView', () => {
     expect(paydayYears(reconciliation)).toEqual([2026, 2025])
   })
 
-  it('splits the director at the 2026 floor into the ring’s five parts, which add up to the cost, with pillar II out of the state’s share', async () => {
-    const { reconciliation, partMonth } = await reconciled('one-employee')
+  it('splits the director at the 2026 floor into the ring’s five parts, which add up to the cost, with pillar II out of the state’s share', () => {
+    const { reconciliation, partMonth } = reconciled('one-employee')
     const view = monthOf(reconciliation, '2026-09', partMonth)
 
     // Gross II 1,509.20 and the 100.00 meal allowance.
@@ -122,12 +121,13 @@ describe('salaryMonthView', () => {
     expect(tile(view, 'Pension savings').value).toBe(formatMoney(euros(64.77)))
     expect(tile(view, 'Problems').value).toBe('0')
     expect(view.strip).toMatchObject({ name: 'Alex Example', gross: euros(1295.45), net: euros(936.26), paidOn: '12 Sept 2026' })
-    expect(view.compared).toBe(12)
-    expect(view.agreeing).toBe(12)
+    // Of the 11 lines only health, both pension pillars and income tax are stated by the app and the bank alike.
+    expect(view.compared).toBe(4)
+    expect(view.agreeing).toBe(4)
   })
 
-  it('runs the waterfall from gross II down to the net and up to what was paid', async () => {
-    const { reconciliation, partMonth } = await reconciled('one-employee')
+  it('runs the waterfall from gross II down to the net and up to what was paid', () => {
+    const { reconciliation, partMonth } = reconciled('one-employee')
     const { bridge } = monthOf(reconciliation, '2026-09', partMonth)
 
     expect(bridge.map((bar) => [bar.label, bar.kind, bar.amount])).toEqual([
@@ -143,45 +143,30 @@ describe('salaryMonthView', () => {
     ])
   })
 
-  it('shows the payslip’s figure on a tile with what the bank paid otherwise', async () => {
-    const { reconciliation, partMonth } = await reconciled('one-employee')
-    const view = monthOf(reconciliation, '2026-05', partMonth)
-
-    // The payslip states the income tax 0.50 higher and the net 0.50 lower than the engine and the bank.
-    expect(tile(view, 'Paid to the employee')).toMatchObject({ value: formatMoney(euros(1035.76)), caption: `Bank ${formatMoney(euros(0.5))} more` })
-    expect(tile(view, 'To the state')).toMatchObject({ value: formatMoney(euros(508.67)), caption: `Bank ${formatMoney(euros(0.5))} less` })
-    expect(tile(view, 'Problems').value).toBe('3')
-    // The 0.50 moves from the net to the tax, so the cost is the bank's.
-    expect(tile(view, 'Company cost').caption).toBe(`Gross II ${formatMoney(euros(1509.2))} and ${formatMoney(euros(100))} beside the salary`)
-    const tax = view.sections[0]?.lines.find((line) => line.key === 'incomeTax')
-    expect([tax?.payslip, tax?.app?.cents, tax?.bank?.cents, tax?.agrees]).toEqual([euros(100.94), euros(100.44), euros(100.44), false])
-  })
-
-  it('states a month without a payslip from the app and the bank, with the payslip not read', async () => {
-    const { reconciliation, partMonth } = await reconciled('one-employee')
+  it('states what was paid to the employee as the bank paid it, since the app does not know what was paid beside the salary', () => {
+    const { reconciliation, partMonth } = reconciled('one-employee')
     const view = monthOf(reconciliation, '2026-01', partMonth)
 
-    expect(view.problems.map((problem) => problem.text)).toEqual([
-      'Alex Example: payslip not read. No salary workbook read from the payroll folder names Alex Example with a payout in Jan 2026, so only the app and the bank are compared.',
-    ])
+    expect(view.problems).toEqual([])
     // December 2025 at that year's floor with the 100.00 meal allowance, as the bank paid it.
     const paid = view.sections[0]?.lines.find((line) => line.key === 'paidToEmployee')
-    expect([paid?.payslip, paid?.app, paid?.bank?.cents]).toEqual([null, null, euros(965.5)])
+    expect([paid?.app, paid?.bank?.cents, paid?.verdict]).toEqual([null, euros(965.5), null])
     expect(tile(view, 'Paid to the employee').value).toBe(formatMoney(euros(965.5)))
   })
 
-  it('sets everyone’s contributions apart and shows a row 10.00 short on that employee only', async () => {
-    const { reconciliation, partMonth } = await reconciled('five-employees')
+  it('sets everyone’s contributions apart, with a health insurance row 10.00 short a problem of everyone paid', () => {
+    const { reconciliation, partMonth } = reconciled('five-employees')
     const everyone = monthOf(reconciliation, '2026-09', partMonth)
     const mia = monthOf(reconciliation, '2026-09', partMonth, 'mia')
     const lea = monthOf(reconciliation, '2026-09', partMonth, 'lea')
 
     expect(everyone.sections.map((section) => section.key)).toEqual(['alex', 'mia', 'tomo', 'lea', 'niko', 'contributions'])
-    expect(tile(everyone, 'Paid to the employees').caption).toBe(`Bank ${formatMoney(euros(10))} less`)
+    expect(tile(everyone, 'To the state').caption).toBe(`Bank ${formatMoney(euros(10))} less`)
     expect(tile(everyone, 'Company cost').caption).toBe(`Bank ${formatMoney(euros(10))} less`)
-    expect(tile(everyone, 'To the state').caption).toBe('Pillar I, income tax and health')
+    expect(everyone.problems.map((problem) => problem.text)).toEqual([expect.stringMatching(/^Health insurance, everyone paid: app .+, bank .+\.$/)])
+    expect(everyone.sections.find((section) => section.key === 'contributions')?.lines.find((line) => line.key === 'health')?.verdict).toBe('differs')
     expect(mia.sections.map((section) => section.key)).toEqual(['mia'])
-    expect(mia.problems).toHaveLength(1)
+    expect(mia.problems).toEqual([])
     expect(lea.problems).toEqual([])
     expect(mia.strip?.name).toBe('Mia Primjer')
     // Everyone else was paid that day too, so one employee's contributions have no bank figure of their own.
@@ -190,8 +175,8 @@ describe('salaryMonthView', () => {
 })
 
 describe('salaryYearRows and peopleRows', () => {
-  it('give each payday of the year its parts and everyone paid with the total', async () => {
-    const { reconciliation, partMonth } = await reconciled('five-employees')
+  it('give each payday of the year its parts and everyone paid with the total', () => {
+    const { reconciliation, partMonth } = reconciled('five-employees')
     const rows = salaryYearRows(reconciliation, 2026, null, partMonth)
     const september = rows.find((row) => row.payday === '2026-09')
     const view = monthOf(reconciliation, '2026-09', partMonth)
@@ -199,17 +184,17 @@ describe('salaryYearRows and peopleRows', () => {
     expect(rows.map((row) => row.payday)).toEqual(['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09'])
     expect(september?.cost).toBe(view.ring.total)
     expect(PAY_PARTS.map((part) => september?.parts[part])).toEqual(view.ring.parts.map((part) => part.value))
-    expect(rows.find((row) => row.payday === '2026-04')?.problems).toBe(1)
+    expect(rows.find((row) => row.payday === '2026-09')?.problems).toBe(1)
 
     const { people, total } = peopleRows(paydayOf(reconciliation, '2026-09'))
     expect(people.map((person) => [person.slug, person.problems])).toEqual([
       ['alex', 0],
-      ['mia', 1],
+      ['mia', 0],
       ['tomo', 0],
       ['lea', 0],
       ['niko', 0],
     ])
-    expect(total.cost).toBe(view.ring.total)
+    expect([total.cost, total.problems]).toEqual([view.ring.total, 1])
     expect(people.find((person) => person.slug === 'tomo')?.pensionSavings).toBe(euros(0))
   })
 })

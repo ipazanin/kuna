@@ -60,7 +60,7 @@ export interface Settings {
   readonly statementsMailFrom: readonly string[]
   /** The phrase before the statement number in the subject of the bank's statement mail. Blank leaves the bank's mail unread. */
   readonly statementsMailSubject: string
-  /** The day the earliest mail a source reads may come, for a source the app filed nothing for yet. Null means the first day of this year. */
+  /** The day the earliest mail a source reads may come, for a source the app filed nothing for yet. Null means the first day of last year. */
   readonly mailSince: CivilDate | null
 }
 
@@ -480,7 +480,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'mail_since',
-    note: 'The day the earliest mail a sync looks at may come, until the app has filed mail of its kind, as a date or as text such as 2026-01-01. Blank means the first day of this year.',
+    note: 'The day the earliest mail a sync looks at may come, as a date or as text such as 2026-01-01. Blank means the first day of last year, so a sync early in January still finds mail from December. Once a kind of mail has files in its folder, a sync starts a week before the newest one, never before this day.',
     type: 'date',
     valueOf: (settings) => settings.mailSince ?? '',
     apply: (settings, value) => {

@@ -10,7 +10,7 @@ import type { EmployeeFacts } from '../payroll/incomeTax'
 export interface Employee extends EmployeeFacts {
   /** A short name in lower case, which the row is known by. */
   readonly slug: string
-  /** Blank when the tab gives none. A salary workbook's tab names the employee by it. */
+  /** Blank when the tab gives none. The payroll mail's IP1 forms are matched to the employee by its words. */
   readonly name: string
   /** The accounts the salary is paid into, normalised. The bank's rows to them are this employee's pay. */
   readonly ibans: readonly string[]

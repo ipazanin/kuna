@@ -1,6 +1,5 @@
 import { shallowRef } from 'vue'
 
-import { forgetDriveReads } from './driveReads'
 import { googleConfig } from './googleConfig'
 import { REDIRECT_SIGN_IN_QUERY, authorizationUrl, redirectFragmentOf, savePendingRedirect, settleRedirect, takePendingRedirect } from './googleRedirect'
 import type { GoogleToken, RedirectAsk, RedirectResume, RedirectReturn } from './googleRedirect'
@@ -248,12 +247,11 @@ export async function tokenFor(scope: GoogleScope, resume: RedirectResume | null
   return token
 }
 
-/** Forgets the token, the account, its grants and what was read from Drive on this device, as switching to a workbook kept here does. What the books need stays. */
+/** Forgets the token, the account and its grants on this device, as switching to a workbook kept here does. What the books need stays. */
 export function forgetGoogleSignIn(): void {
   pageToken = null
   access.value = { scopes: null, refusal: null }
   forgetGoogleDevice()
-  void forgetDriveReads()
 }
 
 /** Revokes the app's access with Google when the page holds a token, then forgets the sign-in here. */

@@ -205,7 +205,7 @@ describe('statements_folder', () => {
 })
 
 describe('the mail keys', () => {
-  it('read no bank mail and the start of this year by default, all listed blank in the template', () => {
+  it('read no bank mail and the start of last year by default, all listed blank in the template', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({ statementsMailFrom: [], statementsMailSubject: '', mailSince: null })
     expect(settingsTabEntries(DEFAULT_SETTINGS, null).filter((entry) => ['statements_mail_from', 'statements_mail_subject', 'mail_since'].includes(entry.key))).toEqual([
       { key: 'statements_mail_from', value: '' },
@@ -242,7 +242,7 @@ describe('the mail keys', () => {
 })
 
 describe('company facts', () => {
-  it('default to no registration day, the accrual return, the invoice principle, owner loans at 0%, no accountant folders and their read on sync, and no accountant mail', () => {
+  it('default to no registration day, the accrual return, the invoice principle, owner loans at 0%, no accountant folders and every kind of the accountant’s mail switched off', () => {
     expect(COMPANY_FACT_SETTINGS.defaults).toEqual({
       companyRegistered: null,
       citReturn: 'pd',
@@ -251,8 +251,10 @@ describe('company facts', () => {
       ownerLoanInterest: 0,
       vatReturnsFolder: [],
       payrollFolder: [],
-      accountantSync: true,
       accountantMailFrom: [],
+      payrollMailSync: false,
+      vatMailSync: false,
+      invoicesMailSync: false,
       payrollMailSubject: '',
       vatMailSubject: '',
       invoicesMailSubject: '',
@@ -270,8 +272,10 @@ describe('company facts', () => {
         ['hr_owner_loan_interest', 0.025],
         ['hr_vat_returns_folder', ' finance / vat '],
         ['hr_payroll_folder', 'finance/payroll/'],
-        ['hr_accountant_sync', false],
         ['hr_accountant_mail_from', 'Office@Accountant.example.com, desk@accountant.example.com'],
+        ['hr_payroll_mail_sync', 'TRUE'],
+        ['hr_vat_mail_sync', false],
+        ['hr_invoices_mail_sync', true],
         ['hr_payroll_mail_subject', ' Plaća za '],
         ['hr_vat_mail_subject', 'PDV za'],
         ['hr_invoices_mail_subject', 'Račun za'],
@@ -289,8 +293,10 @@ describe('company facts', () => {
       ownerLoanInterest: 250,
       vatReturnsFolder: ['finance', 'vat'],
       payrollFolder: ['finance', 'payroll'],
-      accountantSync: false,
       accountantMailFrom: ['office@accountant.example.com', 'desk@accountant.example.com'],
+      payrollMailSync: true,
+      vatMailSync: false,
+      invoicesMailSync: true,
       payrollMailSubject: 'Plaća za',
       vatMailSubject: 'PDV za',
       invoicesMailSubject: 'Račun za',
@@ -320,21 +326,15 @@ describe('company facts', () => {
     expect(parseSettings(rows(['hr_cit_return', 'pd'])).problems).toEqual([settingProblem('hr_cit_return', 'not a setting this app knows, so it is kept but not used')])
   })
 
-  it('report the owner keys that the director row on the employees tab holds as keys the app does not know', () => {
+  it('report the owner keys that the director row on the employees tab holds and the retired accountant read switch as keys the app does not know', () => {
     const packKeys = new Set(COMPANY_FACT_SETTINGS.definitions.map((definition) => definition.key))
 
-    expect(parseSettings(rows(['hr_residence_city', 'Zagreb'], ['hr_birth_year', 1990], ['hr_pension_pillar_2', true], ['hr_dependants', 0]), packKeys).problems.map((problem) => problem.label)).toEqual([
-      'hr_residence_city',
-      'hr_birth_year',
-      'hr_pension_pillar_2',
-      'hr_dependants',
-    ])
-  })
-
-  it('turn the accountant read on or off by its switch, on by default', () => {
-    expect(COMPANY_FACT_SETTINGS.defaults.accountantSync).toBe(true)
-    expect(readPackSettings(rows(['hr_accountant_sync', false]), COMPANY_FACT_SETTINGS).values.accountantSync).toBe(false)
-    expect(readPackSettings(rows(['hr_accountant_sync', 'maybe']), COMPANY_FACT_SETTINGS).problems).toEqual([settingProblem('hr_accountant_sync', '"maybe" is neither TRUE nor FALSE, so the default is used')])
+    expect(
+      parseSettings(rows(['hr_residence_city', 'Zagreb'], ['hr_birth_year', 1990], ['hr_pension_pillar_2', true], ['hr_dependants', 0], ['hr_accountant_sync', true]), packKeys).problems.map(
+        (problem) => problem.label,
+      ),
+    ).toEqual(['hr_residence_city', 'hr_birth_year', 'hr_pension_pillar_2', 'hr_dependants', 'hr_accountant_sync'])
+    expect(readPackSettings(rows(['hr_accountant_sync', false]), COMPANY_FACT_SETTINGS)).toEqual({ values: COMPANY_FACT_SETTINGS.defaults, problems: [] })
   })
 
   it('change only the keys whose value differs, in template order', () => {
@@ -396,8 +396,10 @@ describe('company facts', () => {
       { key: 'hr_owner_loan_interest', value: '0' },
       { key: 'hr_vat_returns_folder', value: '' },
       { key: 'hr_payroll_folder', value: '' },
-      { key: 'hr_accountant_sync', value: 'TRUE' },
       { key: 'hr_accountant_mail_from', value: '' },
+      { key: 'hr_payroll_mail_sync', value: 'FALSE' },
+      { key: 'hr_vat_mail_sync', value: 'FALSE' },
+      { key: 'hr_invoices_mail_sync', value: 'FALSE' },
       { key: 'hr_payroll_mail_subject', value: '' },
       { key: 'hr_vat_mail_subject', value: '' },
       { key: 'hr_invoices_mail_subject', value: '' },

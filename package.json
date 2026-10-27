@@ -13,7 +13,6 @@
     "typecheck": "vue-tsc -b --noEmit",
     "check": "npm run typecheck && npm test",
     "check:visual": "node --import ./scripts/support/typescriptResolve.mjs scripts/visual-check.mjs",
-    "parity:accountant": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-accountant.mjs",
     "parity:year-end": "node --import ./scripts/support/typescriptResolve.mjs scripts/parity-year-end.mjs",
     "import:local-rates": "node scripts/import-local-rates.mjs",
     "check:round-trip": "node --import ./scripts/support/typescriptResolve.mjs scripts/round-trip-workbook.mjs",

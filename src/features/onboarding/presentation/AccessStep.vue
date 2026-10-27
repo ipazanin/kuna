@@ -16,13 +16,12 @@ import type { GoogleScope } from '../../../shared/google/googleScopes'
 import { useMediaQuery } from '../../../shared/layout/viewport'
 import { mailDraftsOn, switchMailDrafts } from '../../invoicing/infrastructure/mailDraftSwitch'
 import { BANK_PRESETS } from '../../mail/domain/bankPresets'
-import { mailSinceDefault } from '../../mail/domain/mailSource'
 import { useSync } from '../../sync/presentation/useSync'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { scopesOfChoices } from '../application/onboardingScopes'
 import { OTHER_BANK, offersMail } from '../domain/onboardingSteps'
 import type { StatementMail, StatementsSource } from '../domain/onboardingSteps'
-import { statementMailProblems } from '../domain/statementsChoice'
+import { firstMailDay, statementMailProblems } from '../domain/statementsChoice'
 import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 
@@ -53,7 +52,7 @@ const mail = computed(() => onboarding.place.value.mail)
 const preset = computed(() => BANK_PRESETS.find((candidate) => candidate.id === mail.value.bank) ?? null)
 const mailProblems = computed(() => (statements.value === 'mail' ? statementMailProblems(mail.value) : {}))
 const mailReady = computed(() => mailProblems.value.from === undefined && mailProblems.value.subject === undefined)
-const since = computed(() => mail.value.since ?? mailSinceDefault(today()))
+const since = computed(() => mail.value.since ?? firstMailDay(today()))
 
 /** Changes the mail in the address as it is typed, so a phone that leaves for Google comes back with it. */
 function chooseMail(changes: Partial<StatementMail>): void {

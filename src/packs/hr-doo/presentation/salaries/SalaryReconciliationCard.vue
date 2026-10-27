@@ -9,12 +9,13 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import BuildUpButton from '../BuildUpButton.vue'
 import type { FigureDetail } from '../tracedFigureView'
-import type { LineRow, SalaryMonthView } from './salariesView'
+import type { SalaryMonthView } from './salariesView'
 
 /**
- * Every line of the payday as the payslip, the app and the bank state it: a table on a wide screen,
- * a card per line on a phone, collapsed while every line agrees and open while one differs. An app
- * figure opens how it is worked out, a bank figure its rows.
+ * Every line of the payday as the app and the bank state it: a table on a wide screen,
+ * a card per line on a phone, collapsed while every line agrees and open while one differs. A line
+ * only one source states has no verdict. An app figure opens how it is worked out, a bank figure its
+ * rows.
  */
 const props = defineProps<{
   view: SalaryMonthView
@@ -27,15 +28,14 @@ defineEmits<{
 const route = useRoute()
 const phone = usePhoneLayout()
 
-const verdict = (line: LineRow): string => (line.agrees ? 'Agrees' : 'Differs')
 const allAgree = computed(() => props.view.agreeing === props.view.compared)
 </script>
 
 <template>
   <AppCard
     id="salary-reconciliation"
-    title="Payslip, app and bank"
-    :subtitle="`Paid in ${view.label}. Each line from the accountant’s payslip, the app’s payroll and the bank rows. A dash is a line that source does not state.`"
+    title="App and bank"
+    :subtitle="`Paid in ${view.label}. Each line from the app’s payroll and the bank rows. A dash is a line that source does not state.`"
     collapse-id="salaries.reconciliation"
     :summary="`${view.agreeing} of ${view.compared} lines agree`"
     :start-collapsed="allAgree"
@@ -46,18 +46,13 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
       <section v-for="section in view.sections" :key="section.key" :aria-label="section.title" :data-section="section.key" class="flex flex-col gap-2">
         <h3 class="text-sm font-medium text-highlighted sm:px-2">{{ section.title }}</h3>
         <ul v-if="phone" class="flex flex-col">
-          <li v-for="line in section.lines" :key="line.key" class="line-card" :data-agrees="line.agrees">
+          <li v-for="line in section.lines" :key="line.key" class="line-card" :data-verdict="line.verdict">
             <p class="flex items-center justify-between gap-2 text-sm">
               <span class="text-toned">{{ line.label }}</span>
-              <span class="inline-flex items-center gap-1 text-xs" :class="line.agrees ? 'text-muted' : 'text-negative'">
-                <UIcon :name="line.agrees ? 'i-lucide-check' : 'i-lucide-circle-alert'" class="size-3.5" aria-hidden="true" />{{ verdict(line) }}
-              </span>
+              <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />Agrees</span>
+              <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-negative"><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Differs</span>
             </p>
             <dl class="line-cells">
-              <div>
-                <dt>Payslip</dt>
-                <dd><MoneyText v-if="line.payslip !== null" :cents="line.payslip" /><span v-else class="text-muted">–</span></dd>
-              </div>
               <div>
                 <dt>App</dt>
                 <dd>
@@ -80,16 +75,14 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
             <thead>
               <tr>
                 <th scope="col" class="text-start">Line</th>
-                <th scope="col" class="w-28 text-end">Payslip</th>
                 <th scope="col" class="w-28 text-end">App</th>
                 <th scope="col" class="w-28 text-end">Bank</th>
                 <th scope="col" class="w-24 text-start"><span class="sr-only">Verdict</span></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="line in section.lines" :key="line.key" :data-agrees="line.agrees">
+              <tr v-for="line in section.lines" :key="line.key" :data-verdict="line.verdict">
                 <th scope="row" class="text-start font-normal text-toned">{{ line.label }}</th>
-                <td class="text-end"><MoneyText v-if="line.payslip !== null" :cents="line.payslip" /><span v-else class="text-muted">–</span></td>
                 <td class="text-end">
                   <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="`${section.title}, ${line.label.toLowerCase()} by the app`" @open="$emit('open', line.app)" />
                   <span v-else class="text-muted">–</span>
@@ -99,9 +92,8 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
                   <span v-else class="text-muted">–</span>
                 </td>
                 <td>
-                  <span class="inline-flex items-center gap-1 text-xs" :class="line.agrees ? 'text-muted' : 'text-negative'">
-                    <UIcon :name="line.agrees ? 'i-lucide-check' : 'i-lucide-circle-alert'" class="size-3.5" aria-hidden="true" />{{ verdict(line) }}
-                  </span>
+                  <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />Agrees</span>
+                  <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-negative"><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Differs</span>
                 </td>
               </tr>
             </tbody>
@@ -124,7 +116,7 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
 
 .line-cells {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
   margin-top: 0.25rem;
 }

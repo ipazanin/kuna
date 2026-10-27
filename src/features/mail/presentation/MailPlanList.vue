@@ -10,6 +10,8 @@ import type { MailPlan, PlanEntry, SourcePlan } from '../application/mailFiling'
 /** What the last mail step found, one block per source: its search, then each attachment with where it went or would go, or why it did not. */
 const props = defineProps<{
   plan: MailPlan | null
+  /** Why the last mail step stopped before it had a plan, or null. */
+  stopped: string | null
 }>()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -42,7 +44,7 @@ function headline(source: SourcePlan): string {
 
 function searched(source: Extract<SourcePlan, { kind: 'planned' }>): string {
   const from = dayFormat.format(new Date(source.window.from))
-  return source.window.after === 'filed' ? `Searched from ${from}, a week before the newest mail the app filed` : `Searched from ${from}, the mail-since day`
+  return source.window.after === 'newest' ? `Searched from ${from}, a week before the newest file in its folder` : `Searched from ${from}, the mail-since day`
 }
 
 function shown(id: string, entries: readonly PlanEntry[]): readonly PlanEntry[] {
@@ -75,14 +77,15 @@ function note(entry: PlanEntry): string {
 
 <template>
   <div class="flex flex-col gap-5" data-testid="mail-plan">
-    <p v-if="plan === null" class="text-sm text-muted">No sync on this page has looked at the mail yet. Sync to file the bank's new statements.</p>
-    <p v-else-if="plan.sources.length === 0" class="text-sm text-muted">No kind of mail has a sender and a subject, so the last sync looked at none.</p>
+    <p v-if="stopped !== null" class="text-sm text-muted" data-testid="mail-stopped">{{ stopped }}</p>
+    <p v-else-if="plan === null" class="text-sm text-muted">No sync on this page has looked at the mail yet. Sync to file the bank's new statements.</p>
+    <p v-else-if="plan.sources.length === 0" class="text-sm text-muted">No kind of mail is on, so the last sync looked at none.</p>
     <section v-for="{ source, entries } in sources" :key="source.id" class="flex flex-col gap-2" :data-source="source.id" :data-state="source.kind">
       <div class="flex flex-col gap-0.5">
         <h3 class="text-sm font-medium text-highlighted">{{ source.label }}</h3>
         <p class="text-sm" :class="source.kind === 'failed' ? 'text-error' : 'text-toned'" data-testid="mail-source-line">{{ headline(source) }}</p>
         <template v-if="source.kind === 'planned'">
-          <p class="figure text-xs text-muted">{{ searched(source) }}</p>
+          <p class="figure text-xs text-muted" data-testid="mail-source-window">{{ searched(source) }}</p>
           <p class="identifier text-xs wrap-anywhere text-muted">{{ source.query }}</p>
         </template>
       </div>

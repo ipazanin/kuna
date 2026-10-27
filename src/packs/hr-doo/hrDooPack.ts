@@ -4,7 +4,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { PackContribution } from '../../features/packs/packContribution'
 import { packPart } from '../../features/workbook/domain/packPart'
 import { ACCOUNTANT_MAIL_SOURCES } from './application/accountantMailSources'
-import { COMPANY_FACT_SETTINGS, PAYROLL_FOLDER_KEY, VAT_RETURNS_FOLDER_KEY, companyFactsErrors } from './domain/companyFacts'
+import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts'
 import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { unaccountedInView } from './presentation/unaccountedInView'
@@ -44,28 +44,9 @@ export const hrDooPack: PackContribution = {
     },
   },
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,
-  syncSteps: [
-    {
-      id: 'hr-doo.accountant',
-      label: 'Accountant',
-      scopes: () => ['drive.readonly'],
-      startLine: 'Reading the accountant’s files',
-      on: (workbook) => {
-        const { accountantSync, vatReturnsFolder, payrollFolder } = hrDooWorkbook(workbook).companyFacts
-        return accountantSync && (vatReturnsFolder.length > 0 || payrollFolder.length > 0)
-      },
-      // Loaded with its first run, so the readers of the accountant's files stay out of the pack's entry chunk.
-      run: async () => (await import('./presentation/taxes/useAccountantDocuments')).readAccountantFiles(),
-    },
-  ],
   mailSources: ACCOUNTANT_MAIL_SOURCES,
   onboarding: {
     question: 'Is this a Croatian d.o.o. that pays its owner?',
-    yes: "Yes, add owner pay, taxes, year end and the accountant's files",
-    folders: [
-      { key: VAT_RETURNS_FOLDER_KEY, holds: "the accountant's VAT returns" },
-      { key: PAYROLL_FOLDER_KEY, holds: 'the payslips' },
-    ],
-    foldersAt: { path: '/settings', hash: '#accountant-folders' },
+    yes: 'Yes, add owner pay, taxes and year end',
   },
 }

@@ -6,7 +6,6 @@ import { scopesOf } from '../../../shared/google/googleScopes'
 import { useStatementSync } from '../../imports/presentation/useStatementSync'
 import { useMailSync } from '../../mail/presentation/useMailSync'
 import { mailDraftsOn } from '../../invoicing/infrastructure/mailDraftSwitch'
-import { installedPack, shownPack } from '../../packs/packContribution'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { createSync } from '../application/sync'
@@ -40,8 +39,7 @@ function createPageSync(): { readonly sync: Sync; readonly steps: readonly SyncS
         : { kind: 'done', line: 'Up to date', writeId: null, link: null }
     },
   }
-  const packSteps = installedPack().syncSteps.map((step): SyncStep => ({ ...step, on: (workbook) => shownPack(workbook.settings).syncSteps.includes(step) && step.on(workbook) }))
-  const steps = [mail.step, statements.step, ...packSteps]
+  const steps = [mail.step, statements.step]
   // Every ask for a token carries what the books on screen and this device's settings need, and the silent trip on the next open asks for it too.
   watch(
     () => needsOf(steps),
@@ -109,7 +107,7 @@ export interface PageSync {
   saveAllowing(after: Workbook, save: () => Promise<boolean>): Promise<void>
 }
 
-/** The one sync of the page: the books, then mail, then statements, then the pack's steps, and the control that shows it with what the page's token lacks. */
+/** The one sync of the page: the books, then mail, then statements, and the control that shows it with what the page's token lacks. */
 export function useSync(): PageSync {
   pageSync ??= createPageSync()
   const { state, sync, allowAccess, saveAllowing } = pageSync.sync

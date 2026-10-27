@@ -2,6 +2,8 @@ import { parseCivilDate } from '../../src/shared/calendar/civilDate'
 import type { CivilDate } from '../../src/shared/calendar/civilDate'
 import { anchorWindow } from '../../src/shared/calendar/ledgerWindow'
 import type { LedgerWindow } from '../../src/shared/calendar/ledgerWindow'
+import { parseMonthKey } from '../../src/shared/calendar/monthKey'
+import type { MonthKey } from '../../src/shared/calendar/monthKey'
 import { moneyFromAmount, moneyFromCents } from '../../src/shared/money/money'
 import type { Money } from '../../src/shared/money/money'
 import type { Bucket } from '../../src/features/workbook/domain/bucket'
@@ -100,6 +102,14 @@ export function civil(text: string): CivilDate {
     throw new Error(`${text} is not a date`)
   }
   return date
+}
+
+export function month(text: string): MonthKey {
+  const key = parseMonthKey(text)
+  if (key === null) {
+    throw new Error(`${text} is not a month`)
+  }
+  return key
 }
 
 /** A window as the whole ledger would anchor it, from its earliest and newest days. */

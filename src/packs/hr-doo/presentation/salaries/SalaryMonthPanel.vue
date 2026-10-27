@@ -66,13 +66,8 @@ const dialogOpen = computed({
         data-testid="salaries-ring"
       >
         <template #below>
-          <p v-if="view.ring.split || view.ring.outside !== 0" class="mt-2 border-t border-default pt-2 text-xs text-muted" data-testid="salaries-ring-split">
-            <template v-if="view.ring.split">
-              To the employee is the net salary of <MoneyText :cents="view.ring.split.net" /> and <MoneyText :cents="view.ring.split.beside" /> paid beside it.
-            </template>
-            <template v-if="view.ring.outside !== 0">
-              Also paid with this payroll and not pay: <MoneyText :cents="view.ring.outside" /> of rent and refunds of costs.
-            </template>
+          <p v-if="view.ring.split" class="mt-2 border-t border-default pt-2 text-xs text-muted" data-testid="salaries-ring-split">
+            To the employee is the net salary of <MoneyText :cents="view.ring.split.net" /> and <MoneyText :cents="view.ring.split.beside" /> paid beside it.
           </p>
         </template>
       </DonutCard>

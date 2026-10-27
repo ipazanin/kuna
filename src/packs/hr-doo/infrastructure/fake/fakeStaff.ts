@@ -1,4 +1,3 @@
-import type { StatementCell } from '../../../../features/imports/domain/tabularStatement'
 import { amountText } from '../../../../features/workbook/domain/recordFields'
 import { FAKE_OWNER } from '../../../../features/workbook/infrastructure/fake/fakeWorkbook'
 import type { FakePayment, FakeStaff } from '../../../../features/workbook/infrastructure/fake/fakeWorkbook'
@@ -7,8 +6,6 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, lastDayOf, monthNumber, parseMonthKey, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { amountOf, moneyFromAmount, sumMoney } from '../../../../shared/money/money'
-import type { DocumentTab } from '../../domain/accountant/accountantDocument'
-import { localRates } from '../../domain/payroll/incomeTax'
 import { payrollMonth } from '../../domain/payroll/payrollMonth'
 import type { PayrollMonth } from '../../domain/payroll/payrollMonth'
 import { CONTRIBUTION_ACCOUNTS } from '../../domain/salaries/contributionAccounts'
@@ -29,15 +26,11 @@ interface FakeEmployee {
   readonly agreed: number | 'floor'
 }
 
-/** What a variant does differently from the engine, so the Salaries page has a problem of each kind to show. */
+/** What a variant pays, and where the bank pays otherwise than the engine, so the Salaries page has a problem to show. */
 interface FakeStaffing {
   readonly employees: readonly FakeEmployee[]
-  /** Worked months whose workbook leaves an employee's tab out, by slug. */
-  readonly payslipLeftOut: Readonly<Record<string, readonly string[]>>
-  /** Worked months whose payslip states the income tax this many euros higher and the net that much lower, by slug. */
-  readonly payslipMisprint: Readonly<Record<string, Readonly<Record<string, number>>>>
-  /** Paydays whose net row to an employee is this many euros short, by slug. */
-  readonly bankShort: Readonly<Record<string, Readonly<Record<string, number>>>>
+  /** Paydays whose health insurance row is this many euros short. */
+  readonly healthShort: Readonly<Record<string, number>>
 }
 
 const MEAL = 100
@@ -55,9 +48,7 @@ const ALEX: FakeEmployee = { slug: 'alex', name: FAKE_OWNER.name, iban: FAKE_OWN
 const STAFFINGS: Readonly<Record<string, FakeStaffing>> = {
   'one-employee': {
     employees: [ALEX],
-    payslipLeftOut: { alex: ['2025-12'] },
-    payslipMisprint: { alex: { '2026-04': 0.5 } },
-    bankShort: {},
+    healthShort: {},
   },
   'five-employees': {
     employees: [
@@ -67,9 +58,7 @@ const STAFFINGS: Readonly<Record<string, FakeStaffing>> = {
       { slug: 'lea', name: 'Lea Proba', iban: 'XX00FAKE0000000000000203', city: 'Zagreb', pillarTwo: true, dependants: 2, birthYear: 1988, from: '2025-09-01', agreed: 3100 },
       { slug: 'niko', name: 'Niko Test', iban: 'XX00FAKE0000000000000204', city: 'Rijeka', pillarTwo: true, dependants: 0, birthYear: 2000, from: '2026-02-01', agreed: 1600 },
     ],
-    payslipLeftOut: { niko: ['2026-03'] },
-    payslipMisprint: {},
-    bankShort: { mia: { '2026-09': 10 } },
+    healthShort: { '2026-09': 10 },
   },
 }
 
@@ -143,71 +132,12 @@ function paydayRows(staffing: FakeStaffing, paidIn: string, workedText: string):
       counterparty: person.name,
       iban: person.iban,
       description,
-      amount: -(amountOf(payroll.paidToEmployee.amount) - (staffing.bankShort[person.slug]?.[paidIn] ?? 0)),
+      amount: -amountOf(payroll.paidToEmployee.amount),
       category: 'salary-net',
     })),
     ...contribution('State budget, pension insurance', CONTRIBUTION_ACCOUNTS.pensionPillarOne, total('pensionPillarOne'), 'payroll-contributions'),
     ...contribution('Pension pillar II', CONTRIBUTION_ACCOUNTS.pensionPillarTwo, total('pensionPillarTwo'), 'payroll-contributions'),
-    ...contribution('Health insurance fund', CONTRIBUTION_ACCOUNTS.health, total('health'), 'payroll-contributions'),
+    ...contribution('Health insurance fund', CONTRIBUTION_ACCOUNTS.health, total('health') - (staffing.healthShort[paidIn] ?? 0), 'payroll-contributions'),
     ...contribution(CITY_TAX.name, CITY_TAX.iban, total('incomeTax'), 'payroll-tax'),
   ]
-}
-
-/** One salary workbook of a fake variant: the worked month and a tab per employee paid for it. */
-export interface FakePayslipWorkbook {
-  readonly worked: MonthKey
-  readonly tabs: DocumentTab[]
-}
-
-/** The salary workbooks a fake variant's payroll folder holds, one per worked month, or none for a variant without a staff. */
-export function fakePayslipWorkbooks(variant: string | null): FakePayslipWorkbook[] {
-  const staffing = variant === null ? undefined : STAFFINGS[variant]
-  if (staffing === undefined) return []
-  const workbooks: FakePayslipWorkbook[] = []
-  for (let worked = month(FIRST_WORKED); worked <= month(LAST_WORKED); worked = addMonths(worked, 1)) {
-    const tabs = payrollOf(staffing, worked)
-      .filter(({ person }) => !(staffing.payslipLeftOut[person.slug] ?? []).includes(worked))
-      .map(({ person, payroll }) => payslipTab(person, payroll, staffing.payslipMisprint[person.slug]?.[worked] ?? 0))
-    if (tabs.length > 0) workbooks.push({ worked, tabs })
-  }
-  return workbooks
-}
-
-type Row = (StatementCell | undefined)[]
-
-/** Cents added, so a total is what a spreadsheet's SUM shows. */
-function added(amounts: readonly number[]): number {
-  return Math.round(amounts.reduce((sum, amount) => sum + Math.round(amount * 100), 0)) / 100
-}
-
-/** An employee's tab laid out as the accountant's files are, every line the engine's but for a misprint in the tax and the net. */
-function payslipTab(person: FakeEmployee, payroll: PayrollMonth, misprint: number): DocumentTab {
-  const line = (figure: keyof PayrollMonth & ('employerCost' | 'health' | 'gross' | 'pensionPillarOne' | 'pensionPillarTwo' | 'income' | 'personalAllowance' | 'taxableIncome' | 'incomeTax' | 'net' | 'totalCompanyCost' | 'stateTake' | 'paidToEmployee')) =>
-    amountOf(payroll[figure].amount)
-  const lowerRate = localRates(person.city, payroll.paidOn, ruleValue).lowerRate
-  const worked = payroll.workedMonth
-  const [paidYear, paidMonth, paidDay] = payroll.paidOn.split('-').map(Number)
-  return {
-    name: `Obračun plaće_${person.name}`,
-    grid: [
-      [`Plaća ${monthNumber(worked)}/${String(yearOfMonth(worked)).slice(2)} - datum isplate ${paidDay}.${paidMonth}.${paidYear}`],
-      ['Stavka', 'Iznos', 'Napomena'],
-      ['Bruto plaća II', line('employerCost')],
-      ['Zdravstveno osiguranje', line('health')],
-      ['Bruto plaća I', line('gross'), person.agreed === 'floor' ? 'Minimalna osnovica za direktora' : undefined],
-      ['Mirovinsko (I. stup)', line('pensionPillarOne')],
-      ['Mirovinsko (II. stup)', line('pensionPillarTwo')],
-      ['Dohodak', line('income')],
-      ['Osobni odbitak', line('personalAllowance')],
-      ['Oporezivi dio dohotka', line('taxableIncome')],
-      ['Porez na dohodak', added([line('incomeTax'), misprint]), `Grad ${person.city} - ${(lowerRate / 100).toFixed(2).replace('.', ',')}%`],
-      ['Neto plaća', added([line('net'), -misprint])],
-      ['Neoporezive isplate'],
-      ['Prehrana', MEAL],
-      [],
-      ['Ukupni trošak', line('totalCompanyCost')],
-      ['  - Država', added([line('stateTake'), misprint]), 'Doprinosi i porez'],
-      [`- ${person.name}`, added([line('paidToEmployee'), -misprint]), 'Na račun'],
-    ] satisfies Row[],
-  }
 }

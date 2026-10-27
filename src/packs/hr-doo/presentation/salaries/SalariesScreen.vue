@@ -24,23 +24,21 @@ import { EMPLOYEE_WRITES } from '../../domain/hrDooWrites'
 import { salaryReconciliation } from '../../domain/salaries/salaryReconciliation'
 import { EMPLOYEE_COLUMNS } from '../editorColumns'
 import OwnerPayOff from '../OwnerPayOff.vue'
-import { useAccountantDocuments } from '../taxes/useAccountantDocuments'
 import SalaryMonthPanel from './SalaryMonthPanel.vue'
 import SalaryOverTimePanel from './SalaryOverTimePanel.vue'
 import SalaryPeoplePanel from './SalaryPeoplePanel.vue'
 import { chosenPayday, employeeName, paydayYears, peopleRows, salaryMonthView, salaryYearRows } from './salariesView'
 
-/** Each payday's pay split into where the money goes, the payslip, the app and the bank set against each other, and the people the company pays. */
+/** Each payday's pay split into where the money goes, the app and the bank set against each other, and the people the company pays. */
 const settings = useSettings()
 const { state } = useWorkbook()
 const { drillLocation } = useFilters()
-const accountant = useAccountantDocuments()
 const route = useRoute()
 const router = useRouter()
 
 const workbook = computed(() => (state.workbook === null ? null : hrDooWorkbook(state.workbook)))
 const ledgerWindow = computed(() => (workbook.value === null ? null : ledgerWindowOf(workbook.value.transactions)))
-const reconciliation = computed(() => (workbook.value === null ? null : salaryReconciliation(workbook.value, accountant.documents.value?.salaries ?? [])))
+const reconciliation = computed(() => (workbook.value === null ? null : salaryReconciliation(workbook.value)))
 
 const text = (key: string): string | null => (typeof route.query[key] === 'string' && route.query[key] !== '' ? route.query[key] : null)
 
@@ -104,13 +102,11 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
 
 const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
 const monthName = (paid: MonthKey): string => MONTH.format(new Date(firstDayOf(paid)))
-
-const readsPayslips = computed(() => accountant.shows.value)
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Salaries" description="Where each payday’s money went, and whether the payslip, the app and the bank agree on it." />
+    <PageHeader title="Salaries" description="Where each payday’s money went, and whether the app and the bank agree on it." />
     <OwnerPayOff v-if="!settings.ownerPayModule" />
     <LedgerGate v-else>
       <template v-if="workbook">
@@ -120,12 +116,9 @@ const readsPayslips = computed(() => accountant.shows.value)
           color="neutral"
           variant="subtle"
           title="No row is the director's yet"
-          description="The pay scenarios, the forecast's owner pay and the payroll check on Year, Taxes work out the owner's pay on the director's row: where they live, pillar II, dependants, the year of birth and the day the employment started. Add yours with Director ticked."
+          description="The pay scenarios, the forecast's owner pay and the payroll on this page work out the owner's pay on the director's row: where they live, pillar II, dependants, the year of birth and the day the employment started. Add yours with Director ticked."
           data-testid="no-director"
         />
-        <p v-if="employees.length > 0 && !readsPayslips" class="text-sm text-toned" data-testid="salaries-no-payslips">
-          A workbook kept in this browser reads no salary workbooks from Drive, so each month sets the app against the bank and says the payslip is not read.
-        </p>
 
         <PageTabs v-if="employees.length > 0 && payday && month" :tabs="tabs" label="Parts of the salaries" data-testid="salaries-tabs">
           <template #above>
@@ -178,8 +171,8 @@ const readsPayslips = computed(() => accountant.shows.value)
           </template>
         </PageTabs>
         <p v-else-if="employees.length > 0" class="text-sm text-toned" data-testid="salaries-no-payday">
-          No payday yet. A month shows here once the ledger holds a row in a category with the <span class="identifier">salary</span> role, a payroll tax, or a payslip
-          paid in it.
+          No payday yet. A month shows here once the ledger holds a row in a category with the <span class="identifier">salary</span> role or a payroll tax paid in
+          it.
         </p>
 
         <FactTabCard

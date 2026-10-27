@@ -132,8 +132,8 @@ const SYNC_CONTROLS: readonly SyncControl[] = [
   { kind: 'ready', syncedAt: '2026-10-16T06:04:00Z' },
   { kind: 'running', label: 'Statements', position: 2, of: 3, line: 'Filing 3 rows' },
   { kind: 'sign-in', failure: null },
-  { kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: null },
-  { kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: "Google's window was closed before access was allowed." },
+  { kind: 'allow-access', scopes: ['drive.readonly', 'gmail.readonly'], labels: ['Mail', 'Statements'], failure: null },
+  { kind: 'allow-access', scopes: ['drive.readonly', 'gmail.readonly'], labels: ['Mail', 'Statements'], failure: "Google's window was closed before access was allowed." },
   { kind: 'problems', count: 1, labels: ['Statements'] },
 ]
 
@@ -142,8 +142,8 @@ const SYNC_RUN: SyncRun = {
   finishedAt: '2026-10-16T06:04:00Z',
   steps: [
     { id: 'books', label: 'Books', scopes: ['drive.file'], state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
+    { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], state: { kind: 'done', line: 'Nothing new, already there 50', writeId: null, link: null } },
     { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/transactions?tab=import' } } },
-    { id: 'hr-doo.accountant', label: 'Accountant', scopes: ['drive.readonly'], state: { kind: 'done', line: 'Read 12 workbooks.', writeId: null, link: null } },
   ],
 }
 

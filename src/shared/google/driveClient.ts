@@ -1,5 +1,4 @@
 import { startsAtBooksFolder } from '../text/folderPath'
-import { XLSX_MIME_TYPE } from '../xlsx/sheetGrids'
 import { googleFetch } from './googleApi'
 
 const DRIVE_FILES_API = 'https://www.googleapis.com/drive/v3/files'
@@ -9,16 +8,12 @@ export const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 
 export const JSON_MIME_TYPE = 'application/json'
 
-export const GOOGLE_SHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet'
-
 const IS_FOLDER = `mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`
 
 export interface DriveFile {
   readonly id: string
   readonly name: string
   readonly mimeType: string
-  /** Goes up with every change to the file, so a copy read at one version still holds while the version does. */
-  readonly version: string
   /** The revision the file's content stands at. Only files with binary content, such as JSON, have one. */
   readonly headRevisionId: string
   readonly parents: readonly string[]
@@ -100,7 +95,7 @@ async function folderBelow(accessToken: string, startId: string, start: string, 
 }
 
 /** Where a path of folder names from My Drive leads, which needs a token that reads the whole Drive. */
-export function folderOfPath(accessToken: string, path: readonly string[]): Promise<FolderOfPath> {
+function folderOfPath(accessToken: string, path: readonly string[]): Promise<FolderOfPath> {
   return folderBelow(accessToken, 'root', 'My Drive', path)
 }
 
@@ -266,11 +261,4 @@ export async function unkeepRevision(accessToken: string, fileId: string, revisi
 
 function revisionsOf(fileId: string): string {
   return `${DRIVE_FILES_API}/${encodeURIComponent(fileId)}/revisions`
-}
-
-/** A Google Sheet as the contents of an xlsx file. Google caps an export at 10 MB. */
-export async function exportAsXlsx(accessToken: string, fileId: string): Promise<ArrayBuffer> {
-  const query = new URLSearchParams({ mimeType: XLSX_MIME_TYPE })
-  const response = await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}/export?${query}`, accessToken)
-  return response.arrayBuffer()
 }

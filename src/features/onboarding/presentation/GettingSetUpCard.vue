@@ -4,13 +4,12 @@ import { computed } from 'vue'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../shared/ui/DrillLink.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { NO_RECORDS } from '../../workbook/domain/recordsRead'
 import { gettingSetUp } from './gettingSetUp'
 
 /** What new books still lack, on Overview above everything else, with the screen that does each. The card goes once nothing is left. */
 const { state } = useWorkbook()
 
-const lines = computed(() => (state.workbook === null ? [] : gettingSetUp(state.workbook, state.records?.settings ?? NO_RECORDS)))
+const lines = computed(() => (state.workbook === null ? [] : gettingSetUp(state.workbook)))
 </script>
 
 <template>
