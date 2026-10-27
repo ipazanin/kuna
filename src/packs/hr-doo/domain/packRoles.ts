@@ -54,6 +54,11 @@ export function payrollTaxCategories(categories: readonly Category[]): string[] 
     .map((category) => category.slug)
 }
 
+/** The owner-pay categories that pay out profit to the owner, such as a dividend. Their tax sits in the taxes bucket. */
+export function dividendCategories(categories: readonly Category[]): string[] {
+  return categories.filter((category) => category.bucket === 'owner-pay' && category.roles.includes(PACK_ROLES.profitDistribution)).map((category) => category.slug)
+}
+
 /** The slugs of the categories that carry a role, in the order the tab lists them. */
 export function categoriesWithRole(categories: readonly Category[], role: PackRole): string[] {
   return categories.filter((category) => category.roles.includes(role)).map((category) => category.slug)

@@ -10,7 +10,7 @@ import { transactionsInPeriod } from '../../../features/filters/domain/filterSta
 import type { Period } from '../../../features/filters/domain/filterState'
 import { periodMonths } from '../../../features/filters/domain/periodPresets'
 import type { Booking, Category } from '../../../features/workbook/domain/workbook'
-import { PACK_ROLES, categoriesInBucket, categoriesWithRole } from './packRoles'
+import { PACK_ROLES, categoriesInBucket, categoriesWithRole, dividendCategories } from './packRoles'
 import { paidOut } from './paidOut'
 
 /** One category's money between the company and the owner. Paid to the owner reads positive. */
@@ -24,6 +24,10 @@ export interface OwnerTake {
   readonly total: Figure
   /** The owner-pay bucket less the loan categories in it: what the owner was paid, benefits from company costs included. */
   readonly withoutLoans: Figure
+  /** The take without loans and without dividends, which pay out profit the months that earned it already count. */
+  readonly withoutDividends: Figure
+  /** The dividend categories of the bucket. */
+  readonly dividends: Figure
   /** Each owner-pay category that moved, in the order the tab lists them. A repayment reads negative. */
   readonly byCategory: readonly OwnerTakeLine[]
   /** Reimbursements either way. They settle a cost counted under its own category, so they are not owner pay. */
@@ -51,6 +55,8 @@ export function ownerTake(bookings: readonly Booking[], categories: readonly Cat
   const pay = categoriesInBucket(categories, 'owner-pay')
   const loans = [...categoriesWithRole(categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)]
   const paid = pay.filter((category) => !loans.includes(category))
+  const dividends = dividendCategories(categories)
+  const salaried = paid.filter((category) => !dividends.includes(category))
   const reimbursements = categoriesWithRole(categories, PACK_ROLES.reimbursement).filter((category) => !pay.includes(category))
   const linesOf = (slugs: readonly string[]): OwnerTakeLine[] =>
     slugs.flatMap((category) => {
@@ -60,6 +66,8 @@ export function ownerTake(bookings: readonly Booking[], categories: readonly Cat
   return {
     total: { amount: paidOut(rows.filter((booking) => pay.includes(booking.category))), drill: drillToTransactions({ period, buckets: ['owner-pay'] }) },
     withoutLoans: { amount: paidOut(rows.filter((booking) => paid.includes(booking.category))), drill: drillToTransactions({ period, categories: paid }) },
+    withoutDividends: { amount: paidOut(rows.filter((booking) => salaried.includes(booking.category))), drill: drillToTransactions({ period, categories: salaried }) },
+    dividends: { amount: paidOut(rows.filter((booking) => dividends.includes(booking.category))), drill: drillToTransactions({ period, categories: dividends }) },
     byCategory: linesOf(pay),
     reimbursements: linesOf(reimbursements),
   }

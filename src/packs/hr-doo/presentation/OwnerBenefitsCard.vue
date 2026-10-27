@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../shared/charts/chartTokens'
 import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import AppCard from '../../../shared/ui/AppCard.vue'
@@ -14,7 +13,6 @@ import type { DrillTarget } from '../../../features/filters/domain/drillTarget'
 import type { FilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
 import type { TracedRate } from '../domain/cit/citLiability'
-import { forecastYear } from '../domain/forecast/forecastYear'
 import { hrDooWorkbook } from '../domain/hrDooPart'
 import { dividendComparison } from '../domain/ownerBenefits'
 import type { OwnerBenefits } from '../domain/ownerBenefits'
@@ -30,8 +28,8 @@ const props = defineProps<{
   benefits: OwnerBenefits
   /** The period in view, in words. */
   period: string
-  /** The newest booking, the day Year's forecast is seen on. */
-  asOf: CivilDate
+  /** The corporate rate Year works out for a year, on the rows as booked. */
+  corporateRateOf: (year: number) => TracedRate
 }>()
 
 const { drillLocation } = useFilters()
@@ -62,18 +60,6 @@ const ring = computed(() => {
 
 const workbook = computed(() => hrDooWorkbook(props.ledger.booked))
 
-/** The corporate rate Year works out for a year, on the rows as booked. Each year's forecast runs once per workbook. */
-const corporateRateOf = computed(() => {
-  const books = workbook.value
-  const asOf = props.asOf
-  const known = new Map<number, TracedRate>()
-  return (year: number): TracedRate => {
-    const rate = known.get(year) ?? forecastYear(books, year, asOf).liability.rate
-    known.set(year, rate)
-    return rate
-  }
-})
-
 type Comparison = { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly taxAvoided: FigureDetail; readonly asDividend: number }
 
 const comparison = computed((): Comparison => {
@@ -81,7 +67,7 @@ const comparison = computed((): Comparison => {
     return { state: 'unregistered' }
   }
   try {
-    const figures = dividendComparison(props.benefits.byYear, title.value, corporateRateOf.value)
+    const figures = dividendComparison(props.benefits.byYear, title.value, props.corporateRateOf)
     const taxAvoided = figureDetail(
       figures.taxAvoided,
       `${title.value} in ${props.period}, taken out as a dividend instead: corporate tax at the rate Year works out for the year each was paid in, then dividend tax at the rate of the year after.`,

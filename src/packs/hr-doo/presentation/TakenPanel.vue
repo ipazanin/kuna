@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../shared/charts/chartTokens'
@@ -15,15 +15,24 @@ import { periodInWords } from '../../../features/filters/domain/periodInWords'
 import { chartedMonths } from '../../../features/filters/domain/periodPresets'
 import DrillChartCard from '../../../features/filters/presentation/DrillChartCard.vue'
 import DrillChartPlot from '../../../features/filters/presentation/DrillChartPlot.vue'
+import { filterChips } from '../../../features/filters/domain/filterChips'
 import { useSettings } from '../../../features/settings/application/useSettings'
 import type { FilteredLedger } from '../../../features/transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../features/workbook/application/useDisplayNames'
+import type { TracedRate } from '../domain/cit/citLiability'
+import { forecastYear } from '../domain/forecast/forecastYear'
+import type { YearForecast } from '../domain/forecast/forecastYear'
+import { hrDooWorkbook } from '../domain/hrDooPart'
 import { ownerBenefits } from '../domain/ownerBenefits'
+import { ownerNetWithProfit } from '../domain/ownerNetWithProfit'
 import { ownerCost } from '../domain/ownerCost'
 import { loanMonths } from '../domain/ownerLoans'
 import { netPayPerMonth, ownerTake, ownerTakeByMonth } from '../domain/ownerTake'
 import { PACK_ROLES, categoriesWithRole } from '../domain/packRoles'
+import BuildUpButton from './BuildUpButton.vue'
+import FigureDialog from './FigureDialog.vue'
 import OwnerBenefitsCard from './OwnerBenefitsCard.vue'
+import { OWNER_NET_TITLE, ownerNetDetail } from './ownerNetDetail'
 import { categoryLegend, loanBalanceChart, ownerDrawsChart, ownerPaySeries, ownerTakeRing } from './packCharts'
 
 /** What the owner took out over the period in view, what it cost the company, and how it was paid. */
@@ -37,6 +46,74 @@ const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 
+/** The same object while only the filters change, so each year's forecast runs once per workbook. */
+const asBooked = computed(() => props.ledger.booked)
+const booked = computed(() => hrDooWorkbook(asBooked.value))
+
+/** Year's forecast of a year, seen on the newest booking, which the dividend comparison and the profit included read. */
+const forecastOf = computed(() => {
+  const books = booked.value
+  const asOf = props.asOf
+  const known = new Map<number, YearForecast>()
+  return (year: number): YearForecast => {
+    const made = known.get(year) ?? forecastYear(books, year, asOf)
+    known.set(year, made)
+    return made
+  }
+})
+
+const corporateRateOf = computed(() => {
+  const of = forecastOf.value
+  return (year: number): TracedRate => of(year).liability.rate
+})
+
+const netOpen = ref(false)
+
+const takeInView = computed(() => {
+  const { profitAndLossRows, workbook, window, filters } = props.ledger
+  return ownerTake(profitAndLossRows, workbook.categories, filters.period, window)
+})
+
+/** The tile beside Monthly net pay that counts the period's profit as the months earn it, with its build-up. */
+const net = computed(() => {
+  const { window, filters } = props.ledger
+  const periodOnly = filters.accounts.length > 0 || filterChips(filters, { counterparty: String, bucket: String, category: String }).length > 0
+  const tile = (value: string, caption = '') => ({
+    label: OWNER_NET_TITLE,
+    value,
+    to: null,
+    caption,
+    definition:
+      'What the owner earns a month once the profit counts as the months earn it. Pay is the owner take without loans and dividends over the months of the period. ' +
+      'Profit is the profit before tax of the period up to the last complete month, as Year counts it, less corporate tax at the rate Year works out for each year and dividend tax, over those months. ' +
+      'A dividend pays out profit those months already count, so pay leaves it out. The profit is the company’s, so it follows the period and not the other filters.',
+  })
+  const empty = { detail: null, unregistered: false, periodOnly }
+  try {
+    const figures = ownerNetWithProfit(takeInView.value, booked.value, filters.period, window, props.asOf, {
+      profitBeforeTax: (year) => forecastOf.value(year).profitBeforeTax,
+      corporateRate: corporateRateOf.value,
+    })
+    if (figures === null) {
+      return { ...empty, tile: tile('–', 'No month of the ledger in view') }
+    }
+    if (figures.state === 'unregistered') {
+      return { ...empty, tile: tile('–'), unregistered: true }
+    }
+    const since = filters.period.preset === 'all' ? ', since the ledger began' : ''
+    const caption =
+      figures.profitMonths.length === 0
+        ? 'No complete month of profit yet'
+        : `${formatWholeMoney(figures.payPerMonth)} pay and ${formatWholeMoney(figures.profitPerMonth)} from profit, a month${since}`
+    return { ...empty, tile: tile(formatWholeMoney(figures.perMonth), caption), detail: ownerNetDetail(figures, periodInWords(filters.period, window), drillLocation) }
+  } catch (failure) {
+    if (failure instanceof RangeError) {
+      return { ...empty, tile: tile('–', `Could not be worked out. ${failure.message}`) }
+    }
+    throw failure
+  }
+})
+
 const taken = computed(() => {
   const { workbook, booked, profitAndLossRows, window, filters } = props.ledger
   const { categories } = workbook
@@ -44,7 +121,7 @@ const taken = computed(() => {
   const categoryName = names.value.category
   const payLabel = settings.value.bucketLabels['owner-pay']
   const period = periodInWords(filters.period, window)
-  const take = ownerTake(profitAndLossRows, categories, filters.period, window)
+  const take = takeInView.value
   const cost = ownerCost(profitAndLossRows, categories, filters.period, window)
   const benefits = ownerBenefits(profitAndLossRows, categories, filters.period, window)
   const perMonth = netPayPerMonth(take, filters.period, window)
@@ -142,9 +219,20 @@ const taken = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <div class="grid grid-cols-2 gap-3" :class="taken.benefits === null ? 'lg:grid-cols-4' : 'lg:grid-cols-3 2xl:grid-cols-5'" data-testid="owner-taken-tiles">
+    <div class="taken-tiles grid grid-cols-2 gap-3" :class="taken.benefits === null ? 'is-five lg:grid-cols-5' : 'lg:grid-cols-3 2xl:grid-cols-6'" data-testid="owner-taken-tiles">
       <KpiTile v-for="tile in taken.tiles" :key="tile.label" v-bind="tile" />
+      <KpiTile v-bind="net.tile" data-testid="owner-net-with-profit">
+        <template v-if="net.detail" #value>
+          <BuildUpButton :cents="net.detail.cents" precision="whole" :label="OWNER_NET_TITLE" @open="netOpen = true" />
+        </template>
+        <p v-if="net.unregistered" class="mt-1.5 text-xs text-muted" data-testid="owner-net-unregistered">
+          The profit needs <span class="identifier break-all">hr_company_registered</span>.
+          <DrillLink :to="{ path: '/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
+        </p>
+        <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">The profit follows the period only.</p>
+      </KpiTile>
     </div>
+    <FigureDialog v-if="net.detail" v-model:open="netOpen" :detail="net.detail" />
 
     <div class="grid gap-4 xl:grid-cols-2">
       <DonutCard
@@ -200,11 +288,22 @@ const taken = computed(() => {
       </DrillChartCard>
     </div>
 
-    <OwnerBenefitsCard v-if="taken.benefits" :ledger="ledger" :benefits="taken.benefits" :period="taken.period" :as-of="asOf" />
+    <OwnerBenefitsCard v-if="taken.benefits" :ledger="ledger" :benefits="taken.benefits" :period="taken.period" :corporate-rate-of="corporateRateOf" />
   </div>
 </template>
 
 <style scoped>
+/* Five tiles leave the last alone in a row of two, so it takes the whole row. */
+.taken-tiles.is-five > :last-child {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 1024px) {
+  .taken-tiles.is-five > :last-child {
+    grid-column: auto;
+  }
+}
+
 .aside-row {
   display: flex;
   align-items: center;

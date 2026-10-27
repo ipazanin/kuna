@@ -8,7 +8,7 @@
  * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
  * asset rows and grant rows on Year, a line's build-up on Year, Forecast, a payout option, the next year and the Plan tab from Year, Pay,
  * a pay scenario's figure, warnings and starting figures on Year, Pay, a paid corporate tax advance on Year, Taxes, a repayment on the Owner loan list, the
- * Taken tab as Owner's default with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting the period of both tabs, the owner take under the ring against its tile, a month of the loan balance beside the ring, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header, an advance added outside the period opened from its toast,
+ * Taken tab as Owner's default with its net share and monthly net pay tiles, the monthly net with the profit included opening its build-up and Year from it, and reading – without hr_company_registered, Owner's Filters button on the tab row setting the period of both tabs, the owner take under the ring against its tile, a month of the loan balance beside the ring, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header, an advance added outside the period opened from its toast,
  * the cost of a reimbursement with no cost on file added from Review,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
@@ -96,6 +96,8 @@ import {
   onboardingMailFlow,
   onboardingOpenFlow,
   onboardingStatementAccessFlow,
+  ownerNetFlow,
+  ownerNetUnregisteredFlow,
   ownerShareFlow,
   salariesFlow,
   planFlow,
@@ -990,6 +992,8 @@ async function checkWidth(width) {
     ['mail-window', '&fake=mail-nothing-new', mailWindowFlow],
     ['sync-access-closed', '&fake=google-closed', accessClosedFlow],
     ['salaries', '&fake=five-employees', salariesFlow, '#/salaries', 'Salaries'],
+    ['owner-net', '&fake=browser', ownerNetFlow, '#/owner?p=2026', 'Owner'],
+    ['owner-net-unregistered', '', ownerNetUnregisteredFlow, '#/owner?p=2026', 'Owner'],
   ]) {
     await step(name, async () => {
       await page.goto(`${BASE}?theme=dark${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })

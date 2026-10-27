@@ -26,6 +26,8 @@
  * settlement IBANs as tags. On Invoicing, Clients it gives a client a second IBAN, saves it and
  * undoes it, and takes a new IBAN off with its tag's remove button.
  * On Transactions it changes the category of a settled row, which a rule files elsewhere, and undoes it.
+ * On Owner, Taken, at 360, 430 and 1440 px, the monthly net with the profit included opens its build-up and
+ * Year from it in the workbook kept in this browser, and reads – with a link to the setting in the fake file on Drive.
  * On Year a link to the Statements tab alone keeps the year it opened through two tabs and Back.
  * It also makes an invoice through the checks and every step, with the fake Picker picking the
  * invoice and year folders and the month folder made on request, then re-exports it.
@@ -125,6 +127,8 @@ import {
   onboardingMailFlow,
   onboardingOpenFlow,
   onboardingStatementAccessFlow,
+  ownerNetFlow,
+  ownerNetUnregisteredFlow,
   ownerShareFlow,
   salariesFlow,
   planFlow,
@@ -230,7 +234,7 @@ const SCREENS = [
     linkedPart: 'grant-rows',
   },
   { name: 'salaries', hash: '#/salaries', title: 'Salaries', charts: 0, shows: ["No row is the director's yet", 'No employees yet.', 'Add employee'] },
-  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Owner take by type', 'Loans, net', 'Owed by the owner at each month end', 'Net share of gross cost', 'Monthly net pay', 'Benefits from company costs', 'of it from company costs', 'needs hr_company_registered'], cards: false },
+  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Owner take by type', 'Loans, net', 'Owed by the owner at each month end', 'Net share of gross cost', 'Monthly net pay', 'Monthly net, profit included', 'Benefits from company costs', 'of it from company costs', 'needs hr_company_registered'], cards: false },
   { name: 'owner-2025', hash: '#/owner?p=2025', title: 'Owner', charts: 2, shows: ['Jan 2025 – Dec 2025', 'Owner take by type', 'Monthly net pay', 'over 8 months'], cards: false },
   { name: 'owner-owed', hash: '#/owner?tab=owed', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'The company owes the owner on 30 Sept 2026', 'Owed at the end'] },
   { name: 'owner-owed-2025', hash: '#/owner?tab=owed&p=2025', title: 'Owner', charts: 0, shows: ['The owner owes the company on 31 Dec 2025', 'No cost the owner paid privately was owed in Jan 2025 – Dec 2025'] },
@@ -351,7 +355,7 @@ const SOURCE_SCREENS = [
   },
   { name: 'salaries-five-employees-people', query: 'fake=five-employees', hash: '#/salaries?tab=people', title: 'Salaries', charts: 0, shows: ['Everyone paid in Sept 2026', 'Niko Test'] },
   { name: 'salaries-five-employees-one', query: 'fake=five-employees', hash: '#/salaries?employee=lea', title: 'Salaries', charts: 1, shows: ['Lea Proba', 'Paid to the employee'] },
-  { name: 'owner-browser', query: 'fake=browser', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults', 'Monthly net pay'], cards: false },
+  { name: 'owner-browser', query: 'fake=browser', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults', 'Monthly net pay', 'from profit, a month'], cards: false },
   { name: 'owner-owed-browser', query: 'fake=browser', hash: '#/owner?tab=owed&p=all', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'Net owed'] },
   { name: 'year-forecast-browser', query: 'fake=browser', hash: '#/year?year=2026', title: 'Year', charts: 1, shows: ['Month by month, 2026', 'plan rows of 2026 are not invoiced yet', 'Plan against actual, 2026'] },
   { name: 'year-forecast-2027-browser', query: 'fake=browser', hash: '#/year?year=2027', title: 'Year', charts: 1, shows: ['Month by month, 2027', 'Values the ruleset only estimates for 2027'] },
@@ -656,6 +660,8 @@ const FLOWS = [
   { name: 'split-review', hash: '#/review', title: 'Review', run: reviewSplitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'change-category', hash: '#/transactions?p=all&q=CODE%20HOST', title: 'Transactions', run: changeCategoryFlow },
   { name: 'owner-share', hash: '#/transactions?p=all&q=purchase%2C%20laptop', title: 'Transactions', run: ownerShareFlow },
+  { name: 'owner-net', hash: '#/owner?p=2026', title: 'Owner', run: ownerNetFlow, viewports: ['phone', 'phone-large', 'desktop'], modes: ['browser'] },
+  { name: 'owner-net-unregistered', hash: '#/owner?p=2026', title: 'Owner', run: ownerNetUnregisteredFlow, viewports: ['phone', 'phone-large', 'desktop'], modes: ['drive'] },
   { name: 'share-fill', hash: '#/settings?tab=categories', title: 'Settings', run: shareFillFlow },
   { name: 'dismiss', hash: '#/review?tab=rules', title: 'Review', run: dismissFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'rules-editor', hash: '#/review?tab=rules', title: 'Review', run: rulesEditorFlow },

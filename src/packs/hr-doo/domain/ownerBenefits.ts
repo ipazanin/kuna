@@ -13,6 +13,7 @@ import { ruleValue } from '../ruleset/ruleset'
 import type { TracedFigure } from '../ruleset/tracedFigure'
 import type { TracedRate } from './cit/citLiability'
 import { dividendRoute } from './dividend/dividendRoute'
+import type { DividendRoute } from './dividend/dividendRoute'
 import { paidOut } from './paidOut'
 import { rulesOf, tracedFigure } from './payroll/payrollArithmetic'
 import type { RuleSource } from './payroll/payrollArithmetic'
@@ -26,8 +27,8 @@ export interface BenefitSource {
   readonly amount: Figure
 }
 
-/** The benefits of one year, which the dividend comparison taxes at that year's rates. */
-export interface BenefitYear {
+/** An amount of one calendar year, which the dividend comparison taxes at that year's rates. */
+export interface YearAmount {
   readonly year: number
   readonly amount: Money
 }
@@ -43,7 +44,7 @@ export interface OwnerBenefits {
   /** By the category each part comes from, in the order the categories tab lists them. */
   readonly bySource: readonly BenefitSource[]
   /** Oldest first, only the years that hold a part. */
-  readonly byYear: readonly BenefitYear[]
+  readonly byYear: readonly YearAmount[]
 }
 
 /** What taking the same money out as a dividend would have cost and paid, each year at its own rates. */
@@ -52,6 +53,15 @@ export interface DividendComparison {
   readonly taxAvoided: TracedFigure
   /** What the benefits would have reached the owner as a dividend. */
   readonly asDividend: TracedFigure
+  /** Each year on its own, oldest first. */
+  readonly years: readonly YearRoute[]
+}
+
+/** One year's amount taken out as a dividend. */
+export interface YearRoute {
+  readonly year: number
+  readonly amount: TracedFigure
+  readonly route: DividendRoute
 }
 
 /**
@@ -85,27 +95,31 @@ export function ownerBenefits(bookings: readonly Booking[], categories: readonly
 }
 
 /**
- * The benefits taken out as a dividend instead: corporate tax at the rate of the year each was paid
- * in, then dividend tax on what is left at the rate of the year after. A period across years sums
- * each year at its own rates. `benefitName` is the benefit category's name as the screens show it.
+ * An amount taken out as a dividend: corporate tax at the rate of the year it falls in, then
+ * dividend tax on what is left at the rate of the year after. A period across years sums each year
+ * at its own rates. `name` is what the amount is as the screens show it, such as the benefit
+ * category's name.
  */
-export function dividendComparison(byYear: readonly BenefitYear[], benefitName: string, corporateRateOf: (year: number) => TracedRate, rules: RuleSource = ruleValue): DividendComparison {
-  const years = byYear.map(({ year, amount }) => {
-    const benefits = tracedFigure(`${benefitName} in ${year}`, amount, 'ledger', [])
-    const route = dividendRoute(benefits, year, corporateRateOf(year), rules)
-    const taxes = [{ ...route.corporateTax, steps: [benefits] }, route.dividendTax]
+export function dividendComparison(byYear: readonly YearAmount[], name: string, corporateRateOf: (year: number) => TracedRate, rules: RuleSource = ruleValue): DividendComparison {
+  const years = byYear.map(({ year, amount }): YearRoute => {
+    const money = tracedFigure(`${name} in ${year}`, amount, 'ledger', [])
+    return { year, amount: money, route: dividendRoute(money, year, corporateRateOf(year), rules) }
+  })
+  const perYear = years.map(({ year, amount, route }) => {
+    const taxes = [{ ...route.corporateTax, steps: [amount] }, route.dividendTax]
     return {
       taxAvoided: tracedFigure(`Tax avoided in ${year}`, addMoney(route.corporateTax.amount, route.dividendTax.amount), 'ledger', rulesOf(taxes), taxes),
       asDividend: { ...route.net, label: `As a dividend in ${year}` },
     }
   })
-  const [only] = years
-  if (years.length === 1 && only !== undefined) {
-    return { taxAvoided: { ...only.taxAvoided, label: 'Tax avoided against a dividend' }, asDividend: { ...only.asDividend, label: 'As a dividend, net' } }
+  const [only] = perYear
+  if (perYear.length === 1 && only !== undefined) {
+    return { taxAvoided: { ...only.taxAvoided, label: 'Tax avoided against a dividend' }, asDividend: { ...only.asDividend, label: 'As a dividend, net' }, years }
   }
   const summed = (label: string, figures: readonly TracedFigure[]): TracedFigure => tracedFigure(label, sumMoney(figures.map((figure) => figure.amount)), 'ledger', rulesOf(figures), figures)
   return {
-    taxAvoided: summed('Tax avoided against a dividend', years.map((entry) => entry.taxAvoided)),
-    asDividend: summed('As a dividend, net', years.map((entry) => entry.asDividend)),
+    taxAvoided: summed('Tax avoided against a dividend', perYear.map((entry) => entry.taxAvoided)),
+    asDividend: summed('As a dividend, net', perYear.map((entry) => entry.asDividend)),
+    years,
   }
 }

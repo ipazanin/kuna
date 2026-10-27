@@ -57,7 +57,7 @@ const deltaPresentation = computed(() => {
         <span class="block truncate">{{ label }}</span>
         <span class="sr-only">: {{ value }}</span>
       </RouterLink>
-      <p v-else class="min-w-0 truncate text-sm text-muted">{{ label }}</p>
+      <p v-else class="kpi-label min-w-0 truncate text-sm text-muted">{{ label }}</p>
       <div v-if="definition" class="relative z-10 -my-1 -me-1.5">
         <InfoPopover :subject="label" :definition="definition" />
       </div>
@@ -65,7 +65,9 @@ const deltaPresentation = computed(() => {
 
     <div class="flex items-end justify-between gap-3">
       <div class="min-w-0">
-        <p class="text-figure-lg font-semibold text-highlighted">{{ value }}</p>
+        <p class="text-figure-lg font-semibold text-highlighted">
+          <slot name="value">{{ value }}</slot>
+        </p>
         <p v-if="caption" class="mt-1.5 text-xs text-muted">{{ caption }}</p>
         <p v-if="delta && deltaPresentation" class="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
           <span class="inline-flex items-center gap-0.5 font-medium" :class="deltaPresentation.tone">
@@ -75,6 +77,7 @@ const deltaPresentation = computed(() => {
           </span>
           <span>{{ delta.comparison }}</span>
         </p>
+        <slot />
       </div>
       <SparkLine v-if="trend" :points="trend" class="kpi-trend mb-0.5" />
     </div>
@@ -122,7 +125,8 @@ const deltaPresentation = computed(() => {
     display: none;
   }
 
-  .kpi-link .truncate {
+  .kpi-link .truncate,
+  .kpi-label {
     white-space: normal;
   }
 }

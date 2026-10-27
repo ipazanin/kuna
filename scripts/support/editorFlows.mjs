@@ -993,6 +993,52 @@ export async function ownerShareFlow(page, { press, shoot, inspect }) {
 }
 
 /**
+ * Owner, Taken on 2026 in the workbook kept in this browser: "Monthly net, profit included" beside
+ * Monthly net pay splits into pay and profit a month, its figure opens the build-up with each part,
+ * the taxes and what is left in the company, and the year's profit opens Year on that year.
+ */
+export async function ownerNetFlow(page, { press, shoot, inspect }) {
+  const tile = '[data-testid="owner-net-with-profit"]'
+  await page.waitForSelector(`${tile} [data-testid="build-up-button"]`, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the monthly net with the profit included has no figure that opens its build-up')
+  })
+  const caption = await page.$eval(tile, (element) => element.textContent ?? '')
+  if (!/€[\d,]+ pay and €[\d,]+ from profit, a month/.test(caption)) throw new Error(`the tile does not split into pay and profit a month, it says: ${caption.trim()}`)
+  const tiles = await page.$eval('[data-testid="owner-taken-tiles"]', (element) => element.textContent ?? '')
+  if (!tiles.includes('Monthly net pay')) throw new Error('Monthly net pay is gone from beside the new tile')
+  await inspect?.('owner net')
+  await shoot('owner-net')
+
+  await pressSelector(page, press, `${tile} [data-testid="build-up-button"]`)
+  await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
+  await delay(400)
+  const detail = await page.$eval('[data-testid="figure-detail"]', (element) => element.textContent ?? '')
+  for (const line of ['Pay without loans and dividends, 10 months', 'Profit before tax, Jan 2026 – Sept 2026', 'Corporate tax at', 'Dividend tax at', 'Profit after both taxes, 9 months', 'Left in the company']) {
+    if (!detail.includes(line)) throw new Error(`the build-up lacks "${line}", it says: ${detail.slice(0, 300)}`)
+  }
+  await inspect?.('owner net build-up')
+  await shoot('owner-net-build-up')
+
+  await pressSelector(page, press, '[data-testid="figure-detail"] a[aria-label^="Profit before tax, Jan 2026"]')
+  await screenTitled(page, 'Year')
+  if (!(await page.evaluate(() => window.location.hash)).includes('year=2026')) throw new Error('the profit of 2026 did not open Year on 2026')
+}
+
+/** Owner, Taken in the fake file on Drive, which has no hr_company_registered: the tile reads – and its link opens the setting. */
+export async function ownerNetUnregisteredFlow(page, { press, shoot, inspect }) {
+  const note = '[data-testid="owner-net-unregistered"]'
+  await page.waitForSelector(note, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the tile does not say the profit needs hr_company_registered')
+  })
+  const value = await page.$eval('[data-testid="owner-net-with-profit"] .text-figure-lg', (element) => element.textContent?.trim() ?? '')
+  if (value !== '–') throw new Error(`the tile reads "${value}" without hr_company_registered, not –`)
+  await inspect?.('owner net unregistered')
+  await shoot('owner-net-unregistered')
+  await pressSelector(page, press, `${note} a`)
+  await screenTitled(page, 'Settings')
+}
+
+/**
  * Settings, Categories: a 40% default on software subscriptions, saved with the fill offer, which
  * fills the bank rows without a share and leaves the design tool advance's 25%, then undone whole.
  */

@@ -712,6 +712,15 @@ owner pay category, benefits from company costs included, and no loan. A month t
 only in part, such as the month so far or the ledger's first, counts as a whole month, as it does in
 owner pay by month. Rolling periods hold complete months only. `ownerCost` in
 `src/packs/hr-doo/domain/ownerCost.ts` and `netPayPerMonth` in `ownerTake.ts` work them out.
+Beside it, "Monthly net, profit included" counts the profit as the months earn it: the pay without
+loans and dividends over the months of the period, plus the profit before tax of the period's
+months up to the last complete one from Year's forecast, the ledger's first part month included,
+after corporate tax at each year's rate and the `hr.pit.dividend` rate of the year after, over
+those months. A dividend pays out profit its months
+already count, so pay leaves it out, and the profit follows the period alone. Its figure opens the
+build-up, which also names what dividends paid in the year after took out, what is left in the
+company and what of it sets off what the owner owes. Without `hr_company_registered` it reads – and
+says so. `ownerNetWithProfit` in `src/packs/hr-doo/domain/ownerNetWithProfit.ts` works it out.
 The ring holds each owner pay category paid out on balance, in the colour its band has in the
 chart. Loans can be negative, so "Loans, net" sits under the ring with any category that took back
 more than it paid, and the ring and those lines add up to the Owner take tile. `ownerTakeRing` in
