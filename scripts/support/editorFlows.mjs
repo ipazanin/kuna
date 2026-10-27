@@ -1013,7 +1013,7 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
   await delay(400)
   const detail = await page.$eval('[data-testid="figure-detail"]', (element) => element.textContent ?? '')
-  for (const line of ['Pay without loans and dividends, 10 months', 'Profit before tax, Jan 2026 – Sept 2026', 'Corporate tax at', 'Dividend tax at', 'Profit after both taxes, 9 months', 'Left in the company']) {
+  for (const line of ['Pay without loans and dividends, 10 months', 'Rent tax the owner pays the tax office', 'Pay after the rent tax', 'Profit before tax, Jan 2026 – Sept 2026', 'Corporate tax at', 'Dividend tax at', 'Profit after both taxes, 9 months', 'Left in the company']) {
     if (!detail.includes(line)) throw new Error(`the build-up lacks "${line}", it says: ${detail.slice(0, 300)}`)
   }
   await inspect?.('owner net build-up')

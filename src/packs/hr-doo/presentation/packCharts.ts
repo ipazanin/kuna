@@ -4,6 +4,7 @@ import { BAR_END_DOWN, BAR_END_UP, incompleteBand, markIncomplete, moneyAxisLabe
 import type { ChartTokens } from '../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../shared/charts/echarts'
+import { negateMoney } from '../../../shared/money/money'
 import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../shared/ui/ChartLegend.vue'
 import { drillToTransactions } from '../../../features/filters/domain/drillTarget'
@@ -92,6 +93,8 @@ export function categorySeries(listed: readonly Category[], moved: readonly stri
 
 export const LOANS_NET_SERIES = 'Loans, net'
 
+export const RENT_TAX_LABEL = 'Rent tax the owner pays the tax office'
+
 /**
  * The owner pay categories by category, with the loans to the owner and their repayments as one
  * "Loans, net" series in the free slot after the others, since a loan and its repayment are one story.
@@ -120,15 +123,15 @@ export interface OwnerTakeRing {
   readonly parts: readonly { readonly key: string; readonly label: string; readonly value: number; readonly colour: string; readonly drill: DrillTarget }[]
   /** The ring's total, in its middle. */
   readonly ringTotal: number
-  /** Loans, net, and any category that took back more than it paid, which with the ring make the owner take. */
+  /** Loans, net, any category that took back more than it paid, and the rent tax, which with the ring make the owner take. */
   readonly aside: readonly OwnerTakeAside[]
   readonly total: number
 }
 
 /**
  * The owner take as a ring of the categories paid out on balance, and beside it what a ring cannot
- * hold: the loans as one net line, and any category that handed back more than it paid. The ring
- * and the lines beside it add up to the owner take.
+ * hold: the loans as one net line, any category that handed back more than it paid, and the rent
+ * tax the owner pays out of the rent. The ring and the lines beside it add up to the owner take.
  */
 export function ownerTakeRing(take: OwnerTake, period: Period, series: readonly CategorySeries[], nameOf: (slug: string) => string): OwnerTakeRing {
   const loans = series.find((entry) => entry.name === LOANS_NET_SERIES)?.categories ?? []
@@ -150,6 +153,7 @@ export function ownerTakeRing(take: OwnerTake, period: Period, series: readonly 
           },
         ]),
     ...others.filter((line) => line.amount.amount < 0).map((line) => ({ key: line.category, label: nameOf(line.category), amount: line.amount.amount, drill: line.amount.drill })),
+    ...(take.rentTax.amount === 0 ? [] : [{ key: 'rent-tax', label: RENT_TAX_LABEL, amount: negateMoney(take.rentTax.amount), drill: take.rentTax.drill }]),
   ]
   return { parts, ringTotal: parts.reduce((sum, part) => sum + part.value, 0), aside, total: take.total.amount }
 }

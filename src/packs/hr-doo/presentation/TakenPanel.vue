@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../shared/charts/chartTokens'
+import { addMoney } from '../../../shared/money/money'
 import { formatWholeMoney } from '../../../shared/money/moneyFormat'
 import ChartLegend from '../../../shared/ui/ChartLegend.vue'
 import DonutCard from '../../../shared/ui/DonutCard.vue'
@@ -84,7 +85,7 @@ const net = computed(() => {
     to: null,
     caption,
     definition:
-      'What the owner earns a month once the profit counts as the months earn it. Pay is the owner take without loans and dividends over the months of the period. ' +
+      'What the owner earns a month once the profit counts as the months earn it. Pay is the owner take without loans and dividends over the months of the period, the rent after the rent tax. ' +
       'Profit is the profit before tax of the period up to the last complete month, as Year counts it, less corporate tax at the rate Year works out for each year and dividend tax, over those months. ' +
       'A dividend pays out profit those months already count, so pay leaves it out. The profit is the company’s, so it follows the period and not the other filters.',
   })
@@ -138,6 +139,8 @@ const taken = computed(() => {
   const percent = new Intl.NumberFormat(settings.value.numberLocale, { style: 'percent', maximumFractionDigits: 0 })
   const withoutLoans = formatWholeMoney(take.withoutLoans.amount)
   const loanNote = loansArePay ? ' Loans to the owner and their repayments stay out, since a loan is not pay.' : ''
+  const rentTaxed = take.rentTax.amount !== 0
+  const rentNote = rentTaxed ? ' Rent counts after the rent tax, which the owner pays the tax office out of it.' : ''
   const parts = ring.parts.map((part): DonutPart => ({ ...part, to: drillLocation(part.drill) }))
   const shares = parts.map((part) => `${part.label} ${formatWholeMoney(part.value)}`).join(', ')
   const aside = ring.aside.map((line) => ({ ...line, to: drillLocation(line.drill) }))
@@ -157,7 +160,8 @@ const taken = computed(() => {
           (loansArePay
             ? `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. A loan to the owner is pay taken early and its repayment is pay handed back, so both count. Reimbursements settle costs and are left out.`
             : `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. Loans to the owner are in the financing bucket, so neither they nor their repayments count. Reimbursements settle costs and are left out.`) +
-          (benefits === null ? '' : ` ${benefitName}, the owner's parts of company costs, count too.`),
+          (benefits === null ? '' : ` ${benefitName}, the owner's parts of company costs, count too.`) +
+          (rentTaxed ? `${rentNote} The rows it opens add up to more by that tax.` : ''),
       },
       ...(benefits === null
         ? []
@@ -174,8 +178,8 @@ const taken = computed(() => {
         label: 'Gross cost of the owner',
         value: formatWholeMoney(cost.gross.amount),
         to: drillLocation(cost.gross.drill),
-        caption: `${formatWholeMoney(cost.taxOnPay.amount)} of it tax on the pay`,
-        definition: 'Owner take plus the taxes owed because the owner was paid, the categories with the owner-pay-tax role. Corporate income tax stays out.',
+        caption: `${formatWholeMoney(addMoney(cost.taxOnPay.amount, take.rentTax.amount))} of it tax on the pay`,
+        definition: `Owner take plus the taxes owed because the owner was paid, the categories with the owner-pay-tax role${rentTaxed ? ', and the rent tax the owner pays out of the rent' : ''}. Corporate income tax stays out.`,
       },
       {
         label: 'Net share of gross cost',
@@ -184,7 +188,7 @@ const taken = computed(() => {
         caption: cost.netShare === null ? 'Nothing paid to the owner' : `${withoutLoans} of ${formatWholeMoney(cost.grossWithoutLoans)} gross cost`,
         definition:
           `How much of what the company spent on paying the owner reached the owner: the owner take without loans over itself plus the taxes owed because the owner was paid. ` +
-          `100% would mean no tax on top.${loanNote}${benefits === null ? '' : ` ${benefitName} count in the take and carry no tax, so they raise it.`}`,
+          `100% would mean no tax on top.${loanNote}${rentNote}${benefits === null ? '' : ` ${benefitName} count in the take and carry no tax, so they raise it.`}`,
       },
       {
         label: 'Monthly net pay',
@@ -193,13 +197,13 @@ const taken = computed(() => {
         caption: perMonth === null ? 'No month of the ledger in view' : `${withoutLoans} over ${perMonth.months} ${perMonth.months === 1 ? 'month' : 'months'}`,
         definition:
           `What the owner was paid a month from every owner pay category, such as salary, bonus, dividend and rent${benefits === null ? '' : `, ${benefitName.toLowerCase()} included`}: the owner take without loans over the months of the period. ` +
-          `A month the ledger covers only in part, such as the month so far, counts as a whole month, as it does in the chart of ${payLabel.toLowerCase()} by month.${loanNote}`,
+          `A month the ledger covers only in part, such as the month so far, counts as a whole month, as it does in the chart of ${payLabel.toLowerCase()} by month.${loanNote}${rentNote}`,
       },
     ],
     ring: {
       parts,
       total: formatWholeMoney(ring.ringTotal),
-      totalLabel: aside.length === 0 ? 'owner take' : aside.some((line) => line.key === 'loans') ? 'without loans' : 'paid out',
+      totalLabel: aside.length === 0 ? 'owner take' : aside.some((line) => line.key === 'loans') && !rentTaxed ? 'without loans' : 'paid out',
       aside,
       takeTotal: { amount: ring.total, to: drillLocation(take.total.drill) },
       description:
@@ -238,7 +242,7 @@ const taken = computed(() => {
       <DonutCard
         title="Owner take by type"
         :subtitle="`${taken.period}. Paid to the owner on balance, by category.`"
-        definition="Each owner pay category the company paid out more than it took back, as a share of the ring. Loans can be negative, so they sit under the ring, and with it they make the owner take. Beside the ring, what the owner owed the company at the end of each month, over every loan since the ledger began."
+        definition="Each owner pay category the company paid out more than it took back, as a share of the ring. Loans can be negative, so they sit under the ring with the rent tax the owner pays out of the rent, and with it they make the owner take. Beside the ring, what the owner owed the company at the end of each month, over every loan since the ledger began."
         :description="taken.ring.description"
         :parts="taken.ring.parts"
         :total="taken.ring.total"

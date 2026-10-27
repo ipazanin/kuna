@@ -34,8 +34,10 @@ export interface ProfitYear extends YearRoute {
 /** The owner's net a month with the profit counted as the months earn it, after corporate and dividend tax. */
 export interface OwnerNetWithProfit {
   readonly state: 'ready'
-  /** The owner take without loans and without dividends. */
+  /** The owner take without loans and without dividends, the rent after its tax. */
   readonly pay: Figure
+  /** The rent tax the pay leaves out, which the owner pays the tax office. */
+  readonly rentTax: Figure
   /** The dividends the pay leaves out, since they pay out profit the months that earned it count. */
   readonly dividendsLeftOut: Figure
   /** The months the pay covers, a month the ledger covers only in part counting as one. */
@@ -119,6 +121,7 @@ export function ownerNetWithProfit(
   return {
     state: 'ready',
     pay: take.withoutDividends,
+    rentTax: take.rentTax,
     dividendsLeftOut: take.dividends,
     payMonths: months.length,
     payPerMonth,

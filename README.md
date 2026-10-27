@@ -633,6 +633,7 @@ the `roles` column, never by name:
 | `owner-benefit` | The owner-pay category an owner share is for, as *Owner share* describes. Core reads it |
 | `owner-loan-out`, `owner-loan-repaid` | Loans to the owner and their repayments |
 | `owner-pay-tax` | Taxes owed because the owner was paid, added to the owner's gross cost |
+| `owner-rent` | In the owner-pay bucket, rent the company pays the owner, which Owner counts after the rent tax the owner pays |
 | `watched` | In the taxes bucket, a tax with a monthly payment calendar |
 | `reimbursement` | Reimbursements between owner and company, listed beside owner pay. A payment to the owner on one repays the owner's advances. A payment from the owner on one repays a private cost the company paid for the owner |
 | `client-refund` | Money paid back to a client, such as an overpayment, on Invoicing |
@@ -704,8 +705,17 @@ tabs under one filter bar, as Analysis has, so both tabs read the same period. O
 button ends the tab row as an icon with its count. Taken, the default, follows every filter: the owner take, the gross cost of the owner, the
 owner's net share of that cost and the monthly net pay, "Owner take by type" as a ring with the loan
 balance beside it, and owner pay by month with the loans and their repayments as one "Loans, net"
-band. The net share is the owner take without loans over itself plus the taxes owed because the
-owner was paid, so 60,000 on 100,000 reads 60%. A loan is neither pay nor a cost, so it stays out of
+band. Rent in a category with the `owner-rent` role counts after the rent tax, which the owner pays
+the tax office and the company never withholds. It is 12% of the rent less 30% flat expenses, by the
+`hr.pit.rent` rule in force on the row's day, so a rent of 300.00 counts 274.80. The take, its ring,
+the net share, the monthly net pay and the pay in "Monthly net, profit included" all count the
+274.80. The ring and that tile's build-up name the 25.20 as "Rent tax the owner pays the tax office".
+The ledger, Year, the profit, the corporate tax and the bank figures keep the 300.00 the company paid,
+and so does owner pay by month. A row before the ruleset's first day carries no rent tax. `ownerTake`
+in `src/packs/hr-doo/domain/ownerTake.ts` takes it off. The net share is the owner take without
+loans over itself plus the rent tax and the taxes owed because the owner was paid, so 60,000 on
+100,000 reads 60%. The rent tax lowers what the owner keeps and leaves the gross cost as the company
+paid it. A loan is neither pay nor a cost, so it stays out of
 both, and the gross cost it divides by can be lower than the gross cost tile when loans count as
 owner pay. The monthly net pay is the owner take without loans over the months of the period: every
 owner pay category, benefits from company costs included, and no loan. A month the ledger covers
@@ -723,7 +733,7 @@ company and what of it sets off what the owner owes. Without `hr_company_registe
 says so. `ownerNetWithProfit` in `src/packs/hr-doo/domain/ownerNetWithProfit.ts` works it out.
 The ring holds each owner pay category paid out on balance, in the colour its band has in the
 chart. Loans can be negative, so "Loans, net" sits under the ring with any category that took back
-more than it paid, and the ring and those lines add up to the Owner take tile. `ownerTakeRing` in
+more than it paid and the rent tax, and the ring and those lines add up to the Owner take tile. `ownerTakeRing` in
 `packCharts.ts` builds it. Beside the ring, while a category carries the `owner-loan-out` role, a
 bar for each month of the period gives what the owner owed the company at its end, over every loan
 row since the ledger began, from the same loan book as Who owes whom. A bar opens those rows up to

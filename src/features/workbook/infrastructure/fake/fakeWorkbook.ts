@@ -48,7 +48,7 @@ const CATEGORY_ROLES: Readonly<Record<string, string>> = {
   'dividend-tax': 'owner-pay-tax, profit-distribution',
   'salary-net': 'salary, arrears',
   dividend: 'profit-distribution',
-  'rent-owner': 'watched, arrears',
+  'rent-owner': 'watched, arrears, owner-rent',
   accounting: 'watched',
   equipment: 'capital-purchase',
   representation: 'representation',

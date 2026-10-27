@@ -15,7 +15,8 @@ import { ownerTake } from '../src/packs/hr-doo/domain/ownerTake'
 import { summed, tracedFigure } from '../src/packs/hr-doo/domain/payroll/payrollArithmetic'
 import type { Rate } from '../src/packs/hr-doo/ruleset/schema'
 import { ownerNetDetail } from '../src/packs/hr-doo/presentation/ownerNetDetail'
-import { withPackBuckets } from './fixtures/hrDooCategories'
+import { RENT_TAX_LABEL } from '../src/packs/hr-doo/presentation/packCharts'
+import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { STEADY_CATEGORIES, steadyStudio } from './fixtures/steadyStudio'
@@ -116,6 +117,32 @@ describe('ownerNetWithProfit on the worked example', () => {
     expect(lines).toContainEqual(['Of it, sets off what the owner owes on 30 Jun 2026', euros(2000)])
     expect(lines).toContainEqual(['Profit before tax, Jan 2026 – Jun 2026', euros(30000)])
     expect(lines).toContainEqual(['Dividends left out, since the profit counts them', euros(8800)])
+  })
+})
+
+describe('ownerNetWithProfit with rent', () => {
+  it('counts the rent after the rent tax and shows the step in the build-up', () => {
+    const categories = [...STEADY_CATEGORIES, ...PACK_CATEGORIES.filter((category) => category.slug === 'rent-owner')]
+    const rent: RowSpec[] = [1, 2, 3, 4, 5, 6].map((month) => ({ date: `2026-0${month}-10`, amount: -300, category: 'rent-owner' }))
+    const books = steadyStudio({
+      categories,
+      transactions: withPackBuckets(ledger([...WORKED, ...rent]), categories),
+      ownerAdvances: [],
+      companyFacts: { ...COMPANY_FACT_SETTINGS.defaults, companyRegistered: civil('2025-01-02') },
+    })
+    const net = ready(netOf(books, JANUARY_TO_JUNE, WORKED_WINDOW, '2026-07-03', WORKED_PROFIT))
+
+    // Six rents of 300.00, each 25.20 of rent tax, leave 6,000 of salary and 1,648.80 of rent.
+    expect(net.rentTax.amount).toBe(euros(151.2))
+    expect(net.pay.amount).toBe(euros(7648.8))
+    expect(net.payPerMonth).toBe(euros(1274.8))
+    const lines = ownerNetDetail(net, 'Jan 2026 – Jun 2026', () => null).steps.map((step) => [step.label, step.cents, step.depth])
+    expect(lines.slice(0, 4)).toEqual([
+      ['Pay without loans and dividends, 6 months', euros(7800), 0],
+      ['Dividends left out, since the profit counts them', euros(8800), 1],
+      [RENT_TAX_LABEL, euros(-151.2), 1],
+      ['Pay after the rent tax', euros(7648.8), 0],
+    ])
   })
 })
 

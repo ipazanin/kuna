@@ -234,7 +234,7 @@ const SCREENS = [
     linkedPart: 'grant-rows',
   },
   { name: 'salaries', hash: '#/salaries', title: 'Salaries', charts: 0, shows: ["No row is the director's yet", 'No employees yet.', 'Add employee'] },
-  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Owner take by type', 'Loans, net', 'Owed by the owner at each month end', 'Net share of gross cost', 'Monthly net pay', 'Monthly net, profit included', 'Benefits from company costs', 'of it from company costs', 'needs hr_company_registered'], cards: false },
+  { name: 'owner', hash: '#/owner', title: 'Owner', charts: 2, shows: ['Owner take by type', 'Loans, net', 'Rent tax the owner pays the tax office', 'Owed by the owner at each month end', 'Net share of gross cost', 'Monthly net pay', 'Monthly net, profit included', 'Benefits from company costs', 'of it from company costs', 'needs hr_company_registered'], cards: false },
   { name: 'owner-2025', hash: '#/owner?p=2025', title: 'Owner', charts: 2, shows: ['Jan 2025 – Dec 2025', 'Owner take by type', 'Monthly net pay', 'over 8 months'], cards: false },
   { name: 'owner-owed', hash: '#/owner?tab=owed', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'The company owes the owner on 30 Sept 2026', 'Owed at the end'] },
   { name: 'owner-owed-2025', hash: '#/owner?tab=owed&p=2025', title: 'Owner', charts: 0, shows: ['The owner owes the company on 31 Dec 2025', 'No cost the owner paid privately was owed in Jan 2025 – Dec 2025'] },

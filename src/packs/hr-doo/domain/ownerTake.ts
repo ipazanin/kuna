@@ -2,7 +2,7 @@ import { isCompleteMonth } from '../../../shared/calendar/ledgerWindow'
 import type { LedgerWindow } from '../../../shared/calendar/ledgerWindow'
 import { monthOf } from '../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../shared/calendar/monthKey'
-import { divideMoney } from '../../../shared/money/money'
+import { divideMoney, negateMoney, subtractMoney, sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { drillToTransactions, monthPeriod } from '../../../features/filters/domain/drillTarget'
 import type { Figure } from '../../../features/filters/domain/drillTarget'
@@ -10,8 +10,11 @@ import { transactionsInPeriod } from '../../../features/filters/domain/filterSta
 import type { Period } from '../../../features/filters/domain/filterState'
 import { periodMonths } from '../../../features/filters/domain/periodPresets'
 import type { Booking, Category } from '../../../features/workbook/domain/workbook'
+import { RULESET_FIRST_DAY, ruleValue } from '../ruleset/ruleset'
 import { PACK_ROLES, categoriesInBucket, categoriesWithRole, dividendCategories } from './packRoles'
 import { paidOut } from './paidOut'
+import { atRate } from './payroll/payrollArithmetic'
+import type { RuleSource } from './payroll/payrollArithmetic'
 
 /** One category's money between the company and the owner. Paid to the owner reads positive. */
 export interface OwnerTakeLine {
@@ -20,15 +23,17 @@ export interface OwnerTakeLine {
 }
 
 export interface OwnerTake {
-  /** The owner-pay bucket, loans and their repayments included. */
+  /** What the owner keeps of the owner-pay bucket, loans and their repayments included, the rent after its tax. */
   readonly total: Figure
-  /** The owner-pay bucket less the loan categories in it: what the owner was paid, benefits from company costs included. */
+  /** The take less the loan categories in it, benefits from company costs included. */
   readonly withoutLoans: Figure
   /** The take without loans and without dividends, which pay out profit the months that earned it already count. */
   readonly withoutDividends: Figure
   /** The dividend categories of the bucket. */
   readonly dividends: Figure
-  /** Each owner-pay category that moved, in the order the tab lists them. A repayment reads negative. */
+  /** The income tax on the rent the company paid the owner, which the owner pays the tax office. The company never withholds it. */
+  readonly rentTax: Figure
+  /** Each owner-pay category that moved, as paid, in the order the tab lists them. A repayment reads negative. */
   readonly byCategory: readonly OwnerTakeLine[]
   /** Reimbursements either way. They settle a cost counted under its own category, so they are not owner pay. */
   readonly reimbursements: readonly OwnerTakeLine[]
@@ -49,14 +54,18 @@ export interface OwnerTakeMonth {
   readonly total: Figure
 }
 
-/** What the owner took out over a period, in total and by category. */
-export function ownerTake(bookings: readonly Booking[], categories: readonly Category[], period: Period, window: LedgerWindow): OwnerTake {
+/** What the owner took out over a period, in total and by category, the rent after the tax in force on each row's day. */
+export function ownerTake(bookings: readonly Booking[], categories: readonly Category[], period: Period, window: LedgerWindow, rules: RuleSource = ruleValue): OwnerTake {
   const rows = transactionsInPeriod(bookings, period, window)
   const pay = categoriesInBucket(categories, 'owner-pay')
   const loans = [...categoriesWithRole(categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)]
   const paid = pay.filter((category) => !loans.includes(category))
   const dividends = dividendCategories(categories)
   const salaried = paid.filter((category) => !dividends.includes(category))
+  const rentRole = categoriesWithRole(categories, PACK_ROLES.ownerRent)
+  const rented = salaried.filter((category) => rentRole.includes(category))
+  const rentTax = rentTaxOn(rows.filter((booking) => rented.includes(booking.category)), rules)
+  const kept = (slugs: readonly string[]) => subtractMoney(paidOut(rows.filter((booking) => slugs.includes(booking.category))), rentTax)
   const reimbursements = categoriesWithRole(categories, PACK_ROLES.reimbursement).filter((category) => !pay.includes(category))
   const linesOf = (slugs: readonly string[]): OwnerTakeLine[] =>
     slugs.flatMap((category) => {
@@ -64,13 +73,30 @@ export function ownerTake(bookings: readonly Booking[], categories: readonly Cat
       return own.length === 0 ? [] : [{ category, amount: { amount: paidOut(own), drill: drillToTransactions({ period, categories: [category] }) } }]
     })
   return {
-    total: { amount: paidOut(rows.filter((booking) => pay.includes(booking.category))), drill: drillToTransactions({ period, buckets: ['owner-pay'] }) },
-    withoutLoans: { amount: paidOut(rows.filter((booking) => paid.includes(booking.category))), drill: drillToTransactions({ period, categories: paid }) },
-    withoutDividends: { amount: paidOut(rows.filter((booking) => salaried.includes(booking.category))), drill: drillToTransactions({ period, categories: salaried }) },
+    total: { amount: kept(pay), drill: drillToTransactions({ period, buckets: ['owner-pay'] }) },
+    withoutLoans: { amount: kept(paid), drill: drillToTransactions({ period, categories: paid }) },
+    withoutDividends: { amount: kept(salaried), drill: drillToTransactions({ period, categories: salaried }) },
     dividends: { amount: paidOut(rows.filter((booking) => dividends.includes(booking.category))), drill: drillToTransactions({ period, categories: dividends }) },
+    rentTax: { amount: rentTax, drill: drillToTransactions({ period, categories: rented }) },
     byCategory: linesOf(pay),
     reimbursements: linesOf(reimbursements),
   }
+}
+
+/**
+ * The rent tax on each row: the tax rate on the rent less its flat expenses, so a refund of rent
+ * gives its tax back. The ruleset holds no rule before its first day, so a row before it is untaxed.
+ */
+function rentTaxOn(rows: readonly Booking[], rules: RuleSource): Money {
+  return sumMoney(
+    rows
+      .filter((booking) => booking.date >= RULESET_FIRST_DAY)
+      .map((booking) => {
+        const { flatExpenseShare, taxRate } = rules('hr.pit.rent', booking.date).value
+        const rent = negateMoney(booking.amount)
+        return atRate(subtractMoney(rent, atRate(rent, flatExpenseShare.basisPoints)), taxRate.basisPoints)
+      }),
+  )
 }
 
 /**

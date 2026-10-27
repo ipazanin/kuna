@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { ownerTake } from '../src/packs/hr-doo/domain/ownerTake'
-import { LOANS_NET_SERIES, ownerPaySeries, ownerTakeRing } from '../src/packs/hr-doo/presentation/packCharts'
+import { LOANS_NET_SERIES, RENT_TAX_LABEL, ownerPaySeries, ownerTakeRing } from '../src/packs/hr-doo/presentation/packCharts'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
@@ -46,14 +46,29 @@ describe('ownerTakeRing', () => {
       ['salary-net', euros(1100), '--series-1'],
       ['dividend', euros(4000), '--series-2'],
     ])
-    // 3,000.00 lent less 2,975.00 repaid is 25.00, and 300.00 of rent came back.
+    // 3,000.00 lent less 2,975.00 repaid is 25.00, and 300.00 of rent came back with its 25.20 rent tax.
     expect(ring.aside.map((line) => [line.label, line.amount])).toEqual([
       [LOANS_NET_SERIES, euros(25)],
       ['rent-owner', euros(-300)],
+      [RENT_TAX_LABEL, euros(25.2)],
     ])
     expect(ring.ringTotal).toBe(euros(5100))
-    // 5,100.00 in the ring, 25.00 of loans and 300.00 handed back make the 4,825.00 owner take.
-    expect(ring.total).toBe(euros(4825))
+    // 5,100.00 in the ring, 25.00 of loans, 300.00 handed back and its 25.20 tax make the 4,850.20 owner take.
+    expect(ring.total).toBe(euros(4850.2))
     expect(ring.ringTotal + ring.aside.reduce((sum, line) => sum + line.amount, 0)).toBe(ring.total)
+  })
+
+  it('rings the rent as paid and sets the rent tax the owner pays beside it', () => {
+    const paid = withPackBuckets(ledger([{ date: '2026-09-12', amount: -1100, category: 'salary-net' }, { date: '2026-09-12', amount: -300, category: 'rent-owner' }]))
+    const rentTake = ownerTake(paid, PACK_CATEGORIES, period, windowOf('2026-07-01', '2026-10-01'))
+    const ring = ownerTakeRing(rentTake, period, ownerPaySeries(PAY, ['salary-net', 'rent-owner'], LOANS, TOKENS, name), name)
+
+    expect(ring.parts.map((part) => [part.key, part.value])).toEqual([
+      ['salary-net', euros(1100)],
+      ['rent-owner', euros(300)],
+    ])
+    expect(ring.aside.map((line) => [line.label, line.amount, line.drill.filters.categories])).toEqual([[RENT_TAX_LABEL, euros(-25.2), ['rent-owner']]])
+    // 1,400.00 paid out less the 25.20 rent tax is the 1,374.80 the owner keeps.
+    expect(ring.total).toBe(euros(1374.8))
   })
 })

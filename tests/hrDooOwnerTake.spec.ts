@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { ownerCost } from '../src/packs/hr-doo/domain/ownerCost'
 import { netPayPerMonth, ownerTake, ownerTakeByMonth } from '../src/packs/hr-doo/domain/ownerTake'
+import type { RuleSource } from '../src/packs/hr-doo/domain/payroll/payrollArithmetic'
+import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset'
+import { basisPoints } from '../src/packs/hr-doo/ruleset/schema'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { withPackBuckets, PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import type { Period } from '../src/features/filters/domain/filterState'
@@ -120,5 +123,60 @@ describe('gross cost of the owner', () => {
     const cost = ownerCost(transactions, PACK_CATEGORIES, days('2026-07-01', '2026-07-03'), window)
 
     expect(cost.netShare).toBeNull()
+  })
+})
+
+describe('rent tax', () => {
+  const rent = withPackBuckets(
+    ledger([
+      { date: '2026-07-12', amount: -1100, category: 'salary-net' },
+      { date: '2026-07-12', amount: -300, category: 'rent-owner' },
+      { date: '2026-07-12', amount: -554, category: 'payroll-contributions' },
+    ]),
+  )
+  const july = windowOf('2026-07-12', '2026-07-12')
+  const allTime = { preset: 'all' } as const
+
+  it('counts a rent row of 300.00 as the 274.80 the owner keeps, and names the 25.20 rent tax', () => {
+    const take = ownerTake(rent, PACK_CATEGORIES, allTime, july)
+
+    // 30% of 300.00 is flat expenses, and 12% of the 210.00 left is 25.20.
+    expect(take.rentTax.amount).toBe(euros(25.2))
+    expect(take.rentTax.drill.filters).toEqual({ period: allTime, categories: ['rent-owner'] })
+    expect([take.total.amount, take.withoutLoans.amount, take.withoutDividends.amount]).toEqual([euros(1374.8), euros(1374.8), euros(1374.8)])
+    expect(take.byCategory.map((line) => [line.category, line.amount.amount])).toEqual([
+      ['salary-net', euros(1100)],
+      ['rent-owner', euros(300)],
+    ])
+    expect(netPayPerMonth(take, allTime, july)?.perMonth).toBe(euros(1374.8))
+  })
+
+  it('drops the net share’s numerator by the rent tax and keeps the gross cost the company paid', () => {
+    const cost = ownerCost(rent, PACK_CATEGORIES, allTime, july)
+
+    expect(cost.gross.amount).toBe(euros(1100 + 300 + 554))
+    expect(cost.grossWithoutLoans).toBe(euros(1954))
+    // 1,374.80 kept of the 1,954.00 the company spent.
+    expect(cost.netShare).toBeCloseTo(1374.8 / 1954, 10)
+  })
+
+  it('taxes each row by the rule in force on its day', () => {
+    // The ruleset holds one version of hr.pit.rent, so a made-up 10% from 2026 stands in for a change.
+    const rules: RuleSource = (id, on) => {
+      const lookup = ruleValue(id, on)
+      return id === 'hr.pit.rent' && on >= civil('2026-01-01') ? ({ ...lookup, value: { ...lookup.value, taxRate: basisPoints(1000) } } as typeof lookup) : lookup
+    }
+    const acrossYears = withPackBuckets(
+      ledger([
+        { date: '2024-12-12', amount: -300, category: 'rent-owner' },
+        { date: '2025-12-12', amount: -300, category: 'rent-owner' },
+        { date: '2026-01-12', amount: -300, category: 'rent-owner' },
+      ]),
+    )
+    const take = ownerTake(acrossYears, PACK_CATEGORIES, allTime, windowOf('2024-12-12', '2026-01-12'), rules)
+
+    // 2025 at 12% of 210.00 is 25.20, 2026 at 10% is 21.00, and 2024 is before the ruleset's first day.
+    expect(take.rentTax.amount).toBe(euros(25.2 + 21))
+    expect(take.total.amount).toBe(euros(900 - 46.2))
   })
 })

@@ -17,7 +17,7 @@ export const PACK_CATEGORIES: readonly Category[] = [
   category('tax-refund', 'taxes'),
   category('salary-net', 'owner-pay'),
   category('dividend', 'owner-pay'),
-  category('rent-owner', 'owner-pay', ['watched']),
+  category('rent-owner', 'owner-pay', ['watched', 'owner-rent']),
   category('owner-loan-out', 'owner-pay', ['owner-loan-out']),
   category('owner-loan-repaid', 'owner-pay', ['owner-loan-repaid']),
   category('reimbursement-to-owner', 'financing', ['reimbursement']),

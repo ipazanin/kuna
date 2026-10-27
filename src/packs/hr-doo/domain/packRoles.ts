@@ -8,6 +8,8 @@ export const PACK_ROLES = {
   ownerLoanOut: 'owner-loan-out',
   ownerLoanRepaid: 'owner-loan-repaid',
   ownerPayTax: 'owner-pay-tax',
+  /** Rent the company pays the owner, in the owner-pay bucket. The owner pays the rent tax on it. */
+  ownerRent: 'owner-rent',
   reimbursement: 'reimbursement',
   watched: 'watched',
   /** Paid in the month after the work, such as salary, its taxes and rent. */
