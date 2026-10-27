@@ -149,7 +149,7 @@
         </svg>
         <h1>Privacy</h1>
       </header>
-      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 26 October 2026.</p>
+      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 27 October 2026.</p>
 
       <article>
         <section>
@@ -164,7 +164,8 @@
               asked. It covers the files and folders you pick in Google's file picker and the files the app makes. The app reads and saves
               your books in <code>ledgerboard-company.json</code>, the file it makes in the folder you pick, and reads the names of that
               folder and of the backups beside the file. When you make an invoice, it lists the folders inside the invoice folder you
-              picked, and files the PDF there.
+              picked, and files the PDF there. When a sync files your bank's statement mail, it makes the files, and a missing year
+              folder, in your statements folder.
             </li>
             <li>
               <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank
@@ -178,9 +179,10 @@
               <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank,
               or your accountant, mails from. Google's wording covers your whole mailbox. On each sync the app searches it for mail from
               those addresses whose subject starts with the words you set, reads each one's subject, date and attachment names, downloads
-              a bank statement's XML to read its number and account, and downloads an attachment only to compare it with a file of the
-              same name in your Drive. Nothing it reads leaves your browser. For now it only lists what it would file and files nothing.
-              It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
+              a bank statement's XML to read its number and account, and downloads an attachment to file it or to compare it with a
+              file of the same name in your Drive. It files your bank's new statements into your Drive, as "What the app writes" says.
+              Of your accountant's mail it only lists what it would file. Nothing it reads leaves your browser except those files, which
+              go to your own Drive. It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
             </li>
             <li>
               <code>gmail.compose</code>, "Manage drafts and send emails". Asked only while "Create the mail draft" is on for invoices. The
@@ -202,14 +204,21 @@
         <section>
           <h2>What the app writes</h2>
           <p>
-            Only what you save, and only in <code>ledgerboard-company.json</code>: the records you add, change or delete, and the bank
-            statements a sync files. Before each save it reads the file again, and it refuses when a record it means changed since. Each save
+            In your books, only what you save, and only in <code>ledgerboard-company.json</code>: the records you add, change or delete,
+            and the bank statements a sync files on the ledger. Before each save it reads the file again, and it refuses when a record it means changed since. Each save
             keeps its revision of the file, and the first save of a day copies the file as it stood into a <code>backups</code> folder
             beside it. The app keeps the last 30 daily copies and the first of each month.
           </p>
           <p>
             When you make an invoice, it files the PDF in the invoice folder you picked, making a year or month folder there only when you
             ask it to, and it never overwrites a file except on a re-export you start.
+          </p>
+          <p>
+            While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the
+            statement PDF and XML, into your statements folder in Drive, in a folder for the year that it makes when it is missing. Each
+            file it makes carries three labels only this app sees: that the app filed it from mail, the Gmail id of the mail, and the
+            mail's date, so the next sync knows where to start. It never trashes, renames or overwrites a file there, and it never
+            changes your mail.
           </p>
         </section>
         <section>

@@ -2,15 +2,19 @@ import { addDays, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { sha256Hex } from '../../../../shared/files/sha256'
 import { fold } from '../../../../shared/text/fold'
 import { sampleCamtLabel, sampleCamtXml } from '../../../imports/infrastructure/fake/sampleImportFiles'
+import { PAGE_FAKE_MADE_FILES, sampleStatementByMail } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
+import type { FakeMadeFile } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
 import { FAKE_FOLDERS, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import type { FiledFile, MailFolders, Mailbox } from '../../application/mailFiling'
+import { MAIL_DATE_PROPERTY, MAIL_SOURCE_PROPERTY } from '../../domain/mailSource'
 import type { MailMessage } from '../../domain/mailSource'
 
 /**
- * The fake build's Gmail and the folders its mail goes into, for `?fake=mail`, `?fake=mail-nothing-new`
- * and `?fake=mail-failed`. The bank and the accountant mail from example.com addresses, and every
- * subject and file name copies the shape of a real one with made-up names. The mailbox answers a
- * search by its subject phrase and its window, three ids a page, so a run reads more than one page.
+ * The fake build's Gmail and the folders its mail goes into, for `?fake=mail`, `?fake=mail-nothing-new`,
+ * `?fake=mail-failed` and `?fake=mail-upload-failed`. The bank and the accountant mail from example.com
+ * addresses, and every subject and file name copies the shape of a real one with made-up names. The
+ * mailbox answers a search by its subject phrase and its window, three ids a page, so a run reads
+ * more than one page.
  */
 
 const BANK = 'statements@bank.example.com'
@@ -122,12 +126,13 @@ function fakeMails(): FakeMail[] {
   ]
 }
 
-function fakeFiled(): FakeFiled[] {
+/** What the fake folders hold before any sync. The sample statement is among them unless the variant brings it by mail. */
+function fakeFiled(variant: string | null): FakeFiled[] {
   const records = fakeWorkbookRecords('drive')
   const statements = [...new Set((records['ledger-row'] ?? []).map((row) => `${String(row.statement)}-${String(row.account)}.xml`))]
   const newest = newestMainStatement()
   return [
-    ...[...statements, `${sampleCamtLabel()}-main.xml`].map((name) => ({ folder: FAKE_FOLDERS.statements, folders: [`${name.slice(0, 4)}-statements`], name, created: `${name.slice(0, 10)}T07:00:00Z`, content: null })),
+    ...[...statements, ...(sampleStatementByMail(variant) ? [] : [`${sampleCamtLabel()}-main.xml`])].map((name) => ({ folder: FAKE_FOLDERS.statements, folders: [`${name.slice(0, 4)}-statements`], name, created: `${name.slice(0, 10)}T07:00:00Z`, content: null })),
     { folder: FAKE_FOLDERS.statements, folders: [`${newest.day.slice(0, 4)}-statements`], name: `${newest.day}-statement-${newest.number}.pdf`, created: `${newest.day}T07:00:00Z`, content: 'older statement pdf' },
     { folder: FAKE_FOLDERS.payroll, folders: ['2026-payroll', '2026-08'], name: '2026-08-salary.xlsx', created: '2026-09-05T11:00:00Z', content: 'salary 2026-08' },
     { folder: FAKE_FOLDERS.vatReturns, folders: ['2026-vat-returns'], name: '2026-08-pdv.xlsx', created: '2026-09-15T11:00:00Z', content: 'vat 2026-08' },
@@ -170,9 +175,13 @@ export function fakeMailbox(variant: string | null): Mailbox {
   }
 }
 
-/** The fake folders the mail goes into, at the paths the fake books name. Nothing in them was filed by the app. */
-export function fakeMailFolders(): MailFolders {
-  const filed = fakeFiled()
+/**
+ * The fake folders the mail goes into, at the paths the fake books name, which hold what another app
+ * filed and what a sync made, kept in `made`, the page's files unless a test gives others.
+ * `?fake=mail-upload-failed` fails the upload of every PDF, so a statement's PDF fails beside its XML.
+ */
+export function fakeMailFolders(variant: string | null, made: FakeMadeFile[] = PAGE_FAKE_MADE_FILES): MailFolders {
+  const filed = fakeFiled(variant)
   const known = [FAKE_FOLDERS.statements, FAKE_FOLDERS.payroll, FAKE_FOLDERS.vatReturns, FAKE_FOLDERS.incomingInvoices].map((folder) => folder.join('/'))
   return {
     async filesIn(folder, below) {
@@ -181,22 +190,27 @@ export function fakeMailFolders(): MailFolders {
         return { kind: 'refused', reason: `The fake Drive holds no folder at ${where}` }
       }
       const wanted = new Set(below.map((folders) => folders.join('/')))
-      const files: FiledFile[] = await Promise.all(
-        filed
-          .filter((file) => file.folder.join('/') === where && wanted.has(file.folders.join('/')))
-          .map(async (file) => ({
-            folders: file.folders,
-            name: file.name,
-            createdTime: Date.parse(file.created),
-            sha256: file.content === null ? null : await sha256Hex(bytesOf(file.content)),
-            filedByApp: false,
-          })),
-      )
-      return { kind: 'listed', files }
+      const inFolder = (file: { readonly folder: readonly string[]; readonly folders: readonly string[] }): boolean => file.folder.join('/') === where && wanted.has(file.folders.join('/'))
+      const byOthers: Promise<FiledFile>[] = filed.filter(inFolder).map(async (file) => ({
+        folders: file.folders,
+        name: file.name,
+        createdTime: Date.parse(file.created),
+        sha256: file.content === null ? null : await sha256Hex(bytesOf(file.content)),
+        filedByApp: false,
+      }))
+      const byApp: Promise<FiledFile>[] = made.filter(inFolder).map(async (file) => ({ folders: file.folders, name: file.name, createdTime: Date.parse(file.created), sha256: await sha256Hex(file.bytes), filedByApp: true }))
+      return { kind: 'listed', files: await Promise.all([...byOthers, ...byApp]) }
     },
 
-    async newestFiled() {
-      return null
+    async newestFiled(source) {
+      const dates = made.filter((file) => file.appProperties[MAIL_SOURCE_PROPERTY] === source).map((file) => Date.parse(file.appProperties[MAIL_DATE_PROPERTY] ?? ''))
+      return dates.length === 0 ? null : Math.max(...dates)
+    },
+
+    async create(folder, below, file) {
+      if (!known.includes(folder.join('/'))) throw new Error(`The fake Drive holds no folder at ${folder.join('/')}`)
+      if (variant === 'mail-upload-failed' && file.name.endsWith('.pdf')) throw new Error('Drive did not take the upload. Sync again later')
+      made.push({ folder, folders: below, name: file.name, created: new Date().toISOString(), bytes: file.bytes, appProperties: file.properties })
     },
   }
 }

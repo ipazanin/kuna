@@ -30,9 +30,23 @@ export type AttachmentNaming =
   | { readonly kind: 'named'; readonly attachment: MailAttachment; readonly folders: readonly string[]; readonly name: string; readonly redelivery: string | null }
   | { readonly kind: 'unmatched'; readonly attachment: MailAttachment; readonly reason: string }
 
-/** The property a file the app filed from mail carries, naming its source, and the one with the mail's date as an ISO time. */
+/** The properties a file the app filed from mail carries: its source, the Gmail id of the mail, and the mail's date as an ISO time. */
 export const MAIL_SOURCE_PROPERTY = 'ledgerboard-mail'
+export const MAIL_ID_PROPERTY = 'ledgerboard-mail-id'
 export const MAIL_DATE_PROPERTY = 'ledgerboard-mail-date'
+
+/** Drive keeps a property only while its key and value together take at most 124 bytes of UTF-8. */
+const PROPERTY_MAX_BYTES = 124
+
+/** The properties of a file filed from this mail for this source. Throws for one Drive would refuse as too long. */
+export function filedMailProperties(source: string, mail: Pick<MailMessage, 'id' | 'date'>): Readonly<Record<string, string>> {
+  const properties: Readonly<Record<string, string>> = { [MAIL_SOURCE_PROPERTY]: source, [MAIL_ID_PROPERTY]: mail.id, [MAIL_DATE_PROPERTY]: new Date(mail.date).toISOString() }
+  const tooLong = Object.entries(properties).find(([key, value]) => new TextEncoder().encode(`${key}${value}`).length > PROPERTY_MAX_BYTES)
+  if (tooLong !== undefined) {
+    throw new Error(`Its ${tooLong[0]} property would be longer than the ${PROPERTY_MAX_BYTES} bytes Drive keeps`)
+  }
+  return properties
+}
 
 const WINDOW_OVERLAP_MS = 7 * 86_400_000
 
@@ -44,6 +58,11 @@ export interface MailWindow {
 
 export function mailWindow(newestFiled: number | null, sinceStart: number): MailWindow {
   return newestFiled === null ? { from: sinceStart, after: 'since' } : { from: newestFiled - WINDOW_OVERLAP_MS, after: 'filed' }
+}
+
+/** Whether the next sync still searches back to a mail of the earlier date once mail of this date is filed. */
+export function windowReaches(earlier: number, filed: number): boolean {
+  return filed - WINDOW_OVERLAP_MS < earlier
 }
 
 /**
@@ -76,19 +95,27 @@ export function afterPhrase(subject: string, phrase: string): string | null {
   return start !== '' && folded.startsWith(start) ? folded.slice(start.length) : null
 }
 
-/** What a sync's mail step found for one source, counted the way its line says it. */
+/**
+ * What a sync's mail step did for one source, counted the way its line says it: what it filed, what
+ * it would file for a source that only lists, what it found already there, and what needs a look.
+ * `notFiled` counts the uploads that failed, which the line names instead of counting.
+ */
 export interface MailCounts {
+  readonly filed: number
   readonly file: number
+  readonly notFiled: number
   readonly already: number
   readonly corrections: number
   readonly unchecked: number
   readonly unmatched: number
 }
 
-/** "Would file 3, already there 50, 1 unmatched", or "Nothing new, already there 50" when nothing would be filed. */
+/** "Filed 2, would file 3, already there 50, 1 unmatched", "Nothing new, already there 50" when nothing was or would be filed, or "Nothing filed" when every upload failed. */
 export function countsLine(counts: MailCounts): string {
   const parts = [
-    counts.file === 0 ? 'nothing new' : `would file ${counts.file}`,
+    counts.filed === 0 && counts.file === 0 ? (counts.notFiled === 0 ? 'nothing new' : 'nothing filed') : '',
+    counts.filed === 0 ? '' : `filed ${counts.filed}`,
+    counts.file === 0 ? '' : `would file ${counts.file}`,
     counts.already === 0 ? '' : `already there ${counts.already}`,
     counts.corrections === 0 ? '' : `${counts.corrections} ${counts.corrections === 1 ? 'correction' : 'corrections'}`,
     counts.unchecked === 0 ? '' : `${counts.unchecked} not compared`,
@@ -96,6 +123,17 @@ export function countsLine(counts: MailCounts): string {
   ].filter((part) => part !== '')
   const line = parts.join(', ')
   return `${line.charAt(0).toUpperCase()}${line.slice(1)}`
+}
+
+/** How many names a line spells out before it counts the rest. */
+const NAMED_AT_MOST = 2
+
+/** "a.pdf was not filed.", "a.pdf and b.xml were not filed." or "a.pdf, b.xml and 3 more were not filed." */
+export function notFiledSentence(names: readonly string[]): string {
+  const named = names.slice(0, NAMED_AT_MOST)
+  const rest = names.length - named.length
+  const list = rest > 0 ? `${named.join(', ')} and ${rest} more` : named.join(' and ')
+  return `${list} ${names.length === 1 ? 'was' : 'were'} not filed.`
 }
 
 const MAIL_ADDRESS = /^[^\s@,()"]+@[^\s@,()"]+\.[^\s@,()".]+$/

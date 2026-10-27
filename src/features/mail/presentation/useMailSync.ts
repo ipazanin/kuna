@@ -8,7 +8,7 @@ import { installedPack, shownPack } from '../../packs/packContribution'
 import type { SyncStep } from '../../sync/application/sync'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
-import { planLine, planMail } from '../application/mailFiling'
+import { fileMail, hasProblem, planLine } from '../application/mailFiling'
 import type { MailFolders, MailPlan, MailSource, Mailbox } from '../application/mailFiling'
 import { statementMailSource } from '../application/statementMailSource'
 import { gmailMailbox } from '../infrastructure/gmailMailbox'
@@ -18,7 +18,7 @@ import { googleMailFolders } from '../infrastructure/googleMailFolders'
 export const MAIL_LIST_LINK = { label: 'See the list', to: '/settings#mail' } as const
 
 interface MailSyncState {
-  /** What the last mail step of this page found, or null before one ran. */
+  /** What the last mail step of this page found and filed, or null before one ran. */
   readonly plan: MailPlan | null
 }
 
@@ -43,7 +43,7 @@ async function openMail(): Promise<{ readonly mailbox: Mailbox; readonly folders
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const { fakeMailbox, fakeMailFolders } = await import('../infrastructure/fake/fakeMailbox')
     const variant = new URLSearchParams(window.location.search).get('fake')
-    return { mailbox: fakeMailbox(variant), folders: fakeMailFolders() }
+    return { mailbox: fakeMailbox(variant), folders: fakeMailFolders(variant) }
   }
   const mail = currentToken('gmail.readonly')
   const drive = currentToken('drive.readonly')
@@ -55,14 +55,14 @@ async function openMail(): Promise<{ readonly mailbox: Mailbox; readonly folders
 
 export interface MailSync {
   readonly state: Readonly<MailSyncState>
-  /** The mail step of a sync, before the statements step: a dry run that says what it would file. */
+  /** The mail step of a sync, before the statements step, so a statement it files is read by the same sync. */
   readonly step: SyncStep
 }
 
 /**
  * The mail step and what it last found, shared by the whole page. It reads Gmail and the folders
- * the mail goes into, and writes nothing anywhere. A source that failed fails the step, with the
- * others' counts in its line.
+ * the mail goes into, and files the bank's statements there. A source or an upload that failed
+ * fails the step, with the others' counts in its line.
  */
 export function useMailSync(): MailSync {
   const store = useWorkbook()
@@ -82,13 +82,13 @@ export function useMailSync(): MailSync {
         const { mailbox, folders } = await openMail()
         const since = workbook.settings.mailSince ?? civilDate(Number(today().slice(0, 4)), 1, 1)
         try {
-          state.plan = await planMail({ mailbox, folders, sources: sourcesOf(workbook), workbook, sinceStart: startOfDayIn(since, DEVICE_TIME_ZONE), hash: sha256Hex, report })
+          state.plan = await fileMail({ mailbox, folders, sources: sourcesOf(workbook), workbook, sinceStart: startOfDayIn(since, DEVICE_TIME_ZONE), hash: sha256Hex, report })
         } catch (failure) {
           state.plan = null
           throw failure
         }
         const line = planLine(state.plan)
-        return state.plan.sources.some((source) => source.kind === 'failed') ? { kind: 'failed', line, link: MAIL_LIST_LINK } : { kind: 'done', line, writeId: null, link: MAIL_LIST_LINK }
+        return hasProblem(state.plan) ? { kind: 'failed', line, link: MAIL_LIST_LINK } : { kind: 'done', line, writeId: null, link: MAIL_LIST_LINK }
       },
     },
   }

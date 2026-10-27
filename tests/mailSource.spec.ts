@@ -3,12 +3,15 @@ import { describe, expect, it } from 'vitest'
 import {
   afterPhrase,
   countsLine,
+  filedMailProperties,
   mailAddressesOf,
   mailAddressesProblem,
   mailQuery,
   mailSubjectProblem,
   mailWindow,
+  notFiledSentence,
   strippedSubject,
+  windowReaches,
   yearFolderName,
 } from '../src/features/mail/domain/mailSource'
 import { civilDateIn, parseCivilDate, startOfDayIn } from '../src/shared/calendar/civilDate'
@@ -32,6 +35,13 @@ describe('a mail source', () => {
     expect(mailWindow(filed, SINCE)).toEqual({ from: Date.parse('2026-10-13T08:30:00Z'), after: 'filed' })
   })
 
+  it('reaches back to a mail less than a week older than the newest it files, and no further', () => {
+    const filed = Date.parse('2026-10-20T08:30:00Z')
+
+    expect(windowReaches(Date.parse('2026-10-13T08:30:01Z'), filed)).toBe(true)
+    expect(windowReaches(Date.parse('2026-10-13T08:30:00Z'), filed)).toBe(false)
+  })
+
   it('names the folder of a year by the year and the source folder’s own name', () => {
     expect(yearFolderName(2026, ['work', 'dss', 'erste', 'statements'])).toBe('2026-statements')
     expect(yearFolderName('2026', ['finance', 'vat-returns'])).toBe('2026-vat-returns')
@@ -48,10 +58,30 @@ describe('a mail source', () => {
     expect(afterPhrase('Plaća za 9/2026', '')).toBeNull()
   })
 
-  it('counts what it found in one line, with nothing new said when nothing would be filed', () => {
-    expect(countsLine({ file: 3, already: 50, corrections: 0, unchecked: 0, unmatched: 1 })).toBe('Would file 3, already there 50, 1 unmatched')
-    expect(countsLine({ file: 0, already: 50, corrections: 0, unchecked: 0, unmatched: 0 })).toBe('Nothing new, already there 50')
-    expect(countsLine({ file: 0, already: 0, corrections: 2, unchecked: 1, unmatched: 0 })).toBe('Nothing new, 2 corrections, 1 not compared')
+  it('counts what it found in one line, with nothing new said when nothing was or would be filed', () => {
+    const none = { filed: 0, file: 0, notFiled: 0, already: 0, corrections: 0, unchecked: 0, unmatched: 0 }
+
+    expect(countsLine({ ...none, filed: 2, already: 50 })).toBe('Filed 2, already there 50')
+    expect(countsLine({ ...none, filed: 2, file: 3, already: 50, unmatched: 1 })).toBe('Filed 2, would file 3, already there 50, 1 unmatched')
+    expect(countsLine({ ...none, already: 50 })).toBe('Nothing new, already there 50')
+    expect(countsLine({ ...none, corrections: 2, unchecked: 1 })).toBe('Nothing new, 2 corrections, 1 not compared')
+    expect(countsLine({ ...none, notFiled: 1, already: 50 })).toBe('Nothing filed, already there 50')
+    expect(countsLine({ ...none, filed: 1, notFiled: 1 })).toBe('Filed 1')
+  })
+
+  it('names the files that were not filed, two at most before it counts the rest', () => {
+    expect(notFiledSentence(['a.pdf'])).toBe('a.pdf was not filed.')
+    expect(notFiledSentence(['a.pdf', 'b.xml'])).toBe('a.pdf and b.xml were not filed.')
+    expect(notFiledSentence(['a.pdf', 'b.xml', 'c.pdf', 'd.xml'])).toBe('a.pdf, b.xml and 2 more were not filed.')
+  })
+
+  it('marks a filed file with its source, the mail’s Gmail id and the mail’s date, each property within the 124 bytes Drive keeps with its key', () => {
+    const properties = filedMailProperties('hr-doo.vat-returns', { id: '19a3f2c4b5d6e7f8', date: Date.parse('2026-10-14T12:00:00Z') })
+
+    expect(properties).toEqual({ 'ledgerboard-mail': 'hr-doo.vat-returns', 'ledgerboard-mail-id': '19a3f2c4b5d6e7f8', 'ledgerboard-mail-date': '2026-10-14T12:00:00.000Z' })
+    expect(Object.entries(properties).map(([key, value]) => new TextEncoder().encode(`${key}${value}`).length)).toEqual([34, 35, 45])
+    expect(() => filedMailProperties('statements', { id: 'x'.repeat(106), date: 0 })).toThrow('Its ledgerboard-mail-id property would be longer than the 124 bytes Drive keeps')
+    expect(filedMailProperties('statements', { id: 'x'.repeat(105), date: 0 })['ledgerboard-mail-id']).toHaveLength(105)
   })
 
   it('reads its senders as a comma-separated list in lower case, and refuses what is not a mail address', () => {

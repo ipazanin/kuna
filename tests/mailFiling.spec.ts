@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { planLine, planMail } from '../src/features/mail/application/mailFiling'
+import { fileMail, hasProblem, planLine } from '../src/features/mail/application/mailFiling'
 import type { MailFolders, MailSource, Mailbox, PlanEntry, SourcePlan } from '../src/features/mail/application/mailFiling'
 import { statementMailSource } from '../src/features/mail/application/statementMailSource'
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
@@ -33,7 +33,7 @@ function books(settings: Partial<Settings> = {}): Workbook {
 }
 
 async function plan(mails: readonly TestMail[], filed: readonly TestFiled[] = [], options: { readonly workbook?: Workbook; readonly mailbox?: Mailbox; readonly folders?: MailFolders; readonly sources?: readonly MailSource[] } = {}) {
-  return planMail({
+  return fileMail({
     mailbox: options.mailbox ?? testMailbox(mails),
     folders: options.folders ?? testFolders(filed),
     sources: options.sources ?? [STATEMENTS],
@@ -70,7 +70,7 @@ describe('the bank statements in mail', () => {
 
     const { sources } = await plan(mails)
 
-    expect(targets(sources[0])).toEqual(['file work/bank/statements/2031-statements/2031-03-12-statement-042.pdf', 'file work/bank/statements/2031-statements/2031-03-12-statement-042-main.xml'])
+    expect(targets(sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-03-12-statement-042.pdf', 'filed work/bank/statements/2031-statements/2031-03-12-statement-042-main.xml'])
     expect(sources[0]).toMatchObject({ kind: 'planned', label: 'Bank statements', window: { from: SINCE, after: 'since' } })
   })
 
@@ -83,7 +83,7 @@ describe('the bank statements in mail', () => {
     const fresh = await plan(mails)
     const filed = await plan(mails, [{ folders: ['2031-statements'], name: '2031-03-12-statement-042-main.xml', created: '2031-03-12T05:00:00Z', content: null }])
 
-    expect(targets(fresh.sources[0])).toEqual(['file work/bank/statements/2031-statements/2031-03-12-statement-042-main.xml', 'already work/bank/statements/2031-statements/2031-03-13-statement-042-main.xml'])
+    expect(targets(fresh.sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-03-12-statement-042-main.xml', 'already work/bank/statements/2031-statements/2031-03-13-statement-042-main.xml'])
     expect(targets(filed.sources[0]).map((target) => target.split(' ')[0])).toEqual(['already', 'already'])
     expect(planLine(filed)).toBe('Nothing new, already there 2.')
   })
@@ -95,7 +95,7 @@ describe('the bank statements in mail', () => {
       { workbook: exampleStudio({ settings: books().settings, accounts: [] }) },
     )
 
-    expect(targets(sources[0])).toEqual(['file work/bank/statements/2031-statements/2031-03-12-statement-042.xml'])
+    expect(targets(sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-03-12-statement-042.xml'])
   })
 
   it('files a PDF of another shape under the day of the mail and the bank’s own name, and leaves an XML it cannot read unmatched with why', async () => {
@@ -105,8 +105,8 @@ describe('the bank statements in mail', () => {
     ])
 
     expect(targets(sources[0])).toEqual([
-      'file work/bank/statements/2031-statements/2031-03-13-IZV_2031_03_13 03_05_19_314_503.pdf',
-      'file work/bank/statements/2031-statements/2031-04-01-Statement March.pdf',
+      'filed work/bank/statements/2031-statements/2031-03-13-IZV_2031_03_13 03_05_19_314_503.pdf',
+      'filed work/bank/statements/2031-statements/2031-04-01-Statement March.pdf',
       'unmatched broken.xml',
     ])
     expect(entriesOf(sources[0]).filter((entry) => entry.kind === 'unmatched').map((entry) => 'reason' in entry && entry.reason)).toEqual([
@@ -120,8 +120,8 @@ describe('the bank statements in mail', () => {
       { id: 'html', subject: 'Izvadak 042, Example Studio d.o.o.', at: '2031-03-12T04:00:00Z', attachments: [['IZV_2031_03_12 03_05_19_314_503.html', 'html'], ['Terms.docx', 'docx']] },
     ])
 
-    expect(targets(sources[0])).toEqual(['file work/bank/statements/2031-statements/2031-03-12-statement-042.pdf'])
-    expect(planLine({ sources })).toBe('Would file 1.')
+    expect(targets(sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-03-12-statement-042.pdf'])
+    expect(planLine({ sources })).toBe('Filed 1.')
   })
 
   it('reads the statement number after the phrase wherever the subject carries it, as the fetch does', async () => {
@@ -174,6 +174,7 @@ describe('the mail step', () => {
       id: 'broken',
       label: 'VAT returns',
       duplicates: 'correction',
+      dryRun: true,
       terms: () => ({ senders: ['office@accountant.example.com'], subject: 'PDV za', folder: ['finance', 'vat'] }),
       name: async () => [],
     }
@@ -193,7 +194,7 @@ describe('the mail step', () => {
       ['broken', 'failed'],
       ['statements', 'planned'],
     ])
-    expect(planLine(result)).toBe('Would file 1. VAT returns: Gmail did not answer.')
+    expect(planLine(result)).toBe('Filed 1. VAT returns: Gmail did not answer.')
   })
 
   it('hands Google turning its token away to the sync, so it can ask for access', async () => {
@@ -207,11 +208,152 @@ describe('the mail step', () => {
     await expect(plan([], [], { mailbox })).rejects.toBeInstanceOf(GoogleApiError)
   })
 
-  it('reads a PDF’s bytes from Gmail only to compare them, never to name it', async () => {
+  it('reads a PDF’s bytes from Gmail only to compare or file them, never to name it', async () => {
     const mailbox = testMailbox([{ id: 'pdf', subject: 'Izvadak 042', at: '2031-03-12T04:00:00Z', attachments: [['IZV_2031_03_12 03_05_19_314_503.pdf', 'pdf']] }])
 
-    await plan([], [], { mailbox })
+    await plan([], [{ folders: ['2031-statements'], name: '2031-03-12-statement-042.pdf', created: '2031-03-12T05:00:00Z', content: null }], { mailbox })
 
     expect(mailbox.downloads).toEqual([])
+  })
+})
+
+describe('filing the bank statements', () => {
+  const PAIR: TestMail = {
+    id: '18c2f4a9d7e01b3c',
+    subject: 'Izvadak 042, Example Studio d.o.o.',
+    at: '2031-03-12T04:00:00Z',
+    attachments: [
+      ['IZV_2031_03_12 03_05_19_314_503.pdf', 'pdf 042'],
+      ['IZV_2031_03_12 03_05_19_314_503.xml', CREDIT],
+    ],
+  }
+  const NEXT: TestMail = { id: '18c3a1b2c3d4e5f6', subject: 'Izvadak 043, Example Studio d.o.o.', at: '2031-03-13T04:00:00Z', attachments: [['IZV_2031_03_13 03_05_19_314_503.pdf', 'pdf 043']] }
+
+  it('makes each new file in its year folder with its bytes, carrying the source, the mail’s id and the mail’s date', async () => {
+    const folders = testFolders([])
+
+    const result = await plan([NEXT, PAIR], [], { folders })
+
+    expect(folders.created).toEqual([
+      {
+        folder: FOLDER,
+        below: ['2031-statements'],
+        name: '2031-03-12-statement-042.pdf',
+        properties: { 'ledgerboard-mail': 'statements', 'ledgerboard-mail-id': '18c2f4a9d7e01b3c', 'ledgerboard-mail-date': '2031-03-12T04:00:00.000Z' },
+        content: 'pdf 042',
+      },
+      {
+        folder: FOLDER,
+        below: ['2031-statements'],
+        name: '2031-03-12-statement-042-main.xml',
+        properties: { 'ledgerboard-mail': 'statements', 'ledgerboard-mail-id': '18c2f4a9d7e01b3c', 'ledgerboard-mail-date': '2031-03-12T04:00:00.000Z' },
+        content: CREDIT,
+      },
+      {
+        folder: FOLDER,
+        below: ['2031-statements'],
+        name: '2031-03-13-statement-043.pdf',
+        properties: { 'ledgerboard-mail': 'statements', 'ledgerboard-mail-id': '18c3a1b2c3d4e5f6', 'ledgerboard-mail-date': '2031-03-13T04:00:00.000Z' },
+        content: 'pdf 043',
+      },
+    ])
+    expect(planLine(result)).toBe('Filed 3.')
+    expect(hasProblem(result)).toBe(false)
+  })
+
+  it('files what the folder lacks and nothing it holds, and a run after that files nothing new, searching from a week before the newest mail it filed', async () => {
+    const folders = testFolders([{ folders: ['2031-statements'], name: '2031-03-12-statement-042.pdf', created: '2031-03-12T05:00:00Z', content: null }])
+    const mailbox = testMailbox([PAIR, NEXT])
+
+    const first = await plan([], [], { folders, mailbox })
+    const again = await plan([], [], { folders, mailbox })
+
+    expect(targets(first.sources[0]).map((target) => target.split(' ')[0])).toEqual(['already', 'filed', 'filed'])
+    expect(folders.created.map((file) => file.name)).toEqual(['2031-03-12-statement-042-main.xml', '2031-03-13-statement-043.pdf'])
+    expect(planLine(again)).toBe('Nothing new, already there 3.')
+    expect(mailbox.queries.at(-1)).toBe(`from:(statements@bank.example.com) subject:"Izvadak" has:attachment after:${Date.parse('2031-03-06T04:00:00Z') / 1000}`)
+  })
+
+  it('files the others when one upload fails, names the one in the line, and lists why', async () => {
+    const folders = testFolders([], {}, { refuse: (name) => (name.endsWith('042.pdf') ? new Error('Drive did not take the upload') : null) })
+
+    const result = await plan([PAIR, NEXT], [], { folders })
+
+    expect(targets(result.sources[0])).toEqual([
+      'not-filed work/bank/statements/2031-statements/2031-03-12-statement-042.pdf',
+      'filed work/bank/statements/2031-statements/2031-03-12-statement-042-main.xml',
+      'filed work/bank/statements/2031-statements/2031-03-13-statement-043.pdf',
+    ])
+    expect(entriesOf(result.sources[0])[0]).toMatchObject({ kind: 'not-filed', reason: 'Drive did not take the upload' })
+    expect(planLine(result)).toBe('Filed 2. Bank statements: 2031-03-12-statement-042.pdf was not filed.')
+    expect(hasProblem(result)).toBe(true)
+  })
+
+  it('files the rest on the next run after Google turned the token away mid-filing, and none twice', async () => {
+    let uploads = 0
+    const folders = testFolders([], {}, {
+      refuse: () => {
+        uploads += 1
+        return uploads === 2 ? new GoogleApiError('https://www.googleapis.com/upload/drive/v3/files', 401, '{"error":{"code":401}}') : null
+      },
+    })
+    const mailbox = testMailbox([PAIR, NEXT])
+
+    await expect(plan([], [], { folders, mailbox })).rejects.toBeInstanceOf(GoogleApiError)
+    const again = await plan([], [], { folders, mailbox })
+
+    expect(targets(again.sources[0]).map((target) => target.split(' ')[0])).toEqual(['already', 'filed', 'filed'])
+    expect(folders.created.map((file) => file.name)).toEqual(['2031-03-12-statement-042.pdf', '2031-03-12-statement-042-main.xml', '2031-03-13-statement-043.pdf'])
+  })
+
+  it('files the rest on the next run after the page lost the network for an upload, as a phone sent to the background does', async () => {
+    let offline = false
+    const folders = testFolders([], {}, { refuse: (name) => (offline && name.includes('043') ? new TypeError('NetworkError when attempting to fetch resource.') : null) })
+    const mailbox = testMailbox([PAIR, NEXT])
+
+    offline = true
+    const interrupted = await plan([], [], { folders, mailbox })
+    offline = false
+    const again = await plan([], [], { folders, mailbox })
+
+    expect(targets(interrupted.sources[0]).map((target) => target.split(' ')[0])).toEqual(['filed', 'filed', 'not-filed'])
+    expect(targets(again.sources[0]).map((target) => target.split(' ')[0])).toEqual(['already', 'already', 'filed'])
+    expect(folders.created.map((file) => file.name)).toEqual(['2031-03-12-statement-042.pdf', '2031-03-12-statement-042-main.xml', '2031-03-13-statement-043.pdf'])
+  })
+
+  it('holds mail more than a week newer than an upload that failed, so the next run still searches back to that mail and files both', async () => {
+    const LATER: TestMail = { id: '18d0aa11bb22cc33', subject: 'Izvadak 060, Example Studio d.o.o.', at: '2031-04-02T04:00:00Z', attachments: [['IZV_2031_04_02 03_05_19_314_503.pdf', 'pdf 060']] }
+    let failing = true
+    const folders = testFolders([], {}, { refuse: (name) => (failing && name === '2031-03-12-statement-042.pdf' ? new Error('Drive did not take the upload') : null) })
+    const mailbox = testMailbox([PAIR, NEXT, LATER])
+
+    const first = await plan([], [], { folders, mailbox })
+    failing = false
+    const again = await plan([], [], { folders, mailbox })
+
+    expect(targets(first.sources[0]).map((target) => target.split(' ')[0])).toEqual(['not-filed', 'filed', 'filed', 'not-filed'])
+    expect(entriesOf(first.sources[0])[3]).toMatchObject({ kind: 'not-filed', reason: 'It waits until 2031-03-12-statement-042.pdf is filed, so the next sync still searches back to that mail' })
+    expect(planLine(first)).toBe('Filed 2. Bank statements: 2031-03-12-statement-042.pdf and 2031-04-02-statement-060.pdf were not filed.')
+    expect(targets(again.sources[0]).map((target) => target.split(' ')[0])).toEqual(['filed', 'already', 'already', 'filed'])
+    expect(folders.created.map((file) => file.name)).toEqual(['2031-03-12-statement-042-main.xml', '2031-03-13-statement-043.pdf', '2031-03-12-statement-042.pdf', '2031-04-02-statement-060.pdf'])
+  })
+
+  it('says nothing was filed when every upload failed', async () => {
+    const folders = testFolders([], {}, { refuse: () => new Error('Drive did not take the upload') })
+
+    const result = await plan([NEXT], [], { folders })
+
+    expect(planLine(result)).toBe('Nothing filed. Bank statements: 2031-03-13-statement-043.pdf was not filed.')
+  })
+
+  it('files nothing for a source that only lists what it would file', async () => {
+    const folders = testFolders([])
+    const listing: MailSource = { ...STATEMENTS, dryRun: true }
+
+    const result = await plan([PAIR], [], { folders, sources: [listing] })
+
+    expect(targets(result.sources[0]).map((target) => target.split(' ')[0])).toEqual(['file', 'file'])
+    expect(planLine(result)).toBe('Would file 2.')
+    expect(folders.created).toEqual([])
   })
 })

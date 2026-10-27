@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { planLine, planMail } from '../src/features/mail/application/mailFiling'
+import { fileMail, planLine } from '../src/features/mail/application/mailFiling'
 import type { PlanEntry } from '../src/features/mail/application/mailFiling'
 import type { MailMessage } from '../src/features/mail/domain/mailSource'
 import { ACCOUNTANT_MAIL_SOURCES } from '../src/packs/hr-doo/application/accountantMailSources'
@@ -135,9 +135,10 @@ const FACTS: CompanyFacts = {
 
 async function planVat(mails: readonly TestMail[], filed: readonly TestFiled[], facts: CompanyFacts = FACTS) {
   const mailbox = testMailbox(mails)
-  const plan = await planMail({
+  const folders = testFolders(filed)
+  const plan = await fileMail({
     mailbox,
-    folders: testFolders(filed),
+    folders,
     sources: ACCOUNTANT_MAIL_SOURCES,
     workbook: exampleStudio({ companyFacts: facts, employees: [director()] }),
     sinceStart: Date.parse('2025-12-31T23:00:00Z'),
@@ -146,7 +147,7 @@ async function planVat(mails: readonly TestMail[], filed: readonly TestFiled[], 
   })
   const vat = plan.sources.find((source) => source.id === 'hr-doo.vat-returns')
   const entries: readonly PlanEntry[] = vat?.kind === 'planned' ? vat.entries : []
-  return { plan, mailbox, kinds: entries.map((entry) => entry.kind), entries }
+  return { plan, mailbox, folders, kinds: entries.map((entry) => entry.kind), entries }
 }
 
 const AUGUST = (at: string, content: string): TestMail => ({ id: `vat-${at}`, subject: 'RE: PDV za 8/2026', at, attachments: [['PDV 8 2026_Example.xlsx', content]] })
@@ -159,6 +160,14 @@ describe("the accountant's resends", () => {
 
     expect(plan.sources.map((source) => source.id)).toEqual(['hr-doo.payroll', 'hr-doo.vat-returns'])
     expect(off.plan.sources).toEqual([])
+  })
+
+  it('only lists what a new return would file, and files nothing', async () => {
+    const { kinds, folders, plan } = await planVat([{ id: 'vat-09', subject: 'PDV za 9/26', at: '2026-10-14T12:00:00Z', attachments: [['PDV 9 2026_Example.xlsx', 'v1']] }], [])
+
+    expect(kinds).toEqual(['file'])
+    expect(planLine(plan)).toBe('Would file 1.')
+    expect(folders.created).toEqual([])
   })
 
   it('takes a file filed after the mail came as already there, without reading the mail’s bytes', async () => {

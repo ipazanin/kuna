@@ -7,16 +7,18 @@ import type { AttachmentNaming } from '../domain/mailSource'
 import type { MailSource } from './mailFiling'
 
 /**
- * The bank's statement mail, which the statements step then reads from the statements folder. A
- * PDF is named by its rule, and a camt XML is read as Import reads it and named by its label and
- * the account the books give its IBAN. Any other attachment, such as the HTML copy the bank mails
- * beside each PDF, is passed over. `timeZone` is this device's, which the day of a mail is read in.
+ * The bank's statement mail, filed into the statements folder, which the statements step of the
+ * same sync then reads. A PDF is named by its rule, and a camt XML is read as Import reads it and
+ * named by its label and the account the books give its IBAN. Any other attachment, such as the
+ * HTML copy the bank mails beside each PDF, is passed over. `timeZone` is this device's, which the
+ * day of a mail is read in.
  */
 export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer) => Promise<LoadedImportFile>, timeZone: string): MailSource {
   return {
     id: 'statements',
     label: 'Bank statements',
     duplicates: 'redelivery',
+    dryRun: false,
     terms: (workbook) => {
       const { statementsMailFrom, statementsMailSubject, statementsFolder } = workbook.settings
       return statementsMailFrom.length === 0 || statementsMailSubject === '' ? null : { senders: statementsMailFrom, subject: statementsMailSubject, folder: statementsFolder }

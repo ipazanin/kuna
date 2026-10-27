@@ -12,7 +12,8 @@ who names the bank's or the accountant's mail, `gmail.readonly` to read it, and 
 turns the invoice mail draft on, `gmail.compose` to save a Gmail draft. All of them ride on one
 token held in the page's memory only. See *Google sign-in*. The app reads the file and keeps a copy
 in IndexedDB. It writes only that file, its revisions and a `backups` folder beside it, and only
-what the user saves or a sync files, as *Write-back* describes. An xlsx file opens as the same
+what the user saves or a sync files, as *Write-back* describes. A sync also files the bank's
+statement mail into the statements folder, as *The mail step* describes. An xlsx file opens as the same
 document, and "Export to Excel" writes one. Making an invoice also files its PDF in the Drive folder
 the user picks for invoices. See *Invoices*.
 
@@ -81,7 +82,7 @@ Each step names the Google scopes it needs and whether the settings turn it on:
 | Step | Scopes | On when |
 |---|---|---|
 | Books | `drive.file` | Always, for a file on Drive |
-| Mail | `gmail.readonly` and `drive.readonly` | A kind of mail has a sender and a subject, as *The mail step* describes |
+| Mail | `gmail.readonly` and `drive.readonly`, and `drive.file` from the books to file | A kind of mail has a sender and a subject, as *The mail step* describes |
 | Statements | `drive.readonly` | `statements_sync` is TRUE, the default, and `statements_folder` names a folder |
 | Accountant | `drive.readonly` | The Croatian pack shows, `hr_accountant_sync` is TRUE, the default, and one of its two folders is named |
 
@@ -127,8 +128,8 @@ silent trip to Google, so the device waits for a tap on Sync.
 
 1. Finds the folder the `statements_folder` setting names, a path from My Drive, one folder name at
    a time, and lists the files of the folders inside it, one per year. A missing folder, or two
-   folders of one name, stop the step with the folder named. The app never makes or changes a
-   folder there.
+   folders of one name, stop the step with the folder named. The step never makes or changes a
+   folder there. The mail step makes a missing year folder when it files a statement from mail.
 2. Skips each file the ledger holds by its name. The fetch names a statement `<label>-<account>.xml`,
    and a file whose label the ledger holds for that account is never downloaded. A file named by its
    label alone, or another way, is read every time. So a sync with nothing new downloads nothing.
@@ -155,13 +156,14 @@ Sync again."
 
 ### The mail step
 
-`useMailSync` in `src/features/mail/presentation/` makes the step, which only looks for now: it
-searches Gmail, reads each mail's subject, date and attachment names, names each attachment as
-the filing scripts name it, checks the name against what the folder already holds, and says what it
-would file. It never makes, trashes or renames a Drive file, and never marks, labels or moves a
-mail. `planMail` in `src/features/mail/application/mailFiling.ts` does the work for each kind of
-mail, a source, which core and the pack contribute. Each source runs on its own, so one that fails
-leaves the others running.
+`useMailSync` in `src/features/mail/presentation/` makes the step. It searches Gmail, reads each
+mail's subject, date and attachment names, names each attachment as the filing scripts name it,
+checks the name against what the folder already holds, and files what is new. The bank's statements
+are filed. The accountant's three sources only say what they would file, and file nothing. The step
+never trashes, renames or overwrites a Drive file, and never marks, labels or moves a mail.
+`fileMail` in `src/features/mail/application/mailFiling.ts` does the work for each kind of mail, a
+source, which core and the pack contribute. Each source runs on its own, so one that fails leaves
+the others running.
 
 | Source | Settings | Folder | Named |
 |---|---|---|---|
@@ -188,15 +190,31 @@ the same name made at or after the mail came is already there. One made before i
 bytes, the SHA-256 Gmail's attachment hashes to in the browser against the `sha256Checksum` Drive
 gives the file. The same bytes are already there, other bytes are a correction, and a file Drive
 gives no checksum for, such as a Google Sheet or an odd upload, is listed as not compared. A later
-mail of the same run is compared with what an earlier one would file. Only a camt XML is downloaded
-to name it, and other bytes only to compare them.
+mail of the same run is compared with what an earlier one files. Only a camt XML is downloaded to
+name it, and other bytes only to compare or file them.
 
-Its line counts every source that ran, such as "Would file 3, already there 50, 1 unmatched", or
-"Nothing new, already there 50", then each source that failed with why, which fails the step. "See
-the list" in the line opens the Mail card of Settings, General at `#mail`, which lists each source's
-search and each attachment: where it would go, a correction and whether the app or another app filed
-the older copy, one not compared, and the unmatched ones. What the step found is page state and
-never stored. No toast says any of it.
+**Filing.** For the bank's statements the step then makes each new file with `drive.file`, oldest
+mail first, in its year folder inside `statements_folder`. A year folder that is missing is made
+there, named by the same rule. A name two folders share takes the first. Each file carries three
+`appProperties`: `ledgerboard-mail` with the source, `ledgerboard-mail-id` with the Gmail id of the
+mail, and `ledgerboard-mail-date` with the mail's time in ISO form, each key and value within the
+124 bytes Drive keeps. The next run's window starts from that date. An upload that fails leaves
+the others running, and the line names its file. Mail a week or more newer than a failed upload
+waits, listed as not filed, since filing it would move the next window past the failed one. A run cut short, such as by a phone sent to the
+background or by Google turning the token away, files nothing twice: the next run finds what it
+filed in the folder by the same name rules and files the rest. Two devices filing at the same moment
+can leave two files of one name, which Drive allows. The second copy adds no rows, since the ledger
+takes each row once by its bank reference. The statements step runs after the mail step in the same
+sync and lists the folder again, so while `statements_sync` is on, a statement filed from mail is on
+the ledger by the end of that sync.
+
+Its line counts every source that ran, such as "Filed 2, would file 3, already there 50, 1
+unmatched", or "Nothing new, already there 50", then each source that failed with why and each file
+that was not filed, such as "Bank statements: 2026-10-08-statement-029.pdf was not filed." Either
+fails the step. "See the list" in the line opens the Mail card of Settings, General at `#mail`,
+which lists each source's search and each attachment: filed, not filed with why, where it would go,
+a correction and whether the app or another app filed the older copy, one not compared, and the
+unmatched ones. What the step found is page state and never stored. No toast says any of it.
 
 ### The accountant step
 
@@ -514,9 +532,9 @@ as before.
 | `invoice_file_path` | `{yyyy}/{yyyy}-{mm}/{yyyy}-{mm}-{client}-invoice.pdf` | Where under that folder each invoice is filed, with `{yyyy}`, `{yy}`, `{mm}` from the issue date, `{client}` and `{number}`. It must end in `.pdf`. |
 | `invoice_mail_subject`, `invoice_mail_body` | `Invoice {number}, {month}` and a short note signed `{signatory}` | The invoice mail, with `{month}` (the issue month in the client's `mail_language`), `{number}`, `{client}`, `{company}` and `{signatory}`. |
 | `invoice_reverse_charge_note` | the Croatian VAT law's Article 17 note | Printed under the totals, after an asterisk. |
-| `statements_folder` | blank | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. Blank names none, and statements come in through Import. The app reads it and never makes or changes a folder there. A path where a folder is missing, or where two folders share a name, is reported, and so is one such as `/` that names no folder. The statement fetch in the Sheet reads the row too and stops without it. |
+| `statements_folder` | blank | The Google Drive folder the bank's camt statements are filed in, as a path from My Drive, with a folder for each year inside. Blank names none, and statements come in through Import. The statements step only reads it. The mail step adds the files it files from mail there, and a missing year folder, and never changes a file or folder that is there. A path where a folder is missing, or where two folders share a name, is reported, and so is one such as `/` that names no folder. The statement fetch in the Sheet reads the row too and stops without it. |
 | `statements_sync` | `TRUE` | Whether each sync files the new statements of `statements_folder`, once it names one. `FALSE` leaves statements to Import. Settings, General has it as a switch beside the folder. Onboarding writes `FALSE` for statements by hand and `TRUE` for statements from a Drive folder. |
-| `statements_mail_from` | blank | The addresses the bank mails statements from, comma separated, read in lower case. With a subject, each sync's mail step looks for them in Gmail. An entry that is not a mail address is reported and the list stays blank. |
+| `statements_mail_from` | blank | The addresses the bank mails statements from, comma separated, read in lower case. With a subject, each sync's mail step looks for them in Gmail and files their statements in `statements_folder`. An entry that is not a mail address is reported and the list stays blank. |
 | `statements_mail_subject` | blank | The words before the statement number in the subject of the bank's statement mail, such as `Izvadak`. Settings, General asks for it beside a sender. A double quote, which would end Gmail's phrase, is reported. |
 | `mail_since` | blank | The day the earliest mail a source reads may come, until the app has filed mail of its kind, as a date cell or text such as `2026-01-01`. Blank is the first day of this year. |
 | `hr_company_registered` | blank | The day the company was registered, as a date cell or text such as `2025-05-12`. It starts the first tax period. |
@@ -1676,8 +1694,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, and with statements from a folder, whose confirm names the path and whose company step chooses the accountant's folder, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, and on Year, Taxes the accountant's cards a sync read with the rows a differing badge opens, the read this device kept until Allow access, and the payroll folder saved from Settings, General with 1 problem in the sync control, the mail step off, then a sender and subject saved on the Mail card and listed by the next sync, the step saying what it would file with the list it links to and the accountant's mail fields, nothing new, a source that failed with 1 problem in the control, and Allow access for Gmail read, Salaries for one and for five made-up employees on each tab, and with five a sync's payslips, the one problem's build-up and rows, a name on People and a month of Over time, and This device for a file a newer app saved, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, the accountant's cards on Year, Taxes as a sync read them with a differing badge's rows and the kept read, Salaries for five made-up employees with the gross to net chart's tap-then-drill and the sync's payslips, the one problem's build-up and rows, People and Over time, the payroll folder saved from Settings, General, the mail step off, saved, would file with its list, nothing new, failed and needing Gmail read access, onboarding on the fake Drive with statements by hand and from a folder, in this browser, with an xlsx brought along and with books found on Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, and with statements from a folder, whose confirm names the path and whose company step chooses the accountant's folder, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, a workbook kept in this browser moved there, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, and on Year, Taxes the accountant's cards a sync read with the rows a differing badge opens, the read this device kept until Allow access, and the payroll folder saved from Settings, General with 1 problem in the sync control, the mail step off, then a sender and subject saved on the Mail card and filed by the next sync, the step filing a statement the same sync reads with the list it links to, a second sync filing nothing new and the accountant's mail fields, nothing new, a source that failed and an upload that failed each with 1 problem in the control, and Allow access for Gmail read, Salaries for one and for five made-up employees on each tab, and with five a sync's payslips, the one problem's build-up and rows, a name on People and a month of Over time, and This device for a file a newer app saved, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, the accountant's cards on Year, Taxes as a sync read them with a differing badge's rows and the kept read, Salaries for five made-up employees with the gross to net chart's tap-then-drill and the sync's payslips, the one problem's build-up and rows, People and Over time, the payroll folder saved from Settings, General, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload and needing Gmail read access, onboarding on the fake Drive with statements by hand and from a folder, in this browser, with an xlsx brought along and with books found on Drive, a workbook moved there from This device, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
 ```
@@ -1727,8 +1745,12 @@ so a check sees the sync control while the step runs. `?fake=mail` names the ban
 accountant's mail at example.com addresses, and a mailbox held in memory
 (`src/features/mail/infrastructure/fake/fakeMailbox.ts`) answers the mail step with made-up subjects
 and file names: mail to file, mail already in the folders, a VAT correction, a return Drive gives no
-checksum for, and two unmatched attachments. `?fake=mail-nothing-new` holds only the mail already
-filed, and `?fake=mail-failed` fails the VAT return search. The fake build never goes to Google. As it opens it holds
+checksum for, and two unmatched attachments. There the sample statement comes by mail, so the
+statements folder lacks it until a sync files it, and the statements step of that sync reads it. The
+files a sync makes are held in memory until the page reloads (`fakeFolderFiles.ts` beside the fake
+workbook), so a second sync files nothing new. `?fake=mail-nothing-new` holds only the mail already
+filed, `?fake=mail-failed` fails the VAT return search, and `?fake=mail-upload-failed` fails the
+upload of every PDF, so the bank's PDF fails beside its statement. The fake build never goes to Google. As it opens it holds
 a made-up token for the scopes `ledgerboard.google-granted` lists that the books need, every scope
 when it lists none,
 and "Allow access" grants every scope asked, so a check withholds Drive read by listing the scopes
@@ -2167,7 +2189,7 @@ Picker and sign-in hosts, and requests go only to these hosts:
 
 | Host | What the app asks it |
 |---|---|
-| `www.googleapis.com` | Drive: the books' file, its revisions and its backups, listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, and listing, downloading and exporting the accountant's workbooks |
+| `www.googleapis.com` | Drive: the books' file, its revisions and its backups, listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, uploading a statement filed from mail and making its year folder, and listing, downloading and exporting the accountant's workbooks |
 | `gmail.googleapis.com` | The invoice mail draft, only once the user turned it on, and the mail step's search, mails and attachments, only while a kind of mail has a sender |
 | `openidconnect.googleapis.com` | The userinfo endpoint |
 | `oauth2.googleapis.com` | Token revocation, where `google.accounts.oauth2.revoke` posts |

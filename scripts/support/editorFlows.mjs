@@ -1354,7 +1354,7 @@ export async function syncRunningFlow(page, { press, shoot, inspect }) {
 
 const MAIL_CARD = '[data-testid="mail-settings"]'
 const MAIL_PLAN = '[data-testid="mail-plan"]'
-const WOULD_FILE = /Would file 8, already there 5, 1 correction, 1 not compared, 2 unmatched/
+const MAIL_FILED = /Filed 2, would file 7, already there 4, 1 correction, 1 not compared, 2 unmatched\./
 
 /** Waits until the mail card lists the sources in these states, and returns what each source's line says. */
 async function mailListShows(page, wanted) {
@@ -1394,7 +1394,7 @@ const ALL_SOURCES = ['statements:planned', 'hr-doo.payroll:planned', 'hr-doo.vat
 /**
  * With no sender named, the mail step is off in the steps of a sync. On Settings, General the mail
  * card takes a sender, asks for the subject a sender needs, and saves both, and the next sync's mail
- * step lists what it would file.
+ * step files the bank's new PDF and lists the rest.
  */
 export async function mailOffFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
@@ -1423,32 +1423,48 @@ export async function mailOffFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await noToast(page, 'a sync with mail on showed a toast')
   const lines = await mailListShows(page, ['statements:planned'])
-  if (!/^Would file 1, already there 3, 1 unmatched\.$/.test(lines[0] ?? '')) throw new Error(`the bank's mail reads "${lines[0]}"`)
+  if (!/^Filed 1, already there 3, 1 unmatched\.$/.test(lines[0] ?? '')) throw new Error(`the bank's mail reads "${lines[0]}"`)
   await scrollToTop(page, MAIL_CARD)
   await inspect?.('the mail card once saved and synced')
   await shoot('mail-card-saved')
 }
 
-/** With the bank's and the accountant's mail named, the mail step says what it would file, and its link opens the list on the mail card, with the accountant's mail fields on the facts card. */
-export async function mailWouldFileFlow(page, { press, shoot, inspect }) {
+/**
+ * With the bank's and the accountant's mail named, the mail step files the bank's PDF and statement
+ * into the fake Drive, and the statements step of the same sync files that statement on the ledger.
+ * Its link opens the list on the mail card, which marks what was filed beside what the accountant's
+ * mail would file, with the accountant's mail fields on the facts card. A second sync files nothing new.
+ */
+export async function mailFiledFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
-  await noToast(page, 'a sync that read the mail showed a toast')
+  await noToast(page, 'a sync that filed mail showed a toast')
   await openDeviceSettings(page)
-  await stepSays(page, SYNC_CARD, 'mail', 'done', WOULD_FILE)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', MAIL_FILED)
+  await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
   await scrollToTop(page, SYNC_CARD)
-  await inspect?.('the mail step of the sync')
+  await inspect?.('the mail step that filed a statement, and the statements step that read it')
   await shoot('mail-step')
   await openMailList(page, press, SYNC_CARD)
   const lines = await mailListShows(page, ALL_SOURCES)
-  const expected = ['Would file 1, already there 3, 1 unmatched.', 'Would file 5, already there 1, 1 unmatched.', 'Would file 1, 1 correction, 1 not compared.', 'Would file 1, already there 1.']
+  const expected = ['Filed 2, already there 2, 1 unmatched.', 'Would file 5, already there 1, 1 unmatched.', 'Would file 1, 1 correction, 1 not compared.', 'Would file 1, already there 1.']
   if (JSON.stringify(lines) !== JSON.stringify(expected)) throw new Error(`the sources read ${JSON.stringify(lines)}`)
-  for (const kind of ['file', 'already', 'correction', 'unchecked', 'unmatched']) {
+  for (const kind of ['filed', 'file', 'already', 'correction', 'unchecked', 'unmatched']) {
     if ((await page.$(`${MAIL_PLAN} [data-entry="${kind}"]`)) === null) throw new Error(`the list has no ${kind} entry`)
   }
+  if ((await page.$(`${MAIL_PLAN} [data-source="statements"] [data-entry="file"]`)) !== null) throw new Error('the bank statements still list a file they would file')
   await scrollToTop(page, MAIL_PLAN)
-  await inspect?.('the list of what the mail step found')
+  await inspect?.('the list of what the mail step filed and found')
   await shoot('mail-list')
+
+  await syncAndSettle(page, press)
+  const again = await mailListShows(page, ALL_SOURCES)
+  if (again[0] !== 'Nothing new, already there 3.') throw new Error(`a second sync's bank mail reads "${again[0]}"`)
+  await openDeviceSettings(page)
+  const line = await stepSays(page, SYNC_CARD, 'mail', 'done', /Would file 7, already there 5, 1 correction, 1 not compared, 1 unmatched\./)
+  if (line.includes('Filed')) throw new Error(`a second sync's mail step says "${line}"`)
+  await stepSays(page, SYNC_CARD, 'statements', 'done', /Nothing new/)
+
   await page.evaluate(() => {
     window.location.hash = '#/settings#accountant-mail'
   })
@@ -1459,6 +1475,32 @@ export async function mailWouldFileFlow(page, { press, shoot, inspect }) {
   await scrollToTop(page, '[data-testid="accountant-mail"]')
   await inspect?.("the accountant's mail fields")
   await shoot('accountant-mail-fields')
+}
+
+/**
+ * The upload of the bank's PDF fails beside its statement's: the mail step fails with the PDF named,
+ * 1 problem in the control, the statement still on the ledger from the same sync, and the list marks
+ * the PDF not filed with why.
+ */
+export async function mailUploadFailedFlow(page, { press, shoot, inspect }) {
+  await syncAndSettle(page, press)
+  const control = await controlShows(page, 'problems')
+  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
+  await press(await syncButton(page))
+  await stepSays(page, '', 'mail', 'failed', /Filed 1, would file 7, already there 4, 1 correction, 1 not compared, 2 unmatched\. Bank statements: \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\./)
+  await stepSays(page, '', 'statements', 'done', FILED)
+  await delay(400)
+  await inspect?.('the steps with an upload that failed')
+  await shoot('mail-upload-failed-steps')
+  await openMailList(page, press, '')
+  const lines = await mailListShows(page, ALL_SOURCES)
+  if (!/^Filed 1, already there 2, 1 unmatched\. \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\.$/.test(lines[0] ?? '')) throw new Error(`the bank's mail reads "${lines[0]}"`)
+  const entry = await page.$(`${MAIL_PLAN} [data-source="statements"] [data-entry="not-filed"]`)
+  if (entry === null) throw new Error('the list marks no entry not filed')
+  if (!(await entry.evaluate((element) => element.textContent ?? '')).includes('Drive did not take the upload. Sync again later.')) throw new Error('the entry not filed does not say why')
+  await scrollToTop(page, MAIL_PLAN)
+  await inspect?.('the list with an upload that failed')
+  await shoot('mail-upload-failed-list')
 }
 
 /** Mail that is all filed already says nothing new, and opens no problem. */
@@ -1478,7 +1520,7 @@ export async function mailFailedFlow(page, { press, shoot, inspect }) {
   const control = await controlShows(page, 'problems')
   if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
   await press(await syncButton(page))
-  await stepSays(page, '', 'mail', 'failed', /Would file 7, already there 5, 2 unmatched\. VAT returns: Gmail did not answer the search/)
+  await stepSays(page, '', 'mail', 'failed', /Filed 2, would file 6, already there 4, 2 unmatched\. VAT returns: Gmail did not answer the search/)
   await delay(400)
   await inspect?.('the steps with a mail source that failed')
   await shoot('mail-failed-steps')
@@ -1502,7 +1544,7 @@ export async function mailAccessFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
   await openDeviceSettings(page)
-  await stepSays(page, SYNC_CARD, 'mail', 'done', WOULD_FILE)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', MAIL_FILED)
 }
 
 /** Review: open the gadget purchase in the queue, then split it, edit and delete the split and Undo, as on Transactions. */
