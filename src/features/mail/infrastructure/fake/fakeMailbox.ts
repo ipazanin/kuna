@@ -190,7 +190,7 @@ export function fakeMailbox(variant: string | null): Mailbox {
 /**
  * The fake folders the mail goes into, at the paths the fake books name and the statements folder
  * new books from mail make beside the books file. They hold what another app filed and what a sync
- * made, kept in `made`, the page's files unless a test gives others. `?fake=mail-upload-failed` fails the upload of every PDF, so a statement's PDF fails beside its XML.
+ * made, kept in `made`, the page's files unless a test gives others. `?fake=mail-upload-failed` fails the upload of every PDF, so a statement's PDF fails beside its XML and the accountant's PDFs beside the other files.
  */
 export function fakeMailFolders(variant: string | null, made: FakeMadeFile[] = PAGE_FAKE_MADE_FILES): MailFolders {
   const filed = fakeFiled(variant)

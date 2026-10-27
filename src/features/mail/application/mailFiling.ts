@@ -63,8 +63,6 @@ export interface MailSource {
   /** Its name in the step's line and the list, such as Bank statements. */
   readonly label: string
   readonly duplicates: 'redelivery' | 'correction'
-  /** Whether the step only lists what it would file for this source, and files nothing. */
-  readonly dryRun: boolean
   /** Whether the books turn it on, and what they search for and file into. */
   terms(workbook: Workbook): SourceTerms
   /** Where each attachment of one mail goes, or why it matches no rule. */
@@ -87,14 +85,13 @@ export interface PlacedAttachment {
 }
 
 /**
- * What the step did with one attachment: filed it at its path, failed to upload it, would file it
- * for a source that only lists, found it already there, found a same-named file from an older mail
- * with other bytes, which is a correction, or with no SHA-256 to compare, or matched it to no rule.
+ * What the step did with one attachment: filed it at its path, failed to upload it, found it
+ * already there, found a same-named file from an older mail with other bytes, which is a
+ * correction, or with no SHA-256 to compare, or matched it to no rule.
  */
 export type PlanEntry =
-  | (PlacedAttachment & { readonly kind: 'filed' | 'file' | 'already' | 'unchecked' })
+  | (PlacedAttachment & { readonly kind: 'filed' | 'already' | 'unchecked' | 'correction' })
   | (PlacedAttachment & { readonly kind: 'not-filed'; readonly reason: string })
-  | (PlacedAttachment & { readonly kind: 'correction'; readonly filedByApp: boolean })
   | { readonly kind: 'unmatched'; readonly mail: PlannedMail; readonly attachment: string; readonly reason: string }
 
 /** One source's part of the step: what it searched and what it did with each attachment, or why it could not. */
@@ -130,8 +127,8 @@ const READ_AT_ONCE = 5
 /**
  * The mail step: each source that is on lists the files of its year folders, searches its window
  * page by page, names every attachment by its rule, and checks the name against what its folder
- * holds and what an earlier mail of this run files. A source that files then makes each new file,
- * oldest mail first, and a dry-run source only lists it. No mail is marked or moved, and no Drive
+ * holds and what an earlier mail of this run files. It then makes each new file, oldest mail
+ * first. No mail is marked or moved, and no Drive
  * file is trashed, renamed or overwritten. A source that is off makes no call, and one switched on
  * without all it needs fails with what it lacks. A source or an upload that fails leaves the others
  * running, except that mail too new for the next window to reach back to a failed upload waits for
@@ -159,12 +156,11 @@ export async function fileMail(ports: MailFilingPorts): Promise<MailPlan> {
   return { sources: plans }
 }
 
-/** A file to compare a new name with: one the folder holds, or one an earlier mail of this run would file. */
+/** A file to compare a new name with: one the folder holds, or one an earlier mail of this run files. */
 interface Comparable {
   readonly folders: readonly string[]
   readonly name: string
   readonly createdTime: number
-  readonly filedByApp: boolean
   sha256(): Promise<string | null>
 }
 
@@ -199,56 +195,60 @@ async function planSource(source: MailSource, terms: MailTerms, { mailbox, folde
   if (olderListing.kind === 'refused') {
     return { kind: 'failed', id: source.id, label: source.label, reason: olderListing.reason }
   }
-  const comparables: Comparable[] = [...listing.files, ...olderListing.files].map((file) => ({ ...file, filedByApp: file.filedFrom !== null, sha256: async () => file.sha256 }))
-  const entries: PlanEntry[] = []
-  const toFile: ToFile[] = []
+  const comparables: Comparable[] = [...listing.files, ...olderListing.files].map((file) => ({ ...file, sha256: async () => file.sha256 }))
+  const found: (PlanEntry | ToFile)[] = []
   for (const { message, naming, bytes } of named) {
     const mail = { id: message.id, subject: message.subject, date: message.date }
     if (naming.kind === 'unmatched') {
-      entries.push({ kind: 'unmatched', mail, attachment: naming.attachment.name, reason: naming.reason })
+      found.push({ kind: 'unmatched', mail, attachment: naming.attachment.name, reason: naming.reason })
       continue
     }
     const at: PlacedAttachment = { mail, attachment: naming.attachment.name, path: [...terms.folder, ...naming.folders], name: naming.name }
     const hash = once(async () => ports.hash(await bytes()))
-    const filedFromThisMail: Comparable = { folders: naming.folders, name: naming.name, createdTime: message.date, filedByApp: true, sha256: hash }
+    const filedFromThisMail: Comparable = { folders: naming.folders, name: naming.name, createdTime: message.date, sha256: hash }
     const same = comparables.find((file) => samePath(file.folders, naming.folders) && (file.name === naming.name || (naming.redelivery !== null && file.name.endsWith(naming.redelivery))))
     if (same === undefined) {
-      toFile.push({ index: entries.length, at, folders: naming.folders, bytes })
-      entries.push({ kind: 'file', ...at })
+      found.push({ kind: 'to-file', at, folders: naming.folders, bytes })
       comparables.push(filedFromThisMail)
       continue
     }
     const sameFile = source.duplicates === 'redelivery' || same.createdTime >= message.date
     const filed = sameFile ? null : await same.sha256()
     if (sameFile) {
-      entries.push({ kind: 'already', ...at })
+      found.push({ kind: 'already', ...at })
     } else if (filed === null) {
-      entries.push({ kind: 'unchecked', ...at })
+      found.push({ kind: 'unchecked', ...at })
     } else if (filed === (await hash())) {
-      entries.push({ kind: 'already', ...at })
+      found.push({ kind: 'already', ...at })
     } else {
-      entries.push({ kind: 'correction', ...at, filedByApp: same.filedByApp })
+      found.push({ kind: 'correction', ...at })
       comparables.splice(comparables.indexOf(same), 1, filedFromThisMail)
     }
   }
-  if (!source.dryRun) {
-    let firstFailed: PlacedAttachment | null = null
-    for (const [count, filing] of toFile.entries()) {
-      ports.report(`${source.label}: filing ${count + 1} of ${toFile.length}`)
-      const entry: PlanEntry =
-        firstFailed !== null && !windowReaches(firstFailed.mail.date, filing.at.mail.date)
-          ? { kind: 'not-filed', ...filing.at, reason: `It waits until ${firstFailed.name} is filed, so the next sync still searches back to that mail` }
-          : await fileOne(filing, source, terms, folders)
-      if (entry.kind === 'not-filed') firstFailed ??= filing.at
-      entries[filing.index] = entry
+  const toFile = found.filter((outcome) => outcome.kind === 'to-file').length
+  const entries: PlanEntry[] = []
+  let filing = 0
+  let firstFailed: PlacedAttachment | null = null
+  for (const outcome of found) {
+    if (outcome.kind !== 'to-file') {
+      entries.push(outcome)
+      continue
     }
+    filing += 1
+    ports.report(`${source.label}: filing ${filing} of ${toFile}`)
+    const entry: PlanEntry =
+      firstFailed !== null && !windowReaches(firstFailed.mail.date, outcome.at.mail.date)
+        ? { kind: 'not-filed', ...outcome.at, reason: `It waits until ${firstFailed.name} is filed, so the next sync still searches back to that mail` }
+        : await fileOne(outcome, source, terms, folders)
+    if (entry.kind === 'not-filed') firstFailed ??= outcome.at
+    entries.push(entry)
   }
   return { kind: 'planned', id: source.id, label: source.label, window, query, entries }
 }
 
-/** An attachment the plan files: its place among the entries, where it goes, its folders below the source's folder, and its bytes. */
+/** An attachment new to its folder, before its upload: where it goes, its folders below the source's folder, and its bytes. */
 interface ToFile {
-  readonly index: number
+  readonly kind: 'to-file'
   readonly at: PlacedAttachment
   readonly folders: readonly string[]
   bytes(): Promise<ArrayBuffer>
@@ -308,7 +308,7 @@ function uniquePaths(paths: readonly (readonly string[])[]): (readonly string[])
 /** What the step did, counted over the entries of every source that ran. */
 export function mailCounts(entries: readonly PlanEntry[]): MailCounts {
   const count = (kind: PlanEntry['kind']): number => entries.filter((entry) => entry.kind === kind).length
-  return { filed: count('filed'), file: count('file'), notFiled: count('not-filed'), already: count('already'), corrections: count('correction'), unchecked: count('unchecked'), unmatched: count('unmatched') }
+  return { filed: count('filed'), notFiled: count('not-filed'), already: count('already'), corrections: count('correction'), unchecked: count('unchecked'), unmatched: count('unmatched') }
 }
 
 /** The files of a source whose upload failed, named in a sentence, or null when none did. */

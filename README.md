@@ -14,7 +14,8 @@ turns the invoice mail draft on, `gmail.compose` to save a Gmail draft. All of t
 token held in the page's memory only. See *Google sign-in*. The app reads the file and keeps a copy
 in IndexedDB. It writes only that file, its revisions and a `backups` folder beside it, and only
 what the user saves or a sync files, as *Write-back* describes. A sync also files the bank's
-statement mail into the statements folder, as *The mail step* describes. An xlsx file opens as the same
+statement mail into the statements folder, and the accountant's mail the user switches on into its
+folders, as *The mail step* describes. An xlsx file opens as the same
 document, and "Export to Excel" writes one. Making an invoice also files its PDF in the Drive folder
 the user picks for invoices. See *Invoices*.
 
@@ -185,10 +186,9 @@ Sync again."
 
 `useMailSync` in `src/features/mail/presentation/` makes the step. It lists what the folder already
 holds, searches Gmail, reads each mail's subject, date and attachment names, names each attachment
-as the filing scripts name it, checks the name against the folder, and files what is new. The bank's
-statements are filed. The accountant's three sources only say what they would file, and file
-nothing. The step never trashes, renames or overwrites a Drive file, and never marks, labels or
-moves a mail. `fileMail` in `src/features/mail/application/mailFiling.ts` does the work for each
+as the filing scripts name it, checks the name against the folder, and files what is new. Nothing in
+the app reads what the accountant's three sources file. The step never trashes, renames or
+overwrites a Drive file, and never marks, labels or moves a mail. `fileMail` in `src/features/mail/application/mailFiling.ts` does the work for each
 kind of mail, a source, which core and the pack contribute. Each source runs on its own, so one
 that fails leaves the others running.
 
@@ -253,12 +253,13 @@ gives no checksum for, such as a Google Sheet or an odd upload, is listed as not
 mail of the same run is compared with what an earlier one files. Only a camt XML is downloaded to
 name it, and other bytes only to compare or file them.
 
-**Filing.** For the bank's statements the step then makes each new file with `drive.file`, oldest
-mail first, in its year folder inside `statements_folder`. With a folder that starts at the books
+**Filing.** The step then makes each new file with `drive.file`, oldest mail first, in its year
+folder inside the source's folder, such as `statements_folder`. With a folder that starts at the books
 file's folder, such as `./statements`, the step reads and files with `drive.file` and Gmail read
 alone, so new books from mail never ask for Drive read. The accountant's folders are paths from My
 Drive and need it. A year folder that is missing is made
-there, named by the same rule. A name two folders share takes the first. Each file carries three
+there, named by the same rule, and so is a missing month folder inside it for the payroll and the
+invoices. A name two folders share takes the first. Each file carries three
 `appProperties`: `ledgerboard-mail` with the source, `ledgerboard-mail-id` with the Gmail id of the
 mail, and `ledgerboard-mail-date` with the mail's time in ISO form, each key and value within the
 124 bytes Drive keeps. The next run's window starts from the newest of those dates and of the other
@@ -272,12 +273,11 @@ takes each row once by its bank reference. The statements step runs after the ma
 sync and lists the folder again, so while `statements_sync` is on, a statement filed from mail is on
 the ledger by the end of that sync.
 
-Its line counts every source that ran, such as "Filed 2, would file 3, already there 50, 1
-unmatched", or "Nothing new, already there 50", then each source that failed with why and each file
+Its line counts every source that ran, such as "Filed 2, already there 50, 1 unmatched", or "Nothing new, already there 50", then each source that failed with why and each file
 that was not filed, such as "Bank statements: 2026-10-08-statement-029.pdf was not filed." Either
 fails the step. The list says where each source's search started, the mail-since day or a week
 before the newest file in its folder. "See the list" in the line opens the Mail card of Settings, General at `#mail`,
-which lists each source's search and each attachment: filed, not filed with why, where it would go,
+which lists each source's search and each attachment: filed, not filed with why,
 a correction and whether the app or another app filed the older copy, one not compared, and the
 unmatched ones. A step that stopped before it had a list leaves its reason on the card instead,
 such as "Gmail asked us to slow down. Sync again in a minute." After Google turned the access away
@@ -1814,7 +1814,7 @@ workbook), so a second sync files nothing new. Those variants switch every kind 
 mail on. `?fake=mail-nothing-new` holds only the mail already filed, so every source searches from a
 week before the newest file in its folder, `?fake=mail-failed` fails the VAT return search, and
 `?fake=mail-upload-failed` fails the upload of every PDF, so the bank's PDF fails beside its
-statement. `?fake=mail-rate-limited` answers every search as Gmail still asking to slow down after
+statement and the accountant's PDFs beside the other files. `?fake=mail-rate-limited` answers every search as Gmail still asking to slow down after
 the retries, `?fake=mail-switches-off` leaves the accountant's kinds off, and `?fake=mail-no-sender`
 switches the payroll on without the accountant's address. `?fake=google-closed` closes
 Google's window on every tap that asks, as a person closing the popup does. The fake build never goes to Google. As it opens it holds

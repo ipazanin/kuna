@@ -224,6 +224,33 @@ describe('googleMailFolders making a file', () => {
     expect(requests.every((request) => request.method === 'GET' || request.method === 'POST')).toBe(true)
   })
 
+  it('makes a missing year folder and the month folder inside it before the file, as the payroll and the invoices need', async () => {
+    const requests: { readonly method: string; readonly url: URL; readonly body: string }[] = []
+    let made = 0
+    vi.stubGlobal('fetch', async (input: string, init: RequestInit) => {
+      const url = new URL(input)
+      const method = init.method ?? 'GET'
+      requests.push({ method, url, body: init.body instanceof Blob ? await init.body.text() : String(init.body ?? '') })
+      if (method === 'POST') {
+        made += 1
+        return Response.json({ id: `made-${made}`, name: 'made', mimeType: 'made' })
+      }
+      const query = url.searchParams.get('q') ?? ''
+      if (query === `'root' in parents and name = 'finance' and ${FOLDER}`) return Response.json({ files: [{ id: 'finance' }] })
+      if (query === `'finance' in parents and name = 'payroll' and ${FOLDER}`) return Response.json({ files: [{ id: 'payroll' }] })
+      return Response.json({ files: [] })
+    })
+
+    await googleMailFolders('token', 'books-file').create(['finance', 'payroll'], ['2026-payroll', '2026-09'], { name: '2026-09-salary.xlsx', properties: PROPERTIES, bytes: new TextEncoder().encode('xlsx').buffer as ArrayBuffer })
+
+    const posts = requests.filter((request) => request.method === 'POST')
+    expect(posts.slice(0, 2).map((request) => JSON.parse(request.body))).toEqual([
+      { name: '2026-payroll', mimeType: 'application/vnd.google-apps.folder', parents: ['payroll'] },
+      { name: '2026-09', mimeType: 'application/vnd.google-apps.folder', parents: ['made-1'] },
+    ])
+    expect(JSON.parse(/\r\n\r\n(\{.*\})\r\n/.exec(posts[2]!.body)![1]!)).toEqual({ name: '2026-09-salary.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', parents: ['made-2'], appProperties: PROPERTIES })
+  })
+
   it('files into the statements folder the app made beside the books, found from the books file without a walk from My Drive', async () => {
     const requests: { readonly url: URL; readonly body: string }[] = []
     vi.stubGlobal('fetch', async (input: string, init: RequestInit) => {

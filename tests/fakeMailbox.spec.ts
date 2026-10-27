@@ -39,7 +39,7 @@ function planFake(variant: string, made: FakeMadeFile[] = []) {
 }
 
 describe('the fake mailbox', () => {
-  it('files the bank’s new PDF and the sample statement into the fake Drive, where the statements folder lists the statement, and a second run files nothing new', async () => {
+  it('files the bank’s new PDF, the sample statement and the accountant’s new mail into the fake Drive, where the statements folder lists the statement, and a second run files nothing new', async () => {
     const made: FakeMadeFile[] = []
     const folder = fakeStatementFolder('mail', made)
     const before = await folder.files(FAKE_FOLDERS.statements)
@@ -53,16 +53,23 @@ describe('the fake mailbox', () => {
     expect(made.map((file) => [file.folder.join('/'), file.folders.join('/'), file.name])).toEqual([
       ['finance/statements', `${sample.slice(0, 4)}-statements`, sample],
       ['finance/statements', `${made[1]?.name.slice(0, 4)}-statements`, made[1]?.name],
+      ['finance/payroll', '2026-payroll/2026-09', '2026-09-salary.xlsx'],
+      ['finance/payroll', '2026-payroll/2026-09', '2026-09-payment-order-salary.pdf'],
+      ['finance/payroll', '2026-payroll/2026-09', '2026-09-payment-order-salary.xml'],
+      ['finance/payroll', '2026-payroll/2026-09', '2026-09-payment-order-rent.pdf'],
+      ['finance/payroll', '2026-payroll/2026-09', '2026-09-payment-order-rent.xml'],
+      ['finance/vat-returns', '2026-vat-returns', '2026-09-pdv.xlsx'],
+      ['finance/incoming-invoices', '2026-incoming-invoices/2026-10', '2026-10-03-accounting.pdf'],
     ])
     expect(made[1]?.name).toMatch(/^\d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf$/)
     const listed = after.kind === 'listed' ? after.files.find((file) => file.name === sample) : undefined
     expect(new TextDecoder().decode(await folder.download(listed!))).toBe(sampleCamtXml())
-    expect(planLine(again)).toBe('Would file 7, already there 5, 1 correction, 1 not compared, 1 unmatched.')
+    expect(planLine(again)).toBe('Nothing new, already there 10, 1 unmatched.')
     expect(again.sources[0]?.kind === 'planned' && again.sources[0].entries.map((entry) => entry.kind)).toEqual(['already', 'already', 'already'])
-    expect(made).toHaveLength(2)
+    expect(made).toHaveLength(9)
   })
 
-  it('holds mail of every kind the list shows: some filed, some to file, some already there, a correction, one not compared and two unmatched', async () => {
+  it('holds mail of every kind the list shows: some filed, some already there, a correction, one not compared and two unmatched', async () => {
     const plan = await planFake('mail')
 
     expect(plan.sources.map((source) => [source.id, source.kind])).toEqual([
@@ -71,17 +78,19 @@ describe('the fake mailbox', () => {
       ['hr-doo.vat-returns', 'planned'],
       ['hr-doo.invoices', 'planned'],
     ])
-    expect(planLine(plan)).toBe('Filed 2, would file 7, already there 4, 1 correction, 1 not compared, 2 unmatched.')
+    expect(planLine(plan)).toBe('Filed 9, already there 4, 1 correction, 1 not compared, 2 unmatched.')
   })
 
-  it('holds only mail already filed for nothing new, fails the VAT search beside the others, and fails the upload of a PDF beside its statement', async () => {
+  it('holds only mail already filed for nothing new, fails the VAT search beside the others, and fails the upload of every PDF beside the other files', async () => {
     const made: FakeMadeFile[] = []
     const uploadFailed = await planFake('mail-upload-failed', made)
 
     expect(planLine(await planFake('mail-nothing-new'))).toBe('Nothing new, already there 5.')
-    expect(planLine(await planFake('mail-failed'))).toBe('Filed 2, would file 6, already there 4, 2 unmatched. VAT returns: Gmail did not answer the search. Sync again later.')
-    expect(planLine(uploadFailed)).toMatch(/^Filed 1, would file 7, already there 4, 1 correction, 1 not compared, 2 unmatched\. Bank statements: \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\.$/)
-    expect(made.map((file) => file.name)).toEqual([`${sampleCamtLabel()}-main.xml`])
+    expect(planLine(await planFake('mail-failed'))).toBe('Filed 8, already there 4, 2 unmatched. VAT returns: Gmail did not answer the search. Sync again later.')
+    expect(planLine(uploadFailed)).toMatch(
+      /^Filed 5, already there 4, 1 correction, 1 not compared, 2 unmatched\. Bank statements: \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\. Payroll: 2026-09-payment-order-salary\.pdf and 2026-09-payment-order-rent\.pdf were not filed\. Accountant's invoices: 2026-10-03-accounting\.pdf was not filed\.$/,
+    )
+    expect(made.map((file) => file.name)).toEqual([`${sampleCamtLabel()}-main.xml`, '2026-09-salary.xlsx', '2026-09-payment-order-salary.xml', '2026-09-payment-order-rent.xml', '2026-09-pdv.xlsx'])
   })
 
   it('stops on Gmail asking to slow down, reads only the bank’s mail with the accountant’s switches off, and fails the payroll switched on without the accountant’s address', async () => {

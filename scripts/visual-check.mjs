@@ -49,7 +49,7 @@
  * tab.
  * The mail step is off until the Mail card on Settings, General saves a sender with the subject it
  * asks for, and the next sync files the bank's new mail. With the fake mailbox it files the bank's
- * PDF and statement, the statements step of the same sync files the statement on the ledger, its
+ * PDF and statement and the accountant's new mail, the statements step of the same sync files the statement on the ledger, its
  * link opens the list on the Mail card, a second sync files nothing new, and the facts card shows the
  * accountant's mail. Mail all filed already says nothing new, a source that fails and an upload that
  * fails each give 1 problem with the steps open, and a token without Gmail read gets Allow access,

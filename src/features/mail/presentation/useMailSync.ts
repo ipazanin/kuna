@@ -84,7 +84,7 @@ export interface MailSync {
 
 /**
  * The mail step and what it last found, shared by the whole page. It reads Gmail and the folders
- * the mail goes into, and files the bank's statements there. A source or an upload that failed
+ * the mail goes into, and files what is new there. A source or an upload that failed
  * fails the step, with the others' counts in its line. Gmail still asking to slow down fails it
  * with that alone.
  */

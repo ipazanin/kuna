@@ -164,8 +164,8 @@
               asked. It covers the files and folders you pick in Google's file picker and the files the app makes. The app reads and saves
               your books in <code>ledgerboard-company.json</code>, the file it makes in the folder you pick, and reads the names of that
               folder and of the backups beside the file. When you make an invoice, it lists the folders inside the invoice folder you
-              picked, and files the PDF there. When a sync files your bank's statement mail, it makes the files, and a missing year
-              folder, in your statements folder.
+              picked, and files the PDF there. When a sync files your bank's statement mail or a kind of your accountant's mail you
+              switched on, it makes the files, and a missing year or month folder, in that mail's folder.
             </li>
             <li>
               <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank
@@ -179,8 +179,8 @@
               mails from, or switch on a kind of your accountant's mail. Google's wording covers your whole mailbox. On each sync the app searches it for mail from
               those addresses whose subject starts with the words you set, reads each one's subject, date and attachment names, downloads
               a bank statement's XML to read its number and account, and downloads an attachment to file it or to compare it with a
-              file of the same name in your Drive. It files your bank's new statements into your Drive, as "What the app writes" says.
-              Of your accountant's mail it only lists what it would file. Nothing it reads leaves your browser except those files, which
+              file of the same name in your Drive. It files your bank's new statements and the kinds of your accountant's mail you
+              switched on into your Drive, as "What the app writes" says. Nothing it reads leaves your browser except those files, which
               go to your own Drive. It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
             </li>
             <li>
@@ -214,8 +214,10 @@
           </p>
           <p>
             While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the
-            statement PDF and XML, into your statements folder in Drive, in a folder for the year that it makes when it is missing. Each
-            file it makes carries three labels only this app sees: that the app filed it from mail, the Gmail id of the mail, and the
+            statement PDF and XML, into your statements folder in Drive, in a folder for the year that it makes when it is missing.
+            While you switch on a kind of your accountant's mail, each sync files its new payroll documents, VAT returns or the
+            accountant's invoices into the folder you set for that kind, in a folder for the year, and for the payroll and the invoices
+            one for the month, that it makes when it is missing. Nothing in the app reads those files. Each file it makes carries three labels only this app sees: that the app filed it from mail, the Gmail id of the mail, and the
             mail's date. The next sync starts a week before the newest file in the folder, whoever filed it. It never trashes, renames or overwrites a file there, and it never
             changes your mail.
           </p>

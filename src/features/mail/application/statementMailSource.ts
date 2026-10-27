@@ -19,7 +19,6 @@ export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer)
     id: 'statements',
     label: 'Bank statements',
     duplicates: 'redelivery',
-    dryRun: false,
     terms: (workbook) => {
       const { statementsMailFrom, statementsMailSubject, statementsFolder } = workbook.settings
       return sourceTerms(statementsMailFrom.length > 0 && statementsMailSubject !== '', { senders: statementsMailFrom, subject: statementsMailSubject, folder: statementsFolder })

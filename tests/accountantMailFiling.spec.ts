@@ -154,9 +154,8 @@ const FACTS: CompanyFacts = {
   incomingInvoicesFolder: INVOICES,
 }
 
-async function planVat(mails: readonly TestMail[], filed: readonly TestFiled[], facts: CompanyFacts = FACTS) {
+async function planVat(mails: readonly TestMail[], filed: readonly TestFiled[], facts: CompanyFacts = FACTS, folders = testFolders(filed)) {
   const mailbox = testMailbox(mails)
-  const folders = testFolders(filed)
   let opened = 0
   const plan = await fileMail({
     open: async () => {
@@ -176,12 +175,11 @@ async function planVat(mails: readonly TestMail[], filed: readonly TestFiled[], 
 }
 
 const AUGUST = (at: string, content: string): TestMail => ({ id: `vat-${at}`, subject: 'RE: PDV za 8/2026', at, attachments: [['PDV 8 2026_Example.xlsx', content]] })
-const FILED_AUGUST = (content: string | null, filedByApp = false): TestFiled => ({
+const FILED_AUGUST = (content: string | null): TestFiled => ({
   folders: ['2026-vat-returns'],
   name: '2026-08-pdv.xlsx',
   created: '2026-09-15T10:00:00Z',
   content,
-  ...(filedByApp ? { filedFrom: '2026-09-14T12:00:00Z' } : {}),
 })
 
 describe("the accountant's resends", () => {
@@ -206,11 +204,37 @@ describe("the accountant's resends", () => {
     expect(opened).toBe(0)
   })
 
-  it('only lists what a new return would file, and files nothing', async () => {
-    const { kinds, folders, plan } = await planVat([{ id: 'vat-09', subject: 'PDV za 9/26', at: '2026-10-14T12:00:00Z', attachments: [['PDV 9 2026_Example.xlsx', 'v1']] }], [])
+  it('files each new file of every kind switched on in its year folder, oldest mail first, with the source, the mail’s id and the mail’s date', async () => {
+    const mails: TestMail[] = [
+      { id: 'vat-09', subject: 'PDV za 9/26', at: '2026-10-14T12:00:00Z', attachments: [['PDV 9 2026_Example.xlsx', 'vat 9']] },
+      { id: 'payroll-09', subject: 'Plaća za 9/2026', at: '2026-10-05T08:30:00Z', attachments: [['Example plaća 9 2026.xlsx', 'salary 9']] },
+      { id: 'invoice-142', subject: 'Račun za 9/2026', at: '2026-10-03T08:00:00Z', attachments: [['142-1-1_Example.pdf', 'invoice 142']] },
+      AUGUST('2026-09-14T12:00:00Z', 'vat 8'),
+    ]
 
-    expect(kinds).toEqual(['file'])
-    expect(planLine(plan)).toBe('Would file 1.')
+    const { folders, plan } = await planVat(mails, [], { ...FACTS, invoicesMailSync: true })
+
+    const properties = (source: string, id: string, at: string) => ({ 'ledgerboard-mail': source, 'ledgerboard-mail-id': id, 'ledgerboard-mail-date': new Date(at).toISOString() })
+    expect(folders.created.map((file) => [file.folder.join('/'), file.below.join('/'), file.name, file.content, file.properties])).toEqual([
+      ['work/company/payroll', '2026-payroll/2026-09', '2026-09-salary.xlsx', 'salary 9', properties('hr-doo.payroll', 'payroll-09', '2026-10-05T08:30:00Z')],
+      ['work/company/vat-returns', '2026-vat-returns', '2026-08-pdv.xlsx', 'vat 8', properties('hr-doo.vat-returns', 'vat-2026-09-14T12:00:00Z', '2026-09-14T12:00:00Z')],
+      ['work/company/vat-returns', '2026-vat-returns', '2026-09-pdv.xlsx', 'vat 9', properties('hr-doo.vat-returns', 'vat-09', '2026-10-14T12:00:00Z')],
+      ['work/company/incoming-invoices', '2026-incoming-invoices/2026-10', '2026-10-03-accounting.pdf', 'invoice 142', properties('hr-doo.invoices', 'invoice-142', '2026-10-03T08:00:00Z')],
+    ])
+    expect(planLine(plan)).toBe('Filed 4.')
+  })
+
+  it('names an upload that failed in the line, and holds mail more than a week newer, so the next sync still searches back to it', async () => {
+    const mails: TestMail[] = [AUGUST('2026-09-14T12:00:00Z', 'vat 8'), { id: 'vat-09', subject: 'PDV za 9/26', at: '2026-10-14T12:00:00Z', attachments: [['PDV 9 2026_Example.xlsx', 'vat 9']] }]
+    const folders = testFolders([], { refuse: (name) => (name === '2026-08-pdv.xlsx' ? new Error('Drive did not take the upload') : null) })
+
+    const { entries, plan } = await planVat(mails, [], FACTS, folders)
+
+    expect(entries).toMatchObject([
+      { kind: 'not-filed', name: '2026-08-pdv.xlsx', reason: 'Drive did not take the upload' },
+      { kind: 'not-filed', name: '2026-09-pdv.xlsx', reason: 'It waits until 2026-08-pdv.xlsx is filed, so the next sync still searches back to that mail' },
+    ])
+    expect(planLine(plan)).toBe('Nothing filed. VAT returns: 2026-08-pdv.xlsx and 2026-09-pdv.xlsx were not filed.')
     expect(folders.created).toEqual([])
   })
 
@@ -224,11 +248,9 @@ describe("the accountant's resends", () => {
   it('compares a newer mail’s bytes with the filed file’s SHA-256: the same bytes are already there, other bytes are a correction', async () => {
     const same = await planVat([AUGUST('2026-10-02T12:00:00Z', 'v1')], [FILED_AUGUST('v1')])
     const resend = await planVat([AUGUST('2026-10-02T12:00:00Z', 'v2')], [FILED_AUGUST('v1')])
-    const ours = await planVat([AUGUST('2026-10-02T12:00:00Z', 'v2')], [FILED_AUGUST('v1', true)])
 
     expect(same.kinds).toEqual(['already'])
-    expect(resend.entries).toMatchObject([{ kind: 'correction', filedByApp: false, path: [...VAT, '2026-vat-returns'], name: '2026-08-pdv.xlsx' }])
-    expect(ours.entries).toMatchObject([{ kind: 'correction', filedByApp: true }])
+    expect(resend.entries).toMatchObject([{ kind: 'correction', path: [...VAT, '2026-vat-returns'], name: '2026-08-pdv.xlsx' }])
     expect(planLine(resend.plan)).toBe('Nothing new, 1 correction.')
   })
 
@@ -239,13 +261,14 @@ describe("the accountant's resends", () => {
     expect(mailbox.downloads).toEqual([])
   })
 
-  it('takes a resend in the same run with other bytes as a correction of the file the first mail would file, and the corrected copy as the one a later resend is compared with', async () => {
-    const { entries } = await planVat([AUGUST('2026-09-14T12:00:00Z', 'v1'), AUGUST('2026-10-02T12:00:00Z', 'v2'), AUGUST('2026-10-03T12:00:00Z', 'v2')], [])
+  it('takes a resend in the same run with other bytes as a correction of the file the first mail filed, and the corrected copy as the one a later resend is compared with', async () => {
+    const { entries, folders } = await planVat([AUGUST('2026-09-14T12:00:00Z', 'v1'), AUGUST('2026-10-02T12:00:00Z', 'v2'), AUGUST('2026-10-03T12:00:00Z', 'v2')], [])
 
     expect(entries.map((entry) => [entry.kind, entry.mail.date])).toEqual([
-      ['file', Date.parse('2026-09-14T12:00:00Z')],
+      ['filed', Date.parse('2026-09-14T12:00:00Z')],
       ['correction', Date.parse('2026-10-02T12:00:00Z')],
       ['already', Date.parse('2026-10-03T12:00:00Z')],
     ])
+    expect(folders.created.map((file) => file.content)).toEqual(['v1'])
   })
 })

@@ -137,12 +137,11 @@ export function afterPhrase(subject: string, phrase: string): string | null {
 
 /**
  * What a sync's mail step did for one source, counted the way its line says it: what it filed, what
- * it would file for a source that only lists, what it found already there, and what needs a look.
- * `notFiled` counts the uploads that failed, which the line names instead of counting.
+ * it found already there, and what needs a look. `notFiled` counts the uploads that failed, which
+ * the line names instead of counting.
  */
 export interface MailCounts {
   readonly filed: number
-  readonly file: number
   readonly notFiled: number
   readonly already: number
   readonly corrections: number
@@ -150,12 +149,10 @@ export interface MailCounts {
   readonly unmatched: number
 }
 
-/** "Filed 2, would file 3, already there 50, 1 unmatched", "Nothing new, already there 50" when nothing was or would be filed, or "Nothing filed" when every upload failed. */
+/** "Filed 2, already there 50, 1 unmatched", "Nothing new, already there 50" when nothing was filed, or "Nothing filed" when every upload failed. */
 export function countsLine(counts: MailCounts): string {
   const parts = [
-    counts.filed === 0 && counts.file === 0 ? (counts.notFiled === 0 ? 'nothing new' : 'nothing filed') : '',
-    counts.filed === 0 ? '' : `filed ${counts.filed}`,
-    counts.file === 0 ? '' : `would file ${counts.file}`,
+    counts.filed === 0 ? (counts.notFiled === 0 ? 'nothing new' : 'nothing filed') : `filed ${counts.filed}`,
     counts.already === 0 ? '' : `already there ${counts.already}`,
     counts.corrections === 0 ? '' : `${counts.corrections} ${counts.corrections === 1 ? 'correction' : 'corrections'}`,
     counts.unchecked === 0 ? '' : `${counts.unchecked} not compared`,

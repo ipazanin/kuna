@@ -7,7 +7,7 @@ import { countsLine } from '../domain/mailSource'
 import { mailCounts, notFiledLine } from '../application/mailFiling'
 import type { MailPlan, PlanEntry, SourcePlan } from '../application/mailFiling'
 
-/** What the last mail step found, one block per source: its search, then each attachment with where it went or would go, or why it did not. */
+/** What the last mail step found, one block per source: its search, then each attachment with where it went, or why it did not. */
 const props = defineProps<{
   plan: MailPlan | null
   /** Why the last mail step stopped before it had a plan, or null. */
@@ -16,13 +16,12 @@ const props = defineProps<{
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
-/** The kinds in the order a person reads them: what failed, what was or would be filed, what needs a look, then what is already there. */
-const ORDER: readonly PlanEntry['kind'][] = ['not-filed', 'filed', 'file', 'correction', 'unchecked', 'unmatched', 'already']
+/** The kinds in the order a person reads them: what failed, what was filed, what needs a look, then what is already there. */
+const ORDER: readonly PlanEntry['kind'][] = ['not-filed', 'filed', 'correction', 'unchecked', 'unmatched', 'already']
 
 const ICONS: Readonly<Record<PlanEntry['kind'], { readonly name: string; readonly tone: string; readonly words: string }>> = {
   'not-filed': { name: 'i-lucide-file-x', tone: 'text-error', words: 'Not filed' },
   filed: { name: 'i-lucide-file-check', tone: 'text-[var(--tone-positive)]', words: 'Filed' },
-  file: { name: 'i-lucide-file-plus', tone: 'text-highlighted', words: 'Would file' },
   correction: { name: 'i-lucide-file-diff', tone: 'text-warning', words: 'Correction' },
   unchecked: { name: 'i-lucide-file-question-mark', tone: 'text-warning', words: 'Not compared' },
   unmatched: { name: 'i-lucide-mail-x', tone: 'text-warning', words: 'Unmatched' },
@@ -63,7 +62,7 @@ function mailWords(entry: PlanEntry): string {
 function note(entry: PlanEntry): string {
   switch (entry.kind) {
     case 'correction':
-      return entry.filedByApp ? 'An older copy has other bytes. The app filed it, so it would replace it.' : 'An older copy has other bytes. Another app filed it, so swap it by hand.'
+      return 'An older copy has other bytes. The app never replaces a file, so swap it by hand.'
     case 'unchecked':
       return 'An older copy is there, and Drive gives no SHA-256 for it, so the bytes were not compared.'
     case 'unmatched':
@@ -78,7 +77,7 @@ function note(entry: PlanEntry): string {
 <template>
   <div class="flex flex-col gap-5" data-testid="mail-plan">
     <p v-if="stopped !== null" class="text-sm text-muted" data-testid="mail-stopped">{{ stopped }}</p>
-    <p v-else-if="plan === null" class="text-sm text-muted">No sync on this page has looked at the mail yet. Sync to file the bank's new statements.</p>
+    <p v-else-if="plan === null" class="text-sm text-muted">No sync on this page has looked at the mail yet. Sync to file what is new.</p>
     <p v-else-if="plan.sources.length === 0" class="text-sm text-muted">No kind of mail is on, so the last sync looked at none.</p>
     <section v-for="{ source, entries } in sources" :key="source.id" class="flex flex-col gap-2" :data-source="source.id" :data-state="source.kind">
       <div class="flex flex-col gap-0.5">

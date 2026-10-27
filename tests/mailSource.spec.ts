@@ -87,11 +87,11 @@ describe('a mail source', () => {
     expect(afterPhrase('Plaća za 9/2026', '')).toBeNull()
   })
 
-  it('counts what it found in one line, with nothing new said when nothing was or would be filed', () => {
-    const none = { filed: 0, file: 0, notFiled: 0, already: 0, corrections: 0, unchecked: 0, unmatched: 0 }
+  it('counts what it found in one line, with nothing new said when nothing was filed', () => {
+    const none = { filed: 0, notFiled: 0, already: 0, corrections: 0, unchecked: 0, unmatched: 0 }
 
     expect(countsLine({ ...none, filed: 2, already: 50 })).toBe('Filed 2, already there 50')
-    expect(countsLine({ ...none, filed: 2, file: 3, already: 50, unmatched: 1 })).toBe('Filed 2, would file 3, already there 50, 1 unmatched')
+    expect(countsLine({ ...none, filed: 2, already: 50, unmatched: 1 })).toBe('Filed 2, already there 50, 1 unmatched')
     expect(countsLine({ ...none, already: 50 })).toBe('Nothing new, already there 50')
     expect(countsLine({ ...none, corrections: 2, unchecked: 1 })).toBe('Nothing new, 2 corrections, 1 not compared')
     expect(countsLine({ ...none, notFiled: 1, already: 50 })).toBe('Nothing filed, already there 50')

@@ -236,7 +236,6 @@ describe('the mail step', () => {
       id: 'broken',
       label: 'VAT returns',
       duplicates: 'correction',
-      dryRun: true,
       terms: () => ({ kind: 'on', terms: { senders: ['office@accountant.example.com'], subject: 'PDV za', folder: ['finance', 'vat'] } }),
       name: async () => [],
     }
@@ -406,17 +405,6 @@ describe('filing the bank statements', () => {
     const result = await plan([NEXT], [], { folders })
 
     expect(planLine(result)).toBe('Nothing filed. Bank statements: 2031-03-13-statement-043.pdf was not filed.')
-  })
-
-  it('files nothing for a source that only lists what it would file', async () => {
-    const folders = testFolders([])
-    const listing: MailSource = { ...STATEMENTS, dryRun: true }
-
-    const result = await plan([PAIR], [], { folders, sources: [listing] })
-
-    expect(targets(result.sources[0]).map((target) => target.split(' ')[0])).toEqual(['file', 'file'])
-    expect(planLine(result)).toBe('Would file 2.')
-    expect(folders.created).toEqual([])
   })
 })
 

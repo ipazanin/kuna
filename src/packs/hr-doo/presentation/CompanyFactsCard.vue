@@ -47,7 +47,7 @@ const MAIL_KINDS = [
     subjectLabel: 'Payroll subject starts with',
     subjectHelp: 'The words before the month, such as Plaća za.',
     folderLabel: 'Payroll folder',
-    folderHelp: 'Where it would go in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
+    folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
   },
   {
     id: 'vat',
@@ -58,7 +58,7 @@ const MAIL_KINDS = [
     subjectLabel: 'VAT return subject starts with',
     subjectHelp: 'The words before the period, such as PDV za.',
     folderLabel: 'VAT returns folder',
-    folderHelp: 'Where it would go in Google Drive, as a path from My Drive, with a folder for each year inside.',
+    folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year inside.',
   },
   {
     id: 'invoices',
@@ -69,7 +69,7 @@ const MAIL_KINDS = [
     subjectLabel: 'Invoice subject starts with',
     subjectHelp: "The words the accountant's own invoice mail starts with, such as Račun za.",
     folderLabel: "Accountant's invoices folder",
-    folderHelp: 'Where it would go in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
+    folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
   },
 ] as const
 
@@ -212,7 +212,7 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
         <div class="flex flex-col gap-1">
           <h3 class="text-sm font-medium text-highlighted">The accountant's mail</h3>
           <p class="text-sm text-muted">
-            Each sync looks in Gmail for the kinds switched on, and the Mail card lists what it would file into their folders. It files nothing yet, and nothing in the app reads those files.
+            Each sync looks in Gmail for the kinds switched on and files what is new into their folders, which the Mail card lists. Nothing in the app reads those files.
           </p>
         </div>
         <UFormField
