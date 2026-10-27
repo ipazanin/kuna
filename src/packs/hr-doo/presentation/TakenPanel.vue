@@ -134,7 +134,8 @@ const taken = computed(() => {
   const loanSlugs = [...loanOut, ...loanRepaid].filter((slug) => pay.some((category) => category.slug === slug))
   const loansArePay = loanSlugs.length > 0
   const moved = pay.map((category) => category.slug).filter((slug) => takeMonths.some((month) => month.byCategory[slug]?.amount !== 0))
-  const series = ownerPaySeries(pay, moved, loanSlugs, tokens, categoryName)
+  const rentTaxDrawn = takeMonths.some((month) => month.rentTax.amount !== 0)
+  const series = ownerPaySeries(pay, moved, loanSlugs, rentTaxDrawn, tokens, categoryName)
   const ring = ownerTakeRing(take, filters.period, series, categoryName)
   const percent = new Intl.NumberFormat(settings.value.numberLocale, { style: 'percent', maximumFractionDigits: 0 })
   const withoutLoans = formatWholeMoney(take.withoutLoans.amount)
@@ -215,6 +216,7 @@ const taken = computed(() => {
     reimbursements: take.reimbursements.map((line) => ({ key: line.category, name: categoryName(line.category), amount: line.amount.amount, to: drillLocation(line.amount.drill) })),
     loanBalance: loanOut.length === 0 ? null : loanBalanceChart(loanMonths(booked.transactions, categories, months, window), tokens.buckets['owner-pay'], tokens),
     draws: ownerDrawsChart(takeMonths, series, tokens),
+    drawsSubtitle: `${period}. Loans and their repayments as one net band, and money handed back${rentTaxDrawn ? ' and the rent tax' : ''} below zero.`,
     drawsEmpty: series.length === 0,
     drawsLegend: [...categoryLegend(series), { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const }],
   }
@@ -283,7 +285,7 @@ const taken = computed(() => {
       <DrillChartCard
         :chart="taken.draws"
         :title="`${taken.payLabel} by month`"
-        :subtitle="`${taken.period}. Loans and their repayments as one net band, and money handed back below zero.`"
+        :subtitle="taken.drawsSubtitle"
         :empty="taken.drawsEmpty"
         :height="320"
         :phone-height="260"

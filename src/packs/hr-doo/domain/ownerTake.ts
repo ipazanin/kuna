@@ -49,8 +49,11 @@ export interface NetPayPerMonth {
 export interface OwnerTakeMonth {
   readonly month: MonthKey
   readonly complete: boolean
-  /** One figure per owner-pay category, zero in a month it did not move. */
+  /** One figure per owner-pay category as paid, zero in a month it did not move. */
   readonly byCategory: Readonly<Record<string, Figure>>
+  /** The rent tax on the month's rent rows, as the owner take of that month counts it. */
+  readonly rentTax: Figure
+  /** The owner take of the month, the rent after its tax. */
   readonly total: Figure
 }
 
@@ -108,16 +111,18 @@ export function netPayPerMonth(take: OwnerTake, period: Period, window: LedgerWi
   return months === 0 ? null : { perMonth: divideMoney(take.withoutLoans.amount, months), months }
 }
 
-/** The owner-pay categories month by month, for a chart of draws. */
+/** The owner-pay categories month by month, for a chart of draws, with each month's owner take and rent tax. */
 export function ownerTakeByMonth(
   bookings: readonly Booking[],
   categories: readonly Category[],
   months: readonly MonthKey[],
   window: LedgerWindow,
+  rules: RuleSource = ruleValue,
 ): OwnerTakeMonth[] {
   const pay = categoriesInBucket(categories, 'owner-pay')
   return months.map((month) => {
     const rows = bookings.filter((booking) => monthOf(booking.date) === month && pay.includes(booking.category))
+    const { total, rentTax } = ownerTake(bookings, categories, monthPeriod(month), window, rules)
     return {
       month,
       complete: isCompleteMonth(window, month),
@@ -130,7 +135,8 @@ export function ownerTakeByMonth(
           },
         ]),
       ),
-      total: { amount: paidOut(rows), drill: drillToTransactions({ period: monthPeriod(month), buckets: ['owner-pay'] }) },
+      rentTax,
+      total,
     }
   })
 }

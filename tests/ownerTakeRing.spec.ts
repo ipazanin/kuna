@@ -25,7 +25,7 @@ const take = ownerTake(rows, PACK_CATEGORIES, period, windowOf('2026-07-01', '20
 
 describe('ownerPaySeries', () => {
   it('puts the loans and their repayments in one series in the slot after every other owner pay category', () => {
-    const series = ownerPaySeries(PAY, ['salary-net', 'dividend', 'owner-loan-out', 'owner-loan-repaid'], LOANS, TOKENS, name)
+    const series = ownerPaySeries(PAY, ['salary-net', 'dividend', 'owner-loan-out', 'owner-loan-repaid'], LOANS, false, TOKENS, name)
 
     // rent-owner did not move, but keeps the third slot, so the loans take the fourth.
     expect(series.map((entry) => [entry.name, entry.categories, entry.token, entry.colour])).toEqual([
@@ -33,13 +33,34 @@ describe('ownerPaySeries', () => {
       ['dividend', ['dividend'], '--series-2', 's2'],
       [LOANS_NET_SERIES, LOANS, '--series-4', 's4'],
     ])
-    expect(ownerPaySeries(PAY, ['salary-net'], LOANS, TOKENS, name).map((entry) => entry.name)).toEqual(['salary-net'])
+    expect(ownerPaySeries(PAY, ['salary-net'], LOANS, false, TOKENS, name).map((entry) => entry.name)).toEqual(['salary-net'])
+  })
+
+  it('adds the rent tax as a series of no category in the slot after the loans, kept when the loans did not move', () => {
+    const series = ownerPaySeries(PAY, ['salary-net', 'rent-owner'], LOANS, true, TOKENS, name)
+    const withoutLoans = ownerPaySeries(
+      PAY.filter((category) => !LOANS.includes(category.slug)),
+      ['salary-net', 'rent-owner'],
+      [],
+      true,
+      TOKENS,
+      name,
+    )
+
+    // salary-net, dividend and rent-owner hold the first three slots and the loans the fourth, so the rent tax takes the fifth.
+    expect(series.map((entry) => [entry.name, entry.categories, entry.token])).toEqual([
+      ['salary-net', ['salary-net'], '--series-1'],
+      ['rent-owner', ['rent-owner'], '--series-3'],
+      [RENT_TAX_LABEL, [], '--series-5'],
+    ])
+    expect(withoutLoans.at(-1)?.token).toBe('--series-4')
+    expect(ownerPaySeries(PAY, ['salary-net', 'rent-owner'], LOANS, false, TOKENS, name).map((entry) => entry.name)).not.toContain(RENT_TAX_LABEL)
   })
 })
 
 describe('ownerTakeRing', () => {
   it('rings what was paid out, sets the loans and money handed back beside it, and adds up to the owner take', () => {
-    const series = ownerPaySeries(PAY, ['salary-net', 'dividend', 'rent-owner', ...LOANS], LOANS, TOKENS, name)
+    const series = ownerPaySeries(PAY, ['salary-net', 'dividend', 'rent-owner', ...LOANS], LOANS, false, TOKENS, name)
     const ring = ownerTakeRing(take, period, series, name)
 
     expect(ring.parts.map((part) => [part.key, part.value, part.colour])).toEqual([
@@ -61,7 +82,7 @@ describe('ownerTakeRing', () => {
   it('rings the rent as paid and sets the rent tax the owner pays beside it', () => {
     const paid = withPackBuckets(ledger([{ date: '2026-09-12', amount: -1100, category: 'salary-net' }, { date: '2026-09-12', amount: -300, category: 'rent-owner' }]))
     const rentTake = ownerTake(paid, PACK_CATEGORIES, period, windowOf('2026-07-01', '2026-10-01'))
-    const ring = ownerTakeRing(rentTake, period, ownerPaySeries(PAY, ['salary-net', 'rent-owner'], LOANS, TOKENS, name), name)
+    const ring = ownerTakeRing(rentTake, period, ownerPaySeries(PAY, ['salary-net', 'rent-owner'], LOANS, true, TOKENS, name), name)
 
     expect(ring.parts.map((part) => [part.key, part.value])).toEqual([
       ['salary-net', euros(1100)],

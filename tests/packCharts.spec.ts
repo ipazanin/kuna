@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
+import { formatWholeMoney } from '../src/shared/money/moneyFormat'
+import type { Period } from '../src/features/filters/domain/filterState'
 import { categoryColourOf } from '../src/features/workbook/domain/categoryColour'
+import { ledgerWindowOf } from '../src/features/workbook/domain/workbook'
 import type { Category } from '../src/features/workbook/domain/workbook'
+import { readDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
+import { fakeWorkbookDocument } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
 import { loanMonths } from '../src/packs/hr-doo/domain/ownerLoans'
-import { categorySeries, loanBalanceChart } from '../src/packs/hr-doo/presentation/packCharts'
+import { ownerTake, ownerTakeByMonth } from '../src/packs/hr-doo/domain/ownerTake'
+import { PACK_ROLES, categoriesWithRole } from '../src/packs/hr-doo/domain/packRoles'
+import { RENT_TAX_LABEL, categorySeries, loanBalanceChart, ownerDrawsChart, ownerPaySeries } from '../src/packs/hr-doo/presentation/packCharts'
 import { chartedMonths } from '../src/features/filters/domain/periodPresets'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
@@ -110,5 +118,78 @@ describe('loanBalanceChart', () => {
 
     expect(drill?.filters.period).toEqual({ preset: 'custom', range: { from: civil('2026-01-01'), to: civil('2026-04-30') } })
     expect(drill?.filters.categories).toEqual(expect.arrayContaining(['owner-loan-out', 'owner-loan-repaid', 'reimbursement-from-owner']))
+  })
+})
+
+describe('ownerDrawsChart', () => {
+  const PAY = PACK_CATEGORIES.filter((category) => category.bucket === 'owner-pay')
+  const LOANS = ['owner-loan-out', 'owner-loan-repaid']
+  const valuesOf = (chart: ReturnType<typeof ownerDrawsChart>, seriesName: string) =>
+    (chart.option.series as { name: string; data: (number | { value: number })[] }[])
+      .find((entry) => entry.name === seriesName)
+      ?.data.map((point) => (typeof point === 'number' ? point : point.value))
+
+  function drawn(rows: Parameters<typeof ledger>[0], from: string, to: string) {
+    const window = windowOf(from, to)
+    const months = ownerTakeByMonth(withPackBuckets(ledger(rows)), PACK_CATEGORIES, chartedMonths({ preset: 'all' }, window), window)
+    const moved = PAY.map((category) => category.slug).filter((slug) => months.some((month) => month.byCategory[slug]?.amount !== 0))
+    const series = ownerPaySeries(PAY, moved, LOANS, months.some((month) => month.rentTax.amount !== 0), TOKENS, name)
+    return ownerDrawsChart(months, series, TOKENS)
+  }
+
+  it('draws the rent tax below zero in the month each rent row was paid, and opens that month’s rent rows', () => {
+    const chart = drawn(
+      [
+        { date: '2026-07-12', amount: -1100, category: 'salary-net' },
+        { date: '2026-07-12', amount: -300, category: 'rent-owner' },
+        { date: '2026-08-12', amount: -1100, category: 'salary-net' },
+        { date: '2026-09-12', amount: -300, category: 'rent-owner' },
+      ],
+      '2026-07-12',
+      '2026-09-30',
+    )
+
+    expect(valuesOf(chart, 'rent-owner')).toEqual([euros(300), euros(0), euros(300)])
+    expect(valuesOf(chart, RENT_TAX_LABEL)).toEqual([euros(-25.2), euros(0), euros(-25.2)])
+    expect(chart.drillAt({ seriesName: RENT_TAX_LABEL, category: '2026-09', dataIndex: 2 })?.filters).toEqual({
+      period: { preset: 'custom', range: { from: civil('2026-09-01'), to: civil('2026-09-30') } },
+      categories: ['rent-owner'],
+    })
+    // 2,200.00 of salary and 600.00 of rent less 50.40 of rent tax.
+    expect(chart.description).toContain('€2,750 in all.')
+  })
+
+  it('draws no rent tax band without rent', () => {
+    const chart = drawn([{ date: '2026-07-12', amount: -1100, category: 'salary-net' }], '2026-07-12', '2026-07-31')
+
+    expect(valuesOf(chart, RENT_TAX_LABEL)).toBeUndefined()
+    expect(chart.description).not.toContain(RENT_TAX_LABEL)
+  })
+
+  describe('on the fake workbook', () => {
+    const SYNCED = '2026-10-16T08:00:00.000Z'
+    const workbook = presentedWorkbook(readDocument({ id: 'fake', source: 'drive', title: 'Fake workbook', syncedAt: SYNCED }, fakeWorkbookDocument(SYNCED, 'drive')).workbook)
+    const window = ledgerWindowOf(workbook.transactions)!
+    const pay = workbook.categories.filter((category) => category.bucket === 'owner-pay')
+    const loanSlugs = [...categoriesWithRole(workbook.categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(workbook.categories, PACK_ROLES.ownerLoanRepaid)].filter((slug) =>
+      pay.some((category) => category.slug === slug),
+    )
+
+    it.each<[string, Period]>([
+      ['the last 12 months', { preset: 'l12' }],
+      ['2025', { preset: 'year', year: 2025 }],
+      ['2026', { preset: 'year', year: 2026 }],
+      ['all time', { preset: 'all' }],
+    ])('adds up to the owner take in %s', (_, period) => {
+      const take = ownerTake(workbook.transactions, workbook.categories, period, window)
+      const months = ownerTakeByMonth(workbook.transactions, workbook.categories, chartedMonths(period, window), window)
+      const moved = pay.map((category) => category.slug).filter((slug) => months.some((month) => month.byCategory[slug]?.amount !== 0))
+      const chart = ownerDrawsChart(months, ownerPaySeries(pay, moved, loanSlugs, true, TOKENS, name), TOKENS)
+
+      expect(take.rentTax.amount).toBeGreaterThan(0)
+      expect(months.reduce((sum, month) => sum + month.rentTax.amount, 0)).toBe(take.rentTax.amount)
+      expect(months.reduce((sum, month) => sum + month.total.amount, 0)).toBe(take.total.amount)
+      expect(chart.description).toContain(`${formatWholeMoney(take.total.amount)} in all.`)
+    })
   })
 })

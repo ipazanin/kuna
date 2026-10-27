@@ -710,10 +710,12 @@ the tax office and the company never withholds. It is 12% of the rent less 30% f
 `hr.pit.rent` rule in force on the row's day, so a rent of 300.00 counts 274.80. The take, its ring,
 the net share, the monthly net pay and the pay in "Monthly net, profit included" all count the
 274.80. The ring and that tile's build-up name the 25.20 as "Rent tax the owner pays the tax office".
-The ledger, Year, the profit, the corporate tax and the bank figures keep the 300.00 the company paid,
-and so does owner pay by month. A row before the ruleset's first day carries no rent tax. `ownerTake`
-in `src/packs/hr-doo/domain/ownerTake.ts` takes it off. The net share is the owner take without
-loans over itself plus the rent tax and the taxes owed because the owner was paid, so 60,000 on
+The ledger, Year, the profit, the corporate tax and the bank figures keep the 300.00 the company paid.
+Owner pay by month stacks the rent as paid and draws the 25.20 below zero as its own band in the
+month the rent was paid, so its total is the owner take. A row before the ruleset's first day
+carries no rent tax. `ownerTake` in `src/packs/hr-doo/domain/ownerTake.ts` takes it off. The net
+share is the owner take without loans over itself plus the rent tax and the taxes owed because the
+owner was paid, so 60,000 on
 100,000 reads 60%. The rent tax lowers what the owner keeps and leaves the gross cost as the company
 paid it. A loan is neither pay nor a cost, so it stays out of
 both, and the gross cost it divides by can be lower than the gross cost tile when loans count as

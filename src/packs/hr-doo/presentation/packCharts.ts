@@ -14,12 +14,15 @@ import type { DrillChart } from '../../../features/filters/presentation/chartDri
 import type { Category } from '../../../features/workbook/domain/workbook'
 import type { OwnerBenefits } from '../domain/ownerBenefits'
 import type { LoanMonth } from '../domain/ownerLoans'
-import type { OwnerTake } from '../domain/ownerTake'
+import type { OwnerTake, OwnerTakeMonth } from '../domain/ownerTake'
 
 /** The categorical slots a chart may use before the rest fold into one series. */
 const SLOTS = 8
 
-/** One series of a chart by category: a category, or the categories past the free slots together. */
+/**
+ * One series of a chart by category: a category, or the categories past the free slots together.
+ * The owner's rent tax is a series of no category, since no row holds it.
+ */
 export interface CategorySeries {
   readonly name: string
   readonly categories: readonly string[]
@@ -44,10 +47,10 @@ function slotAt(index: number, tokens: ChartTokens): Paint {
 /**
  * The colour of each listed category: the swatch it was given, else the next chart slot no listed
  * category was given, in the order of the list. So a category with nothing in the period never
- * repaints the others. A category past the free slots gets null, and `next` is the free slot after
- * the categories, null when there is none.
+ * repaints the others. A category past the free slots gets null, and `spare` holds the free slots
+ * after the categories, in order.
  */
-function listedPaints(listed: readonly Category[], tokens: ChartTokens): { readonly paints: ReadonlyMap<string, Paint | null>; readonly next: Paint | null } {
+function listedPaints(listed: readonly Category[], tokens: ChartTokens): { readonly paints: ReadonlyMap<string, Paint | null>; readonly spare: readonly Paint[] } {
   const given = new Set(listed.map((category) => category.colour.swatch?.slot))
   const free = Array.from({ length: SLOTS }, (_, index) => index).filter((index) => !given.has(index + 1))
   const paints = new Map<string, Paint | null>()
@@ -62,16 +65,15 @@ function listedPaints(listed: readonly Category[], tokens: ChartTokens): { reado
     used += 1
     paints.set(category.slug, index === undefined ? null : slotAt(index, tokens))
   }
-  const after = free[used]
-  return { paints, next: after === undefined ? null : slotAt(after, tokens) }
+  return { paints, spare: free.slice(used).map((index) => slotAt(index, tokens)) }
 }
 
 /**
  * A series for each listed category that moved, in its colour. The categories past the free slots
  * share one grey series rather than a made-up hue.
  */
-function seriesOf(listed: readonly Category[], moved: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): { readonly series: CategorySeries[]; readonly next: Paint | null } {
-  const { paints, next } = listedPaints(listed, tokens)
+function seriesOf(listed: readonly Category[], moved: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): { readonly series: CategorySeries[]; readonly spare: readonly Paint[] } {
+  const { paints, spare } = listedPaints(listed, tokens)
   const shown = listed.map((category) => category.slug).filter((slug) => moved.includes(slug))
   const others = shown.filter((slug) => paints.get(slug) === null)
   return {
@@ -82,7 +84,7 @@ function seriesOf(listed: readonly Category[], moved: readonly string[], tokens:
       }),
       ...(others.length === 0 ? [] : [{ name: 'Other categories', categories: others, ...greyOf(tokens) }]),
     ],
-    next,
+    spare,
   }
 }
 
@@ -98,16 +100,29 @@ export const RENT_TAX_LABEL = 'Rent tax the owner pays the tax office'
 /**
  * The owner pay categories by category, with the loans to the owner and their repayments as one
  * "Loans, net" series in the free slot after the others, since a loan and its repayment are one story.
+ * While the rent is taxed, the rent tax follows in the free slot after the loans.
  */
-export function ownerPaySeries(listed: readonly Category[], moved: readonly string[], loanSlugs: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): CategorySeries[] {
-  const { series, next } = seriesOf(
+export function ownerPaySeries(
+  listed: readonly Category[],
+  moved: readonly string[],
+  loanSlugs: readonly string[],
+  rentTaxed: boolean,
+  tokens: ChartTokens,
+  nameOf: (slug: string) => string,
+): CategorySeries[] {
+  const { series, spare } = seriesOf(
     listed.filter((category) => !loanSlugs.includes(category.slug)),
     moved,
     tokens,
     nameOf,
   )
+  const [next, afterNext] = spare
   const loans = listed.map((category) => category.slug).filter((slug) => loanSlugs.includes(slug) && moved.includes(slug))
-  return loans.length === 0 ? series : [...series, { name: LOANS_NET_SERIES, categories: loans, ...(next ?? greyOf(tokens)) }]
+  return [
+    ...series,
+    ...(loans.length === 0 ? [] : [{ name: LOANS_NET_SERIES, categories: loans, ...(next ?? greyOf(tokens)) }]),
+    ...(rentTaxed ? [{ name: RENT_TAX_LABEL, categories: [], ...((loanSlugs.length === 0 ? next : afterNext) ?? greyOf(tokens)) }] : []),
+  ]
 }
 
 /** One line of the owner take that a ring cannot hold, such as the loans, which can be negative. */
@@ -278,20 +293,21 @@ export function taxByTypeChart(months: readonly CategoryMonth[], series: readonl
 }
 
 /**
- * Owner pay stacked by category, one bar per month. Money handed back, such as a loan repaid,
- * stacks below zero.
+ * Owner pay stacked by category, one bar per month. Money handed back, such as a loan repaid, and
+ * the rent tax the owner pays out of the rent stack below zero, so the bars add up to the owner take.
  */
-export function ownerDrawsChart(months: readonly CategoryMonth[], series: readonly CategorySeries[], tokens: ChartTokens): DrillChart {
+export function ownerDrawsChart(months: readonly OwnerTakeMonth[], series: readonly CategorySeries[], tokens: ChartTokens): DrillChart {
   const incomplete = months.map((month) => !month.complete)
-  const last = series[series.length - 1]
+  const paid = series.filter((entry) => entry.name !== RENT_TAX_LABEL)
+  const last = paid[paid.length - 1]
   const bars: BarSeries[] = series.map((entry) => ({
     type: 'bar',
     name: entry.name,
     stack: 'draws',
     color: entry.colour,
-    itemStyle: { ...stackGap(tokens), borderRadius: entry === last ? BAR_END_UP : 0 },
+    itemStyle: { ...stackGap(tokens), borderRadius: entry.name === RENT_TAX_LABEL ? BAR_END_DOWN : entry === last ? BAR_END_UP : 0 },
     data: markIncomplete(
-      months.map((month) => amountOf(month, entry)),
+      months.map((month) => (entry.name === RENT_TAX_LABEL ? negateMoney(month.rentTax.amount) : amountOf(month, entry))),
       incomplete,
       tokens,
     ),
@@ -311,7 +327,10 @@ export function ownerDrawsChart(months: readonly CategoryMonth[], series: readon
         : `Owner pay by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatWholeMoney(total)} in all.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
-      return month === undefined ? null : drillOf(month, series.find((entry) => entry.name === seriesName))
+      if (month === undefined) {
+        return null
+      }
+      return seriesName === RENT_TAX_LABEL ? month.rentTax.drill : drillOf(month, series.find((entry) => entry.name === seriesName))
     },
   }
 }

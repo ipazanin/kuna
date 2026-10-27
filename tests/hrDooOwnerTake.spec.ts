@@ -179,4 +179,28 @@ describe('rent tax', () => {
     expect(take.rentTax.amount).toBe(euros(25.2 + 21))
     expect(take.total.amount).toBe(euros(900 - 46.2))
   })
+
+  it('takes each month’s rent tax off that month’s owner take, and the months add up to the period’s', () => {
+    const twoMonths = withPackBuckets(
+      ledger([
+        { date: '2026-07-12', amount: -1100, category: 'salary-net' },
+        { date: '2026-07-12', amount: -300, category: 'rent-owner' },
+        { date: '2026-08-12', amount: -1100, category: 'salary-net' },
+        { date: '2026-08-12', amount: -500, category: 'rent-owner' },
+        { date: '2026-08-20', amount: 100, category: 'rent-owner' },
+      ]),
+    )
+    const window = windowOf('2026-07-12', '2026-08-20')
+    const months = ownerTakeByMonth(twoMonths, PACK_CATEGORIES, ['2026-07', '2026-08'] as MonthKey[], window)
+
+    // August: 500.00 paid and 100.00 refunded leave 400.00 of rent, 12% of 280.00 is 33.60.
+    expect(months.map((month) => [month.month, month.byCategory['rent-owner']?.amount, month.rentTax.amount, month.total.amount])).toEqual([
+      ['2026-07', euros(300), euros(25.2), euros(1374.8)],
+      ['2026-08', euros(400), euros(33.6), euros(1466.4)],
+    ])
+    expect(months[1]?.rentTax.drill.filters).toEqual({ period: { preset: 'custom', range: { from: civil('2026-08-01'), to: civil('2026-08-31') } }, categories: ['rent-owner'] })
+    const take = ownerTake(twoMonths, PACK_CATEGORIES, allTime, window)
+    expect(months.reduce((sum, month) => sum + month.rentTax.amount, 0)).toBe(take.rentTax.amount)
+    expect(months.reduce((sum, month) => sum + month.total.amount, 0)).toBe(take.total.amount)
+  })
 })
