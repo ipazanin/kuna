@@ -77,6 +77,14 @@ const accessWords = computed(() => {
   return `${listInWords([...control.labels])} ${control.labels.length === 1 ? 'needs' : 'need'} ${scopes}`
 })
 
+/** Why the last ask to Google gave no token, and that a tap asks again, or null. */
+const failureWords = computed(() => {
+  const { control } = props
+  if ((control.kind !== 'allow-access' && control.kind !== 'sign-in') || control.failure === null) return null
+  const why = /[.!?]$/.test(control.failure) ? control.failure : `${control.failure}.`
+  return `${why} Tap ${control.kind === 'sign-in' ? 'Sign in to Google' : 'Allow access'} to try again.`
+})
+
 const label = computed(() => {
   const { control } = props
   switch (control.kind) {
@@ -104,9 +112,9 @@ const name = computed(() => {
     case 'running':
       return `Syncing, ${control.label}, step ${control.position} of ${control.of}: ${control.line}`
     case 'sign-in':
-      return 'Sign in to Google, which the sync needs first'
+      return failureWords.value === null ? 'Sign in to Google, which the sync needs first' : `Sign in to Google. ${failureWords.value}`
     case 'allow-access':
-      return `Allow access. ${accessWords.value}`
+      return `Allow access. ${failureWords.value === null ? '' : `${failureWords.value} `}${accessWords.value}`
     case 'problems':
       return `${problemWords.value} in the last sync. Show the steps`
     case 'ready': {
@@ -134,9 +142,9 @@ const statusLine = computed(() => {
     case 'running':
       return `${control.label} ${control.position}/${control.of}: ${control.line}`
     case 'sign-in':
-      return 'Google asks you to sign in before the sync.'
+      return failureWords.value ?? 'Google asks you to sign in before the sync.'
     case 'allow-access':
-      return accessWords.value
+      return failureWords.value ?? accessWords.value
     case 'problems':
       return `Look at the ${listInWords([...control.labels])} ${control.labels.length === 1 ? 'step' : 'steps'}`
     case 'ready':
@@ -199,6 +207,7 @@ function syncAgain(): void {
       loading-icon="i-lucide-refresh-cw"
       :label="label"
       :aria-label="name"
+      :title="compact ? (failureWords ?? undefined) : undefined"
       :loading="control.kind === 'running'"
       :disabled="control.kind === 'running'"
       :color="control.kind === 'find' ? 'primary' : 'neutral'"

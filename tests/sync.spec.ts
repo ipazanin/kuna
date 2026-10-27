@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createSync } from '../src/features/sync/application/sync'
 import type { SyncPorts, SyncStep } from '../src/features/sync/application/sync'
 import { BOOKS_STEP, syncControlOf } from '../src/features/sync/domain/syncRun'
-import type { StepResult, SyncScope } from '../src/features/sync/domain/syncRun'
+import type { PageAccess, StepResult, SyncScope } from '../src/features/sync/domain/syncRun'
 import type { Workbook } from '../src/features/workbook/domain/workbook'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 
@@ -19,11 +19,11 @@ interface FakeStep extends SyncStep {
 
 function step(id: string, scope: SyncScope, run: (report: (line: string) => void) => Promise<StepResult> = async () => DONE, on = () => true): FakeStep {
   const runs = vi.fn(run)
-  return { id, label: id[0]!.toUpperCase() + id.slice(1), scopes: [scope], startLine: `Starting ${id}`, on, run: runs, runs }
+  return { id, label: id[0]!.toUpperCase() + id.slice(1), scopes: () => [scope], startLine: `Starting ${id}`, on, run: runs, runs }
 }
 
-/** A sync over fake steps, with each scope granted or withheld, and the books on screen once read. */
-function harness(options: { readonly steps: readonly FakeStep[]; readonly books?: FakeStep; readonly grants?: Partial<Record<SyncScope, boolean>> }) {
+/** A sync over fake steps, with each scope granted or withheld, and the books on screen once read. `leaves` asks Google by leaving the page, as a phone does. */
+function harness(options: { readonly steps: readonly FakeStep[]; readonly books?: FakeStep; readonly grants?: Partial<Record<SyncScope, boolean>>; readonly leaves?: boolean }) {
   const grants: Record<SyncScope, boolean> = { 'drive.file': true, 'drive.readonly': true, 'gmail.readonly': true, 'gmail.compose': true, ...options.grants }
   const books = options.books ?? step(BOOKS_STEP.id, 'drive.file')
   let idle: Promise<void> = Promise.resolve()
@@ -35,6 +35,7 @@ function harness(options: { readonly steps: readonly FakeStep[]; readonly books?
     askForAccess: vi.fn(async (scopes: readonly SyncScope[]) => {
       for (const scope of scopes) grants[scope] = true
     }),
+    asksByLeaving: () => options.leaves ?? false,
     whenIdle: () => idle,
     now: () => AT,
   }
@@ -44,7 +45,7 @@ function harness(options: { readonly steps: readonly FakeStep[]; readonly books?
     ports,
     books,
     states: () => sync.state.run?.steps.map((candidate) => [candidate.id, candidate.state.kind]),
-    control: () => syncControlOf(sync.state.run, { chosen: true, reading: false, syncedAt: AT }, { kind: 'enough' }),
+    control: (access: PageAccess = { kind: 'enough' }) => syncControlOf(sync.state.run, { chosen: true, reading: false, syncedAt: AT }, access, sync.state.askFailure),
     holdUntil(save: Promise<void>) {
       idle = save
     },
@@ -118,7 +119,7 @@ describe('a sync', () => {
       ['statements', 'needs-access'],
       ['accountant', 'needs-access'],
     ])
-    expect(control()).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'] })
+    expect(control()).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: null })
 
     await sync.allowAccess()
 
@@ -129,14 +130,32 @@ describe('a sync', () => {
 
   it('keeps Allow access with why when Google gives no token, and syncs nothing', async () => {
     const statements = step('statements', 'drive.readonly')
-    const { sync, ports, books } = harness({ steps: [statements], grants: { 'drive.readonly': false } })
+    const { sync, ports, books, control } = harness({ steps: [statements], grants: { 'drive.readonly': false } })
     await sync.sync()
     vi.mocked(ports.askForAccess).mockRejectedValueOnce(new Error('Drive read access was not granted.'))
 
     await sync.allowAccess()
 
     expect(books.runs).toHaveBeenCalledOnce()
-    expect(sync.state.run?.steps[1]?.state).toEqual({ kind: 'needs-access', scopes: ['drive.readonly'], line: 'Drive read access was not granted.' })
+    expect(sync.state.run?.steps[1]?.state).toEqual({ kind: 'needs-access', scopes: ['drive.readonly'], line: 'Waits for your Drive read access' })
+    expect(control()).toMatchObject({ kind: 'allow-access', failure: 'Drive read access was not granted.' })
+  })
+
+  it('says why an Allow access before any sync gave no token, and forgets it once a tap gets one', async () => {
+    const lacking: PageAccess = { kind: 'lacking', needs: [{ scope: 'drive.readonly', label: 'Statements' }] }
+    const { sync, ports, books, control } = harness({ steps: [step('statements', 'drive.readonly')] })
+    vi.mocked(ports.askForAccess).mockRejectedValueOnce(new Error("Google's window was closed before access was allowed."))
+
+    await sync.allowAccess()
+
+    expect(books.runs).not.toHaveBeenCalled()
+    expect(sync.state.run).toBeNull()
+    expect(control(lacking)).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements'], failure: "Google's window was closed before access was allowed." })
+
+    await sync.allowAccess()
+
+    expect(books.runs).toHaveBeenCalledOnce()
+    expect(sync.state.askFailure).toBeNull()
   })
 
   it('turns a step Google refuses mid-way, and the later steps of its scope, into Allow access, and runs the rest', async () => {
@@ -203,6 +222,24 @@ describe('a sync', () => {
     ])
   })
 
+  it('asks for the scopes the books just read give a step, such as the books file’s alone for a folder the app made beside them', async () => {
+    let booksRead = false
+    const statements = { ...step('statements', 'drive.readonly'), scopes: () => (booksRead ? (['drive.file'] as const) : (['drive.readonly'] as const)) }
+    const harnessed = harness({
+      books: step('books', 'drive.file', async () => {
+        booksRead = true
+        return DONE
+      }),
+      steps: [statements],
+      grants: { 'drive.readonly': false },
+    })
+
+    await harnessed.sync.sync()
+
+    expect(statements.runs).toHaveBeenCalledOnce()
+    expect(harnessed.sync.state.run?.steps[1]).toMatchObject({ id: 'statements', scopes: ['drive.file'], state: { kind: 'done' } })
+  })
+
   it('shows the line a step reports while it runs', async () => {
     let seen: unknown = null
     const harnessed = harness({
@@ -220,5 +257,66 @@ describe('a sync', () => {
     expect(seen).toEqual({ kind: 'running', label: 'Statements', position: 2, of: 2, line: 'Filing 4 rows' })
     expect(harnessed.sync.state.run?.steps[1]?.state).toMatchObject({ kind: 'waits', writeId: 3 })
     expect(harnessed.control()).toEqual({ kind: 'problems', count: 1, labels: ['Statements'] })
+  })
+})
+
+describe('a save that switches on what needs more Google access', () => {
+  /** A save that notes when it runs among the asks, and resolves to whether it went through. */
+  function saving(order: string[], went = true) {
+    return vi.fn(async () => {
+      order.push('save')
+      return went
+    })
+  }
+
+  it('only saves when it switches on nothing new', async () => {
+    const order: string[] = []
+    const { sync, ports, books } = harness({ steps: [step('mail', 'gmail.readonly')] })
+
+    await sync.saveAllowing([], saving(order))
+
+    expect(order).toEqual(['save'])
+    expect(ports.askForAccess).not.toHaveBeenCalled()
+    expect(books.runs).not.toHaveBeenCalled()
+  })
+
+  it('asks before the save where Google opens a popup, then syncs the step it switched on', async () => {
+    const mail = step('mail', 'gmail.readonly')
+    const { sync, ports, states } = harness({ steps: [mail], grants: { 'gmail.readonly': false } })
+    const save = saving([])
+
+    await sync.saveAllowing(['gmail.readonly'], save)
+
+    expect(ports.askForAccess).toHaveBeenCalledWith(['gmail.readonly'])
+    expect(vi.mocked(ports.askForAccess).mock.invocationCallOrder[0]).toBeLessThan(save.mock.invocationCallOrder[0]!)
+    expect(states()).toEqual([
+      ['books', 'done'],
+      ['mail', 'done'],
+    ])
+  })
+
+  it('still saves when the popup gives no token, says why, and syncs nothing', async () => {
+    const order: string[] = []
+    const { sync, ports, books } = harness({ steps: [step('mail', 'gmail.readonly')], grants: { 'gmail.readonly': false } })
+    vi.mocked(ports.askForAccess).mockRejectedValueOnce(new Error("The browser blocked Google's window."))
+
+    await sync.saveAllowing(['gmail.readonly'], saving(order))
+
+    expect(order).toEqual(['save'])
+    expect(books.runs).not.toHaveBeenCalled()
+    expect(sync.state.askFailure).toBe("The browser blocked Google's window.")
+  })
+
+  it('saves before the ask where the ask leaves the page, and asks nothing after a save that did not go through', async () => {
+    const order: string[] = []
+    const { sync, ports } = harness({ steps: [step('mail', 'gmail.readonly')], grants: { 'gmail.readonly': false }, leaves: true })
+    vi.mocked(ports.askForAccess).mockImplementation(async () => {
+      order.push('ask')
+    })
+
+    await sync.saveAllowing(['gmail.readonly'], saving(order, false))
+    await sync.saveAllowing(['gmail.readonly'], saving(order))
+
+    expect(order).toEqual(['save', 'save', 'ask'])
   })
 })

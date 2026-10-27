@@ -1,4 +1,4 @@
-import { PAGE_FAKE_MADE_FILES, sampleStatementByMail } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
+import { FAKE_BOOKS_STATEMENTS, PAGE_FAKE_MADE_FILES, sampleStatementByMail } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
 import type { FakeMadeFile } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
 import { FAKE_FOLDERS, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import type { StatementFolder } from '../../application/statementFolder'
@@ -18,7 +18,8 @@ const SLOW_LISTING_MS = 3_000
  * folder is listed with its bytes, the page's files unless `made` gives others.
  * `?fake=held-statement` adds the first statement of an account the accounts tab lacks, named by its
  * label alone as the fetch names such a file, which the sync holds. `?fake=slow-statements` takes
- * three seconds to list the folder, so a check can see the sync control while the step runs.
+ * three seconds to list the folder, so a check can see the sync control while the step runs. The
+ * statements folder new books from mail make beside the books file holds what a sync filed there.
  */
 export function fakeStatementFolder(variant: string | null, made: readonly FakeMadeFile[] = PAGE_FAKE_MADE_FILES): StatementFolder {
   const filed = [...new Set((fakeWorkbookRecords('drive')['ledger-row'] ?? []).map((row) => `${String(row.statement)}-${String(row.account)}.xml`))]
@@ -30,20 +31,22 @@ export function fakeStatementFolder(variant: string | null, made: readonly FakeM
     ...(sampleStatementByMail(variant) ? [] : [sample, { id: 'fake-statement-sample-pdf', name: `${sampleCamtLabel()}.pdf` }]),
     ...(variant === 'held-statement' ? [unknown] : []),
   ]
-  const madeHere = (): readonly FakeMadeFile[] => made.filter((file) => file.folder.join('/') === holding)
+  const besideBooks = FAKE_BOOKS_STATEMENTS.join('/')
   return {
     async files(path) {
       if (variant === 'slow-statements') {
         await new Promise((resolve) => setTimeout(resolve, SLOW_LISTING_MS))
       }
       const where = path.join('/')
-      return where === holding
-        ? { kind: 'listed', files: [...files, ...madeHere().map((file, index) => ({ id: `fake-made-${index}`, name: file.name }))] }
-        : { kind: 'refused', reason: `The fake Drive holds statements only in ${holding}, not in ${where}.` }
+      if (where !== holding && where !== besideBooks) {
+        return { kind: 'refused', reason: `The fake Drive holds statements only in ${holding} and ${besideBooks}, not in ${where}.` }
+      }
+      const madeHere = made.flatMap((file, index) => (file.folder.join('/') === where ? [{ id: `fake-made-${index}`, name: file.name }] : []))
+      return { kind: 'listed', files: [...(where === holding ? files : []), ...madeHere] }
     },
 
     async download(file) {
-      const madeFile = file.id.startsWith('fake-made-') ? madeHere()[Number(file.id.slice('fake-made-'.length))] : undefined
+      const madeFile = file.id.startsWith('fake-made-') ? made[Number(file.id.slice('fake-made-'.length))] : undefined
       if (madeFile !== undefined) return madeFile.bytes
       const xml = file.id === sample.id ? sampleCamtXml() : file.id === unknown.id ? sampleCamtXml({ iban: UNKNOWN_ACCOUNT_IBAN, sequence: 1 }) : null
       if (xml === null) {

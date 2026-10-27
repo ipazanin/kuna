@@ -1,12 +1,14 @@
 import { computed, watch } from 'vue'
 import type { ComputedRef } from 'vue'
 
-import { currentToken, googleAccess, needScopes, requestAccess } from '../../../shared/google/googleAuth'
+import { currentToken, googleAccess, needScopes, requestAccess, signsInByRedirect } from '../../../shared/google/googleAuth'
+import { scopesOf } from '../../../shared/google/googleScopes'
 import { useStatementSync } from '../../imports/presentation/useStatementSync'
 import { useMailSync } from '../../mail/presentation/useMailSync'
 import { mailDraftsOn } from '../../invoicing/infrastructure/mailDraftSwitch'
 import { installedPack, shownPack } from '../../packs/packContribution'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import type { Workbook } from '../../workbook/domain/workbook'
 import { createSync } from '../application/sync'
 import type { Sync, SyncStep } from '../application/sync'
 import { BOOKS_STEP, pageAccessOf, syncControlOf, withBooksFailure } from '../domain/syncRun'
@@ -28,6 +30,7 @@ function createPageSync(): { readonly sync: Sync; readonly steps: readonly SyncS
   const mail = useMailSync()
   const books: SyncStep = {
     ...BOOKS_STEP,
+    scopes: () => BOOKS_STEP.scopes,
     startLine: 'Reading the file',
     on: () => true,
     async run() {
@@ -53,6 +56,7 @@ function createPageSync(): { readonly sync: Sync; readonly steps: readonly SyncS
     workbook: () => store.state.workbook,
     granted,
     askForAccess,
+    asksByLeaving: signsInByRedirect,
     whenIdle: () =>
       new Promise<void>((resolve) => {
         const stop = watch(
@@ -70,18 +74,19 @@ function createPageSync(): { readonly sync: Sync; readonly steps: readonly SyncS
   return { sync, steps }
 }
 
-/** The Google permissions the books on Drive and this device's settings need, by what needs each: the books, each step that is on, and Gmail while invoice drafts are on. */
-function needsOf(steps: readonly SyncStep[]): AccessNeed[] {
-  const store = useWorkbook()
-  const workbook = store.state.workbook
-  if (store.state.choice?.source !== 'drive') {
-    return []
-  }
+/** The Google permissions books on Drive and this device's settings need, by what needs each: the books, each step their settings turn on, and Gmail while invoice drafts are on. */
+function needsOfBooks(steps: readonly SyncStep[], workbook: Workbook | null): AccessNeed[] {
   return [
     ...BOOKS_STEP.scopes.map((scope) => ({ scope, label: BOOKS_STEP.label })),
-    ...(workbook === null ? [] : steps.filter((step) => step.on(workbook)).flatMap((step) => step.scopes.map((scope) => ({ scope, label: step.label })))),
+    ...(workbook === null ? [] : steps.filter((step) => step.on(workbook)).flatMap((step) => step.scopes(workbook).map((scope) => ({ scope, label: step.label })))),
     ...(mailDraftsOn.value ? [{ scope: 'gmail.compose' as const, label: 'Invoicing' }] : []),
   ]
+}
+
+/** What the books on screen need, while they are a file on Drive. */
+function needsOf(steps: readonly SyncStep[]): AccessNeed[] {
+  const store = useWorkbook()
+  return store.state.choice?.source === 'drive' ? needsOfBooks(steps, store.state.workbook) : []
 }
 
 let pageSync: { readonly sync: Sync; readonly steps: readonly SyncStep[] } | null = null
@@ -94,12 +99,20 @@ export interface PageSync {
   sync(): Promise<void>
   /** Asks Google for what the steps and the settings lack, then syncs. Call it first in a click handler. */
   allowAccess(): Promise<void>
+  /** The scopes these books need once they are on Drive, such as books kept in this browser that are about to move there. */
+  scopesNeededBy(workbook: Workbook): SyncScope[]
+  /**
+   * Saves settings, asking Google in the same tap for what the books as saved need that the books
+   * on screen did not and the page's token lacks, then syncs. `after` is the books as the save
+   * leaves them. Call it first in a click handler.
+   */
+  saveAllowing(after: Workbook, save: () => Promise<boolean>): Promise<void>
 }
 
 /** The one sync of the page: the books, then mail, then statements, then the pack's steps, and the control that shows it with what the page's token lacks. */
 export function useSync(): PageSync {
   pageSync ??= createPageSync()
-  const { state, sync, allowAccess } = pageSync.sync
+  const { state, sync, allowAccess, saveAllowing } = pageSync.sync
   const { steps } = pageSync
   const store = useWorkbook()
   const run = computed(() => {
@@ -119,7 +132,19 @@ export function useSync(): PageSync {
         syncedAt: store.state.syncedAt,
       },
       pageAccessOf(needsOf(steps), scopes, refusal),
+      state.askFailure,
     )
   })
-  return { run, control, sync: () => (store.state.choice?.source === 'drive' ? sync() : Promise.resolve()), allowAccess }
+  return {
+    run,
+    control,
+    sync: () => (store.state.choice?.source === 'drive' ? sync() : Promise.resolve()),
+    allowAccess,
+    scopesNeededBy: (workbook) => scopesOf(needsOfBooks(steps, workbook).map((need) => need.scope)),
+    saveAllowing(after, save) {
+      const before = new Set(needsOf(steps).map((need) => need.scope))
+      const added = store.state.choice?.source === 'drive' ? scopesOf(needsOfBooks(steps, after).map((need) => need.scope)).filter((scope) => !before.has(scope) && currentToken(scope) === null) : []
+      return saveAllowing(added, save)
+    },
+  }
 }

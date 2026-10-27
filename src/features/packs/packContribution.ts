@@ -47,6 +47,8 @@ export interface PackCompanyFacts<Facts> {
   factsOf(workbook: Workbook | null): Facts
   /** What is wrong with the drafted facts, by field. Empty when they may be saved. */
   errors(facts: Facts): Readonly<Record<string, string>>
+  /** The books with these facts in place of theirs, as a save of them leaves the books, so the steps they switch on can be read before it. */
+  withFacts(workbook: Workbook, facts: Facts): Workbook
 }
 
 /** A Drive folder the pack reads, by the settings key that names it as a path from My Drive. */

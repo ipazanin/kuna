@@ -80,9 +80,11 @@ export interface WorkbookStorePorts<Copy extends WorkbookCopy, Contents> {
   pickDriveFolder(title: string): Promise<PickedFolder | null>
   /**
    * Creates the app's file in the folder, holding these contents, reads it back and throws unless it
-   * holds the same records. Throws when Drive already holds the file the app marked as its books.
+   * holds the same records. The folders named are made beside it first, each one the app made there
+   * before found instead, so a try again makes no second one. Throws, making nothing, when Drive
+   * already holds the file the app marked as its books.
    */
-  createDriveFile(folderId: string, contents: Contents): Promise<Copy>
+  createDriveFile(folderId: string, contents: Contents, folders: readonly string[]): Promise<Copy>
   /** Where the Drive file sits and its newest backup, or null while the page holds no token, since asking for one needs a click. */
   driveFilePlace(fileId: string): Promise<DriveFilePlace | null>
   /** Loads whatever the next sync's click needs, so the click is not kept waiting. Never called for a workbook kept in this browser. */
@@ -136,9 +138,10 @@ export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
   /**
    * Keeps the contents, an opened file's, a fresh start's or the workbook kept in this browser, in a
    * new file in the folder, and shows that file once it reads back with the same records. Leaving a
-   * workbook kept in this browser deletes it. On a failure the previous workbook stays chosen.
+   * workbook kept in this browser deletes it. The folders named are made beside the file, as
+   * `WorkbookStorePorts.createDriveFile` says. On a failure the previous workbook stays chosen.
    */
-  keepOnDrive(folderId: string, contents: Contents): Promise<void>
+  keepOnDrive(folderId: string, contents: Contents, folders: readonly string[]): Promise<void>
   /** Where the chosen Drive file sits and its newest backup. Null for a workbook kept in this browser, or while the page holds no token. */
   driveFilePlace(): Promise<DriveFilePlace | null>
   /**
@@ -399,8 +402,8 @@ export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: 
       return ports.pickDriveFolder(title)
     },
 
-    keepOnDrive(folderId, contents) {
-      return readDrive(() => ports.createDriveFile(folderId, contents))
+    keepOnDrive(folderId, contents, folders) {
+      return readDrive(() => ports.createDriveFile(folderId, contents, folders))
     },
 
     async driveFilePlace() {

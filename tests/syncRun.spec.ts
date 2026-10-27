@@ -9,7 +9,6 @@ import {
   skippedAfter,
   startedRun,
   syncControlOf,
-  withAccessLine,
   withBooksFailure,
   withStep,
 } from '../src/features/sync/domain/syncRun'
@@ -49,15 +48,20 @@ describe('a sync run', () => {
     expect(started().finishedAt).toBeNull()
   })
 
-  it('turns the queued steps on or off again once the books are read', () => {
-    const run = replanned(withStep(started(), 'books', DONE), (id) => id === 'mail')
+  it('turns the queued steps on or off again with their scopes once the books are read, and leaves a step the plan does not name as it was', () => {
+    const run = replanned(withStep(started(), 'books', DONE), [
+      { id: 'books', label: 'Books', scopes: ['drive.file'], on: false },
+      { id: 'statements', label: 'Statements', scopes: ['drive.file'], on: false },
+      { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.file'], on: true },
+    ])
 
     expect(kinds(run)).toEqual([
       ['books', 'done'],
       ['statements', 'off'],
       ['mail', 'queued'],
-      ['accountant', 'off'],
+      ['accountant', 'queued'],
     ])
+    expect(run.steps.map((step) => step.scopes)).toEqual([['drive.file'], ['drive.file'], ['gmail.readonly', 'drive.file'], ['drive.readonly']])
   })
 
   it('skips every step still to run after the books failed, and leaves the off ones off', () => {
@@ -84,45 +88,36 @@ describe('a sync run', () => {
   })
 
   it('turns a later step that shares any scope with the one Google turned away into Allow access, and names every scope in its line', () => {
-    const mailOn = replanned(withStep(started(), 'books', DONE), () => true)
+    const mailOn = replanned(withStep(started(), 'books', DONE), [{ id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: true }])
     const run = accessLostFrom(withStep(mailOn, 'statements', { kind: 'running', line: 'Filing 4 rows' }), 'statements')
 
     expect(run.steps[2]!.state).toEqual({ kind: 'needs-access', scopes: ['gmail.readonly', 'drive.readonly'], line: 'Waits for your Gmail read access and your Drive read access' })
-  })
-
-  it('says why Google gave no token on every step that needs access', () => {
-    const run = withAccessLine(accessLostFrom(started(), 'statements'), 'Drive read access was not granted.')
-
-    expect(run.steps.filter((step) => step.state.kind === 'needs-access').map((step) => 'line' in step.state && step.state.line)).toEqual([
-      'Drive read access was not granted.',
-      'Drive read access was not granted.',
-    ])
   })
 })
 
 describe('the sync control', () => {
   it('finds the file while none on Drive is chosen, even with a copy on screen', () => {
-    expect(syncControlOf(null, { chosen: false, reading: false, syncedAt: null }, ENOUGH)).toEqual({ kind: 'find' })
-    expect(syncControlOf(null, { chosen: false, reading: false, syncedAt: FINISHED }, ENOUGH)).toEqual({ kind: 'find' })
-    expect(syncControlOf(null, { chosen: true, reading: false, syncedAt: null }, ENOUGH)).toEqual({ kind: 'ready', syncedAt: null })
+    expect(syncControlOf(null, { chosen: false, reading: false, syncedAt: null }, ENOUGH, null)).toEqual({ kind: 'find' })
+    expect(syncControlOf(null, { chosen: false, reading: false, syncedAt: FINISHED }, ENOUGH, null)).toEqual({ kind: 'find' })
+    expect(syncControlOf(null, { chosen: true, reading: false, syncedAt: null }, ENOUGH, null)).toEqual({ kind: 'ready', syncedAt: null })
   })
 
   it('names the running step and its place among the steps that are on', () => {
-    const books = syncControlOf(started(), BOOKS_READ, ENOUGH)
-    const statements = syncControlOf(withStep(withStep(started(), 'books', DONE), 'statements', { kind: 'running', line: 'Filing 4 rows' }), BOOKS_READ, ENOUGH)
+    const books = syncControlOf(started(), BOOKS_READ, ENOUGH, null)
+    const statements = syncControlOf(withStep(withStep(started(), 'books', DONE), 'statements', { kind: 'running', line: 'Filing 4 rows' }), BOOKS_READ, ENOUGH, null)
 
     expect(books).toEqual({ kind: 'running', label: 'Books', position: 1, of: 3, line: 'Waiting to start' })
     expect(statements).toEqual({ kind: 'running', label: 'Statements', position: 2, of: 3, line: 'Filing 4 rows' })
   })
 
   it('shows a read of the books outside a run, such as a find, as running', () => {
-    expect(syncControlOf(null, { ...BOOKS_READ, reading: true }, ENOUGH)).toEqual({ kind: 'running', label: 'Books', position: 1, of: 1, line: 'Reading the file' })
+    expect(syncControlOf(null, { ...BOOKS_READ, reading: true }, ENOUGH, null)).toEqual({ kind: 'running', label: 'Books', position: 1, of: 1, line: 'Reading the file' })
   })
 
   it('offers Allow access before the problems, with the steps that lack it', () => {
     const run = finishedRun(withStep(accessLostFrom(withStep(started(), 'books', DONE), 'statements'), 'books', { kind: 'failed', line: 'x', link: null }), FINISHED)
 
-    expect(syncControlOf(run, BOOKS_READ, ENOUGH)).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'] })
+    expect(syncControlOf(run, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: null })
   })
 
   it('counts the steps that failed or wait for you as problems, and is ready otherwise', () => {
@@ -130,15 +125,15 @@ describe('the sync control', () => {
     const problems = finishedRun(withStep(withStep(withStep(started(), 'books', DONE), 'statements', waits), 'accountant', { kind: 'failed', line: 'No folder.', link: null }), FINISHED)
     const clean = finishedRun(withStep(withStep(withStep(started(), 'books', DONE), 'statements', DONE), 'accountant', DONE), FINISHED)
 
-    expect(syncControlOf(problems, BOOKS_READ, ENOUGH)).toEqual({ kind: 'problems', count: 2, labels: ['Statements', 'Accountant'] })
-    expect(syncControlOf(clean, BOOKS_READ, ENOUGH)).toEqual({ kind: 'ready', syncedAt: FINISHED })
+    expect(syncControlOf(problems, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'problems', count: 2, labels: ['Statements', 'Accountant'] })
+    expect(syncControlOf(clean, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'ready', syncedAt: FINISHED })
   })
 
   it('shows a failed read of the books outside a run as the books step of a run', () => {
     const run = withBooksFailure(null, 'The file is gone.', FINISHED)
 
     expect(kinds(run)).toEqual([['books', 'failed']])
-    expect(syncControlOf(run, BOOKS_READ, ENOUGH)).toEqual({ kind: 'problems', count: 1, labels: ['Books'] })
+    expect(syncControlOf(run, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'problems', count: 1, labels: ['Books'] })
     expect(kinds(withBooksFailure(finishedRun(withStep(started(), 'books', DONE), FINISHED), 'The file is gone.', FINISHED))[0]).toEqual(['books', 'failed'])
   })
 })
@@ -169,16 +164,25 @@ describe('what the page\'s Google token lacks', () => {
   it('shows in the control as Sign in to Google or Allow access, once with each scope and name, after the steps that lost access', () => {
     const run = finishedRun(withStep(accessLostFrom(withStep(started(), 'books', DONE), 'statements'), 'books', DONE), FINISHED)
 
-    expect(syncControlOf(null, BOOKS_READ, { kind: 'sign-in' })).toEqual({ kind: 'sign-in' })
-    expect(syncControlOf(run, BOOKS_READ, pageAccessOf(NEEDS, ['drive.file'], null))).toEqual({
+    expect(syncControlOf(null, BOOKS_READ, { kind: 'sign-in' }, null)).toEqual({ kind: 'sign-in', failure: null })
+    expect(syncControlOf(run, BOOKS_READ, pageAccessOf(NEEDS, ['drive.file'], null), null)).toEqual({
       kind: 'allow-access',
       scopes: ['drive.readonly', 'gmail.compose'],
       labels: ['Statements', 'Accountant', 'Invoicing'],
+      failure: null,
     })
   })
 
+  it('says why the last ask gave no token while it offers Sign in to Google or Allow access, and only then', () => {
+    const closed = "Google's window was closed before access was allowed."
+
+    expect(syncControlOf(null, BOOKS_READ, { kind: 'sign-in' }, closed)).toEqual({ kind: 'sign-in', failure: closed })
+    expect(syncControlOf(null, BOOKS_READ, { kind: 'lacking', needs: NEEDS }, closed)).toMatchObject({ kind: 'allow-access', failure: closed })
+    expect(syncControlOf(null, BOOKS_READ, ENOUGH, closed)).toEqual({ kind: 'ready', syncedAt: FINISHED })
+  })
+
   it('leaves a running sync and a file not chosen yet as they are', () => {
-    expect(syncControlOf(started(), BOOKS_READ, { kind: 'sign-in' })).toMatchObject({ kind: 'running' })
-    expect(syncControlOf(null, { ...BOOKS_READ, chosen: false }, { kind: 'lacking', needs: NEEDS })).toEqual({ kind: 'find' })
+    expect(syncControlOf(started(), BOOKS_READ, { kind: 'sign-in' }, null)).toMatchObject({ kind: 'running' })
+    expect(syncControlOf(null, { ...BOOKS_READ, chosen: false }, { kind: 'lacking', needs: NEEDS }, null)).toEqual({ kind: 'find' })
   })
 })

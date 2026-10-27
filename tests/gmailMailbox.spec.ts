@@ -95,7 +95,7 @@ describe('googleMailFolders', () => {
     }
     const requests = stubGoogle((url) => pages[url.searchParams.get('q') ?? ''])
 
-    const listing = await googleMailFolders('token').filesIn(['finance', 'payroll'], [['2026-payroll', '2026-09']])
+    const listing = await googleMailFolders('token', 'books-file').filesIn(['finance', 'payroll'], [['2026-payroll', '2026-09']])
 
     expect(listing).toEqual({
       kind: 'listed',
@@ -116,7 +116,7 @@ describe('googleMailFolders', () => {
       }
       return { files: [] }
     })
-    const folders = googleMailFolders('token')
+    const folders = googleMailFolders('token', 'books-file')
 
     expect(await folders.filesIn(['finance', 'statements'], [['2026-statements']])).toEqual({ kind: 'refused', reason: 'My Drive holds no folder named "finance"' })
     expect(await folders.newestFiled('statements')).toBe(Date.parse('2026-10-20T05:00:00.000Z'))
@@ -152,7 +152,7 @@ describe('googleMailFolders making a file', () => {
 
   it('makes the file in the year folder Drive holds, as the media type its name ends in and with its properties, and makes a missing year folder once a run', async () => {
     const requests = stubDrive()
-    const folders = googleMailFolders('token')
+    const folders = googleMailFolders('token', 'books-file')
     const file = (name: string) => ({ name, properties: PROPERTIES, bytes: new TextEncoder().encode('pdf').buffer as ArrayBuffer })
 
     await folders.create(['finance', 'statements'], ['2031-statements'], file('2031-03-12-statement-042.pdf'))
@@ -170,5 +170,26 @@ describe('googleMailFolders making a file', () => {
     ])
     expect(requests.filter((request) => request.method === 'GET')).toHaveLength(4)
     expect(requests.every((request) => request.method === 'GET' || request.method === 'POST')).toBe(true)
+  })
+
+  it('files into the statements folder the app made beside the books, found from the books file without a walk from My Drive', async () => {
+    const requests: { readonly url: URL; readonly body: string }[] = []
+    vi.stubGlobal('fetch', async (input: string, init: RequestInit) => {
+      const url = new URL(input)
+      const method = init.method ?? 'GET'
+      requests.push({ url, body: init.body instanceof Blob ? await init.body.text() : '' })
+      if (url.pathname.endsWith('/files/books-file')) return Response.json({ parents: ['books-folder'] })
+      if (method === 'POST') return Response.json({ id: 'filed' })
+      const query = url.searchParams.get('q') ?? ''
+      if (query === `'books-folder' in parents and name = 'statements' and ${FOLDER}`) return Response.json({ files: [{ id: 'app-statements' }] })
+      if (query === `('app-statements' in parents) and ${FOLDER}`) return Response.json({ files: [{ id: 'y2031', name: '2031-statements' }] })
+      return Response.json({ files: [] })
+    })
+
+    await googleMailFolders('token', 'books-file').create(['.', 'statements'], ['2031-statements'], { name: '2031-03-12-statement-042.pdf', properties: PROPERTIES, bytes: new TextEncoder().encode('pdf').buffer as ArrayBuffer })
+
+    const upload = requests.find((request) => request.url.pathname.startsWith('/upload'))!
+    expect(JSON.parse(/\r\n\r\n(\{.*\})\r\n/.exec(upload.body)![1]!)).toMatchObject({ parents: ['y2031'] })
+    expect(requests.some((request) => request.url.searchParams.get('q')?.startsWith("'root'"))).toBe(false)
   })
 })

@@ -1,3 +1,5 @@
+import { civilDate } from '../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { fold } from '../../../shared/text/fold'
 
 /** One file attached to a mail, by Gmail's id and the name the sender gave it. */
@@ -14,7 +16,7 @@ export interface MailMessage {
   readonly attachments: readonly MailAttachment[]
 }
 
-/** What the books say a source searches for and files into: the senders, the subject phrase and the folder as names from My Drive down. */
+/** What the books say a source searches for and files into: the senders, the subject phrase and the folder as names from My Drive down, or from the folder of the books file after a first `.`. */
 export interface MailTerms {
   readonly senders: readonly string[]
   readonly subject: string
@@ -63,6 +65,11 @@ export function mailWindow(newestFiled: number | null, sinceStart: number): Mail
 /** Whether the next sync still searches back to a mail of the earlier date once mail of this date is filed. */
 export function windowReaches(earlier: number, filed: number): boolean {
   return filed - WINDOW_OVERLAP_MS < earlier
+}
+
+/** The day the earliest mail starts at while `mail_since` is blank: the first day of this year. */
+export function mailSinceDefault(today: CivilDate): CivilDate {
+  return civilDate(Number(today.slice(0, 4)), 1, 1)
 }
 
 /**

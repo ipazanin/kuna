@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 
 import { installedPack } from '../../packs/packContribution'
+import { useSync } from '../../sync/presentation/useSync'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../workbook/domain/recordsRead'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
@@ -17,7 +18,10 @@ export interface SettingsSave {
   readonly saving: Readonly<Ref<boolean>>
   /** Writes the settings a form changed. */
   save(next: Settings): Promise<void>
-  /** Writes what Settings, General changed, core's keys and the pack's facts. */
+  /**
+   * Writes what Settings, General changed, core's keys and the pack's facts. A change that switches
+   * on a step needing more Google access asks for it in the same tap and syncs. Call it from a click handler.
+   */
   saveGeneral(next: Settings, nextFacts: unknown): Promise<void>
 }
 
@@ -28,12 +32,13 @@ export interface SettingsSave {
 export function useSettingsSave(): SettingsSave {
   const { state } = useWorkbook()
   const writes = useRecordWrites()
+  const sync = useSync()
   const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
   const facts = computed(() => installedPack().companyFacts?.factsOf(state.workbook) ?? null)
   const held = computed(() => state.records?.settings ?? NO_RECORDS)
 
-  async function write(changes: readonly SettingEntry[]): Promise<void> {
-    await writes.write('Settings saved', (unit) => setSettings(unit, held.value, changes), { failedTitle: 'Not saved' })
+  function write(changes: readonly SettingEntry[]): Promise<boolean> {
+    return writes.write('Settings saved', (unit) => setSettings(unit, held.value, changes), { failedTitle: 'Not saved' })
   }
 
   return {
@@ -44,9 +49,16 @@ export function useSettingsSave(): SettingsSave {
       await write(changedSettings(settings.value, next))
     },
     async saveGeneral(next, nextFacts) {
-      const packSettings = installedPack().workbook?.settings ?? null
-      const packChanges = packSettings === null ? [] : changedPackSettings(packSettings, facts.value, nextFacts)
-      await write([...changedSettings(settings.value, next), ...packChanges])
+      const pack = installedPack()
+      const packChanges = pack.workbook === null ? [] : changedPackSettings(pack.workbook.settings, facts.value, nextFacts)
+      const changes = [...changedSettings(settings.value, next), ...packChanges]
+      const workbook = state.workbook
+      if (workbook === null) {
+        await write(changes)
+        return
+      }
+      const saved = { ...workbook, settings: next }
+      await sync.saveAllowing(pack.companyFacts?.withFacts(saved, nextFacts) ?? saved, () => write(changes))
     },
   }
 }

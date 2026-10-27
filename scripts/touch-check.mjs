@@ -23,6 +23,7 @@
  * a statement filed on Sync from the fake statements folder with Undo in its step on Settings, This device and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
+ * a save on the Mail card that asks for Gmail read in its own tap and syncs, Allow access whose Google window closed with why in what a screen reader hears,
  * Salaries with five made-up employees, its gross to net chart's tap-then-drill, a sync's payslips with the one problem's build-up and rows, the People tab and the Over time table,
  * the accountant's VAT returns and payroll on Year, Taxes as a sync read them with a differing badge opening its rows, the read this device kept until Allow access reads again,
  * and the payroll folder saved on Settings, General,
@@ -32,8 +33,9 @@
  * the rows still waiting, a rule edited and switched off on Review's Rules tab, a rule's note changed and the rule deleted from
  * its editor, each undone, in both modes, the Ruleset search on Settings, a
  * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, the first run kept
- * on the fake Drive and in this browser, an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
- * moved there from Settings, This device, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
+ * on the fake Drive and in this browser, new books on the fake Drive with statements from mail and their first sync, the statement step asking for Drive read before the Picker,
+ * an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
+ * moved there from Settings, This device with the Drive read its folders need asked up front, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
  * and a row edited while filtered and sorted, saved and undone, a row confirmed while another device files the other one, the notice for a file a
  * newer app saved, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
@@ -61,6 +63,7 @@ import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
+  accessClosedFlow,
   accountantFoldersFlow,
   accountantKeptReadFlow,
   accountantReturnsFlow,
@@ -83,13 +86,16 @@ import {
   mailNothingNewFlow,
   mailFiledFlow,
   mailOffFlow,
+  mailSaveAsksFlow,
   mailUploadFailedFlow,
   moveFromBrowserFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
   onboardingDriveFlow,
   onboardingDriveReadFlow,
+  onboardingMailFlow,
   onboardingOpenFlow,
+  onboardingStatementAccessFlow,
   ownerShareFlow,
   salariesFlow,
   planFlow,
@@ -977,6 +983,8 @@ async function checkWidth(width) {
     ['mail-nothing-new', '&fake=mail-nothing-new', mailNothingNewFlow],
     ['mail-failed', '&fake=mail-failed', mailFailedFlow],
     ['mail-access', '&fake=mail', mailAccessFlow],
+    ['mail-save-asks', '', mailSaveAsksFlow],
+    ['sync-access-closed', '&fake=google-closed', accessClosedFlow],
     ['salaries', '&fake=five-employees', salariesFlow, '#/salaries', 'Salaries'],
     ['accountant-returns', '', accountantReturnsFlow, '#/year?tab=taxes', 'Year'],
     ['accountant-kept-read', '', accountantKeptReadFlow, '#/year?tab=taxes', 'Year'],
@@ -1516,9 +1524,11 @@ async function checkWidth(width) {
   for (const [name, variant, run, hash = '#/', title = 'Ledgerboard'] of [
     ['onboarding-drive', 'empty', onboardingDriveFlow],
     ['onboarding-drive-read', 'empty', onboardingDriveReadFlow],
+    ['onboarding-mail', 'empty', onboardingMailFlow],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
     ['onboarding-bring', 'empty', onboardingBringFlow(TEMPLATE_FILE)],
     ['onboarding-open', 'drive', onboardingOpenFlow, '#/start?path=open', 'Ledgerboard'],
+    ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/start?step=statement&statements=folder', 'Ledgerboard'],
     ['move-browser', 'browser', moveFromBrowserFlow, '#/settings?tab=device', 'Settings'],
     ['race', 'race', raceFlow, '#/review', 'Review'],
   ]) {

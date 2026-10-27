@@ -4,13 +4,16 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { today } from '../../../shared/calendar/civilDate'
 import { folderTrail } from '../../../shared/text/folderPath'
 import type { PickedFolder } from '../../workbook/application/workbookPorts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
 import { newBooksDocument } from '../../workbook/presentation/workbookFiles'
+import { MAIL_STATEMENTS_FOLDER, statementSettingsOf } from '../domain/statementsChoice'
 import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
+import { withGoogleAccess } from './withGoogleAccess'
 
 /**
  * The folder the books are saved in: the Picker opens at My Drive, and nothing is made until the
@@ -40,7 +43,7 @@ async function choose(): Promise<void> {
   picking.value = true
   failure.value = null
   try {
-    picked.value = (await store.pickBooksFolder()) ?? picked.value
+    picked.value = (await withGoogleAccess(['drive.file'], () => store.pickBooksFolder())) ?? picked.value
   } catch (refused) {
     failure.value = refused instanceof Error ? refused.message : String(refused)
   } finally {
@@ -48,12 +51,23 @@ async function choose(): Promise<void> {
   }
 }
 
+/** Statements from mail go into a folder the app makes beside the new books, which `drive.file` can read. */
+const fromMail = computed(() => onboarding.place.value.statements === 'mail')
+
 async function create(): Promise<void> {
   const folder = picked.value
   const held = contents.value
   if (folder === null || held === null) return
-  const document = held === 'new' ? newBooksDocument(onboarding.place.value.statements === 'folder', new Date().toISOString()) : held
-  if (await keepOnDrive(folder, document, path.value === 'new' ? 'created' : 'moved')) {
+  const { statements, mail } = onboarding.place.value
+  const document = held === 'new' ? newBooksDocument(statementSettingsOf(statements, mail, today()), new Date().toISOString()) : held
+  failure.value = null
+  let kept = false
+  try {
+    kept = await withGoogleAccess(['drive.file'], () => keepOnDrive(folder, document, path.value === 'new' ? 'created' : 'moved', fromMail.value ? [MAIL_STATEMENTS_FOLDER] : []))
+  } catch (refused) {
+    failure.value = refused instanceof Error ? refused.message : String(refused)
+  }
+  if (kept) {
     await (path.value === 'move' ? onboarding.finish() : onboarding.next())
   }
 }
@@ -80,14 +94,18 @@ async function create(): Promise<void> {
           <UIcon name="i-lucide-file-json" class="size-4 shrink-0 text-muted" aria-hidden="true" />
           <span class="min-w-0"><span class="identifier">ledgerboard-company.json</span>, with a backups folder beside it</span>
         </p>
+        <p v-if="fromMail" class="flex items-center gap-2 text-sm text-toned" data-testid="onboarding-folder-statements">
+          <UIcon name="i-lucide-folder-input" class="size-4 shrink-0 text-muted" aria-hidden="true" />
+          <span class="min-w-0">A <span class="identifier">{{ MAIL_STATEMENTS_FOLDER }}</span> folder beside it, which each sync files the bank's mail into</span>
+        </p>
         <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target folder-link text-sm" data-testid="onboarding-folder-link">
           Open this folder in Drive
           <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
         </a>
       </div>
     </template>
-    <p v-else class="text-sm text-toned">Choose the folder the books go in. The app writes only its file there and the backups folder beside it.</p>
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="No folder was chosen" :description="failure" data-testid="onboarding-folder-failure" />
+    <p v-else class="text-sm text-toned">Choose the folder the books go in. The app writes only its file there, the backups folder beside it{{ fromMail ? ' and the statements folder' : '' }}.</p>
+    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="That did not work" :description="failure" data-testid="onboarding-folder-failure" />
 
     <template #actions>
       <template v-if="picked && contents !== null">

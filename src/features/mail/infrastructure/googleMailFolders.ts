@@ -1,4 +1,4 @@
-import { createFile, createFolder, filesInside, filesWithAppProperty, folderOfPath, foldersInside } from '../../../shared/google/driveClient'
+import { createFile, createFolder, filesInside, filesWithAppProperty, folderOfSetting, foldersInside } from '../../../shared/google/driveClient'
 import { XLSX_MIME_TYPE } from '../../../shared/xlsx/sheetGrids'
 import type { MailFolders } from '../application/mailFiling'
 import { MAIL_DATE_PROPERTY, MAIL_SOURCE_PROPERTY } from '../domain/mailSource'
@@ -25,16 +25,17 @@ function startsWith(path: readonly string[], start: readonly string[]): boolean 
 }
 
 /**
- * Drive v3 with a token that carries Drive read, since `drive.file` cannot see what another app
- * filed, and `drive.file`, which makes files and folders. Only the folders on the way to the ones
- * asked for are listed, one level per call, so a year of months costs a few calls. A folder name two
- * folders share is read from both, and a file goes into the first. The folders found or made on the
- * way to a new file are kept for the rest of the run.
+ * Drive v3 with a token that carries `drive.file`, which makes files and folders, and Drive read for
+ * a folder from My Drive, since `drive.file` cannot see what another app filed. A folder from the one
+ * `booksFileId` is in holds only what the app made, so `drive.file` reads it. Only the folders on the
+ * way to the ones asked for are listed, one level per call, so a year of months costs a few calls. A
+ * folder name two folders share is read from both, and a file goes into the first. The folders found
+ * or made on the way to a new file are kept for the rest of the run.
  */
-export function googleMailFolders(accessToken: string): MailFolders {
+export function googleMailFolders(accessToken: string, booksFileId: string): MailFolders {
   const folderIds = new Map<string, string>()
 
-  /** The id of the folder at the path from My Drive, found by `find` once a run. */
+  /** The id of the folder at the path, found by `find` once a run. */
   async function folderAt(path: readonly string[], find: () => Promise<string>): Promise<string> {
     const key = JSON.stringify(path)
     const id = folderIds.get(key) ?? (await find())
@@ -43,7 +44,7 @@ export function googleMailFolders(accessToken: string): MailFolders {
   }
 
   async function sourceFolder(path: readonly string[]): Promise<string> {
-    const folder = await folderOfPath(accessToken, path)
+    const folder = await folderOfSetting(accessToken, path, booksFileId)
     if (folder.kind !== 'found') {
       throw new Error(`${folder.where} holds ${folder.kind === 'missing' ? 'no folder' : `${folder.count} folders`} named "${folder.name}"`)
     }
@@ -57,7 +58,7 @@ export function googleMailFolders(accessToken: string): MailFolders {
 
   return {
     async filesIn(path, below) {
-      const folder = await folderOfPath(accessToken, path)
+      const folder = await folderOfSetting(accessToken, path, booksFileId)
       switch (folder.kind) {
         case 'missing':
           return { kind: 'refused', reason: `${folder.where} holds no folder named "${folder.name}"` }

@@ -126,13 +126,14 @@ const TAX_PARTS: readonly DonutPart[] = [
   { key: 'payroll-tax', label: 'Payroll tax', value: 98_400, colour: '--series-1', to: transactionsLink },
   { key: 'dividend', label: 'Dividend tax', value: 31_000, colour: '--series-5', to: transactionsLink },
 ]
-/** One of each state of the sync control, over a last sync whose statements step filed a statement. */
+/** One of each state of the sync control, Allow access also after a closed popup, over a last sync whose statements step filed a statement. */
 const SYNC_CONTROLS: readonly SyncControl[] = [
   { kind: 'find' },
   { kind: 'ready', syncedAt: '2026-10-16T06:04:00Z' },
   { kind: 'running', label: 'Statements', position: 2, of: 3, line: 'Filing 3 rows' },
-  { kind: 'sign-in' },
-  { kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'] },
+  { kind: 'sign-in', failure: null },
+  { kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: null },
+  { kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: "Google's window was closed before access was allowed." },
   { kind: 'problems', count: 1, labels: ['Statements'] },
 ]
 
@@ -294,11 +295,11 @@ const columns: TableColumn<SampleTransaction>[] = [
     <section class="gallery-section">
       <h2 class="gallery-heading">Sync status</h2>
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div v-for="control in SYNC_CONTROLS" :key="control.kind" class="gallery-frame"><SyncStatus :control="control" :run="SYNC_RUN" /></div>
+        <div v-for="(control, index) in SYNC_CONTROLS" :key="index" class="gallery-frame"><SyncStatus :control="control" :run="SYNC_RUN" /></div>
       </div>
       <h3 class="text-xs text-muted">Compact, as in the phone top bar</h3>
       <div class="flex flex-wrap gap-3">
-        <div v-for="control in SYNC_CONTROLS" :key="control.kind" class="gallery-frame"><SyncStatus :control="control" :run="SYNC_RUN" compact /></div>
+        <div v-for="(control, index) in SYNC_CONTROLS" :key="index" class="gallery-frame"><SyncStatus :control="control" :run="SYNC_RUN" compact /></div>
       </div>
     </section>
 

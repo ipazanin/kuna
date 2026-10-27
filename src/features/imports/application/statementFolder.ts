@@ -7,7 +7,7 @@ export type StatementFolderListing =
 
 /** The folder the bank's statements are filed in, read only. The statements step never makes or changes a folder there. */
 export interface StatementFolder {
-  /** Finds the folder by its path from My Drive, then lists the files in each folder inside it. */
+  /** Finds the folder by its path from My Drive or from the folder of the books file, then lists the files in each folder inside it. */
   files(path: readonly string[]): Promise<StatementFolderListing>
   download(file: StatementFile): Promise<ArrayBuffer>
 }

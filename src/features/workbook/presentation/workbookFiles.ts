@@ -4,6 +4,7 @@ import { JSON_MIME_TYPE } from '../../../shared/google/driveClient'
 import { XLSX_MIME_TYPE } from '../../../shared/xlsx/sheetGrids'
 import { importSummary } from '../../excel/domain/importSummary'
 import { DEFAULT_SETTINGS } from '../../settings/domain/settings'
+import type { Settings } from '../../settings/domain/settings'
 import type { ImportSummary } from '../../excel/domain/importSummary'
 import type { WorkbookStore } from '../application/createWorkbookStore'
 import type { Category, Workbook } from '../domain/workbook'
@@ -82,11 +83,11 @@ export const NEW_BOOKS_TITLE = 'New books'
 /**
  * The document of new books: the default categories, no accounts or rows, and a row for every
  * setting, so the books name each choice instead of leaving it to a default a later app may change.
- * `statementsSync` says whether a sync files statements from a folder, which is named later. The
- * owner-pay module is off and the pack's folders blank until the person says otherwise.
+ * `choices` are the settings onboarding chose, such as how statements arrive, and the rest are the
+ * defaults: the owner-pay module off and the pack's folders blank until the person says otherwise.
  */
-export function newBooksDocument(statementsSync: boolean, savedAt: string): WorkbookDocument {
-  return documentOfTabs(COMPANY_APP, emptyWorkbookTabs({ ...DEFAULT_SETTINGS, statementsSync }), savedAt)
+export function newBooksDocument(choices: Partial<Settings>, savedAt: string): WorkbookDocument {
+  return documentOfTabs(COMPANY_APP, emptyWorkbookTabs({ ...DEFAULT_SETTINGS, ...choices }), savedAt)
 }
 
 /** Whether the categories are the ones new books start with, none added, removed or renamed. */

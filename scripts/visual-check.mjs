@@ -57,10 +57,14 @@
  * link opens the list on the Mail card, a second sync files nothing new, and the facts card shows the
  * accountant's mail. Mail all filed already says nothing new, a source that fails and an upload that
  * fails each give 1 problem with the steps open, and a token without Gmail read gets Allow access,
- * which runs the step.
- * The first run keeps an empty workbook on the fake Drive and one in this browser, an xlsx file
+ * which runs the step. Saving a sender on the Mail card without Gmail read asks for it in the same
+ * tap and syncs, and Allow access whose Google window closed says so beside the button.
+ * The first run keeps an empty workbook on the fake Drive and one in this browser, and new books
+ * on the fake Drive with statements from mail name the bank, make the statements folder beside the
+ * books file and file the bank's mail there on the first sync. The statement step asks for Drive
+ * read before the Picker when the page lacks it. An xlsx file
  * moves to the fake Drive through its summary, Settings, This device moves a workbook kept in this
- * browser there, and a row confirmed on Review while another device files the other row keeps both.
+ * browser there with the Drive read its folders need asked up front, and a row confirmed on Review while another device files the other row keeps both.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -87,6 +91,7 @@ import { chromePath } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
+  accessClosedFlow,
   accountantFoldersFlow,
   accountantKeptReadFlow,
   accountantReturnsFlow,
@@ -109,13 +114,16 @@ import {
   mailNothingNewFlow,
   mailFiledFlow,
   mailOffFlow,
+  mailSaveAsksFlow,
   mailUploadFailedFlow,
   moveFromBrowserFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
   onboardingDriveFlow,
   onboardingDriveReadFlow,
+  onboardingMailFlow,
   onboardingOpenFlow,
+  onboardingStatementAccessFlow,
   ownerShareFlow,
   salariesFlow,
   planFlow,
@@ -662,15 +670,19 @@ const FLOWS = [
   { name: 'mail-nothing-new', hash: '#/', title: 'Overview', run: mailNothingNewFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
   { name: 'mail-failed', hash: '#/', title: 'Overview', run: mailFailedFlow, modes: ['drive'], queries: { drive: '&fake=mail-failed' } },
   { name: 'mail-access', hash: '#/', title: 'Overview', run: mailAccessFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
+  { name: 'mail-save-asks', hash: '#/', title: 'Overview', run: mailSaveAsksFlow, modes: ['drive'] },
+  { name: 'sync-access-closed', hash: '#/', title: 'Overview', run: accessClosedFlow, modes: ['drive'], queries: { drive: '&fake=google-closed' } },
   { name: 'salaries', hash: '#/salaries', title: 'Salaries', run: salariesFlow, modes: ['drive'], queries: { drive: '&fake=five-employees' } },
   { name: 'accountant-returns', hash: '#/year?tab=taxes', title: 'Year', run: accountantReturnsFlow, modes: ['drive'] },
   { name: 'accountant-kept-read', hash: '#/year?tab=taxes', title: 'Year', run: accountantKeptReadFlow, modes: ['drive'] },
   { name: 'accountant-folders', hash: '#/settings#accountant-folders', title: 'Settings', run: accountantFoldersFlow, modes: ['drive'] },
   { name: 'onboarding-drive', hash: '#/', title: 'Ledgerboard', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-drive-read', hash: '#/', title: 'Ledgerboard', run: onboardingDriveReadFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-mail', hash: '#/', title: 'Ledgerboard', run: onboardingMailFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-browser', hash: '#/', title: 'Ledgerboard', run: onboardingBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
   { name: 'onboarding-bring', hash: '#/', title: 'Ledgerboard', run: onboardingBringFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-open', hash: '#/start?path=open', title: 'Ledgerboard', run: onboardingOpenFlow, modes: ['drive'] },
+  { name: 'onboarding-statement-access', hash: '#/start?step=statement&statements=folder', title: 'Ledgerboard', run: onboardingStatementAccessFlow, modes: ['drive'] },
   { name: 'move-browser', hash: '#/settings?tab=device', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
   { name: 'race', hash: '#/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
 ]

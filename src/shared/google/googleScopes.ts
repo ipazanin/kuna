@@ -1,3 +1,5 @@
+import { startsAtBooksFolder } from '../text/folderPath'
+
 /** A Google permission the app asks for, by the short name the sync and the settings use. */
 export type GoogleScope = 'drive.file' | 'drive.readonly' | 'gmail.readonly' | 'gmail.compose'
 
@@ -29,6 +31,14 @@ export function scopesIn(granted: string): GoogleScope[] {
 export function scopesOf(scopes: Iterable<GoogleScope>): GoogleScope[] {
   const wanted = new Set(scopes)
   return GOOGLE_SCOPES.filter((scope) => wanted.has(scope))
+}
+
+/**
+ * The scope that reads a folder at this path: the books file's scope for a path from the folder the
+ * books file is in, whose folders and files the app made, and Drive read for a path from My Drive.
+ */
+export function folderReadScope(path: readonly string[]): GoogleScope {
+  return startsAtBooksFolder(path) ? 'drive.file' : 'drive.readonly'
 }
 
 /** What an action says when the token Google gave lacks the scope it needs. */

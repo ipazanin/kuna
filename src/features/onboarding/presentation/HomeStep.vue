@@ -4,10 +4,12 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
+import { today } from '../../../shared/calendar/civilDate'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NEW_BOOKS_TITLE, newBooksDocument } from '../../workbook/presentation/workbookFiles'
 import { nextStep } from '../domain/onboardingSteps'
 import type { BooksHome } from '../domain/onboardingSteps'
+import { statementSettingsOf } from '../domain/statementsChoice'
 import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 
@@ -30,7 +32,7 @@ async function proceed(): Promise<void> {
   if (place.path === 'new' && place.home === 'browser') {
     starting.value = true
     failure.value = null
-    await store.replaceLocalWorkbook(newBooksDocument(false, new Date().toISOString()), NEW_BOOKS_TITLE)
+    await store.replaceLocalWorkbook(newBooksDocument(statementSettingsOf('hand', place.mail, today()), new Date().toISOString()), NEW_BOOKS_TITLE)
     starting.value = false
     if (store.state.status === 'error') {
       failure.value = store.state.error

@@ -2,9 +2,10 @@ import { defineAsyncComponent } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { PackContribution } from '../../features/packs/packContribution'
+import { packPart } from '../../features/workbook/domain/packPart'
 import { ACCOUNTANT_MAIL_SOURCES } from './application/accountantMailSources'
 import { COMPANY_FACT_SETTINGS, PAYROLL_FOLDER_KEY, VAT_RETURNS_FOLDER_KEY, companyFactsErrors } from './domain/companyFacts'
-import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
+import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { unaccountedInView } from './presentation/unaccountedInView'
 
@@ -37,13 +38,17 @@ export const hrDooPack: PackContribution = {
     card: defineAsyncComponent(() => import('./presentation/CompanyFactsCard.vue')),
     factsOf: (workbook) => (workbook === null ? COMPANY_FACT_SETTINGS.defaults : hrDooWorkbook(workbook).companyFacts),
     errors: companyFactsErrors,
+    withFacts: (workbook, facts) => {
+      const part = packPart(workbook, HR_DOO)
+      return part === null ? workbook : { ...workbook, packParts: { ...workbook.packParts, [HR_DOO.name]: { ...part, companyFacts: facts } } }
+    },
   },
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,
   syncSteps: [
     {
       id: 'hr-doo.accountant',
       label: 'Accountant',
-      scopes: ['drive.readonly'],
+      scopes: () => ['drive.readonly'],
       startLine: 'Reading the accountant’s files',
       on: (workbook) => {
         const { accountantSync, vatReturnsFolder, payrollFolder } = hrDooWorkbook(workbook).companyFacts

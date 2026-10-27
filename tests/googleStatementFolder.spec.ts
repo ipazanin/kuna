@@ -45,7 +45,7 @@ describe('googleStatementFolder', () => {
       },
     })
 
-    const listing = await googleStatementFolder('read-token').files(['work', 'statements'])
+    const listing = await googleStatementFolder('read-token', 'books-file').files(['work', 'statements'])
 
     expect(listing).toEqual({
       kind: 'listed',
@@ -64,7 +64,7 @@ describe('googleStatementFolder', () => {
       [`'work-id' in parents and name = 'erste' and ${FOLDER}`]: { files: [{ id: 'erste-1' }, { id: 'erste-2' }] },
     })
 
-    const listing = await googleStatementFolder('read-token').files(['work', 'erste', 'statements'])
+    const listing = await googleStatementFolder('read-token', 'books-file').files(['work', 'erste', 'statements'])
 
     expect(listing).toEqual({ kind: 'refused', reason: 'work holds 2 folders named "erste", so the app cannot tell which one holds the statements. Rename or remove the others in Drive.' })
     expect(requests).toHaveLength(2)
@@ -76,7 +76,7 @@ describe('googleStatementFolder', () => {
       [`'work-id' in parents and name = 'statements' and ${FOLDER}`]: { files: [] },
       [`'root' in parents and name = 'finance' and ${FOLDER}`]: { files: [] },
     })
-    const folder = googleStatementFolder('read-token')
+    const folder = googleStatementFolder('read-token', 'books-file')
 
     expect(await folder.files(['work', 'statements', '2026'])).toEqual({ kind: 'refused', reason: 'work holds no folder named "statements", so no statements were read. Check the statements_folder setting.' })
     expect(await folder.files(['finance'])).toEqual({ kind: 'refused', reason: 'My Drive holds no folder named "finance", so no statements were read. Check the statements_folder setting.' })
@@ -85,12 +85,50 @@ describe('googleStatementFolder', () => {
 
   it('escapes quotes and backslashes in a folder name', async () => {
     const requests = stubDrive({
-      [`'root' in parents and name = 'Ivan\\'s \\\\ statements' and ${FOLDER}`]: { files: [{ id: 'quoted-id' }] },
+      [`'root' in parents and name = 'Owner\\'s \\\\ statements' and ${FOLDER}`]: { files: [{ id: 'quoted-id' }] },
       [`('quoted-id' in parents) and ${FOLDER}`]: { files: [] },
     })
 
-    expect(await googleStatementFolder('read-token').files(["Ivan's \\ statements"])).toEqual({ kind: 'listed', files: [] })
-    expect(requests[0]?.searchParams.get('q')).toBe(`'root' in parents and name = 'Ivan\\'s \\\\ statements' and ${FOLDER}`)
+    expect(await googleStatementFolder('read-token', 'books-file').files(["Owner's \\ statements"])).toEqual({ kind: 'listed', files: [] })
+    expect(requests[0]?.searchParams.get('q')).toBe(`'root' in parents and name = 'Owner\\'s \\\\ statements' and ${FOLDER}`)
+  })
+
+  it('walks a path from the folder of the books file, which the books file’s own scope can do, and lists what the app filed in it', async () => {
+    const requests: URL[] = []
+    const pages: Readonly<Record<string, Page>> = {
+      [`'books-folder' in parents and name = 'statements' and ${FOLDER}`]: { files: [{ id: 'statements-id' }] },
+      [`('statements-id' in parents) and ${FOLDER}`]: { files: [{ id: 'year-2026' }] },
+      ["('year-2026' in parents) and mimeType != 'application/vnd.google-apps.folder' and trashed = false"]: { files: [{ id: 'a', name: '2026-10-08-statement-029.xml' }] },
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init: RequestInit) => {
+        const url = new URL(input)
+        requests.push(url)
+        expect(new Headers(init.headers).get('Authorization')).toBe('Bearer file-token')
+        if (url.pathname.endsWith('/files/books-file')) return Response.json({ parents: ['books-folder'] })
+        const page = pages[url.searchParams.get('q') ?? '']
+        return page === undefined ? new Response('not visible to drive.file', { status: 404 }) : Response.json(page)
+      }),
+    )
+
+    const listing = await googleStatementFolder('file-token', 'books-file').files(['.', 'statements'])
+
+    expect(listing).toEqual({ kind: 'listed', files: [{ id: 'a', name: '2026-10-08-statement-029.xml' }] })
+    expect(requests[0]?.searchParams.get('fields')).toBe('parents')
+    expect(requests.some((url) => url.searchParams.get('q')?.startsWith("'root'"))).toBe(false)
+  })
+
+  it('says the folder of the books file lacks the statements folder when the app made none there', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) => (new URL(input).pathname.endsWith('/files/books-file') ? Response.json({ parents: ['books-folder'] }) : Response.json({ files: [] }))),
+    )
+
+    expect(await googleStatementFolder('file-token', 'books-file').files(['.', 'statements'])).toEqual({
+      kind: 'refused',
+      reason: 'The folder of the books file holds no folder named "statements", so no statements were read. Check the statements_folder setting.',
+    })
   })
 
   it('downloads a file by its id', async () => {
@@ -103,7 +141,7 @@ describe('googleStatementFolder', () => {
       }),
     )
 
-    const bytes = await googleStatementFolder('read-token').download({ id: 'file/1', name: 'a.xml' })
+    const bytes = await googleStatementFolder('read-token', 'books-file').download({ id: 'file/1', name: 'a.xml' })
 
     expect(new TextDecoder().decode(bytes)).toBe('<Document/>')
     expect(requests.map(String)).toEqual(['https://www.googleapis.com/drive/v3/files/file%2F1?alt=media'])

@@ -65,11 +65,14 @@ export function withStep(run: SyncRun, id: string, state: StepState): SyncRun {
   return { ...run, steps: run.steps.map((step) => (step.id === id ? { ...step, state } : step)) }
 }
 
-/** The queued steps on or off again, as the books just read say. */
-export function replanned(run: SyncRun, on: (id: string) => boolean): SyncRun {
+/** The queued and off steps on or off again with their scopes, as the books just read plan them. A step the plan leaves out stays as it was. */
+export function replanned(run: SyncRun, plan: readonly PlannedStep[]): SyncRun {
   return {
     ...run,
-    steps: run.steps.map((step) => (step.state.kind === 'queued' || step.state.kind === 'off' ? { ...step, state: on(step.id) ? { kind: 'queued' } : { kind: 'off' } } : step)),
+    steps: run.steps.map((step) => {
+      const planned = plan.find((candidate) => candidate.id === step.id)
+      return planned === undefined || (step.state.kind !== 'queued' && step.state.kind !== 'off') ? step : { ...step, scopes: planned.scopes, state: planned.on ? { kind: 'queued' } : { kind: 'off' } }
+    }),
   }
 }
 
@@ -85,13 +88,9 @@ export const SCOPE_WORDS: Readonly<Record<SyncScope, string>> = {
   'gmail.compose': 'your Gmail drafts access',
 }
 
-/** "Waits for your Gmail read access", or for a sign-in when the books file is among them. */
-function accessLine(scopes: readonly SyncScope[]): string {
-  return scopes.includes('drive.file') ? 'Waits for you to sign in to Google' : `Waits for ${listInWords(scopes.map((scope) => SCOPE_WORDS[scope]))}`
-}
-
-/** A step that needs these scopes, said the usual way or with why Google gave no token. */
-export function needsAccess(scopes: readonly SyncScope[], line: string = accessLine(scopes)): StepState {
+/** A step that needs these scopes, whose line says "Waits for your Gmail read access", or for a sign-in when the books file is among them. */
+export function needsAccess(scopes: readonly SyncScope[]): StepState {
+  const line = scopes.includes('drive.file') ? 'Waits for you to sign in to Google' : `Waits for ${listInWords(scopes.map((scope) => SCOPE_WORDS[scope]))}`
   return { kind: 'needs-access', scopes, line }
 }
 
@@ -126,22 +125,18 @@ export function problemsOf(run: SyncRun | null): readonly RunStep[] {
   return run?.steps.filter((step) => step.state.kind === 'failed' || step.state.kind === 'waits') ?? []
 }
 
-/** Every step that needs access gets this line, such as why Google gave no token. */
-export function withAccessLine(run: SyncRun, line: string): SyncRun {
-  return { ...run, steps: run.steps.map((step) => (step.state.kind === 'needs-access' ? { ...step, state: needsAccess(step.state.scopes, line) } : step)) }
-}
-
 /**
  * What the sync control shows: find the file while none is chosen, the step running with its place
  * among the steps that are on, Sign in to Google when Google asks for that first, Allow access while
  * a step or a setting lacks its permission, the problems of the last run, or else ready with the time
- * of the last read.
+ * of the last read. `failure` says why the last tap's ask to Google gave no token, such as a closed
+ * popup, or is null.
  */
 export type SyncControl =
   | { readonly kind: 'find' }
   | { readonly kind: 'running'; readonly label: string; readonly position: number; readonly of: number; readonly line: string }
-  | { readonly kind: 'sign-in' }
-  | { readonly kind: 'allow-access'; readonly scopes: readonly SyncScope[]; readonly labels: readonly string[] }
+  | { readonly kind: 'sign-in'; readonly failure: string | null }
+  | { readonly kind: 'allow-access'; readonly scopes: readonly SyncScope[]; readonly labels: readonly string[]; readonly failure: string | null }
   | { readonly kind: 'problems'; readonly count: number; readonly labels: readonly string[] }
   | { readonly kind: 'ready'; readonly syncedAt: string | null }
 
@@ -182,7 +177,8 @@ export function pageAccessOf(needs: readonly AccessNeed[], granted: readonly Syn
   return lacking.length === 0 ? { kind: 'enough' } : { kind: 'lacking', needs: lacking }
 }
 
-export function syncControlOf(run: SyncRun | null, books: BooksStanding, access: PageAccess): SyncControl {
+/** `failure` is why the last tap's ask to Google gave no token, or null. */
+export function syncControlOf(run: SyncRun | null, books: BooksStanding, access: PageAccess, failure: string | null): SyncControl {
   if (!books.chosen) {
     return { kind: 'find' }
   }
@@ -201,14 +197,14 @@ export function syncControlOf(run: SyncRun | null, books: BooksStanding, access:
     return { kind: 'running', label: BOOKS_STEP.label, position: 1, of: 1, line: 'Reading the file' }
   }
   if (access.kind === 'sign-in') {
-    return { kind: 'sign-in' }
+    return { kind: 'sign-in', failure }
   }
   const lacking = [
     ...stepsNeedingAccess(run).flatMap((step) => (step.state.kind === 'needs-access' ? step.state.scopes : []).map((scope) => ({ scope, label: step.label }))),
     ...(access.kind === 'lacking' ? access.needs : []),
   ]
   if (lacking.length > 0) {
-    return { kind: 'allow-access', scopes: [...new Set(lacking.map((need) => need.scope))], labels: [...new Set(lacking.map((need) => need.label))] }
+    return { kind: 'allow-access', scopes: [...new Set(lacking.map((need) => need.scope))], labels: [...new Set(lacking.map((need) => need.label))], failure }
   }
   const problems = problemsOf(run)
   if (problems.length > 0) {

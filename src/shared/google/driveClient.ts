@@ -1,3 +1,4 @@
+import { startsAtBooksFolder } from '../text/folderPath'
 import { XLSX_MIME_TYPE } from '../xlsx/sheetGrids'
 import { googleFetch } from './googleApi'
 
@@ -72,20 +73,20 @@ export async function listChildren<Field extends keyof DriveFile>(accessToken: s
   return files
 }
 
-/** Where a path of folder names from My Drive leads: to one folder, or to a name no folder or several folders have, under `where`. */
+/** Where a path of folder names leads: to one folder, or to a name no folder or several folders have, under `where`. */
 type FolderOfPath =
   | { readonly kind: 'found'; readonly id: string }
   | { readonly kind: 'missing'; readonly where: string; readonly name: string }
   | { readonly kind: 'ambiguous'; readonly where: string; readonly name: string; readonly count: number }
 
 /**
- * Drive has no search by path, so the path is walked one folder name at a time from My Drive. A name
- * that two folders share is not guessed.
+ * Drive has no search by path, so the path is walked one folder name at a time from the folder
+ * `startId`, which messages call `start`. A name that two folders share is not guessed.
  */
-export async function folderOfPath(accessToken: string, path: readonly string[]): Promise<FolderOfPath> {
-  let folderId = 'root'
+async function folderBelow(accessToken: string, startId: string, start: string, path: readonly string[]): Promise<FolderOfPath> {
+  let folderId = startId
   for (const [depth, name] of path.entries()) {
-    const where = depth === 0 ? 'My Drive' : path.slice(0, depth).join('/')
+    const where = depth === 0 ? start : path.slice(0, depth).join('/')
     const found = await listChildren(accessToken, `${queryLiteral(folderId)} in parents and name = ${queryLiteral(name)} and ${IS_FOLDER}`, ['id'])
     if (found.length === 0) {
       return { kind: 'missing', where, name }
@@ -96,6 +97,25 @@ export async function folderOfPath(accessToken: string, path: readonly string[])
     folderId = found[0]!.id
   }
   return { kind: 'found', id: folderId }
+}
+
+/** Where a path of folder names from My Drive leads, which needs a token that reads the whole Drive. */
+export function folderOfPath(accessToken: string, path: readonly string[]): Promise<FolderOfPath> {
+  return folderBelow(accessToken, 'root', 'My Drive', path)
+}
+
+/**
+ * Where a folder setting's path leads. One that starts at the folder the books file is in, such as
+ * `./statements`, is walked from there, which `drive.file` can do through the folders the app made.
+ * Any other path is walked from My Drive.
+ */
+export async function folderOfSetting(accessToken: string, path: readonly string[], booksFileId: string): Promise<FolderOfPath> {
+  if (!startsAtBooksFolder(path)) {
+    return folderOfPath(accessToken, path)
+  }
+  const start = 'The folder of the books file'
+  const parent = (await getFile(accessToken, booksFileId, ['parents'])).parents?.[0]
+  return parent === undefined ? { kind: 'missing', where: start, name: path[1] ?? '' } : folderBelow(accessToken, parent, start, path.slice(1))
 }
 
 /** The folders directly inside the given ones, with the fields asked for, or none when none are given. */

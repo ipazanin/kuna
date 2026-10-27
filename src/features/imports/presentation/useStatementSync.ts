@@ -2,10 +2,12 @@ import { computed, shallowReactive, shallowReadonly } from 'vue'
 import type { ComputedRef } from 'vue'
 
 import { currentToken } from '../../../shared/google/googleAuth'
+import { folderReadScope } from '../../../shared/google/googleScopes'
 import type { SyncStep } from '../../sync/application/sync'
 import type { StepResult } from '../../sync/domain/syncRun'
 import { counted } from '../../overview/presentation/waitingForYou'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import type { Workbook } from '../../workbook/domain/workbook'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { dryRunFor } from '../application/importStatements'
 import { fileNewStatements, stillHeld } from '../application/statementSync'
@@ -22,17 +24,18 @@ interface StatementSyncState {
 
 const state = shallowReactive<{ -readonly [Field in keyof StatementSyncState]: StatementSyncState[Field] }>({ outcome: null })
 
-async function openStatementFolder(): Promise<StatementFolder> {
+/** The statements folder of the books in this file, read with the scope its path needs. */
+async function openStatementFolder(workbook: Workbook, booksFileId: string): Promise<StatementFolder> {
   // Inline, not hoisted, so a production build folds the fake away.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const { fakeStatementFolder } = await import('../infrastructure/fake/fakeStatementFolder')
     return fakeStatementFolder(new URLSearchParams(window.location.search).get('fake'))
   }
-  const token = currentToken('drive.readonly')
+  const token = currentToken(folderReadScope(workbook.settings.statementsFolder))
   if (token === null) {
-    throw new Error('The Drive read access ran out. Sync again.')
+    throw new Error('The Google access ran out. Sync again.')
   }
-  return googleStatementFolder(token)
+  return googleStatementFolder(token, booksFileId)
 }
 
 function lineOf(step: StatementSyncStep): string {
@@ -88,12 +91,16 @@ export function useStatementSync(): StatementSync {
     step: {
       id: 'statements',
       label: 'Statements',
-      scopes: ['drive.readonly'],
+      scopes: (workbook) => [folderReadScope(workbook?.settings.statementsFolder ?? [])],
       startLine: lineOf({ kind: 'looking' }),
       on: (workbook) => workbook.settings.statementsSync && workbook.settings.statementsFolder.length > 0,
       async run(report) {
+        const { workbook, choice } = store.state
+        if (workbook === null || choice?.source !== 'drive') {
+          return { kind: 'done', line: 'Nothing to look for before the books are read', writeId: null, link: null }
+        }
         try {
-          state.outcome = await fileNewStatements({ store, folder: await openStatementFolder(), load: loadImportFile, step: (step) => report(lineOf(step)) })
+          state.outcome = await fileNewStatements({ store, folder: await openStatementFolder(workbook, choice.id), load: loadImportFile, step: (step) => report(lineOf(step)) })
         } catch (failure) {
           state.outcome = null
           throw failure

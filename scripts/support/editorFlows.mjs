@@ -1394,9 +1394,14 @@ const ALL_SOURCES = ['statements:planned', 'hr-doo.payroll:planned', 'hr-doo.vat
 /**
  * With no sender named, the mail step is off in the steps of a sync. On Settings, General the mail
  * card takes a sender, asks for the subject a sender needs, and saves both, and the next sync's mail
- * step files the bank's new PDF and lists the rest.
+ * step files the bank's new PDF and lists the rest. The page holds every scope, as a first open
+ * does, so the save asks Google nothing.
  */
 export async function mailOffFlow(page, { press, shoot, inspect }) {
+  await page.evaluate(() => {
+    for (const key of ['ledgerboard.google-granted', 'ledgerboard.google-needed']) localStorage.removeItem(key)
+  })
+  await page.reload({ waitUntil: 'networkidle0' })
   await syncAndSettle(page, press)
   await openDeviceSettings(page)
   await stepSays(page, SYNC_CARD, 'mail', 'off', /Off in Settings/)
@@ -1545,6 +1550,72 @@ export async function mailAccessFlow(page, { press, shoot, inspect }) {
   await controlShows(page, 'ready')
   await openDeviceSettings(page)
   await stepSays(page, SYNC_CARD, 'mail', 'done', MAIL_FILED)
+}
+
+/**
+ * A token without Gmail read and the mail step off: saving a sender and subject on the Mail card
+ * asks Google in that same tap, so the sync control never shows Allow access, and the sync that
+ * follows the save files the bank's mail.
+ */
+export async function mailSaveAsksFlow(page, { press, shoot, inspect }) {
+  await page.evaluate(() => {
+    for (const key of ['ledgerboard.google-needed', 'ledgerboard.google-silent-refused']) localStorage.removeItem(key)
+    localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
+  })
+  await page.reload({ waitUntil: 'networkidle0' })
+  await controlShows(page, 'ready')
+  await page.evaluate(() => {
+    window.location.hash = '#/settings#mail'
+  })
+  const senders = await page.waitForSelector(`${MAIL_CARD} [data-testid="statements-mail-from"] input`, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, General has no mail card open at #mail')
+  })
+  await setField(senders, 'statements@bank.example.com')
+  await setField(await page.$(`${MAIL_CARD} [data-testid="statements-mail-subject"] input`), 'Izvadak')
+  await press(await saveSettingsButton(page, true))
+  await toast(page, 'Settings saved')
+  const lines = await mailListShows(page, ['statements:planned'])
+  if (!/^Filed 1, already there 3, 1 unmatched\.$/.test(lines[0] ?? '')) throw new Error(`the sync after the save reads the bank's mail as "${lines[0]}"`)
+  const control = await controlShows(page, 'ready')
+  if (control.label === 'Allow access') throw new Error('the sync control asks for access after a save that asked for it')
+  const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('ledgerboard.google-granted') ?? '[]'))
+  if (!granted.includes('gmail.readonly')) throw new Error(`the save asked Google for ${granted.join(', ')}, without Gmail read`)
+  await scrollToTop(page, MAIL_CARD)
+  await inspect?.('the mail card saved with Gmail read asked in the same tap')
+  await shoot('mail-save-asks')
+  await page.evaluate(() => localStorage.removeItem('ledgerboard.google-granted'))
+}
+
+/**
+ * A device whose silent trip Google refused, as Firefox does, shows Allow access before any sync.
+ * With `?fake=google-closed` Google's window closes in that tap: the control stays in Allow access
+ * with a line that says what happened and that a tap tries again, beside the sidebar's button or in
+ * what a screen reader hears and the top bar button's tooltip, and no toast shows.
+ */
+export async function accessClosedFlow(page, { press, shoot, inspect }) {
+  await page.evaluate(() => localStorage.setItem('ledgerboard.google-silent-refused', 'interaction_required'))
+  await page.reload({ waitUntil: 'networkidle0' })
+  await controlShows(page, 'allow-access')
+  await press(await syncButton(page))
+  const said = "Google's window was closed before access was allowed. Tap Allow access to try again."
+  await page
+    .waitForFunction((text) => [...document.querySelectorAll('[data-testid="sync-button"]')].some((button) => button.offsetParent !== null && (button.getAttribute('aria-label') ?? '').includes(text)), { timeout: 10_000 }, said)
+    .catch(async () => {
+      throw new Error(`a screen reader does not hear why Google gave no token, it hears "${(await controlShows(page, 'allow-access')).name}"`)
+    })
+  const control = await controlShows(page, 'allow-access')
+  if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
+  const shown = await page.evaluate(() => {
+    const line = [...document.querySelectorAll('[data-testid="sync-line"]')].find((element) => element.offsetParent !== null)
+    const button = [...document.querySelectorAll('[data-testid="sync-button"]')].find((element) => element.offsetParent !== null)
+    return line === undefined ? (button?.getAttribute('title') ?? '') : (line.textContent?.trim() ?? '')
+  })
+  if (shown !== said) throw new Error(`the sync control says "${shown}" after Google's window closed`)
+  if (await page.$('[data-testid="sync-steps"] [data-step]')) throw new Error('a sync ran after Google gave no token')
+  await noToast(page, "a closed Google window showed a toast")
+  await inspect?.("the sync control after Google's window closed")
+  await shoot('sync-access-closed')
+  await page.evaluate(() => localStorage.removeItem('ledgerboard.google-silent-refused'))
 }
 
 /** Review: open the gadget purchase in the queue, then split it, edit and delete the split and Undo, as on Transactions. */
@@ -2187,8 +2258,79 @@ export async function onboardingDriveReadFlow(page, { press, shoot, inspect }) {
 }
 
 /**
+ * New books on the fake Drive with statements from mail: the access step offers Erste with its
+ * sender and mail since at the first day of this year, then another bank typed in, all kept in the
+ * address, and asks Google for Gmail read beside the books file and never for Drive read. The folder
+ * confirm names the statements folder the app makes beside the books, and the statement step says
+ * each sync files the mail there. A sync then files the bank's mail into that folder, and the same
+ * sync holds the statement of the account the new books lack, with 1 problem in the sync control.
+ */
+export async function onboardingMailFlow(page, { press, shoot, inspect }) {
+  const shootMail = (name) => shoot(name.replace(/^onboarding-/, 'onboarding-mail-'))
+  await onboardingAt(page, 'welcome')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'home')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'access')
+  await chooseOption(page, press, 'onboarding-statements', 'From my mail')
+  const fields = await page.waitForSelector('[data-testid="onboarding-mail"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('From my mail shows no bank and mail since')
+  })
+  if (!(await fields.evaluate((element) => element.textContent ?? '')).includes('netbanking.support@erstebank.hr')) throw new Error('the Erste preset does not name the address it mails from')
+  const since = await page.$eval('input[data-testid="onboarding-mail-since"]', (input) => input.value)
+  if (since !== `${new Date().getFullYear()}-01-01`) throw new Error(`mail since starts at ${since}, not the first day of this year`)
+  await inspect?.('the access step with mail from Erste')
+  await shoot('onboarding-access-mail')
+  await choose(page, press, await page.waitForSelector('[data-testid="onboarding-bank"]'), 'Another bank')
+  if (!(await page.$eval('[data-testid="onboarding-google"], [data-testid="onboarding-continue"]', (button) => button.disabled))) throw new Error('the access step goes on before another bank is named')
+  await setField(await page.waitForSelector('input[data-testid="onboarding-mail-from"]', { visible: true }), 'statements@bank.example.com')
+  await setField(await page.waitForSelector('input[data-testid="onboarding-mail-subject"]'), 'Izvadak')
+  await page.waitForFunction(() => /statements=mail/.test(window.location.hash) && /bank=other/.test(window.location.hash) && /subject=Izvadak/.test(window.location.hash), { timeout: 5_000 }).catch(() => {
+    throw new Error('the mail typed did not reach the address, so a trip to Google would lose it')
+  })
+  await shoot('onboarding-access-mail-other')
+  await allowGoogle(page, press, { shoot: shootMail, inspect })
+  const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ledgerboard.google-needed') ?? '[]'))
+  if (JSON.stringify(asked) !== JSON.stringify(['drive.file', 'gmail.readonly'])) throw new Error(`the access step asked Google for ${asked.join(', ')}, not Gmail read beside the books file alone`)
+  await onboardingAt(page, 'folder')
+  await pressSelector(page, press, '[data-testid="onboarding-choose-folder"]')
+  await page.waitForSelector('[data-testid="onboarding-folder-confirm"] [data-testid="onboarding-folder-statements"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the folder confirm does not name the statements folder the app makes')
+  })
+  await inspect?.('the folder confirm with the statements folder')
+  await shoot('onboarding-folder-mail')
+  await pressSelector(page, press, '[data-testid="onboarding-create"]')
+  await toastMatching(page, /^Created ledgerboard-company\.json in Books$/)
+  await dismissToasts(page)
+  await onboardingAt(page, 'company')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'statement')
+  await page.waitForSelector('[data-testid="onboarding-statements-mail"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the statement step does not say where each sync files the mail')
+  })
+  if (await page.$('[data-testid="onboarding-statements-folder"]')) throw new Error('statements from mail are offered a Drive folder to choose')
+  await inspect?.('the statement step with statements from mail')
+  await shoot('onboarding-statement-mail')
+  await pressSelector(page, press, '[data-testid="onboarding-skip"]')
+  await onboardingAt(page, 'overview')
+  const lines = await setUpLines(page)
+  if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
+
+  await syncAndSettle(page, press)
+  const control = await controlShows(page, 'problems')
+  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
+  await press(await syncButton(page))
+  await stepSays(page, '', 'mail', 'done', /Filed \d+/)
+  await stepSays(page, '', 'statements', 'waits', /1 statement was not filed/)
+  await delay(400)
+  await inspect?.('the first sync of books whose statements come from mail')
+  await shoot('onboarding-mail-sync')
+}
+
+/**
  * New books in this browser: no Google at all. The company step names the company, the statement
- * is skipped, and Getting set up's first line opens Import.
+ * step says such books take statements by hand and is skipped, and Getting set up's first line
+ * opens Import.
  */
 export async function onboardingBrowserFlow(page, { press, shoot, inspect }) {
   await onboardingAt(page, 'welcome')
@@ -2201,6 +2343,7 @@ export async function onboardingBrowserFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
   await onboardingAt(page, 'statement')
   if (await page.$('[data-testid="onboarding-statements-folder"]')) throw new Error('books kept in this browser are offered a statements folder')
+  if (!(await page.$('[data-testid="onboarding-statements-by-hand"]'))) throw new Error('the statement step does not say books kept in this browser take statements by hand')
   await pressSelector(page, press, '[data-testid="onboarding-skip"]')
   await onboardingAt(page, 'overview')
   await page.waitForSelector('[data-testid="local-status"]', { timeout: 10_000 }).catch(() => {
@@ -2275,18 +2418,52 @@ export async function onboardingOpenFlow(page, { press, shoot, inspect }) {
   await onboardingAt(page, 'overview')
 }
 
-/** Settings, This device: the books kept in this browser move to a new file on the fake Drive through onboarding's access and folder steps. */
+/**
+ * Settings, This device: the books kept in this browser move to a new file on the fake Drive through
+ * onboarding's access and folder steps. The access step asks for the Drive read their statements
+ * and accountant folders need, so the folder confirm names the full path, and the sync control
+ * shows no Allow access once they are there.
+ */
 export async function moveFromBrowserFlow(page, { press, shoot, inspect }) {
   await pageSays(page, 'Kept in this browser', true)
   await pressSelector(page, press, '[data-testid="keep-on-drive"]')
+  await onboardingAt(page, 'access')
+  await page.waitForSelector(`${STEP} [data-scope="drive.readonly"]`, { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('the access step of the move does not name the Drive read the books need')
+  })
   await allowGoogle(page, press, { shoot, inspect })
-  await confirmFolder(page, press, { shoot, inspect }, 'Books, inside folders the app cannot see')
+  const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ledgerboard.google-needed') ?? '[]'))
+  if (JSON.stringify(asked) !== JSON.stringify(['drive.file', 'drive.readonly'])) throw new Error(`the move asked Google for ${asked.join(', ')}, not the books file and Drive read`)
+  await confirmFolder(page, press, { shoot, inspect }, 'My Drive › Books')
   await toastMatching(page, MOVED)
   await onboardingAt(page, 'overview')
   await dismissToasts(page)
+  await controlShows(page, 'ready')
   await deviceShowsDriveFile(page)
   await inspect?.('this device once moved')
   await shoot('moved-from-browser')
+}
+
+/**
+ * The statement step of statements from a Drive folder on a page whose token lacks Drive read, as
+ * after a reload: Choose folder asks Google in the same tap before the Picker, so the folder comes
+ * back with its path, and nothing points to a sync control onboarding does not show.
+ */
+export async function onboardingStatementAccessFlow(page, { press, shoot, inspect }) {
+  await page.evaluate(() => localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
+  await page.reload({ waitUntil: 'networkidle0' })
+  await onboardingAt(page, 'statement')
+  await pressButton(page, press, '[data-testid="onboarding-statements-folder"] button', 'Choose folder')
+  await page.waitForFunction(() => document.querySelector('[data-testid="onboarding-statements-folder"]')?.textContent?.includes('My Drive › Books') ?? false, { timeout: 10_000 }).catch(async () => {
+    const said = await page.$eval(STEP, (element) => element.textContent ?? '')
+    throw new Error(`the statement step does not show the folder chosen with its path, it says: ${said}`)
+  })
+  if ((await page.$eval(STEP, (element) => element.textContent ?? '')).includes('sync control')) throw new Error('the statement step points to the sync control')
+  const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('ledgerboard.google-granted') ?? '[]'))
+  if (!granted.includes('drive.readonly')) throw new Error(`Choose folder asked Google for ${granted.join(', ')}, without Drive read`)
+  await inspect?.('the statement step once Drive read was asked in the tap')
+  await shoot('onboarding-statement-access')
+  await page.evaluate(() => localStorage.removeItem('ledgerboard.google-granted'))
 }
 
 function queueLength(page) {

@@ -1,16 +1,19 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
-import { civilDate, startOfDayIn, today } from '../../../shared/calendar/civilDate'
+import { startOfDayIn, today } from '../../../shared/calendar/civilDate'
 import { sha256Hex } from '../../../shared/files/sha256'
 import { currentToken } from '../../../shared/google/googleAuth'
+import { folderReadScope, scopesOf } from '../../../shared/google/googleScopes'
 import { loadImportFile } from '../../imports/infrastructure/importFiles'
 import { installedPack, shownPack } from '../../packs/packContribution'
 import type { SyncStep } from '../../sync/application/sync'
+import type { SyncScope } from '../../sync/domain/syncRun'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { fileMail, hasProblem, planLine } from '../application/mailFiling'
 import type { MailFolders, MailPlan, MailSource, Mailbox } from '../application/mailFiling'
 import { statementMailSource } from '../application/statementMailSource'
+import { mailSinceDefault } from '../domain/mailSource'
 import { gmailMailbox } from '../infrastructure/gmailMailbox'
 import { googleMailFolders } from '../infrastructure/googleMailFolders'
 
@@ -38,7 +41,19 @@ function isOn(workbook: Workbook): boolean {
   return sourcesOf(workbook).some((source) => source.terms(workbook) !== null)
 }
 
-async function openMail(): Promise<{ readonly mailbox: Mailbox; readonly folders: MailFolders }> {
+/** Gmail read, and for the folders of the sources that run the scope each one is read with: Drive read from My Drive, the books file's scope from the folder of the books file. */
+function mailScopes(workbook: Workbook | null): SyncScope[] {
+  if (workbook === null) {
+    return ['gmail.readonly']
+  }
+  const folders = sourcesOf(workbook).flatMap((source) => {
+    const terms = source.terms(workbook)
+    return terms === null ? [] : [terms.folder]
+  })
+  return scopesOf(['gmail.readonly', ...folders.map(folderReadScope)])
+}
+
+async function openMail(workbook: Workbook, booksFileId: string): Promise<{ readonly mailbox: Mailbox; readonly folders: MailFolders }> {
   // Inline, not hoisted, so a production build folds the fake away.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const { fakeMailbox, fakeMailFolders } = await import('../infrastructure/fake/fakeMailbox')
@@ -46,11 +61,11 @@ async function openMail(): Promise<{ readonly mailbox: Mailbox; readonly folders
     return { mailbox: fakeMailbox(variant), folders: fakeMailFolders(variant) }
   }
   const mail = currentToken('gmail.readonly')
-  const drive = currentToken('drive.readonly')
+  const drive = currentToken(mailScopes(workbook).includes('drive.readonly') ? 'drive.readonly' : 'drive.file')
   if (mail === null || drive === null) {
     throw new Error('The Google access ran out. Sync again.')
   }
-  return { mailbox: gmailMailbox(mail), folders: googleMailFolders(drive) }
+  return { mailbox: gmailMailbox(mail), folders: googleMailFolders(drive, booksFileId) }
 }
 
 export interface MailSync {
@@ -71,16 +86,16 @@ export function useMailSync(): MailSync {
     step: {
       id: 'mail',
       label: 'Mail',
-      scopes: ['gmail.readonly', 'drive.readonly'],
+      scopes: mailScopes,
       startLine: 'Searching Gmail',
       on: isOn,
       async run(report) {
-        const workbook = store.state.workbook
-        if (workbook === null) {
+        const { workbook, choice } = store.state
+        if (workbook === null || choice?.source !== 'drive') {
           return { kind: 'done', line: 'Nothing to search before the books are read', writeId: null, link: null }
         }
-        const { mailbox, folders } = await openMail()
-        const since = workbook.settings.mailSince ?? civilDate(Number(today().slice(0, 4)), 1, 1)
+        const { mailbox, folders } = await openMail(workbook, choice.id)
+        const since = workbook.settings.mailSince ?? mailSinceDefault(today())
         try {
           state.plan = await fileMail({ mailbox, folders, sources: sourcesOf(workbook), workbook, sinceStart: startOfDayIn(since, DEVICE_TIME_ZONE), hash: sha256Hex, report })
         } catch (failure) {

@@ -166,11 +166,25 @@ describe('statements_folder', () => {
     expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, Cell]))).settings).toEqual(settings)
   })
 
-  it('reports a path that names no folder and keeps the default', () => {
-    const { settings, problems } = parseSettings(rows(['statements_folder', ' / ']))
+  it('reads a path from the folder of the books file after ./, as onboarding writes it for statements from mail', () => {
+    const { settings, problems } = parseSettings(rows(['statements_folder', './statements']))
 
-    expect(settings.statementsFolder).toEqual(DEFAULT_SETTINGS.statementsFolder)
-    expect(problems).toEqual([settingProblem('statements_folder', '"/" names no folder, so the default is used')])
+    expect(problems).toEqual([])
+    expect(settings.statementsFolder).toEqual(['.', 'statements'])
+    expect(settingsTabEntries(settings, null)).toContainEqual({ key: 'statements_folder', value: './statements' })
+  })
+
+  it('reports a path that names no folder, or holds . after its start, and keeps the default', () => {
+    for (const [value, reason] of [
+      [' / ', '"/" names no folder'],
+      ['./', '"./" names no folder'],
+      ['finance/./statements', '"finance/./statements" holds . after its start, where it names no folder'],
+    ] as const) {
+      const { settings, problems } = parseSettings(rows(['statements_folder', value]))
+
+      expect(settings.statementsFolder).toEqual(DEFAULT_SETTINGS.statementsFolder)
+      expect(problems).toEqual([settingProblem('statements_folder', `${reason}, so the default is used`)])
+    }
   })
 
   it('names no folder by default, so statements come in through Import, and is listed blank in the template', () => {

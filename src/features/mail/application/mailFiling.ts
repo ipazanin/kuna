@@ -72,7 +72,7 @@ export interface PlannedMail {
   readonly date: number
 }
 
-/** An attachment a rule named: its mail, its own name, and where it goes. `path` runs from My Drive down to the file's folder. */
+/** An attachment a rule named: its mail, its own name, and where it goes. `path` runs from the source's start, My Drive or the folder of the books file, down to the file's folder. */
 export interface PlacedAttachment {
   readonly mail: PlannedMail
   readonly attachment: string

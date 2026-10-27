@@ -13,11 +13,11 @@ export type KeptOnDrive = 'created' | 'moved'
 export interface KeepOnDrive {
   readonly keeping: Readonly<Ref<boolean>>
   /**
-   * Keeps the books in a new file in the folder, from a click, and says in a toast how it went: the
-   * file and where it is for new books, how many records moved for books brought along. Resolves to
-   * whether the books are now on Drive.
+   * Keeps the books in a new file in the folder, from a click, with the folders named made beside it,
+   * and says in a toast how it went: the file and where it is for new books, how many records moved
+   * for books brought along. Resolves to whether the books are now on Drive.
    */
-  keepOnDrive(folder: PickedFolder, document: WorkbookDocument, kept: KeptOnDrive): Promise<boolean>
+  keepOnDrive(folder: PickedFolder, document: WorkbookDocument, kept: KeptOnDrive, folders: readonly string[]): Promise<boolean>
 }
 
 export function useKeepOnDrive(): KeepOnDrive {
@@ -25,11 +25,11 @@ export function useKeepOnDrive(): KeepOnDrive {
   const toast = useToast()
   const keeping = ref(false)
 
-  async function keepOnDrive(folder: PickedFolder, document: WorkbookDocument, kept: KeptOnDrive): Promise<boolean> {
+  async function keepOnDrive(folder: PickedFolder, document: WorkbookDocument, kept: KeptOnDrive, folders: readonly string[]): Promise<boolean> {
     const before = store.state.choice
     keeping.value = true
     try {
-      await store.keepOnDrive(folder.id, document)
+      await store.keepOnDrive(folder.id, document, folders)
     } finally {
       keeping.value = false
     }

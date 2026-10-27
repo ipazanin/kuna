@@ -4,8 +4,18 @@ import { gettingSetUp } from '../src/features/onboarding/presentation/gettingSet
 import { readDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
 import type { WorkbookDocument } from '../src/features/workbook/infrastructure/documentFormat'
 import { newBooksDocument } from '../src/features/workbook/presentation/workbookFiles'
+import { statementSettingsOf } from '../src/features/onboarding/domain/statementsChoice'
+import type { StatementMail, StatementsSource } from '../src/features/onboarding/domain/onboardingSteps'
+import type { CivilDate } from '../src/shared/calendar/civilDate'
 
 const SAVED = '2026-10-26T09:00:00.000Z'
+
+const ERSTE: StatementMail = { bank: 'erste', from: '', subject: '', since: null }
+
+/** New books as onboarding makes them for a statements choice. */
+function newBooks(source: StatementsSource): WorkbookDocument {
+  return newBooksDocument(statementSettingsOf(source, ERSTE, '2026-10-26' as CivilDate), SAVED)
+}
 
 function read(document: WorkbookDocument) {
   return readDocument({ id: 'new', source: 'drive', title: 'ledgerboard-company.json', syncedAt: SAVED }, document)
@@ -24,7 +34,7 @@ function withRows(document: WorkbookDocument, values: Readonly<Record<string, st
 
 describe('new books', () => {
   it('hold an explicit row for every choice, statements by hand switching filing on sync off, and no account, row or folder', () => {
-    const document = newBooksDocument(false, SAVED)
+    const document = newBooks('hand')
     const rows = rowsOf(document)
 
     expect(rows).toMatchObject({
@@ -44,8 +54,25 @@ describe('new books', () => {
   })
 
   it('switch filing on sync on for statements from a Drive folder, which the statement step names', () => {
-    const rows = rowsOf(newBooksDocument(true, SAVED))
-    expect(rows).toMatchObject({ statements_sync: 'true', statements_folder: '' })
+    const rows = rowsOf(newBooks('folder'))
+    expect(rows).toMatchObject({ statements_sync: 'true', statements_folder: '', statements_mail_from: '', statements_mail_subject: '', mail_since: '' })
+  })
+
+  it('name the bank’s mail, mail since and the statements folder beside the books file for statements from mail, and never the accountant’s mail', () => {
+    const document = newBooks('mail')
+    expect(rowsOf(document)).toMatchObject({
+      statements_sync: 'true',
+      statements_folder: './statements',
+      statements_mail_from: 'netbanking.support@erstebank.hr',
+      statements_mail_subject: 'ERSTE Izvadak',
+      mail_since: '2026-01-01',
+      hr_accountant_mail_from: '',
+      hr_payroll_mail_subject: '',
+    })
+    const { workbook, records } = read(document)
+    expect(workbook.settings).toMatchObject({ statementsSync: true, statementsFolder: ['.', 'statements'], statementsMailFrom: ['netbanking.support@erstebank.hr'], mailSince: '2026-01-01' })
+    expect(workbook.problems).toEqual([])
+    expect(gettingSetUp(workbook, records.settings).map((line) => line.key)).toEqual(['first-statement', 'categories'])
   })
 })
 
@@ -56,7 +83,7 @@ describe('getting set up', () => {
   }
 
   it('lists what new books lack, and each line goes once it is done', () => {
-    const fresh = newBooksDocument(true, SAVED)
+    const fresh = newBooks('folder')
     expect(keysOf(fresh)).toEqual(['first-statement', 'statements-folder', 'categories'])
 
     const croatian = withRows(fresh, { owner_pay_module: true })
@@ -70,7 +97,7 @@ describe('getting set up', () => {
   })
 
   it('leaves the statements folder alone for statements by hand, and links each line to its screen', () => {
-    const { workbook, records } = read(newBooksDocument(false, SAVED))
+    const { workbook, records } = read(newBooks('hand'))
     expect(gettingSetUp(workbook, records.settings)).toEqual([
       { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: { path: '/transactions', query: { tab: 'import' } } } },
       { key: 'categories', text: 'Look over the categories, which are still the ones new books start with', link: { label: 'Categories', to: { path: '/settings', query: { tab: 'categories' } } } },

@@ -36,6 +36,12 @@ const INTERACTION_REQUIRED = 'interaction_required'
 
 const STAYS_ON_PAGE = 'This page holds no Google access for this, and asking for it on a phone would leave the page. Sync or Allow access first, then try again.'
 
+/** What a tap's ask says when Google's popup never gave an answer, by the GIS error type. */
+const POPUP_FAILURES: Readonly<Record<string, string>> = {
+  popup_failed_to_open: "The browser blocked Google's window.",
+  popup_closed: "Google's window was closed before access was allowed.",
+}
+
 /** Where this page stands with Google. */
 export interface GoogleAccess {
   /** The scopes the page's token carries, or null while it holds none. */
@@ -187,8 +193,11 @@ export function askSilentlyOnOpen(): boolean {
  */
 export async function requestAccess(scopes: readonly GoogleScope[], resume: RedirectResume | null): Promise<void> {
   const asked = scopesOf(['drive.file', ...(needed ?? []), ...scopes])
-  // Inline, not hoisted, so a production build folds the fake away. The fake build's Google grants everything asked.
+  // Inline, not hoisted, so a production build folds the fake away. The fake build's Google grants everything asked, unless `?fake=google-closed` closes its window.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
+    if (new URLSearchParams(window.location.search).get('fake') === 'google-closed') {
+      throw new Error(POPUP_FAILURES.popup_closed)
+    }
     keepToken({ value: 'fake-token', scopes: asked, expiresAt: Date.now() + 3_600_000 }, asked, 'tap')
     return
   }
@@ -217,7 +226,7 @@ export async function requestAccess(scopes: readonly GoogleScope[], resume: Redi
         resolve({ value: response.access_token, scopes: scopesIn(response.scope), expiresAt: requestedAt + Number(response.expires_in) * 1000 })
       },
       error_callback: (failure) => {
-        reject(new Error(`The Google popup did not complete: ${failure.type} ${failure.message}`.trim()))
+        reject(new Error(POPUP_FAILURES[failure.type] ?? `Google's window did not finish: ${failure.type} ${failure.message}`.trim()))
       },
     })
     client.requestAccessToken()

@@ -5,6 +5,7 @@ import { dryRunFor, statementReadings } from '../src/features/imports/applicatio
 import { accountNamedIn, fileShapeOf } from '../src/features/imports/domain/profileGuess'
 import { statementFilesToRead } from '../src/features/imports/domain/statementFiles'
 import { FAKE_FOLDERS } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
+import type { FakeMadeFile } from '../src/features/workbook/infrastructure/fake/fakeFolderFiles'
 import { fakeStatementFolder } from '../src/features/imports/infrastructure/fake/fakeStatementFolder'
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtLabel, sampleCamtXml, sampleTableGrid } from '../src/features/imports/infrastructure/fake/sampleImportFiles'
 import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
@@ -72,10 +73,20 @@ describe('the fake build’s statements folder', () => {
     expect(statementReadings(loaded, workbook, null)).toMatchObject([{ statement: { account: '', label: sampleCamtLabel(1) }, newAccount: { iban: 'XX43FAKE0000000000000003', currency: 'EUR' } }])
   })
 
+  it('lists the statements folder new books from mail make beside the books file, which holds only what a sync filed there', async () => {
+    const made: FakeMadeFile[] = [
+      { folder: ['.', 'statements'], folders: ['2026-statements'], name: 'filed-from-mail.xml', created: '2026-10-27T06:00:00.000Z', bytes: new ArrayBuffer(0), appProperties: {} },
+      { folder: [...FAKE_FOLDERS.statements], folders: ['2026-statements'], name: 'filed-elsewhere.xml', created: '2026-10-27T06:00:00.000Z', bytes: new ArrayBuffer(0), appProperties: {} },
+    ]
+    const listing = await fakeStatementFolder('empty', made).files(['.', 'statements'])
+
+    expect(listing).toEqual({ kind: 'listed', files: [{ id: 'fake-made-0', name: 'filed-from-mail.xml' }] })
+  })
+
   it('refuses any other path, and a download of a statement it holds only the name of', async () => {
     const folder = fakeStatementFolder(null)
 
-    expect(await folder.files(['work', 'statements'])).toEqual({ kind: 'refused', reason: `The fake Drive holds statements only in ${FAKE_FOLDERS.statements.join('/')}, not in work/statements.` })
+    expect(await folder.files(['work', 'statements'])).toEqual({ kind: 'refused', reason: `The fake Drive holds statements only in ${FAKE_FOLDERS.statements.join('/')} and ./statements, not in work/statements.` })
     await expect(folder.download({ id: 'fake-statement-1', name: 'filed.xml' })).rejects.toThrow('holds only the name of filed.xml')
   })
 })

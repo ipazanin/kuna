@@ -18,7 +18,7 @@ import type { RecordProblem } from '../../workbook/domain/workbook'
 import { sharedKeys } from '../../workbook/domain/sharedKeys'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
-import { folderPathOf } from '../../../shared/text/folderPath'
+import { BOOKS_FOLDER, folderPathOf } from '../../../shared/text/folderPath'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
@@ -52,7 +52,7 @@ export interface Settings {
   readonly invoicing: InvoicingTerms
   /** How each bank's spreadsheet export reads, from the `import_profile_<name>` keys, in tab order. */
   readonly importProfiles: readonly ImportProfile[]
-  /** The Drive folder the bank's camt statements are filed in, as folder names from My Drive down. None until one is chosen. */
+  /** The Drive folder the bank's camt statements are filed in, as folder names from My Drive down, or from the folder of the books file after a first `.`. None until one is chosen. */
   readonly statementsFolder: readonly string[]
   /** Whether a sync files the new statements of that folder, once one is named. */
   readonly statementsSync: boolean
@@ -439,12 +439,13 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   ...INVOICING_DEFINITIONS,
   {
     key: 'statements_folder',
-    note: 'The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside. Blank names none, and statements come in through Import.',
+    note: 'The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside, or from the folder of the books file when it starts with ./ as in ./statements. Blank names none, and statements come in through Import.',
     type: 'text',
     valueOf: (settings) => settings.statementsFolder.join('/'),
     apply: (settings, value) => {
       const folders = folderPathOf(value)
-      return folders.length === 0 ? `"${value}" names no folder` : { ...settings, statementsFolder: folders }
+      if (folders.slice(1).includes(BOOKS_FOLDER)) return `"${value}" holds ${BOOKS_FOLDER} after its start, where it names no folder`
+      return folders.filter((name) => name !== BOOKS_FOLDER).length === 0 ? `"${value}" names no folder` : { ...settings, statementsFolder: folders }
     },
   },
   {

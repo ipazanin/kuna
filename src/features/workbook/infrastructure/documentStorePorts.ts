@@ -1,3 +1,4 @@
+import { FOLDER_MIME_TYPE } from '../../../shared/google/driveClient'
 import type { RedirectResume } from '../../../shared/google/googleRedirect'
 import type { WorkbookStorePorts } from '../application/createWorkbookStore'
 import type { DocumentHome } from '../application/documentHome'
@@ -120,9 +121,15 @@ export function documentStorePorts(driveAccess: () => Promise<DriveAccess>, now:
 
     pickDriveFolder,
 
-    async createDriveFile(folderId, contents) {
+    async createDriveFile(folderId, contents, folders) {
       const access = await driveAccess()
       await refuseSecondFile(access.drive)
+      const inside = folders.length === 0 ? [] : await access.drive.children(folderId)
+      for (const name of folders) {
+        if (!inside.some((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === name)) {
+          await access.drive.createFolder(folderId, name)
+        }
+      }
       const document = { ...contents, savedAt: now() }
       const { fileId } = await createDriveDocument(access.drive, folderId, COMPANY_APP, encodeDocument(document))
       const created = await readFile(fileId, null, documentName(COMPANY_APP))

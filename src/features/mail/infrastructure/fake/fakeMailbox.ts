@@ -2,7 +2,7 @@ import { addDays, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { sha256Hex } from '../../../../shared/files/sha256'
 import { fold } from '../../../../shared/text/fold'
 import { sampleCamtLabel, sampleCamtXml } from '../../../imports/infrastructure/fake/sampleImportFiles'
-import { PAGE_FAKE_MADE_FILES, sampleStatementByMail } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
+import { FAKE_BOOKS_STATEMENTS, PAGE_FAKE_MADE_FILES, sampleStatementByMail } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
 import type { FakeMadeFile } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
 import { FAKE_FOLDERS, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import type { FiledFile, MailFolders, Mailbox } from '../../application/mailFiling'
@@ -176,13 +176,13 @@ export function fakeMailbox(variant: string | null): Mailbox {
 }
 
 /**
- * The fake folders the mail goes into, at the paths the fake books name, which hold what another app
- * filed and what a sync made, kept in `made`, the page's files unless a test gives others.
- * `?fake=mail-upload-failed` fails the upload of every PDF, so a statement's PDF fails beside its XML.
+ * The fake folders the mail goes into, at the paths the fake books name and the statements folder
+ * new books from mail make beside the books file. They hold what another app filed and what a sync
+ * made, kept in `made`, the page's files unless a test gives others. `?fake=mail-upload-failed` fails the upload of every PDF, so a statement's PDF fails beside its XML.
  */
 export function fakeMailFolders(variant: string | null, made: FakeMadeFile[] = PAGE_FAKE_MADE_FILES): MailFolders {
   const filed = fakeFiled(variant)
-  const known = [FAKE_FOLDERS.statements, FAKE_FOLDERS.payroll, FAKE_FOLDERS.vatReturns, FAKE_FOLDERS.incomingInvoices].map((folder) => folder.join('/'))
+  const known = [FAKE_FOLDERS.statements, FAKE_BOOKS_STATEMENTS, FAKE_FOLDERS.payroll, FAKE_FOLDERS.vatReturns, FAKE_FOLDERS.incomingInvoices].map((folder) => folder.join('/'))
   return {
     async filesIn(folder, below) {
       const where = folder.join('/')

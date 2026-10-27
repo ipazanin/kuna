@@ -564,7 +564,7 @@ describe('workbook store with a workbook kept in this browser', () => {
 
     const folder = await store.pickBooksFolder()
     expect(chosen()?.source).toBe('browser')
-    await store.keepOnDrive(folder!.id, document)
+    await store.keepOnDrive(folder!.id, document, [])
 
     const choice = chosen()!
     used.add(choice.id)
@@ -582,13 +582,29 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.open()
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    await store.keepOnDrive(side.pickedFolder, documentOf([10, 20, 30]))
+    await store.keepOnDrive(side.pickedFolder, documentOf([10, 20, 30]), [])
 
     const choice = chosen()!
     used.add(choice.id)
     expect(choice).toMatchObject({ source: 'drive', name: 'ledgerboard-company.json' })
     expect(store.state.workbook?.transactions).toHaveLength(3)
     expect(used.has('local-1')).toBe(false)
+  })
+
+  it('makes the folders asked for beside the new file, and finds the one it made on an earlier try instead of making a second', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    side.pickedFolder = await side.drive.createFolder('root', 'books')
+    const madeBefore = await side.drive.createFolder(side.pickedFolder, 'statements')
+
+    await store.keepOnDrive(side.pickedFolder, documentOf([10]), ['statements', 'inbox'])
+
+    used.add(chosen()!.id)
+    const inside = await side.drive.children(side.pickedFolder)
+    expect(inside.filter((entry) => entry.name === 'statements').map((entry) => entry.id)).toEqual([madeBefore])
+    expect(inside.map((entry) => entry.name).sort()).toEqual(['inbox', 'ledgerboard-company.json', 'statements'])
   })
 
   it('confirms a picked folder by its path from My Drive with Drive read access, and by its name alone without it, writing nothing', async () => {
@@ -629,9 +645,10 @@ describe('workbook store with a workbook kept in this browser', () => {
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
     await expect(store.pickBooksFolder()).rejects.toThrow(/Drive already holds ledgerboard-company.json/)
-    await store.keepOnDrive(side.pickedFolder, documentOf([10]))
+    await store.keepOnDrive(side.pickedFolder, documentOf([10]), ['statements'])
 
     expect(store.state.error).toMatch(/Drive already holds ledgerboard-company.json/)
+    expect(await side.drive.children(side.pickedFolder)).toEqual([])
     expect(store.state.choice?.source).toBe('browser')
     expect(await storedCopy('local-1')).not.toBeNull()
   })
