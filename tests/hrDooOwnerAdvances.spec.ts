@@ -4,7 +4,9 @@ import { netOwed, ownerAdvances } from '../src/apps/company/packs/hr-doo/domain/
 import { ownerLoans } from '../src/apps/company/packs/hr-doo/domain/ownerLoans'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { bookingOfAdvance } from '../src/apps/company/workbook/domain/workbook'
-import type { OwnerAdvance } from '../src/apps/company/workbook/domain/workbook'
+import type { OwnerAdvance, Workbook } from '../src/apps/company/workbook/domain/workbook'
+import { unaccountedInView } from '../src/apps/company/packs/hr-doo/presentation/unaccountedInView'
+import type { FilteredLedger } from '../src/apps/company/transactions/application/useFilteredLedger'
 import { categoryTotals } from '../src/apps/company/spending/domain/categoryTotals'
 import { monthlyProfitAndLoss } from '../src/apps/company/trends/domain/monthlyProfitAndLoss'
 import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from '../src/apps/company/filters/domain/filterState'
@@ -78,6 +80,19 @@ describe('owner advances', () => {
     const settled = ownerAdvances(settledAdvances, ledgerRows, PACK_CATEGORIES)
     expect(settled.unaccounted).toEqual([])
     expect(netOwed(ownerLoans(ledgerRows, PACK_CATEGORIES), settled, PACK_CATEGORIES).amount).toBe(euros(1000))
+  })
+
+  it('matches every cost on file before a filter picks the unaccounted payments in view, so an account filter does not list covered payments', () => {
+    const ledgerRows = rows([
+      { date: '2026-02-15', amount: -100, category: 'reimbursement-to-owner', account: 'erste' },
+      { date: '2026-03-28', amount: -45, category: 'reimbursement-to-owner', account: 'otp' },
+    ])
+    const booked = { ownerAdvances: [advance('2026-01-20', 100)], transactions: ledgerRows, categories: PACK_CATEGORIES } as unknown as Workbook
+    const inView = (filters: FilterState) => unaccountedInView({ booked, filters } as FilteredLedger).map((line) => line.payment.date)
+
+    expect(inView(DEFAULT_FILTERS)).toEqual([civil('2026-03-28')])
+    expect(inView({ ...DEFAULT_FILTERS, accounts: ['erste', 'otp'] })).toEqual([civil('2026-03-28')])
+    expect(inView({ ...DEFAULT_FILTERS, accounts: ['erste'] })).toEqual([])
   })
 
   it('drills each unaccounted reimbursement to its own row', () => {
