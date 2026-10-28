@@ -11,7 +11,7 @@ export function offlineApp(): Plugin {
   let config: ResolvedConfig
 
   return {
-    name: 'ledgerboard:offline-app',
+    name: 'kuna:offline-app',
     apply: 'build',
     configResolved(resolvedConfig) {
       config = resolvedConfig
@@ -35,7 +35,7 @@ export function offlineApp(): Plugin {
       }
 
       const configuration = {
-        cachePrefix: `ledgerboard-app:${config.base}:`,
+        cachePrefix: `kuna-app:${config.base}:`,
         release: release.digest('hex').slice(0, 20),
         shell: `${config.base}index.html`,
         assets: filenames.map((filename) => `${config.base}${filename}`),

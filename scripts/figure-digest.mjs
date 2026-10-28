@@ -4,7 +4,7 @@
  * of them. It never prints a figure, so it is safe on a real export, and two trees compare with diff.
  *
  *   npm run check:figures -- --fake <drive, browser, one-employee or five-employees> [--today yyyy-mm-dd]
- *   npm run check:figures -- --workbook <path to an xlsx export or a ledgerboard file> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--today yyyy-mm-dd]
  */
 
 import { createHash } from 'node:crypto'

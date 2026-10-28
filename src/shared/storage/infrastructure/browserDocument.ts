@@ -17,7 +17,7 @@ type DocumentDatabase = Dexie & {
 }
 
 function openDatabase(documentId: string): DocumentDatabase {
-  const database = new Dexie(`ledgerboard-document-${documentId}`) as DocumentDatabase
+  const database = new Dexie(`kuna-document-${documentId}`) as DocumentDatabase
   database.version(1).stores({ document: 'key' })
   return database
 }

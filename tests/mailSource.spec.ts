@@ -107,10 +107,10 @@ describe('a mail source', () => {
   it('marks a filed file with its source, the mail’s Gmail id and the mail’s date, each property within the 124 bytes Drive keeps with its key', () => {
     const properties = filedMailProperties('hr-doo.vat-returns', { id: '19a3f2c4b5d6e7f8', date: Date.parse('2026-10-14T12:00:00Z') })
 
-    expect(properties).toEqual({ 'ledgerboard-mail': 'hr-doo.vat-returns', 'ledgerboard-mail-id': '19a3f2c4b5d6e7f8', 'ledgerboard-mail-date': '2026-10-14T12:00:00.000Z' })
-    expect(Object.entries(properties).map(([key, value]) => new TextEncoder().encode(`${key}${value}`).length)).toEqual([34, 35, 45])
-    expect(() => filedMailProperties('statements', { id: 'x'.repeat(106), date: 0 })).toThrow('Its ledgerboard-mail-id property would be longer than the 124 bytes Drive keeps')
-    expect(filedMailProperties('statements', { id: 'x'.repeat(105), date: 0 })['ledgerboard-mail-id']).toHaveLength(105)
+    expect(properties).toEqual({ 'kuna-mail': 'hr-doo.vat-returns', 'kuna-mail-id': '19a3f2c4b5d6e7f8', 'kuna-mail-date': '2026-10-14T12:00:00.000Z' })
+    expect(Object.entries(properties).map(([key, value]) => new TextEncoder().encode(`${key}${value}`).length)).toEqual([27, 28, 38])
+    expect(() => filedMailProperties('statements', { id: 'x'.repeat(113), date: 0 })).toThrow('Its kuna-mail-id property would be longer than the 124 bytes Drive keeps')
+    expect(filedMailProperties('statements', { id: 'x'.repeat(112), date: 0 })['kuna-mail-id']).toHaveLength(112)
   })
 
   it('reads its senders as a comma-separated list in lower case, and refuses what is not a mail address', () => {

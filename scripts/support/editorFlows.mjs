@@ -1354,7 +1354,7 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
 
 /** Makes the next load's token come without Drive read, as when the person unticked it on Google's consent screen. */
 async function withoutDriveRead(page) {
-  await page.evaluate(() => localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
+  await page.evaluate(() => localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
   await page.reload({ waitUntil: 'networkidle0' })
 }
 
@@ -1444,7 +1444,7 @@ const ALL_SOURCES = ['statements:planned', 'hr-doo.payroll:planned', 'hr-doo.vat
  */
 export async function mailOffFlow(page, { press, shoot, inspect }) {
   await page.evaluate(() => {
-    for (const key of ['ledgerboard.google-granted', 'ledgerboard.google-needed']) localStorage.removeItem(key)
+    for (const key of ['kuna.google-granted', 'kuna.google-needed']) localStorage.removeItem(key)
   })
   await page.reload({ waitUntil: 'networkidle0' })
   await syncAndSettle(page, press)
@@ -1590,7 +1590,7 @@ export async function mailFailedFlow(page, { press, shoot, inspect }) {
 
 /** A token without Gmail read shows Allow access for the mail step as the app opens, and that tap runs it. */
 export async function mailAccessFlow(page, { press, shoot, inspect }) {
-  await page.evaluate(() => localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose'])))
+  await page.evaluate(() => localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose'])))
   await page.reload({ waitUntil: 'networkidle0' })
   const control = await controlShows(page, 'allow-access')
   if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
@@ -1610,8 +1610,8 @@ export async function mailAccessFlow(page, { press, shoot, inspect }) {
  */
 export async function mailSaveAsksFlow(page, { press, shoot, inspect }) {
   await page.evaluate(() => {
-    for (const key of ['ledgerboard.google-needed', 'ledgerboard.google-silent-refused']) localStorage.removeItem(key)
-    localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
+    for (const key of ['kuna.google-needed', 'kuna.google-silent-refused']) localStorage.removeItem(key)
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
   })
   await page.reload({ waitUntil: 'networkidle0' })
   await controlShows(page, 'ready')
@@ -1629,12 +1629,12 @@ export async function mailSaveAsksFlow(page, { press, shoot, inspect }) {
   if (!/^Filed 1, already there 3, 1 unmatched\.$/.test(lines[0] ?? '')) throw new Error(`the sync after the save reads the bank's mail as "${lines[0]}"`)
   const control = await controlShows(page, 'ready')
   if (control.label === 'Allow access') throw new Error('the sync control asks for access after a save that asked for it')
-  const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('ledgerboard.google-granted') ?? '[]'))
+  const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('kuna.google-granted') ?? '[]'))
   if (!granted.includes('gmail.readonly')) throw new Error(`the save asked Google for ${granted.join(', ')}, without Gmail read`)
   await scrollToTop(page, MAIL_CARD)
   await inspect?.('the mail card saved with Gmail read asked in the same tap')
   await shoot('mail-save-asks')
-  await page.evaluate(() => localStorage.removeItem('ledgerboard.google-granted'))
+  await page.evaluate(() => localStorage.removeItem('kuna.google-granted'))
 }
 
 /** Waits until the switch under the test id is on or off, and returns it. */
@@ -1756,7 +1756,7 @@ export async function mailWindowFlow(page, { press, shoot, inspect }) {
  * what a screen reader hears and the top bar button's tooltip, and no toast shows.
  */
 export async function accessClosedFlow(page, { press, shoot, inspect }) {
-  await page.evaluate(() => localStorage.setItem('ledgerboard.google-silent-refused', 'interaction_required'))
+  await page.evaluate(() => localStorage.setItem('kuna.google-silent-refused', 'interaction_required'))
   await page.reload({ waitUntil: 'networkidle0' })
   await controlShows(page, 'allow-access')
   await press(await syncButton(page))
@@ -1778,7 +1778,7 @@ export async function accessClosedFlow(page, { press, shoot, inspect }) {
   await noToast(page, "a closed Google window showed a toast")
   await inspect?.("the sync control after Google's window closed")
   await shoot('sync-access-closed')
-  await page.evaluate(() => localStorage.removeItem('ledgerboard.google-silent-refused'))
+  await page.evaluate(() => localStorage.removeItem('kuna.google-silent-refused'))
 }
 
 /** Review: open the gadget purchase in the queue, then split it, edit and delete the split and Undo, as on Transactions. */
@@ -2137,7 +2137,7 @@ async function deviceShowsDriveFile(page, saved = false) {
   await page.waitForFunction(() => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === 'Books', { timeout: 10_000 }).catch(() => {
     throw new Error('Settings, This device does not name the Books folder the file sits in')
   })
-  await pageSays(page, 'ledgerboard-company.json', true)
+  await pageSays(page, 'kuna-company.json', true)
   await pageSays(page, 'None yet. The first save of a day makes one.', !saved)
 }
 
@@ -2216,7 +2216,7 @@ export async function onboardingDriveFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
   await allowGoogle(page, press, { shoot, inspect })
   await confirmFolder(page, press, { shoot, inspect }, 'Books, inside folders the app cannot see')
-  await toastMatching(page, /^Created ledgerboard-company\.json in Books$/)
+  await toastMatching(page, /^Created kuna-company\.json in Books$/)
   await dismissToasts(page)
   await onboardingAt(page, 'company')
   await inspect?.('the company step')
@@ -2263,7 +2263,7 @@ export async function onboardingDriveReadFlow(page, { press, shoot, inspect }) {
   })
   await allowGoogle(page, press, { shoot, inspect })
   await confirmFolder(page, press, { shoot, inspect }, 'My Drive › Books')
-  await toastMatching(page, /^Created ledgerboard-company\.json in My Drive › Books$/)
+  await toastMatching(page, /^Created kuna-company\.json in My Drive › Books$/)
   await dismissToasts(page)
   await onboardingAt(page, 'company')
   await chooseOption(page, press, 'onboarding-pack', 'Yes')
@@ -2318,7 +2318,7 @@ export async function onboardingMailFlow(page, { press, shoot, inspect }) {
   })
   await shoot('onboarding-access-mail-other')
   await allowGoogle(page, press, { shoot: shootMail, inspect })
-  const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ledgerboard.google-needed') ?? '[]'))
+  const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('kuna.google-needed') ?? '[]'))
   if (JSON.stringify(asked) !== JSON.stringify(['drive.file', 'gmail.readonly'])) throw new Error(`the access step asked Google for ${asked.join(', ')}, not Gmail read beside the books file alone`)
   await onboardingAt(page, 'folder')
   await pressSelector(page, press, '[data-testid="onboarding-choose-folder"]')
@@ -2328,7 +2328,7 @@ export async function onboardingMailFlow(page, { press, shoot, inspect }) {
   await inspect?.('the folder confirm with the statements folder')
   await shoot('onboarding-folder-mail')
   await pressSelector(page, press, '[data-testid="onboarding-create"]')
-  await toastMatching(page, /^Created ledgerboard-company\.json in Books$/)
+  await toastMatching(page, /^Created kuna-company\.json in Books$/)
   await dismissToasts(page)
   await onboardingAt(page, 'company')
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
@@ -2460,7 +2460,7 @@ export async function moveFromBrowserFlow(page, { press, shoot, inspect }) {
     throw new Error('the access step of the move does not name the Drive read the books need')
   })
   await allowGoogle(page, press, { shoot, inspect })
-  const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ledgerboard.google-needed') ?? '[]'))
+  const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('kuna.google-needed') ?? '[]'))
   if (JSON.stringify(asked) !== JSON.stringify(['drive.file', 'drive.readonly'])) throw new Error(`the move asked Google for ${asked.join(', ')}, not the books file and Drive read`)
   await confirmFolder(page, press, { shoot, inspect }, 'My Drive › Books')
   await toastMatching(page, MOVED)
@@ -2478,7 +2478,7 @@ export async function moveFromBrowserFlow(page, { press, shoot, inspect }) {
  * back with its path, and nothing points to a sync control onboarding does not show.
  */
 export async function onboardingStatementAccessFlow(page, { press, shoot, inspect }) {
-  await page.evaluate(() => localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
+  await page.evaluate(() => localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
   await page.reload({ waitUntil: 'networkidle0' })
   await onboardingAt(page, 'statement')
   await pressButton(page, press, '[data-testid="onboarding-statements-folder"] button', 'Choose folder')
@@ -2487,11 +2487,11 @@ export async function onboardingStatementAccessFlow(page, { press, shoot, inspec
     throw new Error(`the statement step does not show the folder chosen with its path, it says: ${said}`)
   })
   if ((await page.$eval(STEP, (element) => element.textContent ?? '')).includes('sync control')) throw new Error('the statement step points to the sync control')
-  const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('ledgerboard.google-granted') ?? '[]'))
+  const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('kuna.google-granted') ?? '[]'))
   if (!granted.includes('drive.readonly')) throw new Error(`Choose folder asked Google for ${granted.join(', ')}, without Drive read`)
   await inspect?.('the statement step once Drive read was asked in the tap')
   await shoot('onboarding-statement-access')
-  await page.evaluate(() => localStorage.removeItem('ledgerboard.google-granted'))
+  await page.evaluate(() => localStorage.removeItem('kuna.google-granted'))
 }
 
 function queueLength(page) {

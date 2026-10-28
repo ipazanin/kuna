@@ -53,7 +53,7 @@ describe('the document as the file holds it', () => {
 
     expect(text.split('\n')).toEqual([
       '{',
-      '  "format": "ledgerboard",',
+      '  "format": "kuna",',
       '  "app": "company",',
       '  "schema": {"core":1,"hr-doo":1},',
       `  "savedAt": "${SAVED_AT}",`,
@@ -73,8 +73,8 @@ describe('the document as the file holds it', () => {
     expect(decodeDocument(text)).toEqual(document)
   })
 
-  it('refuses a file that is not a ledgerboard document', () => {
-    expect(() => decodeDocument('{"format":"something else","records":{}}')).toThrow('The file is not a ledgerboard file.')
+  it('refuses a file that is not a Kuna document', () => {
+    expect(() => decodeDocument('{"format":"something else","records":{}}')).toThrow('The file is not a Kuna file.')
     expect(() => decodeDocument('not json')).toThrow('does not read as JSON')
   })
 })

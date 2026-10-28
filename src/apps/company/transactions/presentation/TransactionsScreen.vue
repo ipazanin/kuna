@@ -457,7 +457,7 @@ const columns: TableColumn<TableEntry>[] = [
 const COLUMN_COUNT = columns.length
 
 function exportCsv(): void {
-  downloadFile(transactionsCsv(rows.value), `ledgerboard-transactions-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8')
+  downloadFile(transactionsCsv(rows.value), `kuna-transactions-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8')
 }
 </script>
 

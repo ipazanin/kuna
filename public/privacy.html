@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="description" content="What Ledgerboard reads, where it keeps your data, and how to revoke its access." />
+    <meta name="description" content="What Kuna reads, where it keeps your data, and how to revoke its access." />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <title>Ledgerboard privacy</title>
+    <title>Kuna privacy</title>
     <style>
       :root {
         color-scheme: light;
@@ -149,20 +149,20 @@
         </svg>
         <h1>Privacy</h1>
       </header>
-      <p class="lead">Ledgerboard is a web page that works out company finance figures in your browser. Updated 27 October 2026.</p>
+      <p class="lead">Kuna is a web page that works out company finance figures in your browser. Updated 27 October 2026.</p>
 
       <article>
         <section>
           <h2>What the app asks Google for</h2>
           <p>
-            Each permission is shown with the words Google uses for it on its consent screen, then what Ledgerboard does with it. Where
+            Each permission is shown with the words Google uses for it on its consent screen, then what Kuna does with it. Where
             that screen lets you untick one, the app skips what needs it and shows "Allow access" in its sync control.
           </p>
           <ul>
             <li>
               <code>drive.file</code>, "See, edit, create, and delete only the specific Google Drive files you use with this app". Always
               asked. It covers the files and folders you pick in Google's file picker and the files the app makes. The app reads and saves
-              your books in <code>ledgerboard-company.json</code>, the file it makes in the folder you pick, and reads the names of that
+              your books in <code>kuna-company.json</code>, the file it makes in the folder you pick, and reads the names of that
               folder and of the backups beside the file. When you make an invoice, it lists the folders inside the invoice folder you
               picked, and files the PDF there. When a sync files your bank's statement mail or a kind of your accountant's mail you
               switched on, it makes the files, and a missing year or month folder, in that mail's folder.
@@ -194,16 +194,16 @@
             </li>
           </ul>
           <p>
-            Ledgerboard is not verified by Google. Google shows a warning on its consent screen for the restricted permissions
+            Kuna is not verified by Google. Google shows a warning on its consent screen for the restricted permissions
             <code>drive.readonly</code>, <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users
             Google allows an unverified app.
           </p>
-          <p>A file you open or drop on the page, an .xlsx workbook or a ledgerboard file, is read in this browser only.</p>
+          <p>A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only.</p>
         </section>
         <section>
           <h2>What the app writes</h2>
           <p>
-            In your books, only what you save, and only in <code>ledgerboard-company.json</code>: the records you add, change or delete,
+            In your books, only what you save, and only in <code>kuna-company.json</code>: the records you add, change or delete,
             and the bank statements a sync files on the ledger. Before each save it reads the file again, and it refuses when a record it means changed since. Each save
             keeps its revision of the file, and the first save of a day copies the file as it stood into a <code>backups</code> folder
             beside it. The app keeps the last 30 daily copies and the first of each month.
@@ -251,7 +251,7 @@
         <section>
           <h2>How to revoke access</h2>
           <p>
-            Remove Ledgerboard at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. To remove the copy in
+            Remove Kuna at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. To remove the copy in
             this browser, clear the site data for this page in your browser's settings.
           </p>
         </section>
@@ -261,7 +261,7 @@
         </section>
       </article>
 
-      <footer><a href="./">Back to Ledgerboard</a></footer>
+      <footer><a href="./">Back to Kuna</a></footer>
     </main>
   </body>
 </html>

@@ -214,7 +214,7 @@ describe("the accountant's resends", () => {
 
     const { folders, plan } = await planVat(mails, [], { ...FACTS, invoicesMailSync: true })
 
-    const properties = (source: string, id: string, at: string) => ({ 'ledgerboard-mail': source, 'ledgerboard-mail-id': id, 'ledgerboard-mail-date': new Date(at).toISOString() })
+    const properties = (source: string, id: string, at: string) => ({ 'kuna-mail': source, 'kuna-mail-id': id, 'kuna-mail-date': new Date(at).toISOString() })
     expect(folders.created.map((file) => [file.folder.join('/'), file.below.join('/'), file.name, file.content, file.properties])).toEqual([
       ['work/company/payroll', '2026-payroll/2026-09', '2026-09-salary.xlsx', 'salary 9', properties('hr-doo.payroll', 'payroll-09', '2026-10-05T08:30:00Z')],
       ['work/company/vat-returns', '2026-vat-returns', '2026-08-pdv.xlsx', 'vat 8', properties('hr-doo.vat-returns', 'vat-2026-09-14T12:00:00Z', '2026-09-14T12:00:00Z')],

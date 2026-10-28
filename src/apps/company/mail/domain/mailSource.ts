@@ -33,9 +33,9 @@ export type AttachmentNaming =
   | { readonly kind: 'unmatched'; readonly attachment: MailAttachment; readonly reason: string }
 
 /** The properties a file the app filed from mail carries: its source, the Gmail id of the mail, and the mail's date as an ISO time. */
-export const MAIL_SOURCE_PROPERTY = 'ledgerboard-mail'
-export const MAIL_ID_PROPERTY = 'ledgerboard-mail-id'
-export const MAIL_DATE_PROPERTY = 'ledgerboard-mail-date'
+export const MAIL_SOURCE_PROPERTY = 'kuna-mail'
+export const MAIL_ID_PROPERTY = 'kuna-mail-id'
+export const MAIL_DATE_PROPERTY = 'kuna-mail-date'
 
 /** Drive keeps a property only while its key and value together take at most 124 bytes of UTF-8. */
 const PROPERTY_MAX_BYTES = 124

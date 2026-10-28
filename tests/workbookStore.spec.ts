@@ -147,13 +147,13 @@ async function onDrive(side: DriveSide, document: WorkbookDocument, extra: Parti
   used.add(fileId)
   const cache = openWorkbookCache(fileId)
   await cache.replace({
-    meta: { id: fileId, source: 'drive', title: 'ledgerboard-company.json', syncedAt: '2026-10-15T06:00:00.000Z', lastExportedAt: null, unexportedSince: null, ...extra },
+    meta: { id: fileId, source: 'drive', title: 'kuna-company.json', syncedAt: '2026-10-15T06:00:00.000Z', lastExportedAt: null, unexportedSince: null, ...extra },
     revision: stored.revision,
     document,
   })
   cache.close()
   side.drive.requests.length = 0
-  return { source: 'drive', id: fileId, name: 'ledgerboard-company.json' }
+  return { source: 'drive', id: fileId, name: 'kuna-company.json' }
 }
 
 /** Another device saves the file with these records added. */
@@ -281,7 +281,7 @@ describe('workbook store with a Drive file', () => {
     used.add(fileId)
     await store.chooseDriveFile('find')
 
-    expect(chosen()).toEqual({ source: 'drive', id: fileId, name: 'ledgerboard-company.json' })
+    expect(chosen()).toEqual({ source: 'drive', id: fileId, name: 'kuna-company.json' })
     expect(store.state.workbook?.transactions).toHaveLength(2)
   })
 
@@ -291,18 +291,18 @@ describe('workbook store with a Drive file', () => {
     const store = storeOf(ports)
     await store.open()
     const folderId = await side.drive.createFolder('root', 'backups')
-    const backup = await side.drive.createFile(folderId, 'ledgerboard-company-2026-10-24.json', encodeDocument(documentOf([1])))
-    const personal = await side.drive.createFile(folderId, 'ledgerboard-personal.json', encodeDocument({ ...documentOf([1]), app: 'personal' }))
+    const backup = await side.drive.createFile(folderId, 'kuna-company-2026-10-24.json', encodeDocument(documentOf([1])))
+    const personal = await side.drive.createFile(folderId, 'kuna-personal.json', encodeDocument({ ...documentOf([1]), app: 'personal' }))
     used.add(backup.id)
     used.add(personal.id)
 
     side.pickedFile = backup.id
     await store.chooseDriveFile('find')
-    expect(store.state.error).toMatch(/ledgerboard-company-2026-10-24\.json is a backup/)
+    expect(store.state.error).toMatch(/kuna-company-2026-10-24\.json is a backup/)
 
     side.pickedFile = personal.id
     await store.chooseDriveFile('find')
-    expect(store.state.error).toMatch(/another ledgerboard app, personal/)
+    expect(store.state.error).toMatch(/another Kuna app, personal/)
     expect(chosen()).toBeNull()
     expect(store.state.workbook).toBeNull()
   })
@@ -316,18 +316,18 @@ describe('workbook store with a Drive file', () => {
     await store.chooseDriveFile('find')
     expect(chosen()).toEqual(marked)
     const folderId = await side.drive.createFolder('root', 'copies')
-    const copy = await side.drive.createFile(folderId, 'ledgerboard-company copy.json', encodeDocument(documentOf([1, 2, 3])))
+    const copy = await side.drive.createFile(folderId, 'kuna-company copy.json', encodeDocument(documentOf([1, 2, 3])))
     used.add(copy.id)
 
     side.pickedFile = copy.id
     await store.chooseDriveFile('pick')
 
-    expect(chosen()).toEqual({ source: 'drive', id: copy.id, name: 'ledgerboard-company copy.json' })
+    expect(chosen()).toEqual({ source: 'drive', id: copy.id, name: 'kuna-company copy.json' })
     expect(store.state.workbook?.transactions).toHaveLength(3)
     expect(side.signIns).toEqual(['find', 'pick'])
   })
 
-  it('refuses a backup, another app’s file or a JSON file that is no ledgerboard file picked, and keeps the workbook on screen', async () => {
+  it('refuses a backup, another app’s file or a JSON file that is no Kuna file picked, and keeps the workbook on screen', async () => {
     const side = driveSide()
     const { ports, chosen } = harness(null, side)
     const store = storeOf(ports)
@@ -335,8 +335,8 @@ describe('workbook store with a Drive file', () => {
     const marked = await onDrive(side, documentOf([1]))
     await store.chooseDriveFile('find')
     const folderId = await side.drive.createFolder('root', 'elsewhere')
-    const backup = await side.drive.createFile(folderId, 'ledgerboard-company-2026-10-24.json', encodeDocument(documentOf([1, 2])))
-    const personal = await side.drive.createFile(folderId, 'ledgerboard-personal.json', encodeDocument({ ...documentOf([1, 2]), app: 'personal' }))
+    const backup = await side.drive.createFile(folderId, 'kuna-company-2026-10-24.json', encodeDocument(documentOf([1, 2])))
+    const personal = await side.drive.createFile(folderId, 'kuna-personal.json', encodeDocument({ ...documentOf([1, 2]), app: 'personal' }))
     const settings = await side.drive.createFile(folderId, 'settings.json', JSON.stringify({ theme: 'dark' }))
     used.add(backup.id)
     used.add(personal.id)
@@ -344,15 +344,15 @@ describe('workbook store with a Drive file', () => {
 
     side.pickedFile = backup.id
     await store.chooseDriveFile('pick')
-    expect(store.state.error).toMatch(/ledgerboard-company-2026-10-24\.json is a backup/)
+    expect(store.state.error).toMatch(/kuna-company-2026-10-24\.json is a backup/)
 
     side.pickedFile = personal.id
     await store.chooseDriveFile('pick')
-    expect(store.state.error).toMatch(/another ledgerboard app, personal/)
+    expect(store.state.error).toMatch(/another Kuna app, personal/)
 
     side.pickedFile = settings.id
     await store.chooseDriveFile('pick')
-    expect(store.state.error).toBe('The file is not a ledgerboard file.')
+    expect(store.state.error).toBe('The file is not a Kuna file.')
 
     expect(chosen()).toEqual(marked)
     expect(store.state.workbook?.transactions).toHaveLength(1)
@@ -429,8 +429,8 @@ describe('workbook store with a Drive file', () => {
     expect(await store.driveFilePlace()).toEqual({ folderId, folderName: 'books', lastBackup: null })
 
     const backups = await side.drive.createFolder(folderId, 'backups')
-    await side.drive.createFile(backups, 'ledgerboard-company-2026-10-20.json', '')
-    await side.drive.createFile(backups, 'ledgerboard-company-2026-10-22.json', '')
+    await side.drive.createFile(backups, 'kuna-company-2026-10-20.json', '')
+    await side.drive.createFile(backups, 'kuna-company-2026-10-22.json', '')
     await side.drive.createFile(backups, 'notes.json', '')
 
     expect(await store.driveFilePlace()).toEqual({ folderId, folderName: 'books', lastBackup: '2026-10-22' })
@@ -569,8 +569,8 @@ describe('workbook store with a workbook kept in this browser', () => {
 
     const choice = chosen()!
     used.add(choice.id)
-    expect(choice).toMatchObject({ source: 'drive', name: 'ledgerboard-company.json' })
-    expect(side.drive.file(choice.id)).toMatchObject({ name: 'ledgerboard-company.json', parents: [side.pickedFolder], appProperties: { ledgerboard: COMPANY_APP } })
+    expect(choice).toMatchObject({ source: 'drive', name: 'kuna-company.json' })
+    expect(side.drive.file(choice.id)).toMatchObject({ name: 'kuna-company.json', parents: [side.pickedFolder], appProperties: { kuna: COMPANY_APP } })
     expect(decodeDocument(await side.drive.download(choice.id)).records).toEqual(document.records)
     expect(store.state.workbook?.transactions).toHaveLength(2)
     expect(await storedCopy('local-1')).toBeNull()
@@ -587,7 +587,7 @@ describe('workbook store with a workbook kept in this browser', () => {
 
     const choice = chosen()!
     used.add(choice.id)
-    expect(choice).toMatchObject({ source: 'drive', name: 'ledgerboard-company.json' })
+    expect(choice).toMatchObject({ source: 'drive', name: 'kuna-company.json' })
     expect(store.state.workbook?.transactions).toHaveLength(3)
     expect(used.has('local-1')).toBe(false)
   })
@@ -605,7 +605,7 @@ describe('workbook store with a workbook kept in this browser', () => {
     used.add(chosen()!.id)
     const inside = await side.drive.children(side.pickedFolder)
     expect(inside.filter((entry) => entry.name === 'statements').map((entry) => entry.id)).toEqual([madeBefore])
-    expect(inside.map((entry) => entry.name).sort()).toEqual(['inbox', 'ledgerboard-company.json', 'statements'])
+    expect(inside.map((entry) => entry.name).sort()).toEqual(['inbox', 'kuna-company.json', 'statements'])
   })
 
   it('confirms a picked folder by its path from My Drive with Drive read access, and by its name alone without it, writing nothing', async () => {
@@ -645,10 +645,10 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    await expect(store.pickBooksFolder()).rejects.toThrow(/Drive already holds ledgerboard-company.json/)
+    await expect(store.pickBooksFolder()).rejects.toThrow(/Drive already holds kuna-company.json/)
     await store.keepOnDrive(side.pickedFolder, documentOf([10]), ['statements'])
 
-    expect(store.state.error).toMatch(/Drive already holds ledgerboard-company.json/)
+    expect(store.state.error).toMatch(/Drive already holds kuna-company.json/)
     expect(await side.drive.children(side.pickedFolder)).toEqual([])
     expect(store.state.choice?.source).toBe('browser')
     expect(await storedCopy('local-1')).not.toBeNull()

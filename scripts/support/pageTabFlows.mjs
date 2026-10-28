@@ -52,7 +52,7 @@ export async function pageTabsFlow(page, { press, shoot }) {
   await pressTab(page, press, 'Categories')
   await until(page, (state) => state.hash.includes('tab=categories') && state.open?.startsWith('Categories'), 'Categories did not open with tab=categories in the address')
   await pressTab(page, press, 'Accounts')
-  await until(page, (state) => state.hash.includes('tab=accounts') && state.title === 'Settings, Accounts – Ledgerboard', 'Accounts did not reach the address and the browser title')
+  await until(page, (state) => state.hash.includes('tab=accounts') && state.title === 'Settings, Accounts – Kuna', 'Accounts did not reach the address and the browser title')
   await shoot('page-tabs-accounts')
 
   await page.evaluate(() => history.back())
@@ -60,7 +60,7 @@ export async function pageTabsFlow(page, { press, shoot }) {
   await page.evaluate(() => history.back())
   await until(
     page,
-    (state) => !state.hash.includes('tab=') && state.open?.startsWith('General') && state.title === 'Settings, General – Ledgerboard',
+    (state) => !state.hash.includes('tab=') && state.open?.startsWith('General') && state.title === 'Settings, General – Kuna',
     'the second Back did not return to General with no tab in the address',
   )
 

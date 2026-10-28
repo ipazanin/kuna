@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Ledgerboard",
-  "short_name": "Ledgerboard",
+  "name": "Kuna",
+  "short_name": "Kuna",
   "description": "Company finance dashboards computed in the browser, over books kept as a JSON file on Google Drive or in the browser.",
   "lang": "en",
   "start_url": "./",
@@ -10,8 +10,8 @@
   "background_color": "#0d1219",
   "theme_color": "#0d1219",
   "icons": [
-    { "src": "icons/ledgerboard-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/ledgerboard-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/ledgerboard-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icons/kuna-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/kuna-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/kuna-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

@@ -149,7 +149,7 @@ describe('reading an xlsx file', () => {
     expect(preview.recordCount).toBe(5)
   })
 
-  it('opens a ledgerboard file such as a backup, and refuses one a newer app saved or another app keeps', async () => {
+  it('opens a Kuna file such as a backup, and refuses one a newer app saved or another app keeps', async () => {
     const document = newDocument(
       COMPANY_APP,
       installedSchema(),
@@ -160,11 +160,11 @@ describe('reading an xlsx file', () => {
       },
       '2026-10-16T08:00:00.000Z',
     )
-    const backup = new File([encodeDocument(document)], 'ledgerboard-company-2026-10-16.json')
+    const backup = new File([encodeDocument(document)], 'kuna-company-2026-10-16.json')
 
     const preview = await previewImport(backup)
     const newer = await previewImport(new File([encodeDocument({ ...document, schema: { ...document.schema, core: 99 } })], 'newer.json'))
-    const otherApp = await previewImport(new File([encodeDocument({ ...document, app: 'household' })], 'ledgerboard-household.json')).catch((error: unknown) => error)
+    const otherApp = await previewImport(new File([encodeDocument({ ...document, app: 'household' })], 'kuna-household.json')).catch((error: unknown) => error)
 
     expect(preview.document).toEqual(document)
     expect(preview.title).toBe('Example Studio')
@@ -175,7 +175,7 @@ describe('reading an xlsx file', () => {
       { name: 'a-later-kind', count: 1 },
     ])
     expect(newer.summary.refusal).toBe(NEWER_FILE)
-    expect((otherApp as Error).message).toMatch(/holds the books of another ledgerboard app, household/)
+    expect((otherApp as Error).message).toMatch(/holds the books of another Kuna app, household/)
   })
 
   it('says plainly when a file is not a workbook at all, and keeps the reason it failed', async () => {
@@ -189,7 +189,7 @@ describe('reading an xlsx file', () => {
     expect((failure as Error).cause).toBeInstanceOf(Error)
     expect(logged).toHaveBeenCalledWith('Reading broken.xlsx failed', (failure as Error).cause)
     logged.mockRestore()
-    expect((await previewImport(new File(['not a spreadsheet'], 'notes.txt'))).summary.refusal).toMatch(/not a Ledgerboard workbook/)
+    expect((await previewImport(new File(['not a spreadsheet'], 'notes.txt'))).summary.refusal).toMatch(/not a Kuna workbook/)
   })
 
   it.each(FOREIGN_WORKBOOK_FILES)('reads $name, which another program wrote', async (foreignFile) => {
@@ -337,7 +337,7 @@ describe('exporting', () => {
   it('names the file after the company, or else the workbook, and the day', () => {
     const day = new Date(2026, 9, 16)
 
-    expect(exportFileName({ title: 'Books', settings: { ...DEFAULT_SETTINGS, companyName: 'Đurić & Co.' } }, day)).toBe('ledgerboard-duric-co-2026-10-16.xlsx')
-    expect(exportFileName({ title: 'Shadow accounting', settings: DEFAULT_SETTINGS }, day)).toBe('ledgerboard-shadow-accounting-2026-10-16.xlsx')
+    expect(exportFileName({ title: 'Books', settings: { ...DEFAULT_SETTINGS, companyName: 'Đurić & Co.' } }, day)).toBe('kuna-duric-co-2026-10-16.xlsx')
+    expect(exportFileName({ title: 'Shadow accounting', settings: DEFAULT_SETTINGS }, day)).toBe('kuna-shadow-accounting-2026-10-16.xlsx')
   })
 })

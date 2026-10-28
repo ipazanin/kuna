@@ -1,6 +1,6 @@
 /** Whether each collapsible card is open is remembered on this device, under one key per screen and card. */
 
-const KEY_PREFIX = 'ledgerboard.card.'
+const KEY_PREFIX = 'kuna.card.'
 
 /** What this device last chose for the card, or null when it chose nothing or storage is denied. */
 export function storedCollapse(cardId: string): boolean | null {

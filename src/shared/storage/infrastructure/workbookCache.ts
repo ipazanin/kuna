@@ -15,7 +15,7 @@ type WorkbookDatabase = Dexie & {
 }
 
 function workbookDatabaseName(workbookId: string): string {
-  return `ledgerboard-workbook-${workbookId}`
+  return `kuna-workbook-${workbookId}`
 }
 
 /**

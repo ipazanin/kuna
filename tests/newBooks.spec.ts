@@ -18,7 +18,7 @@ function newBooks(source: StatementsSource): WorkbookDocument {
 }
 
 function read(document: WorkbookDocument) {
-  return readDocument({ id: 'new', source: 'drive', title: 'ledgerboard-company.json', syncedAt: SAVED }, document)
+  return readDocument({ id: 'new', source: 'drive', title: 'kuna-company.json', syncedAt: SAVED }, document)
 }
 
 /** The value of each settings row the document holds, a row without a value as blank. */

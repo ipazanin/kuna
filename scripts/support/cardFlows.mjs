@@ -16,7 +16,7 @@ function cardState(card) {
     bodyInsideCard: body !== null && card.contains(body),
     bodyShown: body !== null && getComputedStyle(body).display !== 'none',
     summary: card.querySelector('[data-testid="card-summary"]')?.textContent?.trim() ?? '',
-    stored: localStorage.getItem(`ledgerboard.card.${card.dataset.card}`),
+    stored: localStorage.getItem(`kuna.card.${card.dataset.card}`),
   }
 }
 

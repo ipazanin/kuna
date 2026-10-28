@@ -6,10 +6,10 @@ import type { GoogleScope } from './googleScopes'
  * scopes Google granted and the ones the books need, and why Google refused this device's silent
  * trip. None of it is a secret, and no token is ever kept.
  */
-const ACCOUNT_EMAIL_KEY = 'ledgerboard.google-account'
-const GRANTED_KEY = 'ledgerboard.google-granted'
-const NEEDED_KEY = 'ledgerboard.google-needed'
-const SILENT_REFUSAL_KEY = 'ledgerboard.google-silent-refused'
+const ACCOUNT_EMAIL_KEY = 'kuna.google-account'
+const GRANTED_KEY = 'kuna.google-granted'
+const NEEDED_KEY = 'kuna.google-needed'
+const SILENT_REFUSAL_KEY = 'kuna.google-silent-refused'
 
 /** Kept only to pass as the login hint, so a new token skips Google's account chooser. */
 export function saveAccountEmail(email: string): void {

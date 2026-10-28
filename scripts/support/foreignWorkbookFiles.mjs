@@ -49,7 +49,7 @@ export const FOREIGN_WORKBOOK_FILES = [
         [new Date(Date.UTC(2026, 0, 9)), 'Isplata, Example Telecom', -35.5, 5164.5],
       ],
     },
-    expected: { refusal: 'The file has no tab called "ledger", so it is not a Ledgerboard workbook.' },
+    expected: { refusal: 'The file has no tab called "ledger", so it is not a Kuna workbook.' },
   },
 ]
 

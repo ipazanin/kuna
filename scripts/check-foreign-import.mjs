@@ -19,7 +19,7 @@ import { chromePath, firefoxPath } from './support/browsers.mjs'
 import { writeForeignWorkbookFiles } from './support/foreignWorkbookFiles.mjs'
 
 const browserName = process.argv.includes('--firefox') ? 'firefox' : 'chrome'
-const scratch = mkdtempSync(join(tmpdir(), 'ledgerboard-import-'))
+const scratch = mkdtempSync(join(tmpdir(), 'kuna-import-'))
 const foreignFiles = writeForeignWorkbookFiles(scratch)
 const brokenFile = join(scratch, 'broken.xlsx')
 writeFileSync(brokenFile, new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00]))

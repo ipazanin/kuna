@@ -59,7 +59,7 @@ const facts = computed(() => {
         color="error"
         variant="subtle"
         :title="preview.summary.refusal"
-        description="Open an Excel download of the Google Sheet, a file the app exported, or a ledgerboard file from the backups folder."
+        description="Open an Excel download of the Google Sheet, a file the app exported, or a Kuna file from the backups folder."
       />
       <template v-else>
         <dl class="grid gap-px sm:grid-cols-2 overflow-hidden rounded-control border border-default bg-[var(--border-default)]">

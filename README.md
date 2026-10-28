@@ -1,9 +1,9 @@
-# Ledgerboard
+# Kuna
 
 Company finance dashboards over a workbook of bank transactions, computed in the browser. The
-workbook is one JSON document, `ledgerboard-company.json`, in a Google Drive folder the user picks,
+workbook is one JSON document, `kuna-company.json`, in a Google Drive folder the user picks,
 or the same document kept in this browser. There is no backend. It deploys to GitHub Pages at
-`https://ipazanin.github.io/ledgerboard/`, with a privacy page at `privacy.html`.
+`https://ipazanin.github.io/kuna/`, with a privacy page at `privacy.html`.
 
 With the file on Drive, the app asks Google for `drive.file`, which covers files the user picks in
 the Google Picker or that the app creates, and for `openid email`, which tells it which account
@@ -36,13 +36,13 @@ ride along. A token counts as expired a minute before Google says. The code is i
 and comes straight back with one token. The tab leaves by replacing the page, so Back from the app
 does not land on a page that asks again. A scope never granted makes Google refuse the whole trip,
 so the trip asks only for the scopes Google granted that the books still need. Both lists are kept
-in `localStorage` (`ledgerboard.google-granted` and `ledgerboard.google-needed`), since they are no
+in `localStorage` (`kuna.google-granted` and `kuna.google-needed`), since they are no
 secret. A scope switched on since goes through a tap. A workbook kept in this browser, the fake
 build and an offline open never go to Google.
 
 **A device where it does not work.** Firefox on the Mac answers every silent trip with
 `interaction_required`. When Google refuses the silent trip, the device notes Google's error in
-`ledgerboard.google-silent-refused` and stops going to Google on open. The sync control then shows
+`kuna.google-silent-refused` and stops going to Google on open. The sync control then shows
 "Sign in to Google" for `login_required` and "Allow access" for any other error, and its tap asks
 Google with a screen where it needs one. A later token clears the note, except a note of
 `interaction_required`, which a tap's token does not disprove. Sign out clears it too.
@@ -137,7 +137,7 @@ a card. From 1024 px a button beside Sync in the sidebar opens the steps of the 
 Settings, This device has a Sync card with the same steps and the "Sync as the app opens" switch.
 
 **Sync as the app opens** is a switch of each device, on by default. Only an off is kept, in
-`localStorage` under `ledgerboard.auto-sync`. While it is on and the page's token is good, the app
+`localStorage` under `kuna.auto-sync`. While it is on and the page's token is good, the app
 syncs on open and whenever the tab becomes visible again, at most once every ten minutes after the
 last read or attempt (`src/apps/company/sync/application/autoSync.ts`). Off, the open also skips the
 silent trip to Google, so the device waits for a tap on Sync.
@@ -213,7 +213,7 @@ folder of its setting, such as `2026-statements` inside `statements`. Before it 
 lists the files of its year folders from the `mail_since` year to this one, and the folders inside
 them, the listing it compares names with anyway. Its search starts 7 days before the newest file
 there: for a file the app filed, the date of its mail, which the file carries in its Drive
-`appProperties` (`ledgerboard-mail` and `ledgerboard-mail-date`), and for any other file when Drive
+`appProperties` (`kuna-mail` and `kuna-mail-date`), and for any other file when Drive
 made it. So mail found already there, such as what an Apps Script filed while both ran, moves the
 window as mail the app filed does, and a sync never reads everything since `mail_since` again. The
 window never starts before the `mail_since` day on this device, the first day of last year when it
@@ -260,8 +260,8 @@ alone, so new books from mail never ask for Drive read. The accountant's folders
 Drive and need it. A year folder that is missing is made
 there, named by the same rule, and so is a missing month folder inside it for the payroll and the
 invoices. A name two folders share takes the first. Each file carries three
-`appProperties`: `ledgerboard-mail` with the source, `ledgerboard-mail-id` with the Gmail id of the
-mail, and `ledgerboard-mail-date` with the mail's time in ISO form, each key and value within the
+`appProperties`: `kuna-mail` with the source, `kuna-mail-id` with the Gmail id of the
+mail, and `kuna-mail-date` with the mail's time in ISO form, each key and value within the
 124 bytes Drive keeps. The next run's window starts from the newest of those dates and of the other
 files' times. An upload that fails leaves
 the others running, and the line names its file. Mail a week or more newer than a failed upload
@@ -291,7 +291,7 @@ The app is a PWA: a manifest with the brass mark as its icon, and a service work
 production build by `scripts/pwa.ts`. The worker caches every built file of a release, lazy screens,
 SheetJS and fonts included, so after one online visit the app opens offline on the workbook this
 browser holds. Requests to other origins, Google's scripts and APIs among them, never touch the
-cache. A new deploy downloads into its own cache and waits. "A new version of Ledgerboard is ready"
+cache. A new deploy downloads into its own cache and waits. "A new version of Kuna is ready"
 then offers Reload, and other open windows are told the same. Development and the fake build
 register no worker. On Android Chrome, install from the browser menu. Firefox on desktop has no
 install, and uses the same offline copy in a normal tab.
@@ -353,7 +353,7 @@ rank. A phone sets the ring above the list. A card with a long list or table, su
 as plan rows, invoices, rules or a tab editor, has a toggle at the end of its header. Collapsed,
 it shows its title and one summary line, such as the row count or a total. Each card opens
 expanded unless its screen says otherwise, and this device remembers the choice in `localStorage`
-under `ledgerboard.card.` and the card's id, such as `invoicing.months`. Without storage the card keeps
+under `kuna.card.` and the card's id, such as `invoicing.months`. Without storage the card keeps
 its state until the page reloads. A link into a collapsed card, such as a tile that opens a month,
 opens it first and is not remembered. A long list, such as the invoices on Invoicing or the
 categories on Analysis, Compare, shows its first ten entries, then "Show all" with the count. Tiles and short summaries do not collapse. A chart that is reference rather than the point of its
@@ -1480,7 +1480,7 @@ row that numbers the steps of the path. The order of each path is `stepsOf` in
 |---|---|
 | Start new books on Drive | Welcome, Home, Google, Folder, Company, Statement, then Overview |
 | Start new books in this browser | Welcome, Home, Company, Statement. No Google at all |
-| Bring my books (xlsx or ledgerboard file) to Drive | Welcome, Home, Google, File, Folder, Company |
+| Bring my books (xlsx or Kuna file) to Drive | Welcome, Home, Google, File, Folder, Company |
 | Bring my books into this browser | Welcome, Home, File, Company |
 | Open my books on Drive | Welcome, Google, Find |
 | Move the books kept in this browser to Drive | Google, Folder, from Settings, This device |
@@ -1511,9 +1511,9 @@ row that numbers the steps of the path. The order of each path is `stepsOf` in
   read the confirm shows the folder's path from My Drive, walked up through its parents. With the
   books file alone Drive answers 404 for the parents, so it shows the folder's name, says the
   folders above it are not visible to the app, and links to the folder in Drive. "Create the file
-  here" is the only action that writes: it makes `ledgerboard-company.json` with its mark, reads it
+  here" is the only action that writes: it makes `kuna-company.json` with its mark, reads it
   back and opens it only when it holds the same records. When Drive already holds a marked file the
-  step refuses before the Picker opens. The toast says "Created ledgerboard-company.json in My Drive
+  step refuses before the Picker opens. The toast says "Created kuna-company.json in My Drive
   › …" for new books, and "Moved N records" for books brought from a file or this browser.
 - **New books** carry a row for every setting, so they name each choice. `statementSettingsOf` in
   `domain/statementsChoice.ts` writes the statements rows: by hand turns `statements_sync` off with
@@ -1557,7 +1557,7 @@ Settings, This device names the workbook. For the file on Drive it gives the fol
 in with a link to it, "Open in Drive", the last save the file records, the newest daily backup and
 the last sync. The folder and the backup cost three Drive requests and are asked only while the page
 holds a token, since asking for one needs a click. A file a newer app saved says "A newer
-ledgerboard saved this file" there, and every save is refused with the same reason until the app is updated.
+version of Kuna saved this file" there, and every save is refused with the same reason until the app is updated.
 A workbook kept in this browser shows when it changed and when it was last exported, with "Keep on
 Google Drive", which moves it the same way and then deletes it here. A save that fails after its
 upload may have reached the file, such as one an edit from outside the app overtook, so its toast
@@ -1574,14 +1574,14 @@ deletes it, so the exported files are its only other copies until it moves to Dr
   `tax-refund` in the taxes bucket is for income tax refunds. `benefits-from-company-costs` in the
   owner-pay bucket carries the `owner-benefit` role.
 - **Open a file.** Open or drop an xlsx file, such as a download of the Google Sheet, or a
-  ledgerboard file, such as a backup from the Drive folder. It opens as the app's document, every
+  Kuna file, such as a backup from the Drive folder. It opens as the app's document, every
   ledger row with an id, and a summary shows before anything is replaced: transactions, dates,
   accounts, categories, the records of each tab with their total, and every problem. Then "Keep on
   Google Drive", through onboarding's Google and Folder steps, or "Keep in this browser" chooses
   where it lives. An xlsx file without a `ledger`
-  tab is refused, and so is a ledgerboard file a newer app saved or another app keeps.
+  tab is refused, and so is a Kuna file a newer app saved or another app keeps.
 - **Export.** From either home, "Export to Excel" writes the workbook in the template format as
-  `ledgerboard-<company or file name>-<yyyy-mm-dd>.xlsx`. Opening an export gives the same
+  `kuna-<company or file name>-<yyyy-mm-dd>.xlsx`. Opening an export gives the same
   workbook. When changes have gone a week or more without an export, the sidebar says so.
 - **Editing.** Every kind a person keeps by hand is edited the same way in both homes, as the
   *Settings screen* and *Write-back* describe. A change counts towards the export reminder.
@@ -1706,7 +1706,7 @@ grants and year-end tabs on the Year screen. Each of those is `FactTabCard` in
 The tabs are `PageTabs` in `src/shared/ui/`, which any screen with inner tabs uses: the tab is
 `?tab=` in the address and the first tab stays out of it, picking a tab adds a step to the history
 so Back returns to the tab before, and the arrow keys move between tabs without opening them. The
-browser tab reads "Settings, Categories – Ledgerboard". A strip wider than the screen scrolls inside
+browser tab reads "Settings, Categories – Kuna". A strip wider than the screen scrolls inside
 itself, with its open tab brought into view and its cut edges faded, and a phone shares its width
 between four tabs or fewer. What every tab follows, such as the filter bar of Analysis, goes in its
 `above` slot, so a phone still finds the Filters button at the end of the tab row. A bar of one tab
@@ -1775,7 +1775,7 @@ when the save renames or deletes it, with what uses it.
 
 ```sh
 npm install
-npm run dev            # http://localhost:5173/ledgerboard/, talks to Google
+npm run dev            # http://localhost:5173/kuna/, talks to Google
 npm run dev:fake       # same app on a small synthetic workbook, no Google needed
 npm run check          # typecheck and unit tests, the import boundaries among them
 npm run build          # production build into dist/, then checks no dev-only code shipped
@@ -1842,7 +1842,7 @@ statement and the accountant's PDFs beside the other files. `?fake=mail-rate-lim
 the retries, `?fake=mail-switches-off` leaves the accountant's kinds off, and `?fake=mail-no-sender`
 switches the payroll on without the accountant's address. `?fake=google-closed` closes
 Google's window on every tap that asks, as a person closing the popup does. The fake build never goes to Google. As it opens it holds
-a made-up token for the scopes `ledgerboard.google-granted` lists that the books need, every scope
+a made-up token for the scopes `kuna.google-granted` lists that the books need, every scope
 when it lists none,
 and "Allow access" grants every scope asked, so a check withholds Drive read by listing the scopes
 without it.
@@ -2120,8 +2120,8 @@ two devices saving at the same moment.
 
 ### The file on Drive
 
-The document is one file, `ledgerboard-company.json`, in a Drive folder the person picks, made with
-`drive.file` and marked with the `appProperties` `ledgerboard=company`, so a second device finds it
+The document is one file, `kuna-company.json`, in a Drive folder the person picks, made with
+`drive.file` and marked with the `appProperties` `kuna=company`, so a second device finds it
 by search. Drive refuses no stale upload, so the home in `driveDocument.ts` checks the revision
 itself. One home serves a file for as long as the page holds it, with a token getter rather than a
 token, so it remembers the day's backup. A save:
@@ -2139,7 +2139,7 @@ token, so it remembers the day's backup. A save:
 5. Reads back from memory, since the save knows what the file holds.
 
 A write makes five requests, the read and four for the save. The first save of a day first copies the base into a `backups`
-folder beside the file, as `ledgerboard-company-<yyyy-mm-dd>.json`, and keeps the last 30 days and
+folder beside the file, as `kuna-company-<yyyy-mm-dd>.json`, and keeps the last 30 days and
 the first of each month. Once more than 100 revisions are kept, the oldest are let go, since Drive
 refuses a 201st. A revision Drive did not keep, such as an edit through Drive for Desktop, cannot be
 read back, and the save says "The file changed outside the app during this save. Check the backups
@@ -2153,7 +2153,7 @@ the database was deleted and made again.
 
 ```json
 {
-  "format": "ledgerboard",
+  "format": "kuna",
   "app": "company",
   "schema": {"core":1,"hr-doo":1},
   "savedAt": "2026-10-23T08:00:00.000Z",
@@ -2174,7 +2174,7 @@ names of *The workbook format*. Every value is text except a flag, which is true
 `yyyy-mm-dd`, an amount the app writes is decimal text from its cents, and text that looks like a
 number stays as typed. A blank field is absent, and a field or a kind the app does not know is kept.
 `schema` holds a version per contributor, core and each pack. A file that names a higher version, or
-a contributor this app lacks, is read and never written: "This file was saved by a newer ledgerboard.
+a contributor this app lacks, is read and never written: "This file was saved by a newer version of Kuna.
 Reload to update before you change anything."
 
 An xlsx file opens as this document (`spreadsheetDocument.ts`): every row moves as stored, each cell
@@ -2219,7 +2219,7 @@ only accepts the origins it was created for. Restrict the API key to the Picker 
 referrers `https://<you>.github.io/*`, `http://localhost:5173/*` and `https://docs.google.com/*`.
 The Picker runs in an iframe on docs.google.com, so without that last entry it reports "The API
 developer key is invalid". Firefox sends only the origin as the referrer, so a path such as
-`/ledgerboard/*` in the pattern does not match. None of them is a
+`/kuna/*` in the pattern does not match. None of them is a
 secret, because all three end up in the page anyway. A missing one fails the first Google call
 with an error that names it.
 

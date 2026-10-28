@@ -135,7 +135,7 @@ export function documentStorePorts(driveAccess: () => Promise<DriveAccess>, now:
       refuseBackup(name, COMPANY_APP)
       const copy = await readFile(picked, null, name)
       if (copy.document.app !== COMPANY_APP) {
-        throw new Error(`The file picked holds the books of another ledgerboard app, ${copy.document.app}. Pick ${documentName(COMPANY_APP)}.`)
+        throw new Error(`The file picked holds the books of another Kuna app, ${copy.document.app}. Pick ${documentName(COMPANY_APP)}.`)
       }
       return copy
     },

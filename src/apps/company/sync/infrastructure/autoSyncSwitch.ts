@@ -1,6 +1,6 @@
 import { readonly, ref } from 'vue'
 
-const AUTO_SYNC_KEY = 'ledgerboard.auto-sync'
+const AUTO_SYNC_KEY = 'kuna.auto-sync'
 
 function storedSwitch(): string | null {
   try {

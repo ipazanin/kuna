@@ -10,7 +10,7 @@ import { templateColumnNames, templateColumns } from './workbookTemplate'
 import { EMPTY_TABS, WORKBOOK_TABS, sheetRowsFromValues } from './workbookSnapshot'
 import type { CellValue, SheetRow, WorkbookTab, WorkbookTabs } from './workbookSnapshot'
 
-const NOTE_AUTHOR = 'Ledgerboard'
+const NOTE_AUTHOR = 'Kuna'
 
 /** A tab as rows of cells, header first, each data row at its own row number. */
 export interface TabGrid {

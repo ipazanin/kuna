@@ -30,8 +30,8 @@ describe('what this device keeps about Google', () => {
     expect(loadGrantedScopes()).toEqual(['drive.file', 'gmail.compose'])
     expect(loadNeededScopes()).toEqual(['drive.readonly'])
 
-    localStorage.setItem('ledgerboard.google-granted', '{"drive.file":true}')
-    localStorage.setItem('ledgerboard.google-needed', 'not json')
+    localStorage.setItem('kuna.google-granted', '{"drive.file":true}')
+    localStorage.setItem('kuna.google-needed', 'not json')
     expect(loadGrantedScopes()).toBeNull()
     expect(loadNeededScopes()).toBeNull()
   })
@@ -51,10 +51,10 @@ describe('what this device keeps about Google', () => {
     saveNeededScopes(['drive.file'])
     saveSilentRefusal('login_required')
 
-    expect(Object.keys(localStorage).sort()).toEqual(['ledgerboard.google-account', 'ledgerboard.google-granted', 'ledgerboard.google-needed', 'ledgerboard.google-silent-refused'])
+    expect(Object.keys(localStorage).sort()).toEqual(['kuna.google-account', 'kuna.google-granted', 'kuna.google-needed', 'kuna.google-silent-refused'])
 
     forgetGoogleDevice()
 
-    expect(Object.keys(localStorage)).toEqual(['ledgerboard.google-needed'])
+    expect(Object.keys(localStorage)).toEqual(['kuna.google-needed'])
   })
 })

@@ -25,7 +25,7 @@ export function runSelection(widths) {
   const matched = new Set()
   const seen = new Set()
   return {
-    base: positionals[0] ?? 'http://localhost:4173/ledgerboard/',
+    base: positionals[0] ?? 'http://localhost:4173/kuna/',
     limited: only !== null || chosenWidths !== null,
     /** Whether the run takes this width. */
     takesWidth: (width) => chosenWidths === null || chosenWidths.includes(width),

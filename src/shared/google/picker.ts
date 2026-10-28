@@ -4,7 +4,7 @@ import { loadScript } from './loadScript'
 
 const GOOGLE_API_LOADER_SRC = 'https://apis.google.com/js/api.js'
 
-/** A folder, or a JSON file such as a ledgerboard document. */
+/** A folder, or a JSON file such as a Kuna document. */
 export type PickerKind = 'folder' | 'json'
 
 export interface PickedDocument {

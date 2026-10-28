@@ -95,7 +95,7 @@ async function startNewBooks(): Promise<void> {
       <div class="choice-body">
         <h3 class="text-sm font-medium text-highlighted">Open a file</h3>
         <p class="mt-1 text-sm text-muted">
-          An Excel workbook, such as a download of your Google Sheet, or a ledgerboard file from the backups folder. Check what it holds,
+          An Excel workbook, such as a download of your Google Sheet, or a Kuna file from the backups folder. Check what it holds,
           then keep it on Google Drive or in this browser.
         </p>
         <UFileUpload

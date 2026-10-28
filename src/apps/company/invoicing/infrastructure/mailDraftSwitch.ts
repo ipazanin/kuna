@@ -1,6 +1,6 @@
 import { readonly, ref } from 'vue'
 
-const DRAFT_PREFERENCE_KEY = 'ledgerboard.invoice-mail-draft'
+const DRAFT_PREFERENCE_KEY = 'kuna.invoice-mail-draft'
 
 function storedSwitch(): boolean {
   try {

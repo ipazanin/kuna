@@ -10,7 +10,7 @@ const { updateReady, applyUpdate } = useAppUpdate()
 <template>
   <div v-if="updateReady" class="update-prompt" role="status" data-testid="update-prompt">
     <UIcon name="i-lucide-sparkles" class="size-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-    <p class="min-w-0 flex-1 text-sm text-toned">A new version of Ledgerboard is ready.</p>
+    <p class="min-w-0 flex-1 text-sm text-toned">A new version of Kuna is ready.</p>
     <UButton label="Reload" icon="i-lucide-refresh-cw" size="sm" @click="applyUpdate" />
   </div>
 </template>

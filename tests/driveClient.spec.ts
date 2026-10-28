@@ -74,15 +74,15 @@ describe('driveClient', () => {
   it('creates a file with its metadata and content in one multipart upload', async () => {
     const sent = stubDrive(Response.json({ id: 'file-3', headRevisionId: 'rev-1' }))
 
-    const created = await createFile('token', { name: 'ledgerboard-company.json', mimeType: 'application/json', parents: ['folder-1'], appProperties: { ledgerboard: 'company' } }, '{}', ['id', 'headRevisionId'])
+    const created = await createFile('token', { name: 'kuna-company.json', mimeType: 'application/json', parents: ['folder-1'], appProperties: { kuna: 'company' } }, '{}', ['id', 'headRevisionId'])
 
     expect(created).toEqual({ id: 'file-3', headRevisionId: 'rev-1' })
     const [request] = sent
     expect([request!.method, request!.url.href]).toEqual(['POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id%2CheadRevisionId'])
-    const boundary = /^multipart\/related; boundary=(ledgerboard-[\w-]+)$/.exec(request!.headers.get('Content-Type')!)![1]!
+    const boundary = /^multipart\/related; boundary=(kuna-[\w-]+)$/.exec(request!.headers.get('Content-Type')!)![1]!
     expect(request!.body).toBe(
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
-        '{"name":"ledgerboard-company.json","mimeType":"application/json","parents":["folder-1"],"appProperties":{"ledgerboard":"company"}}' +
+        '{"name":"kuna-company.json","mimeType":"application/json","parents":["folder-1"],"appProperties":{"kuna":"company"}}' +
         `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n{}\r\n--${boundary}--`,
     )
   })
@@ -146,8 +146,8 @@ describe('driveClient', () => {
   it('searches by a property the app gave a file, the trashed ones left out', async () => {
     const sent = stubDrive(Response.json({ files: [{ id: 'file-1' }] }))
 
-    expect(await filesWithAppProperty('token', 'ledgerboard', 'company', ['id'])).toEqual([{ id: 'file-1' }])
-    expect(sent[0]!.url.searchParams.get('q')).toBe("appProperties has { key='ledgerboard' and value='company' } and trashed = false")
+    expect(await filesWithAppProperty('token', 'kuna', 'company', ['id'])).toEqual([{ id: 'file-1' }])
+    expect(sent[0]!.url.searchParams.get('q')).toBe("appProperties has { key='kuna' and value='company' } and trashed = false")
     expect(sent[0]!.url.searchParams.get('fields')).toBe('nextPageToken,files(id)')
   })
 

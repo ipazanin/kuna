@@ -37,7 +37,7 @@ assert.ok(builtFiles.has('sw.js'), 'The production build must contain a service 
 const missingAsset = filenames.find((filename) => filename.endsWith('.woff2'))
 assert.ok(missingAsset, 'Expected bundled fonts to exercise a failed precache installation.')
 
-const scratch = mkdtempSync(join(tmpdir(), 'ledgerboard-pwa-'))
+const scratch = mkdtempSync(join(tmpdir(), 'kuna-pwa-'))
 const templateFile = await writeFakeTemplateFile(join(scratch, 'filled-template.xlsx'))
 
 const mimeTypes = {

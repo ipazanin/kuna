@@ -136,8 +136,8 @@ export async function renderInvoicePdf(invoice: InvoiceDocument, fonts: InvoiceF
   document.registerFontkit(fontkit)
   document.setTitle(`Invoice ${invoice.number}`)
   document.setAuthor(invoice.issuer.name)
-  document.setCreator('Ledgerboard')
-  document.setProducer('Ledgerboard')
+  document.setCreator('Kuna')
+  document.setProducer('Kuna')
   const [regular, bold, italic] = await Promise.all([faceOf(document, fonts.regular), faceOf(document, fonts.bold), faceOf(document, fonts.italic)])
   const page = document.addPage([PAGE_WIDTH, PAGE_HEIGHT])
   const { issuer, recipient } = invoice

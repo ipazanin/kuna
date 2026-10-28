@@ -21,7 +21,7 @@ function ledgerRow(amount: string): DocumentRecord {
 
 function copyOf(workbookId: string, ledger: DocumentRecord[], revision = 'rev-1', syncedAt = '2026-10-15T08:00:00.000Z'): DocumentCopy {
   return {
-    meta: { id: workbookId, source: 'drive', title: 'ledgerboard-company.json', syncedAt, lastExportedAt: null, unexportedSince: null },
+    meta: { id: workbookId, source: 'drive', title: 'kuna-company.json', syncedAt, lastExportedAt: null, unexportedSince: null },
     revision,
     document: {
       app: 'company',
@@ -94,7 +94,7 @@ describe('workbook cache', () => {
   })
 
   it('opens a database that held the tabs of a Sheet, and reads nothing from it', async () => {
-    const old = new Dexie('ledgerboard-workbook-sheet-g')
+    const old = new Dexie('kuna-workbook-sheet-g')
     old.version(8).stores({ meta: 'key', ledger: 'sheetRow' })
     await old.table('meta').put({ key: 'workbook', id: 'sheet-g' })
     old.close()

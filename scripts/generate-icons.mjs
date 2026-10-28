@@ -11,10 +11,10 @@ import { launch } from 'puppeteer-core'
 import { chromePath } from './support/browsers.mjs'
 
 const ICONS = [
-  { mark: 'ledgerboard-maskable.svg', file: 'ledgerboard-180.png', size: 180 },
-  { mark: 'ledgerboard.svg', file: 'ledgerboard-192.png', size: 192 },
-  { mark: 'ledgerboard.svg', file: 'ledgerboard-512.png', size: 512 },
-  { mark: 'ledgerboard-maskable.svg', file: 'ledgerboard-maskable-512.png', size: 512 },
+  { mark: 'kuna-maskable.svg', file: 'kuna-180.png', size: 180 },
+  { mark: 'kuna.svg', file: 'kuna-192.png', size: 192 },
+  { mark: 'kuna.svg', file: 'kuna-512.png', size: 512 },
+  { mark: 'kuna-maskable.svg', file: 'kuna-maskable-512.png', size: 512 },
 ]
 
 const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--no-sandbox'] })

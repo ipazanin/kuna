@@ -80,18 +80,18 @@ describe('theme on this device', () => {
     chooseTheme('light')
     device.change(false)
 
-    expect(localStorage.getItem('ledgerboard.theme')).toBe('light')
+    expect(localStorage.getItem('kuna.theme')).toBe('light')
     expect(activeTheme.value).toBe('light')
     expect(document.documentElement.classList.contains('light')).toBe(true)
   })
 
   it('forgets the stored choice on System and takes the device setting again', () => {
-    localStorage.setItem('ledgerboard.theme', 'dark')
+    localStorage.setItem('kuna.theme', 'dark')
     const device = fakeDevice(true)
     expect(applyInitialTheme()).toBe('dark')
 
     chooseTheme('system')
-    expect(localStorage.getItem('ledgerboard.theme')).toBeNull()
+    expect(localStorage.getItem('kuna.theme')).toBeNull()
     expect(activeTheme.value).toBe('light')
 
     device.change(false)

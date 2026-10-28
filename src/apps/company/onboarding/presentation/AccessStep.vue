@@ -164,7 +164,7 @@ async function ask(): Promise<void> {
 
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="Google did not answer" :description="failure" />
     <div class="flex flex-col gap-1 text-xs text-muted">
-      <p v-if="restricted && !answered">Google first says it has not verified this app. Choose Advanced, then Go to ledgerboard.</p>
+      <p v-if="restricted && !answered">Google first says it has not verified this app. Choose Advanced, then Go to Kuna.</p>
       <p v-if="signInByRedirect" data-testid="redirect-sign-in-note">Google may ask about cookies first, then brings you back to this step.</p>
     </div>
 

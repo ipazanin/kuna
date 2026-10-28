@@ -34,14 +34,14 @@ beforeEach(() => {
       throw new Error('A test reached for the network')
     }),
   )
-  localStorage.setItem('ledgerboard.google-account', 'owner@example.com')
+  localStorage.setItem('kuna.google-account', 'owner@example.com')
 })
 
 afterEach(() => {
   forgetGoogleSignIn()
   localStorage.clear()
   sessionStorage.clear()
-  window.history.replaceState(null, '', '/ledgerboard/')
+  window.history.replaceState(null, '', '/kuna/')
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   vi.restoreAllMocks()
@@ -50,7 +50,7 @@ afterEach(() => {
 
 /** Loads the app as Google sends the tab back to it with this fragment. */
 function comeBackWith(fragment: string): void {
-  window.history.replaceState(null, '', `/ledgerboard/#${fragment}`)
+  window.history.replaceState(null, '', `/kuna/#${fragment}`)
 }
 
 function tokenFragment(scope: string, state = 'one-time-state', token = 'ya29.one'): string {
@@ -82,7 +82,7 @@ describe('the address the tab goes to', () => {
     const url = new URL(
       authorizationUrl({
         clientId: 'client.apps.googleusercontent.com',
-        redirectUri: 'https://ipazanin.github.io/ledgerboard/',
+        redirectUri: 'https://ipazanin.github.io/kuna/',
         scopes: ['gmail.compose', 'drive.file', 'drive.readonly'],
         state: 'one-time-state',
         loginHint: 'owner@example.com',
@@ -93,7 +93,7 @@ describe('the address the tab goes to', () => {
     expect(`${url.origin}${url.pathname}`).toBe('https://accounts.google.com/o/oauth2/v2/auth')
     expect(Object.fromEntries(url.searchParams)).toEqual({
       client_id: 'client.apps.googleusercontent.com',
-      redirect_uri: 'https://ipazanin.github.io/ledgerboard/',
+      redirect_uri: 'https://ipazanin.github.io/kuna/',
       response_type: 'token',
       scope: `openid email ${DRIVE_FILE} ${DRIVE_READONLY} ${GMAIL_COMPOSE}`,
       state: 'one-time-state',
@@ -104,7 +104,7 @@ describe('the address the tab goes to', () => {
 
   it('shows no screen at Google when the ask is silent, and leaves the login hint out when no account is remembered', () => {
     const url = new URL(
-      authorizationUrl({ clientId: 'client', redirectUri: 'https://ipazanin.github.io/ledgerboard/', scopes: ['drive.file'], state: 's', loginHint: null, silent: true }),
+      authorizationUrl({ clientId: 'client', redirectUri: 'https://ipazanin.github.io/kuna/', scopes: ['drive.file'], state: 's', loginHint: null, silent: true }),
     )
 
     expect(url.searchParams.get('scope')).toBe(scopeRequest(['drive.file']))
@@ -206,11 +206,11 @@ describe('the pending redirect', () => {
   })
 
   it('keeps only the scopes the app knows, and refuses an unknown resume, an unknown ask or one without scopes', () => {
-    localStorage.setItem('ledgerboard.google-redirect', JSON.stringify({ ...PENDING, scopes: ['drive.file', 'calendar'] }))
+    localStorage.setItem('kuna.google-redirect', JSON.stringify({ ...PENDING, scopes: ['drive.file', 'calendar'] }))
     expect(takePendingRedirect()).toEqual({ ...PENDING, scopes: ['drive.file'] })
 
     for (const broken of [{ ...PENDING, resume: 'open' }, { ...PENDING, ask: 'silent-on-open' }, { ...PENDING, scopes: 'drive.file' }]) {
-      localStorage.setItem('ledgerboard.google-redirect', JSON.stringify(broken))
+      localStorage.setItem('kuna.google-redirect', JSON.stringify(broken))
       expect(takePendingRedirect()).toBeNull()
     }
   })
@@ -219,10 +219,10 @@ describe('the pending redirect', () => {
 describe('coming back to the app', () => {
   it('holds one token for several scopes in page memory only, takes it out of the address and puts the route back', () => {
     savePendingRedirect(PENDING)
-    window.history.replaceState(null, '', `/ledgerboard/?theme=dark#${tokenFragment(EVERY_SCOPE)}`)
+    window.history.replaceState(null, '', `/kuna/?theme=dark#${tokenFragment(EVERY_SCOPE)}`)
 
     expect(takeGoogleRedirect()).toMatchObject({ kind: 'granted', resume: 'sync', route: '#/company/review?tab=rules' })
-    expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/ledgerboard/?theme=dark#/company/review?tab=rules')
+    expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/kuna/?theme=dark#/company/review?tab=rules')
     expect([currentToken('drive.file'), currentToken('drive.readonly'), currentToken('gmail.compose')]).toEqual(['ya29.one', 'ya29.one', 'ya29.one'])
     expect(googleAccess()).toEqual({ scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], refusal: null })
     expect(loadGrantedScopes()).toEqual(['drive.file', 'drive.readonly', 'gmail.compose'])
@@ -230,7 +230,7 @@ describe('coming back to the app', () => {
   })
 
   it('holds a partial grant with Drive read unticked, and notes Drive read as not granted while keeping a grant it did not ask about', () => {
-    localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
     savePendingRedirect({ ...PENDING, scopes: ['drive.file', 'drive.readonly'] })
     comeBackWith(tokenFragment(`${DRIVE_FILE} openid`))
 
@@ -263,21 +263,21 @@ describe('coming back to the app', () => {
   })
 
   it('does nothing on an ordinary load', () => {
-    window.history.replaceState(null, '', '/ledgerboard/#/company/transactions')
+    window.history.replaceState(null, '', '/kuna/#/company/transactions')
 
     expect(takeGoogleRedirect()).toBeNull()
     expect(window.location.hash).toBe('#/company/transactions')
   })
 
   it('reads the account email once for the login hint when the device has none', async () => {
-    localStorage.removeItem('ledgerboard.google-account')
+    localStorage.removeItem('kuna.google-account')
     const userinfo = vi.fn(async () => new Response(JSON.stringify({ email: 'owner@example.com' })))
     vi.stubGlobal('fetch', userinfo)
     savePendingRedirect(PENDING)
     comeBackWith(tokenFragment(EVERY_SCOPE))
 
     takeGoogleRedirect()
-    await vi.waitFor(() => expect(localStorage.getItem('ledgerboard.google-account')).toBe('owner@example.com'))
+    await vi.waitFor(() => expect(localStorage.getItem('kuna.google-account')).toBe('owner@example.com'))
 
     expect(userinfo).toHaveBeenCalledOnce()
   })
@@ -292,7 +292,7 @@ describe('the silent trip as the app opens', () => {
     takePendingRedirect()
     localStorage.clear()
 
-    localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
     needScopes(['drive.file', 'drive.readonly'])
     expect(askSilentlyOnOpen()).toBe(true)
     expect(askLeftWith()).toMatchObject({ scopes: ['drive.file', 'drive.readonly'], ask: 'silent' })
@@ -300,7 +300,7 @@ describe('the silent trip as the app opens', () => {
 
   it('always carries the books file, even when the needs were last worked out for books kept in this browser', () => {
     configureGoogle()
-    localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly']))
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly']))
     needScopes([])
     expect(askSilentlyOnOpen()).toBe(true)
     expect(askLeftWith()).toMatchObject({ scopes: ['drive.file'], ask: 'silent' })
@@ -308,7 +308,7 @@ describe('the silent trip as the app opens', () => {
 
   it('stays when Google never granted the books file, since that token could not sync', () => {
     configureGoogle()
-    localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.readonly']))
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.readonly']))
     needScopes(['drive.file', 'drive.readonly'])
 
     expect(askSilentlyOnOpen()).toBe(false)
@@ -318,7 +318,7 @@ describe('the silent trip as the app opens', () => {
 
   it('comes back with one token for every scope asked', () => {
     configureGoogle()
-    localStorage.setItem('ledgerboard.google-granted', JSON.stringify(['drive.file', 'drive.readonly']))
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly']))
     needScopes(['drive.file', 'drive.readonly', 'gmail.compose'])
     expect(askSilentlyOnOpen()).toBe(true)
     comeBackWith(tokenFragment(`${DRIVE_FILE} ${DRIVE_READONLY} openid`, askLeftWith()!.state))
@@ -358,7 +358,7 @@ describe('the silent trip as the app opens', () => {
       ['unanswered', true],
       ['interaction_required', false],
     ] as const) {
-      localStorage.setItem('ledgerboard.google-silent-refused', error)
+      localStorage.setItem('kuna.google-silent-refused', error)
       savePendingRedirect(PENDING)
       comeBackWith(tokenFragment(EVERY_SCOPE))
       takeGoogleRedirect()
@@ -439,7 +439,7 @@ describe('asking in a tap', () => {
     savePendingRedirect(PENDING)
     comeBackWith(tokenFragment(EVERY_SCOPE))
     takeGoogleRedirect()
-    localStorage.setItem('ledgerboard.google-silent-refused', 'interaction_required')
+    localStorage.setItem('kuna.google-silent-refused', 'interaction_required')
 
     forgetGoogleSignIn()
 

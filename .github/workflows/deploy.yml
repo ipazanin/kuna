@@ -48,7 +48,7 @@ jobs:
           # after the check has already passed.
           npm run preview:fake -- --port 4173 > preview.log 2>&1 &
           for attempt in $(seq 1 30); do
-            curl -sf http://localhost:4173/ledgerboard/ > /dev/null && break
+            curl -sf http://localhost:4173/kuna/ > /dev/null && break
             sleep 1
           done
           npm run check:visual || { cat preview.log; exit 1; }

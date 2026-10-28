@@ -148,7 +148,7 @@ describe('googleMailFolders', () => {
         files: [
           { name: '2026-08-salary.xlsx', parents: ['m08'], createdTime: '2026-09-05T10:00:00.000Z', sha256Checksum: 'def' },
           { name: '2026-09-salary.xlsx', parents: ['m09'], createdTime: '2026-10-05T10:00:00.000Z', sha256Checksum: 'abc' },
-          { name: '2026-09-salary', parents: ['m09'], createdTime: '2026-10-06T10:00:00.000Z', appProperties: { 'ledgerboard-mail': 'hr-doo.payroll', 'ledgerboard-mail-date': '2026-10-05T08:30:00.000Z' } },
+          { name: '2026-09-salary', parents: ['m09'], createdTime: '2026-10-06T10:00:00.000Z', appProperties: { 'kuna-mail': 'hr-doo.payroll', 'kuna-mail-date': '2026-10-05T08:30:00.000Z' } },
         ],
       },
     }
@@ -200,7 +200,7 @@ describe('googleMailFolders making a file', () => {
     return requests
   }
 
-  const PROPERTIES = { 'ledgerboard-mail': 'statements', 'ledgerboard-mail-id': '18c2f4a9d7e01b3c', 'ledgerboard-mail-date': '2031-03-12T04:00:00.000Z' }
+  const PROPERTIES = { 'kuna-mail': 'statements', 'kuna-mail-id': '18c2f4a9d7e01b3c', 'kuna-mail-date': '2031-03-12T04:00:00.000Z' }
 
   it('makes the file in the year folder Drive holds, as the media type its name ends in and with its properties, and makes a missing year folder once a run', async () => {
     const requests = stubDrive()

@@ -11,7 +11,7 @@ export type Theme = 'dark' | 'light'
 
 export type ThemeChoice = 'system' | Theme
 
-const STORED_THEME_KEY = 'ledgerboard.theme'
+const STORED_THEME_KEY = 'kuna.theme'
 const LIGHT_QUERY = '(prefers-color-scheme: light)'
 
 /** The `--surface-page` of each theme, for the browser bar of the installed app. */

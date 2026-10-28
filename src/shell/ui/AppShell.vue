@@ -17,7 +17,7 @@ const props = withDefaults(
     /** A second line under the title, such as the company the workbook belongs to. */
     subtitle?: string | null
   }>(),
-  { title: 'Ledgerboard', subtitle: null },
+  { title: 'Kuna', subtitle: null },
 )
 
 defineSlots<{

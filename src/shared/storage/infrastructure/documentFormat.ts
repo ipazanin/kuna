@@ -14,9 +14,9 @@ export interface WorkbookDocument {
   readonly records: Readonly<Record<string, readonly DocumentRecord[]>>
 }
 
-const FORMAT = 'ledgerboard'
+const FORMAT = 'kuna'
 
-export const NEWER_FILE = 'This file was saved by a newer ledgerboard. Reload to update before you change anything.'
+export const NEWER_FILE = 'This file was saved by a newer version of Kuna. Reload to update before you change anything.'
 
 /** Whether a newer app saved the document: a contributor at a higher version than the app's `installed` schema, or one the app lacks. */
 export function savedByNewerApp(document: WorkbookDocument, installed: WorkbookDocument['schema']): boolean {
@@ -48,21 +48,21 @@ function isObject(candidate: unknown): candidate is Readonly<Record<string, unkn
   return typeof candidate === 'object' && candidate !== null && !Array.isArray(candidate)
 }
 
-/** The document a file holds. Throws for a file that is not a ledgerboard document. */
+/** The document a file holds. Throws for a file that is not a Kuna document. */
 export function decodeDocument(text: string): WorkbookDocument {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
   } catch (failure) {
-    throw new Error('The file is not a ledgerboard file: it does not read as JSON.', { cause: failure })
+    throw new Error('The file is not a Kuna file: it does not read as JSON.', { cause: failure })
   }
   if (!isObject(parsed) || parsed.format !== FORMAT || typeof parsed.app !== 'string' || !isObject(parsed.schema) || !isObject(parsed.records)) {
-    throw new Error('The file is not a ledgerboard file.')
+    throw new Error('The file is not a Kuna file.')
   }
   const schema = Object.entries(parsed.schema)
   const records = Object.entries(parsed.records)
   if (schema.some(([, version]) => typeof version !== 'number') || records.some(([, kind]) => !Array.isArray(kind) || !kind.every(isObject))) {
-    throw new Error('The file is not a ledgerboard file: its schema or its records are not in the shape the app writes.')
+    throw new Error('The file is not a Kuna file: its schema or its records are not in the shape the app writes.')
   }
   return {
     app: parsed.app,

@@ -92,7 +92,7 @@ async function create(): Promise<void> {
         </p>
         <p class="flex items-center gap-2 text-sm text-toned">
           <UIcon name="i-lucide-file-json" class="size-4 shrink-0 text-muted" aria-hidden="true" />
-          <span class="min-w-0"><span class="identifier">ledgerboard-company.json</span>, with a backups folder beside it</span>
+          <span class="min-w-0"><span class="identifier">kuna-company.json</span>, with a backups folder beside it</span>
         </p>
         <p v-if="fromMail" class="flex items-center gap-2 text-sm text-toned" data-testid="onboarding-folder-statements">
           <UIcon name="i-lucide-folder-input" class="size-4 shrink-0 text-muted" aria-hidden="true" />

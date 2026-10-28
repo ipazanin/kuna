@@ -29,6 +29,6 @@ export function importSummary(workbook: Workbook, missingTabs: readonly Workbook
     categoryCount: workbook.categories.length,
     problems: workbook.problems,
     defaultedTabs: missingTabs.filter((tab) => tab !== 'ledger'),
-    refusal: missingTabs.includes('ledger') ? 'The file has no tab called "ledger", so it is not a Ledgerboard workbook.' : null,
+    refusal: missingTabs.includes('ledger') ? 'The file has no tab called "ledger", so it is not a Kuna workbook.' : null,
   }
 }

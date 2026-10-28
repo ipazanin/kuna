@@ -28,8 +28,8 @@ export interface DocumentDrive {
   findByAppProperty(key: string, value: string): Promise<readonly string[]>
 }
 
-/** The `appProperties` key that names which app of ledgerboard a document belongs to. */
-const APP_PROPERTY = 'ledgerboard'
+/** The `appProperties` key that names which Kuna app a document belongs to. */
+const APP_PROPERTY = 'kuna'
 /** Drive refuses a 201st kept revision, so the app lets go of its oldest beyond this many. */
 const KEPT_REVISIONS = 100
 const DAILY_BACKUPS = 30
@@ -38,17 +38,17 @@ const BACKUPS_FOLDER = 'backups'
 const POST_CHECKS = 5
 const OUTSIDE_EDIT = 'The file changed outside the app during this save. Check the backups folder.'
 
-/** The file the app's document is kept in, such as `ledgerboard-company.json`. */
+/** The file the app's document is kept in, such as `kuna-company.json`. */
 export function documentName(app: string): string {
-  return `ledgerboard-${app}.json`
+  return `kuna-${app}.json`
 }
 
 function backupName(app: string, day: CivilDate): string {
-  return `ledgerboard-${app}-${day}.json`
+  return `kuna-${app}-${day}.json`
 }
 
 function backupDayOf(app: string, name: string): CivilDate | null {
-  const prefix = `ledgerboard-${app}-`
+  const prefix = `kuna-${app}-`
   return name.startsWith(prefix) && name.endsWith('.json') ? parseCivilDate(name.slice(prefix.length, -'.json'.length)) : null
 }
 

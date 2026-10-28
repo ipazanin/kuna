@@ -65,7 +65,7 @@ async function proceed(): Promise<void> {
       :preview="false"
       icon="i-lucide-file-up"
       label="Drop an .xlsx or .json file here"
-      description="An Excel file, a Google Sheet downloaded as .xlsx, or a ledgerboard file from the backups folder"
+      description="An Excel file, a Google Sheet downloaded as .xlsx, or a Kuna file from the backups folder"
       color="neutral"
       class="w-full"
       :ui="{ base: 'min-h-32 border-dashed bg-elevated/40' }"

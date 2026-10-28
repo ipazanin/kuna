@@ -43,7 +43,7 @@ async function books(options: { readonly backedUp?: boolean; readonly day?: () =
   const { fileId, document } = await createDriveDocument(drive, folderId, 'company', documentText({}))
   if (options.backedUp ?? true) {
     const backupsId = await drive.createFolder(folderId, 'backups')
-    await drive.createFile(backupsId, `ledgerboard-company-${TODAY}.json`, document.text)
+    await drive.createFile(backupsId, `kuna-company-${TODAY}.json`, document.text)
   }
   drive.requests.length = 0
   return { drive, folderId, fileId, base: document, home: () => driveDocumentHome(drive, fileId, 'company', options.day ?? (() => TODAY)) }
@@ -265,14 +265,14 @@ describe('driveDocumentHome', () => {
     const { drive, folderId, base, home } = await books({ backedUp: false, day: () => day })
     const backupsId = await drive.createFolder(folderId, 'backups')
     for (let backupDay = civilDate(2026, 6, 15); backupDay < TODAY; backupDay = addDays(backupDay, 1)) {
-      await drive.createFile(backupsId, `ledgerboard-company-${backupDay}.json`, documentText({}))
+      await drive.createFile(backupsId, `kuna-company-${backupDay}.json`, documentText({}))
     }
     await drive.createFile(backupsId, 'notes.json', '{}')
     const keptBackups = async () =>
       (await drive.children(backupsId))
         .map((entry) => entry.name)
-        .filter((name) => name.startsWith('ledgerboard-'))
-        .map((name) => name.slice('ledgerboard-company-'.length, -'.json'.length))
+        .filter((name) => name.startsWith('kuna-'))
+        .map((name) => name.slice('kuna-company-'.length, -'.json'.length))
         .sort()
     const home1 = home()
     const first = filing(base, 'row-1', 'software')
@@ -281,7 +281,7 @@ describe('driveDocumentHome', () => {
 
     const dailies = Array.from({ length: 30 }, (_, back) => addDays(TODAY, back - 29))
     expect(await keptBackups()).toEqual(['2026-06-15', '2026-07-01', '2026-08-01', '2026-09-01', ...dailies])
-    const todays = [...(await drive.children(backupsId))].find((entry) => entry.name === `ledgerboard-company-${TODAY}.json`)!
+    const todays = [...(await drive.children(backupsId))].find((entry) => entry.name === `kuna-company-${TODAY}.json`)!
     expect(drive.file(todays.id).revisions[0]!.text).toBe(base.text)
     expect((await drive.children(backupsId)).some((entry) => entry.name === 'notes.json')).toBe(true)
 
@@ -311,7 +311,7 @@ describe('driveDocumentHome', () => {
     expect(drive.requests).toEqual(['parentOf', 'children', 'children', 'headRevision', 'upload', 'revisions', 'headRevision'])
     const backups = (await drive.children(folderId)).filter((entry) => entry.name === 'backups')
     expect(backups).toHaveLength(1)
-    expect((await drive.children(backups[0]!.id)).map((entry) => entry.name)).toEqual([`ledgerboard-company-${TODAY}.json`])
+    expect((await drive.children(backups[0]!.id)).map((entry) => entry.name)).toEqual([`kuna-company-${TODAY}.json`])
     expect(drive.file(fileId).parents).toEqual([folderId])
   })
 })
@@ -324,7 +324,7 @@ describe('the document on Drive', () => {
     expect(await findDriveDocument(drive, 'company')).toBeNull()
     const { fileId, document } = await createDriveDocument(drive, folderId, 'company', documentText({}))
 
-    expect(drive.file(fileId)).toMatchObject({ name: 'ledgerboard-company.json', parents: [folderId], appProperties: { ledgerboard: 'company' } })
+    expect(drive.file(fileId)).toMatchObject({ name: 'kuna-company.json', parents: [folderId], appProperties: { kuna: 'company' } })
     expect(document).toEqual({ revision: drive.file(fileId).headRevisionId, text: documentText({}) })
     expect(await findDriveDocument(drive, 'company')).toBe(fileId)
     expect(await findDriveDocument(drive, 'personal')).toBeNull()
@@ -335,6 +335,6 @@ describe('the document on Drive', () => {
     await createDriveDocument(drive, await drive.createFolder('root', 'books'), 'company', '{}')
     await createDriveDocument(drive, await drive.createFolder('root', 'old books'), 'company', '{}')
 
-    await expect(findDriveDocument(drive, 'company')).rejects.toThrow('Drive holds 2 files the app made as ledgerboard-company.json')
+    await expect(findDriveDocument(drive, 'company')).rejects.toThrow('Drive holds 2 files the app made as kuna-company.json')
   })
 })

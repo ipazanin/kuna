@@ -183,7 +183,7 @@ export async function createFolder(accessToken: string, parentId: string, name: 
 
 /** Creates a file with its metadata and content in one multipart upload. */
 export async function createFile<Field extends keyof DriveFile>(accessToken: string, file: NewDriveFile, content: BlobPart, fields: readonly Field[]): Promise<Pick<DriveFile, Field>> {
-  const boundary = `ledgerboard-${crypto.randomUUID()}`
+  const boundary = `kuna-${crypto.randomUUID()}`
   const body = new Blob(
     [
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(file)}\r\n--${boundary}\r\nContent-Type: ${file.mimeType}\r\n\r\n`,

@@ -13,7 +13,7 @@ const POLICY_META = /(<meta\s+http-equiv="Content-Security-Policy"\s+content=")(
 
 export function devContentSecurityPolicy(): Plugin {
   return {
-    name: 'ledgerboard:dev-content-security-policy',
+    name: 'kuna:dev-content-security-policy',
     apply: 'serve',
     transformIndexHtml(html) {
       if (!POLICY_META.test(html)) {

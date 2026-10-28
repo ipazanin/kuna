@@ -22,7 +22,7 @@ describe('remembered card state', () => {
   })
 
   it('reads a damaged entry as no choice', () => {
-    localStorage.setItem('ledgerboard.card.billing.months', 'sideways')
+    localStorage.setItem('kuna.card.billing.months', 'sideways')
 
     expect(storedCollapse('billing.months')).toBeNull()
   })

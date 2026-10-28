@@ -1,7 +1,7 @@
 import type { WorkbookChoice } from '../application/workbookPorts'
 
 /** A choice of a Google Sheet, kept under the key before, is not read, so a device that showed the Sheet starts at the first-run choices. */
-const WORKBOOK_CHOICE_KEY = 'ledgerboard.workbook-file'
+const WORKBOOK_CHOICE_KEY = 'kuna.workbook-file'
 
 export function loadWorkbookChoice(): WorkbookChoice | null {
   try {

@@ -13,7 +13,7 @@ const onboarding = useOnboarding()
 
 const CHOICES: { label: string; description?: string; value: OnboardingPath }[] = [
   { label: 'Start new books', value: 'new' },
-  { label: 'Bring my books', description: 'An Excel file, a Google Sheet download or a ledgerboard file', value: 'bring' },
+  { label: 'Bring my books', description: 'An Excel file, a Google Sheet download or a Kuna file', value: 'bring' },
   { label: 'Open my books on Google Drive', description: 'Another device already keeps them', value: 'open' },
 ]
 

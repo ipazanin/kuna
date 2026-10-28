@@ -16,7 +16,7 @@ import { DEFAULT_CATEGORY_NAMES, emptyWorkbookTabs } from '../infrastructure/emp
 import { documentOfTabs, recordCountsOf, tabsOfDocument } from '../infrastructure/spreadsheetDocument'
 import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
 
-/** What a file input takes for a workbook: an xlsx file, or a ledgerboard file such as a backup. */
+/** What a file input takes for a workbook: an xlsx file, or a Kuna file such as a backup. */
 export const WORKBOOK_FILE_TYPES = `.xlsx,${XLSX_MIME_TYPE},.json,${JSON_MIME_TYPE}`
 
 /** A file read and checked, ready to be kept on Drive or in this browser once the user agrees. */
@@ -61,17 +61,17 @@ async function documentOfWorkbookFile(file: File): Promise<{ readonly document: 
   return { document: documentOfTabs(COMPANY_APP, contents.tabs, new Date().toISOString()), missingTabs: contents.missingTabs }
 }
 
-/** A ledgerboard file, such as a backup from the Drive folder, holds every kind, so no tab is missing. */
+/** A Kuna file, such as a backup from the Drive folder, holds every kind, so no tab is missing. */
 async function documentOfFile(file: File): Promise<{ readonly document: WorkbookDocument; readonly missingTabs: ImportSummary['defaultedTabs'] }> {
   let document
   try {
     document = decodeDocument(await file.text())
   } catch (readFailure) {
     console.error(`Reading ${file.name} failed`, readFailure)
-    throw new Error(`${file.name} could not be read as a ledgerboard file.`, { cause: readFailure })
+    throw new Error(`${file.name} could not be read as a Kuna file.`, { cause: readFailure })
   }
   if (document.app !== COMPANY_APP) {
-    throw new Error(`${file.name} holds the books of another ledgerboard app, ${document.app}.`)
+    throw new Error(`${file.name} holds the books of another Kuna app, ${document.app}.`)
   }
   return { document, missingTabs: [] }
 }
@@ -107,14 +107,14 @@ export async function exportWorkbook(store: WorkbookStore<DocumentCopy, Workbook
   return fileName
 }
 
-/** `ledgerboard-<company or sheet name>-<yyyy-mm-dd>.xlsx`, in plain ASCII. */
+/** `kuna-<company or sheet name>-<yyyy-mm-dd>.xlsx`, in plain ASCII. */
 export function exportFileName(workbook: Pick<Workbook, 'title' | 'settings'>, day: Date): string {
   const name = fold(workbook.settings.companyName || workbook.title)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
   const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
-  return `ledgerboard-${name || 'workbook'}-${date}.xlsx`
+  return `kuna-${name || 'workbook'}-${date}.xlsx`
 }
 
 function previewIdentity(title: string): Pick<Workbook, 'id' | 'source' | 'title' | 'syncedAt'> {

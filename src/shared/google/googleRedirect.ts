@@ -125,7 +125,7 @@ export function settleRedirect(fragment: RedirectFragment, pending: PendingRedir
   return { kind: 'granted', token, asked: scopes, resume, route, ask }
 }
 
-const PENDING_KEY = 'ledgerboard.google-redirect'
+const PENDING_KEY = 'kuna.google-redirect'
 
 export function savePendingRedirect(pending: PendingRedirect): void {
   try {

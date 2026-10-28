@@ -55,7 +55,7 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
             <rect width="32" height="32" rx="7" fill="var(--accent)" />
             <path d="M8 22h16M10 18v-6M16 18V9M22 18v-4" stroke="var(--accent-ink)" stroke-width="2.5" stroke-linecap="round" />
           </svg>
-          <h1 data-testid="screen-title" tabindex="-1" class="text-title font-semibold text-highlighted">Ledgerboard</h1>
+          <h1 data-testid="screen-title" tabindex="-1" class="text-title font-semibold text-highlighted">Kuna</h1>
         </div>
         <p class="max-w-[52ch] text-base text-toned">Company finances from your bank statements, worked out in this browser.</p>
       </header>

@@ -28,7 +28,7 @@ function headerText(text: string): string {
  * `raw` field takes it.
  */
 export function rawInvoiceMessage(mail: InvoiceMail, fileName: string, pdf: Uint8Array): string {
-  const boundary = `ledgerboard-${crypto.randomUUID()}`
+  const boundary = `kuna-${crypto.randomUUID()}`
   const name = headerText(fileName)
   const message = [
     `To: ${headerText(mail.to)}`,

@@ -44,7 +44,7 @@
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
- *   npm run check:touch -- http://localhost:4173/ledgerboard/
+ *   npm run check:touch -- http://localhost:4173/kuna/
  *
  * While working on one screen, `--only billing,owner` limits the run to the steps with those names,
  * or names that start with them and a hyphen, and `--widths 360,1440` to those widths. A limited
@@ -1387,16 +1387,16 @@ async function checkWidth(width) {
     const comeBack = async (variant, pending, fragment) => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}#/`, { waitUntil: 'networkidle0' })
       await page.evaluate((remembered) => {
-        for (const key of ['ledgerboard.google-granted', 'ledgerboard.google-silent-refused', 'ledgerboard.invoice-mail-draft']) localStorage.removeItem(key)
-        localStorage.setItem('ledgerboard.google-account', 'owner@example.com')
-        localStorage.setItem('ledgerboard.google-redirect', JSON.stringify(remembered))
+        for (const key of ['kuna.google-granted', 'kuna.google-silent-refused', 'kuna.invoice-mail-draft']) localStorage.removeItem(key)
+        localStorage.setItem('kuna.google-account', 'owner@example.com')
+        localStorage.setItem('kuna.google-redirect', JSON.stringify(remembered))
       }, pending)
       await page.goto(`${BASE}?theme=dark&fake=${variant}&load=${Date.now()}#${fragment}`, { waitUntil: 'networkidle0' })
     }
     const fragmentGone = () => page.evaluate(() => !window.location.href.includes('access_token') && !window.location.href.includes('error='))
     const tokenKept = () => page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }).includes('fake-one-token'))
-    const granted = () => page.evaluate(() => JSON.parse(localStorage.getItem('ledgerboard.google-granted') ?? 'null'))
-    const deviceMark = () => page.evaluate(() => localStorage.getItem('ledgerboard.google-silent-refused'))
+    const granted = () => page.evaluate(() => JSON.parse(localStorage.getItem('kuna.google-granted') ?? 'null'))
+    const deviceMark = () => page.evaluate(() => localStorage.getItem('kuna.google-silent-refused'))
     const noMessage = () => page.evaluate(() => document.querySelectorAll('li[data-slot="base"]').length === 0)
     const control = () =>
       page.evaluate(() => {
@@ -1418,7 +1418,7 @@ async function checkWidth(width) {
       })
 
     await page.goto(`${BASE}?theme=dark&fake=empty#/company/start?step=access`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'Ledgerboard')
+    await waitForTitle(page, 'Kuna')
     await waitForText(page, '[data-testid="redirect-sign-in-note"]', 'Google may ask about cookies first')
 
     // Allow access on a phone, every box ticked: one token for every scope, and the sync it resumes runs and ends ready, with no message.
@@ -1487,7 +1487,7 @@ async function checkWidth(width) {
 
     // The empty fake Drive holds no file the app marked, and its Picker picks none, so the find the tap resumes leaves onboarding's find step.
     await comeBack('empty', { ...tapAsk, resume: 'find', route: '#/company/start?path=open&step=find' }, tokenOf(everyScope))
-    await waitForTitle(page, 'Ledgerboard')
+    await waitForTitle(page, 'Kuna')
     await expect(hashOf(page), (hash) => hash === '#/company/start?path=open&step=find', 'the find the tap resumed did not stay on the find step')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the find resumed')
 
@@ -1498,7 +1498,7 @@ async function checkWidth(width) {
 
     // Onboarding's access step resumes nothing: the route brings the person back to it, and it says what Google allowed, with no message.
     await comeBack('empty', { ...tapAsk, scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/start?step=access&statements=folder' }, tokenOf(scopeOf('drive.file')))
-    await waitForTitle(page, 'Ledgerboard')
+    await waitForTitle(page, 'Kuna')
     await expect(hashOf(page), (hash) => hash === '#/company/start?step=access&statements=folder', 'the return did not land on the step the tap left')
     await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].map((badge) => badge.textContent?.trim()).join(',') === 'Allowed,Not allowed', { timeout: 10_000 }).catch(() => {
       throw new Error('the access step does not say Google allowed the books file and not Drive read')
@@ -1510,7 +1510,7 @@ async function checkWidth(width) {
 
   await step('open-file-browser', async () => {
     await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'Ledgerboard')
+    await waitForTitle(page, 'Kuna')
     await inspect(page, `${width}px welcome`)
     await page.goto(`${BASE}?theme=dark&fake=empty#/company/start?path=bring&home=browser&step=file`, { waitUntil: 'networkidle0' })
     const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
@@ -1526,14 +1526,14 @@ async function checkWidth(width) {
     await waitForText(page, 'header [data-testid="local-status"] button', 'Export')
   })
 
-  for (const [name, variant, run, hash = '#/', title = 'Ledgerboard'] of [
+  for (const [name, variant, run, hash = '#/', title = 'Kuna'] of [
     ['onboarding-drive', 'empty', onboardingDriveFlow],
     ['onboarding-drive-read', 'empty', onboardingDriveReadFlow],
     ['onboarding-mail', 'empty', onboardingMailFlow],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
     ['onboarding-bring', 'empty', onboardingBringFlow(TEMPLATE_FILE)],
-    ['onboarding-open', 'drive', onboardingOpenFlow, '#/company/start?path=open', 'Ledgerboard'],
-    ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/company/start?step=statement&statements=folder', 'Ledgerboard'],
+    ['onboarding-open', 'drive', onboardingOpenFlow, '#/company/start?path=open', 'Kuna'],
+    ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/company/start?step=statement&statements=folder', 'Kuna'],
     ['move-browser', 'browser', moveFromBrowserFlow, '#/settings?tab=device', 'Settings'],
     ['race', 'race', raceFlow, '#/company/review', 'Review'],
   ]) {
@@ -1551,7 +1551,7 @@ async function checkWidth(width) {
   await step('newer-file', async () => {
     await page.goto(`${BASE}?theme=dark&fake=newer-file&load=${Date.now()}#/settings?tab=device`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
-    await waitForText(page, '[data-testid="newer-file-notice"]', 'A newer ledgerboard saved this file')
+    await waitForText(page, '[data-testid="newer-file-notice"]', 'A newer version of Kuna saved this file')
     await inspect(page, `${width}px newer file`)
     await shoot('newer-file')
   })

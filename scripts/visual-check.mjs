@@ -70,7 +70,7 @@
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
- *   npm run check:visual -- http://localhost:4173/ledgerboard/
+ *   npm run check:visual -- http://localhost:4173/kuna/
  *
  * While working on one screen, `--only billing,owner` limits the run to the screens and flows with those names,
  * or names that start with them and a hyphen, and `--widths 360,1440` to those widths. A limited
@@ -285,7 +285,7 @@ const SCREENS = [
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="drive-file-place"] a',
-    shows: ['ledgerboard-company.json', 'Books', 'None yet. The first save of a day makes one.', 'Open in Drive'],
+    shows: ['kuna-company.json', 'Books', 'None yet. The first save of a day makes one.', 'Open in Drive'],
     cards: false,
   },
 ]
@@ -298,22 +298,22 @@ const GALLERY_DONUTS = 2
 
 /** Screens outside the fake workbook on Drive. `query` picks the fake variant, `upload` drops the import file on the page. */
 const SOURCE_SCREENS = [
-  { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Ledgerboard', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
+  { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Kuna', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
   {
     name: 'onboarding-access',
     query: 'fake=empty',
     hash: '#/company/start?step=access&statements=folder',
-    title: 'Ledgerboard',
+    title: 'Kuna',
     charts: 0,
     shows: ['What the app may do in your Google account', 'From a folder in my Drive', 'Continue to Google'],
     cards: false,
   },
-  { name: 'onboarding-find', query: 'fake=empty', hash: '#/company/start?path=open&step=find', title: 'Ledgerboard', charts: 0, shows: ['Find your books on Drive', 'Pick another file'], cards: false },
+  { name: 'onboarding-find', query: 'fake=empty', hash: '#/company/start?path=open&step=find', title: 'Kuna', charts: 0, shows: ['Find your books on Drive', 'Pick another file'], cards: false },
   { name: 'settings-browser', query: 'fake=browser', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
   { name: 'settings-categories-browser', query: 'fake=browser', hash: '#/settings?tab=categories', title: 'Settings', charts: 0, shows: 'Save categories' },
   { name: 'settings-accounts-browser', query: 'fake=browser', hash: '#/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
   { name: 'settings-device-browser', query: 'fake=browser', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: ['Import a file', 'Keep on Google Drive'], cards: false },
-  { name: 'settings-device-newer', query: 'fake=newer-file', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: 'A newer ledgerboard saved this file', cards: false },
+  { name: 'settings-device-newer', query: 'fake=newer-file', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: 'A newer version of Kuna saved this file', cards: false },
   { name: 'year-accountant-browser', query: 'fake=browser', hash: '#/company/year?year=2025', title: 'Year', charts: 1, shows: 'Loans to the owner carry 2.5%' },
   { name: 'year-statements-browser', query: 'fake=browser', hash: '#/company/year?year=2025&tab=statements', title: 'Year', charts: 0, shows: 'Balance paid on', expandedBefore: ['year.tax'] },
   {
@@ -379,7 +379,7 @@ const SOURCE_SCREENS = [
     name: 'import-summary',
     query: 'fake=empty',
     hash: '#/company/start?path=bring&home=browser&step=file',
-    title: 'Ledgerboard',
+    title: 'Kuna',
     charts: 0,
     shows: ['rows the app could not use', 'records, by tab', 'Keep in this browser'],
     upload: true,
@@ -684,13 +684,13 @@ const FLOWS = [
   { name: 'mail-window', hash: '#/company', title: 'Overview', run: mailWindowFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
   { name: 'sync-access-closed', hash: '#/company', title: 'Overview', run: accessClosedFlow, modes: ['drive'], queries: { drive: '&fake=google-closed' } },
   { name: 'salaries', hash: '#/company/salaries', title: 'Salaries', run: salariesFlow, modes: ['drive'], queries: { drive: '&fake=five-employees' } },
-  { name: 'onboarding-drive', hash: '#/', title: 'Ledgerboard', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-drive-read', hash: '#/', title: 'Ledgerboard', run: onboardingDriveReadFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-mail', hash: '#/', title: 'Ledgerboard', run: onboardingMailFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-browser', hash: '#/', title: 'Ledgerboard', run: onboardingBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
-  { name: 'onboarding-bring', hash: '#/', title: 'Ledgerboard', run: onboardingBringFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-open', hash: '#/company/start?path=open', title: 'Ledgerboard', run: onboardingOpenFlow, modes: ['drive'] },
-  { name: 'onboarding-statement-access', hash: '#/company/start?step=statement&statements=folder', title: 'Ledgerboard', run: onboardingStatementAccessFlow, modes: ['drive'] },
+  { name: 'onboarding-drive', hash: '#/', title: 'Kuna', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-drive-read', hash: '#/', title: 'Kuna', run: onboardingDriveReadFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-mail', hash: '#/', title: 'Kuna', run: onboardingMailFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-browser', hash: '#/', title: 'Kuna', run: onboardingBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
+  { name: 'onboarding-bring', hash: '#/', title: 'Kuna', run: onboardingBringFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-open', hash: '#/company/start?path=open', title: 'Kuna', run: onboardingOpenFlow, modes: ['drive'] },
+  { name: 'onboarding-statement-access', hash: '#/company/start?step=statement&statements=folder', title: 'Kuna', run: onboardingStatementAccessFlow, modes: ['drive'] },
   { name: 'move-browser', hash: '#/settings?tab=device', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
   { name: 'race', hash: '#/company/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
 ]
@@ -723,8 +723,8 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (visit.collapsedBefore || visit.expandedBefore) {
       await page.evaluateOnNewDocument(
         (collapsed, expanded) => {
-          for (const card of collapsed) localStorage.setItem(`ledgerboard.card.${card}`, 'collapsed')
-          for (const card of expanded) localStorage.setItem(`ledgerboard.card.${card}`, 'expanded')
+          for (const card of collapsed) localStorage.setItem(`kuna.card.${card}`, 'collapsed')
+          for (const card of expanded) localStorage.setItem(`kuna.card.${card}`, 'expanded')
         },
         visit.collapsedBefore ?? [],
         visit.expandedBefore ?? [],
