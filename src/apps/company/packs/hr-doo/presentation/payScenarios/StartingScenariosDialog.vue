@@ -6,7 +6,8 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
 import type { Grant } from '../../domain/grants/grants'
-import { useRecordWrites } from '../../../../workbook/presentation/useRecordWrites'
+import { useWorkbook } from '../../../../workbook/application/workbookStore'
+import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import type { Money } from '../../../../../../shared/money/money'
 import { typedAmount } from '../../../../../../shared/money/typedAmount'
@@ -25,7 +26,7 @@ const props = defineProps<{
   taken: readonly string[]
 }>()
 
-const writes = useRecordWrites()
+const writes = useRecordWrites(useWorkbook())
 const phone = usePhoneLayout()
 
 const rent = ref('')

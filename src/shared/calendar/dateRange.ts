@@ -16,6 +16,13 @@ export function rangeContains(range: DateRange, date: CivilDate): boolean {
   return range.from <= date && date <= range.to
 }
 
+/** The days two ranges share, or null when they share none. */
+export function overlapOf(first: DateRange, second: DateRange): DateRange | null {
+  const from = first.from > second.from ? first.from : second.from
+  const to = first.to < second.to ? first.to : second.to
+  return from <= to ? { from, to } : null
+}
+
 /** The months a range touches, including a month it covers only in part. */
 export function monthsOfRange(range: DateRange): MonthKey[] {
   return monthsFrom(monthOf(range.from), monthOf(range.to))

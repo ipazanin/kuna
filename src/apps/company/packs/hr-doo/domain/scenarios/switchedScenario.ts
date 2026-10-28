@@ -1,8 +1,9 @@
 import type { OwnerPayScenario, ScenarioComponent } from './ownerPayScenarios'
 import { addDays, civilDate } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { overlapOf, spanOf } from './scenarioSchedule'
-import type { DaySpan } from './scenarioSchedule'
+import { spanOf } from './scenarioSchedule'
+import { overlapOf } from '../../../../../../shared/calendar/dateRange'
+import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 
 /**
  * The owner pay of a year that follows one scenario until the day before `switchOn` and another
@@ -27,7 +28,7 @@ export function payOnly(scenario: OwnerPayScenario): OwnerPayScenario {
   return { ...scenario, components: scenario.components.filter((component) => component.component !== 'dividend') }
 }
 
-function cutTo(scenario: OwnerPayScenario, part: DaySpan): ScenarioComponent[] {
+function cutTo(scenario: OwnerPayScenario, part: DateRange): ScenarioComponent[] {
   const { year } = scenario
   const yearStart = civilDate(year, 1, 1)
   const yearEnd = civilDate(year, 12, 31)

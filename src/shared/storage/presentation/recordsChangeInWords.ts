@@ -1,5 +1,5 @@
-import type { WriteReceipt } from '../../../../shared/storage/application/recordWrites'
-import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
+import type { WriteReceipt } from '../application/recordWrites'
+import type { RecordNoun } from '../domain/recordKind'
 
 function counted(noun: RecordNoun, count: number): string {
   return count === 1 ? `${noun.article} ${noun.one}` : `${count} ${noun.many}`

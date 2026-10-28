@@ -5,6 +5,10 @@
  *
  *   npm run check:figures -- --fake <drive, browser, one-employee or five-employees> [--today yyyy-mm-dd]
  *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --loans <path to a Kuna Loans file> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-loans sample [--today yyyy-mm-dd]
+ *
+ * A Loans input goes with a company input or alone, and its groups follow the company's.
  */
 
 import { createHash } from 'node:crypto'
@@ -88,13 +92,34 @@ import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset.ts'
 import { civilDate, parseCivilDate, yearOf } from '../src/shared/calendar/civilDate.ts'
 import { yearOfMonth } from '../src/shared/calendar/monthKey.ts'
 import { setMoneyFormat } from '../src/shared/money/moneyFormat.ts'
+import { paidSoFar } from '../src/apps/loans/bankLoans/domain/loanFigures.ts'
+import { whatIfExtraPayment } from '../src/apps/loans/bankLoans/domain/whatIf.ts'
+import { bankLoanFigures, bankLoanMonths, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
+import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
+import { informalLoanFigures, informalLoanMonths, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
+import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
+import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
+import { moneyFromAmount } from '../src/shared/money/money.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 
-const { values: options } = parseArgs({ options: { fake: { type: 'string' }, workbook: { type: 'string' }, today: { type: 'string', default: '2026-10-28' } } })
+const { values: options } = parseArgs({
+  options: { fake: { type: 'string' }, workbook: { type: 'string' }, loans: { type: 'string' }, 'fake-loans': { type: 'string' }, today: { type: 'string', default: '2026-10-28' } },
+})
 const today = parseCivilDate(options.today)
 const knownFake = options.fake === 'drive' || options.fake === 'browser' || (options.fake !== undefined && fakeStaffOf(options.fake) !== null)
-if ((options.fake === undefined) === (options.workbook === undefined) || (options.fake !== undefined && !knownFake) || today === null) {
-  console.error('Usage: npm run check:figures -- (--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>) [--today yyyy-mm-dd]')
+const companyAsked = options.fake !== undefined || options.workbook !== undefined
+const loansAsked = options.loans !== undefined || options['fake-loans'] !== undefined
+if (
+  (options.fake !== undefined && options.workbook !== undefined) ||
+  (options.loans !== undefined && options['fake-loans'] !== undefined) ||
+  (!companyAsked && !loansAsked) ||
+  (options.fake !== undefined && !knownFake) ||
+  (options['fake-loans'] !== undefined && options['fake-loans'] !== 'sample') ||
+  today === null
+) {
+  console.error(
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans sample] [--today yyyy-mm-dd]',
+  )
   process.exit(2)
 }
 
@@ -114,107 +139,140 @@ async function documentOfInput() {
   return documentOfTabs(COMPANY_APP, (await readWorkbookFile(readFileSync(options.workbook))).tabs, AT)
 }
 
-const { records, workbook: raw } = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, await documentOfInput())
-setMoneyFormat({ currency: raw.settings.currency, locale: raw.settings.numberLocale })
-const booked = presentedWorkbook(raw)
-const cash = withOwnerParts(booked)
-const books = hrDooWorkbook(booked)
-const window = ledgerWindowOf(cash.transactions)
-const asOf = newestBookingOf(cash.transactions)
-const scoped = scopeTransactions(cash.transactions, DEFAULT_FILTERS)
-const rows = [...scoped, ...scopeOwnerAdvances(cash.ownerAdvances, DEFAULT_FILTERS).map(bookingOfAdvance)]
-const context = categorisationContextOf(cash)
-const forecastOf = (year) => forecastYear(books, year, asOf)
-
 const groups = []
 const group = (name, figures) => groups.push([name, figures])
 
-group('read.records', records)
-group('read.workbook', raw)
-group('settings.problems', booked.problems)
-group('settings.unread-keys', unreadSettingKeys(recordsOf(records.settings), installedPack().workbook?.settings ?? null))
-group('settings.uses', () => [categoryUses((kind) => recordsOfKindIn(records, kind)), accountUses((kind) => recordsOfKindIn(records, kind))])
+if (companyAsked) {
+  const { records, workbook: raw } = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, await documentOfInput())
+  setMoneyFormat({ currency: raw.settings.currency, locale: raw.settings.numberLocale })
+  const booked = presentedWorkbook(raw)
+  const cash = withOwnerParts(booked)
+  const books = hrDooWorkbook(booked)
+  const window = ledgerWindowOf(cash.transactions)
+  const asOf = newestBookingOf(cash.transactions)
+  const scoped = scopeTransactions(cash.transactions, DEFAULT_FILTERS)
+  const rows = [...scoped, ...scopeOwnerAdvances(cash.ownerAdvances, DEFAULT_FILTERS).map(bookingOfAdvance)]
+  const context = categorisationContextOf(cash)
+  const forecastOf = (year) => forecastYear(books, year, asOf)
 
-const averages = windowAverages(rows, window)
-const months = monthlyProfitAndLoss(rows, window)
-const balances = latestBalances(cash.transactions)
-group('overview.averages', averages)
-group('overview.recent-change', () => Object.keys(averages.last3.lines).map((line) => recentChange(averages.last3.lines[line].perMonth, averages.last12.lines[line].perMonth)))
-group('overview.balances', [balances, balanceSeries(cash.transactions, window)])
-group('overview.runway', () => [runway(balances.cashOnHand, averages.last3), runway(balances.cashOnHand, averages.last12)])
-group('overview.months', months)
-group('overview.headline', () => headline(months))
-group('overview.euro-split', () => euroSplit(averages.last12.totals, averages.last12.period))
-group('overview.waiting', () => waitingJobs(booked, raw.transactions))
-group('overview.pack-waiting', () => packWaitingJobs(books, asOf))
 
-group('review.queue', () => scopeTransactions(raw.transactions, DEFAULT_FILTERS).filter(needsReview).map((row) => categorise(row, cash.rules, context)))
-group('review.rules', () => withoutDismissed(ruleCoverage(raw.transactions, raw.rules, context), raw.dismissals))
-group('review.unaccounted', () => unaccountedInView({ booked, filters: DEFAULT_FILTERS }))
+  group('read.records', records)
+  group('read.workbook', raw)
+  group('settings.problems', booked.problems)
+  group('settings.unread-keys', unreadSettingKeys(recordsOf(records.settings), installedPack().workbook?.settings ?? null))
+  group('settings.uses', () => [categoryUses((kind) => recordsOfKindIn(records, kind)), accountUses((kind) => recordsOfKindIn(records, kind))])
 
-const invoiceDay = newestBookingOf(raw.transactions)
-const receivables = receivablesOf(booked.transactions, booked.categories, booked.invoices, booked.clients)
-const matched = receivables.clients.flatMap((client) => client.invoices)
-group('invoicing.receivables', receivables)
-group('invoicing.owed', () => [amountsOwed(matched, invoiceDay), receivables.clients.map((client) => ageingOf(client.invoices, invoiceDay))])
-group('invoicing.plan', () => [billingTotals(raw.billingPlan, raw.invoices), plannedAgainstInvoiced(raw.billingPlan, raw.invoices), itemStatistics(raw.billingPlan), expectedInvoices(raw.billingPlan, raw.invoices)])
-group('invoicing.fill-year', () => fillRestOfYear(raw.billingPlan, raw.settings.billing, invoiceDay))
+  const averages = windowAverages(rows, window)
+  const months = monthlyProfitAndLoss(rows, window)
+  const balances = latestBalances(cash.transactions)
+  group('overview.averages', averages)
+  group('overview.recent-change', () => Object.keys(averages.last3.lines).map((line) => recentChange(averages.last3.lines[line].perMonth, averages.last12.lines[line].perMonth)))
+  group('overview.balances', [balances, balanceSeries(cash.transactions, window)])
+  group('overview.runway', () => [runway(balances.cashOnHand, averages.last3), runway(balances.cashOnHand, averages.last12)])
+  group('overview.months', months)
+  group('overview.headline', () => headline(months))
+  group('overview.euro-split', () => euroSplit(averages.last12.totals, averages.last12.period))
+  group('overview.waiting', () => waitingJobs(booked, raw.transactions))
+  group('overview.pack-waiting', () => packWaitingJobs(books, asOf))
 
-const ledgerYears = Array.from({ length: yearOf(asOf) - yearOfMonth(window.firstMonth) + 1 }, (_, index) => yearOfMonth(window.firstMonth) + index)
-for (const period of [{ preset: 'l3' }, { preset: 'l12' }, { preset: 'all' }, ...ledgerYears.map((year) => ({ preset: 'year', year }))]) {
-  const at = period.preset === 'year' ? `year-${period.year}` : period.preset
-  const filters = { ...DEFAULT_FILTERS, period }
-  const listed = listedRows(filterTransactions(cash.transactions, filters, window), transactionsInPeriod(scopeOwnerAdvances(cash.ownerAdvances, filters), period, window))
-  group(`transactions.${at}.listed`, listed)
-  group(`transactions.${at}.groups`, () => ['month', 'category', 'counterparty'].map((grouping) => groupTransactions(listed, grouping, { window, counterpartyLabels: counterpartyLabels(cash.transactions) })))
-  group(`transactions.${at}.advances-left-out`, advancesLeftOutByBankFilters(booked.ownerAdvances, filters, window))
-  const prior = priorEqualPeriod(period, window)
-  group(`analysis.${at}.breakdown`, () => [costGroups(categoryTotals(rows, period, window), prior && categoryTotals(rows, prior, window)), topCounterparties(scoped, period, window)])
-  group(`analysis.${at}.over-time`, () => months.filter((month) => chartedMonths(period, window).includes(month.month)))
-  group(`analysis.${at}.compare`, () => {
-    const review = periodReview(rows, reviewPeriodOf(period, window), window)
-    return [review, categoryChanges(rows, review.current.range, review.prior, window)]
+  group('review.queue', () => scopeTransactions(raw.transactions, DEFAULT_FILTERS).filter(needsReview).map((row) => categorise(row, cash.rules, context)))
+  group('review.rules', () => withoutDismissed(ruleCoverage(raw.transactions, raw.rules, context), raw.dismissals))
+  group('review.unaccounted', () => unaccountedInView({ booked, filters: DEFAULT_FILTERS }))
+
+  const invoiceDay = newestBookingOf(raw.transactions)
+  const receivables = receivablesOf(booked.transactions, booked.categories, booked.invoices, booked.clients)
+  const matched = receivables.clients.flatMap((client) => client.invoices)
+  group('invoicing.receivables', receivables)
+  group('invoicing.owed', () => [amountsOwed(matched, invoiceDay), receivables.clients.map((client) => ageingOf(client.invoices, invoiceDay))])
+  group('invoicing.plan', () => [billingTotals(raw.billingPlan, raw.invoices), plannedAgainstInvoiced(raw.billingPlan, raw.invoices), itemStatistics(raw.billingPlan), expectedInvoices(raw.billingPlan, raw.invoices)])
+  group('invoicing.fill-year', () => fillRestOfYear(raw.billingPlan, raw.settings.billing, invoiceDay))
+
+  const ledgerYears = Array.from({ length: yearOf(asOf) - yearOfMonth(window.firstMonth) + 1 }, (_, index) => yearOfMonth(window.firstMonth) + index)
+  for (const period of [{ preset: 'l3' }, { preset: 'l12' }, { preset: 'all' }, ...ledgerYears.map((year) => ({ preset: 'year', year }))]) {
+    const at = period.preset === 'year' ? `year-${period.year}` : period.preset
+    const filters = { ...DEFAULT_FILTERS, period }
+    const listed = listedRows(filterTransactions(cash.transactions, filters, window), transactionsInPeriod(scopeOwnerAdvances(cash.ownerAdvances, filters), period, window))
+    group(`transactions.${at}.listed`, listed)
+    group(`transactions.${at}.groups`, () => ['month', 'category', 'counterparty'].map((grouping) => groupTransactions(listed, grouping, { window, counterpartyLabels: counterpartyLabels(cash.transactions) })))
+    group(`transactions.${at}.advances-left-out`, advancesLeftOutByBankFilters(booked.ownerAdvances, filters, window))
+    const prior = priorEqualPeriod(period, window)
+    group(`analysis.${at}.breakdown`, () => [costGroups(categoryTotals(rows, period, window), prior && categoryTotals(rows, prior, window)), topCounterparties(scoped, period, window)])
+    group(`analysis.${at}.over-time`, () => months.filter((month) => chartedMonths(period, window).includes(month.month)))
+    group(`analysis.${at}.compare`, () => {
+      const review = periodReview(rows, reviewPeriodOf(period, window), window)
+      return [review, categoryChanges(rows, review.current.range, review.prior, window)]
+    })
+    group(`invoicing.${at}.days-to-paid`, () => daysToPaid(matched, periodRange(period, window)))
+    const take = ownerTake(rows, cash.categories, period, window)
+    group(`owner.${at}.taken`, () => [take, netPayPerMonth(take, period, window), ownerTakeByMonth(rows, cash.categories, chartedMonths(period, window), window), ownerCost(rows, cash.categories, period, window)])
+    group(`owner.${at}.benefits`, () => {
+      const benefits = ownerBenefits(rows, cash.categories, period, window)
+      return [benefits, benefits && books.companyFacts.companyRegistered !== null && dividendComparison(benefits.byYear, 'Benefits', (year) => forecastOf(year).liability.rate)]
+    })
+    group(`owner.${at}.net`, () => ownerNetWithProfit(take, books, period, window, asOf, { profitBeforeTax: (year) => forecastOf(year).profitBeforeTax, corporateRate: (year) => forecastOf(year).liability.rate }))
+    group(`owner.${at}.owed`, () => [owedInPeriod(books, period, window, asOf), loanMonths(books.transactions, books.categories, chartedMonths(period, window), window)])
+  }
+
+  const bookings = [...books.transactions, ...books.ownerAdvances.map(bookingOfAdvance)]
+  const accountantYears = [...new Set(books.yearEndLines.map((line) => line.year))]
+  group('year.roles', missingAccrualRoles(books.categories))
+  group('year.payroll-cadence', () => payrollCadence(bookings, books.categories, window))
+  for (const { year, view } of yearOptions(accountantYears, yearOfMonth(window.firstMonth), yearOf(asOf))) {
+    const yearPeriod = { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }
+    group(`year.${year}.taxes`, () => [taxByType(bookings, books.categories, yearPeriod, window), effectiveTaxRate(bookings, books.categories, yearPeriod, window)])
+    group(`year.${year}.forecast`, () => {
+      const forecast = forecastOf(year)
+      return [forecast, dividendCapacity(year, forecast, books), planAgainstActual(forecast), planDefaults(books, year, asOf)]
+    })
+    group(`year.${year}.pay-scenarios`, () => payScenarios(books, year, asOf))
+    group(`year.${year}.accrual`, () => {
+      const accrual = accrualYear(books, year, { depreciation: books.companyFacts, citAdvancesPaid: null })
+      return view === 'closed' ? [accrual, compareYearEnd(books, accrual), yearEndOpenItems(books, accrual)] : accrual
+    })
+  }
+  group('year.assets', () => {
+    const asBooks = assetBooks(books.assets, books.grants, books.companyFacts)
+    const revenueOf = (year) => effectiveTaxRate(books.transactions, books.categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
+    const onToday = [asBooks.schedules.map((schedule) => [bookValueOn(schedule, today), accumulatedDepreciationOn(schedule, today)]), asBooks.grants.map((schedule) => deferredOn(schedule, today))]
+    const threshold = ruleValue('hr.cit.asset-threshold', civilDate(yearOf(today), 1, 1))
+    return [asBooks, doubledRatesEffect(books.assets, books.grants, asBooks, revenueOf), depreciationByYear(asBooks.schedules), assetRegister(books.assets, books.transactions, books.categories), onToday, books.grants.map((grant) => clawbackExposure(grant, today)), grantResiduals(asBooks.grants, books.yearEndLines), threshold]
   })
-  group(`invoicing.${at}.days-to-paid`, () => daysToPaid(matched, periodRange(period, window)))
-  const take = ownerTake(rows, cash.categories, period, window)
-  group(`owner.${at}.taken`, () => [take, netPayPerMonth(take, period, window), ownerTakeByMonth(rows, cash.categories, chartedMonths(period, window), window), ownerCost(rows, cash.categories, period, window)])
-  group(`owner.${at}.benefits`, () => {
-    const benefits = ownerBenefits(rows, cash.categories, period, window)
-    return [benefits, benefits && books.companyFacts.companyRegistered !== null && dividendComparison(benefits.byYear, 'Benefits', (year) => forecastOf(year).liability.rate)]
-  })
-  group(`owner.${at}.net`, () => ownerNetWithProfit(take, books, period, window, asOf, { profitBeforeTax: (year) => forecastOf(year).profitBeforeTax, corporateRate: (year) => forecastOf(year).liability.rate }))
-  group(`owner.${at}.owed`, () => [owedInPeriod(books, period, window, asOf), loanMonths(books.transactions, books.categories, chartedMonths(period, window), window)])
+
+  const salaryBooks = hrDooWorkbook(raw)
+  const reconciliation = salaryReconciliation(salaryBooks)
+  group('salaries.paydays', reconciliation)
+  group('salaries.years', () => paydayYears(reconciliation).map((year) => salaryYearRows(reconciliation, year, null, ledgerWindowOf(salaryBooks.transactions).partMonth)))
 }
 
-const bookings = [...books.transactions, ...books.ownerAdvances.map(bookingOfAdvance)]
-const accountantYears = [...new Set(books.yearEndLines.map((line) => line.year))]
-group('year.roles', missingAccrualRoles(books.categories))
-group('year.payroll-cadence', () => payrollCadence(bookings, books.categories, window))
-for (const { year, view } of yearOptions(accountantYears, yearOfMonth(window.firstMonth), yearOf(asOf))) {
-  const yearPeriod = { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }
-  group(`year.${year}.taxes`, () => [taxByType(bookings, books.categories, yearPeriod, window), effectiveTaxRate(bookings, books.categories, yearPeriod, window)])
-  group(`year.${year}.forecast`, () => {
-    const forecast = forecastOf(year)
-    return [forecast, dividendCapacity(year, forecast, books), planAgainstActual(forecast), planDefaults(books, year, asOf)]
-  })
-  group(`year.${year}.pay-scenarios`, () => payScenarios(books, year, asOf))
-  group(`year.${year}.accrual`, () => {
-    const accrual = accrualYear(books, year, { depreciation: books.companyFacts, citAdvancesPaid: null })
-    return view === 'closed' ? [accrual, compareYearEnd(books, accrual), yearEndOpenItems(books, accrual)] : accrual
-  })
+if (loansAsked) {
+  loansGroups(group)
 }
-group('year.assets', () => {
-  const asBooks = assetBooks(books.assets, books.grants, books.companyFacts)
-  const revenueOf = (year) => effectiveTaxRate(books.transactions, books.categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
-  const onToday = [asBooks.schedules.map((schedule) => [bookValueOn(schedule, today), accumulatedDepreciationOn(schedule, today)]), asBooks.grants.map((schedule) => deferredOn(schedule, today))]
-  const threshold = ruleValue('hr.cit.asset-threshold', civilDate(yearOf(today), 1, 1))
-  return [asBooks, doubledRatesEffect(books.assets, books.grants, asBooks, revenueOf), depreciationByYear(asBooks.schedules), assetRegister(books.assets, books.transactions, books.categories), onToday, books.grants.map((grant) => clawbackExposure(grant, today)), grantResiduals(asBooks.grants, books.yearEndLines), threshold]
-})
 
-const salaryBooks = hrDooWorkbook(raw)
-const reconciliation = salaryReconciliation(salaryBooks)
-group('salaries.paydays', reconciliation)
-group('salaries.years', () => paydayYears(reconciliation).map((year) => salaryYearRows(reconciliation, year, null, ledgerWindowOf(salaryBooks.transactions).partMonth)))
+/**
+ * The Loans groups: the records and problems, then per loan, named by its place in the file and never
+ * by its name, the plan or the balances and the figures each screen shows on the day. The what-if
+ * tries 1,000.00 extra on the day.
+ */
+function loansGroups(add) {
+  const document = options.loans === undefined ? fakeLoansDocument(AT) : decodeDocument(readFileSync(options.loans, 'utf8'))
+  const { records, workbook } = LOANS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
+  add('loans.read.records', records)
+  add('loans.read.problems', workbook.problems)
+  for (const [index, book] of workbook.bankLoans.entries()) {
+    const at = `loans.bank-loan-${index + 1}`
+    add(`${at}.plan`, book.plan)
+    add(`${at}.figures`, () => [bankLoanFigures(book, today), book.plan && paidSoFar(book.plan, book.lateInstalments, today)])
+    add(`${at}.years`, () => planYears(book, today))
+    add(`${at}.months`, () => bankLoanMonths(book))
+    add(`${at}.what-if`, () => whatIfExtraPayment(book.loan, book.ratePeriods, book.extraPayments, today, moneyFromAmount(1000)))
+  }
+  for (const [index, book] of workbook.informalLoans.entries()) {
+    const at = `loans.informal-loan-${index + 1}`
+    add(`${at}.balances`, () => informalBalances(book.loan, book.movements))
+    add(`${at}.figures`, () => [informalLoanFigures(book, today), movementLines(book)])
+    add(`${at}.months`, () => informalLoanMonths(book, today))
+  }
+}
 
 const digests = new WeakMap()
 const sha256 = (text) => createHash('sha256').update(text).digest('hex')

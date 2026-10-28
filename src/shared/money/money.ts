@@ -51,6 +51,12 @@ export function sumMoney(amounts: Iterable<Money>): Money {
   return total as Money
 }
 
+/** The whole-number quotient rounded half away from zero, done in integers so no half cent drifts. */
+export function dividedRounded(numerator: number, denominator: number): number {
+  const magnitude = Math.floor((2 * Math.abs(numerator) + denominator) / (2 * denominator))
+  return Math.sign(numerator) * magnitude + 0
+}
+
 /** Splits an amount into `divisor` equal parts, rounded to the cent. An average per month is one. */
 export function divideMoney(money: Money, divisor: number): Money {
   if (divisor <= 0 || !Number.isFinite(divisor)) {

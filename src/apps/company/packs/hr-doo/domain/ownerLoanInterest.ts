@@ -1,14 +1,14 @@
 import type { HrDooWorkbook } from './hrDooPart'
 import { civilDate, daysBetween } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
-import { ZERO, moneyFromCents, sumMoney } from '../../../../../shared/money/money'
+import { ZERO, dividedRounded, moneyFromCents, sumMoney } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
 import type { Rate, RuleCitation } from '../ruleset/schema'
 import type { TracedFigure } from '../ruleset/tracedFigure'
 import type { CarriedLoss } from './cit/taxBase'
 import { ownerLoans } from './ownerLoans'
 import type { OwnerLoan } from './ownerLoans'
-import { dividedRounded, percentText, tracedFigure } from './payroll/payrollArithmetic'
+import { percentText, tracedFigure } from './payroll/payrollArithmetic'
 import type { RuleSource } from './payroll/payrollArithmetic'
 
 const BASIS_POINTS_PER_WHOLE = 10_000

@@ -17,7 +17,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { fittingProfiles, importTitle, statementReadings, writeImport } from '../application/importStatements'
 import { profileDraftProblem, profileKey, profileValue } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
@@ -32,7 +32,7 @@ import { useDryRun } from './useDryRun'
 const store = useWorkbook()
 const toast = useToast()
 const names = useDisplayNames()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 
 const pickedFile = ref<File | null>(null)
 // Shallow, so the parsed document and the cells stay plain objects.

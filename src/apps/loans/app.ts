@@ -3,16 +3,17 @@ import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { LOANS_START_ROUTE } from './onboarding/presentation/useLoansStart'
+import { BANK_LOAN_ROUTE, INFORMAL_LOAN_ROUTE, LOANS_OVERVIEW_ROUTE } from './overview/presentation/loanLinks'
 import { loansSyncGroup } from './sync/presentation/loansSyncGroup'
 import { useLoansBooks } from './workbook/application/loansStore'
 import { LOANS_APP } from './workbook/infrastructure/loansDocument'
 import { useFindLoansFile } from './workbook/presentation/useFindLoansFile'
 
-const OVERVIEW: AppScreen = { path: '/loans', title: 'Overview', icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
+const OVERVIEW: AppScreen = { path: LOANS_OVERVIEW_ROUTE, title: 'Overview', icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
 
 const { state } = useLoansBooks()
 
-/** The loans kept in a file of their own beside the company's books. It shows an empty Overview until it can keep loans. */
+/** The loans kept in a file of their own beside the company's books: bank loans with the plan their terms give, and informal loans between people. */
 export const loansApp: AppContribution = {
   id: LOANS_APP,
   name: 'Loans',
@@ -25,6 +26,8 @@ export const loansApp: AppContribution = {
   },
   screens: [
     OVERVIEW,
+    { path: BANK_LOAN_ROUTE, title: 'Bank loan', icon: 'i-lucide-landmark', component: () => import('./bankLoans/presentation/BankLoanScreen.vue') },
+    { path: INFORMAL_LOAN_ROUTE, title: 'Informal loan', icon: 'i-lucide-handshake', component: () => import('./informalLoans/presentation/InformalLoanScreen.vue') },
     { path: LOANS_START_ROUTE, title: 'Start', icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
   menu: () => [OVERVIEW],

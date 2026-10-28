@@ -91,7 +91,7 @@ describe('the Loans first run on the fake Drive', () => {
       await store.chooseDriveFile(lookup)
 
       expect(store.state.choice).toEqual(madeOn)
-      expect(store.state.workbook).toEqual({ title: 'kuna-loans.json' })
+      expect(store.state.workbook).toMatchObject({ title: 'kuna-loans.json', bankLoans: [], informalLoans: [], problems: [] })
     }
     expect(loadWorkbookChoice('company')?.name).toBe('kuna-company.json')
   })

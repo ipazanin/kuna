@@ -13,7 +13,7 @@ import { SCENARIO_RECORDS } from '../../domain/hrDooKinds'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { DIRECTOR_BASES } from '../../domain/scenarios/ownerPayScenarios'
 import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
-import { useRecordWrites } from '../../../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import { parseCivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
@@ -47,7 +47,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 const phone = usePhoneLayout()
 
 const kind = ref<Kind>('salary_gross')

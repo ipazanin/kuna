@@ -18,7 +18,7 @@ import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/reco
 import { textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Invoice } from '../../workbook/domain/workbook'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { INVOICE_WRITES } from '../application/invoiceWrites'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 
@@ -42,7 +42,7 @@ const props = defineProps<{
 type Field = 'number' | 'client' | 'item' | 'amount' | 'issued' | 'due' | 'period_from' | 'period_to'
 
 const store = useWorkbook()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 const phone = usePhoneLayout()
 
 const fields = ref<Record<Field, string>>(blankFields())

@@ -8,7 +8,7 @@ import { useSettings } from '../application/useSettings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
 import { ACCOUNT_WRITES, accountUses } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
@@ -19,7 +19,7 @@ const { state } = useWorkbook()
 const settings = useSettings()
 const linkedTab = inject(LINKED_SETTINGS_TAB, null)
 const linked = computed(() => linkedTab?.value === 'accounts')
-const writes = useRecordWrites()
+const writes = useRecordWrites(useWorkbook())
 
 const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, kind))
 const accountsInUse = computed(() => accountUses(recordsOnScreen))

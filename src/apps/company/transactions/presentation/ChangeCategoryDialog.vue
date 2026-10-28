@@ -16,7 +16,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import type { Transaction } from '../../workbook/domain/workbook'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import CategoryChip from './CategoryChip.vue'
 import CategoryPicker from './CategoryPicker.vue'
 
@@ -33,7 +33,7 @@ const props = defineProps<{
 
 const { state } = useWorkbook()
 const router = useRouter()
-const writes = useRecordWrites()
+const writes = useRecordWrites(useWorkbook())
 const names = useDisplayNames()
 const phone = usePhoneLayout()
 

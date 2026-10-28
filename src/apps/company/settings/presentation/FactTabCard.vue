@@ -9,7 +9,7 @@ import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
 import type { DraftFactory } from '../domain/recordDrafts'
 import type { EditorColumn } from './factTabColumns'
@@ -41,7 +41,7 @@ const props = withDefaults(
 )
 
 const { state } = useWorkbook()
-const writes = useRecordWrites()
+const writes = useRecordWrites(useWorkbook())
 
 const records = computed(() => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, props.rules.kind)))
 const count = computed(() => records.value.records.length + records.value.refused.length)

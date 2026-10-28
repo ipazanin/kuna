@@ -1,7 +1,9 @@
-import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
-import { newDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
-import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
+import { codecOfLoansKind } from '../application/loansCodecs'
 import type { LoansBooks } from '../domain/loansBooks'
+import { loansRecordsOf, readLoanBook } from '../domain/readLoanBook'
+import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
+import { newDocument, recordsOfDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
+import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
 
 /** The app of the hub whose file this store keeps. */
 export const LOANS_APP = 'loans'
@@ -13,11 +15,12 @@ export function emptyLoansDocument(savedAt: string): WorkbookDocument {
   return newDocument(LOANS_APP, LOANS_SCHEMA, {}, savedAt)
 }
 
-/** The Loans document as the store reads and writes it. It has no kinds, so nothing asks for a codec. */
+/** The Loans document as the store reads and writes it. */
 export const LOANS_DOCUMENT: AppDocument<LoansBooks> = {
   schema: () => LOANS_SCHEMA,
-  codecOf: (kind) => {
-    throw new Error(`The Loans app keeps no ${kind.name} records.`)
+  codecOf: codecOfLoansKind,
+  read(copy) {
+    const records = loansRecordsOf((kind) => recordsOfDocument(copy.document, kind, codecOfLoansKind))
+    return { records, workbook: { title: copy.meta.title, ...readLoanBook(records) } }
   },
-  read: (copy) => ({ records: {}, workbook: { title: copy.meta.title } }),
 }

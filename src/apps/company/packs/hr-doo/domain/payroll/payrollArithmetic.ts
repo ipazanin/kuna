@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { moneyFromCents, sumMoney } from '../../../../../../shared/money/money'
+import { dividedRounded, moneyFromCents, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import type { RuleId, RuleLookup, RuleValues } from '../../ruleset/ruleset'
 import type { Rate, RuleCitation } from '../../ruleset/schema'
@@ -9,12 +9,6 @@ import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 export type RuleSource = <Id extends RuleId>(id: Id, on: CivilDate) => RuleLookup<RuleValues[Id]>
 
 const BASIS_POINTS_PER_WHOLE = 10_000
-
-/** The whole-number quotient rounded half away from zero, done in integers so no half cent drifts. */
-export function dividedRounded(numerator: number, denominator: number): number {
-  const magnitude = Math.floor((2 * Math.abs(numerator) + denominator) / (2 * denominator))
-  return Math.sign(numerator) * magnitude + 0
-}
 
 /** An amount times a rate, rounded to the cent half away from zero, as the accountant rounds each payroll line. */
 export function atRate(amount: Money, rate: Rate): Money {

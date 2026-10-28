@@ -110,7 +110,9 @@ import {
   invoiceRunFlow,
   loansBrowserFlow,
   loansDriveFlow,
+  loansEditorFlow,
   loansOpenFlow,
+  loansWhatIfFlow,
   mailAccessFlow,
   mailFailedFlow,
   mailNothingNewFlow,
@@ -186,6 +188,10 @@ const CARD_SELECTOR = '.rounded-card, .gallery-frame'
  * screen points at, which has to open. `collapsedBefore` names the cards this device
  * remembers as collapsed, and `expandedBefore` those it remembers as open. `cards: false` marks a screen with no collapsible card.
  */
+/** The ids of the sample Loans file's two loans, `?loans=sample`. */
+const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
+const SAMPLE_INFORMAL_LOAN = 'fa4e0000-0000-4000-8000-000000000006'
+
 const SCREENS = [
   { name: 'overview', hash: '#/company', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
   { name: 'transactions', hash: '#/company/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics', cards: false },
@@ -382,6 +388,9 @@ const SOURCE_SCREENS = [
   { name: 'loans-start', hash: '#/loans', title: 'Loans', charts: 0, shows: ['Where the Loans file lives', 'A new file on Google Drive', 'My file on Google Drive'], cards: false },
   { name: 'loans-start-folder', hash: '#/loans/start?step=folder', title: 'Loans', charts: 0, shows: ['Where the Loans file is saved', 'Choose a folder in Google Drive'], cards: false },
   { name: 'loans-overview', query: 'loans=drive', hash: '#/loans', title: 'Overview', charts: 0, shows: ['No loans yet', 'on Google Drive as kuna-loans.json'], cards: false },
+  { name: 'loans-sample', query: 'loans=sample', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'From Marko', 'in all', 'Subsidy ends'], cards: false },
+  { name: 'loans-bank-loan', query: 'loans=sample', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', charts: 1, shows: ['Owed over time', 'What if I pay extra', 'Estimate', '6M EURIBOR', 'days late'] },
+  { name: 'loans-informal-loan', query: 'loans=sample', hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`, title: 'From Marko', charts: 1, shows: ['Borrowed in kind', 'Repaid in kind', 'Forgiven', 'He bought a boat battery for me'] },
   {
     name: 'settings-device-two-files',
     query: 'loans=drive',
@@ -720,6 +729,8 @@ const FLOWS = [
   { name: 'loans-drive', hash: '#/loans', title: 'Loans', run: loansDriveFlow, modes: ['drive'] },
   { name: 'loans-browser', hash: '#/loans', title: 'Loans', run: loansBrowserFlow, modes: ['browser'] },
   { name: 'loans-open', hash: '#/loans', title: 'Loans', run: loansOpenFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
+  { name: 'loans-editor', hash: '#/loans', title: 'Overview', run: loansEditorFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
+  { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'menu-groups', hash: '#/loans', title: 'Overview', run: menuGroupsFlow, queries: { drive: '&loans=drive', browser: '&fake=browser&loans=browser' } },
   { name: 'move-browser', hash: '#/settings?tab=device', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
   { name: 'race', hash: '#/company/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },

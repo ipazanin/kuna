@@ -1,4 +1,4 @@
-import { civilDate } from './civilDate'
+import { civilDate, dayOfMonth } from './civilDate'
 import type { CivilDate } from './civilDate'
 
 /** A calendar month written `YYYY-MM`. Like CivilDate, the text form sorts chronologically. */
@@ -57,4 +57,11 @@ export function firstDayOf(month: MonthKey): CivilDate {
 export function lastDayOf(month: MonthKey): CivilDate {
   const days = new Date(Date.UTC(yearOfMonth(month), monthNumber(month), 0)).getUTCDate()
   return civilDate(yearOfMonth(month), monthNumber(month), days)
+}
+
+/** The same day of the month `count` months on, or that month's last day when it is shorter, so the 31st of January is followed by the 28th or 29th of February. */
+export function dayMonthsLater(date: CivilDate, count: number): CivilDate {
+  const month = addMonths(monthOf(date), count)
+  const last = lastDayOf(month)
+  return dayOfMonth(date) < dayOfMonth(last) ? civilDate(yearOfMonth(month), monthNumber(month), dayOfMonth(date)) : last
 }

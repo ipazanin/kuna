@@ -44,8 +44,12 @@ export interface WriteRules<R> {
   readonly undoable: boolean
   /** The kind's own reader against the other kinds as given: which records count, and why the rest do not or are doubted. */
   read(read: RecordsRead<R>, records: FreshRecords): Reading<{ readonly id: RecordId }>
-  /** Why the change would break the workbook or what reads it, each a sentence. Empty when it may go ahead. */
-  refusals(change: KindChange<R>, fresh: FreshRecords): readonly string[]
+  /**
+   * Why the change would break the workbook or what reads it, each a sentence. Empty when it may go
+   * ahead. `after` holds the kinds of `fresh` as the whole write would leave them, so a check can see
+   * what the write does to records of other kinds.
+   */
+  refusals(change: KindChange<R>, fresh: FreshRecords, after: FreshRecords): readonly string[]
 }
 
 /** Each record the change touches as the kind's checks take it, picked from its stored fields: before, null for an add, and after, null for a remove. */

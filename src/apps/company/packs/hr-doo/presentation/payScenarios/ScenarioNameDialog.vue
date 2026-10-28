@@ -11,7 +11,7 @@ import { SCENARIO_RECORDS } from '../../domain/hrDooKinds'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import type { OwnerPayScenario } from '../../domain/scenarios/ownerPayScenarios'
 import { slugProblem } from '../../../../workbook/domain/slug'
-import { useRecordWrites } from '../../../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { copyScenario, renameScenario } from '../../application/scenarioWrites'
 import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
@@ -28,7 +28,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 const phone = usePhoneLayout()
 
 const name = ref('')

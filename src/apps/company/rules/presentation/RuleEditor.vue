@@ -14,7 +14,7 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import { NO_RECORDS, recordsOf } from '../../../../shared/storage/domain/recordsRead'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeRulesChange } from '../application/ruleWrites'
 import { useRulesChangePreview } from '../application/useRulesChange'
 import type { CategoryCount } from '../domain/ruleCoverage'
@@ -51,7 +51,7 @@ const { state } = store
 const phone = usePhoneLayout()
 const names = useDisplayNames()
 const toast = useToast()
-const recordWrites = useRecordWrites()
+const recordWrites = useRecordWrites(store)
 
 const draft = ref<RuleDraft | null>(props.source?.draft ?? null)
 const accepted = ref(false)

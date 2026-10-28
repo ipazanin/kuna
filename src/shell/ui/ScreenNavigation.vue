@@ -3,8 +3,6 @@ export interface NavigationEntry {
   readonly to: string
   /** Its name in the menu, such as Overview. */
   readonly label: string
-  /** What the phone top bar calls the screen, with the app's name for an app other than the home app, such as "Overview, Loans". */
-  readonly title: string
   /** A Lucide icon name such as `i-lucide-wallet`. */
   readonly icon: string
   /** What waits on the screen, such as the rows to review, shown beside its name. Left out at zero. */

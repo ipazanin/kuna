@@ -2,13 +2,12 @@ import { ref } from 'vue'
 import type { Ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { canUndo } from '../../../../shared/storage/application/createWorkbookStore'
-import type { SessionWrite } from '../../../../shared/storage/application/createWorkbookStore'
-import type { WriteReceipt } from '../../../../shared/storage/application/recordWrites'
-import { useWorkbook } from '../application/workbookStore'
-import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { WorkbookWriteRefused } from '../../../../shared/storage/application/workbookWriteRefused'
-import { recordsChangeInWords } from './rowsInWords'
+import { canUndo } from '../application/createWorkbookStore'
+import type { BooksRead, SessionWrite, WorkbookStore } from '../application/createWorkbookStore'
+import type { WriteReceipt } from '../application/recordWrites'
+import type { UnitOfWork } from '../application/repository'
+import { WorkbookWriteRefused } from '../application/workbookWriteRefused'
+import { recordsChangeInWords } from './recordsChangeInWords'
 
 /** How long a toast with Undo stays, so there is time to reach the button. */
 const UNDO_TOAST_DURATION = 10_000
@@ -37,9 +36,8 @@ export interface RecordWrites {
   undo(write: SessionWrite): Promise<void>
 }
 
-/** Record writes with their toasts: what was written with Undo beside it, or why nothing was. */
-export function useRecordWrites(): RecordWrites {
-  const store = useWorkbook()
+/** Record writes to the store's file with their toasts: what was written with Undo beside it, or why nothing was. */
+export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>): RecordWrites {
   const toast = useToast()
   const busy = ref(false)
 

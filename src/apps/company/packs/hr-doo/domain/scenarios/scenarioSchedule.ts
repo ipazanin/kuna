@@ -3,13 +3,10 @@ import { addDays, civilDate, daysBetween, weekdaysBetween } from '../../../../..
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { firstDayOf, lastDayOf, monthKey, monthOf } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
+import { monthRange, overlapOf, rangeContains } from '../../../../../../shared/calendar/dateRange'
+import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 
 export type ComponentOf<Kind extends ScenarioComponent['component']> = Extract<ScenarioComponent, { readonly component: Kind }>
-
-export interface DaySpan {
-  readonly from: CivilDate
-  readonly to: CivilDate
-}
 
 /** A month the scenario pays a salary in, with the working days its salary row covers. */
 export interface SalaryMonth {
@@ -60,23 +57,12 @@ export interface ScenarioSchedule {
 }
 
 /** A component's days, its blank ends read as the first and last day of the scenario's year. */
-export function spanOf(component: ScenarioComponent, year: number): DaySpan {
+export function spanOf(component: ScenarioComponent, year: number): DateRange {
   return { from: component.from ?? civilDate(year, 1, 1), to: component.to ?? civilDate(year, 12, 31) }
 }
 
 export function componentsOf<Kind extends ScenarioComponent['component']>(scenario: OwnerPayScenario, kind: Kind): ComponentOf<Kind>[] {
   return scenario.components.filter((component): component is ComponentOf<Kind> => component.component === kind)
-}
-
-function covers(span: DaySpan, day: CivilDate): boolean {
-  return span.from <= day && day <= span.to
-}
-
-/** The days two spans share, or null when they share none. */
-export function overlapOf(first: DaySpan, second: DaySpan): DaySpan | null {
-  const from = first.from > second.from ? first.from : second.from
-  const to = first.to < second.to ? first.to : second.to
-  return from <= to ? { from, to } : null
 }
 
 /**
@@ -89,18 +75,18 @@ export function scenarioSchedule(scenario: OwnerPayScenario): ScenarioSchedule {
   const { year } = scenario
   const salaries = componentsOf(scenario, 'salary_gross')
   const bases = componentsOf(scenario, 'director_basis')
-  const salaryOn = (day: CivilDate) => salaries.find((salary) => covers(spanOf(salary, year), day)) ?? null
+  const salaryOn = (day: CivilDate) => salaries.find((salary) => rangeContains(spanOf(salary, year), day)) ?? null
   const basisOn = (day: CivilDate): DirectorBasis => {
     if (salaryOn(day) !== null) {
       return 'employee'
     }
-    const named = bases.find((basis) => covers(spanOf(basis, year), day))
+    const named = bases.find((basis) => rangeContains(spanOf(basis, year), day))
     return named?.basis === 'insured-elsewhere' ? 'insured-elsewhere' : 'board-only'
   }
   const months = Array.from({ length: 12 }, (_, index) => monthKey(year, index + 1))
 
   const salaryMonths = months.flatMap((month): SalaryMonth[] => {
-    const monthSpan = { from: firstDayOf(month), to: lastDayOf(month) }
+    const monthSpan = monthRange(month)
     const workingDays = weekdaysBetween(monthSpan.from, monthSpan.to)
     return salaries.flatMap((salary) => {
       const shared = overlapOf(spanOf(salary, year), monthSpan)
@@ -123,7 +109,7 @@ export function scenarioSchedule(scenario: OwnerPayScenario): ScenarioSchedule {
   })
 
   const rentMonths = months.flatMap((month): RentMonth[] => {
-    const monthSpan = { from: firstDayOf(month), to: lastDayOf(month) }
+    const monthSpan = monthRange(month)
     const daysInMonth = daysBetween(monthSpan.from, monthSpan.to) + 1
     return componentsOf(scenario, 'rent_monthly').flatMap((rent) => {
       const shared = overlapOf(spanOf(rent, year), monthSpan)

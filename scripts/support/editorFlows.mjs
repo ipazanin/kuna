@@ -2717,3 +2717,150 @@ export async function menuGroupsFlow(page, { press, shoot, inspect }) {
   await inspect?.('the menu with two apps')
   await shoot('menu-groups')
 }
+
+async function fill(page, testId, value) {
+  const input = await page.waitForSelector(`[data-testid="${testId}"]`, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error(`no visible ${testId} field within 10 s`)
+  })
+  await setField(input, value)
+}
+
+/** Picks the option of an open select menu whose text starts with `start`. */
+async function chooseStartingWith(page, press, trigger, start) {
+  await pressSelector(page, press, trigger)
+  const option = await page
+    .waitForFunction((wanted) => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null, { timeout: 5_000 }, start)
+    .catch(() => {
+      throw new Error(`no option starting "${start}"`)
+    })
+  await option.asElement().evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await press(option.asElement())
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  await delay(200)
+}
+
+async function loanCardShown(page, name, shown) {
+  await page
+    .waitForFunction((wanted, expected) => [...document.querySelectorAll('[data-testid="loan-card"] h2')].some((heading) => heading.textContent?.trim() === wanted) === expected, { timeout: 10_000 }, name, shown)
+    .catch(() => {
+      throw new Error(shown ? `the Loans Overview has no card for ${name}` : `the Loans Overview still has a card for ${name}`)
+    })
+}
+
+/** Opens a loan's page from its card on the Loans Overview. */
+async function openLoanCard(page, press, name) {
+  await page.evaluate(() => {
+    window.location.hash = '#/loans'
+  })
+  await screenTitled(page, 'Overview')
+  const card = await page
+    .waitForFunction((wanted) => [...document.querySelectorAll('[data-testid="loan-card"]')].find((element) => element.querySelector('h2')?.textContent?.trim() === wanted) ?? null, { timeout: 10_000 }, name)
+    .catch(() => {
+      throw new Error(`no card for ${name} on the Loans Overview`)
+    })
+  await card.asElement().evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(card.asElement())
+  await screenTitled(page, name)
+}
+
+/** Presses Add on the change card with this test id. */
+async function addChange(page, press, card) {
+  await pressSelector(page, press, `[data-testid="${card}"] [data-testid="change-add"]`)
+}
+
+/**
+ * Loans with the sample file: a bank loan added with its first rate, which opens its page, a rate
+ * period, an extra payment and a late instalment added there, a movement added to the informal loan,
+ * and the new bank loan deleted with its records and brought back with Undo.
+ */
+export async function loansEditorFlow(page, { press, shoot, inspect }) {
+  await pressSelector(page, press, '[data-testid="add-bank-loan"]')
+  await page.waitForSelector('[data-testid="bank-loan-form"]', { visible: true })
+  await fill(page, 'bank-loan-name', 'Car loan')
+  await fill(page, 'bank-loan-principal', '12000')
+  await fill(page, 'bank-loan-instalments', '48')
+  await fill(page, 'bank-loan-drawdown', '2026-01-10')
+  await fill(page, 'bank-loan-first-instalment', '2026-02-10')
+  await fill(page, 'rate-field', '6.5')
+  await delay(200)
+  await inspect?.('the bank loan dialog')
+  await shoot('loans-add-bank-loan')
+  await pressSelector(page, press, '[data-testid="bank-loan-save"]')
+  await toast(page, 'Bank loan added')
+  await screenTitled(page, 'Car loan')
+  await dismissToasts(page)
+
+  await addChange(page, press, 'rate-periods')
+  await page.waitForSelector('[data-testid="rate-period-form"]', { visible: true })
+  await chooseStartingWith(page, press, '[data-testid="rate-period-from"]', '10 Feb 2027')
+  await fill(page, 'rate-field', '5.9')
+  await shoot('loans-add-rate-period')
+  await pressSelector(page, press, '[data-testid="rate-period-save"]')
+  await toast(page, 'Rate period added')
+  await elementSays(page, '[data-testid="rate-periods"]', ['5.9%, variable', 'From 10 Feb 2027'], 'the new rate period is not listed')
+  await dismissToasts(page)
+
+  await addChange(page, press, 'extra-payments')
+  await page.waitForSelector('[data-testid="extra-payment-form"]', { visible: true })
+  await fill(page, 'extra-payment-date', '2026-09-10')
+  await fill(page, 'extra-payment-amount', '2000')
+  await pressSelector(page, press, '[data-testid="extra-payment-save"]')
+  await toast(page, 'Extra payment added')
+  await elementSays(page, '[data-testid="extra-payments"]', ['€2,000.00', '10 Sept 2026, shorter term'], 'the extra payment is not listed')
+  await dismissToasts(page)
+
+  await addChange(page, press, 'late-instalments')
+  await page.waitForSelector('[data-testid="late-instalment-form"]', { visible: true })
+  await chooseStartingWith(page, press, '[data-testid="late-instalment-due"]', '10 Mar 2026')
+  await fill(page, 'late-instalment-paid', '2026-03-20')
+  await pressSelector(page, press, '[data-testid="late-instalment-save"]')
+  await toast(page, 'Late instalment added')
+  await elementSays(page, '[data-testid="late-instalments"]', ['Due 10 Mar 2026', '10 days late'], 'the late instalment is not listed')
+  await inspect?.('the new bank loan with its changes')
+  await shoot('loans-new-bank-loan')
+  await dismissToasts(page)
+
+  await openLoanCard(page, press, 'From Marko')
+  await pressSelector(page, press, '[data-testid="movement-add"]')
+  await page.waitForSelector('[data-testid="movement-form"]', { visible: true })
+  await fill(page, 'movement-amount', '250')
+  await fill(page, 'movement-note', 'Paid back by the flow')
+  await shoot('loans-add-movement')
+  await pressSelector(page, press, '[data-testid="movement-save"]')
+  await toast(page, 'Movement added')
+  await elementSays(page, '[data-testid="movement-list"]', ['Paid back by the flow'], 'the movement is not listed')
+  await dismissToasts(page)
+
+  await openLoanCard(page, press, 'Car loan')
+  await pressSelector(page, press, '[data-testid="bank-loan-edit"]')
+  await pressSelector(page, press, '[data-testid="bank-loan-delete"]')
+  await toast(page, 'Bank loan deleted')
+  await screenTitled(page, 'Overview')
+  await loanCardShown(page, 'Car loan', false)
+  await undo(page, press)
+  await loanCardShown(page, 'Car loan', true)
+  await inspect?.('the Loans Overview after Undo')
+  await shoot('loans-undo-delete')
+  await dismissToasts(page)
+}
+
+/** The bank loan's what-if: an extra payment inside the subsidy's window shows both effects and the warning, and Apply fills the extra payment dialog. */
+export async function loansWhatIfFlow(page, { press, shoot, inspect }) {
+  await fill(page, 'what-if-amount', '10000')
+  await fill(page, 'what-if-date', '2027-06-20')
+  await elementSays(page, '[data-testid="what-if-outcomes"]', ['Shorter term', 'Lower instalment', 'Interest saved', 'New instalment'], 'the what-if does not show both effects')
+  await elementSays(page, '[data-testid="what-if-subsidy"]', ['paying the subsidy back'], 'the what-if does not warn about the subsidy')
+  const panel = await page.$('[data-testid="what-if"]')
+  await panel.evaluate((element) => element.scrollIntoView({ block: 'start' }))
+  await delay(200)
+  await inspect?.('the what-if panel')
+  await shoot('loans-what-if')
+  await pressSelector(page, press, '[data-testid="what-if-apply-lower"]')
+  await page.waitForSelector('[data-testid="extra-payment-form"]', { visible: true })
+  const filled = await page.$eval('[data-testid="extra-payment-amount"]', (input) => input.value)
+  if (filled !== '10000.00') throw new Error(`Apply filled the amount with "${filled}"`)
+  await shoot('loans-what-if-apply')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[data-testid="extra-payment-form"]')
+}

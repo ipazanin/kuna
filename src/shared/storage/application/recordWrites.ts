@@ -236,7 +236,7 @@ export async function checkWrite(storage: StorageView, title: string, ruled: rea
       after: preview.records.of(rules.kind),
       undoing: options.undoing,
     }
-    kindRefusals.push(...rules.refusals(change, fresh))
+    kindRefusals.push(...rules.refusals(change, fresh, preview.records))
     readRefusals.push(...readerRefusals(rules, change, fresh, preview.records))
   }
   // A kind's own checks name the cause, so the reader's account of the same record is held back until they pass.

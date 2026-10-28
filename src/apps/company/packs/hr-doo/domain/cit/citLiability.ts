@@ -1,11 +1,11 @@
 import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthCountBetween, monthOf } from '../../../../../../shared/calendar/monthKey'
-import { ZERO, moneyFromCents, subtractMoney } from '../../../../../../shared/money/money'
+import { ZERO, dividedRounded, moneyFromCents, subtractMoney } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { Rate, RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { atRate, deducted, dividedRounded, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
+import { atRate, deducted, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import type { TaxBase } from './taxBase'
 

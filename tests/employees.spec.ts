@@ -124,7 +124,8 @@ describe('the employees tab', () => {
   it('refuses a name the app cannot use as a key', () => {
     const added = tab({ ...DORA, employee: 'Dora E' }).records[0]!
     const change = { edits: [{ before: null, after: added }], untouched: [], before: { records: [], refused: [] }, after: { records: [added], refused: [] }, undoing: false }
-    expect(EMPLOYEE_WRITES.refusals(change, { of: () => ({ records: [], refused: [] }) })).toEqual([
+    const none = { of: () => ({ records: [], refused: [] }) }
+    expect(EMPLOYEE_WRITES.refusals(change, none, none)).toEqual([
       '"dora e" is not an employee name the app can use: write it in lower-case letters and digits with single hyphens, such as ai-services.',
     ])
   })

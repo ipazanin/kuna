@@ -7,7 +7,7 @@ import { resumedBy } from '../shared/google/googleRedirect'
 import type { RedirectReturn } from '../shared/google/googleRedirect'
 import { setMoneyFormat } from '../shared/money/moneyFormat'
 import { startPageSync } from '../shared/sync/presentation/pageSync'
-import { firstRunAt, homeApp, installedApps, ownsPath, screenName } from './routing/appRegistry'
+import { firstRunAt, homeApp, installedApps, ownsPath } from './routing/appRegistry'
 import { screenLoading } from './routing/router'
 import { SETTINGS_SCREEN } from './routing/screens'
 import { keepPageSynced } from './sync/keepPageSynced'
@@ -32,10 +32,10 @@ const navigation = computed(
       subtitle: app.subtitle(),
       entries: app.menu().map((screen) => {
         const count = app.menuCount(screen)
-        return { to: screen.path, label: screen.title, title: screenName(app, screen), icon: screen.icon, ...(count === null ? {} : { count }) }
+        return { to: screen.path, label: screen.title, icon: screen.icon, ...(count === null ? {} : { count }) }
       }),
     })),
-    apart: [{ to: SETTINGS_SCREEN.path, label: SETTINGS_SCREEN.title, title: SETTINGS_SCREEN.title, icon: SETTINGS_SCREEN.icon }],
+    apart: [{ to: SETTINGS_SCREEN.path, label: SETTINGS_SCREEN.title, icon: SETTINGS_SCREEN.icon }],
   }),
 )
 

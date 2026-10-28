@@ -9,7 +9,7 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { needsReview } from '../../workbook/domain/needsReview'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeImport } from '../application/importStatements'
 import { filedTitle, stillHeld } from '../application/statementSync'
 import DryRunStatementCard from './DryRunStatementCard.vue'
@@ -18,7 +18,7 @@ import { useStatementSync } from './useStatementSync'
 
 const store = useWorkbook()
 const statements = useStatementSync()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 const names = useDisplayNames()
 
 const outcome = computed(() => statements.state.outcome)

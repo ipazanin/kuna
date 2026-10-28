@@ -120,6 +120,9 @@ import { runSelection } from './support/runSelection.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+/** The ids of the sample Loans file's two loans, `?loans=sample`. */
+const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
+const SAMPLE_INFORMAL_LOAN = 'fa4e0000-0000-4000-8000-000000000006'
 const OUTPUT_DIR = process.env.TOUCH_OUTPUT_DIR ?? join(ROOT, 'visual-check', 'touch')
 const WIDTHS = [360, 430]
 const SMALLEST_TARGET = 44
@@ -1532,6 +1535,73 @@ async function checkWidth(width) {
     await expect(page.evaluate(() => !window.location.href.includes('access_token')), (gone) => gone, 'the token stayed in the address after the Loans find resumed')
     await inspect(page, `${width}px resumed Loans find`)
     await shoot('google-return-loans-find')
+  })
+
+  // The sample Loans file, ?loans=sample: its Overview and both loan pages with a card collapsed on each, then an extra payment entered and undone.
+  for (const [name, hash, title, ready] of [
+    ['loans-overview', '#/loans', 'Overview', '[data-testid="loan-cards"]'],
+    ['loans-bank-loan', `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, 'Home loan', '[data-testid="loan-plan"]'],
+    ['loans-informal-loan', `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`, 'From Marko', '[data-testid="movement-list"]'],
+  ]) {
+    await step(name, async () => {
+      await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+      await waitForTitle(page, title)
+      await page.waitForSelector(ready)
+      await inspect(page, `${width}px ${name}`)
+      await shoot(name)
+      if ((await page.$('[data-card]')) !== null) {
+        await collapseAndExpand(
+          page,
+          (handle) => handle.tap(),
+          async () => {
+            await inspect(page, `${width}px ${name} card collapsed`)
+            await shoot(`${name}-card-collapsed`)
+          },
+        )
+      }
+    })
+  }
+
+  await step('loans-plan-row', async () => {
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Home loan')
+    const toggle = await page.waitForSelector('[data-testid="plan-row-toggle"]', { visible: true })
+    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await toggle.tap()
+    await waitForText(page, '[data-testid="plan-row-detail"]', 'Instalment')
+    await inspect(page, `${width}px a plan row opened`)
+    await shoot('loans-plan-row')
+  })
+
+  await step('loans-extra-payment-undo', async () => {
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Home loan')
+    const payments = () => page.evaluate(() => document.querySelectorAll('[data-testid="extra-payments"] [data-testid="change-line"]').length)
+    const before = await payments()
+    const add = await page.waitForSelector('[data-testid="extra-payments"] [data-testid="change-add"]')
+    await add.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await add.tap()
+    await page.waitForSelector('[data-testid="extra-payment-form"]')
+    await delay(300)
+    await page.tap('[data-testid="extra-payment-date"]')
+    await page.$eval('[data-testid="extra-payment-date"]', (input) => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2026-11-25')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await page.tap('[data-testid="extra-payment-amount"]')
+    await page.type('[data-testid="extra-payment-amount"]', '3000')
+    await (await waitForText(page, '[data-testid="extra-payment-effect"] label', 'Shorter term')).tap()
+    await inspect(page, `${width}px extra payment form`)
+    await shoot('loans-extra-payment')
+    await page.tap('[data-testid="extra-payment-save"]')
+    await waitForText(page, '[data-slot="title"]', 'Extra payment added')
+    await expect(payments(), (count) => count === before + 1, 'the extra payment is not listed')
+    await delay(700)
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Undone')
+    await expect(payments(), (count) => count === before, 'Undo did not take the extra payment off the list')
   })
 
   await step('open-file-browser', async () => {

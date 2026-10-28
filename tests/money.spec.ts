@@ -5,6 +5,7 @@ import {
   addMoney,
   amountOf,
   divideMoney,
+  dividedRounded,
   moneyFromAmount,
   moneyFromCents,
   negateMoney,
@@ -34,6 +35,14 @@ describe('money', () => {
     expect(subtractMoney(moneyFromCents(5), moneyFromCents(7))).toBe(-2)
     expect(negateMoney(ZERO)).toBe(0)
     expect(Object.is(negateMoney(ZERO), -0)).toBe(false)
+  })
+
+  it('divides whole numbers exactly, rounding half away from zero on both signs', () => {
+    expect(dividedRounded(5, 2)).toBe(3)
+    expect(dividedRounded(-5, 2)).toBe(-3)
+    expect(dividedRounded(749_999, 1_000)).toBe(750)
+    expect(dividedRounded(-1, 4)).toBe(0)
+    expect(Object.is(dividedRounded(-1, 4), -0)).toBe(false)
   })
 
   it('divides to the cent, rounding half away from zero on both signs', () => {

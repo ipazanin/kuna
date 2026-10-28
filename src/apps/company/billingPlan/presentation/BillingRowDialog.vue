@@ -15,7 +15,7 @@ import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingRowLine } from './billingView'
 
@@ -33,7 +33,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 const phone = usePhoneLayout()
 
 const item = ref('')

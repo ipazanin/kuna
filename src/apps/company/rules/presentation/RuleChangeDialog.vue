@@ -5,7 +5,7 @@ import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { useRulesChangePreview } from '../application/useRulesChange'
 import { writeRulesChange } from '../application/ruleWrites'
 import type { RulesTabChange } from '../domain/rulesTabChange'
@@ -29,7 +29,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 const { state } = useWorkbook()
 const phone = usePhoneLayout()
-const rulesWrites = useRecordWrites()
+const rulesWrites = useRecordWrites(useWorkbook())
 const accepted = ref(false)
 
 watch(

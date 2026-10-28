@@ -6,6 +6,7 @@ import { fakeBooksFolder, fakeDriveSession } from '../../../../../shared/storage
 import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { LOANS_APP, emptyLoansDocument } from '../loansDocument'
+import { fakeLoansDocument } from './fakeLoans'
 
 /**
  * The id of the Loans file the fake build keeps in this browser, apart from the company's so the two
@@ -16,20 +17,21 @@ const FAKE_LOANS_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP-LOANS'
 const DAY = 86_400_000
 
 /**
- * Sets up the fake build's Loans file as `?loans=` names it: `drive` a file on the fake Drive and
- * `browser` one kept in this browser with changes nine days past their last export, each chosen on
- * this device, and `other-device` a file on the fake Drive that another device made, which this
- * device has not chosen. Without it nothing is chosen, which is the Loans first run. Only the Loans
- * app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison.
+ * Sets up the fake build's Loans file as `?loans=` names it: `drive` an empty file on the fake Drive
+ * and `browser` one kept in this browser with changes nine days past their last export, each chosen
+ * on this device, `sample` a chosen file on the fake Drive holding made-up loans of both kinds, and
+ * `other-device` an empty file on the fake Drive that another device made, which this device has
+ * not chosen. Without it nothing is chosen, which is the Loans first run. Only the Loans app's
+ * install imports this, behind an inline VITE_FAKE_WORKBOOK comparison.
  */
 export async function seedFakeLoans(variant: string | null): Promise<void> {
   const now = Date.now()
   const savedAt = new Date(now).toISOString()
-  const document = emptyLoansDocument(savedAt)
+  const document = variant === 'sample' ? fakeLoansDocument(savedAt) : emptyLoansDocument(savedAt)
   const text = encodeDocument(document)
-  if (variant === 'drive' || variant === 'other-device') {
+  if (variant === 'drive' || variant === 'sample' || variant === 'other-device') {
     const created = await createDriveDocument(fakeDriveSession(), await fakeBooksFolder(), LOANS_APP, text)
-    if (variant === 'drive') {
+    if (variant !== 'other-device') {
       const meta = { id: created.fileId, source: 'drive', title: documentName(LOANS_APP), syncedAt: savedAt, lastExportedAt: null, unexportedSince: null } as const
       await keepChosen({ meta, revision: created.document.revision, document })
     } else {

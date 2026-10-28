@@ -47,7 +47,8 @@ function keepFocusAfterNavigation(event: Event): void {
 
 useStickyBandPart(useTemplateRef<HTMLElement>('topBar'))
 
-const screenTitle = computed(() => [...props.navigation.groups.flatMap((group) => group.entries), ...props.navigation.apart].find((entry) => entry.to === route.path)?.title ?? props.title)
+/** The screen's name, with its app's for an app other than the home app, as the router gives each route. */
+const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route.meta.title : props.title))
 </script>
 
 <template>

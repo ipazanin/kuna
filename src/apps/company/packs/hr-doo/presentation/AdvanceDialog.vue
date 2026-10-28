@@ -35,7 +35,8 @@ import { advanceDrill } from '../../../filters/domain/drillTarget'
 import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
 import { ADVANCE_BUCKETS } from '../../../workbook/domain/workbook'
 import type { Category } from '../../../workbook/domain/workbook'
-import { useRecordWrites } from '../../../workbook/presentation/useRecordWrites'
+import { useWorkbook } from '../../../workbook/application/workbookStore'
+import { useRecordWrites } from '../../../../../shared/storage/presentation/useRecordWrites'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -54,7 +55,7 @@ const props = withDefaults(
   { prefill: null, editing: null, inView: null },
 )
 
-const writes = useRecordWrites()
+const writes = useRecordWrites(useWorkbook())
 const names = useDisplayNames()
 const router = useRouter()
 const { drillLocation } = useFilters()

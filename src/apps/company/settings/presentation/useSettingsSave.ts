@@ -5,7 +5,7 @@ import { installedPack } from '../../packs/packContribution'
 import { useSync } from '../../sync/presentation/useSync'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { setSettings } from '../application/settingWrites'
 import { DEFAULT_SETTINGS, changedPackSettings, changedSettings } from '../domain/settings'
 import type { SettingEntry, Settings } from '../domain/settings'
@@ -31,7 +31,7 @@ export interface SettingsSave {
  */
 export function useSettingsSave(): SettingsSave {
   const { state } = useWorkbook()
-  const writes = useRecordWrites()
+  const writes = useRecordWrites(useWorkbook())
   const sync = useSync()
   const settings = computed(() => state.workbook?.settings ?? DEFAULT_SETTINGS)
   const facts = computed(() => installedPack().companyFacts?.factsOf(state.workbook) ?? null)

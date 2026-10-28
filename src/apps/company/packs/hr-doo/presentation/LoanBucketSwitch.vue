@@ -8,7 +8,7 @@ import { NO_RECORDS, recordWithId } from '../../../../../shared/storage/domain/r
 import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../workbook/application/workbookStore'
 import { categoryIdOf } from '../../../workbook/domain/workbook'
-import { useRecordWrites } from '../../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../../shared/storage/presentation/useRecordWrites'
 import { PACK_ROLES } from '../domain/packRoles'
 
 /**
@@ -18,7 +18,7 @@ import { PACK_ROLES } from '../domain/packRoles'
  */
 const store = useWorkbook()
 const names = useDisplayNames()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 
 const loanCategories = computed(() =>
   (store.state.workbook?.categories ?? []).filter((category) => category.roles.includes(PACK_ROLES.ownerLoanOut) || category.roles.includes(PACK_ROLES.ownerLoanRepaid)),

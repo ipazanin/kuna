@@ -12,7 +12,7 @@ import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Transaction } from '../../workbook/domain/workbook'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeOwnerShare } from '../application/ownerShareWrites'
 import { ownerPartOf, typedOwnerShare } from '../domain/ownerShare'
 import type { ShareTarget } from '../domain/ownerShare'
@@ -27,7 +27,7 @@ const props = defineProps<{
 }>()
 
 const { state } = useWorkbook()
-const writes = useRecordWrites()
+const writes = useRecordWrites(useWorkbook())
 const names = useDisplayNames()
 const phone = usePhoneLayout()
 

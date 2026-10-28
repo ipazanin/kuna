@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { addDays, civilDate, civilDateFromSerial, daysBetween, parseCivilDate } from '../src/shared/calendar/civilDate'
-import { monthRange, monthsOfRange, rangeContains } from '../src/shared/calendar/dateRange'
+import { monthRange, monthsOfRange, overlapOf, rangeContains } from '../src/shared/calendar/dateRange'
 import { allTime, anchorWindow, completeRange, isCompleteMonth, lastMonths, spanRange } from '../src/shared/calendar/ledgerWindow'
 import {
   addMonths,
+  dayMonthsLater,
   firstDayOf,
   lastDayOf,
   monthCountBetween,
@@ -64,6 +65,24 @@ describe('month keys', () => {
     expect(rangeContains(range, civil('2026-03-03'))).toBe(false)
     expect(monthsOfRange(range)).toEqual(['2026-01', '2026-02', '2026-03'])
     expect(monthRange(monthKey(2026, 4))).toEqual({ from: '2026-04-01', to: '2026-04-30' })
+  })
+
+  it('finds the days two ranges share', () => {
+    const range = { from: civil('2026-01-15'), to: civil('2026-03-02') }
+
+    expect(overlapOf(range, monthRange(monthKey(2026, 3)))).toEqual({ from: '2026-03-01', to: '2026-03-02' })
+    expect(overlapOf(range, { from: civil('2026-03-02'), to: civil('2026-03-02') })).toEqual({ from: '2026-03-02', to: '2026-03-02' })
+    expect(overlapOf(range, monthRange(monthKey(2026, 4)))).toBeNull()
+  })
+
+  it('steps a day by whole months, held to the end of a shorter month', () => {
+    expect(dayMonthsLater(civil('2026-01-31'), 1)).toBe('2026-02-28')
+    expect(dayMonthsLater(civil('2028-01-31'), 1)).toBe('2028-02-29')
+    expect(dayMonthsLater(civil('2026-01-31'), 2)).toBe('2026-03-31')
+    expect(dayMonthsLater(civil('2026-01-30'), 3)).toBe('2026-04-30')
+    expect(dayMonthsLater(civil('2023-09-20'), 239)).toBe('2043-08-20')
+    expect(dayMonthsLater(civil('2026-03-31'), -1)).toBe('2026-02-28')
+    expect(dayMonthsLater(civil('2026-10-20'), 0)).toBe('2026-10-20')
   })
 })
 

@@ -1,9 +1,16 @@
 import { expect } from 'vitest'
 
 import { RULE_COLUMNS } from '../../src/apps/company/rules/domain/rule'
+import { LOAN_PARTS } from '../../src/apps/loans/workbook/domain/readLoanBook'
+import type { LoansRecords } from '../../src/apps/loans/workbook/domain/readLoanBook'
+import type { LoansBooks } from '../../src/apps/loans/workbook/domain/loansBooks'
+import { LOANS_APP, LOANS_DOCUMENT } from '../../src/apps/loans/workbook/infrastructure/loansDocument'
 import { createWorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
-import type { WorkbookStore, WorkbookStorePorts } from '../../src/shared/storage/application/createWorkbookStore'
+import type { BooksRead, WorkbookStore, WorkbookStorePorts } from '../../src/shared/storage/application/createWorkbookStore'
+import { recordsOfKindIn } from '../../src/apps/company/workbook/domain/readWorkbook'
 import type { CompanyBooks } from '../../src/apps/company/workbook/domain/readWorkbook'
+import type { RecordKind } from '../../src/shared/storage/domain/recordKind'
+import type { RecordsRead } from '../../src/shared/storage/domain/recordsRead'
 import type { WorkbookCache, WorkbookChoice } from '../../src/shared/storage/application/workbookPorts'
 import { browserDocumentHome, deleteBrowserDocument, replaceBrowserDocument } from '../../src/shared/storage/infrastructure/browserDocument'
 import { decodeDocument, encodeDocument } from '../../src/shared/storage/infrastructure/documentFormat'
@@ -11,6 +18,7 @@ import type { WorkbookDocument } from '../../src/shared/storage/infrastructure/d
 import type { DocumentCopy } from '../../src/shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP, COMPANY_DOCUMENT } from '../../src/apps/company/workbook/infrastructure/companyDocument'
 import { documentStorePorts } from '../../src/shared/storage/infrastructure/documentStorePorts'
+import type { AppDocument } from '../../src/shared/storage/infrastructure/documentStorePorts'
 import { createDriveDocument, documentName } from '../../src/shared/storage/infrastructure/driveDocument'
 import { createFakeDrive } from '../../src/shared/storage/infrastructure/fake/fakeDrive'
 import type { FakeDrive } from '../../src/shared/storage/infrastructure/fake/fakeDrive'
@@ -92,8 +100,29 @@ function documentOfSeed(seed: Grids | WorkbookDocument): WorkbookDocument {
   return 'schema' in seed && 'records' in seed ? (seed as WorkbookDocument) : documentOfGrids(seed as Grids)
 }
 
-export interface WriteBackHarness {
-  readonly store: WorkbookStore<CompanyBooks, DocumentCopy, WorkbookDocument>
+/** An app whose document a test store keeps, and where a kind's records sit among the records it reads. */
+export interface AppUnderTest<Books extends BooksRead> {
+  readonly app: string
+  readonly document: AppDocument<Books>
+  recordsOfKind<R>(records: Books['records'], kind: RecordKind<R>): RecordsRead<R>
+}
+
+export const COMPANY: AppUnderTest<CompanyBooks> = { app: COMPANY_APP, document: COMPANY_DOCUMENT, recordsOfKind: recordsOfKindIn }
+
+export const LOANS: AppUnderTest<LoansBooks> = {
+  app: LOANS_APP,
+  document: LOANS_DOCUMENT,
+  recordsOfKind<R>(records: LoansRecords, kind: RecordKind<R>): RecordsRead<R> {
+    const part = (Object.keys(LOAN_PARTS) as (keyof LoansRecords)[]).find((candidate) => LOAN_PARTS[candidate].name === kind.name)
+    if (part === undefined) {
+      throw new Error(`The Loans file keeps no ${kind.noun.many}.`)
+    }
+    return records[part] as RecordsRead<unknown> as RecordsRead<R>
+  },
+}
+
+export interface WriteBackHarness<Books extends BooksRead = CompanyBooks> {
+  readonly store: WorkbookStore<Books, DocumentCopy, WorkbookDocument>
   /** The Drive the file is kept on, or null for a workbook kept in this browser. */
   readonly drive: FakeDrive | null
   /** The document as its home holds it now. */
@@ -102,8 +131,8 @@ export interface WriteBackHarness {
 
 const NOW = '2026-10-17T09:00:00.000Z'
 
-function storePorts(choice: WorkbookChoice, drive: FakeDrive, used: Set<string>): WorkbookStorePorts<CompanyBooks, DocumentCopy, WorkbookDocument> {
-  const ports = documentStorePorts(COMPANY_APP, COMPANY_DOCUMENT, async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => null, folderPath: async () => null, pickFile: async () => null }), () => NOW)
+function storePorts<Books extends BooksRead>(choice: WorkbookChoice, drive: FakeDrive, used: Set<string>, app: AppUnderTest<Books>): WorkbookStorePorts<Books, DocumentCopy, WorkbookDocument> {
+  const ports = documentStorePorts(app.app, app.document, async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => null, folderPath: async () => null, pickFile: async () => null }), () => NOW)
   return {
     ...ports,
     openCache: (id) => {
@@ -130,14 +159,18 @@ async function keepInCache(copy: DocumentCopy, used: Set<string>): Promise<void>
 }
 
 /** A store showing the workbook as a file on a fake Drive, read once as a sync would. The grids or the document seed it. */
-export async function driveHarness(used: Set<string>, seed: Grids | WorkbookDocument = workbookGrids()): Promise<WriteBackHarness> {
+export async function driveHarness<Books extends BooksRead = CompanyBooks>(
+  used: Set<string>,
+  seed: Grids | WorkbookDocument = workbookGrids(),
+  app = COMPANY as AppUnderTest<Books>,
+): Promise<WriteBackHarness<Books>> {
   const drive = createFakeDrive()
   const document = documentOfSeed(seed)
   const folderId = await drive.createFolder('root', 'books')
-  const { fileId, document: stored } = await createDriveDocument(drive, folderId, COMPANY_APP, encodeDocument(document))
-  const name = documentName(COMPANY_APP)
+  const { fileId, document: stored } = await createDriveDocument(drive, folderId, app.app, encodeDocument(document))
+  const name = documentName(app.app)
   await keepInCache({ meta: { id: fileId, source: 'drive', title: name, syncedAt: '2026-10-16T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }, revision: stored.revision, document }, used)
-  const store = createWorkbookStore(storePorts({ source: 'drive', id: fileId, name }, drive, used))
+  const store = createWorkbookStore(storePorts({ source: 'drive', id: fileId, name }, drive, used, app))
   await store.open()
   drive.requests.length = 0
   return { store, drive, held: async () => decodeDocument(await drive.download(fileId)) }
@@ -146,7 +179,7 @@ export async function driveHarness(used: Set<string>, seed: Grids | WorkbookDocu
 /** A second device's store on the same file of the same Drive, which read the file as it stands now. */
 export async function secondDevice(used: Set<string>, drive: FakeDrive, fileId: string): Promise<WorkbookStore<CompanyBooks, DocumentCopy, WorkbookDocument>> {
   const name = documentName(COMPANY_APP)
-  const store = createWorkbookStore({ ...storePorts({ source: 'drive', id: fileId, name }, drive, used), openCache: () => memoryCache() })
+  const store = createWorkbookStore({ ...storePorts({ source: 'drive', id: fileId, name }, drive, used, COMPANY), openCache: () => memoryCache() })
   await store.open()
   await store.sync()
   return store
@@ -168,12 +201,16 @@ function memoryCache(): WorkbookCache<DocumentCopy> {
 }
 
 /** A store showing the same workbook kept in this browser. */
-export async function browserHarness(used: Set<string>, seed: Grids | WorkbookDocument = workbookGrids()): Promise<WriteBackHarness> {
+export async function browserHarness<Books extends BooksRead = CompanyBooks>(
+  used: Set<string>,
+  seed: Grids | WorkbookDocument = workbookGrids(),
+  app = COMPANY as AppUnderTest<Books>,
+): Promise<WriteBackHarness<Books>> {
   const id = `local-under-test-${used.size}`
   const document = documentOfSeed(seed)
   const stored = await replaceBrowserDocument(id, encodeDocument(document))
   await keepInCache({ meta: { id, source: 'browser', title: 'Books', syncedAt: '2026-10-16T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }, revision: stored.revision, document }, used)
-  const store = createWorkbookStore(storePorts({ source: 'browser', id, name: 'Books' }, createFakeDrive(), used))
+  const store = createWorkbookStore(storePorts({ source: 'browser', id, name: 'Books' }, createFakeDrive(), used, app))
   await store.open()
   return { store, drive: null, held: async () => decodeDocument((await browserDocumentHome(id).read(null)).text) }
 }

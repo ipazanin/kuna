@@ -10,13 +10,13 @@ import { RULE_WRITES } from '../src/apps/company/rules/application/ruleWrites'
 import { SETTING_WRITES } from '../src/apps/company/settings/application/settingWrites'
 import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { SPLIT_WRITES } from '../src/apps/company/transactions/application/splitWrites'
+import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES, removeBankLoan } from '../src/apps/loans/bankLoans/application/bankLoanWrites'
+import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../src/apps/loans/informalLoans/application/informalLoanWrites'
 import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
-import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
-import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
-import { codecOfKind } from '../src/apps/company/workbook/application/recordCodecs'
+import type { BooksRead, WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
-import type { RecordCodec } from '../src/shared/storage/domain/recordCodec'
 import { filledFields } from '../src/shared/storage/domain/recordFields'
 import type { FieldValue, RecordFields } from '../src/shared/storage/domain/recordFields'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -30,9 +30,9 @@ import { decodeDocument, encodeDocument, storedFieldsOfDocument } from '../src/s
 import type { DocumentRecord, WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP, installedSchema } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { recordOnScreen, recordsOnScreen } from './fixtures/records'
-import { browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
+import { COMPANY, LOANS, browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
+import type { AppUnderTest } from './fixtures/writeBack'
 
 const used = new Set<string>()
 
@@ -44,8 +44,8 @@ afterEach(async () => {
 type Seed = Readonly<Record<string, readonly RecordFields[]>>
 
 /** A storage under test, opened with the seed's records, and the edits another device or a person makes outside the app. */
-interface StorageUnderTest {
-  readonly store: WorkbookStore<CompanyBooks, DocumentCopy>
+interface StorageUnderTest<Books extends BooksRead> {
+  readonly store: WorkbookStore<Books, DocumentCopy>
   /** Another device adds a record, ahead of every record the app wrote. */
   addOutside(kind: RecordKind<unknown>, fields: RecordFields): Promise<void>
   /** Another device sets one field of the one record with this identity. */
@@ -55,14 +55,9 @@ interface StorageUnderTest {
   held(): Promise<string>
 }
 
-/** The codec of a kind, which the suite writes and reads its fixtures with. */
-function codecOf<R>(kind: RecordKind<R>): RecordCodec<R> {
-  return codecOfKind(kind)
-}
-
 /** The identity these fields hold. */
-function idOf(kind: RecordKind<unknown>, fields: RecordFields): RecordId {
-  const key = codecOf(kind).key(storedFieldsOfValues(filledFields(fields)))
+function idOf(app: AppUnderTest<BooksRead>, kind: RecordKind<unknown>, fields: RecordFields): RecordId {
+  const key = app.document.codecOf(kind).key(storedFieldsOfValues(filledFields(fields)))
   if (key === null) {
     throw new Error(`The fixture's ${kind.noun.one} has no key or id.`)
   }
@@ -70,8 +65,8 @@ function idOf(kind: RecordKind<unknown>, fields: RecordFields): RecordId {
 }
 
 /** The record these fields make, a blank field left out, which fails the test when the kind's factory refuses them. */
-function recordOf<R>(kind: RecordKind<R>, fields: RecordFields): R {
-  const made = refusalOr(() => codecOf(kind).make(storedFieldsOfValues(filledFields(fields)), idOf(kind, fields)))
+function recordOf<R>(app: AppUnderTest<BooksRead>, kind: RecordKind<R>, fields: RecordFields): R {
+  const made = refusalOr(() => app.document.codecOf(kind).make(storedFieldsOfValues(filledFields(fields)), idOf(app, kind, fields)))
   if ('refused' in made) {
     throw new Error(`The fixture's ${kind.noun.one} is refused: ${made.refused}`)
   }
@@ -86,16 +81,16 @@ function holdsValue(field: StoredField | undefined, value: FieldValue): boolean 
   return field.text === written.text || (written.date !== null && field.date === written.date) || (written.number !== null && field.number === written.number)
 }
 
-function holdsId(kind: RecordKind<unknown>, id: RecordId): (record: DocumentRecord) => boolean {
+function holdsId(app: AppUnderTest<BooksRead>, kind: RecordKind<unknown>, id: RecordId): (record: DocumentRecord) => boolean {
   return (record) => {
-    const key = codecOf(kind).key(storedFieldsOfDocument(record))
+    const key = app.document.codecOf(kind).key(storedFieldsOfDocument(record))
     return key !== null && recordIdOf(kind, key) === id
   }
 }
 
 /** A document with the seed's records. */
-function documentOf(seed: Seed): WorkbookDocument {
-  return newDocument(COMPANY_APP, installedSchema(), Object.fromEntries(Object.entries(seed).map(([name, records]) => [name, records.map((fields) => filledFields(fields))])), '2026-10-16T09:00:00.000Z')
+function documentOf(app: AppUnderTest<BooksRead>, seed: Seed): WorkbookDocument {
+  return newDocument(app.app, app.document.schema(), Object.fromEntries(Object.entries(seed).map(([name, records]) => [name, records.map((fields) => filledFields(fields))])), '2026-10-16T09:00:00.000Z')
 }
 
 /** The document with one kind's records as `edit` leaves them. */
@@ -104,7 +99,7 @@ function withRecords(document: WorkbookDocument, kind: RecordKind<unknown>, edit
 }
 
 /** The outside edits on a document, which `save` stores in place of the one its home holds. */
-function outsideEdits(load: () => Promise<WorkbookDocument>, save: (document: WorkbookDocument) => Promise<void>): Omit<StorageUnderTest, 'store' | 'held'> {
+function outsideEdits(app: AppUnderTest<BooksRead>, load: () => Promise<WorkbookDocument>, save: (document: WorkbookDocument) => Promise<void>): Omit<StorageUnderTest<BooksRead>, 'store' | 'held'> {
   const edit = async (kind: RecordKind<unknown>, change: (records: readonly DocumentRecord[]) => DocumentRecord[]): Promise<void> => {
     await save(withRecords(await load(), kind, change))
   }
@@ -112,20 +107,21 @@ function outsideEdits(load: () => Promise<WorkbookDocument>, save: (document: Wo
     addOutside: (kind, fields) => edit(kind, (records) => [filledFields(fields), ...records]),
     changeOutside: (kind, id, field, value) =>
       edit(kind, (records) => {
-        const holds = holdsId(kind, id)
+        const holds = holdsId(app, kind, id)
         expect(records.filter(holds)).toHaveLength(1)
         return records.map((record) => (holds(record) ? { ...record, [field]: value } : record))
       }),
-    removeOutside: (kind, id) => edit(kind, (records) => records.filter((record) => !holdsId(kind, id)(record))),
+    removeOutside: (kind, id) => edit(kind, (records) => records.filter((record) => !holdsId(app, kind, id)(record))),
   }
 }
 
-async function driveStorage(seed: Seed): Promise<StorageUnderTest> {
-  const harness = await driveHarness(used, documentOf(seed))
+async function driveStorage<Books extends BooksRead>(app: AppUnderTest<Books>, seed: Seed): Promise<StorageUnderTest<Books>> {
+  const harness = await driveHarness(used, documentOf(app, seed), app)
   const { store } = harness
   const fileId = store.state.choice!.id
   const drive = harness.drive!
   const edits = outsideEdits(
+    app,
     async () => decodeDocument(await drive.download(fileId)),
     async (document) => {
       await drive.upload(fileId, encodeDocument(document))
@@ -135,11 +131,11 @@ async function driveStorage(seed: Seed): Promise<StorageUnderTest> {
   return { store, ...edits, held: () => drive.download(fileId) }
 }
 
-async function browserStorage(seed: Seed): Promise<StorageUnderTest> {
-  const harness = await browserHarness(used, documentOf(seed))
+async function browserStorage<Books extends BooksRead>(app: AppUnderTest<Books>, seed: Seed): Promise<StorageUnderTest<Books>> {
+  const harness = await browserHarness(used, documentOf(app, seed), app)
   const { store } = harness
   const id = store.state.choice!.id
-  const edits = outsideEdits(harness.held, async (document) => {
+  const edits = outsideEdits(app, harness.held, async (document) => {
     // Another tab of the app saved, then this tab reads the browser's document again, as an import does.
     await replaceBrowserDocument(id, encodeDocument(document))
     await store.replaceLocalWorkbook(document, 'Books')
@@ -149,17 +145,20 @@ async function browserStorage(seed: Seed): Promise<StorageUnderTest> {
 
 /**
  * One kind's records for the suite, as typed fields: two valid records the app adds, one added
- * from outside, a change to the first, an optional field of the first that a change clears, and a
- * record the domain refuses with what fixes it. Rules and settings are never refused by their factory.
+ * from outside, a change to the first, an optional field of the first that a change clears, null for
+ * a kind with no optional field, and a record the domain refuses with what fixes it. Rules and
+ * settings are never refused by their factory.
  */
 interface KindFixture {
   readonly records: readonly [RecordFields, RecordFields]
   readonly outside: RecordFields
   readonly change: { readonly field: string; readonly value: FieldValue }
-  readonly cleared: string
+  readonly cleared: string | null
   readonly refused: { readonly fields: RecordFields; readonly reason: string; readonly fixed: RecordFields; readonly beside?: readonly RecordFields[] } | null
-  /** Records of other kinds the checks need. */
+  /** Records the checks need. Those of the kind itself are left out of what the checks expect on screen. */
   readonly seed?: Seed
+  /** How the app removes a record whose kind's own remove is refused while other records name it. */
+  remove?(unit: UnitOfWork, records: unknown, record: unknown): void
 }
 
 const CATEGORIES = [
@@ -179,7 +178,7 @@ const [YEAR_END_A, YEAR_END_B, YEAR_END_C, YEAR_END_R] = ids('06', 4)
 const [PLAN_A, PLAN_B, PLAN_C, PLAN_R] = ids('07', 4)
 const SPLIT_ROW = { date: '2026-10-05', account: 'main', row_amount: '-10.00', row_balance: '90.00' }
 
-const FIXTURES: Readonly<Record<string, KindFixture>> = {
+const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
   'ledger-row': {
     seed: { category: CATEGORIES },
     records: [
@@ -412,6 +411,136 @@ const FIXTURES: Readonly<Record<string, KindFixture>> = {
   },
 }
 
+const [BANK_LOAN_A, BANK_LOAN_B, BANK_LOAN_C, BANK_LOAN_R] = ids('11', 4)
+const [RATE_A, RATE_B, RATE_C, RATE_R, RATE_FIRST, RATE_FIRST_A, RATE_FIRST_B, RATE_FIRST_C, RATE_FIRST_R] = ids('12', 9)
+const [EXTRA_A, EXTRA_B, EXTRA_C, EXTRA_R] = ids('13', 4)
+const [LATE_A, LATE_B, LATE_C, LATE_R] = ids('14', 4)
+const [INFORMAL_A, INFORMAL_B, INFORMAL_C, INFORMAL_R] = ids('15', 4)
+const [MOVEMENT_A, MOVEMENT_B, MOVEMENT_C, MOVEMENT_R] = ids('16', 4)
+const [CAR_LOAN, FRIEND_LOAN] = ids('17', 2)
+
+/** 1,200.00 repaid in 12 instalments from 2026-02-05, and its rate from the first instalment, which every bank loan needs. */
+const CAR_LOAN_SEED: Seed = {
+  'bank-loan': [{ name: 'Car loan', principal: '1200.00', drawdown: '2026-01-05', first_instalment: '2026-02-05', instalments: '12', id: CAR_LOAN! }],
+  'rate-period': [{ loan: CAR_LOAN!, from: '2026-02-05', rate: '6', rate_type: 'fixed', id: RATE_FIRST! }],
+}
+
+const rateFrom = (loan: string, from: string, id: string): RecordFields => ({ loan, from, rate: '5', rate_type: 'fixed', id })
+
+const LOANS_FIXTURES: Readonly<Record<string, KindFixture>> = {
+  'bank-loan': {
+    seed: {
+      'rate-period': [
+        rateFrom(BANK_LOAN_A!, '2026-02-05', RATE_FIRST_A!),
+        rateFrom(BANK_LOAN_B!, '2026-04-10', RATE_FIRST_B!),
+        rateFrom(BANK_LOAN_C!, '2026-06-01', RATE_FIRST_C!),
+        rateFrom(BANK_LOAN_R!, '2026-07-01', RATE_FIRST_R!),
+      ],
+    },
+    records: [
+      {
+        name: 'Car loan',
+        lender: 'Example Bank',
+        principal: '1200.00',
+        drawdown: '2026-01-05',
+        first_instalment: '2026-02-05',
+        instalments: '12',
+        interim_interest: '3.50',
+        interim_interest_date: '2026-01-20',
+        subsidy_monthly: '10.00',
+        subsidy_first_instalment: '1',
+        subsidy_instalments: '6',
+        note: 'Family car',
+        id: BANK_LOAN_A!,
+      },
+      { name: 'Boat loan', principal: '5000.00', drawdown: '2026-03-10', first_instalment: '2026-04-10', instalments: '24', id: BANK_LOAN_B! },
+    ],
+    outside: { name: 'Bike loan', principal: '300.00', drawdown: '2026-05-01', first_instalment: '2026-06-01', instalments: '6', id: BANK_LOAN_C! },
+    change: { field: 'lender', value: 'Other Bank' },
+    cleared: 'note',
+    refused: {
+      fields: { name: 'Sofa loan', principal: '800.00', drawdown: '2026-06-01', first_instalment: '2026-07-01', instalments: '0', id: BANK_LOAN_R! },
+      reason: 'is not a whole number above zero',
+      fixed: { name: 'Sofa loan', principal: '800.00', drawdown: '2026-06-01', first_instalment: '2026-07-01', instalments: '8', id: BANK_LOAN_R! },
+    },
+    remove: removeBankLoan,
+  },
+  'rate-period': {
+    seed: CAR_LOAN_SEED,
+    records: [
+      { loan: CAR_LOAN!, from: '2026-05-05', rate: '4.25', rate_type: 'variable', note: 'Euribor plus 2', id: RATE_A! },
+      { loan: CAR_LOAN!, from: '2026-08-05', rate: '3', rate_type: 'fixed', id: RATE_B! },
+    ],
+    outside: { loan: CAR_LOAN!, from: '2026-11-05', rate: '2.5', rate_type: 'fixed', id: RATE_C! },
+    change: { field: 'note', value: 'Euribor plus 2.5' },
+    cleared: 'note',
+    refused: {
+      fields: { loan: CAR_LOAN!, from: '2026-10-05', rate: 'lots', rate_type: 'fixed', id: RATE_R! },
+      reason: 'is not a yearly percent',
+      fixed: { loan: CAR_LOAN!, from: '2026-10-05', rate: '3.5', rate_type: 'fixed', id: RATE_R! },
+    },
+  },
+  'extra-payment': {
+    seed: CAR_LOAN_SEED,
+    records: [
+      { loan: CAR_LOAN!, date: '2026-04-05', amount: '100.00', effect: 'shorter-term', id: EXTRA_A! },
+      { loan: CAR_LOAN!, date: '2026-06-05', amount: '200.00', effect: 'lower-instalment', id: EXTRA_B! },
+    ],
+    outside: { loan: CAR_LOAN!, date: '2026-08-05', amount: '50.00', effect: 'shorter-term', id: EXTRA_C! },
+    change: { field: 'effect', value: 'lower-instalment' },
+    cleared: null,
+    refused: {
+      fields: { loan: CAR_LOAN!, date: '2026-09-05', amount: '20.00', effect: 'sooner', id: EXTRA_R! },
+      reason: 'is not a payment effect',
+      fixed: { loan: CAR_LOAN!, date: '2026-09-05', amount: '20.00', effect: 'shorter-term', id: EXTRA_R! },
+    },
+  },
+  'late-instalment': {
+    seed: CAR_LOAN_SEED,
+    records: [
+      { loan: CAR_LOAN!, due: '2026-03-05', paid: '2026-03-20', id: LATE_A! },
+      { loan: CAR_LOAN!, due: '2026-04-05', paid: '2026-04-08', id: LATE_B! },
+    ],
+    outside: { loan: CAR_LOAN!, due: '2026-05-05', paid: '2026-05-07', id: LATE_C! },
+    change: { field: 'paid', value: '2026-03-25' },
+    cleared: null,
+    refused: {
+      fields: { loan: CAR_LOAN!, due: '2026-06-05', paid: '2026-06-01', id: LATE_R! },
+      reason: 'is not after the due date',
+      fixed: { loan: CAR_LOAN!, due: '2026-06-05', paid: '2026-06-09', id: LATE_R! },
+    },
+  },
+  'informal-loan': {
+    records: [
+      { name: 'From Ana', counterparty: 'Ana', direction: 'you-owe', opening_balance: '3000.00', start: '2026-03-01', note: 'For the boat', id: INFORMAL_A! },
+      { name: 'To Marko', direction: 'owed-to-you', opening_balance: '150.00', start: '2026-04-01', id: INFORMAL_B! },
+    ],
+    outside: { name: 'From Iva', direction: 'you-owe', opening_balance: '40.00', start: '2026-05-01', id: INFORMAL_C! },
+    change: { field: 'counterparty', value: 'Ana Example' },
+    cleared: 'note',
+    refused: {
+      fields: { name: 'To Luka', direction: 'sideways', opening_balance: '60.00', start: '2026-06-01', id: INFORMAL_R! },
+      reason: 'is not a direction',
+      fixed: { name: 'To Luka', direction: 'owed-to-you', opening_balance: '60.00', start: '2026-06-01', id: INFORMAL_R! },
+    },
+  },
+  movement: {
+    seed: { 'informal-loan': [{ name: 'From Ana', direction: 'you-owe', opening_balance: '3000.00', start: '2026-03-01', id: FRIEND_LOAN! }] },
+    records: [
+      { loan: FRIEND_LOAN!, date: '2026-04-01', kind: 'repaid', amount: '500.00', note: 'First repayment', id: MOVEMENT_A! },
+      { loan: FRIEND_LOAN!, date: '2026-04-20', kind: 'borrowed', amount: '250.00', id: MOVEMENT_B! },
+    ],
+    outside: { loan: FRIEND_LOAN!, date: '2026-05-01', kind: 'forgiven', amount: '100.00', id: MOVEMENT_C! },
+    change: { field: 'note', value: 'First repayment, in cash' },
+    cleared: 'note',
+    refused: {
+      fields: { loan: FRIEND_LOAN!, date: '2026-06-01', kind: 'lent', amount: '30.00', id: MOVEMENT_R! },
+      reason: 'is not a movement kind',
+      fixed: { loan: FRIEND_LOAN!, date: '2026-06-01', kind: 'borrowed-in-kind', amount: '30.00', id: MOVEMENT_R! },
+    },
+  },
+}
+
 const CORE_WRITES: readonly WriteRules<unknown>[] = [
   LEDGER_WRITES,
   CATEGORY_WRITES,
@@ -425,7 +554,17 @@ const CORE_WRITES: readonly WriteRules<unknown>[] = [
   RULE_WRITES,
 ]
 
-const KINDS = [...CORE_WRITES, ...installedPack().workbook!.kinds].map((rules) => [rules.kind.name, rules] as const)
+const COMPANY_KINDS = [...CORE_WRITES, ...installedPack().workbook!.kinds].map((rules) => [rules.kind.name, rules] as const)
+
+const LOANS_WRITES: readonly WriteRules<unknown>[] = [BANK_LOAN_WRITES, RATE_PERIOD_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, INFORMAL_LOAN_WRITES, MOVEMENT_WRITES]
+
+const LOANS_KINDS = LOANS_WRITES.map((rules) => [rules.kind.name, rules] as const)
+
+/** Every kind with the app whose document keeps it and its fixture. */
+const KINDS: readonly (readonly [string, WriteRules<unknown>, AppUnderTest<BooksRead>, KindFixture])[] = [
+  ...COMPANY_KINDS.map(([name, rules]) => [name, rules, COMPANY, COMPANY_FIXTURES[name]!] as const),
+  ...LOANS_KINDS.map(([name, rules]) => [name, rules, LOANS, LOANS_FIXTURES[name]!] as const),
+]
 
 const STORAGES = [
   ['a file on Drive', driveStorage],
@@ -433,33 +572,50 @@ const STORAGES = [
 ] as const
 
 it('has a fixture for every kind, core’s and the pack’s', () => {
-  expect(KINDS.map(([name]) => name).filter((name) => FIXTURES[name] === undefined)).toEqual([])
-  expect(KINDS).toHaveLength(17)
+  expect(COMPANY_KINDS.map(([name]) => name).filter((name) => COMPANY_FIXTURES[name] === undefined)).toEqual([])
+  expect(COMPANY_KINDS).toHaveLength(17)
+})
+
+it('has a fixture for every Loans kind', () => {
+  expect(LOANS_KINDS.map(([name]) => name).filter((name) => LOANS_FIXTURES[name] === undefined)).toEqual([])
+  expect(LOANS_KINDS).toHaveLength(6)
 })
 
 describe.each(STORAGES)('records kept in %s', (_storage, open) => {
-  describe.each(KINDS)('of the kind %s', (name, rules) => {
-    const fixture = FIXTURES[name]!
+  describe.each(KINDS)('of the kind %s', (name, rules, app, fixture) => {
     const { kind } = rules
     const [first, second] = fixture.records
-    const firstId = idOf(kind, first)
+    const firstId = idOf(app, kind, first)
+    const seeded = (fixture.seed?.[name] ?? []).map((fields) => idOf(app, kind, fields))
 
-    async function withBoth(): Promise<StorageUnderTest> {
-      const storage = await open(fixture.seed ?? {})
-      await storage.store.write('Added', (unit) => fixture.records.forEach((fields) => unit.of(rules).add(recordOf(kind, fields))))
+    /** The ids of the kind's records on screen, less those the seed holds. */
+    function idsOnScreen(store: StorageUnderTest<BooksRead>['store']): (RecordId | null)[] {
+      return recordsOnScreen(store, kind, app)
+        .records.map((stored) => stored.id)
+        .filter((id) => id === null || !seeded.includes(id))
+    }
+
+    function removeAll(store: StorageUnderTest<BooksRead>['store'], records: readonly unknown[]): Promise<unknown> {
+      return store.write('Removed', (unit) => records.forEach((record) => (fixture.remove === undefined ? unit.of(rules).remove(record) : fixture.remove(unit, store.state.records, record))))
+    }
+
+    async function withBoth(): Promise<StorageUnderTest<BooksRead>> {
+      const storage = await open(app, fixture.seed ?? {})
+      await storage.store.write('Added', (unit) => fixture.records.forEach((fields) => unit.of(rules).add(recordOf(app, kind, fields))))
       return storage
     }
 
-    it('reads a record back as written, field by field, and a cleared field reads blank', async () => {
+    it(fixture.cleared === null ? 'reads a record back as written, field by field' : 'reads a record back as written, field by field, and a cleared field reads blank', async () => {
       const { store } = await withBoth()
 
       for (const fields of fixture.records) {
-        expect(recordOnScreen(store, kind, idOf(kind, fields)).record).toEqual(recordOf(kind, fields))
+        expect(recordOnScreen(store, kind, idOf(app, kind, fields), app).record).toEqual(recordOf(app, kind, fields))
       }
+      if (fixture.cleared === null) return
       const cleared = { ...first, [fixture.cleared]: '' }
-      await store.write('Cleared', (unit) => unit.of(rules).change(recordOnScreen(store, kind, firstId).record, recordOf(kind, cleared)))
-      expect(recordOnScreen(store, kind, firstId).record).toEqual(recordOf(kind, cleared))
-      expect(recordOnScreen(store, kind, firstId).fields[fixture.cleared]).toBeUndefined()
+      await store.write('Cleared', (unit) => unit.of(rules).change(recordOnScreen(store, kind, firstId, app).record, recordOf(app, kind, cleared)))
+      expect(recordOnScreen(store, kind, firstId, app).record).toEqual(recordOf(app, kind, cleared))
+      expect(recordOnScreen(store, kind, firstId, app).fields[fixture.cleared]).toBeUndefined()
     })
 
     it('finds the records it changes and removes by identity, after a record was added ahead of them from outside', async () => {
@@ -468,23 +624,23 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
       await storage.addOutside(kind, fixture.outside)
 
       const changed = { ...first, [fixture.change.field]: fixture.change.value }
-      await store.write('Changed', (unit) => unit.of(rules).change(recordOnScreen(store, kind, firstId).record, recordOf(kind, changed)))
-      expect(recordOnScreen(store, kind, firstId).record).toEqual(recordOf(kind, changed))
+      await store.write('Changed', (unit) => unit.of(rules).change(recordOnScreen(store, kind, firstId, app).record, recordOf(app, kind, changed)))
+      expect(recordOnScreen(store, kind, firstId, app).record).toEqual(recordOf(app, kind, changed))
 
-      const both = fixture.records.map((fields) => recordOnScreen(store, kind, idOf(kind, fields)).record)
-      await store.write('Removed', (unit) => both.forEach((record) => unit.of(rules).remove(record)))
-      expect(recordsOnScreen(store, kind).records.map((stored) => stored.id)).toEqual([idOf(kind, fixture.outside)])
+      const both = fixture.records.map((fields) => recordOnScreen(store, kind, idOf(app, kind, fields), app).record)
+      await removeAll(store, both)
+      expect(idsOnScreen(store)).toEqual([idOf(app, kind, fixture.outside)])
     })
 
     it('refuses work that awaits before it makes its changes, and writes nothing', async () => {
       const storage = await withBoth()
       const { store } = storage
       const held = await storage.held()
-      const changed = recordOf(kind, { ...first, [fixture.change.field]: fixture.change.value })
+      const changed = recordOf(app, kind, { ...first, [fixture.change.field]: fixture.change.value })
 
       const awaiting = store.write('Changed', async (unit) => {
         await Promise.resolve()
-        unit.of(rules).change(recordOnScreen(store, kind, firstId).record, changed)
+        unit.of(rules).change(recordOnScreen(store, kind, firstId, app).record, changed)
       })
 
       await expect(awaiting).rejects.toThrow('before it returns')
@@ -494,8 +650,8 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
     it('refuses a change to a record that differs from what the app read, or is gone, and writes nothing', async () => {
       const storage = await withBoth()
       const { store } = storage
-      const stale = recordOnScreen(store, kind, firstId).record
-      const changed = recordOf(kind, { ...first, [fixture.change.field]: fixture.change.value })
+      const stale = recordOnScreen(store, kind, firstId, app).record
+      const changed = recordOf(app, kind, { ...first, [fixture.change.field]: fixture.change.value })
       await storage.changeOutside(kind, firstId, fixture.change.field, 'edited outside')
       const held = await storage.held()
 
@@ -507,31 +663,31 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
       await expect(store.write('Changed', (unit) => unit.of(rules).change(stale, changed))).rejects.toThrow(WorkbookWriteRefused)
       await expect(store.write('Removed', (unit) => unit.of(rules).remove(stale))).rejects.toThrow('is no longer in the workbook')
       expect(await storage.held()).toBe(gone)
-      expect(recordsOnScreen(store, kind).records.map((stored) => stored.id)).toEqual([idOf(kind, second)])
+      expect(idsOnScreen(store)).toEqual([idOf(app, kind, second)])
     })
 
     it.skipIf(fixture.refused === null)(
       rules.changeable === undefined ? 'reads a refused record with its fields and reason, and stores it repaired as a valid record' : 'reads a refused record with its fields and reason, and leaves its repair to the workbook',
       async () => {
         const refused = fixture.refused!
-        const storage = await open(fixture.seed ?? {})
+        const storage = await open(app, fixture.seed ?? {})
         for (const fields of [...(refused.beside ?? []), refused.fields]) {
           await storage.addOutside(kind, fields)
         }
         const { store } = storage
-        const [held] = recordsOnScreen(store, kind).refused
+        const [held] = recordsOnScreen(store, kind, app).refused
 
         expect(held?.reason).toContain(refused.reason)
         expect(Object.keys(held!.fields).sort()).toEqual(Object.keys(refused.fields).sort())
         expect(Object.entries(refused.fields).filter(([field, value]) => !holdsValue(held!.fields[field], value))).toEqual([])
-        const repair = store.write('Repaired', (unit) => unit.of(rules).repair(held!, recordOf(kind, refused.fixed)))
+        const repair = store.write('Repaired', (unit) => unit.of(rules).repair(held!, recordOf(app, kind, refused.fixed)))
         if (rules.changeable !== undefined) {
           await expect(repair).rejects.toThrow('is fixed in the workbook itself')
           return
         }
         await repair
-        expect(recordsOnScreen(store, kind).refused).toEqual([])
-        expect(recordOnScreen(store, kind, idOf(kind, refused.fixed)).record).toEqual(recordOf(kind, refused.fixed))
+        expect(recordsOnScreen(store, kind, app).refused).toEqual([])
+        expect(recordOnScreen(store, kind, idOf(app, kind, refused.fixed), app).record).toEqual(recordOf(app, kind, refused.fixed))
       },
     )
 
@@ -542,11 +698,11 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
         await storage.addOutside(kind, fields)
       }
       const { store } = storage
-      const held = recordsOnScreen(store, kind).refused.find((candidate) => candidate.reason.includes(refused.reason))
+      const held = recordsOnScreen(store, kind, app).refused.find((candidate) => candidate.reason.includes(refused.reason))
 
       await store.write('Discarded', (unit) => unit.of(rules).discard(held!))
 
-      expect(recordsOnScreen(store, kind).refused.filter((candidate) => candidate.reason.includes(refused.reason))).toEqual([])
+      expect(recordsOnScreen(store, kind, app).refused.filter((candidate) => candidate.reason.includes(refused.reason))).toEqual([])
       expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(false)
     })
 
@@ -554,8 +710,8 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
       const storage = await withBoth()
       const { store } = storage
       await storage.addOutside(kind, fixture.outside)
-      const both = fixture.records.map((fields) => recordOnScreen(store, kind, idOf(kind, fields)).record)
-      await store.write('Removed', (unit) => both.forEach((record) => unit.of(rules).remove(record)))
+      const both = fixture.records.map((fields) => recordOnScreen(store, kind, idOf(app, kind, fields), app).record)
+      await removeAll(store, both)
       const [removed] = store.state.writes
 
       expect(canUndo(removed!, store.state.writes)).toBe(rules.undoable)
@@ -564,7 +720,7 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
         return
       }
       await store.undo(removed!)
-      expect(fixture.records.map((fields) => recordOnScreen(store, kind, idOf(kind, fields)).record)).toEqual(both)
+      expect(fixture.records.map((fields) => recordOnScreen(store, kind, idOf(app, kind, fields), app).record)).toEqual(both)
       await expect(store.undo(removed!)).rejects.toThrow('cannot be undone')
     })
   })
@@ -574,12 +730,12 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
     const client = { client: 'northwind', iban: 'GB82WEST12345698765432' }
 
     it('applies whole', async () => {
-      const storage = await open({})
+      const storage = await open(COMPANY, {})
       const { store } = storage
 
       await store.write('Added', (unit) => {
-        unit.of(CATEGORY_WRITES).add(recordOf(CATEGORY_RECORDS, category))
-        unit.of(CLIENT_WRITES).add(recordOf(CLIENT_RECORDS, client))
+        unit.of(CATEGORY_WRITES).add(recordOf(COMPANY, CATEGORY_RECORDS, category))
+        unit.of(CLIENT_WRITES).add(recordOf(COMPANY, CLIENT_RECORDS, client))
       })
 
       expect(store.state.workbook!.categories.map((held) => held.slug)).toEqual(['groceries'])
@@ -588,14 +744,14 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
     })
 
     it('or not at all, when one kind refuses its part', async () => {
-      const storage = await open({})
+      const storage = await open(COMPANY, {})
       const { store } = storage
       const held = await storage.held()
 
       await expect(
         store.write('Added', (unit) => {
-          unit.of(CATEGORY_WRITES).add(recordOf(CATEGORY_RECORDS, category))
-          unit.of(INVOICE_WRITES).add(recordOf(INVOICE_RECORDS, { number: '1-1-26', client: 'nobody', amount: '10.00', issued: '2026-10-05' }))
+          unit.of(CATEGORY_WRITES).add(recordOf(COMPANY, CATEGORY_RECORDS, category))
+          unit.of(INVOICE_WRITES).add(recordOf(COMPANY, INVOICE_RECORDS, { number: '1-1-26', client: 'nobody', amount: '10.00', issued: '2026-10-05' }))
         }),
       ).rejects.toThrow('nobody is not on the clients tab')
 

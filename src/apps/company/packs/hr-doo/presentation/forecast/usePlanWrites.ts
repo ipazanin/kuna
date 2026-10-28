@@ -2,7 +2,7 @@ import type { Repository } from '../../../../../../shared/storage/application/re
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { recordsOfKindIn } from '../../../../workbook/domain/readWorkbook'
 import { NO_RECORDS, recordWithId } from '../../../../../../shared/storage/domain/recordsRead'
-import { useRecordWrites } from '../../../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import type { PlanLine } from '../../domain/forecast/plan'
 import { PLAN_RECORDS } from '../../domain/hrDooKinds'
 import { PLAN_WRITES } from '../../domain/hrDooWrites'
@@ -10,7 +10,7 @@ import { PLAN_WRITES } from '../../domain/hrDooWrites'
 /** Writes plan lines as every plan dialog does, each line as the app read it. */
 export function usePlanWrites() {
   const store = useWorkbook()
-  const writes = useRecordWrites()
+  const writes = useRecordWrites(store)
 
   /** The line as the app read it, or null when the copy on screen has moved on. */
   function stored(line: PlanLine): PlanLine | null {

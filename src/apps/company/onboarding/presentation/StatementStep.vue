@@ -14,7 +14,7 @@ import { useDryRun } from '../../imports/presentation/useDryRun'
 import { setSettings } from '../../settings/application/settingWrites'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
@@ -27,7 +27,7 @@ import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
  */
 const onboarding = useOnboarding()
 const store = useWorkbook()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 
 /** The fake build offers its sample statement. The check is written inline, so a production build drops the sample. */
 const offersSample = import.meta.env.VITE_FAKE_WORKBOOK === 'true'

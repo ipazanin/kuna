@@ -29,11 +29,10 @@ const stopLoading = (): void => {
 export function createAppRouter(): Router {
   const apps = installedApps()
   apps.forEach(refuseScreensOutside)
-  const screens = [...apps.flatMap((app) => app.screens), SETTINGS_SCREEN]
   const named = [...apps.flatMap((app) => app.screens.map((screen) => ({ screen, name: screenName(app, screen) }))), { screen: SETTINGS_SCREEN, name: SETTINGS_SCREEN.title }]
   const routes: RouteRecordRaw[] = [
     { path: '/', redirect: homeApp().screens[0]?.path ?? SETTINGS_SCREEN.path },
-    ...screens.map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true } })),
+    ...named.map(({ screen, name }) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true, title: name } })),
     { path: '/:unknown(.*)*', redirect: '/' },
   ]
 
@@ -61,8 +60,7 @@ export function createAppRouter(): Router {
     if (failure) {
       return
     }
-    const found = named.find(({ screen }) => screen.path === to.path)
-    nameScreen(found === undefined || found.screen.bare === true ? null : found.name)
+    nameScreen(to.meta.bare === true || typeof to.meta.title !== 'string' ? null : to.meta.title)
     if (from.matched.length > 0 && to.path !== from.path) {
       void nextTick(() => document.querySelector<HTMLElement>('[data-testid="screen-title"]')?.focus({ preventScroll: true }))
     }

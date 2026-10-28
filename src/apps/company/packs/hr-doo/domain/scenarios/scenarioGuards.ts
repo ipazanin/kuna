@@ -6,8 +6,10 @@ import { monthOf } from '../../../../../../shared/calendar/monthKey'
 import { plainAmount } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleSource } from '../payroll/payrollArithmetic'
-import { componentsOf, overlapOf, scenarioSchedule, spanOf } from './scenarioSchedule'
-import type { DaySpan, ScenarioSchedule } from './scenarioSchedule'
+import { componentsOf, scenarioSchedule, spanOf } from './scenarioSchedule'
+import type { ScenarioSchedule } from './scenarioSchedule'
+import { overlapOf } from '../../../../../../shared/calendar/dateRange'
+import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 
 /** Why a scenario cannot be worked out as its rows stand, and which rows. */
 export interface ScenarioGuard {
@@ -126,13 +128,13 @@ function capitalised(text: string): string {
 }
 
 /** The first month two spans both touch, or null. */
-function sharedMonth(first: DaySpan, second: DaySpan): string | null {
+function sharedMonth(first: DateRange, second: DateRange): string | null {
   const from = monthOf(first.from) > monthOf(second.from) ? monthOf(first.from) : monthOf(second.from)
   const to = monthOf(first.to) < monthOf(second.to) ? monthOf(first.to) : monthOf(second.to)
   return from <= to ? from : null
 }
 
-function firstDay(span: DaySpan, holds: (day: CivilDate) => boolean): CivilDate | null {
+function firstDay(span: DateRange, holds: (day: CivilDate) => boolean): CivilDate | null {
   for (let day = span.from; day <= span.to; day = addDays(day, 1)) {
     if (holds(day)) {
       return day

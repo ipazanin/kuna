@@ -9,7 +9,8 @@ import { sumMoney } from '../../../../shared/money/money'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { TERMS_LINK } from '../../invoicing/presentation/invoicingLinks'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useWorkbook } from '../../workbook/application/workbookStore'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingItemDraft, RestOfYearFill } from '../domain/fillRestOfYear'
 
@@ -24,7 +25,7 @@ const props = defineProps<{
   colours: ReadonlyMap<string, string>
 }>()
 
-const writes = useRecordWrites()
+const writes = useRecordWrites(useWorkbook())
 const phone = usePhoneLayout()
 
 const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })

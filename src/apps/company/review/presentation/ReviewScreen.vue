@@ -31,8 +31,8 @@ import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
-import type { RecordWriteOptions } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import type { RecordWriteOptions } from '../../../../shared/storage/presentation/useRecordWrites'
 import { DISMISSAL_WRITES, dismissalOfGroup } from '../application/dismissalWrites'
 import { fileRows } from '../application/fileRows'
 import { withoutDismissed } from '../domain/dismissedSuggestions'
@@ -48,7 +48,7 @@ const store = useWorkbook()
 const { state } = store
 const toast = useToast()
 const names = useDisplayNames()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 
 const context = computed(() => (ledger.value === null ? null : categorisationContextOf(ledger.value.workbook)))
 const busy = computed(() => writes.busy.value || state.writing)

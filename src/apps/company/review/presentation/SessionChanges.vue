@@ -15,7 +15,7 @@ import type { Bucket } from '../../workbook/domain/bucket'
 import { LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import type { Category } from '../../workbook/domain/workbook'
-import { recordsChangeInWords } from '../../workbook/presentation/rowsInWords'
+import { recordsChangeInWords } from '../../../../shared/storage/presentation/recordsChangeInWords'
 
 /** Every write this page made to the workbook, newest first, with Undo on each one that can still be put back. */
 const props = defineProps<{

@@ -8,7 +8,7 @@ import ProblemList from '../../workbook-files/presentation/ProblemList.vue'
 import { installedPack, shownPack } from '../../packs/packContribution'
 import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { removeSettings } from '../application/settingWrites'
 import { unreadSettingKeys } from '../domain/settings'
 import GeneralSettingsForm from './GeneralSettingsForm.vue'
@@ -18,7 +18,7 @@ import { useSettingsSave } from './useSettingsSave'
 const { state } = useWorkbook()
 const { settings, facts: packFacts, saving: savingSettings, saveGeneral } = useSettingsSave()
 const pack = computed(() => shownPack(settings.value))
-const writes = useRecordWrites()
+const writes = useRecordWrites(useWorkbook())
 
 /** The reader's problems and the splits the figures leave out, such as one of a row an asset claims. */
 const problems = computed(() => (state.workbook === null ? [] : presentedWorkbook(state.workbook).problems))

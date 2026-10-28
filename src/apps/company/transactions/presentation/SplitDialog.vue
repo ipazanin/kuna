@@ -17,7 +17,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { SplitTabRow } from '../../workbook/domain/splitsReading'
 import type { LedgerSplit, SplitPart } from '../../workbook/domain/splits'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
-import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeSplit } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
 
@@ -32,7 +32,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
-const writes = useRecordWrites()
+const writes = useRecordWrites(store)
 const names = useDisplayNames()
 const phone = usePhoneLayout()
 

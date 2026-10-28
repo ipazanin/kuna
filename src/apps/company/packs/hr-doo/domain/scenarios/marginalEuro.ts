@@ -1,5 +1,5 @@
 import { civilDate } from '../../../../../../shared/calendar/civilDate'
-import { moneyFromAmount, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
+import { dividedRounded, moneyFromAmount, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -7,7 +7,7 @@ import type { TracedRate } from '../cit/citLiability'
 import { dividendRoute } from '../dividend/dividendRoute'
 import { localRates } from '../payroll/incomeTax'
 import type { EmployeeFacts } from '../payroll/incomeTax'
-import { atRate, deducted, dividedRounded, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
+import { atRate, deducted, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 
 /** One way to pay the owner the next euro: what reaches the owner of 100.00 of company money before corporate tax. */
