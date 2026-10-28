@@ -1,12 +1,12 @@
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'
-import { encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
+import { decodeDocument, encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP } from '../documentStorePorts'
+import { COMPANY_APP } from '../companyDocument'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
+import { fakeBooksFolder, fakeDriveSession, raceTheNextSave } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { fakeMailSettings } from '../../../mail/infrastructure/fake/fakeMailbox'
-import { fakeBooksFolder, fakeDriveSession, raceTheNextSave } from './fakeDriveSession'
 import { FAKE_WORKBOOK_ID, fakeWorkbookDocument } from './fakeWorkbook'
 import type { FakeStaff } from './fakeWorkbook'
 
@@ -32,7 +32,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  */
 export async function seedFakeWorkbook(variant: string | null, staffOf: (variant: string | null) => FakeStaff | null): Promise<void> {
   if (variant === 'empty') {
-    saveWorkbookChoice(null)
+    saveWorkbookChoice(COMPANY_APP, null)
     return
   }
   const source = variant?.startsWith('browser') ? 'browser' : 'drive'
@@ -44,7 +44,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const mailed = variant?.startsWith('mail') ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...fakeMailSettings(variant)] } } : kept
   const document = variant === 'newer-file' ? { ...mailed, schema: { ...mailed.schema, core: (mailed.schema.core ?? 0) + 1 } } : mailed
   if (variant === 'race') {
-    raceTheNextSave()
+    raceTheNextSave(otherDeviceSave)
   }
   const text = encodeDocument(document)
   const copy: DocumentCopy =
@@ -68,7 +68,14 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   } finally {
     cache.close()
   }
-  saveWorkbookChoice({ source, id: copy.meta.id, name: copy.meta.title })
+  saveWorkbookChoice(COMPANY_APP, { source, id: copy.meta.id, name: copy.meta.title })
+}
+
+/** The save another device makes in a race: the snack kiosk's row filed as travel on a phone. */
+function otherDeviceSave(text: string): string {
+  const document = decodeDocument(text)
+  const ledger = (document.records['ledger-row'] ?? []).map((row) => (row.counterparty === 'SNACK KIOSK' ? { ...row, category: 'travel', flagged_by: 'phone' } : row))
+  return encodeDocument({ ...document, records: { ...document.records, 'ledger-row': ledger } })
 }
 
 async function onFakeDrive(text: string, savedAt: string, document: DocumentCopy['document']): Promise<DocumentCopy> {

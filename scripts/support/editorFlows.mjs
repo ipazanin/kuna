@@ -2594,3 +2594,126 @@ export async function salariesFlow(page, { press, shoot, inspect }) {
   })
   await elementSays(page, '[data-testid="salaries-strip"]', ['Mia Primjer'], 'the month opened without the employee picked')
 }
+
+const LOANS_STEP = '[data-testid="loans-start-step"]'
+
+/** Waits for the Loans first run to show this step, or for the Loans Overview once it is over. */
+async function loansStartAt(page, step) {
+  await page
+    .waitForFunction(
+      (selector, wanted) => (wanted === 'overview' ? document.querySelector('[data-testid="loans-empty"]') !== null : document.querySelector(selector)?.dataset.step === wanted),
+      { timeout: 10_000 },
+      LOANS_STEP,
+      step,
+    )
+    .catch(async () => {
+      const at = await page.evaluate((selector) => document.querySelector(selector)?.dataset.step ?? window.location.hash, LOANS_STEP)
+      throw new Error(`the Loans first run is at ${at}, not ${step}`)
+    })
+  await delay(250)
+}
+
+/** Settings, This device: a card for each app's file, the Loans card naming where its file is. */
+async function deviceShowsBothFiles(page, loansSays) {
+  await page.evaluate(() => {
+    window.location.hash = '#/settings?tab=device'
+  })
+  await page.waitForSelector('[data-testid="data-source-card"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, This device has no Company books card')
+  })
+  await page
+    .waitForFunction((wanted) => document.querySelector('[data-testid="loans-books-card"]')?.textContent?.includes(wanted) === true, { timeout: 10_000 }, loansSays)
+    .catch(() => {
+      throw new Error(`the Loans books card does not say "${loansSays}"`)
+    })
+}
+
+/**
+ * The Loans first run with the company books on the fake Drive: Loans opens on it, a new file on the
+ * fake Drive lands in Books as kuna-loans.json, the Loans Overview says it holds no loans yet, and This
+ * device shows a card for each app's file.
+ */
+export async function loansDriveFlow(page, { press, shoot, inspect }) {
+  await loansStartAt(page, 'home')
+  await inspect?.('the Loans first run')
+  await shoot('loans-start')
+  await chooseOption(page, press, 'loans-start-home', 'A new file on Google Drive')
+  await pressSelector(page, press, '[data-testid="loans-start-continue"]')
+  await loansStartAt(page, 'folder')
+  await pressSelector(page, press, '[data-testid="loans-start-choose-folder"]')
+  const confirm = await page.waitForSelector('[data-testid="loans-start-folder-confirm"]', { visible: true, timeout: 10_000 })
+  const said = await confirm.evaluate((element) => element.textContent ?? '')
+  if (!said.includes('Books') || !said.includes('kuna-loans.json')) throw new Error(`the folder confirm says "${said}", not Books and kuna-loans.json`)
+  await inspect?.('the Loans folder confirm')
+  await shoot('loans-start-folder')
+  await pressSelector(page, press, '[data-testid="loans-start-create"]')
+  await toastMatching(page, /^Created kuna-loans\.json in (My Drive › )?Books$/)
+  await loansStartAt(page, 'overview')
+  await pageSays(page, 'on Google Drive as kuna-loans.json', true)
+  await inspect?.('the empty Loans Overview')
+  await shoot('loans-overview')
+  await dismissToasts(page)
+  await deviceShowsBothFiles(page, 'kuna-loans.json')
+  await inspect?.('This device with two files')
+  await shoot('loans-device')
+}
+
+/** The Loans first run with the company books in this browser: a new Loans file in this browser, which This device offers to export. */
+export async function loansBrowserFlow(page, { press, shoot, inspect }) {
+  await loansStartAt(page, 'home')
+  await chooseOption(page, press, 'loans-start-home', 'A new file in this browser')
+  await pressSelector(page, press, '[data-testid="loans-start-continue"]')
+  await loansStartAt(page, 'overview')
+  await pageSays(page, 'kept in this browser', true)
+  await inspect?.('the empty Loans Overview in this browser')
+  await shoot('loans-overview-browser')
+  await deviceShowsBothFiles(page, 'Kept in this browser')
+  await inspect?.('This device with two files in this browser')
+  await shoot('loans-device-browser')
+}
+
+/** The Loans first run on a device that has not chosen the Loans file another device made on the fake Drive: Find the file opens it by its mark. */
+export async function loansOpenFlow(page, { press, shoot, inspect }) {
+  await loansStartAt(page, 'home')
+  await chooseOption(page, press, 'loans-start-home', 'My file on Google Drive')
+  await pressSelector(page, press, '[data-testid="loans-start-continue"]')
+  await loansStartAt(page, 'find')
+  await inspect?.('the Loans find step')
+  await shoot('loans-start-find')
+  await pressSelector(page, press, '[data-testid="loans-start-find"]')
+  await toastMatching(page, /^Opened kuna-loans\.json$/)
+  await loansStartAt(page, 'overview')
+}
+
+/**
+ * The menu with two apps, in the sidebar or the phone's drawer: a heading per app, the company's
+ * screens under Company, Overview alone under Loans with no line under its heading and marked as the
+ * screen on show, and the browser tab naming the app.
+ */
+export async function menuGroupsFlow(page, { press, shoot, inspect }) {
+  const drawer = await page.$('[data-testid="open-navigation"]')
+  if (drawer !== null && (await drawer.boundingBox()) !== null) {
+    await press(drawer)
+    await page.waitForSelector('[role="dialog"] [data-testid="nav-group"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+  }
+  const groups = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-testid="nav-group"]')]
+      .filter((group) => group.getClientRects().length > 0)
+      .map((group) => ({
+        name: group.querySelector('p')?.textContent?.trim() ?? '',
+        subtitle: group.querySelectorAll('p')[1]?.textContent?.trim() ?? null,
+        entries: [...group.querySelectorAll('a')].map((link) => link.textContent?.trim() ?? ''),
+        current: group.querySelector('a[aria-current="page"]')?.textContent?.trim() ?? null,
+      })),
+  )
+  const [company, loans] = groups
+  if (groups.length !== 2 || company.name !== 'Company' || loans.name !== 'Loans') throw new Error(`the menu shows ${JSON.stringify(groups.map((group) => group.name))}, not Company and Loans`)
+  if (!company.entries.includes('Overview') || !company.entries.some((entry) => entry.startsWith('Transactions'))) throw new Error(`Company lists ${company.entries.join(', ')}`)
+  if (loans.subtitle !== null) throw new Error(`Loans shows "${loans.subtitle}" under its heading`)
+  if (JSON.stringify(loans.entries) !== JSON.stringify(['Overview']) || loans.current !== 'Overview') throw new Error(`Loans lists ${loans.entries.join(', ')} with ${loans.current} marked`)
+  const title = await page.title()
+  if (title !== 'Overview, Loans – Kuna') throw new Error(`the browser tab says "${title}"`)
+  await inspect?.('the menu with two apps')
+  await shoot('menu-groups')
+}

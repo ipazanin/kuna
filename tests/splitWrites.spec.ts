@@ -6,8 +6,8 @@ import { WorkbookWriteRefused } from '../src/shared/storage/application/workbook
 import { recordWithId } from '../src/shared/storage/domain/recordsRead'
 import type { SplitTabRow } from '../src/apps/company/workbook/domain/splitsReading'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { cellsOf } from './fixtures/recordWrites'
 import { euros } from './fixtures/ledger'
@@ -41,17 +41,17 @@ function grids(withSplitsTab = true): Record<string, CellValue[][]> {
   }
 }
 
-function rowOf(store: WorkbookStore<WorkbookCopy>, counterparty: string): Transaction {
+function rowOf(store: WorkbookStore<CompanyBooks>, counterparty: string): Transaction {
   return store.state.workbook!.transactions.find((row) => row.counterparty === counterparty)!
 }
 
 /** The parts the row's split holds, larger first, as the split editor reads them. */
-function currentParts(store: WorkbookStore<WorkbookCopy>, row: Transaction): SplitTabRow[] {
+function currentParts(store: WorkbookStore<CompanyBooks>, row: Transaction): SplitTabRow[] {
   const split = store.state.workbook!.splits.find((candidate) => candidate.row.id === row.id)
   return (split?.parts ?? []).map((part) => recordWithId(store.state.records!.splits, part.id)!.record)
 }
 
-function writeSplit(store: WorkbookStore<WorkbookCopy>, row: Transaction, parts: readonly (readonly [number, string, string?])[]) {
+function writeSplit(store: WorkbookStore<CompanyBooks>, row: Transaction, parts: readonly (readonly [number, string, string?])[]) {
   const current = currentParts(store, row)
   const drafts = parts.map(([amount, category, note = ''], index) => ({ amount: euros(amount), category, note, opened: current[index] ?? null }))
   return store.write('Split', (unit) => writeSplitParts(unit, row, current, drafts, store.state.workbook!.categories))

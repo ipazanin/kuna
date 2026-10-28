@@ -19,6 +19,9 @@ folders, as *The mail step* describes. An xlsx file opens as the same
 document, and "Export to Excel" writes one. Making an invoice also files its PDF in the Drive folder
 the user picks for invoices. See *Invoices*.
 
+A second app, Loans, keeps a file of its own, `kuna-loans.json`, on Drive or in this browser the same
+way. It holds no loans yet. See *Loans*.
+
 ## Google sign-in
 
 There is no backend, so there is no refresh token: Google issues those only through a server-side
@@ -55,7 +58,8 @@ token in the fragment. Google's popup opened its cookie screen zoomed out there.
 fragment before the router starts, checks the one-time `state` it kept in `localStorage`, takes the
 token out of the address and returns to the screen and tab the person left. Once back, a sync, a
 find of the books and the Picker carry on by themselves, and onboarding's access step, which the
-route brings back, says what Google allowed. Anything else that needs Google on a phone, such as a
+route brings back, says what Google allowed. A find or a pick remembers the app whose books it
+opens, and only that app resumes it. Anything else that needs Google on a phone, such as a
 write, a file made on Drive or an invoice, never leaves the page for it: it says to sync or allow
 access first, which onboarding does before any file is made. Onboarding's own steps, which have no
 sync control, ask Google first in the tap when the page's token lacks what the step needs, as after
@@ -80,12 +84,16 @@ The needed scopes stay, since the books decide them, not the account.
 
 ## Sync
 
-A sync is an ordered list of steps, run one after another: the books, then the mail, then the
-statements. The Sync button, the sync on open and on a return to
-the tab, LedgerGate's Sync and Try again, and the way back from Google all run the same sync,
-`createSync` in `src/apps/company/sync/application/sync.ts`, through `useSync` in
-`src/apps/company/sync/presentation/`. A workbook kept in this browser has no sync, and its statements
-come in on the Import tab.
+A sync is one group of steps for each app with its file on Drive, the groups run one after another
+under one tap, so the page never asks Google for two tokens at once. Each group reads its app's
+books first, then runs the app's own steps: for the company the mail, then the statements. Loans has
+no steps of its own, so its group reads its file and nothing else. The Sync
+button, the sync on open and on a return to the tab, LedgerGate's Sync and Try again, and the way
+back from Google all run the same sync, `createSync` in `src/shared/sync/application/sync.ts`, which
+the shell starts over every installed app through `startPageSync` in
+`src/shared/sync/presentation/pageSync.ts`. Each app gives its group through `syncGroup()` on its
+`AppContribution`. A workbook kept in this browser has no sync, and its statements come in on the
+Import tab.
 
 Each step names the Google scopes it needs and whether the settings turn it on:
 
@@ -101,7 +109,7 @@ Google in the same tap, then syncs, so the step just switched on runs and the co
 "Allow access" for it. A popup opens only inside the tap, so on a desktop the popup comes first and
 the save follows once Google answered. The trip of a phone leaves the page, so there the save comes
 first and the tab then leaves for Google and syncs once back. A popup that gives no token still
-saves, and the control says why, as above. `saveAllowing` in `src/apps/company/sync/application/sync.ts`
+saves, and the control says why, as above. `saveAllowing` in `src/shared/sync/application/sync.ts`
 keeps that order, and the pack's `withFacts` puts the drafted facts on the books so the steps they
 switch on are read before the save.
 
@@ -111,9 +119,10 @@ the same sync. A tap during a save waits
 for the save and then syncs, and a tap during a sync joins it, so one sync runs at a time. A step
 whose scopes the page's token lacks one of does not run and needs access. A step that fails leaves
 the others running. Google turning a step's token away inside the step makes that step, and the
-later steps that share a scope with it, need access. A failed read of the books skips every later step.
+later steps that share a scope with it, need access, in the later groups too. A failed read of an
+app's books skips the later steps of that app's group only.
 
-The states of a step are in `src/apps/company/sync/domain/syncRun.ts`: off, queued, running with a line
+The states of a step are in `src/shared/sync/application/syncRun.ts`: off, queued, running with a line
 such as "Filing 4 rows", done with a line such as "Nothing new", waiting for you, such as with a
 statement it held, needing access, failed with the message, or skipped because the books could not
 be read. The run is page state and never stored.
@@ -130,16 +139,22 @@ The sync control shows one of these, the first that applies:
 - "1 problem", or the count, while a step failed or waits for you. The tap opens the steps of the
   last sync, in a popover from 640 px and in a bottom sheet on a phone: each step's line, with Undo
   or a link where the step left one, and "Sync again".
-- Otherwise how long ago the books were read. The tap syncs.
+- Otherwise how long ago the books were read, the oldest read among the files on Drive. The tap syncs.
+
+While no app keeps its file on Drive, the top bar shows the export of each file kept in this browser
+instead. With one app's file on Drive and another's in this browser, it shows the sync with a dot
+while the browser file's export is due, and that file's card on Settings, This device says so too.
 
 A missing permission shows only there and in its step's line, never in a toast, an Overview line or
 a card. From 1024 px a button beside Sync in the sidebar opens the steps of the last sync too.
-Settings, This device has a Sync card with the same steps and the "Sync as the app opens" switch.
+While some app's file is on Drive, Settings, This device has a Sync card with the same steps, the
+"Sync as the app opens" switch and "Sign out of Google", since all three act on the whole page.
 
 **Sync as the app opens** is a switch of each device, on by default. Only an off is kept, in
 `localStorage` under `kuna.auto-sync`. While it is on and the page's token is good, the app
 syncs on open and whenever the tab becomes visible again, at most once every ten minutes after the
-last read or attempt (`src/apps/company/sync/application/autoSync.ts`). Off, the open also skips the
+oldest read among the files on Drive or the last attempt (`src/shared/sync/application/autoSync.ts`).
+Off, the open also skips the
 silent trip to Google, so the device waits for a tap on Sync.
 
 ### The statements step
@@ -289,8 +304,8 @@ stored. No toast says any of it.
 
 The app is a PWA: a manifest with the brass mark as its icon, and a service worker written into the
 production build by `scripts/pwa.ts`. The worker caches every built file of a release, lazy screens,
-SheetJS and fonts included, so after one online visit the app opens offline on the workbook this
-browser holds. Requests to other origins, Google's scripts and APIs among them, never touch the
+SheetJS and fonts included, so after one online visit the app opens offline on the files this
+browser holds, the company's and the Loans file. Requests to other origins, Google's scripts and APIs among them, never touch the
 cache. A new deploy downloads into its own cache and waits. "A new version of Kuna is ready"
 then offers Reload, and other open windows are told the same. Development and the fake build
 register no worker. On Android Chrome, install from the browser menu. Firefox on desktop has no
@@ -1683,10 +1698,11 @@ the rows out whole.
 
 ## Settings screen
 
-The shell's screen at `#/settings`, set apart at the foot of the menu, holds how the workbook and this device
-are set up, and the law behind the figures, one tab each. The company app gives General, Categories
-and Accounts, the pack adds Ruleset through it, and This device holds the company's Data source and
-Sync cards beside the shell's Appearance and privacy card. Each app's parts load with the screen:
+The shell's screen at `#/settings`, set apart at the foot of the menu, holds how each app's books and
+this device are set up, and the law behind the figures, one tab each, under an intro sentence the
+shell owns. The company app gives General, Categories and Accounts, the pack adds Ruleset through it,
+and This device holds a card for each app's file, Company books and Loans books, beside the shell's
+Sync card and its Appearance and privacy card. Loans has no tab yet. Each app's parts load with the screen:
 
 | Tab | What it holds |
 |---|---|
@@ -1694,7 +1710,7 @@ Sync cards beside the shell's Appearance and privacy card. Each app's parts load
 | Categories | The categories tab |
 | Accounts | The accounts tab |
 | Ruleset | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as *Ruleset* describes |
-| This device | Where the books are kept, with export, import, the move to Drive, switch and sign-out, for a file on Drive the Sync card with the steps of the last sync and "Sync as the app opens", and the theme and privacy notes |
+| This device | Company books, where the company's books are kept, with export, import, the move to Drive and the switch. Loans books, where the Loans file is kept, with its export and "Switch storage", or "Set up Loans" before the first run. While some app's file is on Drive, the Sync card with the steps of the last sync, "Sync as the app opens" and "Sign out of Google". Then the theme and privacy notes |
 
 Without a workbook on screen only This device is there. A card with a field in error opens. A link
 that names a fact by its field, such as `#/settings#owner-loan-interest` or
@@ -1781,8 +1797,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, with statements from a folder, whose confirm names the path and whose company step asks for no folder of the accountant's, and with statements from mail, whose access step names the bank and asks for Gmail read beside the books file alone, whose confirm names the statements folder it makes and whose first sync files the bank's mail there and holds the statement of the account the books lack, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, the statement step asking for Drive read before the Picker, a workbook kept in this browser moved there with the Drive read its folders need asked up front, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, the mail step off, then a sender and subject saved on the Mail card and filed by the next sync, the step filing a statement the same sync reads with the list it links to, a second sync filing nothing new and the accountant's mail fields, nothing new, a source that failed and an upload that failed each with 1 problem in the control, Allow access for Gmail read, a save on the Mail card that asks for Gmail read in its own tap and syncs, the accountant's mail switched off, the payroll switched on without a sender with what it lacks in the line and under its switch, Gmail asking to slow down with one plain sentence in its step and on the Mail card, the search after mail another app filed starting a week before the newest file, and Allow access whose Google window closed with the line that says so, Salaries for one and for five made-up employees on each tab, and with five the one problem's build-up and rows, a name on People and a month of Over time, and This device for a file a newer app saved, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from This device with the Drive read its folders need, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, with statements from a folder, whose confirm names the path and whose company step asks for no folder of the accountant's, and with statements from mail, whose access step names the bank and asks for Gmail read beside the books file alone, whose confirm names the statements folder it makes and whose first sync files the bank's mail there and holds the statement of the account the books lack, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, the statement step asking for Drive read before the Picker, a workbook kept in this browser moved there with the Drive read its folders need asked up front, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, the mail step off, then a sender and subject saved on the Mail card and filed by the next sync, the step filing a statement the same sync reads with the list it links to, a second sync filing nothing new and the accountant's mail fields, nothing new, a source that failed and an upload that failed each with 1 problem in the control, Allow access for Gmail read, a save on the Mail card that asks for Gmail read in its own tap and syncs, the accountant's mail switched off, the payroll switched on without a sender with what it lacks in the line and under its switch, Gmail asking to slow down with one plain sentence in its step and on the Mail card, the search after mail another app filed starting a week before the newest file, and Allow access whose Google window closed with the line that says so, Salaries for one and for five made-up employees on each tab, and with five the one problem's build-up and rows, a name on People and a month of Over time, This device for a file a newer app saved, the menu with a heading for Company and Loans in the sidebar and the drawer, the Loans first run with a new file on the fake Drive beside the company's, one in this browser and another device's found by its mark, the empty Loans Overview, and This device with a card for each file, on Drive and in this browser, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from This device with the Drive read its folders need, a race kept on both sides, the newer-file notice, the Loans find a tap resumed ending on the Loans Overview, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
 npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff
@@ -1815,7 +1831,7 @@ pillar II, one with two children and one who joins in February 2026. Each payday
 salary with a meal allowance to its employee and each contribution in one sum to its payee, as the
 payroll engine works them out, and one share capital row in October leaves the main account where the
 flat salary leaves it, so the sample statement still carries it on. For the five the newest health
-insurance row is 10.00 short, so Salaries has a problem to show. The fake workbook is built as records in `fakeWorkbook.ts`. In the fake build it is a file on a Drive held in memory (`fake/fakeDriveSession.ts`), which answers syncs and saves, keeps revisions and makes the day's backup, until the page reloads. A
+insurance row is 10.00 short, so Salaries has a problem to show. The fake workbook is built as records in `fakeWorkbook.ts`. In the fake build it is a file on a Drive held in memory (`src/shared/storage/infrastructure/fake/fakeDriveSession.ts`), which answers syncs and saves, keeps revisions and makes the day's backup, until the page reloads. A
 Drive and a Gmail held in memory answer "Make invoice" the same way: the invoice folder holds this
 year's and last year's folders with every month inside, made by another app and out of view until
 picked, and the browser's confirm dialog stands in for the Picker, OK picking every folder it names
@@ -1855,7 +1871,11 @@ Picker picks a `Books` folder on the fake Drive. Any variant reaches onboarding 
 so the starting scenarios and the first plan line have nothing before them. `?fake=newer-file` is a
 file a newer app saved, which the app shows and never writes. With `?fake=race` a phone files the
 snack kiosk's row on the fake Drive a moment before the first save uploads, so the save runs again
-on the phone's file and both stand. Every record that carries an id has a fixed one. The visual
+on the phone's file and both stand. Every record that carries an id has a fixed one. `?loans=drive`
+keeps an empty Loans file on the fake Drive beside the company's, `?loans=browser` one in this
+browser with changes nine days past their last export, and `?loans=other-device` one on the fake Drive
+that this device has not chosen, which the Loans find opens. Without it Loans starts on its first
+run. The fake Picker picks the file marked for the app that asks. The visual
 check covers each variant, and the import summary of an xlsx it writes from the fake workbook. It and the touch check run against a preview of the fake build, so start one first:
 
 ```sh
@@ -1889,16 +1909,44 @@ in a production build.
 
 ### The shell and its apps
 
-The app is a thin shell with apps inside it, today one, the company's books. `src/main.ts` imports
+The app is a thin shell with apps inside it, today two: the company's books, the home app, and Loans. `src/main.ts` imports
 each app's `app.ts` as the page starts, installs it, then mounts the shell. `src/shell` holds the
 frame, the router, the app registry and the Settings screen. `src/shared` is the kernel every app
 uses: the UI kit, the calendar, money and text helpers, Google, the document storage, and
 `AppContribution` in `src/shared/app/appContribution.ts`, which says what an app gives the shell:
-its screens and menu, its first run, its sync control, its parts of Settings and what it starts as
-the page opens. `src/apps/company` is the company app, and every route of it starts with
+its name, its screens and menu, its first run, its group of the page's sync, its parts of Settings
+and what it starts as the page opens. The menu shows a heading per app with the app's subtitle under
+it, such as the company's name, and Settings set apart below. A screen of an app other than the
+home app names the app in the browser tab and the phone top bar, such as "Overview, Loans – Kuna".
+On a fresh device the home app's first run takes every address, and otherwise an app's first run
+takes the addresses under it. `src/apps/company` is the company app, and every route of it starts with
 `#/company`: Overview at `#/company`, Transactions at `#/company/transactions`, onboarding at
 `#/company/start`. `#/` opens the home app's first screen, and so does an address no screen has.
-Settings stays the shell's, at `#/settings`.
+Settings stays the shell's, at `#/settings`. An app imports only its own folder and `src/shared`, so
+the company and Loans never import each other, and `tests/importBoundaries.spec.ts` checks it.
+
+### Loans
+
+`src/apps/loans` is the second app, at `#/loans`. It keeps its own file, `kuna-loans.json`, through
+the same document storage as the company: on Drive marked with the `appProperties` `kuna=loans`
+and with its own `backups` folder, or in this browser under its own id. Each app remembers its file
+on this device under its own key, `kuna.workbook-file.<app>`. The file has no kinds yet, only the
+schema `{"loans":1}`, and the Overview says it holds no loans. Until Loans has settings it shows
+money as euros in the en-GB format.
+
+Its first run at `#/loans/start` asks where the file lives: a new file on Google Drive, through a
+folder step like the company's, a new file in this browser, made at once, or the file another device
+made, found by its mark or else picked. A tap that needs Google asks for it in the same tap, and on
+a phone the route brings the person back to the step. A find that leaves for Google names Loans, so
+only Loans picks it up on the way back. The same steps switch the storage from Settings, This device,
+and the file on screen moves along to its new home. Opening another device's file lets go of the
+one kept in this browser. On a fresh device the company's first run comes first, so Loans opens only
+once the company books are set up.
+
+"Export" on its card, and in the top bar while no file is on Drive, downloads the file as it is,
+`kuna-loans-export-<yyyy-mm-dd>.json`, a name no daily backup takes. Loans has no import yet. To bring
+an export back, put it on Drive and choose "My file on Google Drive" in the Loans first run. The company's import refuses
+the file as another app's.
 
 ### Core and the pack
 
@@ -2088,8 +2136,8 @@ session list is held in memory, so a reload clears it.
   The loan switch on Settings, General is a change to the `bucket` of the loan categories.
 
 The storage is a port, `RecordStorage` (`src/shared/storage/application/recordStorage.ts`). The
-store, `createWorkbookStore.ts` in `src/apps/company/workbook/application/`, holds the unit of work, the copy on screen and
-the session list. `workbookStore.ts` beside it wires the document storage in and gives the screens
+store, `createWorkbookStore.ts` in `src/shared/storage/application/`, holds the unit of work, the copy on screen and
+the session list. `workbookStore.ts` in `src/apps/company/workbook/application/` wires the company's document storage in and gives the screens
 `useWorkbook`. The copy on screen is the document whole with its revision, which the cache in
 IndexedDB keeps as one row (`workbookCache.ts`). `documentRecordStorage.ts` in
 `src/shared/storage/infrastructure/` keeps every kind's records in that one document, in a file

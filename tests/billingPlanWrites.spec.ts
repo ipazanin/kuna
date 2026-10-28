@@ -5,8 +5,9 @@ import { BILLING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { BILLING_WRITES, newBillingItem } from '../src/apps/company/billingPlan/application/billingWrites'
 import type { BillingItemDraft } from '../src/apps/company/billingPlan/domain/fillRestOfYear'
-import { canUndo, wasUndone } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import { canUndo, wasUndone } from '../src/shared/storage/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import type { BillingItem } from '../src/apps/company/workbook/domain/billingPlan'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
@@ -17,7 +18,7 @@ import { AN_ID, browserHarness, forgetCaches, driveHarness, workbookGrids } from
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
-type Store = WorkbookStore<DocumentCopy>
+type Store = WorkbookStore<CompanyBooks, DocumentCopy>
 
 const used = new Set<string>()
 

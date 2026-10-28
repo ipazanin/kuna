@@ -5,9 +5,11 @@ import { useRoute } from 'vue-router'
 import { LINKED_SETTINGS_TAB } from '../../shared/app/appContribution'
 import type { AppSettings } from '../../shared/app/appContribution'
 import PageHeader from '../../shared/ui/PageHeader.vue'
+import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import PageTabs from '../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../shared/ui/PageTabs.vue'
 import AppearanceCard from './AppearanceCard.vue'
+import SyncCard from './SyncCard.vue'
 
 const props = defineProps<{
   /** Each installed app's parts, the home app's first. */
@@ -31,6 +33,8 @@ const tabs = computed((): PageTab[] => [
   { label: 'This device', value: DEVICE_TAB, icon: 'i-lucide-monitor-smartphone' },
 ])
 const deviceCards = computed(() => props.parts.flatMap((part) => part.deviceCards()))
+const { groups } = usePageSync()
+const someOnDrive = computed(() => groups.some((group) => group.store.state.choice?.source === 'drive'))
 
 const route = useRoute()
 const linkedTab = ref(typeof route.query.tab === 'string' ? route.query.tab : null)
@@ -39,7 +43,7 @@ provide(LINKED_SETTINGS_TAB, linkedTab)
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader title="Settings" :description="parts[0]?.intro() ?? ''" />
+    <PageHeader title="Settings" description="How each app's books and this device are set up. A save writes what you changed to the app's file, on Drive or in this browser, checks it reads back, and offers Undo." />
 
     <PageTabs :tabs="tabs" label="Parts of the settings" data-testid="settings-tabs" @select="linkedTab = null">
       <template v-for="tab in appTabs" #[tab.value]>
@@ -49,6 +53,7 @@ provide(LINKED_SETTINGS_TAB, linkedTab)
       <template #[DEVICE_TAB]>
         <div class="grid gap-4 lg:grid-cols-2">
           <component :is="card" v-for="(card, index) in deviceCards" :key="index" />
+          <SyncCard v-if="someOnDrive" />
           <AppearanceCard />
         </div>
       </template>

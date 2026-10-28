@@ -3,18 +3,19 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { SETTING_WRITES } from '../src/apps/company/settings/application/settingWrites'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { NEWER_FILE, decodeDocument, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP, installedSchema, readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { COMPANY_APP, installedSchema, readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { documentOfTabs, tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
-import type { UploadInFlight } from '../src/apps/company/workbook/infrastructure/fake/fakeDrive'
+import type { UploadInFlight } from '../src/shared/storage/infrastructure/fake/fakeDrive'
 import { browserHarness, driveHarness, forgetCaches, secondDevice } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
@@ -36,11 +37,11 @@ const CATEGORIES = [
   { category: 'software', family: 'operating', bucket: 'operating', my_own_note: 'Kept by hand', my_own_number: 7 },
 ]
 
-function category(store: WorkbookStore<DocumentCopy>, slug: string) {
+function category(store: WorkbookStore<CompanyBooks, DocumentCopy>, slug: string) {
   return recordsOf(store.state.records!.categories).find((record) => record.slug === slug)!
 }
 
-function label(store: WorkbookStore<DocumentCopy>, slug: string, text: string) {
+function label(store: WorkbookStore<CompanyBooks, DocumentCopy>, slug: string, text: string) {
   const before = category(store, slug)
   return store.write('Categories saved', (unit) => unit.of(CATEGORY_WRITES).change(before, { ...before, label: text }))
 }

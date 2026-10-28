@@ -1,8 +1,8 @@
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { listInWords } from '../../../../shared/text/listInWords'
-import type { WorkbookStore } from '../../workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
 import type { WriteReceipt } from '../../../../shared/storage/application/recordWrites'
-import type { WorkbookCopy } from '../../../../shared/storage/application/workbookPorts'
 import { WorkbookWriteRefused } from '../../../../shared/storage/application/workbookWriteRefused'
 import type { Workbook } from '../../workbook/domain/workbook'
 import type { DryRunStatement } from '../domain/importDryRun'
@@ -31,7 +31,7 @@ export interface StatementSyncOutcome {
 export const NOTHING_FILED: StatementSyncOutcome = { problem: null, held: [], filed: [], receipt: null }
 
 export interface StatementSyncPorts {
-  readonly store: Pick<WorkbookStore<WorkbookCopy>, 'state' | 'sync' | 'write'>
+  readonly store: Pick<WorkbookStore<CompanyBooks>, 'state' | 'sync' | 'write'>
   readonly folder: StatementFolder
   load(fileName: string, bytes: ArrayBuffer): Promise<LoadedImportFile>
   step(step: StatementSyncStep): void

@@ -13,7 +13,7 @@ import { newBooksDocument } from '../../workbook/presentation/workbookFiles'
 import { MAIL_STATEMENTS_FOLDER, statementSettingsOf } from '../domain/statementsChoice'
 import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
-import { withGoogleAccess } from './withGoogleAccess'
+import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 
 /**
  * The folder the books are saved in: the Picker opens at My Drive, and nothing is made until the

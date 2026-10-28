@@ -14,7 +14,7 @@ import {
   takeGoogleRedirect,
   tokenFor,
 } from '../src/shared/google/googleAuth'
-import { REDIRECT_SIGN_IN_QUERY, authorizationUrl, redirectFragmentOf, savePendingRedirect, settleRedirect, takePendingRedirect } from '../src/shared/google/googleRedirect'
+import { REDIRECT_SIGN_IN_QUERY, authorizationUrl, redirectFragmentOf, resumedBy, savePendingRedirect, settleRedirect, takePendingRedirect } from '../src/shared/google/googleRedirect'
 import type { PendingRedirect } from '../src/shared/google/googleRedirect'
 import { scopeRequest } from '../src/shared/google/googleScopes'
 import { loadGrantedScopes, loadNeededScopes, loadSilentRefusal } from '../src/shared/google/googleSession'
@@ -214,6 +214,38 @@ describe('the pending redirect', () => {
       expect(takePendingRedirect()).toBeNull()
     }
   })
+
+  it('keeps the app a find or a pick names, refuses one that names none, and carries no app for a sync', () => {
+    const find: PendingRedirect = { ...PENDING, resume: 'find', app: 'loans' }
+    savePendingRedirect(find)
+    expect(takePendingRedirect()).toEqual(find)
+
+    for (const broken of [{ ...PENDING, resume: 'find' }, { ...PENDING, resume: 'pick', app: '' }, { ...PENDING, resume: 'pick', app: 7 }]) {
+      localStorage.setItem('kuna.google-redirect', JSON.stringify(broken))
+      expect(takePendingRedirect()).toBeNull()
+    }
+
+    localStorage.setItem('kuna.google-redirect', JSON.stringify({ ...PENDING, app: 'loans' }))
+    expect(takePendingRedirect()).toEqual(PENDING)
+  })
+})
+
+describe('the app a return resumes', () => {
+  const token = { kind: 'token', accessToken: 'ya29.one', expiresIn: 3599, scope: EVERY_SCOPE, state: 'one-time-state' } as const
+
+  it('hands a find or a pick to the app that asked for it alone', () => {
+    const pick = settleRedirect(token, { ...PENDING, resume: 'pick', app: 'loans' }, BACK_AT)
+
+    expect(pick).toMatchObject({ kind: 'granted', resume: 'pick', app: 'loans' })
+    expect(resumedBy(pick, 'loans')).toBe(pick)
+    expect(resumedBy(pick, 'company')).toBeNull()
+  })
+
+  it('hands a sync, a return that resumes nothing and no return at all to no app', () => {
+    expect(resumedBy(settleRedirect(token, PENDING, BACK_AT), 'company')).toBeNull()
+    expect(resumedBy(settleRedirect(token, { ...PENDING, resume: 'none' }, BACK_AT), 'company')).toBeNull()
+    expect(resumedBy(null, 'company')).toBeNull()
+  })
 })
 
 describe('coming back to the app', () => {
@@ -387,7 +419,7 @@ describe('asking in a tap', () => {
     onPhone(true)
     needScopes(['drive.file', 'gmail.compose'])
 
-    void requestAccess(['drive.readonly'], 'sync')
+    void requestAccess(['drive.readonly'], { resume: 'sync' })
     await Promise.resolve()
     const left = askLeftWith()!
 

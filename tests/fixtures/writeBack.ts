@@ -1,17 +1,19 @@
 import { expect } from 'vitest'
 
 import { RULE_COLUMNS } from '../../src/apps/company/rules/domain/rule'
-import { createWorkbookStore } from '../../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookStore, WorkbookStorePorts } from '../../src/apps/company/workbook/application/createWorkbookStore'
+import { createWorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
+import type { WorkbookStore, WorkbookStorePorts } from '../../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../../src/apps/company/workbook/domain/readWorkbook'
 import type { WorkbookCache, WorkbookChoice } from '../../src/shared/storage/application/workbookPorts'
 import { browserDocumentHome, deleteBrowserDocument, replaceBrowserDocument } from '../../src/shared/storage/infrastructure/browserDocument'
 import { decodeDocument, encodeDocument } from '../../src/shared/storage/infrastructure/documentFormat'
 import type { WorkbookDocument } from '../../src/shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../../src/shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP, documentStorePorts } from '../../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { COMPANY_APP, COMPANY_DOCUMENT } from '../../src/apps/company/workbook/infrastructure/companyDocument'
+import { documentStorePorts } from '../../src/shared/storage/infrastructure/documentStorePorts'
 import { createDriveDocument, documentName } from '../../src/shared/storage/infrastructure/driveDocument'
-import { createFakeDrive } from '../../src/apps/company/workbook/infrastructure/fake/fakeDrive'
-import type { FakeDrive } from '../../src/apps/company/workbook/infrastructure/fake/fakeDrive'
+import { createFakeDrive } from '../../src/shared/storage/infrastructure/fake/fakeDrive'
+import type { FakeDrive } from '../../src/shared/storage/infrastructure/fake/fakeDrive'
 import { documentOfTabs } from '../../src/apps/company/workbook/infrastructure/spreadsheetDocument'
 import { openWorkbookCache } from '../../src/shared/storage/infrastructure/workbookCache'
 import type { CellValue } from '../../src/apps/company/workbook/infrastructure/workbookSnapshot'
@@ -91,7 +93,7 @@ function documentOfSeed(seed: Grids | WorkbookDocument): WorkbookDocument {
 }
 
 export interface WriteBackHarness {
-  readonly store: WorkbookStore<DocumentCopy, WorkbookDocument>
+  readonly store: WorkbookStore<CompanyBooks, DocumentCopy, WorkbookDocument>
   /** The Drive the file is kept on, or null for a workbook kept in this browser. */
   readonly drive: FakeDrive | null
   /** The document as its home holds it now. */
@@ -100,8 +102,8 @@ export interface WriteBackHarness {
 
 const NOW = '2026-10-17T09:00:00.000Z'
 
-function storePorts(choice: WorkbookChoice, drive: FakeDrive, used: Set<string>): WorkbookStorePorts<DocumentCopy, WorkbookDocument> {
-  const ports = documentStorePorts(async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => null, folderPath: async () => null, pickFile: async () => null }), () => NOW)
+function storePorts(choice: WorkbookChoice, drive: FakeDrive, used: Set<string>): WorkbookStorePorts<CompanyBooks, DocumentCopy, WorkbookDocument> {
+  const ports = documentStorePorts(COMPANY_APP, COMPANY_DOCUMENT, async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => null, folderPath: async () => null, pickFile: async () => null }), () => NOW)
   return {
     ...ports,
     openCache: (id) => {
@@ -112,8 +114,7 @@ function storePorts(choice: WorkbookChoice, drive: FakeDrive, used: Set<string>)
     saveChoice: () => {},
     prepareSync: () => {},
     hasLiveAccessToken: () => true,
-    forgetGoogleSignIn: () => {},
-    signOutOfGoogle: async () => {},
+    keptInBrowser: () => {},
     newLocalId: () => 'local-new',
     now: () => NOW,
     pause: async () => {},
@@ -143,7 +144,7 @@ export async function driveHarness(used: Set<string>, seed: Grids | WorkbookDocu
 }
 
 /** A second device's store on the same file of the same Drive, which read the file as it stands now. */
-export async function secondDevice(used: Set<string>, drive: FakeDrive, fileId: string): Promise<WorkbookStore<DocumentCopy, WorkbookDocument>> {
+export async function secondDevice(used: Set<string>, drive: FakeDrive, fileId: string): Promise<WorkbookStore<CompanyBooks, DocumentCopy, WorkbookDocument>> {
   const name = documentName(COMPANY_APP)
   const store = createWorkbookStore({ ...storePorts({ source: 'drive', id: fileId, name }, drive, used), openCache: () => memoryCache() })
   await store.open()

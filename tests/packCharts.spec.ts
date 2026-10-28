@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { formatWholeMoney } from '../src/shared/money/moneyFormat'
 import type { Period } from '../src/apps/company/filters/domain/filterState'

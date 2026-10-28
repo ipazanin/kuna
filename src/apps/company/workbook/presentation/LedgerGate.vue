@@ -3,13 +3,13 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
 
+import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import { useExport } from '../../workbook-files/presentation/useExport'
-import { useSync } from '../../sync/presentation/useSync'
 import { useWorkbook } from '../application/workbookStore'
 
 /** Shows its slot once a workbook with transactions is on screen, and says what is missing until then. */
 const { state } = useWorkbook()
-const { sync } = useSync()
+const { sync } = usePageSync()
 const router = useRouter()
 const { exportNow } = useExport()
 

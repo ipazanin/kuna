@@ -8,16 +8,14 @@ import { useStickyBandPart } from '../../shared/layout/stickyBand'
 import { useMediaQuery, usePhoneLayout } from '../../shared/layout/viewport'
 import AppBrand from './AppBrand.vue'
 import ScreenNavigation from './ScreenNavigation.vue'
-import type { NavigationEntry } from './ScreenNavigation.vue'
+import type { Navigation } from './ScreenNavigation.vue'
 
 const props = withDefaults(
   defineProps<{
-    navigation: readonly NavigationEntry[]
+    navigation: Navigation
     title?: string
-    /** A second line under the title, such as the company the workbook belongs to. */
-    subtitle?: string | null
   }>(),
-  { title: 'Kuna', subtitle: null },
+  { title: 'Kuna' },
 )
 
 defineSlots<{
@@ -49,14 +47,14 @@ function keepFocusAfterNavigation(event: Event): void {
 
 useStickyBandPart(useTemplateRef<HTMLElement>('topBar'))
 
-const screenTitle = computed(() => props.navigation.find((entry) => entry.to === route.path)?.label ?? props.title)
+const screenTitle = computed(() => [...props.navigation.groups.flatMap((group) => group.entries), ...props.navigation.apart].find((entry) => entry.to === route.path)?.title ?? props.title)
 </script>
 
 <template>
   <div class="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
     <aside v-if="wide" class="border-e border-default bg-raised/60" aria-label="Application">
       <div class="sticky top-0 flex h-dvh flex-col">
-        <AppBrand :title="title" :subtitle="subtitle" class="px-5 pt-6 pb-5" />
+        <AppBrand :title="title" class="px-5 pt-6 pb-5" />
         <ScreenNavigation :navigation="navigation" class="flex-1 overflow-y-auto px-3" />
         <div v-if="$slots.sync" class="border-t border-default px-4 py-4">
           <slot name="sync" :compact="false" />
@@ -73,7 +71,6 @@ const screenTitle = computed(() => props.navigation.find((entry) => entry.to ===
         v-model:open="menuOpen"
         side="left"
         :title="title"
-        v-bind="phone && subtitle ? { description: subtitle } : {}"
         :ui="{ content: phone ? 'phone-drawer' : 'max-w-72' }"
         :content="{ onCloseAutoFocus: keepFocusAfterNavigation }"
       >
@@ -82,9 +79,10 @@ const screenTitle = computed(() => props.navigation.find((entry) => entry.to ===
           <ScreenNavigation :navigation="navigation" />
         </template>
       </USlideover>
-      <AppBrand v-if="phone" :title="screenTitle" :subtitle="null" class="min-w-0" data-testid="top-bar-title" />
+      <AppBrand v-if="phone" :title="screenTitle" class="min-w-0" data-testid="top-bar-title" />
       <span v-else class="truncate text-[0.9375rem] font-semibold tracking-tight text-highlighted">{{ title }}</span>
-      <div v-if="$slots.sync" class="ms-auto min-w-0">
+      <!-- The screen's name gives way, so the sync or export controls keep their labels. -->
+      <div v-if="$slots.sync" class="ms-auto shrink-0">
         <slot name="sync" :compact="true" />
       </div>
     </header>

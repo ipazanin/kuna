@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 
 import { decodeDocument, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat.ts'
-import { COMPANY_APP, readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts.ts'
+import { COMPANY_APP, readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument.ts'
 import { documentOfTabs, tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument.ts'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab.ts'
 import { readWorkbookFile, writeWorkbookFile } from '../src/apps/company/workbook/infrastructure/workbookFile.ts'

@@ -9,9 +9,9 @@ import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedR
 import { ownerPartsOf } from '../src/apps/company/owner-share/domain/ownerParts'
 import { listedRows, withPartHeadings } from '../src/apps/company/transactions/domain/listedRows'
 import { ownerShareChangeOf } from '../src/apps/company/transactions/domain/ownerShareChange'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { WriteReceipt } from '../src/shared/storage/application/recordWrites'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { splitLedger } from '../src/apps/company/workbook/domain/splits'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
@@ -57,7 +57,7 @@ function grids(): Record<string, CellValue[][]> {
   }
 }
 
-function targets(store: WorkbookStore<WorkbookCopy>): { readonly desk: ShareTarget; readonly cable: ShareTarget; readonly arm: ShareTarget } {
+function targets(store: WorkbookStore<CompanyBooks>): { readonly desk: ShareTarget; readonly cable: ShareTarget; readonly arm: ShareTarget } {
   const workbook = store.state.workbook!
   const desk = workbook.transactions.find((row) => row.counterparty === 'Desk Co')!
   const cable = workbook.splits[0]!.parts.find((part) => part.category === 'equipment')!
@@ -66,7 +66,7 @@ function targets(store: WorkbookStore<WorkbookCopy>): { readonly desk: ShareTarg
 }
 
 /** The shares of the desk, the cable part and the monitor arm, as the workbook on screen holds them. */
-function shares(store: WorkbookStore<WorkbookCopy>): (number | null)[] {
+function shares(store: WorkbookStore<CompanyBooks>): (number | null)[] {
   const workbook = store.state.workbook!
   return [
     workbook.transactions.find((row) => row.counterparty === 'Desk Co')!.ownerShare,
@@ -75,11 +75,11 @@ function shares(store: WorkbookStore<WorkbookCopy>): (number | null)[] {
   ]
 }
 
-function setShare(store: WorkbookStore<WorkbookCopy>, target: ShareTarget, percent: OwnerShare | null): Promise<WriteReceipt | null> {
+function setShare(store: WorkbookStore<CompanyBooks>, target: ShareTarget, percent: OwnerShare | null): Promise<WriteReceipt | null> {
   return store.write('Owner share', (unit) => writeOwnerShare(unit, store.state.records!, target, percent))
 }
 
-async function undo(store: WorkbookStore<WorkbookCopy>, receipt: WriteReceipt | null): Promise<void> {
+async function undo(store: WorkbookStore<CompanyBooks>, receipt: WriteReceipt | null): Promise<void> {
   await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
 }
 

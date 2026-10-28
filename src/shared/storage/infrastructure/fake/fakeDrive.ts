@@ -1,6 +1,6 @@
-import { FOLDER_MIME_TYPE, JSON_MIME_TYPE } from '../../../../../shared/google/driveClient'
-import type { DriveRevision } from '../../../../../shared/google/driveClient'
-import type { DocumentDrive, DocumentUpload } from '../../../../../shared/storage/infrastructure/driveDocument'
+import { FOLDER_MIME_TYPE, JSON_MIME_TYPE } from '../../../google/driveClient'
+import type { DriveRevision } from '../../../google/driveClient'
+import type { DocumentDrive, DocumentUpload } from '../driveDocument'
 
 /** Drive's cap on the revisions of one file kept forever. */
 const KEPT_REVISIONS_CAP = 200

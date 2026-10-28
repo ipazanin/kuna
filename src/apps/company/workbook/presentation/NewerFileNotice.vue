@@ -4,7 +4,7 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 
 import { useWorkbook } from '../application/workbookStore'
 import { savedByNewerApp } from '../../../../shared/storage/infrastructure/documentFormat'
-import { installedSchema } from '../infrastructure/documentStorePorts'
+import { installedSchema } from '../infrastructure/companyDocument'
 
 /** Says so while the file on screen was saved by a newer version of Kuna, which this app reads and never writes. */
 const { state } = useWorkbook()

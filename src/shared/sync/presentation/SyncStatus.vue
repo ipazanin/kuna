@@ -5,17 +5,18 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
 
-import { syncAge } from '../../../../shared/calendar/syncAge'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { listInWords } from '../../../../shared/text/listInWords'
-import { SCOPE_WORDS } from '../domain/syncRun'
-import type { SyncControl, SyncRun } from '../domain/syncRun'
+import { syncAge } from '../../calendar/syncAge'
+import { usePhoneLayout } from '../../layout/viewport'
+import { listInWords } from '../../text/listInWords'
+import { SCOPE_WORDS } from '../application/syncRun'
+import type { SyncControl, SyncRun } from '../application/syncRun'
 import SyncStepList from './SyncStepList.vue'
 
 /**
  * The sync control: what the sync is doing, Sign in to Google or Allow access while the page lacks
  * a permission, the problems of the last sync, or how long ago it ran. A tap does what it says: it
  * syncs, asks Google, or opens the steps, in a popover from 640 px and a bottom sheet on a phone.
+ * A dot on the button says a file kept in this browser holds changes in no exported file.
  */
 const props = withDefaults(
   defineProps<{
@@ -24,8 +25,10 @@ const props = withDefaults(
     run?: SyncRun | null
     /** The top bar's form: one button, with the full time and the step in what a screen reader hears. */
     compact?: boolean
+    /** What a file kept in this browser has not exported yet, in a sentence, or null while every such file is exported in time. */
+    exportReminder?: string | null
   }>(),
-  { run: null, compact: false },
+  { run: null, compact: false, exportReminder: null },
 )
 
 const emit = defineEmits<{
@@ -103,8 +106,10 @@ const label = computed(() => {
   }
 })
 
-/** What a screen reader hears for the button: its visible words first, then what they stand for. */
-const name = computed(() => {
+/** What a screen reader hears for the button: its visible words first, then what they stand for, and the export reminder last. */
+const name = computed(() => (props.exportReminder === null ? controlName.value : `${controlName.value}. ${props.exportReminder}`))
+
+const controlName = computed(() => {
   const { control } = props
   switch (control.kind) {
     case 'find':
@@ -213,7 +218,7 @@ function syncAgain(): void {
       :color="control.kind === 'find' ? 'primary' : 'neutral'"
       :variant="control.kind === 'find' ? 'solid' : 'outline'"
       size="sm"
-      :class="{ 'top-bar-action': compact, 'text-error': control.kind === 'problems', 'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in' }"
+      :class="{ 'top-bar-action': compact, 'has-reminder': exportReminder !== null, 'text-error': control.kind === 'problems', 'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in' }"
       data-testid="sync-button"
       @click="tap"
     />

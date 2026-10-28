@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 
-import { readDocument } from '../../src/apps/company/workbook/infrastructure/documentStorePorts.ts'
+import { readDocument } from '../../src/apps/company/workbook/infrastructure/companyDocument.ts'
 import { fakeWorkbookDocument } from '../../src/apps/company/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { tabsOfDocument } from '../../src/apps/company/workbook/infrastructure/spreadsheetDocument.ts'
 import { writeWorkbookFile } from '../../src/apps/company/workbook/infrastructure/workbookFile.ts'

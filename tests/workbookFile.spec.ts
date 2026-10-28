@@ -5,7 +5,7 @@ import { FOREIGN_WORKBOOK_FILES, foreignWorkbookBytes } from '../scripts/support
 import { exportFileName, previewImport } from '../src/apps/company/workbook/presentation/workbookFiles'
 import { NEWER_FILE, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP, installedSchema } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { COMPANY_APP, installedSchema } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { RULE_COLUMNS } from '../src/apps/company/rules/domain/rule'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'

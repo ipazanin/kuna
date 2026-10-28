@@ -6,12 +6,13 @@ import { importSummary } from '../../workbook-files/domain/importSummary'
 import { DEFAULT_SETTINGS } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
 import type { ImportSummary } from '../../workbook-files/domain/importSummary'
-import type { WorkbookStore } from '../application/createWorkbookStore'
+import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../domain/readWorkbook'
 import type { Category, Workbook } from '../domain/workbook'
 import { NEWER_FILE, decodeDocument, savedByNewerApp } from '../../../../shared/storage/infrastructure/documentFormat'
 import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../../../../shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP, installedSchema, readDocument } from '../infrastructure/documentStorePorts'
+import { COMPANY_APP, installedSchema, readDocument } from '../infrastructure/companyDocument'
 import { DEFAULT_CATEGORY_NAMES, emptyWorkbookTabs } from '../infrastructure/emptyWorkbook'
 import { documentOfTabs, recordCountsOf, tabsOfDocument } from '../infrastructure/spreadsheetDocument'
 import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
@@ -96,7 +97,7 @@ export function categoriesAsNewBooksStart(categories: readonly Pick<Category, 's
 }
 
 /** Writes the workbook on screen in the template format, hands it to the browser, and notes the export. */
-export async function exportWorkbook(store: WorkbookStore<DocumentCopy, WorkbookDocument>): Promise<string> {
+export async function exportWorkbook(store: WorkbookStore<CompanyBooks, DocumentCopy, WorkbookDocument>): Promise<string> {
   const { snapshot, workbook } = store.state
   if (snapshot === null || workbook === null) {
     throw new Error('There is no workbook to export yet.')

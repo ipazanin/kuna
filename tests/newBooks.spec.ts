@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { gettingSetUp } from '../src/apps/company/onboarding/presentation/gettingSetUp'
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
-import { readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { newBooksDocument } from '../src/apps/company/workbook/presentation/workbookFiles'
 import { statementSettingsOf } from '../src/apps/company/onboarding/domain/statementsChoice'
 import type { StatementMail, StatementsSource } from '../src/apps/company/onboarding/domain/onboardingSteps'

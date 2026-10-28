@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { categoryPlanLine, dividendPlanLine, ownerPayPlanLine, purchasePlanLine, replacePlanLines } from '../src/apps/company/packs/hr-doo/application/planWrites'
@@ -41,21 +41,21 @@ function grids(plan: CellValue[][] = [PLAN_HEADER]): Record<string, CellValue[][
 }
 
 /** The plan lines as stored, in the order of the tab. */
-function stored(store: WorkbookStore<WorkbookCopy>): PlanLine[] {
+function stored(store: WorkbookStore<CompanyBooks>): PlanLine[] {
   return recordsOfKindIn(store.state.records!, PLAN_RECORDS).records.map((read) => read.record)
 }
 
 /** Writes the plan as the plan dialogs do. */
-function writePlan(store: WorkbookStore<WorkbookCopy>, held: readonly KeyedLine<PlanLine>[], wanted: readonly KeyedLine<PlanLineDraft>[]) {
+function writePlan(store: WorkbookStore<CompanyBooks>, held: readonly KeyedLine<PlanLine>[], wanted: readonly KeyedLine<PlanLineDraft>[]) {
   return store.write('Plan saved', (unit) => replacePlanLines(unit.of(PLAN_WRITES), held, wanted))
 }
 
 /** Adds the lines, each under a key of its own. */
-function addLines(store: WorkbookStore<WorkbookCopy>, drafts: readonly PlanLineDraft[]) {
+function addLines(store: WorkbookStore<CompanyBooks>, drafts: readonly PlanLineDraft[]) {
   return writePlan(store, [], drafts.map((line, index) => ({ key: String(index), line })))
 }
 
-function lines(store: WorkbookStore<WorkbookCopy>): string[] {
+function lines(store: WorkbookStore<CompanyBooks>): string[] {
   return (hrDooWorkbook(store.state.workbook!).planLines ?? []).map((line) =>
     line.kind === 'owner-pay-scenario' ? `owner pay ${line.scenario} from ${line.from ?? 'January'}` : line.kind === 'purchase' ? `purchase ${line.note} on ${line.date}` : `${line.item} ${line.month ?? 'every'} ${line.amount}`,
   )

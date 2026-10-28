@@ -156,6 +156,23 @@ body {
   white-space: nowrap;
 }
 
+/* A dot on a button while a file kept in this browser holds changes in no exported file. */
+.has-reminder {
+  position: relative;
+}
+
+.has-reminder::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0.5rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone-warning);
+  box-shadow: 0 0 0 2px var(--surface-page);
+}
+
 /* Google's Picker can open over a modal dialog, which turns pointer events off on the body, and its own styles never turn them back on. */
 .picker-dialog-bg,
 .picker-dialog {

@@ -13,7 +13,8 @@ import type { StatementSyncStep } from '../src/apps/company/imports/application/
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 import { moneyFromCents } from '../src/shared/money/money'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
@@ -97,7 +98,7 @@ function folderHolding(files: Readonly<Record<string, string | null>>): { readon
   return { folder, downloads }
 }
 
-function syncOf(store: WorkbookStore<DocumentCopy>, folder: StatementFolder, steps: StatementSyncStep[] = []) {
+function syncOf(store: WorkbookStore<CompanyBooks, DocumentCopy>, folder: StatementFolder, steps: StatementSyncStep[] = []) {
   return fileNewStatements({ store, folder, load: loadImportFile, step: (step) => steps.push(step) })
 }
 
@@ -113,7 +114,7 @@ function writesTo(harness: WriteBackHarness): number {
 }
 
 /** The account's rows, newest booking first. */
-function ledgerOf(store: WorkbookStore<DocumentCopy>, account: string): string[] {
+function ledgerOf(store: WorkbookStore<CompanyBooks, DocumentCopy>, account: string): string[] {
   return store.state.workbook!.transactions
     .filter((row) => row.account === account)
     .sort((newer, older) => older.sequence - newer.sequence)

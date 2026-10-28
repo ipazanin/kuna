@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { WorkbookSource } from '../src/shared/storage/domain/recordsRead'
-import { readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { civilDate } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { monthOf } from '../src/shared/calendar/monthKey'

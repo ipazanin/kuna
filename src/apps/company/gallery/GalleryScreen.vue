@@ -28,8 +28,8 @@ import FilterChipRow from '../filters/presentation/FilterChipRow.vue'
 import PeriodBar from '../filters/presentation/PeriodBar.vue'
 import type { FilterChip } from '../filters/domain/filterChips'
 import type { Period } from '../filters/domain/filterState'
-import SyncStatus from '../sync/presentation/SyncStatus.vue'
-import type { SyncControl, SyncRun } from '../sync/domain/syncRun'
+import type { SyncControl, SyncRun } from '../../../shared/sync/application/syncRun'
+import SyncStatus from '../../../shared/sync/presentation/SyncStatus.vue'
 import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, incomeByMonth } from './sampleCharts'
 import { SAMPLE_TRANSACTIONS } from './sampleTransactions'
 import type { SampleTransaction } from './sampleTransactions'
@@ -140,10 +140,16 @@ const SYNC_CONTROLS: readonly SyncControl[] = [
 const SYNC_RUN: SyncRun = {
   startedAt: '2026-10-16T06:03:52Z',
   finishedAt: '2026-10-16T06:04:00Z',
-  steps: [
-    { id: 'books', label: 'Books', scopes: ['drive.file'], state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
-    { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], state: { kind: 'done', line: 'Nothing new, already there 50', writeId: null, link: null } },
-    { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/company/transactions?tab=import' } } },
+  groups: [
+    {
+      app: 'company',
+      name: 'Company',
+      steps: [
+        { id: 'books', label: 'Books', scopes: ['drive.file'], state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
+        { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], state: { kind: 'done', line: 'Nothing new, already there 50', writeId: null, link: null } },
+        { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/company/transactions?tab=import' } } },
+      ],
+    },
   ],
 }
 

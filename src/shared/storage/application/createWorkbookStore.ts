@@ -1,14 +1,11 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
-import { backoff } from '../../../../shared/google/googleApi'
-import { setMoneyFormat } from '../../../../shared/money/moneyFormat'
-import type { WorkbookRecords } from '../domain/readWorkbook'
-import type { Workbook } from '../domain/workbook'
-import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from '../../../../shared/storage/application/recordWrites'
-import type { RuledChange, WriteReceipt } from '../../../../shared/storage/application/recordWrites'
-import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import type { CopyMeta, CopyStorage, DriveFileLookup, DriveFilePlace, PickedFolder, WorkbookCache, WorkbookChoice, WorkbookCopy } from '../../../../shared/storage/application/workbookPorts'
-import { WorkbookWriteRefused } from '../../../../shared/storage/application/workbookWriteRefused'
+import { backoff } from '../../google/googleApi'
+import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from './recordWrites'
+import type { RuledChange, WriteReceipt } from './recordWrites'
+import type { UnitOfWork } from './repository'
+import type { CopyMeta, CopyStorage, DriveFileLookup, DriveFilePlace, PickedFolder, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
+import { WorkbookWriteRefused } from './workbookWriteRefused'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
 
@@ -39,11 +36,17 @@ export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): b
   return isUndoable(write.receipt) && !isUndo(write) && !wasUndone(write, writes)
 }
 
-export interface WorkbookState<Copy extends WorkbookCopy> {
+/** What an app reads from a copy: the records it holds of each kind and the workbook they make. */
+export interface BooksRead {
+  readonly records: unknown
+  readonly workbook: unknown
+}
+
+export interface WorkbookState<Books extends BooksRead, Copy extends WorkbookCopy> {
   /** Null until a cached copy, a sync or an import supplies one. */
-  readonly workbook: Workbook | null
+  readonly workbook: Books['workbook'] | null
   /** What the workbook holds of each kind, records the domain refuses among them, which the editors show as stored. */
-  readonly records: WorkbookRecords | null
+  readonly records: Books['records'] | null
   /** The copy the workbook was read from, which an export writes. */
   readonly snapshot: Copy | null
   /** ISO timestamp of the read the workbook on screen came from, or of its last change to a workbook kept in this browser. */
@@ -58,7 +61,7 @@ export interface WorkbookState<Copy extends WorkbookCopy> {
   readonly writes: readonly SessionWrite[]
 }
 
-export interface WorkbookStorePorts<Copy extends WorkbookCopy, Contents> {
+export interface WorkbookStorePorts<Books extends BooksRead, Copy extends WorkbookCopy, Contents> {
   loadChoice(): WorkbookChoice | null
   saveChoice(choice: WorkbookChoice | null): void
   openCache(workbookId: string): WorkbookCache<Copy>
@@ -92,10 +95,8 @@ export interface WorkbookStorePorts<Copy extends WorkbookCopy, Contents> {
   prepareSync(): void
   /** Whether the page's Google token is still good, so a sync needs no popup. */
   hasLiveAccessToken(): boolean
-  /** Forgets the page's Google token and the account kept on this device. */
-  forgetGoogleSignIn(): void
-  /** Revokes the page's token with Google and forgets the sign-in. */
-  signOutOfGoogle(): Promise<void>
+  /** Runs once a workbook is kept in this browser in place of the one before. The app decides whether the page's Google sign-in goes with it. */
+  keptInBrowser(): void
   /** A new id for a workbook kept in this browser. */
   newLocalId(): string
   now(): string
@@ -104,7 +105,7 @@ export interface WorkbookStorePorts<Copy extends WorkbookCopy, Contents> {
   /** Asks the browser not to evict the data. Firefox shows a prompt for it. */
   requestPersistentStorage(): void
   /** The records a copy holds and the workbook they make. */
-  read(copy: Copy): { readonly records: WorkbookRecords; readonly workbook: Workbook }
+  read(copy: Copy): Books
   /** Keeps what an import or a fresh start gives as the workbook of this browser, in place of any it held, and gives its copy. */
   keepInBrowser(meta: CopyMeta, contents: Contents): Promise<Copy>
   /** Deletes the workbook kept in this browser under this id. */
@@ -113,8 +114,8 @@ export interface WorkbookStorePorts<Copy extends WorkbookCopy, Contents> {
   openStorage(copy: Copy): Promise<CopyStorage<Copy>>
 }
 
-export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
-  readonly state: Readonly<WorkbookState<Copy>>
+export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCopy = WorkbookCopy, Contents = unknown> {
+  readonly state: Readonly<WorkbookState<Books, Copy>>
   /** Shows the workbook this browser holds, if any. Later calls wait on the first. */
   open(): Promise<void>
   /**
@@ -125,8 +126,6 @@ export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
   sync(): Promise<void>
   /** A Drive file is chosen and the page's token is still good, so a sync opens no popup. */
   canSyncSilently(): boolean
-  /** Revokes and forgets the Google sign-in. The file stays chosen and its copy stays on screen. */
-  signOutOfGoogle(): Promise<void>
   /**
    * Shows the books on Drive, found by the app's mark or picked, as `lookup` says. On a cancel or a
    * failure the previous workbook stays chosen. Leaving a workbook kept in this browser deletes it.
@@ -147,7 +146,7 @@ export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
   driveFilePlace(): Promise<DriveFilePlace | null>
   /**
    * Makes this the workbook kept in this browser, as an import or a fresh start does, and chooses
-   * it. A workbook already kept here is replaced, and a Google sign-in is forgotten.
+   * it. A workbook already kept here is replaced.
    */
   replaceLocalWorkbook(contents: Contents, title: string): Promise<void>
   /** Notes that the workbook on screen was just written to a file. */
@@ -172,8 +171,8 @@ export interface WorkbookStore<Copy extends WorkbookCopy, Contents = unknown> {
 const MOVED_RETRIES = 3
 
 /** Cache first: the copy this browser holds is on screen at once, and a sync or an import replaces it. */
-export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: WorkbookStorePorts<Copy, Contents>): WorkbookStore<Copy, Contents> {
-  const state = shallowReactive<{ -readonly [Field in keyof WorkbookState<Copy>]: WorkbookState<Copy>[Field] }>({
+export function createWorkbookStore<Books extends BooksRead, Copy extends WorkbookCopy, Contents>(ports: WorkbookStorePorts<Books, Copy, Contents>): WorkbookStore<Books, Copy, Contents> {
+  const state = shallowReactive<{ -readonly [Field in keyof WorkbookState<Books, Copy>]: WorkbookState<Books, Copy>[Field] }>({
     workbook: null,
     records: null,
     snapshot: null,
@@ -187,7 +186,6 @@ export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: 
 
   function show(copy: Copy): void {
     const { records, workbook } = ports.read(copy)
-    setMoneyFormat({ currency: workbook.settings.currency, locale: workbook.settings.numberLocale })
     state.snapshot = copy
     state.records = records
     state.workbook = workbook
@@ -363,7 +361,7 @@ export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: 
   let opened: Promise<void> | null = null
 
   return {
-    state: shallowReadonly(state) as Readonly<WorkbookState<Copy>>,
+    state: shallowReadonly(state) as Readonly<WorkbookState<Books, Copy>>,
 
     open() {
       opened ??= showStoredCopy()
@@ -380,10 +378,6 @@ export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: 
 
     canSyncSilently() {
       return state.choice?.source === 'drive' && ports.hasLiveAccessToken()
-    },
-
-    signOutOfGoogle() {
-      return ports.signOutOfGoogle()
     },
 
     chooseDriveFile(lookup) {
@@ -412,7 +406,7 @@ export function createWorkbookStore<Copy extends WorkbookCopy, Contents>(ports: 
         const id = state.choice?.source === 'browser' ? state.choice.id : ports.newLocalId()
         await keep(await ports.keepInBrowser({ id, source: 'browser', title, syncedAt: ports.now(), lastExportedAt: null, unexportedSince: null }, contents))
         choose({ source: 'browser', id, name: title })
-        ports.forgetGoogleSignIn()
+        ports.keptInBrowser()
         ports.requestPersistentStorage()
       })
     },

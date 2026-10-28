@@ -16,7 +16,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
-import { withGoogleAccess } from './withGoogleAccess'
+import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 
 /**
  * The company: its name, its money, and the pack's one question, whose Yes switches on the owner-pay

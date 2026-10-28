@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { AUTO_SYNC_INTERVAL_MS, autoSyncDue, startAutoSync } from '../src/apps/company/sync/application/autoSync'
-import type { AutoSyncMoment, AutoSyncPorts } from '../src/apps/company/sync/application/autoSync'
-import type { WorkbookStatus } from '../src/apps/company/workbook/application/createWorkbookStore'
+import { AUTO_SYNC_INTERVAL_MS, autoSyncDue, startAutoSync } from '../src/shared/sync/application/autoSync'
+import type { AutoSyncMoment, AutoSyncPorts } from '../src/shared/sync/application/autoSync'
+import type { WorkbookStatus } from '../src/shared/storage/application/createWorkbookStore'
 
 const NOW = Date.parse('2026-10-16T09:00:00.000Z')
 const MINUTE = 60_000
 
-const DUE: AutoSyncMoment = { now: NOW, switchedOn: true, status: 'ready', silent: true, online: true, syncedAt: null, lastAttemptAt: null }
+const DUE: AutoSyncMoment = { now: NOW, switchedOn: true, busy: false, silent: true, online: true, syncedAt: null, lastAttemptAt: null }
 
 describe('autoSyncDue', () => {
   it('syncs a file on Drive with a live token and no copy yet', () => {
@@ -23,33 +23,36 @@ describe('autoSyncDue', () => {
   })
 
   it('waits ten minutes after an automatic attempt, even one that failed', () => {
-    expect(autoSyncDue({ ...DUE, status: 'error', lastAttemptAt: NOW - 2 * MINUTE })).toBe(false)
-    expect(autoSyncDue({ ...DUE, status: 'error', lastAttemptAt: NOW - 11 * MINUTE })).toBe(true)
+    expect(autoSyncDue({ ...DUE, lastAttemptAt: NOW - 2 * MINUTE })).toBe(false)
+    expect(autoSyncDue({ ...DUE, lastAttemptAt: NOW - 11 * MINUTE })).toBe(true)
   })
 
-  it('never syncs on a device that switched it off, without a live token, offline, or while the store is busy', () => {
+  it('never syncs on a device that switched it off, without a live token, offline, or while a store is busy', () => {
     expect(autoSyncDue({ ...DUE, switchedOn: false })).toBe(false)
     expect(autoSyncDue({ ...DUE, silent: false })).toBe(false)
     expect(autoSyncDue({ ...DUE, online: false })).toBe(false)
-    expect(autoSyncDue({ ...DUE, status: 'opening' })).toBe(false)
-    expect(autoSyncDue({ ...DUE, status: 'syncing' })).toBe(false)
+    expect(autoSyncDue({ ...DUE, busy: true })).toBe(false)
   })
 })
 
 describe('startAutoSync', () => {
+  type Store = AutoSyncPorts['stores'][number]
+
+  /** A store with its file on Drive, or in this browser, read at `syncedAt`. */
+  function storeOf(silent: boolean, syncedAt: string | null = null, source: 'drive' | 'browser' = 'drive') {
+    const state: { status: WorkbookStatus; syncedAt: string | null; choice: { source: 'drive' | 'browser'; id: string; name: string } } = { status: 'ready', syncedAt, choice: { source, id: 'file', name: 'kuna.json' } }
+    return { state, store: { state: state as unknown as Store['state'], open: async () => {}, canSyncSilently: () => silent && source === 'drive' } }
+  }
+
   function harness(silent: boolean, switchedOn = true) {
     let now = NOW
     let showPage: () => void = () => {}
-    const state: { status: WorkbookStatus; syncedAt: string | null } = { status: 'ready', syncedAt: null }
+    const { state, store } = storeOf(silent)
     const sync = vi.fn(async () => {
       state.syncedAt = new Date(now).toISOString()
     })
     const ports: AutoSyncPorts = {
-      store: {
-        state: state as AutoSyncPorts['store']['state'],
-        open: async () => {},
-        canSyncSilently: () => silent,
-      },
+      stores: [store],
       sync,
       switchedOn: () => switchedOn,
       now: () => now,
@@ -119,5 +122,19 @@ describe('startAutoSync', () => {
     showPage()
 
     expect(sync).toHaveBeenCalledTimes(1)
+  })
+
+  it('syncs once the oldest read among the files on Drive is due, and leaves a file kept in this browser out', async () => {
+    const at = (minutesAgo: number) => new Date(NOW - minutesAgo * MINUTE).toISOString()
+    const syncsOf = async (stores: readonly Store[]) => {
+      const sync = vi.fn(async () => {})
+      const stop = startAutoSync({ stores, sync, switchedOn: () => true, now: () => NOW, online: () => true, onVisible: () => () => {} })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      stop()
+      return sync.mock.calls.length
+    }
+
+    expect(await syncsOf([storeOf(true, at(2)).store, storeOf(true, at(30)).store])).toBe(1)
+    expect(await syncsOf([storeOf(true, at(2)).store, storeOf(true, at(30), 'browser').store])).toBe(0)
   })
 })

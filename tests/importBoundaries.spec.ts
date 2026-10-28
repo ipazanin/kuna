@@ -103,7 +103,7 @@ function isStorageAdapter(file: string): boolean {
 const SPREADSHEET_MAPPING = ['spreadsheetTab.ts', 'packTabs.ts', 'workbookTemplate.ts', 'cellFormats.ts'].map((file) => `src/apps/company/workbook/infrastructure/${file}`)
 
 /** The files that wire adapters to the application: the workbook store's, and the invoice run's Google ports. */
-const ADAPTER_WIRING = ['src/apps/company/workbook/application/workbookStore.ts', 'src/apps/company/invoicing/application/invoiceGoogle.ts']
+const ADAPTER_WIRING = ['src/apps/company/workbook/application/workbookStore.ts', 'src/apps/company/invoicing/application/invoiceGoogle.ts', 'src/apps/loans/workbook/application/loansStore.ts']
 
 /** Data of the fake build, which only the fake build loads. */
 function isFakeSeed(file: string): boolean {
@@ -116,7 +116,10 @@ function broken(rule: (entry: Import) => boolean): string[] {
 
 describe('import boundaries', () => {
   it('reads the imports it checks', () => {
-    expect(IMPORTS.some((entry) => entry.from === 'src/main.ts' && entry.dynamic && entry.target === 'src/apps/company/app.ts')).toBe(true)
+    for (const app of ['company', 'loans']) {
+      expect(IMPORTS.some((entry) => entry.from === 'src/main.ts' && entry.dynamic && entry.target === `src/apps/${app}/app.ts`)).toBe(true)
+      expect(IMPORTS.some((entry) => appOf(entry.from) === app && entry.target?.startsWith(`src/apps/${app}/`))).toBe(true)
+    }
     expect(IMPORTS.some((entry) => entry.from === 'src/apps/company/app.ts' && !entry.dynamic && entry.target === 'src/apps/company/packs/hr-doo/hrDooPack.ts')).toBe(true)
     expect(IMPORTS.some((entry) => entry.from.endsWith('.vue') && entry.target?.includes('/domain/'))).toBe(true)
     expect(IMPORTS.filter((entry) => entry.target !== null && !existsSync(join(ROOT, entry.target))).map((entry) => entry.at)).toEqual([])
@@ -138,7 +141,7 @@ describe('import boundaries', () => {
     ).toEqual([])
   })
 
-  it('keeps each app to its own folder and the shared kernel', () => {
+  it('keeps each app to its own folder and the shared kernel, so company and Loans never import each other', () => {
     expect(broken((entry) => appOf(entry.from) === null || entry.target === null || entry.target.startsWith('src/shared/') || appOf(entry.target) === appOf(entry.from))).toEqual([])
   })
 

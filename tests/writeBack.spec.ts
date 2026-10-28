@@ -15,10 +15,10 @@ import { removeSettings, setSettings } from '../src/apps/company/settings/applic
 import { changedSettings, unreadSettingKeys } from '../src/apps/company/settings/domain/settings'
 import { installedPack } from '../src/apps/company/packs/packContribution'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
-import { canUndo } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { WriteReceipt } from '../src/shared/storage/application/recordWrites'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import type { SettingEntry, Settings } from '../src/apps/company/settings/domain/settings'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
@@ -32,15 +32,15 @@ afterEach(async () => {
   await forgetCaches(used)
 })
 
-type Store = WorkbookStore<DocumentCopy>
+type Store = WorkbookStore<CompanyBooks, DocumentCopy>
 
-function row(store: WorkbookStore<WorkbookCopy>, counterparty: string): Transaction {
+function row(store: WorkbookStore<CompanyBooks>, counterparty: string): Transaction {
   const found = store.state.workbook?.transactions.find((transaction) => transaction.counterparty === counterparty)
   if (found === undefined) throw new Error(`no row from ${counterparty}`)
   return found
 }
 
-function settings(store: WorkbookStore<WorkbookCopy>): Settings {
+function settings(store: WorkbookStore<CompanyBooks>): Settings {
   return store.state.workbook!.settings
 }
 
@@ -49,20 +49,20 @@ function ruleFields(store: Store, id: string): RuleFields {
 }
 
 /** Files the rows under their verdicts, as Review does. */
-function setVerdicts(store: WorkbookStore<WorkbookCopy>, verdicts: readonly RowVerdict[]): Promise<WriteReceipt | null> {
+function setVerdicts(store: WorkbookStore<CompanyBooks>, verdicts: readonly RowVerdict[]): Promise<WriteReceipt | null> {
   return store.write('Filed', (unit) => fileRows(unit, store.state.records!.ledger, verdicts, store.state.workbook!.categories))
 }
 
 /** Undoes the session's write with this receipt, as its Undo does. */
-function undo(store: WorkbookStore<WorkbookCopy>, receipt: WriteReceipt | null): Promise<void> {
+function undo(store: WorkbookStore<CompanyBooks>, receipt: WriteReceipt | null): Promise<void> {
   return store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
 }
 
-function changeRules(store: WorkbookStore<WorkbookCopy>, change: RulesTabChange): Promise<WriteReceipt | null> {
+function changeRules(store: WorkbookStore<CompanyBooks>, change: RulesTabChange): Promise<WriteReceipt | null> {
   return store.write('Rules saved', (unit) => writeRulesChange(unit, change))
 }
 
-function changeSettings(store: WorkbookStore<WorkbookCopy>, values: readonly SettingEntry[]): Promise<WriteReceipt | null> {
+function changeSettings(store: WorkbookStore<CompanyBooks>, values: readonly SettingEntry[]): Promise<WriteReceipt | null> {
   return store.write('Settings saved', (unit) => setSettings(unit, store.state.records!.settings, values))
 }
 

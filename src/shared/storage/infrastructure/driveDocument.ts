@@ -29,7 +29,7 @@ export interface DocumentDrive {
 }
 
 /** The `appProperties` key that names which Kuna app a document belongs to. */
-const APP_PROPERTY = 'kuna'
+export const APP_PROPERTY = 'kuna'
 /** Drive refuses a 201st kept revision, so the app lets go of its oldest beyond this many. */
 const KEPT_REVISIONS = 100
 const DAILY_BACKUPS = 30

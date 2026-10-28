@@ -19,7 +19,7 @@
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, the Loans find a tap resumes ending on the Loans Overview, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Settings, This device and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -1486,13 +1486,13 @@ async function checkWidth(width) {
     await expect(deviceMark(), (mark) => mark === null, 'the token after a sign-in left the device marked')
 
     // The empty fake Drive holds no file the app marked, and its Picker picks none, so the find the tap resumes leaves onboarding's find step.
-    await comeBack('empty', { ...tapAsk, resume: 'find', route: '#/company/start?path=open&step=find' }, tokenOf(everyScope))
+    await comeBack('empty', { ...tapAsk, resume: 'find', app: 'company', route: '#/company/start?path=open&step=find' }, tokenOf(everyScope))
     await waitForTitle(page, 'Kuna')
     await expect(hashOf(page), (hash) => hash === '#/company/start?path=open&step=find', 'the find the tap resumed did not stay on the find step')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the find resumed')
 
     // The fake Picker the tap resumes picks the file in Books, which is the one on screen.
-    await comeBack('drive', { ...tapAsk, resume: 'pick', route: '#/company' }, tokenOf(everyScope))
+    await comeBack('drive', { ...tapAsk, resume: 'pick', app: 'company', route: '#/company' }, tokenOf(everyScope))
     await waitForTitle(page, 'Overview')
     await waitForText(page, 'li[data-slot="base"]', 'Your books are already open')
 
@@ -1506,6 +1506,32 @@ async function checkWidth(width) {
     await expect(noMessage(), (none) => none, 'the return to the access step showed a message')
     await inspect(page, `${width}px access step after Google`)
     await shoot('google-return-onboarding')
+  })
+
+  await step('google-return-loans', async () => {
+    // A find the Loans first run left the page for comes back to the Loans app alone: it opens the file another device made, found by its mark, and ends on the Loans Overview.
+    // The tap asked for every scope the company books need beside the Loans file's, as a tap does.
+    const scopes = ['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose']
+    const scope = encodeURIComponent(['openid', ...scopes.map((name) => `https://www.googleapis.com/auth/${name}`)].join(' '))
+    const pending = { state: 'touch-check', scopes, resume: 'find', app: 'loans', route: '#/loans/start?step=find', ask: 'tap' }
+    await page.goto(`${BASE}?theme=dark&loans=other-device#/`, { waitUntil: 'networkidle0' })
+    await page.evaluate((remembered) => {
+      localStorage.removeItem('kuna.google-silent-refused')
+      localStorage.setItem('kuna.google-redirect', JSON.stringify(remembered))
+    }, pending)
+    await page.goto(`${BASE}?theme=dark&loans=other-device&load=${Date.now()}#access_token=fake-one-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`, { waitUntil: 'networkidle0' })
+    await waitForText(page, 'li[data-slot="base"]', 'Opened kuna-loans.json')
+    await page.waitForFunction(() => window.location.hash === '#/loans' && document.querySelector('[data-testid="loans-empty"]') !== null, { timeout: 10_000 }).catch(() => {
+      throw new Error('the find the tap resumed did not end on the Loans Overview')
+    })
+    await expect(
+      page.evaluate(() => [...document.querySelectorAll('li[data-slot="base"] [data-slot="title"]')].map((title) => title.textContent?.trim())),
+      (titles) => titles.length === 1,
+      'the company books acted on the Loans find too',
+    )
+    await expect(page.evaluate(() => !window.location.href.includes('access_token')), (gone) => gone, 'the token stayed in the address after the Loans find resumed')
+    await inspect(page, `${width}px resumed Loans find`)
+    await shoot('google-return-loans-find')
   })
 
   await step('open-file-browser', async () => {

@@ -1,17 +1,16 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
+import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { bindFiltersToRouter } from './filters/application/filterStore'
 import { ONBOARDING_ROUTE } from './onboarding/presentation/useOnboarding'
 import { hrDooPack } from './packs/hr-doo/hrDooPack'
 import { HR_DOO_TABS } from './packs/hr-doo/infrastructure/hrDooTabs'
 import { installPack, shownPack } from './packs/packContribution'
 import { useSettings } from './settings/application/useSettings'
-import { startAutoSync } from './sync/application/autoSync'
-import { autoSyncOn } from './sync/infrastructure/autoSyncSwitch'
-import TopBarSync from './sync/presentation/TopBarSync.vue'
-import { useSync } from './sync/presentation/useSync'
+import { companySyncGroup } from './sync/presentation/useSync'
 import { useWorkbook } from './workbook/application/workbookStore'
 import { needsReview } from './workbook/domain/needsReview'
+import { COMPANY_APP } from './workbook/infrastructure/companyDocument'
 import { installPackTabs } from './workbook/infrastructure/packTabs'
 import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
 
@@ -23,13 +22,13 @@ const CORE_SCREENS: readonly AppScreen[] = [
   { path: '/company/analysis', title: 'Analysis', icon: 'i-lucide-chart-bar', component: () => import('./analysis/presentation/AnalysisScreen.vue') },
 ]
 
-const store = useWorkbook()
-const { state } = store
+const { state } = useWorkbook()
 const settings = useSettings()
 
 /** The company's books, figures and setup, with the Croatian d.o.o. pack installed. */
 export const companyApp: AppContribution = {
-  id: 'company',
+  id: COMPANY_APP,
+  name: 'Company',
   async install() {
     installPack(hrDooPack)
     installPackTabs(HR_DOO_TABS)
@@ -56,34 +55,17 @@ export const companyApp: AppContribution = {
   // Review counts every row that waits, whatever the filters, since the queue has no period.
   menuCount: (screen) => (screen.path === '/company/review' ? (state.workbook?.transactions.filter(needsReview).length ?? 0) : null),
   subtitle: () => state.workbook?.settings.companyName || null,
+  moneyFormat: () => ({ currency: settings.value.currency, locale: settings.value.numberLocale }),
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: ONBOARDING_ROUTE,
-  syncControl: TopBarSync,
+  syncGroup: companySyncGroup,
   settings: async () => (await import('./settings/presentation/companySettings')).COMPANY_SETTINGS,
   // Each open of the books on Drive on a device that syncs as it opens fetches the page's one token first.
-  asksGoogleOnOpen: () => loadWorkbookChoice()?.source === 'drive' && autoSyncOn.value,
+  asksGoogleOnOpen: () => loadWorkbookChoice(COMPANY_APP)?.source === 'drive' && autoSyncOn.value,
   start(router, googleReturn) {
     const unbindFilters = bindFiltersToRouter(router)
-    const sync = useSync()
-    useGoogleReturn(googleReturn, sync.sync)
-    const stopAutoSync = startAutoSync({
-      store,
-      sync: sync.sync,
-      switchedOn: () => autoSyncOn.value,
-      now: () => Date.now(),
-      online: () => navigator.onLine,
-      onVisible(callback) {
-        const onVisibilityChange = (): void => {
-          if (document.visibilityState === 'visible') callback()
-        }
-        document.addEventListener('visibilitychange', onVisibilityChange)
-        return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-      },
-    })
-    return () => {
-      stopAutoSync()
-      unbindFilters()
-    }
+    useGoogleReturn(googleReturn)
+    return unbindFilters
   },
 }

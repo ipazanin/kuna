@@ -13,21 +13,21 @@ export const AUTHORIZATION_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/a
 export const REDIRECT_SIGN_IN_QUERY = '(pointer: coarse), (display-mode: standalone)'
 
 /**
- * What the app does once back from a tap's trip: sync, find the books by the app's mark or else in
- * the Picker, open the Picker, or nothing, for a step such as onboarding's access step that the route
- * brings back. The silent trip resumes nothing, since auto-sync carries on.
+ * What the page does once back from a tap's trip: sync, find an app's books by its mark or else in
+ * the Picker, open that app's Picker, or nothing, for a step such as onboarding's access step that
+ * the route brings back. A find or a pick names its app, so only that app resumes it. The silent
+ * trip resumes nothing, since auto-sync carries on.
  */
-export type RedirectResume = 'sync' | 'find' | 'pick' | 'none'
+export type RedirectResume = { readonly resume: 'sync' | 'none' } | { readonly resume: 'find' | 'pick'; readonly app: string }
 
 /** How the tab went to Google: from a tap, with Google's consent screen when it needs one, or with `prompt=none` as the app opened. */
 export type RedirectAsk = 'tap' | 'silent'
 
 /** What a tab remembers while it is away at Google. `route` is the hash route to return to. */
-export interface PendingRedirect {
+export type PendingRedirect = RedirectResume & {
   readonly state: string
   /** The scopes asked for, which Google's answer is checked against. */
   readonly scopes: readonly GoogleScope[]
-  readonly resume: RedirectResume
   readonly route: string
   readonly ask: RedirectAsk
 }
@@ -101,9 +101,21 @@ export interface GoogleToken {
  * the person unticked some. A refusal keeps no token, and `error` is Google's, such as
  * `interaction_required`, or `forged` for an answer this tab never asked for.
  */
-export type RedirectReturn =
-  | { readonly kind: 'granted'; readonly token: GoogleToken; readonly asked: readonly GoogleScope[]; readonly resume: RedirectResume; readonly route: string; readonly ask: RedirectAsk }
-  | { readonly kind: 'refused'; readonly error: string; readonly resume: RedirectResume; readonly route: string; readonly ask: RedirectAsk }
+export type RedirectReturn = RedirectResume &
+  (
+    | { readonly kind: 'granted'; readonly token: GoogleToken; readonly asked: readonly GoogleScope[]; readonly route: string; readonly ask: RedirectAsk }
+    | { readonly kind: 'refused'; readonly error: string; readonly route: string; readonly ask: RedirectAsk }
+  )
+
+/** What the pending redirect resumes, without the rest it remembered. */
+function resumeOf(pending: PendingRedirect): RedirectResume {
+  return pending.resume === 'find' || pending.resume === 'pick' ? { resume: pending.resume, app: pending.app } : { resume: pending.resume }
+}
+
+/** The answer when it resumes the app's find or pick, which only that app acts on, or else null. */
+export function resumedBy(answer: RedirectReturn | null, app: string): RedirectReturn | null {
+  return answer !== null && (answer.resume === 'find' || answer.resume === 'pick') && answer.app === app ? answer : null
+}
 
 /**
  * Checks Google's answer against what this tab asked for: the same one-time `state` and a token
@@ -114,15 +126,16 @@ export function settleRedirect(fragment: RedirectFragment, pending: PendingRedir
   if (pending === null || fragment.state === null || fragment.state !== pending.state) {
     return { kind: 'refused', error: 'forged', resume: 'none', route, ask: 'tap' }
   }
-  const { scopes, resume, ask } = pending
+  const { scopes, ask } = pending
+  const resume = resumeOf(pending)
   if (fragment.kind === 'error') {
-    return { kind: 'refused', error: fragment.error, resume, route, ask }
+    return { kind: 'refused', error: fragment.error, ...resume, route, ask }
   }
   if (!Number.isFinite(fragment.expiresIn) || fragment.expiresIn <= 0 || fragment.accessToken === '') {
-    return { kind: 'refused', error: 'no-token', resume, route, ask }
+    return { kind: 'refused', error: 'no-token', ...resume, route, ask }
   }
   const token = { value: fragment.accessToken, scopes: scopesIn(fragment.scope), expiresAt: now + fragment.expiresIn * 1000 }
-  return { kind: 'granted', token, asked: scopes, resume, route, ask }
+  return { kind: 'granted', token, asked: scopes, ...resume, route, ask }
 }
 
 const PENDING_KEY = 'kuna.google-redirect'
@@ -160,9 +173,13 @@ function pendingOf(text: string | null): PendingRedirect | null {
   if (typeof candidate !== 'object' || candidate === null) {
     return null
   }
-  const { state, scopes, resume, route, ask } = candidate as Record<string, unknown>
+  const { state, scopes, resume, app, route, ask } = candidate as Record<string, unknown>
   if (typeof state !== 'string' || state === '' || typeof route !== 'string' || !Array.isArray(scopes)) return null
-  if (resume !== 'sync' && resume !== 'find' && resume !== 'pick' && resume !== 'none') return null
   if (ask !== 'tap' && ask !== 'silent') return null
-  return { state, scopes: GOOGLE_SCOPES.filter((scope) => scopes.includes(scope)), resume, route, ask }
+  const asked = GOOGLE_SCOPES.filter((scope) => scopes.includes(scope))
+  if (resume === 'find' || resume === 'pick') {
+    return typeof app === 'string' && app !== '' ? { state, scopes: asked, resume, app, route, ask } : null
+  }
+  if (resume === 'sync' || resume === 'none') return { state, scopes: asked, resume, route, ask }
+  return null
 }

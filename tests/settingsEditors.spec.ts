@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { exportReminderDue } from '../src/apps/company/workbook-files/domain/exportReminder'
+import { exportReminderDue } from '../src/shared/storage/domain/exportReminder'
 import { accountDraftErrors, accountsOfDrafts } from '../src/apps/company/settings/domain/accountDrafts'
 import type { AccountDraft } from '../src/apps/company/settings/domain/accountDrafts'
 import { categoriesOfDrafts, categoryDraftErrors } from '../src/apps/company/settings/domain/categoryDrafts'

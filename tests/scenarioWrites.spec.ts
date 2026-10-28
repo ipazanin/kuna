@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { copyScenario, renameScenario } from '../src/apps/company/packs/hr-doo/application/scenarioWrites'
@@ -34,17 +34,17 @@ function gridsWithScenarios(): Record<string, CellValue[][]> {
   }
 }
 
-function rowsOf(store: WorkbookStore<WorkbookCopy>, slug: string): ScenarioRow[] {
+function rowsOf(store: WorkbookStore<CompanyBooks>, slug: string): ScenarioRow[] {
   return recordsOfKindIn(store.state.records!, SCENARIO_RECORDS)
     .records.map((read) => read.record)
     .filter((row) => row.slug === slug)
 }
 
-function writeScenarios(store: WorkbookStore<WorkbookCopy>, work: (rows: Parameters<typeof copyScenario>[0]) => void) {
+function writeScenarios(store: WorkbookStore<CompanyBooks>, work: (rows: Parameters<typeof copyScenario>[0]) => void) {
   return store.write('Scenarios saved', (unit) => work(unit.of(SCENARIO_WRITES)))
 }
 
-function scenarios(store: WorkbookStore<WorkbookCopy>): [string, string, string[]][] {
+function scenarios(store: WorkbookStore<CompanyBooks>): [string, string, string[]][] {
   return (hrDooWorkbook(store.state.workbook!).payScenarios ?? []).map((scenario) => [scenario.slug, scenario.label, scenario.components.map((component) => component.component)])
 }
 

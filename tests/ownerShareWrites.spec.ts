@@ -13,9 +13,9 @@ import { writeSplit } from '../src/apps/company/transactions/application/splitWr
 import { SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { SplitTabRow } from '../src/apps/company/workbook/domain/splitsReading'
 import { changesOf } from '../src/shared/storage/application/recordWrites'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { WriteReceipt } from '../src/shared/storage/application/recordWrites'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
@@ -58,11 +58,11 @@ function grids(shares: boolean): Record<string, CellValue[][]> {
   }
 }
 
-function row(store: WorkbookStore<WorkbookCopy>, counterparty: string): Transaction {
+function row(store: WorkbookStore<CompanyBooks>, counterparty: string): Transaction {
   return store.state.workbook!.transactions.find((transaction) => transaction.counterparty === counterparty)!
 }
 
-function file(store: WorkbookStore<WorkbookCopy>, verdicts: readonly RowVerdict[]): Promise<WriteReceipt | null> {
+function file(store: WorkbookStore<CompanyBooks>, verdicts: readonly RowVerdict[]): Promise<WriteReceipt | null> {
   return store.write('Filed', (unit) => fileRows(unit, store.state.records!.ledger, verdicts, store.state.workbook!.categories))
 }
 

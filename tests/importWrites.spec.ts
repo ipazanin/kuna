@@ -9,8 +9,8 @@ import { LEDGER_WRITES } from '../src/apps/company/imports/application/ledgerWri
 import { dryRunFor, importTitle, newAccountNameProblem, statementReadings, writeImport } from '../src/apps/company/imports/application/importStatements'
 import type { ImportDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import type { ImportProfile } from '../src/apps/company/imports/domain/importProfile'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { LedgerEntry } from '../src/apps/company/workbook/domain/ledgerReading'
 import { CORE_TABS, cellsOfRecord } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { templateColumnNames } from '../src/apps/company/workbook/infrastructure/workbookTemplate'
@@ -53,7 +53,7 @@ function camtFile(xml: string, fileName = 'statement.xml') {
   return { kind: 'camt' as const, fileName, document: new DOMParser().parseFromString(xml, 'application/xml') }
 }
 
-function dryRun(store: WorkbookStore<WorkbookCopy>, xml: string, starts: ReadonlyMap<string, Money> = new Map()): ImportDryRun {
+function dryRun(store: WorkbookStore<CompanyBooks>, xml: string, starts: ReadonlyMap<string, Money> = new Map()): ImportDryRun {
   const workbook = store.state.workbook!
   return dryRunFor(statementReadings(camtFile(xml), workbook, null), workbook, starts)
 }
@@ -67,12 +67,12 @@ function rowsOf(run: ImportDryRun): Record<string, CellValue>[] {
 }
 
 /** Imports the entries, as Confirm import does. */
-function importRows(store: WorkbookStore<WorkbookCopy>, added: readonly LedgerEntry[]) {
+function importRows(store: WorkbookStore<CompanyBooks>, added: readonly LedgerEntry[]) {
   return store.write('Imported', (unit) => added.forEach((entry) => unit.of(LEDGER_WRITES).add(entry)))
 }
 
 /** The ledger rows as an export writes them, in the order the file holds them. */
-function ledgerCells(store: WorkbookStore<DocumentCopy>): Record<string, CellValue>[] {
+function ledgerCells(store: WorkbookStore<CompanyBooks, DocumentCopy>): Record<string, CellValue>[] {
   return tabsOfDocument(store.state.snapshot!.document).ledger.map((row) => row.cells)
 }
 

@@ -10,8 +10,9 @@ import { RULE_WRITES } from '../src/apps/company/rules/application/ruleWrites'
 import { SETTING_WRITES } from '../src/apps/company/settings/application/settingWrites'
 import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { SPLIT_WRITES } from '../src/apps/company/transactions/application/splitWrites'
-import { canUndo } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { codecOfKind } from '../src/apps/company/workbook/application/recordCodecs'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
@@ -29,7 +30,7 @@ import { decodeDocument, encodeDocument, storedFieldsOfDocument } from '../src/s
 import type { DocumentRecord, WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP, installedSchema } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { COMPANY_APP, installedSchema } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { recordOnScreen, recordsOnScreen } from './fixtures/records'
 import { browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
 
@@ -44,7 +45,7 @@ type Seed = Readonly<Record<string, readonly RecordFields[]>>
 
 /** A storage under test, opened with the seed's records, and the edits another device or a person makes outside the app. */
 interface StorageUnderTest {
-  readonly store: WorkbookStore<DocumentCopy>
+  readonly store: WorkbookStore<CompanyBooks, DocumentCopy>
   /** Another device adds a record, ahead of every record the app wrote. */
   addOutside(kind: RecordKind<unknown>, fields: RecordFields): Promise<void>
   /** Another device sets one field of the one record with this identity. */

@@ -1,5 +1,6 @@
 import { cellText } from '../../src/shared/text/cellText'
-import type { WorkbookStore } from '../../src/apps/company/workbook/application/createWorkbookStore'
+import type { WorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../../src/apps/company/workbook/domain/readWorkbook'
 import { codecOfKind } from '../../src/apps/company/workbook/application/recordCodecs'
 import type { WriteReceipt } from '../../src/shared/storage/application/recordWrites'
 import { newRecordId } from '../../src/shared/storage/domain/recordId'
@@ -13,7 +14,7 @@ import { ID_FIELD } from '../../src/shared/storage/domain/recordCodec'
 import { TABS_WITH_IDS } from './rowIds'
 import { recordOf } from './records'
 
-type Store = WorkbookStore<DocumentCopy>
+type Store = WorkbookStore<CompanyBooks, DocumentCopy>
 
 function carriesIds(kind: RecordKind<unknown>): boolean {
   return (TABS_WITH_IDS as readonly string[]).includes(spreadsheetTabOfKind(kind).tab)

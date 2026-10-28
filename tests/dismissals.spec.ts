@@ -5,8 +5,8 @@ import { DISMISSAL_WRITES, dismissalOfGroup } from '../src/apps/company/review/a
 import { withoutDismissed } from '../src/apps/company/review/domain/dismissedSuggestions'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { DISMISSAL_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { readDismissals } from '../src/apps/company/workbook/domain/dismissalsReading'
@@ -32,12 +32,12 @@ function grids(withTab = true): Record<string, CellValue[][]> {
   return { ...workbookGrids(), ...(withTab ? { dismissed: [HEADER] } : {}) }
 }
 
-function coverageOf(store: WorkbookStore<WorkbookCopy>) {
+function coverageOf(store: WorkbookStore<CompanyBooks>) {
   const workbook = store.state.workbook!
   return withoutDismissed(ruleCoverage(workbook.transactions, workbook.rules, categorisationContextOf(workbook)), workbook.dismissals)
 }
 
-function deskGroup(store: WorkbookStore<WorkbookCopy>) {
+function deskGroup(store: WorkbookStore<CompanyBooks>) {
   const workbook = store.state.workbook!
   return ruleCoverage(workbook.transactions, workbook.rules, categorisationContextOf(workbook)).notCovered.find((group) => group.key === DESK_KEY)!
 }

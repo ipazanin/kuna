@@ -1,7 +1,8 @@
 /**
  * Checks the production build as an installable, offline app in a real browser: the manifest and
  * its icons, a worker scoped to the app that caches every built file and nothing from another
- * origin, an offline reload that still shows the workbook imported on the first visit, an update
+ * origin, an offline reload that still shows the workbook imported on the first visit and the Loans
+ * file kept in this browser, an update
  * that waits for the prompt and swaps the cache when the user reloads, and a broken release that
  * never becomes the offline copy.
  *
@@ -183,6 +184,11 @@ try {
   await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
   await waitForTitle(page, 'Overview')
   await page.waitForSelector('.chart-body canvas')
+  // The Loans first run keeps its own file in this browser too.
+  await page.goto(`${appUrl}#/loans`)
+  await clickStart(page, '[data-testid="loans-start-home"] label', 'A new file in this browser')
+  await clickText(page, '[data-testid="loans-start-step"] button', 'Continue')
+  await page.waitForSelector('[data-testid="loans-empty"]')
   assert.deepEqual(await cachedForeignUrls(page, origin), [], 'Nothing from another origin may be cached.')
 
   // Firefox's WebDriver offline emulation rejects navigation before service-worker handling.
@@ -191,6 +197,9 @@ try {
   await page.goto(`${appUrl}?offline-check=1#/company/transactions`)
   await waitForTitle(page, 'Transactions')
   await page.waitForFunction(() => document.body.innerText.includes('Northwind Analytics'))
+  await page.goto(`${appUrl}?offline-check=loans#/loans`)
+  await waitForTitle(page, 'Overview')
+  await page.waitForFunction(() => document.querySelector('[data-testid="loans-empty"]')?.textContent?.includes('kept in this browser') === true)
   await page.goto(`${appUrl}?offline-check=2#/company/analysis?tab=over-time`)
   await waitForTitle(page, 'Analysis')
   await page.waitForSelector('.chart-body canvas')
@@ -198,7 +207,7 @@ try {
   await waitForTitle(page, 'Analysis')
   await page.waitForSelector('.chart-body canvas')
   assert.deepEqual(errors, [], 'Offline navigation must not produce browser errors.')
-  console.log('PASS: offline reload shows the imported workbook, lazy screens and charts included')
+  console.log('PASS: offline reload shows the imported workbook, lazy screens and charts included, and the Loans file kept in this browser')
 
   serverUnavailable = false
   if (browserName === 'chrome') await page.setOfflineMode(false)

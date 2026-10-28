@@ -3,8 +3,8 @@ import type { ComputedRef } from 'vue'
 
 import { currentToken } from '../../../../shared/google/googleAuth'
 import { folderReadScope } from '../../../../shared/google/googleScopes'
-import type { SyncStep } from '../../sync/application/sync'
-import type { StepResult } from '../../sync/domain/syncRun'
+import type { SyncStep } from '../../../../shared/sync/application/sync'
+import type { AccessNeed, StepResult } from '../../../../shared/sync/application/syncRun'
 import { counted } from '../../overview/presentation/waitingForYou'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
@@ -36,6 +36,17 @@ async function openStatementFolder(workbook: Workbook, booksFileId: string): Pro
     throw new Error('The Google access ran out. Sync again.')
   }
   return googleStatementFolder(token, booksFileId)
+}
+
+const STATEMENTS_LABEL = 'Statements'
+
+function isOn(workbook: Workbook): boolean {
+  return workbook.settings.statementsSync && workbook.settings.statementsFolder.length > 0
+}
+
+/** What the statements step needs of Google for these books, none while their settings turn it off. */
+export function statementNeeds(workbook: Workbook): AccessNeed[] {
+  return isOn(workbook) ? [{ scope: folderReadScope(workbook.settings.statementsFolder), label: STATEMENTS_LABEL }] : []
 }
 
 function lineOf(step: StatementSyncStep): string {
@@ -90,10 +101,10 @@ export function useStatementSync(): StatementSync {
     held,
     step: {
       id: 'statements',
-      label: 'Statements',
-      scopes: (workbook) => [folderReadScope(workbook?.settings.statementsFolder ?? [])],
+      label: STATEMENTS_LABEL,
+      scopes: () => [folderReadScope(store.state.workbook?.settings.statementsFolder ?? [])],
       startLine: lineOf({ kind: 'looking' }),
-      on: (workbook) => workbook.settings.statementsSync && workbook.settings.statementsFolder.length > 0,
+      on: () => store.state.workbook === null || isOn(store.state.workbook),
       async run(report) {
         const { workbook, choice } = store.state
         if (workbook === null || choice?.source !== 'drive') {

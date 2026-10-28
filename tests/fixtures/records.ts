@@ -1,6 +1,6 @@
 import { cellText } from '../../src/shared/text/cellText'
-import type { WorkbookStore } from '../../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../../src/shared/storage/application/workbookPorts'
+import type { WorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../../src/apps/company/workbook/domain/readWorkbook'
 import { recordsOfKindIn } from '../../src/apps/company/workbook/domain/readWorkbook'
 import type { RecordId } from '../../src/shared/storage/domain/recordId'
 import type { RecordKind } from '../../src/shared/storage/domain/recordKind'
@@ -24,12 +24,12 @@ export function recordOf<R>(kind: RecordKind<R>, cells: Cells): R {
 }
 
 /** What the copy on screen holds of a kind. */
-export function recordsOnScreen<R>(store: WorkbookStore<WorkbookCopy>, kind: RecordKind<R>): RecordsRead<R> {
+export function recordsOnScreen<R>(store: WorkbookStore<CompanyBooks>, kind: RecordKind<R>): RecordsRead<R> {
   return recordsOfKindIn(store.state.records!, kind)
 }
 
 /** The one record on screen with this identity. */
-export function recordOnScreen<R>(store: WorkbookStore<WorkbookCopy>, kind: RecordKind<R>, id: RecordId): ReadRecord<R> {
+export function recordOnScreen<R>(store: WorkbookStore<CompanyBooks>, kind: RecordKind<R>, id: RecordId): ReadRecord<R> {
   const holding = recordsOnScreen(store, kind).records.filter((stored) => stored.id === id)
   if (holding.length !== 1) {
     throw new Error(`${holding.length} ${kind.noun.many} on screen hold ${id}.`)

@@ -100,6 +100,12 @@ export function workbookRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
 /** Which workbook the records are of. */
 export type WorkbookIdentity = Pick<Workbook, 'id' | 'source' | 'title' | 'syncedAt'>
 
+/** The company's records and the workbook they make, which its store keeps on screen. */
+export interface CompanyBooks {
+  readonly records: WorkbookRecords
+  readonly workbook: Workbook
+}
+
 /**
  * Turns the records into the workbook the screens read, with the rules across records: keys that
  * more than one record holds, and references to categories and clients that the workbook lacks. A

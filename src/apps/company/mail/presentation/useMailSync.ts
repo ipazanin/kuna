@@ -5,10 +5,11 @@ import { sha256Hex } from '../../../../shared/files/sha256'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { currentToken } from '../../../../shared/google/googleAuth'
 import { folderReadScope, scopesOf } from '../../../../shared/google/googleScopes'
+import type { GoogleScope } from '../../../../shared/google/googleScopes'
+import type { SyncStep } from '../../../../shared/sync/application/sync'
+import type { AccessNeed } from '../../../../shared/sync/application/syncRun'
 import { loadImportFile } from '../../imports/infrastructure/importFiles'
 import { installedPack, shownPack } from '../../packs/packContribution'
-import type { SyncStep } from '../../sync/application/sync'
-import type { SyncScope } from '../../sync/domain/syncRun'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { fileMail, hasProblem, planLine } from '../application/mailFiling'
@@ -50,7 +51,7 @@ function isOn(workbook: Workbook): boolean {
  * from My Drive, the books file's scope from the folder of the books file. None while no source
  * has all it needs, since then the step calls neither Gmail nor Drive.
  */
-function mailScopes(workbook: Workbook | null): SyncScope[] {
+function mailScopes(workbook: Workbook | null): GoogleScope[] {
   if (workbook === null) {
     return ['gmail.readonly']
   }
@@ -59,6 +60,13 @@ function mailScopes(workbook: Workbook | null): SyncScope[] {
     return terms.kind === 'on' ? [terms.terms.folder] : []
   })
   return folders.length === 0 ? [] : scopesOf(['gmail.readonly', ...folders.map(folderReadScope)])
+}
+
+const MAIL_LABEL = 'Mail'
+
+/** What the mail step needs of Google for these books, none while their settings turn it off. */
+export function mailNeeds(workbook: Workbook): AccessNeed[] {
+  return isOn(workbook) ? mailScopes(workbook).map((scope) => ({ scope, label: MAIL_LABEL })) : []
 }
 
 async function openMail(workbook: Workbook, booksFileId: string): Promise<MailAccess> {
@@ -94,10 +102,10 @@ export function useMailSync(): MailSync {
     state: shallowReadonly(state),
     step: {
       id: 'mail',
-      label: 'Mail',
-      scopes: mailScopes,
+      label: MAIL_LABEL,
+      scopes: () => mailScopes(store.state.workbook),
       startLine: 'Searching Gmail',
-      on: isOn,
+      on: () => store.state.workbook === null || isOn(store.state.workbook),
       async run(report) {
         const { workbook, choice } = store.state
         if (workbook === null || choice?.source !== 'drive') {

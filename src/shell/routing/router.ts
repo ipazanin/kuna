@@ -4,7 +4,7 @@ import type { RouteRecordRaw, Router } from 'vue-router'
 
 import type { AppContribution } from '../../shared/app/appContribution'
 import { nameScreen } from '../../shared/routing/browserTitle'
-import { homeApp, installedApps } from './appRegistry'
+import { homeApp, installedApps, ownsPath, screenName } from './appRegistry'
 import { SETTINGS_SCREEN } from './screens'
 
 const loading = ref(false)
@@ -30,6 +30,7 @@ export function createAppRouter(): Router {
   const apps = installedApps()
   apps.forEach(refuseScreensOutside)
   const screens = [...apps.flatMap((app) => app.screens), SETTINGS_SCREEN]
+  const named = [...apps.flatMap((app) => app.screens.map((screen) => ({ screen, name: screenName(app, screen) }))), { screen: SETTINGS_SCREEN, name: SETTINGS_SCREEN.title }]
   const routes: RouteRecordRaw[] = [
     { path: '/', redirect: homeApp().screens[0]?.path ?? SETTINGS_SCREEN.path },
     ...screens.map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true } })),
@@ -52,15 +53,16 @@ export function createAppRouter(): Router {
   })
 
   /**
-   * Each screen names the browser tab. Moving to another screen puts focus on its heading, so a
-   * screen reader announces where it landed. The first load and a filter change keep focus where it is.
+   * Each screen names the browser tab, with its app's name for an app other than the home app.
+   * Moving to another screen puts focus on its heading, so a screen reader announces where it
+   * landed. The first load and a filter change keep focus where it is.
    */
   router.afterEach((to, from, failure) => {
     if (failure) {
       return
     }
-    const screen = screens.find((candidate) => candidate.path === to.path)
-    nameScreen(screen === undefined || screen.bare === true ? null : screen.title)
+    const found = named.find(({ screen }) => screen.path === to.path)
+    nameScreen(found === undefined || found.screen.bare === true ? null : found.name)
     if (from.matched.length > 0 && to.path !== from.path) {
       void nextTick(() => document.querySelector<HTMLElement>('[data-testid="screen-title"]')?.focus({ preventScroll: true }))
     }
@@ -81,7 +83,7 @@ export function createAppRouter(): Router {
 
 /** An app's routes stay under its id, so two apps never claim one address. */
 function refuseScreensOutside(app: AppContribution): void {
-  const outside = [...app.screens.map((screen) => screen.path), app.startPath].find((path) => path !== `/${app.id}` && !path.startsWith(`/${app.id}/`))
+  const outside = [...app.screens.map((screen) => screen.path), app.startPath].find((path) => !ownsPath(app, path))
   if (outside !== undefined) {
     throw new Error(`The ${app.id} app's route ${outside} is not under /${app.id}.`)
   }

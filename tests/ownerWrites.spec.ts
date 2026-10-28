@@ -6,9 +6,9 @@ import { ownerAdvanceOfDraft } from '../src/apps/company/packs/hr-doo/applicatio
 import type { OwnerAdvanceDraft } from '../src/apps/company/packs/hr-doo/application/ownerAdvanceWrites'
 import { OWNER_ADVANCE_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
 import type { OwnerAdvanceEntry } from '../src/apps/company/packs/hr-doo/domain/ownerAdvancesReading'
-import { canUndo, wasUndone } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../src/shared/storage/application/workbookPorts'
+import { canUndo, wasUndone } from '../src/shared/storage/application/createWorkbookStore'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import type { DefinedBucket } from '../src/apps/company/workbook/domain/bucket'
 import type { CategoryRecord } from '../src/apps/company/workbook/domain/categoriesReading'
@@ -47,12 +47,12 @@ function gridsWithOwnerTabs(): ReturnType<typeof workbookGrids> {
   }
 }
 
-function loanCategory(store: WorkbookStore<WorkbookCopy>, slug: string): CategoryRecord {
+function loanCategory(store: WorkbookStore<CompanyBooks>, slug: string): CategoryRecord {
   return recordWithId(store.state.records!.categories, categoryIdOf({ slug }))!.record
 }
 
 /** The bucket of the loan categories set as the switch on Settings, General sets it. */
-function switchLoans(store: WorkbookStore<WorkbookCopy>, bucket: DefinedBucket, categories = ['owner-loan-out', 'owner-loan-repaid']) {
+function switchLoans(store: WorkbookStore<CompanyBooks>, bucket: DefinedBucket, categories = ['owner-loan-out', 'owner-loan-repaid']) {
   const before = categories.map((slug) => loanCategory(store, slug))
   return store.write('Loans switched', (unit) => before.forEach((category) => unit.of(CATEGORY_WRITES).change(category, { ...category, bucket })))
 }
@@ -60,7 +60,7 @@ function switchLoans(store: WorkbookStore<WorkbookCopy>, bucket: DefinedBucket, 
 const DESK = { date: civil('2026-10-10'), amount: euros(117.3), description: 'Desk lamp ', category: 'Equipment' }
 
 /** An advance appended as Add advance appends it. */
-function addAdvance(store: WorkbookStore<WorkbookCopy>, draft: OwnerAdvanceDraft) {
+function addAdvance(store: WorkbookStore<CompanyBooks>, draft: OwnerAdvanceDraft) {
   return store.write('Advance added', (unit) => unit.of(OWNER_ADVANCE_WRITES).add(ownerAdvanceOfDraft(draft, store.state.workbook!.categories)))
 }
 

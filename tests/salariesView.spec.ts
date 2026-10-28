@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ledgerWindowOf } from '../src/apps/company/workbook/domain/workbook'
-import { readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { fakeWorkbookDocument, fakeWorkbookRecords } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { salaryReconciliation } from '../src/apps/company/packs/hr-doo/domain/salaries/salaryReconciliation'

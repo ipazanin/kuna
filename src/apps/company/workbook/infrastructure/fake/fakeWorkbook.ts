@@ -6,7 +6,7 @@ import type { FieldValue, RecordFields } from '../../../../../shared/storage/dom
 import type { WorkbookSource } from '../../../../../shared/storage/domain/recordsRead'
 import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP, installedSchema } from '../documentStorePorts'
+import { COMPANY_APP, installedSchema } from '../companyDocument'
 
 /**
  * A synthetic workbook for fake mode and tests. Every name, IBAN and amount is made up. It spans

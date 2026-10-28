@@ -105,10 +105,10 @@ function keepToken(token: GoogleToken, asked: readonly GoogleScope[], ask: Redir
  * hash route to return to. The promise never settles, since the page goes away. Throws before the
  * tab moves when the Google variables are missing or the browser keeps no site storage.
  */
-function redirectToGoogle(scopes: readonly GoogleScope[], resume: RedirectResume, ask: RedirectAsk): Promise<never> {
+function redirectToGoogle(scopes: readonly GoogleScope[], then: RedirectResume, ask: RedirectAsk): Promise<never> {
   const { clientId } = googleConfig()
   const state = crypto.randomUUID()
-  savePendingRedirect({ state, scopes, resume, route: window.location.hash.startsWith('#/') ? window.location.hash : '#/', ask })
+  savePendingRedirect({ ...then, state, scopes, route: window.location.hash.startsWith('#/') ? window.location.hash : '#/', ask })
   const url = authorizationUrl({
     clientId,
     redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}`,
@@ -174,7 +174,7 @@ export function askSilentlyOnOpen(): boolean {
     return false
   }
   try {
-    void redirectToGoogle(scopes, 'none', 'silent')
+    void redirectToGoogle(scopes, { resume: 'none' }, 'silent')
     return true
   } catch {
     forgetSilentRefusal()
@@ -186,11 +186,11 @@ export function askSilentlyOnOpen(): boolean {
  * Asks Google for one token carrying the books file, every scope the settings need and these. Call
  * it from a click handler: Firefox opens Google's popup only during a user gesture. `prompt: ''`
  * shows a screen only when Google needs one, and the remembered email as the login hint skips the
- * account chooser. On a phone the tab goes to Google instead, and `resume` says what the app does
- * once back. With no `resume`, a phone throws instead of leaving, since what asked could not run
+ * account chooser. On a phone the tab goes to Google instead, and `then` says what the page does
+ * once back. With no `then`, a phone throws instead of leaving, since what asked could not run
  * again. Resolves once the page holds the token, which lacks any scope the person unticked.
  */
-export async function requestAccess(scopes: readonly GoogleScope[], resume: RedirectResume | null): Promise<void> {
+export async function requestAccess(scopes: readonly GoogleScope[], then: RedirectResume | null): Promise<void> {
   const asked = scopesOf(['drive.file', ...(needed ?? []), ...scopes])
   // Inline, not hoisted, so a production build folds the fake away. The fake build's Google grants everything asked, unless `?fake=google-closed` closes its window.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
@@ -201,10 +201,10 @@ export async function requestAccess(scopes: readonly GoogleScope[], resume: Redi
     return
   }
   if (signsInByRedirect()) {
-    if (resume === null) {
+    if (then === null) {
       throw new Error(STAYS_ON_PAGE)
     }
-    return redirectToGoogle(asked, resume, 'tap')
+    return redirectToGoogle(asked, then, 'tap')
   }
   const { clientId } = googleConfig()
   await prepareGoogleIdentity()
@@ -234,12 +234,12 @@ export async function requestAccess(scopes: readonly GoogleScope[], resume: Redi
 }
 
 /** The page's token for the scope, or a new one asked for in this click as `requestAccess` does. Throws when Google's token lacks the scope. */
-export async function tokenFor(scope: GoogleScope, resume: RedirectResume | null): Promise<string> {
+export async function tokenFor(scope: GoogleScope, then: RedirectResume | null): Promise<string> {
   const held = currentToken(scope)
   if (held !== null) {
     return held
   }
-  await requestAccess([scope], resume)
+  await requestAccess([scope], then)
   const token = currentToken(scope)
   if (token === null) {
     throw new Error(NOT_GRANTED[scope])
@@ -247,7 +247,7 @@ export async function tokenFor(scope: GoogleScope, resume: RedirectResume | null
   return token
 }
 
-/** Forgets the token, the account and its grants on this device, as switching to a workbook kept here does. What the books need stays. */
+/** Forgets the token, the account and its grants on this device, as moving the last file on Drive into this browser does. What the books need stays. */
 export function forgetGoogleSignIn(): void {
   pageToken = null
   access.value = { scopes: null, refusal: null }

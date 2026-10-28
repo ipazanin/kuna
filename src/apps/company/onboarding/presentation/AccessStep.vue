@@ -84,7 +84,7 @@ async function ask(): Promise<void> {
   failure.value = null
   needScopes(asked.value)
   try {
-    await requestAccess([], 'none')
+    await requestAccess([], { resume: 'none' })
   } catch (refused) {
     failure.value = refused instanceof Error ? refused.message : String(refused)
   } finally {

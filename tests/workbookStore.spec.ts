@@ -2,21 +2,23 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
-import { createWorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
-import type { WorkbookStore, WorkbookStorePorts } from '../src/apps/company/workbook/application/createWorkbookStore'
+import { createWorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import type { WorkbookStore, WorkbookStorePorts } from '../src/shared/storage/application/createWorkbookStore'
+import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { WorkbookChoice } from '../src/shared/storage/application/workbookPorts'
 import { deleteBrowserDocument } from '../src/shared/storage/infrastructure/browserDocument'
 import { decodeDocument, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import type { DocumentRecord, WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP, documentStorePorts, installedSchema } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
-import type { DriveAccess } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { COMPANY_APP, COMPANY_DOCUMENT, installedSchema } from '../src/apps/company/workbook/infrastructure/companyDocument'
+import { documentStorePorts } from '../src/shared/storage/infrastructure/documentStorePorts'
+import type { DriveAccess } from '../src/shared/storage/infrastructure/documentStorePorts'
 import type { RedirectResume } from '../src/shared/google/googleRedirect'
 import { createDriveDocument } from '../src/shared/storage/infrastructure/driveDocument'
 import type { DocumentDrive } from '../src/shared/storage/infrastructure/driveDocument'
-import { createFakeDrive } from '../src/apps/company/workbook/infrastructure/fake/fakeDrive'
-import type { FakeDrive } from '../src/apps/company/workbook/infrastructure/fake/fakeDrive'
+import { createFakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
+import type { FakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
 import { openWorkbookCache } from '../src/shared/storage/infrastructure/workbookCache'
 import { ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
@@ -90,7 +92,7 @@ function driveSide(): DriveSide {
 }
 
 interface Harness {
-  readonly ports: WorkbookStorePorts<DocumentCopy, WorkbookDocument>
+  readonly ports: WorkbookStorePorts<CompanyBooks, DocumentCopy, WorkbookDocument>
   readonly chosen: () => WorkbookChoice | null
   readonly side: DriveSide
   /** How long each pause before a retry asked to wait, in order. */
@@ -104,7 +106,7 @@ function harness(initial: WorkbookChoice | null, side = driveSide()): Harness {
   let now = '2026-10-16T09:00:00.000Z'
   let nextLocal = 0
   const pauses: number[] = []
-  const documents = documentStorePorts(async () => side.access, () => now)
+  const documents = documentStorePorts(COMPANY_APP, COMPANY_DOCUMENT, async () => side.access, () => now)
   return {
     chosen: () => remembered,
     side,
@@ -124,8 +126,7 @@ function harness(initial: WorkbookChoice | null, side = driveSide()): Harness {
       },
       prepareSync: () => {},
       hasLiveAccessToken: () => false,
-      forgetGoogleSignIn: () => {},
-      signOutOfGoogle: async () => {},
+      keptInBrowser: () => {},
       newLocalId: () => {
         nextLocal += 1
         used.add(`local-${nextLocal}`)
@@ -171,7 +172,7 @@ async function storedCopy(id: string): Promise<DocumentCopy | null> {
   }
 }
 
-function storeOf(ports: WorkbookStorePorts<DocumentCopy, WorkbookDocument>): WorkbookStore<DocumentCopy, WorkbookDocument> {
+function storeOf(ports: WorkbookStorePorts<CompanyBooks, DocumentCopy, WorkbookDocument>): WorkbookStore<CompanyBooks, DocumentCopy, WorkbookDocument> {
   return createWorkbookStore(ports)
 }
 
@@ -324,7 +325,7 @@ describe('workbook store with a Drive file', () => {
 
     expect(chosen()).toEqual({ source: 'drive', id: copy.id, name: 'kuna-company copy.json' })
     expect(store.state.workbook?.transactions).toHaveLength(3)
-    expect(side.signIns).toEqual(['find', 'pick'])
+    expect(side.signIns).toEqual([{ resume: 'find', app: 'company' }, { resume: 'pick', app: 'company' }])
   })
 
   it('refuses a backup, another app’s file or a JSON file that is no Kuna file picked, and keeps the workbook on screen', async () => {
@@ -464,18 +465,18 @@ describe('workbook store with a workbook kept in this browser', () => {
     expect(reopened.state.snapshot?.meta).toMatchObject({ source: 'browser', lastExportedAt: null, unexportedSince: null })
   })
 
-  it('forgets the Google sign-in when a workbook kept in this browser replaces a Drive file', async () => {
+  it('tells the app once a workbook kept in this browser replaces a Drive file', async () => {
     const side = driveSide()
     const choice = await onDrive(side, documentOf([7200]))
     const { ports } = harness(choice, side)
-    let forgotten = 0
-    const store = storeOf({ ...ports, hasLiveAccessToken: () => true, forgetGoogleSignIn: () => (forgotten += 1) })
+    let kept = 0
+    const store = storeOf({ ...ports, hasLiveAccessToken: () => true, keptInBrowser: () => (kept += 1) })
     await store.open()
     expect(store.canSyncSilently()).toBe(true)
 
     await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
 
-    expect(forgotten).toBe(1)
+    expect(kept).toBe(1)
     expect(store.canSyncSilently()).toBe(false)
   })
 

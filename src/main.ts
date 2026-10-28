@@ -6,7 +6,7 @@ import ui from '@nuxt/ui/vue-plugin'
 import App from './shell/App.vue'
 import { askSilentlyOnOpen, takeGoogleRedirect } from './shared/google/googleAuth'
 import { startServiceWorker } from './shell/pwa/appUpdate'
-import { homeApp, installApp } from './shell/routing/appRegistry'
+import { installApp, installedApps } from './shell/routing/appRegistry'
 import { createAppRouter } from './shell/routing/router'
 import { applyInitialTheme } from './shared/theme/theme'
 
@@ -14,10 +14,11 @@ applyInitialTheme()
 
 async function start(): Promise<void> {
   // Each app loads apart from the entry chunk, and is installed before the router lists its screens.
-  const { companyApp } = await import('./apps/company/app')
+  const [{ companyApp }, { loansApp }] = await Promise.all([import('./apps/company/app'), import('./apps/loans/app')])
   await installApp(companyApp)
+  await installApp(loansApp)
   const googleReturn = takeGoogleRedirect()
-  if (googleReturn === null && navigator.onLine && homeApp().asksGoogleOnOpen() && askSilentlyOnOpen()) {
+  if (googleReturn === null && navigator.onLine && installedApps().some((app) => app.asksGoogleOnOpen()) && askSilentlyOnOpen()) {
     return
   }
   createApp(App, { googleReturn }).use(createAppRouter()).use(ui).mount('#app')

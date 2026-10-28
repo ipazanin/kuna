@@ -52,7 +52,7 @@ import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkboo
 import { recordsOf } from '../src/shared/storage/domain/recordsRead.ts'
 import { bookingOfAdvance, ledgerWindowOf, newestBookingOf } from '../src/apps/company/workbook/domain/workbook.ts'
 import { decodeDocument } from '../src/shared/storage/infrastructure/documentFormat.ts'
-import { COMPANY_APP, readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts.ts'
+import { COMPANY_APP, readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument.ts'
 import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { documentOfTabs } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument.ts'
 import { readWorkbookFile } from '../src/apps/company/workbook/infrastructure/workbookFile.ts'

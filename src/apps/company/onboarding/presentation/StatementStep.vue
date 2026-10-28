@@ -17,7 +17,7 @@ import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../workbook/presentation/useRecordWrites'
 import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
-import { withGoogleAccess } from './withGoogleAccess'
+import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 
 /**
  * The first statement: a camt.053 file, whose IBAN, currency and opening balance make the account
