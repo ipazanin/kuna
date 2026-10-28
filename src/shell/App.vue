@@ -27,6 +27,7 @@ const home = homeApp()
 const navigation = computed(
   (): Navigation => ({
     groups: installedApps().map((app) => ({
+      app: app.id,
       name: app.name,
       subtitle: app.subtitle(),
       entries: app.menu().map((screen) => {

@@ -13,6 +13,7 @@ export interface NavigationEntry {
 
 /** An app's entries under its name, with a line such as the company the books belong to. */
 export interface NavigationGroup {
+  readonly app: string
   readonly name: string
   readonly subtitle: string | null
   readonly entries: readonly NavigationEntry[]
@@ -41,17 +42,17 @@ const id = useId()
 <template>
   <nav aria-label="Screens" class="flex flex-col gap-4">
     <div
-      v-for="(group, index) in navigation.groups"
-      :key="group.name"
+      v-for="group in navigation.groups"
+      :key="group.app"
       role="group"
-      :aria-labelledby="`${id}-${index}`"
-      :aria-describedby="group.subtitle ? `${id}-${index}-subtitle` : undefined"
+      :aria-labelledby="`${id}-${group.app}`"
+      :aria-describedby="group.subtitle ? `${id}-${group.app}-subtitle` : undefined"
       class="flex flex-col gap-1"
       data-testid="nav-group"
     >
       <div class="px-3">
-        <p :id="`${id}-${index}`" class="nav-heading">{{ group.name }}</p>
-        <p v-if="group.subtitle" :id="`${id}-${index}-subtitle`" class="truncate text-xs text-muted">{{ group.subtitle }}</p>
+        <p :id="`${id}-${group.app}`" class="nav-heading">{{ group.name }}</p>
+        <p v-if="group.subtitle" :id="`${id}-${group.app}-subtitle`" class="truncate text-xs text-muted">{{ group.subtitle }}</p>
       </div>
       <ul class="flex flex-col gap-0.5">
         <li v-for="entry in group.entries" :key="entry.to">
