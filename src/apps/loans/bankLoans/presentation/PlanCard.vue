@@ -69,9 +69,9 @@ function dateOf(line: PlanLine): string {
                 <th scope="col" class="hidden text-end @md:table-cell">Instalment</th>
                 <th scope="col" class="hidden text-end @xl:table-cell">Interest</th>
                 <th scope="col" class="hidden text-end @xl:table-cell">Principal</th>
-                <th v-if="hasSubsidy" scope="col" class="hidden text-end @2xl:table-cell">Subsidy</th>
+                <th v-if="hasSubsidy" scope="col" class="hidden text-end @3xl:table-cell">Subsidy</th>
                 <th scope="col" class="text-end">Owed after</th>
-                <th scope="col" class="hidden text-start @3xl:table-cell">Status</th>
+                <th scope="col" class="hidden text-start @4xl:table-cell">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -81,7 +81,7 @@ function dateOf(line: PlanLine): string {
                     <UButton
                       color="neutral"
                       variant="link"
-                      class="-mx-1 px-1 @3xl:hidden"
+                      class="-mx-1 px-1 @4xl:hidden"
                       :aria-expanded="tapped.has(line.key)"
                       :aria-label="`${dateOf(line)}, show interest, principal and status`"
                       data-testid="plan-row-toggle"
@@ -89,7 +89,7 @@ function dateOf(line: PlanLine): string {
                     >
                       <span class="text-highlighted">{{ dateOf(line) }}</span>
                     </UButton>
-                    <span class="hidden text-highlighted @3xl:inline">{{ dateOf(line) }}</span>
+                    <span class="hidden text-highlighted @4xl:inline">{{ dateOf(line) }}</span>
                     <span v-if="line.estimate" class="ms-1 text-xs text-muted">est.</span>
                     <span v-if="line.late" class="ms-1 text-xs text-warning">late</span>
                     <span v-if="line.kind === 'extra-payment'" class="ms-1 text-xs text-muted">extra</span>
@@ -98,11 +98,11 @@ function dateOf(line: PlanLine): string {
                   <td class="hidden text-end @md:table-cell"><MoneyText :cents="line.payment" /></td>
                   <td class="hidden text-end @xl:table-cell"><MoneyText :cents="line.interest" /></td>
                   <td class="hidden text-end @xl:table-cell"><MoneyText :cents="line.principal" /></td>
-                  <td v-if="hasSubsidy" class="hidden text-end @2xl:table-cell"><MoneyText :cents="line.subsidy" /></td>
+                  <td v-if="hasSubsidy" class="hidden text-end @3xl:table-cell"><MoneyText :cents="line.subsidy" /></td>
                   <td class="text-end"><MoneyText :cents="line.balance" /></td>
-                  <td class="hidden text-start text-muted @3xl:table-cell">{{ line.status }}</td>
+                  <td class="hidden text-start text-muted @4xl:table-cell">{{ line.status }}</td>
                 </tr>
-                <tr v-if="tapped.has(line.key)" class="@3xl:hidden" data-testid="plan-row-detail">
+                <tr v-if="tapped.has(line.key)" class="@4xl:hidden" data-testid="plan-row-detail">
                   <td :colspan="hasSubsidy ? 8 : 7" class="cell-wraps">
                     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
                       <dt class="text-muted">Instalment</dt>
@@ -129,9 +129,9 @@ function dateOf(line: PlanLine): string {
                 <td class="hidden text-end @md:table-cell"><MoneyText :cents="year.totals.payment" /></td>
                 <td class="hidden text-end @xl:table-cell"><MoneyText :cents="year.totals.interest" /></td>
                 <td class="hidden text-end @xl:table-cell"><MoneyText :cents="year.totals.principal" /></td>
-                <td v-if="hasSubsidy" class="hidden text-end @2xl:table-cell"><MoneyText :cents="year.totals.subsidy" /></td>
+                <td v-if="hasSubsidy" class="hidden text-end @3xl:table-cell"><MoneyText :cents="year.totals.subsidy" /></td>
                 <td class="text-end"><MoneyText :cents="year.balance" /></td>
-                <td class="hidden @3xl:table-cell" />
+                <td class="hidden @4xl:table-cell" />
               </tr>
             </tfoot>
           </table>
