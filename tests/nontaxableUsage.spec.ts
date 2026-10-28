@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { nontaxableUsage } from '../src/packs/hr-doo/domain/payroll/nontaxableUsage'
-import type { NontaxablePaymentMade, NontaxableUsage } from '../src/packs/hr-doo/domain/payroll/nontaxableUsage'
+import { nontaxableUsage } from '../src/apps/company/packs/hr-doo/domain/payroll/nontaxableUsage'
+import type { NontaxablePaymentMade, NontaxableUsage } from '../src/apps/company/packs/hr-doo/domain/payroll/nontaxableUsage'
 import { civil, euros } from './fixtures/ledger'
 
 function made(payment: string, paidOn: string, amount: number, units?: number): NontaxablePaymentMade {

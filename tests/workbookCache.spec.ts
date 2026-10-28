@@ -2,10 +2,10 @@ import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { WorkbookCache } from '../src/features/workbook/application/workbookPorts'
-import type { DocumentRecord } from '../src/features/workbook/infrastructure/documentFormat'
-import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
-import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
+import type { WorkbookCache } from '../src/shared/storage/application/workbookPorts'
+import type { DocumentRecord } from '../src/shared/storage/infrastructure/documentFormat'
+import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
+import { openWorkbookCache } from '../src/shared/storage/infrastructure/workbookCache'
 
 const opened: WorkbookCache<DocumentCopy>[] = []
 

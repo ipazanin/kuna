@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { itemStatistics } from '../src/features/billingPlan/domain/itemStatistics'
+import { itemStatistics } from '../src/apps/company/billingPlan/domain/itemStatistics'
 import { euros } from './fixtures/ledger'
 import { planRow } from './fixtures/billingPlan'
 

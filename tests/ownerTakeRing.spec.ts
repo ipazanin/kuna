@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
-import { ownerTake } from '../src/packs/hr-doo/domain/ownerTake'
-import { LOANS_NET_SERIES, RENT_TAX_LABEL, ownerPaySeries, ownerTakeRing } from '../src/packs/hr-doo/presentation/packCharts'
+import { ownerTake } from '../src/apps/company/packs/hr-doo/domain/ownerTake'
+import { LOANS_NET_SERIES, RENT_TAX_LABEL, ownerPaySeries, ownerTakeRing } from '../src/apps/company/packs/hr-doo/presentation/packCharts'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 

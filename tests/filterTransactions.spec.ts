@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_FILTERS } from '../src/features/filters/domain/filterState'
-import type { FilterState } from '../src/features/filters/domain/filterState'
-import { filterTransactions, scopeTransactions } from '../src/features/transactions/domain/filterTransactions'
+import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
+import type { FilterState } from '../src/apps/company/filters/domain/filterState'
+import { filterTransactions, scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const window = windowOf('2026-06-03', '2026-10-05')

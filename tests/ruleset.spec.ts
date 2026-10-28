@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { addDays, parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
-import { ASSET_GROUPS } from '../src/packs/hr-doo/domain/assets/assets'
-import { FORECAST_RULE_IDS } from '../src/packs/hr-doo/domain/forecast/forecastRules'
-import { ACTS } from '../src/packs/hr-doo/ruleset/acts'
-import { accountingOpenItems, accountingRules } from '../src/packs/hr-doo/ruleset/rules/accounting'
-import { companyLawOpenItems, companyLawRules } from '../src/packs/hr-doo/ruleset/rules/company-law'
-import { ownerPayOpenItems, ownerPayRules } from '../src/packs/hr-doo/ruleset/rules/owner-pay'
-import { profitTaxOpenItems, profitTaxRules } from '../src/packs/hr-doo/ruleset/rules/profit-tax'
-import { vatOpenItems, vatRules } from '../src/packs/hr-doo/ruleset/rules/vat'
+import { ASSET_GROUPS } from '../src/apps/company/packs/hr-doo/domain/assets/assets'
+import { FORECAST_RULE_IDS } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastRules'
+import { ACTS } from '../src/apps/company/packs/hr-doo/ruleset/acts'
+import { accountingOpenItems, accountingRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/accounting'
+import { companyLawOpenItems, companyLawRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/company-law'
+import { ownerPayOpenItems, ownerPayRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/owner-pay'
+import { profitTaxOpenItems, profitTaxRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/profit-tax'
+import { vatOpenItems, vatRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/vat'
 import {
   OPEN_ITEMS,
   RULES,
@@ -20,11 +20,11 @@ import {
   rulesFor,
   versionOn,
   watchItems,
-} from '../src/packs/hr-doo/ruleset/ruleset'
-import type { RuleId } from '../src/packs/hr-doo/ruleset/ruleset'
-import { ruleView, termFormat } from '../src/packs/hr-doo/ruleset/presentation/ruleWording'
-import { basisPoints, cents, count, day, flag, isWatchedConfidence, table, text } from '../src/packs/hr-doo/ruleset/schema'
-import type { GeneralRule, LegalSource, OpenItem, RuleArea, RuleTerms, RuleVersion, ScalarTerm, Term } from '../src/packs/hr-doo/ruleset/schema'
+} from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import type { RuleId } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import { ruleView, termFormat } from '../src/apps/company/packs/hr-doo/ruleset/presentation/ruleWording'
+import { basisPoints, cents, count, day, flag, isWatchedConfidence, table, text } from '../src/apps/company/packs/hr-doo/ruleset/schema'
+import type { GeneralRule, LegalSource, OpenItem, RuleArea, RuleTerms, RuleVersion, ScalarTerm, Term } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 
 const AREA_FILES: readonly { readonly area: RuleArea; readonly rules: readonly GeneralRule[]; readonly openItems: readonly OpenItem[] }[] = [
   { area: 'profit-tax', rules: profitTaxRules, openItems: profitTaxOpenItems },

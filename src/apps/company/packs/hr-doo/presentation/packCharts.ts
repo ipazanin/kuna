@@ -1,0 +1,434 @@
+import { monthAxisLabel, monthLabel } from '../../../../../shared/calendar/monthLabel'
+import type { MonthKey } from '../../../../../shared/calendar/monthKey'
+import { BAR_END_DOWN, BAR_END_UP, incompleteBand, markIncomplete, moneyAxisLabel, stackGap } from '../../../../../shared/charts/chartTheme'
+import type { ChartTokens } from '../../../../../shared/charts/chartTokens'
+import { axisTooltip } from '../../../../../shared/charts/chartTooltip'
+import type { BarSeries, ChartOption, LineSeries } from '../../../../../shared/charts/echarts'
+import { negateMoney } from '../../../../../shared/money/money'
+import { formatWholeMoney } from '../../../../../shared/money/moneyFormat'
+import type { LegendEntry } from '../../../../../shared/ui/ChartLegend.vue'
+import { drillToTransactions } from '../../../filters/domain/drillTarget'
+import type { DrillTarget, Figure } from '../../../filters/domain/drillTarget'
+import type { Period } from '../../../filters/domain/filterState'
+import type { DrillChart } from '../../../filters/presentation/chartDrill'
+import type { Category } from '../../../workbook/domain/workbook'
+import type { OwnerBenefits } from '../domain/ownerBenefits'
+import type { LoanMonth } from '../domain/ownerLoans'
+import type { OwnerTake, OwnerTakeMonth } from '../domain/ownerTake'
+
+/** The categorical slots a chart may use before the rest fold into one series. */
+const SLOTS = 8
+
+/**
+ * One series of a chart by category: a category, or the categories past the free slots together.
+ * The owner's rent tax is a series of no category, since no row holds it.
+ */
+export interface CategorySeries {
+  readonly name: string
+  readonly categories: readonly string[]
+  readonly colour: string
+  /** The colour token behind `colour`, such as `--series-2`, for a part drawn in HTML. */
+  readonly token: string
+}
+
+type Paint = Pick<CategorySeries, 'colour' | 'token'>
+
+/** The recessive grey, for the categories past the free slots or a category given grey. */
+function greyOf(tokens: ChartTokens): Paint {
+  return { colour: tokens.deemphasis, token: '--chart-deemphasis' }
+}
+
+/** The categorical slot at a place in the palette, as its token and its colour. */
+function slotAt(index: number, tokens: ChartTokens): Paint {
+  const colour = tokens.series[index]
+  return colour === undefined ? greyOf(tokens) : { colour, token: `--series-${index + 1}` }
+}
+
+/**
+ * The colour of each listed category: the swatch it was given, else the next chart slot no listed
+ * category was given, in the order of the list. So a category with nothing in the period never
+ * repaints the others. A category past the free slots gets null, and `spare` holds the free slots
+ * after the categories, in order.
+ */
+function listedPaints(listed: readonly Category[], tokens: ChartTokens): { readonly paints: ReadonlyMap<string, Paint | null>; readonly spare: readonly Paint[] } {
+  const given = new Set(listed.map((category) => category.colour.swatch?.slot))
+  const free = Array.from({ length: SLOTS }, (_, index) => index).filter((index) => !given.has(index + 1))
+  const paints = new Map<string, Paint | null>()
+  let used = 0
+  for (const category of listed) {
+    const { swatch } = category.colour
+    if (swatch !== null) {
+      paints.set(category.slug, swatch.slot === null ? greyOf(tokens) : slotAt(swatch.slot - 1, tokens))
+      continue
+    }
+    const index = free[used]
+    used += 1
+    paints.set(category.slug, index === undefined ? null : slotAt(index, tokens))
+  }
+  return { paints, spare: free.slice(used).map((index) => slotAt(index, tokens)) }
+}
+
+/**
+ * A series for each listed category that moved, in its colour. The categories past the free slots
+ * share one grey series rather than a made-up hue.
+ */
+function seriesOf(listed: readonly Category[], moved: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): { readonly series: CategorySeries[]; readonly spare: readonly Paint[] } {
+  const { paints, spare } = listedPaints(listed, tokens)
+  const shown = listed.map((category) => category.slug).filter((slug) => moved.includes(slug))
+  const others = shown.filter((slug) => paints.get(slug) === null)
+  return {
+    series: [
+      ...shown.flatMap((slug) => {
+        const paint = paints.get(slug)
+        return paint === null || paint === undefined ? [] : [{ name: nameOf(slug), categories: [slug], ...paint }]
+      }),
+      ...(others.length === 0 ? [] : [{ name: 'Other categories', categories: others, ...greyOf(tokens) }]),
+    ],
+    spare,
+  }
+}
+
+/** The categories of a chart by category, each in its colour whatever the period shows. */
+export function categorySeries(listed: readonly Category[], moved: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): CategorySeries[] {
+  return seriesOf(listed, moved, tokens, nameOf).series
+}
+
+export const LOANS_NET_SERIES = 'Loans, net'
+
+export const RENT_TAX_LABEL = 'Rent tax the owner pays the tax office'
+
+/**
+ * The owner pay categories by category, with the loans to the owner and their repayments as one
+ * "Loans, net" series in the free slot after the others, since a loan and its repayment are one story.
+ * While the rent is taxed, the rent tax follows in the free slot after the loans.
+ */
+export function ownerPaySeries(
+  listed: readonly Category[],
+  moved: readonly string[],
+  loanSlugs: readonly string[],
+  rentTaxed: boolean,
+  tokens: ChartTokens,
+  nameOf: (slug: string) => string,
+): CategorySeries[] {
+  const { series, spare } = seriesOf(
+    listed.filter((category) => !loanSlugs.includes(category.slug)),
+    moved,
+    tokens,
+    nameOf,
+  )
+  const [next, afterNext] = spare
+  const loans = listed.map((category) => category.slug).filter((slug) => loanSlugs.includes(slug) && moved.includes(slug))
+  return [
+    ...series,
+    ...(loans.length === 0 ? [] : [{ name: LOANS_NET_SERIES, categories: loans, ...(next ?? greyOf(tokens)) }]),
+    ...(rentTaxed ? [{ name: RENT_TAX_LABEL, categories: [], ...((loanSlugs.length === 0 ? next : afterNext) ?? greyOf(tokens)) }] : []),
+  ]
+}
+
+/** One line of the owner take that a ring cannot hold, such as the loans, which can be negative. */
+export interface OwnerTakeAside {
+  readonly key: string
+  readonly label: string
+  readonly amount: number
+  readonly drill: DrillTarget
+}
+
+export interface OwnerTakeRing {
+  /** Each category paid to the owner on balance, in its series colour. */
+  readonly parts: readonly { readonly key: string; readonly label: string; readonly value: number; readonly colour: string; readonly drill: DrillTarget }[]
+  /** The ring's total, in its middle. */
+  readonly ringTotal: number
+  /** Loans, net, any category that took back more than it paid, and the rent tax, which with the ring make the owner take. */
+  readonly aside: readonly OwnerTakeAside[]
+  readonly total: number
+}
+
+/**
+ * The owner take as a ring of the categories paid out on balance, and beside it what a ring cannot
+ * hold: the loans as one net line, any category that handed back more than it paid, and the rent
+ * tax the owner pays out of the rent. The ring and the lines beside it add up to the owner take.
+ */
+export function ownerTakeRing(take: OwnerTake, period: Period, series: readonly CategorySeries[], nameOf: (slug: string) => string): OwnerTakeRing {
+  const loans = series.find((entry) => entry.name === LOANS_NET_SERIES)?.categories ?? []
+  const tokenOf = new Map(series.flatMap((entry) => entry.categories.map((category) => [category, entry.token])))
+  const others = take.byCategory.filter((line) => !loans.includes(line.category))
+  const parts = others
+    .filter((line) => line.amount.amount > 0)
+    .map((line) => ({ key: line.category, label: nameOf(line.category), value: line.amount.amount, colour: tokenOf.get(line.category) ?? '--chart-deemphasis', drill: line.amount.drill }))
+  const loanLines = take.byCategory.filter((line) => loans.includes(line.category))
+  const aside: OwnerTakeAside[] = [
+    ...(loanLines.length === 0
+      ? []
+      : [
+          {
+            key: 'loans',
+            label: LOANS_NET_SERIES,
+            amount: loanLines.reduce((sum, line) => sum + line.amount.amount, 0),
+            drill: drillToTransactions({ period, categories: loans }),
+          },
+        ]),
+    ...others.filter((line) => line.amount.amount < 0).map((line) => ({ key: line.category, label: nameOf(line.category), amount: line.amount.amount, drill: line.amount.drill })),
+    ...(take.rentTax.amount === 0 ? [] : [{ key: 'rent-tax', label: RENT_TAX_LABEL, amount: negateMoney(take.rentTax.amount), drill: take.rentTax.drill }]),
+  ]
+  return { parts, ringTotal: parts.reduce((sum, part) => sum + part.value, 0), aside, total: take.total.amount }
+}
+
+/** One category the benefits come from, as a part of their ring. */
+export interface BenefitsRingPart {
+  readonly key: string
+  readonly label: string
+  readonly value: number
+  readonly colour: string
+  /** The owner share its rows were counted at, such as "50%", or "mixed" when they differ. */
+  readonly note: string
+  readonly drill: DrillTarget
+}
+
+/**
+ * The benefits from company costs as a ring by the category each comes from, in the colour that
+ * category has on a chart of its bucket, with the share its rows were counted at.
+ */
+export function benefitsRing(benefits: OwnerBenefits, series: readonly CategorySeries[], nameOf: (slug: string) => string): BenefitsRingPart[] {
+  const tokenOf = new Map(series.flatMap((entry) => entry.categories.map((category) => [category, entry.token])))
+  return benefits.bySource.map((source) => ({
+    key: source.category,
+    label: nameOf(source.category),
+    value: source.amount.amount,
+    colour: tokenOf.get(source.category) ?? '--chart-deemphasis',
+    note: source.share === 'mixed' ? 'mixed' : source.share === null ? '–' : `${source.share}%`,
+    drill: source.amount.drill,
+  }))
+}
+
+export function categoryLegend(series: readonly CategorySeries[]): LegendEntry[] {
+  return series.map((entry) => ({ label: entry.name, colour: entry.colour }))
+}
+
+/** A month of figures by category, as both the tax and the owner charts draw them. */
+export interface CategoryMonth {
+  readonly month: MonthKey
+  readonly complete: boolean
+  readonly byCategory: Readonly<Record<string, Figure>>
+  readonly total: Figure
+}
+
+function amountOf(month: CategoryMonth, series: CategorySeries): number {
+  return series.categories.reduce((total, category) => total + (month.byCategory[category]?.amount ?? 0), 0)
+}
+
+function drillOf(month: CategoryMonth, series: CategorySeries | undefined): DrillTarget | null {
+  if (series === undefined) {
+    return month.total.drill
+  }
+  const [only] = series.categories
+  if (series.categories.length === 1 && only !== undefined) {
+    return month.byCategory[only]?.drill ?? null
+  }
+  return drillToTransactions({ ...month.total.drill.filters, categories: series.categories })
+}
+
+function monthTooltip(months: readonly { readonly month: MonthKey; readonly complete: boolean }[], tokens: ChartTokens, sign: 'magnitude' | 'negative') {
+  return axisTooltip({
+    tokens,
+    incompleteCategories: months.filter((month) => !month.complete).map((month) => month.month),
+    categoryLabel: monthAxisLabel('long'),
+    formatAmount: (amount) => formatWholeMoney(amount, sign),
+  })
+}
+
+function monthAxis(months: readonly { readonly month: MonthKey }[], tokens: ChartTokens, boundaryGap: boolean) {
+  return {
+    type: 'category' as const,
+    boundaryGap,
+    data: months.map((month) => month.month),
+    axisLabel: { color: tokens.inkMuted, formatter: monthAxisLabel('short') },
+    axisLine: { onZero: true, lineStyle: { color: tokens.axis } },
+  }
+}
+
+function spanOf(months: readonly { readonly month: MonthKey }[]): string {
+  const first = months[0]
+  const last = months[months.length - 1]
+  return first === undefined || last === undefined ? '' : `from ${monthLabel(first.month)} to ${monthLabel(last.month)}`
+}
+
+/**
+ * Each tax category as a stacked area by month. A category that took more back than it paid, such
+ * as refunds, stacks on its own below zero, since an area fills down to the series under it and
+ * would otherwise drag the others' fill with it.
+ */
+export function taxByTypeChart(months: readonly CategoryMonth[], series: readonly CategorySeries[], tokens: ChartTokens): DrillChart {
+  const categories = months.map((month) => month.month)
+  const incomplete = months.map((month) => !month.complete)
+  const areas: LineSeries[] = series.map((entry, index) => ({
+    type: 'line',
+    name: entry.name,
+    stack: months.reduce((sum, month) => sum + amountOf(month, entry), 0) < 0 ? 'refunds' : 'taxes',
+    color: entry.colour,
+    showSymbol: false,
+    lineStyle: { width: 1.5 },
+    areaStyle: { color: entry.colour, opacity: 0.28 },
+    data: months.map((month) => amountOf(month, entry)),
+    ...(index === 0 ? { markArea: incompleteBand(categories, incomplete, tokens) } : {}),
+  }))
+  const option: ChartOption = {
+    grid: { top: 16, right: 16 },
+    tooltip: { trigger: 'axis', formatter: monthTooltip(months, tokens, 'negative') },
+    xAxis: monthAxis(months, tokens, false),
+    yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
+    series: areas,
+  }
+  const total = months.reduce((sum, month) => sum + month.total.amount, 0)
+  return {
+    option,
+    description:
+      months.length === 0
+        ? 'No months to show.'
+        : `Taxes paid by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatWholeMoney(total)} in all, net of refunds.`,
+    drillAt: ({ seriesName, dataIndex }) => {
+      const month = months[dataIndex]
+      return month === undefined ? null : drillOf(month, series.find((entry) => entry.name === seriesName))
+    },
+  }
+}
+
+/**
+ * Owner pay stacked by category, one bar per month. Money handed back, such as a loan repaid, and
+ * the rent tax the owner pays out of the rent stack below zero, so the bars add up to the owner take.
+ */
+export function ownerDrawsChart(months: readonly OwnerTakeMonth[], series: readonly CategorySeries[], tokens: ChartTokens): DrillChart {
+  const incomplete = months.map((month) => !month.complete)
+  const paid = series.filter((entry) => entry.name !== RENT_TAX_LABEL)
+  const last = paid[paid.length - 1]
+  const bars: BarSeries[] = series.map((entry) => ({
+    type: 'bar',
+    name: entry.name,
+    stack: 'draws',
+    color: entry.colour,
+    itemStyle: { ...stackGap(tokens), borderRadius: entry.name === RENT_TAX_LABEL ? BAR_END_DOWN : entry === last ? BAR_END_UP : 0 },
+    data: markIncomplete(
+      months.map((month) => (entry.name === RENT_TAX_LABEL ? negateMoney(month.rentTax.amount) : amountOf(month, entry))),
+      incomplete,
+      tokens,
+    ),
+  }))
+  const total = months.reduce((sum, month) => sum + month.total.amount, 0)
+  return {
+    option: {
+      grid: { top: 16 },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: monthTooltip(months, tokens, 'negative') },
+      xAxis: monthAxis(months, tokens, true),
+      yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
+      series: bars,
+    },
+    description:
+      months.length === 0
+        ? 'No months to show.'
+        : `Owner pay by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatWholeMoney(total)} in all.`,
+    drillAt: ({ seriesName, dataIndex }) => {
+      const month = months[dataIndex]
+      if (month === undefined) {
+        return null
+      }
+      return seriesName === RENT_TAX_LABEL ? month.rentTax.drill : drillOf(month, series.find((entry) => entry.name === seriesName))
+    },
+  }
+}
+
+export const LENT_SERIES = 'Lent'
+export const REPAID_SERIES = 'Repaid'
+export const OUTSTANDING_SERIES = 'Owed by the owner'
+
+export interface LoanColours {
+  readonly lent: string
+  readonly repaid: string
+}
+
+/** Money lent as bars below zero and repayments as bars above it, month by month. */
+export function loanTimelineChart(months: readonly LoanMonth[], colours: LoanColours, tokens: ChartTokens): DrillChart {
+  const incomplete = months.map((month) => !month.complete)
+  const bars: BarSeries[] = [
+    {
+      type: 'bar',
+      name: LENT_SERIES,
+      stack: 'loans',
+      color: colours.lent,
+      itemStyle: { ...stackGap(tokens), borderRadius: BAR_END_DOWN },
+      data: markIncomplete(
+        months.map((month) => -month.lent.amount),
+        incomplete,
+        tokens,
+      ),
+    },
+    {
+      type: 'bar',
+      name: REPAID_SERIES,
+      stack: 'loans',
+      color: colours.repaid,
+      itemStyle: { ...stackGap(tokens), borderRadius: BAR_END_UP },
+      data: markIncomplete(
+        months.map((month) => month.repaid.amount),
+        incomplete,
+        tokens,
+      ),
+    },
+  ]
+  const lent = months.reduce((sum, month) => sum + month.lent.amount, 0)
+  const repaid = months.reduce((sum, month) => sum + month.repaid.amount, 0)
+  return {
+    option: {
+      grid: { top: 16 },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: monthTooltip(months, tokens, 'negative') },
+      xAxis: monthAxis(months, tokens, true),
+      yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
+      series: bars,
+    },
+    description:
+      months.length === 0
+        ? 'No months to show.'
+        : `Loans to the owner by month ${spanOf(months)}: money lent below zero and repayments above it. ${formatWholeMoney(lent)} lent and ${formatWholeMoney(repaid)} repaid in all.`,
+    drillAt: ({ seriesName, dataIndex }) => {
+      const month = months[dataIndex]
+      if (month === undefined) {
+        return null
+      }
+      if (seriesName === LENT_SERIES) return month.lent.drill
+      if (seriesName === REPAID_SERIES) return month.repaid.drill
+      // Between the bars, the month's rows on every loan and repayment category.
+      const { period } = month.lent.drill.filters
+      return drillToTransactions({ ...(period === undefined ? {} : { period }), categories: [...(month.lent.drill.filters.categories ?? []), ...(month.repaid.drill.filters.categories ?? [])] })
+    },
+  }
+}
+
+/** What the owner owed the company at each month's end, one bar per month, whose rows are every loan row up to that day. */
+export function loanBalanceChart(months: readonly LoanMonth[], colour: string, tokens: ChartTokens): DrillChart {
+  const last = months[months.length - 1]
+  return {
+    option: {
+      grid: { top: 16, right: 8 },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: monthTooltip(months, tokens, 'negative') },
+      xAxis: monthAxis(months, tokens, true),
+      yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
+      series: [
+        {
+          type: 'bar',
+          name: OUTSTANDING_SERIES,
+          color: colour,
+          itemStyle: { borderRadius: BAR_END_UP },
+          data: markIncomplete(
+            months.map((month) => month.outstanding.amount),
+            months.map((month) => !month.complete),
+            tokens,
+          ),
+        },
+      ],
+    },
+    description:
+      last === undefined
+        ? 'No months to show.'
+        : `What the owner owed the company at each month's end ${spanOf(months)}. ` +
+          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the owner owed ${formatWholeMoney(last.outstanding.amount)}.`,
+    drillAt: ({ dataIndex }) => months[dataIndex]?.outstanding.drill ?? null,
+  }
+}

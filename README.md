@@ -83,8 +83,8 @@ The needed scopes stay, since the books decide them, not the account.
 A sync is an ordered list of steps, run one after another: the books, then the mail, then the
 statements. The Sync button, the sync on open and on a return to
 the tab, LedgerGate's Sync and Try again, and the way back from Google all run the same sync,
-`createSync` in `src/features/sync/application/sync.ts`, through `useSync` in
-`src/features/sync/presentation/`. A workbook kept in this browser has no sync, and its statements
+`createSync` in `src/apps/company/sync/application/sync.ts`, through `useSync` in
+`src/apps/company/sync/presentation/`. A workbook kept in this browser has no sync, and its statements
 come in on the Import tab.
 
 Each step names the Google scopes it needs and whether the settings turn it on:
@@ -101,7 +101,7 @@ Google in the same tap, then syncs, so the step just switched on runs and the co
 "Allow access" for it. A popup opens only inside the tap, so on a desktop the popup comes first and
 the save follows once Google answered. The trip of a phone leaves the page, so there the save comes
 first and the tab then leaves for Google and syncs once back. A popup that gives no token still
-saves, and the control says why, as above. `saveAllowing` in `src/features/sync/application/sync.ts`
+saves, and the control says why, as above. `saveAllowing` in `src/apps/company/sync/application/sync.ts`
 keeps that order, and the pack's `withFacts` puts the drafted facts on the books so the steps they
 switch on are read before the save.
 
@@ -113,7 +113,7 @@ whose scopes the page's token lacks one of does not run and needs access. A step
 the others running. Google turning a step's token away inside the step makes that step, and the
 later steps that share a scope with it, need access. A failed read of the books skips every later step.
 
-The states of a step are in `src/features/sync/domain/syncRun.ts`: off, queued, running with a line
+The states of a step are in `src/apps/company/sync/domain/syncRun.ts`: off, queued, running with a line
 such as "Filing 4 rows", done with a line such as "Nothing new", waiting for you, such as with a
 statement it held, needing access, failed with the message, or skipped because the books could not
 be read. The run is page state and never stored.
@@ -139,13 +139,13 @@ Settings, This device has a Sync card with the same steps and the "Sync as the a
 **Sync as the app opens** is a switch of each device, on by default. Only an off is kept, in
 `localStorage` under `ledgerboard.auto-sync`. While it is on and the page's token is good, the app
 syncs on open and whenever the tab becomes visible again, at most once every ten minutes after the
-last read or attempt (`src/features/sync/application/autoSync.ts`). Off, the open also skips the
+last read or attempt (`src/apps/company/sync/application/autoSync.ts`). Off, the open also skips the
 silent trip to Google, so the device waits for a tap on Sync.
 
 ### The statements step
 
-`useStatementSync` in `src/features/imports/presentation/` makes the step. It runs
-`fileNewStatements` in `src/features/imports/application/statementSync.ts` after the books are read:
+`useStatementSync` in `src/apps/company/imports/presentation/` makes the step. It runs
+`fileNewStatements` in `src/apps/company/imports/application/statementSync.ts` after the books are read:
 
 1. Finds the folder the `statements_folder` setting names, one folder name at a time, and lists the
    files of the folders inside it, one per year. A missing folder, or two folders of one name, stop
@@ -184,11 +184,11 @@ Sync again."
 
 ### The mail step
 
-`useMailSync` in `src/features/mail/presentation/` makes the step. It lists what the folder already
+`useMailSync` in `src/apps/company/mail/presentation/` makes the step. It lists what the folder already
 holds, searches Gmail, reads each mail's subject, date and attachment names, names each attachment
 as the filing scripts name it, checks the name against the folder, and files what is new. Nothing in
 the app reads what the accountant's three sources file. The step never trashes, renames or
-overwrites a Drive file, and never marks, labels or moves a mail. `fileMail` in `src/features/mail/application/mailFiling.ts` does the work for each
+overwrites a Drive file, and never marks, labels or moves a mail. `fileMail` in `src/apps/company/mail/application/mailFiling.ts` does the work for each
 kind of mail, a source, which core and the pack contribute. Each source runs on its own, so one
 that fails leaves the others running.
 
@@ -379,8 +379,8 @@ reimbursements with no cost on file (Review), a complete month in which a watche
 payroll contributions had no payment, and a corporate tax payment due this month or overdue (both
 Year, Taxes, at their cards). The pack's jobs need the `owner_pay_module`, and the corporate tax one
 `hr_company_registered`. A job already late has a red dot, and the card is gone when nothing waits.
-`waitingJobs` in `src/features/overview/presentation/waitingForYou.ts` builds it, and the pack's
-jobs come from `src/packs/hr-doo/presentation/packWaitingJobs.ts`. Below it sit the tiles (cash on hand, net over
+`waitingJobs` in `src/apps/company/overview/presentation/waitingForYou.ts` builds it, and the pack's
+jobs come from `src/apps/company/packs/hr-doo/presentation/packWaitingJobs.ts`. Below it sit the tiles (cash on hand, net over
 the last 12 months, monthly costs, and runway at the last three months' cost with the twelve months'
 in its caption), the typical month three ways, income and costs by month, the balance at each month
 end over the last 12 months and the month so far, and "Every euro earned" as a ring of the last 12
@@ -404,14 +404,14 @@ While `owner_pay_module` is on, "Owner share" sits beside Change category and Sp
 the table and a link in the phone card. It is offered on a settled bank row, a part of a split row
 and an owner advance, each only in an operating category. On a shared row the heading's pencil and
 either part open it for the row as booked, and Split sits on the heading alone, since it divides the
-payment as booked. `ownerShareChangeOf` in `src/features/transactions/domain/` is the one rule for
+payment as booked. `ownerShareChangeOf` in `src/apps/company/transactions/domain/` is the one rule for
 where it is offered. Its dialog takes a whole percentage from
 0 to 100, or blank for none, and "Use the category's default" puts in the category's default, blank
 when it has none. Under the field it shows what the company keeps and what you take: the payment
 split by the share, the owner's part rounded to the cent and the company's the rest, so the two add
 up. Save writes the one `owner_share` cell of the ledger row, the split part or the advance, with
-Undo in the toast. `OwnerShareDialog` in `src/features/owner-share/presentation/` is the dialog, and
-`writeOwnerShare` in `src/features/owner-share/application/ownerShareWrites.ts` the write.
+Undo in the toast. `OwnerShareDialog` in `src/apps/company/owner-share/presentation/` is the dialog, and
+`writeOwnerShare` in `src/apps/company/owner-share/application/ownerShareWrites.ts` the write.
 
 **Review** has two tabs. Queue, with its count, holds the filters, the rows that wait for a person,
 the reimbursements with no cost on file and "Changes in this session", collapsed. A row of the queue
@@ -488,7 +488,7 @@ fields too: invoices of one day by number, billing plan rows of one day by item,
 description, owner advances of one day by amount and description, the parts of a split larger
 first, and konto lines by their number. A key used on more than one row of a tab is never read
 from the first of them, as the table says for each tab. `bookingOrder` in
-`src/features/workbook/domain/` derives the ledger's order.
+`src/apps/company/workbook/domain/` derives the ledger's order.
 
 A category or account is shown by its `label`. A blank label shows the name with spaces for hyphens
 and a capital first letter, so `ai-services` reads "AI services". Links and filters keep the name.
@@ -502,7 +502,7 @@ colour, reads as the bucket colour with no problem and stays in the tab as it is
 a swatch. A chart by category gives such a category the next chart slot that no category of its
 bucket was given, in the order of the tab, so a category with nothing in the period never repaints
 the others. Charts of whole buckets, such as Overview's ring and the profit and loss, keep the
-bucket colours. `SWATCHES` in `src/features/workbook/domain/categoryColour.ts` lists the palette,
+bucket colours. `SWATCHES` in `src/apps/company/workbook/domain/categoryColour.ts` lists the palette,
 and `tests/categoryPalette.spec.ts` fails when it and `tokens.css` disagree.
 
 `flagged_by` values `rule` and `ai` belong to the categoriser: `ai` marks a guess that waits for
@@ -530,7 +530,7 @@ which an empty start seeds. The role sits on one category only, in the owner-pay
 categories write refuses a new default that breaks either, and a role that breaks the last rule,
 except an Undo. A default left on a category moved out of operating, or held while no category
 carries the role, counts as 0, so the write lets it stand. That way a save with the owner-pay
-module off, where the share column is hidden, is never refused over a share. `src/features/owner-share/domain/ownerShare.ts` holds
+module off, where the share column is hidden, is never refused over a share. `src/apps/company/owner-share/domain/ownerShare.ts` holds
 the share, its role, `filedIn`, the copy every path goes through, and `movedTo`, which copies only
 when an edit moves the record. A default is set on Settings, Categories, which offers to fill the
 rows without a share, and one record's share with "Owner share" on Transactions, as *Settings
@@ -545,7 +545,7 @@ owner's part is the share of the signed amount, rounded to the cent, in the `own
 The business part is the rest, in the row's own category, so the two add up to the payment and a
 refund gives its share back. Operating cost goes down and owner pay goes up by the owner's parts,
 while all costs and net stay as they were. A split row's own share is ignored, and each part counts
-with its own. `ownerPartsOf` in `src/features/owner-share/domain/ownerParts.ts` makes the parts, and
+with its own. `ownerPartsOf` in `src/apps/company/owner-share/domain/ownerParts.ts` makes the parts, and
 `useFilteredLedger` gives the cash screens the workbook with them and the rest the workbook as booked,
 `booked`. A filter on a category also selects the owner's part of a row filed in that category,
 so a row shared in full, which has no business part, still shows under it. The part still counts in
@@ -713,7 +713,7 @@ the net share, the monthly net pay and the pay in "Monthly net, profit included"
 The ledger, Year, the profit, the corporate tax and the bank figures keep the 300.00 the company paid.
 Owner pay by month stacks the rent as paid and draws the 25.20 below zero as its own band in the
 month the rent was paid, so its total is the owner take. A row before the ruleset's first day
-carries no rent tax. `ownerTake` in `src/packs/hr-doo/domain/ownerTake.ts` takes it off. The net
+carries no rent tax. `ownerTake` in `src/apps/company/packs/hr-doo/domain/ownerTake.ts` takes it off. The net
 share is the owner take without loans over itself plus the rent tax and the taxes owed because the
 owner was paid, so 60,000 on
 100,000 reads 60%. The rent tax lowers what the owner keeps and leaves the gross cost as the company
@@ -723,7 +723,7 @@ owner pay. The monthly net pay is the owner take without loans over the months o
 owner pay category, benefits from company costs included, and no loan. A month the ledger covers
 only in part, such as the month so far or the ledger's first, counts as a whole month, as it does in
 owner pay by month. Rolling periods hold complete months only. `ownerCost` in
-`src/packs/hr-doo/domain/ownerCost.ts` and `netPayPerMonth` in `ownerTake.ts` work them out.
+`src/apps/company/packs/hr-doo/domain/ownerCost.ts` and `netPayPerMonth` in `ownerTake.ts` work them out.
 Beside it, "Monthly net, profit included" counts the profit as the months earn it: the pay without
 loans and dividends over the months of the period, plus the profit before tax of the period's
 months up to the last complete one from Year's forecast, the ledger's first part month included,
@@ -732,7 +732,7 @@ those months. A dividend pays out profit its months
 already count, so pay leaves it out, and the profit follows the period alone. Its figure opens the
 build-up, which also names what dividends paid in the year after took out, what is left in the
 company and what of it sets off what the owner owes. Without `hr_company_registered` it reads – and
-says so. `ownerNetWithProfit` in `src/packs/hr-doo/domain/ownerNetWithProfit.ts` works it out.
+says so. `ownerNetWithProfit` in `src/apps/company/packs/hr-doo/domain/ownerNetWithProfit.ts` works it out.
 The ring holds each owner pay category paid out on balance, in the colour its band has in the
 chart. Loans can be negative, so "Loans, net" sits under the ring with any category that took back
 more than it paid and the rent tax, and the ring and those lines add up to the Owner take tile. `ownerTakeRing` in
@@ -745,7 +745,7 @@ owes whom reads the advances as booked. Who owes whom, at `?tab=owed`, follows t
 since a balance of one account or category is no debt anyone owes, and a line says so while other
 filters are set. It reads the books as they stood on the period's last day, or on the newest booking
 when the period runs past it, a cost the owner paid after the last bank row included, so last 12 months stand on the last day of the last complete month and
-all time on the newest booking. `owedInPeriod` in `src/packs/hr-doo/domain/owedInPeriod.ts` cuts the
+all time on the newest booking. `owedInPeriod` in `src/apps/company/packs/hr-doo/domain/owedInPeriod.ts` cuts the
 rows and advances at that day and runs the same matching, so a repayment after it is not known and a
 loan can read open there though the whole ledger shows it repaid. The tab holds the Net owed tile,
 which names the day, a line saying how many reimbursements with no cost on file wait on Review
@@ -770,8 +770,8 @@ year it was paid in, on the rows as booked, then the dividend tax on what is lef
 period across years sums each year at its own rates. Without `hr_company_registered` the card says
 the comparison needs it, since the forecast that sets the rate counts from that day. A line says the
 share is your estimate, which the accountant books in full, and "Set the defaults" opens Settings,
-Categories. `ownerBenefits` and `dividendComparison` in `src/packs/hr-doo/domain/ownerBenefits.ts`
-work the figures out. `dividendRoute` in `src/packs/hr-doo/domain/dividend/` gives the dividend
+Categories. `ownerBenefits` and `dividendComparison` in `src/apps/company/packs/hr-doo/domain/ownerBenefits.ts`
+work the figures out. `dividendRoute` in `src/apps/company/packs/hr-doo/domain/dividend/` gives the dividend
 steps, which the next 100.00 of *Pay scenarios* uses too.
 
 A loan from the company to the owner, who is its employee, gives a benefit in kind when it carries
@@ -814,7 +814,7 @@ these holds, each part named by its category, amount and day. The bank row then 
 
 The No asset guard comes from the pack, which keeps those ledger rows whole whatever `owner_pay_module` says.
 The figure screens count a split row through its parts. `presentedWorkbook` in
-`src/features/transactions/application/` puts each part in the row's place, next to the
+`src/apps/company/transactions/application/` puts each part in the row's place, next to the
 owner-pay presentation of the settings: a part keeps the row's day, account, balance, booking order
 and text, and takes its own amount, category, family and bucket. So every profit and loss figure,
 the owner figures, the taxes, the accrual view, the year end and the forecast count the parts, and
@@ -869,7 +869,7 @@ amount, so those assets change profit only once the grant's variable part runs o
 
 ## Accrual year
 
-`accrualYear(workbook, year, inputs, rules)` in `src/packs/hr-doo/domain/accrual/` turns the cash
+`accrualYear(workbook, year, inputs, rules)` in `src/apps/company/packs/hr-doo/domain/accrual/` turns the cash
 ledger into the accrual view of one year: the profit and loss, the balance sheet at 31 December and
 the PD build-up, each line keyed by the `year-end` tab's line ids and each figure traced to its rows
 and rules. It also returns the adjustments that lead from the cash view to the accrual view, and the
@@ -909,7 +909,7 @@ liability lines. The grant not yet released is deferred income. Share capital is
 sheet leaves once every other line is in, so it equals the capital paid in only while every other
 line is right.
 
-`taxBase` and `citLiability` in `src/packs/hr-doo/domain/cit/` lay the PD out by form line: revenue,
+`taxBase` and `citLiability` in `src/apps/company/packs/hr-doo/domain/cit/` lay the PD out by form line: revenue,
 expenses and profit (lines 1 to 3), half of representation with its VAT (6), half of personal
 transport (7), fines and private costs on a `non-deductible` category (9, 11 and 24), depreciation
 above the allowed rates and caps (18), related-party interest only while the company has a tax
@@ -956,7 +956,7 @@ counts as revenue as it stands.
 
 ## Forecast
 
-`forecastYear(workbook, year, asOf, rules)` in `src/packs/hr-doo/domain/forecast/` is the year as
+`forecastYear(workbook, year, asOf, rules)` in `src/apps/company/packs/hr-doo/domain/forecast/` is the year as
 it is likely to end, seen on `asOf`. Ledger rows, owner advances and invoices after that day are
 left out. Every line has twelve months, and each month says what it rests on:
 
@@ -1043,7 +1043,7 @@ that cash over the average monthly cost of October to December, as Overview coun
 last three months: owner pay and the corporate tax falling due are in it, and depreciation and
 disposals, which pay nothing, are not.
 
-`dividendCapacity(year, forecast, workbook, rules)` in `src/packs/hr-doo/domain/dividend/` sets out
+`dividendCapacity(year, forecast, workbook, rules)` in `src/apps/company/packs/hr-doo/domain/dividend/` sets out
 what the forecast leaves to pay out: profit after tax, retained earnings at the start of the year,
 losses brought forward and what the year has paid out already, the distributable amount, and net
 assets after a payout against the share capital. Beside it stand the grant clawback exposure, cash
@@ -1059,7 +1059,7 @@ accountant, never filing advice.
 
 ## Pay scenarios
 
-`payScenarios(workbook, year, asOf, rules)` in `src/packs/hr-doo/domain/scenarios/` works out every
+`payScenarios(workbook, year, asOf, rules)` in `src/apps/company/packs/hr-doo/domain/scenarios/` works out every
 scenario of a year from the `scenarios` tab on the same company figures, with
 `scenarioOutcome(scenario, company, facts, rules)` for each one.
 
@@ -1129,7 +1129,7 @@ of the employment condition, the last two are left out.
 
 ## Year screen
 
-A pack screen at `#/year`, shown while `owner_pay_module` is on. The year picker in its header holds
+A pack screen at `#/company/year`, shown while `owner_pay_module` is on. The year picker in its header holds
 every year the `year-end` tab has lines for, the year before the newest booking's while the ledger
 reaches into it, the newest booking's year and the one after, as `year=` in the address. Without
 `year=` it opens the newest booking's year. A year is seen one of three ways:
@@ -1142,7 +1142,7 @@ reaches into it, the newest booking's year and the one after, as `year=` in the 
 
 An ended year's forecast has every month from the ledger, and its Statements tab holds only the
 accountant's lines, open, where the first ones go. A link to a tab its year lacks, such as
-`#/year?tab=accountant`, opens the latest year that has the tab, and picking a year that lacks the
+`#/company/year?tab=accountant`, opens the latest year that has the tab, and picking a year that lacks the
 open tab opens its first one. Another year leaves out `compare=` and `base=`, since its scenarios
 are its own. The planning notice, the rules the forecast and the scenarios rest on that the ruleset
 only estimates for the year, the roles no category carries, a missing `vat` treatment and, for a
@@ -1235,7 +1235,7 @@ The figures are for planning with the accountant, never filing advice.
 
 ## Salaries screen
 
-A pack screen at `#/salaries`, after Year in the menu, shown while `owner_pay_module` is on. It shows
+A pack screen at `#/company/salaries`, after Year in the menu, shown while `owner_pay_module` is on. It shows
 each payday's pay split into where the money went, and sets the app's payroll and the bank against
 each other, as `salaryReconciliation` below works them out. The
 `employees` tab is the card at its foot with its editor, as *Settings screen* describes for the
@@ -1274,10 +1274,10 @@ as nothing, and what was paid then stands for the net.
 The ring and the bars wear the `--pay-*` tokens in `tokens.css`, series slots 1 to 5 once each,
 checked with the dataviz palette validator in that order and around the ring's join against both
 chart surfaces. Owner, Taken and the payroll cadence on Year, Taxes link here. `SalariesScreen.vue` and
-`salariesView.ts` in `src/packs/hr-doo/presentation/salaries/` are the screen and its figures, and
-`readEmployees` in `src/packs/hr-doo/domain/employees/` reads the tab.
+`salariesView.ts` in `src/apps/company/packs/hr-doo/presentation/salaries/` are the screen and its figures, and
+`readEmployees` in `src/apps/company/packs/hr-doo/domain/employees/` reads the tab.
 
-`salaryReconciliation` in `src/packs/hr-doo/domain/salaries/` sets the payroll engine and the bank
+`salaryReconciliation` in `src/apps/company/packs/hr-doo/domain/salaries/` sets the payroll engine and the bank
 against each other per payday month, employee and line. Neither source wins: every line the two
 state differently is a problem, with the figures and the bank rows behind it.
 
@@ -1324,7 +1324,7 @@ taxable bonus to the month's gross. Neither input is read from the books yet.
 ## Billing plan
 
 The `outgoing-plan` tab is what is to be invoiced, for any freelancer or small business. The
-services in `src/features/billingPlan/domain/` read it with the `invoices` tab:
+services in `src/apps/company/billingPlan/domain/` read it with the `invoices` tab:
 
 - `billingTotals`: everything planned, everything invoiced and the difference over all clients,
   with plan rows by the year of their date and invoices by the year they were issued.
@@ -1356,7 +1356,7 @@ services in `src/features/billingPlan/domain/` read it with the `invoices` tab:
 
 ## Invoicing screen
 
-`#/invoicing` answers what to bill this month and who still owes the company. "Make invoice" in its
+`#/company/invoicing` answers what to bill this month and who still owes the company. "Make invoice" in its
 header is the one way to make an invoice, as *Invoices* describes, for the client of the next
 expected invoice. Four tiles above the tabs are figures as of the newest booking, whatever a tab's
 period, client or year says, and each opens the tab that holds it: the next invoice (the oldest
@@ -1392,7 +1392,7 @@ invoice terms", collapsed, the `billing_` and `invoice_` settings with their own
 settings are. `#invoicing-terms` opens the terms. A client's IBANs are tags: a comma, Enter or leaving
 the field adds the IBAN typed, a pasted list splits at its commas, and each tag has its own remove
 button. The card settlement IBANs on Settings, General are the same field, `IbanTagsField` in
-`src/features/settings/presentation/`. A client on two rows shows both rows left out, with the
+`src/apps/company/settings/presentation/`. A client on two rows shows both rows left out, with the
 reason, and Save stays off while both rows are there. Typing the second row's IBANs into the first
 row and deleting the second row, then one Save, merges them. That save has no Undo, since Undo
 never puts back a second row of one client.
@@ -1420,7 +1420,7 @@ invoices are listed (issued in it, or still open) and which payments count for d
 ## Invoices
 
 "Make invoice" in the header of Invoicing makes an invoice the way the invoice generator
-did, and drafts its mail without sending it. The services are in `src/features/invoicing/`.
+did, and drafts its mail without sending it. The services are in `src/apps/company/invoicing/`.
 
 - **The form.** The issue date is today. The number is the next one by `invoice_number_pattern`
   among the invoices issued in that year, over every client, so `{n}-1-{yy}` after `9-1-26` gives
@@ -1470,7 +1470,7 @@ generator wrote.
 
 ## Where the books are kept
 
-A first run goes to onboarding at `#/start?step=…` (`src/features/onboarding/`), on the ruled page
+A first run goes to onboarding at `#/company/start?step=…` (`src/apps/company/onboarding/`), on the ruled page
 with the brass mark. The route holds the step and the choices made so far, so a phone that leaves
 for Google comes back into the step it left. Each step is one card with one primary button, under a
 row that numbers the steps of the path. The order of each path is `stepsOf` in
@@ -1499,7 +1499,7 @@ row that numbers the steps of the path. The order of each path is `stepsOf` in
   the folder confirm shows the full path. Opening books asks for the books file alone, since what else they
   need is in the file, which is read only after Google answered. Their first sync shows "Allow
   access" when they need more.
-- **From my mail** names the bank: a preset, today Erste (`src/features/mail/domain/bankPresets.ts`)
+- **From my mail** names the bank: a preset, today Erste (`src/apps/company/mail/domain/bankPresets.ts`)
   with its sender and subject words as the Erste fetch searched for them, or "Another bank" with the
   sender address and subject words typed in, which must be a mail address and words Gmail can
   search for before the step goes on. "Mail since" starts at 1 January of this year. The route
@@ -1539,7 +1539,7 @@ row that numbers the steps of the path. The order of each path is `stepsOf` in
   none. Two marked files are refused, and so is a backup or another app's file picked there.
 
 "Switch data source" on Settings, This device keeps three ways in (`DataSourceChoices` in
-`src/features/data-source/presentation/`): Find the file and Pick another file, "Open a file", whose
+`src/apps/company/data-source/presentation/`): Find the file and Pick another file, "Open a file", whose
 summary keeps the file in this browser or hands it to onboarding's Google and Folder steps, and
 "Start new books", which starts onboarding.
 
@@ -1547,7 +1547,7 @@ Overview's "Getting set up" card lists what new books still lack, each line link
 and gone once done: the first statement, the statements folder while filing on sync is on without
 one, a look over the categories while they are the ones new books start with, and the invoice
 details once there is a client. `gettingSetUp` in
-`src/features/onboarding/presentation/gettingSetUp.ts` builds it.
+`src/apps/company/onboarding/presentation/gettingSetUp.ts` builds it.
 
 To move the books from the Google Sheet, download the Sheet as xlsx, open it here, compare the
 counts per tab with the Sheet's, and keep it on Google Drive. Do not edit the Sheet between the
@@ -1593,10 +1593,10 @@ SheetJS loads only on the first import or export, as its own chunk.
 
 ## Import
 
-The Import tab of Transactions, at `#/transactions?tab=import`, adds a bank statement to the ledger
+The Import tab of Transactions, at `#/company/transactions?tab=import`, adds a bank statement to the ledger
 in both homes. Drop or pick a file. Nothing is written until the dry run is confirmed, and Undo in
 the toast takes the rows out again. Once confirmed, the dry run says how many of the new rows wait
-on Review, with a link there. The services are in `src/features/imports/`.
+on Review, with a link there. The services are in `src/apps/company/imports/`.
 
 With the file on Drive, "From the statements folder" sits above the file drop, `StatementFolderCard`
 beside `ImportPanel`. It shows what the last sync did with the folder, as *Sync* describes: the
@@ -1672,7 +1672,7 @@ the others are still written. A file without balances gets them worked out from 
 leaves the account.
 
 **The write** adds ledger records, checked by `LEDGER_WRITES` in
-`src/features/imports/application/ledgerWrites.ts`, each new row with its own `id`, in one write
+`src/apps/company/imports/application/ledgerWrites.ts`, each new row with its own `id`, in one write
 with the rest of the document. Right before writing, the ledger as it is then is checked again: a
 new row already on it by its account and reference is refused, as any record the workbook holds
 already is, which happens when another device's sync filed the statement since the dry run. A row
@@ -1683,8 +1683,10 @@ the rows out whole.
 
 ## Settings screen
 
-The screen at `#/settings`, set apart at the foot of the menu, holds how the workbook and this device
-are set up, and the law behind the figures, one tab each:
+The shell's screen at `#/settings`, set apart at the foot of the menu, holds how the workbook and this device
+are set up, and the law behind the figures, one tab each. The company app gives General, Categories
+and Accounts, the pack adds Ruleset through it, and This device holds the company's Data source and
+Sync cards beside the shell's Appearance and privacy card. Each app's parts load with the screen:
 
 | Tab | What it holds |
 |---|---|
@@ -1699,7 +1701,7 @@ that names a fact by its field, such as `#/settings#owner-loan-interest` or
 `#company-registered` from Year, opens the facts card and lands on the field. The clients tab and
 the billing and invoice terms are on Invoicing, Clients, the rules on Review, Rules, and the assets,
 grants and year-end tabs on the Year screen. Each of those is `FactTabCard` in
-`src/features/settings/presentation/`, a card that edits one tab as this screen does.
+`src/apps/company/settings/presentation/`, a card that edits one tab as this screen does.
 
 The tabs are `PageTabs` in `src/shared/ui/`, which any screen with inner tabs uses: the tab is
 `?tab=` in the address and the first tab stays out of it, picking a tab adds a step to the history
@@ -1745,7 +1747,7 @@ error shows whatever the filters say, and the count line says how many show only
 nothing Save would write or refuse is out of view. A row that another row's change puts in error
 while it is hidden, such as a name taken twice, joins the foot of the list. Add category puts the
 new row at the foot, whatever the sort, scrolls the table to it and focuses its name, and it stays
-at the foot until it is saved. `categoryListing` in `src/features/settings/domain/categoryListing.ts`
+at the foot until it is saved. `categoryListing` in `src/apps/company/settings/domain/categoryListing.ts`
 decides what shows and in which order. `SortableHeader` in `src/shared/ui/` is the header cell of a
 plain table's column that sorts.
 
@@ -1783,6 +1785,7 @@ npm run check:visual   # every screen at nine widths from 360 to 2560 in local C
 npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from This device with the Drive read its folders need, a race kept on both sides, the newer-file notice, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
+npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff
 ```
 
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
@@ -1806,7 +1809,7 @@ and a Croatian bank's xlsx export with a title above the header, text dates, a d
 debit and credit columns and a total below, which no saved profile fits yet. Both start from the
 same balance, so once one is imported the other is refused. The variant kept in this browser sets the billing settings and has its director, Alex, on the `employees` tab, so the Drive variant shows Salaries without one.
 `?fake=one-employee` and `?fake=five-employees` are the file on Drive with a made-up staff in place of
-the owner's flat salary, from `src/packs/hr-doo/infrastructure/fake/fakeStaff.ts`: the owner alone at
+the owner's flat salary, from `src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff.ts`: the owner alone at
 the director floor, or with four ordinary employees on agreed salaries in three cities, one outside
 pillar II, one with two children and one who joins in February 2026. Each payday pays every net
 salary with a meal allowance to its employee and each contribution in one sum to its payee, as the
@@ -1826,7 +1829,7 @@ new. `?fake=held-statement` adds a statement of an account the accounts tab lack
 label alone, which the sync holds until the account is named on Import, and `?fake=slow-statements` takes three seconds to list the folder,
 so a check sees the sync control while the step runs. `?fake=mail` names the bank's and the
 accountant's mail at example.com addresses, and a mailbox held in memory
-(`src/features/mail/infrastructure/fake/fakeMailbox.ts`) answers the mail step with made-up subjects
+(`src/apps/company/mail/infrastructure/fake/fakeMailbox.ts`) answers the mail step with made-up subjects
 and file names: mail to file, mail already in the folders, a VAT correction, a return Drive gives no
 checksum for, and two unmatched attachments. There the sample statement comes by mail, so the
 statements folder lacks it until a sync files it, and the statements step of that sync reads it. The
@@ -1846,8 +1849,8 @@ without it.
 Every name, IBAN and amount in it is made up. `?fake=browser` keeps it as a workbook kept in this
 browser with changes nine days past their last export and owner loans that carry 2.5%, so they give
 no benefit in kind, and `?fake=empty` starts with nothing, which is the first run: onboarding, whose folder
-Picker picks a `Books` folder on the fake Drive. Any variant reaches onboarding at `#/start`, such as
-`#/start?path=open` to find the fake Drive's books. A variant that ends in `no-scenarios`, `no-plan` or
+Picker picks a `Books` folder on the fake Drive. Any variant reaches onboarding at `#/company/start`, such as
+`#/company/start?path=open` to find the fake Drive's books. A variant that ends in `no-scenarios`, `no-plan` or
 `no-billing-plan`, such as `?fake=no-plan` or `?fake=browser-no-plan`, starts without those records,
 so the starting scenarios and the first plan line have nothing before them. `?fake=newer-file` is a
 file a newer app saved, which the app shows and never writes. With `?fake=race` a phone files the
@@ -1880,34 +1883,47 @@ before a commit. The address of the preview can go before or after the options.
 `check:pwa` serves the production build itself and sends every other origin to a dead proxy, so it
 needs no preview and makes no call to Google.
 
-In development and fake builds, `#/gallery` shows every shared component and chart style with
+In development and fake builds, `#/company/gallery` shows every shared component and chart style with
 made-up figures, in whichever theme `?theme=light` or `?theme=dark` pins. The route does not exist
 in a production build.
 
+### The shell and its apps
+
+The app is a thin shell with apps inside it, today one, the company's books. `src/main.ts` imports
+each app's `app.ts` as the page starts, installs it, then mounts the shell. `src/shell` holds the
+frame, the router, the app registry and the Settings screen. `src/shared` is the kernel every app
+uses: the UI kit, the calendar, money and text helpers, Google, the document storage, and
+`AppContribution` in `src/shared/app/appContribution.ts`, which says what an app gives the shell:
+its screens and menu, its first run, its sync control, its parts of Settings and what it starts as
+the page opens. `src/apps/company` is the company app, and every route of it starts with
+`#/company`: Overview at `#/company`, Transactions at `#/company/transactions`, onboarding at
+`#/company/start`. `#/` opens the home app's first screen, and so does an address no screen has.
+Settings stays the shell's, at `#/settings`.
+
 ### Core and the pack
 
-`src/features` and `src/shared` are the core, and `src/packs/hr-doo` is the Croatian d.o.o. pack.
+`src/apps/company` outside its packs is the company's core, and `src/apps/company/packs/hr-doo` is the Croatian d.o.o. pack.
 The pack reaches core screens through one contribution, `hrDooPack` in
-`src/packs/hr-doo/hrDooPack.ts`, of the type `PackContribution` in
-`src/features/packs/packContribution.ts`. Its slots are the pack's part of the workbook, the Owner,
+`src/apps/company/packs/hr-doo/hrDooPack.ts`, of the type `PackContribution` in
+`src/apps/company/packs/packContribution.ts`. Its slots are the pack's part of the workbook, the Owner,
 Year and Salaries screens, Overview's jobs after the core ones, the Review card of reimbursements with no
 cost on file, the Ruleset tab and the loan card of Settings, the company and owner facts card with
 its checks, the links of the spending breakdown, and the accountant's three kinds of mail, which the mail step reads after the bank's
-(`src/packs/hr-doo/application/accountantMailSources.ts`, named by
-`src/packs/hr-doo/domain/accountant/accountantMailFiling.ts`). `main.ts` loads the contribution and the pack's
-tabs with a dynamic import and installs both before it makes the router or reads a workbook, so the
-pack stays out of the entry chunk. While `owner_pay_module` is off, core shows none of it but the
+(`src/apps/company/packs/hr-doo/application/accountantMailSources.ts`, named by
+`src/apps/company/packs/hr-doo/domain/accountant/accountantMailFiling.ts`). The company app's `app.ts` installs the
+contribution and the pack's tabs before the router is made or a workbook is read, and `main.ts`
+loads `app.ts` with a dynamic import, so the company app and its pack stay out of the entry chunk. While `owner_pay_module` is off, core shows none of it but the
 routes, and the pack's part is still read, so the rows the pack keeps whole still count whole. Every
 spec runs with the pack installed, through `tests/setup/installPack.ts`, and so do the scripts that
 read or write a workbook, through `scripts/support/installPack.mjs`.
 
 The pack owns its records. Owner advances, assets, grants, year-end lines, plan lines, pay
-scenario rows and employees have their types, factories and codecs in `src/packs/hr-doo/domain/`, their kinds in
+scenario rows and employees have their types, factories and codecs in `src/apps/company/packs/hr-doo/domain/`, their kinds in
 `hrDooKinds.ts`, each named with the pack's `hr-doo.` prefix, such as `hr-doo.asset`, their `WriteRules` in `hrDooWrites.ts` and `HR_DOO_PART`, which lists the kinds with
 their rules, in `hrDooPart.ts` there. Their tab mappings are in
-`src/packs/hr-doo/infrastructure/hrDooTabs.ts`, the records the plan, scenario and advance dialogs
-make in `src/packs/hr-doo/application/`, and their editor columns in
-`src/packs/hr-doo/presentation/editorColumns.ts`. The core `Workbook` carries them in `packParts`,
+`src/apps/company/packs/hr-doo/infrastructure/hrDooTabs.ts`, the records the plan, scenario and advance dialogs
+make in `src/apps/company/packs/hr-doo/application/`, and their editor columns in
+`src/apps/company/packs/hr-doo/presentation/editorColumns.ts`. The core `Workbook` carries them in `packParts`,
 which `packPart(workbook, key)` reads, and the pack's screens read the workbook through
 `hrDooWorkbook`, core's records with the pack's part. When the workbook is read, the part hands
 core the two things core counts of it: the owner advances, as `ownerAdvances`, which profit and
@@ -1922,31 +1938,41 @@ pack's keys to it, neither reading nor reporting them, and the pack reads them w
 `tests/importBoundaries.spec.ts` runs with the unit tests and fails on an import that breaks a rule,
 naming the file, the line and the import:
 
-- A `domain` folder, and the pack's ruleset outside its presentation, imports only domain code and
-  `src/shared/calendar`, `src/shared/money` and `src/shared/text`.
-- Core, which is `src/features`, `src/shared` and `src/App.vue`, imports nothing from `src/packs`.
-  Only `main.ts` does.
-- Nothing outside `src/features/workbook` imports its `infrastructure`, the document storage and
-  the xlsx mapping. The exceptions are `main.ts`, which installs the pack's tabs and loads the fake
-  seed, the fake build's data in an `infrastructure/fake/` folder, and a pack's `infrastructure`,
+- `src/shared` imports nothing from `src/shell` or `src/apps`.
+- `src/shell` imports nothing from `src/apps`. Only `main.ts` reaches an app, by a dynamic import of
+  its `app.ts`.
+- An app imports `src/shared` and its own folder, never `src/shell` or another app.
+- An app's code outside its packs imports nothing from a pack. Only the app's `app.ts` does, to
+  install it.
+- A pack imports its own folder, its app and `src/shared`.
+- A `domain` folder, and the pack's ruleset outside its presentation, imports only domain code of
+  its own app and `src/shared/storage/domain`, `src/shared/calendar`, `src/shared/money` and
+  `src/shared/text`.
+- Nothing outside an app's `workbook` folder and `src/shared/storage` imports their `infrastructure`, the document storage and
+  the xlsx mapping. The exceptions are the app's `app.ts`, which installs the pack's tabs, loads the
+  fake seed and reads which books this device opens for the sign-in as the app opens, the fake build's data in an `infrastructure/fake/` folder, and a pack's `infrastructure`,
   which maps its tabs with `spreadsheetTab.ts`, `packTabs.ts`, `workbookTemplate.ts` and
   `cellFormats.ts`. A screen reaches them through the workbook's own presentation, such as
   `workbookFiles.ts`.
 - An `application` folder imports no `infrastructure` folder. The exceptions are the files that wire
-  adapters in, `src/features/workbook/application/workbookStore.ts` and
-  `src/features/invoicing/application/invoiceGoogle.ts`.
+  adapters in, `src/apps/company/workbook/application/workbookStore.ts` and
+  `src/apps/company/invoicing/application/invoiceGoogle.ts`.
 
-It also fails on a line of `src` outside `src/features/workbook/infrastructure` that names
+`tests/kindNames.spec.ts` checks that each kind the company app stores has a name of its own, and
+that each pack kind starts with its pack's name and a dot while core's kinds stay bare. The
+document lists records by kind name, and `codecOfKind` takes the first codec with the name.
+
+It also fails on a line of `src` outside those `infrastructure` folders that names
 `sheetRow`, so row numbers stay with the xlsx mapping, and on `as RecordId` outside
-`src/features/workbook/domain/recordId.ts`. Elsewhere a record is known by its `RecordId`: its kind and its
+`src/shared/storage/domain/recordId.ts`. Elsewhere a record is known by its `RecordId`: its kind and its
 key or id, which `recordIdOf` makes and only a storage reads apart, with `keyOfRecordId`, to write
 the id of a kind without a business key. A storage gives each record it reads its id, and a
 record's own domain makes one where it states identity, such as `categoryIdOf`. Every kind's codec,
 core's and the installed pack's, is found by its kind through `recordCodecs.ts` in
-`src/features/workbook/application/`, the pack's through `PackPart.codecs`.
+`src/apps/company/workbook/application/`, the pack's through `PackPart.codecs`.
 
 Each kind's domain gives its codec beside its factory, such as `INVOICE_CODEC` beside `invoiceOf`
-in `src/features/workbook/domain/invoicesReading.ts`, or `ASSET_CODEC` beside `assetOf` in the pack's
+in `src/apps/company/workbook/domain/invoicesReading.ts`, or `ASSET_CODEC` beside `assetOf` in the pack's
 `domain/assets/assetsReading.ts`. A `RecordCodec` (`recordCodec.ts`) says, whatever the storage, the
 key or id a record's stored fields hold, the words that name it, the record its factory makes of
 them or why it refuses them, and `fieldsOf`, the fields a record is stored as: a day as
@@ -1975,7 +2001,7 @@ the text of the record's fields, which becomes fields as `fieldsOf` gives them, 
 Google sign-in, the redirect, the session, Drive, the reads kept from it, the Picker and the script
 loader are in `src/shared/google/`, and reading a spreadsheet file's tabs with SheetJS in
 `src/shared/xlsx/`. The document's homes, on Drive and in this browser, are in
-`src/features/workbook/infrastructure/`.
+`src/shared/storage/infrastructure/`.
 
 ## Write-back
 
@@ -1987,13 +2013,13 @@ make, or discarded. The write is one write: checked whole, applied whole, or ref
 reason and nothing written. `useRecordWrites` gives it a toast that names the records by their
 labels, with Undo beside it where the write keeps one.
 
-Each kind's `WriteRules` (`src/features/workbook/domain/writeRules.ts`) sit with the feature or pack
+Each kind's `WriteRules` (`src/shared/storage/domain/writeRules.ts`) sit with the feature or pack
 that owns the kind: categories, accounts and clients in
-`src/features/settings/application/namedRecordWrites.ts`, settings in `settingWrites.ts` beside it,
-rules in `src/features/rules/application/ruleWrites.ts`, ledger rows in
-`src/features/imports/application/ledgerWrites.ts`, and invoices, the billing plan, split parts and
+`src/apps/company/settings/application/namedRecordWrites.ts`, settings in `settingWrites.ts` beside it,
+rules in `src/apps/company/rules/application/ruleWrites.ts`, ledger rows in
+`src/apps/company/imports/application/ledgerWrites.ts`, and invoices, the billing plan, split parts and
 dismissals in the `*Writes.ts` file of their feature's `application` folder. The pack's are in
-`src/packs/hr-doo/domain/hrDooWrites.ts`. The rules name the kinds their checks read, the fields a
+`src/apps/company/packs/hr-doo/domain/hrDooWrites.ts`. The rules name the kinds their checks read, the fields a
 change may touch, the kind's own checks and its reader, and whether a write keeps Undo. One write:
 
 1. Reads fresh the kinds it touches and the kinds their checks read.
@@ -2061,12 +2087,12 @@ session list is held in memory, so a reload clears it.
 
   The loan switch on Settings, General is a change to the `bucket` of the loan categories.
 
-The storage is a port, `RecordStorage` (`src/features/workbook/application/recordStorage.ts`). The
-store, `createWorkbookStore.ts` in the same folder, holds the unit of work, the copy on screen and
+The storage is a port, `RecordStorage` (`src/shared/storage/application/recordStorage.ts`). The
+store, `createWorkbookStore.ts` in `src/apps/company/workbook/application/`, holds the unit of work, the copy on screen and
 the session list. `workbookStore.ts` beside it wires the document storage in and gives the screens
 `useWorkbook`. The copy on screen is the document whole with its revision, which the cache in
 IndexedDB keeps as one row (`workbookCache.ts`). `documentRecordStorage.ts` in
-`src/features/workbook/infrastructure/` keeps every kind's records in that one document, in a file
+`src/shared/storage/infrastructure/` keeps every kind's records in that one document, in a file
 on Drive or in this browser. A read decodes the document and makes each record with its kind's
 factory. A write works out the next document in memory: an added record goes at the end of its
 kind, a changed one takes the fields the change alters and keeps every other field, a field the app
@@ -2220,7 +2246,7 @@ dev server adds `ws://localhost:*` for hot reload.
 ## Ruleset
 
 The Ruleset tab of Settings shows the Croatian law the d.o.o. pack computes with, as
-`src/packs/hr-doo/ruleset/` holds it. Under the search sits the Watch list, collapsed, which
+`src/apps/company/packs/hr-doo/ruleset/` holds it. Under the search sits the Watch list, collapsed, which
 gathers the estimate, pending and unconfirmed versions with the matters the ruleset has no value for
 yet, ten at a time. Then every rule is one line under its area (profit tax, owner pay, accounting,
 VAT and company law), whose heading stays in view as the list scrolls: its name, its id, the value
@@ -2254,7 +2280,7 @@ the director's row on the `employees` tab names.
 `hr.pit.local-rates` holds the lower and higher rate of every one of the 556 cities and
 municipalities, with the NN issue of its decision and the day it applies from. A unit listed with NN
 114/23 alone adopted no decision and has 20% and 30%. The data is
-`src/packs/hr-doo/ruleset/rules/generatedLocalRates.ts`, which is never edited by hand:
+`src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts`, which is never edited by hand:
 
 ```sh
 npm run import:local-rates -- --table 2025-01-01=<xlsx> --table 2025-03-01=<xlsx> --table 2026-01-01=<xlsx> --census <xlsx>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { chartedMonths, ledgerYears, periodWithPreset } from '../src/features/filters/domain/periodPresets'
+import { chartedMonths, ledgerYears, periodWithPreset } from '../src/apps/company/filters/domain/periodPresets'
 import { civil, windowOf } from './fixtures/ledger'
 
 // Complete months run from 2025-06 to 2026-09. October 2026 is the part-month.

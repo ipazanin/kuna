@@ -9,21 +9,21 @@ import {
   settingCodec,
   settingsErrors,
   settingsTabEntries,
-} from '../src/features/settings/domain/settings'
-import type { PackSettings, SettingRow } from '../src/features/settings/domain/settings'
+} from '../src/apps/company/settings/domain/settings'
+import type { PackSettings, SettingRow } from '../src/apps/company/settings/domain/settings'
 import {
   costLabelsInSentence,
   inSentence,
   lineLabel,
   presentedTransactions,
   shownLines,
-} from '../src/features/settings/domain/profitAndLossLabels'
-import { bucketTotals } from '../src/features/workbook/domain/bucketTotals'
+} from '../src/apps/company/settings/domain/profitAndLossLabels'
+import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
+import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { euros, ledger } from './fixtures/ledger'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { SETTING_RECORDS } from '../src/features/workbook/domain/recordKind'
-import { storedFieldOf } from '../src/features/workbook/domain/storedFields'
-import { COMPANY_FACT_SETTINGS, companyFactsErrors } from '../src/packs/hr-doo/domain/companyFacts'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
+import { COMPANY_FACT_SETTINGS, companyFactsErrors } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
 
 /** A cell of the value column, undefined for a blank one. */
 type Cell = string | number | boolean | undefined

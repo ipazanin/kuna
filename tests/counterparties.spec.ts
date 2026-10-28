@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { counterpartyIdentity, counterpartyLabels } from '../src/features/workbook/domain/counterpartyIdentity'
-import { topCounterparties } from '../src/features/spending/domain/topCounterparties'
+import { counterpartyIdentity, counterpartyLabels } from '../src/apps/company/workbook/domain/counterpartyIdentity'
+import { topCounterparties } from '../src/apps/company/spending/domain/topCounterparties'
 import { PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'

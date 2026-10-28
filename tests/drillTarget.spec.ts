@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyDrill } from '../src/features/filters/domain/drillTarget'
-import { DEFAULT_FILTERS } from '../src/features/filters/domain/filterState'
+import { applyDrill } from '../src/apps/company/filters/domain/drillTarget'
+import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
 import { euros } from './fixtures/ledger'
 
 describe('applyDrill', () => {

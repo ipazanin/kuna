@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import type { RecordFields } from '../src/features/workbook/domain/recordFields'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import type { RecordsRead } from '../src/features/workbook/domain/recordsRead'
-import { refusalOr, storedFieldsOfValues } from '../src/features/workbook/domain/storedFields'
-import type { Employee } from '../src/packs/hr-doo/domain/employees/employees'
-import { payrollDirector, weekdaysEmployed } from '../src/packs/hr-doo/domain/employees/employees'
-import { EMPLOYEE_CODEC, employeeOf, readEmployees } from '../src/packs/hr-doo/domain/employees/employeesReading'
-import { EMPLOYEE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
-import { EMPLOYEE_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
-import { payrollMonth } from '../src/packs/hr-doo/domain/payroll/payrollMonth'
-import { payScenarios } from '../src/packs/hr-doo/domain/scenarios/payScenarios'
-import { payState } from '../src/packs/hr-doo/presentation/payScenarios/payScenariosView'
+import type { RecordFields } from '../src/shared/storage/domain/recordFields'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import type { RecordsRead } from '../src/shared/storage/domain/recordsRead'
+import { refusalOr, storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
+import type { Employee } from '../src/apps/company/packs/hr-doo/domain/employees/employees'
+import { payrollDirector, weekdaysEmployed } from '../src/apps/company/packs/hr-doo/domain/employees/employees'
+import { EMPLOYEE_CODEC, employeeOf, readEmployees } from '../src/apps/company/packs/hr-doo/domain/employees/employeesReading'
+import { EMPLOYEE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
+import { EMPLOYEE_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
+import { payrollMonth } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollMonth'
+import { payScenarios } from '../src/apps/company/packs/hr-doo/domain/scenarios/payScenarios'
+import { payState } from '../src/apps/company/packs/hr-doo/presentation/payScenarios/payScenariosView'
 import { director } from './fixtures/employees'
 import { exampleStudio } from './fixtures/exampleStudio'
 import { civil, euros, month } from './fixtures/ledger'
@@ -164,7 +164,7 @@ describe('the payroll of a director row', () => {
       const state = payState(workbook, 2027, civil('2026-10-01'))
       return state.state === 'needs' ? [state.need, state.action.to] : state.state
     }
-    const toEmployees = { path: '/salaries', hash: '#employee-rows' }
+    const toEmployees = { path: '/company/salaries', hash: '#employee-rows' }
 
     expect(needs(registered)).toEqual(['a director on the employees tab', toEmployees])
     const cityless = director({ residence_city: '' })

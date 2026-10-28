@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { googleStatementFolder } from '../src/features/imports/infrastructure/googleStatementFolder'
+import { googleStatementFolder } from '../src/apps/company/imports/infrastructure/googleStatementFolder'
 import { downloadFile, listChildren } from '../src/shared/google/driveClient'
 
 const FOLDER = "mimeType = 'application/vnd.google-apps.folder' and trashed = false"

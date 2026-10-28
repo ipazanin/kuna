@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { dividendCapacity } from '../src/packs/hr-doo/domain/dividend/dividendCapacity'
-import type { DividendCapacity, PayoutOption, PayoutOptionId } from '../src/packs/hr-doo/domain/dividend/dividendCapacity'
-import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
-import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import { dividendCapacity } from '../src/apps/company/packs/hr-doo/domain/dividend/dividendCapacity'
+import type { DividendCapacity, PayoutOption, PayoutOptionId } from '../src/apps/company/packs/hr-doo/domain/dividend/dividendCapacity'
+import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
+import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { subtractMoney } from '../src/shared/money/money'
 import { yearEndLine } from './fixtures/exampleStudio'
 import { withPackBuckets } from './fixtures/hrDooCategories'

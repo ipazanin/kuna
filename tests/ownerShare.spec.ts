@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { filedIn, movedTo, ownerShareOf, ownerShareProblem, storedOwnerShare } from '../src/features/owner-share/domain/ownerShare'
-import type { OwnerShare } from '../src/features/owner-share/domain/ownerShare'
-import { categoryShareRefusals } from '../src/features/settings/domain/categoryGuards'
-import { storedFieldOf } from '../src/features/workbook/domain/storedFields'
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { filedIn, movedTo, ownerShareOf, ownerShareProblem, storedOwnerShare } from '../src/apps/company/owner-share/domain/ownerShare'
+import type { OwnerShare } from '../src/apps/company/owner-share/domain/ownerShare'
+import { categoryShareRefusals } from '../src/apps/company/settings/domain/categoryGuards'
+import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import { EMPTY_TABS, sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookSnapshot } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { withIds } from './fixtures/rowIds'
 
 const share = (percent: number): OwnerShare => ownerShareOf(percent)!

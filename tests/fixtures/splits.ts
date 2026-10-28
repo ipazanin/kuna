@@ -1,9 +1,9 @@
+import { SPLIT_PART_RECORDS } from '../../src/apps/company/workbook/domain/coreKinds'
 import { moneyFromAmount } from '../../src/shared/money/money'
-import { splitLedger } from '../../src/features/workbook/domain/splits'
-import type { LedgerSplit } from '../../src/features/workbook/domain/splits'
-import type { Category, Transaction } from '../../src/features/workbook/domain/workbook'
-import { recordIdOf } from '../../src/features/workbook/domain/recordId'
-import { SPLIT_PART_RECORDS } from '../../src/features/workbook/domain/recordKind'
+import { splitLedger } from '../../src/apps/company/workbook/domain/splits'
+import type { LedgerSplit } from '../../src/apps/company/workbook/domain/splits'
+import type { Category, Transaction } from '../../src/apps/company/workbook/domain/workbook'
+import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 
 /** A split of one row into parts given in euros with their categories, each part on its own row of the splits tab from row 2. */
 export function splitOf(row: Transaction, parts: readonly (readonly [amount: number, category: string, note?: string])[], categories: readonly Category[]): LedgerSplit {

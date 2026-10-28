@@ -66,7 +66,7 @@ async function importFile(path) {
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text())
   })
-  await page.goto(`${appUrl}#/start?path=bring&home=browser&step=file`, { waitUntil: 'networkidle0' })
+  await page.goto(`${appUrl}#/company/start?path=bring&home=browser&step=file`, { waitUntil: 'networkidle0' })
   const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
   await input.uploadFile(path)
   const outcome = await page

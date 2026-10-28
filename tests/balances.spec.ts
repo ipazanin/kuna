@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { balanceSeries, latestBalances } from '../src/features/cash/domain/balances'
+import { balanceSeries, latestBalances } from '../src/apps/company/cash/domain/balances'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const rows = ledger([

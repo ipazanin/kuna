@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import * as XLSX from 'xlsx'
 
-const DEFAULT_OUT = join(dirname(fileURLToPath(import.meta.url)), '../src/packs/hr-doo/ruleset/rules/generatedLocalRates.ts')
+const DEFAULT_OUT = join(dirname(fileURLToPath(import.meta.url)), '../src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts')
 
 /** Zakon o lokalnoj i područnoj (regionalnoj) samoupravi, Art. 19.a(1): a large town has more than 35,000 inhabitants. */
 const LARGE_TOWN_POPULATION = 35_000

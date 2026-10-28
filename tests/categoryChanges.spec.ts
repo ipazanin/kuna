@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { categoryChanges } from '../src/features/period-review/domain/categoryChanges'
+import { categoryChanges } from '../src/apps/company/period-review/domain/categoryChanges'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 
 const rows = ledger([

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { priorEqualPeriod, priorPeriod } from '../src/features/filters/domain/periodComparison'
+import { priorEqualPeriod, priorPeriod } from '../src/apps/company/filters/domain/periodComparison'
 import { civil, windowOf } from './fixtures/ledger'
 
 const window = windowOf('2025-05-14', '2026-10-08')

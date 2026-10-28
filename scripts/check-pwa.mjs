@@ -188,10 +188,10 @@ try {
   // Firefox's WebDriver offline emulation rejects navigation before service-worker handling.
   serverUnavailable = true
   if (browserName === 'chrome') await page.setOfflineMode(true)
-  await page.goto(`${appUrl}?offline-check=1#/transactions`)
+  await page.goto(`${appUrl}?offline-check=1#/company/transactions`)
   await waitForTitle(page, 'Transactions')
   await page.waitForFunction(() => document.body.innerText.includes('Northwind Analytics'))
-  await page.goto(`${appUrl}?offline-check=2#/analysis?tab=over-time`)
+  await page.goto(`${appUrl}?offline-check=2#/company/analysis?tab=over-time`)
   await waitForTitle(page, 'Analysis')
   await page.waitForSelector('.chart-body canvas')
   await page.reload()
@@ -240,7 +240,7 @@ try {
   await reopened.setCacheEnabled(false)
   serverUnavailable = true
   if (browserName === 'chrome') await reopened.setOfflineMode(true)
-  await reopened.goto(`${appUrl}?offline-check=updated#/analysis?tab=over-time`)
+  await reopened.goto(`${appUrl}?offline-check=updated#/company/analysis?tab=over-time`)
   await waitForTitle(reopened, 'Analysis')
   await reopened.waitForSelector('.chart-body canvas')
   await context.close()

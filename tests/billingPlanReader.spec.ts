@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { BILLING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import { EMPTY_TABS, sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { withIds } from './fixtures/rowIds'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { BILLING_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
 /** Serial numbers of the date cells the rows below use. */
 const DAY = {

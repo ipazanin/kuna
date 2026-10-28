@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { euroSplit } from '../src/features/overview/domain/euroSplit'
-import { runway } from '../src/features/overview/domain/runway'
-import { recentChange, windowAverages } from '../src/features/overview/domain/windowAverages'
+import { euroSplit } from '../src/apps/company/overview/domain/euroSplit'
+import { runway } from '../src/apps/company/overview/domain/runway'
+import { recentChange, windowAverages } from '../src/apps/company/overview/domain/windowAverages'
 import { ZERO } from '../src/shared/money/money'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 

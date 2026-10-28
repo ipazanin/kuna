@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createSync } from '../src/features/sync/application/sync'
-import type { SyncPorts, SyncStep } from '../src/features/sync/application/sync'
-import { BOOKS_STEP, syncControlOf } from '../src/features/sync/domain/syncRun'
-import type { PageAccess, StepResult, SyncScope } from '../src/features/sync/domain/syncRun'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
+import { createSync } from '../src/apps/company/sync/application/sync'
+import type { SyncPorts, SyncStep } from '../src/apps/company/sync/application/sync'
+import { BOOKS_STEP, syncControlOf } from '../src/apps/company/sync/domain/syncRun'
+import type { PageAccess, StepResult, SyncScope } from '../src/apps/company/sync/domain/syncRun'
+import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 
 const AT = '2026-10-26T07:00:00.000Z'
@@ -247,7 +247,7 @@ describe('a sync', () => {
         step('statements', 'drive.readonly', async (report) => {
           report('Filing 4 rows')
           seen = harnessed.control()
-          return { kind: 'waits', line: '1 statement was not filed.', writeId: 3, link: { label: 'Import', to: '/transactions?tab=import' } }
+          return { kind: 'waits', line: '1 statement was not filed.', writeId: 3, link: { label: 'Import', to: '/company/transactions?tab=import' } }
         }),
       ],
     })

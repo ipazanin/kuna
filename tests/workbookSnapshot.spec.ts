@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 
 describe('sheetRowsFromValues', () => {
   it('keys each data row by header and numbers it from sheet row 2', () => {

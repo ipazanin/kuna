@@ -1,12 +1,12 @@
 import { cellText } from '../../src/shared/text/cellText'
-import type { WorkbookStore } from '../../src/features/workbook/application/createWorkbookStore'
-import type { WorkbookCopy } from '../../src/features/workbook/application/workbookPorts'
-import { recordsOfKindIn } from '../../src/features/workbook/domain/readWorkbook'
-import type { RecordId } from '../../src/features/workbook/domain/recordId'
-import type { RecordKind } from '../../src/features/workbook/domain/recordKind'
-import type { ReadRecord, RecordsRead } from '../../src/features/workbook/domain/recordsRead'
-import { recordsOfRows, spreadsheetTabOfKind } from '../../src/features/workbook/infrastructure/spreadsheetTab'
-import type { Cells } from '../../src/features/workbook/infrastructure/spreadsheetTab'
+import type { WorkbookStore } from '../../src/apps/company/workbook/application/createWorkbookStore'
+import type { WorkbookCopy } from '../../src/shared/storage/application/workbookPorts'
+import { recordsOfKindIn } from '../../src/apps/company/workbook/domain/readWorkbook'
+import type { RecordId } from '../../src/shared/storage/domain/recordId'
+import type { RecordKind } from '../../src/shared/storage/domain/recordKind'
+import type { ReadRecord, RecordsRead } from '../../src/shared/storage/domain/recordsRead'
+import { recordsOfRows, spreadsheetTabOfKind } from '../../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import type { Cells } from '../../src/apps/company/workbook/infrastructure/spreadsheetTab'
 
 function readOf<R>(kind: RecordKind<R>, cells: Cells): RecordsRead<R> {
   const filled = Object.fromEntries(Object.entries(cells).filter(([, cell]) => cellText(cell) !== ''))

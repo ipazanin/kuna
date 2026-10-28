@@ -70,7 +70,7 @@ export type RedirectFragment =
   | { readonly kind: 'token'; readonly accessToken: string; readonly expiresIn: number; readonly scope: string; readonly state: string | null }
   | { readonly kind: 'error'; readonly error: string; readonly description: string | null; readonly state: string | null }
 
-/** Google's answer in a location hash, or null for an ordinary hash route such as `#/review`. */
+/** Google's answer in a location hash, or null for an ordinary hash route such as `#/company/review`. */
 export function redirectFragmentOf(hash: string): RedirectFragment | null {
   if (hash.startsWith('#/')) {
     return null

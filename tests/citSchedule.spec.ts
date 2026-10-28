@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import type { CompanyFacts } from '../src/packs/hr-doo/domain/companyFacts'
-import { citLiability } from '../src/packs/hr-doo/domain/cit/citLiability'
-import { citSchedule } from '../src/packs/hr-doo/domain/cit/citSchedule'
-import type { CitSchedule } from '../src/packs/hr-doo/domain/cit/citSchedule'
-import { closedYearReturn } from '../src/packs/hr-doo/domain/cit/priorReturn'
-import type { PriorReturn } from '../src/packs/hr-doo/domain/cit/priorReturn'
-import { taxBase } from '../src/packs/hr-doo/domain/cit/taxBase'
-import { tracedFigure } from '../src/packs/hr-doo/domain/payroll/payrollArithmetic'
+import type { CompanyFacts } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
+import { citLiability } from '../src/apps/company/packs/hr-doo/domain/cit/citLiability'
+import { citSchedule } from '../src/apps/company/packs/hr-doo/domain/cit/citSchedule'
+import type { CitSchedule } from '../src/apps/company/packs/hr-doo/domain/cit/citSchedule'
+import { closedYearReturn } from '../src/apps/company/packs/hr-doo/domain/cit/priorReturn'
+import type { PriorReturn } from '../src/apps/company/packs/hr-doo/domain/cit/priorReturn'
+import { taxBase } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
+import { tracedFigure } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollArithmetic'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { yearEndLine } from './fixtures/exampleStudio'
 import { civil, euros } from './fixtures/ledger'
-import { COMPANY_FACT_SETTINGS } from '../src/packs/hr-doo/domain/companyFacts'
+import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
 
 const REGISTERED = civil('2025-06-16')
 

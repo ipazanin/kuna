@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { billingTotals } from '../src/features/billingPlan/domain/billingTotals'
+import { billingTotals } from '../src/apps/company/billingPlan/domain/billingTotals'
 import { euros } from './fixtures/ledger'
 import { invoiceOf, planRow } from './fixtures/billingPlan'
 

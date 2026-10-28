@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/features/workbook/domain/recordKind'
-import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import { EMPTY_TABS, sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookSnapshot } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 import { withIds } from './fixtures/rowIds'
 
 const CATEGORIES: CellValue[][] = [

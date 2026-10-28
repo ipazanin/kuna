@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
-import { needsReview } from '../src/features/workbook/domain/needsReview'
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import { sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue, WorkbookSnapshot } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { RULE_COLUMNS } from '../src/apps/company/rules/domain/rule'
+import { needsReview } from '../src/apps/company/workbook/domain/needsReview'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import { sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookSnapshot } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 
 const HEADER = [...RULE_COLUMNS] as string[]
 

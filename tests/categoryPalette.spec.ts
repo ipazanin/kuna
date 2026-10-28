@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-import { SWATCHES } from '../src/features/workbook/domain/categoryColour'
-import { swatchToken } from '../src/features/workbook/presentation/categoryColours'
+import { SWATCHES } from '../src/apps/company/workbook/domain/categoryColour'
+import { swatchToken } from '../src/apps/company/workbook/presentation/categoryColours'
 
 const TOKENS = readFileSync(new URL('../src/shared/styles/tokens.css', import.meta.url), 'utf8')
 

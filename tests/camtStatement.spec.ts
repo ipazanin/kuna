@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { readCamtDocument } from '../src/features/imports/domain/camtStatement'
-import type { ImportedStatement, StatementReading } from '../src/features/imports/domain/importedStatement'
-import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
+import { readCamtDocument } from '../src/apps/company/imports/domain/camtStatement'
+import type { ImportedStatement, StatementReading } from '../src/apps/company/imports/domain/importedStatement'
+import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { moneyFromCents } from '../src/shared/money/money'
 
 /** Two consecutive statements of one account, anonymised from real Erste files: same structure, every value invented. */

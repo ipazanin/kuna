@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { localRates } from '../src/packs/hr-doo/domain/payroll/incomeTax'
-import { LOCAL_UNITS, findLocalUnit } from '../src/packs/hr-doo/ruleset/localUnits'
-import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset'
-import { day } from '../src/packs/hr-doo/ruleset/schema'
+import { localRates } from '../src/apps/company/packs/hr-doo/domain/payroll/incomeTax'
+import { LOCAL_UNITS, findLocalUnit } from '../src/apps/company/packs/hr-doo/ruleset/localUnits'
+import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import { day } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 
 function labelOf(typed: string): string | null {
   return findLocalUnit(typed).unit?.label ?? null

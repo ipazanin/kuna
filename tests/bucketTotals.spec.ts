@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { monthKey } from '../src/shared/calendar/monthKey'
-import { averagePerMonth, bucketTotals, monthlyBucketTotals } from '../src/features/workbook/domain/bucketTotals'
+import { averagePerMonth, bucketTotals, monthlyBucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { euros, ledger } from './fixtures/ledger'
 
 const rows = ledger([

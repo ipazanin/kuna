@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Asset, AssetGroup } from '../src/packs/hr-doo/domain/assets/assets'
-import { accumulatedDepreciationOn, bookValueOn, depreciationSchedule } from '../src/packs/hr-doo/domain/assets/depreciationSchedule'
-import type { DepreciationSchedule } from '../src/packs/hr-doo/domain/assets/depreciationSchedule'
+import type { Asset, AssetGroup } from '../src/apps/company/packs/hr-doo/domain/assets/assets'
+import { accumulatedDepreciationOn, bookValueOn, depreciationSchedule } from '../src/apps/company/packs/hr-doo/domain/assets/depreciationSchedule'
+import type { DepreciationSchedule } from '../src/apps/company/packs/hr-doo/domain/assets/depreciationSchedule'
 import { sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { ASSET_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { ASSET_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 
 interface AssetSpec {
   readonly cost: number

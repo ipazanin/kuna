@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import type { OwnerPayScenario } from '../src/packs/hr-doo/domain/scenarios/ownerPayScenarios'
-import { forecastYear, planDefaults } from '../src/packs/hr-doo/domain/forecast/forecastYear'
-import { planAgainstActual } from '../src/packs/hr-doo/domain/forecast/planAgainstActual'
+import type { OwnerPayScenario } from '../src/apps/company/packs/hr-doo/domain/scenarios/ownerPayScenarios'
+import { forecastYear, planDefaults } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
+import { planAgainstActual } from '../src/apps/company/packs/hr-doo/domain/forecast/planAgainstActual'
 import { planRow } from './fixtures/billingPlan'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { STEADY_CATEGORIES, STEADY_ROWS, planLine, planOwnerPay, steadyStudio } from './fixtures/steadyStudio'
 import { director } from './fixtures/employees'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { SCENARIO_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 
 const FLOOR_2026: OwnerPayScenario = { slug: 'floor-2026', label: 'Floor salary', year: 2026, components: [{ component: 'salary_gross', gross: 'floor', from: null, to: null, id: recordIdOf(SCENARIO_RECORDS, 'row-2') }] }
 

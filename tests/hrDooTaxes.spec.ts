@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { effectiveTaxRate } from '../src/packs/hr-doo/domain/effectiveTaxRate'
-import { payrollCadence } from '../src/packs/hr-doo/domain/payrollCadence'
-import { bookingOfAdvance } from '../src/features/workbook/domain/workbook'
-import { taxByType, typicalMonthlyAmount } from '../src/packs/hr-doo/domain/taxByType'
+import { effectiveTaxRate } from '../src/apps/company/packs/hr-doo/domain/effectiveTaxRate'
+import { payrollCadence } from '../src/apps/company/packs/hr-doo/domain/payrollCadence'
+import { bookingOfAdvance } from '../src/apps/company/workbook/domain/workbook'
+import { taxByType, typicalMonthlyAmount } from '../src/apps/company/packs/hr-doo/domain/taxByType'
 import { withPackBuckets, PACK_CATEGORIES } from './fixtures/hrDooCategories'
-import type { Period } from '../src/features/filters/domain/filterState'
+import type { Period } from '../src/apps/company/filters/domain/filterState'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 
 const transactions = withPackBuckets(
   ledger([

@@ -1,8 +1,8 @@
-import type { BillingItem } from '../../src/features/workbook/domain/billingPlan'
-import type { Invoice } from '../../src/features/workbook/domain/workbook'
+import type { BillingItem } from '../../src/apps/company/workbook/domain/billingPlan'
+import { BILLING_RECORDS, INVOICE_RECORDS } from '../../src/apps/company/workbook/domain/coreKinds'
+import type { Invoice } from '../../src/apps/company/workbook/domain/workbook'
 import { civil, euros } from './ledger'
-import { recordIdOf } from '../../src/features/workbook/domain/recordId'
-import { BILLING_RECORDS, INVOICE_RECORDS } from '../../src/features/workbook/domain/recordKind'
+import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 
 let nextRow = 2
 

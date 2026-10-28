@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { addedChoices, filterChips, withAddedChoices, withoutChip, withoutChips } from '../src/features/filters/domain/filterChips'
-import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from '../src/features/filters/domain/filterState'
-import type { FilterState } from '../src/features/filters/domain/filterState'
+import { addedChoices, filterChips, withAddedChoices, withoutChip, withoutChips } from '../src/apps/company/filters/domain/filterChips'
+import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from '../src/apps/company/filters/domain/filterState'
+import type { FilterState } from '../src/apps/company/filters/domain/filterState'
 import { euros } from './fixtures/ledger'
 
 const narrowed: FilterState = {

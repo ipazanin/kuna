@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { gettingSetUp } from '../src/features/onboarding/presentation/gettingSetUp'
-import { readDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
-import type { WorkbookDocument } from '../src/features/workbook/infrastructure/documentFormat'
-import { newBooksDocument } from '../src/features/workbook/presentation/workbookFiles'
-import { statementSettingsOf } from '../src/features/onboarding/domain/statementsChoice'
-import type { StatementMail, StatementsSource } from '../src/features/onboarding/domain/onboardingSteps'
+import { gettingSetUp } from '../src/apps/company/onboarding/presentation/gettingSetUp'
+import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
+import { readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { newBooksDocument } from '../src/apps/company/workbook/presentation/workbookFiles'
+import { statementSettingsOf } from '../src/apps/company/onboarding/domain/statementsChoice'
+import type { StatementMail, StatementsSource } from '../src/apps/company/onboarding/domain/onboardingSteps'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 
 const SAVED = '2026-10-26T09:00:00.000Z'
@@ -94,7 +94,7 @@ describe('getting set up', () => {
 
   it('leaves the statements folder alone for statements by hand, and links each line to its screen', () => {
     expect(gettingSetUp(read(newBooks('hand')).workbook)).toEqual([
-      { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: { path: '/transactions', query: { tab: 'import' } } } },
+      { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: { path: '/company/transactions', query: { tab: 'import' } } } },
       { key: 'categories', text: 'Look over the categories, which are still the ones new books start with', link: { label: 'Categories', to: { path: '/settings', query: { tab: 'categories' } } } },
     ])
   })

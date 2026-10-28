@@ -134,18 +134,18 @@ const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview' }
  * behind. A screen collapses and expands its first collapsible card, unless `cards: false` says it has none.
  */
 const SCREENS = [
-  { hash: '#/transactions?tab=import', title: 'Transactions', ready: '[data-testid="import-file"]', cards: false },
-  { hash: '#/analysis?p=all', title: 'Analysis', ready: '[data-testid="cost-line"]' },
-  { hash: '#/invoicing?p=all', title: 'Invoicing', ready: '[data-testid="invoice-list"]' },
-  { name: 'year-accountant', hash: '#/year?year=2025&p=all', title: 'Year', ready: '[data-testid="line-statuses"]' },
-  { name: 'year-statements', hash: '#/year?year=2025&tab=statements&p=all', title: 'Year', ready: '[data-testid="comparison-pl"]' },
-  { name: 'year-taxes', hash: '#/year?tab=taxes&p=all', title: 'Year', ready: '[data-testid="corporate-tax"]' },
-  { name: 'year-assets', hash: '#/year?tab=assets&p=all', title: 'Year', ready: '[data-testid="asset-register"]' },
-  { name: 'year-forecast', hash: '#/year?p=all', title: 'Year', ready: '[data-testid="forecast-unregistered"]', cards: false },
-  { name: 'year-plan', hash: '#/year?tab=plan&p=all', title: 'Year', ready: '[data-testid="plan-editor"]', cards: false },
-  { name: 'year-pay', hash: '#/year?year=2027&tab=pay&p=all', title: 'Year', ready: '[data-testid="scenario-editor"]' },
-  { hash: '#/owner?tab=owed&p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
-  { hash: '#/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
+  { hash: '#/company/transactions?tab=import', title: 'Transactions', ready: '[data-testid="import-file"]', cards: false },
+  { hash: '#/company/analysis?p=all', title: 'Analysis', ready: '[data-testid="cost-line"]' },
+  { hash: '#/company/invoicing?p=all', title: 'Invoicing', ready: '[data-testid="invoice-list"]' },
+  { name: 'year-accountant', hash: '#/company/year?year=2025&p=all', title: 'Year', ready: '[data-testid="line-statuses"]' },
+  { name: 'year-statements', hash: '#/company/year?year=2025&tab=statements&p=all', title: 'Year', ready: '[data-testid="comparison-pl"]' },
+  { name: 'year-taxes', hash: '#/company/year?tab=taxes&p=all', title: 'Year', ready: '[data-testid="corporate-tax"]' },
+  { name: 'year-assets', hash: '#/company/year?tab=assets&p=all', title: 'Year', ready: '[data-testid="asset-register"]' },
+  { name: 'year-forecast', hash: '#/company/year?p=all', title: 'Year', ready: '[data-testid="forecast-unregistered"]', cards: false },
+  { name: 'year-plan', hash: '#/company/year?tab=plan&p=all', title: 'Year', ready: '[data-testid="plan-editor"]', cards: false },
+  { name: 'year-pay', hash: '#/company/year?year=2027&tab=pay&p=all', title: 'Year', ready: '[data-testid="scenario-editor"]' },
+  { hash: '#/company/owner?tab=owed&p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
+  { hash: '#/company/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
   { name: 'settings', hash: '#/settings', title: 'Settings', ready: '[data-testid="settings-tabs"]' },
   { name: 'settings-ruleset', hash: '#/settings?tab=ruleset', title: 'Settings', ready: '[data-testid="rule-row"]' },
   { name: 'settings-device', hash: '#/settings?tab=device', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
@@ -217,7 +217,7 @@ async function checkWidth(width) {
   const shoot = (name) => page.screenshot({ path: join(OUTPUT_DIR, `${width}-${name}.png`), fullPage: false })
 
   await step('overview', async () => {
-    await open(page, '#/', 'Overview')
+    await open(page, '#/company', 'Overview')
     await settleCharts(page)
     await shoot('overview')
   })
@@ -280,7 +280,7 @@ async function checkWidth(width) {
   })
 
   await step('waiting-review', async () => {
-    await open(page, '#/', 'Overview')
+    await open(page, '#/company', 'Overview')
     await page.waitForSelector('[data-testid="waiting-for-you"]')
     await shoot('overview-waiting')
     const reviewLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="review"] a', 'Review')
@@ -292,7 +292,7 @@ async function checkWidth(width) {
   })
 
   await step('waiting-corporate-tax', async () => {
-    await openFreshBrowser(page, '#/', 'Overview')
+    await openFreshBrowser(page, '#/company', 'Overview')
     const taxLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="corporate-tax"] a', 'Year, Taxes')
     await taxLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -305,7 +305,7 @@ async function checkWidth(width) {
   })
 
   await step('filter-sheet', async () => {
-    await open(page, '#/transactions?p=all&review=1', 'Transactions')
+    await open(page, '#/company/transactions?p=all&review=1', 'Transactions')
     await expect(filterCount(page), (count) => count === '1', 'the filter button does not count one active filter')
     await page.waitForSelector('[data-testid="transaction-card"]')
     await shoot('transactions-cards')
@@ -330,7 +330,7 @@ async function checkWidth(width) {
   })
 
   await step('add-filter', async () => {
-    await open(page, '#/transactions?p=l12', 'Transactions')
+    await open(page, '#/company/transactions?p=l12', 'Transactions')
     await page.tap('[data-testid="open-filters"]')
     await page.waitForSelector('[role="dialog"] [data-testid="add-filter"]')
     await delay(300)
@@ -357,7 +357,7 @@ async function checkWidth(width) {
   })
 
   await step('grouping', async () => {
-    await open(page, '#/transactions?p=all', 'Transactions')
+    await open(page, '#/company/transactions?p=all', 'Transactions')
     await page.tap('[aria-label="Group rows"]')
     const byCategory = await waitForText(page, '[role="option"]', 'By category')
     await byCategory.tap()
@@ -378,7 +378,7 @@ async function checkWidth(width) {
 
     await page.tap('[data-testid="transaction-group"] [data-testid="group-toggle"]')
     await page.evaluate(() => {
-      window.location.hash = '#/transactions?p=l12'
+      window.location.hash = '#/company/transactions?p=l12'
     })
     await page.waitForFunction(() => window.location.hash.includes('p=l12'))
     await delay(300)
@@ -387,7 +387,7 @@ async function checkWidth(width) {
   })
 
   await step('payee-breakdown', async () => {
-    await open(page, '#/analysis?p=l12', 'Analysis')
+    await open(page, '#/company/analysis?p=l12', 'Analysis')
     const payeesToggle = await page.waitForSelector('[data-testid="top-payees"] [data-testid="card-toggle"]')
     if ((await payeesToggle.evaluate((toggle) => toggle.getAttribute('aria-expanded'))) === 'false') {
       await payeesToggle.evaluate((toggle) => toggle.scrollIntoView({ block: 'center' }))
@@ -427,10 +427,10 @@ async function checkWidth(width) {
   })
 
   await step('chart-drill', async () => {
-    await open(page, '#/', 'Overview')
+    await open(page, '#/company', 'Overview')
     await settleCharts(page)
     await tapUntilDrillOffered(page)
-    await expect(hashOf(page), (hash) => hash.startsWith('#/?') || hash === '#/', 'one tap left the screen')
+    await expect(hashOf(page), (hash) => hash.startsWith('#/company?') || hash === '#/company', 'one tap left the screen')
     await page.waitForFunction(() => {
       const tooltip = document.querySelector('.chart-tooltip')
       return tooltip !== null && getComputedStyle(tooltip).display !== 'none' && getComputedStyle(tooltip).visibility !== 'hidden'
@@ -441,7 +441,7 @@ async function checkWidth(width) {
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the chart drill opened Transactions without its filters')
 
-    await open(page, '#/', 'Overview')
+    await open(page, '#/company', 'Overview')
     await settleCharts(page)
     // The second tap on the same mark drills too, without "View rows".
     await tapChart(page, await tapUntilDrillOffered(page))
@@ -449,10 +449,10 @@ async function checkWidth(width) {
   })
 
   await step('salaries-drill', async () => {
-    await open(page, '&fake=five-employees#/salaries', 'Salaries')
+    await open(page, '&fake=five-employees#/company/salaries', 'Salaries')
     await settleCharts(page)
     await tapUntilDrillOffered(page, '[data-testid="salaries-bridge"] .chart-body canvas')
-    await expect(hashOf(page), (hash) => hash.startsWith('#/salaries'), 'one tap on the gross to net chart left the screen')
+    await expect(hashOf(page), (hash) => hash.startsWith('#/company/salaries'), 'one tap on the gross to net chart left the screen')
     await shoot('salaries-bridge-tooltip')
     const viewRows = await waitForText(page, '[data-testid="salaries-bridge"] [data-testid="chart-drill"] button', 'View rows')
     await viewRows.tap()
@@ -461,7 +461,7 @@ async function checkWidth(width) {
   })
 
   await step('taxes-cadence-drill', async () => {
-    await open(page, '#/year?tab=taxes&p=all#payroll-cadence', 'Year')
+    await open(page, '#/company/year?tab=taxes&p=all#payroll-cadence', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="cadence-paid"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes.png`))
@@ -471,7 +471,7 @@ async function checkWidth(width) {
   })
 
   await step('assets-doubled-and-drill', async () => {
-    await open(page, '#/year?tab=assets&p=all', 'Year')
+    await open(page, '#/company/year?tab=assets&p=all', 'Year')
     await settleCharts(page)
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-assets.png`))
     await page.tap('[role="switch"][data-testid="doubled-rates-switch"]')
@@ -498,7 +498,7 @@ async function checkWidth(width) {
   })
 
   await step('year-end-build-up-and-drill', async () => {
-    await open(page, '#/year?year=2025&tab=statements&p=all', 'Year')
+    await open(page, '#/company/year?year=2025&tab=statements&p=all', 'Year')
     await page.waitForSelector('[data-testid="comparison-pl"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-year-end.png`))
     const toggle = await page.waitForSelector('[data-testid="comparison-pl"] [data-testid="comparison-toggle"][aria-expanded="false"]')
@@ -519,7 +519,7 @@ async function checkWidth(width) {
   })
 
   await step('forecast-build-up-and-switch', async () => {
-    await openFreshBrowser(page, '#/year?year=2026&p=all', 'Year')
+    await openFreshBrowser(page, '#/company/year?year=2026&p=all', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="forecast-tiles"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-forecast.png`))
@@ -557,7 +557,7 @@ async function checkWidth(width) {
   })
 
   await step('taxes-corporate-tax-drill', async () => {
-    await openFreshBrowser(page, '#/year?tab=taxes&p=all', 'Year')
+    await openFreshBrowser(page, '#/company/year?tab=taxes&p=all', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="corporate-tax-2026"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes-corporate-tax.png`))
@@ -570,7 +570,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-loan-drill', async () => {
-    await open(page, '#/owner?tab=owed&p=all', 'Owner')
+    await open(page, '#/company/owner?tab=owed&p=all', 'Owner')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="loan-list"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-owner.png`))
@@ -580,7 +580,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-period', async () => {
-    await open(page, '#/owner?tab=owed&p=all', 'Owner')
+    await open(page, '#/company/owner?tab=owed&p=all', 'Owner')
     await page.waitForSelector('[data-testid="owner-owed-tiles"]')
     await expect(
       page.evaluate(() => {
@@ -609,7 +609,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-taken', async () => {
-    await open(page, '#/owner?p=all', 'Owner')
+    await open(page, '#/company/owner?p=all', 'Owner')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="owner-take-total"]')
     await expect(
@@ -630,11 +630,11 @@ async function checkWidth(width) {
   })
 
   await step('owner-taken-loan-balance', async () => {
-    await open(page, '#/owner?p=all', 'Owner')
+    await open(page, '#/company/owner?p=all', 'Owner')
     await settleCharts(page)
     const plot = '[data-testid="owner-loan-balance"] .chart-body canvas'
     await tapUntilDrillOffered(page, plot)
-    await expect(hashOf(page), (hash) => hash.startsWith('#/owner'), 'one tap on the loan balance left the screen')
+    await expect(hashOf(page), (hash) => hash.startsWith('#/company/owner'), 'one tap on the loan balance left the screen')
     await shoot('owner-loan-balance')
     const viewRows = await waitForText(page, '[data-testid="owner-loan-balance"] [data-testid="chart-drill"] button', 'View rows')
     await viewRows.tap()
@@ -643,7 +643,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-taken-dividend', async () => {
-    await openFreshBrowser(page, '#/owner?p=all', 'Owner')
+    await openFreshBrowser(page, '#/company/owner?p=all', 'Owner')
     const avoided = await page.waitForSelector('[data-testid="owner-benefits-dividend"] [data-testid="build-up-button"]')
     await avoided.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -666,7 +666,7 @@ async function checkWidth(width) {
   })
 
   await step('invoices-payment-drill', async () => {
-    await open(page, '#/invoicing?p=all', 'Invoicing')
+    await open(page, '#/company/invoicing?p=all', 'Invoicing')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="invoice-list"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-invoicing.png`))
@@ -676,7 +676,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-pay-mixes', async () => {
-    await openFreshBrowser(page, '#/owner?p=all', 'Owner')
+    await openFreshBrowser(page, '#/company/owner?p=all', 'Owner')
     await page.tap('[data-testid="owner-pay-scenarios"]')
     await waitForTitle(page, 'Year')
     await expect(hashOf(page), (hash) => hash.includes('tab=pay') && hash.includes('year=2027'), 'Compare pay mixes did not open Year, Pay for the next year')
@@ -684,7 +684,7 @@ async function checkWidth(width) {
   })
 
   await step('owner-advance-undo', async () => {
-    await openFreshBrowser(page, '#/owner?tab=owed&p=all', 'Owner')
+    await openFreshBrowser(page, '#/company/owner?tab=owed&p=all', 'Owner')
     const advances = () => page.evaluate(() => document.querySelectorAll('[data-testid="advance-list"] > li').length)
     const before = await advances()
     const opener = await page.$('[data-testid="open-add-advance"]')
@@ -712,7 +712,7 @@ async function checkWidth(width) {
 
   await step('owner-advance-outside', async () => {
     // Add advance starts on the newest booking, 8 Oct 2026, so under 2025 the toast says the page does not list it and opens it.
-    await openFreshBrowser(page, '#/owner?tab=owed&p=2025', 'Owner')
+    await openFreshBrowser(page, '#/company/owner?tab=owed&p=2025', 'Owner')
     const opener = await page.$('[data-testid="open-add-advance"]')
     await opener.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -741,7 +741,7 @@ async function checkWidth(width) {
 
   for (const [screen, title] of [['review', 'Review']]) {
     await step(`${screen}-unaccounted-cost`, async () => {
-      await openFreshBrowser(page, `#/${screen}?p=all`, title)
+      await openFreshBrowser(page, `#/company/${screen}?p=all`, title)
       const unaccounted = () => page.evaluate(() => document.querySelectorAll('[data-testid="unaccounted-reimbursement"]').length)
       await expect(unaccounted(), (count) => count === 1, 'the reimbursement with no cost on file is not listed')
       const adder = await page.$('[data-testid="add-unaccounted-cost"]')
@@ -773,10 +773,10 @@ async function checkWidth(width) {
   }
 
   await step('billing-month-link', async () => {
-    await open(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
+    await open(page, '#/company/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-invoicing-plan.png`))
-    await open(page, '#/invoicing?p=all', 'Invoicing')
+    await open(page, '#/company/invoicing?p=all', 'Invoicing')
     await (await waitForText(page, '[data-testid="invoicing-tiles"] .kpi-link', 'Next invoice')).tap()
     await page.waitForFunction(() => window.location.hash.includes('tab=plan') && window.location.hash.includes('month='))
     await page.waitForSelector('[data-testid="billing-months"] li[data-selected] [data-testid="billing-month-toggle"][aria-expanded="true"]')
@@ -795,7 +795,7 @@ async function checkWidth(width) {
   })
 
   await step('billing-fill-write-undo', async () => {
-    await openFreshBrowser(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
+    await openFreshBrowser(page, '#/company/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
     const before = await rows()
@@ -822,7 +822,7 @@ async function checkWidth(width) {
   })
 
   await step('billing-edit-delete', async () => {
-    await openFreshBrowser(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
+    await openFreshBrowser(page, '#/company/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
     const before = await rows()
@@ -843,7 +843,7 @@ async function checkWidth(width) {
     await waitForText(page, '[data-slot="title"]', 'Plan row saved')
     await waitForText(page, '[data-testid="billing-row"] p', 'Seat for the model API, adjusted')
     // A fresh load drops the toast, so the Undo below is the deletion's own.
-    await openFreshBrowser(page, '#/invoicing?tab=plan&p=all', 'Invoicing')
+    await openFreshBrowser(page, '#/company/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
     await openLastRow()
     await page.tap('[data-testid="billing-row-delete"]')
@@ -856,7 +856,7 @@ async function checkWidth(width) {
   })
 
   await step('billing-start-browser', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=browser-no-billing-plan&load=${Date.now()}#/invoicing?tab=plan`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=browser-no-billing-plan&load=${Date.now()}#/company/invoicing?tab=plan`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Invoicing')
     await page.waitForSelector('[data-testid="billing-empty"]')
     await shoot('billing-empty')
@@ -877,7 +877,7 @@ async function checkWidth(width) {
   })
 
   await step('pay-scenarios-figures', async () => {
-    await openFreshBrowser(page, '#/year?year=2027&tab=pay&p=all', 'Year')
+    await openFreshBrowser(page, '#/company/year?year=2027&tab=pay&p=all', 'Year')
     await settleCharts(page)
     await inspect(page, `${width}px pay`)
     const badge = await page.waitForSelector('[data-testid="scenario-warning-badge"]')
@@ -939,25 +939,25 @@ async function checkWidth(width) {
       ['categories-filters', '#/settings?tab=categories', 'Settings', categoryFiltersFlow],
       ['settings-statements-folder', '#/settings', 'Settings', statementsFolderFlow],
       ['settings-card-ibans', '#/settings', 'Settings', cardSettlementIbansFlow],
-      ['clients-ibans', '#/invoicing?tab=clients', 'Invoicing', clientIbansFlow],
-      ['assets', '#/year?tab=assets#asset-rows', 'Year', assetFlow],
-      ['employees', '#/salaries#employee-rows', 'Salaries', employeeFlow],
-      ['advances', '#/owner?tab=owed', 'Owner', advanceFlow],
-      ['invoices', '#/invoicing?p=all', 'Invoicing', invoiceFlow],
-      ['invoice-run', '#/invoicing?p=all', 'Invoicing', invoiceRunFlow],
-      ['scenarios', '#/year?year=2027&tab=pay', 'Year', scenarioFlow],
-      ['starting-scenarios', '#/year?year=2027&tab=pay', 'Year', startingScenariosFlow, mode === 'drive' ? '&fake=no-scenarios' : '&fake=browser-no-scenarios'],
-      ['plan', '#/year?year=2027&tab=plan', 'Year', planFlow],
-      ['plan-tab', '#/year?year=2027&tab=plan', 'Year', planTabFlow, mode === 'drive' ? '&fake=no-plan' : '&fake=browser-no-plan'],
-      ['split', '#/transactions?p=all&q=GADGET', 'Transactions', splitFlow],
-      ['split-review', '#/review', 'Review', reviewSplitFlow],
-      ['change-category', '#/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
-      ['owner-share', '#/transactions?p=all&q=purchase%2C%20laptop', 'Transactions', ownerShareFlow],
+      ['clients-ibans', '#/company/invoicing?tab=clients', 'Invoicing', clientIbansFlow],
+      ['assets', '#/company/year?tab=assets#asset-rows', 'Year', assetFlow],
+      ['employees', '#/company/salaries#employee-rows', 'Salaries', employeeFlow],
+      ['advances', '#/company/owner?tab=owed', 'Owner', advanceFlow],
+      ['invoices', '#/company/invoicing?p=all', 'Invoicing', invoiceFlow],
+      ['invoice-run', '#/company/invoicing?p=all', 'Invoicing', invoiceRunFlow],
+      ['scenarios', '#/company/year?year=2027&tab=pay', 'Year', scenarioFlow],
+      ['starting-scenarios', '#/company/year?year=2027&tab=pay', 'Year', startingScenariosFlow, mode === 'drive' ? '&fake=no-scenarios' : '&fake=browser-no-scenarios'],
+      ['plan', '#/company/year?year=2027&tab=plan', 'Year', planFlow],
+      ['plan-tab', '#/company/year?year=2027&tab=plan', 'Year', planTabFlow, mode === 'drive' ? '&fake=no-plan' : '&fake=browser-no-plan'],
+      ['split', '#/company/transactions?p=all&q=GADGET', 'Transactions', splitFlow],
+      ['split-review', '#/company/review', 'Review', reviewSplitFlow],
+      ['change-category', '#/company/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
+      ['owner-share', '#/company/transactions?p=all&q=purchase%2C%20laptop', 'Transactions', ownerShareFlow],
       ['share-fill', '#/settings?tab=categories', 'Settings', shareFillFlow],
-      ['dismiss', '#/review?tab=rules', 'Review', dismissFlow],
-      ['rules-editor', '#/review?tab=rules', 'Review', rulesEditorFlow],
-      ['import-camt', '#/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
-      ['import-table', '#/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
+      ['dismiss', '#/company/review?tab=rules', 'Review', dismissFlow],
+      ['rules-editor', '#/company/review?tab=rules', 'Review', rulesEditorFlow],
+      ['import-camt', '#/company/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
+      ['import-table', '#/company/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
     ]) {
       await step(`${name}-${mode}`, async () => {
         await page.goto(`${BASE}?theme=dark${variant ?? query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
@@ -974,7 +974,7 @@ async function checkWidth(width) {
     }
   }
 
-  for (const [name, variant, run, hash = '#/', title = 'Overview'] of [
+  for (const [name, variant, run, hash = '#/company', title = 'Overview'] of [
     ['statements-sync', '', statementSyncFlow],
     ['statements-held', '&fake=held-statement', heldStatementFlow],
     ['statements-access', '', statementAccessFlow],
@@ -991,9 +991,9 @@ async function checkWidth(width) {
     ['mail-rate-limited', '&fake=mail-rate-limited', mailRateLimitedFlow],
     ['mail-window', '&fake=mail-nothing-new', mailWindowFlow],
     ['sync-access-closed', '&fake=google-closed', accessClosedFlow],
-    ['salaries', '&fake=five-employees', salariesFlow, '#/salaries', 'Salaries'],
-    ['owner-net', '&fake=browser', ownerNetFlow, '#/owner?p=2026', 'Owner'],
-    ['owner-net-unregistered', '', ownerNetUnregisteredFlow, '#/owner?p=2026', 'Owner'],
+    ['salaries', '&fake=five-employees', salariesFlow, '#/company/salaries', 'Salaries'],
+    ['owner-net', '&fake=browser', ownerNetFlow, '#/company/owner?p=2026', 'Owner'],
+    ['owner-net-unregistered', '', ownerNetUnregisteredFlow, '#/company/owner?p=2026', 'Owner'],
   ]) {
     await step(name, async () => {
       await page.goto(`${BASE}?theme=dark${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
@@ -1135,9 +1135,9 @@ async function checkWidth(width) {
 
   await step('year-editors', async () => {
     for (const [hash, ready, name] of [
-      ['#/year?year=2025&tab=statements#accountant-lines', 'Save year-end lines', 'year-accountant-lines'],
-      ['#/year?tab=assets#asset-rows', 'Save assets', 'year-asset-rows'],
-      ['#/year?tab=assets#grant-rows', 'Save grants', 'year-grant-rows'],
+      ['#/company/year?year=2025&tab=statements#accountant-lines', 'Save year-end lines', 'year-accountant-lines'],
+      ['#/company/year?tab=assets#asset-rows', 'Save assets', 'year-asset-rows'],
+      ['#/company/year?tab=assets#grant-rows', 'Save grants', 'year-grant-rows'],
     ]) {
       await page.goto(`${BASE}?theme=dark&fake=browser&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
       await waitForTitle(page, 'Year')
@@ -1148,7 +1148,7 @@ async function checkWidth(width) {
   })
 
   await step('invoicing-clients', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=browser#/invoicing?tab=clients`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=browser#/company/invoicing?tab=clients`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Invoicing')
     await waitForText(page, 'button', 'Save clients')
     await inspect(page, `${width}px invoicing clients`)
@@ -1167,12 +1167,12 @@ async function checkWidth(width) {
   })
 
   await step('year-tab-link', async () => {
-    await open(page, '#/year?tab=statements', 'Year')
+    await open(page, '#/company/year?tab=statements', 'Year')
     await yearTabLinkFlow(page, { press: (handle) => handle.tap(), shoot })
   })
 
   await step('review-confirm-undo', async () => {
-    await openFreshBrowser(page, '#/review', 'Review')
+    await openFreshBrowser(page, '#/company/review', 'Review')
     await expect(reviewCount(page), (count) => count === 2, 'the queue does not hold the two fake rows')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await page.waitForSelector('[data-testid="review-details"]')
@@ -1190,7 +1190,7 @@ async function checkWidth(width) {
   })
 
   await step('review-recategorise-undo', async () => {
-    await openFreshBrowser(page, '#/review', 'Review')
+    await openFreshBrowser(page, '#/company/review', 'Review')
     await (await reviewRow(page, 'SNACK KIOSK')).tap()
     await page.waitForSelector('[data-testid="recategorise-row"]')
     await page.tap('[data-testid="review-details"] [data-testid="recategorise-row"]')
@@ -1210,7 +1210,7 @@ async function checkWidth(width) {
   })
 
   await step('session-panel-undo', async () => {
-    await openFreshBrowser(page, '#/review', 'Review')
+    await openFreshBrowser(page, '#/company/review', 'Review')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await (await waitForText(page, '[data-testid="review-details"] button', 'Confirm')).tap()
     await waitForText(page, '[data-slot="title"]', 'Confirmed')
@@ -1251,7 +1251,7 @@ async function checkWidth(width) {
   })
 
   await step('make-rule-apply', async () => {
-    await openFreshBrowser(page, '#/review', 'Review')
+    await openFreshBrowser(page, '#/company/review', 'Review')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await page.tap('[data-testid="review-details"] [data-testid="make-rule"]')
     await page.waitForSelector('[data-testid="rule-backtest"]')
@@ -1277,7 +1277,7 @@ async function checkWidth(width) {
   })
 
   await step('coverage-split', async () => {
-    await openFreshBrowser(page, '#/review?tab=rules', 'Review')
+    await openFreshBrowser(page, '#/company/review?tab=rules', 'Review')
     await openCoverage(page)
     const split = await waitForText(page, '[data-testid="coverage-gap"]', 'STATE BUDGET')
     await expect(
@@ -1338,7 +1338,7 @@ async function checkWidth(width) {
   })
 
   await step('rules-tab-edit', async () => {
-    await openFreshBrowser(page, '#/review?tab=rules', 'Review')
+    await openFreshBrowser(page, '#/company/review?tab=rules', 'Review')
     await page.waitForSelector('[data-testid="rule-row"]')
     await inspect(page, `${width}px rules tab`)
     await shoot('rules-tab')
@@ -1381,8 +1381,8 @@ async function checkWidth(width) {
     const scopeOf = (...names) => encodeURIComponent(['openid', ...names.map((name) => `https://www.googleapis.com/auth/${name}`)].join(' '))
     const tokenOf = (scope, state = 'touch-check') => `access_token=fake-one-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=${state}`
     const everyScope = scopeOf('drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose')
-    const tapAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose'], resume: 'sync', route: '#/transactions', ask: 'tap' }
-    const silentAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/review', ask: 'silent' }
+    const tapAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose'], resume: 'sync', route: '#/company/transactions', ask: 'tap' }
+    const silentAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/review', ask: 'silent' }
     /** Loads the app as Google sends the tab back, with what the tab remembered before it left, nothing kept from an earlier grant and invoice drafts off. */
     const comeBack = async (variant, pending, fragment) => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}#/`, { waitUntil: 'networkidle0' })
@@ -1417,7 +1417,7 @@ async function checkWidth(width) {
         throw new Error(`the sync did not start by itself after ${after}`)
       })
 
-    await page.goto(`${BASE}?theme=dark&fake=empty#/start?step=access`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=empty#/company/start?step=access`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Ledgerboard')
     await waitForText(page, '[data-testid="redirect-sign-in-note"]', 'Google may ask about cookies first')
 
@@ -1426,7 +1426,7 @@ async function checkWidth(width) {
     await waitForTitle(page, 'Transactions')
     await syncStarted('a full grant')
     await controlShows('ready', 'the sync after a full grant did not end ready')
-    await expect(hashOf(page), (hash) => hash === '#/transactions', 'the return did not land on the route the tap left')
+    await expect(hashOf(page), (hash) => hash === '#/company/transactions', 'the return did not land on the route the tap left')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address')
     await expect(tokenKept(), (kept) => !kept, 'the token was kept in site storage, not in page memory only')
     await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose']), 'the full grant was not noted')
@@ -1486,20 +1486,20 @@ async function checkWidth(width) {
     await expect(deviceMark(), (mark) => mark === null, 'the token after a sign-in left the device marked')
 
     // The empty fake Drive holds no file the app marked, and its Picker picks none, so the find the tap resumes leaves onboarding's find step.
-    await comeBack('empty', { ...tapAsk, resume: 'find', route: '#/start?path=open&step=find' }, tokenOf(everyScope))
+    await comeBack('empty', { ...tapAsk, resume: 'find', route: '#/company/start?path=open&step=find' }, tokenOf(everyScope))
     await waitForTitle(page, 'Ledgerboard')
-    await expect(hashOf(page), (hash) => hash === '#/start?path=open&step=find', 'the find the tap resumed did not stay on the find step')
+    await expect(hashOf(page), (hash) => hash === '#/company/start?path=open&step=find', 'the find the tap resumed did not stay on the find step')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the find resumed')
 
     // The fake Picker the tap resumes picks the file in Books, which is the one on screen.
-    await comeBack('drive', { ...tapAsk, resume: 'pick', route: '#/' }, tokenOf(everyScope))
+    await comeBack('drive', { ...tapAsk, resume: 'pick', route: '#/company' }, tokenOf(everyScope))
     await waitForTitle(page, 'Overview')
     await waitForText(page, 'li[data-slot="base"]', 'Your books are already open')
 
     // Onboarding's access step resumes nothing: the route brings the person back to it, and it says what Google allowed, with no message.
-    await comeBack('empty', { ...tapAsk, scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/start?step=access&statements=folder' }, tokenOf(scopeOf('drive.file')))
+    await comeBack('empty', { ...tapAsk, scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/start?step=access&statements=folder' }, tokenOf(scopeOf('drive.file')))
     await waitForTitle(page, 'Ledgerboard')
-    await expect(hashOf(page), (hash) => hash === '#/start?step=access&statements=folder', 'the return did not land on the step the tap left')
+    await expect(hashOf(page), (hash) => hash === '#/company/start?step=access&statements=folder', 'the return did not land on the step the tap left')
     await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].map((badge) => badge.textContent?.trim()).join(',') === 'Allowed,Not allowed', { timeout: 10_000 }).catch(() => {
       throw new Error('the access step does not say Google allowed the books file and not Drive read')
     })
@@ -1512,7 +1512,7 @@ async function checkWidth(width) {
     await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Ledgerboard')
     await inspect(page, `${width}px welcome`)
-    await page.goto(`${BASE}?theme=dark&fake=empty#/start?path=bring&home=browser&step=file`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=empty#/company/start?path=bring&home=browser&step=file`, { waitUntil: 'networkidle0' })
     const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
     await input.uploadFile(TEMPLATE_FILE)
     await page.waitForSelector('[data-testid="import-summary"] dl')
@@ -1532,10 +1532,10 @@ async function checkWidth(width) {
     ['onboarding-mail', 'empty', onboardingMailFlow],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
     ['onboarding-bring', 'empty', onboardingBringFlow(TEMPLATE_FILE)],
-    ['onboarding-open', 'drive', onboardingOpenFlow, '#/start?path=open', 'Ledgerboard'],
-    ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/start?step=statement&statements=folder', 'Ledgerboard'],
+    ['onboarding-open', 'drive', onboardingOpenFlow, '#/company/start?path=open', 'Ledgerboard'],
+    ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/company/start?step=statement&statements=folder', 'Ledgerboard'],
     ['move-browser', 'browser', moveFromBrowserFlow, '#/settings?tab=device', 'Settings'],
-    ['race', 'race', raceFlow, '#/review', 'Review'],
+    ['race', 'race', raceFlow, '#/company/review', 'Review'],
   ]) {
     await step(name, async () => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })

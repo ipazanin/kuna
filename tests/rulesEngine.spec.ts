@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { categorise } from '../src/features/rules/domain/categorise'
-import type { Rule, RuleCondition } from '../src/features/rules/domain/rule'
+import { categorise } from '../src/apps/company/rules/domain/categorise'
+import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
 import {
   budgetRevenueCode,
   categorisationContextOf,
@@ -10,12 +10,12 @@ import {
   isForeignCurrency,
   postedCurrency,
   transactionFacts,
-} from '../src/features/rules/domain/transactionFacts'
-import type { CategorisableTransaction } from '../src/features/rules/domain/transactionFacts'
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
+} from '../src/apps/company/rules/domain/transactionFacts'
+import type { CategorisableTransaction } from '../src/apps/company/rules/domain/transactionFacts'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { NO_SIGNALS } from './fixtures/ledger'
-import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
+import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
 
 const OWN_IBAN = 'XX00FAKE0000000001'
 const CARD_SETTLEMENT_IBAN = 'XX00FAKE0000000099'

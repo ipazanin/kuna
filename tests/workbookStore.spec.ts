@@ -1,25 +1,25 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/features/settings/application/namedRecordWrites'
-import { createWorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
-import type { WorkbookStore, WorkbookStorePorts } from '../src/features/workbook/application/createWorkbookStore'
-import type { WorkbookChoice } from '../src/features/workbook/application/workbookPorts'
-import { deleteBrowserDocument } from '../src/features/workbook/infrastructure/browserDocument'
-import { decodeDocument, encodeDocument } from '../src/features/workbook/infrastructure/documentFormat'
-import type { DocumentRecord, WorkbookDocument } from '../src/features/workbook/infrastructure/documentFormat'
-import { newDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
-import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
-import { COMPANY_APP, documentStorePorts } from '../src/features/workbook/infrastructure/documentStorePorts'
-import type { DriveAccess } from '../src/features/workbook/infrastructure/documentStorePorts'
+import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
+import { createWorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import type { WorkbookStore, WorkbookStorePorts } from '../src/apps/company/workbook/application/createWorkbookStore'
+import type { WorkbookChoice } from '../src/shared/storage/application/workbookPorts'
+import { deleteBrowserDocument } from '../src/shared/storage/infrastructure/browserDocument'
+import { decodeDocument, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
+import type { DocumentRecord, WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
+import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
+import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
+import { COMPANY_APP, documentStorePorts, installedSchema } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import type { DriveAccess } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
 import type { RedirectResume } from '../src/shared/google/googleRedirect'
-import { createDriveDocument } from '../src/features/workbook/infrastructure/driveDocument'
-import type { DocumentDrive } from '../src/features/workbook/infrastructure/driveDocument'
-import { createFakeDrive } from '../src/features/workbook/infrastructure/fake/fakeDrive'
-import type { FakeDrive } from '../src/features/workbook/infrastructure/fake/fakeDrive'
-import { openWorkbookCache } from '../src/features/workbook/infrastructure/workbookCache'
-import { ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES } from '../src/packs/hr-doo/domain/hrDooWrites'
-import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import { createDriveDocument } from '../src/shared/storage/infrastructure/driveDocument'
+import type { DocumentDrive } from '../src/shared/storage/infrastructure/driveDocument'
+import { createFakeDrive } from '../src/apps/company/workbook/infrastructure/fake/fakeDrive'
+import type { FakeDrive } from '../src/apps/company/workbook/infrastructure/fake/fakeDrive'
+import { openWorkbookCache } from '../src/shared/storage/infrastructure/workbookCache'
+import { ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
+import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { addRows, editRow } from './fixtures/recordWrites'
 
 const used = new Set<string>()
@@ -27,6 +27,7 @@ const used = new Set<string>()
 function documentOf(amounts: readonly number[]): WorkbookDocument {
   return newDocument(
     COMPANY_APP,
+    installedSchema(),
     {
       'ledger-row': amounts.map((amount, index) => ({ date: `2026-10-${String(10 - index).padStart(2, '0')}`, account: 'main', amount: amount.toFixed(2), balance: '100.00', category: 'revenue' })),
       category: [{ category: 'revenue', family: 'income', bucket: 'income' }],

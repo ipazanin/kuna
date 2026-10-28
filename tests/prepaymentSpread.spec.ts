@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Booking } from '../src/features/workbook/domain/workbook'
-import { prepaymentSpread } from '../src/packs/hr-doo/domain/accrual/prepaymentSpread'
+import type { Booking } from '../src/apps/company/workbook/domain/workbook'
+import { prepaymentSpread } from '../src/apps/company/packs/hr-doo/domain/accrual/prepaymentSpread'
 import { yearOfMonth } from '../src/shared/calendar/monthKey'
 import { sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'

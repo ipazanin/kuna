@@ -18,7 +18,7 @@ import {
   windowReaches,
   yearFolderName,
   yearsSince,
-} from '../src/features/mail/domain/mailSource'
+} from '../src/apps/company/mail/domain/mailSource'
 import { civilDate, civilDateIn, parseCivilDate, startOfDayIn } from '../src/shared/calendar/civilDate'
 
 const SINCE = Date.parse('2024-12-31T23:00:00Z')

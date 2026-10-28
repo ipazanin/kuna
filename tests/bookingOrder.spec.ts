@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
-import { bookingOrder } from '../src/features/workbook/domain/bookingOrder'
-import type { BookedEntry } from '../src/features/workbook/domain/bookingOrder'
+import { bookingOrder } from '../src/apps/company/workbook/domain/bookingOrder'
+import type { BookedEntry } from '../src/apps/company/workbook/domain/bookingOrder'
 
 type Entry = BookedEntry & { readonly name: string }
 

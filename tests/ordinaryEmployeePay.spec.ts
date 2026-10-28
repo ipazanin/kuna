@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { EmployeeFacts } from '../src/packs/hr-doo/domain/payroll/incomeTax'
-import { payrollMonth } from '../src/packs/hr-doo/domain/payroll/payrollMonth'
-import type { PayrollMonth, PayrollMonthInput } from '../src/packs/hr-doo/domain/payroll/payrollMonth'
+import type { EmployeeFacts } from '../src/apps/company/packs/hr-doo/domain/payroll/incomeTax'
+import { payrollMonth } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollMonth'
+import type { PayrollMonth, PayrollMonthInput } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollMonth'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
 import { civil, euros } from './fixtures/ledger'
 import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'

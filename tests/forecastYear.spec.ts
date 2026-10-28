@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import type { MonthBasis } from '../src/packs/hr-doo/domain/forecast/forecastLines'
-import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
-import type { YearForecast } from '../src/packs/hr-doo/domain/forecast/forecastYear'
-import { accrualYear } from '../src/packs/hr-doo/domain/accrual/accrualYear'
+import { INVOICE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import type { MonthBasis } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastLines'
+import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
+import type { YearForecast } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
+import { accrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualYear'
 import type { Money } from '../src/shared/money/money'
 import { planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
 import { STEADY_INVOICES, planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
-import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { INVOICE_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
 function categoryLine(forecast: YearForecast, slug: string) {
   const found = forecast.categories.find((entry) => entry.category.slug === slug)

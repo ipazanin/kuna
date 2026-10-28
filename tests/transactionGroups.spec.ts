@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { listedRows } from '../src/features/transactions/domain/listedRows'
-import { groupTransactions } from '../src/features/transactions/domain/transactionGroups'
-import type { CategoryGroup, CounterpartyGroup, MonthGroup } from '../src/features/transactions/domain/transactionGroups'
-import { counterpartyLabels } from '../src/features/workbook/domain/counterpartyIdentity'
+import { listedRows } from '../src/apps/company/transactions/domain/listedRows'
+import { groupTransactions } from '../src/apps/company/transactions/domain/transactionGroups'
+import type { CategoryGroup, CounterpartyGroup, MonthGroup } from '../src/apps/company/transactions/domain/transactionGroups'
+import { counterpartyLabels } from '../src/apps/company/workbook/domain/counterpartyIdentity'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const transactions = ledger([

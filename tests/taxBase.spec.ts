@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { lossesCarriedInto, taxBase } from '../src/packs/hr-doo/domain/cit/taxBase'
-import type { TaxBaseInput } from '../src/packs/hr-doo/domain/cit/taxBase'
-import { tracedFigure } from '../src/packs/hr-doo/domain/payroll/payrollArithmetic'
+import { lossesCarriedInto, taxBase } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
+import type { TaxBaseInput } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
+import { tracedFigure } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollArithmetic'
 import { yearEndLine } from './fixtures/exampleStudio'
 import { euros } from './fixtures/ledger'
 

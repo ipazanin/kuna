@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { readWorkbook } from '../src/features/workbook/domain/readWorkbook'
+import { readWorkbook } from '../src/apps/company/workbook/domain/readWorkbook'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
-import { hrDooPack } from '../src/packs/hr-doo/hrDooPack'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
+import { hrDooPack } from '../src/apps/company/packs/hr-doo/hrDooPack'
 
 const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'browser')
 const { records, workbook } = readSnapshot(snapshot)

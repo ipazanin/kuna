@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfitAndLoss'
+import { monthlyProfitAndLoss } from '../src/apps/company/trends/domain/monthlyProfitAndLoss'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const rows = ledger([

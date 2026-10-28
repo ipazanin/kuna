@@ -1,14 +1,14 @@
 import { reactive, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createFakeInvoiceGoogle, FAKE_INVOICE_FOLDER } from '../src/features/invoicing/infrastructure/fake/fakeInvoiceGoogle'
-import type { FakeInvoiceGoogle } from '../src/features/invoicing/infrastructure/fake/fakeInvoiceGoogle'
-import type { InvoiceRunMode } from '../src/features/invoicing/presentation/useInvoiceRun'
-import { useInvoiceRun } from '../src/features/invoicing/presentation/useInvoiceRun'
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import type { UnitOfWork } from '../src/features/workbook/application/repository'
-import type { Invoice, Workbook } from '../src/features/workbook/domain/workbook'
-import { NO_CLIENT_INVOICING } from '../src/features/workbook/domain/workbook'
+import { createFakeInvoiceGoogle, FAKE_INVOICE_FOLDER } from '../src/apps/company/invoicing/infrastructure/fake/fakeInvoiceGoogle'
+import type { FakeInvoiceGoogle } from '../src/apps/company/invoicing/infrastructure/fake/fakeInvoiceGoogle'
+import type { InvoiceRunMode } from '../src/apps/company/invoicing/presentation/useInvoiceRun'
+import { useInvoiceRun } from '../src/apps/company/invoicing/presentation/useInvoiceRun'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
+import type { UnitOfWork } from '../src/shared/storage/application/repository'
+import type { Invoice, Workbook } from '../src/apps/company/workbook/domain/workbook'
+import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
 import { invoiceOf } from './fixtures/billingPlan'
 import { exampleStudio } from './fixtures/exampleStudio'
 
@@ -24,13 +24,13 @@ const store = vi.hoisted(() => ({
 }))
 const google = vi.hoisted(() => ({ session: null as unknown as FakeInvoiceGoogle }))
 
-vi.mock('../src/features/workbook/application/workbookStore', () => ({ useWorkbook: () => store }))
-vi.mock('../src/features/invoicing/application/invoiceGoogle', () => ({
+vi.mock('../src/apps/company/workbook/application/workbookStore', () => ({ useWorkbook: () => store }))
+vi.mock('../src/apps/company/invoicing/application/invoiceGoogle', () => ({
   invoiceDrive: async () => google.session.drive,
   invoiceDrafts: async () => google.session.drafts,
 }))
-vi.mock('../src/features/invoicing/infrastructure/invoiceFonts', () => ({ invoiceFonts: async () => ({}) }))
-vi.mock('../src/features/invoicing/infrastructure/invoicePdf', () => ({
+vi.mock('../src/apps/company/invoicing/infrastructure/invoiceFonts', () => ({ invoiceFonts: async () => ({}) }))
+vi.mock('../src/apps/company/invoicing/infrastructure/invoicePdf', () => ({
   renderInvoicePdf: async (document: { number: string }) => new TextEncoder().encode(document.number),
 }))
 vi.mock('../src/shared/files/downloadFile', () => ({ downloadFile: () => undefined }))

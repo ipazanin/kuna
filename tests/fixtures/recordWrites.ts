@@ -1,14 +1,15 @@
 import { cellText } from '../../src/shared/text/cellText'
-import type { WorkbookStore } from '../../src/features/workbook/application/createWorkbookStore'
-import type { WriteReceipt } from '../../src/features/workbook/application/recordWrites'
-import { newRecordId } from '../../src/features/workbook/domain/recordId'
-import type { RecordKind } from '../../src/features/workbook/domain/recordKind'
-import type { WriteRules } from '../../src/features/workbook/domain/writeRules'
-import { cellsOfRecord, spreadsheetTabOfKind } from '../../src/features/workbook/infrastructure/spreadsheetTab'
-import type { Cells } from '../../src/features/workbook/infrastructure/spreadsheetTab'
-import { recordsOfDocument } from '../../src/features/workbook/infrastructure/documentRecordStorage'
-import type { DocumentCopy } from '../../src/features/workbook/infrastructure/documentRecordStorage'
-import { ID_FIELD } from '../../src/features/workbook/domain/recordCodec'
+import type { WorkbookStore } from '../../src/apps/company/workbook/application/createWorkbookStore'
+import { codecOfKind } from '../../src/apps/company/workbook/application/recordCodecs'
+import type { WriteReceipt } from '../../src/shared/storage/application/recordWrites'
+import { newRecordId } from '../../src/shared/storage/domain/recordId'
+import type { RecordKind } from '../../src/shared/storage/domain/recordKind'
+import type { WriteRules } from '../../src/shared/storage/domain/writeRules'
+import { cellsOfRecord, spreadsheetTabOfKind } from '../../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import type { Cells } from '../../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import { recordsOfDocument } from '../../src/shared/storage/infrastructure/documentRecordStorage'
+import type { DocumentCopy } from '../../src/shared/storage/infrastructure/documentRecordStorage'
+import { ID_FIELD } from '../../src/shared/storage/domain/recordCodec'
 import { TABS_WITH_IDS } from './rowIds'
 import { recordOf } from './records'
 
@@ -23,7 +24,7 @@ export function recordOnRow<R>(store: Store, kind: RecordKind<R>, sheetRow: numb
   const document = store.state.snapshot!.document
   const record = document.records[kind.name]?.[sheetRow - 2]
   if (record === undefined) throw new Error(`No ${kind.noun.one} at row ${sheetRow}`)
-  const [read] = recordsOfDocument({ ...document, records: { [kind.name]: [record] } }, kind).records
+  const [read] = recordsOfDocument({ ...document, records: { [kind.name]: [record] } }, kind, codecOfKind).records
   if (read === undefined) throw new Error(`Row ${sheetRow} does not read as ${kind.noun.article} ${kind.noun.one}`)
   return read.record
 }

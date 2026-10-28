@@ -2,19 +2,19 @@ import * as XLSX from 'xlsx'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FOREIGN_WORKBOOK_FILES, foreignWorkbookBytes } from '../scripts/support/foreignWorkbookFiles.mjs'
-import { exportFileName, previewImport } from '../src/features/workbook/presentation/workbookFiles'
-import { NEWER_FILE, encodeDocument } from '../src/features/workbook/infrastructure/documentFormat'
-import { newDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
-import { COMPANY_APP } from '../src/features/workbook/infrastructure/documentStorePorts'
-import { RULE_COLUMNS } from '../src/features/rules/domain/rule'
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
+import { exportFileName, previewImport } from '../src/apps/company/workbook/presentation/workbookFiles'
+import { NEWER_FILE, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
+import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
+import { COMPANY_APP, installedSchema } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { RULE_COLUMNS } from '../src/apps/company/rules/domain/rule'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
-import { readWorkbookFile, workbookGrids, writeWorkbookFile } from '../src/features/workbook/infrastructure/workbookFile'
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import type { CellValue, WorkbookSnapshot, WorkbookTabs } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { emptyWorkbookTabs } from '../src/features/workbook/infrastructure/emptyWorkbook'
-import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
-import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import { readWorkbookFile, workbookGrids, writeWorkbookFile } from '../src/apps/company/workbook/infrastructure/workbookFile'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import type { CellValue, WorkbookSnapshot, WorkbookTabs } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+import { emptyWorkbookTabs } from '../src/apps/company/workbook/infrastructure/emptyWorkbook'
+import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
+import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 
 const META = { id: 'file', source: 'browser', title: 'File', syncedAt: '2026-10-16T08:00:00.000Z', lastExportedAt: null, unexportedSince: null } as const
 
@@ -152,6 +152,7 @@ describe('reading an xlsx file', () => {
   it('opens a ledgerboard file such as a backup, and refuses one a newer app saved or another app keeps', async () => {
     const document = newDocument(
       COMPANY_APP,
+      installedSchema(),
       {
         'ledger-row': [{ id: 'row-1', date: '2026-10-05', account: 'main', amount: '-12.50', balance: '87.50', category: 'software', flagged_by: 'rule' }],
         setting: [{ key: 'company_name', value: 'Example Studio' }],

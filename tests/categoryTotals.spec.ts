@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { categoryTotals, outsideProfitAndLossTotals } from '../src/features/spending/domain/categoryTotals'
+import { categoryTotals, outsideProfitAndLossTotals } from '../src/apps/company/spending/domain/categoryTotals'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 const rows = ledger([

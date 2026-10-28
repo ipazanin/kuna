@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { displayName, displayNamesOf } from '../src/features/workbook/domain/displayName'
-import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
+import { displayName, displayNamesOf } from '../src/apps/company/workbook/domain/displayName'
+import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
 
 describe('displayName', () => {
   it('reads a slug with spaces for hyphens and a capital first letter', () => {

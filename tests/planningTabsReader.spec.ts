@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/features/workbook/infrastructure/workbookSnapshot'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import { EMPTY_TABS, sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookSnapshot, WorkbookTab } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { TABS_WITH_IDS } from './fixtures/rowIds'
 import { civilDate, serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { withIds } from './fixtures/rowIds'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { ASSET_RECORDS, GRANT_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
-import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { ASSET_RECORDS, GRANT_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
+import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 
 /** Serial numbers of the date cells the rows below use. */
 const DAY = {

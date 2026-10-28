@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Invoice } from '../src/features/workbook/domain/workbook'
-import { revenueByDelivery } from '../src/packs/hr-doo/domain/accrual/revenueByDelivery'
+import { INVOICE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import type { Invoice } from '../src/apps/company/workbook/domain/workbook'
+import { revenueByDelivery } from '../src/apps/company/packs/hr-doo/domain/accrual/revenueByDelivery'
 import { addMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { INVOICE_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
 interface InvoiceSpec {
   readonly number: string

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { headline, runwayInWords } from '../src/features/overview/domain/headline'
-import { monthlyProfitAndLoss } from '../src/features/trends/domain/monthlyProfitAndLoss'
+import { headline, runwayInWords } from '../src/apps/company/overview/domain/headline'
+import { monthlyProfitAndLoss } from '../src/apps/company/trends/domain/monthlyProfitAndLoss'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
 describe('headline', () => {

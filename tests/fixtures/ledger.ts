@@ -1,3 +1,4 @@
+import { LEDGER_RECORDS } from '../../src/apps/company/workbook/domain/coreKinds'
 import { parseCivilDate } from '../../src/shared/calendar/civilDate'
 import type { CivilDate } from '../../src/shared/calendar/civilDate'
 import { anchorWindow } from '../../src/shared/calendar/ledgerWindow'
@@ -6,10 +7,9 @@ import { parseMonthKey } from '../../src/shared/calendar/monthKey'
 import type { MonthKey } from '../../src/shared/calendar/monthKey'
 import { moneyFromAmount, moneyFromCents } from '../../src/shared/money/money'
 import type { Money } from '../../src/shared/money/money'
-import type { Bucket } from '../../src/features/workbook/domain/bucket'
-import type { Transaction, TransactionSignals } from '../../src/features/workbook/domain/workbook'
-import { recordIdOf } from '../../src/features/workbook/domain/recordId'
-import { LEDGER_RECORDS } from '../../src/features/workbook/domain/recordKind'
+import type { Bucket } from '../../src/apps/company/workbook/domain/bucket'
+import type { Transaction, TransactionSignals } from '../../src/apps/company/workbook/domain/workbook'
+import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 
 /** Buckets and families of the categories the specs use, as the Sheet's seed defines them. */
 const SEED: Readonly<Record<string, { readonly family: string; readonly bucket: Bucket }>> = {

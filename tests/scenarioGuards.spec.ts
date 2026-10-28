@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import type { OwnerPayScenario, ScenarioComponent } from '../src/packs/hr-doo/domain/scenarios/ownerPayScenarios'
-import { scenarioGuards } from '../src/packs/hr-doo/domain/scenarios/scenarioGuards'
+import type { OwnerPayScenario, ScenarioComponent } from '../src/apps/company/packs/hr-doo/domain/scenarios/ownerPayScenarios'
+import { scenarioGuards } from '../src/apps/company/packs/hr-doo/domain/scenarios/scenarioGuards'
 import { civil, euros } from './fixtures/ledger'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { SCENARIO_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 
 type Row = ScenarioComponent extends infer Each ? (Each extends ScenarioComponent ? Omit<Each, 'id' | 'from' | 'to'> & { from?: string; to?: string } : never) : never
 

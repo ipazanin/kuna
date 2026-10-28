@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { missingAccrualRoles } from '../src/packs/hr-doo/presentation/accrualRoles'
+import { missingAccrualRoles } from '../src/apps/company/packs/hr-doo/presentation/accrualRoles'
 import { STUDIO_CATEGORIES } from './fixtures/exampleStudio'
 
 describe('missingAccrualRoles', () => {

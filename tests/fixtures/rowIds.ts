@@ -1,4 +1,4 @@
-import type { CellValue, WorkbookTab } from '../../src/features/workbook/infrastructure/workbookSnapshot'
+import type { CellValue, WorkbookTab } from '../../src/apps/company/workbook/infrastructure/workbookSnapshot'
 
 /** The tabs whose rows have no business key of their own, so each row carries an id. */
 export const TABS_WITH_IDS = ['outgoing-plan', 'owner-advances', 'assets', 'year-end', 'plan', 'splits', 'dismissed'] as const satisfies readonly WorkbookTab[]

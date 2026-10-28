@@ -1,20 +1,20 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { CATEGORY_WRITES } from '../src/features/settings/application/namedRecordWrites'
-import { SETTING_WRITES } from '../src/features/settings/application/settingWrites'
-import type { WorkbookStore } from '../src/features/workbook/application/createWorkbookStore'
-import { WorkbookWriteRefused } from '../src/features/workbook/application/workbookWriteRefused'
-import { recordsOf } from '../src/features/workbook/domain/recordsRead'
-import { NEWER_FILE, decodeDocument, encodeDocument } from '../src/features/workbook/infrastructure/documentFormat'
-import type { WorkbookDocument } from '../src/features/workbook/infrastructure/documentFormat'
-import { newDocument, readDocument } from '../src/features/workbook/infrastructure/documentRecordStorage'
-import type { DocumentCopy } from '../src/features/workbook/infrastructure/documentRecordStorage'
-import { COMPANY_APP } from '../src/features/workbook/infrastructure/documentStorePorts'
-import { documentOfTabs, tabsOfDocument } from '../src/features/workbook/infrastructure/spreadsheetDocument'
-import { EMPTY_TABS, sheetRowsFromValues } from '../src/features/workbook/infrastructure/workbookSnapshot'
-import { hrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
-import type { UploadInFlight } from '../src/features/workbook/infrastructure/fake/fakeDrive'
+import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
+import { SETTING_WRITES } from '../src/apps/company/settings/application/settingWrites'
+import type { WorkbookStore } from '../src/apps/company/workbook/application/createWorkbookStore'
+import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
+import { recordsOf } from '../src/shared/storage/domain/recordsRead'
+import { NEWER_FILE, decodeDocument, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
+import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
+import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
+import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
+import { COMPANY_APP, installedSchema, readDocument } from '../src/apps/company/workbook/infrastructure/documentStorePorts'
+import { documentOfTabs, tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument'
+import { EMPTY_TABS, sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
+import type { UploadInFlight } from '../src/apps/company/workbook/infrastructure/fake/fakeDrive'
 import { browserHarness, driveHarness, forgetCaches, secondDevice } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
@@ -27,7 +27,7 @@ afterEach(async () => {
 const SAVED_AT = '2026-10-16T09:00:00.000Z'
 
 function books(records: WorkbookDocument['records'], schema?: WorkbookDocument['schema']): WorkbookDocument {
-  const document = newDocument(COMPANY_APP, records, SAVED_AT)
+  const document = newDocument(COMPANY_APP, installedSchema(), records, SAVED_AT)
   return schema === undefined ? document : { ...document, schema }
 }
 

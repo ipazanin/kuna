@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { periodInWords } from '../src/features/filters/domain/periodInWords'
+import { periodInWords } from '../src/apps/company/filters/domain/periodInWords'
 import { civil, windowOf } from './fixtures/ledger'
 
 // The ledger starts on 14 Jun 2025 and its newest row is 16 Oct 2026.

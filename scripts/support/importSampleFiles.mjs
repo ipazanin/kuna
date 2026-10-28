@@ -6,7 +6,7 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtXml, sampleTableFile } from '../../src/features/imports/infrastructure/fake/sampleImportFiles.ts'
+import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtXml, sampleTableFile } from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
 
 export async function writeImportSamples(folder) {
   const camt = join(folder, SAMPLE_CAMT_FILE_NAME)

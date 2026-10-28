@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import { billingTotals } from '../src/features/billingPlan/domain/billingTotals'
-import { expectedInvoices } from '../src/features/billingPlan/domain/expectedInvoices'
-import { itemStatistics } from '../src/features/billingPlan/domain/itemStatistics'
-import { plannedAgainstInvoiced } from '../src/features/billingPlan/domain/plannedAgainstInvoiced'
-import { billingView } from '../src/features/billingPlan/presentation/billingView'
+import { billingTotals } from '../src/apps/company/billingPlan/domain/billingTotals'
+import { expectedInvoices } from '../src/apps/company/billingPlan/domain/expectedInvoices'
+import { itemStatistics } from '../src/apps/company/billingPlan/domain/itemStatistics'
+import { plannedAgainstInvoiced } from '../src/apps/company/billingPlan/domain/plannedAgainstInvoiced'
+import { billingView } from '../src/apps/company/billingPlan/presentation/billingView'
 import { chartTokens } from '../src/shared/charts/chartTokens'
-import type { BillingItem } from '../src/features/workbook/domain/billingPlan'
-import type { Invoice } from '../src/features/workbook/domain/workbook'
+import type { BillingItem } from '../src/apps/company/workbook/domain/billingPlan'
+import type { Invoice } from '../src/apps/company/workbook/domain/workbook'
 import { invoiceOf, planRow } from './fixtures/billingPlan'
 
 function viewOf(plan: readonly BillingItem[], invoices: readonly Invoice[], year: number) {

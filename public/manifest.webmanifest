@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Ledgerboard",
   "short_name": "Ledgerboard",
-  "description": "Company finance dashboards over a Google Sheet or an Excel workbook, computed in the browser.",
+  "description": "Company finance dashboards computed in the browser, over books kept as a JSON file on Google Drive or in the browser.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",

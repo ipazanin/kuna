@@ -1,0 +1,89 @@
+import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
+import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
+import { bindFiltersToRouter } from './filters/application/filterStore'
+import { ONBOARDING_ROUTE } from './onboarding/presentation/useOnboarding'
+import { hrDooPack } from './packs/hr-doo/hrDooPack'
+import { HR_DOO_TABS } from './packs/hr-doo/infrastructure/hrDooTabs'
+import { installPack, shownPack } from './packs/packContribution'
+import { useSettings } from './settings/application/useSettings'
+import { startAutoSync } from './sync/application/autoSync'
+import { autoSyncOn } from './sync/infrastructure/autoSyncSwitch'
+import TopBarSync from './sync/presentation/TopBarSync.vue'
+import { useSync } from './sync/presentation/useSync'
+import { useWorkbook } from './workbook/application/workbookStore'
+import { needsReview } from './workbook/domain/needsReview'
+import { installPackTabs } from './workbook/infrastructure/packTabs'
+import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
+
+const CORE_SCREENS: readonly AppScreen[] = [
+  { path: '/company', title: 'Overview', icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') },
+  { path: '/company/transactions', title: 'Transactions', icon: 'i-lucide-list', component: () => import('./transactions/presentation/TransactionsScreen.vue') },
+  { path: '/company/review', title: 'Review', icon: 'i-lucide-inbox', component: () => import('./review/presentation/ReviewScreen.vue') },
+  { path: '/company/invoicing', title: 'Invoicing', icon: 'i-lucide-receipt-text', component: () => import('./invoicing/presentation/InvoicingScreen.vue') },
+  { path: '/company/analysis', title: 'Analysis', icon: 'i-lucide-chart-bar', component: () => import('./analysis/presentation/AnalysisScreen.vue') },
+]
+
+const store = useWorkbook()
+const { state } = store
+const settings = useSettings()
+
+/** The company's books, figures and setup, with the Croatian d.o.o. pack installed. */
+export const companyApp: AppContribution = {
+  id: 'company',
+  async install() {
+    installPack(hrDooPack)
+    installPackTabs(HR_DOO_TABS)
+    // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
+    if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
+      const [{ seedFakeWorkbook }, { fakeStaffOf }] = await Promise.all([
+        import('./workbook/infrastructure/fake/seedFakeWorkbook'),
+        import('./packs/hr-doo/infrastructure/fake/fakeStaff'),
+      ])
+      await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'), fakeStaffOf)
+    }
+  },
+  screens: [
+    ...CORE_SCREENS,
+    ...hrDooPack.screens,
+    { path: ONBOARDING_ROUTE, title: 'Start', icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/OnboardingScreen.vue'), bare: true },
+    // Written inline so the production build folds it to false and drops the gallery chunk entirely.
+    // The fake build keeps it, because the visual check screenshots the gallery from that build.
+    ...(import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true'
+      ? [{ path: '/company/gallery', title: 'Gallery', icon: 'i-lucide-swatch-book', component: () => import('./gallery/GalleryScreen.vue') } as const]
+      : []),
+  ],
+  menu: () => [...CORE_SCREENS, ...shownPack(settings.value).screens],
+  // Review counts every row that waits, whatever the filters, since the queue has no period.
+  menuCount: (screen) => (screen.path === '/company/review' ? (state.workbook?.transactions.filter(needsReview).length ?? 0) : null),
+  subtitle: () => state.workbook?.settings.companyName || null,
+  // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
+  firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
+  startPath: ONBOARDING_ROUTE,
+  syncControl: TopBarSync,
+  settings: async () => (await import('./settings/presentation/companySettings')).COMPANY_SETTINGS,
+  // Each open of the books on Drive on a device that syncs as it opens fetches the page's one token first.
+  asksGoogleOnOpen: () => loadWorkbookChoice()?.source === 'drive' && autoSyncOn.value,
+  start(router, googleReturn) {
+    const unbindFilters = bindFiltersToRouter(router)
+    const sync = useSync()
+    useGoogleReturn(googleReturn, sync.sync)
+    const stopAutoSync = startAutoSync({
+      store,
+      sync: sync.sync,
+      switchedOn: () => autoSyncOn.value,
+      now: () => Date.now(),
+      online: () => navigator.onLine,
+      onVisible(callback) {
+        const onVisibilityChange = (): void => {
+          if (document.visibilityState === 'visible') callback()
+        }
+        document.addEventListener('visibilitychange', onVisibilityChange)
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+      },
+    })
+    return () => {
+      stopAutoSync()
+      unbindFilters()
+    }
+  },
+}

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import { dryRunFor, statementReadings } from '../src/features/imports/application/importStatements'
-import { statementFilesToRead } from '../src/features/imports/domain/statementFiles'
-import type { StatementFile } from '../src/features/imports/domain/statementFiles'
+import { dryRunFor, statementReadings } from '../src/apps/company/imports/application/importStatements'
+import { statementFilesToRead } from '../src/apps/company/imports/domain/statementFiles'
+import type { StatementFile } from '../src/apps/company/imports/domain/statementFiles'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 
 const FAKE = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')).workbook
 

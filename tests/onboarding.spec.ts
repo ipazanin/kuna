@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import type { CivilDate } from '../src/shared/calendar/civilDate'
-import { scopesOfChoices } from '../src/features/onboarding/application/onboardingScopes'
-import { OTHER_BANK, nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../src/features/onboarding/domain/onboardingSteps'
-import type { OnboardingPlace, StatementMail } from '../src/features/onboarding/domain/onboardingSteps'
-import { statementMailProblems, statementSettingsOf } from '../src/features/onboarding/domain/statementsChoice'
+import { scopesOfChoices } from '../src/apps/company/onboarding/application/onboardingScopes'
+import { OTHER_BANK, nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../src/apps/company/onboarding/domain/onboardingSteps'
+import type { OnboardingPlace, StatementMail } from '../src/apps/company/onboarding/domain/onboardingSteps'
+import { statementMailProblems, statementSettingsOf } from '../src/apps/company/onboarding/domain/statementsChoice'
 
 const ERSTE: StatementMail = { bank: 'erste', from: '', subject: '', since: null }
 

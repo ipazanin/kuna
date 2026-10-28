@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { recategorisation } from '../src/features/review/domain/verdictChanges'
-import type { Rule } from '../src/features/rules/domain/rule'
-import { ruleAgainst } from '../src/features/rules/domain/ruleCoverage'
-import { categorisationContextOf } from '../src/features/rules/domain/transactionFacts'
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import { categoryChangeOf } from '../src/features/transactions/domain/categoryChange'
-import { listedRows } from '../src/features/transactions/domain/listedRows'
-import type { OwnerAdvance } from '../src/features/workbook/domain/workbook'
+import { recategorisation } from '../src/apps/company/review/domain/verdictChanges'
+import type { Rule } from '../src/apps/company/rules/domain/rule'
+import { ruleAgainst } from '../src/apps/company/rules/domain/ruleCoverage'
+import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
+import { categoryChangeOf } from '../src/apps/company/transactions/domain/categoryChange'
+import { listedRows } from '../src/apps/company/transactions/domain/listedRows'
+import type { OwnerAdvance } from '../src/apps/company/workbook/domain/workbook'
 import { STUDIO_CATEGORIES } from './fixtures/exampleStudio'
 import { civil, euros, ledger } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 
 const ROWS = ledger([
   { date: '2026-09-02', amount: -40, category: 'travel', counterparty: 'Rail', flaggedBy: 'ivan' },

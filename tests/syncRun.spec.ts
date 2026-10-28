@@ -11,8 +11,8 @@ import {
   syncControlOf,
   withBooksFailure,
   withStep,
-} from '../src/features/sync/domain/syncRun'
-import type { AccessNeed, BooksStanding, PageAccess, StepState, SyncRun } from '../src/features/sync/domain/syncRun'
+} from '../src/apps/company/sync/domain/syncRun'
+import type { AccessNeed, BooksStanding, PageAccess, StepState, SyncRun } from '../src/apps/company/sync/domain/syncRun'
 
 const STARTED = '2026-10-26T07:00:00.000Z'
 const FINISHED = '2026-10-26T07:00:05.000Z'
@@ -121,7 +121,7 @@ describe('the sync control', () => {
   })
 
   it('counts the steps that failed or wait for you as problems, and is ready otherwise', () => {
-    const waits: StepState = { kind: 'waits', line: '1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/transactions?tab=import' } }
+    const waits: StepState = { kind: 'waits', line: '1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/company/transactions?tab=import' } }
     const problems = finishedRun(withStep(withStep(withStep(started(), 'books', DONE), 'statements', waits), 'accountant', { kind: 'failed', line: 'No folder.', link: null }), FINISHED)
     const clean = finishedRun(withStep(withStep(withStep(started(), 'books', DONE), 'statements', DONE), 'accountant', DONE), FINISHED)
 

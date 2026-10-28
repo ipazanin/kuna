@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { spreadByDays } from '../src/packs/hr-doo/domain/accrual/daySpread'
+import { spreadByDays } from '../src/apps/company/packs/hr-doo/domain/accrual/daySpread'
 import { sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
 

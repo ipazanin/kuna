@@ -1,9 +1,9 @@
 import { writeFileSync } from 'node:fs'
 
-import { readDocument } from '../../src/features/workbook/infrastructure/documentRecordStorage.ts'
-import { fakeWorkbookDocument } from '../../src/features/workbook/infrastructure/fake/fakeWorkbook.ts'
-import { tabsOfDocument } from '../../src/features/workbook/infrastructure/spreadsheetDocument.ts'
-import { writeWorkbookFile } from '../../src/features/workbook/infrastructure/workbookFile.ts'
+import { readDocument } from '../../src/apps/company/workbook/infrastructure/documentStorePorts.ts'
+import { fakeWorkbookDocument } from '../../src/apps/company/workbook/infrastructure/fake/fakeWorkbook.ts'
+import { tabsOfDocument } from '../../src/apps/company/workbook/infrastructure/spreadsheetDocument.ts'
+import { writeWorkbookFile } from '../../src/apps/company/workbook/infrastructure/workbookFile.ts'
 import { installHrDooPack } from './installPack.mjs'
 
 /**

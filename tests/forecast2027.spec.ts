@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import type { OwnerPayScenario, ScenarioComponent } from '../src/packs/hr-doo/domain/scenarios/ownerPayScenarios'
-import type { ComponentDraft } from '../src/packs/hr-doo/domain/scenarios/startingScenarios'
-import type { HrDooWorkbook } from '../src/packs/hr-doo/domain/hrDooPart'
-import { dividendCapacity } from '../src/packs/hr-doo/domain/dividend/dividendCapacity'
-import { forecastYear } from '../src/packs/hr-doo/domain/forecast/forecastYear'
+import type { OwnerPayScenario, ScenarioComponent } from '../src/apps/company/packs/hr-doo/domain/scenarios/ownerPayScenarios'
+import type { ComponentDraft } from '../src/apps/company/packs/hr-doo/domain/scenarios/startingScenarios'
+import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
+import { dividendCapacity } from '../src/apps/company/packs/hr-doo/domain/dividend/dividendCapacity'
+import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
 import { civil, euros } from './fixtures/ledger'
 import { planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
 import { director } from './fixtures/employees'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { SCENARIO_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { SCENARIO_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 
 function scenario(slug: string, components: readonly ComponentDraft[]): OwnerPayScenario {
   return { slug, label: slug, year: 2027, components: components.map((component, index) => ({ ...component, id: recordIdOf(SCENARIO_RECORDS, `${slug}-${index}`) }) as ScenarioComponent) }

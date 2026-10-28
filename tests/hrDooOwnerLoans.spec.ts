@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { loanMonths, ownerLoans } from '../src/packs/hr-doo/domain/ownerLoans'
+import { loanMonths, ownerLoans } from '../src/apps/company/packs/hr-doo/domain/ownerLoans'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
-import type { Category } from '../src/features/workbook/domain/workbook'
-import { DEFAULT_FILTERS } from '../src/features/filters/domain/filterState'
-import type { FilterState } from '../src/features/filters/domain/filterState'
-import { scopeTransactions } from '../src/features/transactions/domain/filterTransactions'
+import type { Category } from '../src/apps/company/workbook/domain/workbook'
+import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
+import type { FilterState } from '../src/apps/company/filters/domain/filterState'
+import { scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
-import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
+import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
 
 function book(rows: readonly RowSpec[], categories: readonly Category[] = PACK_CATEGORIES) {
   return ownerLoans(withPackBuckets(ledger(rows), categories), categories)

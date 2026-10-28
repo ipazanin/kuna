@@ -15,6 +15,8 @@ interface Import {
   readonly specifier: string
   /** The imported file from the repo root, or null for a package. */
   readonly target: string | null
+  /** An `import()` call rather than a declaration. */
+  readonly dynamic: boolean
 }
 
 /** Every import in `src`, with type-only ones, `export ... from` and dynamic imports, each relative one resolved to its file. */
@@ -29,6 +31,7 @@ function importsInSource(): Import[] {
         from,
         specifier: imported.fileName,
         target: imported.fileName.startsWith('.') ? resolvedFile(dirname(path), imported.fileName) : null,
+        dynamic: /\bimport\s*\(\s*$/.test(code.slice(0, imported.pos)),
       })),
     )
   })
@@ -65,24 +68,42 @@ function linesHolding(pattern: RegExp, allowed: (file: string) => boolean): stri
   )
 }
 
+/** The app a file belongs to, such as `company` for `src/apps/company/`, or null outside the apps. */
+function appOf(file: string): string | null {
+  return /^src\/apps\/([^/]+)\//.exec(file)?.[1] ?? null
+}
+
+/** The pack folder a file belongs to, such as `src/apps/company/packs/hr-doo/`, or null outside the packs. */
+function packOf(file: string): string | null {
+  return /^src\/apps\/[^/]+\/packs\/[^/]+\//.exec(file)?.[0] ?? null
+}
+
+/** The file through which main.ts installs an app, and which installs the app's pack. */
+function isAppEntry(file: string): boolean {
+  return /^src\/apps\/[^/]+\/app\.ts$/.test(file)
+}
+
 /** Domain code: a `domain` folder, and a pack's ruleset outside its presentation, which holds the law the domain computes with. */
 function isDomain(file: string): boolean {
-  return /\/domain\//.test(file) || (/^src\/packs\/[^/]+\/ruleset\//.test(file) && !/\/presentation\//.test(file))
+  return /\/domain\//.test(file) || (packOf(file) !== null && /\/ruleset\//.test(file) && !/\/presentation\//.test(file))
 }
 
-const DOMAIN_SHARED = ['src/shared/calendar/', 'src/shared/money/', 'src/shared/text/']
+const DOMAIN_SHARED = ['src/shared/storage/domain/', 'src/shared/calendar/', 'src/shared/money/', 'src/shared/text/']
 
-function isCore(file: string): boolean {
-  return file.startsWith('src/features/') || file.startsWith('src/shared/') || file === 'src/App.vue'
+/** Where the books are kept: the kernel's document storage and each app's workbook. */
+function isStorage(file: string): boolean {
+  return file.startsWith('src/shared/storage/') || /^src\/apps\/[^/]+\/workbook\//.test(file)
 }
 
-const WORKBOOK_INFRASTRUCTURE = 'src/features/workbook/infrastructure/'
+function isStorageAdapter(file: string): boolean {
+  return isStorage(file) && /\/infrastructure\//.test(file)
+}
 
 /** The spreadsheet adapter's mapping of kinds to tabs, which a pack's own mappings build on. */
-const SPREADSHEET_MAPPING = ['spreadsheetTab.ts', 'packTabs.ts', 'workbookTemplate.ts', 'cellFormats.ts'].map((file) => `${WORKBOOK_INFRASTRUCTURE}${file}`)
+const SPREADSHEET_MAPPING = ['spreadsheetTab.ts', 'packTabs.ts', 'workbookTemplate.ts', 'cellFormats.ts'].map((file) => `src/apps/company/workbook/infrastructure/${file}`)
 
 /** The files that wire adapters to the application: the workbook store's, and the invoice run's Google ports. */
-const ADAPTER_WIRING = ['src/features/workbook/application/workbookStore.ts', 'src/features/invoicing/application/invoiceGoogle.ts']
+const ADAPTER_WIRING = ['src/apps/company/workbook/application/workbookStore.ts', 'src/apps/company/invoicing/application/invoiceGoogle.ts']
 
 /** Data of the fake build, which only the fake build loads. */
 function isFakeSeed(file: string): boolean {
@@ -95,40 +116,80 @@ function broken(rule: (entry: Import) => boolean): string[] {
 
 describe('import boundaries', () => {
   it('reads the imports it checks', () => {
-    expect(IMPORTS.some((entry) => entry.at.startsWith('src/main.ts:') && entry.target === 'src/packs/hr-doo/hrDooPack.ts')).toBe(true)
+    expect(IMPORTS.some((entry) => entry.from === 'src/main.ts' && entry.dynamic && entry.target === 'src/apps/company/app.ts')).toBe(true)
+    expect(IMPORTS.some((entry) => entry.from === 'src/apps/company/app.ts' && !entry.dynamic && entry.target === 'src/apps/company/packs/hr-doo/hrDooPack.ts')).toBe(true)
     expect(IMPORTS.some((entry) => entry.from.endsWith('.vue') && entry.target?.includes('/domain/'))).toBe(true)
     expect(IMPORTS.filter((entry) => entry.target !== null && !existsSync(join(ROOT, entry.target))).map((entry) => entry.at)).toEqual([])
   })
 
-  it('keeps domain code to domain code and the calendar, money and text helpers', () => {
-    expect(broken((entry) => !isDomain(entry.from) || (entry.target !== null && (isDomain(entry.target) || DOMAIN_SHARED.some((folder) => entry.target!.startsWith(folder)))))).toEqual([])
+  it('keeps the shared kernel off the shell and the apps', () => {
+    expect(broken((entry) => !entry.from.startsWith('src/shared/') || entry.target === null || entry.target.startsWith('src/shared/'))).toEqual([])
   })
 
-  it('leaves row numbers to the spreadsheet adapter, and record ids to their maker', () => {
-    expect(linesHolding(/\bsheetRow\b/, () => false).length).toBeGreaterThan(0)
-    expect(linesHolding(/\bsheetRows?\b/, (file) => file.startsWith('src/features/workbook/infrastructure/'))).toEqual([])
-    expect(linesHolding(/\bas RecordId\b/, (file) => file === 'src/features/workbook/domain/recordId.ts')).toEqual([])
-  })
-
-  it('keeps the spreadsheet adapter inside the workbook feature, which main.ts wires in and a pack maps its tabs with', () => {
+  it('keeps the shell off the apps, which main.ts installs by importing each app.ts when it starts', () => {
     expect(
       broken(
         (entry) =>
           entry.target === null ||
-          !entry.target.startsWith(WORKBOOK_INFRASTRUCTURE) ||
-          entry.from.startsWith('src/features/workbook/') ||
-          entry.from === 'src/main.ts' ||
+          !entry.target.startsWith('src/apps/') ||
+          appOf(entry.from) !== null ||
+          (entry.from === 'src/main.ts' && entry.dynamic && isAppEntry(entry.target)),
+      ),
+    ).toEqual([])
+  })
+
+  it('keeps each app to its own folder and the shared kernel', () => {
+    expect(broken((entry) => appOf(entry.from) === null || entry.target === null || entry.target.startsWith('src/shared/') || appOf(entry.target) === appOf(entry.from))).toEqual([])
+  })
+
+  it("keeps an app's code outside its packs free of pack code, which only its app.ts installs", () => {
+    expect(broken((entry) => appOf(entry.from) === null || packOf(entry.from) !== null || isAppEntry(entry.from) || entry.target === null || packOf(entry.target) === null)).toEqual([])
+  })
+
+  it('keeps a pack to its own folder, its app and the shared kernel', () => {
+    expect(
+      broken(
+        (entry) =>
+          packOf(entry.from) === null ||
+          entry.target === null ||
+          entry.target.startsWith('src/shared/') ||
+          packOf(entry.target) === packOf(entry.from) ||
+          (appOf(entry.target) === appOf(entry.from) && packOf(entry.target) === null),
+      ),
+    ).toEqual([])
+  })
+
+  it("keeps domain code to its own app's domain code, the record types and the calendar, money and text helpers", () => {
+    expect(
+      broken(
+        (entry) =>
+          !isDomain(entry.from) ||
+          (entry.target !== null && ((isDomain(entry.target) && appOf(entry.target) === appOf(entry.from)) || DOMAIN_SHARED.some((folder) => entry.target!.startsWith(folder)))),
+      ),
+    ).toEqual([])
+  })
+
+  it('leaves row numbers to the spreadsheet adapter, and record ids to their maker', () => {
+    expect(linesHolding(/\bsheetRow\b/, () => false).length).toBeGreaterThan(0)
+    expect(linesHolding(/\bsheetRows?\b/, isStorageAdapter)).toEqual([])
+    expect(linesHolding(/\bas RecordId\b/, (file) => file === 'src/shared/storage/domain/recordId.ts')).toEqual([])
+  })
+
+  it("keeps the storage adapters inside the kernel's storage and the app's workbook, which its app.ts wires in and a pack maps its tabs with", () => {
+    expect(
+      broken(
+        (entry) =>
+          entry.target === null ||
+          !isStorageAdapter(entry.target) ||
+          isStorage(entry.from) ||
+          isAppEntry(entry.from) ||
           isFakeSeed(entry.from) ||
-          (/^src\/packs\/[^/]+\/infrastructure\//.test(entry.from) && SPREADSHEET_MAPPING.includes(entry.target)),
+          (packOf(entry.from) !== null && /\/infrastructure\//.test(entry.from) && SPREADSHEET_MAPPING.includes(entry.target)),
       ),
     ).toEqual([])
   })
 
   it('keeps application code off infrastructure, but for the files that wire the adapters', () => {
     expect(broken((entry) => !/\/application\//.test(entry.from) || entry.target === null || !/\/infrastructure\//.test(entry.target) || ADAPTER_WIRING.includes(entry.from))).toEqual([])
-  })
-
-  it('keeps core free of pack code, which only main.ts installs', () => {
-    expect(broken((entry) => !isCore(entry.from) || entry.target === null || !entry.target.startsWith('src/packs/'))).toEqual([])
   })
 })

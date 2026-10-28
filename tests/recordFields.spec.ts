@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { moneyFromCents } from '../src/shared/money/money'
-import { amountText, filledFields } from '../src/features/workbook/domain/recordFields'
-import { storedFieldOfValue } from '../src/features/workbook/domain/storedFields'
+import { amountText, filledFields } from '../src/shared/storage/domain/recordFields'
+import { storedFieldOfValue } from '../src/shared/storage/domain/storedFields'
 
 describe('record fields', () => {
   it('write an amount as decimal text from its cents', () => {

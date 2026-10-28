@@ -1,17 +1,17 @@
 import * as XLSX from 'xlsx'
 import { describe, expect, it } from 'vitest'
 
-import { readProfile, profileValue } from '../src/features/imports/domain/importProfile'
-import type { ImportProfile } from '../src/features/imports/domain/importProfile'
-import type { ImportedStatement, StatementReading } from '../src/features/imports/domain/importedStatement'
-import { fileShapeOf } from '../src/features/imports/domain/profileGuess'
-import { dateOf, moneyOf, readTabularStatement } from '../src/features/imports/domain/tabularStatement'
-import type { CellGrid } from '../src/features/imports/domain/tabularStatement'
-import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
-import { parseSettings, settingsTabEntries } from '../src/features/settings/domain/settings'
+import { readProfile, profileValue } from '../src/apps/company/imports/domain/importProfile'
+import type { ImportProfile } from '../src/apps/company/imports/domain/importProfile'
+import type { ImportedStatement, StatementReading } from '../src/apps/company/imports/domain/importedStatement'
+import { fileShapeOf } from '../src/apps/company/imports/domain/profileGuess'
+import { dateOf, moneyOf, readTabularStatement } from '../src/apps/company/imports/domain/tabularStatement'
+import type { CellGrid } from '../src/apps/company/imports/domain/tabularStatement'
+import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
+import { parseSettings, settingsTabEntries } from '../src/apps/company/settings/domain/settings'
+import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { moneyFromCents } from '../src/shared/money/money'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { SETTING_RECORDS } from '../src/features/workbook/domain/recordKind'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
 /** The shape of a Croatian bank's xlsx export, every value invented: a title, the header, rows newest first, a total. */
 const HEADER = ['Datum valute', 'Datum knjiženja', 'Naziv primatelja / platitelja', 'IBAN primatelja / platitelja', 'Opis plaćanja', 'Isplata', 'Uplata', 'Stanje']

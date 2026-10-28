@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Booking, Category } from '../src/features/workbook/domain/workbook'
-import { serviceMonthOf } from '../src/packs/hr-doo/domain/accrual/serviceMonth'
+import type { Booking, Category } from '../src/apps/company/workbook/domain/workbook'
+import { serviceMonthOf } from '../src/apps/company/packs/hr-doo/domain/accrual/serviceMonth'
 import { civil, euros } from './fixtures/ledger'
-import { COMPANY_FACT_SETTINGS } from '../src/packs/hr-doo/domain/companyFacts'
-import type { CompanyFacts } from '../src/packs/hr-doo/domain/companyFacts'
-import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
+import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
+import type { CompanyFacts } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
+import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
 
 function category(slug: string, roles: readonly string[] = []): Category {
   return { slug, family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles, vat: 'none', ownerShare: null }

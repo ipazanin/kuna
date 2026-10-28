@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { describe, expect, it } from 'vitest'
 
-import { browserDocumentHome, deleteBrowserDocument, replaceBrowserDocument } from '../src/features/workbook/infrastructure/browserDocument'
+import { browserDocumentHome, deleteBrowserDocument, replaceBrowserDocument } from '../src/shared/storage/infrastructure/browserDocument'
 
 const neverRewritten = async () => {
   throw new Error('The browser never runs a write again.')

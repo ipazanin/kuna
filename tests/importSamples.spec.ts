@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import { dryRunFor, statementReadings } from '../src/features/imports/application/importStatements'
-import { accountNamedIn, fileShapeOf } from '../src/features/imports/domain/profileGuess'
-import { statementFilesToRead } from '../src/features/imports/domain/statementFiles'
-import { FAKE_FOLDERS } from '../src/features/workbook/infrastructure/fake/fakeWorkbook'
-import type { FakeMadeFile } from '../src/features/workbook/infrastructure/fake/fakeFolderFiles'
-import { fakeStatementFolder } from '../src/features/imports/infrastructure/fake/fakeStatementFolder'
-import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtLabel, sampleCamtXml, sampleTableGrid } from '../src/features/imports/infrastructure/fake/sampleImportFiles'
-import { loadImportFile } from '../src/features/imports/infrastructure/importFiles'
+import { dryRunFor, statementReadings } from '../src/apps/company/imports/application/importStatements'
+import { accountNamedIn, fileShapeOf } from '../src/apps/company/imports/domain/profileGuess'
+import { statementFilesToRead } from '../src/apps/company/imports/domain/statementFiles'
+import { FAKE_FOLDERS } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
+import type { FakeMadeFile } from '../src/apps/company/workbook/infrastructure/fake/fakeFolderFiles'
+import { fakeStatementFolder } from '../src/apps/company/imports/infrastructure/fake/fakeStatementFolder'
+import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtLabel, sampleCamtXml, sampleTableGrid } from '../src/apps/company/imports/infrastructure/fake/sampleImportFiles'
+import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 
 const workbook = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')).workbook
 const camt = { kind: 'camt' as const, fileName: SAMPLE_CAMT_FILE_NAME, document: new DOMParser().parseFromString(sampleCamtXml(), 'application/xml') }

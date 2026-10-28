@@ -911,7 +911,7 @@ export async function changeCategoryFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
 
   await page.evaluate(() => {
-    window.location.hash = '#/transactions?p=all&q=PAPER'
+    window.location.hash = '#/company/transactions?p=all&q=PAPER'
   })
   await waitForSplit(page, true)
   await openChangeOfRow(page, press, true)
@@ -1279,7 +1279,7 @@ export async function statementSyncFlow(page, { press, shoot, inspect }) {
   await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
   await noToast(page, 'a sync from the Sync card showed a toast')
   await page.evaluate(() => {
-    window.location.hash = '#/transactions?tab=import'
+    window.location.hash = '#/company/transactions?tab=import'
   })
   await page.waitForSelector('[data-testid="statement-folder-filed"]', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('Import does not list the statement the sync filed')
@@ -1326,7 +1326,7 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
   await inspect?.('the held statement on Import')
   await shoot('statements-held-import')
   await page.evaluate(() => {
-    window.location.hash = '#/'
+    window.location.hash = '#/company'
   })
   const job = await page.waitForSelector('[data-job="statements"]', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('Overview has no line for the statement the sync held')
@@ -1335,7 +1335,7 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
   if (!text.includes('1 statement was not filed')) throw new Error(`the held statement's line says: ${text}`)
 
   await page.evaluate(() => {
-    window.location.hash = '#/transactions?tab=import'
+    window.location.hash = '#/company/transactions?tab=import'
   })
   const name = await page.waitForSelector('[data-testid="statement-folder"] input[data-testid="dry-run-account-name"]', { visible: true, timeout: 10_000 })
   await setField(name, 'second')

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { plannedAgainstInvoiced } from '../src/features/billingPlan/domain/plannedAgainstInvoiced'
-import type { ClientBillingMatch } from '../src/features/billingPlan/domain/plannedAgainstInvoiced'
+import { plannedAgainstInvoiced } from '../src/apps/company/billingPlan/domain/plannedAgainstInvoiced'
+import type { ClientBillingMatch } from '../src/apps/company/billingPlan/domain/plannedAgainstInvoiced'
 import { sumMoney } from '../src/shared/money/money'
-import type { BillingItem } from '../src/features/workbook/domain/billingPlan'
-import type { Invoice } from '../src/features/workbook/domain/workbook'
+import type { BillingItem } from '../src/apps/company/workbook/domain/billingPlan'
+import type { Invoice } from '../src/apps/company/workbook/domain/workbook'
 import { euros } from './fixtures/ledger'
 import { invoiceOf, planRow } from './fixtures/billingPlan'
 

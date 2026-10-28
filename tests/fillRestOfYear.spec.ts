@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { fillRestOfYear } from '../src/features/billingPlan/domain/fillRestOfYear'
-import type { RestOfYearFill } from '../src/features/billingPlan/domain/fillRestOfYear'
-import { DEFAULT_SETTINGS } from '../src/features/settings/domain/settings'
-import type { BillingTerms } from '../src/features/settings/domain/settings'
+import { fillRestOfYear } from '../src/apps/company/billingPlan/domain/fillRestOfYear'
+import type { RestOfYearFill } from '../src/apps/company/billingPlan/domain/fillRestOfYear'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
+import type { BillingTerms } from '../src/apps/company/settings/domain/settings'
 import { civil, euros } from './fixtures/ledger'
 import { planRow } from './fixtures/billingPlan'
 

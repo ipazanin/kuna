@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Booking, Category } from '../src/features/workbook/domain/workbook'
-import { VAT_TREATMENTS } from '../src/features/workbook/domain/vatTreatment'
-import type { VatTreatment } from '../src/features/workbook/domain/vatTreatment'
-import { vatSplit } from '../src/packs/hr-doo/domain/vat/vatSplit'
-import type { VatSplit } from '../src/packs/hr-doo/domain/vat/vatSplit'
+import type { Booking, Category } from '../src/apps/company/workbook/domain/workbook'
+import { VAT_TREATMENTS } from '../src/apps/company/workbook/domain/vatTreatment'
+import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
+import { vatSplit } from '../src/apps/company/packs/hr-doo/domain/vat/vatSplit'
+import type { VatSplit } from '../src/apps/company/packs/hr-doo/domain/vat/vatSplit'
 import { addMoney, sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
-import { BUCKET_COLOUR } from '../src/features/workbook/domain/categoryColour'
+import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
 
 function category(vat: VatTreatment): Category {
   return { slug: 'office-supplies', family: 'operating', bucket: 'operating', colour: BUCKET_COLOUR, roles: [], vat, ownerShare: null }

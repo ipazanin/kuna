@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { payrollMonth } from '../src/packs/hr-doo/domain/payroll/payrollMonth'
-import type { NontaxablePayment, PayrollMonth, PayrollMonthInput } from '../src/packs/hr-doo/domain/payroll/payrollMonth'
-import type { EmployeeFacts } from '../src/packs/hr-doo/domain/payroll/incomeTax'
-import type { TracedFigure } from '../src/packs/hr-doo/ruleset/tracedFigure'
+import { payrollMonth } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollMonth'
+import type { NontaxablePayment, PayrollMonth, PayrollMonthInput } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollMonth'
+import type { EmployeeFacts } from '../src/apps/company/packs/hr-doo/domain/payroll/incomeTax'
+import type { TracedFigure } from '../src/apps/company/packs/hr-doo/ruleset/tracedFigure'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { sumMoney } from '../src/shared/money/money'

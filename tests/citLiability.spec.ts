@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { citLiability } from '../src/packs/hr-doo/domain/cit/citLiability'
-import type { TaxPeriod } from '../src/packs/hr-doo/domain/cit/citLiability'
-import { taxBase } from '../src/packs/hr-doo/domain/cit/taxBase'
-import { tracedFigure } from '../src/packs/hr-doo/domain/payroll/payrollArithmetic'
+import { citLiability } from '../src/apps/company/packs/hr-doo/domain/cit/citLiability'
+import type { TaxPeriod } from '../src/apps/company/packs/hr-doo/domain/cit/citLiability'
+import { taxBase } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
+import { tracedFigure } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollArithmetic'
 import { civil, euros } from './fixtures/ledger'
 
 function figure(amount: number) {

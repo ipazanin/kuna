@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { waitingJobs } from '../src/features/overview/presentation/waitingForYou'
-import { presentedWorkbook } from '../src/features/transactions/application/presentedWorkbook'
+import { waitingJobs } from '../src/apps/company/overview/presentation/waitingForYou'
+import { presentedWorkbook } from '../src/apps/company/transactions/application/presentedWorkbook'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
-import { readSnapshot } from '../src/features/workbook/infrastructure/spreadsheetTab'
-import type { Workbook } from '../src/features/workbook/domain/workbook'
+import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 
 function fake(source: 'drive' | 'browser'): Workbook {
   return readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', source)).workbook
@@ -32,7 +32,7 @@ describe('waiting for you', () => {
     const workbook = fake('drive')
     const invoice = waitingJobs(presentedWorkbook(workbook), workbook.transactions).find((job) => job.key === 'invoice')
 
-    expect(invoice?.link.to).toEqual({ path: '/invoicing', query: { tab: 'plan', year: '2026', month: '2026-10' }, hash: '#billing-month-2026-10' })
+    expect(invoice?.link.to).toEqual({ path: '/company/invoicing', query: { tab: 'plan', year: '2026', month: '2026-10' }, hash: '#billing-month-2026-10' })
   })
 
   it('holds the corporate tax against its schedule once the company has a registration day', () => {
@@ -43,7 +43,7 @@ describe('waiting for you', () => {
     const workbook = fake('browser')
     const tax = waitingJobs(presentedWorkbook(workbook), workbook.transactions).find((job) => job.key === 'corporate-tax')
 
-    expect(tax?.link.to).toEqual({ path: '/year', query: { tab: 'taxes' }, hash: '#corporate-tax' })
+    expect(tax?.link.to).toEqual({ path: '/company/year', query: { tab: 'taxes' }, hash: '#corporate-tax' })
   })
 
   it('flags a complete month with no payroll contribution, linking to the payroll cadence', () => {
@@ -54,7 +54,7 @@ describe('waiting for you', () => {
       key: 'payroll',
       text: 'Payroll contributions: no payment landed in March',
       tone: 'negative',
-      link: { label: 'Year, Taxes', to: { path: '/year', query: { tab: 'taxes' }, hash: '#payroll-cadence' } },
+      link: { label: 'Year, Taxes', to: { path: '/company/year', query: { tab: 'taxes' }, hash: '#payroll-cadence' } },
     })
   })
 

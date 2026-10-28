@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { tracedFigure } from '../src/packs/hr-doo/domain/payroll/payrollArithmetic'
-import { warningText } from '../src/packs/hr-doo/presentation/payScenarios/payScenariosView'
+import { tracedFigure } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollArithmetic'
+import { warningText } from '../src/apps/company/packs/hr-doo/presentation/payScenarios/payScenariosView'
 import { civil, euros } from './fixtures/ledger'
 
 const figure = (amount: number) => tracedFigure('Figure', euros(amount), 'plan', [])

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { ownerCost } from '../src/packs/hr-doo/domain/ownerCost'
-import { netPayPerMonth, ownerTake, ownerTakeByMonth } from '../src/packs/hr-doo/domain/ownerTake'
-import type { RuleSource } from '../src/packs/hr-doo/domain/payroll/payrollArithmetic'
-import { ruleValue } from '../src/packs/hr-doo/ruleset/ruleset'
-import { basisPoints } from '../src/packs/hr-doo/ruleset/schema'
+import { ownerCost } from '../src/apps/company/packs/hr-doo/domain/ownerCost'
+import { netPayPerMonth, ownerTake, ownerTakeByMonth } from '../src/apps/company/packs/hr-doo/domain/ownerTake'
+import type { RuleSource } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollArithmetic'
+import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import { basisPoints } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { withPackBuckets, PACK_CATEGORIES } from './fixtures/hrDooCategories'
-import type { Period } from '../src/features/filters/domain/filterState'
+import type { Period } from '../src/apps/company/filters/domain/filterState'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 
 const transactions = withPackBuckets(

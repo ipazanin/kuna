@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { transactionsCsv } from '../src/features/transactions/application/transactionsCsv'
-import { listedRows } from '../src/features/transactions/domain/listedRows'
+import { transactionsCsv } from '../src/apps/company/transactions/application/transactionsCsv'
+import { listedRows } from '../src/apps/company/transactions/domain/listedRows'
 import { PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
-import { recordIdOf } from '../src/features/workbook/domain/recordId'
-import { OWNER_ADVANCE_RECORDS } from '../src/packs/hr-doo/domain/hrDooKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 
 function rows(specs: readonly RowSpec[]) {
   return listedRows(ledger(specs), [])

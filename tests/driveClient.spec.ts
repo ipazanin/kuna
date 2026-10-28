@@ -13,7 +13,7 @@ import {
   uploadContent,
 } from '../src/shared/google/driveClient'
 import { GoogleApiError } from '../src/shared/google/googleApi'
-import { googleDocumentDrive } from '../src/features/workbook/infrastructure/googleDocumentDrive'
+import { googleDocumentDrive } from '../src/shared/storage/infrastructure/googleDocumentDrive'
 
 interface SentRequest {
   readonly url: URL

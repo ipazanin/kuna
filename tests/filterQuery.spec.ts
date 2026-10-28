@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_FILTERS } from '../src/features/filters/domain/filterState'
-import type { FilterState } from '../src/features/filters/domain/filterState'
-import { decodeFilters, encodeFilters, hasFilterKeys, withoutFilterKeys } from '../src/features/filters/domain/filterQuery'
+import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
+import type { FilterState } from '../src/apps/company/filters/domain/filterState'
+import { decodeFilters, encodeFilters, hasFilterKeys, withoutFilterKeys } from '../src/apps/company/filters/domain/filterQuery'
 import { civil, euros } from './fixtures/ledger'
 
 const EVERY_FIELD: FilterState = {

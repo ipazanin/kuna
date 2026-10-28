@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { addDays, civilDate } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
-import type { DocumentSave, Rewrite, StoredDocument } from '../src/features/workbook/application/documentHome'
-import { createDriveDocument, driveDocumentHome, findDriveDocument } from '../src/features/workbook/infrastructure/driveDocument'
-import type { DocumentDrive } from '../src/features/workbook/infrastructure/driveDocument'
-import { createFakeDrive } from '../src/features/workbook/infrastructure/fake/fakeDrive'
-import type { FakeDrive, UploadInFlight } from '../src/features/workbook/infrastructure/fake/fakeDrive'
+import type { DocumentSave, Rewrite, StoredDocument } from '../src/shared/storage/application/documentHome'
+import { createDriveDocument, driveDocumentHome, findDriveDocument } from '../src/shared/storage/infrastructure/driveDocument'
+import type { DocumentDrive } from '../src/shared/storage/infrastructure/driveDocument'
+import { createFakeDrive } from '../src/apps/company/workbook/infrastructure/fake/fakeDrive'
+import type { FakeDrive, UploadInFlight } from '../src/apps/company/workbook/infrastructure/fake/fakeDrive'
 
 const TODAY = civilDate(2026, 10, 24)
 
