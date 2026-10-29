@@ -1,10 +1,12 @@
 <script lang="ts">
+/** Mirrors a chart's mark: a block for bars and areas, a stroke for lines, dashed for a line still to come, stripes, a ghost or an outline. */
+export type SwatchMark = 'bar' | 'line' | 'dashed' | 'hatched' | 'ghost' | 'outline'
+
 export interface LegendEntry {
   readonly label: string
   /** Any CSS colour, usually a series or bucket token such as `var(--bucket-taxes)`. */
   readonly colour: string
-  /** Mirrors the mark: a block for bars and areas, a stroke for lines. */
-  readonly mark?: 'bar' | 'line' | 'hatched' | 'ghost' | 'outline'
+  readonly mark?: SwatchMark
 }
 </script>
 
@@ -60,42 +62,5 @@ const emit = defineEmits<{
 .legend-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 0;
-}
-
-.swatch {
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.swatch-bar,
-.swatch-hatched,
-.swatch-ghost {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  background: var(--swatch);
-}
-
-.swatch-hatched {
-  background: repeating-linear-gradient(45deg, var(--chart-hatch) 0 1.5px, transparent 1.5px 4px), var(--swatch);
-}
-
-.swatch-ghost {
-  background: var(--chart-ghost);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
-}
-
-.swatch-outline {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 1.5px var(--swatch);
-}
-
-.swatch-line {
-  width: 14px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--swatch);
 }
 </style>

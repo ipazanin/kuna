@@ -1,0 +1,118 @@
+import { language } from '../../../../shared/text/language'
+import type { Translation } from '../../../../shared/text/translation'
+
+// Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
+
+export const en = {
+  title: 'Overview',
+  description: 'Every loan you keep: what is owed and what comes next.',
+  addBankLoan: 'Add bank loan',
+  addInformalLoan: 'Add informal loan',
+  empty: {
+    title: 'No loans yet',
+    description: 'Add a bank loan from its contract and Kuna works out its plan, its subsidy and what is still owed. Or keep an informal loan between people.',
+    onDrive: (name: string) => `Your Loans file is ready, kept on Google Drive as ${name}.`,
+    inBrowser: 'Your Loans file is ready, kept in this browser.',
+  },
+  problems: {
+    title: (count: number) => ({ one: 'A record in the Loans file is left out or doubted', other: `${count} records in the Loans file are left out or doubted` }),
+  },
+  tiles: {
+    owedInAll: 'Owed in all',
+    onLoans: (count: number) => ({ one: 'on 1 loan', other: `on ${count} loans` }),
+    owedToYou: (count: number, amount: string) => ({ one: `on 1 loan, and ${amount} is owed to you`, other: `on ${count} loans, and ${amount} is owed to you` }),
+    nextPayment: 'Next payment',
+    nextOn: (day: string, name: string) => `On ${day}, ${name}`,
+    interestIn: (year: number) => `Interest in ${year}`,
+    subsidiesPay: (amount: string) => `subsidies pay ${amount} of it`,
+    interestDefinition: "The bank's interest on this year's instalments of every bank loan. A subsidy pays an instalment's interest first.",
+    paidOff: 'Bank loans paid off',
+    noEndDate: 'Informal loans have no end date',
+  },
+  card: {
+    bankLoan: 'Bank loan',
+    informalLoan: 'Informal loan',
+    subsidised: 'Subsidised',
+    owedToday: 'owed today',
+    youOwe: 'You owe',
+    owedToYou: 'Owed to you',
+    youOweName: (name: string) => (name === '' ? 'you owe' : `you owe ${name}`),
+    nameOwesYou: (name: string) => (name === '' ? 'owed to you' : `${name} owes you`),
+    noPlan: 'Kuna cannot work out its plan yet. Open it to add the rate from its first instalment.',
+    paidBack: (percent: number, principal: string) => `${percent}% of ${principal} paid back`,
+    toGo: (amount: string) => `${amount} to go`,
+    nextPayment: 'Next payment',
+    nextOf: (day: string, payment: string) => `${day}, of ${payment}`,
+    subsidyEnds: 'Subsidy ends',
+    subsidyThen: (amount: string) => `then ${amount} a month`,
+    paidOff: 'Paid off',
+    instalmentsLeft: (count: number) => ({ one: '1 instalment left', other: `${count} instalments left` }),
+    lastMovement: 'Last movement',
+    movement: (kind: string, amount: string) => `${kind} ${amount}`,
+    noMovement: 'None yet',
+    since: 'Since',
+    noInterest: 'No interest, no fixed plan',
+  },
+}
+
+export const hr: Translation<typeof en> = {
+  title: 'Pregled',
+  description: 'Svi vaši zajmovi: koliko dugujete i što slijedi.',
+  addBankLoan: 'Dodaj kredit',
+  addInformalLoan: 'Dodaj zajam',
+  empty: {
+    title: 'Još nema zajmova',
+    description: 'Dodajte bankovni kredit iz ugovora i Kuna izračunava otplatni plan, subvenciju i preostali dug. Ili vodite zajam među ljudima.',
+    onDrive: (name: string) => `Datoteka zajmova je spremna, čuva se na Google Driveu kao ${name}.`,
+    inBrowser: 'Datoteka zajmova je spremna, čuva se u ovom pregledniku.',
+  },
+  problems: {
+    title: (count: number) => ({
+      one: `${count} zapis u datoteci zajmova je izostavljen ili upitan`,
+      few: `${count} zapisa u datoteci zajmova izostavljena su ili upitna`,
+      other: `${count} zapisa u datoteci zajmova izostavljeno je ili upitno`,
+    }),
+  },
+  tiles: {
+    owedInAll: 'Ukupno dugujete',
+    onLoans: (count: number) => ({ one: `na ${count} zajmu`, few: `na ${count} zajma`, other: `na ${count} zajmova` }),
+    owedToYou: (count: number, amount: string) => ({
+      one: `na ${count} zajmu, a vama duguju ${amount}`,
+      few: `na ${count} zajma, a vama duguju ${amount}`,
+      other: `na ${count} zajmova, a vama duguju ${amount}`,
+    }),
+    nextPayment: 'Sljedeća uplata',
+    nextOn: (day: string, name: string) => `Dana ${day}, ${name}`,
+    interestIn: (year: number) => `Kamata u ${year}.`,
+    subsidiesPay: (amount: string) => `subvencije plaćaju ${amount} od toga`,
+    interestDefinition: 'Kamata banke na ovogodišnje rate svih bankovnih kredita. Subvencija prvo plaća kamatu rate.',
+    paidOff: 'Krediti otplaćeni',
+    noEndDate: 'Zajmovi među ljudima nemaju datum završetka',
+  },
+  card: {
+    bankLoan: 'Bankovni kredit',
+    informalLoan: 'Zajam među ljudima',
+    subsidised: 'Subvencioniran',
+    owedToday: 'dug danas',
+    youOwe: 'Dugujete',
+    owedToYou: 'Duguju vama',
+    youOweName: (name: string) => (name === '' ? 'dugujete' : `dugujete: ${name}`),
+    nameOwesYou: (name: string) => (name === '' ? 'duguju vama' : `${name} vam duguje`),
+    noPlan: 'Kuna još ne može izračunati otplatni plan. Otvorite ga i dodajte kamatnu stopu prve rate.',
+    paidBack: (percent: number, principal: string) => `${percent} % od ${principal} otplaćeno`,
+    toGo: (amount: string) => `još ${amount}`,
+    nextPayment: 'Sljedeća uplata',
+    nextOf: (day: string, payment: string) => `${day}, od ${payment}`,
+    subsidyEnds: 'Subvencija završava',
+    subsidyThen: (amount: string) => `zatim ${amount} mjesečno`,
+    paidOff: 'Otplaćen',
+    instalmentsLeft: (count: number) => ({ one: `još ${count} rata`, few: `još ${count} rate`, other: `još ${count} rata` }),
+    lastMovement: 'Zadnja promjena',
+    movement: (kind: string, amount: string) => `${kind} ${amount}`,
+    noMovement: 'Još nema',
+    since: 'Od',
+    noInterest: 'Bez kamate i fiksnog plana',
+  },
+}
+
+export const words = language === 'hr' ? hr : en

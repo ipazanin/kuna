@@ -40,7 +40,16 @@ function roundTrip<R>(kind: RecordKind<R>, fields: RecordFields): RecordFields {
 
 describe('the Loans file', () => {
   it('writes every kind back field for field as it read it', () => {
-    const loan = { ...LOAN, interim_interest: '12.40', interim_interest_date: '2026-02-05', subsidy_monthly: '50.00', subsidy_first_instalment: '1', subsidy_instalments: '6', note: 'Housing' }
+    const loan = {
+      ...LOAN,
+      interim_interest: '12.40',
+      interim_interest_date: '2026-02-05',
+      subsidy_monthly: '50.00',
+      subsidy_first_instalment: '1',
+      subsidy_instalments: '6',
+      subsidy_payer: 'APN',
+      note: 'Housing',
+    }
     const kinds: [RecordKind<unknown>, RecordFields][] = [
       [BANK_LOAN_RECORDS, loan],
       [RATE_PERIOD_RECORDS, { ...FIRST_RATE, rate: '3.1825', rate_type: 'variable', note: '6M EURIBOR + 0.90' }],
@@ -91,6 +100,7 @@ describe('the Loans file', () => {
           { ...LOAN, id: 'b7', interim_interest: '12.40', interim_interest_date: '2026-02-06' },
           { ...LOAN, id: 'b8', subsidy_monthly: '50.00', subsidy_first_instalment: '1' },
           { ...LOAN, id: 'b9', subsidy_monthly: '50.00', subsidy_first_instalment: '10', subsidy_instalments: '4' },
+          { ...LOAN, id: 'b10', subsidy_payer: 'APN' },
         ],
       }),
     ).toEqual([
@@ -103,7 +113,15 @@ describe('the Loans file', () => {
       ['bank-loan', 'Car loan', 'interim_interest_date 2026-02-06 is not from the drawdown 2026-01-05 to the first instalment 2026-02-05'],
       ['bank-loan', 'Car loan', 'subsidy_monthly, subsidy_first_instalment and subsidy_instalments go together, and not all are filled'],
       ['bank-loan', 'Car loan', "the subsidy runs past instalment 12, the loan's last"],
+      ['bank-loan', 'Car loan', 'subsidy_payer names a payer of no subsidy'],
     ])
+  })
+
+  it('reads a subsidy without a payer, as files saved before the field have it', () => {
+    const books = booksOf({ 'bank-loan': [{ ...LOAN, subsidy_monthly: '50.00', subsidy_first_instalment: '1', subsidy_instalments: '6' }], 'rate-period': [FIRST_RATE] })
+
+    expect(books.problems).toEqual([])
+    expect(books.bankLoans[0]?.loan.subsidy).toEqual({ monthly: euros(50), firstInstalment: 1, instalments: 6, payer: '' })
   })
 
   it('doubts a bank loan with no rate period at its first instalment, and leaves out periods that leave a gap or overlap', () => {

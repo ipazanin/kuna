@@ -50,7 +50,7 @@ const HOME_LOAN: BankLoan = {
   firstInstalment: day('2023-04-20'),
   instalments: 300,
   interimInterest: { amount: euros(210.5), date: day('2023-04-20') },
-  subsidy: { monthly: euros(210), firstInstalment: 1, instalments: 48 },
+  subsidy: { monthly: euros(210), firstInstalment: 1, instalments: 48, payer: 'APN' },
   note: 'Made up for the fake build.',
 }
 
@@ -91,8 +91,8 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
-/** The Loans file the fake build's `?loans=sample` keeps on the fake Drive. Every figure in it is made up. */
-export function fakeLoansDocument(savedAt: string): WorkbookDocument {
+/** The Loans file the fake build's `?loans=sample` keeps on the fake Drive, and `?loans=one-loan` without the informal loan. Every figure in it is made up. */
+export function fakeLoansDocument(savedAt: string, withInformalLoan = true): WorkbookDocument {
   return {
     ...emptyLoansDocument(savedAt),
     records: {
@@ -100,8 +100,8 @@ export function fakeLoansDocument(savedAt: string): WorkbookDocument {
       ...stored(RATE_PERIOD_RECORDS, RATE_PERIODS),
       ...stored(EXTRA_PAYMENT_RECORDS, EXTRA_PAYMENTS),
       ...stored(LATE_INSTALMENT_RECORDS, LATE_INSTALMENTS),
-      ...stored(INFORMAL_LOAN_RECORDS, [FROM_MARKO]),
-      ...stored(MOVEMENT_RECORDS, MOVEMENTS),
+      ...stored(INFORMAL_LOAN_RECORDS, withInformalLoan ? [FROM_MARKO] : []),
+      ...stored(MOVEMENT_RECORDS, withInformalLoan ? MOVEMENTS : []),
     },
   }
 }

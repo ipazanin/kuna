@@ -2,9 +2,12 @@ import type { AppContribution, AppScreen } from '../../shared/app/appContributio
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
+import { words as bankLoanWords } from './bankLoans/presentation/words'
 import { LOANS_HOME_CARD } from './home/presentation/loansHomeCard'
+import { words as informalLoanWords } from './informalLoans/presentation/words'
 import { LOANS_START_ROUTE } from './onboarding/presentation/useLoansStart'
 import { BANK_LOAN_ROUTE, INFORMAL_LOAN_ROUTE, LOANS_OVERVIEW_ROUTE } from './overview/presentation/loanLinks'
+import { words as overviewWords } from './overview/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
 import { loansSyncGroup } from './sync/presentation/loansSyncGroup'
 import { words } from './words'
@@ -12,7 +15,7 @@ import { useLoansBooks } from './workbook/application/loansStore'
 import { LOANS_APP } from './workbook/infrastructure/loansDocument'
 import { useFindLoansFile } from './workbook/presentation/useFindLoansFile'
 
-const OVERVIEW: AppScreen = { path: LOANS_OVERVIEW_ROUTE, title: 'Overview', icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
+const OVERVIEW: AppScreen = { path: LOANS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
 const SETTINGS: AppScreen = { path: '/loans/settings', title: settingsWords.title, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
 
 const { state } = useLoansBooks()
@@ -31,8 +34,8 @@ export const loansApp: AppContribution = {
   },
   screens: [
     OVERVIEW,
-    { path: BANK_LOAN_ROUTE, title: 'Bank loan', icon: 'i-lucide-landmark', component: () => import('./bankLoans/presentation/BankLoanScreen.vue') },
-    { path: INFORMAL_LOAN_ROUTE, title: 'Informal loan', icon: 'i-lucide-handshake', component: () => import('./informalLoans/presentation/InformalLoanScreen.vue') },
+    { path: BANK_LOAN_ROUTE, title: bankLoanWords.bankLoan, icon: 'i-lucide-landmark', component: () => import('./bankLoans/presentation/BankLoanScreen.vue') },
+    { path: INFORMAL_LOAN_ROUTE, title: informalLoanWords.informalLoan, icon: 'i-lucide-handshake', component: () => import('./informalLoans/presentation/InformalLoanScreen.vue') },
     SETTINGS,
     { path: LOANS_START_ROUTE, title: 'Start', icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],

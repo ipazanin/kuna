@@ -17,7 +17,7 @@ import { keepPageSynced } from './sync/keepPageSynced'
 import TopBarSync from './sync/TopBarSync.vue'
 import AppShell from './ui/AppShell.vue'
 import type { Navigation } from './ui/ScreenNavigation.vue'
-import ScreenSkeleton from './ui/ScreenSkeleton.vue'
+import ScreenSkeleton from '../shared/ui/ScreenSkeleton.vue'
 import UpdatePrompt from './ui/UpdatePrompt.vue'
 
 const props = defineProps<{

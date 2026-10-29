@@ -22,6 +22,8 @@ import DonutCard from '../../shared/ui/DonutCard.vue'
 import type { DonutPart } from '../../shared/ui/DonutCard.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
 import EmptyState from '../../shared/ui/EmptyState.vue'
+import FactGrid from '../../shared/ui/FactGrid.vue'
+import type { Fact } from '../../shared/ui/FactGrid.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import AppMark from '../../shared/ui/AppMark.vue'
@@ -31,6 +33,8 @@ import KpiTile from '../../shared/ui/KpiTile.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import PageHeader from '../../shared/ui/PageHeader.vue'
 import PageTabs from '../../shared/ui/PageTabs.vue'
+import ProgressMeter from '../../shared/ui/ProgressMeter.vue'
+import ScreenSkeleton from '../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../shared/ui/ShowAllButton.vue'
 import SortableHeader from '../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../shared/ui/SortableHeader.vue'
@@ -62,11 +66,13 @@ const CONTENTS = [
   ['formatting', 'Formatting'],
   ['app-card', 'AppCard'],
   ['kpi-tile', 'KpiTile'],
+  ['progress-meter', 'ProgressMeter'],
   ['dashboard-grid', 'DashboardGrid'],
   ['chart-card', 'ChartCard'],
   ['donut-card', 'DonutCard'],
   ['page-tabs', 'PageTabs'],
   ['empty-state', 'EmptyState'],
+  ['screen-skeleton', 'ScreenSkeleton'],
   ['form-grid', 'FormGrid'],
   ['dialog', 'AppDialog'],
   ['step-card', 'StepCard'],
@@ -77,6 +83,15 @@ const CONTENTS = [
 ] as const
 
 const lastSelection = ref<ChartPointSelection | null>(null)
+
+const BALANCE_POINTS = [180, 176, 171, 167, 154, 148, 140, 131, 121, 110, 97, 83, 67, 49, 29, 0]
+
+const FOUR_FACTS: readonly Fact[] = [
+  { label: 'Principal', value: formatMoney(15_427_421), swatch: { colour: 'var(--loan-principal)' } },
+  { label: 'Interest', value: formatMoney(7_060_232), swatch: { colour: 'var(--loan-interest)' } },
+  { label: 'Subsidy pays', value: formatMoney(105_000), caption: 'Five instalments to go', swatch: { colour: 'var(--chart-deemphasis)', mark: 'hatched' } },
+  { label: 'You pay', value: formatMoney(22_382_653) },
+]
 
 const bucketLegend = [
   { label: 'Income', colour: 'var(--bucket-income)' },
@@ -332,6 +347,45 @@ const columns: TableColumn<SampleTransaction>[] = [
         <SparkLine :points="[12, 11, 9, 9.5, 8, 6]" :width="120" :height="36" />
         <span>SparkLine at its own size and a larger one</span>
       </div>
+      <div class="flex flex-col gap-2 type-caption">
+        <SparkLine :points="BALANCE_POINTS" :ahead-from="4" colour="var(--loan-principal)" ahead-colour="var(--loan-ahead)" fill :height="44" />
+        <span>Filling its container, solid up to a point and dashed after it in another colour, the dot on the point</span>
+        <ChartLegend
+          :entries="[
+            { label: 'Owed so far', colour: 'var(--loan-principal)', mark: 'line' },
+            { label: 'Still to come', colour: 'var(--loan-ahead)', mark: 'dashed' },
+          ]"
+        />
+        <SparkLine :points="[3, 2.5, 1, 1.5, -0.5, -1, 0.5]" colour="var(--loan-principal)" zero-line :width="160" :height="40" />
+        <span>With a hairline at zero for a line that crosses it</span>
+      </div>
+    </GallerySection>
+
+    <GallerySection
+      id="progress-meter"
+      title="ProgressMeter and FactGrid"
+      description="A bar split into parts, striped where someone else pays, read out as one sentence, and labelled figures two to a row or in one."
+    >
+      <AppCard class="gap-4 p-4 sm:p-5">
+        <ProgressMeter
+          :parts="[
+            { value: 25_725, colour: 'var(--loan-principal)' },
+            { value: 154_274, colour: 'var(--loan-ahead)' },
+          ]"
+          label="14% of €180,000.00 paid back"
+        />
+        <ProgressMeter
+          :parts="[
+            { value: 154_274, colour: 'var(--loan-principal)' },
+            { value: 1_050, colour: 'var(--loan-interest)', striped: true },
+            { value: 69_552, colour: 'var(--loan-interest)' },
+          ]"
+          label="€154,274.21 principal and €70,602.32 interest, of which the subsidy pays €1,050.00"
+          :height="10"
+        />
+        <FactGrid :facts="FOUR_FACTS" />
+        <FactGrid :facts="FOUR_FACTS.slice(0, 3)" class="border-t border-default pt-4" />
+      </AppCard>
     </GallerySection>
 
     <GallerySection
@@ -522,6 +576,10 @@ const columns: TableColumn<SampleTransaction>[] = [
           </template>
         </EmptyState>
       </DashboardGrid>
+    </GallerySection>
+
+    <GallerySection id="screen-skeleton" title="ScreenSkeleton" description="Stands in for a screen while its code or its books load, with its heading or below a header that already shows.">
+      <ScreenSkeleton :heading="false" :cards="2" />
     </GallerySection>
 
     <DialogSpecimens />

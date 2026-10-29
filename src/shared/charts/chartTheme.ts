@@ -75,10 +75,10 @@ export function moneyAxisLabel(tokens: ChartTokens): { color: string; fontSize: 
 }
 
 /**
- * Diagonal stripes in the surface colour, cut across the fill of the current part-month. The bar
- * keeps its series colour, so identity holds, and the stripes say the month is not over.
+ * Diagonal stripes in the surface colour, cut across a bar's fill, such as the current part-month or
+ * the part a subsidy pays. The bar keeps its series colour, so identity holds.
  */
-function incompleteDecal(tokens: ChartTokens): Record<string, unknown> {
+export function stripeDecal(tokens: ChartTokens): Record<string, unknown> {
   return {
     symbol: 'rect',
     symbolSize: 1,
@@ -98,7 +98,7 @@ export interface IncompletePoint {
 export function markIncomplete(values: readonly (number | null)[], incomplete: readonly boolean[], tokens: ChartTokens): (number | null | IncompletePoint)[] {
   return values.map((amount, index) => {
     if (!incomplete[index]) return amount
-    return { value: amount, itemStyle: { decal: incompleteDecal(tokens) } }
+    return { value: amount, itemStyle: { decal: stripeDecal(tokens) } }
   })
 }
 

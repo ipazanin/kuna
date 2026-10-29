@@ -3181,8 +3181,9 @@ async function addChange(page, press, card) {
 
 /**
  * Loans with the sample file: a bank loan added with its first rate, which opens its page, a rate
- * period, an extra payment and a late instalment added there, a movement added to the informal loan,
- * and the new bank loan deleted with its records and brought back with Undo.
+ * period, an extra payment, a late instalment and a subsidy added there, the subsidy named as such
+ * and then by the payer its dialog gives, a movement added to the informal loan, and the new bank
+ * loan deleted with its records and brought back with Undo.
  */
 export async function loansEditorFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="add-bank-loan"]')
@@ -3227,6 +3228,28 @@ export async function loansEditorFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="late-instalment-save"]')
   await toast(page, 'Late instalment added')
   await elementSays(page, '[data-testid="late-instalments"]', ['Due 10 Mar 2026', '10 days late'], 'the late instalment is not listed')
+  await dismissToasts(page)
+
+  await addChange(page, press, 'loan-subsidy')
+  await page.waitForSelector('[data-testid="subsidy-form"]', { visible: true })
+  await fill(page, 'subsidy-monthly', '20')
+  await fill(page, 'subsidy-instalments', '12')
+  await pressSelector(page, press, '[data-testid="subsidy-save"]')
+  await toast(page, 'Subsidy added')
+  await elementSays(page, '[data-testid="loan-subsidy"]', ['€20.00 a month', 'Subsidy pays instalments 1 to 12'], 'a subsidy without a payer is not named as the subsidy')
+  await elementSays(page, '[data-testid="bank-loan-hero"]', ['Subsidy pays'], 'the hero does not name the subsidy')
+  await dismissToasts(page)
+  await pressSelector(page, press, '[data-testid="loan-subsidy"] [data-testid="change-edit"]')
+  await page.waitForSelector('[data-testid="subsidy-form"]', { visible: true })
+  await fill(page, 'subsidy-payer', 'HZZO')
+  await delay(200)
+  await inspect?.('the subsidy dialog with a payer')
+  await shoot('loans-subsidy-payer')
+  await pressSelector(page, press, '[data-testid="subsidy-save"]')
+  await toast(page, 'Subsidy saved')
+  await elementSays(page, '[data-testid="loan-subsidy"]', ['HZZO pays instalments 1 to 12'], 'the subsidy does not name its payer')
+  await elementSays(page, '[data-testid="bank-loan-hero"]', ['HZZO pays'], 'the hero does not name the payer')
+  await elementSays(page, '[data-testid="loan-payments-chart"]', ['HZZO pays'], 'the payments chart does not name the payer')
   await inspect?.('the new bank loan with its changes')
   await shoot('loans-new-bank-loan')
   await dismissToasts(page)
@@ -3298,7 +3321,8 @@ async function goTo(page, hash, title) {
 
 /**
  * Every Loans dialog with the sample file, opened and closed again: a new bank loan with and without
- * a subsidy, a new informal loan, each loan's own dialog, and the dialog of each change of the bank loan.
+ * a subsidy, a new informal loan, each loan's own dialog, and the dialog of each change of the bank
+ * loan, the subsidy's showing its payer.
  */
 export async function loansDialogsFlow(page, { press, shoot }) {
   await lookAtDialog(page, press, shoot, '[data-testid="add-informal-loan"]', '[data-testid="informal-loan-form"]', 'dialog-add-informal-loan')
@@ -3313,9 +3337,16 @@ export async function loansDialogsFlow(page, { press, shoot }) {
 
   await openLoanCard(page, press, 'Home loan')
   await lookAtDialog(page, press, shoot, '[data-testid="bank-loan-edit"]', '[data-testid="bank-loan-form"]', 'dialog-bank-loan')
+  await pressSelector(page, press, '[data-testid="loan-subsidy"] [data-testid="change-edit"]')
+  await page.waitForSelector('[data-testid="subsidy-form"]', { visible: true, timeout: 10_000 })
+  const payer = await page.$eval('[data-testid="subsidy-payer"]', (input) => input.value)
+  if (payer !== 'APN') throw new Error(`the subsidy dialog shows the payer "${payer}", not APN`)
+  await delay(400)
+  await shoot('dialog-subsidy-form')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[data-testid="subsidy-form"]')
   for (const [card, form] of [
     ['rate-periods', 'rate-period-form'],
-    ['loan-subsidy', 'subsidy-form'],
     ['extra-payments', 'extra-payment-form'],
     ['late-instalments', 'late-instalment-form'],
   ]) {

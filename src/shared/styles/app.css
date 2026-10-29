@@ -220,3 +220,46 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   padding-inline-start: env(safe-area-inset-left);
 }
+
+/* The key beside a legend's label or a figure: its mark in the colour passed as --swatch. */
+.swatch {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.swatch-bar,
+.swatch-hatched,
+.swatch-ghost {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--swatch);
+}
+
+.swatch-hatched {
+  background: repeating-linear-gradient(45deg, var(--chart-hatch) 0 1.5px, transparent 1.5px 4px), var(--swatch);
+}
+
+.swatch-ghost {
+  background: var(--chart-ghost);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.swatch-outline {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1.5px var(--swatch);
+}
+
+.swatch-line,
+.swatch-dashed {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--swatch);
+}
+
+.swatch-dashed {
+  background: repeating-linear-gradient(90deg, var(--swatch) 0 4px, transparent 4px 6px);
+}

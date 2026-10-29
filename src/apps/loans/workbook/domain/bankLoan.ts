@@ -14,6 +14,8 @@ export interface LoanSubsidy {
   /** The number of the first instalment it covers, counting from 1. */
   readonly firstInstalment: number
   readonly instalments: number
+  /** Who pays it, such as APN, or empty when the file does not say. */
+  readonly payer: string
 }
 
 /** A loan from a bank, repaid in monthly annuities on the first instalment's day of the month, which the borrower owes. */

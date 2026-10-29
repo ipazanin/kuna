@@ -62,9 +62,10 @@ function thinned(axis: unknown, horizontal: boolean): unknown {
   if (shown.type === 'value') {
     return { ...shown, splitNumber: 3 }
   }
-  // A category axis down the side names every bar, so only one along the bottom is thinned.
-  if (shown.type === 'category' && horizontal && Array.isArray(shown.data) && shown.data.length > 6) {
-    return { ...shown, axisLabel: { ...(shown.axisLabel as AxisOption | undefined), interval: Math.ceil(shown.data.length / 4) - 1 } }
+  // A category axis down the side names every bar, so only one along the bottom is thinned, unless its chart picks its own labels.
+  const label = shown.axisLabel as AxisOption | undefined
+  if (shown.type === 'category' && horizontal && Array.isArray(shown.data) && shown.data.length > 6 && label?.interval === undefined) {
+    return { ...shown, axisLabel: { ...label, interval: Math.ceil(shown.data.length / 4) - 1 } }
   }
   return shown
 }

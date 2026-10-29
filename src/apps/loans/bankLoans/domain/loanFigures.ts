@@ -5,7 +5,7 @@ import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
-import { ZERO, addMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
 /** What is owed on the day once that day's payments are made, nothing before the drawdown. */
@@ -24,29 +24,91 @@ export function payoffDate(plan: readonly PlanRow[]): CivilDate | null {
   return plan.at(-1)?.date ?? null
 }
 
-export interface YearInterest {
-  readonly year: number
+/** Where payments go: the principal and interest you pay, the part of each the subsidy pays, and principal you pay early. */
+export interface PaymentSplit {
+  readonly principal: Money
   readonly interest: Money
-  /** The part of the year's instalments the subsidy pays. */
-  readonly subsidy: Money
+  readonly subsidyPrincipal: Money
+  readonly subsidyInterest: Money
+  readonly extra: Money
 }
 
-/** Interest by the calendar year it falls due in, the interim interest included, with the subsidy of the same year. */
-export function interestByYear(plan: readonly PlanRow[]): YearInterest[] {
-  const years = new Map<number, YearInterest>()
+const NO_PAYMENTS: PaymentSplit = { principal: ZERO, interest: ZERO, subsidyPrincipal: ZERO, subsidyInterest: ZERO, extra: ZERO }
+
+/**
+ * Where a row's payment goes. The subsidy pays the instalment's interest first, and only a subsidy
+ * larger than the interest repays principal. An extra payment is principal you pay early.
+ */
+export function splitOf(row: PlanRow): PaymentSplit {
+  if (row.kind === 'extra-payment') return { ...NO_PAYMENTS, extra: row.principal }
+  const subsidyInterest = row.subsidy < row.interest ? row.subsidy : row.interest
+  const subsidyPrincipal = subtractMoney(row.subsidy, subsidyInterest)
+  return { principal: subtractMoney(row.principal, subsidyPrincipal), interest: subtractMoney(row.interest, subsidyInterest), subsidyPrincipal, subsidyInterest, extra: ZERO }
+}
+
+function addSplits(sum: PaymentSplit, split: PaymentSplit): PaymentSplit {
+  return {
+    principal: addMoney(sum.principal, split.principal),
+    interest: addMoney(sum.interest, split.interest),
+    subsidyPrincipal: addMoney(sum.subsidyPrincipal, split.subsidyPrincipal),
+    subsidyInterest: addMoney(sum.subsidyInterest, split.subsidyInterest),
+    extra: addMoney(sum.extra, split.extra),
+  }
+}
+
+/** Where the rows' payments go, added up. */
+export function splitOfRows(rows: readonly PlanRow[]): PaymentSplit {
+  return rows.map(splitOf).reduce(addSplits, NO_PAYMENTS)
+}
+
+/** Principal and interest together, whoever pays them. */
+export function paymentOf(split: PaymentSplit): Money {
+  return addMoney(principalOf(split), interestOf(split))
+}
+
+/** What the subsidy pays of principal and interest. */
+export function subsidyShareOf(split: PaymentSplit): Money {
+  return addMoney(split.subsidyPrincipal, split.subsidyInterest)
+}
+
+/** What you pay: everything the subsidy does not. */
+export function yourShareOf(split: PaymentSplit): Money {
+  return addMoney(addMoney(split.principal, split.interest), split.extra)
+}
+
+/** The principal you pay, early payments included. */
+export function yourPrincipalOf(split: PaymentSplit): Money {
+  return addMoney(split.principal, split.extra)
+}
+
+/** Principal, whoever pays it, early payments included. */
+export function principalOf(split: PaymentSplit): Money {
+  return addMoney(addMoney(split.principal, split.subsidyPrincipal), split.extra)
+}
+
+/** Interest, whoever pays it. */
+export function interestOf(split: PaymentSplit): Money {
+  return addMoney(split.interest, split.subsidyInterest)
+}
+
+export interface YearPayments extends PaymentSplit {
+  readonly year: number
+  readonly instalments: number
+}
+
+/** Where each calendar year's payments go, the interim interest and extra payments included, oldest first. */
+export function paymentsByYear(plan: readonly PlanRow[]): YearPayments[] {
+  const years = new Map<number, PlanRow[]>()
   for (const row of plan) {
     const year = yearOf(row.date)
-    const held = years.get(year) ?? { year, interest: ZERO, subsidy: ZERO }
-    years.set(year, { year, interest: addMoney(held.interest, row.interest), subsidy: addMoney(held.subsidy, row.subsidy) })
+    years.set(year, [...(years.get(year) ?? []), row])
   }
-  return [...years.values()]
+  return [...years].map(([year, rows]) => ({ year, instalments: rows.filter((row) => row.kind === 'instalment').length, ...splitOfRows(rows) }))
 }
 
-/** The interest still to fall due after the day, and what the subsidy still pays of it. */
-export function interestLeft(plan: readonly PlanRow[], day: CivilDate): Omit<YearInterest, 'year'> {
-  return plan
-    .filter((row) => row.date > day)
-    .reduce((left, row) => ({ interest: addMoney(left.interest, row.interest), subsidy: addMoney(left.subsidy, row.subsidy) }), { interest: ZERO, subsidy: ZERO })
+/** Where the payments still to fall due after the day go. */
+export function paymentsAfter(plan: readonly PlanRow[], day: CivilDate): PaymentSplit {
+  return splitOfRows(plan.filter((row) => row.date > day))
 }
 
 export type PaidSoFar = Pick<PlanRow, 'payment' | 'principal' | 'interest' | 'subsidy' | 'yourShare'>

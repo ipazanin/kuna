@@ -24,7 +24,7 @@ describe('what an extra payment would do', () => {
   })
 
   it('warns up to 24 months after the subsidy’s last covered instalment, and not after', () => {
-    const subsidised = bankLoan({ instalments: 60, subsidy: { monthly: euros(10), firstInstalment: 1, instalments: 12 } })
+    const subsidised = bankLoan({ instalments: 60, subsidy: { monthly: euros(10), firstInstalment: 1, instalments: 12, payer: '' } })
     const at = [ratePeriod(subsidised, '2026-02-05', '12')]
 
     // Instalment 12 falls due on 2027-01-05, so the window runs to 2029-01-05.

@@ -1,44 +1,56 @@
 <script setup lang="ts">
 import type { BankLoanFigures } from './bankLoanView'
+import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 
-/** What the bank loan's page leads with: owed today, the next payment, the subsidy's end, the payoff and the interest. */
+/** The tiles under the bank loan's hero: the next payment, the subsidy's end, the payoff and this year's interest. */
 defineProps<{
   figures: BankLoanFigures
+  /** Who pays the subsidy, empty when the loan does not say. */
+  payer: string
 }>()
 </script>
 
 <template>
   <DashboardGrid layout="tiles" data-testid="bank-loan-tiles">
-    <KpiTile label="Owed today" :value="formatMoney(figures.owed)" :to="null" />
     <KpiTile
-      label="Next payment"
-      :value="figures.next === null ? 'None' : formatMoney(figures.next.yourShare)"
-      :caption="figures.next === null ? 'The plan is paid.' : `On ${dayLabel(figures.next.date)}${figures.next.yourShare === figures.next.payment ? '' : `, of ${formatMoney(figures.next.payment)}`}`"
-      :to="null"
-    />
-    <KpiTile label="Paid off" :value="figures.payoff === null ? '–' : dayLabel(figures.payoff)" :caption="`${figures.instalmentsLeft} instalments left`" :to="null" />
-    <KpiTile
-      :label="`Interest in ${figures.interestThisYear.year}`"
-      :value="formatMoney(figures.interestThisYear.interest)"
-      :caption="figures.interestThisYear.subsidy > 0 ? `of which the subsidy covers ${formatMoney(figures.interestThisYear.subsidy)}` : ''"
-      definition="The bank's interest on the year's instalments. The subsidy pays part of the instalments it covers."
-      :to="null"
-    />
-    <KpiTile
-      label="Interest left"
-      :value="formatMoney(figures.interestLeft.interest)"
-      :caption="figures.interestLeft.subsidy > 0 ? `of which the subsidy covers ${formatMoney(figures.interestLeft.subsidy)}` : ''"
+      :label="words.tiles.nextPayment"
+      :value="figures.next === null ? words.tiles.none : formatMoney(figures.next.yourShare)"
+      :caption="
+        figures.next === null
+          ? words.tiles.planPaid
+          : figures.next.yourShare === figures.next.payment
+            ? words.tiles.on(dayLabel(figures.next.date))
+            : words.tiles.onOf(dayLabel(figures.next.date), formatMoney(figures.next.payment))
+      "
       :to="null"
     />
     <KpiTile
       v-if="figures.subsidy !== null"
-      :label="figures.subsidy.ended ? 'Subsidy ended' : 'Subsidy ends'"
+      :label="figures.subsidy.ended ? words.tiles.subsidyEnded : words.tiles.subsidyEnds"
       :value="dayLabel(figures.subsidy.lastCovered)"
-      :caption="figures.subsidy.ended || figures.subsidy.after === null ? '' : `then ${formatMoney(figures.subsidy.after)} a month`"
+      :caption="
+        figures.subsidy.ended || figures.subsidy.after === null
+          ? ''
+          : plural(words.tiles.subsidyThen(figures.subsidy.instalmentsLeft, formatMoney(figures.subsidy.after)), figures.subsidy.instalmentsLeft)
+      "
+      :to="null"
+    />
+    <KpiTile
+      :label="words.tiles.paidOff"
+      :value="figures.payoff === null ? '–' : dayLabel(figures.payoff)"
+      :caption="plural(words.tiles.instalmentsLeft(figures.instalmentsLeft), figures.instalmentsLeft)"
+      :to="null"
+    />
+    <KpiTile
+      :label="words.tiles.interestIn(figures.interestThisYear.year)"
+      :value="formatMoney(figures.interestThisYear.interest)"
+      :caption="figures.interestThisYear.subsidy > 0 ? words.tiles.interestCovered(words.subsidyPays(payer), formatMoney(figures.interestThisYear.subsidy)) : ''"
+      :definition="words.tiles.interestDefinition"
       :to="null"
     />
   </DashboardGrid>

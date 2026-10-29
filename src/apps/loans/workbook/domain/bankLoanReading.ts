@@ -30,11 +30,15 @@ function subsidyOf(fields: StoredFields, instalments: number): LoanSubsidy | nul
   const monthly = optionalMoney(fields, 'subsidy_monthly')
   const firstInstalment = countOf(fields, 'subsidy_first_instalment')
   const count = countOf(fields, 'subsidy_instalments')
-  if (monthly === null && firstInstalment === null && count === null) return null
+  const payer = textOf(fields.subsidy_payer)
+  if (monthly === null && firstInstalment === null && count === null) {
+    if (payer !== '') refuse('subsidy_payer names a payer of no subsidy')
+    return null
+  }
   if (monthly === null || firstInstalment === null || count === null) refuse('subsidy_monthly, subsidy_first_instalment and subsidy_instalments go together, and not all are filled')
   if (monthly <= 0) refuse('subsidy_monthly must be more than zero')
   if (firstInstalment + count - 1 > instalments) refuse(`the subsidy runs past instalment ${instalments}, the loan's last`)
-  return { monthly, firstInstalment, instalments: count }
+  return { monthly, firstInstalment, instalments: count, payer }
 }
 
 export function bankLoanOf(fields: StoredFields, id: RecordId | null): BankLoan {
@@ -77,6 +81,7 @@ export const BANK_LOAN_CODEC: RecordCodec<BankLoan> = withIdField(
       subsidy_monthly: loan.subsidy === null ? null : amountText(loan.subsidy.monthly),
       subsidy_first_instalment: loan.subsidy === null ? null : String(loan.subsidy.firstInstalment),
       subsidy_instalments: loan.subsidy === null ? null : String(loan.subsidy.instalments),
+      subsidy_payer: loan.subsidy?.payer,
       note: loan.note,
     }),
 )

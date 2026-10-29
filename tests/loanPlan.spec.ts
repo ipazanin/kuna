@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
-import { balanceOn, interestByYear, interestLeft, nextPayment, paidSoFar, payoffDate } from '../src/apps/loans/bankLoans/domain/loanFigures'
+import {
+  balanceOn,
+  interestOf,
+  nextPayment,
+  paidSoFar,
+  paymentOf,
+  paymentsAfter,
+  paymentsByYear,
+  payoffDate,
+  principalOf,
+  splitOf,
+  subsidyShareOf,
+  yourPrincipalOf,
+  yourShareOf,
+} from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import type { PlanRow } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { annuity, monthlyInterest, rateOfText, rateText } from '../src/apps/loans/bankLoans/domain/yearlyRate'
@@ -128,7 +142,7 @@ describe("a bank loan's plan", () => {
   })
 
   it('splits a covered instalment into your share and a subsidy larger than its interest, leaving principal, interest and balance alone', () => {
-    const loan = bankLoan({ subsidy: { monthly: euros(50), firstInstalment: 2, instalments: 3 } })
+    const loan = bankLoan({ subsidy: { monthly: euros(50), firstInstalment: 2, instalments: 3, payer: '' } })
     const plain = loanPlan(bankLoan(), [ratePeriod(loan, '2026-02-05', '12')], [])
     const plan = loanPlan(loan, [ratePeriod(loan, '2026-02-05', '12')], [])
 
@@ -140,7 +154,11 @@ describe("a bank loan's plan", () => {
 })
 
 describe('the figures beside the plan', () => {
-  const loan = bankLoan({ drawdown: civil('2025-12-20'), interimInterest: { amount: euros(6), date: civil('2026-01-05') }, subsidy: { monthly: euros(20), firstInstalment: 1, instalments: 12 } })
+  const loan = bankLoan({
+    drawdown: civil('2025-12-20'),
+    interimInterest: { amount: euros(6), date: civil('2026-01-05') },
+    subsidy: { monthly: euros(20), firstInstalment: 1, instalments: 12, payer: '' },
+  })
   const plan = loanPlan(loan, [ratePeriod(loan, '2026-02-05', '12')], [])
 
   it('gives the balance on a day, counting a payment from its due date, and nothing before the drawdown', () => {
@@ -157,16 +175,48 @@ describe('the figures beside the plan', () => {
     expect(payoffDate(plan)).toBe('2027-01-05')
   })
 
-  it('totals interest by calendar year with the subsidy of that year, and what is left after a day', () => {
-    // 2026: 6.00 interim plus instalments 1 to 11 at 12.00, 11.05, 10.10, 9.13, 8.16, 7.17, 6.18,
-    // 5.17, 4.16, 3.14 and 2.10 makes 84.36, with 11 × 20.00 of subsidy. 2027 holds instalment 12:
-    // 1.06 interest and 20.00 subsidy.
-    expect(interestByYear(plan)).toEqual([
-      { year: 2026, interest: euros(84.36), subsidy: euros(220) },
-      { year: 2027, interest: euros(1.06), subsidy: euros(20) },
+  it('splits each year between principal and interest, the subsidy paying interest first, and what is left after a day', () => {
+    // 2026: 6.00 interim interest, then instalments 1 to 11 with 78.36 interest (12.00, 11.05, 10.10,
+    // 9.13, 8.16, 7.17, 6.18, 5.17, 4.16, 3.14 and 2.10) and 1,094.46 principal. The subsidy's 11 × 20.00
+    // pays all 78.36 of that interest and 141.64 of the principal, which leaves you 952.82 principal
+    // and the 6.00 interim interest. 2027 holds instalment 12: 1.06 interest and 105.54 principal, of
+    // which the subsidy pays the interest and 18.94 principal.
+    expect(paymentsByYear(plan)).toEqual([
+      { year: 2026, instalments: 11, principal: euros(952.82), interest: euros(6), subsidyPrincipal: euros(141.64), subsidyInterest: euros(78.36), extra: 0 },
+      { year: 2027, instalments: 1, principal: euros(86.6), interest: 0, subsidyPrincipal: euros(18.94), subsidyInterest: euros(1.06), extra: 0 },
     ])
-    // After instalment 10 on 2026-11-05: 2.10 + 1.06 interest and two subsidies.
-    expect(interestLeft(plan, civil('2026-11-05'))).toEqual({ interest: euros(3.16), subsidy: euros(40) })
+    // After instalment 10 on 2026-11-05: instalments 11 and 12, 3.16 interest and 210.06 principal, 40.00 of them the subsidy's.
+    const left = paymentsAfter(plan, civil('2026-11-05'))
+    expect(left).toEqual({ principal: euros(173.22), interest: 0, subsidyPrincipal: euros(36.84), subsidyInterest: euros(3.16), extra: 0 })
+    expect([paymentOf(left), principalOf(left), interestOf(left), subsidyShareOf(left), yourShareOf(left)]).toEqual([euros(213.22), euros(210.06), euros(3.16), euros(40), euros(173.22)])
+    expect(yourPrincipalOf(left)).toBe(euros(173.22))
+  })
+
+  it('pays interest first out of a subsidy smaller than the interest, leaving the principal all yours', () => {
+    // An instalment of 822.20, 423.66 principal and 398.54 interest, with a subsidy of 210.00.
+    const row = {
+      kind: 'instalment',
+      date: civil('2026-11-20'),
+      number: 44,
+      payment: euros(822.2),
+      principal: euros(423.66),
+      interest: euros(398.54),
+      subsidy: euros(210),
+      yourShare: euros(612.2),
+      balance: euros(0),
+    } as const
+
+    expect(splitOf(row)).toEqual({ principal: euros(423.66), interest: euros(188.54), subsidyPrincipal: 0, subsidyInterest: euros(210), extra: 0 })
+  })
+
+  it('counts an extra payment as principal you pay early', () => {
+    const withExtra = loanPlan(bankLoan(), [ratePeriod(bankLoan(), '2026-02-05', '12')], [extraPayment(bankLoan(), '2026-04-20', 300, 'shorter-term')])
+    const [year2026] = paymentsByYear(withExtra)
+
+    expect(year2026?.extra).toBe(euros(300))
+    // The 300.00 joins the principal the instalments leave you.
+    expect(yourPrincipalOf(year2026!)).toBe(year2026!.principal + euros(300))
+    expect(withExtra.find((row) => row.kind === 'extra-payment')).toMatchObject({ principal: euros(300) })
   })
 
   it('counts a late instalment as paid from the day it was paid, without changing the plan', () => {

@@ -93,7 +93,7 @@ import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset.ts'
 import { civilDate, parseCivilDate, yearOf } from '../src/shared/calendar/civilDate.ts'
 import { yearOfMonth } from '../src/shared/calendar/monthKey.ts'
 import { setMoneyFormat } from '../src/shared/money/moneyFormat.ts'
-import { paidSoFar } from '../src/apps/loans/bankLoans/domain/loanFigures.ts'
+import { paidSoFar, paymentsByYear, splitOfRows } from '../src/apps/loans/bankLoans/domain/loanFigures.ts'
 import { whatIfExtraPayment } from '../src/apps/loans/bankLoans/domain/whatIf.ts'
 import { bankLoanFigures, bankLoanMonths, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
@@ -292,6 +292,7 @@ function loansGroups(add) {
     add(`${at}.plan`, book.plan)
     add(`${at}.figures`, () => [bankLoanFigures(book, today), book.plan && paidSoFar(book.plan, book.lateInstalments, today)])
     add(`${at}.years`, () => planYears(book, today))
+    add(`${at}.payments`, () => book.plan && [...paymentsByYear(book.plan), splitOfRows(book.plan)])
     add(`${at}.months`, () => bankLoanMonths(book))
     add(`${at}.what-if`, () => whatIfExtraPayment(book.loan, book.ratePeriods, book.extraPayments, today, moneyFromAmount(1000)))
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { informalBalanceOn, informalBalances, lastMovement } from '../src/apps/loans/informalLoans/domain/informalBalance'
+import { informalBalanceOn, informalBalances, informalTotals, lastMovement } from '../src/apps/loans/informalLoans/domain/informalBalance'
 import { civil, euros } from './fixtures/ledger'
 import { informalLoan, movement } from './fixtures/loans'
 
@@ -26,6 +26,17 @@ describe("an informal loan's balance", () => {
       ['2026-07-01', 'forgiven', 2565.5],
     ])
     expect(lastMovement(movements)?.kind).toBe('forgiven')
+    // Borrowed 300.00 + 45.50, repaid 500.00 + 80.00, forgiven 200.00.
+    expect(informalTotals(movements, civil('2026-07-01'))).toEqual({ raised: euros(345.5), repaid: euros(580), forgiven: euros(200) })
+  })
+
+  it('leaves movements dated after the day out of the totals, as the balance on the day does', () => {
+    const movements = [movement(loan, '2026-04-01', 'repaid', 500), movement(loan, '2026-09-01', 'repaid', 700), movement(loan, '2026-10-01', 'borrowed', 100)]
+    const day = civil('2026-05-01')
+
+    // Only the 500.00 repayment is dated by the day, so 3,000.00 − 500.00 = 2,500.00 is the balance.
+    expect(informalTotals(movements, day)).toEqual({ raised: 0, repaid: euros(500), forgiven: 0 })
+    expect(informalBalanceOn(loan, movements, day)).toBe(euros(2500))
   })
 
   it('raises the balance again when money is borrowed back, and reads below zero once the other side owes', () => {

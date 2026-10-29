@@ -1,5 +1,5 @@
-import { balanceOn, interestByYear, interestLeft, nextPayment, payoffDate, ratePeriodOn, subsidyLastCovered } from '../domain/loanFigures'
-import type { YearInterest } from '../domain/loanFigures'
+import { balanceOn, interestOf, nextPayment, paymentsAfter, paymentsByYear, payoffDate, ratePeriodOn, subsidyLastCovered } from '../domain/loanFigures'
+import type { PaymentSplit } from '../domain/loanFigures'
 import type { PlanRow } from '../domain/loanPlan'
 import type { MonthBalance } from '../../balances/presentation/balanceChart'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
@@ -7,20 +7,25 @@ import { daysBetween, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
-import { ZERO, addMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
 /** The figures a bank loan's card and page lead with, on a day. */
 export interface BankLoanFigures {
   readonly owed: Money
+  /** The principal repaid by the day, and its whole percent of the principal borrowed. */
+  readonly paidBack: Money
+  readonly paidBackPercent: number
   /** The next payment, with the full instalment and your share, or null once the plan is paid. */
   readonly next: Pick<PlanRow, 'date' | 'payment' | 'yourShare'> | null
-  /** When the subsidy's last covered instalment falls due, and the first instalment after it. Null for a loan without a subsidy. */
-  readonly subsidy: { readonly lastCovered: CivilDate; readonly ended: boolean; readonly after: Money | null } | null
+  /** When the subsidy's last covered instalment falls due, its instalments still to come, and the first instalment after it. Null for a loan without a subsidy. */
+  readonly subsidy: { readonly lastCovered: CivilDate; readonly ended: boolean; readonly instalmentsLeft: number; readonly after: Money | null } | null
   readonly payoff: CivilDate | null
   readonly instalmentsLeft: number
-  readonly interestThisYear: YearInterest
-  readonly interestLeft: Omit<YearInterest, 'year'>
+  /** The interest of the day's year, and the part of it the subsidy pays. */
+  readonly interestThisYear: { readonly year: number; readonly interest: Money; readonly subsidy: Money }
+  /** Every payment still to fall due after the day, principal and interest, split by who pays it. */
+  readonly stillToPay: PaymentSplit
 }
 
 /** The bank loan's figures on the day, or null while its plan cannot be worked out. */
@@ -31,17 +36,28 @@ export function bankLoanFigures(book: BankLoanBook, day: CivilDate): BankLoanFig
   const { subsidy } = loan
   const lastCovered = subsidyLastCovered(loan)
   const year = yearOf(day)
+  const owed = balanceOn(loan, plan, day)
+  const paidBack = day < loan.drawdown ? ZERO : subtractMoney(loan.principal, owed)
+  const thisYear = paymentsByYear(plan).find((entry) => entry.year === year)
+  const instalmentsAfter = plan.filter((row) => row.kind === 'instalment' && row.date > day)
   return {
-    owed: balanceOn(loan, plan, day),
+    owed,
+    paidBack,
+    paidBackPercent: Math.floor((paidBack * 100) / loan.principal),
     next: next === null ? null : { date: next.date, payment: next.payment, yourShare: next.yourShare },
     subsidy:
       subsidy === null || lastCovered === null
         ? null
-        : { lastCovered, ended: lastCovered <= day, after: plan.find((row) => row.kind === 'instalment' && row.number === subsidy.firstInstalment + subsidy.instalments)?.payment ?? null },
+        : {
+            lastCovered,
+            ended: lastCovered <= day,
+            instalmentsLeft: instalmentsAfter.filter((row) => row.subsidy > 0).length,
+            after: plan.find((row) => row.kind === 'instalment' && row.number === subsidy.firstInstalment + subsidy.instalments)?.payment ?? null,
+          },
     payoff: payoffDate(plan),
-    instalmentsLeft: plan.filter((row) => row.kind === 'instalment' && row.date > day).length,
-    interestThisYear: interestByYear(plan).find((entry) => entry.year === year) ?? { year, interest: ZERO, subsidy: ZERO },
-    interestLeft: interestLeft(plan, day),
+    instalmentsLeft: instalmentsAfter.length,
+    interestThisYear: { year, interest: thisYear === undefined ? ZERO : interestOf(thisYear), subsidy: thisYear?.subsidyInterest ?? ZERO },
+    stillToPay: paymentsAfter(plan, day),
   }
 }
 

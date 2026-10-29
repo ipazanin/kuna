@@ -1630,7 +1630,7 @@ async function checkWidth(width) {
     await shoot('google-return-loans-find')
   })
 
-  // The sample Loans file, ?loans=sample: its Overview and both loan pages with a card collapsed on each, then an extra payment entered and undone.
+  // The sample Loans file, ?loans=sample: its Overview and both loan pages with a card collapsed on each, the payments chart as a table, then an extra payment entered and undone.
   for (const [name, hash, title, ready] of [
     ['loans-overview', '#/loans', 'Overview', '[data-testid="loan-cards"]'],
     ['loans-bank-loan', `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, 'Home loan', '[data-testid="loan-plan"]'],
@@ -1654,6 +1654,18 @@ async function checkWidth(width) {
       }
     })
   }
+
+  await step('loans-payments-table', async () => {
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Home loan')
+    const toggle = await page.waitForSelector('[data-testid="loan-payments-chart"] [data-testid="chart-table-toggle"]', { visible: true })
+    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await toggle.tap()
+    await waitForText(page, '[data-testid="loan-payments-chart"] [data-testid="chart-table"] thead th', 'Interest you pay')
+    await inspect(page, `${width}px the payments chart as a table`)
+    await shoot('loans-payments-table')
+  })
 
   await step('loans-plan-row', async () => {
     await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })

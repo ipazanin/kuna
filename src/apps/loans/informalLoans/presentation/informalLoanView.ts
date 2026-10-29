@@ -1,4 +1,6 @@
-import { informalBalanceOn, informalBalances, lastMovement } from '../domain/informalBalance'
+import { informalBalanceOn, informalBalances, informalTotals, lastMovement } from '../domain/informalBalance'
+import type { InformalTotals } from '../domain/informalBalance'
+import { words } from './words'
 import type { MonthBalance } from '../../balances/presentation/balanceChart'
 import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { Movement, MovementKind } from '../../workbook/domain/movement'
@@ -8,13 +10,7 @@ import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/mont
 import { negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
-export const MOVEMENT_KIND_NAMES: Readonly<Record<MovementKind, string>> = {
-  borrowed: 'Borrowed',
-  'borrowed-in-kind': 'Borrowed in kind',
-  repaid: 'Repaid',
-  'repaid-in-kind': 'Repaid in kind',
-  forgiven: 'Forgiven',
-}
+export const MOVEMENT_KIND_NAMES: Readonly<Record<MovementKind, string>> = words.kinds
 
 /** What you owe on the loan, below zero when the other side owes you, whichever way the loan runs. */
 export function owedByYou(loan: InformalLoan, balance: Money): Money {
@@ -23,17 +19,18 @@ export function owedByYou(loan: InformalLoan, balance: Money): Money {
 
 /** "You owe" or "They owe you", as the sign of what you owe says. */
 export function whoOwes(owed: Money): string {
-  return owed < 0 ? 'They owe you' : 'You owe'
+  return owed < 0 ? words.theyOweYou : words.youOwe
 }
 
 export interface InformalLoanFigures {
   /** What you owe on the day, below zero when they owe you. */
   readonly owedByYou: Money
   readonly last: Movement | null
+  readonly totals: InformalTotals
 }
 
 export function informalLoanFigures(book: InformalLoanBook, day: CivilDate): InformalLoanFigures {
-  return { owedByYou: owedByYou(book.loan, informalBalanceOn(book.loan, book.movements, day)), last: lastMovement(book.movements) }
+  return { owedByYou: owedByYou(book.loan, informalBalanceOn(book.loan, book.movements, day)), last: lastMovement(book.movements), totals: informalTotals(book.movements, day) }
 }
 
 /** A movement as the list shows it, with what you owe after it. */

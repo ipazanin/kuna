@@ -15,6 +15,8 @@ export interface AxisTooltipSettings {
   readonly incompleteCategories?: readonly string[]
   /** How the hovered category reads in the header, when the axis holds keys such as `2026-10`. */
   readonly categoryLabel?: (category: string) => string
+  /** Plain lines under the figures for the hovered category, such as a note that it is an estimate. */
+  readonly footnotes?: (category: string) => readonly string[]
   readonly formatAmount?: (amount: number, seriesName: string) => string
 }
 
@@ -24,7 +26,7 @@ export interface AxisTooltipSettings {
  * user's Sheet, so they are escaped before they reach the tooltip's HTML.
  */
 export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) => string {
-  const { tokens, incompleteCategories = [], formatAmount = (amount: number) => formatMoney(amount), categoryLabel = (category: string) => category } = settings
+  const { tokens, incompleteCategories = [], formatAmount = (amount: number) => formatMoney(amount), categoryLabel = (category: string) => category, footnotes = () => [] } = settings
   return (points: unknown) => {
     const rows = (Array.isArray(points) ? points : [points]) as AxisTooltipPoint[]
     const category = rows[0]?.axisValueLabel ?? rows[0]?.name ?? ''
@@ -42,7 +44,10 @@ export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) =>
         )
       })
       .join('')
-    return `${header}${incomplete}<div style="display:grid;grid-template-columns:10px auto auto;align-items:center;column-gap:8px;row-gap:2px">${body}</div>`
+    const notes = footnotes(category)
+      .map((note) => `<div style="color:${tokens.inkMuted};margin-top:6px">${escapeHtml(note)}</div>`)
+      .join('')
+    return `${header}${incomplete}<div style="display:grid;grid-template-columns:10px auto auto;align-items:center;column-gap:8px;row-gap:2px">${body}</div>${notes}`
   }
 }
 

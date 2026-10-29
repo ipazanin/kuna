@@ -18,7 +18,8 @@
  * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
- * a file a newer app saved (`?fake=newer-file`), the Loans Settings, Salaries for one
+ * a file a newer app saved (`?fake=newer-file`), the Loans Settings, the Loans Overview with one loan
+ * (`?loans=one-loan`) and while its file opens (`?loans=opening`), the Loans screens in Croatian, Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
  *
@@ -516,14 +517,59 @@ const SOURCE_SCREENS = [
   { name: 'loans-start', hash: '#/loans', title: 'Loans', charts: 0, shows: ['Where the Loans file lives', 'A new file on Google Drive', 'My file on Google Drive'], cards: false },
   { name: 'loans-start-folder', hash: '#/loans/start?step=folder', title: 'Loans', charts: 0, shows: ['Where the Loans file is saved', 'Choose a folder in Google Drive'], cards: false },
   { name: 'loans-overview', query: 'loans=drive', hash: '#/loans', title: 'Overview', charts: 0, shows: ['No loans yet', 'on Google Drive as kuna-loans.json'], cards: false },
-  { name: 'loans-sample', query: 'loans=sample', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'From Marko', 'in all', 'Subsidy ends'], cards: false },
+  {
+    name: 'loans-sample',
+    query: 'loans=sample',
+    hash: '#/loans',
+    title: 'Overview',
+    charts: 0,
+    shows: ['Home loan', 'From Marko', 'Owed in all', 'Subsidy ends', 'APN pays', 'paid back'],
+    cards: false,
+  },
+  {
+    name: 'loans-sample-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: '#/loans',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Home loan', 'Ukupno dugujete', 'Plaća APN', 'otplaćeno'],
+    cards: false,
+  },
+  { name: 'loans-one-loan', query: 'loans=one-loan', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'owed today', 'paid back', 'Subsidy ends'], cards: false },
+  { name: 'loans-opening', query: 'loans=opening', hash: '#/loans', title: 'Overview', charts: 0, ready: '[data-testid="loans-loading"]', cards: false },
+  {
+    name: 'loans-bank-loan-opening',
+    query: 'loans=opening',
+    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    title: null,
+    charts: 0,
+    ready: '[data-testid="screen-skeleton"]',
+    cards: false,
+  },
+  {
+    name: 'loans-informal-loan-opening',
+    query: 'loans=opening',
+    hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
+    title: null,
+    charts: 0,
+    ready: '[data-testid="screen-skeleton"]',
+    cards: false,
+  },
   {
     name: 'loans-bank-loan',
     query: 'loans=sample',
     hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
     title: 'Home loan',
-    charts: 1,
-    shows: ['Owed over time', 'What if I pay extra', 'Estimate', '6M EURIBOR', 'days late'],
+    charts: 2,
+    shows: ['Owed today', 'Total owed', 'APN pays', 'Owed over time', 'Where the payments go', 'Over the whole loan', 'What if I pay extra', 'Estimate', '6M EURIBOR', 'days late'],
+  },
+  {
+    name: 'loans-bank-loan-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    title: 'Home loan',
+    charts: 2,
+    shows: ['Dug danas', 'Ukupno za otplatu', 'Plaća APN', 'Dug kroz vrijeme', 'Kamo idu uplate'],
   },
   {
     name: 'loans-informal-loan',
@@ -531,7 +577,15 @@ const SOURCE_SCREENS = [
     hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
     title: 'From Marko',
     charts: 1,
-    shows: ['Borrowed in kind', 'Repaid in kind', 'Forgiven', 'He bought a boat battery for me'],
+    shows: ['You owe Marko', 'Borrowed since', 'Borrowed in kind', 'Repaid in kind', 'Forgiven', 'He bought a boat battery for me'],
+  },
+  {
+    name: 'loans-informal-loan-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
+    title: 'From Marko',
+    charts: 1,
+    shows: ['Dugujete: Marko', 'Posuđeno nakon toga', 'Posuđeno u naravi'],
   },
   {
     name: 'loans-settings',

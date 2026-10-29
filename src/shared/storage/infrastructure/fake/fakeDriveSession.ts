@@ -10,6 +10,7 @@ const BOOKS_FOLDER = 'Books'
 
 let session: FakeDrive | null = null
 let racing: ((text: string) => string) | null = null
+let held: ReadonlySet<string> = new Set()
 
 /** The fake build's Drive, the same one for every read and save until the page reloads. */
 export function fakeDriveSession(): FakeDrive {
@@ -27,6 +28,16 @@ export async function fakeBooksFolder(): Promise<string> {
 /** Makes the next save meet a save another device made a moment before its upload, which `otherDeviceSave` makes from the file as it stands. */
 export function raceTheNextSave(otherDeviceSave: (text: string) => string): void {
   racing = otherDeviceSave
+}
+
+/** Makes every read of the file wait for good, so a screen shows what it shows while its books open. */
+export function holdReadsOf(fileId: string): void {
+  held = new Set([...held, fileId])
+}
+
+/** Never settles for a held file. */
+async function unlessHeld(fileId: string): Promise<void> {
+  if (held.has(fileId)) await new Promise<never>(() => {})
 }
 
 /** The app's file in the books folder, which the fake build's Picker always picks, or null while the folder holds none. */
@@ -55,6 +66,14 @@ export function fakeDriveAccess(app: string): DriveAccess {
   return {
     drive: {
       ...drive,
+      async headRevision(fileId) {
+        await unlessHeld(fileId)
+        return drive.headRevision(fileId)
+      },
+      async download(fileId) {
+        await unlessHeld(fileId)
+        return drive.download(fileId)
+      },
       async upload(fileId, text) {
         if (racing !== null) {
           const otherDeviceSave = racing

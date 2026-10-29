@@ -7,6 +7,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A screen opens with `PageHeader`, then cards. Every card is an `AppCard`, with a title, or bare for a tile.
 - A long list or table sits in a collapsible `AppCard` with a `collapse-id` named as screen and card, such as `invoicing.months`. Its `summary` is the one line shown when collapsed. A deep link into a card passes `reveal`.
 - A screen made of one table, one list or one form keeps the narrower measure (`max-w-measure`). A dashboard screen widens with `DashboardGrid`.
+- A screen whose books are still opening shows `ScreenSkeleton` below its header.
 - A card with nothing to show uses `EmptyState`, dashed. A card that failed uses `EmptyState` with `tone="error"`. Nothing hand-draws either.
 - Cards that fold, such as a chart or a table, remember their state per device through `cardCollapse.ts`.
 
@@ -15,6 +16,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A row of `KpiTile` goes in `DashboardGrid layout="tiles"`. Each tile has a label, a figure, an optional change against a comparison, an optional trend and a caption. The tile itself opens the rows behind it.
 - A cost where a rise is bad news sets `higher-is-better` to false. The arrow and colour follow.
 - A figure that opens rows is a `DrillLink`. With no rows behind it, `to` is null and it shows as plain text.
+- A share of a whole, such as what is paid back, is a `ProgressMeter`, with a stripe on a part someone else pays. Labelled figures inside a card, such as a loan's dates, are a `FactGrid`.
 
 ## Tabs
 

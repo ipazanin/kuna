@@ -482,6 +482,7 @@ const LOANS_FIXTURES: Readonly<Record<string, KindFixture>> = {
         subsidy_monthly: '10.00',
         subsidy_first_instalment: '1',
         subsidy_instalments: '6',
+        subsidy_payer: 'APN',
         note: 'Family car',
         id: BANK_LOAN_A!,
       },
@@ -489,7 +490,7 @@ const LOANS_FIXTURES: Readonly<Record<string, KindFixture>> = {
     ],
     outside: { name: 'Bike loan', principal: '300.00', drawdown: '2026-05-01', first_instalment: '2026-06-01', instalments: '6', id: BANK_LOAN_C! },
     change: { field: 'lender', value: 'Other Bank' },
-    cleared: 'note',
+    cleared: 'subsidy_payer',
     refused: {
       fields: { name: 'Sofa loan', principal: '800.00', drawdown: '2026-06-01', first_instalment: '2026-07-01', instalments: '0', id: BANK_LOAN_R! },
       reason: 'is not a whole number above zero',

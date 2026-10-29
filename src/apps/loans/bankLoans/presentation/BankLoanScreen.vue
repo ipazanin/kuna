@@ -7,8 +7,10 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { subsidyLastCovered } from '../domain/loanFigures'
 import { rateText } from '../domain/yearlyRate'
 import { balanceChart } from '../../balances/presentation/balanceChart'
+import { words as balanceWords } from '../../balances/presentation/words'
 import { bankLoanNamed, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
+import BalanceHero from './BalanceHero.vue'
 import BankLoanDialog from './BankLoanDialog.vue'
 import BankLoanTiles from './BankLoanTiles.vue'
 import { bankLoanFigures, bankLoanMonths, planYears } from './bankLoanView'
@@ -17,31 +19,46 @@ import type { ChangeLine } from './ChangeListCard.vue'
 import ExtraPaymentDialog, { EFFECT_ITEMS } from './ExtraPaymentDialog.vue'
 import type { ExtraPaymentStart } from './ExtraPaymentDialog.vue'
 import LateInstalmentDialog from './LateInstalmentDialog.vue'
+import PaymentsCard from './PaymentsCard.vue'
 import PlanCard from './PlanCard.vue'
 import RatePeriodDialog from './RatePeriodDialog.vue'
 import SubsidyDialog from './SubsidyDialog.vue'
 import WhatIfPanel from './WhatIfPanel.vue'
+import { words } from './words'
 import type { LateInstalment } from '../../workbook/domain/lateInstalment'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import { daysBetween, today, yearOf } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
+import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
+import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
-/** One bank loan: its figures, its balance over time, what an extra payment would do, its plan, and what changes it. */
+/** One bank loan: what is owed and paid back, its balance over time, where its payments go, what an extra payment would do, its plan, and what changes it. */
 const { state } = useLoansBooks()
 const route = useRoute()
 const day = today()
 
 const book = computed(() => (state.workbook === null ? null : bankLoanNamed(state.workbook, route.query.loan)))
 const figures = computed(() => (book.value === null ? null : bankLoanFigures(book.value, day)))
-const chart = computed(() => (book.value === null ? null : balanceChart(bankLoanMonths(book.value), monthOf(day), chartTokens())))
 const years = computed(() => (book.value === null ? [] : planYears(book.value, day)))
+const payer = computed(() => book.value?.loan.subsidy?.payer ?? '')
+const phone = usePhoneLayout()
+const estimateFrom = computed(() => years.value.flatMap((year) => year.lines).find((line) => line.estimate)?.date ?? null)
+const chart = computed(() => {
+  if (book.value === null) return null
+  return balanceChart(bankLoanMonths(book.value), monthOf(day), chartTokens(), phone.value, {
+    extraPayments: book.value.extraPayments.map((payment) => monthOf(payment.date)),
+    estimateFrom: estimateFrom.value === null ? null : monthOf(estimateFrom.value),
+  })
+})
 /** The current year, or the plan's nearest year to it before the loan starts or after it ends. */
 const openYear = computed(() => {
   const current = yearOf(day)
@@ -56,8 +73,8 @@ const effectName = (effect: string): string => EFFECT_ITEMS.find((item) => item.
 const rateLines = computed((): ChangeLine[] =>
   (book.value?.ratePeriods ?? []).map((period) => ({
     key: period.id,
-    title: `${rateText(period.rate)}%, ${period.rateType}`,
-    detail: [`From ${dayLabel(period.from)}`, period.note].filter((part) => part !== '').join('. '),
+    title: words.changes.rate(rateText(period.rate), words.changes.rateTypes[period.rateType]),
+    detail: [words.changes.from(dayLabel(period.from)), period.note].filter((part) => part !== '').join('. '),
   })),
 )
 const subsidyLines = computed((): ChangeLine[] => {
@@ -68,8 +85,8 @@ const subsidyLines = computed((): ChangeLine[] => {
   return [
     {
       key: 'subsidy',
-      title: `${formatMoney(subsidy.monthly)} a month`,
-      detail: `Instalments ${subsidy.firstInstalment} to ${subsidy.firstInstalment + subsidy.instalments - 1}, the last due ${dayLabel(lastCovered)}`,
+      title: words.changes.subsidyMonthly(formatMoney(subsidy.monthly)),
+      detail: words.changes.subsidyDetail(words.subsidyPays(subsidy.payer), subsidy.firstInstalment, subsidy.firstInstalment + subsidy.instalments - 1, dayLabel(lastCovered)),
     },
   ]
 })
@@ -81,7 +98,10 @@ const extraLines = computed((): ChangeLine[] =>
 const lateLines = computed((): ChangeLine[] =>
   [...(book.value?.lateInstalments ?? [])]
     .sort((earlier, later) => earlier.due.localeCompare(later.due))
-    .map((late) => ({ key: late.id, title: `Due ${dayLabel(late.due)}`, detail: `Paid ${dayLabel(late.paid)}, ${daysBetween(late.due, late.paid)} days late` })),
+    .map((late) => {
+      const days = daysBetween(late.due, late.paid)
+      return { key: late.id, title: words.changes.due(dayLabel(late.due)), detail: plural(words.changes.paidLate(days, dayLabel(late.paid)), days) }
+    }),
 )
 
 const editingLoan = ref(false)
@@ -116,54 +136,63 @@ function openLate(key: string | null): void {
 
 <template>
   <section class="flex flex-col gap-6">
-    <UButton :to="LOANS_OVERVIEW_ROUTE" label="All loans" icon="i-lucide-arrow-left" color="neutral" variant="link" class="-mb-4 self-start px-0" data-testid="back-to-loans" />
+    <UButton :to="LOANS_OVERVIEW_ROUTE" :label="words.allLoans" icon="i-lucide-arrow-left" color="neutral" variant="link" class="-mb-4 self-start px-0" data-testid="back-to-loans" />
     <template v-if="book !== null">
-      <PageHeader :title="book.loan.name" :description="[book.loan.lender, `${formatMoney(book.loan.principal)} over ${book.loan.instalments} instalments`].filter((part) => part !== '').join(', ')">
+      <PageHeader
+        :title="book.loan.name"
+        :description="[book.loan.lender, plural(words.terms(book.loan.instalments, formatMoney(book.loan.principal)), book.loan.instalments)].filter((part) => part !== '').join(', ')"
+      >
         <template #actions>
-          <UButton label="Change loan" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="bank-loan-edit" @click="editingLoan = true" />
+          <UButton :label="words.changeLoan" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="bank-loan-edit" @click="editingLoan = true" />
         </template>
       </PageHeader>
-      <UAlert
-        v-if="figures === null"
-        icon="i-lucide-triangle-alert"
-        color="warning"
-        variant="subtle"
-        title="Kuna cannot work out this loan's plan"
-        :description="`No rate period starts at its first instalment on ${dayLabel(book.loan.firstInstalment)}. Add one under Rate periods.`"
-      />
+      <UAlert v-if="figures === null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="words.noPlanTitle" :description="words.noPlan(dayLabel(book.loan.firstInstalment))" />
       <template v-else>
-        <BankLoanTiles :figures="figures" />
-        <ChartCard
-          v-if="chart !== null"
-          title="Owed over time"
-          subtitle="At each month end, as the plan gives it. The dashed part is still to come."
-          :option="chart.option"
-          :description="chart.description"
-          :height="280"
-          :phone-height="220"
-          data-testid="loan-balance-chart"
-        />
+        <BalanceHero :loan="book.loan" :figures="figures" />
+        <BankLoanTiles :figures="figures" :payer="payer" />
+        <DashboardGrid layout="pair">
+          <ChartCard
+            v-if="chart !== null"
+            :title="words.balance.title"
+            :subtitle="words.balance.subtitle"
+            :option="chart.option"
+            :description="chart.description"
+            :height="280"
+            :phone-height="220"
+            data-testid="loan-balance-chart"
+          >
+            <template #legend>
+              <ChartLegend
+                :entries="[
+                  { label: balanceWords.owedSoFar, colour: 'var(--loan-principal)', mark: 'line' },
+                  { label: balanceWords.stillToCome, colour: 'var(--loan-ahead)', mark: 'dashed' },
+                ]"
+              />
+            </template>
+          </ChartCard>
+          <PaymentsCard v-if="book.plan !== null" :plan="book.plan" :current-year="yearOf(day)" :estimate-from-year="estimateFrom === null ? null : yearOf(estimateFrom)" :payer="payer" />
+        </DashboardGrid>
         <WhatIfPanel :book="book" :default-date="figures.next?.date ?? day" @apply="openExtra" />
         <PlanCard :years="years" :open-year="openYear" :has-subsidy="book.loan.subsidy !== null" />
       </template>
       <DashboardGrid layout="pair">
         <ChangeListCard
-          title="Rate periods"
-          subtitle="The rate from each due date on. A new rate works the instalment out again."
+          :title="words.changes.ratePeriods"
+          :subtitle="words.changes.ratePeriodsSubtitle"
           :lines="rateLines"
-          empty="No rate period yet."
-          add-label="Add rate"
+          :empty="words.changes.noRatePeriod"
+          :add-label="words.changes.addRate"
           collapse-id="loans.rate-periods"
           data-testid="rate-periods"
           @add="openRate(null)"
           @change="openRate"
         />
         <ChangeListCard
-          title="Subsidy"
-          subtitle="What a third party pays of each instalment it covers."
+          :title="words.changes.subsidy"
+          :subtitle="words.changes.subsidySubtitle"
           :lines="subsidyLines"
-          empty="No subsidy on this loan."
-          add-label="Add subsidy"
+          :empty="words.changes.noSubsidy"
+          :add-label="words.changes.addSubsidy"
           :can-add="book.loan.subsidy === null"
           collapse-id="loans.subsidy"
           data-testid="loan-subsidy"
@@ -173,22 +202,22 @@ function openLate(key: string | null): void {
       </DashboardGrid>
       <DashboardGrid layout="pair">
         <ChangeListCard
-          title="Extra payments"
-          subtitle="Principal paid back early, for a shorter term or a lower instalment."
+          :title="words.changes.extraPayments"
+          :subtitle="words.changes.extraPaymentsSubtitle"
           :lines="extraLines"
-          empty="No extra payments yet."
-          add-label="Add payment"
+          :empty="words.changes.noExtraPayment"
+          :add-label="words.changes.addPayment"
           collapse-id="loans.extra-payments"
           data-testid="extra-payments"
           @add="openExtra(null)"
           @change="changeExtra"
         />
         <ChangeListCard
-          title="Late instalments"
-          subtitle="Every instalment counts as paid on its due date, unless it is here."
+          :title="words.changes.lateInstalments"
+          :subtitle="words.changes.lateInstalmentsSubtitle"
           :lines="lateLines"
-          empty="Every instalment went out on time."
-          add-label="Mark late"
+          :empty="words.changes.noLateInstalment"
+          :add-label="words.changes.markLate"
           collapse-id="loans.late-instalments"
           data-testid="late-instalments"
           @add="openLate(null)"
@@ -201,10 +230,11 @@ function openLate(key: string | null): void {
       <ExtraPaymentDialog v-model:open="extraOpen" :book="book" :start="extraStart" />
       <LateInstalmentDialog v-model:open="lateOpen" :book="book" :editing="editingLate" :today="day" />
     </template>
+    <ScreenSkeleton v-else-if="state.workbook === null && state.status !== 'error'" />
     <template v-else-if="state.workbook !== null">
-      <PageHeader title="Bank loan" />
+      <PageHeader :title="words.bankLoan" />
       <AppCard>
-        <p class="px-4 py-6 text-sm text-muted sm:px-5" data-testid="loan-missing">The Loans file holds no bank loan by this link. It may have been deleted.</p>
+        <p class="px-4 py-6 text-sm text-muted sm:px-5" data-testid="loan-missing">{{ words.missing }}</p>
       </AppCard>
     </template>
   </section>
