@@ -276,7 +276,7 @@ const overview = computed(() => {
               subtitle="Each account at its newest balance"
               data-testid="overview-accounts"
             >
-              <ul class="account-list mt-3 border-t border-default">
+              <ul class="mt-3 border-t border-default">
                 <li v-for="account in overview.accounts" :key="account.account" class="account-row" :class="{ 'account-closed': account.closed }">
                   <div class="min-w-0">
                     <p class="flex flex-wrap items-center gap-2 text-sm text-toned">

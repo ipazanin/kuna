@@ -54,7 +54,6 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
 <template>
   <USelectMenu
     v-bind="menuValue === undefined ? {} : { modelValue: menuValue }"
-    @update:model-value="menuValue = $event"
     :items="items"
     value-key="value"
     :filter-fields="['label', 'value']"
@@ -65,6 +64,7 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
     color="neutral"
     variant="outline"
     class="min-w-48"
+    @update:model-value="menuValue = $event"
   >
     <span v-if="picked" class="flex min-w-0 items-center gap-1.5">
       <span v-if="picked.colour" class="size-2 shrink-0 rounded-[2px]" :style="{ background: picked.colour }" aria-hidden="true" />

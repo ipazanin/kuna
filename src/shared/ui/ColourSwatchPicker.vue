@@ -60,7 +60,7 @@ const picked = computed(() => choices.value.find((choice) => choice.value !== BL
             fieldset: 'grid grid-cols-5 gap-2',
             legend: 'mb-2 text-sm font-medium text-highlighted',
             item: 'relative h-11',
-            container: 'absolute inset-0 z-10 h-auto',
+            container: 'absolute inset-0 z-lifted h-auto',
             base: 'size-full rounded-md ring-0 data-[state=checked]:ring-2 data-[state=checked]:ring-offset-2 data-[state=checked]:ring-(--ink-strong) data-[state=checked]:ring-offset-(--ui-bg) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--accent)',
             indicator: 'hidden',
             wrapper: 'ms-0 size-full',

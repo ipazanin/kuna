@@ -46,7 +46,7 @@ provide(LINKED_SETTINGS_TAB, linkedTab)
     <PageHeader title="Settings" description="How each app's books and this device are set up. A save writes what you changed to the app's file, on Drive or in this browser, checks it reads back, and offers Undo." />
 
     <PageTabs :tabs="tabs" label="Parts of the settings" data-testid="settings-tabs" @select="linkedTab = null">
-      <template v-for="tab in appTabs" #[tab.value]>
+      <template v-for="tab in appTabs" :key="tab.value" #[tab.value]>
         <component :is="tab.component" />
       </template>
 

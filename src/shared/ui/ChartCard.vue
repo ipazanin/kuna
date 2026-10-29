@@ -182,7 +182,7 @@ function valueOf(point: unknown): number | null {
       </div>
       <ChartCanvas
         v-else
-        class="transition-opacity duration-200"
+        class="transition-opacity duration-base"
         :class="{ 'opacity-40': loading }"
         :option="option"
         :description="description"

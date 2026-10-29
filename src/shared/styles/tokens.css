@@ -28,6 +28,12 @@
   --container-shell: 160rem;
   --container-measure: 100rem;
   --breakpoint-3xl: 120rem;
+
+  /* z-lifted raises a control above a card's stretched link. The top bar sits above the sticky bands, which stack at 10. */
+  --z-index-lifted: 10;
+  --z-index-top-bar: 20;
+
+  --transition-duration-base: 200ms;
 }
 
 @theme inline {

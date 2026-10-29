@@ -42,7 +42,7 @@ function daysText(days: number | null): string {
 </script>
 
 <template>
-  <div class="days-to-paid" data-testid="days-to-paid">
+  <div data-testid="days-to-paid">
     <div class="days-row days-scale" aria-hidden="true">
       <span class="days-strip-area">
         <span class="strip ticks">

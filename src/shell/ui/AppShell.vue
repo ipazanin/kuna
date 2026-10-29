@@ -66,7 +66,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
     <header
       v-else
       ref="topBar"
-      class="top-bar sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4"
+      class="top-bar sticky top-0 z-top-bar flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4"
     >
       <USlideover
         v-model:open="menuOpen"

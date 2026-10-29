@@ -366,8 +366,8 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
     </LedgerGate>
     <InvoiceDialog
       v-if="invoiceDialog && invoiceDialog.defaultIssued"
-      v-model:open="dialogOpen"
       :id="editing"
+      v-model:open="dialogOpen"
       :clients="invoiceDialog.clients"
       :default-issued="invoiceDialog.defaultIssued"
       :latest-number="invoiceDialog.latestNumber"

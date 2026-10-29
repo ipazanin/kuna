@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-fake
+visual-check
+coverage
+spike.local
+package-lock.json
+src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts

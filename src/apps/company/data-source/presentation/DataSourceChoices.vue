@@ -52,7 +52,7 @@ async function startNewBooks(): Promise<void> {
 </script>
 
 <template>
-  <AppCard as="ul" class="choices" data-testid="data-source-choices">
+  <AppCard as="ul" data-testid="data-source-choices">
     <li class="choice">
       <UIcon name="i-lucide-hard-drive" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
