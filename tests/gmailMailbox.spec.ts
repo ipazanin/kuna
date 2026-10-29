@@ -226,6 +226,23 @@ describe('googleMailFolders making a file', () => {
     expect(requests.every((request) => request.method === 'GET' || request.method === 'POST')).toBe(true)
   })
 
+  it('makes a missing year folder once when two sources that share a folder file into it at the same time', async () => {
+    const requests = stubDrive()
+    const folders = googleMailFolders('token', 'books-file')
+    const file = (name: string) => ({ name, properties: PROPERTIES, bytes: new TextEncoder().encode('pdf').buffer as ArrayBuffer })
+
+    await Promise.all([
+      folders.create(['finance', 'statements'], ['2032-statements'], file('2032-01-02-statement-001.pdf')),
+      folders.create(['finance', 'statements'], ['2032-statements'], file('2032-01-pdv.xlsx')),
+    ])
+
+    const posts = requests.filter((request) => request.method === 'POST')
+    expect(posts.filter((request) => request.url.pathname === '/drive/v3/files').map((request) => JSON.parse(request.body))).toEqual([
+      { name: '2032-statements', mimeType: 'application/vnd.google-apps.folder', parents: ['statements'] },
+    ])
+    expect(posts.filter((request) => request.url.pathname.startsWith('/upload'))).toHaveLength(2)
+  })
+
   it('makes a missing year folder and the month folder inside it before the file, as the payroll and the invoices need', async () => {
     const requests: { readonly method: string; readonly url: URL; readonly body: string }[] = []
     let made = 0

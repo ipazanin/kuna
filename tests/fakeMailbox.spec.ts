@@ -50,18 +50,21 @@ describe('the fake mailbox', () => {
 
     const sample = `${sampleCamtLabel()}-main.xml`
     expect(before.kind === 'listed' && before.files.some((file) => file.name === sample)).toBe(false)
-    expect(made.map((file) => [file.folder.join('/'), file.folders.join('/'), file.name])).toEqual([
-      ['finance/statements', `${sample.slice(0, 4)}-statements`, sample],
-      ['finance/statements', `${made[1]?.name.slice(0, 4)}-statements`, made[1]?.name],
+    // The sources file at the same time, so the files are compared folder by folder, each in the order it was made.
+    const byFolder = [...made].sort((first, second) => first.folder.join('/').localeCompare(second.folder.join('/')))
+    const statementPdf = byFolder[7]?.name
+    expect(byFolder.map((file) => [file.folder.join('/'), file.folders.join('/'), file.name])).toEqual([
+      ['finance/incoming-invoices', '2026-incoming-invoices/2026-10', '2026-10-03-accounting.pdf'],
       ['finance/payroll', '2026-payroll/2026-09', '2026-09-salary.xlsx'],
       ['finance/payroll', '2026-payroll/2026-09', '2026-09-payment-order-salary.pdf'],
       ['finance/payroll', '2026-payroll/2026-09', '2026-09-payment-order-salary.xml'],
       ['finance/payroll', '2026-payroll/2026-09', '2026-09-payment-order-rent.pdf'],
       ['finance/payroll', '2026-payroll/2026-09', '2026-09-payment-order-rent.xml'],
+      ['finance/statements', `${sample.slice(0, 4)}-statements`, sample],
+      ['finance/statements', `${statementPdf?.slice(0, 4)}-statements`, statementPdf],
       ['finance/vat-returns', '2026-vat-returns', '2026-09-pdv.xlsx'],
-      ['finance/incoming-invoices', '2026-incoming-invoices/2026-10', '2026-10-03-accounting.pdf'],
     ])
-    expect(made[1]?.name).toMatch(/^\d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf$/)
+    expect(statementPdf).toMatch(/^\d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf$/)
     const listed = after.kind === 'listed' ? after.files.find((file) => file.name === sample) : undefined
     expect(new TextDecoder().decode(await folder.download(listed!))).toBe(sampleCamtXml())
     expect(planLine(again)).toBe('Nothing new, already there 10, 1 unmatched.')

@@ -118,42 +118,145 @@ export interface MailFilingPorts {
   /** The years from the mail-since day's to this one's, whose folders a source lists before it searches. */
   readonly years: readonly number[]
   hash(bytes: ArrayBuffer): Promise<string>
+  /** The step's line while it runs: each source still running with what it does, such as "Bank statements: filing 2 of 3 · VAT returns: searching". */
   report(line: string): void
 }
 
-/** How many mails are read from Gmail at once. */
-const READ_AT_ONCE = 5
+/**
+ * How many Gmail calls the step has in flight at once over all its sources, which keeps it well
+ * under Gmail's per-user rate. A source also reads and names this many of its mails at once, since
+ * more would only wait for a turn.
+ */
+const GMAIL_AT_ONCE = 10
 
 /**
- * The mail step: each source that is on lists the files of its year folders, searches its window
- * page by page, names every attachment by its rule, and checks the name against what its folder
- * holds and what an earlier mail of this run files. It then makes each new file, oldest mail
- * first. No mail is marked or moved, and no Drive
- * file is trashed, renamed or overwritten. A source that is off makes no call, and one switched on
- * without all it needs fails with what it lacks. A source or an upload that fails leaves the others
- * running, except that mail too new for the next window to reach back to a failed upload waits for
- * it. Google turning the token away or Gmail still asking to slow down throws, so the sync can ask
- * for access or say so, and the next run finds what this one filed in the folder.
+ * The mail step: the sources that are on run at the same time. Each lists the files of its year
+ * folders, searches its window page by page, names every attachment by its rule, and checks the
+ * name against what its folder holds and what an earlier mail of this run files. It then makes each
+ * new file, oldest mail first. No mail is marked or moved, and no Drive file is trashed, renamed or
+ * overwritten. A source that is off makes no call, and one switched on without all it needs fails
+ * with what it lacks. A source or an upload that fails leaves the others running, except that mail
+ * too new for the next window to reach back to a failed upload waits for it. Google turning the
+ * token away or Gmail still asking to slow down stops every source's next call and throws once each
+ * source has stopped, so the sync can ask for access or say so, and the next run finds what this one
+ * filed in the folder. The plan lists the sources in their order, whichever ends first.
  */
 export async function fileMail(ports: MailFilingPorts): Promise<MailPlan> {
-  const plans: SourcePlan[] = []
-  const access = once(ports.open)
-  for (const source of ports.sources) {
-    const terms = source.terms(ports.workbook)
-    if (terms.kind === 'off') continue
-    if (terms.kind === 'incomplete') {
-      plans.push({ kind: 'failed', id: source.id, label: source.label, reason: `It is on, but has ${missingWords(terms.missing)} on Settings, General` })
-      continue
-    }
+  const access = once(async () => sharedAccess(await ports.open()))
+  const lines = new Map<string, string>()
+  // Only the space after each dot breaks, so a phone wraps the line between sources, never inside one.
+  const reportRunning = (): void => {
+    if (lines.size > 0) ports.report([...lines.values()].join(' · '))
+  }
+  const show = (source: MailSource, line: string): void => {
+    lines.set(source.id, `${source.label}: ${line}`.replaceAll(' ', ' '))
+    reportRunning()
+  }
+  const settled = await Promise.allSettled(
+    ports.sources.map(async (source): Promise<SourcePlan | null> => {
+      const terms = source.terms(ports.workbook)
+      if (terms.kind === 'off') return null
+      if (terms.kind === 'incomplete') {
+        return { kind: 'failed', id: source.id, label: source.label, reason: `It is on, but has ${missingWords(terms.missing)} on Settings, General` }
+      }
+      show(source, 'searching')
+      try {
+        return await planSource(source, terms.terms, await access(), ports, (line) => show(source, line))
+      } catch (failure) {
+        if (stopsTheStep(failure)) throw failure
+        return { kind: 'failed', id: source.id, label: source.label, reason: failure instanceof Error ? failure.message : String(failure) }
+      } finally {
+        lines.delete(source.id)
+        reportRunning()
+      }
+    }),
+  )
+  const stopped = settled.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected')
+  if (stopped !== undefined) throw stopped.reason
+  return { sources: settled.flatMap((outcome) => (outcome.status === 'fulfilled' && outcome.value !== null ? [outcome.value] : [])) }
+}
+
+/** Google turning the token away or Gmail still asking to slow down, which stops the whole step. */
+function stopsTheStep(failure: unknown): boolean {
+  return isUnauthorized(failure) || failure instanceof MailRateLimited
+}
+
+/**
+ * The Gmail and Drive every source of one run shares. A Gmail call waits for one of the step's
+ * turns. Once a call stopped the step, every call after it throws that failure without reaching
+ * Google, a Gmail call still waiting for its turn among them.
+ */
+function sharedAccess({ mailbox, folders }: MailAccess): MailAccess {
+  const stops: unknown[] = []
+  async function unlessStopped<Result>(call: () => Promise<Result>): Promise<Result> {
+    if (stops.length > 0) throw stops[0]
     try {
-      ports.report(`${source.label}: searching Gmail`)
-      plans.push(await planSource(source, terms.terms, await access(), ports))
+      return await call()
     } catch (failure) {
-      if (isUnauthorized(failure) || failure instanceof MailRateLimited) throw failure
-      plans.push({ kind: 'failed', id: source.id, label: source.label, reason: failure instanceof Error ? failure.message : String(failure) })
+      if (stopsTheStep(failure)) stops.push(failure)
+      throw failure
     }
   }
-  return { sources: plans }
+  const inTurn = turns(GMAIL_AT_ONCE)
+  const gmail = <Result>(call: () => Promise<Result>): Promise<Result> => inTurn(() => unlessStopped(call))
+  return {
+    mailbox: {
+      search: (query, pageToken) => gmail(() => mailbox.search(query, pageToken)),
+      message: (id) => gmail(() => mailbox.message(id)),
+      attachment: (messageId, attachmentId) => gmail(() => mailbox.attachment(messageId, attachmentId)),
+    },
+    folders: {
+      filesIn: (folder, below) => unlessStopped(() => folders.filesIn(folder, below)),
+      create: (folder, below, file) => unlessStopped(() => folders.create(folder, below, file)),
+    },
+  }
+}
+
+/** Runs each call once fewer than `count` calls run, in the order they came. */
+function turns(count: number): <Result>(call: () => Promise<Result>) => Promise<Result> {
+  let free = count
+  const waiting: (() => void)[] = []
+  return async (call) => {
+    if (free > 0) {
+      free -= 1
+    } else {
+      await new Promise<void>((resolve) => waiting.push(resolve))
+    }
+    try {
+      return await call()
+    } finally {
+      const next = waiting.shift()
+      if (next === undefined) {
+        free += 1
+      } else {
+        next()
+      }
+    }
+  }
+}
+
+/**
+ * The work of each item, at most `count` at once, in the items' order. Once one fails no other
+ * starts, and the first failure is thrown after the ones running end.
+ */
+async function eachAtMost<Item, Result>(items: readonly Item[], count: number, work: (item: Item) => Promise<Result>): Promise<Result[]> {
+  const results: Result[] = []
+  const failures: unknown[] = []
+  let next = 0
+  async function worker(): Promise<void> {
+    while (failures.length === 0 && next < items.length) {
+      const index = next
+      next += 1
+      try {
+        results[index] = await work(items[index]!)
+      } catch (failure) {
+        failures.push(failure)
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(count, items.length) }, worker))
+  if (failures.length > 0) throw failures[0]
+  return results
 }
 
 /** A file to compare a new name with: one the folder holds, or one an earlier mail of this run files. */
@@ -168,9 +271,9 @@ interface Comparable {
  * One source's plan. Its year folders from the mail-since year on are listed before the search, so
  * the window starts a week before the newest file there, whoever filed it, and mail found already
  * there moves it as mail the app filed does. A folder of an older year that a mail names is listed
- * after the search.
+ * after the search. Its mails are read and named at the same time, and its files made one by one.
  */
-async function planSource(source: MailSource, terms: MailTerms, { mailbox, folders }: MailAccess, ports: MailFilingPorts): Promise<SourcePlan> {
+async function planSource(source: MailSource, terms: MailTerms, { mailbox, folders }: MailAccess, ports: MailFilingPorts, report: (line: string) => void): Promise<SourcePlan> {
   const yearFolders = ports.years.map((year) => yearFolderName(year, terms.folder))
   const listing = await folders.filesIn(
     terms.folder,
@@ -181,9 +284,8 @@ async function planSource(source: MailSource, terms: MailTerms, { mailbox, folde
   }
   const window = mailWindow(newestOf(listing.files), ports.sinceStart)
   const query = mailQuery(terms, window)
-  const messages = (await readAll(mailbox, await searchAll(mailbox, query))).sort((first, second) => first.date - second.date || first.id.localeCompare(second.id))
-  const named: { readonly message: MailMessage; readonly naming: AttachmentNaming; readonly bytes: () => Promise<ArrayBuffer> }[] = []
-  for (const message of messages) {
+  const byMail = await eachAtMost(await searchAll(mailbox, query), GMAIL_AT_ONCE, async (id) => {
+    const message = await mailbox.message(id)
     const downloads = new Map<string, Promise<ArrayBuffer>>()
     const bytes = (attachment: MailAttachment): Promise<ArrayBuffer> => {
       const download = downloads.get(attachment.id) ?? mailbox.attachment(message.id, attachment.id)
@@ -191,8 +293,9 @@ async function planSource(source: MailSource, terms: MailTerms, { mailbox, folde
       return download
     }
     const namings = await source.name(message, terms, { workbook: ports.workbook, bytes })
-    named.push(...namings.map((naming) => ({ message, naming, bytes: () => bytes(naming.attachment) })))
-  }
+    return { message, namings: namings.map((naming) => ({ message, naming, bytes: () => bytes(naming.attachment) })) }
+  })
+  const named = byMail.sort((first, second) => first.message.date - second.message.date || first.message.id.localeCompare(second.message.id)).flatMap((mail) => mail.namings)
   const older = uniquePaths(named.flatMap(({ naming }) => (naming.kind === 'named' && !yearFolders.includes(naming.folders[0] ?? '') ? [naming.folders] : [])))
   const olderListing = older.length === 0 ? ({ kind: 'listed', files: [] } as const) : await folders.filesIn(terms.folder, older)
   if (olderListing.kind === 'refused') {
@@ -238,7 +341,7 @@ async function planSource(source: MailSource, terms: MailTerms, { mailbox, folde
       continue
     }
     filing += 1
-    ports.report(`${source.label}: filing ${filing} of ${toFile}`)
+    report(`filing ${filing} of ${toFile}`)
     const entry: PlanEntry =
       firstFailed !== null && !windowReaches(firstFailed.mail.date, outcome.at.mail.date)
         ? { kind: 'not-filed', ...outcome.at, reason: `It waits until ${firstFailed.name} is filed, so the next sync still searches back to that mail` }
@@ -257,14 +360,14 @@ interface ToFile {
   bytes(): Promise<ArrayBuffer>
 }
 
-/** Downloads one attachment and makes its file, or says why it could not, unless Google turned the token away. */
+/** Downloads one attachment and makes its file, or says why it could not, unless the failure stops the step. */
 async function fileOne(filing: ToFile, source: MailSource, terms: MailTerms, folders: MailFolders): Promise<PlanEntry> {
   const { at } = filing
   try {
     await folders.create(terms.folder, filing.folders, { name: at.name, properties: filedMailProperties(source.id, at.mail), bytes: await filing.bytes() })
     return { kind: 'filed', ...at }
   } catch (failure) {
-    if (isUnauthorized(failure)) throw failure
+    if (stopsTheStep(failure)) throw failure
     return { kind: 'not-filed', ...at, reason: failure instanceof Error ? failure.message : String(failure) }
   }
 }
@@ -278,14 +381,6 @@ async function searchAll(mailbox: Mailbox, query: string): Promise<string[]> {
     page = found.next
   } while (page !== null)
   return [...new Set(ids)]
-}
-
-async function readAll(mailbox: Mailbox, ids: readonly string[]): Promise<MailMessage[]> {
-  const messages: MailMessage[] = []
-  for (let start = 0; start < ids.length; start += READ_AT_ONCE) {
-    messages.push(...(await Promise.all(ids.slice(start, start + READ_AT_ONCE).map((id) => mailbox.message(id)))))
-  }
-  return messages
 }
 
 /** The newest of the files: the mail's date for one the app filed, and when Drive made it for any other. */

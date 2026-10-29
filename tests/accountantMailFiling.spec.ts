@@ -212,11 +212,13 @@ describe("the accountant's resends", () => {
     const { folders, plan } = await planVat(mails, [], { ...FACTS, invoicesMailSync: true })
 
     const properties = (source: string, id: string, at: string) => ({ 'kuna-mail': source, 'kuna-mail-id': id, 'kuna-mail-date': new Date(at).toISOString() })
-    expect(folders.created.map((file) => [file.folder.join('/'), file.below.join('/'), file.name, file.content, file.properties])).toEqual([
+    // The sources file at the same time, so the files are compared folder by folder, each in the order it was made.
+    const byFolder = [...folders.created].sort((first, second) => first.folder.join('/').localeCompare(second.folder.join('/')))
+    expect(byFolder.map((file) => [file.folder.join('/'), file.below.join('/'), file.name, file.content, file.properties])).toEqual([
+      ['work/company/incoming-invoices', '2026-incoming-invoices/2026-10', '2026-10-03-accounting.pdf', 'invoice 142', properties('hr-doo.invoices', 'invoice-142', '2026-10-03T08:00:00Z')],
       ['work/company/payroll', '2026-payroll/2026-09', '2026-09-salary.xlsx', 'salary 9', properties('hr-doo.payroll', 'payroll-09', '2026-10-05T08:30:00Z')],
       ['work/company/vat-returns', '2026-vat-returns', '2026-08-pdv.xlsx', 'vat 8', properties('hr-doo.vat-returns', 'vat-2026-09-14T12:00:00Z', '2026-09-14T12:00:00Z')],
       ['work/company/vat-returns', '2026-vat-returns', '2026-09-pdv.xlsx', 'vat 9', properties('hr-doo.vat-returns', 'vat-09', '2026-10-14T12:00:00Z')],
-      ['work/company/incoming-invoices', '2026-incoming-invoices/2026-10', '2026-10-03-accounting.pdf', 'invoice 142', properties('hr-doo.invoices', 'invoice-142', '2026-10-03T08:00:00Z')],
     ])
     expect(planLine(plan)).toBe('Filed 4.')
   })

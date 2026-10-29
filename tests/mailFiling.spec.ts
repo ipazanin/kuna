@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { MailRateLimited, fileMail, hasProblem, planLine } from '../src/apps/company/mail/application/mailFiling'
 import type { MailFolders, MailSource, Mailbox, PlanEntry, SourcePlan } from '../src/apps/company/mail/application/mailFiling'
 import { statementMailSource } from '../src/apps/company/mail/application/statementMailSource'
-import { mailSinceDefault, yearsSince } from '../src/apps/company/mail/domain/mailSource'
+import { mailSinceDefault, yearFolderName, yearsSince } from '../src/apps/company/mail/domain/mailSource'
+import type { AttachmentNaming } from '../src/apps/company/mail/domain/mailSource'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Settings } from '../src/apps/company/settings/domain/settings'
@@ -38,7 +39,14 @@ function books(settings: Partial<Settings> = {}): Workbook {
 async function plan(
   mails: readonly TestMail[],
   filed: readonly TestFiled[] = [],
-  options: { readonly workbook?: Workbook; readonly mailbox?: Mailbox; readonly folders?: MailFolders; readonly sources?: readonly MailSource[]; readonly opened?: string[] } = {},
+  options: {
+    readonly workbook?: Workbook
+    readonly mailbox?: Mailbox
+    readonly folders?: MailFolders
+    readonly sources?: readonly MailSource[]
+    readonly opened?: string[]
+    readonly reports?: string[]
+  } = {},
 ) {
   const mailbox = options.mailbox ?? testMailbox(mails)
   const folders = options.folders ?? testFolders(filed)
@@ -52,7 +60,7 @@ async function plan(
     sinceStart: SINCE,
     years: [2031],
     hash: hashOf,
-    report: () => {},
+    report: (line) => options.reports?.push(line),
   })
 }
 
@@ -461,5 +469,186 @@ describe('a blank mail-since day at the turn of the year', () => {
     expect(folders.asked[0]).toEqual([['2031-statements'], ['2032-statements']])
     expect(mailbox.reads).toEqual(['dec30'])
     expect(targets(found.sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-12-30-statement-250.pdf'])
+  })
+})
+
+describe('the sources at the same time', () => {
+  /** A source that files each attachment of the mail whose subject holds its phrase into its year folder, named by the mail, reading the attachment's bytes to name it. */
+  function readingSource(id: string, label: string, subject: string): MailSource {
+    return {
+      id,
+      label,
+      duplicates: 'correction',
+      terms: () => ({ kind: 'on', terms: { senders: ['office@accountant.example.com'], subject, folder: ['finance', id] } }),
+      name: (message, terms, reading) =>
+        Promise.all(
+          message.attachments.map(async (attachment, index): Promise<AttachmentNaming> => {
+            await reading.bytes(attachment)
+            return { kind: 'named', attachment, folders: [yearFolderName(2031, terms.folder)], name: `${message.id}-${index}.pdf`, redelivery: null }
+          }),
+        ),
+    }
+  }
+
+  const PAYROLL = readingSource('payroll', 'Payroll', 'Plaća za')
+  const VAT = readingSource('vat', 'VAT returns', 'PDV za')
+
+  /** A mail of the day in March 2031, of a subject, with one attachment, or as many as `attachments` says. */
+  function mail(id: string, subject: string, day: number, attachments = 1): TestMail {
+    return { id, subject, at: `2031-03-${String(day).padStart(2, '0')}T08:00:00Z`, attachments: Array.from({ length: attachments }, (_, index) => [`file ${index}.pdf`, `${id} ${index}`] as const) }
+  }
+
+  function pause(milliseconds: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds))
+  }
+
+  /** A promise the test opens once something happened, such as another source's upload. */
+  function gate(): { readonly opened: Promise<void>; open(): void } {
+    let open = (): void => {}
+    const opened = new Promise<void>((resolve) => {
+      open = resolve
+    })
+    return { opened, open: () => open() }
+  }
+
+  /** The mailbox with each call answered once what `before` gives it ends. It notes each call as it reaches the mailbox, and the most calls it had in flight at once. */
+  function timedMailbox(mailbox: Mailbox, before: (call: string) => Promise<void>): Mailbox & { readonly calls: string[]; most(): number } {
+    const calls: string[] = []
+    let inFlight = 0
+    let most = 0
+    async function timed<Result>(call: string, answer: () => Promise<Result>): Promise<Result> {
+      calls.push(call)
+      inFlight += 1
+      most = Math.max(most, inFlight)
+      try {
+        await before(call)
+        return await answer()
+      } finally {
+        inFlight -= 1
+      }
+    }
+    return {
+      calls,
+      most: () => most,
+      search: (query, pageToken) => timed(`search ${/subject:"([^"]*)"/.exec(query)?.[1] ?? ''}`, () => mailbox.search(query, pageToken)),
+      message: (id) => timed(`message ${id}`, () => mailbox.message(id)),
+      attachment: (messageId, attachmentId) => timed(`attachment ${attachmentId}`, () => mailbox.attachment(messageId, attachmentId)),
+    }
+  }
+
+  /** Each made file as its source folder's last name and its own name, in the order it was made. */
+  function made(folders: ReturnType<typeof testFolders>): string[] {
+    return folders.created.map((file) => `${file.folder.at(-1)} ${file.name}`)
+  }
+
+  it('runs the sources at the same time, says each one still running in a line that breaks only between them, and lists them in their order whichever ends first', async () => {
+    const mails = [mail('payroll-03', 'Plaća za 2/2031', 5), mail('vat-03', 'PDV za 2/2031', 14)]
+    const vatFiled = gate()
+    // The payroll's search answers only once the VAT return is filed, which it never would one source at a time.
+    const mailbox = timedMailbox(testMailbox(mails), (call) => (call === 'search Plaća za' ? vatFiled.opened.then(() => pause(0)) : pause(0)))
+    const folders = testFolders([], {
+      refuse: (name) => {
+        if (name.startsWith('vat')) vatFiled.open()
+        return null
+      },
+    })
+    const reports: string[] = []
+
+    const result = await plan([], [], { sources: [PAYROLL, VAT], mailbox, folders, reports })
+
+    expect(made(folders)).toEqual(['vat vat-03-0.pdf', 'payroll payroll-03-0.pdf'])
+    expect(result.sources.map((source) => source.id)).toEqual(['payroll', 'vat'])
+    expect(reports.map((line) => line.replaceAll('\u00a0', ' '))).toEqual([
+      'Payroll: searching',
+      'Payroll: searching · VAT returns: searching',
+      'Payroll: searching · VAT returns: filing 1 of 1',
+      'Payroll: searching',
+      'Payroll: filing 1 of 1',
+    ])
+    expect(reports[1]).toBe('Payroll:\u00a0searching\u00a0· VAT\u00a0returns:\u00a0searching')
+    expect(planLine(result)).toBe('Filed 2.')
+  })
+
+  it('never has more than ten Gmail calls in flight over all its sources, and downloads each attachment once', async () => {
+    const mails = ['Plaća za', 'PDV za', 'Račun za'].flatMap((subject, source) => Array.from({ length: 15 }, (_, index) => mail(`${source}-${index}`, `${subject} 2/2031`, index + 1, 2)))
+    const mailbox = testMailbox(mails)
+    const timed = timedMailbox(mailbox, (call) => pause(call.length % 4))
+    const invoices = readingSource('invoices', "Accountant's invoices", 'Račun za')
+
+    const result = await plan([], [], { sources: [PAYROLL, VAT, invoices], mailbox: timed })
+
+    expect(timed.most()).toBe(10)
+    expect(planLine(result)).toBe('Filed 90.')
+    expect(mailbox.downloads).toHaveLength(90)
+  })
+
+  it('files a source’s mail oldest first however its reads end, while another source files beside it', async () => {
+    const mails = [
+      mail('vat-a', 'PDV za 1/2031', 2),
+      mail('vat-b', 'PDV za 1/2031', 9),
+      mail('vat-c', 'PDV za 1/2031', 20),
+      mail('payroll-a', 'Plaća za 1/2031', 3),
+      mail('payroll-b', 'Plaća za 1/2031', 12),
+    ]
+    // Newer mail is read sooner, so its naming ends first.
+    const mailbox = timedMailbox(testMailbox(mails), (call) => pause(call.startsWith('message') ? 30 - new Date(mails.find((candidate) => call === `message ${candidate.id}`)!.at).getUTCDate() : 0))
+    const folders = testFolders([])
+
+    const result = await plan([], [], { sources: [PAYROLL, VAT], mailbox, folders })
+
+    expect(made(folders).filter((file) => file.startsWith('vat'))).toEqual(['vat vat-a-0.pdf', 'vat vat-b-0.pdf', 'vat vat-c-0.pdf'])
+    expect(made(folders).filter((file) => file.startsWith('payroll'))).toEqual(['payroll payroll-a-0.pdf', 'payroll payroll-b-0.pdf'])
+    expect(targets(result.sources[1]).map((target) => target.split('/').at(-1))).toEqual(['vat-a-0.pdf', 'vat-b-0.pdf', 'vat-c-0.pdf'])
+  })
+
+  it('holds a source’s mail more than a week newer than its failed upload while the other source files all of its own', async () => {
+    const mails = [mail('vat-a', 'PDV za 1/2031', 2), mail('vat-b', 'PDV za 1/2031', 20), mail('payroll-a', 'Plaća za 1/2031', 3), mail('payroll-b', 'Plaća za 1/2031', 21)]
+    const folders = testFolders([], { refuse: (name) => (name === 'vat-a-0.pdf' ? new Error('Drive did not take the upload') : null) })
+
+    const result = await plan([], [], { sources: [PAYROLL, VAT], mailbox: timedMailbox(testMailbox(mails), () => pause(0)), folders })
+
+    expect(entriesOf(result.sources[1]).map((entry) => entry.kind)).toEqual(['not-filed', 'not-filed'])
+    expect(entriesOf(result.sources[1])[1]).toMatchObject({ reason: 'It waits until vat-a-0.pdf is filed, so the next sync still searches back to that mail' })
+    expect(made(folders)).toEqual(['payroll payroll-a-0.pdf', 'payroll payroll-b-0.pdf'])
+    expect(planLine(result)).toBe('Filed 2. VAT returns: vat-a-0.pdf and vat-b-0.pdf were not filed.')
+  })
+
+  it('stops every source’s next call once Gmail still asks one to slow down, and throws that', async () => {
+    const mails = [mail('payroll-a', 'Plaća za 1/2031', 3), mail('vat-a', 'PDV za 1/2031', 2)]
+    const working = testMailbox(mails)
+    const slowedDown = gate()
+    const limited: Mailbox = {
+      ...working,
+      search: async (query, page) => {
+        if (query.includes('Plaća za')) {
+          slowedDown.open()
+          throw new MailRateLimited()
+        }
+        return working.search(query, page)
+      },
+    }
+    const mailbox = timedMailbox(limited, (call) => (call === 'search PDV za' ? slowedDown.opened.then(() => pause(0)) : pause(0)))
+    const folders = testFolders([])
+
+    await expect(plan([], [], { sources: [PAYROLL, VAT], mailbox, folders })).rejects.toBeInstanceOf(MailRateLimited)
+    expect(mailbox.calls).toEqual(['search Plaća za', 'search PDV za'])
+    expect(folders.created).toEqual([])
+  })
+
+  it('stops every source’s next call once Google turns the token away for one source’s upload, and throws that', async () => {
+    const mails = [mail('payroll-a', 'Plaća za 1/2031', 3), mail('vat-a', 'PDV za 1/2031', 2)]
+    const turnedAway = gate()
+    const mailbox = timedMailbox(testMailbox(mails), (call) => (call === 'search PDV za' ? turnedAway.opened.then(() => pause(0)) : pause(0)))
+    const folders = testFolders([], {
+      refuse: (name) => {
+        if (!name.startsWith('payroll')) return null
+        turnedAway.open()
+        return new GoogleApiError('https://www.googleapis.com/upload/drive/v3/files', 401, '{"error":{"code":401}}')
+      },
+    })
+
+    await expect(plan([], [], { sources: [PAYROLL, VAT], mailbox, folders })).rejects.toBeInstanceOf(GoogleApiError)
+    expect(mailbox.calls).toEqual(['search Plaća za', 'search PDV za', 'message payroll-a', 'attachment payroll-a/0'])
+    expect(folders.created).toEqual([])
   })
 })

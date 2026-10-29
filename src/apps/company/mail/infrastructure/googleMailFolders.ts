@@ -40,14 +40,21 @@ function startsWith(path: readonly string[], start: readonly string[]): boolean 
  * the first. The folders found or made on the way to a new file are kept for the rest of the run.
  */
 export function googleMailFolders(accessToken: string, booksFileId: string): MailFolders {
-  const folderIds = new Map<string, string>()
+  const folderIds = new Map<string, Promise<string>>()
 
-  /** The id of the folder at the path, found by `find` once a run. */
-  async function folderAt(path: readonly string[], find: () => Promise<string>): Promise<string> {
+  /**
+   * The id of the folder at the path, found by `find` once a run. Sources that share a folder file at
+   * the same time, so a search still running is shared too, or both would make the same year folder.
+   * A search that failed is tried again by the next file.
+   */
+  function folderAt(path: readonly string[], find: () => Promise<string>): Promise<string> {
     const key = JSON.stringify(path)
-    const id = folderIds.get(key) ?? (await find())
-    folderIds.set(key, id)
-    return id
+    const known = folderIds.get(key)
+    if (known !== undefined) return known
+    const found = find()
+    folderIds.set(key, found)
+    found.catch(() => folderIds.delete(key))
+    return found
   }
 
   async function sourceFolder(path: readonly string[]): Promise<string> {
