@@ -53,7 +53,9 @@ export function documentOfTabs(app: string, tabs: WorkbookTabs, savedAt: string)
   return newDocument(
     app,
     installedSchema(),
-    Object.fromEntries(spreadsheetTabs().map((mapping) => [mapping.kind.name, [...tabs[mapping.tab]].sort((upper, lower) => upper.sheetRow - lower.sheetRow).map((row) => documentRecordOfRow(mapping, row))])),
+    Object.fromEntries(
+      spreadsheetTabs().map((mapping) => [mapping.kind.name, [...tabs[mapping.tab]].sort((upper, lower) => upper.sheetRow - lower.sheetRow).map((row) => documentRecordOfRow(mapping, row))]),
+    ),
     savedAt,
   )
 }

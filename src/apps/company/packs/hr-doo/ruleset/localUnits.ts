@@ -19,9 +19,7 @@ if (latestTable === undefined) {
   throw new RangeError('The ruleset holds no table of local income tax rates.')
 }
 
-const sharedNames = new Set(
-  latestTable.rows.map((row) => row.unit).filter((unit, index, units) => units.indexOf(unit) !== index),
-)
+const sharedNames = new Set(latestTable.rows.map((row) => row.unit).filter((unit, index, units) => units.indexOf(unit) !== index))
 
 /** Every unit, in the order of the Porezna uprava tables. The import script checks that every table lists the same units. */
 export const LOCAL_UNITS: readonly LocalUnit[] = latestTable.rows.map((row) => ({
@@ -60,10 +58,7 @@ export function findLocalUnit(typed: string): LocalUnitMatch {
   const kind = KIND_PREFIX.exec(name)?.[1] ?? null
   const bareName = name.replace(KIND_PREFIX, '')
   const matches = LOCAL_UNITS.filter(
-    (unit) =>
-      namesOf(unit).includes(bareName) &&
-      (kind === null || (kind === 'OPCINA') === (unit.unitType === 'municipality')) &&
-      (county === null || fold(unit.county).startsWith(county)),
+    (unit) => namesOf(unit).includes(bareName) && (kind === null || (kind === 'OPCINA') === (unit.unitType === 'municipality')) && (county === null || fold(unit.county).startsWith(county)),
   )
   const [match] = matches
   if (match === undefined) {

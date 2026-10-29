@@ -65,7 +65,10 @@ describe.each([
     const { store } = await harnessOf(used, grids())
     const model = rowOf(store, 'MODEL API INC')
 
-    const receipt = await writeSplit(store, model, [[-12, 'ai-services', 'Seats'], [-8, 'owner-loan-out', 'The owner’s seat']])
+    const receipt = await writeSplit(store, model, [
+      [-12, 'ai-services', 'Seats'],
+      [-8, 'owner-loan-out', 'The owner’s seat'],
+    ])
 
     expect(cellsOf(receipt, 'add')).toEqual([
       { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -12, category: 'ai-services', note: 'Seats', id: AN_ID },
@@ -90,18 +93,31 @@ describe.each([
   it('edits a split in place, adding and dropping parts, and deletes it', async () => {
     const { store } = await harnessOf(used, grids())
     const model = rowOf(store, 'MODEL API INC')
-    await writeSplit(store, model, [[-12, 'ai-services'], [-8, 'owner-loan-out']])
+    await writeSplit(store, model, [
+      [-12, 'ai-services'],
+      [-8, 'owner-loan-out'],
+    ])
 
-    const edited = await writeSplit(store, model, [[-10, 'ai-services', 'Seats'], [-6, 'owner-loan-out'], [-4, 'equipment', 'A cable']])
+    const edited = await writeSplit(store, model, [
+      [-10, 'ai-services', 'Seats'],
+      [-6, 'owner-loan-out'],
+      [-4, 'equipment', 'A cable'],
+    ])
 
-    expect(cellsOf(edited, 'change').map((cells) => [cells.category, cells.amount, cells.note ?? ''])).toEqual([['ai-services', -10, 'Seats'], ['owner-loan-out', -6, '']])
+    expect(cellsOf(edited, 'change').map((cells) => [cells.category, cells.amount, cells.note ?? ''])).toEqual([
+      ['ai-services', -10, 'Seats'],
+      ['owner-loan-out', -6, ''],
+    ])
     expect(store.state.workbook?.splits[0]?.parts.map((part) => [part.amount, part.category, part.note])).toEqual([
       [euros(-10), 'ai-services', 'Seats'],
       [euros(-6), 'owner-loan-out', ''],
       [euros(-4), 'equipment', 'A cable'],
     ])
 
-    await writeSplit(store, model, [[-14, 'ai-services'], [-6, 'owner-loan-out']])
+    await writeSplit(store, model, [
+      [-14, 'ai-services'],
+      [-6, 'owner-loan-out'],
+    ])
     expect(store.state.workbook?.splits[0]?.parts.map((part) => part.amount)).toEqual([euros(-14), euros(-6)])
 
     await writeSplit(store, model, [])
@@ -113,13 +129,24 @@ describe.each([
   it('refuses parts that do not add up to the row, and a split of a row an asset claims', async () => {
     const { store } = await harnessOf(used, grids())
 
-    await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-6, 'owner-loan-out']])).rejects.toThrow(
-      'the parts add up to -18.00 and the row is -20.00',
-    )
-    await expect(writeSplit(store, rowOf(store, 'Desk Co'), [[-80, 'equipment'], [-20, 'ai-services']])).rejects.toThrow(
-      'The main row of 2026-10-03 for -100.00 stays whole, since the asset "Desk" claims it as payment.',
-    )
-    await expect(writeSplit(store, rowOf(store, 'MODEL API INC'), [[-12, 'ai-services'], [-8, 'snacks']])).rejects.toThrow(WorkbookWriteRefused)
+    await expect(
+      writeSplit(store, rowOf(store, 'MODEL API INC'), [
+        [-12, 'ai-services'],
+        [-6, 'owner-loan-out'],
+      ]),
+    ).rejects.toThrow('the parts add up to -18.00 and the row is -20.00')
+    await expect(
+      writeSplit(store, rowOf(store, 'Desk Co'), [
+        [-80, 'equipment'],
+        [-20, 'ai-services'],
+      ]),
+    ).rejects.toThrow('The main row of 2026-10-03 for -100.00 stays whole, since the asset "Desk" claims it as payment.')
+    await expect(
+      writeSplit(store, rowOf(store, 'MODEL API INC'), [
+        [-12, 'ai-services'],
+        [-8, 'snacks'],
+      ]),
+    ).rejects.toThrow(WorkbookWriteRefused)
     expect(store.state.records?.splits).toEqual({ records: [], refused: [] })
   })
 })

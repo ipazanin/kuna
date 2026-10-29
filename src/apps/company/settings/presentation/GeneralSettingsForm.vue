@@ -56,7 +56,6 @@ const basicsRevealed = computed(() => inError(['currency', 'numberLocale', 'revi
 const labelsRevealed = computed(() => inError(BUCKETS))
 const labelsSummary = computed(() => BUCKETS.map((bucket) => props.settings.bucketLabels[bucket]).join(', '))
 
-
 const preview = computed(() => {
   if (errors.value.currency !== undefined || errors.value.numberLocale !== undefined) return null
   const format = new Intl.NumberFormat(amountLocaleOf(draft.value), { style: 'currency', currency: draft.value.currency })
@@ -120,11 +119,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
           >
             <UInput :model-value="draft.numberLocale" placeholder="Follow the language" class="w-full" @update:model-value="update('numberLocale', String($event).trim())" />
           </UFormField>
-          <UFormField
-            label="Review label"
-            :error="errors.reviewLabel ?? false"
-            help="What flagged_by will say on a row a person confirms in the app. rule and ai are the categoriser's."
-          >
+          <UFormField label="Review label" :error="errors.reviewLabel ?? false" help="What flagged_by will say on a row a person confirms in the app. rule and ai are the categoriser's.">
             <UInput :model-value="draft.reviewLabel" class="w-full" @update:model-value="update('reviewLabel', String($event).trim().toLowerCase())" />
           </UFormField>
           <UFormField
@@ -142,12 +137,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
             class="sm:col-span-2"
             data-testid="statements-folder"
           >
-            <UInput
-              :model-value="statementsFolderText"
-              class="identifier w-full"
-              :ui="{ base: 'text-ellipsis' }"
-              @update:model-value="updateStatementsFolder(String($event))"
-            />
+            <UInput :model-value="statementsFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateStatementsFolder(String($event))" />
           </UFormField>
         </div>
 
@@ -170,14 +160,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
 
     <MailSettingsCard :settings="draft" :saved="settings" :errors="errors" @update="draft = $event" />
 
-    <component
-      :is="packFacts.card"
-      v-if="packFacts"
-      :facts="factsDraft"
-      :saved="facts"
-      :errors="factErrors"
-      @update="factsDraft = $event"
-    />
+    <component :is="packFacts.card" v-if="packFacts" :facts="factsDraft" :saved="facts" :errors="factErrors" @update="factsDraft = $event" />
 
     <AppCard
       title="Bucket labels"

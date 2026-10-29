@@ -63,18 +63,8 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
       </div>
     </aside>
 
-    <header
-      v-else
-      ref="topBar"
-      class="top-bar sticky top-0 z-top-bar flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4"
-    >
-      <USlideover
-        v-model:open="menuOpen"
-        side="left"
-        :title="title"
-        :ui="{ content: phone ? 'phone-drawer' : 'max-w-72' }"
-        :content="{ onCloseAutoFocus: keepFocusAfterNavigation }"
-      >
+    <header v-else ref="topBar" class="top-bar sticky top-0 z-top-bar flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4">
+      <USlideover v-model:open="menuOpen" side="left" :title="title" :ui="{ content: phone ? 'phone-drawer' : 'max-w-72' }" :content="{ onCloseAutoFocus: keepFocusAfterNavigation }">
         <UButton icon="i-lucide-menu" color="neutral" variant="ghost" aria-label="Open navigation" data-testid="open-navigation" />
         <template #body>
           <ScreenNavigation :navigation="navigation" />

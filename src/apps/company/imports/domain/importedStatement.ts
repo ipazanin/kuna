@@ -21,9 +21,7 @@ export interface ImportedRow {
 }
 
 /** Where a statement came from and which one it is. */
-export type StatementSource =
-  | { readonly kind: 'camt'; readonly iban: string; readonly sequence: number }
-  | { readonly kind: 'table'; readonly profile: string; readonly fileHash: string }
+export type StatementSource = { readonly kind: 'camt'; readonly iban: string; readonly sequence: number } | { readonly kind: 'table'; readonly profile: string; readonly fileHash: string }
 
 /** One statement read from a file: an account's entries in booking order, oldest first. */
 export interface ImportedStatement {

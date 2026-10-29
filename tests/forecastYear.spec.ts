@@ -253,7 +253,13 @@ describe('forecastYear with a billing plan the invoices reach', () => {
 
   it('reads a month invoiced before the ledger closes it from its rows in full', () => {
     // October's invoice is issued on the 15th, so October is not an actual month yet and its invoice bills no row.
-    const october = { ...(STEADY_INVOICES[STEADY_INVOICES.length - 1] as (typeof STEADY_INVOICES)[number]), number: '22-1', amount: euros(6500), issued: civil('2026-10-15'), id: recordIdOf(INVOICE_RECORDS, '22-1') }
+    const october = {
+      ...(STEADY_INVOICES[STEADY_INVOICES.length - 1] as (typeof STEADY_INVOICES)[number]),
+      number: '22-1',
+      amount: euros(6500),
+      issued: civil('2026-10-15'),
+      id: recordIdOf(INVOICE_RECORDS, '22-1'),
+    }
     const forecast = forecastYear(steadyStudio({ invoices: [...STEADY_INVOICES, october], billingPlan: [...billed, octoberFee] }), 2026, civil('2026-10-19'))
 
     expect(forecast.revenue.months[8]?.bases).toEqual(['actual'])
@@ -357,11 +363,7 @@ describe('forecastYear, a year the ledger has not reached', () => {
     const before = forecastYear(workbook, 2026, civil('2026-10-19'))
 
     expect(bases(forecast.revenue).every((entry) => entry[0] === 'averaged')).toBe(true)
-    expect(forecast.cashAtYearEnd.steps.slice(0, 3).map((step) => step.amount)).toEqual([
-      before.cashAtYearEnd.amount,
-      before.receivableAtYearEnd.amount,
-      -before.decemberArrears.amount,
-    ])
+    expect(forecast.cashAtYearEnd.steps.slice(0, 3).map((step) => step.amount)).toEqual([before.cashAtYearEnd.amount, before.receivableAtYearEnd.amount, -before.decemberArrears.amount])
     // The 2026 forecast sets the 2027 advances from April.
     expect(forecast.cit.obligations.find((entry) => entry.obligation.month === '2027-04')?.obligation.expected.amount).toBe(before.liability.monthlyAdvance.amount)
   })

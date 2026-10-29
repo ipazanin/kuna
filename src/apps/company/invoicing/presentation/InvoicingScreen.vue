@@ -50,7 +50,6 @@ function openRun(mode: InvoiceRunMode): void {
 
 const hasClients = computed(() => (state.workbook?.clients.length ?? 0) > 0)
 
-
 /** Figures as of the newest booking, whatever a tab's period, client or year says. Each opens the tab that holds it. */
 const tiles = computed(() => {
   const current = ledger.value

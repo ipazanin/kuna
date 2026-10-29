@@ -103,12 +103,7 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
 }
 
 /** Why an enabled rule cannot be tried, the first check that fails, or none. */
-function enabledRuleRefusals(
-  confidence: string,
-  category: string,
-  read: ReturnType<typeof conditionsOf>,
-  definedCategories: ReadonlySet<string>,
-): string[] {
+function enabledRuleRefusals(confidence: string, category: string, read: ReturnType<typeof conditionsOf>, definedCategories: ReadonlySet<string>): string[] {
   if (confidence !== 'rule' && confidence !== 'review') {
     return [`the confidence "${confidence}" is neither rule nor review`]
   }

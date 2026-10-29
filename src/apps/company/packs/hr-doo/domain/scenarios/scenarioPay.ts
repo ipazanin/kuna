@@ -110,7 +110,9 @@ export function scenarioPay(scenario: OwnerPayScenario, facts: EmployeeFacts, ru
     const amount = prorated(part.rent.amount, part.days, part.daysInMonth)
     const rentRule = rules('hr.pit.rent', lastDayOf(part.month))
     const { flatExpenseShare, taxRate } = rentRule.value
-    const paid = tracedFigure(part.days === part.daysInMonth ? `Rent, ${monthLabel(part.month)}` : `Rent for ${part.days} of ${part.daysInMonth} days, ${monthLabel(part.month)}`, amount, BASIS, [rentRule.citation])
+    const paid = tracedFigure(part.days === part.daysInMonth ? `Rent, ${monthLabel(part.month)}` : `Rent for ${part.days} of ${part.daysInMonth} days, ${monthLabel(part.month)}`, amount, BASIS, [
+      rentRule.citation,
+    ])
     const taxed = subtractMoney(amount, atRate(amount, flatExpenseShare.basisPoints))
     const tax = tracedFigure(
       `Rent tax, ${monthLabel(part.month)}: ${percentText(taxRate.basisPoints)} of the rent less ${percentText(flatExpenseShare.basisPoints)} flat expenses`,
@@ -167,15 +169,28 @@ function boardOnlyContributions(schedule: ScenarioSchedule, facts: EmployeeFacts
       )
       const rates = rateRule.value
       const pillarOneRate = facts.pensionPillarTwo ? rates.pillarOneRateWithPillarTwo.basisPoints : rates.pillarOneRateWithoutPillarTwo.basisPoints
-      const at = (label: string, rate: Rate) => tracedFigure(`${label} at ${percentText(rate)}, ${monthLabel(month.month)}`, atRate(base.amount, rate), BASIS, [rateRule.citation, ...citations], [base])
+      const at = (label: string, rate: Rate) =>
+        tracedFigure(`${label} at ${percentText(rate)}, ${monthLabel(month.month)}`, atRate(base.amount, rate), BASIS, [rateRule.citation, ...citations], [base])
       return {
         pillarOne: at('Pension pillar I', pillarOneRate),
         pillarTwo: at('Pension pillar II', facts.pensionPillarTwo ? rates.pillarTwoRate.basisPoints : (0 as Rate)),
         health: at('Health insurance', rates.healthRate.basisPoints),
       }
     })
-  const pillarOne = summed('Paid yourself as a board member only', months.map((month) => month.pillarOne), BASIS)
-  const pillarTwo = summed('Paid yourself as a board member only', months.map((month) => month.pillarTwo), BASIS)
-  const health = summed('Paid yourself as a board member only', months.map((month) => month.health), BASIS)
+  const pillarOne = summed(
+    'Paid yourself as a board member only',
+    months.map((month) => month.pillarOne),
+    BASIS,
+  )
+  const pillarTwo = summed(
+    'Paid yourself as a board member only',
+    months.map((month) => month.pillarTwo),
+    BASIS,
+  )
+  const health = summed(
+    'Paid yourself as a board member only',
+    months.map((month) => month.health),
+    BASIS,
+  )
   return { pillarOne, pillarTwo, health, total: summed('Contributions paid personally', [pillarOne, pillarTwo, health], BASIS) }
 }

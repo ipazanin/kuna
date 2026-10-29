@@ -131,8 +131,18 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
     }
     notes.push('The statement carries no TxsSummry, so its entries are checked against its balances only, not against counts and totals from the bank.')
   } else {
-    checkSummarySide(summary, 'TtlDbtNtries', entries.filter((entry) => !entry.credit), 'debit')
-    checkSummarySide(summary, 'TtlCdtNtries', entries.filter((entry) => entry.credit), 'credit')
+    checkSummarySide(
+      summary,
+      'TtlDbtNtries',
+      entries.filter((entry) => !entry.credit),
+      'debit',
+    )
+    checkSummarySide(
+      summary,
+      'TtlCdtNtries',
+      entries.filter((entry) => entry.credit),
+      'credit',
+    )
   }
   const sequence = Number(textAt(statement, ['LglSeqNb']))
   return { statement: { fileName, source: { kind: 'camt', iban, sequence }, label, account, opening, closing, rows, notes }, iban, currency }
@@ -225,7 +235,10 @@ function entryOf(entry: Element, context: StatementContext): CamtEntry {
         txFamily: family,
         txSubFamily: subFamily,
         creditorReference: textAt(entry, [...details, 'RmtInf', 'Strd', 'CdtrRefInf', 'Ref']),
-        instructedCurrency: elementAt(entry, [...details, 'AmtDtls', 'InstdAmt', 'Amt'])?.getAttribute('Ccy')?.trim() ?? '',
+        instructedCurrency:
+          elementAt(entry, [...details, 'AmtDtls', 'InstdAmt', 'Amt'])
+            ?.getAttribute('Ccy')
+            ?.trim() ?? '',
       },
       reviewReasons,
     },

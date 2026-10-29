@@ -172,7 +172,10 @@ interface Comparable {
  */
 async function planSource(source: MailSource, terms: MailTerms, { mailbox, folders }: MailAccess, ports: MailFilingPorts): Promise<SourcePlan> {
   const yearFolders = ports.years.map((year) => yearFolderName(year, terms.folder))
-  const listing = await folders.filesIn(terms.folder, yearFolders.map((name) => [name]))
+  const listing = await folders.filesIn(
+    terms.folder,
+    yearFolders.map((name) => [name]),
+  )
   if (listing.kind === 'refused') {
     return { kind: 'failed', id: source.id, label: source.label, reason: listing.reason }
   }

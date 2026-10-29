@@ -48,9 +48,7 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
   const paidInYear = input.months.filter((month) => yearOf(month.paidOn) === taxYear)
 
   const incomeSteps = paidInYear.map((month) => ({ ...month.income, label: `Income for ${month.workedMonth}, paid on`, on: month.paidOn }))
-  const income = tracedFigure('Income of the year after pension contributions', sumMoney(incomeSteps.map((step) => step.amount)), basis, [
-    settlementCitation,
-  ], incomeSteps)
+  const income = tracedFigure('Income of the year after pension contributions', sumMoney(incomeSteps.map((step) => step.amount)), basis, [settlementCitation], incomeSteps)
 
   const monthlyAllowance = personalAllowance(facts.dependants, yearEnd, basis, rules)
   const elsewhere = input.allowanceMonthsElsewhere ?? 0
@@ -77,11 +75,7 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
   // Look the city rates up on 31 December, because a mid-year change of rates applies to the whole annual tax.
   const cityRates = localRates(facts.residenceCity, yearEnd, rules)
   const bracketRule = rules('hr.pit.brackets', yearEnd)
-  const brackets = taxInBrackets(taxableIncome.amount, bracketRule.value.annualThreshold.cents, cityRates, basis, [
-    settlementCitation,
-    bracketRule.citation,
-    cityRates.citation,
-  ])
+  const brackets = taxInBrackets(taxableIncome.amount, bracketRule.value.annualThreshold.cents, cityRates, basis, [settlementCitation, bracketRule.citation, cityRates.citation])
 
   const youthRelief = youthReliefOn(brackets.lowerRateTax, facts.birthYear, yearEnd, basis, rules)
   const annualTax = tracedFigure(
@@ -93,16 +87,8 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
   )
 
   const withheldSteps = paidInYear.map((month) => ({ ...month.incomeTax, label: `Withheld for ${month.workedMonth}, paid on`, on: month.paidOn }))
-  const withheld = tracedFigure('Income tax withheld in the months', sumMoney(withheldSteps.map((step) => step.amount)), basis, [
-    settlementCitation,
-  ], withheldSteps)
-  const refund = tracedFigure(
-    'Refund, or extra tax to pay when negative',
-    subtractMoney(withheld.amount, annualTax.amount),
-    basis,
-    [settlementCitation],
-    [withheld, deducted(annualTax)],
-  )
+  const withheld = tracedFigure('Income tax withheld in the months', sumMoney(withheldSteps.map((step) => step.amount)), basis, [settlementCitation], withheldSteps)
+  const refund = tracedFigure('Refund, or extra tax to pay when negative', subtractMoney(withheld.amount, annualTax.amount), basis, [settlementCitation], [withheld, deducted(annualTax)])
 
   return {
     taxYear,
@@ -119,13 +105,7 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
 }
 
 /** The relief cuts only the tax at the lower rate. The engine models salary alone, so all of that tax is on salary. */
-function youthReliefOn(
-  lowerRateTax: TracedFigure,
-  birthYear: number | null,
-  yearEnd: CivilDate,
-  basis: FigureBasis,
-  rules: RuleSource,
-): TracedFigure {
+function youthReliefOn(lowerRateTax: TracedFigure, birthYear: number | null, yearEnd: CivilDate, basis: FigureBasis, rules: RuleSource): TracedFigure {
   const reliefRule = rules('hr.pit.youth-relief', yearEnd)
   if (reliefRule.value.appliedIn.text !== 'annual-settlement') {
     throw new RangeError(`The youth relief in force on ${yearEnd} is not applied in the annual settlement, which the payroll engine assumes.`)
@@ -134,9 +114,7 @@ function youthReliefOn(
   if (birthYear === null) {
     return tracedFigure('No youth relief, because the birth year is not set', ZERO, basis, citations)
   }
-  const band = reliefRule.value.bands.rows.find(
-    (row) => birthYear >= row.bornFrom.count && (row.bornTo === undefined || birthYear <= row.bornTo.count),
-  )
+  const band = reliefRule.value.bands.rows.find((row) => birthYear >= row.bornFrom.count && (row.bornTo === undefined || birthYear <= row.bornTo.count))
   if (band === undefined) {
     return tracedFigure('No youth relief for this birth year', ZERO, basis, citations)
   }

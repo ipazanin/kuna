@@ -1,18 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  ZERO,
-  addMoney,
-  amountOf,
-  divideMoney,
-  dividedRounded,
-  moneyFromAmount,
-  moneyFromCents,
-  negateMoney,
-  ratioOf,
-  subtractMoney,
-  sumMoney,
-} from '../src/shared/money/money'
+import { ZERO, addMoney, amountOf, divideMoney, dividedRounded, moneyFromAmount, moneyFromCents, negateMoney, ratioOf, subtractMoney, sumMoney } from '../src/shared/money/money'
 
 describe('money', () => {
   it('reads a decimal amount as whole cents, without floating-point drift', () => {

@@ -78,9 +78,7 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day.format(new
       </template>
       <template v-else-if="source === 'drive'">
         <p class="text-base text-highlighted">{{ fileName }}</p>
-        <p class="text-sm text-muted">
-          On Google Drive. A copy is kept in this browser, and so is the Google sign-in until it expires, about an hour later.
-        </p>
+        <p class="text-sm text-muted">On Google Drive. A copy is kept in this browser, and so is the Google sign-in until it expires, about an hour later.</p>
         <dl class="drive-facts text-xs" data-testid="drive-file-place">
           <template v-if="shownPlace">
             <dt>Folder</dt>
@@ -105,16 +103,7 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day.format(new
       <slot />
       <div class="flex flex-wrap gap-2">
         <slot name="actions" />
-        <UButton
-          v-if="fileLink"
-          :to="fileLink"
-          target="_blank"
-          icon="i-lucide-external-link"
-          label="Open in Drive"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-        />
+        <UButton v-if="fileLink" :to="fileLink" target="_blank" icon="i-lucide-external-link" label="Open in Drive" color="neutral" variant="ghost" size="sm" />
       </div>
     </div>
   </AppCard>

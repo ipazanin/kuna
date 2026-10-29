@@ -42,7 +42,25 @@ describe('the template', () => {
     const tabs = emptyWorkbookTabs()
     const book = XLSX.read(await writeWorkbookFile(tabs, workbookOf(tabs)), { type: 'array' })
 
-    expect(book.SheetNames).toEqual(['ledger', 'categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'employees', 'splits', 'dismissed'])
+    expect(book.SheetNames).toEqual([
+      'ledger',
+      'categories',
+      'accounts',
+      'settings',
+      'rules',
+      'invoices',
+      'clients',
+      'outgoing-plan',
+      'owner-advances',
+      'assets',
+      'grants',
+      'year-end',
+      'plan',
+      'scenarios',
+      'employees',
+      'splits',
+      'dismissed',
+    ])
     for (const name of book.SheetNames) {
       const sheet = book.Sheets[name]!
       const header = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })[0] ?? []
@@ -50,11 +68,19 @@ describe('the template', () => {
       header.forEach((_, column) => expect(sheet[XLSX.utils.encode_cell({ r: 0, c: column })]?.c?.[0]?.t, `${name} column ${column + 1}`).toBeTruthy())
     }
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.assets!, { header: 1 })[0]).toEqual([
-      'asset', 'bought', 'in_use', 'cost_net', 'group', 'doubled', 'disposed', 'funded_by', 'ledger_reference', 'note', 'id',
+      'asset',
+      'bought',
+      'in_use',
+      'cost_net',
+      'group',
+      'doubled',
+      'disposed',
+      'funded_by',
+      'ledger_reference',
+      'note',
+      'id',
     ])
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['year-end']!, { header: 1 })[0]).toEqual([
-      'year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note', 'id',
-    ])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['year-end']!, { header: 1 })[0]).toEqual(['year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note', 'id'])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category', 'owner_share', 'id'])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.splits!, { header: 1 })[0]).toEqual(['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note', 'owner_share', 'id'])
     expect(book.Sheets.splits?.D1?.c?.[0]?.t).toMatch(/finds exactly one row/)
@@ -74,9 +100,7 @@ describe('the template', () => {
     expect(workbook.transactions).toEqual([])
     expect(workbook.settings).toEqual(DEFAULT_SETTINGS)
     expect(workbook.categories.find((category) => category.roles.includes('owner-benefit'))).toMatchObject({ slug: 'benefits-from-company-costs', bucket: 'owner-pay' })
-    expect(new Set(workbook.categories.map((category) => category.bucket))).toEqual(
-      new Set(['income', 'operating', 'taxes', 'owner-pay', 'financing', 'neutral']),
-    )
+    expect(new Set(workbook.categories.map((category) => category.bucket))).toEqual(new Set(['income', 'operating', 'taxes', 'owner-pay', 'financing', 'neutral']))
     expect(workbook.categories.find((category) => category.slug === 'vat-refund')).toMatchObject({ bucket: 'operating', roles: ['vat-settlement'] })
     expect(workbook.categories.find((category) => category.slug === 'tax-refund')).toMatchObject({ bucket: 'taxes', roles: [] })
   })
@@ -94,17 +118,29 @@ describe('reading an xlsx file', () => {
   it('reads tabs in any letter case, numbers rows as the sheet does, and lists the tabs it lacks', async () => {
     const contents = await readWorkbookFile(
       xlsxOf({
-        Ledger: [
-          ['date', 'account', 'amount', 'balance', 'category', 'note'],
-          [46300, 'main', -12.5, 87.5, 'software', 'kept'],
-          [],
-          [46299, 'main', 100, 100, 'revenue'],
-        ],
+        Ledger: [['date', 'account', 'amount', 'balance', 'category', 'note'], [46300, 'main', -12.5, 87.5, 'software', 'kept'], [], [46299, 'main', 100, 100, 'revenue']],
         dashboard: [['ignored']],
       }),
     )
 
-    expect(contents.missingTabs).toEqual(['categories', 'accounts', 'settings', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'employees', 'splits', 'dismissed'])
+    expect(contents.missingTabs).toEqual([
+      'categories',
+      'accounts',
+      'settings',
+      'rules',
+      'invoices',
+      'clients',
+      'outgoing-plan',
+      'owner-advances',
+      'assets',
+      'grants',
+      'year-end',
+      'plan',
+      'scenarios',
+      'employees',
+      'splits',
+      'dismissed',
+    ])
     expect(contents.tabs.ledger.map((row) => row.sheetRow)).toEqual([2, 4])
     expect(contents.tabs.ledger[0]?.cells.note).toBe('kept')
   })
@@ -119,7 +155,11 @@ describe('reading an xlsx file', () => {
             [46299, 'side', 100, 100, 'revenue'],
             ['yesterday', 'main', 1, 1],
           ],
-          settings: [['key', 'value'], ['company_name', 'Example Studio'], ['colour', 'teal']],
+          settings: [
+            ['key', 'value'],
+            ['company_name', 'Example Studio'],
+            ['colour', 'teal'],
+          ],
         }),
       ],
       'books.xlsx',
@@ -134,7 +174,23 @@ describe('reading an xlsx file', () => {
       accounts: ['main', 'side'],
       dateRange: { from: '2026-10-04', to: '2026-10-05' },
       categoryCount: 0,
-      defaultedTabs: ['categories', 'accounts', 'rules', 'invoices', 'clients', 'outgoing-plan', 'owner-advances', 'assets', 'grants', 'year-end', 'plan', 'scenarios', 'employees', 'splits', 'dismissed'],
+      defaultedTabs: [
+        'categories',
+        'accounts',
+        'rules',
+        'invoices',
+        'clients',
+        'outgoing-plan',
+        'owner-advances',
+        'assets',
+        'grants',
+        'year-end',
+        'plan',
+        'scenarios',
+        'employees',
+        'splits',
+        'dismissed',
+      ],
       refusal: null,
     })
     expect(preview.summary.problems.map((problem) => [problem.tab, problem.label])).toEqual([
@@ -285,10 +341,26 @@ describe('exporting', () => {
     const header = grids.ledger.header
 
     expect(header).toEqual([
-      'date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance',
-      'category', 'flagged_by', 'reference',
-      'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency', 'review_reasons',
-      'owner_share', 'id',
+      'date',
+      'account',
+      'statement',
+      'counterparty',
+      'counterparty_iban',
+      'description',
+      'amount',
+      'balance',
+      'category',
+      'flagged_by',
+      'reference',
+      'purpose',
+      'tx_domain',
+      'tx_family',
+      'tx_sub_family',
+      'creditor_reference',
+      'instructed_currency',
+      'review_reasons',
+      'owner_share',
+      'id',
     ])
     expect(typeof grids.ledger.rows[0]?.[header.indexOf('date')]).toBe('number')
   })

@@ -116,9 +116,7 @@ describe.each([
   it('refuses a category the categories tab does not define, and changes nothing', async () => {
     const { store } = await harnessOf(used)
 
-    await expect(setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'snacks', settings(store))])).rejects.toThrow(
-      '"snacks" is not a category on the categories tab.',
-    )
+    await expect(setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'snacks', settings(store))])).rejects.toThrow('"snacks" is not a category on the categories tab.')
     expect(row(store, 'GADGET CORNER')).toMatchObject({ category: 'unknown', flaggedBy: 'ai' })
     expect(store.state.writing).toBe(false)
   })
@@ -185,7 +183,11 @@ describe.each([
     const { store } = await harnessOf(used)
     const read = ruleFields(store, 'merchant-model')
 
-    const added = await changeRules(store, { appended: { rule: 'desk-co', order: '200', enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule' }, edited: [], removed: null })
+    const added = await changeRules(store, {
+      appended: { rule: 'desk-co', order: '200', enabled: true, counterparty_iban: 'XX00FAKE0000000013', category: 'equipment', confidence: 'rule' },
+      edited: [],
+      removed: null,
+    })
     expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(true)
     await undo(store, added)
     expect(store.state.workbook!.rules.map((rule) => rule.id)).toEqual(['merchant-model'])
@@ -274,7 +276,13 @@ describe.each([
       settings: [...grids.settings!, ['import_profile_old-bank', 'date=Datum; amount=Iznos; account=main'], ['import_profile_broken', 'nonsense'], ['old_switch', 'TRUE']],
     })
     const unread = unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)
-    expect(unread).toEqual(new Map([['import_profile_old-bank', 1], ['import_profile_broken', 1], ['old_switch', 1]]))
+    expect(unread).toEqual(
+      new Map([
+        ['import_profile_old-bank', 1],
+        ['import_profile_broken', 1],
+        ['old_switch', 1],
+      ]),
+    )
     expect(settings(store).importProfiles.map((profile) => profile.name)).toEqual(['old-bank'])
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings').map((problem) => problem.label)).toEqual(['import_profile_broken', 'old_switch'])
 
@@ -292,7 +300,12 @@ describe.each([
       settings: [...grids.settings!, ['old_switch', 'TRUE'], ['old_switch', 'FALSE'], ['import_profile_twice', 'nonsense'], ['import_profile_twice', 'nonsense']],
     })
 
-    expect(unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)).toEqual(new Map([['old_switch', 2], ['import_profile_twice', 2]]))
+    expect(unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)).toEqual(
+      new Map([
+        ['old_switch', 2],
+        ['import_profile_twice', 2],
+      ]),
+    )
     await expect(store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, ['old_switch']))).rejects.toThrow(
       'The settings tab sets "old_switch" on 2 rows. Keep one of them in an export and open that file again.',
     )

@@ -57,14 +57,7 @@ export function applyDrill(current: FilterState, drill: Partial<FilterState>): F
   const categories = intersectSelections(current.categories, drill.categories)
   const counterparties = intersectSelections(current.counterparties, drill.counterparties)
   const amount = drill.amount === undefined ? current.amount : intersectAmounts(current.amount, drill.amount)
-  if (
-    accounts === null ||
-    buckets === null ||
-    families === null ||
-    categories === null ||
-    counterparties === null ||
-    amount === null
-  ) {
+  if (accounts === null || buckets === null || families === null || categories === null || counterparties === null || amount === null) {
     return null
   }
   return {
@@ -80,10 +73,7 @@ export function applyDrill(current: FilterState, drill: Partial<FilterState>): F
   }
 }
 
-function intersectSelections<Value>(
-  current: readonly Value[],
-  drilled: readonly Value[] | undefined,
-): readonly Value[] | null {
+function intersectSelections<Value>(current: readonly Value[], drilled: readonly Value[] | undefined): readonly Value[] | null {
   if (drilled === undefined || drilled.length === 0) {
     return current
   }

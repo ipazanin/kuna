@@ -138,8 +138,7 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
   const extras = employees.flatMap((employee) => extrasOf(employee, payParts, taxFree, rules))
   const overCaps = extras.flatMap((extra) => extra.usage.filter((usage) => usage.excess.amount > 0).map((usage) => ({ payday: lastPaidMonth(usage), employee: extra.employee, usage })))
   const inLedger = (month: MonthKey) => window.firstMonth <= month && month <= window.partMonth
-  const expected = (employee: Employee, payday: MonthKey) =>
-    window.firstCompleteMonth <= payday && payday <= window.lastCompleteMonth && weekdaysEmployed(employee, addMonths(payday, -1)) !== null
+  const expected = (employee: Employee, payday: MonthKey) => window.firstCompleteMonth <= payday && payday <= window.lastCompleteMonth && weekdaysEmployed(employee, addMonths(payday, -1)) !== null
 
   const paydayMonths = [
     ...new Set([
@@ -158,7 +157,12 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
     const problems: SalaryProblem[] = []
     const employeePaydays = people.map((employee): EmployeePayday => {
       const engine = engineRun(employee, payday, rules)
-      const bank = paidTo(employee, partsOfDay.filter((pay) => pay.employee === employee), payCategories, payday)
+      const bank = paidTo(
+        employee,
+        partsOfDay.filter((pay) => pay.employee === employee),
+        payCategories,
+        payday,
+      )
       if (engine.kind === 'not-run') problems.push({ kind: 'engine-not-run', employee, reason: engine.reason })
       else problems.push(...engine.month.warnings.map((warning): SalaryProblem => ({ kind: 'below-minimum-wage', employee, warning })))
       if (employee.ibans.length === 0) problems.push({ kind: 'no-account', employee })

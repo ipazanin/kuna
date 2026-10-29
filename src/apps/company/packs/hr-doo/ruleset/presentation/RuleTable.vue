@@ -21,7 +21,16 @@ const titleColumn = computed(() => props.table.textColumns.indexOf(true))
 
 const search = ref('')
 const showAll = ref(false)
-const searchWords = computed(() => fold(search.value).split(' ').filter((word) => word !== ''))
+
+function toggleShowAll(): void {
+  showAll.value = !showAll.value
+  search.value = ''
+}
+const searchWords = computed(() =>
+  fold(search.value)
+    .split(' ')
+    .filter((word) => word !== ''),
+)
 
 function isFocused(row: TableRowView): boolean {
   const cells = props.focus?.cells ?? null
@@ -87,18 +96,11 @@ const status = computed(() => (rowsShown.value.length === props.table.rows.lengt
             <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" aria-label="Clear the table search" @click="search = ''" />
           </template>
         </UInput>
-        <UButton
-          :label="showAll ? 'Show fewer' : 'Show all'"
-          color="neutral"
-          variant="outline"
-          :aria-pressed="showAll"
-          data-testid="table-show-all"
-          @click="showAll = !showAll; search = ''"
-        />
+        <UButton :label="showAll ? 'Show fewer' : 'Show all'" color="neutral" variant="outline" :aria-pressed="showAll" data-testid="table-show-all" @click="toggleShowAll" />
         <p class="figure text-xs text-muted" aria-live="polite" data-testid="table-count">{{ status }}</p>
       </div>
       <p v-if="rowsShown.length === 0" class="text-sm text-muted">
-        {{ search === '' ? focus?.hint ?? `Search above, or show all ${table.rows.length} rows.` : `No row matches "${search}".` }}
+        {{ search === '' ? (focus?.hint ?? `Search above, or show all ${table.rows.length} rows.`) : `No row matches "${search}".` }}
       </p>
     </div>
 
@@ -130,11 +132,7 @@ const status = computed(() => (rowsShown.value.length === props.table.rows.lengt
         <tbody>
           <tr v-for="row in rowsShown" :key="row.key" :class="{ 'starts-period': table.byPeriod && row.period !== null, 'is-focus': focusMarked && isFocused(row) }">
             <th v-if="row.period !== null" scope="rowgroup" :rowspan="row.periodSpan" class="figure text-start align-top font-medium text-highlighted">{{ row.period }}</th>
-            <td
-              v-for="(cell, index) in row.cells"
-              :key="index"
-              :class="[table.textColumns[index] ? 'cell-wraps text-start' : 'figure text-end', cell.changed ? 'is-changed' : 'text-default']"
-            >
+            <td v-for="(cell, index) in row.cells" :key="index" :class="[table.textColumns[index] ? 'cell-wraps text-start' : 'figure text-end', cell.changed ? 'is-changed' : 'text-default']">
               {{ cell.wording }}<span v-if="cell.changed" class="sr-only">, changed</span>
             </td>
           </tr>

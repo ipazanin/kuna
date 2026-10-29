@@ -36,27 +36,18 @@ export function vatSplit(booking: Booking, category: Category, rules: RuleSource
     case 'none':
       return passedThrough(treatment, paid, 'No VAT in the amount', [])
     case 'reverse-charge':
-      return passedThrough(treatment, paid, 'Reverse charge: no VAT in the amount, and the VAT on the return cancels out', [
-        rules('hr.vat.reverse-charge', booking.date).citation,
-      ])
+      return passedThrough(treatment, paid, 'Reverse charge: no VAT in the amount, and the VAT on the return cancels out', [rules('hr.vat.reverse-charge', booking.date).citation])
     case 'foreign-vat':
-      return passedThrough(treatment, paid, 'Foreign VAT, not deductible in Croatia, stays in the cost', [
-        rules('hr.vat.reverse-charge', booking.date).citation,
-      ])
+      return passedThrough(treatment, paid, 'Foreign VAT, not deductible in Croatia, stays in the cost', [rules('hr.vat.reverse-charge', booking.date).citation])
     case 'representation':
-      return passedThrough(treatment, paid, 'Representation: its VAT is not deductible and stays in the cost', [
-        rules('hr.vat.input-deduction', booking.date).citation,
-      ])
+      return passedThrough(treatment, paid, 'Representation: its VAT is not deductible and stays in the cost', [rules('hr.vat.input-deduction', booking.date).citation])
     case 'deductible-25':
     case 'deductible-13':
     case 'deductible-5': {
       const rates = rules('hr.vat.rates', booking.date)
       const deduction = rules('hr.vat.input-deduction', booking.date)
       const rate = rateOf(treatment, rates.value)
-      const inputVat = tracedFigure(`Input VAT at ${percentText(rate)}, deductible`, vatInside(amount, rate), 'ledger', [
-        rates.citation,
-        deduction.citation,
-      ], [paid])
+      const inputVat = tracedFigure(`Input VAT at ${percentText(rate)}, deductible`, vatInside(amount, rate), 'ledger', [rates.citation, deduction.citation], [paid])
       return split(treatment, paid, inputVat)
     }
     case 'car-50': {
@@ -65,10 +56,7 @@ export function vatSplit(booking: Booking, category: Category, rules: RuleSource
       const rate = rates.value.standardRate.basisPoints
       const share = deduction.value.personalCarDeductibleShare.basisPoints
       const vat = tracedFigure(`VAT at ${percentText(rate)} inside the amount`, vatInside(amount, rate), 'ledger', [rates.citation], [paid])
-      const inputVat = tracedFigure(`Input VAT on a personal car, ${percentText(share)} deductible`, atRate(vat.amount, share), 'ledger', [
-        rates.citation,
-        deduction.citation,
-      ], [vat])
+      const inputVat = tracedFigure(`Input VAT on a personal car, ${percentText(share)} deductible`, atRate(vat.amount, share), 'ledger', [rates.citation, deduction.citation], [vat])
       return split(treatment, paid, inputVat)
     }
   }

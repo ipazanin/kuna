@@ -58,7 +58,9 @@ describe.each([
     expect(scenarios(store)).toEqual([['floor', 'Floor salary', ['salary_gross', 'dividend', 'rent_monthly']]])
 
     const [salary] = rowsOf(store, 'floor')
-    await writeScenarios(store, (rows) => rows.change(salary!, scenarioRowOfComponent(salary!.slug, salary!.label, salary!.year, { component: 'salary_gross', gross: euros(1800), from: null, to: null })))
+    await writeScenarios(store, (rows) =>
+      rows.change(salary!, scenarioRowOfComponent(salary!.slug, salary!.label, salary!.year, { component: 'salary_gross', gross: euros(1800), from: null, to: null })),
+    )
     expect(hrDooWorkbook(store.state.workbook!).payScenarios[0]?.components[0]).toMatchObject({ component: 'salary_gross', gross: euros(1800) })
 
     const rent = rowsOf(store, 'floor').find((row) => row.component.component === 'rent_monthly')!
@@ -86,7 +88,11 @@ describe.each([
   })
 
   it('clears the label of every row when a rename leaves it blank', async () => {
-    const grids = { ...gridsWithScenarios(), scenarios: [HEADER, ['floor', '', 2027, 'salary_gross', 'floor'], ['floor', 'Floor salary', 2027, 'dividend', 'max']], plan: [['year', 'month', 'item', 'amount', 'note']] }
+    const grids = {
+      ...gridsWithScenarios(),
+      scenarios: [HEADER, ['floor', '', 2027, 'salary_gross', 'floor'], ['floor', 'Floor salary', 2027, 'dividend', 'max']],
+      plan: [['year', 'month', 'item', 'amount', 'note']],
+    }
     const { store } = await harnessOf(used, grids)
     await writeScenarios(store, (rows) => renameScenario(rows, rowsOf(store, 'floor'), 'floor-all-year', ''))
     expect(scenarios(store)).toEqual([['floor-all-year', '', ['salary_gross', 'dividend']]])
@@ -106,9 +112,9 @@ describe.each([
 
   it('refuses a component a scenario guard or the reader stops', async () => {
     const { store } = await harnessOf(used, gridsWithScenarios())
-    await expect(writeScenarios(store, (rows) => rows.add(scenarioRowOfComponent('floor', '', 2027, { component: 'dividend', amount: euros(1000), from: civil('2027-07-01'), to: null })))).rejects.toThrow(
-      "Nothing was written. Floor salary: The scenario sets 2 dividends. A scenario pays one, out of the year's profit.",
-    )
+    await expect(
+      writeScenarios(store, (rows) => rows.add(scenarioRowOfComponent('floor', '', 2027, { component: 'dividend', amount: euros(1000), from: civil('2027-07-01'), to: null }))),
+    ).rejects.toThrow("Nothing was written. Floor salary: The scenario sets 2 dividends. A scenario pays one, out of the year's profit.")
     await expect(writeScenarios(store, (rows) => rows.add(scenarioRowOfComponent('floor', '', 2027, { component: 'rent_monthly', amount: euros(-5), from: null, to: null })))).rejects.toThrow(
       'The new scenario row "floor, rent_monthly" would be left out: amount "-5.00" is not an amount above zero.',
     )

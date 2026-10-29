@@ -25,9 +25,7 @@ export function effectiveTaxRate(bookings: readonly Booking[], categories: reado
   const rows = transactionsInPeriod(bookings, period, window)
   const revenueCategories = categoriesWithRole(categories, PACK_ROLES.revenue)
   const netTaxes = paidOut(rows.filter((booking) => booking.bucket === 'taxes'))
-  const revenue = rows
-    .filter((booking) => revenueCategories.includes(booking.category))
-    .reduce((total, booking) => addMoney(total, booking.amount), ZERO)
+  const revenue = rows.filter((booking) => revenueCategories.includes(booking.category)).reduce((total, booking) => addMoney(total, booking.amount), ZERO)
   return {
     netTaxes: { amount: netTaxes, drill: drillToTransactions({ period, buckets: ['taxes'] }) },
     revenue: { amount: revenue, drill: drillToTransactions({ period, categories: revenueCategories }) },

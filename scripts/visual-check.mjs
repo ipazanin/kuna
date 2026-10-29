@@ -251,11 +251,47 @@ const SCREENS = [
     linkedPart: 'grant-rows',
   },
   { name: 'salaries', hash: '#/company/salaries', title: 'Salaries', charts: 0, shows: ["No row is the director's yet", 'No employees yet.', 'Add employee'] },
-  { name: 'owner', hash: '#/company/owner', title: 'Owner', charts: 2, shows: ['Owner take by type', 'Loans, net', 'Rent tax the owner pays the tax office', 'Owed by the owner at each month end', 'Net share of gross cost', 'Monthly net pay', 'Monthly net, profit included', 'Benefits from company costs', 'of it from company costs', 'needs hr_company_registered'], cards: false },
+  {
+    name: 'owner',
+    hash: '#/company/owner',
+    title: 'Owner',
+    charts: 2,
+    shows: [
+      'Owner take by type',
+      'Loans, net',
+      'Rent tax the owner pays the tax office',
+      'Owed by the owner at each month end',
+      'Net share of gross cost',
+      'Monthly net pay',
+      'Monthly net, profit included',
+      'Benefits from company costs',
+      'of it from company costs',
+      'needs hr_company_registered',
+    ],
+    cards: false,
+  },
   { name: 'owner-2025', hash: '#/company/owner?p=2025', title: 'Owner', charts: 2, shows: ['Jan 2025 – Dec 2025', 'Owner take by type', 'Monthly net pay', 'over 8 months'], cards: false },
-  { name: 'owner-owed', hash: '#/company/owner?tab=owed', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'The owner owes the company on 8 Oct 2026', 'Owed at the end'] },
-  { name: 'owner-owed-2025', hash: '#/company/owner?tab=owed&p=2025', title: 'Owner', charts: 0, shows: ['The owner owes the company on 31 Dec 2025', 'No cost the owner paid privately was owed in Jan 2025 – Dec 2025'] },
-  { name: 'owner-owed-filtered', hash: '#/company/owner?tab=owed&p=all&cat=equipment', title: 'Owner', charts: 0, shows: ['Who owes whom follows the period only', 'The owner owes the company on 8 Oct 2026'] },
+  {
+    name: 'owner-owed',
+    hash: '#/company/owner?tab=owed',
+    title: 'Owner',
+    charts: 0,
+    shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'The owner owes the company on 8 Oct 2026', 'Owed at the end'],
+  },
+  {
+    name: 'owner-owed-2025',
+    hash: '#/company/owner?tab=owed&p=2025',
+    title: 'Owner',
+    charts: 0,
+    shows: ['The owner owes the company on 31 Dec 2025', 'No cost the owner paid privately was owed in Jan 2025 – Dec 2025'],
+  },
+  {
+    name: 'owner-owed-filtered',
+    hash: '#/company/owner?tab=owed&p=all&cat=equipment',
+    title: 'Owner',
+    charts: 0,
+    shows: ['Who owes whom follows the period only', 'The owner owes the company on 8 Oct 2026'],
+  },
   { name: 'review', hash: '#/company/review', title: 'Review', charts: 0, shows: ['GADGET CORNER', 'Refund of a parking fee'] },
   { name: 'review-rules', hash: '#/company/review?tab=rules', title: 'Review', charts: 0, shows: ['merchant-airline', 'Confirmed rows no rule repeats'] },
   {
@@ -371,7 +407,14 @@ const SOURCE_SCREENS = [
     charts: 1,
     shows: ['Where the company’s money goes', 'Gross to net', 'App and bank', 'Pension savings', 'The app and the bank agree on every line they both state'],
   },
-  { name: 'salaries-one-employee-over-time', query: 'fake=one-employee', hash: '#/company/salaries?tab=over-time', title: 'Salaries', charts: 1, shows: ['Cost to the company by payday, 2026', 'Paydays of 2026'] },
+  {
+    name: 'salaries-one-employee-over-time',
+    query: 'fake=one-employee',
+    hash: '#/company/salaries?tab=over-time',
+    title: 'Salaries',
+    charts: 1,
+    shows: ['Cost to the company by payday, 2026', 'Paydays of 2026'],
+  },
   {
     name: 'salaries-five-employees',
     query: 'fake=five-employees',
@@ -382,11 +425,40 @@ const SOURCE_SCREENS = [
   },
   { name: 'salaries-five-employees-people', query: 'fake=five-employees', hash: '#/company/salaries?tab=people', title: 'Salaries', charts: 0, shows: ['Everyone paid in Sept 2026', 'Niko Test'] },
   { name: 'salaries-five-employees-one', query: 'fake=five-employees', hash: '#/company/salaries?employee=lea', title: 'Salaries', charts: 1, shows: ['Lea Proba', 'Paid to the employee'] },
-  { name: 'owner-browser', query: 'fake=browser', hash: '#/company/owner', title: 'Owner', charts: 2, shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults', 'Monthly net pay', 'from profit, a month'], cards: false },
+  {
+    name: 'owner-browser',
+    query: 'fake=browser',
+    hash: '#/company/owner',
+    title: 'Owner',
+    charts: 2,
+    shows: ['Tax avoided against a dividend', 'As a dividend you would net', 'Set the defaults', 'Monthly net pay', 'from profit, a month'],
+    cards: false,
+  },
   { name: 'owner-owed-browser', query: 'fake=browser', hash: '#/company/owner?tab=owed&p=all', title: 'Owner', charts: 0, shows: ['Costs the owner paid privately', 'Net owed'] },
-  { name: 'year-forecast-browser', query: 'fake=browser', hash: '#/company/year?year=2026', title: 'Year', charts: 1, shows: ['Month by month, 2026', 'plan rows of 2026 are not invoiced yet', 'Plan against actual, 2026'] },
-  { name: 'year-forecast-2027-browser', query: 'fake=browser', hash: '#/company/year?year=2027', title: 'Year', charts: 1, shows: ['Month by month, 2027', 'Values the ruleset only estimates for 2027'] },
-  { name: 'year-pay-browser', query: 'fake=browser', hash: '#/company/year?year=2027&tab=pay', title: 'Year', charts: 1, shows: ['Dividend capacity', 'Where the profit before owner pay goes, 2027', '1 warning', 'Side by side'] },
+  {
+    name: 'year-forecast-browser',
+    query: 'fake=browser',
+    hash: '#/company/year?year=2026',
+    title: 'Year',
+    charts: 1,
+    shows: ['Month by month, 2026', 'plan rows of 2026 are not invoiced yet', 'Plan against actual, 2026'],
+  },
+  {
+    name: 'year-forecast-2027-browser',
+    query: 'fake=browser',
+    hash: '#/company/year?year=2027',
+    title: 'Year',
+    charts: 1,
+    shows: ['Month by month, 2027', 'Values the ruleset only estimates for 2027'],
+  },
+  {
+    name: 'year-pay-browser',
+    query: 'fake=browser',
+    hash: '#/company/year?year=2027&tab=pay',
+    title: 'Year',
+    charts: 1,
+    shows: ['Dividend capacity', 'Where the profit before owner pay goes, 2027', '1 warning', 'Side by side'],
+  },
   {
     name: 'year-pay-interim-browser',
     query: 'fake=browser',
@@ -406,8 +478,22 @@ const SOURCE_SCREENS = [
   { name: 'loans-start-folder', hash: '#/loans/start?step=folder', title: 'Loans', charts: 0, shows: ['Where the Loans file is saved', 'Choose a folder in Google Drive'], cards: false },
   { name: 'loans-overview', query: 'loans=drive', hash: '#/loans', title: 'Overview', charts: 0, shows: ['No loans yet', 'on Google Drive as kuna-loans.json'], cards: false },
   { name: 'loans-sample', query: 'loans=sample', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'From Marko', 'in all', 'Subsidy ends'], cards: false },
-  { name: 'loans-bank-loan', query: 'loans=sample', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', charts: 1, shows: ['Owed over time', 'What if I pay extra', 'Estimate', '6M EURIBOR', 'days late'] },
-  { name: 'loans-informal-loan', query: 'loans=sample', hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`, title: 'From Marko', charts: 1, shows: ['Borrowed in kind', 'Repaid in kind', 'Forgiven', 'He bought a boat battery for me'] },
+  {
+    name: 'loans-bank-loan',
+    query: 'loans=sample',
+    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    title: 'Home loan',
+    charts: 1,
+    shows: ['Owed over time', 'What if I pay extra', 'Estimate', '6M EURIBOR', 'days late'],
+  },
+  {
+    name: 'loans-informal-loan',
+    query: 'loans=sample',
+    hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
+    title: 'From Marko',
+    charts: 1,
+    shows: ['Borrowed in kind', 'Repaid in kind', 'Forgiven', 'He bought a boat battery for me'],
+  },
   {
     name: 'settings-device-two-files',
     query: 'loans=drive',
@@ -505,15 +591,15 @@ function readPage(page) {
   return page.evaluate((cardSelector) => {
     const doc = document.documentElement
     const name = (element) => `${element.tagName.toLowerCase()}.${element.className?.toString().split(' ')[0] ?? ''}`
-    const overflowing = [...document.querySelectorAll('*')]
-      .filter((element) => element.getBoundingClientRect().right > doc.clientWidth + 1)
-      .map(name)
+    const overflowing = [...document.querySelectorAll('*')].filter((element) => element.getBoundingClientRect().right > doc.clientWidth + 1).map(name)
     return {
       scrollWidth: doc.scrollWidth,
       clientWidth: doc.clientWidth,
       overflowing: [...new Set(overflowing)].slice(0, 6),
       title: document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() ?? null,
-      chartHeights: [...document.querySelectorAll('.chart-body canvas')].filter((canvas) => canvas.closest('.chart-body').getClientRects().length > 0).map((canvas) => canvas.getBoundingClientRect().height),
+      chartHeights: [...document.querySelectorAll('.chart-body canvas')]
+        .filter((canvas) => canvas.closest('.chart-body').getClientRects().length > 0)
+        .map((canvas) => canvas.getBoundingClientRect().height),
       donutHeights: [...document.querySelectorAll('[data-testid="donut-card"] canvas')].map((canvas) => canvas.getBoundingClientRect().height),
       iconCount: document.querySelectorAll('svg.iconify').length,
       unrenderedIcons: [...document.querySelectorAll('.iconify')].filter((icon) => icon.tagName.toLowerCase() !== 'svg').length,
@@ -909,7 +995,6 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     await context.close()
   }
 }
-
 
 for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 'desktop'].includes(candidate.name) && selection.takesWidth(candidate.width))) {
   for (const mode of MODES) {

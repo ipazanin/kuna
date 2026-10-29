@@ -80,7 +80,9 @@ function stubRateLimit(limited: number, answer: () => Response): number[] {
   return calls
 }
 
-const USER_RATE_LIMIT = JSON.stringify({ error: { code: 403, message: 'User Rate Limit Exceeded', errors: [{ domain: 'usageLimits', reason: 'userRateLimitExceeded', message: 'User Rate Limit Exceeded' }] } })
+const USER_RATE_LIMIT = JSON.stringify({
+  error: { code: 403, message: 'User Rate Limit Exceeded', errors: [{ domain: 'usageLimits', reason: 'userRateLimitExceeded', message: 'User Rate Limit Exceeded' }] },
+})
 
 describe('gmailMailbox asked to slow down', () => {
   it('waits by Google’s backoff after a 403 rate limit and sends the call again', async () => {
@@ -241,14 +243,23 @@ describe('googleMailFolders making a file', () => {
       return Response.json({ files: [] })
     })
 
-    await googleMailFolders('token', 'books-file').create(['finance', 'payroll'], ['2026-payroll', '2026-09'], { name: '2026-09-salary.xlsx', properties: PROPERTIES, bytes: new TextEncoder().encode('xlsx').buffer as ArrayBuffer })
+    await googleMailFolders('token', 'books-file').create(['finance', 'payroll'], ['2026-payroll', '2026-09'], {
+      name: '2026-09-salary.xlsx',
+      properties: PROPERTIES,
+      bytes: new TextEncoder().encode('xlsx').buffer as ArrayBuffer,
+    })
 
     const posts = requests.filter((request) => request.method === 'POST')
     expect(posts.slice(0, 2).map((request) => JSON.parse(request.body))).toEqual([
       { name: '2026-payroll', mimeType: 'application/vnd.google-apps.folder', parents: ['payroll'] },
       { name: '2026-09', mimeType: 'application/vnd.google-apps.folder', parents: ['made-1'] },
     ])
-    expect(JSON.parse(/\r\n\r\n(\{.*\})\r\n/.exec(posts[2]!.body)![1]!)).toEqual({ name: '2026-09-salary.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', parents: ['made-2'], appProperties: PROPERTIES })
+    expect(JSON.parse(/\r\n\r\n(\{.*\})\r\n/.exec(posts[2]!.body)![1]!)).toEqual({
+      name: '2026-09-salary.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      parents: ['made-2'],
+      appProperties: PROPERTIES,
+    })
   })
 
   it('files into the statements folder the app made beside the books, found from the books file without a walk from My Drive', async () => {
@@ -265,7 +276,11 @@ describe('googleMailFolders making a file', () => {
       return Response.json({ files: [] })
     })
 
-    await googleMailFolders('token', 'books-file').create(['.', 'statements'], ['2031-statements'], { name: '2031-03-12-statement-042.pdf', properties: PROPERTIES, bytes: new TextEncoder().encode('pdf').buffer as ArrayBuffer })
+    await googleMailFolders('token', 'books-file').create(['.', 'statements'], ['2031-statements'], {
+      name: '2031-03-12-statement-042.pdf',
+      properties: PROPERTIES,
+      bytes: new TextEncoder().encode('pdf').buffer as ArrayBuffer,
+    })
 
     const upload = requests.find((request) => request.url.pathname.startsWith('/upload'))!
     expect(JSON.parse(/\r\n\r\n(\{.*\})\r\n/.exec(upload.body)![1]!)).toMatchObject({ parents: ['y2031'] })

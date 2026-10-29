@@ -29,10 +29,22 @@ const phone = usePhoneLayout()
     <li v-for="line in lines" :key="line.year" class="rounded-control border border-default px-3 py-2">
       <p class="figure text-sm font-medium text-highlighted">{{ line.year }}</p>
       <dl class="change-cells">
-        <div><dt>Depreciation</dt><dd><MoneyText :cents="line.depreciation" sign="always" /></dd></div>
-        <div v-if="showGrant"><dt>Grant released</dt><dd><MoneyText :cents="line.grantReleased" sign="always" /></dd></div>
-        <div><dt>Profit before tax</dt><dd><MoneyText :cents="line.profitBeforeTax" sign="always" /></dd></div>
-        <div><dt>Profit tax at {{ line.rate }}</dt><dd><MoneyText :cents="line.profitTax" sign="always" /></dd></div>
+        <div>
+          <dt>Depreciation</dt>
+          <dd><MoneyText :cents="line.depreciation" sign="always" /></dd>
+        </div>
+        <div v-if="showGrant">
+          <dt>Grant released</dt>
+          <dd><MoneyText :cents="line.grantReleased" sign="always" /></dd>
+        </div>
+        <div>
+          <dt>Profit before tax</dt>
+          <dd><MoneyText :cents="line.profitBeforeTax" sign="always" /></dd>
+        </div>
+        <div>
+          <dt>Profit tax at {{ line.rate }}</dt>
+          <dd><MoneyText :cents="line.profitTax" sign="always" /></dd>
+        </div>
       </dl>
     </li>
   </ul>

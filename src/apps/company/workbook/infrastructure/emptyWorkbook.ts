@@ -90,11 +90,7 @@ export function settingsTabRows(settings: Settings, keptRows: readonly SheetRow[
 export function emptyWorkbookTabs(settings: Settings = DEFAULT_SETTINGS): WorkbookTabs {
   return {
     ledger: [],
-    categories: rowsFrom(
-      DEFAULT_CATEGORIES.flatMap((seed) =>
-        seed.categories.map(([category, roles = '']) => ({ category, family: seed.family, bucket: seed.bucket, colour: seed.colour, roles })),
-      ),
-    ),
+    categories: rowsFrom(DEFAULT_CATEGORIES.flatMap((seed) => seed.categories.map(([category, roles = '']) => ({ category, family: seed.family, bucket: seed.bucket, colour: seed.colour, roles })))),
     accounts: [],
     settings: settingsTabRows(settings),
     rules: [],

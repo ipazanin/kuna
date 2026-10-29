@@ -91,9 +91,7 @@ function drillLocation(drill: DrillTarget): RouteLocationRaw | null {
 
 function queryFor(router: Router, state: FilterState, options: { explicitPeriod?: boolean } = {}): Record<string, string | string[]> {
   const kept = withoutFilterKeys(router.currentRoute.value.query)
-  const others = Object.fromEntries(
-    Object.entries(kept).flatMap(([key, value]) => (typeof value === 'string' ? [[key, value]] : [])),
-  )
+  const others = Object.fromEntries(Object.entries(kept).flatMap(([key, value]) => (typeof value === 'string' ? [[key, value]] : [])))
   return { ...others, ...encodeFilters(state, options) }
 }
 

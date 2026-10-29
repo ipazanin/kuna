@@ -24,8 +24,8 @@ async function find(lookup: DriveFileLookup): Promise<void> {
 <template>
   <StepCard title="Find your Loans file on Drive">
     <p class="text-sm text-toned">
-      Find the file opens <span class="identifier">{{ LOANS_FILE_NAME }}</span>, the file the app marked as the Loans file, or asks you to pick it when there is none.
-      Pick another file lets you choose the .json file yourself. The app keeps a copy in this browser.
+      Find the file opens <span class="identifier">{{ LOANS_FILE_NAME }}</span
+      >, the file the app marked as the Loans file, or asks you to pick it when there is none. Pick another file lets you choose the .json file yourself. The app keeps a copy in this browser.
     </p>
     <template #actions>
       <UButton label="Pick another file" icon="i-lucide-file-search" color="neutral" variant="outline" :loading="lookingUp === 'pick'" :disabled="lookingUp !== null" @click="find('pick')" />

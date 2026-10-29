@@ -39,7 +39,9 @@ export function filtersInUse(filters: CategoryFilters): boolean {
 }
 
 export function matchesFilters({ draft, unsaved }: ListedDraft, filters: CategoryFilters): boolean {
-  const words = fold(filters.search).split(' ').filter((word) => word !== '')
+  const words = fold(filters.search)
+    .split(' ')
+    .filter((word) => word !== '')
   const slug = draft.category.trim().toLowerCase()
   const searched = fold([slug, draft.label, displayName(slug, draft.label), draft.family, draft.bucket, draft.roles].join(' '))
   return (

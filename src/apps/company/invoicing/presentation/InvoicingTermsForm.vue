@@ -128,19 +128,13 @@ function updateInvoicing(field: InvoicingField, value: string): void {
     <fieldset class="flex flex-col gap-3" data-testid="billing-terms">
       <legend class="text-sm font-medium text-highlighted">Billing plan</legend>
       <p class="-mt-1 text-xs text-muted">
-        What a client is billed on terms. "Fill the rest of the year" on the Plan tab adds the monthly rows from them. Name each item exactly as the
-        outgoing-plan tab writes it, or the fill adds a second row in a month that already has one.
+        What a client is billed on terms. "Fill the rest of the year" on the Plan tab adds the monthly rows from them. Name each item exactly as the outgoing-plan tab writes it, or the fill adds a
+        second row in a month that already has one.
       </p>
       <div class="grid gap-4 sm:grid-cols-2">
         <template v-for="term in BILLING_TERMS" :key="term.amount">
           <UFormField :label="term.label" :error="errors[term.amount] ?? false" :help="term.help">
-            <UInput
-              :model-value="billingAmountTexts[term.amount]"
-              inputmode="decimal"
-              placeholder="Not set"
-              class="w-full"
-              @update:model-value="updateBillingAmount(term.amount, String($event))"
-            />
+            <UInput :model-value="billingAmountTexts[term.amount]" inputmode="decimal" placeholder="Not set" class="w-full" @update:model-value="updateBillingAmount(term.amount, String($event))" />
           </UFormField>
           <UFormField :label="`${term.label}, item`" :error="errors[term.item] ?? false">
             <USelectMenu
@@ -171,18 +165,9 @@ function updateInvoicing(field: InvoicingField, value: string): void {
 
     <fieldset class="flex flex-col gap-3" data-testid="invoicing-terms">
       <legend class="text-sm font-medium text-highlighted">Invoices</legend>
-      <p class="-mt-1 text-xs text-muted">
-        What an invoice prints about your company, and how it is numbered, filed and mailed. The client’s address and mail are on the clients tab above.
-      </p>
+      <p class="-mt-1 text-xs text-muted">What an invoice prints about your company, and how it is numbered, filed and mailed. The client’s address and mail are on the clients tab above.</p>
       <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField
-          v-for="entry in INVOICING_FIELDS"
-          :key="entry.field"
-          :label="entry.label"
-          :help="entry.help ?? ''"
-          :error="errors[entry.field] ?? false"
-          :class="{ 'sm:col-span-2': entry.wide }"
-        >
+        <UFormField v-for="entry in INVOICING_FIELDS" :key="entry.field" :label="entry.label" :help="entry.help ?? ''" :error="errors[entry.field] ?? false" :class="{ 'sm:col-span-2': entry.wide }">
           <UTextarea
             v-if="entry.lines"
             :model-value="draft.invoicing[entry.field]"

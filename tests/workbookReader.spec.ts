@@ -135,7 +135,7 @@ describe('readWorkbook', () => {
         tab: 'ledger',
         id: recordIdOf(LEDGER_RECORDS, JSON.stringify(['main', 'B'])),
         label: '2026-10-12, -250, balance 700',
-        reason: 'the balances of the main rows of 2026-10-12 do not follow from one another, so they are ordered by reference and this row\'s balance closing the day is a guess',
+        reason: "the balances of the main rows of 2026-10-12 do not follow from one another, so they are ordered by reference and this row's balance closing the day is a guess",
       },
     ])
   })
@@ -247,7 +247,13 @@ describe('readWorkbook', () => {
   })
 
   it('reports a setting it cannot use on the settings tab, by its key', () => {
-    const workbook = readSnapshot(snapshotWith([['date']], CATEGORIES, [['key', 'value'], ['currency', 'EURO'], ['colour_scheme', 'blue']])).workbook
+    const workbook = readSnapshot(
+      snapshotWith([['date']], CATEGORIES, [
+        ['key', 'value'],
+        ['currency', 'EURO'],
+        ['colour_scheme', 'blue'],
+      ]),
+    ).workbook
 
     expect(workbook.settings.currency).toBe('EUR')
     expect(workbook.problems.filter((problem) => problem.tab === 'settings').map((problem) => problem.label)).toEqual(['currency', 'colour_scheme'])
@@ -255,7 +261,13 @@ describe('readWorkbook', () => {
 
   it('reads roles as a list and an account currency, reporting one the workbook does not count in', () => {
     const workbook = readSnapshot({
-      ...snapshotWith([['date']], [['category', 'family', 'bucket', 'roles'], ['revenue', 'income', 'income', 'Revenue, watched']]),
+      ...snapshotWith(
+        [['date']],
+        [
+          ['category', 'family', 'bucket', 'roles'],
+          ['revenue', 'income', 'income', 'Revenue, watched'],
+        ],
+      ),
       accounts: sheetRowsFromValues([
         ['account', 'iban', 'currency'],
         ['main', '', 'eur'],
@@ -314,7 +326,9 @@ describe('readWorkbook', () => {
       ['invoices', '1-1-26', expect.any(String)],
       ['invoices', '3-1-26', expect.any(String)],
     ])
-    expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.label === '1-1-26')?.reason).toBe('invoice 1-1-26 for north is listed on more than one row, so none of them counts')
+    expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.label === '1-1-26')?.reason).toBe(
+      'invoice 1-1-26 for north is listed on more than one row, so none of them counts',
+    )
     expect(workbook.problems.find((problem) => problem.tab === 'invoices' && problem.label === '3-1-26')?.reason).toMatch(/east is not on the clients tab/)
   })
 
@@ -366,7 +380,16 @@ describe('readWorkbook', () => {
     }).workbook
 
     expect(workbook.ownerAdvances).toEqual([
-      { date: '2026-10-05', amount: 8900, description: 'Design tool', category: 'software', family: 'operating', bucket: 'operating', ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'advance-2') },
+      {
+        date: '2026-10-05',
+        amount: 8900,
+        description: 'Design tool',
+        category: 'software',
+        family: 'operating',
+        bucket: 'operating',
+        ownerShare: null,
+        id: recordIdOf(OWNER_ADVANCE_RECORDS, 'advance-2'),
+      },
     ])
     expect(workbook.problems.filter((problem) => problem.tab === 'owner-advances').map((problem) => problem.reason)).toEqual([
       'a negative amount is the owner’s private share of a company payment, which belongs on the splits tab. Press "Split" on its bank row on Transactions instead',

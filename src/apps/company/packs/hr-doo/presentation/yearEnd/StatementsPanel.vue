@@ -57,7 +57,9 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
           <ul class="flex flex-col">
             <li v-for="entry in view.recorded" :key="entry.key" class="recorded-row">
               <p class="min-w-0 text-sm text-toned">{{ entry.label }}</p>
-              <p class="text-sm text-highlighted"><MoneyText v-if="'cents' in entry.value" :cents="entry.value.cents" /><template v-else>{{ entry.value.text }}</template></p>
+              <p class="text-sm text-highlighted">
+                <MoneyText v-if="'cents' in entry.value" :cents="entry.value.cents" /><template v-else>{{ entry.value.text }}</template>
+              </p>
               <div v-if="entry.check" class="recorded-check">
                 <StatusBadge :status="entry.check.status" />
                 <DrillLink :to="entry.check.to" :label="`${entry.check.finding}, open the rows`" class="text-xs text-muted">{{ entry.check.finding }}</DrillLink>
@@ -69,7 +71,9 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
               <div class="recorded-check">
                 <StatusBadge :status="view.distribution.residual === 0 ? 'matched' : 'open'" />
                 <span class="text-xs text-muted">
-                  Our profit after tax is <MoneyText :cents="view.distribution.profitAfterTax" /><template v-if="view.distribution.residual !== 0">, a residual of <MoneyText :cents="view.distribution.residual" sign="always" /></template>
+                  Our profit after tax is <MoneyText :cents="view.distribution.profitAfterTax" /><template v-if="view.distribution.residual !== 0"
+                    >, a residual of <MoneyText :cents="view.distribution.residual" sign="always"
+                  /></template>
                 </span>
               </div>
             </li>
@@ -79,8 +83,7 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
 
       <AppCard title="Konto lines" collapse-id="year.konto" :summary="view.kontoSummary" start-collapsed>
         <template #subtitle>
-          Each konto line beside our accrual figure for the categories its <span class="identifier">categories</span> cell names. Lines that share a category are
-          compared together.
+          Each konto line beside our accrual figure for the categories its <span class="identifier">categories</span> cell names. Lines that share a category are compared together.
         </template>
         <div class="px-4 pt-2 pb-3 sm:px-5">
           <p v-if="view.konto.length === 0 && view.unnamedKonto.length === 0" class="py-4 text-sm text-muted">The year-end tab holds no konto lines for {{ year }}.</p>

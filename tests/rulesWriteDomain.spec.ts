@@ -114,8 +114,18 @@ describe('rule placement', () => {
   })
 
   it('swaps orders with a neighbour, so every order stays on its step', () => {
-    expect(swapWithNeighbour(rules, 'b', 'earlier')).toEqual(new Map([['b', 100], ['a', 200]]))
-    expect(swapWithNeighbour(rules, 'b', 'later')).toEqual(new Map([['b', 300], ['c', 200]]))
+    expect(swapWithNeighbour(rules, 'b', 'earlier')).toEqual(
+      new Map([
+        ['b', 100],
+        ['a', 200],
+      ]),
+    )
+    expect(swapWithNeighbour(rules, 'b', 'later')).toEqual(
+      new Map([
+        ['b', 300],
+        ['c', 200],
+      ]),
+    )
     expect(swapWithNeighbour(rules, 'a', 'earlier')).toBeNull()
     const tied = [rule('a', 100, [], 'equipment'), rule('b', 100, [], 'equipment')]
     expect(swapWithNeighbour(tied, 'b', 'earlier')).toEqual(new Map([['a', 200]]))
@@ -137,7 +147,15 @@ describe('rule coverage', () => {
     const { notCovered, exceptions } = ruleCoverage(rows, rules, context)
 
     expect(notCovered.map((group) => [group.key, group.name, group.rows.length, group.categories])).toEqual([
-      ['iban:XX00FAKE0000000013', 'DESK CO LTD', 2, [{ category: 'equipment', count: 1 }, { category: 'travel', count: 1 }]],
+      [
+        'iban:XX00FAKE0000000013',
+        'DESK CO LTD',
+        2,
+        [
+          { category: 'equipment', count: 1 },
+          { category: 'travel', count: 1 },
+        ],
+      ],
       ['name:CORNER SHOP', 'Corner Shop', 1, [{ category: 'equipment', count: 1 }]],
     ])
     expect(exceptions).toEqual([])
@@ -146,7 +164,14 @@ describe('rule coverage', () => {
   it('keeps a hand-filed payment apart as an exception when a rule files the same IBAN in another category', () => {
     const accountant = 'XX00FAKE0000000014'
     const rows = ledger([
-      ...Array.from({ length: 15 }, (_, month) => ({ date: `2025-${String((month % 12) + 1).padStart(2, '0')}-20`, amount: -150, counterparty: 'Ledger & Co', iban: accountant, category: 'accounting', flaggedBy: 'rule' })),
+      ...Array.from({ length: 15 }, (_, month) => ({
+        date: `2025-${String((month % 12) + 1).padStart(2, '0')}-20`,
+        amount: -150,
+        counterparty: 'Ledger & Co',
+        iban: accountant,
+        category: 'accounting',
+        flaggedBy: 'rule',
+      })),
       { date: '2026-09-21', amount: -900, counterparty: 'Ledger & Co', iban: accountant, description: 'Tax advice', category: 'consulting', flaggedBy: 'ivan' },
       { date: '2026-09-22', amount: -40, counterparty: 'Desk Co', iban: 'XX00FAKE0000000013', category: 'equipment', flaggedBy: 'ivan' },
     ])

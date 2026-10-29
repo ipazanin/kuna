@@ -26,7 +26,6 @@ const emit = defineEmits<{
   save: [made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]]
 }>()
 
-
 const stored = computed(() => storedOf(props.records))
 const drafts = ref<AccountDraft[]>(accountDraftsOf(stored.value))
 watch(stored, (records) => {
@@ -97,14 +96,7 @@ function save(): void {
             <p v-if="errors.get(index)?.account" class="field-error">{{ errors.get(index)?.account }}</p>
           </td>
           <td>
-            <UInput
-              :model-value="draft.label"
-              :placeholder="displayName(draft.account)"
-              aria-label="Shown as"
-              size="sm"
-              class="w-40"
-              @update:model-value="update(index, 'label', String($event))"
-            />
+            <UInput :model-value="draft.label" :placeholder="displayName(draft.account)" aria-label="Shown as" size="sm" class="w-40" @update:model-value="update(index, 'label', String($event))" />
           </td>
           <td>
             <UInput :model-value="draft.iban" aria-label="IBAN" size="sm" class="identifier w-64" @update:model-value="update(index, 'iban', String($event))" />

@@ -64,10 +64,7 @@ export function useFilteredLedger(): ComputedRef<FilteredLedger | null> {
       scopedAdvances,
       selectedAdvances: transactionsInPeriod(scopedAdvances, current.period, window),
       profitAndLossRows: [...scoped, ...scopedAdvances.map(bookingOfAdvance)],
-      accountRows:
-        accounts.length === 0
-          ? workbook.transactions
-          : workbook.transactions.filter((transaction) => accounts.includes(transaction.account)),
+      accountRows: accounts.length === 0 ? workbook.transactions : workbook.transactions.filter((transaction) => accounts.includes(transaction.account)),
     }
   })
 }

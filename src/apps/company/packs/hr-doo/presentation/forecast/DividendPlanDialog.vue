@@ -63,7 +63,8 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const before = props.dividend === null ? null : writes.stored(props.dividend)
   if (before === null) return
-  if (await writes.write('Dividend deleted', (lines) => lines.remove(before), { description: `The dividend of ${props.year} is taken out of the plan.`, failedTitle: 'Not deleted' })) open.value = false
+  if (await writes.write('Dividend deleted', (lines) => lines.remove(before), { description: `The dividend of ${props.year} is taken out of the plan.`, failedTitle: 'Not deleted' }))
+    open.value = false
 }
 </script>
 

@@ -47,10 +47,7 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
       tooltip: { trigger: 'axis', formatter: axisTooltip({ tokens, categoryLabel: monthAxisLabel('long'), formatAmount: (amount) => formatMoney(amount) }) },
       xAxis: { type: 'category', boundaryGap: false, data: categories, axisLabel: { color: tokens.inkMuted, formatter: monthAxisLabel('short') } },
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
-      series: [
-        line(OWED, (month) => month <= current, false),
-        ...(hasPlan ? [line(PLANNED, (month) => month >= current, true)] : []),
-      ],
+      series: [line(OWED, (month) => month <= current, false), ...(hasPlan ? [line(PLANNED, (month) => month >= current, true)] : [])],
     },
     description:
       first === undefined || last === undefined || now === undefined

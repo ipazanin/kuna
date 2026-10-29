@@ -88,7 +88,15 @@ function openMovement(movement: Movement | null): void {
               {{ whoOwes(line.owedAfter) }}<br />
               <MoneyText :cents="Math.abs(line.owedAfter)" class="text-sm text-toned" />
             </p>
-            <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" :aria-label="`Change the movement of ${dayLabel(line.movement.date)}`" data-testid="movement-edit" @click="openMovement(line.movement)" />
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :aria-label="`Change the movement of ${dayLabel(line.movement.date)}`"
+              data-testid="movement-edit"
+              @click="openMovement(line.movement)"
+            />
           </li>
         </ul>
         <div v-if="lines.length > FIRST_SHOWN" class="px-4 pb-4 sm:px-5">

@@ -49,7 +49,10 @@ export const OWNER_ADVANCE_CODEC: RecordCodec<OwnerAdvanceEntry> = withIdField(
 )
 
 /** A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets leaves it out. An owner share it cannot read is reported and counts as none. */
-export function readOwnerAdvances(read: RecordsRead<OwnerAdvanceEntry>, categories: readonly { readonly slug: string; readonly family: string; readonly bucket: OwnerAdvance['bucket'] }[]): Reading<OwnerAdvance> {
+export function readOwnerAdvances(
+  read: RecordsRead<OwnerAdvanceEntry>,
+  categories: readonly { readonly slug: string; readonly family: string; readonly bucket: OwnerAdvance['bucket'] }[],
+): Reading<OwnerAdvance> {
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
   const sharesId = idSharing(read)
   const advances: OwnerAdvance[] = []

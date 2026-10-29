@@ -41,10 +41,7 @@ export interface YearEndOpenItem {
   readonly settled: boolean
 }
 
-type JudgementId = Extract<
-  AdjustmentId,
-  'grant-schedule' | 'arrears-cut-off' | 'representation-as-booked' | 'cost-placement' | 'receivable-placement' | 'liability-placement'
->
+type JudgementId = Extract<AdjustmentId, 'grant-schedule' | 'arrears-cut-off' | 'representation-as-booked' | 'cost-placement' | 'receivable-placement' | 'liability-placement'>
 
 const JUDGEMENTS: Readonly<Record<JudgementId, { readonly settledBy: string; readonly rules: readonly RuleId[] }>> = {
   'grant-schedule': {
@@ -118,30 +115,26 @@ function unexplainedItems(accrual: AccrualYear): YearEndOpenItem[] {
 }
 
 function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
-  const months = accrual.uninvoicedMonths.map(
-    (entry): YearEndOpenItem => ({
-      key: `uninvoiced-${entry.month}`,
-      group: 'completeness',
-      title: `No invoice delivers work in ${monthLabel(entry.month)}, while invoice ${entry.nextInvoice.number} came after it`,
-      on: null,
-      settledBy: `An invoice for the month, a delivery period on invoice ${entry.nextInvoice.number} that covers it, or the accountant’s word that no work was delivered.`,
-      figure: null,
-      rules: ['hr.acc.accrual-basis'],
-      settled: false,
-    }),
-  )
-  const purchases = accrual.purchasesWithoutAsset.map(
-    (purchase, index): YearEndOpenItem => ({
-      key: `no-asset-${index}`,
-      group: 'completeness',
-      title: `A purchase above the asset threshold with no asset row: ${purchase.label} on`,
-      on: purchase.paidOn,
-      settledBy: 'An asset row on the assets tab, so it is depreciated, or the accountant’s word that it is a cost of the year.',
-      figure: purchase.cost,
-      rules: ['hr.cit.asset-threshold', 'hr.acc.capitalisation'],
-      settled: false,
-    }),
-  )
+  const months = accrual.uninvoicedMonths.map((entry): YearEndOpenItem => ({
+    key: `uninvoiced-${entry.month}`,
+    group: 'completeness',
+    title: `No invoice delivers work in ${monthLabel(entry.month)}, while invoice ${entry.nextInvoice.number} came after it`,
+    on: null,
+    settledBy: `An invoice for the month, a delivery period on invoice ${entry.nextInvoice.number} that covers it, or the accountant’s word that no work was delivered.`,
+    figure: null,
+    rules: ['hr.acc.accrual-basis'],
+    settled: false,
+  }))
+  const purchases = accrual.purchasesWithoutAsset.map((purchase, index): YearEndOpenItem => ({
+    key: `no-asset-${index}`,
+    group: 'completeness',
+    title: `A purchase above the asset threshold with no asset row: ${purchase.label} on`,
+    on: purchase.paidOn,
+    settledBy: 'An asset row on the assets tab, so it is depreciated, or the accountant’s word that it is a cost of the year.',
+    figure: purchase.cost,
+    rules: ['hr.cit.asset-threshold', 'hr.acc.capitalisation'],
+    settled: false,
+  }))
   const everyMonth: YearEndOpenItem = {
     key: 'invoiced',
     group: 'completeness',
@@ -159,13 +152,15 @@ function complianceItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules: R
   const { year } = accrual
   const firstDay = civilDate(year, 1, 1)
   const lastDay = civilDate(year, 12, 31)
-  const loans = ownerLoans(workbook.transactions, workbook.categories).loans.filter(
-    (loan) => loan.amount > 0 && loan.lentOn <= lastDay && (loan.repaidOn === null || loan.repaidOn >= firstDay),
-  )
+  const loans = ownerLoans(workbook.transactions, workbook.categories).loans.filter((loan) => loan.amount > 0 && loan.lentOn <= lastDay && (loan.repaidOn === null || loan.repaidOn >= firstDay))
   const loanItems: YearEndOpenItem[] = []
   if (loans.length > 0) {
     const lent = withDrill(
-      summed('Loans to the owner open during the year', loans.map((loan) => withDrill({ ...tracedFigure('Lent on', loan.amount, 'ledger', []), on: loan.lentOn }, loan.drill)), 'ledger'),
+      summed(
+        'Loans to the owner open during the year',
+        loans.map((loan) => withDrill({ ...tracedFigure('Lent on', loan.amount, 'ledger', []), on: loan.lentOn }, loan.drill)),
+        'ledger',
+      ),
       drillToTransactions({
         period: { preset: 'year', year },
         categories: [...categoriesWithRole(workbook.categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(workbook.categories, PACK_ROLES.ownerLoanRepaid)],
@@ -256,7 +251,11 @@ function assetDecisionItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules
       title: `A members’ decision for purchases above ${percentText(decision.priceShareOfCapital.basisPoints)} of the share capital in the first ${years} years`,
       on: null,
       settledBy: 'A members’ decision for each purchase, or the accountant’s or a lawyer’s view that ordinary equipment falls outside the rule.',
-      figure: summed('Purchases kept as assets', purchases.map((entry) => bookingFigure(entry, negateMoney(entry.booking.amount))), 'ledger'),
+      figure: summed(
+        'Purchases kept as assets',
+        purchases.map((entry) => bookingFigure(entry, negateMoney(entry.booking.amount))),
+        'ledger',
+      ),
       rules: ['hr.ztd.asset-purchase-decision'],
       settled: false,
     },

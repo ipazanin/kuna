@@ -30,30 +30,8 @@ const geometry = computed(() => {
 </script>
 
 <template>
-  <svg
-    v-if="geometry"
-    :width="width"
-    :height="height"
-    :viewBox="`0 0 ${width} ${height}`"
-    class="block shrink-0 overflow-visible"
-    aria-hidden="true"
-  >
-    <polyline
-      :points="geometry.path"
-      fill="none"
-      stroke="var(--chart-ink-muted)"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-    <circle
-      v-if="geometry.last"
-      :cx="geometry.last.x"
-      :cy="geometry.last.y"
-      r="3"
-      fill="var(--accent)"
-      stroke="var(--surface-raised)"
-      stroke-width="1.5"
-    />
+  <svg v-if="geometry" :width="width" :height="height" :viewBox="`0 0 ${width} ${height}`" class="block shrink-0 overflow-visible" aria-hidden="true">
+    <polyline :points="geometry.path" fill="none" stroke="var(--chart-ink-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <circle v-if="geometry.last" :cx="geometry.last.x" :cy="geometry.last.y" r="3" fill="var(--accent)" stroke="var(--surface-raised)" stroke-width="1.5" />
   </svg>
 </template>

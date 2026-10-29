@@ -46,14 +46,18 @@ const CATEGORIES: CellValue[][] = [
 
 /** The harness's workbook with the share defaults. With `shares`, the ledger holds the column and the desk a 30% share of its own, as a person set it. */
 function grids(shares: boolean): Record<string, CellValue[][]> {
-  const ledger = shares
-    ? [[...LEDGER_HEADER, 'owner_share'], ...LEDGER_ROWS.map((row) => [...row, row[3] === 'Desk Co' ? 30 : ''])]
-    : [LEDGER_HEADER, ...LEDGER_ROWS.map((row) => [...row])]
+  const ledger = shares ? [[...LEDGER_HEADER, 'owner_share'], ...LEDGER_ROWS.map((row) => [...row, row[3] === 'Desk Co' ? 30 : ''])] : [LEDGER_HEADER, ...LEDGER_ROWS.map((row) => [...row])]
   return {
     ledger,
     categories: CATEGORIES,
-    accounts: [['account', 'iban'], ['main', 'XX00FAKE0000000001']],
-    settings: [['key', 'value'], ['review_label', 'ivan']],
+    accounts: [
+      ['account', 'iban'],
+      ['main', 'XX00FAKE0000000001'],
+    ],
+    settings: [
+      ['key', 'value'],
+      ['review_label', 'ivan'],
+    ],
     rules: [['rule', 'order', 'enabled', 'counterparty_contains', 'category', 'confidence']],
   }
 }

@@ -19,9 +19,7 @@ export function googleConfig(): GoogleConfig {
 function required(name: string, configured: string | undefined): string {
   const trimmed = configured?.trim() ?? ''
   if (trimmed === '') {
-    throw new Error(
-      `${name} is not set. Put it in .env.local for development, or in the repository's Actions variables for a deployed build.`,
-    )
+    throw new Error(`${name} is not set. Put it in .env.local for development, or in the repository's Actions variables for a deployed build.`)
   }
   return trimmed
 }

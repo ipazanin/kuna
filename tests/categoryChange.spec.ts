@@ -35,7 +35,18 @@ const ADVANCE: OwnerAdvance = {
 }
 
 describe('categoryChangeOf', () => {
-  const listed = listedRows(withSplit(ROWS, { date: '2026-09-05', amount: -60 }, [[-50, 'equipment'], [-10, 'software']], STUDIO_CATEGORIES), [ADVANCE])
+  const listed = listedRows(
+    withSplit(
+      ROWS,
+      { date: '2026-09-05', amount: -60 },
+      [
+        [-50, 'equipment'],
+        [-10, 'software'],
+      ],
+      STUDIO_CATEGORIES,
+    ),
+    [ADVANCE],
+  )
   const changeOf = (counterparty: string) => listed.filter((row) => row.counterparty === counterparty).map(categoryChangeOf)
 
   it('changes a row a person or a rule settled on its ledger row', () => {

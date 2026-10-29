@@ -24,9 +24,7 @@ export interface NetReimbursements {
  */
 export function netReimbursements(transactions: readonly Transaction[], categories: readonly Category[]): NetReimbursements {
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
-  const rows = transactions
-    .filter((transaction) => reimbursement.includes(transaction.category))
-    .sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
+  const rows = transactions.filter((transaction) => reimbursement.includes(transaction.category)).sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
   const toOwner = rows.filter((row) => row.amount < 0)
   const fromOwner = rows.filter((row) => row.amount > 0)
   return { toOwner: lessReturns(toOwner, fromOwner), fromOwner: lessReturns(fromOwner, toOwner) }

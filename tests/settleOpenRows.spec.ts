@@ -19,7 +19,14 @@ describe('settleOpenRows', () => {
       { index: 0, applied: euros(30) },
       { index: 1, applied: euros(35) },
     ])
-    expect(settleOpenRows(open, euros(500), (index) => index < 2, (index) => index < 2)).toEqual([
+    expect(
+      settleOpenRows(
+        open,
+        euros(500),
+        (index) => index < 2,
+        (index) => index < 2,
+      ),
+    ).toEqual([
       { index: 0, applied: euros(30) },
       { index: 1, applied: euros(50) },
     ])
@@ -41,7 +48,13 @@ describe('fewestMakingUp', () => {
 
   it('gives up when no set adds up, or when it takes two or more and there are too many candidates to try', () => {
     expect(fewestMakingUp([euros(10), euros(30)], (amount) => amount, euros(25))).toBeNull()
-    expect(fewestMakingUp(Array.from({ length: 17 }, () => euros(1)), (amount) => amount, euros(2))).toBeNull()
+    expect(
+      fewestMakingUp(
+        Array.from({ length: 17 }, () => euros(1)),
+        (amount) => amount,
+        euros(2),
+      ),
+    ).toBeNull()
   })
 
   it('still finds one candidate the amount equals among too many to try in sets', () => {
@@ -53,7 +66,14 @@ describe('fewestMakingUp', () => {
 describe('settleOpenRows with many open rows', () => {
   it('passes over rows larger than the payment, so many large open rows do not hide a small pair', () => {
     const open = [...Array.from({ length: 17 }, () => euros(2000)), euros(15.5), euros(36.75)]
-    expect(settleOpenRows(open, euros(52.25), () => true, () => true)).toEqual([
+    expect(
+      settleOpenRows(
+        open,
+        euros(52.25),
+        () => true,
+        () => true,
+      ),
+    ).toEqual([
       { index: 17, applied: euros(15.5) },
       { index: 18, applied: euros(36.75) },
     ])
@@ -65,17 +85,10 @@ describe('settlePayments', () => {
     const rows = [euros(500), euros(1500)]
     const payments = [euros(1000), euros(500), euros(500)]
 
-    expect(settlePayments(rows, payments, () => true)).toEqual([
-      [{ index: 1, applied: euros(1000) }],
-      [{ index: 0, applied: euros(500) }],
-      [{ index: 1, applied: euros(500) }],
-    ])
+    expect(settlePayments(rows, payments, () => true)).toEqual([[{ index: 1, applied: euros(1000) }], [{ index: 0, applied: euros(500) }], [{ index: 1, applied: euros(500) }]])
   })
 
   it('matches each payment exactly only among the rows it may match', () => {
-    expect(settlePayments([euros(300), euros(300)], [euros(300), euros(300)], (payment, row) => row <= payment)).toEqual([
-      [{ index: 0, applied: euros(300) }],
-      [{ index: 1, applied: euros(300) }],
-    ])
+    expect(settlePayments([euros(300), euros(300)], [euros(300), euros(300)], (payment, row) => row <= payment)).toEqual([[{ index: 0, applied: euros(300) }], [{ index: 1, applied: euros(300) }]])
   })
 })

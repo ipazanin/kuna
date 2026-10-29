@@ -7,12 +7,7 @@ import type { Account, Client, Transaction, TransactionSignals } from '../../wor
  * own `fold`, `đ` survives, so the rules on the tab keep matching the rows they were written for.
  */
 export function foldRuleText(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toUpperCase()
-    .replace(/\s+/g, ' ')
-    .trim()
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim()
 }
 
 /** What the rules know besides the row itself. */
@@ -41,9 +36,7 @@ export function categorisationContextOf(workbook: {
     ownIbans: new Set(workbook.accounts.map((account) => account.iban).filter((iban) => iban !== '')),
     clientIbans: new Set(workbook.clients.flatMap((client) => client.ibans)),
     cardSettlementIbans: new Set(workbook.settings.cardSettlementIbans),
-    accountCurrencies: new Map(
-      workbook.accounts.filter((account) => account.currency !== '').map((account) => [account.slug, account.currency.toUpperCase()]),
-    ),
+    accountCurrencies: new Map(workbook.accounts.filter((account) => account.currency !== '').map((account) => [account.slug, account.currency.toUpperCase()])),
     workbookCurrency: workbook.settings.currency.toUpperCase(),
   }
 }
@@ -97,7 +90,12 @@ export function transactionFacts(transaction: CategorisableTransaction, context:
  * Only the head, since a four-digit number elsewhere is far likelier an invoice number.
  */
 export function budgetRevenueCode(creditorReference: string, foldedDescription: string): string {
-  const referenceCode = creditorReference.toUpperCase().replace(/\s+/g, '').replace(/^HR\d{2}/, '').split('-')[0] ?? ''
+  const referenceCode =
+    creditorReference
+      .toUpperCase()
+      .replace(/\s+/g, '')
+      .replace(/^HR\d{2}/, '')
+      .split('-')[0] ?? ''
   if (/^\d{4}$/.test(referenceCode)) {
     return referenceCode
   }
@@ -128,11 +126,7 @@ export function isCardTransaction(
 }
 
 /** A payment in a currency other than the account's: the instructed currency, else the currency field of a PDF card line. */
-export function isForeignCurrency(
-  signals: Pick<TransactionSignals, 'instructedCurrency'>,
-  foldedDescription: string,
-  accountCurrency: string,
-): boolean {
+export function isForeignCurrency(signals: Pick<TransactionSignals, 'instructedCurrency'>, foldedDescription: string, accountCurrency: string): boolean {
   const currency = foldRuleText(signals.instructedCurrency) || postedCurrency(foldedDescription)
   return currency !== '' && currency !== accountCurrency
 }

@@ -53,12 +53,7 @@ describe('the categories editor', () => {
   })
 
   it('needs category, family and a bucket from the six, and each category once', () => {
-    const errors = categoryDraftErrors(
-      [category('software'), category('Software', { saved: null, savedName: '' }), category('', { family: ' ', bucket: 'expenses' })],
-      new Set(),
-      ROLES,
-      true,
-    )
+    const errors = categoryDraftErrors([category('software'), category('Software', { saved: null, savedName: '' }), category('', { family: ' ', bucket: 'expenses' })], new Set(), ROLES, true)
 
     expect(errors.get(1)).toEqual({ category: 'Already used above' })
     expect(errors.get(2)).toEqual({ category: 'Required', family: 'Required', bucket: 'Not one of the six buckets' })
@@ -83,7 +78,10 @@ describe('the categories editor', () => {
   it('makes the category in lower case', () => {
     const [software] = categoriesOfDrafts([storedWith({ category: 'software', note: 'mine' })], [category(' Software ', { roles: 'Revenue,  watched ,' })])
 
-    expect(software).toMatchObject({ saved: 0, record: { slug: 'software', label: '', family: 'operating', bucket: 'operating', colour: { swatch: null, stored: '' }, roles: ['revenue', 'watched'], vat: 'none' } })
+    expect(software).toMatchObject({
+      saved: 0,
+      record: { slug: 'software', label: '', family: 'operating', bucket: 'operating', colour: { swatch: null, stored: '' }, roles: ['revenue', 'watched'], vat: 'none' },
+    })
   })
 })
 
@@ -99,20 +97,29 @@ describe('the categories editor and the owner share', () => {
   const benefit = category('benefits', { saved: 1, family: 'owner', bucket: 'owner-pay', roles: 'owner-benefit' })
 
   it('takes a whole number from 0 to 100 on an operating category, or blank for none, and writes it as a number', () => {
-    expect(categoryDraftErrors([category('ai', { ownerShare: '50' }), category('desk', { ownerShare: '0' }), category('pens', { ownerShare: ' ' }), benefit], new Set(), ROLES, true)).toEqual(new Map())
+    expect(categoryDraftErrors([category('ai', { ownerShare: '50' }), category('desk', { ownerShare: '0' }), category('pens', { ownerShare: ' ' }), benefit], new Set(), ROLES, true)).toEqual(
+      new Map(),
+    )
     expect(categoriesOfDrafts([], [category('ai', { saved: null, ownerShare: ' 50 ' })])[0]).toMatchObject({ record: { ownerShare: 50 } })
     expect(categoriesOfDrafts([], [category('ai', { saved: null, ownerShare: '' })])[0]).toMatchObject({ record: { ownerShare: null } })
   })
 
   it('refuses a share that is not a whole number from 0 to 100', () => {
-    const errors = categoryDraftErrors([category('a', { ownerShare: '101' }), category('b', { ownerShare: '12.5' }), category('c', { ownerShare: '-5' }), category('d', { ownerShare: 'half' }), benefit], new Set(), ROLES, true)
+    const errors = categoryDraftErrors(
+      [category('a', { ownerShare: '101' }), category('b', { ownerShare: '12.5' }), category('c', { ownerShare: '-5' }), category('d', { ownerShare: 'half' }), benefit],
+      new Set(),
+      ROLES,
+      true,
+    )
 
     expect([...errors.values()]).toEqual(Array(4).fill({ ownerShare: 'A whole number from 0 to 100' }))
   })
 
   it('refuses a share outside operating cost, and any share while no category carries the owner-benefit role', () => {
     expect(categoryDraftErrors([category('fees', { bucket: 'taxes', ownerShare: '10' }), benefit], new Set(), ROLES, true).get(0)).toEqual({ ownerShare: 'Only an operating category holds a share' })
-    expect(categoryDraftErrors([category('ai', { ownerShare: '50' }), { ...benefit, roles: '' }], new Set(), ROLES, true).get(0)).toEqual({ ownerShare: 'Give a category the owner-benefit role first' })
+    expect(categoryDraftErrors([category('ai', { ownerShare: '50' }), { ...benefit, roles: '' }], new Set(), ROLES, true).get(0)).toEqual({
+      ownerShare: 'Give a category the owner-benefit role first',
+    })
   })
 
   it('checks no share while the owner-pay module is off, since the column is not shown', () => {
@@ -163,7 +170,9 @@ describe('the assets, grants and year-end editors', () => {
     )
     const drafts = draftsOfRecords(stored, CLIENT_COLUMNS)
 
-    expect(madeOfDrafts(drafts, fieldsOfDrafts(drafts, CLIENT_COLUMNS, stored), stored, clientOfFields)).toEqual(stored.map((read, saved) => ({ saved, record: (read as { readonly record: unknown }).record })))
+    expect(madeOfDrafts(drafts, fieldsOfDrafts(drafts, CLIENT_COLUMNS, stored), stored, clientOfFields)).toEqual(
+      stored.map((read, saved) => ({ saved, record: (read as { readonly record: unknown }).record })),
+    )
   })
 
   it('give each year-end amount the field its line needs', () => {
@@ -186,15 +195,18 @@ describe('the assets, grants and year-end editors', () => {
     const assets = made(drafts, columns, assetOfFields)
     const fields = fieldsOfDrafts(drafts, columns, [])
 
-    expect(assets.map((draft) => ('record' in draft ? [draft.record.name, draft.record.inUse, draft.record.costNet] : draft.refused))).toEqual([['Laptop', '2026-01-09', 74950], 'cost_net must be more than zero'])
+    expect(assets.map((draft) => ('record' in draft ? [draft.record.name, draft.record.inUse, draft.record.costNet] : draft.refused))).toEqual([
+      ['Laptop', '2026-01-09', 74950],
+      'cost_net must be more than zero',
+    ])
     expect(draftOutcomes(assets, fields, (records) => readAssets(records, new Set()))).toEqual([
       { kept: true, reasons: [] },
       { kept: false, reasons: ['cost_net must be more than zero'] },
     ])
     const grant = [{ saved: null, fields: { grant: 'Startup', received: '2026-01-09', amount: '100', release: 'fixed-then-assets' } }]
-    expect(draftOutcomes(made(grant, GRANT_COLUMNS, grantOfFields), fieldsOfDrafts(grant, GRANT_COLUMNS, []), (records: RecordsRead<ReturnType<typeof grantOfFields>>) => readGrants(records))).toEqual([
-      { kept: false, reasons: ['a fixed-then-assets release needs fixed_part and variable_part'] },
-    ])
+    expect(draftOutcomes(made(grant, GRANT_COLUMNS, grantOfFields), fieldsOfDrafts(grant, GRANT_COLUMNS, []), (records: RecordsRead<ReturnType<typeof grantOfFields>>) => readGrants(records))).toEqual(
+      [{ kept: false, reasons: ['a fixed-then-assets release needs fixed_part and variable_part'] }],
+    )
     const [rate] = made([{ saved: null, fields: { year: '2025', statement: 'tax', line: 'rate', amount: '10' } }], YEAR_END_COLUMNS, yearEndLineOfFields)
     expect(rate).toMatchObject({ record: { figure: { kind: 'rate', basisPoints: 1000 } } })
     expect(draftOutcomes([rate!], [{}], (records) => readYearEnd(records, new Set())).map((outcome) => outcome.kept)).toEqual([true])

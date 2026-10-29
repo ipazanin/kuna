@@ -96,7 +96,10 @@ const KIND_ORDER: readonly CashKind[] = ['carried-revenue', 'carried-costs', 'op
 /** The median days from issue to payment of every invoice paid so far, or a day when none is, so the revenue of a month comes in the month after. */
 export function paymentLagOf(known: HrDooWorkbook): PaymentLag {
   const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
-  const median = daysToPaid(receivables.clients.flatMap((client) => client.invoices), null).median
+  const median = daysToPaid(
+    receivables.clients.flatMap((client) => client.invoices),
+    null,
+  ).median
   return median === null
     ? { days: 1, label: 'No invoice is paid yet, so revenue comes in the month after' }
     : { days: Math.round(median), label: `Clients pay ${Math.round(median)} days after the invoice, the median on Invoicing` }
@@ -140,12 +143,33 @@ export function cashProjection(inputs: CashInputs): CashProjection {
     if (month < opensIn) {
       return { month, basis: 'ledger', closing: balanceAt(month) }
     }
-    const flows = KIND_ORDER.flatMap((kind) => grouped(inYear.filter((event) => event.month === month && event.kind === kind), kind))
-    const closing = summed(`Cash at the end of ${monthLabel(month)}, as forecast`, [{ ...previous, label: month === opensIn ? previous.label : `Cash at the end of ${monthLabel(addMonths(month, -1))}` }, ...flows], 'ledger')
+    const flows = KIND_ORDER.flatMap((kind) =>
+      grouped(
+        inYear.filter((event) => event.month === month && event.kind === kind),
+        kind,
+      ),
+    )
+    const closing = summed(
+      `Cash at the end of ${monthLabel(month)}, as forecast`,
+      [{ ...previous, label: month === opensIn ? previous.label : `Cash at the end of ${monthLabel(addMonths(month, -1))}` }, ...flows],
+      'ledger',
+    )
     previous = closing
     return { month, basis: 'forecast', closing }
   })
-  const atYearEnd = summed(`Cash at the end of ${year}, as forecast`, [start, ...KIND_ORDER.flatMap((kind) => grouped(inYear.filter((event) => event.kind === kind), kind))], 'ledger')
+  const atYearEnd = summed(
+    `Cash at the end of ${year}, as forecast`,
+    [
+      start,
+      ...KIND_ORDER.flatMap((kind) =>
+        grouped(
+          inYear.filter((event) => event.kind === kind),
+          kind,
+        ),
+      ),
+    ],
+    'ledger',
+  )
   const receivedLater = later.filter((event) => event.kind === 'revenue' || event.kind === 'open-invoices').map((event) => event.figure)
   return {
     months: projected,
@@ -162,7 +186,15 @@ export function cashOnNewestBooking(transactions: readonly Transaction[]): Trace
 }
 
 function grouped(events: readonly CashEvent[], kind: CashKind): TracedFigure[] {
-  return events.length === 0 ? [] : [summed(KIND_LABELS[kind], events.map((event) => event.figure), 'ledger')]
+  return events.length === 0
+    ? []
+    : [
+        summed(
+          KIND_LABELS[kind],
+          events.map((event) => event.figure),
+          'ledger',
+        ),
+      ]
 }
 
 function carriedStart({ year, carried }: CashInputs): TracedFigure {
@@ -173,9 +205,7 @@ function carriedStart({ year, carried }: CashInputs): TracedFigure {
 /** What the year before left to receive and to pay, in the month it lands. */
 function carriedEvents({ year, carried }: CashInputs): CashEvent[] {
   const before = carried()
-  return (before?.later ?? [])
-    .filter((event) => yearOfMonth(event.month) === year)
-    .map((event): CashEvent => ({ ...event, kind: event.figure.amount >= 0 ? 'carried-revenue' : 'carried-costs' }))
+  return (before?.later ?? []).filter((event) => yearOfMonth(event.month) === year).map((event): CashEvent => ({ ...event, kind: event.figure.amount >= 0 ? 'carried-revenue' : 'carried-costs' }))
 }
 
 /** On the newest booking: the invoices still open, as their clients pay, and the VAT position, settled the month after. */
@@ -217,7 +247,11 @@ function costEvents({ calendar, categories }: CashInputs): CashEvent[] {
 }
 
 function purchaseEvents({ plannedAssets }: CashInputs): CashEvent[] {
-  return plannedAssets.map((asset): CashEvent => ({ month: monthOf(asset.bought), kind: 'purchases', figure: { ...tracedFigure(asset.name, negateMoney(asset.costNet), 'plan', []), on: asset.bought } }))
+  return plannedAssets.map((asset): CashEvent => ({
+    month: monthOf(asset.bought),
+    kind: 'purchases',
+    figure: { ...tracedFigure(asset.name, negateMoney(asset.costNet), 'plan', []), on: asset.bought },
+  }))
 }
 
 function dividendEvents({ dividend }: CashInputs): CashEvent[] {

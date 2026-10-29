@@ -96,17 +96,19 @@ const review = computed(() => {
     currentLabel,
     priorLabel,
     coverage: coverageSentence(result, currentLabel, priorLabel),
-    lines: result.lines.filter((line) => lineShown(shown, line.line)).map((line) => ({
-      line: line.line,
-      label: lineLabel(shown, line.line),
-      emphasised: line.line === 'net' || line.line === 'ownerEarns',
-      current: line.current.amount,
-      currentTo: drillLocation(line.current.drill),
-      prior: line.prior?.amount ?? null,
-      priorTo: line.prior === null ? null : drillLocation(line.prior.drill),
-      change: line.change,
-      changeSign: line.change === null ? 0 : COST_LINES.includes(line.line) ? -line.change : line.change,
-    })),
+    lines: result.lines
+      .filter((line) => lineShown(shown, line.line))
+      .map((line) => ({
+        line: line.line,
+        label: lineLabel(shown, line.line),
+        emphasised: line.line === 'net' || line.line === 'ownerEarns',
+        current: line.current.amount,
+        currentTo: drillLocation(line.current.drill),
+        prior: line.prior?.amount ?? null,
+        priorTo: line.prior === null ? null : drillLocation(line.prior.drill),
+        change: line.change,
+        changeSign: line.change === null ? 0 : COST_LINES.includes(line.line) ? -line.change : line.change,
+      })),
     sections,
     categoryCount,
     categoriesSummary:
@@ -247,8 +249,7 @@ const shownSections = computed(() => {
         </div>
         <ShowAllButton v-if="review.categoryCount > FIRST_SHOWN" v-model:expanded="showAllCategories" :total="review.categoryCount" class="px-4 pb-4 sm:px-5" />
         <p v-if="review.sections.some((section) => section.key === 'outside')" class="px-4 pb-4 text-xs text-muted sm:px-5">
-          Outside profit and loss: reimbursements and other financing settle costs counted above, so they are listed here and left out of
-          both directions.
+          Outside profit and loss: reimbursements and other financing settle costs counted above, so they are listed here and left out of both directions.
         </p>
       </AppCard>
     </div>

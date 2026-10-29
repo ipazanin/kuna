@@ -60,11 +60,7 @@ describe('annual settlement of salary', () => {
     expect(settlement.income.steps).toHaveLength(12)
     expect(settlement.refund.rules.map((citation) => citation.ruleId)).toEqual(['hr.pit.annual-settlement'])
     expect(settlement.youthRelief.rules.map((citation) => citation.ruleId)).toEqual(['hr.pit.youth-relief'])
-    expect(settlement.lowerRateTax.rules.map((citation) => citation.ruleId)).toEqual([
-      'hr.pit.annual-settlement',
-      'hr.pit.brackets',
-      'hr.pit.local-rates',
-    ])
+    expect(settlement.lowerRateTax.rules.map((citation) => citation.ruleId)).toEqual(['hr.pit.annual-settlement', 'hr.pit.brackets', 'hr.pit.local-rates'])
   })
 
   it('gives each 2026 youth relief band by birth year, and none in the monthly payroll', () => {
@@ -133,11 +129,7 @@ describe('annual settlement of salary', () => {
 
     expect(settlement.income.steps.map((step) => [step.label, step.on])[0]).toEqual(['Income for 2026-06, paid on', '2026-07-10'])
     expect(settlement.income.steps).toHaveLength(6)
-    expect([settlement.income.amount, settlement.taxableIncome.amount, settlement.withheld.amount]).toEqual([
-      euros(5921.37),
-      euros(0),
-      euros(533.91),
-    ])
+    expect([settlement.income.amount, settlement.taxableIncome.amount, settlement.withheld.amount]).toEqual([euros(5921.37), euros(0), euros(533.91)])
     expect(outcome(settlement)).toEqual([euros(0), euros(0), euros(533.91)])
     expect(settle(2027, partYear, 1990).income.steps).toHaveLength(1)
   })

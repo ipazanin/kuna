@@ -65,7 +65,10 @@ const asked = computed(() => (moving.value === null ? scopesOfChoices(onboarding
 
 /** What each scope beyond the books file lets books that move here do, as Google words it. */
 const MOVED_BOOKS_NEED: Readonly<Record<Exclude<GoogleScope, 'drive.file'>, { readonly label: string; readonly description: string }>> = {
-  'drive.readonly': { label: 'Your Drive folders', description: 'The books read folders from your Drive, such as the statements folder. Google will say "See and download all your Google Drive files".' },
+  'drive.readonly': {
+    label: 'Your Drive folders',
+    description: 'The books read folders from your Drive, such as the statements folder. Google will say "See and download all your Google Drive files".',
+  },
   'gmail.readonly': { label: 'Your mail', description: 'The books find the mail they file in Drive when you sync. Google will say "View your email messages and settings".' },
   'gmail.compose': { label: 'Invoice mail drafts in Gmail', description: 'Google will say "Manage drafts and send emails".' },
 }
@@ -116,7 +119,13 @@ async function ask(): Promise<void> {
 
     <template v-if="chooses">
       <div class="flex flex-col gap-2">
-        <URadioGroup v-model="statements" :items="statementChoices" legend="How do statements reach the app?" :ui="{ legend: 'text-sm font-medium text-highlighted mb-2', fieldset: 'gap-3' }" data-testid="onboarding-statements" />
+        <URadioGroup
+          v-model="statements"
+          :items="statementChoices"
+          legend="How do statements reach the app?"
+          :ui="{ legend: 'text-sm font-medium text-highlighted mb-2', fieldset: 'gap-3' }"
+          data-testid="onboarding-statements"
+        />
         <div v-if="statements === 'mail'" class="grid gap-4 sm:grid-cols-2" data-testid="onboarding-mail">
           <UFormField label="Your bank" :help="preset ? `Mail from ${preset.senders.join(', ')} with ${preset.subject} in the subject.` : 'Type its address and subject words below.'">
             <USelect :model-value="mail.bank" :items="BANKS" class="w-full" data-testid="onboarding-bank" @update:model-value="chooseMail({ bank: String($event) })" />

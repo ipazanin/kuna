@@ -148,7 +148,12 @@ const SYNC_RUN: SyncRun = {
       steps: [
         { id: 'books', label: 'Books', scopes: ['drive.file'], state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
         { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], state: { kind: 'done', line: 'Nothing new, already there 50', writeId: null, link: null } },
-        { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/company/transactions?tab=import' } } },
+        {
+          id: 'statements',
+          label: 'Statements',
+          scopes: ['drive.readonly'],
+          state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/company/transactions?tab=import' } },
+        },
       ],
     },
   ],
@@ -216,10 +221,7 @@ const columns: TableColumn<SampleTransaction>[] = [
     cell: ({ row }) =>
       row.getIsGrouped()
         ? ''
-        : h('div', [
-            h(DrillLink, { to: transactionsLink, class: 'text-highlighted' }, () => row.original.counterparty),
-            h('div', { class: 'mt-1 @2xl:hidden' }, [sampleCategory(row.original)]),
-          ]),
+        : h('div', [h(DrillLink, { to: transactionsLink, class: 'text-highlighted' }, () => row.original.counterparty), h('div', { class: 'mt-1 @2xl:hidden' }, [sampleCategory(row.original)])]),
   },
   {
     accessorKey: 'category',
@@ -251,10 +253,7 @@ const columns: TableColumn<SampleTransaction>[] = [
 
 <template>
   <div class="flex flex-col gap-12" data-dev-only="DEV-GALLERY-ONLY-DO-NOT-SHIP">
-    <PageHeader
-      title="Gallery"
-      description="Every component and chart style, filled with made-up figures. Only development and fake builds have this page."
-    />
+    <PageHeader title="Gallery" description="Every component and chart style, filled with made-up figures. Only development and fake builds have this page." />
 
     <section class="gallery-section">
       <h2 class="gallery-heading">Colour</h2>
@@ -280,8 +279,7 @@ const columns: TableColumn<SampleTransaction>[] = [
         <p class="text-title font-semibold text-highlighted">Period review, 2026 against 2025</p>
         <p class="text-figure-lg font-semibold text-highlighted">€148,210</p>
         <p class="max-w-[65ch] text-sm text-default">
-          Body text is Inter at 14 px. Net taxes are taxes paid minus refunds, divided by client revenue for the
-          same period, so a refund never flatters the rate.
+          Body text is Inter at 14 px. Net taxes are taxes paid minus refunds, divided by client revenue for the same period, so a refund never flatters the rate.
         </p>
         <p class="text-xs text-muted">Captions and axis labels at 12 px in the muted ink.</p>
         <p class="figure text-sm text-default">Tabular figures: €1,111.11 / €8,888.88 / −€404.04</p>
@@ -294,9 +292,7 @@ const columns: TableColumn<SampleTransaction>[] = [
       <PeriodBar v-model:period="period" :window="sampleWindow" />
       <AccountPicker v-model="accounts" :options="ACCOUNTS" class="w-fit" />
       <FilterChipRow :chips="chips" one-line @remove="removeChip" @clear="chips = []" />
-      <p class="figure text-xs text-muted" aria-live="polite">
-        Selected: {{ JSON.stringify(period) }}, {{ accounts.length ? accounts.join(' and ') : 'all accounts' }}
-      </p>
+      <p class="figure text-xs text-muted" aria-live="polite">Selected: {{ JSON.stringify(period) }}, {{ accounts.length ? accounts.join(' and ') : 'all accounts' }}</p>
     </section>
 
     <section class="gallery-section">
@@ -369,15 +365,14 @@ const columns: TableColumn<SampleTransaction>[] = [
     <section class="gallery-section">
       <h2 class="gallery-heading">Charts</h2>
       <p class="text-xs text-muted" aria-live="polite">
-        <template v-if="lastSelection">
-          Clicked {{ lastSelection.seriesName }}, {{ lastSelection.category }}. A screen turns this into a filter and opens Transactions.
-        </template>
+        <template v-if="lastSelection"> Clicked {{ lastSelection.seriesName }}, {{ lastSelection.category }}. A screen turns this into a filter and opens Transactions. </template>
         <template v-else>Click any bar to see the selection a screen receives.</template>
       </p>
       <div class="grid gap-4 xl:grid-cols-2">
         <ChartCard
           class="xl:col-span-2"
-          title="Income and costs by month" description="Made-up income and costs by month for the gallery."
+          title="Income and costs by month"
+          description="Made-up income and costs by month for the gallery."
           subtitle="Income above zero, costs below it by bucket. October is still running."
           definition="Costs are operating, taxes and owner pay. Financing and transfers between your own accounts never enter these figures."
           :option="charts.incomeAgainstCosts"
@@ -388,7 +383,8 @@ const columns: TableColumn<SampleTransaction>[] = [
         </ChartCard>
 
         <ChartCard
-          title="Income by month" description="Made-up income by month for the gallery."
+          title="Income by month"
+          description="Made-up income by month for the gallery."
           subtitle="The three-month average leaves out the month in progress."
           :option="charts.incomeByMonth"
           @select="lastSelection = $event"
@@ -407,7 +403,8 @@ const columns: TableColumn<SampleTransaction>[] = [
         <ChartCard title="Cash at month end" description="Made-up month-end cash for the gallery." subtitle="All accounts together" :option="charts.cashAtMonthEnd" />
 
         <ChartCard
-          title="Operating costs by category" description="Made-up operating costs by category for the gallery."
+          title="Operating costs by category"
+          description="Made-up operating costs by category for the gallery."
           subtitle="Last 12 months against the 12 before"
           :option="charts.costsByCategory"
           :height="300"
@@ -424,7 +421,8 @@ const columns: TableColumn<SampleTransaction>[] = [
         </ChartCard>
 
         <ChartCard
-          title="Every euro earned" description="Made-up split of every euro earned for the gallery."
+          title="Every euro earned"
+          description="Made-up split of every euro earned for the gallery."
           subtitle="Where each euro of income went. Still reads correctly in a loss-making period."
           definition="Each bar is one window. The segments are shares of income in that window and add up to 100%."
           :option="charts.everyEuroEarned"
@@ -480,7 +478,10 @@ const columns: TableColumn<SampleTransaction>[] = [
           summary="4 kinds of tax, €10,279 paid"
         >
           <template #below>
-            <p class="mt-2 text-xs text-muted">Less <span class="figure">{{ formatWholeMoney(64_000) }}</span> refunded, so the year's taxes come to <span class="figure">{{ formatWholeMoney(963_900) }}</span>.</p>
+            <p class="mt-2 text-xs text-muted">
+              Less <span class="figure">{{ formatWholeMoney(64_000) }}</span> refunded, so the year's taxes come to <span class="figure">{{ formatWholeMoney(963_900) }}</span
+              >.
+            </p>
           </template>
         </DonutCard>
       </div>

@@ -35,10 +35,7 @@ export const companyApp: AppContribution = {
     installPackTabs(HR_DOO_TABS)
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-      const [{ seedFakeWorkbook }, { fakeStaffOf }] = await Promise.all([
-        import('./workbook/infrastructure/fake/seedFakeWorkbook'),
-        import('./packs/hr-doo/infrastructure/fake/fakeStaff'),
-      ])
+      const [{ seedFakeWorkbook }, { fakeStaffOf }] = await Promise.all([import('./workbook/infrastructure/fake/seedFakeWorkbook'), import('./packs/hr-doo/infrastructure/fake/fakeStaff')])
       await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'), fakeStaffOf)
     }
   },

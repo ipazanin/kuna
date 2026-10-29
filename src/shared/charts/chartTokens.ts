@@ -70,10 +70,7 @@ function readChartTokens(style: CSSStyleDeclaration): ChartTokens {
     negative: read('--tone-negative'),
     accent: read('--accent'),
     series: [1, 2, 3, 4, 5, 6, 7, 8].map((slot) => read(`--series-${slot}`)),
-    buckets: Object.fromEntries(BUCKET_TONES.map((tone) => [tone, read(`--bucket-${tone}`)])) as Record<
-      BucketTone,
-      string
-    >,
+    buckets: Object.fromEntries(BUCKET_TONES.map((tone) => [tone, read(`--bucket-${tone}`)])) as Record<BucketTone, string>,
     ageing: [1, 2, 3, 4, 5].map((step) => read(`--ageing-${step}`)),
   }
 }

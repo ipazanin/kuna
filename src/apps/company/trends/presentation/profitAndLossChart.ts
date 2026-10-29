@@ -49,11 +49,7 @@ export interface ProfitAndLossChartSettings {
  * Income above zero and the cost buckets stacked below it, one slot per month, with a net
  * line across. Months still filling up, or opening part-way, are hatched.
  */
-export function profitAndLossChart(
-  months: readonly MonthOfProfitAndLoss[],
-  tokens: ChartTokens,
-  settings: ProfitAndLossChartSettings,
-): DrillChart {
+export function profitAndLossChart(months: readonly MonthOfProfitAndLoss[], tokens: ChartTokens, settings: ProfitAndLossChartSettings): DrillChart {
   const hidden = settings.hidden ?? []
   const incomplete = months.map((month) => !month.complete)
   const visible = settings.series.filter((series) => !hidden.includes(series.name))
@@ -95,8 +91,7 @@ export function profitAndLossChart(
         tokens,
         incompleteCategories: months.filter((month) => !month.complete).map((month) => month.month),
         categoryLabel: monthAxisLabel('long'),
-        formatAmount: (amount, seriesName) =>
-          formatWholeMoney(amount, settings.series.some((series) => series.name === seriesName) ? 'magnitude' : 'negative'),
+        formatAmount: (amount, seriesName) => formatWholeMoney(amount, settings.series.some((series) => series.name === seriesName) ? 'magnitude' : 'negative'),
       }),
     },
     xAxis: {

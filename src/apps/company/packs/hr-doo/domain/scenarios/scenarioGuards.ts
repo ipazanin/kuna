@@ -72,7 +72,10 @@ export function scenarioGuards(scenario: OwnerPayScenario, rules: RuleSource = r
     if (basis.basis === 'employee') {
       const day = firstDay(span, (candidate) => schedule.salaryOn(candidate) === null)
       if (day !== null) {
-        guards.push({ ids: [basis.id], reason: `${capitalised(componentInWords(basis))} makes the director an employee on ${day}, a day no salary row covers. Add the salary, or end the row earlier.` })
+        guards.push({
+          ids: [basis.id],
+          reason: `${capitalised(componentInWords(basis))} makes the director an employee on ${day}, a day no salary row covers. Add the salary, or end the row earlier.`,
+        })
       }
       continue
     }

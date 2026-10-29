@@ -91,13 +91,7 @@ watch(change, () => {
 })
 
 const needsAcceptance = computed(() => (preview.value?.backtest.brokenAgreements.length ?? 0) + (preview.value?.backtest.humanConflicts.length ?? 0) > 0)
-const canSave = computed(
-  () =>
-    preview.value !== null &&
-    preview.value.refusals.length === 0 &&
-    (!needsAcceptance.value || accepted.value) &&
-    !state.writing,
-)
+const canSave = computed(() => preview.value !== null && preview.value.refusals.length === 0 && (!needsAcceptance.value || accepted.value) && !state.writing)
 
 function notWritten(title: string, failure: unknown): void {
   toast.add({ title, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
@@ -137,10 +131,14 @@ const onDrive = computed(() => state.workbook?.source === 'drive')
 async function applyToWaiting(): Promise<void> {
   const count = waiting.value.length
   const verdicts = waiting.value
-  const written = await recordWrites.write(`Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, verdicts, state.workbook?.categories ?? []), {
-    failedTitle: 'Not written',
-    description: 'Only rows that were waiting for review. Confirmed rows kept their category.',
-  })
+  const written = await recordWrites.write(
+    `Filed ${count} ${count === 1 ? 'row' : 'rows'} by ${savedId.value}`,
+    (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, verdicts, state.workbook?.categories ?? []),
+    {
+      failedTitle: 'Not written',
+      description: 'Only rows that were waiting for review. Confirmed rows kept their category.',
+    },
+  )
   if (written) open.value = false
 }
 </script>
@@ -155,21 +153,11 @@ async function applyToWaiting(): Promise<void> {
   >
     <template #body>
       <div v-if="savedId === null && deleting" class="flex flex-col gap-4" data-testid="rule-delete">
-        <p class="text-sm text-toned">
-          Its row leaves the rules tab. Rows already filed keep their category, and new rows it would decide go to the next rule that holds, or
-          wait for review.
-        </p>
+        <p class="text-sm text-toned">Its row leaves the rules tab. Rows already filed keep their category, and new rows it would decide go to the next rule that holds, or wait for review.</p>
         <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
       </div>
       <div v-else-if="savedId === null && draft" class="flex flex-col gap-6" data-testid="rule-editor">
-        <UAlert
-          v-if="split"
-          icon="i-lucide-split"
-          color="warning"
-          variant="subtle"
-          :title="`A person filed these ${splitRows} rows in ${split.length} categories`"
-          data-testid="rule-split"
-        >
+        <UAlert v-if="split" icon="i-lucide-split" color="warning" variant="subtle" :title="`A person filed these ${splitRows} rows in ${split.length} categories`" data-testid="rule-split">
           <template #description>
             <ul class="mt-1 flex flex-wrap gap-1.5">
               <li v-for="entry in split" :key="entry.category" class="flex items-center gap-1">
@@ -178,8 +166,8 @@ async function applyToWaiting(): Promise<void> {
               </li>
             </ul>
             <p class="mt-2">
-              The form starts on {{ names.category(split[0]!.category) }}, the most common. One rule files every next row the same way, so the
-              back-test lists the others as confirmed rows it would file differently.
+              The form starts on {{ names.category(split[0]!.category) }}, the most common. One rule files every next row the same way, so the back-test lists the others as confirmed rows it would
+              file differently.
             </p>
           </template>
         </UAlert>
@@ -194,11 +182,7 @@ async function applyToWaiting(): Promise<void> {
       </div>
       <div v-else class="flex flex-col gap-4" data-testid="rule-saved">
         <p class="text-sm text-toned">
-          {{
-            onDrive
-              ? 'It is in the file on Drive now, and the next sync or import files new rows by it.'
-              : 'It is in the workbook kept in this browser, and an export writes it into the file.'
-          }}
+          {{ onDrive ? 'It is in the file on Drive now, and the next sync or import files new rows by it.' : 'It is in the workbook kept in this browser, and an export writes it into the file.' }}
         </p>
         <UAlert
           v-if="waiting.length"
@@ -216,15 +200,7 @@ async function applyToWaiting(): Promise<void> {
       <div class="flex w-full flex-wrap justify-end gap-2">
         <template v-if="savedId === null && deleting">
           <UButton label="Keep it" color="neutral" variant="ghost" data-testid="keep-rule" @click="deleting = false" />
-          <UButton
-            label="Delete rule"
-            icon="i-lucide-trash-2"
-            color="error"
-            :loading="state.writing"
-            :disabled="!canSave"
-            data-testid="confirm-delete-rule"
-            @click="deleteRule"
-          />
+          <UButton label="Delete rule" icon="i-lucide-trash-2" color="error" :loading="state.writing" :disabled="!canSave" data-testid="confirm-delete-rule" @click="deleteRule" />
         </template>
         <template v-else-if="savedId === null">
           <UButton
@@ -239,14 +215,7 @@ async function applyToWaiting(): Promise<void> {
             @click="deleting = true"
           />
           <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
-          <UButton
-            :label="source?.edited ? 'Save rule' : 'Add rule'"
-            icon="i-lucide-save"
-            :loading="state.writing"
-            :disabled="!canSave"
-            data-testid="save-rule"
-            @click="save"
-          />
+          <UButton :label="source?.edited ? 'Save rule' : 'Add rule'" icon="i-lucide-save" :loading="state.writing" :disabled="!canSave" data-testid="save-rule" @click="save" />
         </template>
         <template v-else>
           <UButton label="Done" color="neutral" :variant="waiting.length ? 'ghost' : 'solid'" @click="open = false" />

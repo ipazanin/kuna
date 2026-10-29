@@ -48,12 +48,7 @@ describe('the payroll mail', () => {
   const ana: Employee = director({ employee: 'ana', name: 'Ana Horvat' })
 
   it('names the salary workbook, the IP1 form and a payment order with its XML, which takes its kind from the PDF beside it, in the month’s folder', () => {
-    const namings = payrollNamings(
-      mail('RE: Plaća za 9/2026', ['Example plaća 9 2026.xlsx', 'IP1 obrazac 9 2026.pdf', 'UN0926.xml', 'Platni nalog_Example 9 2026.pdf']),
-      'Plaća za',
-      PAYROLL,
-      [ana],
-    )
+    const namings = payrollNamings(mail('RE: Plaća za 9/2026', ['Example plaća 9 2026.xlsx', 'IP1 obrazac 9 2026.pdf', 'UN0926.xml', 'Platni nalog_Example 9 2026.pdf']), 'Plaća za', PAYROLL, [ana])
 
     expect(named(namings)).toEqual([
       '2026-payroll/2026-09/2026-09-salary.xlsx',
@@ -135,7 +130,9 @@ describe("the accountant's subject words", () => {
   })
 
   it('hold the payroll and VAT mail to the same rule', () => {
-    expect(payrollNamings(mail('Pitanje: Plaća za 9/2026', ['Example plaća 9 2026.xlsx']), 'Plaća za', PAYROLL, [])).toMatchObject([{ kind: 'unmatched', reason: 'The subject does not start with Plaća za.' }])
+    expect(payrollNamings(mail('Pitanje: Plaća za 9/2026', ['Example plaća 9 2026.xlsx']), 'Plaća za', PAYROLL, [])).toMatchObject([
+      { kind: 'unmatched', reason: 'The subject does not start with Plaća za.' },
+    ])
     expect(vatNamings(mail('Fwd: Upit, PDV za 8/2026', ['PDV 8 2026_Example.xlsx']), 'PDV za', VAT)).toMatchObject([{ kind: 'unmatched', reason: 'The subject does not start with PDV za.' }])
     expect(payrollNamings(mail('Plaća za rujan', ['Example plaća 9 2026.xlsx']), 'Plaća za', PAYROLL, [])).toMatchObject([{ kind: 'unmatched', reason: 'The subject names no month, such as 9/2026.' }])
   })

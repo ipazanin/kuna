@@ -124,33 +124,18 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
 <template>
   <div class="flex flex-col gap-6">
     <LedgerGate>
-      <UEmpty
-        v-if="tabState === 'empty'"
-        icon="i-lucide-calendar-clock"
-        title="No plan rows yet"
-        variant="outline"
-        class="rounded-card border-dashed bg-raised/40"
-        data-testid="billing-empty"
-      >
+      <UEmpty v-if="tabState === 'empty'" icon="i-lucide-calendar-clock" title="No plan rows yet" variant="outline" class="rounded-card border-dashed bg-raised/40" data-testid="billing-empty">
         <template #description>
           <span class="block max-w-[60ch]">
-            The billing plan is one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel, dated on the day it becomes
-            billable. It lives on the <span class="identifier">outgoing-plan</span> tab, with the columns <span class="identifier">{{ columns }}</span>. Each
-            invoice then bills the rows it reaches, oldest first.
+            The billing plan is one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel, dated on the day it becomes billable. It lives on the
+            <span class="identifier">outgoing-plan</span> tab, with the columns <span class="identifier">{{ columns }}</span
+            >. Each invoice then bills the rows it reaches, oldest first.
           </span>
         </template>
         <template #actions>
           <div class="flex flex-wrap justify-center gap-2">
             <UButton label="Add the first row" icon="i-lucide-plus" :disabled="state.writing" data-testid="billing-start" @click="addRow" />
-            <UButton
-              v-if="fillCount > 0"
-              :label="fillLabel"
-              icon="i-lucide-calendar-plus"
-              color="neutral"
-              variant="outline"
-              :disabled="state.writing"
-              @click="fillDialogOpen = true"
-            />
+            <UButton v-if="fillCount > 0" :label="fillLabel" icon="i-lucide-calendar-plus" color="neutral" variant="outline" :disabled="state.writing" @click="fillDialogOpen = true" />
           </div>
         </template>
       </UEmpty>
@@ -184,22 +169,14 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             </div>
           </dl>
           <p class="mt-1 text-xs text-muted">
-            {{ view.yearLine.rowCount }} {{ view.yearLine.rowCount === 1 ? 'plan row' : 'plan rows' }}, {{ view.yearLine.openRowCount }} still open.
-            {{ view.yearLine.issuedInYear }} {{ view.yearLine.issuedInYear === 1 ? 'invoice' : 'invoices' }} issued in the year.
+            {{ view.yearLine.rowCount }} {{ view.yearLine.rowCount === 1 ? 'plan row' : 'plan rows' }}, {{ view.yearLine.openRowCount }} still open. {{ view.yearLine.issuedInYear }}
+            {{ view.yearLine.issuedInYear === 1 ? 'invoice' : 'invoices' }} issued in the year.
           </p>
         </div>
 
         <div class="wide-pair">
-          <AppCard
-            id="billing-rows-card"
-            :title="`Plan rows, ${year}`"
-            collapse-id="invoicing.plan-rows"
-            :summary="view.rowsSummary"
-            :reveal="route.hash === '#billing-rows-card'"
-          >
-            <template #subtitle>
-              The billing plan is the one place for planned revenue, and the forecast reads it.
-            </template>
+          <AppCard id="billing-rows-card" :title="`Plan rows, ${year}`" collapse-id="invoicing.plan-rows" :summary="view.rowsSummary" :reveal="route.hash === '#billing-rows-card'">
+            <template #subtitle> The billing plan is the one place for planned revenue, and the forecast reads it. </template>
             <template #actions>
               <UButton label="Add row" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="billing-add" @click="addRow" />
               <UButton
@@ -271,12 +248,13 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
                   </li>
                 </ul>
                 <div v-if="references.length > 0" class="border-t border-default py-3">
-                  <p class="text-xs font-medium text-muted">
-                    Terms on <DrillLink :to="TERMS_LINK" in-prose class="text-toned">the Clients tab</DrillLink>
-                  </p>
+                  <p class="text-xs font-medium text-muted">Terms on <DrillLink :to="TERMS_LINK" in-prose class="text-toned">the Clients tab</DrillLink></p>
                   <ul class="mt-1 flex flex-col gap-0.5">
                     <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 text-xs text-muted">
-                      <span class="min-w-0 truncate">{{ entry.label }} as <span class="text-toned">{{ entry.item }}</span>, {{ entry.note }}</span>
+                      <span class="min-w-0 truncate"
+                        >{{ entry.label }} as <span class="text-toned">{{ entry.item }}</span
+                        >, {{ entry.note }}</span
+                      >
                       <MoneyText :cents="entry.amount!" class="text-toned" />
                     </li>
                   </ul>
@@ -316,15 +294,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
       </template>
     </LedgerGate>
 
-    <BillingRowDialog
-      v-if="asOf"
-      v-model:open="rowDialogOpen"
-      :row="editing"
-      :items="knownItems"
-      :clients="clients"
-      :default-date="asOf"
-      :default-client="terms?.client ?? ''"
-    />
+    <BillingRowDialog v-if="asOf" v-model:open="rowDialogOpen" :row="editing" :items="knownItems" :clients="clients" :default-date="asOf" :default-client="terms?.client ?? ''" />
     <FillYearDialog v-if="fill" v-model:open="fillDialogOpen" :fill="fill" :title="fillLabel" :client-name="clientName" :colours="colours" />
   </div>
 </template>

@@ -185,11 +185,7 @@ export async function createFolder(accessToken: string, parentId: string, name: 
 export async function createFile<Field extends keyof DriveFile>(accessToken: string, file: NewDriveFile, content: BlobPart, fields: readonly Field[]): Promise<Pick<DriveFile, Field>> {
   const boundary = `kuna-${crypto.randomUUID()}`
   const body = new Blob(
-    [
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(file)}\r\n--${boundary}\r\nContent-Type: ${file.mimeType}\r\n\r\n`,
-      content,
-      `\r\n--${boundary}--`,
-    ],
+    [`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(file)}\r\n--${boundary}\r\nContent-Type: ${file.mimeType}\r\n\r\n`, content, `\r\n--${boundary}--`],
     { type: `multipart/related; boundary=${boundary}` },
   )
   const query = new URLSearchParams({ uploadType: 'multipart', fields: fields.join(',') })

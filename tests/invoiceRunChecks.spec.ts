@@ -42,7 +42,16 @@ function googleWorkbook(): Workbook {
     invoices: [invoiceOf('8-1-26', 6925, '2026-08-21'), invoiceOf('9-1-26', 6925, '2026-09-21')],
     settings: {
       ...DEFAULT_SETTINGS,
-      invoicing: { ...DEFAULT_SETTINGS.invoicing, name: 'Primjer d.o.o.', address: 'Ulica 1, Split', vatId: 'HR1', iban: 'HR6212345670000000001', place: 'Split', signatory: 'Ana Čičić', folderId: FAKE_INVOICE_FOLDER.id },
+      invoicing: {
+        ...DEFAULT_SETTINGS.invoicing,
+        name: 'Primjer d.o.o.',
+        address: 'Ulica 1, Split',
+        vatId: 'HR1',
+        iban: 'HR6212345670000000001',
+        place: 'Split',
+        signatory: 'Ana Čičić',
+        folderId: FAKE_INVOICE_FOLDER.id,
+      },
     },
   })
 }

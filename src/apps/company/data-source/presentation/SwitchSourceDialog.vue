@@ -18,7 +18,13 @@ const phone = usePhoneLayout()
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Switch data source" description="Show a different workbook. The figures follow whichever you choose." :fullscreen="phone" :ui="{ content: 'sm:max-w-2xl', header: 'pe-16 sm:pe-6' }">
+  <UModal
+    v-model:open="open"
+    title="Switch data source"
+    description="Show a different workbook. The figures follow whichever you choose."
+    :fullscreen="phone"
+    :ui="{ content: 'sm:max-w-2xl', header: 'pe-16 sm:pe-6' }"
+  >
     <template #body>
       <div class="flex flex-col gap-4">
         <UAlert

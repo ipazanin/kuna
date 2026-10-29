@@ -36,7 +36,7 @@ describe('the outgoing-plan tab', () => {
     const workbook = workbookWith([
       header,
       ['Hotel', DAY['2025-12-10'], 480.2, 'North', 'Hotel for the client visit'],
-      ['Bonus', DAY['2026-01-01'], 10000 * 5 / 12, 'north', 'Bonus for five months'],
+      ['Bonus', DAY['2026-01-01'], (10000 * 5) / 12, 'north', 'Bonus for five months'],
       ['Monthly Fee', DAY['2026-01-31'], 5000, 'north'],
     ])
 

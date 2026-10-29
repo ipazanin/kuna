@@ -55,9 +55,7 @@ export function citLiability(base: TaxBase, period: TaxPeriod, advancesPaid: Tra
   const taxPeriod = civilDate(base.year, 1, 1)
   const rateRule = rules('hr.cit.rate', taxPeriod)
   const testRule = rules('hr.cit.rate-test-revenue', taxPeriod)
-  const rateTestRevenue = tracedFigure('PD line 1 less line 28, with no grant for special circumstances on line 28', base.revenue.amount, 'ledger', [
-    testRule.citation,
-  ], [base.revenue])
+  const rateTestRevenue = tracedFigure('PD line 1 less line 28, with no grant for special circumstances on line 28', base.revenue.amount, 'ledger', [testRule.citation], [base.revenue])
   const high = rateTestRevenue.amount >= rateRule.value.threshold.cents
   const basisPoints = high ? rateRule.value.highRate.basisPoints : rateRule.value.lowRate.basisPoints
   const rate: TracedRate = {
@@ -66,19 +64,13 @@ export function citLiability(base: TaxBase, period: TaxPeriod, advancesPaid: Tra
     rules: [rateRule.citation, testRule.citation],
   }
   const taxable = base.base.amount > 0 ? base.base.amount : ZERO
-  const liability = tracedFigure(`PD lines 44 and 53, tax at ${percentText(basisPoints)}`, atRate(taxable, basisPoints), 'ledger', [
-    ...rate.rules,
-    ...base.base.rules,
-  ], [base.base])
+  const liability = tracedFigure(`PD lines 44 and 53, tax at ${percentText(basisPoints)}`, atRate(taxable, basisPoints), 'ledger', [...rate.rules, ...base.base.rules], [base.base])
 
   const advanceRule = rules('hr.cit.monthly-advance', taxPeriod)
   const periodMonths = monthCountBetween(monthOf(period.from), monthOf(period.to))
   const monthlyAdvance = monthlyAdvanceOf(liability, periodMonths, base.year, rules)
 
-  const paid =
-    period.first && !advanceRule.value.advancesInFirstPeriod.holds
-      ? tracedFigure('PD line 56, no advances in a first tax period', ZERO, 'ledger', [advanceRule.citation])
-      : advancesPaid
+  const paid = period.first && !advanceRule.value.advancesInFirstPeriod.holds ? tracedFigure('PD line 56, no advances in a first tax period', ZERO, 'ledger', [advanceRule.citation]) : advancesPaid
   const settlement = paid === null ? null : balanceOf(liability, paid, rules('hr.cit.balance-due', taxPeriod).citation)
   return {
     period,
@@ -120,11 +112,7 @@ export function monthlyAdvanceOf(liability: TracedFigure, months: number, year: 
   )
 }
 
-function balanceOf(
-  liability: TracedFigure,
-  paid: TracedFigure,
-  citation: RuleCitation,
-): { readonly balanceDue: TracedFigure; readonly refund: TracedFigure } {
+function balanceOf(liability: TracedFigure, paid: TracedFigure, citation: RuleCitation): { readonly balanceDue: TracedFigure; readonly refund: TracedFigure } {
   const difference = subtractMoney(liability.amount, paid.amount)
   const steps = [liability, deducted(paid)]
   const cited = [citation, ...rulesOf(steps)]

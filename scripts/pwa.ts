@@ -26,7 +26,11 @@ export function offlineApp(): Plugin {
       const outputDirectory = resolve(config.root, config.build.outDir)
       const filenames = (await readdir(outputDirectory, { recursive: true, withFileTypes: true }))
         .filter((entry) => entry.isFile() && entry.name !== 'sw.js' && !entry.name.endsWith('.map'))
-        .map((entry) => resolve(entry.parentPath, entry.name).slice(outputDirectory.length + 1).replaceAll('\\', '/'))
+        .map((entry) =>
+          resolve(entry.parentPath, entry.name)
+            .slice(outputDirectory.length + 1)
+            .replaceAll('\\', '/'),
+        )
         .sort()
       const worker = await readFile(new URL('./service-worker.js', import.meta.url), 'utf8')
       const release = createHash('sha256').update(worker).update(config.base)
@@ -40,10 +44,7 @@ export function offlineApp(): Plugin {
         shell: `${config.base}index.html`,
         assets: filenames.map((filename) => `${config.base}${filename}`),
       }
-      await writeFile(
-        resolve(outputDirectory, 'sw.js'),
-        worker.replace('/* BUILD_CONFIGURATION */', `const configuration = ${JSON.stringify(configuration)};`),
-      )
+      await writeFile(resolve(outputDirectory, 'sw.js'), worker.replace('/* BUILD_CONFIGURATION */', `const configuration = ${JSON.stringify(configuration)};`))
     },
   }
 }

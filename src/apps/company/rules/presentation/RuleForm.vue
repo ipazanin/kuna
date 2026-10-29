@@ -161,13 +161,7 @@ function presenceOf(value: DraftCondition['value']): string {
         />
       </UFormField>
       <UFormField label="Confidence" :help="draft.confidence === 'rule' ? 'Files the row as rule, settled.' : 'Files it as ai, so it shows on Review.'">
-        <USelect
-          :model-value="draft.confidence"
-          :items="confidenceItems"
-          class="w-full"
-          aria-label="Confidence"
-          @update:model-value="update('confidence', $event as RuleConfidence)"
-        />
+        <USelect :model-value="draft.confidence" :items="confidenceItems" class="w-full" aria-label="Confidence" @update:model-value="update('confidence', $event as RuleConfidence)" />
       </UFormField>
     </div>
 

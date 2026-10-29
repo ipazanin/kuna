@@ -29,9 +29,7 @@ describe('prepaymentSpread', () => {
     const thisYear = sumMoney(shares.filter((share) => yearOfMonth(share.month) === 2026).map((share) => share.cost.amount))
     const prepaid = sumMoney(shares.filter((share) => yearOfMonth(share.month) === 2027).map((share) => share.cost.amount))
 
-    expect(shares.map((share) => share.month)).toEqual([
-      '2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03', '2027-04', '2027-05', '2027-06', '2027-07', '2027-08', '2027-09', '2027-10',
-    ])
+    expect(shares.map((share) => share.month)).toEqual(['2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03', '2027-04', '2027-05', '2027-06', '2027-07', '2027-08', '2027-09', '2027-10'])
     expect(thisYear).toBe(euros(-109.15))
     expect(prepaid).toBe(euros(-370.85))
     expect([shares[0].cost.label, shares[0].cost.on]).toEqual(['22 of 365 days covered by the payment of', '2026-10-10'])

@@ -55,22 +55,14 @@ export interface ArrearsCutOff {
  * the fewest that do. A difference no set of them makes up stays unexplained. The cut-off of the
  * year before counts too, so the bookings it kept stay in this year.
  */
-export function arrearsCutOff(
-  bookings: readonly AccrualBooking[],
-  year: number,
-  yearEnd: readonly YearEndLine[],
-  categories: readonly Category[],
-): ArrearsCutOff | null {
+export function arrearsCutOff(bookings: readonly AccrualBooking[], year: number, yearEnd: readonly YearEndLine[], categories: readonly Category[]): ArrearsCutOff | null {
   const closing = keptAtYearEnd(bookings, year, yearEnd, categories)
   const opening = keptAtYearEnd(bookings, year - 1, yearEnd, categories)
   const kept = [...closing.map((step) => step.entry), ...opening.map((step) => step.entry)]
   if (kept.length === 0) {
     return null
   }
-  const steps = [
-    ...closing.map((step) => step.figure),
-    ...opening.map((step) => deducted({ ...step.figure, label: `Kept in this year when ${year - 1} closed: ${step.entry.label} on` })),
-  ]
+  const steps = [...closing.map((step) => step.figure), ...opening.map((step) => deducted({ ...step.figure, label: `Kept in this year when ${year - 1} closed: ${step.entry.label} on` }))]
   const figure = withDrill(
     summed('Costs paid in arrears that the accountant keeps in the year they were paid', steps, 'ledger'),
     drillToTransactions({
@@ -138,10 +130,7 @@ export function representationAsBooked(year: number, yearEnd: readonly YearEndLi
     id: 'representation-as-booked',
     kind: 'judgement',
     effect: 'tax-base',
-    figure: tracedFigure('Representation added back as the accountant booked it, against the bank amounts', difference, 'accountant', ours.rules, [
-      accountant,
-      deducted(ours),
-    ]),
+    figure: tracedFigure('Representation added back as the accountant booked it, against the bank amounts', difference, 'accountant', ours.rules, [accountant, deducted(ours)]),
     lines: [{ statement: 'tax', line: 'increases' }],
   }
 }
@@ -217,9 +206,7 @@ export interface KontoGroup {
 
 /** Konto lines that share a category, joined, so each group holds every konto line of its categories. Lines go by their konto number. */
 export function kontoGroups(yearEnd: readonly YearEndLine[]): KontoGroup[] {
-  const lines = yearEnd
-    .filter((line) => line.statement === 'konto' && line.categories.length > 0 && line.figure.kind === 'money')
-    .sort(byKonto)
+  const lines = yearEnd.filter((line) => line.statement === 'konto' && line.categories.length > 0 && line.figure.kind === 'money').sort(byKonto)
   const groups: { categories: Set<string>; lines: YearEndLine[] }[] = []
   for (const line of lines) {
     const joined = groups.filter((group) => line.categories.some((slug) => group.categories.has(slug)))

@@ -34,21 +34,8 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
 </script>
 
 <template>
-  <AppCard
-    title="Accounts"
-    collapse-id="settings.accounts"
-    :summary="rowsInWords(storedCount(accounts), 'account', 'accounts')"
-    :reveal="linked"
-  >
-    <template #subtitle>
-      Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}.
-    </template>
-    <AccountsEditor
-      :records="accounts"
-      :uses="accountsInUse"
-      :currency="settings.currency"
-      :saving="saving"
-      @save="saveAccounts"
-    />
+  <AppCard title="Accounts" collapse-id="settings.accounts" :summary="rowsInWords(storedCount(accounts), 'account', 'accounts')" :reveal="linked">
+    <template #subtitle> Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}. </template>
+    <AccountsEditor :records="accounts" :uses="accountsInUse" :currency="settings.currency" :saving="saving" @save="saveAccounts" />
   </AppCard>
 </template>

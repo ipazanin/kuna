@@ -110,8 +110,7 @@ function when(year: number): 'past' | 'current' | 'ahead' {
 function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number) {
   const { assets, grants, categories, transactions } = workbook
   const asWorkbook = assetBooks(assets, grants, workbook.companyFacts)
-  const revenueOf = (year: number) =>
-    effectiveTaxRate(transactions, categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
+  const revenueOf = (year: number) => effectiveTaxRate(transactions, categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
   const effect = doubledRatesEffect(assets, grants, asWorkbook, revenueOf)
   const doubled = doubledAsked.value && effect.changesAnything
   const shown = doubled ? effect.doubled : asWorkbook
@@ -168,11 +167,8 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
               label: 'Clawback',
               value: exposures.length === 0 ? '–' : formatWholeMoney(exposures.reduce((total, amount) => total + amount, 0)),
               to: null,
-              caption:
-                firstCondition === undefined
-                  ? 'Repaid if employment ended today'
-                  : `Repaid if employment ended today. Required until ${dayLabel(firstCondition)}`,
-              definition: "What the grantor could claim back if a condition broke today, from the clawback terms on the grants tab. It is a risk to plan for, never a figure in profit.",
+              caption: firstCondition === undefined ? 'Repaid if employment ended today' : `Repaid if employment ended today. Required until ${dayLabel(firstCondition)}`,
+              definition: 'What the grantor could claim back if a condition broke today, from the clawback terms on the grants tab. It is a risk to plan for, never a figure in profit.',
             },
           ]),
     ],
@@ -203,31 +199,45 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     chart,
     bookValueSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatWholeMoney(bookValue)} today`,
     yearsSummary: years.length === 0 ? 'No asset is depreciated' : `${years.length} ${years.length === 1 ? 'year' : 'years'}, ${years[0]!.year} to ${years[years.length - 1]!.year}`,
-    years: years.map(
-      (entry): DepreciationYearLine => ({
-        year: entry.year,
-        total: entry.total.amount,
-        when: when(entry.year),
-        charges: entry.byAsset.map((charge, index) => {
-          const months = charge.schedule.months.filter((month) => month.month.startsWith(`${entry.year}-`)).length
-          return {
-            key: `${charge.schedule.asset.id}-${index}`,
-            asset: charge.schedule.asset.name,
-            basis: `${months} ${months === 1 ? 'month' : 'months'} at ${percentText(charge.year.rate)}${charge.year.doubled ? ', doubled' : ''}`,
-            amount: charge.year.charge.amount,
-            deductible: charge.year.deductible.amount < charge.year.charge.amount ? charge.year.deductible.amount : null,
-          }
-        }),
+    years: years.map((entry): DepreciationYearLine => ({
+      year: entry.year,
+      total: entry.total.amount,
+      when: when(entry.year),
+      charges: entry.byAsset.map((charge, index) => {
+        const months = charge.schedule.months.filter((month) => month.month.startsWith(`${entry.year}-`)).length
+        return {
+          key: `${charge.schedule.asset.id}-${index}`,
+          asset: charge.schedule.asset.name,
+          basis: `${months} ${months === 1 ? 'month' : 'months'} at ${percentText(charge.year.rate)}${charge.year.doubled ? ', doubled' : ''}`,
+          amount: charge.year.charge.amount,
+          deductible: charge.year.deductible.amount < charge.year.charge.amount ? charge.year.deductible.amount : null,
+        }
       }),
-    ),
+    })),
     grants: grantLines,
     comparisons: grantResiduals(shown.grants, workbook.yearEndLines).flatMap((check): GrantComparisonLine[] => [
       ...(check.released === null
         ? []
-        : [{ key: `${check.year}-released`, label: `Released in ${check.year}`, accountant: check.released.accountant.amount, ours: check.released.ours.amount, residual: check.released.residual.amount }]),
+        : [
+            {
+              key: `${check.year}-released`,
+              label: `Released in ${check.year}`,
+              accountant: check.released.accountant.amount,
+              ours: check.released.ours.amount,
+              residual: check.released.residual.amount,
+            },
+          ]),
       ...(check.deferred === null
         ? []
-        : [{ key: `${check.year}-deferred`, label: `Deferred at the end of ${check.year}`, accountant: check.deferred.accountant.amount, ours: check.deferred.ours.amount, residual: check.deferred.residual.amount }]),
+        : [
+            {
+              key: `${check.year}-deferred`,
+              label: `Deferred at the end of ${check.year}`,
+              accountant: check.deferred.accountant.amount,
+              ours: check.deferred.ours.amount,
+              residual: check.deferred.residual.amount,
+            },
+          ]),
     ]),
     changes: effect.years.map((entry) => ({
       year: entry.year,
@@ -260,10 +270,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
       inUse: dayLabel(asset.inUse),
       cost: asset.costNet,
       group: GROUPS[asset.group],
-      rate:
-        schedule.treatment === 'small-inventory' || rateYear === undefined
-          ? 'Small inventory'
-          : `${percentText(rateYear.rate)}${rateYear.doubled ? ', doubled' : ''}`,
+      rate: schedule.treatment === 'small-inventory' || rateYear === undefined ? 'Small inventory' : `${percentText(rateYear.rate)}${rateYear.doubled ? ', doubled' : ''}`,
       rateLink: ruleLink(schedule.treatment === 'small-inventory' ? 'hr.cit.asset-threshold' : 'hr.cit.depreciation-rates'),
       charge: yearNow?.charge.amount ?? null,
       accumulated: accumulatedDepreciationOn(schedule, today).amount,
@@ -296,9 +303,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
 
   function receiptOf(grant: Grant) {
     const grantCategories = categoriesWithRole(categories, PACK_ROLES.grant)
-    return grantCategories.length === 0
-      ? null
-      : drillLocation(drillToTransactions({ period: { preset: 'custom', range: { from: grant.received, to: grant.received } }, categories: grantCategories }))
+    return grantCategories.length === 0 ? null : drillLocation(drillToTransactions({ period: { preset: 'custom', range: { from: grant.received, to: grant.received } }, categories: grantCategories }))
   }
 }
 
@@ -399,8 +404,8 @@ function employmentState(until: CivilDate | null): string | null {
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
                 {{ view.unmatchedPurchases.length }} {{ view.unmatchedPurchases.length === 1 ? 'purchase' : 'purchases' }} on a capital-purchase category
-                {{ view.unmatchedPurchases.length === 1 ? 'is' : 'are' }} on no asset row. Up to {{ view.threshold }} without VAT an item is small inventory,
-                written off when put in use. Above that it belongs on the assets tab.
+                {{ view.unmatchedPurchases.length === 1 ? 'is' : 'are' }} on no asset row. Up to {{ view.threshold }} without VAT an item is small inventory, written off when put in use. Above that it
+                belongs on the assets tab.
               </p>
               <ul class="flex flex-col" data-testid="unmatched-purchases">
                 <li v-for="purchase in view.unmatchedPurchases" :key="purchase.key">
@@ -417,10 +422,9 @@ function employmentState(until: CivilDate | null): string | null {
             <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
-                {{ view.mismatchedPayments.length }} {{ view.mismatchedPayments.length === 1 ? 'payment' : 'payments' }} found by a
-                <span class="identifier">ledger_reference</span> {{ view.mismatchedPayments.length === 1 ? 'is' : 'are' }} not what the assets that claim
-                {{ view.mismatchedPayments.length === 1 ? 'it' : 'them' }} cost, with or without VAT at the standard rate. Check each asset's reference and its
-                <span class="identifier">cost_net</span>.
+                {{ view.mismatchedPayments.length }} {{ view.mismatchedPayments.length === 1 ? 'payment' : 'payments' }} found by a <span class="identifier">ledger_reference</span>
+                {{ view.mismatchedPayments.length === 1 ? 'is' : 'are' }} not what the assets that claim {{ view.mismatchedPayments.length === 1 ? 'it' : 'them' }} cost, with or without VAT at the
+                standard rate. Check each asset's reference and its <span class="identifier">cost_net</span>.
               </p>
               <ul class="flex flex-col" data-testid="mismatched-payments">
                 <li v-for="payment in view.mismatchedPayments" :key="payment.key">

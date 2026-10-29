@@ -44,8 +44,6 @@ const step = computed(() => STEPS[start.step.value])
 /* Faint ruled lines, as on a ledger page, fading out further down, as the company's first run has. */
 .first-run {
   background-color: var(--surface-page);
-  background-image:
-    linear-gradient(to bottom, transparent 0, var(--surface-page) 42rem),
-    repeating-linear-gradient(to bottom, transparent 0 31px, var(--border-default) 31px 32px);
+  background-image: linear-gradient(to bottom, transparent 0, var(--surface-page) 42rem), repeating-linear-gradient(to bottom, transparent 0 31px, var(--border-default) 31px 32px);
 }
 </style>

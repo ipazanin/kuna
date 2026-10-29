@@ -21,7 +21,6 @@ const emit = defineEmits<{
 }>()
 
 const phone = usePhoneLayout()
-
 </script>
 
 <template>
@@ -32,7 +31,9 @@ const phone = usePhoneLayout()
           <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
           <div class="min-w-0">
             <p class="truncate text-sm font-medium text-highlighted">{{ row.item }}</p>
-            <p class="figure text-xs text-muted">{{ dayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></p>
+            <p class="figure text-xs text-muted">
+              {{ dayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template>
+            </p>
             <p v-if="row.description" class="truncate text-xs text-muted">{{ row.description }}</p>
           </div>
         </div>

@@ -35,12 +35,30 @@ export interface PlanActualLine {
 export function planAgainstActual(forecast: YearForecast): PlanActualLine[] {
   const synthetic = new Set(forecast.ownerPay?.lines.map((entry) => entry.category.slug) ?? [])
   const ledgerCategories = forecast.categories.filter((entry) => !synthetic.has(entry.category.slug))
-  const revenue = comparedLine('revenue', 'Revenue', false, forecast.revenue.months.map((entry) => pair(entry, entry.figure, entry.plan)))
+  const revenue = comparedLine(
+    'revenue',
+    'Revenue',
+    false,
+    forecast.revenue.months.map((entry) => pair(entry, entry.figure, entry.plan)),
+  )
   const categories = ledgerCategories.map((entry) => {
     const cost = entry.category.bucket !== 'income'
-    return comparedLine(entry.category.slug, displayName(entry.category.slug, entry.category.label), cost, entry.forecast.months.map((month) => pair(month, month.figure, month.plan, cost)))
+    return comparedLine(
+      entry.category.slug,
+      displayName(entry.category.slug, entry.category.label),
+      cost,
+      entry.forecast.months.map((month) => pair(month, month.figure, month.plan, cost)),
+    )
   })
-  const ownerPay = forecast.ownerPay === null ? [] : [ownerPayLine(forecast.ownerPay.lines, ledgerCategories.filter((entry) => isOwnerPayCost(entry.category)))]
+  const ownerPay =
+    forecast.ownerPay === null
+      ? []
+      : [
+          ownerPayLine(
+            forecast.ownerPay.lines,
+            ledgerCategories.filter((entry) => isOwnerPayCost(entry.category)),
+          ),
+        ]
   return [revenue, ...categories, ...ownerPay].filter((line): line is PlanActualLine => line !== null)
 }
 
@@ -67,8 +85,20 @@ function ownerPayLine(planned: readonly CategoryForecast[], booked: readonly Cat
     const label = monthLabel(entry.month)
     return {
       month: entry.month,
-      plan: deducted(summed(`Owner pay planned, ${label}`, plans.filter((plan): plan is TracedFigure => plan !== null), 'plan')),
-      actual: deducted(summed(`Owner pay booked, ${label}`, booked.map((line) => (line.forecast.months[index] as ForecastMonth).figure), 'ledger')),
+      plan: deducted(
+        summed(
+          `Owner pay planned, ${label}`,
+          plans.filter((plan): plan is TracedFigure => plan !== null),
+          'plan',
+        ),
+      ),
+      actual: deducted(
+        summed(
+          `Owner pay booked, ${label}`,
+          booked.map((line) => (line.forecast.months[index] as ForecastMonth).figure),
+          'ledger',
+        ),
+      ),
     }
   })
   return comparedLine('owner-pay', 'Owner pay', true, months)
@@ -81,7 +111,15 @@ function comparedLine(key: string, label: string, cost: boolean, pairs: readonly
   if (months.length === 0) {
     return null
   }
-  const plan = summed(`${label}, planned`, months.map((entry) => entry.plan), 'plan')
-  const actual = summed(`${label}, from the ledger`, months.map((entry) => entry.actual), 'ledger')
+  const plan = summed(
+    `${label}, planned`,
+    months.map((entry) => entry.plan),
+    'plan',
+  )
+  const actual = summed(
+    `${label}, from the ledger`,
+    months.map((entry) => entry.actual),
+    'ledger',
+  )
   return { key, label, cost, months, plan, actual, difference: summed(`${label}: actual less plan`, [actual, deducted(plan)], 'ledger') }
 }

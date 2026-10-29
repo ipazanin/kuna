@@ -96,11 +96,11 @@ function note(entry: PlanEntry): string {
             <p class="min-w-0 text-toned">
               <span class="sr-only">{{ ICONS[entry.kind].words }}: </span>
               <span v-if="entry.kind === 'unmatched'" class="break-words text-highlighted">{{ entry.attachment }}</span>
-              <span v-else class="identifier break-words text-highlighted"><template v-for="part in target(entry)" :key="part">{{ part }}<wbr /></template></span>
+              <span v-else class="identifier break-words text-highlighted"
+                ><template v-for="part in target(entry)" :key="part">{{ part }}<wbr /></template
+              ></span>
             </p>
-            <p class="text-xs break-words text-muted">
-              {{ ICONS[entry.kind].words }}. {{ entry.kind === 'unmatched' ? '' : `${entry.attachment}, from ` }}{{ mailWords(entry) }}
-            </p>
+            <p class="text-xs break-words text-muted">{{ ICONS[entry.kind].words }}. {{ entry.kind === 'unmatched' ? '' : `${entry.attachment}, from ` }}{{ mailWords(entry) }}</p>
             <p v-if="note(entry)" class="text-xs break-words text-toned">{{ note(entry) }}</p>
           </div>
         </li>

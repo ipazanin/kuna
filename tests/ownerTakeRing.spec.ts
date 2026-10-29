@@ -80,7 +80,12 @@ describe('ownerTakeRing', () => {
   })
 
   it('rings the rent as paid and sets the rent tax the owner pays beside it', () => {
-    const paid = withPackBuckets(ledger([{ date: '2026-09-12', amount: -1100, category: 'salary-net' }, { date: '2026-09-12', amount: -300, category: 'rent-owner' }]))
+    const paid = withPackBuckets(
+      ledger([
+        { date: '2026-09-12', amount: -1100, category: 'salary-net' },
+        { date: '2026-09-12', amount: -300, category: 'rent-owner' },
+      ]),
+    )
     const rentTake = ownerTake(paid, PACK_CATEGORIES, period, windowOf('2026-07-01', '2026-10-01'))
     const ring = ownerTakeRing(rentTake, period, ownerPaySeries(PAY, ['salary-net', 'rent-owner'], LOANS, true, TOKENS, name), name)
 

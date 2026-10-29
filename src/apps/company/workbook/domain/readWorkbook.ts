@@ -10,18 +10,7 @@ import type { CategoryRecord } from './categoriesReading'
 import { readCategories, withoutIds } from './categoriesReading'
 import { readClients } from './clientsReading'
 import type { ClientRecord } from './clientsReading'
-import {
-  ACCOUNT_RECORDS,
-  BILLING_RECORDS,
-  CATEGORY_RECORDS,
-  CLIENT_RECORDS,
-  DISMISSAL_RECORDS,
-  INVOICE_RECORDS,
-  LEDGER_RECORDS,
-  RULE_RECORDS,
-  SETTING_RECORDS,
-  SPLIT_PART_RECORDS,
-} from './coreKinds'
+import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, DISMISSAL_RECORDS, INVOICE_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from './coreKinds'
 import type { Dismissal } from './dismissals'
 import { readDismissals } from './dismissalsReading'
 import { readInvoices } from './invoicesReading'

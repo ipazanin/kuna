@@ -12,11 +12,7 @@ describe('billingTotals', () => {
     planRow('Monthly Fee', '2026-01-31', 5000),
     planRow('Workshop', '2026-01-20', 900, 'south'),
   ]
-  const invoices = [
-    invoiceOf('1-1-25', 5000, '2025-11-30'),
-    invoiceOf('1-1-26', 12500.5, '2026-01-21'),
-    invoiceOf('S-1', 1200, '2026-02-02', 'south'),
-  ]
+  const invoices = [invoiceOf('1-1-25', 5000, '2025-11-30'), invoiceOf('1-1-26', 12500.5, '2026-01-21'), invoiceOf('S-1', 1200, '2026-02-02', 'south')]
 
   it('sums every plan row and every invoice, and calls the difference not invoiced', () => {
     const all = billingTotals(plan, invoices)

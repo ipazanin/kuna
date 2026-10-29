@@ -169,10 +169,7 @@ describe('deferredOn and grantResiduals', () => {
     const other: Grant = { ...GRANT, slug: 'other-grant', received: civil('2025-09-01'), amount: euros(1000), parts: { fixed: euros(1000), variable: euros(0) } }
     const otherRelease = grantRelease(other, [])
 
-    const checks = grantResiduals(
-      [release, otherRelease],
-      [grantLine(2025, 'released-in-year', 6500), grantLine(2025, 'deferred-at-year-end', 4500), grantLine(2026, 'released-in-year', 1200)],
-    )
+    const checks = grantResiduals([release, otherRelease], [grantLine(2025, 'released-in-year', 6500), grantLine(2025, 'deferred-at-year-end', 4500), grantLine(2026, 'released-in-year', 1200)])
 
     // Ours for 2025: 5,400.00 plus the other grant's 1,000.00, so 6,400.00, and 4,600.00 deferred.
     expect(checks.map((check) => [check.year, check.released?.residual.amount, check.deferred?.residual.amount ?? null])).toEqual([

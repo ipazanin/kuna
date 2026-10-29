@@ -181,12 +181,7 @@ export interface OwnerAdvance {
 
 /** Costs the owner paid, oldest first, and on one day by amount, description and category. */
 export function ownerAdvanceOrder(earlier: OwnerAdvance, later: OwnerAdvance): number {
-  return (
-    earlier.date.localeCompare(later.date) ||
-    earlier.amount - later.amount ||
-    naturalOrder(earlier.description, later.description) ||
-    naturalOrder(earlier.category, later.category)
-  )
+  return earlier.date.localeCompare(later.date) || earlier.amount - later.amount || naturalOrder(earlier.description, later.description) || naturalOrder(earlier.category, later.category)
 }
 
 /** The buckets a cost the owner paid privately may count in. */

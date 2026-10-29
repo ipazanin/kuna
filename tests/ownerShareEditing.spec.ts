@@ -42,8 +42,14 @@ function grids(): Record<string, CellValue[][]> {
       ['revenue', 'income', 'income', '', ''],
       ['benefits', 'owner', 'owner-pay', 'owner-benefit', ''],
     ],
-    accounts: [['account', 'iban'], ['main', 'XX00FAKE0000000001']],
-    settings: [['key', 'value'], ['review_label', 'ivan']],
+    accounts: [
+      ['account', 'iban'],
+      ['main', 'XX00FAKE0000000001'],
+    ],
+    settings: [
+      ['key', 'value'],
+      ['review_label', 'ivan'],
+    ],
     rules: [['rule', 'order', 'enabled', 'counterparty_contains', 'category', 'confidence']],
     splits: withIds('split', [
       ['date', 'account', 'row_amount', 'row_balance', 'amount', 'category', 'note'],
@@ -231,13 +237,40 @@ describe('the owner share as a person types it and splits a payment by it', () =
 })
 
 describe('where Transactions offers the owner share', () => {
-  const base = { account: 'main', date: '2026-10-01', sequence: 1, statement: '', counterparty: 'Shop', counterpartyIban: '', description: '', amount: moneyFromAmount(-10), balance: moneyFromAmount(90), family: 'operating', reference: 'R-1', signals: {}, reviewReasons: [], ownerShare: null, id: 'ledger-row:shop' }
+  const base = {
+    account: 'main',
+    date: '2026-10-01',
+    sequence: 1,
+    statement: '',
+    counterparty: 'Shop',
+    counterpartyIban: '',
+    description: '',
+    amount: moneyFromAmount(-10),
+    balance: moneyFromAmount(90),
+    family: 'operating',
+    reference: 'R-1',
+    signals: {},
+    reviewReasons: [],
+    ownerShare: null,
+    id: 'ledger-row:shop',
+  }
 
   it('offers it on a settled operating row, a split part and an operating advance, and not on a waiting row or outside operating cost', () => {
     const settled = { ...base, category: 'equipment', bucket: 'operating', flaggedBy: 'human' }
     const waiting = { ...base, category: 'equipment', bucket: 'operating', flaggedBy: 'ai', id: 'ledger-row:waiting' }
     const owner = { ...base, category: 'salary', bucket: 'owner-pay', flaggedBy: 'human', id: 'ledger-row:salary' }
-    const split = splitLedger([settled] as never, [{ row: settled, parts: [{ amount: moneyFromAmount(-6), category: 'equipment', family: 'operating', bucket: 'operating', note: '', ownerShare: null, id: 'split-part:p' }, { amount: moneyFromAmount(-4), category: 'salary', family: 'owner', bucket: 'owner-pay', note: '', ownerShare: null, id: 'split-part:q' }]}] as never)
+    const split = splitLedger(
+      [settled] as never,
+      [
+        {
+          row: settled,
+          parts: [
+            { amount: moneyFromAmount(-6), category: 'equipment', family: 'operating', bucket: 'operating', note: '', ownerShare: null, id: 'split-part:p' },
+            { amount: moneyFromAmount(-4), category: 'salary', family: 'owner', bucket: 'owner-pay', note: '', ownerShare: null, id: 'split-part:q' },
+          ],
+        },
+      ] as never,
+    )
     const advances = [
       { date: '2026-10-01', amount: moneyFromAmount(5), description: 'Pens', category: 'equipment', family: 'operating', bucket: 'operating', ownerShare: null, id: 'owner-advance:pens' },
       { date: '2026-10-01', amount: moneyFromAmount(5), description: 'Tax', category: 'fees', family: 'taxes', bucket: 'taxes', ownerShare: null, id: 'owner-advance:tax' },
@@ -245,21 +278,22 @@ describe('where Transactions offers the owner share', () => {
 
     const offered = listedRows([settled, waiting, owner, ...split] as never, advances as never).map(ownerShareChangeOf)
 
-    expect(offered).toEqual([
-      { holder: 'ledger', id: 'ledger-row:shop' },
-      null,
-      null,
-      { holder: 'split-part', id: 'split-part:p' },
-      null,
-      { holder: 'owner-advance', id: 'owner-advance:pens' },
-      null,
-    ])
+    expect(offered).toEqual([{ holder: 'ledger', id: 'ledger-row:shop' }, null, null, { holder: 'split-part', id: 'split-part:p' }, null, { holder: 'owner-advance', id: 'owner-advance:pens' }, null])
   })
 
   it('offers it on the heading and on either part of a shared row, for the row as booked', () => {
     const benefit = { slug: 'benefits', family: 'owner', bucket: 'owner-pay', roles: ['owner-benefit'], ownerShare: null }
     const laptop = { ...base, category: 'equipment', bucket: 'operating', flaggedBy: 'human', ownerShare: share(30) }
-    const advance = { date: '2026-10-01', amount: moneyFromAmount(5), description: 'Pens', category: 'equipment', family: 'operating', bucket: 'operating', ownerShare: share(30), id: 'owner-advance:pens' }
+    const advance = {
+      date: '2026-10-01',
+      amount: moneyFromAmount(5),
+      description: 'Pens',
+      category: 'equipment',
+      family: 'operating',
+      bucket: 'operating',
+      ownerShare: share(30),
+      id: 'owner-advance:pens',
+    }
 
     const entries = withPartHeadings(listedRows(ownerPartsOf(laptop as never, benefit as never), ownerPartsOf(advance as never, benefit as never)))
     const offered = entries.map((entry) => (entry.kind === 'row' ? ownerShareChangeOf(entry.row) : entry.kind === 'shared' ? ownerShareChangeOf(entry.whole) : entry.kind))

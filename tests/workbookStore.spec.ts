@@ -107,7 +107,12 @@ function harness(initial: WorkbookChoice | null, side = driveSide()): Harness {
   let now = '2026-10-16T09:00:00.000Z'
   let nextLocal = 0
   const pauses: number[] = []
-  const documents = documentStorePorts(COMPANY_APP, COMPANY_DOCUMENT, async () => side.access, () => now)
+  const documents = documentStorePorts(
+    COMPANY_APP,
+    COMPANY_DOCUMENT,
+    async () => side.access,
+    () => now,
+  )
   return {
     chosen: () => remembered,
     side,
@@ -326,7 +331,10 @@ describe('workbook store with a Drive file', () => {
 
     expect(chosen()).toEqual({ source: 'drive', id: copy.id, name: 'kuna-company copy.json' })
     expect(store.state.workbook?.transactions).toHaveLength(3)
-    expect(side.signIns).toEqual([{ resume: 'find', app: 'company' }, { resume: 'pick', app: 'company' }])
+    expect(side.signIns).toEqual([
+      { resume: 'find', app: 'company' },
+      { resume: 'pick', app: 'company' },
+    ])
   })
 
   it('refuses a backup, another app’s file or a JSON file that is no Kuna file picked, and keeps the workbook on screen', async () => {

@@ -23,14 +23,10 @@ export interface CounterpartyIdentity {
  * purchase settled against one of `cardSettlementIbans` carries the bank as its payee and the
  * merchant after the mark, so there the merchant's name decides.
  */
-export function counterpartyIdentity(
-  transaction: Pick<Transaction, 'counterparty' | 'counterpartyIban'>,
-  cardSettlementIbans: ReadonlySet<string> = NO_CARD_SETTLEMENT,
-): CounterpartyIdentity {
+export function counterpartyIdentity(transaction: Pick<Transaction, 'counterparty' | 'counterpartyIban'>, cardSettlementIbans: ReadonlySet<string> = NO_CARD_SETTLEMENT): CounterpartyIdentity {
   const markAt = transaction.counterparty.indexOf(DESCRIPTION_MARK)
   const cardPurchase = cardSettlementIbans.has(normaliseIban(transaction.counterpartyIban))
-  const nameText =
-    markAt === -1 ? transaction.counterparty : cardPurchase ? transaction.counterparty.slice(markAt + DESCRIPTION_MARK.length) : transaction.counterparty.slice(0, markAt)
+  const nameText = markAt === -1 ? transaction.counterparty : cardPurchase ? transaction.counterparty.slice(markAt + DESCRIPTION_MARK.length) : transaction.counterparty.slice(0, markAt)
   const writtenName = nameText.trim().replace(/\s+/g, ' ')
   const foldedName = fold(writtenName)
   const iban = cardPurchase ? '' : transaction.counterpartyIban
@@ -41,9 +37,7 @@ export function counterpartyIdentity(
  * The label of every counterparty key the rows carry: the alphabetically first folded spelling,
  * so a label stays put as new rows arrive.
  */
-export function counterpartyLabels(
-  transactions: Iterable<Pick<Transaction, 'counterparty' | 'counterpartyIban'>>,
-): ReadonlyMap<string, string> {
+export function counterpartyLabels(transactions: Iterable<Pick<Transaction, 'counterparty' | 'counterpartyIban'>>): ReadonlyMap<string, string> {
   const labels = new Map<string, string>()
   for (const transaction of transactions) {
     const { key, foldedName } = counterpartyIdentity(transaction)

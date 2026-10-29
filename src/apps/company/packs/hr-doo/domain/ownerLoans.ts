@@ -136,10 +136,7 @@ export function loanMonths(transactions: readonly Transaction[], categories: rea
   return months.map((month) => {
     const lentIn = sumOf(lent.filter((entry) => monthOf(entry.lentOn) === month))
     const repaidIn = sumOf(repayments.filter((repayment) => monthOf(repayment.payment.date) === month))
-    const balance = subtractMoney(
-      sumOf(lent.filter((entry) => monthOf(entry.lentOn) <= month)),
-      sumOf(repayments.filter((repayment) => monthOf(repayment.payment.date) <= month)),
-    )
+    const balance = subtractMoney(sumOf(lent.filter((entry) => monthOf(entry.lentOn) <= month)), sumOf(repayments.filter((repayment) => monthOf(repayment.payment.date) <= month)))
     return {
       month,
       complete: isCompleteMonth(window, month),
@@ -156,17 +153,17 @@ export function loanMonths(transactions: readonly Transaction[], categories: rea
 /** Every loan-out row, oldest first. */
 function lentOf(transactions: readonly Transaction[], categories: readonly Category[]): Lent[] {
   const loanOut = categoriesWithRole(categories, PACK_ROLES.ownerLoanOut)
-  return oldestFirst(transactions.filter((transaction) => loanOut.includes(transaction.category))).map(
-    (row): Lent => ({ lentOn: row.date, amount: row.amount < 0 ? negateMoney(row.amount) : ZERO, row }),
-  )
+  return oldestFirst(transactions.filter((transaction) => loanOut.includes(transaction.category))).map((row): Lent => ({
+    lentOn: row.date,
+    amount: row.amount < 0 ? negateMoney(row.amount) : ZERO,
+    row,
+  }))
 }
 
 /** Every credit on a loan-repaid category and every payment from the owner on a reimbursement category, net of same-day returns, oldest first. */
 function repaymentsOf(transactions: readonly Transaction[], categories: readonly Category[]): Repayment[] {
   const loanRepaid = categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)
-  const loanRepayments = transactions
-    .filter((transaction) => loanRepaid.includes(transaction.category) && transaction.amount > 0)
-    .map((payment): Repayment => ({ payment, amount: payment.amount }))
+  const loanRepayments = transactions.filter((transaction) => loanRepaid.includes(transaction.category) && transaction.amount > 0).map((payment): Repayment => ({ payment, amount: payment.amount }))
   const repayments = [...loanRepayments, ...netReimbursements(transactions, categories).fromOwner]
   return repayments.sort((earlier, later) => earlier.payment.date.localeCompare(later.payment.date) || earlier.payment.sequence - later.payment.sequence)
 }

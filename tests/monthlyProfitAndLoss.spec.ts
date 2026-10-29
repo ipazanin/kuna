@@ -19,9 +19,7 @@ describe('monthlyProfitAndLoss', () => {
   const series = monthlyProfitAndLoss(rows, window)
 
   it('lists every month from the first to the newest, a dry month as zero', () => {
-    expect(series.map((month) => month.month)).toEqual([
-      '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05',
-    ])
+    expect(series.map((month) => month.month)).toEqual(['2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05'])
     expect(series[6].lines.net.amount).toBe(0)
   })
 
@@ -36,9 +34,7 @@ describe('monthlyProfitAndLoss', () => {
       net: { amount: euros(1800) },
       ownerEarns: { amount: euros(3000) },
     })
-    expect(series.map((month) => month.cumulativeNet)).toEqual(
-      [1000, 2800, 4900, 7300, 10000, 13000, 13000, 12400, 12350].map(euros),
-    )
+    expect(series.map((month) => month.cumulativeNet)).toEqual([1000, 2800, 4900, 7300, 10000, 13000, 13000, 12400, 12350].map(euros))
   })
 
   it('averages three months only when all three are complete', () => {

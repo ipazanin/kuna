@@ -31,9 +31,7 @@ defineProps<{
         </p>
       </div>
       <ul class="flex flex-col gap-1 text-sm text-toned">
-        <li v-if="figures.last !== null">
-          Last on {{ dayLabel(figures.last.date) }}: {{ MOVEMENT_KIND_NAMES[figures.last.kind].toLowerCase() }} {{ formatMoney(figures.last.amount) }}
-        </li>
+        <li v-if="figures.last !== null">Last on {{ dayLabel(figures.last.date) }}: {{ MOVEMENT_KIND_NAMES[figures.last.kind].toLowerCase() }} {{ formatMoney(figures.last.amount) }}</li>
         <li v-else>No movements since it started on {{ dayLabel(book.loan.start) }}</li>
         <li class="text-muted">No interest and no fixed plan</li>
       </ul>

@@ -23,7 +23,9 @@ export function recordsChangeInWords(receipt: WriteReceipt, undid: WriteReceipt 
     group.labels.push(label)
     groups.set(key, group)
   }
-  const parts = [...groups.values()].map(({ verb, noun, labels }) => `${undid === null ? verb.done : verb.undone} ${labels.length === 1 ? `the ${noun.one} "${labels[0]}"` : counted(noun, labels.length)}`)
+  const parts = [...groups.values()].map(
+    ({ verb, noun, labels }) => `${undid === null ? verb.done : verb.undone} ${labels.length === 1 ? `the ${noun.one} "${labels[0]}"` : counted(noun, labels.length)}`,
+  )
   const sentence = parts.length <= 1 ? (parts[0] ?? 'changed nothing') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
   const said = undid === null ? sentence : `undid ${sentence}`
   return `${said.charAt(0).toUpperCase()}${said.slice(1)}`

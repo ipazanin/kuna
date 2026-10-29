@@ -26,9 +26,7 @@ describe('findLocalUnit', () => {
     expect(findLocalUnit('Otok').problem).toBe('"Otok" could be Općina Otok (Splitsko-dalmatinska) or Grad Otok (Vukovarsko-srijemska), so choose one')
     expect(labelOf('Grad Otok')).toBe('Grad Otok')
     expect(labelOf('Općina Sveta Nedelja')).toBe('Općina Sveta Nedelja')
-    expect(findLocalUnit('Privlaka').problem).toBe(
-      '"Privlaka" could be Općina Privlaka (Vukovarsko-srijemska) or Općina Privlaka (Zadarska), so choose one',
-    )
+    expect(findLocalUnit('Privlaka').problem).toBe('"Privlaka" could be Općina Privlaka (Vukovarsko-srijemska) or Općina Privlaka (Zadarska), so choose one')
     expect(labelOf('Privlaka (Zadarska)')).toBe('Općina Privlaka (Zadarska)')
     expect(labelOf('opcina privlaka (zadarska zupanija)')).toBe('Općina Privlaka (Zadarska)')
   })

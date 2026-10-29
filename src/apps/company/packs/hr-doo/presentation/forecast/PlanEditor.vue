@@ -129,11 +129,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
 </script>
 
 <template>
-  <AppCard
-    :title="`Plan for ${year}`"
-    subtitle="Rows of the plan tab. A change is written at once, with Undo in the toast."
-    data-testid="plan-editor"
-  >
+  <AppCard :title="`Plan for ${year}`" subtitle="Rows of the plan tab. A change is written at once, with Undo in the toast." data-testid="plan-editor">
     <div class="flex flex-col gap-5 px-4 pt-3 pb-4 sm:px-5">
       <p class="flex items-start gap-2 text-sm text-toned" data-testid="plan-revenue">
         <UIcon name="i-lucide-receipt-text" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
@@ -199,12 +195,28 @@ function editPurchase(purchase: PurchaseLine | null): void {
       <section class="flex flex-col gap-1" data-testid="plan-purchases">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h3 class="text-sm font-medium text-highlighted">Purchases</h3>
-          <UButton label="Plan a purchase" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="store.state.writing" data-testid="plan-add-purchase" @click="editPurchase(null)" />
+          <UButton
+            label="Plan a purchase"
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="store.state.writing"
+            data-testid="plan-add-purchase"
+            @click="editPurchase(null)"
+          />
         </div>
         <p v-if="purchases.length === 0" class="py-2 text-sm text-muted">None planned.</p>
         <ul v-else class="flex flex-col">
           <li v-for="purchase in purchases" :key="purchase.id">
-            <button type="button" class="plan-row" :aria-label="`${purchase.note || 'Purchase'}, ${dayLabel(purchase.date)}: edit`" :disabled="store.state.writing" data-testid="plan-purchase" @click="editPurchase(purchase)">
+            <button
+              type="button"
+              class="plan-row"
+              :aria-label="`${purchase.note || 'Purchase'}, ${dayLabel(purchase.date)}: edit`"
+              :disabled="store.state.writing"
+              data-testid="plan-purchase"
+              @click="editPurchase(purchase)"
+            >
               <span class="min-w-0 text-start">
                 <span class="block text-sm text-toned">{{ purchase.note || 'Purchase' }}</span>
                 <span class="block text-xs text-muted">{{ dayLabel(purchase.date) }}, {{ GROUP_WORDS[purchase.group].toLowerCase() }}</span>

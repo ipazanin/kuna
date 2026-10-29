@@ -80,15 +80,14 @@ function updateSenders(text: string): void {
         >
           <UInput :model-value="sendersText" inputmode="email" autocapitalize="off" :spellcheck="false" placeholder="Not read" class="w-full" @update:model-value="updateSenders(String($event))" />
         </UFormField>
-        <UFormField
-          label="Subject words"
-          :error="errors.statementsMailSubject ?? false"
-          help="The words before the statement number, such as Izvadak."
-          data-testid="statements-mail-subject"
-        >
+        <UFormField label="Subject words" :error="errors.statementsMailSubject ?? false" help="The words before the statement number, such as Izvadak." data-testid="statements-mail-subject">
           <UInput :model-value="settings.statementsMailSubject" class="w-full" @update:model-value="update('statementsMailSubject', String($event))" />
         </UFormField>
-        <UFormField label="Mail since" help="The earliest mail a sync reads. Once a folder holds files, a sync starts a week before the newest one. Blank is the start of last year, so a sync early in January still finds mail from December." data-testid="mail-since">
+        <UFormField
+          label="Mail since"
+          help="The earliest mail a sync reads. Once a folder holds files, a sync starts a week before the newest one. Blank is the start of last year, so a sync early in January still finds mail from December."
+          data-testid="mail-since"
+        >
           <UInput :model-value="settings.mailSince ?? ''" type="date" class="w-full" @update:model-value="update('mailSince', parseCivilDate(String($event ?? '')))" />
         </UFormField>
       </div>

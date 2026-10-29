@@ -2,17 +2,7 @@
 
 import { ACTS } from '../acts'
 import { basisPoints, cents, count, day, flag, table, text } from '../schema'
-import type {
-  CountTerm,
-  FlagTerm,
-  LegalSource,
-  MoneyTerm,
-  OpenItem,
-  RateTerm,
-  RuleIn,
-  TableTerm,
-  TextTerm,
-} from '../schema'
+import type { CountTerm, FlagTerm, LegalSource, MoneyTerm, OpenItem, RateTerm, RuleIn, TableTerm, TextTerm } from '../schema'
 import { LOCAL_RATE_TABLES } from './generatedLocalRates'
 
 /** One city or municipality: its official name, its rates, its type as the statutory ranges name it and its county. */
@@ -171,11 +161,7 @@ function zdopSource(article: string, issues: readonly string[] = ACTS.ZDop.nn, q
   return { act: 'ZDop', nn: issues, article, url: ZDOP_URL, loadedOn: LOADED_ON, ...(quote === undefined ? {} : { quote }) }
 }
 
-const directorFloorSource = zdopSource(
-  '21(2)',
-  ['115/16', '106/18'],
-  'ne može biti niža od umnoška iznosa prosječne plaće i koeficijenta 0,65',
-)
+const directorFloorSource = zdopSource('21(2)', ['115/16', '106/18'], 'ne može biti niža od umnoška iznosa prosječne plaće i koeficijenta 0,65')
 
 const annualMaximumBaseSource = zdopSource(
   '7(1)(19)',
@@ -354,23 +340,17 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         validFrom: day('2025-01-01'),
         validTo: day('2025-12-31'),
         value: { coefficient: basisPoints(6500), monthlyFloor: cents(116_870) },
-        sources: [
-          directorFloorSource,
-          naredbaSource(2025, '19(1)'),
-        ],
+        sources: [directorFloorSource, naredbaSource(2025, '19(1)')],
         confidence: 'confirmed-consolidated',
-        note: 'A part month is prorated by working days. The accountant\'s figures apply it and match.',
+        note: "A part month is prorated by working days. The accountant's figures apply it and match.",
       },
       {
         validFrom: day('2026-01-01'),
         validTo: day('2026-12-31'),
         value: { coefficient: basisPoints(6500), monthlyFloor: cents(129_545) },
-        sources: [
-          directorFloorSource,
-          naredbaSource(2026, '19(1)'),
-        ],
+        sources: [directorFloorSource, naredbaSource(2026, '19(1)')],
         confidence: 'confirmed-nn',
-        note: 'A part month is prorated by working days. The accountant\'s figures apply it and match.',
+        note: "A part month is prorated by working days. The accountant's figures apply it and match.",
       },
       {
         validFrom: day('2027-01-01'),
@@ -461,7 +441,7 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         },
         sources: contributionRateSources,
         confidence: 'confirmed-consolidated',
-        note: 'Pension is withheld from the gross and health is paid by the employer on top. A director insured as a board member only pays the same rates under Art. 91. The accountant\'s figures apply these rates and match.',
+        note: "Pension is withheld from the gross and health is paid by the employer on top. A director insured as a board member only pays the same rates under Art. 91. The accountant's figures apply these rates and match.",
       },
       {
         validFrom: day('2027-01-01'),
@@ -596,10 +576,7 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
           joppdCodeDirectorAtMinimumBase: text('0005'),
           joppdCodeDirectorUnpaid: text('0006'),
         },
-        sources: [
-          zdopSource('24(1), 24(2)'),
-          { act: 'PravPDoh', nn: ['16/25'], article: 'JOPPD annex', url: NN_16_25_URL, loadedOn: LOADED_ON },
-        ],
+        sources: [zdopSource('24(1), 24(2)'), { act: 'PravPDoh', nn: ['16/25'], article: 'JOPPD annex', url: NN_16_25_URL, loadedOn: LOADED_ON }],
         confidence: 'confirmed-consolidated',
         note: 'The JOPPD codes were read in the NN 16/25 issue. 2027 is assumed, with no enacted change found through NN 109/26.',
       },
@@ -696,7 +673,7 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         },
         sources: [localRatesRangeSource, { act: 'ZPDoh', nn: ['152/24'], article: '4', ofAmendingAct: true, url: NN_152_24_URL, loadedOn: LOADED_ON }],
         confidence: 'confirmed-nn',
-        note: 'Each local unit adopts its own rates by the end of November, and they apply from 1 January of the next year. The unit of the taxpayer\'s residence decides. A unit that adopts nothing uses 20% and 30%. 2027 is assumed, with no enacted change found through NN 109/26.',
+        note: "Each local unit adopts its own rates by the end of November, and they apply from 1 January of the next year. The unit of the taxpayer's residence decides. A unit that adopts nothing uses 20% and 30%. 2027 is assumed, with no enacted change found through NN 109/26.",
       },
     ],
   },
@@ -757,7 +734,7 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         },
         sources: [zpdohSource('24')],
         confidence: 'confirmed-nn',
-        note: 'The base is the salary less the pension contributions paid from it and less the monthly allowance. The lower rate applies up to the monthly threshold. Youth relief is not applied in the month, only in the annual settlement. The text was read as current law in the annex of bill PZ 339 and the accountant\'s figures apply it and match. 2027 is assumed, with no enacted change found through NN 109/26.',
+        note: "The base is the salary less the pension contributions paid from it and less the monthly allowance. The lower rate applies up to the monthly threshold. Youth relief is not applied in the month, only in the annual settlement. The text was read as current law in the annex of bill PZ 339 and the accountant's figures apply it and match. 2027 is assumed, with no enacted change found through NN 109/26.",
       },
     ],
   },
@@ -984,12 +961,9 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
           personalAllowanceApplies: flag(false),
           contributionsApply: flag(false),
         },
-        sources: [
-          zpdohSource('69'),
-          { act: 'ZPDoh', nn: ['115/16', '114/23'], article: '70(19)', url: ZPDOH_URL, loadedOn: LOADED_ON, quote: 'plaća se po odbitku, po stopi od 12%' },
-        ],
+        sources: [zpdohSource('69'), { act: 'ZPDoh', nn: ['115/16', '114/23'], article: '70(19)', url: ZPDOH_URL, loadedOn: LOADED_ON, quote: 'plaća se po odbitku, po stopi od 12%' }],
         confidence: 'confirmed-consolidated',
-        note: 'A final tax withheld by the company at payout, with no allowance and no annual return. The accountant\'s figures apply the 12% and match to the cent. No contributions rests on their absence from the Zakon o doprinosima, with no positive source. Bill PZ 339 leaves paragraph 19 alone, so 2027 is assumed. Recheck the paragraph numbers of Art. 70 once the bill is passed.',
+        note: "A final tax withheld by the company at payout, with no allowance and no annual return. The accountant's figures apply the 12% and match to the cent. No contributions rests on their absence from the Zakon o doprinosima, with no positive source. Bill PZ 339 leaves paragraph 19 alone, so 2027 is assumed. Recheck the paragraph numbers of Art. 70 once the bill is passed.",
       },
     ],
   },
@@ -1027,10 +1001,7 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         validFrom: day('2025-01-01'),
         validTo: day('2025-12-31'),
         value: { monthlyGrossAmount: cents(97_000), appliesToSoleWorkerWhoIsDirector: flag(false) },
-        sources: [
-          ...minimumWageActSources,
-          { act: 'UredbaMP2025', nn: ['124/24'], article: '1', url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2024_10_124_2072.html', loadedOn: LOADED_ON },
-        ],
+        sources: [...minimumWageActSources, { act: 'UredbaMP2025', nn: ['124/24'], article: '1', url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2024_10_124_2072.html', loadedOn: LOADED_ON }],
         confidence: 'confirmed-nn',
         note: 'The minimum wage does not apply to a worker who is the only worker of the employer and also its board member or director. Art. 4(2) was added by NN 120/21 and was read in the consolidated text.',
       },
@@ -1038,10 +1009,7 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         validFrom: day('2026-01-01'),
         validTo: day('2026-12-31'),
         value: { monthlyGrossAmount: cents(105_000), appliesToSoleWorkerWhoIsDirector: flag(false) },
-        sources: [
-          ...minimumWageActSources,
-          { act: 'UredbaMP2026', nn: ['132/25'], article: '1', url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2025_10_132_1931.html', loadedOn: LOADED_ON },
-        ],
+        sources: [...minimumWageActSources, { act: 'UredbaMP2026', nn: ['132/25'], article: '1', url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2025_10_132_1931.html', loadedOn: LOADED_ON }],
         confidence: 'confirmed-nn',
         note: 'The minimum wage does not apply to a worker who is the only worker of the employer and also its board member or director. Art. 4(2) was added by NN 120/21 and was read in the consolidated text.',
       },

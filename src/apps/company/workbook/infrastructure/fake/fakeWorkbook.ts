@@ -225,8 +225,24 @@ interface Booking {
 const FLAT_PAYROLL = -(1100 + 250.4 + 209.6 + 94.2)
 
 const MONTHS = [
-  '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01',
-  '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10',
+  '2025-05',
+  '2025-06',
+  '2025-07',
+  '2025-08',
+  '2025-09',
+  '2025-10',
+  '2025-11',
+  '2025-12',
+  '2026-01',
+  '2026-02',
+  '2026-03',
+  '2026-04',
+  '2026-05',
+  '2026-06',
+  '2026-07',
+  '2026-08',
+  '2026-09',
+  '2026-10',
 ] as const
 
 /** The month with no client payment and a large purchase, so its net is negative. */
@@ -395,7 +411,11 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
       ? { 'hr-doo.employee': staff.employees }
       : source === 'drive'
         ? {}
-        : { 'hr-doo.employee': [{ employee: 'alex', name: 'Alex Čolić', iban: PAYEES.owner.iban, residence_city: 'Zagreb', pension_pillar_2: true, birth_year: 1990, from: '2025-06-01', director: true }] }),
+        : {
+            'hr-doo.employee': [
+              { employee: 'alex', name: 'Alex Čolić', iban: PAYEES.owner.iban, residence_city: 'Zagreb', pension_pillar_2: true, birth_year: 1990, from: '2025-06-01', director: true },
+            ],
+          }),
   }
 }
 
@@ -539,10 +559,42 @@ interface FakeSplit {
  * each takes a fixed amount and the first the rest.
  */
 const SPLIT_ROWS: readonly FakeSplit[] = [
-  { date: '2026-07-12', counterparty: PAYEES.owner.name, description: 'Salary for 2026-06', parts: [['salary-net', null, 'Net salary'], ['salary-bonus', 200, 'Results bonus paid with the salary']] },
-  { date: '2026-03-16', counterparty: PAYEES.contractor.name, description: 'Design work', parts: [['external-contractors', null, 'Design work'], ['consulting', 400, 'Workshop facilitation']] },
-  { date: '2026-05-10', counterparty: 'BISTRO HARBOUR · business lunch', description: 'Card purchase', parts: [['representation', null, 'Client lunch'], ['owner-loan-out', 25, 'The owner’s own lunch']] },
-  { date: '2025-10-02', counterparty: 'PAPER & INK STORE', description: 'Card purchase', parts: [['office-supplies', null, 'Paper and ink for the office', 20], ['owner-loan-out', 13.45, 'Private share of the paper and ink order']] },
+  {
+    date: '2026-07-12',
+    counterparty: PAYEES.owner.name,
+    description: 'Salary for 2026-06',
+    parts: [
+      ['salary-net', null, 'Net salary'],
+      ['salary-bonus', 200, 'Results bonus paid with the salary'],
+    ],
+  },
+  {
+    date: '2026-03-16',
+    counterparty: PAYEES.contractor.name,
+    description: 'Design work',
+    parts: [
+      ['external-contractors', null, 'Design work'],
+      ['consulting', 400, 'Workshop facilitation'],
+    ],
+  },
+  {
+    date: '2026-05-10',
+    counterparty: 'BISTRO HARBOUR · business lunch',
+    description: 'Card purchase',
+    parts: [
+      ['representation', null, 'Client lunch'],
+      ['owner-loan-out', 25, 'The owner’s own lunch'],
+    ],
+  },
+  {
+    date: '2025-10-02',
+    counterparty: 'PAPER & INK STORE',
+    description: 'Card purchase',
+    parts: [
+      ['office-supplies', null, 'Paper and ink for the office', 20],
+      ['owner-loan-out', 13.45, 'Private share of the paper and ink order'],
+    ],
+  },
 ]
 
 function splitRecords(ledger: readonly FakeFields[]): FakeFields[] {
@@ -743,7 +795,9 @@ function fakeBooks(staff: FakeStaff | null): { readonly bookings: Booking[]; rea
   )
   if (staff !== null && staffDifference !== 0) {
     // The main account then ends where the flat salary leaves it, so the statements folder's sample carries it on.
-    all.push(booking('2026-10-05', PAYEES.owner.name, PAYEES.owner.iban, staffDifference > 0 ? 'Share capital paid in' : 'Share capital paid back', staffDifference, 'share-capital', undefined, 'human'))
+    all.push(
+      booking('2026-10-05', PAYEES.owner.name, PAYEES.owner.iban, staffDifference > 0 ? 'Share capital paid in' : 'Share capital paid back', staffDifference, 'share-capital', undefined, 'human'),
+    )
   }
   invoice('lumen', 'Workshop', 1500, '2026-05-12')
   invoice('lumen', 'Data audit', 2400, '2026-06-15', '')
@@ -751,16 +805,7 @@ function fakeBooks(staff: FakeStaff | null): { readonly bookings: Booking[]; rea
   return { bookings: all, invoices }
 }
 
-function booking(
-  date: string,
-  counterparty: string,
-  iban: string,
-  description: string,
-  amount: number,
-  category: string,
-  account?: AccountSlug,
-  flaggedBy = 'rule',
-): Booking {
+function booking(date: string, counterparty: string, iban: string, description: string, amount: number, category: string, account?: AccountSlug, flaggedBy = 'rule'): Booking {
   return { date, counterparty, iban, description, amount, category, flaggedBy, ...(account === undefined ? {} : { account }) }
 }
 

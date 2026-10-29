@@ -116,7 +116,13 @@ export function readProfile(name: string, value: string): ImportProfile | string
 
 /** The settings value a profile is saved as, every column it names in a fixed order. */
 export function profileValue(profile: ImportProfile): string {
-  const amount: [string, string][] = 'signed' in profile.amount ? [['amount', profile.amount.signed]] : [['debit', profile.amount.debit], ['credit', profile.amount.credit]]
+  const amount: [string, string][] =
+    'signed' in profile.amount
+      ? [['amount', profile.amount.signed]]
+      : [
+          ['debit', profile.amount.debit],
+          ['credit', profile.amount.credit],
+        ]
   const pairs: [string, string][] = [
     ['account', profile.account],
     ['date', profile.date],

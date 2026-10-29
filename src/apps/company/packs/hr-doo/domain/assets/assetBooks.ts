@@ -63,7 +63,15 @@ export function assetBooks(assets: readonly Asset[], grants: readonly Grant[], s
 export function depreciationByYear(schedules: readonly DepreciationSchedule[]): readonly DepreciationYearTotal[] {
   return yearsOf(schedules.flatMap((schedule) => schedule.years.map((year) => year.year))).map((year) => {
     const byAsset = schedules.flatMap((schedule) => schedule.years.filter((entry) => entry.year === year).map((entry) => ({ schedule, year: entry })))
-    return { year, total: summed(`Depreciation in ${year}`, byAsset.map((charge) => charge.year.charge), 'assets'), byAsset }
+    return {
+      year,
+      total: summed(
+        `Depreciation in ${year}`,
+        byAsset.map((charge) => charge.year.charge),
+        'assets',
+      ),
+      byAsset,
+    }
   })
 }
 
@@ -104,30 +112,17 @@ export function doubledRatesEffect(
       depreciationIn(doubledDepreciation, year, 'at doubled rates'),
       depreciationIn(baseDepreciation, year, 'at the rates the workbook asks for'),
     )
-    const grantReleased = change(
-      `More grant released in ${year}`,
-      releasedIn(doubled.grants, year, 'at doubled rates'),
-      releasedIn(asWorkbook.grants, year, 'at the rates the workbook asks for'),
-    )
-    const profitBeforeTax = tracedFigure(
-      `Change in profit before tax for ${year}`,
-      subtractMoney(grantReleased.amount, depreciation.amount),
-      'assets',
-      rulesOf([grantReleased, depreciation]),
-      [grantReleased, deducted(depreciation)],
-    )
+    const grantReleased = change(`More grant released in ${year}`, releasedIn(doubled.grants, year, 'at doubled rates'), releasedIn(asWorkbook.grants, year, 'at the rates the workbook asks for'))
+    const profitBeforeTax = tracedFigure(`Change in profit before tax for ${year}`, subtractMoney(grantReleased.amount, depreciation.amount), 'assets', rulesOf([grantReleased, depreciation]), [
+      grantReleased,
+      deducted(depreciation),
+    ])
     return { year, depreciation, grantReleased, profitBeforeTax, ...profitTaxChange(year, profitBeforeTax, grantReleased, rateTestRevenue(year), rules) }
   })
   return { doubled, years, changesAnything: years.some((entry) => entry.depreciation.amount !== 0) }
 }
 
-function profitTaxChange(
-  year: number,
-  profitBeforeTax: TracedFigure,
-  grantReleased: TracedFigure,
-  revenue: Money,
-  rules: RuleSource,
-): { readonly rate: Rate; readonly profitTax: TracedFigure } {
+function profitTaxChange(year: number, profitBeforeTax: TracedFigure, grantReleased: TracedFigure, revenue: Money, rules: RuleSource): { readonly rate: Rate; readonly profitTax: TracedFigure } {
   const lookup = rules('hr.cit.rate', civilDate(year, 1, 1))
   const high = revenue >= lookup.value.threshold.cents
   const rate = high ? lookup.value.highRate.basisPoints : lookup.value.lowRate.basisPoints

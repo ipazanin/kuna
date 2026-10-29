@@ -26,11 +26,7 @@ const CODE = 'Corporate tax, revenue code 1651'
 
 /** 1,400.00 of tax for a first period of seven months: the 2026 advance is 200.00. */
 function closed2025(): PriorReturn {
-  const filed = closedYearReturn(
-    [yearEndLine(2025, 'tax', 'liability', 1400), yearEndLine(2025, 'tax', 'months-of-operation', { kind: 'count', count: 7 })],
-    2025,
-    FACTS.companyRegistered,
-  )
+  const filed = closedYearReturn([yearEndLine(2025, 'tax', 'liability', 1400), yearEndLine(2025, 'tax', 'months-of-operation', { kind: 'count', count: 7 })], 2025, FACTS.companyRegistered)
   if (filed === null) {
     throw new Error('The 2025 return was not read.')
   }

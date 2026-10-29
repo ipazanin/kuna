@@ -53,13 +53,7 @@ function save(made: readonly { readonly saved: number | null; readonly record: R
 </script>
 
 <template>
-  <AppCard
-    :title="title"
-    :collapse-id="collapseId"
-    :summary="`${count} ${count === 1 ? rowNoun : `${rowNoun}s`}`"
-    :start-collapsed="startCollapsed"
-    :reveal="reveal"
-  >
+  <AppCard :title="title" :collapse-id="collapseId" :summary="`${count} ${count === 1 ? rowNoun : `${rowNoun}s`}`" :start-collapsed="startCollapsed" :reveal="reveal">
     <template #subtitle>
       {{ description }}
     </template>

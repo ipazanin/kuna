@@ -24,21 +24,9 @@ export const RULESET_CHECKED_ON = day('2026-10-18')
 /** The first day the ruleset models. A version never starts earlier, even when its wording is older. */
 export const RULESET_FIRST_DAY = day('2025-01-01')
 
-export const RULES: readonly RuleIn<RuleValues>[] = [
-  ...profitTaxRules,
-  ...ownerPayRules,
-  ...accountingRules,
-  ...vatRules,
-  ...companyLawRules,
-]
+export const RULES: readonly RuleIn<RuleValues>[] = [...profitTaxRules, ...ownerPayRules, ...accountingRules, ...vatRules, ...companyLawRules]
 
-export const OPEN_ITEMS: readonly OpenItem[] = [
-  ...profitTaxOpenItems,
-  ...ownerPayOpenItems,
-  ...accountingOpenItems,
-  ...vatOpenItems,
-  ...companyLawOpenItems,
-]
+export const OPEN_ITEMS: readonly OpenItem[] = [...profitTaxOpenItems, ...ownerPayOpenItems, ...accountingOpenItems, ...vatOpenItems, ...companyLawOpenItems]
 
 export interface RuleLookup<Value> {
   readonly value: Value
@@ -52,9 +40,7 @@ export interface RuleInForce {
   readonly versions: readonly RuleVersion<RuleTerms>[]
 }
 
-export type WatchItem =
-  | { readonly kind: 'version'; readonly rule: GeneralRule; readonly version: RuleVersion<RuleTerms> }
-  | { readonly kind: 'open'; readonly item: OpenItem }
+export type WatchItem = { readonly kind: 'version'; readonly rule: GeneralRule; readonly version: RuleVersion<RuleTerms> } | { readonly kind: 'open'; readonly item: OpenItem }
 
 /**
  * The value of a rule on a date. The caller passes the date the rule's `appliesBy` names: the tax
@@ -113,9 +99,7 @@ export function rulesFor(year: number, rules: readonly GeneralRule[] = RULES): r
   const inForce = rules
     .map((rule) => ({
       rule,
-      versions: rule.versions.filter(
-        (version) => version.validFrom <= lastDay && (version.validTo === null || version.validTo >= firstDay),
-      ),
+      versions: rule.versions.filter((version) => version.validFrom <= lastDay && (version.validTo === null || version.validTo >= firstDay)),
     }))
     .filter((ruleInYear) => ruleInYear.versions.length > 0)
   if (inForce.length === 0) {
@@ -126,11 +110,7 @@ export function rulesFor(year: number, rules: readonly GeneralRule[] = RULES): r
 
 /** Every estimate, pending or unconfirmed version, then every open item, for the Ruleset tab's watch list. */
 export function watchItems(rules: readonly GeneralRule[] = RULES, openItems: readonly OpenItem[] = OPEN_ITEMS): readonly WatchItem[] {
-  const watchedVersions = rules.flatMap((rule) =>
-    rule.versions
-      .filter((version) => isWatchedConfidence(version.confidence))
-      .map((version): WatchItem => ({ kind: 'version', rule, version })),
-  )
+  const watchedVersions = rules.flatMap((rule) => rule.versions.filter((version) => isWatchedConfidence(version.confidence)).map((version): WatchItem => ({ kind: 'version', rule, version })))
   const open = openItems.map((item): WatchItem => ({ kind: 'open', item }))
   return [...watchedVersions, ...open]
 }

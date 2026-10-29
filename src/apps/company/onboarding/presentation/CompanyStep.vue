@@ -37,7 +37,14 @@ const packOn = ref(settings.value?.ownerPayModule ? 'yes' : 'no')
 
 const numberStyles = computed(() => numberStyleItems(numberLocale.value))
 const currencyError = computed(() => currencyProblem(currency.value))
-const answers = computed(() => (pack === null ? [] : [{ label: pack.yes, value: 'yes' }, { label: 'No', value: 'no' }]))
+const answers = computed(() =>
+  pack === null
+    ? []
+    : [
+        { label: pack.yes, value: 'yes' },
+        { label: 'No', value: 'no' },
+      ],
+)
 
 const saving = ref(false)
 const failure = ref<string | null>(null)

@@ -48,12 +48,7 @@ describe('loanBenefit', () => {
   })
 
   it('follows the balance down as repayments come in', () => {
-    const benefit = loanBenefit(
-      studio([...LENT_ON_NEW_YEAR, { date: '2025-07-02', amount: 1825, category: 'owner-loan-repaid' }]),
-      2025,
-      civil('2025-12-31'),
-      ruleValue,
-    )
+    const benefit = loanBenefit(studio([...LENT_ON_NEW_YEAR, { date: '2025-07-02', amount: 1825, category: 'owner-loan-repaid' }]), 2025, civil('2025-12-31'), ruleValue)
 
     // 3,650.00 for the 182 days to 2 July, then 1,825.00 for the 182 days to 31 December:
     // (3,650.00 × 182 + 1,825.00 × 182) × 2% / 365 = 54.60.

@@ -45,17 +45,9 @@ defineProps<{
           <span class="text-sm">{{ loan.lentOn }}</span>
         </DrillLink>
         <MoneyText :cents="loan.amount" precision="whole" class="text-sm font-medium text-highlighted" />
-        <UBadge
-          :label="loan.open ? 'Open' : 'Repaid'"
-          :color="loan.open ? 'warning' : 'success'"
-          variant="subtle"
-          size="sm"
-          class="justify-self-start"
-        />
+        <UBadge :label="loan.open ? 'Open' : 'Repaid'" :color="loan.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
         <p class="loan-remaining text-xs text-muted">
-          <template v-if="loan.open">
-            <MoneyText :cents="loan.remaining" precision="whole" class="text-toned" /> still owed
-          </template>
+          <template v-if="loan.open"> <MoneyText :cents="loan.remaining" precision="whole" class="text-toned" /> still owed </template>
           <template v-else-if="loan.repaidOn">Closed {{ loan.repaidOn }}</template>
           <template v-else>Nothing lent on this row</template>
         </p>

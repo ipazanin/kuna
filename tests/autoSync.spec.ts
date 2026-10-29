@@ -40,7 +40,11 @@ describe('startAutoSync', () => {
 
   /** A store with its file on Drive, or in this browser, read at `syncedAt`. */
   function storeOf(silent: boolean, syncedAt: string | null = null, source: 'drive' | 'browser' = 'drive') {
-    const state: { status: WorkbookStatus; syncedAt: string | null; choice: { source: 'drive' | 'browser'; id: string; name: string } } = { status: 'ready', syncedAt, choice: { source, id: 'file', name: 'kuna.json' } }
+    const state: { status: WorkbookStatus; syncedAt: string | null; choice: { source: 'drive' | 'browser'; id: string; name: string } } = {
+      status: 'ready',
+      syncedAt,
+      choice: { source, id: 'file', name: 'kuna.json' },
+    }
     return { state, store: { state: state as unknown as Store['state'], open: async () => {}, canSyncSilently: () => silent && source === 'drive' } }
   }
 

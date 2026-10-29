@@ -119,7 +119,9 @@ function lineOf(payday: SalaryPayday, slug: string, line: EmployeeLine) {
 }
 
 function problemKinds(problems: readonly SalaryProblem[]): string[] {
-  return problems.map((problem) => `${problem.kind}${'employee' in problem && problem.employee !== null ? ` ${problem.employee.slug}` : ''}${problem.kind === 'line-differs' ? ` ${problem.check.line}` : ''}`)
+  return problems.map(
+    (problem) => `${problem.kind}${'employee' in problem && problem.employee !== null ? ` ${problem.employee.slug}` : ''}${problem.kind === 'line-differs' ? ` ${problem.check.line}` : ''}`,
+  )
 }
 
 describe('salaryReconciliation', () => {
@@ -133,7 +135,12 @@ describe('salaryReconciliation', () => {
     expect(april.problems).toEqual([])
     expect(april.employees.map((entry) => entry.employee.slug)).toEqual(['ana', 'ivo', 'mara', 'luka', 'dora'])
     expect(april.contributions.every((check) => check.agrees)).toBe(true)
-    expect(april.contributions.map((check) => check.bank?.amount)).toEqual([euros(totalOf('pensionPillarOne')), euros(totalOf('pensionPillarTwo')), euros(totalOf('health')), euros(totalOf('incomeTax'))])
+    expect(april.contributions.map((check) => check.bank?.amount)).toEqual([
+      euros(totalOf('pensionPillarOne')),
+      euros(totalOf('pensionPillarTwo')),
+      euros(totalOf('health')),
+      euros(totalOf('incomeTax')),
+    ])
     const luka = lineOf(april, 'luka', 'paidToEmployee')
     expect([luka?.app, luka?.bank?.amount]).toEqual([null, MARCH[3]!.net.amount])
   })
@@ -238,10 +245,15 @@ describe('salaryReconciliation', () => {
       { date: '2026-04-10', amount: -(net + 180), category: 'salary-net', iban: ana.ibans[0] },
       { date: '2026-05-04', amount: -20, category: 'office' },
     ]
-    const split = withSplit(withPackBuckets(ledger(rows), CATEGORIES), { date: '2026-04-10', amount: -(net + 180) }, [
-      [-net, 'salary-net'],
-      [-180, 'travel-orders', 'Travel order paid with the salary'],
-    ], CATEGORIES)
+    const split = withSplit(
+      withPackBuckets(ledger(rows), CATEGORIES),
+      { date: '2026-04-10', amount: -(net + 180) },
+      [
+        [-net, 'salary-net'],
+        [-180, 'travel-orders', 'Travel order paid with the salary'],
+      ],
+      CATEGORIES,
+    )
     const paid = lineOf(paydayOf(reconciled(split, [ana]).paydays, '2026-04'), 'ana', 'paidToEmployee')
     expect(paid?.bank?.amount).toBe(euros(net + 180 + 1200))
     expect(paid?.bank?.steps.map((step) => step.amount)).toEqual([euros(net + 180), euros(1200)])

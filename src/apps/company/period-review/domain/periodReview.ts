@@ -13,13 +13,7 @@ import { periodRange } from '../../filters/domain/filterState'
 import { priorPeriod } from '../../filters/domain/periodComparison'
 import type { CalendarPeriod } from '../../filters/domain/periodComparison'
 import type { Period, Quarter } from '../../filters/domain/filterState'
-import {
-  EMPTY_PROFIT_AND_LOSS,
-  LINE_BUCKETS,
-  PROFIT_AND_LOSS_LINES,
-  bucketTotals,
-  monthlyBucketTotals,
-} from '../../workbook/domain/bucketTotals'
+import { EMPTY_PROFIT_AND_LOSS, LINE_BUCKETS, PROFIT_AND_LOSS_LINES, bucketTotals, monthlyBucketTotals } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLoss, ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import type { Booking } from '../../workbook/domain/workbook'
 

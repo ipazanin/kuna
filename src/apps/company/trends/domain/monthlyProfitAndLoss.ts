@@ -56,15 +56,11 @@ export function monthlyProfitAndLoss(bookings: readonly Booking[], window: Ledge
   })
 }
 
-function rollingAverage(
-  months: readonly { readonly complete: boolean; readonly totals: ProfitAndLoss }[],
-  length: number,
-): RollingAverage | null {
+function rollingAverage(months: readonly { readonly complete: boolean; readonly totals: ProfitAndLoss }[], length: number): RollingAverage | null {
   if (months.length < length || months.some((month) => !month.complete)) {
     return null
   }
-  const averageOf = (line: 'income' | 'cost' | 'net'): Money =>
-    divideMoney(sumMoney(months.map((month) => month.totals[line])), length)
+  const averageOf = (line: 'income' | 'cost' | 'net'): Money => divideMoney(sumMoney(months.map((month) => month.totals[line])), length)
   return { income: averageOf('income'), cost: averageOf('cost'), net: averageOf('net') }
 }
 

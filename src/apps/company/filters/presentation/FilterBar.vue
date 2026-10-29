@@ -40,9 +40,7 @@ const { filters: shared, setFilters } = useFilters()
 const names = useDisplayNames()
 const filters = computed(() => shared.value as FilterState)
 
-const accountOptions = computed(() =>
-  props.workbook.accounts.map((account) => ({ value: account.slug, label: names.value.account(account.slug) })),
-)
+const accountOptions = computed(() => props.workbook.accounts.map((account) => ({ value: account.slug, label: names.value.account(account.slug) })))
 
 const settings = useSettings()
 const labels = computed(() => counterpartyLabels(props.workbook.transactions))

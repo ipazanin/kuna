@@ -121,9 +121,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
 
   return {
     lines: {
-      parts: statusCounts.map(
-        ({ status, count }): DonutPart => ({ key: status, label: STATUS_WORDING[status].label, value: count, colour: STATUS_TONES[status], to: statements }),
-      ),
+      parts: statusCounts.map(({ status, count }): DonutPart => ({ key: status, label: STATUS_WORDING[status].label, value: count, colour: STATUS_TONES[status], to: statements })),
       total: comparison.lines.length,
       description: `The accountant's ${comparison.lines.length} lines for ${year}: ${statusCounts.map(({ status, count }) => `${count} ${STATUS_WORDING[status].label.toLowerCase()}`).join(', ')}.`,
     },
@@ -139,9 +137,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
       residual('unexplained-after-tax', 'Not explained after tax', bridge.unexplainedAfterTax),
     ],
     tables: TABLES.map((table) => {
-      const rows = comparison.lines
-        .filter((line) => table.statements.includes(line.statement) && (line.statement !== 'grant' || GRANT_LINES[line.line] === table.key))
-        .map(rowOf)
+      const rows = comparison.lines.filter((line) => table.statements.includes(line.statement) && (line.statement !== 'grant' || GRANT_LINES[line.line] === table.key)).map(rowOf)
       return { ...table, rows, summary: statusesInWords(rows) }
     }),
     recorded: comparison.recorded.map((entry) => ({
@@ -169,7 +165,10 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
       settled: item.settled,
       cents: item.figure?.amount ?? null,
       to: drillOf(item.figure),
-      detail: item.figure !== null && item.figure.drill === null && item.figure.steps.length > 0 ? figureDetail(item.figure, item.title === figureLabel(item.figure) ? `An open item of year end ${year}` : item.title, link) : null,
+      detail:
+        item.figure !== null && item.figure.drill === null && item.figure.steps.length > 0
+          ? figureDetail(item.figure, item.title === figureLabel(item.figure) ? `An open item of year end ${year}` : item.title, link)
+          : null,
       rules: chipsOf(item.rules),
     })),
     openItemsSummary: `${openItems.filter((item) => !item.settled).length} to settle, ${openItems.filter((item) => item.settled).length} settled`,

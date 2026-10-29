@@ -312,12 +312,7 @@ describe('payroll month of an employed director in Zagreb', () => {
     const payroll = salary({ worked: '2026-03', paid: '2026-04-10', agreed: 1000 }, { ...ZAGREB_RESIDENT, dependants: 2 })
 
     expect(payroll.personalAllowance.steps.map((step) => step.amount)).toEqual([euros(600), euros(300), euros(420)])
-    expect([payroll.personalAllowance.amount, payroll.taxableIncome.amount, payroll.incomeTax.amount, payroll.net.amount]).toEqual([
-      euros(1320),
-      euros(0),
-      euros(0),
-      euros(1036.7),
-    ])
+    expect([payroll.personalAllowance.amount, payroll.taxableIncome.amount, payroll.incomeTax.amount, payroll.net.amount]).toEqual([euros(1320), euros(0), euros(0), euros(1036.7)])
   })
 
   it('keeps non-taxable payments apart from the salary and adds them to what is paid and what it costs', () => {
@@ -333,11 +328,7 @@ describe('payroll month of an employed director in Zagreb', () => {
       ],
     })
 
-    expect([payroll.nontaxablePayments.amount, payroll.paidToEmployee.amount, payroll.totalCompanyCost.amount]).toEqual([
-      euros(135),
-      euros(1071.26),
-      euros(1644.2),
-    ])
+    expect([payroll.nontaxablePayments.amount, payroll.paidToEmployee.amount, payroll.totalCompanyCost.amount]).toEqual([euros(135), euros(1071.26), euros(1644.2)])
     expect([payroll.gross.amount, payroll.incomeTax.amount, payroll.stateTake.amount]).toEqual([euros(1295.45), euros(100.44), euros(572.94)])
     expect(payroll.nontaxablePayments.steps.map((step) => step.label)).toEqual(['meal-allowance-flat', 'commuting-ticket'])
   })
@@ -349,18 +340,8 @@ describe('payroll month of an employed director in Zagreb', () => {
     // Health 16.5% x 1,168.70 = 192.8355, so 192.84. Gross II 1,361.54.
     const payroll = salary({ worked: '2025-12', paid: '2026-01-12', agreed: 0 })
 
-    expect([payroll.gross.amount, payroll.pensionRelief.amount, payroll.pensionPillarOne.amount, payroll.pensionPillarTwo.amount]).toEqual([
-      euros(1168.7),
-      euros(65.65),
-      euros(165.46),
-      euros(58.44),
-    ])
-    expect([payroll.incomeTax.amount, payroll.net.amount, payroll.health.amount, payroll.employerCost.amount]).toEqual([
-      euros(79.3),
-      euros(865.5),
-      euros(192.84),
-      euros(1361.54),
-    ])
+    expect([payroll.gross.amount, payroll.pensionRelief.amount, payroll.pensionPillarOne.amount, payroll.pensionPillarTwo.amount]).toEqual([euros(1168.7), euros(65.65), euros(165.46), euros(58.44)])
+    expect([payroll.incomeTax.amount, payroll.net.amount, payroll.health.amount, payroll.employerCost.amount]).toEqual([euros(79.3), euros(865.5), euros(192.84), euros(1361.54)])
     expect(payroll.gross.rules[0]?.validTo).toBe(civil('2025-12-31'))
   })
 
@@ -376,9 +357,7 @@ describe('payroll month of an employed director in Zagreb', () => {
     }
 
     expect(() => payrollMonth(input, { ...ZAGREB_RESIDENT, residenceCity: 'Atlantis' })).toThrow('"Atlantis" is not a Croatian city or municipality')
-    expect(() => payrollMonth({ ...input, nontaxablePayments: [{ payment: 'gym', amount: euros(30) }] }, ZAGREB_RESIDENT)).toThrow(
-      'gym is not a non-taxable payment',
-    )
+    expect(() => payrollMonth({ ...input, nontaxablePayments: [{ payment: 'gym', amount: euros(30) }] }, ZAGREB_RESIDENT)).toThrow('gym is not a non-taxable payment')
     expect(() => payrollMonth({ ...input, paidOn: civil('2026-02-27') }, ZAGREB_RESIDENT)).toThrow('cannot be paid on')
     expect(() => payrollMonth({ ...input, daysWorked: 23 }, ZAGREB_RESIDENT)).toThrow('not a share of a month')
     expect(() => payrollMonth(input, { ...ZAGREB_RESIDENT, dependants: 6 })).toThrow('outside the 5 positions')

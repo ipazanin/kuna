@@ -51,7 +51,10 @@ try {
   const broken = await importFile(brokenFile)
   assert.match(broken.outcome.failure ?? '', /could not be read as an Excel workbook/)
   assert.ok(broken.outcome.failureDetail, 'A file that cannot be read must show the underlying error.')
-  assert.ok(broken.errors.some((error) => error.includes('Reading broken.xlsx failed')), 'The underlying error must reach the console.')
+  assert.ok(
+    broken.errors.some((error) => error.includes('Reading broken.xlsx failed')),
+    'The underlying error must reach the console.',
+  )
   console.log(`PASS: broken.xlsx shows "${broken.outcome.failureDetail}"`)
 } finally {
   await browser.close()

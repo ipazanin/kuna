@@ -163,7 +163,6 @@ const refused = computed(() => dryRun.value?.statements.filter((statement) => st
 const waitingStart = computed(() => dryRun.value?.statements.filter((statement) => statement.start !== null && !statement.rows.some((row) => row.verdict !== null)).length ?? 0)
 const waitingName = computed(() => dryRun.value?.statements.filter((statement) => statement.newAccount !== null && !statement.rows.some((row) => row.verdict !== null)).length ?? 0)
 
-
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
@@ -213,9 +212,7 @@ const summary = computed(() => {
     />
 
     <template v-else>
-      <p class="max-w-[65ch] text-sm text-muted">
-        Add a bank statement to the ledger: a camt.053 file, or a bank's spreadsheet export read by a saved profile. Nothing is written until you confirm.
-      </p>
+      <p class="max-w-[65ch] text-sm text-muted">Add a bank statement to the ledger: a camt.053 file, or a bank's spreadsheet export read by a saved profile. Nothing is written until you confirm.</p>
 
       <StatementFolderCard />
 
@@ -306,7 +303,14 @@ const summary = computed(() => {
               <DrillLink v-if="importedRows.waiting > 0" to="/company/review" class="font-medium text-highlighted">Open Review</DrillLink>
             </div>
             <div class="flex justify-end">
-              <UButton label="Confirm import" icon="i-lucide-file-input" :loading="writes.busy.value" :disabled="dryRun.newRows === 0 || writes.busy.value" data-testid="import-confirm" @click="confirm" />
+              <UButton
+                label="Confirm import"
+                icon="i-lucide-file-input"
+                :loading="writes.busy.value"
+                :disabled="dryRun.newRows === 0 || writes.busy.value"
+                data-testid="import-confirm"
+                @click="confirm"
+              />
             </div>
           </div>
         </AppCard>

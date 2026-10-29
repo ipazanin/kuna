@@ -237,31 +237,27 @@ export function comparedScenarios(result: PayScenarios, chosen: readonly string[
     ]
   })
 
-  const columns = ordered.map(
-    (outcome): ScenarioColumn => ({
-      slug: outcome.scenario.slug,
-      label: nameOf(outcome),
-      isBase: outcome === baseOutcome,
-      warnings: outcome.warnings.map(warningText),
-      notes: outcome.notes.map(noteText),
-    }),
-  )
-  const splits = ordered.map(
-    (outcome): ScenarioSplit => ({
-      label: nameOf(outcome),
-      whole: outcome.profitBeforeOwnerPay.amount,
-      parts: [
-        { segment: 'net', cents: outcome.netToOwner.amount },
-        { segment: 'pillar-two', cents: outcome.taxes.pensionPillarTwo.amount },
-        { segment: 'pillar-one', cents: outcome.taxes.pensionPillarOne.amount },
-        { segment: 'health', cents: outcome.taxes.health.amount },
-        { segment: 'income-tax', cents: outcome.taxes.incomeTaxWithheld.amount + outcome.taxes.settlementChange.amount },
-        { segment: 'rent-tax', cents: outcome.taxes.rentTax.amount },
-        { segment: 'dividend-tax', cents: outcome.taxes.dividendTax.amount },
-        { segment: 'corporate-tax', cents: outcome.taxes.corporateTax.amount },
-        { segment: 'kept', cents: outcome.keptInCompany.amount },
-      ],
-    }),
-  )
+  const columns = ordered.map((outcome): ScenarioColumn => ({
+    slug: outcome.scenario.slug,
+    label: nameOf(outcome),
+    isBase: outcome === baseOutcome,
+    warnings: outcome.warnings.map(warningText),
+    notes: outcome.notes.map(noteText),
+  }))
+  const splits = ordered.map((outcome): ScenarioSplit => ({
+    label: nameOf(outcome),
+    whole: outcome.profitBeforeOwnerPay.amount,
+    parts: [
+      { segment: 'net', cents: outcome.netToOwner.amount },
+      { segment: 'pillar-two', cents: outcome.taxes.pensionPillarTwo.amount },
+      { segment: 'pillar-one', cents: outcome.taxes.pensionPillarOne.amount },
+      { segment: 'health', cents: outcome.taxes.health.amount },
+      { segment: 'income-tax', cents: outcome.taxes.incomeTaxWithheld.amount + outcome.taxes.settlementChange.amount },
+      { segment: 'rent-tax', cents: outcome.taxes.rentTax.amount },
+      { segment: 'dividend-tax', cents: outcome.taxes.dividendTax.amount },
+      { segment: 'corporate-tax', cents: outcome.taxes.corporateTax.amount },
+      { segment: 'kept', cents: outcome.keptInCompany.amount },
+    ],
+  }))
   return { columns, lines, splits }
 }

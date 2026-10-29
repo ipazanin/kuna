@@ -172,11 +172,7 @@ function save(): void {
           </tr>
           <tr v-if="reading[index]!.reasons.length > 0" class="problem-row">
             <td :colspan="columns.length + 1">
-              <p
-                v-for="reason in reading[index]!.reasons"
-                :key="reason"
-                :class="reading[index]!.kept ? 'row-warning' : 'row-error'"
-              >
+              <p v-for="reason in reading[index]!.reasons" :key="reason" :class="reading[index]!.kept ? 'row-warning' : 'row-error'">
                 {{ reading[index]!.kept ? reason : `Left out: ${reason}` }}
               </p>
             </td>

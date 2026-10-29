@@ -22,17 +22,31 @@ describe('transactionsCsv', () => {
   })
 
   it('writes an owner advance as the cost it books, with no account, balance or flag, from the owner-advances tab', () => {
-    const advance = { date: civil('2026-08-10'), amount: euros(45), description: 'Train ticket', category: 'travel', family: 'operating', bucket: 'operating' as const, ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-4') }
+    const advance = {
+      date: civil('2026-08-10'),
+      amount: euros(45),
+      description: 'Train ticket',
+      category: 'travel',
+      family: 'operating',
+      bucket: 'operating' as const,
+      ownerShare: null,
+      id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-4'),
+    }
     const [, row] = transactionsCsv(listedRows([], [advance])).split('\r\n')
 
     expect(row).toBe('2026-08-10,,Owner,,Train ticket,-45.00,,travel,operating,,,,,owner-advances')
   })
 
   it('writes each part of a split row with its bank row’s date, account, balance and reference, its note, from the splits tab', () => {
-    const transactions = withSplit(ledger([{ date: '2025-03-14', amount: -52.3, category: 'travel', counterparty: 'Online shop' }]), { date: '2025-03-14', amount: -52.3 }, [
-      [-39.5, 'travel', 'Company part'],
-      [-12.8, 'owner-loan-out', 'The owner’s book'],
-    ], PACK_CATEGORIES)
+    const transactions = withSplit(
+      ledger([{ date: '2025-03-14', amount: -52.3, category: 'travel', counterparty: 'Online shop' }]),
+      { date: '2025-03-14', amount: -52.3 },
+      [
+        [-39.5, 'travel', 'Company part'],
+        [-12.8, 'owner-loan-out', 'The owner’s book'],
+      ],
+      PACK_CATEGORIES,
+    )
     const [, company, owner] = transactionsCsv(listedRows(transactions, [])).split('\r\n')
 
     expect(company).toBe('2025-03-14,main,Online shop,,,-39.50,-52.30,travel,operating,rule,REF-1,Company part,,splits')

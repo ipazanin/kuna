@@ -140,7 +140,16 @@ export function readLoanBook(records: LoansRecords): LoanBook {
     bankLoanReading.facts.map((loan) => {
       const periods = ratePeriods.facts.filter((period) => period.loan === loan.id)
       const planned = periods.some((period) => period.from === loan.firstInstalment)
-      return [loan.id, planned ? loanPlan(loan, periods, extraPayments.facts.filter((payment) => payment.loan === loan.id)) : null] as const
+      return [
+        loan.id,
+        planned
+          ? loanPlan(
+              loan,
+              periods,
+              extraPayments.facts.filter((payment) => payment.loan === loan.id),
+            )
+          : null,
+      ] as const
     }),
   )
   const unplanned = records.bankLoans.records

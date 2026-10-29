@@ -54,11 +54,13 @@ export function marginalEuro(year: number, facts: EmployeeFacts, corporateRate: 
   const pillarOne = tracedFigure(`Pension pillar I at ${percentText(pillarOneRate)}`, atRate(gross.amount, pillarOneRate), 'plan', [contributions.citation], [gross])
   const pillarTwoRate = facts.pensionPillarTwo ? rates.pillarTwoRate.basisPoints : (0 as Rate)
   const pillarTwo = tracedFigure(`Pension pillar II at ${percentText(pillarTwoRate)}, your own savings`, atRate(gross.amount, pillarTwoRate), 'plan', [contributions.citation], [gross])
-  const income = tracedFigure('Income after pension contributions', subtractMoney(subtractMoney(gross.amount, pillarOne.amount), pillarTwo.amount), 'plan', [contributions.citation], [
-    gross,
-    deducted(pillarOne),
-    deducted(pillarTwo),
-  ])
+  const income = tracedFigure(
+    'Income after pension contributions',
+    subtractMoney(subtractMoney(gross.amount, pillarOne.amount), pillarTwo.amount),
+    'plan',
+    [contributions.citation],
+    [gross, deducted(pillarOne), deducted(pillarTwo)],
+  )
   const city = localRates(facts.residenceCity, yearEnd, rules)
   const salaryAt = (rate: Rate, label: string, relief: TracedFigure | null): TracedFigure => {
     const tax = tracedFigure(`Income tax at ${percentText(rate)}`, atRate(income.amount, rate), 'plan', [city.citation], [income])
@@ -79,18 +81,18 @@ export function marginalEuro(year: number, facts: EmployeeFacts, corporateRate: 
       : reliefRule.value.bands.rows.find((row) => facts.birthYear !== null && facts.birthYear >= row.bornFrom.count && (row.bornTo === undefined || facts.birthYear <= row.bornTo.count))
   if (band !== undefined) {
     const lowerTax = atRate(income.amount, city.lowerRate)
-    const relief = tracedFigure(
-      `Youth relief of ${percentText(band.reliefShare.basisPoints)}, back in the annual settlement`,
-      atRate(lowerTax, band.reliefShare.basisPoints),
-      'plan',
-      [reliefRule.citation],
-    )
+    const relief = tracedFigure(`Youth relief of ${percentText(band.reliefShare.basisPoints)}, back in the annual settlement`, atRate(lowerTax, band.reliefShare.basisPoints), 'plan', [
+      reliefRule.citation,
+    ])
     routes.push({ id: 'salary-youth-relief', net: salaryAt(city.lowerRate, 'Salary above the floor, with the youth relief', relief) })
   }
   const brackets = rules('hr.pit.brackets', yearEnd)
   routes.push({
     id: 'salary-higher-rate',
-    net: { ...salaryAt(city.higherRate, 'Salary with a monthly taxable base above the bracket threshold, at the higher rate', null), rules: [city.citation, brackets.citation, contributions.citation] },
+    net: {
+      ...salaryAt(city.higherRate, 'Salary with a monthly taxable base above the bracket threshold, at the higher rate', null),
+      rules: [city.citation, brackets.citation, contributions.citation],
+    },
   })
   return routes
 }

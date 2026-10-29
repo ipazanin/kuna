@@ -132,7 +132,13 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
 
   const takenOutFigure = (treatment: TakenOutTreatment, label: string, ruleIds: readonly RuleId[]): TracedFigure => {
     const entries = paidInYear.filter((entry) => entry.treatment === treatment)
-    return figureOfBookings(label, entries, (entry) => negateMoney(entry.booking.amount), ruleIds.map((id) => rules(id, firstDay).citation), year)
+    return figureOfBookings(
+      label,
+      entries,
+      (entry) => negateMoney(entry.booking.amount),
+      ruleIds.map((id) => rules(id, firstDay).citation),
+      year,
+    )
   }
   const takenOut = (id: AdjustmentId, treatment: TakenOutTreatment, label: string, ruleIds: readonly RuleId[], lines: AccrualAdjustment['lines'] = []) =>
     explained(id, takenOutFigure(treatment, label, ruleIds), lines)
@@ -141,9 +147,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   const revenueAdjustment = explained(
     'revenue-by-delivery',
     withDrill(
-      tracedFigure('Revenue by delivery period instead of client payments', addMoney(paymentsOut.amount, delivered.total.amount), 'invoices', [
-        accrualRule.citation,
-      ], [paymentsOut, delivered.total]),
+      tracedFigure('Revenue by delivery period instead of client payments', addMoney(paymentsOut.amount, delivered.total.amount), 'invoices', [accrualRule.citation], [paymentsOut, delivered.total]),
       paymentsOut.drill,
     ),
     [{ statement: 'pl', line: 'sales' }],
@@ -152,9 +156,13 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   const capitalised = paidInYear.filter((entry): entry is CapitalisedBooking => entry.treatment === 'capitalised')
   const capitalPurchases = explained(
     'capital-purchases',
-    figureOfBookings('Capital purchases to the asset books, without their deductible VAT', capitalised, (entry) => negateMoney(entry.vat.cost.amount), [
-      rules('hr.acc.capitalisation', firstDay).citation,
-    ], year),
+    figureOfBookings(
+      'Capital purchases to the asset books, without their deductible VAT',
+      capitalised,
+      (entry) => negateMoney(entry.vat.cost.amount),
+      [rules('hr.acc.capitalisation', firstDay).citation],
+      year,
+    ),
     [{ statement: 'balance', line: 'tangible-assets' }],
   )
 
@@ -166,11 +174,13 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
       : [],
   )
   const writtenOff = (treatment: 'small-inventory' | 'depreciated', label: string) =>
-    summed(label, writeOffs.filter((entry) => entry.schedule.treatment === treatment).map((entry) => entry.figure), 'assets')
+    summed(
+      label,
+      writeOffs.filter((entry) => entry.schedule.treatment === treatment).map((entry) => entry.figure),
+      'assets',
+    )
   const smallInventory = writtenOff('small-inventory', 'Small inventory written off when put in use')
-  const paymentCategoryOf = new Map(
-    byPolicy.flatMap((entry) => (entry.treatment === 'capitalised' ? entry.assets.map((asset) => [asset, entry.category.slug] as const) : [])),
-  )
+  const paymentCategoryOf = new Map(byPolicy.flatMap((entry) => (entry.treatment === 'capitalised' ? entry.assets.map((asset) => [asset, entry.category.slug] as const) : [])))
   const smallInventoryWriteOffs = writeOffs
     .filter((entry) => entry.schedule.treatment === 'small-inventory')
     .map((entry): SmallInventoryWriteOff => ({ category: paymentCategoryOf.get(entry.schedule.asset) ?? null, figure: entry.figure }))
@@ -204,7 +214,11 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
 
   const moved = (id: AdjustmentId, label: string, chosen: (entry: CountedBooking) => boolean): AccrualAdjustment => {
     const entries = byPolicy.filter(isCounted).filter((entry) => chosen(entry) && timingChange(entry, year) !== 0)
-    return explained(id, figureOfBookings(label, entries, (entry) => timingChange(entry, year), [accrualRule.citation], year), [])
+    return explained(
+      id,
+      figureOfBookings(label, entries, (entry) => timingChange(entry, year), [accrualRule.citation], year),
+      [],
+    )
   }
 
   const depreciationStep: AccrualAdjustment = {
@@ -216,9 +230,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   }
   const profitSteps: AccrualAdjustment[] = [
     revenueAdjustment,
-    takenOut('owner-loans', 'owner-loan', 'Loans to the owner and their repayments are a receivable, not pay', [], [
-      { statement: 'balance', line: 'receivables-members-employees' },
-    ]),
+    takenOut('owner-loans', 'owner-loan', 'Loans to the owner and their repayments are a receivable, not pay', [], [{ statement: 'balance', line: 'receivables-members-employees' }]),
     takenOut('grant-receipts', 'grant', 'Grant received, replaced by its release', ['hr.acc.grant-recognition', 'hr.cit.grant-revenue']),
     grantRelease,
     ...(grantJudgement === null ? [] : [grantJudgement]),
@@ -229,9 +241,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
       ...(disposals.amount === 0 ? [] : [{ statement: 'pl', line: 'impairment-provisions-other' } as const]),
     ]),
     inputVat,
-    takenOut('vat-settlements', 'vat-settlement', 'VAT paid or refunded settles the VAT position, not a cost', ['hr.vat.credit'], [
-      { statement: 'balance', line: 'receivables-state' },
-    ]),
+    takenOut('vat-settlements', 'vat-settlement', 'VAT paid or refunded settles the VAT position, not a cost', ['hr.vat.credit'], [{ statement: 'balance', line: 'receivables-state' }]),
     moved('arrears-reversed', 'Costs of the year before, paid in arrears this year', (entry) => entry.timing === 'arrears' && inYear(entry.booking.date)),
     moved('arrears-accrued', 'Costs of the year, paid in arrears after it', (entry) => entry.timing === 'arrears' && !inYear(entry.booking.date)),
     ...(cutOff === null ? [] : [cutOff.adjustment]),
@@ -291,11 +301,12 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   const ownUse = tracedFigure('Own use: nothing the ledger records', ZERO, 'ledger', [])
   const financialIncome = tracedFigure('Financial income: no category role marks it, so other income counts as operating', ZERO, 'ledger', [])
   const revenue = summed('Revenue', [sales, ownUse, otherOperatingIncome, financialIncome], 'ledger')
-  const expenses = summed('Expenses', costLines.map((line) => line.figure), 'ledger')
-  const profitBeforeTax = tracedFigure('Profit before tax', subtractMoney(revenue.amount, expenses.amount), 'ledger', rulesOf([revenue, expenses]), [
-    revenue,
-    deducted(expenses),
-  ])
+  const expenses = summed(
+    'Expenses',
+    costLines.map((line) => line.figure),
+    'ledger',
+  )
+  const profitBeforeTax = tracedFigure('Profit before tax', subtractMoney(revenue.amount, expenses.amount), 'ledger', rulesOf([revenue, expenses]), [revenue, deducted(expenses)])
 
   const yearDrill = (categories: readonly string[]): DrillTarget => drillToTransactions({ period: { preset: 'year', year }, categories })
   const representationSlugs = categoriesWithRole(workbook.categories, PACK_ROLES.representation)
@@ -447,13 +458,7 @@ function cashNetOf(entries: readonly AccrualBooking[], workbook: HrDooWorkbook, 
 }
 
 /** A total over bookings, one step per booking that opens it, the total opening the year's rows of their categories. */
-function figureOfBookings<Entry extends AccrualBooking>(
-  label: string,
-  entries: readonly Entry[],
-  amountOf: (entry: Entry) => Money,
-  citations: TracedFigure['rules'],
-  year: number,
-): TracedFigure {
+function figureOfBookings<Entry extends AccrualBooking>(label: string, entries: readonly Entry[], amountOf: (entry: Entry) => Money, citations: TracedFigure['rules'], year: number): TracedFigure {
   const steps = entries.map((entry) => bookingFigure(entry, amountOf(entry)))
   const drill =
     entries.length === 0

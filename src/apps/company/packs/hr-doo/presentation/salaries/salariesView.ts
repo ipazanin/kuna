@@ -323,7 +323,9 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
       label: paidWord,
       value: formatMoney(figures.paid),
       to: linkOf(drillOfAll(paidBank)),
-      caption: bankDifference(figures.paid, paidBankTotal) ?? (complete ? `Net ${formatMoney(figures.net)} and ${formatMoney(figures.beside)} beside it` : 'As the bank paid it where no source works the net out'),
+      caption:
+        bankDifference(figures.paid, paidBankTotal) ??
+        (complete ? `Net ${formatMoney(figures.net)} and ${formatMoney(figures.beside)} beside it` : 'As the bank paid it where no source works the net out'),
       definition: DEFINITIONS.paid,
     },
     {
@@ -381,8 +383,7 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
     ring: {
       parts,
       total: figures.cost,
-      description:
-        `Where the cost to the company of ${formatMoney(figures.cost)} went in ${label}: ` + parts.map((part) => `${part.label} ${formatMoney(part.value)}`).join(', ') + '.',
+      description: `Where the cost to the company of ${formatMoney(figures.cost)} went in ${label}: ` + parts.map((part) => `${part.label} ${formatMoney(part.value)}`).join(', ') + '.',
       split: complete ? { net: figures.net, beside: figures.beside } : null,
     },
     bridge: bridgeBars(figures, drillOfAll(paidBank), bankOf),
@@ -443,12 +444,7 @@ function inView(problem: SalaryProblem, employee: string | null): boolean {
 }
 
 function amountsText(check: LineCheck<string>): string {
-  return [
-    check.app === null ? null : `app ${formatMoney(check.app.amount)}`,
-    check.bank === null ? null : `bank ${formatMoney(check.bank.amount)}`,
-  ]
-    .filter((part) => part !== null)
-    .join(', ')
+  return [check.app === null ? null : `app ${formatMoney(check.app.amount)}`, check.bank === null ? null : `bank ${formatMoney(check.bank.amount)}`].filter((part) => part !== null).join(', ')
 }
 
 function problemView(problem: SalaryProblem, index: number, month: string, linkOf: LinkOf): ProblemView {
@@ -561,7 +557,9 @@ export function peopleRows(payday: SalaryPayday): { readonly people: PersonRow[]
   })
   const each = payday.employees.map((entry) => ({ entry, figures: figuresOf(linesWithBank(entry, payday)) }))
   return {
-    people: each.map(({ entry, figures }) => rowOf(entry.employee.slug, employeeName(entry.employee), figures, payday.problems.filter((problem) => problemEmployee(problem) === entry.employee).length)),
+    people: each.map(({ entry, figures }) =>
+      rowOf(entry.employee.slug, employeeName(entry.employee), figures, payday.problems.filter((problem) => problemEmployee(problem) === entry.employee).length),
+    ),
     total: rowOf('total', 'Everyone', summedFigures(each.map(({ figures }) => figures)), payday.problems.length),
   }
 }

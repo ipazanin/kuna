@@ -35,7 +35,6 @@ function at(days: number): string {
   return `${(days / scaleEnd.value) * 100}%`
 }
 
-
 function daysText(days: number | null): string {
   return days === null ? '–' : `${formatDays(days)} ${days === 1 ? 'day' : 'days'}`
 }

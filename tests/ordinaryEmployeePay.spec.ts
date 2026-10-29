@@ -31,9 +31,18 @@ describe('the pay of an employee who is not the director', () => {
     const payroll = pay(1200)
 
     expect(
-      [payroll.gross, payroll.pensionRelief, payroll.pensionPillarOne, payroll.pensionPillarTwo, payroll.income, payroll.taxableIncome, payroll.incomeTax, payroll.net, payroll.health, payroll.employerCost].map(
-        (figure) => figure.amount,
-      ),
+      [
+        payroll.gross,
+        payroll.pensionRelief,
+        payroll.pensionPillarOne,
+        payroll.pensionPillarTwo,
+        payroll.income,
+        payroll.taxableIncome,
+        payroll.incomeTax,
+        payroll.net,
+        payroll.health,
+        payroll.employerCost,
+      ].map((figure) => figure.amount),
     ).toEqual([1200, 50, 172.5, 60, 967.5, 367.5, 73.5, 894, 198, 1398].map(euros))
     expect(payroll.warnings).toEqual([])
     expect(ruleIds(payroll.gross)).toEqual([])

@@ -22,17 +22,14 @@ describe('filter query', () => {
     expect(decodeFilters(encodeFilters(EVERY_FIELD))).toEqual(EVERY_FIELD)
   })
 
-  it.each([
-    { preset: 'l3' },
-    { preset: 'l12' },
-    { preset: 'all' },
-    { preset: 'year', year: 2025 },
-    { preset: 'quarter', year: 2026, quarter: 3 },
-  ] as const)('round-trips the $preset period', (period) => {
-    const filters = { ...DEFAULT_FILTERS, period }
+  it.each([{ preset: 'l3' }, { preset: 'l12' }, { preset: 'all' }, { preset: 'year', year: 2025 }, { preset: 'quarter', year: 2026, quarter: 3 }] as const)(
+    'round-trips the $preset period',
+    (period) => {
+      const filters = { ...DEFAULT_FILTERS, period }
 
-    expect(decodeFilters(encodeFilters(filters))).toEqual(filters)
-  })
+      expect(decodeFilters(encodeFilters(filters))).toEqual(filters)
+    },
+  )
 
   it('uses compact keys and leaves defaults out', () => {
     expect(encodeFilters(DEFAULT_FILTERS)).toEqual({})

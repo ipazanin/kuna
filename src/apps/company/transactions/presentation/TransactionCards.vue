@@ -55,9 +55,7 @@ const colours = useCategoryColours()
 
 /** One untitled section when ungrouped, so both forms share the card markup. A split or shared payment heads its parts. */
 const sections = computed(() =>
-  props.groups === null
-    ? [{ key: 'all', entries: withPartHeadings(props.rows), group: null }]
-    : props.groups.map((group) => ({ key: group.key, entries: withPartHeadings(group.rows), group })),
+  props.groups === null ? [{ key: 'all', entries: withPartHeadings(props.rows), group: null }] : props.groups.map((group) => ({ key: group.key, entries: withPartHeadings(group.rows), group })),
 )
 
 const thisYear = String(new Date().getFullYear())
@@ -108,147 +106,142 @@ function ownerPartNote(row: ListedRow): string | null {
 
     <section v-for="section in sections" :key="section.key" :data-testid="section.group ? 'transaction-group' : undefined">
       <h2 v-if="section.group" class="group-heading">
-        <TransactionGroupHeading
-          :group="section.group"
-          :expanded="!isCollapsed(section.key)"
-          :bucket-labels="bucketLabels"
-          @toggle="emit('toggle', section.key)"
-        />
+        <TransactionGroupHeading :group="section.group" :expanded="!isCollapsed(section.key)" :bucket-labels="bucketLabels" @toggle="emit('toggle', section.key)" />
       </h2>
       <ul v-if="!section.group || !isCollapsed(section.key)">
         <template v-for="entry in section.entries" :key="entry.kind === 'row' ? entry.row.key : entry.key">
-        <li v-if="entry.kind === 'shared'" class="card split-heading" data-testid="shared-heading">
-          <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5">
-            <span class="flex items-baseline justify-between gap-3">
-              <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
-              <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
+          <li v-if="entry.kind === 'shared'" class="card split-heading" data-testid="shared-heading">
+            <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5">
+              <span class="flex items-baseline justify-between gap-3">
+                <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
+                <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
+              </span>
+              <span class="flex flex-wrap items-center gap-2 text-xs text-muted">
+                <UBadge v-if="entry.whole.kind === 'owner-advance'" :label="OWNER_ADVANCE_LABEL" color="neutral" variant="subtle" size="sm" />
+                <UBadge :label="`Shared with the owner, ${entry.share}%`" color="neutral" variant="subtle" size="sm" />
+                <span class="figure"
+                  >{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ accountOf(entry.whole) }}</template></span
+                >
+              </span>
             </span>
-            <span class="flex flex-wrap items-center gap-2 text-xs text-muted">
-              <UBadge v-if="entry.whole.kind === 'owner-advance'" :label="OWNER_ADVANCE_LABEL" color="neutral" variant="subtle" size="sm" />
-              <UBadge :label="`Shared with the owner, ${entry.share}%`" color="neutral" variant="subtle" size="sm" />
-              <span class="figure">{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ accountOf(entry.whole) }}</template></span>
+            <span class="flex shrink-0">
+              <UButton
+                v-if="shareTargetOf(entry.whole) !== null"
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="ghost"
+                :disabled="writing"
+                :aria-label="`Edit the owner share of ${entry.whole.counterparty || 'the payment'}`"
+                data-testid="edit-owner-share"
+                @click="emit('ownerShare', entry.whole)"
+              />
+              <UButton
+                v-if="entry.whole.kind === 'bank'"
+                icon="i-lucide-split"
+                color="neutral"
+                variant="ghost"
+                :disabled="writing"
+                :aria-label="`Split the payment of ${entry.whole.counterparty || 'this row'}`"
+                data-testid="split-row"
+                @click="entry.whole.kind === 'bank' && emit('split', entry.whole)"
+              />
             </span>
-          </span>
-          <span class="flex shrink-0">
+          </li>
+          <li v-else-if="entry.kind === 'split'" class="card split-heading" data-testid="split-heading">
+            <span class="flex min-w-0 flex-col gap-0.5">
+              <span class="flex items-baseline justify-between gap-3">
+                <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
+                <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
+              </span>
+              <span class="flex items-center gap-2 text-xs text-muted">
+                <UBadge :label="`Split in ${entry.count} parts`" color="neutral" variant="subtle" size="sm" />
+                <span class="figure"
+                  >{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ names.account(entry.whole.account) }}</template></span
+                >
+              </span>
+            </span>
             <UButton
-              v-if="shareTargetOf(entry.whole) !== null"
               icon="i-lucide-pencil"
               color="neutral"
               variant="ghost"
               :disabled="writing"
-              :aria-label="`Edit the owner share of ${entry.whole.counterparty || 'the payment'}`"
-              data-testid="edit-owner-share"
-              @click="emit('ownerShare', entry.whole)"
+              :aria-label="`Edit the split of ${entry.whole.counterparty || 'the payment'}`"
+              data-testid="edit-split"
+              @click="emit('split', entry.whole)"
             />
-            <UButton
-              v-if="entry.whole.kind === 'bank'"
-              icon="i-lucide-split"
-              color="neutral"
-              variant="ghost"
-              :disabled="writing"
-              :aria-label="`Split the payment of ${entry.whole.counterparty || 'this row'}`"
-              data-testid="split-row"
-              @click="entry.whole.kind === 'bank' && emit('split', entry.whole)"
-            />
-          </span>
-        </li>
-        <li v-else-if="entry.kind === 'split'" class="card split-heading" data-testid="split-heading">
-          <span class="flex min-w-0 flex-col gap-0.5">
-            <span class="flex items-baseline justify-between gap-3">
-              <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
-              <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
-            </span>
-            <span class="flex items-center gap-2 text-xs text-muted">
-              <UBadge :label="`Split in ${entry.count} parts`" color="neutral" variant="subtle" size="sm" />
-              <span class="figure">{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ names.account(entry.whole.account) }}</template></span>
-            </span>
-          </span>
-          <UButton
-            icon="i-lucide-pencil"
-            color="neutral"
-            variant="ghost"
-            :disabled="writing"
-            :aria-label="`Edit the split of ${entry.whole.counterparty || 'the payment'}`"
-            data-testid="edit-split"
-            @click="emit('split', entry.whole)"
-          />
-        </li>
-        <li v-else class="card" :class="{ part: partLabel(entry.row) !== null }" data-testid="transaction-card">
-          <button type="button" class="card-summary" :aria-expanded="openRows.has(entry.row.key)" @click="toggleRow(entry.row.key)">
-            <span class="flex items-baseline justify-between gap-3">
-              <span v-if="partLabel(entry.row)" class="flex min-w-0 items-center gap-1.5 text-toned">
-                <UIcon name="i-lucide-corner-down-right" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
-                <span class="truncate">{{ partLabel(entry.row) }}</span>
+          </li>
+          <li v-else class="card" :class="{ part: partLabel(entry.row) !== null }" data-testid="transaction-card">
+            <button type="button" class="card-summary" :aria-expanded="openRows.has(entry.row.key)" @click="toggleRow(entry.row.key)">
+              <span class="flex items-baseline justify-between gap-3">
+                <span v-if="partLabel(entry.row)" class="flex min-w-0 items-center gap-1.5 text-toned">
+                  <UIcon name="i-lucide-corner-down-right" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+                  <span class="truncate">{{ partLabel(entry.row) }}</span>
+                </span>
+                <span v-else class="min-w-0 truncate font-medium text-highlighted">{{ entry.row.counterparty || 'No counterparty' }}</span>
+                <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
               </span>
-              <span v-else class="min-w-0 truncate font-medium text-highlighted">{{ entry.row.counterparty || 'No counterparty' }}</span>
-              <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
-            </span>
-            <span class="flex items-center justify-between gap-3 text-xs text-muted">
-              <span class="flex min-w-0 items-center gap-1.5">
-                <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
-                <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
-                <span v-else class="truncate text-toned">{{ entry.row.category === '' ? 'No category' : names.category(entry.row.category) }}</span>
-                <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
+              <span class="flex items-center justify-between gap-3 text-xs text-muted">
+                <span class="flex min-w-0 items-center gap-1.5">
+                  <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
+                  <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
+                  <span v-else class="truncate text-toned">{{ entry.row.category === '' ? 'No category' : names.category(entry.row.category) }}</span>
+                  <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
+                </span>
+                <span class="figure shrink-0">
+                  {{ shortDate(entry.row) }}<template v-if="showAccount">, {{ accountOf(entry.row) }}</template>
+                </span>
               </span>
-              <span class="figure shrink-0">
-                {{ shortDate(entry.row) }}<template v-if="showAccount">, {{ accountOf(entry.row) }}</template>
-              </span>
-            </span>
-          </button>
-          <div v-if="openRows.has(entry.row.key)" class="card-details" data-testid="transaction-details">
-            <p v-if="entry.row.description" class="text-sm text-toned">{{ entry.row.description }}</p>
-            <p class="text-xs text-muted">{{ dayLabel(entry.row.date) }}, {{ accountOf(entry.row) }}</p>
-            <div class="flex flex-wrap gap-x-4">
-              <DrillLink
-                v-if="entry.row.kind === 'bank'"
-                :to="drillLocation(drillToTransactions({ counterparties: [counterpartyIdentity(entry.row).key] }))"
-                class="inline-target text-sm text-highlighted"
-              >
-                Every row from this counterparty
-              </DrillLink>
-              <DrillLink
-                v-if="entry.row.category"
-                :to="drillLocation(drillToTransactions({ categories: [entry.row.category] }))"
-                class="inline-target text-sm text-highlighted"
-              >
-                Every row in {{ names.category(entry.row.category) }}
-              </DrillLink>
-              <UButton
-                v-if="entry.row.kind === 'bank' && categoryChangeOf(entry.row) !== null"
-                label="Change category"
-                icon="i-lucide-tag"
-                color="neutral"
-                variant="link"
-                class="inline-target px-0 text-sm"
-                :disabled="writing"
-                data-testid="change-category-row"
-                @click="entry.row.kind === 'bank' && emit('changeCategory', entry.row)"
-              />
-              <UButton
-                v-if="entry.row.kind === 'bank' && !entry.row.split && !entry.row.ownerPart && entry.row.amount !== 0"
-                label="Split"
-                icon="i-lucide-split"
-                color="neutral"
-                variant="link"
-                class="inline-target px-0 text-sm"
-                :disabled="writing"
-                data-testid="split-row"
-                @click="entry.row.kind === 'bank' && emit('split', entry.row)"
-              />
-              <UButton
-                v-if="shareTargetOf(entry.row) !== null"
-                label="Owner share"
-                icon="i-lucide-hand-coins"
-                color="neutral"
-                variant="link"
-                class="inline-target px-0 text-sm"
-                :disabled="writing"
-                data-testid="owner-share-row"
-                @click="emit('ownerShare', entry.row)"
-              />
+            </button>
+            <div v-if="openRows.has(entry.row.key)" class="card-details" data-testid="transaction-details">
+              <p v-if="entry.row.description" class="text-sm text-toned">{{ entry.row.description }}</p>
+              <p class="text-xs text-muted">{{ dayLabel(entry.row.date) }}, {{ accountOf(entry.row) }}</p>
+              <div class="flex flex-wrap gap-x-4">
+                <DrillLink
+                  v-if="entry.row.kind === 'bank'"
+                  :to="drillLocation(drillToTransactions({ counterparties: [counterpartyIdentity(entry.row).key] }))"
+                  class="inline-target text-sm text-highlighted"
+                >
+                  Every row from this counterparty
+                </DrillLink>
+                <DrillLink v-if="entry.row.category" :to="drillLocation(drillToTransactions({ categories: [entry.row.category] }))" class="inline-target text-sm text-highlighted">
+                  Every row in {{ names.category(entry.row.category) }}
+                </DrillLink>
+                <UButton
+                  v-if="entry.row.kind === 'bank' && categoryChangeOf(entry.row) !== null"
+                  label="Change category"
+                  icon="i-lucide-tag"
+                  color="neutral"
+                  variant="link"
+                  class="inline-target px-0 text-sm"
+                  :disabled="writing"
+                  data-testid="change-category-row"
+                  @click="entry.row.kind === 'bank' && emit('changeCategory', entry.row)"
+                />
+                <UButton
+                  v-if="entry.row.kind === 'bank' && !entry.row.split && !entry.row.ownerPart && entry.row.amount !== 0"
+                  label="Split"
+                  icon="i-lucide-split"
+                  color="neutral"
+                  variant="link"
+                  class="inline-target px-0 text-sm"
+                  :disabled="writing"
+                  data-testid="split-row"
+                  @click="entry.row.kind === 'bank' && emit('split', entry.row)"
+                />
+                <UButton
+                  v-if="shareTargetOf(entry.row) !== null"
+                  label="Owner share"
+                  icon="i-lucide-hand-coins"
+                  color="neutral"
+                  variant="link"
+                  class="inline-target px-0 text-sm"
+                  :disabled="writing"
+                  data-testid="owner-share-row"
+                  @click="emit('ownerShare', entry.row)"
+                />
+              </div>
             </div>
-          </div>
-        </li>
+          </li>
         </template>
       </ul>
     </section>

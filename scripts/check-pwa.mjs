@@ -32,7 +32,11 @@ assert.ok(manifestPath?.startsWith('/'), 'Build the production app before runnin
 const base = manifestPath.slice(0, manifestPath.lastIndexOf('/') + 1)
 const filenames = (await readdir(outputDirectory, { recursive: true, withFileTypes: true }))
   .filter((entry) => entry.isFile() && !entry.name.endsWith('.map'))
-  .map((entry) => join(entry.parentPath, entry.name).slice(outputDirectory.length + 1).replaceAll('\\', '/'))
+  .map((entry) =>
+    join(entry.parentPath, entry.name)
+      .slice(outputDirectory.length + 1)
+      .replaceAll('\\', '/'),
+  )
 const builtFiles = new Map(await Promise.all(filenames.map(async (filename) => [filename, await readFile(join(outputDirectory, filename))])))
 assert.ok(builtFiles.has('sw.js'), 'The production build must contain a service worker.')
 const missingAsset = filenames.find((filename) => filename.endsWith('.woff2'))
@@ -42,9 +46,15 @@ const scratch = mkdtempSync(join(tmpdir(), 'kuna-pwa-'))
 const templateFile = await writeFakeTemplateFile(join(scratch, 'filled-template.xlsx'))
 
 const mimeTypes = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-  '.webmanifest': 'application/manifest+json', '.json': 'application/json',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff',
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.webmanifest': 'application/manifest+json',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
 }
 let release = 'initial'
 let serverUnavailable = false
@@ -139,10 +149,12 @@ try {
   const manifest = await page.evaluate(async () => {
     const url = document.querySelector('link[rel="manifest"]').href
     const manifest = await (await fetch(url)).json()
-    const icons = await Promise.all(manifest.icons.map(async (icon) => {
-      const bitmap = await createImageBitmap(await (await fetch(new URL(icon.src, url))).blob())
-      return { declared: icon.sizes, purpose: icon.purpose, actual: `${bitmap.width}x${bitmap.height}` }
-    }))
+    const icons = await Promise.all(
+      manifest.icons.map(async (icon) => {
+        const bitmap = await createImageBitmap(await (await fetch(new URL(icon.src, url))).blob())
+        return { declared: icon.sizes, purpose: icon.purpose, actual: `${bitmap.width}x${bitmap.height}` }
+      }),
+    )
     return { ...manifest, url, icons }
   })
   assert.equal(new URL(manifest.scope, manifest.url).href, appUrl)
@@ -152,9 +164,15 @@ try {
   assert.equal(manifest.theme_color, '#0d1219')
   assert.equal(manifest.background_color, '#0d1219')
   for (const size of ['192x192', '512x512']) {
-    assert.ok(manifest.icons.some((icon) => icon.declared === size && icon.actual === size && icon.purpose === 'any'), `Missing valid ${size} icon`)
+    assert.ok(
+      manifest.icons.some((icon) => icon.declared === size && icon.actual === size && icon.purpose === 'any'),
+      `Missing valid ${size} icon`,
+    )
   }
-  assert.ok(manifest.icons.some((icon) => icon.purpose === 'maskable' && icon.actual === icon.declared), 'Missing a valid maskable icon')
+  assert.ok(
+    manifest.icons.some((icon) => icon.purpose === 'maskable' && icon.actual === icon.declared),
+    'Missing a valid maskable icon',
+  )
   assert.equal(await page.evaluate(async () => (await navigator.serviceWorker.ready).scope), appUrl)
   if (browserName === 'chrome') {
     // Chrome's own verdict on whether the page can be installed, as Android Chrome makes it.
@@ -166,11 +184,15 @@ try {
     await session.detach()
   }
   const assets = filenames.filter((filename) => filename !== 'sw.js').map((filename) => appUrl + filename)
-  assert.deepEqual(await page.evaluate(async (urls) => {
-    const missing = []
-    for (const url of urls) if (!await caches.match(url)) missing.push(url)
-    return missing
-  }, assets), [], 'Every built asset, including lazy screens, SheetJS and fonts, must be available offline.')
+  assert.deepEqual(
+    await page.evaluate(async (urls) => {
+      const missing = []
+      for (const url of urls) if (!(await caches.match(url))) missing.push(url)
+      return missing
+    }, assets),
+    [],
+    'Every built asset, including lazy screens, SheetJS and fonts, must be available offline.',
+  )
   console.log(`PASS: manifest, icons, scoped worker, complete precache${browserName === 'chrome' ? ', installable' : ''}`)
 
   // The first visit: onboarding brings an xlsx file into this browser, which keeps the workbook in IndexedDB.
@@ -228,17 +250,24 @@ try {
   assert.equal(await page.evaluate(() => window.pwaCheckDocument), originalDocument, 'An update must wait for the prompt, not reload the page.')
   const cachesWithUpdate = await probe.evaluate(() => caches.keys())
   for (const cacheName of originalCaches) assert.ok(cachesWithUpdate.includes(cacheName), 'A waiting update must keep the active cache.')
-  assert.ok(cachesWithUpdate.some((cacheName) => !originalCaches.includes(cacheName)), 'The next release must have its own complete cache.')
+  assert.ok(
+    cachesWithUpdate.some((cacheName) => !originalCaches.includes(cacheName)),
+    'The next release must have its own complete cache.',
+  )
 
   // A background tab never reports its elements in view, so a click there would wait forever.
   await page.bringToFront()
   await clickText(page, '[data-testid="update-prompt"] button', 'Reload')
   await page.waitForFunction(() => window.pwaCheckDocument === undefined, { polling: 100 })
   await waitForTitle(page, 'Analysis')
-  await probe.waitForFunction(async (scope) => {
-    const registration = await navigator.serviceWorker.getRegistration(scope)
-    return registration?.active?.state === 'activated' && !registration.waiting
-  }, { polling: 100 }, appUrl)
+  await probe.waitForFunction(
+    async (scope) => {
+      const registration = await navigator.serviceWorker.getRegistration(scope)
+      return registration?.active?.state === 'activated' && !registration.waiting
+    },
+    { polling: 100 },
+    appUrl,
+  )
   await secondWindow.waitForSelector('[data-testid="update-prompt"]')
   const activeCaches = await probe.evaluate(() => caches.keys())
   for (const cacheName of originalCaches.filter((name) => name !== 'another-project-cache')) {
@@ -266,12 +295,14 @@ try {
     try {
       const registration = await navigator.serviceWorker.register(`${scope}sw.js`, { scope })
       const worker = registration.installing
-      if (worker) await new Promise((resolve) => {
-        if (worker.state === 'redundant' || worker.state === 'activated') resolve()
-        else worker.addEventListener('statechange', () => {
+      if (worker)
+        await new Promise((resolve) => {
           if (worker.state === 'redundant' || worker.state === 'activated') resolve()
+          else
+            worker.addEventListener('statechange', () => {
+              if (worker.state === 'redundant' || worker.state === 'activated') resolve()
+            })
         })
-      })
       return { active: Boolean(registration.active), state: worker?.state, caches: await caches.keys() }
     } catch {
       return { active: false, state: 'rejected', caches: await caches.keys() }
@@ -296,31 +327,17 @@ async function waitForWorker(page) {
 }
 
 async function waitForTitle(page, title) {
-  await page.waitForFunction(
-    (expected) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === expected,
-    { timeout: 15_000 },
-    title,
-  )
+  await page.waitForFunction((expected) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === expected, { timeout: 15_000 }, title)
 }
 
 async function clickText(page, selector, text) {
-  const handle = await page.waitForFunction(
-    (css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim() === wanted) ?? null,
-    {},
-    selector,
-    text,
-  )
+  const handle = await page.waitForFunction((css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim() === wanted) ?? null, {}, selector, text)
   await handle.asElement().click()
 }
 
 /** Clicks the first element under the selector whose text starts with the words, such as a radio choice's label above its description. */
 async function clickStart(page, selector, text) {
-  const handle = await page.waitForFunction(
-    (css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null,
-    {},
-    selector,
-    text,
-  )
+  const handle = await page.waitForFunction((css, wanted) => [...document.querySelectorAll(css)].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null, {}, selector, text)
   await handle.asElement().click()
 }
 

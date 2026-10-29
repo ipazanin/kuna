@@ -76,7 +76,10 @@ describe('one sync over the company file and the Loans file on the fake Drive', 
     await sync.sync()
 
     expect(stepsOf(sync)).toEqual({
-      company: [['books', 'done'], ['statements', 'done']],
+      company: [
+        ['books', 'done'],
+        ['statements', 'done'],
+      ],
       loans: [['books', 'done']],
     })
     expect(statements.runs).toBe(1)
@@ -90,7 +93,10 @@ describe('one sync over the company file and the Loans file on the fake Drive', 
     await sync.sync()
 
     expect(stepsOf(sync)).toEqual({
-      company: [['books', 'failed'], ['statements', 'skipped']],
+      company: [
+        ['books', 'failed'],
+        ['statements', 'skipped'],
+      ],
       loans: [['books', 'done']],
     })
     expect(statements.runs).toBe(0)
@@ -105,7 +111,10 @@ describe('one sync over the company file and the Loans file on the fake Drive', 
     await sync.sync()
 
     expect(stepsOf(sync)).toEqual({
-      company: [['books', 'done'], ['statements', 'done']],
+      company: [
+        ['books', 'done'],
+        ['statements', 'done'],
+      ],
       loans: [['books', 'failed']],
     })
     expect(statements.runs).toBe(1)

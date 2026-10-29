@@ -1,15 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import {
-  DEFAULT_MONEY_FORMAT,
-  currencyUnitName,
-  formatCompactMoney,
-  formatDecimal,
-  formatMoney,
-  formatPercent,
-  formatWholeMoney,
-  setMoneyFormat,
-} from '../src/shared/money/moneyFormat'
+import { DEFAULT_MONEY_FORMAT, currencyUnitName, formatCompactMoney, formatDecimal, formatMoney, formatPercent, formatWholeMoney, setMoneyFormat } from '../src/shared/money/moneyFormat'
 
 afterEach(() => {
   setMoneyFormat(DEFAULT_MONEY_FORMAT)

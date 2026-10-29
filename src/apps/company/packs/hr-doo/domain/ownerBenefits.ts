@@ -118,8 +118,14 @@ export function dividendComparison(byYear: readonly YearAmount[], name: string, 
   }
   const summed = (label: string, figures: readonly TracedFigure[]): TracedFigure => tracedFigure(label, sumMoney(figures.map((figure) => figure.amount)), 'ledger', rulesOf(figures), figures)
   return {
-    taxAvoided: summed('Tax avoided against a dividend', perYear.map((entry) => entry.taxAvoided)),
-    asDividend: summed('As a dividend, net', perYear.map((entry) => entry.asDividend)),
+    taxAvoided: summed(
+      'Tax avoided against a dividend',
+      perYear.map((entry) => entry.taxAvoided),
+    ),
+    asDividend: summed(
+      'As a dividend, net',
+      perYear.map((entry) => entry.asDividend),
+    ),
     years,
   }
 }

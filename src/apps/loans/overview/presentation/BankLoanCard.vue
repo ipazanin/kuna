@@ -41,10 +41,10 @@ defineProps<{
         </li>
         <li v-if="figures.payoff !== null">Paid off {{ dayLabel(figures.payoff) }}, {{ formatMoney(figures.interestLeft.interest) }} interest left</li>
         <li>
-          {{ formatMoney(figures.interestThisYear.interest) }} interest in {{ figures.interestThisYear.year }}<template v-if="figures.interestThisYear.subsidy > 0">, of which the subsidy covers {{ formatMoney(figures.interestThisYear.subsidy) }}</template>
+          {{ formatMoney(figures.interestThisYear.interest) }} interest in {{ figures.interestThisYear.year
+          }}<template v-if="figures.interestThisYear.subsidy > 0">, of which the subsidy covers {{ formatMoney(figures.interestThisYear.subsidy) }}</template>
         </li>
       </ul>
     </AppCard>
   </RouterLink>
 </template>
-

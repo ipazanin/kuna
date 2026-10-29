@@ -180,10 +180,7 @@ const watched = computed(() =>
 /** The roles the tabs read, said once under the header. */
 const missingRoles = computed(() => {
   const categories = ledger.value?.workbook.categories ?? []
-  return [
-    ...missingAccrualRoles(categories),
-    ...(categoriesWithRole(categories, PACK_ROLES.watched).length === 0 ? [{ role: PACK_ROLES.watched, leftOut: 'no tax has a payment calendar' }] : []),
-  ]
+  return [...missingAccrualRoles(categories), ...(categoriesWithRole(categories, PACK_ROLES.watched).length === 0 ? [{ role: PACK_ROLES.watched, leftOut: 'no tax has a payment calendar' }] : [])]
 })
 
 const noVat = computed(() => closed.value?.view?.noVat ?? false)

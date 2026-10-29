@@ -17,7 +17,8 @@ defineProps<{
         <a :href="source.url" target="_blank" rel="noopener noreferrer" class="source-link" data-testid="rule-source">
           <span class="flex items-start gap-1.5">
             <span class="min-w-0 text-sm text-highlighted">
-              <span lang="hr">{{ source.act }}</span>, {{ source.reference }}
+              <span lang="hr">{{ source.act }}</span
+              >, {{ source.reference }}
             </span>
             <UIcon name="i-lucide-external-link" class="mt-0.5 size-3.5 shrink-0 text-dimmed" aria-hidden="true" />
           </span>

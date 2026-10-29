@@ -87,7 +87,13 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
         </ul>
         <ul class="mt-2 flex flex-col">
           <li v-for="component in scenario.components" :key="component.id">
-            <button type="button" class="component-row" :aria-label="`${componentText(component)}, ${spanText(component)}: edit`" data-testid="scenario-component" @click="editComponent(scenario, component)">
+            <button
+              type="button"
+              class="component-row"
+              :aria-label="`${componentText(component)}, ${spanText(component)}: edit`"
+              data-testid="scenario-component"
+              @click="editComponent(scenario, component)"
+            >
               <span class="min-w-0 text-start">
                 <span class="block text-sm text-toned">{{ componentText(component) }}</span>
                 <span class="block text-xs text-muted">{{ spanText(component) }}</span>
@@ -96,7 +102,17 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
             </button>
           </li>
         </ul>
-        <UButton label="Add a component" icon="i-lucide-plus" color="neutral" variant="link" size="sm" class="mt-1 px-0" :disabled="store.state.writing" data-testid="scenario-add-component" @click="editComponent(scenario, null)" />
+        <UButton
+          label="Add a component"
+          icon="i-lucide-plus"
+          color="neutral"
+          variant="link"
+          size="sm"
+          class="mt-1 px-0"
+          :disabled="store.state.writing"
+          data-testid="scenario-add-component"
+          @click="editComponent(scenario, null)"
+        />
       </article>
     </div>
     <ComponentDialog v-if="editing" v-model:open="componentOpen" :scenario="editing.scenario" :component="editing.component" />

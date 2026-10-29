@@ -26,20 +26,18 @@ const props = defineProps<{
 
 const home = homeApp()
 
-const navigation = computed(
-  (): Navigation => ({
-    groups: installedApps().map((app) => ({
-      app: app.id,
-      name: app.name,
-      subtitle: app.subtitle(),
-      entries: app.menu().map((screen) => {
-        const count = app.menuCount(screen)
-        return { to: screen.path, label: screen.title, icon: screen.icon, ...(count === null ? {} : { count }) }
-      }),
-    })),
-    apart: [{ to: SETTINGS_SCREEN.path, label: SETTINGS_SCREEN.title, icon: SETTINGS_SCREEN.icon }],
-  }),
-)
+const navigation = computed((): Navigation => ({
+  groups: installedApps().map((app) => ({
+    app: app.id,
+    name: app.name,
+    subtitle: app.subtitle(),
+    entries: app.menu().map((screen) => {
+      const count = app.menuCount(screen)
+      return { to: screen.path, label: screen.title, icon: screen.icon, ...(count === null ? {} : { count }) }
+    }),
+  })),
+  apart: [{ to: SETTINGS_SCREEN.path, label: SETTINGS_SCREEN.title, icon: SETTINGS_SCREEN.icon }],
+}))
 
 const router = useRouter()
 const route = useRoute()

@@ -66,17 +66,15 @@ export function splitLedger(transactions: readonly Transaction[], splits: readon
     if (split === undefined) {
       return [row]
     }
-    return split.parts.map(
-      (part, index): Transaction => ({
-        ...row,
-        amount: part.amount,
-        category: part.category,
-        family: part.family,
-        bucket: part.bucket,
-        ownerShare: part.ownerShare,
-        split: { whole: row, index, count: split.parts.length, note: part.note, id: part.id },
-      }),
-    )
+    return split.parts.map((part, index): Transaction => ({
+      ...row,
+      amount: part.amount,
+      category: part.category,
+      family: part.family,
+      bucket: part.bucket,
+      ownerShare: part.ownerShare,
+      split: { whole: row, index, count: split.parts.length, note: part.note, id: part.id },
+    }))
   })
 }
 

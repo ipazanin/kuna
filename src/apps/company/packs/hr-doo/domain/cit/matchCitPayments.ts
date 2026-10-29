@@ -43,19 +43,10 @@ export interface CitPaymentMatching {
  * code, so the schedule is the only way to tell them apart. Pass the schedules of every year from
  * the first tax period, so that every payment in the ledger has the obligation it was made for.
  */
-export function matchCitPayments(
-  schedules: readonly CitSchedule[],
-  transactions: readonly Transaction[],
-  categories: readonly Category[],
-  asOf: CivilDate,
-): CitPaymentMatching {
+export function matchCitPayments(schedules: readonly CitSchedule[], transactions: readonly Transaction[], categories: readonly Category[], asOf: CivilDate): CitPaymentMatching {
   const slugs = categoriesWithRole(categories, PACK_ROLES.corporateIncomeTax)
-  const rows = transactions
-    .filter((row) => slugs.includes(row.category))
-    .sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
-  const obligations = schedules
-    .flatMap((schedule) => schedule.obligations)
-    .sort((earlier, later) => earlier.dueOn.localeCompare(later.dueOn) || earlier.taxYear - later.taxYear)
+  const rows = transactions.filter((row) => slugs.includes(row.category)).sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
+  const obligations = schedules.flatMap((schedule) => schedule.obligations).sort((earlier, later) => earlier.dueOn.localeCompare(later.dueOn) || earlier.taxYear - later.taxYear)
 
   const filling = obligations.map((obligation) => ({ obligation, outstanding: obligation.expected.amount, shares: [] as RowShare[] }))
   const unmatched: TracedFigure[] = []
@@ -87,7 +78,14 @@ export function matchCitPayments(
     unmatched,
     advancesPaid: schedules.map((schedule) => {
       const paid = matched.filter((entry) => entry.obligation.kind === 'advance' && entry.obligation.taxYear === schedule.year && entry.paid.amount !== 0)
-      return { year: schedule.year, paid: summed(`PD line 56, advances paid for ${schedule.year}`, paid.map((entry) => entry.paid), 'ledger') }
+      return {
+        year: schedule.year,
+        paid: summed(
+          `PD line 56, advances paid for ${schedule.year}`,
+          paid.map((entry) => entry.paid),
+          'ledger',
+        ),
+      }
     }),
   }
 }

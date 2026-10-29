@@ -40,7 +40,13 @@ function dateOf(line: PlanLine): string {
 </script>
 
 <template>
-  <AppCard title="Plan" subtitle="Every payment the terms give, by the year it falls due. A payment still to come at a variable rate is an estimate." collapse-id="loans.plan" :summary="summary" data-testid="loan-plan">
+  <AppCard
+    title="Plan"
+    subtitle="Every payment the terms give, by the year it falls due. A payment still to come at a variable rate is an estimate."
+    collapse-id="loans.plan"
+    :summary="summary"
+    data-testid="loan-plan"
+  >
     <ol class="flex flex-col pb-2">
       <li v-for="year in years" :key="year.year" class="border-t border-default first:border-t-0" :data-year="year.year">
         <button

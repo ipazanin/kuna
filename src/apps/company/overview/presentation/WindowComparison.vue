@@ -51,9 +51,7 @@ function barStyle(change: number): Record<string, string> {
         <tr v-for="row in rows" :key="row.label" :class="{ emphasised: row.emphasised }">
           <th scope="row" class="cell-wraps text-start font-normal text-toned">
             {{ row.label }}
-            <span v-if="row.recentChange !== null" class="figure block text-xs font-normal text-muted @md:hidden">
-              {{ formatPercent(row.recentChange, 'always') }} last 3 vs 12 months
-            </span>
+            <span v-if="row.recentChange !== null" class="figure block text-xs font-normal text-muted @md:hidden"> {{ formatPercent(row.recentChange, 'always') }} last 3 vs 12 months </span>
           </th>
           <td v-for="(cell, index) in row.cells" :key="index" class="text-end">
             <DrillLink :to="cell.to" :label="`${row.label}, ${columns[index]}, open the rows`">

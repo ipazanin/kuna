@@ -68,7 +68,12 @@ export function startingScenarios(year: number, grants: readonly Grant[], monthl
 
   const drafts: ScenarioDraft[] = [
     { slug: `floor-salary-${year}`, label: 'Floor salary all year', year, components: [floor, dividend] },
-    { slug: `floor-salary-extras-${year}`, label: monthlyRent === null ? 'Floor salary and tax-free items' : 'Floor salary, tax-free items and rent', year, components: [floor, ...taxFree, ...rent, dividend] },
+    {
+      slug: `floor-salary-extras-${year}`,
+      label: monthlyRent === null ? 'Floor salary and tax-free items' : 'Floor salary, tax-free items and rent',
+      year,
+      components: [floor, ...taxFree, ...rent, dividend],
+    },
     ...(switchOn === null
       ? []
       : [

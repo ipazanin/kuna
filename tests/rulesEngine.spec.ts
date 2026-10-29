@@ -2,15 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { categorise } from '../src/apps/company/rules/domain/categorise'
 import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
-import {
-  budgetRevenueCode,
-  categorisationContextOf,
-  foldRuleText,
-  isCardTransaction,
-  isForeignCurrency,
-  postedCurrency,
-  transactionFacts,
-} from '../src/apps/company/rules/domain/transactionFacts'
+import { budgetRevenueCode, categorisationContextOf, foldRuleText, isCardTransaction, isForeignCurrency, postedCurrency, transactionFacts } from '../src/apps/company/rules/domain/transactionFacts'
 import type { CategorisableTransaction } from '../src/apps/company/rules/domain/transactionFacts'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { moneyFromAmount } from '../src/shared/money/money'
@@ -162,7 +154,13 @@ describe('categorise', () => {
   it('lets a guard row stop a multi-purpose account from falling through to a broader rule', () => {
     const owner = 'XX00FAKE0000000007'
     const rules = [
-      rule([{ column: 'counterparty_iban', iban: owner }, { column: 'description_contains', fragment: 'ZAKUP' }], { id: 'owner-rent', order: 100, category: 'rent-owner' }),
+      rule(
+        [
+          { column: 'counterparty_iban', iban: owner },
+          { column: 'description_contains', fragment: 'ZAKUP' },
+        ],
+        { id: 'owner-rent', order: 100, category: 'rent-owner' },
+      ),
       rule([{ column: 'counterparty_iban', iban: owner }], { id: 'owner-review', order: 200, category: '', confidence: 'review' }),
       rule([{ column: 'direction', direction: 'debit' }], { id: 'any-debit', order: 300, category: 'other-costs' }),
     ]

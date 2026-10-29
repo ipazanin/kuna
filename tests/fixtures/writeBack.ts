@@ -132,7 +132,12 @@ export interface WriteBackHarness<Books extends BooksRead = CompanyBooks> {
 const NOW = '2026-10-17T09:00:00.000Z'
 
 function storePorts<Books extends BooksRead>(choice: WorkbookChoice, drive: FakeDrive, used: Set<string>, app: AppUnderTest<Books>): WorkbookStorePorts<Books, DocumentCopy, WorkbookDocument> {
-  const ports = documentStorePorts(app.app, app.document, async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => null, folderPath: async () => null, pickFile: async () => null }), () => NOW)
+  const ports = documentStorePorts(
+    app.app,
+    app.document,
+    async () => ({ drive, signIn: async () => {}, signedIn: () => true, pickFolder: async () => null, folderPath: async () => null, pickFile: async () => null }),
+    () => NOW,
+  )
   return {
     ...ports,
     openCache: (id) => {
@@ -169,7 +174,10 @@ export async function driveHarness<Books extends BooksRead = CompanyBooks>(
   const folderId = await drive.createFolder('root', 'books')
   const { fileId, document: stored } = await createDriveDocument(drive, folderId, app.app, encodeDocument(document))
   const name = documentName(app.app)
-  await keepInCache({ meta: { id: fileId, source: 'drive', title: name, syncedAt: '2026-10-16T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }, revision: stored.revision, document }, used)
+  await keepInCache(
+    { meta: { id: fileId, source: 'drive', title: name, syncedAt: '2026-10-16T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }, revision: stored.revision, document },
+    used,
+  )
   const store = createWorkbookStore(storePorts({ source: 'drive', id: fileId, name }, drive, used, app))
   await store.open()
   drive.requests.length = 0

@@ -96,9 +96,7 @@ const option = computed<ChartOption>(() => {
         labelLine: { show: false },
         itemStyle: { borderColor: tokens.surface, borderWidth: 2 },
         emphasis: { scale: true, scaleSize: 3 },
-        data: props.parts
-          .filter((part) => part.value > 0)
-          .map((part) => ({ name: part.label, value: part.value, itemStyle: { color: tokenColour(part.colour) } })),
+        data: props.parts.filter((part) => part.value > 0).map((part) => ({ name: part.label, value: part.value, itemStyle: { color: tokenColour(part.colour) } })),
       },
     ],
   }
@@ -113,13 +111,7 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
 </script>
 
 <template>
-  <AppCard
-    data-testid="donut-card"
-    :title="title"
-    :subtitle="subtitle"
-    :definition="definition"
-    v-bind="collapseId === undefined ? {} : { collapseId, summary, startCollapsed, reveal }"
-  >
+  <AppCard data-testid="donut-card" :title="title" :subtitle="subtitle" :definition="definition" v-bind="collapseId === undefined ? {} : { collapseId, summary, startCollapsed, reveal }">
     <div class="donut px-4 pt-3 pb-4 sm:px-5 sm:pb-5" :class="{ 'has-beside': $slots.beside }">
       <div class="donut-ring">
         <VChart :option="option" :theme="theme" autoresize class="ring-chart" @click="onSliceClick" />

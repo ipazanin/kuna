@@ -78,7 +78,10 @@ describe('googleStatementFolder', () => {
     })
     const folder = googleStatementFolder('read-token', 'books-file')
 
-    expect(await folder.files(['work', 'statements', '2026'])).toEqual({ kind: 'refused', reason: 'work holds no folder named "statements", so no statements were read. Check the statements_folder setting.' })
+    expect(await folder.files(['work', 'statements', '2026'])).toEqual({
+      kind: 'refused',
+      reason: 'work holds no folder named "statements", so no statements were read. Check the statements_folder setting.',
+    })
     expect(await folder.files(['finance'])).toEqual({ kind: 'refused', reason: 'My Drive holds no folder named "finance", so no statements were read. Check the statements_folder setting.' })
     expect(requests).toHaveLength(3)
   })

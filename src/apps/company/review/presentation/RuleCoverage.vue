@@ -38,9 +38,7 @@ function bucketOf(category: string): Bucket {
 }
 
 const groupCount = computed(() => props.coverage.notCovered.length + props.coverage.exceptions.length)
-const summary = computed(
-  () => `${groupCount.value} ${groupCount.value === 1 ? 'group' : 'groups'} no rule repeats${props.dismissedCount > 0 ? `, ${props.dismissedCount} dismissed` : ''}`,
-)
+const summary = computed(() => `${groupCount.value} ${groupCount.value === 1 ? 'group' : 'groups'} no rule repeats${props.dismissedCount > 0 ? `, ${props.dismissedCount} dismissed` : ''}`)
 
 const rowCount = computed(() => [...props.coverage.notCovered, ...props.coverage.exceptions].reduce((total, group) => total + group.rows.length, 0))
 
@@ -50,13 +48,7 @@ function rowsInWords(count: number): string {
 </script>
 
 <template>
-  <AppCard
-    title="Confirmed rows no rule repeats"
-    collapse-id="review.no-rule-repeats"
-    :summary="summary"
-    start-collapsed
-    data-testid="rule-coverage"
-  >
+  <AppCard title="Confirmed rows no rule repeats" collapse-id="review.no-rule-repeats" :summary="summary" start-collapsed data-testid="rule-coverage">
     <template #subtitle>
       <template v-if="rowCount">{{ rowsInWords(rowCount) }} a person filed that the rules would not file the same way.</template>
       <template v-else-if="dismissedCount > 0">Apart from the groups you dismissed, every row a person filed is one the rules would file the same way.</template>
@@ -122,9 +114,7 @@ function rowsInWords(count: number): string {
         <UIcon name="i-lucide-split" class="size-4 shrink-0 self-center text-[var(--tone-warning)]" aria-hidden="true" />
         <h3 class="text-sm font-medium text-highlighted">Exceptions</h3>
         <span class="figure text-sm text-muted">{{ coverage.exceptions.length }}</span>
-        <p class="basis-full text-xs text-muted">
-          A rule files these differently than the person did. A new rule would file that rule's other rows the same way, so these stay as filed.
-        </p>
+        <p class="basis-full text-xs text-muted">A rule files these differently than the person did. A new rule would file that rule's other rows the same way, so these stay as filed.</p>
       </header>
       <ul class="border-t border-default" data-testid="coverage-exceptions">
         <li v-for="group in coverage.exceptions" :key="group.key" class="group-row" data-testid="coverage-exception">
@@ -145,7 +135,9 @@ function rowsInWords(count: number): string {
               </span>
             </p>
             <p class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-              <span><span class="identifier text-toned">{{ group.ruleId }}</span> files them as</span>
+              <span
+                ><span class="identifier text-toned">{{ group.ruleId }}</span> files them as</span
+              >
               <CategoryChip :category="group.ruleCategory" :bucket="bucketOf(group.ruleCategory)" />
             </p>
           </div>

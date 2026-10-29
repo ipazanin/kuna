@@ -41,13 +41,14 @@ const groups = computed<SelectMenuItem[][]>(() => {
     ],
     [
       { type: 'label' as const, label: 'Categories' },
-      ...props.workbook.categories.map((category): Choice => ({ label: names.value.category(category.slug), value: `categories:${category.slug}`, colour: colours.value(category.slug, category.bucket) })),
+      ...props.workbook.categories.map((category): Choice => ({
+        label: names.value.category(category.slug),
+        value: `categories:${category.slug}`,
+        colour: colours.value(category.slug, category.bucket),
+      })),
       ...(props.workbook.ownerAdvances.length === 0 ? [] : [{ label: EVERY_OWNER_ADVANCE_LABEL, value: `categories:${EVERY_OWNER_ADVANCE}` }]),
     ],
-    [
-      { type: 'label' as const, label: 'Counterparties' },
-      ...counterparties.map(([key, label]): Choice => ({ label, value: `counterparties:${key}` })),
-    ],
+    [{ type: 'label' as const, label: 'Counterparties' }, ...counterparties.map(([key, label]): Choice => ({ label, value: `counterparties:${key}` }))],
   ]
 })
 </script>
@@ -72,12 +73,7 @@ const groups = computed<SelectMenuItem[][]>(() => {
     <span class="text-default">Add filter</span>
     <template #trailing />
     <template #item-leading="{ item }">
-      <span
-        v-if="typeof item === 'object' && item !== null && 'colour' in item && item.colour"
-        class="size-2 shrink-0 rounded-[2px]"
-        :style="{ background: item.colour }"
-        aria-hidden="true"
-      />
+      <span v-if="typeof item === 'object' && item !== null && 'colour' in item && item.colour" class="size-2 shrink-0 rounded-[2px]" :style="{ background: item.colour }" aria-hidden="true" />
     </template>
   </USelectMenu>
 </template>

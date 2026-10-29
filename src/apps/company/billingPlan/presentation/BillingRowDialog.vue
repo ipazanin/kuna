@@ -156,19 +156,17 @@ async function remove(): Promise<void> {
     </template>
     <template #footer>
       <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="row !== null"
-          label="Delete row"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="billing-row-delete"
-          @click="remove"
-        />
+        <UButton v-if="row !== null" label="Delete row" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="billing-row-delete" @click="remove" />
         <div class="ms-auto flex flex-wrap gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton type="submit" form="billing-row" :label="row === null ? 'Add row' : 'Save row'" :icon="row === null ? 'i-lucide-plus' : 'i-lucide-save'" :loading="writes.busy.value" :disabled="writes.busy.value" />
+          <UButton
+            type="submit"
+            form="billing-row"
+            :label="row === null ? 'Add row' : 'Save row'"
+            :icon="row === null ? 'i-lucide-plus' : 'i-lucide-save'"
+            :loading="writes.busy.value"
+            :disabled="writes.busy.value"
+          />
         </div>
       </div>
     </template>

@@ -100,7 +100,16 @@ describe('owedInPeriod', () => {
 
   it('counts a cost the owner paid after the newest bank row, on its own day, under all time and the year that holds it', () => {
     const travel = PACK_CATEGORIES.find((category) => category.slug === 'travel')!
-    const late: OwnerAdvance = { date: civil('2026-05-20'), amount: euros(200), description: 'Train tickets', category: 'travel', family: travel.family, bucket: travel.bucket, ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') }
+    const late: OwnerAdvance = {
+      date: civil('2026-05-20'),
+      amount: euros(200),
+      description: 'Train tickets',
+      category: 'travel',
+      family: travel.family,
+      bucket: travel.bucket,
+      ownerShare: null,
+      id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2'),
+    }
     const withLate = { ...workbook, ownerAdvances: [late] }
 
     for (const period of [{ preset: 'all' as const }, { preset: 'year' as const, year: 2026 }]) {

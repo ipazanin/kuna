@@ -24,9 +24,11 @@ let loaded: Promise<InvoiceFontFiles> | null = null
 
 /** Inter as the app ships it, the WOFF files beside the WOFF2 ones the screens use. Loaded once, on the first invoice. */
 export function invoiceFonts(): Promise<InvoiceFontFiles> {
-  loaded ??= Promise.all([pairOf(regularLatinUrl, regularExtendedUrl), pairOf(boldLatinUrl, boldExtendedUrl), pairOf(italicLatinUrl, italicExtendedUrl)]).then(
-    ([regular, bold, italic]) => ({ regular, bold, italic }),
-  )
+  loaded ??= Promise.all([pairOf(regularLatinUrl, regularExtendedUrl), pairOf(boldLatinUrl, boldExtendedUrl), pairOf(italicLatinUrl, italicExtendedUrl)]).then(([regular, bold, italic]) => ({
+    regular,
+    bold,
+    italic,
+  }))
   loaded.catch(() => {
     loaded = null
   })

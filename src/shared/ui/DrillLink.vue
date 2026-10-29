@@ -16,14 +16,7 @@ withDefaults(
 </script>
 
 <template>
-  <RouterLink
-    v-if="to !== null"
-    :to="to"
-    :aria-label="label"
-    class="drill-link"
-    :class="{ 'in-prose': inProse }"
-    :data-hit-area="inProse ? 'extended' : undefined"
-  >
+  <RouterLink v-if="to !== null" :to="to" :aria-label="label" class="drill-link" :class="{ 'in-prose': inProse }" :data-hit-area="inProse ? 'extended' : undefined">
     <slot />
   </RouterLink>
   <span v-else><slot /></span>

@@ -36,7 +36,14 @@ const ORDER = ROWS.find((row) => row.amount === euros(-60))!
 
 describe('splitLedger', () => {
   it('puts the parts where the row stood, each with the row’s day, account, balance, order and text, and its own amount and category', () => {
-    const split = splitOf(ORDER, [[-45, 'office-supplies', 'Paper'], [-15, 'owner-loan-out', 'The owner’s pens']], PACK_CATEGORIES)
+    const split = splitOf(
+      ORDER,
+      [
+        [-45, 'office-supplies', 'Paper'],
+        [-15, 'owner-loan-out', 'The owner’s pens'],
+      ],
+      PACK_CATEGORIES,
+    )
     const presented = splitLedger(ROWS, [split])
 
     expect(presented.map((row) => [row.date, row.amount, row.category, row.bucket])).toEqual([
@@ -59,7 +66,16 @@ describe('splitLedger', () => {
   })
 
   it('leaves balances and the totals of the row alone, and moves only what the parts move between buckets', () => {
-    const presented = splitLedger(ROWS, [splitOf(ORDER, [[-45, 'office-supplies'], [-15, 'owner-loan-out']], PACK_CATEGORIES)])
+    const presented = splitLedger(ROWS, [
+      splitOf(
+        ORDER,
+        [
+          [-45, 'office-supplies'],
+          [-15, 'owner-loan-out'],
+        ],
+        PACK_CATEGORIES,
+      ),
+    ])
 
     expect(latestBalances(presented).cashOnHand.amount).toBe(latestBalances(ROWS).cashOnHand.amount)
     expect(bucketTotals(ROWS)).toMatchObject({ operating: euros(85), ownerPay: euros(0) })
@@ -125,9 +141,7 @@ describe('readSplits', () => {
     const reading = readSplits(recordsOfRows(CORE_TABS.splits, sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']]))), rows, CATEGORIES)
 
     expect(reading.splits).toEqual([])
-    expect(reading.problems[0]?.reason).toBe(
-      'the main row of 2026-03-09 with the amount -60.00 and the balance 940.00 shares its key with another ledger row, so the ledger row counts whole',
-    )
+    expect(reading.problems[0]?.reason).toBe('the main row of 2026-03-09 with the amount -60.00 and the balance 940.00 shares its key with another ledger row, so the ledger row counts whole')
   })
 
   it('refuses a key that finds two ledger rows', () => {
@@ -140,9 +154,7 @@ describe('readSplits', () => {
     const reading = readSplits(recordsOfRows(CORE_TABS.splits, sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']]))), twins, CATEGORIES)
 
     expect(reading.splits).toEqual([])
-    expect(reading.problems[0]?.reason).toBe(
-      '2 ledger rows are the main row of 2026-03-09 with the amount -60.00 and the balance 940.00, so the ledger row counts whole',
-    )
+    expect(reading.problems[0]?.reason).toBe('2 ledger rows are the main row of 2026-03-09 with the amount -60.00 and the balance 940.00, so the ledger row counts whole')
   })
 
   it('refuses a split with one part, a part of zero and a part with the other sign', () => {
@@ -176,7 +188,14 @@ describe('readSplits', () => {
   })
 
   it('counts a refused split’s row whole in the workbook, and keeps the splits that pass', () => {
-    const workbook = readSnapshot(snapshotOf([[...KEY, -45, 'office-supplies'], [...KEY, -10, 'travel'], [46091, 'main', -25, 915, -20, 'travel'], [46091, 'main', -25, 915, -5, 'office-supplies']])).workbook
+    const workbook = readSnapshot(
+      snapshotOf([
+        [...KEY, -45, 'office-supplies'],
+        [...KEY, -10, 'travel'],
+        [46091, 'main', -25, 915, -20, 'travel'],
+        [46091, 'main', -25, 915, -5, 'office-supplies'],
+      ]),
+    ).workbook
     const presented = presentedWorkbook(workbook)
 
     expect(workbook.splits.map((split) => split.row.amount)).toEqual([euros(-25)])
@@ -212,7 +231,10 @@ describe('countedSplits', () => {
   it('refuses a split of a row an asset claims, so the row counts whole and the asset keeps its payment', () => {
     const workbook = readSnapshot(
       snapshotOf(
-        [[...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']],
+        [
+          [...KEY, -45, 'office-supplies'],
+          [...KEY, -15, 'travel'],
+        ],
         [
           ['asset', 'bought', 'cost_net', 'group', 'ledger_reference'],
           ['Shredder', 46090, 48, 'equipment', 'Order 77'],
@@ -224,16 +246,29 @@ describe('countedSplits', () => {
     expect(workbook.splits).toHaveLength(1)
     expect(counted.splits).toEqual([])
     expect(counted.problems).toEqual([
-      { tab: 'splits', id: recordIdOf(SPLIT_PART_RECORDS, 'split-2'), label: 'office-supplies, -45, 2026-03-09', reason: 'the main row of 2026-03-09 stays whole, since the asset "Shredder" claims it as payment' },
-      { tab: 'splits', id: recordIdOf(SPLIT_PART_RECORDS, 'split-3'), label: 'travel, -15, 2026-03-09', reason: 'the main row of 2026-03-09 stays whole, since the asset "Shredder" claims it as payment' },
+      {
+        tab: 'splits',
+        id: recordIdOf(SPLIT_PART_RECORDS, 'split-2'),
+        label: 'office-supplies, -45, 2026-03-09',
+        reason: 'the main row of 2026-03-09 stays whole, since the asset "Shredder" claims it as payment',
+      },
+      {
+        tab: 'splits',
+        id: recordIdOf(SPLIT_PART_RECORDS, 'split-3'),
+        label: 'travel, -15, 2026-03-09',
+        reason: 'the main row of 2026-03-09 stays whole, since the asset "Shredder" claims it as payment',
+      },
     ])
     expect(presentedWorkbook(workbook).transactions.map((row) => row.amount)).toEqual([euros(-25), euros(-60), euros(1000)])
   })
 
-  it('names every asset that claims a row kept whole, in the pack\'s words', () => {
+  it("names every asset that claims a row kept whole, in the pack's words", () => {
     const workbook = readSnapshot(
       snapshotOf(
-        [[...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']],
+        [
+          [...KEY, -45, 'office-supplies'],
+          [...KEY, -15, 'travel'],
+        ],
         [
           ['asset', 'bought', 'cost_net', 'group', 'ledger_reference'],
           ['Shredder', 46090, 30, 'equipment', 'Order 77'],
@@ -243,7 +278,11 @@ describe('countedSplits', () => {
     ).workbook
 
     expect([...workbook.rowsKeptWhole.values()]).toEqual(['the assets "Shredder" and "Bin" claim it as payment'])
-    expect(presentedWorkbook(workbook).problems.filter((problem) => problem.tab === 'splits').map((problem) => problem.reason)).toEqual([
+    expect(
+      presentedWorkbook(workbook)
+        .problems.filter((problem) => problem.tab === 'splits')
+        .map((problem) => problem.reason),
+    ).toEqual([
       'the main row of 2026-03-09 stays whole, since the assets "Shredder" and "Bin" claim it as payment',
       'the main row of 2026-03-09 stays whole, since the assets "Shredder" and "Bin" claim it as payment',
     ])
@@ -271,8 +310,22 @@ describe('the split of a salary, on a company with a private share split off', (
   )
   const order = rows.find((row) => row.description === 'Online order')!
   const salary = rows.find((row) => row.description === 'June salary')!
-  const moved = splitOf(order, [[-47.5, 'office-supplies'], [-12.5, 'private-cost-for-owner', 'Private item']], categories)
-  const bonus = splitOf(salary, [[-1200, 'salary-net'], [-800, 'salary-bonus']], categories)
+  const moved = splitOf(
+    order,
+    [
+      [-47.5, 'office-supplies'],
+      [-12.5, 'private-cost-for-owner', 'Private item'],
+    ],
+    categories,
+  )
+  const bonus = splitOf(
+    salary,
+    [
+      [-1200, 'salary-net'],
+      [-800, 'salary-bonus'],
+    ],
+    categories,
+  )
 
   const after = hrDooWorkbook(presentedWorkbook(exampleStudio({ categories, transactions: rows, splits: [moved] })))
   const withBonus = hrDooWorkbook(presentedWorkbook(exampleStudio({ categories, transactions: rows, splits: [moved, bonus] })))
@@ -280,7 +333,10 @@ describe('the split of a salary, on a company with a private share split off', (
 
   it('still closes the year with the salary split, since a bonus paid in July for June stays in the year', () => {
     const pbt = profitBeforeTax(withBonus)
-    const comparison = compareYearEnd(exampleStudio({ categories, transactions: withBonus.transactions, yearEndLines: [yearEndLine(2025, 'pl', 'profit-before-tax', pbt / 100)] }), accrualYear(withBonus, 2025, { depreciation: withBonus.companyFacts, citAdvancesPaid: null }))
+    const comparison = compareYearEnd(
+      exampleStudio({ categories, transactions: withBonus.transactions, yearEndLines: [yearEndLine(2025, 'pl', 'profit-before-tax', pbt / 100)] }),
+      accrualYear(withBonus, 2025, { depreciation: withBonus.companyFacts, citAdvancesPaid: null }),
+    )
 
     expect(pbt).toBe(profitBeforeTax(after))
     expect(comparison.lines.find((line) => line.line === 'profit-before-tax')?.status).not.toBe('open')
@@ -289,8 +345,26 @@ describe('the split of a salary, on a company with a private share split off', (
 })
 
 describe('withPartHeadings', () => {
-  const presented = splitLedger(ROWS, [splitOf(ORDER, [[-45, 'office-supplies'], [-15, 'owner-loan-out']], PACK_CATEGORIES)])
-  const advance = { date: civil('2026-03-09'), amount: euros(30), description: 'Train', category: 'travel', family: 'operating', bucket: 'operating' as const, ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') }
+  const presented = splitLedger(ROWS, [
+    splitOf(
+      ORDER,
+      [
+        [-45, 'office-supplies'],
+        [-15, 'owner-loan-out'],
+      ],
+      PACK_CATEGORIES,
+    ),
+  ])
+  const advance = {
+    date: civil('2026-03-09'),
+    amount: euros(30),
+    description: 'Train',
+    category: 'travel',
+    family: 'operating',
+    bucket: 'operating' as const,
+    ownerShare: null,
+    id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2'),
+  }
 
   it('lists a split row as the bank row with its parts under it, where its first part stood', () => {
     const listed = listedRows(presented, [advance])
@@ -308,7 +382,12 @@ describe('withPartHeadings', () => {
   })
 
   it('heads the one part a filter keeps with its bank row', () => {
-    const entries = withPartHeadings(listedRows(presented.filter((row) => row.category === 'owner-loan-out'), []))
+    const entries = withPartHeadings(
+      listedRows(
+        presented.filter((row) => row.category === 'owner-loan-out'),
+        [],
+      ),
+    )
 
     expect(entries.map((entry) => entry.kind)).toEqual(['split', 'row'])
     expect(entries[0]?.kind === 'split' && entries[0].parts.map((part) => part.kind === 'bank' && part.split?.index)).toEqual([1])

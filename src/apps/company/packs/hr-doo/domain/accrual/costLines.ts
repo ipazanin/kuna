@@ -4,14 +4,7 @@ import { ZERO, addMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { isOwnerPayCost } from '../packRoles'
 
-export const COST_LINES = [
-  'material-costs',
-  'personnel-costs',
-  'depreciation',
-  'other-costs',
-  'impairment-provisions-other',
-  'financial-expenses',
-] as const
+export const COST_LINES = ['material-costs', 'personnel-costs', 'depreciation', 'other-costs', 'impairment-provisions-other', 'financial-expenses'] as const
 
 export type CostLine = (typeof COST_LINES)[number]
 

@@ -72,7 +72,10 @@ describe('the vat column of categories', () => {
 describe('the delivery period of invoices', () => {
   it('reads both dates, and keeps an invoice whose period cannot be read with the issue date standing for it', () => {
     const workbook = workbookWith({
-      clients: [['client', 'iban'], ['north', 'XX00FAKE0101']],
+      clients: [
+        ['client', 'iban'],
+        ['north', 'XX00FAKE0101'],
+      ],
       invoices: [
         ['number', 'client', 'amount', 'issued', 'period_from', 'period_to'],
         ['1-1-26', 'north', 7200, DAY['2026-01-31'], DAY['2026-01-31'] - 30, DAY['2026-01-31']],
@@ -100,7 +103,10 @@ describe('the assets tab', () => {
 
   it('reads a purchase, taking the purchase day for a blank in_use and keeping a grant the grants tab lacks with a problem', () => {
     const workbook = workbookWith({
-      grants: [['grant', 'received', 'amount', 'release', 'period_from', 'period_to'], ['startup', DAY['2025-06-01'], 5000, 'straight-line', DAY['2025-06-01'], DAY['2027-06-30']]],
+      grants: [
+        ['grant', 'received', 'amount', 'release', 'period_from', 'period_to'],
+        ['startup', DAY['2025-06-01'], 5000, 'straight-line', DAY['2025-06-01'], DAY['2027-06-30']],
+      ],
       assets: [
         header,
         ['Laptop 14 inch', DAY['2025-05-28'], DAY['2025-06-01'], 1519.2, 'Computers', true, '', 'startup', 'FAKE-REF-0002', 'Main machine'],
@@ -308,7 +314,11 @@ describe('the plan tab', () => {
 
   it('reads amounts by category or keyword, a blank month as every month, a purchase by its day and a scenario by name', () => {
     const workbook = workbookWith({
-      scenarios: [['scenario', 'year', 'component', 'amount'], ['floor', 2027, 'salary_gross', 'floor'], ['board', 2027, 'director_basis', 'board-only']],
+      scenarios: [
+        ['scenario', 'year', 'component', 'amount'],
+        ['floor', 2027, 'salary_gross', 'floor'],
+        ['board', 2027, 'director_basis', 'board-only'],
+      ],
       plan: [
         header,
         [2027, '', 'Purchase', 740, 'A new desk', day('2027-03-10'), 'Equipment'],
@@ -333,7 +343,10 @@ describe('the plan tab', () => {
 
   it('leaves out a row it cannot plan with and every row of a key listed twice, and says why', () => {
     const workbook = workbookWith({
-      scenarios: [['scenario', 'year', 'component', 'amount'], ['floor', 2027, 'salary_gross', 'floor']],
+      scenarios: [
+        ['scenario', 'year', 'component', 'amount'],
+        ['floor', 2027, 'salary_gross', 'floor'],
+      ],
       plan: [
         header,
         [2027, 13, 'software', 1],

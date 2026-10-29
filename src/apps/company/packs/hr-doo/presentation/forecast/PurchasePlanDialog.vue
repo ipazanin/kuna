@@ -75,7 +75,8 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const before = props.purchase === null ? null : writes.stored(props.purchase)
   if (before === null) return
-  if (await writes.write('Purchase deleted', (lines) => lines.remove(before), { description: `${name.value.trim() || 'The purchase'} is taken out of the plan.`, failedTitle: 'Not deleted' })) open.value = false
+  if (await writes.write('Purchase deleted', (lines) => lines.remove(before), { description: `${name.value.trim() || 'The purchase'} is taken out of the plan.`, failedTitle: 'Not deleted' }))
+    open.value = false
 }
 </script>
 

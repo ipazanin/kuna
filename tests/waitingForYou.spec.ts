@@ -61,12 +61,7 @@ describe('waiting for you', () => {
   it('counts every missed payroll month and names the latest, last year with its year', () => {
     const workbook = withoutContributions(fake('drive'), ['2025-11', '2025-12'])
 
-    expect(jobsOf(workbook).find(([key]) => key === 'payroll')).toEqual([
-      'payroll',
-      'Payroll contributions: no payment landed in 2 months, the latest December 2025',
-      'negative',
-      'Year, Taxes',
-    ])
+    expect(jobsOf(workbook).find(([key]) => key === 'payroll')).toEqual(['payroll', 'Payroll contributions: no payment landed in 2 months, the latest December 2025', 'negative', 'Year, Taxes'])
   })
 
   it('says nothing of the payroll while every complete month has a payment', () => {

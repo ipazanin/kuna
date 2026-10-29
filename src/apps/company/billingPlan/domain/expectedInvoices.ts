@@ -22,9 +22,7 @@ export interface ExpectedInvoice {
 export function expectedInvoices(plan: readonly BillingItem[], invoices: readonly Invoice[]): readonly ExpectedInvoice[] {
   return plannedAgainstInvoiced(plan, invoices)
     .flatMap((match) =>
-      match.months
-        .filter((month) => month.open > 0)
-        .map((month) => ({ client: match.client, month: month.month, amount: month.open, items: month.items.filter((item) => item.open > 0) })),
+      match.months.filter((month) => month.open > 0).map((month) => ({ client: match.client, month: month.month, amount: month.open, items: month.items.filter((item) => item.open > 0) })),
     )
     .sort((earlier, later) => earlier.month.localeCompare(later.month) || earlier.client.localeCompare(later.client))
 }

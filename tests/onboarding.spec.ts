@@ -29,7 +29,13 @@ describe('the onboarding steps', () => {
     expect(onboardingPlaceOf({ step: 'access', path: 'open', home: 'browser' })).toMatchObject({ home: 'drive', step: 'access' })
     expect(onboardingPlaceOf({ path: 'sideways', home: 'cloud', statements: 'post' })).toEqual(place({}))
     const typed = place({ step: 'access', statements: 'mail', mail: { bank: OTHER_BANK, from: 'statements@bank.example.com', subject: 'Statement', since: '2025-01-01' as CivilDate } })
-    for (const written of [place({ step: 'folder', statements: 'folder' }), place({ path: 'bring', home: 'browser', step: 'file' }), place({ path: 'move', step: 'access' }), place({ statements: 'mail', step: 'access' }), typed]) {
+    for (const written of [
+      place({ step: 'folder', statements: 'folder' }),
+      place({ path: 'bring', home: 'browser', step: 'file' }),
+      place({ path: 'move', step: 'access' }),
+      place({ statements: 'mail', step: 'access' }),
+      typed,
+    ]) {
       expect(onboardingPlaceOf(onboardingQueryOf(written))).toEqual(written)
     }
     expect(onboardingQueryOf(place({ step: 'home' }))).toEqual({ step: 'home' })

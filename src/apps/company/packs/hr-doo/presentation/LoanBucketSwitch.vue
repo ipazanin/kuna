@@ -31,23 +31,15 @@ const listed = computed(() => loanCategories.value.map((category) => `${names.va
 async function choose(asPay: boolean): Promise<void> {
   const bucket = asPay ? 'owner-pay' : 'financing'
   const stored = loanCategories.value.flatMap((category) => recordWithId(store.state.records?.categories ?? NO_RECORDS, categoryIdOf(category)) ?? [])
-  await writes.write(
-    asPay ? 'Loans count as owner pay' : 'Loans count as financing',
-    (unit) => stored.forEach(({ record }) => unit.of(CATEGORY_WRITES).change(record, { ...record, bucket })),
-    {
-      description: `The categories tab now puts ${loanCategories.value.map((category) => category.slug).join(' and ')} in the ${bucket} bucket.`,
-      failedTitle: 'Not changed',
-    },
-  )
+  await writes.write(asPay ? 'Loans count as owner pay' : 'Loans count as financing', (unit) => stored.forEach(({ record }) => unit.of(CATEGORY_WRITES).change(record, { ...record, bucket })), {
+    description: `The categories tab now puts ${loanCategories.value.map((category) => category.slug).join(' and ')} in the ${bucket} bucket.`,
+    failedTitle: 'Not changed',
+  })
 }
 </script>
 
 <template>
-  <AppCard
-    title="Loans to the owner"
-    subtitle="From the categories tab: the bucket of the categories with the owner-loan-out and owner-loan-repaid roles."
-    data-testid="loan-bucket"
-  >
+  <AppCard title="Loans to the owner" subtitle="From the categories tab: the bucket of the categories with the owner-loan-out and owner-loan-repaid roles." data-testid="loan-bucket">
     <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
       <p v-if="loanCategories.length === 0" class="text-sm text-muted">No category carries the owner-loan-out or owner-loan-repaid role, so there is nothing to switch.</p>
       <template v-else>

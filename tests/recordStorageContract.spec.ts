@@ -90,7 +90,12 @@ function holdsId(app: AppUnderTest<BooksRead>, kind: RecordKind<unknown>, id: Re
 
 /** A document with the seed's records. */
 function documentOf(app: AppUnderTest<BooksRead>, seed: Seed): WorkbookDocument {
-  return newDocument(app.app, app.document.schema(), Object.fromEntries(Object.entries(seed).map(([name, records]) => [name, records.map((fields) => filledFields(fields))])), '2026-10-16T09:00:00.000Z')
+  return newDocument(
+    app.app,
+    app.document.schema(),
+    Object.fromEntries(Object.entries(seed).map(([name, records]) => [name, records.map((fields) => filledFields(fields))])),
+    '2026-10-16T09:00:00.000Z',
+  )
 }
 
 /** The document with one kind's records as `edit` leaves them. */
@@ -182,8 +187,31 @@ const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
   'ledger-row': {
     seed: { category: CATEGORIES },
     records: [
-      { date: '2026-10-05', account: 'main', statement: 's-1', counterparty: 'Corner Shop', description: 'Card purchase', amount: '-12.50', balance: '987.50', category: 'groceries', flagged_by: 'ai', reference: '00123', owner_share: '40' },
-      { date: '2026-10-05', account: 'spare', statement: 's-2', counterparty: 'Bank', description: 'Fee', amount: '-1.00', balance: '99.00', category: 'telecom', flagged_by: 'rule', reference: 'R-B' },
+      {
+        date: '2026-10-05',
+        account: 'main',
+        statement: 's-1',
+        counterparty: 'Corner Shop',
+        description: 'Card purchase',
+        amount: '-12.50',
+        balance: '987.50',
+        category: 'groceries',
+        flagged_by: 'ai',
+        reference: '00123',
+        owner_share: '40',
+      },
+      {
+        date: '2026-10-05',
+        account: 'spare',
+        statement: 's-2',
+        counterparty: 'Bank',
+        description: 'Fee',
+        amount: '-1.00',
+        balance: '99.00',
+        category: 'telecom',
+        flagged_by: 'rule',
+        reference: 'R-B',
+      },
     ],
     outside: { date: '2026-10-06', account: 'other', description: 'Deposit', amount: '5.00', balance: '5.00', reference: 'R-C' },
     change: { field: 'owner_share', value: '0' },
@@ -233,7 +261,11 @@ const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
     outside: { number: '3-1-26', client: 'northwind', amount: '10.00', issued: '2026-10-07' },
     change: { field: 'item', value: 'Work, revised' },
     cleared: 'due',
-    refused: { fields: { number: '4-1-26', client: 'northwind', amount: 'lots', issued: '2026-10-08' }, reason: 'is not a number', fixed: { number: '4-1-26', client: 'northwind', amount: '50.00', issued: '2026-10-08' } },
+    refused: {
+      fields: { number: '4-1-26', client: 'northwind', amount: 'lots', issued: '2026-10-08' },
+      reason: 'is not a number',
+      fixed: { number: '4-1-26', client: 'northwind', amount: '50.00', issued: '2026-10-08' },
+    },
   },
   'billing-item': {
     seed: { client: CLIENTS },
@@ -667,7 +699,9 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
     })
 
     it.skipIf(fixture.refused === null)(
-      rules.changeable === undefined ? 'reads a refused record with its fields and reason, and stores it repaired as a valid record' : 'reads a refused record with its fields and reason, and leaves its repair to the workbook',
+      rules.changeable === undefined
+        ? 'reads a refused record with its fields and reason, and stores it repaired as a valid record'
+        : 'reads a refused record with its fields and reason, and leaves its repair to the workbook',
       async () => {
         const refused = fixture.refused!
         const storage = await open(app, fixture.seed ?? {})

@@ -43,25 +43,8 @@ function takeFile(event: Event): void {
     <NewerFileNotice />
     <input ref="fileInput" type="file" :accept="WORKBOOK_FILE_TYPES" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
     <template #actions>
-      <UButton
-        icon="i-lucide-download"
-        label="Export to Excel"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        :loading="exporting"
-        :disabled="exporting || state.workbook === null"
-        @click="exportNow"
-      />
-      <UButton
-        v-if="source === 'browser'"
-        icon="i-lucide-file-input"
-        label="Import a file"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        @click="fileInput?.click()"
-      />
+      <UButton icon="i-lucide-download" label="Export to Excel" color="neutral" variant="outline" size="sm" :loading="exporting" :disabled="exporting || state.workbook === null" @click="exportNow" />
+      <UButton v-if="source === 'browser'" icon="i-lucide-file-input" label="Import a file" color="neutral" variant="outline" size="sm" @click="fileInput?.click()" />
       <UButton icon="i-lucide-arrow-left-right" label="Switch data source" color="neutral" variant="outline" size="sm" @click="switching = true" />
       <UButton
         v-if="source === 'browser'"

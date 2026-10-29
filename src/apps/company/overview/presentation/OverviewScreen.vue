@@ -51,8 +51,6 @@ const names = useDisplayNames()
 const EMPHASISED_LINES: readonly ProfitAndLossLine[] = ['net', 'ownerEarns']
 const LAST_12_MONTHS: Period = { preset: 'l12' }
 
-
-
 function runwayText(months: number | null): string {
   return months === null ? 'No costs' : formatDecimal(months)
 }
@@ -151,8 +149,7 @@ const overview = computed(() => {
         value: recentRunway.months === null ? 'No costs' : `${formatDecimal(recentRunway.months)} months`,
         to: drillLocation(recentRunway.monthlyCost.drill),
         caption: `At the 3-month cost, ${runwayText(yearRunway.months)} at the 12-month cost`,
-        definition:
-          'Cash on hand divided by the monthly costs: how long the company runs if no more income arrives. The figure takes the last three complete months, the caption the last twelve.',
+        definition: 'Cash on hand divided by the monthly costs: how long the company runs if no more income arrives. The figure takes the last three complete months, the caption the last twelve.',
       },
     ],
     comparison,
@@ -206,8 +203,7 @@ const overview = computed(() => {
           <DrillLink :to="overview.headline.cameIn.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.cameIn.amount" precision="whole" /></DrillLink>
           came in and
           <DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" precision="whole" /></DrillLink>
-          went out<template v-if="overview.headline.loss !== null">, a loss of
-            <MoneyText :cents="overview.headline.loss" precision="whole" class="text-negative" /></template>.
+          went out<template v-if="overview.headline.loss !== null">, a loss of <MoneyText :cents="overview.headline.loss" precision="whole" class="text-negative" /></template>.
         </p>
 
         <AppCard v-if="waiting.length" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
@@ -225,10 +221,7 @@ const overview = computed(() => {
         </div>
 
         <div class="wide-pair">
-          <AppCard
-            title="A typical month, three ways"
-            subtitle="Each window ends with the last complete month. A wide spread means recent months are not like the rest."
-          >
+          <AppCard title="A typical month, three ways" subtitle="Each window ends with the last complete month. A wide spread means recent months are not like the rest.">
             <div class="px-1 pt-2 pb-2 sm:px-2">
               <WindowComparison :columns="overview.columnLabels" :rows="overview.comparison" />
             </div>

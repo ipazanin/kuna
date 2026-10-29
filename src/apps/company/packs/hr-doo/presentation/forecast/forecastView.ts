@@ -79,10 +79,7 @@ const BASIS_WORDS: readonly (readonly [MonthBasis, string])[] = [
 ]
 
 /** The forecast of a year as the Year page shows it, or why it could not be made. */
-export type ForecastState =
-  | { readonly state: 'unregistered' }
-  | { readonly state: 'failed'; readonly failure: string }
-  | { readonly state: 'ready'; readonly view: ForecastView }
+export type ForecastState = { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly view: ForecastView }
 
 export type ForecastView = ReturnType<typeof forecastView>
 
@@ -133,18 +130,16 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
   const profitAndLoss: BuildUpLine[] = [
     ...forecast.lines
       .filter((entry) => entry.line === 'sales' || entry.forecast.total.amount !== 0)
-      .map(
-        (entry): BuildUpLine => ({
-          key: entry.line,
-          label: lineLabel('pl', entry.line),
-          caption: basisCaption(entry.forecast),
-          value: { cents: entry.forecast.total.amount },
-          to: context.link(rowsBehind(entry.parts.flatMap((part) => part.line.months.flatMap((_, index) => knownFigures([part], index))))),
-          total: false,
-          steps: entry.parts.flatMap((part, index) => partSteps(part, `${index}`, year, context)),
-          rules: ruleChips(entry.forecast.total.rules),
-        }),
-      ),
+      .map((entry): BuildUpLine => ({
+        key: entry.line,
+        label: lineLabel('pl', entry.line),
+        caption: basisCaption(entry.forecast),
+        value: { cents: entry.forecast.total.amount },
+        to: context.link(rowsBehind(entry.parts.flatMap((part) => part.line.months.flatMap((_, index) => knownFigures([part], index))))),
+        total: false,
+        steps: entry.parts.flatMap((part, index) => partSteps(part, `${index}`, year, context)),
+        rules: ruleChips(entry.forecast.total.rules),
+      })),
     {
       key: 'profit-before-tax',
       label: 'Profit before tax',
@@ -214,30 +209,26 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
     pdLine('owed', prudence.owedByOwner),
   ]
 
-  const cashMonths = forecast.cashByMonth.map(
-    (entry): BuildUpLine => ({
-      key: entry.month,
-      label: monthLabel(entry.month),
-      caption: entry.basis === 'ledger' ? 'The bank balance at the month end' : 'Projected',
-      value: { cents: entry.closing.amount },
-      to: entry.basis === 'ledger' ? linkOf(entry.closing) : null,
-      total: entry.month === monthKey(year, 12),
-      steps: entry.basis === 'ledger' ? [] : stepsOf(entry.closing, linkOf),
-      rules: ruleChips(entry.closing.rules),
-    }),
-  )
+  const cashMonths = forecast.cashByMonth.map((entry): BuildUpLine => ({
+    key: entry.month,
+    label: monthLabel(entry.month),
+    caption: entry.basis === 'ledger' ? 'The bank balance at the month end' : 'Projected',
+    value: { cents: entry.closing.amount },
+    to: entry.basis === 'ledger' ? linkOf(entry.closing) : null,
+    total: entry.month === monthKey(year, 12),
+    steps: entry.basis === 'ledger' ? [] : stepsOf(entry.closing, linkOf),
+    rules: ruleChips(entry.closing.rules),
+  }))
   const { runway } = forecast
-  const compared = planAgainstActual(forecast).map(
-    (line): PlanActualView => ({
-      key: line.key,
-      label: line.label,
-      plan: line.plan.amount,
-      actual: line.actual.amount,
-      difference: line.difference.amount,
-      verdict: differenceWords(line.difference.amount, line.cost),
-      months: line.months.map((entry) => ({ key: entry.month, month: monthLabel(entry.month), plan: entry.plan.amount, actual: entry.actual.amount, difference: entry.difference.amount })),
-    }),
-  )
+  const compared = planAgainstActual(forecast).map((line): PlanActualView => ({
+    key: line.key,
+    label: line.label,
+    plan: line.plan.amount,
+    actual: line.actual.amount,
+    difference: line.difference.amount,
+    verdict: differenceWords(line.difference.amount, line.cost),
+    months: line.months.map((entry) => ({ key: entry.month, month: monthLabel(entry.month), plan: entry.plan.amount, actual: entry.actual.amount, difference: entry.difference.amount })),
+  }))
   const notCounted = new Map(forecast.notModelled.map((entry) => [entry.line.id, entry.reason]))
   const employment = workbook.grants.flatMap((grant): string[] => {
     const until = grant.employmentRequiredUntil
@@ -263,7 +254,8 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
         value: formatWholeMoney(base.profitBeforeTax.amount),
         to: null,
         caption: forecastMonths === 0 ? 'Every month from the ledger' : `${12 - forecastMonths} of 12 months from the ledger alone`,
-        definition: 'Income less costs on the accrual view, as the accountant books them. Months the ledger has not closed take the plan row, or for revenue the billing plan’s rows still to invoice, else the line’s average.',
+        definition:
+          'Income less costs on the accrual view, as the accountant books them. Months the ledger has not closed take the plan row, or for revenue the billing plan’s rows still to invoice, else the line’s average.',
       },
       {
         label: 'Corporate tax',
@@ -366,10 +358,14 @@ function partSteps(part: LinePart, key: string, year: number, context: ForecastV
   const rows = rowsBehind(line.months.flatMap((_, index) => knownFigures([part], index)))
   const guessed = line.months.filter(isGuessed)
   return [
-    { key, label: line.label, cents: sign * line.total.amount, to: rows === null ? (scheduled ? { path: '/company/year', query: { year: String(year), tab: 'assets' } } : null) : context.link(rows), depth: 0 },
-    ...guessed.map(
-      (entry): BuildUpStep => ({ key: `${key}-${entry.month}`, label: `${monthLabel(entry.month)}, ${basisWords(entry.bases)}`, cents: sign * entry.figure.amount, to: null, depth: 1 }),
-    ),
+    {
+      key,
+      label: line.label,
+      cents: sign * line.total.amount,
+      to: rows === null ? (scheduled ? { path: '/company/year', query: { year: String(year), tab: 'assets' } } : null) : context.link(rows),
+      depth: 0,
+    },
+    ...guessed.map((entry): BuildUpStep => ({ key: `${key}-${entry.month}`, label: `${monthLabel(entry.month)}, ${basisWords(entry.bases)}`, cents: sign * entry.figure.amount, to: null, depth: 1 })),
   ]
 }
 
@@ -389,10 +385,7 @@ function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) 
     id: option.id,
     name: PAYOUT_NAMES[option.id],
     label: option.label,
-    when:
-      option.earliestOn === null || option.latestOn === null
-        ? `${figureLabel(option.gross)}.`
-        : `Earliest on ${dayLabel(option.earliestOn)}, and no later than ${dayLabel(option.latestOn)}.`,
+    when: option.earliestOn === null || option.latestOn === null ? `${figureLabel(option.gross)}.` : `Earliest on ${dayLabel(option.earliestOn)}, and no later than ${dayLabel(option.latestOn)}.`,
     warning: cashShort ? interimCashWarning(cashNow) : null,
     figures: [
       ...shown('gross', 'Payout before tax', option.gross),

@@ -69,11 +69,7 @@ export interface GroupingContext {
  * The rows split into groups that keep the rows' order. Months come newest first. Categories and
  * counterparties come largest first by the size of their total, whichever its sign.
  */
-export function groupTransactions(
-  rows: readonly ListedRow[],
-  grouping: Exclude<Grouping, 'none'>,
-  context: GroupingContext,
-): TransactionGroup[] {
+export function groupTransactions(rows: readonly ListedRow[], grouping: Exclude<Grouping, 'none'>, context: GroupingContext): TransactionGroup[] {
   switch (grouping) {
     case 'month':
       return monthGroups(rows, context.window)
@@ -110,8 +106,7 @@ function categoryGroups(rows: readonly ListedRow[]): CategoryGroup[] {
       const total = totalOf(members)
       const bucket = members[0].bucket
       const direction = directionOf(bucket)
-      const fraction =
-        direction === 'income' ? ratioOf(total, profitAndLoss.income) : direction === 'cost' ? ratioOf(negateMoney(total), profitAndLoss.cost) : null
+      const fraction = direction === 'income' ? ratioOf(total, profitAndLoss.income) : direction === 'cost' ? ratioOf(negateMoney(total), profitAndLoss.cost) : null
       return {
         kind: 'category',
         key: category,
@@ -146,12 +141,7 @@ function counterpartyGroups(rows: readonly ListedRow[], labels: ReadonlyMap<stri
       total,
       label: labels.get(key) ?? '',
       iban: members[0].counterpartyIban,
-      share:
-        total > 0
-          ? { of: 'money-in', fraction: total / moneyIn }
-          : total < 0
-            ? { of: 'money-out', fraction: -total / moneyOut }
-            : null,
+      share: total > 0 ? { of: 'money-in', fraction: total / moneyIn } : total < 0 ? { of: 'money-out', fraction: -total / moneyOut } : null,
     })),
     (group) => group.label,
   )

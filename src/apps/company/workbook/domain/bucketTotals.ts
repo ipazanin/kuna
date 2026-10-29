@@ -25,15 +25,7 @@ export interface ProfitAndLoss {
 export type ProfitAndLossLine = keyof ProfitAndLoss
 
 /** The lines in reading order. */
-export const PROFIT_AND_LOSS_LINES: readonly ProfitAndLossLine[] = [
-  'income',
-  'operating',
-  'taxes',
-  'ownerPay',
-  'cost',
-  'net',
-  'ownerEarns',
-]
+export const PROFIT_AND_LOSS_LINES: readonly ProfitAndLossLine[] = ['income', 'operating', 'taxes', 'ownerPay', 'cost', 'net', 'ownerEarns']
 
 /** One value per line, such as each line's figure with its drill. */
 export function forEachLine<Value>(valueOf: (line: ProfitAndLossLine) => Value): Record<ProfitAndLossLine, Value> {
@@ -81,10 +73,7 @@ export function bucketTotals(bookings: Iterable<Pick<Booking, 'bucket' | 'amount
 }
 
 /** One profit and loss per month asked for. A month with no rows reads as zero. */
-export function monthlyBucketTotals(
-  bookings: Iterable<Booking>,
-  months: readonly MonthKey[],
-): ReadonlyMap<MonthKey, ProfitAndLoss> {
+export function monthlyBucketTotals(bookings: Iterable<Booking>, months: readonly MonthKey[]): ReadonlyMap<MonthKey, ProfitAndLoss> {
   const rowsByMonth = new Map<MonthKey, Booking[]>(months.map((month) => [month, []]))
   for (const booking of bookings) {
     rowsByMonth.get(monthOf(booking.date))?.push(booking)

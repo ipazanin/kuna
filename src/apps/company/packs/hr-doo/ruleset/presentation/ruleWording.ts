@@ -409,12 +409,11 @@ export function ruleView(rule: GeneralRule, format: TermFormat, day: CivilDate):
   const tables = termKeys.filter((key) => isTable(firstValue[key] as Term)).map((key) => tableView(key, versions, periods, format))
 
   const firstNote = versions[0]?.note
-  const notes: PeriodNote[] =
-    sameAcrossVersions(versions, (version) => version.note ?? null)
-      ? firstNote === undefined
-        ? []
-        : [{ period: null, note: firstNote }]
-      : versions.flatMap((version, index) => (version.note === undefined ? [] : [{ period: periods[index] ?? null, note: version.note }]))
+  const notes: PeriodNote[] = sameAcrossVersions(versions, (version) => version.note ?? null)
+    ? firstNote === undefined
+      ? []
+      : [{ period: null, note: firstNote }]
+    : versions.flatMap((version, index) => (version.note === undefined ? [] : [{ period: periods[index] ?? null, note: version.note }]))
 
   const citedSources = new Map<string, { readonly source: LegalSource; readonly periods: string[] }>()
   versions.forEach((version, index) => {
@@ -424,9 +423,7 @@ export function ruleView(rule: GeneralRule, format: TermFormat, day: CivilDate):
       citedSources.set(sourceKey(source), cited)
     }
   })
-  const sources = [...citedSources.values()].map((cited) =>
-    sourceView(cited.source, cited.periods.length === versions.length ? null : inWords(cited.periods)),
-  )
+  const sources = [...citedSources.values()].map((cited) => sourceView(cited.source, cited.periods.length === versions.length ? null : inWords(cited.periods)))
 
   const columns = versions.map((version, index) => ({ period: periods[index] ?? '', confidence: version.confidence }))
 

@@ -103,14 +103,7 @@ export function loanBenefit(workbook: HrDooWorkbook, year: number, through: Civi
   const prescribed = rule.value.minimumInterestRate.basisPoints
   const carried = carriedRate(workbook)
   const loans = ownerLoans(workbook.transactions, workbook.categories).loans
-  const owed = interestOnLoans(
-    `Benefit in kind on the owner's loans in ${year}`,
-    loans,
-    year,
-    end,
-    shortfallRate(prescribed, carried),
-    [rule.citation],
-  )
+  const owed = interestOnLoans(`Benefit in kind on the owner's loans in ${year}`, loans, year, end, shortfallRate(prescribed, carried), [rule.citation])
   if (owed.steps.length === 0) return null
   return { year, prescribed, carried, figure: owed, loans: owed.steps.length }
 }

@@ -29,10 +29,7 @@ export interface YearEndLineDefinition {
   readonly tie?: TieSide
 }
 
-function lines(
-  statement: YearEndLineDefinition['statement'],
-  definitions: readonly (readonly [line: string, hint: string, kind?: YearEndFigureKind, tie?: TieSide])[],
-): YearEndLineDefinition[] {
+function lines(statement: YearEndLineDefinition['statement'], definitions: readonly (readonly [line: string, hint: string, kind?: YearEndFigureKind, tie?: TieSide])[]): YearEndLineDefinition[] {
   return definitions.map(([line, hint, kind = 'money', tie]) => ({ statement, line, kind, hint, ...(tie === undefined ? {} : { tie }) }))
 }
 

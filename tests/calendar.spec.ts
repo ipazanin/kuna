@@ -3,17 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays, civilDate, civilDateFromSerial, daysBetween, parseCivilDate } from '../src/shared/calendar/civilDate'
 import { monthRange, monthsOfRange, overlapOf, rangeContains } from '../src/shared/calendar/dateRange'
 import { allTime, anchorWindow, completeRange, isCompleteMonth, lastMonths, spanRange } from '../src/shared/calendar/ledgerWindow'
-import {
-  addMonths,
-  dayMonthsLater,
-  firstDayOf,
-  lastDayOf,
-  monthCountBetween,
-  monthKey,
-  monthOf,
-  monthsFrom,
-  parseMonthKey,
-} from '../src/shared/calendar/monthKey'
+import { addMonths, dayMonthsLater, firstDayOf, lastDayOf, monthCountBetween, monthKey, monthOf, monthsFrom, parseMonthKey } from '../src/shared/calendar/monthKey'
 import { civil } from './fixtures/ledger'
 
 describe('civil dates', () => {

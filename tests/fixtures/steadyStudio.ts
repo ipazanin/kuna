@@ -81,7 +81,12 @@ export const STEADY_ROWS: readonly RowSpec[] = [
   { date: '2025-01-05', amount: 2500, category: 'share-capital' },
   ...monthsTo(10).flatMap((month): RowSpec[] => [
     { date: `${month}-05`, amount: -120, category: 'ai-services' },
-    ...(month === '2025-01' ? [] : [{ date: `${month}-10`, amount: -1000, category: 'salary-net' }, { date: `${month}-10`, amount: -200, category: 'payroll-tax' }]),
+    ...(month === '2025-01'
+      ? []
+      : [
+          { date: `${month}-10`, amount: -1000, category: 'salary-net' },
+          { date: `${month}-10`, amount: -200, category: 'payroll-tax' },
+        ]),
   ]),
   ...monthsTo(8).map((month): RowSpec => ({ date: `${nextMonth(month)}-20`, amount: invoiced(month), category: 'revenue', iban: CLIENT_IBAN })),
   // The fixed grant, released in full on receipt.

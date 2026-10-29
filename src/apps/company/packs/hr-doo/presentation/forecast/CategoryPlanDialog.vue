@@ -84,7 +84,8 @@ async function save(): Promise<void> {
 
 async function clear(): Promise<void> {
   const holding = held()
-  if (await writes.write('Plan cleared', (lines) => replacePlanLines(lines, holding, []), { description: `${props.name} for ${props.year} takes its average again.`, failedTitle: 'Not cleared' })) open.value = false
+  if (await writes.write('Plan cleared', (lines) => replacePlanLines(lines, holding, []), { description: `${props.name} for ${props.year} takes its average again.`, failedTitle: 'Not cleared' }))
+    open.value = false
 }
 </script>
 

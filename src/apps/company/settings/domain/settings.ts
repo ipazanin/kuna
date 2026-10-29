@@ -283,9 +283,17 @@ function billingItemDefinition(key: string, field: BillingItemField, note: strin
 
 /** The billing plan's terms, for any freelancer or small business. */
 const BILLING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
-  billingAmountDefinition('billing_monthly_amount', 'monthlyAmount', 'The fee invoiced for each worked month, such as 7200. "Fill the rest of the year" adds a row of it for every month to December. Optional.'),
+  billingAmountDefinition(
+    'billing_monthly_amount',
+    'monthlyAmount',
+    'The fee invoiced for each worked month, such as 7200. "Fill the rest of the year" adds a row of it for every month to December. Optional.',
+  ),
   billingItemDefinition('billing_monthly_item', 'monthlyItem', 'The item text of the monthly fee rows on the outgoing-plan tab, written as the tab writes it. Needed with billing_monthly_amount.'),
-  billingAmountDefinition('billing_subscription_amount', 'subscriptionAmount', 'Subscriptions re-billed every month, such as 60. "Fill the rest of the year" adds a row of it for every month to December. Optional.'),
+  billingAmountDefinition(
+    'billing_subscription_amount',
+    'subscriptionAmount',
+    'Subscriptions re-billed every month, such as 60. "Fill the rest of the year" adds a row of it for every month to December. Optional.',
+  ),
   billingItemDefinition('billing_subscription_item', 'subscriptionItem', 'The item text of the subscription rows on the outgoing-plan tab. Needed with billing_subscription_amount.'),
   billingAmountDefinition('billing_bonus_amount', 'bonusAmount', 'The bonus agreed for a whole year, such as 4800. It is shown for reference and never filled in. Optional.'),
   billingItemDefinition('billing_bonus_item', 'bonusItem', 'The item text of the bonus rows on the outgoing-plan tab. Needed with billing_bonus_amount.'),
@@ -347,7 +355,11 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   invoicingDefinition('invoice_issue_time', 'issueTime', 'The issuing time the invoice prints, such as 17:00h. Blank leaves the line out.'),
   invoicingDefinition('invoice_signatory', 'signatory', 'Who prepares and signs the invoice, by name. Needed to make an invoice.'),
   invoicingDefinition('invoice_signatory_title', 'signatoryTitle', 'The signatory’s role, such as director. Optional.'),
-  invoicingDefinition('invoice_number_pattern', 'numberPattern', `How invoice numbers are written: {n} is the sequence, which restarts each year, {yy} and {yyyy} the year. Blank means ${DEFAULT_NUMBER_PATTERN}.`),
+  invoicingDefinition(
+    'invoice_number_pattern',
+    'numberPattern',
+    `How invoice numbers are written: {n} is the sequence, which restarts each year, {yy} and {yyyy} the year. Blank means ${DEFAULT_NUMBER_PATTERN}.`,
+  ),
   invoicingDefinition('invoice_folder_id', 'folderId', 'The Google Drive folder invoices are filed under, as the app’s folder picker sets it. Optional.'),
   invoicingDefinition('invoice_file_path', 'filePath', `Where under that folder each invoice is filed, with {yyyy}, {yy}, {mm}, {client} and {number}. Blank means ${DEFAULT_FILE_PATH}.`),
   invoicingDefinition('invoice_mail_subject', 'mailSubject', `The subject of the invoice mail, with {month}, {number}, {client}, {company} and {signatory}. Blank means ${DEFAULT_MAIL_SUBJECT}.`),
@@ -531,7 +543,12 @@ export function settingCodec(packSettings: () => PackSettings<unknown> | null): 
  * The values with one row's value applied by its definition, or the problem that leaves the default.
  * A key set on more than one row is used from none of them, since where a row sits decides nothing.
  */
-function applySettingRow<Values>(values: Values, row: SettingRow, definition: SettingDefinition<Values>, shared: ReadonlySet<string>): { readonly values: Values; readonly problem: RecordProblem | null } {
+function applySettingRow<Values>(
+  values: Values,
+  row: SettingRow,
+  definition: SettingDefinition<Values>,
+  shared: ReadonlySet<string>,
+): { readonly values: Values; readonly problem: RecordProblem | null } {
   const named = { id: recordIdOf(SETTING_RECORDS, definition.key), label: definition.key }
   if (shared.has(definition.key)) {
     return { values, problem: { ...named, reason: 'set on more than one row, so the default is used' } }
@@ -666,7 +683,7 @@ function packSettingEntries<Values>(pack: PackSettingValues<Values>): SettingEnt
 }
 
 const IMPORT_PROFILE_NOTE =
-  'How one bank\'s spreadsheet export imports, as word=column pairs: account, date, date_format, decimal, amount or debit and credit, and the optional balance, counterparty, counterparty_iban, description and reference. Import saves it.'
+  "How one bank's spreadsheet export imports, as word=column pairs: account, date, date_format, decimal, amount or debit and credit, and the optional balance, counterparty, counterparty_iban, description and reference. Import saves it."
 
 /** The template's note on a key, core's or the pack's, or null for a key neither reads. */
 export function settingNote(key: string, pack: PackSettings<unknown> | null): string | null {
@@ -705,7 +722,8 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (senders !== null) errors.statementsMailFrom = senders
   const subject = mailSubjectProblem(settings.statementsMailSubject)
   if (subject !== null) errors.statementsMailSubject = subject
-  else if (settings.statementsMailFrom.length > 0 && settings.statementsMailSubject === '') errors.statementsMailSubject = 'name the words before the statement number in the subject, so other mail from the bank is left alone'
+  else if (settings.statementsMailFrom.length > 0 && settings.statementsMailSubject === '')
+    errors.statementsMailSubject = 'name the words before the statement number in the subject, so other mail from the bank is left alone'
   Object.assign(errors, billingErrors(settings.billing))
   for (const [field, value] of Object.entries(settings.invoicing) as [InvoicingField, string][]) {
     const problem = invoicingProblem(field, value)

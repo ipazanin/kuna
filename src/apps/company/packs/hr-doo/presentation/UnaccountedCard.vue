@@ -38,10 +38,7 @@ function addCost(prefill: AdvancePrefill): void {
     :summary="summary"
     data-testid="review-unaccounted"
   >
-    <template #subtitle>
-      Paid to the owner on a reimbursement category, with no cost on the owner-advances tab to repay. Net owed counts each as paid to the owner until its cost is
-      added.
-    </template>
+    <template #subtitle> Paid to the owner on a reimbursement category, with no cost on the owner-advances tab to repay. Net owed counts each as paid to the owner until its cost is added. </template>
     <div class="px-4 pt-1 pb-2 sm:px-5">
       <UnaccountedReimbursements :payments="unaccounted" :editable="!busy" @add-cost="addCost" />
     </div>

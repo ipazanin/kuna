@@ -14,7 +14,8 @@ defineProps<{
     <UIcon name="i-lucide-tag" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
     <div class="flex flex-col gap-1">
       <p v-for="entry in missing" :key="entry.role">
-        No category has the role <span class="identifier">{{ entry.role }}</span>, so {{ entry.leftOut }}.
+        No category has the role <span class="identifier">{{ entry.role }}</span
+        >, so {{ entry.leftOut }}.
       </p>
       <DrillLink to="/settings?tab=categories" in-prose class="self-start text-highlighted">Add roles on Settings, Categories</DrillLink>
     </div>

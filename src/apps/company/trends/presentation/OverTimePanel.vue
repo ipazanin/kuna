@@ -40,8 +40,17 @@ const trends = computed(() => {
   const months = monthlyProfitAndLoss(current.profitAndLossRows, current.window)
   const charted = new Set(periodMonths(current.filters.period, current.window))
   const shown = months.filter((month) => charted.has(month.month))
-  const startIndex = Math.max(0, months.findIndex((month) => charted.has(month.month)))
-  const endIndex = months.length - 1 - Math.max(0, [...months].reverse().findIndex((month) => charted.has(month.month)))
+  const startIndex = Math.max(
+    0,
+    months.findIndex((month) => charted.has(month.month)),
+  )
+  const endIndex =
+    months.length -
+    1 -
+    Math.max(
+      0,
+      [...months].reverse().findIndex((month) => charted.has(month.month)),
+    )
   const last = shown[shown.length - 1]
   return {
     months,

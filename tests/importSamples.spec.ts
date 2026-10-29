@@ -86,7 +86,10 @@ describe('the fake build’s statements folder', () => {
   it('refuses any other path, and a download of a statement it holds only the name of', async () => {
     const folder = fakeStatementFolder(null)
 
-    expect(await folder.files(['work', 'statements'])).toEqual({ kind: 'refused', reason: `The fake Drive holds statements only in ${FAKE_FOLDERS.statements.join('/')} and ./statements, not in work/statements.` })
+    expect(await folder.files(['work', 'statements'])).toEqual({
+      kind: 'refused',
+      reason: `The fake Drive holds statements only in ${FAKE_FOLDERS.statements.join('/')} and ./statements, not in work/statements.`,
+    })
     await expect(folder.download({ id: 'fake-statement-1', name: 'filed.xml' })).rejects.toThrow('holds only the name of filed.xml')
   })
 })

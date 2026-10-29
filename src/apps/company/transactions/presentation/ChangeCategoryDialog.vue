@@ -72,13 +72,7 @@ async function change(): Promise<void> {
 </script>
 
 <template>
-  <UModal
-    v-model:open="open"
-    title="Change the category"
-    :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`"
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
-  >
+  <UModal v-model:open="open" title="Change the category" :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`" :fullscreen="phone" :ui="{ header: 'pe-16 sm:pe-6' }">
     <template #body>
       <div class="flex flex-col gap-4" data-testid="change-category">
         <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -93,13 +87,11 @@ async function change(): Promise<void> {
         <p v-if="against" class="flex items-start gap-2 text-sm text-toned" data-testid="rule-against">
           <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
           <span>
-            The rule <span class="identifier">{{ against.ruleId }}</span> files rows like this one as {{ names.category(against.category) }}. Once this row says
-            {{ names.category(picked ?? '') }}, Review lists it on its Rules tab among the rows the rule files differently.
+            The rule <span class="identifier">{{ against.ruleId }}</span> files rows like this one as {{ names.category(against.category) }}. Once this row says {{ names.category(picked ?? '') }},
+            Review lists it on its Rules tab among the rows the rule files differently.
           </span>
         </p>
-        <p class="text-xs text-muted">
-          Writes the new category and <span class="identifier">flagged_by</span> {{ reviewLabel }} on the row, with Undo in the toast.
-        </p>
+        <p class="text-xs text-muted">Writes the new category and <span class="identifier">flagged_by</span> {{ reviewLabel }} on the row, with Undo in the toast.</p>
       </div>
     </template>
     <template #footer>

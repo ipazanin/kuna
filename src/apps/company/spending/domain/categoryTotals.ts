@@ -51,12 +51,7 @@ export function categoryTotals(bookings: readonly Booking[], period: Period, win
         share: ratioOf(amount, sum.direction === 'income' ? totals.income : totals.cost),
       }
     })
-    .sort(
-      (left, right) =>
-        Number(left.direction === 'cost') - Number(right.direction === 'cost') ||
-        right.amount.amount - left.amount.amount ||
-        left.category.localeCompare(right.category),
-    )
+    .sort((left, right) => Number(left.direction === 'cost') - Number(right.direction === 'cost') || right.amount.amount - left.amount.amount || left.category.localeCompare(right.category))
 }
 
 export interface OutsideProfitAndLossTotal {
@@ -71,11 +66,7 @@ export interface OutsideProfitAndLossTotal {
  * company. They settle costs already counted elsewhere, so they are listed beside the profit and
  * loss rather than in it, and have no share of either direction. Largest movement first.
  */
-export function outsideProfitAndLossTotals(
-  bookings: readonly Booking[],
-  period: Period,
-  window: LedgerWindow,
-): OutsideProfitAndLossTotal[] {
+export function outsideProfitAndLossTotals(bookings: readonly Booking[], period: Period, window: LedgerWindow): OutsideProfitAndLossTotal[] {
   const sums = new Map<string, { readonly family: string; signed: Money }>()
   for (const booking of transactionsInPeriod(bookings, period, window)) {
     if (booking.bucket !== 'financing') {
@@ -91,8 +82,5 @@ export function outsideProfitAndLossTotals(
       family: sum.family,
       amount: { amount: sum.signed, drill: drillToTransactions({ period, categories: [category] }) },
     }))
-    .sort(
-      (left, right) =>
-        Math.abs(right.amount.amount) - Math.abs(left.amount.amount) || left.category.localeCompare(right.category),
-    )
+    .sort((left, right) => Math.abs(right.amount.amount) - Math.abs(left.amount.amount) || left.category.localeCompare(right.category))
 }

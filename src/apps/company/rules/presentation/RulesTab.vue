@@ -180,12 +180,18 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
         </div>
         <div class="rule-outcome">
           <CategoryChip :category="rule.category" :bucket="bucketBySlug.get(rule.category) ?? UNCLASSIFIED" />
-          <p class="figure text-xs text-muted">
-            Decides {{ decided.get(rule.id) ?? 0 }} {{ (decided.get(rule.id) ?? 0) === 1 ? 'row' : 'rows' }}, order {{ rule.order }}
-          </p>
+          <p class="figure text-xs text-muted">Decides {{ decided.get(rule.id) ?? 0 }} {{ (decided.get(rule.id) ?? 0) === 1 ? 'row' : 'rows' }}, order {{ rule.order }}</p>
         </div>
         <div class="rule-actions">
-          <UButton icon="i-lucide-arrow-up" color="neutral" variant="ghost" size="sm" :aria-label="`Try ${rule.id} earlier`" :disabled="index === 0 || state.writing" @click="moveRule(rule, 'earlier')" />
+          <UButton
+            icon="i-lucide-arrow-up"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            :aria-label="`Try ${rule.id} earlier`"
+            :disabled="index === 0 || state.writing"
+            @click="moveRule(rule, 'earlier')"
+          />
           <UButton
             icon="i-lucide-arrow-down"
             color="neutral"

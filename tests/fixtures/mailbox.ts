@@ -32,11 +32,7 @@ export function sha256Of(text: string): string {
  * queries, the mails read and which attachments were downloaded. With `rateLimited` every search
  * throws as Gmail still asking to slow down.
  */
-export function testMailbox(
-  mails: readonly TestMail[],
-  pageSize = 500,
-  rateLimited = false,
-): Mailbox & { readonly queries: string[]; readonly reads: string[]; readonly downloads: string[] } {
+export function testMailbox(mails: readonly TestMail[], pageSize = 500, rateLimited = false): Mailbox & { readonly queries: string[]; readonly reads: string[]; readonly downloads: string[] } {
   const queries: string[] = []
   const reads: string[] = []
   const downloads: string[] = []
@@ -94,8 +90,20 @@ export function testFolders(
     async filesIn(_folder, below) {
       asked.push([...below])
       const listed: FiledFile[] = [
-        ...files.map((file) => ({ folders: file.folders, name: file.name, createdTime: Date.parse(file.created), sha256: file.content === null ? null : sha256Of(file.content), filedFrom: file.filedFrom === undefined ? null : Date.parse(file.filedFrom) })),
-        ...created.map((file) => ({ folders: file.below, name: file.name, createdTime: Date.parse(options.madeAt ?? '2031-12-31T00:00:00Z'), sha256: sha256Of(file.content), filedFrom: Date.parse(file.properties[MAIL_DATE_PROPERTY] ?? '') })),
+        ...files.map((file) => ({
+          folders: file.folders,
+          name: file.name,
+          createdTime: Date.parse(file.created),
+          sha256: file.content === null ? null : sha256Of(file.content),
+          filedFrom: file.filedFrom === undefined ? null : Date.parse(file.filedFrom),
+        })),
+        ...created.map((file) => ({
+          folders: file.below,
+          name: file.name,
+          createdTime: Date.parse(options.madeAt ?? '2031-12-31T00:00:00Z'),
+          sha256: sha256Of(file.content),
+          filedFrom: Date.parse(file.properties[MAIL_DATE_PROPERTY] ?? ''),
+        })),
       ].filter((file) => below.some((path) => path.every((name, index) => file.folders[index] === name)))
       return { kind: 'listed', files: listed }
     },

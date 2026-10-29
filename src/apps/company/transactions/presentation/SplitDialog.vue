@@ -87,7 +87,8 @@ function amountError(index: number): string | null {
 const errors = computed(() => {
   const list: string[] = []
   if (parts.value.length < 2) list.push('A split has at least two parts.')
-  if (remainder.value !== 0) list.push(remainder.value > 0 ? `${formatMoney(remainder.value)} of the payment is not in a part yet.` : `The parts are ${formatMoney(negateMoney(remainder.value))} more than the payment.`)
+  if (remainder.value !== 0)
+    list.push(remainder.value > 0 ? `${formatMoney(remainder.value)} of the payment is not in a part yet.` : `The parts are ${formatMoney(negateMoney(remainder.value))} more than the payment.`)
   return list
 })
 
@@ -132,10 +133,12 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const current = currentParts()
   if (current === null || current.length === 0) return
-  const deleted = await writes.write('Split deleted', (unit) => writeSplit(unit, props.row, current, [], props.categories), { description: 'The payment counts whole again.', failedTitle: 'Not deleted' })
+  const deleted = await writes.write('Split deleted', (unit) => writeSplit(unit, props.row, current, [], props.categories), {
+    description: 'The payment counts whole again.',
+    failedTitle: 'Not deleted',
+  })
   if (deleted) open.value = false
 }
-
 </script>
 
 <template>
@@ -178,15 +181,7 @@ async function remove(): Promise<void> {
             <UFormField label="Note" class="part-note">
               <UInput v-model="part.note" placeholder="What this part paid for" class="w-full" data-testid="split-part-note" />
             </UFormField>
-            <UButton
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              class="part-remove"
-              :aria-label="`Remove part ${index + 1}`"
-              data-testid="split-part-remove"
-              @click="removePart(part.id)"
-            />
+            <UButton icon="i-lucide-x" color="neutral" variant="ghost" class="part-remove" :aria-label="`Remove part ${index + 1}`" data-testid="split-part-remove" @click="removePart(part.id)" />
           </li>
         </ol>
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -205,16 +200,7 @@ async function remove(): Promise<void> {
     </template>
     <template #footer>
       <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="split !== null"
-          label="Delete split"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="split-delete"
-          @click="remove"
-        />
+        <UButton v-if="split !== null" label="Delete split" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="split-delete" @click="remove" />
         <div class="ms-auto flex flex-wrap gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
           <UButton

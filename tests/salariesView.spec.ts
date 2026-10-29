@@ -35,7 +35,9 @@ function paydayOf(reconciliation: SalaryReconciliation, payday: string) {
 }
 
 function problemKinds(problems: readonly SalaryProblem[]): string[] {
-  return problems.map((problem) => `${problem.kind}${'employee' in problem && problem.employee !== null ? ` ${problem.employee.slug}` : ''}${problem.kind === 'line-differs' ? ` ${problem.check.line}` : ''}`)
+  return problems.map(
+    (problem) => `${problem.kind}${'employee' in problem && problem.employee !== null ? ` ${problem.employee.slug}` : ''}${problem.kind === 'line-differs' ? ` ${problem.check.line}` : ''}`,
+  )
 }
 
 function tile(view: SalaryMonthView, label: string) {
@@ -69,7 +71,21 @@ describe('the fake staffs', () => {
     expect(workbook.problems).toEqual([])
     expect(workbook.director?.slug).toBe('alex')
     expect(reconciliation.paydays.map((payday) => payday.payday)).toEqual([
-      '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09',
+      '2025-07',
+      '2025-08',
+      '2025-09',
+      '2025-10',
+      '2025-11',
+      '2025-12',
+      '2026-01',
+      '2026-02',
+      '2026-03',
+      '2026-04',
+      '2026-05',
+      '2026-06',
+      '2026-07',
+      '2026-08',
+      '2026-09',
     ])
     expect(reconciliation.paydays.filter((payday) => payday.problems.length > 0)).toEqual([])
   })

@@ -64,10 +64,7 @@ export function balanceChart(
         axisLabel: { color: tokens.inkMuted, formatter: monthAxisLabel('short') },
       },
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
-      series: [
-        ...areas,
-        { type: 'line', name: TOTAL_SERIES, color: tokens.ink, showSymbol: false, data: months.map((month) => month.total.amount), z: 4 },
-      ],
+      series: [...areas, { type: 'line', name: TOTAL_SERIES, color: tokens.ink, showSymbol: false, data: months.map((month) => month.total.amount), z: 4 }],
     },
     description:
       last === undefined

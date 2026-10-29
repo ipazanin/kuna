@@ -114,12 +114,7 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
   const monthlyMaximum = maximumBase.value.monthlyMaximum.cents
   const capped = gross.amount > monthlyMaximum
   // The maximum is not prorated for a part month, because the definitions that were read do not say so.
-  const pensionable = tracedFigure(
-    capped ? 'Gross, capped at the maximum pension base' : 'Gross',
-    capped ? monthlyMaximum : gross.amount,
-    basis,
-    [maximumBase.citation],
-  )
+  const pensionable = tracedFigure(capped ? 'Gross, capped at the maximum pension base' : 'Gross', capped ? monthlyMaximum : gross.amount, basis, [maximumBase.citation])
   const annualRoom = maximumBase.value.annualMaximum.cents > earlierBase ? subtractMoney(maximumBase.value.annualMaximum.cents, earlierBase) : ZERO
   const pillarOneCapped = pensionable.amount > annualRoom
   // Only pillar I has an annual maximum base, which counts the bases of the whole year.
@@ -127,19 +122,10 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
     ? tracedFigure('Gross, capped at what is left of the annual maximum pension base', annualRoom, basis, [maximumBase.citation], [pensionable])
     : pensionable
   const pillarOneBaseAmount = pillarOnePensionable.amount > pensionRelief.amount ? subtractMoney(pillarOnePensionable.amount, pensionRelief.amount) : ZERO
-  const pillarOneBase = tracedFigure('Pillar I base', pillarOneBaseAmount, basis, [maximumBase.citation, reliefRule.citation], [
-    pillarOnePensionable,
-    deducted(pensionRelief),
-  ])
+  const pillarOneBase = tracedFigure('Pillar I base', pillarOneBaseAmount, basis, [maximumBase.citation, reliefRule.citation], [pillarOnePensionable, deducted(pensionRelief)])
   const rates = contributionRates.value
   const pillarOneRate = facts.pensionPillarTwo ? rates.pillarOneRateWithPillarTwo.basisPoints : rates.pillarOneRateWithoutPillarTwo.basisPoints
-  const pensionPillarOne = tracedFigure(
-    `Pension pillar I at ${percentText(pillarOneRate)}`,
-    atRate(pillarOneBase.amount, pillarOneRate),
-    basis,
-    [contributionRates.citation],
-    [pillarOneBase],
-  )
+  const pensionPillarOne = tracedFigure(`Pension pillar I at ${percentText(pillarOneRate)}`, atRate(pillarOneBase.amount, pillarOneRate), basis, [contributionRates.citation], [pillarOneBase])
   const pensionPillarTwo = facts.pensionPillarTwo
     ? tracedFigure(
         `Pension pillar II at ${percentText(rates.pillarTwoRate.basisPoints)}`,
@@ -168,39 +154,22 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
   )
   const taxCitations = [advanceRule.citation, bracketRule.citation, cityRates.citation]
   const brackets = taxInBrackets(taxableIncome.amount, bracketRule.value.monthlyThreshold.cents, cityRates, basis, taxCitations)
-  const incomeTax = tracedFigure(
-    'Income tax withheld in the month, without youth relief',
-    addMoney(brackets.lowerRateTax.amount, brackets.higherRateTax.amount),
-    basis,
-    taxCitations,
-    [brackets.lowerRateTax, brackets.higherRateTax],
-  )
-  const net = tracedFigure('Net salary', subtractMoney(income.amount, incomeTax.amount), basis, rulesOf([income, incomeTax]), [
-    income,
-    deducted(incomeTax),
+  const incomeTax = tracedFigure('Income tax withheld in the month, without youth relief', addMoney(brackets.lowerRateTax.amount, brackets.higherRateTax.amount), basis, taxCitations, [
+    brackets.lowerRateTax,
+    brackets.higherRateTax,
   ])
+  const net = tracedFigure('Net salary', subtractMoney(income.amount, incomeTax.amount), basis, rulesOf([income, incomeTax]), [income, deducted(incomeTax)])
 
   const healthRate = rates.healthRate.basisPoints
-  const health = tracedFigure(`Health insurance at ${percentText(healthRate)}, on top of the gross`, atRate(gross.amount, healthRate), basis, [
-    contributionRates.citation,
-  ], [gross])
-  const employerCost = tracedFigure('Gross II, the salary cost to the company', addMoney(gross.amount, health.amount), basis, rulesOf([gross, health]), [
-    gross,
-    health,
-  ])
+  const health = tracedFigure(`Health insurance at ${percentText(healthRate)}, on top of the gross`, atRate(gross.amount, healthRate), basis, [contributionRates.citation], [gross])
+  const employerCost = tracedFigure('Gross II, the salary cost to the company', addMoney(gross.amount, health.amount), basis, rulesOf([gross, health]), [gross, health])
 
   const nontaxablePayments = nontaxableTotal(input.nontaxablePayments, capsRule, basis)
-  const paidToEmployee = tracedFigure('Paid to the employee', addMoney(net.amount, nontaxablePayments.amount), basis, rulesOf([net, nontaxablePayments]), [
-    net,
+  const paidToEmployee = tracedFigure('Paid to the employee', addMoney(net.amount, nontaxablePayments.amount), basis, rulesOf([net, nontaxablePayments]), [net, nontaxablePayments])
+  const totalCompanyCost = tracedFigure('Total cost to the company', addMoney(employerCost.amount, nontaxablePayments.amount), basis, rulesOf([employerCost, nontaxablePayments]), [
+    employerCost,
     nontaxablePayments,
   ])
-  const totalCompanyCost = tracedFigure(
-    'Total cost to the company',
-    addMoney(employerCost.amount, nontaxablePayments.amount),
-    basis,
-    rulesOf([employerCost, nontaxablePayments]),
-    [employerCost, nontaxablePayments],
-  )
   const stateSteps = [pensionPillarOne, pensionPillarTwo, incomeTax, health]
   const stateTake = tracedFigure('Taken by the state', sumMoney(stateSteps.map((step) => step.amount)), basis, rulesOf(stateSteps), stateSteps)
 
@@ -264,12 +233,7 @@ function lowPayRelief(gross: Money, reliefRule: RuleLookup<RuleValues['hr.contri
   if (relief.reducedContribution.text !== 'pension-pillar-one') {
     throw new RangeError(`The payroll engine reduces only the pillar I base, and the ruleset names ${relief.reducedContribution.text}.`)
   }
-  return tracedFigure(
-    'Low-pay reduction of the pension base, on pillar I only as the accountant applies it (practice, not statute)',
-    reductionOf(gross, relief),
-    basis,
-    [reliefRule.citation],
-  )
+  return tracedFigure('Low-pay reduction of the pension base, on pillar I only as the accountant applies it (practice, not statute)', reductionOf(gross, relief), basis, [reliefRule.citation])
 }
 
 function reductionOf(gross: Money, relief: RuleValues['hr.contrib.low-pay-relief']): Money {
@@ -286,22 +250,14 @@ function reductionOf(gross: Money, relief: RuleValues['hr.contrib.low-pay-relief
 function monthlyAdvanceRule(paidOn: CivilDate, rules: RuleSource): RuleLookup<RuleValues['hr.pit.monthly-advance']> {
   const advanceRule = rules('hr.pit.monthly-advance', paidOn)
   const advance = advanceRule.value
-  const modelled =
-    advance.baseDeductsPensionContributions.holds &&
-    advance.baseDeductsPersonalAllowance.holds &&
-    !advance.youthReliefApplies.holds &&
-    advance.thresholdPeriod.text === 'month'
+  const modelled = advance.baseDeductsPensionContributions.holds && advance.baseDeductsPersonalAllowance.holds && !advance.youthReliefApplies.holds && advance.thresholdPeriod.text === 'month'
   if (!modelled) {
     throw new RangeError(`The monthly income tax advance in force on ${paidOn} is not the one the payroll engine models.`)
   }
   return advanceRule
 }
 
-function nontaxableTotal(
-  payments: readonly NontaxablePayment[],
-  capsRule: RuleLookup<RuleValues['hr.pit.nontaxable-caps']>,
-  basis: FigureBasis,
-): TracedFigure {
+function nontaxableTotal(payments: readonly NontaxablePayment[], capsRule: RuleLookup<RuleValues['hr.pit.nontaxable-caps']>, basis: FigureBasis): TracedFigure {
   const knownPayments = new Set(capsRule.value.caps.rows.map((row) => row.payment.text))
   const steps = payments.map((payment) => {
     if (!knownPayments.has(payment.payment)) {

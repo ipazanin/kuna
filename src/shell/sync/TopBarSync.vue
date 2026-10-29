@@ -37,14 +37,5 @@ function find(): void {
   <div v-if="!onDrive && inBrowser.length > 0" class="flex" :class="compact ? 'items-center justify-end gap-2' : 'flex-col gap-3'">
     <component :is="group.exportControl" v-for="group in inBrowser" :key="group.app" :compact="compact" />
   </div>
-  <SyncStatus
-    v-else
-    :control="sync.control.value"
-    :run="sync.run.value"
-    :compact="compact"
-    :export-reminder="exportReminder"
-    @sync="sync.sync"
-    @allow="sync.allowAccess"
-    @find="find"
-  />
+  <SyncStatus v-else :control="sync.control.value" :run="sync.run.value" :compact="compact" :export-reminder="exportReminder" @sync="sync.sync" @allow="sync.allowAccess" @find="find" />
 </template>

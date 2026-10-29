@@ -88,4 +88,3 @@ export function typicalMonthlyAmount(monthlyTotals: readonly Money[]): Money | n
   const middle = Math.floor(paid.length / 2)
   return paid.length % 2 === 1 ? paid[middle]! : divideMoney(addMoney(paid[middle - 1]!, paid[middle]!), 2)
 }
-

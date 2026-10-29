@@ -52,7 +52,10 @@ export function scenarioRowOf(fields: StoredFields, id: RecordId | null): Scenar
   const year = requiredYear(fields, 'year')
   const from = optionalDate(fields, 'from')
   const to = optionalDate(fields, 'to')
-  for (const [name, date] of [['from', from], ['to', to]] as const) {
+  for (const [name, date] of [
+    ['from', from],
+    ['to', to],
+  ] as const) {
     if (date !== null && Number(date.slice(0, 4)) !== year) refuse(`${name} ${date} is outside ${year}`)
   }
   if (from !== null && to !== null && to < from) refuse(`to ${to} is before from ${from}`)
@@ -60,7 +63,15 @@ export function scenarioRowOf(fields: StoredFields, id: RecordId | null): Scenar
   const written = slugOf(fields.component)
   const component = written.startsWith(NONTAXABLE_PREFIX)
     ? nontaxableComponent(written.slice(NONTAXABLE_PREFIX.length).trim(), fields, span)
-    : namedComponent(requiredChoice(fields, 'component', SCENARIO_COMPONENTS.filter((name) => name !== 'nontaxable')), fields, span)
+    : namedComponent(
+        requiredChoice(
+          fields,
+          'component',
+          SCENARIO_COMPONENTS.filter((name) => name !== 'nontaxable'),
+        ),
+        fields,
+        span,
+      )
   return { slug, label: textOf(fields.label), year, component, key: `${written} ${from ?? ''} ${to ?? ''}` }
 }
 

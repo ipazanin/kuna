@@ -86,9 +86,7 @@ describe('taxBase', () => {
     const shortfall = figure(40)
 
     expect(increase(taxBase(input({ relatedPartyInterestShortfall: shortfall })), 'PD lines 16 and 25')).toBe(euros(0))
-    expect(
-      increase(taxBase(input({ relatedPartyInterestShortfall: shortfall, lossesBroughtForward: [{ year: 2025, remaining: euros(5000) }] })), 'PD lines 16 and 25'),
-    ).toBe(euros(40))
+    expect(increase(taxBase(input({ relatedPartyInterestShortfall: shortfall, lossesBroughtForward: [{ year: 2025, remaining: euros(5000) }] })), 'PD lines 16 and 25')).toBe(euros(40))
   })
 })
 

@@ -44,9 +44,7 @@ function openDetail(detail: FigureDetail): void {
   dialogOpen.value = true
 }
 
-const groups = computed(() =>
-  ORDER.map((group) => ({ group, wording: GROUP_WORDING[group], items: props.items.filter((item) => item.group === group) })).filter((entry) => entry.items.length > 0),
-)
+const groups = computed(() => ORDER.map((group) => ({ group, wording: GROUP_WORDING[group], items: props.items.filter((item) => item.group === group) })).filter((entry) => entry.items.length > 0))
 </script>
 
 <template>
@@ -72,7 +70,9 @@ const groups = computed(() =>
                 <MoneyText :cents="item.cents" class="text-sm text-toned" />
               </DrillLink>
             </div>
-            <p class="text-xs text-muted"><span class="font-medium text-toned">{{ item.settled ? 'Still open if' : 'Settled by' }}</span> {{ item.settledBy }}</p>
+            <p class="text-xs text-muted">
+              <span class="font-medium text-toned">{{ item.settled ? 'Still open if' : 'Settled by' }}</span> {{ item.settledBy }}
+            </p>
             <ul v-if="item.rules.length > 0" class="flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-4">
               <li v-for="rule in item.rules" :key="rule.id">
                 <DrillLink :to="rule.to" :label="`${rule.title}, open the rule`" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>

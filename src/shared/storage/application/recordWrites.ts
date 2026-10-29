@@ -121,9 +121,7 @@ function findStored(storage: StorageView, fresh: FreshRecords, change: Exclude<R
   if (id === null) return `${capitalised(record)} has nothing to find it by, so the app cannot change it.`
   if (holding.length === 1) return holding[0]!
   if (holding.length > 1) return `${holding.length} records hold ${record}, so the app cannot tell which one is meant. Change it in the workbook.`
-  return sameId.length === 0
-    ? `${capitalised(record)} is no longer in the workbook. Sync and look again.`
-    : `${capitalised(record)} changed since the app read it. Sync and look again.`
+  return sameId.length === 0 ? `${capitalised(record)} is no longer in the workbook. Sync and look again.` : `${capitalised(record)} changed since the app read it. Sync and look again.`
 }
 
 /** What a reading says of one record: whether it counts, and every reason given for it. A record without an identity is known by its label. */
@@ -207,7 +205,9 @@ export async function checkWrite(storage: StorageView, title: string, ruled: rea
     }
     claim(stored, named(change.kind, stored.label))
     if ((change.verb === 'repair' || change.verb === 'discard') && rules.changeable !== undefined) {
-      refusals.push(`The app changes only ${listInWords(rules.changeable)} of ${change.kind.noun.article} ${change.kind.noun.one}, so ${named(change.kind, stored.label)} is fixed in the workbook itself.`)
+      refusals.push(
+        `The app changes only ${listInWords(rules.changeable)} of ${change.kind.noun.article} ${change.kind.noun.one}, so ${named(change.kind, stored.label)} is fixed in the workbook itself.`,
+      )
     }
     if (change.verb === 'change' && rules.changeable !== undefined) {
       const changeable = rules.changeable

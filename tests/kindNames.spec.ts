@@ -21,7 +21,11 @@ describe("the company app's kind names", () => {
 
   it("starts each pack kind with the pack's name, while core's kinds stay bare", () => {
     expect(packKinds.map((kind) => kind.name).filter((name) => !name.startsWith(`${pack.key.name}.`))).toEqual([])
-    expect(Object.values(CORE_KINDS).map((kind) => kind.name).filter((name) => name.includes('.'))).toEqual([])
+    expect(
+      Object.values(CORE_KINDS)
+        .map((kind) => kind.name)
+        .filter((name) => name.includes('.')),
+    ).toEqual([])
   })
 })
 
@@ -32,6 +36,10 @@ describe("the Loans app's kind names", () => {
     const names = kinds.map((kind) => kind.name)
     expect(names.filter((name, index) => names.indexOf(name) !== index)).toEqual([])
     expect(kinds.filter((kind) => codecOfLoansKind(kind).kind !== kind).map((kind) => kind.name)).toEqual([])
-    expect(Object.values(LOAN_PARTS).map((kind) => kind.name).sort()).toEqual([...names].sort())
+    expect(
+      Object.values(LOAN_PARTS)
+        .map((kind) => kind.name)
+        .sort(),
+    ).toEqual([...names].sort())
   })
 })

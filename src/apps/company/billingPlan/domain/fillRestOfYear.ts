@@ -9,9 +9,7 @@ import type { BillingItem } from '../../workbook/domain/billingPlan'
 /** A plan row before it is on the tab. */
 export type BillingItemDraft = Omit<BillingItem, 'id'>
 
-export type RestOfYearFill =
-  | { readonly kind: 'rows'; readonly rows: readonly BillingItemDraft[] }
-  | { readonly kind: 'refused'; readonly reason: string }
+export type RestOfYearFill = { readonly kind: 'rows'; readonly rows: readonly BillingItemDraft[] } | { readonly kind: 'refused'; readonly reason: string }
 
 // A description becomes the line of an invoice, so its month stays English whatever the language on screen.
 const LONG_NAME = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })

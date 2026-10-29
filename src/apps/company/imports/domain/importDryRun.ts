@@ -203,7 +203,14 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   }
   const fresh = statement.rows.slice(firstNew)
   if (inLedger.slice(firstNew).some((held) => held)) {
-    return { statement: shown('Rows the ledger lacks sit between rows it already holds, so the statement does not continue where the ledger leaves the account. Nothing of it is written.', null, statement.opening), added: [] }
+    return {
+      statement: shown(
+        'Rows the ledger lacks sit between rows it already holds, so the statement does not continue where the ledger leaves the account. Nothing of it is written.',
+        null,
+        statement.opening,
+      ),
+      added: [],
+    }
   }
   if (firstNew > 0) {
     notes.push(`${firstNew} of its ${statement.rows.length} entries are on the ledger already. The other ${fresh.length} follow them.`)
@@ -221,7 +228,10 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   }
   const first = fresh[0]!
   if (state.latest !== null && first.date < state.latest.date) {
-    return { statement: shown(`Its first new entry is dated ${first.date}, before ${state.latest.date}, the newest row of ${account}. Rows are only added after the newest one.`, null, statement.opening), added: [] }
+    return {
+      statement: shown(`Its first new entry is dated ${first.date}, before ${state.latest.date}, the newest row of ${account}. Rows are only added after the newest one.`, null, statement.opening),
+      added: [],
+    }
   }
   const before = first.balance === null ? null : subtractMoney(first.balance, first.amount)
   let opening: Money | null
@@ -252,7 +262,9 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   if (statement.source.kind === 'camt' && state.lastSequence !== null) {
     const { sequence } = statement.source
     if (sequence > state.lastSequence + 1) {
-      notes.push(`It is statement ${sequence}, and the newest on the ledger for ${account} is ${state.lastSequence}, so ${sequence - state.lastSequence - 1 === 1 ? 'one statement is' : `${sequence - state.lastSequence - 1} statements are`} not on the ledger. The balances still join, so ${sequence - state.lastSequence - 1 === 1 ? 'it' : 'they'} may have held no entries.`)
+      notes.push(
+        `It is statement ${sequence}, and the newest on the ledger for ${account} is ${state.lastSequence}, so ${sequence - state.lastSequence - 1 === 1 ? 'one statement is' : `${sequence - state.lastSequence - 1} statements are`} not on the ledger. The balances still join, so ${sequence - state.lastSequence - 1 === 1 ? 'it' : 'they'} may have held no entries.`,
+      )
     } else if (sequence <= state.lastSequence) {
       notes.push(`It is statement ${sequence}, which is not after ${state.lastSequence}, the newest on the ledger for ${account}.`)
     }
@@ -266,7 +278,11 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
     ...balanced.map((row) => ({
       ...row,
       inLedger: false,
-      verdict: categorise({ account, amount: row.amount, counterparty: row.counterparty, counterpartyIban: normaliseIban(row.counterpartyIban), description: row.description, signals: row.signals }, inputs.rules, inputs.context),
+      verdict: categorise(
+        { account, amount: row.amount, counterparty: row.counterparty, counterpartyIban: normaliseIban(row.counterpartyIban), description: row.description, signals: row.signals },
+        inputs.rules,
+        inputs.context,
+      ),
     })),
   ]
   const last = balanced[balanced.length - 1]!
@@ -320,9 +336,7 @@ function inBookingOrder(readings: readonly StatementReading[], named: ReadonlyMa
   const accountOf = (reading: StatementReading & { readonly statement: ImportedStatement }): string =>
     'newAccount' in reading ? (named.get(reading.newAccount.iban) ?? reading.newAccount.iban) : reading.statement.account
   const keyOf = (reading: StatementReading): [string, string, number] =>
-    'statement' in reading
-      ? [accountOf(reading), reading.statement.rows[0]?.date ?? '', reading.statement.source.kind === 'camt' ? reading.statement.source.sequence : 0]
-      : ['', '', 0]
+    'statement' in reading ? [accountOf(reading), reading.statement.rows[0]?.date ?? '', reading.statement.source.kind === 'camt' ? reading.statement.source.sequence : 0] : ['', '', 0]
   return readings
     .map((reading, position) => ({ reading, position, key: keyOf(reading) }))
     .sort((left, right) => left.key[0].localeCompare(right.key[0]) || left.key[1].localeCompare(right.key[1]) || left.key[2] - right.key[2] || left.position - right.position)
@@ -346,4 +360,3 @@ function accountStates(transactions: readonly Transaction[]): Map<string, Accoun
   }
   return states
 }
-

@@ -98,15 +98,7 @@ async function keepOnGoogleDrive(): Promise<void> {
     <template #footer>
       <div class="flex w-full flex-wrap justify-end gap-2">
         <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
-        <UButton
-          icon="i-lucide-monitor-smartphone"
-          label="Keep in this browser"
-          color="neutral"
-          variant="outline"
-          :loading="importing"
-          :disabled="!keepable"
-          @click="keepInBrowser"
-        />
+        <UButton icon="i-lucide-monitor-smartphone" label="Keep in this browser" color="neutral" variant="outline" :loading="importing" :disabled="!keepable" @click="keepInBrowser" />
         <UButton icon="i-lucide-hard-drive-upload" label="Keep on Google Drive" :disabled="!keepable" @click="keepOnGoogleDrive" />
       </div>
     </template>

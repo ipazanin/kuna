@@ -105,7 +105,12 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
   } catch (failure) {
     if (!(failure instanceof WorkbookWriteRefused) || !mayRetry) {
       const unwritten = new Set(filed.map(statementKey))
-      return { problem: isUnauthorized(failure) ? 'Not filed. Sync again.' : messageOf(failure), held: readings.filter((reading) => kept.has(readingKey(reading)) || unwritten.has(readingKey(reading))), filed: [], receipt: null }
+      return {
+        problem: isUnauthorized(failure) ? 'Not filed. Sync again.' : messageOf(failure),
+        held: readings.filter((reading) => kept.has(readingKey(reading)) || unwritten.has(readingKey(reading))),
+        filed: [],
+        receipt: null,
+      }
     }
     await store.sync()
     if (store.state.status !== 'ready' || store.state.workbook === null) {

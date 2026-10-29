@@ -25,9 +25,7 @@ export function invoiceChangeRefusals(edits: readonly InvoiceEdit[], untouched: 
       continue
     }
     if (key(after.number) !== '' && key(after.number) !== key(edit.before?.number ?? '')) {
-      const holder =
-        untouched.find((row) => key(row.number) === key(after.number)) ??
-        edits.find((other) => other !== edit && other.after !== null && key(other.after.number) === key(after.number))
+      const holder = untouched.find((row) => key(row.number) === key(after.number)) ?? edits.find((other) => other !== edit && other.after !== null && key(other.after.number) === key(after.number))
       if (holder !== undefined) {
         refusals.push(`Invoice ${after.number.trim()} is already on the invoices tab, and each number is used once.`)
       }

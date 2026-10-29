@@ -52,12 +52,20 @@ function writePlan(store: WorkbookStore<CompanyBooks>, held: readonly KeyedLine<
 
 /** Adds the lines, each under a key of its own. */
 function addLines(store: WorkbookStore<CompanyBooks>, drafts: readonly PlanLineDraft[]) {
-  return writePlan(store, [], drafts.map((line, index) => ({ key: String(index), line })))
+  return writePlan(
+    store,
+    [],
+    drafts.map((line, index) => ({ key: String(index), line })),
+  )
 }
 
 function lines(store: WorkbookStore<CompanyBooks>): string[] {
   return (hrDooWorkbook(store.state.workbook!).planLines ?? []).map((line) =>
-    line.kind === 'owner-pay-scenario' ? `owner pay ${line.scenario} from ${line.from ?? 'January'}` : line.kind === 'purchase' ? `purchase ${line.note} on ${line.date}` : `${line.item} ${line.month ?? 'every'} ${line.amount}`,
+    line.kind === 'owner-pay-scenario'
+      ? `owner pay ${line.scenario} from ${line.from ?? 'January'}`
+      : line.kind === 'purchase'
+        ? `purchase ${line.note} on ${line.date}`
+        : `${line.item} ${line.month ?? 'every'} ${line.amount}`,
   )
 }
 
@@ -67,10 +75,14 @@ describe.each([
 ] as const)('plan writes to %s', (_name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('plans a category for every month and a month of its own, changes it and clears it', async () => {
     const { store } = await harnessOf(used, grids())
-    await writePlan(store, [], [
-      { key: 'every', line: categoryPlanLine(2027, null, 'ai-services', euros(150)) },
-      { key: '1', line: categoryPlanLine(2027, 1, 'ai-services', euros(900), 'Yearly seats') },
-    ])
+    await writePlan(
+      store,
+      [],
+      [
+        { key: 'every', line: categoryPlanLine(2027, null, 'ai-services', euros(150)) },
+        { key: '1', line: categoryPlanLine(2027, 1, 'ai-services', euros(900), 'Yearly seats') },
+      ],
+    )
     expect(lines(store)).toEqual(['ai-services every 15000', 'ai-services 1 90000'])
 
     const held = stored(store).map((line) => ({ key: line.month === null ? 'every' : String(line.month), line }))

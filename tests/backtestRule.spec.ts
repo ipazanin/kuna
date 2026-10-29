@@ -47,15 +47,9 @@ describe('backtestRuleChange', () => {
 
     const result = backtestRuleChange(RULES, [...RULES, candidate], rows, context)
 
-    expect(result.settled.map((change) => [change.transaction.amount, change.before.category, change.after.category])).toEqual([
-      [-2000, 'card-purchase-unknown', 'ai-services'],
-    ])
-    expect(result.brokenAgreements.map((change) => [change.transaction.amount, change.before.ruleId, change.after.ruleId])).toEqual([
-      [-4000, 'equipment-shop', 'merchant-model-api'],
-    ])
-    expect(result.humanConflicts.map((change) => [change.transaction.amount, change.transaction.category, change.after.category])).toEqual([
-      [-5000, 'travel', 'ai-services'],
-    ])
+    expect(result.settled.map((change) => [change.transaction.amount, change.before.category, change.after.category])).toEqual([[-2000, 'card-purchase-unknown', 'ai-services']])
+    expect(result.brokenAgreements.map((change) => [change.transaction.amount, change.before.ruleId, change.after.ruleId])).toEqual([[-4000, 'equipment-shop', 'merchant-model-api']])
+    expect(result.humanConflicts.map((change) => [change.transaction.amount, change.transaction.category, change.after.category])).toEqual([[-5000, 'travel', 'ai-services']])
   })
 
   it('leaves a row out when a rule above the candidate still decides it', () => {

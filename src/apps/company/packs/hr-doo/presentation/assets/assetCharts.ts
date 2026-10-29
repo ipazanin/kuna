@@ -76,8 +76,7 @@ export function bookValueChart(schedules: readonly DepreciationSchedule[], today
     description:
       first === undefined || last === undefined
         ? 'No asset is depreciated.'
-        : `Book value of ${lines.map((line) => line.name).join(', ')} at the end of each month from ${monthLabel(first)} to ${monthLabel(last)}. ` +
-          `${formatWholeMoney(todayValue)} in all today.`,
+        : `Book value of ${lines.map((line) => line.name).join(', ')} at the end of each month from ${monthLabel(first)} to ${monthLabel(last)}. ` + `${formatWholeMoney(todayValue)} in all today.`,
   }
 }
 

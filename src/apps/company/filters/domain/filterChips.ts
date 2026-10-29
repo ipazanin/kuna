@@ -41,8 +41,7 @@ export function filterChips(filters: FilterState, labels: ChipLabels): FilterChi
   }
   const { min, max } = filters.amount
   if (min !== null || max !== null) {
-    const bounds =
-      min === null ? `at most ${formatMoney(max ?? 0)}` : max === null ? `at least ${formatMoney(min)}` : `${formatMoney(min)} to ${formatMoney(max)}`
+    const bounds = min === null ? `at most ${formatMoney(max ?? 0)}` : max === null ? `at least ${formatMoney(min)}` : `${formatMoney(min)} to ${formatMoney(max)}`
     chips.push({ id: 'amount', label: `Amount: ${bounds}` })
   }
   if (filters.needsReview) {
@@ -93,8 +92,7 @@ export function addedChoices(filters: FilterState): string[] {
 
 /** The filters with exactly these Add filter choices. Every other narrowing stays as it is. */
 export function withAddedChoices(filters: FilterState, chipIds: readonly string[]): FilterState {
-  const chosen = (field: ListField): string[] =>
-    chipIds.filter((chipId) => chipId.startsWith(`${field}:`)).map((chipId) => chipId.slice(field.length + 1))
+  const chosen = (field: ListField): string[] => chipIds.filter((chipId) => chipId.startsWith(`${field}:`)).map((chipId) => chipId.slice(field.length + 1))
   return { ...filters, buckets: chosen('buckets').filter(isBucket), categories: chosen('categories'), counterparties: chosen('counterparties') }
 }
 

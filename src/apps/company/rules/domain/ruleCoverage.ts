@@ -91,9 +91,7 @@ export function ruleCoverage<Row extends CoverageRow>(transactions: readonly Row
   return { notCovered: largestFirst(notCovered), exceptions: largestFirst(exceptions) }
 }
 
-function largestFirst<Group extends { name: string; rows: readonly Pick<Transaction, 'category'>[] }>(
-  groups: ReadonlyMap<string, Group>,
-): (Group & { key: string; categories: CategoryCount[] })[] {
+function largestFirst<Group extends { name: string; rows: readonly Pick<Transaction, 'category'>[] }>(groups: ReadonlyMap<string, Group>): (Group & { key: string; categories: CategoryCount[] })[] {
   return [...groups.entries()]
     .map(([key, group]) => ({ key, ...group, categories: categoryCounts(group.rows) }))
     .sort((larger, smaller) => smaller.rows.length - larger.rows.length || larger.name.localeCompare(smaller.name))
@@ -104,7 +102,5 @@ function categoryCounts(rows: readonly Pick<Transaction, 'category'>[]): Categor
   for (const row of rows) {
     counts.set(row.category, (counts.get(row.category) ?? 0) + 1)
   }
-  return [...counts.entries()]
-    .map(([category, count]) => ({ category, count }))
-    .sort((more, fewer) => fewer.count - more.count || more.category.localeCompare(fewer.category))
+  return [...counts.entries()].map(([category, count]) => ({ category, count })).sort((more, fewer) => fewer.count - more.count || more.category.localeCompare(fewer.category))
 }

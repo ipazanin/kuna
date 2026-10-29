@@ -15,12 +15,7 @@ export type PriorReturn = Pick<CitLiability, 'period' | 'liability' | 'balanceDu
  * tab has no liability for the year. The monthly advance is the tab's PD line 59. Without it, the
  * liability is divided by the tab's months of operation, or by the months the period touches.
  */
-export function closedYearReturn(
-  lines: readonly YearEndLine[],
-  year: number,
-  registered: CivilDate | null,
-  rules: RuleSource = ruleValue,
-): PriorReturn | null {
+export function closedYearReturn(lines: readonly YearEndLine[], year: number, registered: CivilDate | null, rules: RuleSource = ruleValue): PriorReturn | null {
   const taxLine = (line: string) => lines.find((candidate) => candidate.year === year && candidate.statement === 'tax' && candidate.line === line)?.figure
   const liabilityLine = taxLine('liability')
   if (liabilityLine?.kind !== 'money') {
@@ -37,8 +32,6 @@ export function closedYearReturn(
     liability,
     balanceDue: balanceLine?.kind === 'money' ? tracedFigure(`PD line 57 for ${year}, as the accountant filed it`, balanceLine.amount, 'accountant', []) : null,
     monthlyAdvance:
-      advanceLine?.kind === 'money'
-        ? tracedFigure(`PD line 59 for ${year}, as the accountant filed it`, advanceLine.amount, 'accountant', [])
-        : monthlyAdvanceOf(liability, months, year, rules),
+      advanceLine?.kind === 'money' ? tracedFigure(`PD line 59 for ${year}, as the accountant filed it`, advanceLine.amount, 'accountant', []) : monthlyAdvanceOf(liability, months, year, rules),
   }
 }

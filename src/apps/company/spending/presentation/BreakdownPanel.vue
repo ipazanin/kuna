@@ -39,8 +39,7 @@ const spending = computed(() => {
   const { scoped, profitAndLossRows, window, filters } = current
   const prior = priorEqualPeriod(filters.period, window)
   const groups = costGroups(categoryTotals(profitAndLossRows, filters.period, window), prior === null ? null : categoryTotals(profitAndLossRows, prior, window))
-  const groupTitle = (key: CostGroup['key']): string =>
-    key === 'money-back' ? 'Money back' : settings.value.bucketLabels[key]
+  const groupTitle = (key: CostGroup['key']): string => (key === 'money-back' ? 'Money back' : settings.value.bucketLabels[key])
   const pack = shownPack(settings.value)
   const priorLabel = prior === null ? null : periodInWords(prior, window)
   const payees = topCounterparties(scoped, filters.period, window)
@@ -49,25 +48,23 @@ const spending = computed(() => {
   return {
     definition: `${costLabels.charAt(0).toUpperCase()}${costLabels.slice(1)} by category. A refund in a cost category lowers its bar. Transfers and reimbursements are not costs, so they are left out.`,
     legend: priorLabel === null ? [] : [{ label: 'Period before', colour: 'var(--chart-ink-muted)', mark: 'outline' as const }],
-    sections: groups.map(
-      (group): CostSection => ({
-        key: group.key,
-        title: groupTitle(group.key),
-        link: pack.costGroupLinks(group.key),
-        total: group.total,
-        priorTotal: group.priorTotal,
-        change: group.change,
-        lines: group.rows.map((row) => ({
-          key: row.category,
-          name: names.value.category(row.category),
-          colour: colours.value(row.category, row.bucket),
-          current: row.current?.amount ?? 0,
-          prior: row.prior?.amount ?? null,
-          change: row.change,
-          to: row.current === null ? (row.prior === null ? null : drillLocation(row.prior.drill)) : drillLocation(row.current.drill),
-        })),
-      }),
-    ),
+    sections: groups.map((group): CostSection => ({
+      key: group.key,
+      title: groupTitle(group.key),
+      link: pack.costGroupLinks(group.key),
+      total: group.total,
+      priorTotal: group.priorTotal,
+      change: group.change,
+      lines: group.rows.map((row) => ({
+        key: row.category,
+        name: names.value.category(row.category),
+        colour: colours.value(row.category, row.bucket),
+        current: row.current?.amount ?? 0,
+        prior: row.prior?.amount ?? null,
+        change: row.change,
+        to: row.current === null ? (row.prior === null ? null : drillLocation(row.prior.drill)) : drillLocation(row.current.drill),
+      })),
+    })),
     priorLabel,
     stripScale,
     payeesSummary:
@@ -127,7 +124,9 @@ const spending = computed(() => {
             <tr v-for="payee in spending.payees" :key="payee.key">
               <th scope="row" class="cell-wraps w-full text-start font-normal">
                 <div class="payee-cell flex flex-col gap-1">
-                  <DrillLink :to="payee.to" class="min-w-0 text-highlighted"><span class="block break-words">{{ payee.label }}</span></DrillLink>
+                  <DrillLink :to="payee.to" class="min-w-0 text-highlighted"
+                    ><span class="block break-words">{{ payee.label }}</span></DrillLink
+                  >
                   <PayeeCategories :payee="payee.label" :categories="payee.categories">
                     <UBadge v-if="payee.rhythm" :label="payee.rhythm" color="neutral" variant="subtle" size="sm" class="shrink-0" />
                   </PayeeCategories>

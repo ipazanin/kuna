@@ -92,10 +92,7 @@ export function mailQuery(terms: Pick<MailTerms, 'senders' | 'subject'>, window:
 export type MailTermPiece = 'sender' | 'subject' | 'folder'
 
 /** Whether the books turn a source off, turn it on without all it needs, or turn it on with its search and folder. */
-export type SourceTerms =
-  | { readonly kind: 'off' }
-  | { readonly kind: 'incomplete'; readonly missing: readonly MailTermPiece[] }
-  | { readonly kind: 'on'; readonly terms: MailTerms }
+export type SourceTerms = { readonly kind: 'off' } | { readonly kind: 'incomplete'; readonly missing: readonly MailTermPiece[] } | { readonly kind: 'on'; readonly terms: MailTerms }
 
 /** What a source the books turn on lacks, in the order the settings ask for it. */
 export function missingTerms(terms: MailTerms): MailTermPiece[] {

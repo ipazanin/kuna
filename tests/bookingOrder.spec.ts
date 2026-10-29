@@ -27,12 +27,7 @@ function namesOf(entries: readonly Entry[]): string[] {
 
 describe('bookingOrder', () => {
   it('puts a day in the order its balances chain, whatever order the entries come in', () => {
-    const entries = [
-      entry('third', '2026-03-02', -25, 50),
-      entry('opening', '2026-03-01', 100, 100),
-      entry('first', '2026-03-02', -10, 90),
-      entry('second', '2026-03-02', -15, 75),
-    ]
+    const entries = [entry('third', '2026-03-02', -25, 50), entry('opening', '2026-03-01', 100, 100), entry('first', '2026-03-02', -10, 90), entry('second', '2026-03-02', -15, 75)]
 
     expect(namesOf(entries)).toEqual(['opening', 'first', 'second', 'third'])
     expect(namesOf([...entries].reverse())).toEqual(['opening', 'first', 'second', 'third'])

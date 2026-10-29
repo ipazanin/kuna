@@ -89,11 +89,7 @@ const STATUS = {
           @click="emit('edit', invoice.id)"
         />
       </div>
-      <ol
-        v-if="invoice.payments.length > 0 || invoice.overpayments.length > 0"
-        class="invoice-trail"
-        :aria-label="`Payments matched to invoice ${invoice.number}`"
-      >
+      <ol v-if="invoice.payments.length > 0 || invoice.overpayments.length > 0" class="invoice-trail" :aria-label="`Payments matched to invoice ${invoice.number}`">
         <li v-for="payment in invoice.payments" :key="payment.key">
           <DrillLink :to="payment.to" :label="`Payment of ${payment.date} towards invoice ${invoice.number}, open the row`" class="payment-share">
             <span class="text-muted">{{ payment.date }}</span>

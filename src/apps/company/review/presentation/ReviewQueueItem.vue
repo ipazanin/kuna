@@ -99,7 +99,8 @@ function recategorise(category: string | undefined): void {
           <dd class="flex flex-wrap items-center gap-1.5">
             <CategoryChip :category="verdict.category" :bucket="bucketOf(verdict.category)" />
             <span v-if="verdict.ruleId" class="text-xs text-muted">
-              by <span class="identifier">{{ verdict.ruleId }}</span>{{ verdict.flaggedBy === 'ai' ? ', which sends it to review' : '' }}
+              by <span class="identifier">{{ verdict.ruleId }}</span
+              >{{ verdict.flaggedBy === 'ai' ? ', which sends it to review' : '' }}
             </span>
             <span v-else class="text-xs text-muted">No rule decides it</span>
           </dd>
@@ -118,40 +119,11 @@ function recategorise(category: string | undefined): void {
         </div>
       </dl>
 
-      <p v-if="!confirmable" class="text-xs text-muted">
-        Its category is not on the categories tab, so it cannot be confirmed as it is. Recategorise it, and the toast offers to make a rule
-        from it.
-      </p>
+      <p v-if="!confirmable" class="text-xs text-muted">Its category is not on the categories tab, so it cannot be confirmed as it is. Recategorise it, and the toast offers to make a rule from it.</p>
       <div class="flex flex-wrap items-center gap-2 pt-1">
-        <UButton
-          v-if="confirmable"
-          :label="`Confirm ${names.category(transaction.category)}`"
-          icon="i-lucide-check"
-          size="sm"
-          :disabled="busy"
-          data-testid="confirm-row"
-          @click="emit('confirm')"
-        />
-        <CategoryPicker
-          v-model="picked"
-          :categories="categories"
-          placeholder="Recategorise"
-          :disabled="busy"
-          size="sm"
-          data-testid="recategorise-row"
-          @update:model-value="recategorise"
-        />
-        <UButton
-          v-if="confirmable"
-          label="Make this a rule"
-          icon="i-lucide-list-plus"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          :disabled="busy"
-          data-testid="make-rule"
-          @click="emit('makeRule')"
-        />
+        <UButton v-if="confirmable" :label="`Confirm ${names.category(transaction.category)}`" icon="i-lucide-check" size="sm" :disabled="busy" data-testid="confirm-row" @click="emit('confirm')" />
+        <CategoryPicker v-model="picked" :categories="categories" placeholder="Recategorise" :disabled="busy" size="sm" data-testid="recategorise-row" @update:model-value="recategorise" />
+        <UButton v-if="confirmable" label="Make this a rule" icon="i-lucide-list-plus" color="neutral" variant="outline" size="sm" :disabled="busy" data-testid="make-rule" @click="emit('makeRule')" />
         <UButton
           v-if="transaction.amount !== 0"
           :label="split ? 'Edit the split' : 'Split'"

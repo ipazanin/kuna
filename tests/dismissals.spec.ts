@@ -48,16 +48,16 @@ describe('the dismissed tab', () => {
       recordsOfRows(
         CORE_TABS.dismissed,
         sheetRowsFromValues(
-        withIds('dismissal', [
-          HEADER,
-          ['not-covered', DESK_KEY, 'Equipment', 46316],
-          ['exception', 'name:corner shop', '', ''],
-          ['not-covered', DESK_KEY, 'equipment', 46317],
-          ['rule', 'name:kiosk'],
-          ['not-covered', '', 'travel'],
-          ['exception', 'name:bakery', '', 'Tuesday'],
-        ]),
-      ),
+          withIds('dismissal', [
+            HEADER,
+            ['not-covered', DESK_KEY, 'Equipment', 46316],
+            ['exception', 'name:corner shop', '', ''],
+            ['not-covered', DESK_KEY, 'equipment', 46317],
+            ['rule', 'name:kiosk'],
+            ['not-covered', '', 'travel'],
+            ['exception', 'name:bakery', '', 'Tuesday'],
+          ]),
+        ),
       ),
     )
 
@@ -94,7 +94,13 @@ describe('the dismissed tab', () => {
   it('hides only the exception to the rule it names, not the same counterparty’s exception to another rule', () => {
     const exception = (ruleId: string) => ({ key: `${DESK_KEY}|${ruleId}`, name: 'Desk Co', iban: DESK_IBAN, rows: [], categories: [], ruleId, ruleCategory: 'equipment' })
     const coverage = { notCovered: [], exceptions: [exception('desk-rent'), exception('desk-chairs')] }
-    const dismissal = { kind: 'exception' as const, key: dismissalOfGroup('exception', exception('desk-rent'), DAY).key, category: '', dismissedOn: DAY, id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-2') }
+    const dismissal = {
+      kind: 'exception' as const,
+      key: dismissalOfGroup('exception', exception('desk-rent'), DAY).key,
+      category: '',
+      dismissedOn: DAY,
+      id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-2'),
+    }
 
     const shown = withoutDismissed(coverage, [dismissal])
 

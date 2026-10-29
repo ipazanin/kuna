@@ -108,7 +108,16 @@ export const STUDIO_ASSETS: readonly Asset[] = [
 
 /** Software the owner paid for privately: 40.00 of cost and 10.00 of input VAT. */
 export const STUDIO_ADVANCES: readonly OwnerAdvance[] = [
-  { date: civil('2025-06-20'), amount: euros(50), description: 'Software bought privately', category: 'software', family: 'operating', bucket: 'operating', ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') },
+  {
+    date: civil('2025-06-20'),
+    amount: euros(50),
+    description: 'Software bought privately',
+    category: 'software',
+    family: 'operating',
+    bucket: 'operating',
+    ownerShare: null,
+    id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2'),
+  },
 ]
 
 export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbook {
@@ -153,13 +162,7 @@ function withPart(workbook: HrDooWorkbook): HrDooWorkbook {
 
 let nextRow = 2
 
-export function yearEndLine(
-  year: number,
-  statement: YearEndStatement,
-  line: string,
-  figure: number | YearEndFigure,
-  categories: readonly string[] = [],
-): YearEndLine {
+export function yearEndLine(year: number, statement: YearEndStatement, line: string, figure: number | YearEndFigure, categories: readonly string[] = []): YearEndLine {
   nextRow += 1
   return {
     year,

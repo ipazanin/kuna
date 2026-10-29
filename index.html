@@ -15,7 +15,17 @@
     <meta name="description" content="Company finance dashboards computed in the browser, over books kept as a JSON file on Google Drive or in the browser." />
     <title>Kuna</title>
     <!-- Picks the theme before the first paint, the way the app does once it runs. The CSP allows this script by its hash, so a change to it needs a new hash. -->
-    <script>(function(){var theme='dark';try{var pinned=new URLSearchParams(location.search).get('theme');var stored=localStorage.getItem('kuna.theme');theme=pinned==='light'||pinned==='dark'?pinned:stored==='light'||stored==='dark'?stored:matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}catch(error){}document.documentElement.className=theme})()</script>
+    <script>
+      ;(function () {
+        var theme = 'dark'
+        try {
+          var pinned = new URLSearchParams(location.search).get('theme')
+          var stored = localStorage.getItem('kuna.theme')
+          theme = pinned === 'light' || pinned === 'dark' ? pinned : stored === 'light' || stored === 'dark' ? stored : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+        } catch (error) {}
+        document.documentElement.className = theme
+      })()
+    </script>
     <style>
       .boot-splash {
         display: grid;

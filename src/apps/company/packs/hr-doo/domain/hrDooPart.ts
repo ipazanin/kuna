@@ -121,8 +121,6 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   ownerAdvances: (part) => part.ownerAdvances,
   // An asset funded by a grant the grants tab lacks still claims its payment, so the grants need no read here.
   rowsKeptWhole: (records, ledger) =>
-    new Map(
-      [...assetsClaimingRows(readAssets(recordsOfKind(records, ASSET_RECORDS), new Set()).facts, ledger.transactions, ledger.categories)].map(([row, names]) => [row, assetsClaiming(names)]),
-    ),
+    new Map([...assetsClaimingRows(readAssets(recordsOfKind(records, ASSET_RECORDS), new Set()).facts, ledger.transactions, ledger.categories)].map(([row, names]) => [row, assetsClaiming(names)])),
   keptWholeReads: [ASSET_RECORDS],
 }

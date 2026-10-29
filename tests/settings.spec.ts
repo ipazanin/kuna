@@ -12,13 +12,7 @@ import {
   settingsTabEntries,
 } from '../src/apps/company/settings/domain/settings'
 import type { PackSettings, SettingRow } from '../src/apps/company/settings/domain/settings'
-import {
-  costLabelsInSentence,
-  inSentence,
-  lineLabel,
-  presentedTransactions,
-  shownLines,
-} from '../src/apps/company/settings/domain/profitAndLossLabels'
+import { costLabelsInSentence, inSentence, lineLabel, presentedTransactions, shownLines } from '../src/apps/company/settings/domain/profitAndLossLabels'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { euros, ledger } from './fixtures/ledger'
@@ -77,16 +71,11 @@ describe('parseSettings', () => {
   })
 
   it('falls back to the default for a value that does not hold, and says which key', () => {
-    const { settings, problems } = parseSettings(
-      rows(['currency', 'EURO'], ['currency', 'USD'], ['number_locale', 'not a locale!'], ['owner_pay_module', 'maybe'], ['review_label', 'ai']),
-    )
+    const { settings, problems } = parseSettings(rows(['currency', 'EURO'], ['currency', 'USD'], ['number_locale', 'not a locale!'], ['owner_pay_module', 'maybe'], ['review_label', 'ai']))
 
     expect(settings).toEqual(DEFAULT_SETTINGS)
     expect(problems.map((problem) => problem.label)).toEqual(['currency', 'currency', 'number_locale', 'owner_pay_module', 'review_label'])
-    expect(problems.slice(0, 2).map((problem) => problem.reason)).toEqual([
-      'set on more than one row, so the default is used',
-      'set on more than one row, so the default is used',
-    ])
+    expect(problems.slice(0, 2).map((problem) => problem.reason)).toEqual(['set on more than one row, so the default is used', 'set on more than one row, so the default is used'])
   })
 
   it('offers no import profile whose key is set on more than one row', () => {
@@ -107,9 +96,7 @@ describe('parseSettings', () => {
   })
 
   it('keeps an unknown key out of the settings and reports it', () => {
-    expect(parseSettings(rows(['theme', 'dark'])).problems).toEqual([
-      settingProblem('theme', 'not a setting this app knows, so it is kept but not used'),
-    ])
+    expect(parseSettings(rows(['theme', 'dark'])).problems).toEqual([settingProblem('theme', 'not a setting this app knows, so it is kept but not used')])
   })
 
   it('treats a blank value as the default, without a problem', () => {
@@ -221,7 +208,9 @@ describe('the mail keys', () => {
   })
 
   it('read the senders as lower-case addresses, the subject trimmed and the day from a date cell or text, and write them back the same way', () => {
-    const { settings, problems } = parseSettings(rows(['statements_mail_from', 'Statements@Bank.example.com, notices@bank.example.com'], ['statements_mail_subject', ' Izvadak '], ['mail_since', 45658]))
+    const { settings, problems } = parseSettings(
+      rows(['statements_mail_from', 'Statements@Bank.example.com, notices@bank.example.com'], ['statements_mail_subject', ' Izvadak '], ['mail_since', 45658]),
+    )
 
     expect(problems).toEqual([])
     expect(settings).toMatchObject({ statementsMailFrom: ['statements@bank.example.com', 'notices@bank.example.com'], statementsMailSubject: 'Izvadak', mailSince: '2025-01-01' })
@@ -354,13 +343,7 @@ describe('company facts', () => {
 
   it('fall back to the default for a value that does not hold, and say which key', () => {
     const { values, problems } = readPackSettings(
-      rows(
-        ['hr_company_registered', '12.05.2025.'],
-        ['hr_cit_return', 'cash'],
-        ['hr_vat_principle', 'monthly'],
-        ['hr_depreciation_doubled', 'perhaps'],
-        ['hr_payroll_folder', ' / '],
-      ),
+      rows(['hr_company_registered', '12.05.2025.'], ['hr_cit_return', 'cash'], ['hr_vat_principle', 'monthly'], ['hr_depreciation_doubled', 'perhaps'], ['hr_payroll_folder', ' / ']),
       COMPANY_FACT_SETTINGS,
     )
 
@@ -382,15 +365,11 @@ describe('company facts', () => {
     expect(rate('2,5 %').values.ownerLoanInterest).toBe(250)
     expect(rate('0.0265').values.ownerLoanInterest).toBe(265)
     expect(rate(0).values.ownerLoanInterest).toBe(0)
-    expect(rate(2).problems).toEqual([
-      settingProblem('hr_owner_loan_interest', '2 reads as 200%. Enter the rate as a percentage cell, such as 2%, so the default is used'),
-    ])
+    expect(rate(2).problems).toEqual([settingProblem('hr_owner_loan_interest', '2 reads as 200%. Enter the rate as a percentage cell, such as 2%, so the default is used')])
     expect(rate('two').problems[0]?.reason).toBe('"two" is not a rate such as 2%, so the default is used')
     expect(rate(-0.01).problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
     expect(rate('2.345%').problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
-    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: Number.NaN }).ownerLoanInterest).toBe(
-      'use a rate from 0% to 100% with at most two decimals, such as 2%',
-    )
+    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: Number.NaN }).ownerLoanInterest).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%')
   })
 
   it('are listed in the template with their defaults, a blank registration day among them', () => {

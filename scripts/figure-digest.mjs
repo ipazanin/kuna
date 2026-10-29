@@ -156,7 +156,6 @@ if (companyAsked) {
   const context = categorisationContextOf(cash)
   const forecastOf = (year) => forecastYear(books, year, asOf)
 
-
   group('read.records', records)
   group('read.workbook', raw)
   group('settings.problems', booked.problems)
@@ -176,7 +175,11 @@ if (companyAsked) {
   group('overview.waiting', () => waitingJobs(booked, raw.transactions))
   group('overview.pack-waiting', () => packWaitingJobs(books, asOf))
 
-  group('review.queue', () => scopeTransactions(raw.transactions, DEFAULT_FILTERS).filter(needsReview).map((row) => categorise(row, cash.rules, context)))
+  group('review.queue', () =>
+    scopeTransactions(raw.transactions, DEFAULT_FILTERS)
+      .filter(needsReview)
+      .map((row) => categorise(row, cash.rules, context)),
+  )
   group('review.rules', () => withoutDismissed(ruleCoverage(raw.transactions, raw.rules, context), raw.dismissals))
   group('review.unaccounted', () => unaccountedInView({ booked, filters: DEFAULT_FILTERS }))
 
@@ -185,7 +188,12 @@ if (companyAsked) {
   const matched = receivables.clients.flatMap((client) => client.invoices)
   group('invoicing.receivables', receivables)
   group('invoicing.owed', () => [amountsOwed(matched, invoiceDay), receivables.clients.map((client) => ageingOf(client.invoices, invoiceDay))])
-  group('invoicing.plan', () => [billingTotals(raw.billingPlan, raw.invoices), plannedAgainstInvoiced(raw.billingPlan, raw.invoices), itemStatistics(raw.billingPlan), expectedInvoices(raw.billingPlan, raw.invoices)])
+  group('invoicing.plan', () => [
+    billingTotals(raw.billingPlan, raw.invoices),
+    plannedAgainstInvoiced(raw.billingPlan, raw.invoices),
+    itemStatistics(raw.billingPlan),
+    expectedInvoices(raw.billingPlan, raw.invoices),
+  ])
   group('invoicing.fill-year', () => fillRestOfYear(raw.billingPlan, raw.settings.billing, invoiceDay))
 
   const ledgerYears = Array.from({ length: yearOf(asOf) - yearOfMonth(window.firstMonth) + 1 }, (_, index) => yearOfMonth(window.firstMonth) + index)
@@ -194,7 +202,9 @@ if (companyAsked) {
     const filters = { ...DEFAULT_FILTERS, period }
     const listed = listedRows(filterTransactions(cash.transactions, filters, window), transactionsInPeriod(scopeOwnerAdvances(cash.ownerAdvances, filters), period, window))
     group(`transactions.${at}.listed`, listed)
-    group(`transactions.${at}.groups`, () => ['month', 'category', 'counterparty'].map((grouping) => groupTransactions(listed, grouping, { window, counterpartyLabels: counterpartyLabels(cash.transactions) })))
+    group(`transactions.${at}.groups`, () =>
+      ['month', 'category', 'counterparty'].map((grouping) => groupTransactions(listed, grouping, { window, counterpartyLabels: counterpartyLabels(cash.transactions) })),
+    )
     group(`transactions.${at}.advances-left-out`, advancesLeftOutByBankFilters(booked.ownerAdvances, filters, window))
     const prior = priorEqualPeriod(period, window)
     group(`analysis.${at}.breakdown`, () => [costGroups(categoryTotals(rows, period, window), prior && categoryTotals(rows, prior, window)), topCounterparties(scoped, period, window)])
@@ -207,12 +217,19 @@ if (companyAsked) {
     const take = ownerTake(rows, cash.categories, period, window)
     const averaged = averagedPeriod(period, window)
     const averagedTake = ownerTake(rows, cash.categories, averaged, window)
-    group(`owner.${at}.taken`, () => [take, netPayPerMonth(averagedTake, averaged, window), ownerTakeByMonth(rows, cash.categories, periodMonths(period, window), window), ownerCost(rows, cash.categories, period, window)])
+    group(`owner.${at}.taken`, () => [
+      take,
+      netPayPerMonth(averagedTake, averaged, window),
+      ownerTakeByMonth(rows, cash.categories, periodMonths(period, window), window),
+      ownerCost(rows, cash.categories, period, window),
+    ])
     group(`owner.${at}.benefits`, () => {
       const benefits = ownerBenefits(rows, cash.categories, period, window)
       return [benefits, benefits && books.companyFacts.companyRegistered !== null && dividendComparison(benefits.byYear, 'Benefits', (year) => forecastOf(year).liability.rate)]
     })
-    group(`owner.${at}.net`, () => ownerNetWithProfit(averagedTake, books, period, window, asOf, { profitBeforeTax: (year) => forecastOf(year).profitBeforeTax, corporateRate: (year) => forecastOf(year).liability.rate }))
+    group(`owner.${at}.net`, () =>
+      ownerNetWithProfit(averagedTake, books, period, window, asOf, { profitBeforeTax: (year) => forecastOf(year).profitBeforeTax, corporateRate: (year) => forecastOf(year).liability.rate }),
+    )
     group(`owner.${at}.owed`, () => [owedInPeriod(books, period, window, asOf), loanMonths(books.transactions, books.categories, periodMonths(period, window), window)])
   }
 
@@ -238,7 +255,16 @@ if (companyAsked) {
     const revenueOf = (year) => effectiveTaxRate(books.transactions, books.categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
     const onToday = [asBooks.schedules.map((schedule) => [bookValueOn(schedule, today), accumulatedDepreciationOn(schedule, today)]), asBooks.grants.map((schedule) => deferredOn(schedule, today))]
     const threshold = ruleValue('hr.cit.asset-threshold', civilDate(yearOf(today), 1, 1))
-    return [asBooks, doubledRatesEffect(books.assets, books.grants, asBooks, revenueOf), depreciationByYear(asBooks.schedules), assetRegister(books.assets, books.transactions, books.categories), onToday, books.grants.map((grant) => clawbackExposure(grant, today)), grantResiduals(asBooks.grants, books.yearEndLines), threshold]
+    return [
+      asBooks,
+      doubledRatesEffect(books.assets, books.grants, asBooks, revenueOf),
+      depreciationByYear(asBooks.schedules),
+      assetRegister(books.assets, books.transactions, books.categories),
+      onToday,
+      books.grants.map((grant) => clawbackExposure(grant, today)),
+      grantResiduals(asBooks.grants, books.yearEndLines),
+      threshold,
+    ]
   })
 
   const salaryBooks = hrDooWorkbook(raw)
@@ -291,7 +317,9 @@ function digestOf(value) {
         ? [...value].map(([key, entry]) => [digestOf(key), entry])
         : value instanceof Set || Array.isArray(value)
           ? [...value].map((entry, index) => [index, entry])
-          : Object.keys(value).sort().flatMap((key) => (typeof value[key] === 'function' || value[key] === undefined ? [] : [[key, value[key]]]))
+          : Object.keys(value)
+              .sort()
+              .flatMap((key) => (typeof value[key] === 'function' || value[key] === undefined ? [] : [[key, value[key]]]))
     const shape = value instanceof Map ? 'map' : Array.isArray(value) || value instanceof Set ? 'list' : 'record'
     digests.set(value, sha256(`${shape}(${entries.map(([key, entry]) => `${key}:${digestOf(entry)}`).join(',')})`))
   }
@@ -305,6 +333,14 @@ for (const [name, figures] of groups) {
   } catch (failure) {
     value = { threw: failure.name, message: failure.message }
   }
-  const count = Array.isArray(value) ? value.length : value instanceof Map || value instanceof Set ? value.size : value === null || value === false ? 0 : typeof value === 'object' ? Object.keys(value).length : 1
+  const count = Array.isArray(value)
+    ? value.length
+    : value instanceof Map || value instanceof Set
+      ? value.size
+      : value === null || value === false
+        ? 0
+        : typeof value === 'object'
+          ? Object.keys(value).length
+          : 1
   console.log(`${name.padEnd(42)} ${(value?.threw === undefined ? String(count) : 'threw').padStart(6)}  ${digestOf(value).slice(0, 16)}`)
 }

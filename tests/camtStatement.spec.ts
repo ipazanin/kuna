@@ -15,7 +15,6 @@ const CREDIT = readFileSync(join(FIXTURES, 'erste-credit.xml'), 'utf8').replace(
 const OWN_IBAN = 'HR2923400091110000001'
 const ACCOUNTS = new Map([[OWN_IBAN, 'main']])
 
-
 function read(xml: string, accounts: ReadonlyMap<string, string> = ACCOUNTS): StatementReading[] {
   return readCamtDocument(new DOMParser().parseFromString(xml, 'application/xml'), 'statement.xml', accounts)
 }
@@ -117,8 +116,7 @@ describe('reading a camt.053 statement', () => {
 
   it('names the servicer on a fee entry by its sub-family code, and never by a family code', () => {
     const servicer = CREDIT.replace('<BICFI>ESBCHR22</BICFI>', '<BICFI>ESBCHR22</BICFI><Nm>Example Bank d.d.</Nm>')
-    const fee = (codes: string): string =>
-      servicer.replace(CREDIT_ENTRY, CREDIT_ENTRY.replace(/<Domn>[\s\S]*?<\/Domn>/, codes).replace(/<RltdPties>[\s\S]*?<\/RltdPties>/, ''))
+    const fee = (codes: string): string => servicer.replace(CREDIT_ENTRY, CREDIT_ENTRY.replace(/<Domn>[\s\S]*?<\/Domn>/, codes).replace(/<RltdPties>[\s\S]*?<\/RltdPties>/, ''))
 
     expect(statementOf(fee('<Domn><Cd>ACMT</Cd><Fmly><Cd>MDOP</Cd><SubFmlyCd>NTAV</SubFmlyCd></Fmly></Domn>')).rows[0]?.counterparty).toBe('Example Bank d.d.')
     expect(statementOf(fee('<Domn><Cd>PMNT</Cd><Fmly><Cd>MCOP</Cd><SubFmlyCd>CHRG</SubFmlyCd></Fmly></Domn>')).rows[0]?.counterparty).toBe('Example Bank d.d.')
@@ -176,13 +174,20 @@ describe('reading a camt.053 statement', () => {
   })
 
   it('reads an overdrawn balance as negative', () => {
-    const overdrawn = CREDIT.replace(/(<Cd>OPBD<\/Cd>[\s\S]*?<Amt Ccy="EUR">)9030\.13(<\/Amt>\s*<CdtDbtInd>)CRDT/, '$1100.00$2DBIT').replace(/(<Cd>CLBD<\/Cd>[\s\S]*?<Amt Ccy="EUR">)9953\.28/, '$1823.15')
+    const overdrawn = CREDIT.replace(/(<Cd>OPBD<\/Cd>[\s\S]*?<Amt Ccy="EUR">)9030\.13(<\/Amt>\s*<CdtDbtInd>)CRDT/, '$1100.00$2DBIT').replace(
+      /(<Cd>CLBD<\/Cd>[\s\S]*?<Amt Ccy="EUR">)9953\.28/,
+      '$1823.15',
+    )
 
     expect(statementOf(overdrawn)).toMatchObject({ opening: moneyFromCents(-10_000), closing: moneyFromCents(82_315) })
   })
 
   it.each([
-    ['a chain that does not close', CREDIT.replace(/(<Cd>CLBD<\/Cd>[\s\S]*?<Amt Ccy="EUR">)9953\.28/, '$19953.29'), /^The balance chain does not close: opening 9030\.13 plus credits 923\.15 less debits 0\.00 is 9953\.28, but CLBD reports 9953\.29\.$/],
+    [
+      'a chain that does not close',
+      CREDIT.replace(/(<Cd>CLBD<\/Cd>[\s\S]*?<Amt Ccy="EUR">)9953\.28/, '$19953.29'),
+      /^The balance chain does not close: opening 9030\.13 plus credits 923\.15 less debits 0\.00 is 9953\.28, but CLBD reports 9953\.29\.$/,
+    ],
     ['a count the summary does not report', CREDIT.replace(/(<TtlCdtNtries>\s*<NbOfNtries>)1/, '$12'), /^TtlCdtNtries reports 2 entries but 1 booked credit entries were read\.$/],
     ['a sum the summary does not report', CREDIT.replace(/(<TtlCdtNtries>[\s\S]*?<Sum>)923\.15/, '$1923.16'), /^TtlCdtNtries reports 923\.16 but the booked credit entries sum to 923\.15\.$/],
     ['a negative amount', withCreditEntry((entry) => entry.replace('<Amt Ccy="EUR">923.15</Amt>', '<Amt Ccy="EUR">-923.15</Amt>')), /is "-923\.15", but a camt amount is unsigned/],

@@ -56,11 +56,22 @@ describe('CategoryColour', () => {
   it('refuses a colour a change gives outside the palette, and leaves one the change keeps alone', () => {
     const cells = (colour: string) => ({ slug: 'equipment', bucket: 'operating', colour })
 
-    expect(categoryColourRefusals([{ before: cells('#dce9f9'), after: cells('#12345') }, { before: null, after: { ...cells('blue'), slug: 'paper' } }])).toEqual([
+    expect(
+      categoryColourRefusals([
+        { before: cells('#dce9f9'), after: cells('#12345') },
+        { before: null, after: { ...cells('blue'), slug: 'paper' } },
+      ]),
+    ).toEqual([
       '"equipment" takes one of the nine colours of the palette, or none for its bucket\'s colour, not "#12345".',
       '"paper" takes one of the nine colours of the palette, or none for its bucket\'s colour, not "blue".',
     ])
-    expect(categoryColourRefusals([{ before: cells('#dce9f9'), after: cells('#dce9f9') }, { before: cells('#dce9f9'), after: cells('#2a78d6') }, { before: cells('#2a78d6'), after: cells('') }])).toEqual([])
+    expect(
+      categoryColourRefusals([
+        { before: cells('#dce9f9'), after: cells('#dce9f9') },
+        { before: cells('#dce9f9'), after: cells('#2a78d6') },
+        { before: cells('#2a78d6'), after: cells('') },
+      ]),
+    ).toEqual([])
   })
 
   it('keeps the colour the editor opened with when a save leaves it alone', () => {
@@ -111,7 +122,9 @@ describe.each([
     const harness = await harnessOf(used, withColours())
 
     await expect(edit(harness.store, CATEGORY_WRITES, 3, { colour: '#12345' })).rejects.toThrow('"ai-services" takes one of the nine colours of the palette')
-    await expect(add(harness.store, CATEGORY_WRITES, { category: 'paper', family: 'operating', bucket: 'operating', colour: 'blue' })).rejects.toThrow('"paper" takes one of the nine colours of the palette')
+    await expect(add(harness.store, CATEGORY_WRITES, { category: 'paper', family: 'operating', bucket: 'operating', colour: 'blue' })).rejects.toThrow(
+      '"paper" takes one of the nine colours of the palette',
+    )
     expect(colourCells(harness)).toEqual(['#DCE9F9', '', ''])
   })
 })

@@ -64,19 +64,23 @@ const items = computed(() => yearlyItems(props.scenario.year))
 const itemChoices = computed(() => items.value.map((entry) => ({ label: `${entry.label}, cap ${formatMoney(entry.cap)} a year`, value: entry.item })))
 const basisChoices = DIRECTOR_BASES.map((value) => ({ label: `As ${BASIS_WORDS[value]}`, value }))
 
-watch(open, (opened) => {
-  if (!opened) return
-  const component = props.component
-  kind.value = component?.component ?? 'salary_gross'
-  atFloor.value = component?.component !== 'salary_gross' || component.gross === 'floor'
-  atMost.value = component?.component !== 'dividend' || component.amount === 'max'
-  amount.value = shownAmount(component)
-  item.value = component?.component === 'nontaxable' ? component.item : (items.value[0]?.item ?? '')
-  basis.value = component?.component === 'director_basis' ? component.basis : 'employee'
-  from.value = component?.from ?? ''
-  to.value = component?.to ?? ''
-  tried.value = false
-}, { immediate: true })
+watch(
+  open,
+  (opened) => {
+    if (!opened) return
+    const component = props.component
+    kind.value = component?.component ?? 'salary_gross'
+    atFloor.value = component?.component !== 'salary_gross' || component.gross === 'floor'
+    atMost.value = component?.component !== 'dividend' || component.amount === 'max'
+    amount.value = shownAmount(component)
+    item.value = component?.component === 'nontaxable' ? component.item : (items.value[0]?.item ?? '')
+    basis.value = component?.component === 'director_basis' ? component.basis : 'employee'
+    from.value = component?.from ?? ''
+    to.value = component?.to ?? ''
+    tried.value = false
+  },
+  { immediate: true },
+)
 
 function shownAmount(component: ScenarioComponent | null): string {
   if (component === null) return ''
@@ -203,7 +207,12 @@ async function remove(): Promise<void> {
         <UFormField v-if="kind === 'nontaxable'" label="Item" :error="(tried && errors.item) || false" class="sm:col-span-2">
           <USelect v-model="item" :items="itemChoices" class="w-full" data-testid="component-item" />
         </UFormField>
-        <UFormField v-if="kind === 'director_basis'" label="Insured" class="sm:col-span-2" help="On a day with a salary the director is an employee. Without one he is a board member only, unless a job elsewhere insures him.">
+        <UFormField
+          v-if="kind === 'director_basis'"
+          label="Insured"
+          class="sm:col-span-2"
+          help="On a day with a salary the director is an employee. Without one he is a board member only, unless a job elsewhere insures him."
+        >
           <USelect v-model="basis" :items="basisChoices" class="w-full" data-testid="component-basis" />
         </UFormField>
         <UFormField
@@ -214,7 +223,12 @@ async function remove(): Promise<void> {
         >
           <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="component-amount" />
         </UFormField>
-        <UFormField v-if="hasSpan" :label="kind === 'nontaxable' ? 'Paid in the month of' : 'From'" :error="(tried && errors.from) || false" :help="kind === 'nontaxable' ? 'Blank pays it with the January salary.' : 'Blank is 1 January.'">
+        <UFormField
+          v-if="hasSpan"
+          :label="kind === 'nontaxable' ? 'Paid in the month of' : 'From'"
+          :error="(tried && errors.from) || false"
+          :help="kind === 'nontaxable' ? 'Blank pays it with the January salary.' : 'Blank is 1 January.'"
+        >
           <UInput v-model="from" type="date" class="w-full" data-testid="component-from" />
         </UFormField>
         <UFormField v-if="hasEnd" label="To" :error="(tried && errors.to) || false" help="Blank is 31 December.">
@@ -224,7 +238,16 @@ async function remove(): Promise<void> {
     </template>
     <template #footer>
       <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton v-if="component !== null" label="Delete component" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="component-delete" @click="remove" />
+        <UButton
+          v-if="component !== null"
+          label="Delete component"
+          icon="i-lucide-trash-2"
+          color="error"
+          variant="ghost"
+          :disabled="writes.busy.value"
+          data-testid="component-delete"
+          @click="remove"
+        />
         <div class="ms-auto flex flex-wrap gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
           <UButton

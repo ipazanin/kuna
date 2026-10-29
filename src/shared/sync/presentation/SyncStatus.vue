@@ -190,13 +190,7 @@ function syncAgain(): void {
 </script>
 
 <template>
-  <div
-    ref="root"
-    class="flex min-w-0 items-center gap-2"
-    :class="compact ? 'justify-end' : 'flex-wrap justify-between'"
-    data-testid="sync-status"
-    :data-control="control.kind"
-  >
+  <div ref="root" class="flex min-w-0 items-center gap-2" :class="compact ? 'justify-end' : 'flex-wrap justify-between'" data-testid="sync-status" :data-control="control.kind">
     <p v-if="compact" class="sr-only" role="status">{{ control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' || control.kind === 'sign-in' ? name : '' }}</p>
     <p
       v-else
@@ -219,7 +213,12 @@ function syncAgain(): void {
       :color="control.kind === 'find' ? 'primary' : 'neutral'"
       :variant="control.kind === 'find' ? 'solid' : 'outline'"
       size="sm"
-      :class="{ 'top-bar-action': compact, 'has-reminder': exportReminder !== null, 'text-error': control.kind === 'problems', 'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in' }"
+      :class="{
+        'top-bar-action': compact,
+        'has-reminder': exportReminder !== null,
+        'text-error': control.kind === 'problems',
+        'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in',
+      }"
       data-testid="sync-button"
       @click="tap"
     />

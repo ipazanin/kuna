@@ -67,7 +67,10 @@ export function ownerTake(bookings: readonly Booking[], categories: readonly Cat
   const salaried = paid.filter((category) => !dividends.includes(category))
   const rentRole = categoriesWithRole(categories, PACK_ROLES.ownerRent)
   const rented = salaried.filter((category) => rentRole.includes(category))
-  const rentTax = rentTaxOn(rows.filter((booking) => rented.includes(booking.category)), rules)
+  const rentTax = rentTaxOn(
+    rows.filter((booking) => rented.includes(booking.category)),
+    rules,
+  )
   const kept = (slugs: readonly string[]) => subtractMoney(paidOut(rows.filter((booking) => slugs.includes(booking.category))), rentTax)
   const reimbursements = categoriesWithRole(categories, PACK_ROLES.reimbursement).filter((category) => !pay.includes(category))
   const linesOf = (slugs: readonly string[]): OwnerTakeLine[] =>
@@ -112,13 +115,7 @@ export function netPayPerMonth(take: OwnerTake, period: Period, window: LedgerWi
 }
 
 /** The owner-pay categories month by month, for a chart of draws, with each month's owner take and rent tax. */
-export function ownerTakeByMonth(
-  bookings: readonly Booking[],
-  categories: readonly Category[],
-  months: readonly MonthKey[],
-  window: LedgerWindow,
-  rules: RuleSource = ruleValue,
-): OwnerTakeMonth[] {
+export function ownerTakeByMonth(bookings: readonly Booking[], categories: readonly Category[], months: readonly MonthKey[], window: LedgerWindow, rules: RuleSource = ruleValue): OwnerTakeMonth[] {
   const pay = categoriesInBucket(categories, 'owner-pay')
   return months.map((month) => {
     const rows = bookings.filter((booking) => monthOf(booking.date) === month && pay.includes(booking.category))

@@ -60,6 +60,11 @@ const watched = watchItems().map((watchItem) => (watchItem.kind === 'version' ? 
 
 const search = ref('')
 const area = ref<AreaChoice>('all')
+
+function clearSearch(): void {
+  search.value = ''
+  area.value = 'all'
+}
 const searched = computed(() => fold(search.value))
 
 const matchesSearch = (searchText: string): boolean => searched.value === '' || searched.value.split(' ').every((word) => searchText.includes(word))
@@ -74,9 +79,7 @@ const areaChoices = computed(() => [
 ])
 
 const sections = computed(() =>
-  areas
-    .map((choice) => ({ area: choice, ...AREA_WORDING[choice], rules: rulesShown.value.filter((rule) => rule.area === choice) }))
-    .filter((section) => section.rules.length > 0),
+  areas.map((choice) => ({ area: choice, ...AREA_WORDING[choice], rules: rulesShown.value.filter((rule) => rule.area === choice) })).filter((section) => section.rules.length > 0),
 )
 
 const linkedRule = computed(() => (typeof route.query.rule === 'string' ? route.query.rule : null))
@@ -145,15 +148,7 @@ watch(
         </template>
       </UInput>
       <div role="group" aria-label="Area" class="areas flex rounded-control border border-default bg-raised p-0.5">
-        <button
-          v-for="choice in areaChoices"
-          :key="choice.area"
-          type="button"
-          class="area"
-          :aria-pressed="area === choice.area"
-          :data-testid="`area-${choice.area}`"
-          @click="area = choice.area"
-        >
+        <button v-for="choice in areaChoices" :key="choice.area" type="button" class="area" :aria-pressed="area === choice.area" :data-testid="`area-${choice.area}`" @click="area = choice.area">
           {{ choice.label }} <span class="figure text-muted">{{ choice.count }}</span>
         </button>
       </div>
@@ -164,7 +159,8 @@ watch(
 
     <AppCard v-if="linkedMissing" as="div" class="px-4 py-3" role="status">
       <p class="text-sm text-toned">
-        The link points at <span class="identifier">{{ linkedRule }}</span>, which is not in the ruleset. It may have been renamed, so search for it below.
+        The link points at <span class="identifier">{{ linkedRule }}</span
+        >, which is not in the ruleset. It may have been renamed, so search for it below.
       </p>
     </AppCard>
 
@@ -172,7 +168,7 @@ watch(
 
     <p v-if="sections.length === 0" class="py-6 text-sm text-muted">
       No rule matches "{{ search }}"{{ area === 'all' ? '' : ` in ${AREA_WORDING[area].label}` }}.
-      <UButton label="Clear the search" color="neutral" variant="link" size="sm" class="inline-target" @click="search = ''; area = 'all'" />
+      <UButton label="Clear the search" color="neutral" variant="link" size="sm" class="inline-target" @click="clearSearch" />
     </p>
 
     <AppCard v-else title="Rules by area" subtitle="This year's value of each rule and how sure it is. Open a rule for every year, its notes and its sources." class="overflow-clip">
@@ -207,7 +203,8 @@ watch(
                 <span class="identifier block text-xs text-muted" data-testid="rule-id">{{ rule.id }}</span>
               </span>
               <span v-if="rule.inForce.headline" class="rule-value figure text-sm text-default">
-                <span v-if="rule.inForce.headline.label" class="me-1.5 text-xs text-muted">{{ rule.inForce.headline.label }}</span>{{ rule.inForce.headline.wording }}
+                <span v-if="rule.inForce.headline.label" class="me-1.5 text-xs text-muted">{{ rule.inForce.headline.label }}</span
+                >{{ rule.inForce.headline.wording }}
               </span>
               <ConfidenceBadge :confidence="rule.inForce.confidence" class="rule-mark" />
             </RouterLink>
@@ -216,12 +213,7 @@ watch(
       </section>
     </AppCard>
 
-    <USlideover
-      v-model:open="panelOpen"
-      side="right"
-      :title="opened?.title ?? ''"
-      :ui="{ content: phone ? 'max-w-none' : 'sm:max-w-2xl', header: 'pe-16' }"
-    >
+    <USlideover v-model:open="panelOpen" side="right" :title="opened?.title ?? ''" :ui="{ content: phone ? 'max-w-none' : 'sm:max-w-2xl', header: 'pe-16' }">
       <template #description>
         <span v-if="opened" class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <span class="identifier text-toned">{{ opened.id }}</span>

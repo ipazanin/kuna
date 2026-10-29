@@ -75,11 +75,7 @@ const readyLines = computed(() => {
     const found = path.folders.slice(0, path.folders.length - current.target.toCreate.length)
     if (found.length > 0) lines.push(`Found ${found.join('/')} in the invoice folder.`)
     if (current.target.toCreate.length > 0) lines.push(`Will make ${current.target.toCreate.join('/')}.`)
-    lines.push(
-      current.target.existing === null
-        ? `No file named ${path.fileName} is in view there.`
-        : `${path.fileName} is there and will be replaced.`,
-    )
+    lines.push(current.target.existing === null ? `No file named ${path.fileName} is in view there.` : `${path.fileName} is there and will be replaced.`)
   }
   return lines
 })
@@ -112,14 +108,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           data-testid="invoice-run-refused"
         />
 
-        <UAlert
-          v-if="editable && run.problems.value.length > 0"
-          icon="i-lucide-list-checks"
-          color="warning"
-          variant="subtle"
-          title="Before the invoice can be made"
-          data-testid="invoice-run-problems"
-        >
+        <UAlert v-if="editable && run.problems.value.length > 0" icon="i-lucide-list-checks" color="warning" variant="subtle" title="Before the invoice can be made" data-testid="invoice-run-problems">
           <template #description>
             <ul class="list-disc ps-4">
               <li v-for="problem in run.problems.value" :key="problem">{{ problem }}</li>
@@ -148,13 +137,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
               <UInput v-model="run.issued.value" type="date" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-issued" @change="run.issueChanged()" />
             </UFormField>
             <UFormField label="Number" :help="reexport ? 'The number it was issued under.' : `The next by the pattern is ${run.suggestedNumber.value || 'not known yet'}.`">
-              <UInput
-                :model-value="run.number.value"
-                class="w-full"
-                :disabled="reexport || !editable"
-                data-testid="invoice-run-number"
-                @update:model-value="run.typeNumber(String($event))"
-              />
+              <UInput :model-value="run.number.value" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-number" @update:model-value="run.typeNumber(String($event))" />
             </UFormField>
             <UFormField label="Due" help="A month after the issue date.">
               <UInput v-model="run.due.value" type="date" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-due" />
@@ -179,9 +162,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
               :disabled="!editable"
               data-testid="invoice-run-draft"
             />
-            <p v-if="run.mail.value" class="min-w-0 break-words text-xs text-muted">
-              To {{ run.mail.value.to || 'nobody yet' }}, “{{ run.mail.value.subject }}”
-            </p>
+            <p v-if="run.mail.value" class="min-w-0 break-words text-xs text-muted">To {{ run.mail.value.to || 'nobody yet' }}, “{{ run.mail.value.subject }}”</p>
           </div>
         </template>
         <dl v-else class="summary" data-testid="invoice-run-summary">

@@ -20,8 +20,7 @@ export interface ShownCoverage<Row> {
  */
 export function withoutDismissed<Row>(coverage: RuleCoverage<Row>, dismissals: readonly Dismissal[]): ShownCoverage<Row> {
   const groupsOf = (kind: SuggestionKind): readonly CoverageGroup<Row>[] => (kind === 'not-covered' ? coverage.notCovered : coverage.exceptions)
-  const isDismissed = (kind: SuggestionKind, group: CoverageGroup<Row>): boolean =>
-    dismissals.some((dismissal) => dismissal.kind === kind && dismissal.key === group.key)
+  const isDismissed = (kind: SuggestionKind, group: CoverageGroup<Row>): boolean => dismissals.some((dismissal) => dismissal.kind === kind && dismissal.key === group.key)
   return {
     coverage: {
       notCovered: coverage.notCovered.filter((group) => !isDismissed('not-covered', group)),

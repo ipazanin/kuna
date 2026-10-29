@@ -66,7 +66,11 @@ interface ReadRow {
 function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: string, fileHash: string, label: string): ImportedStatement {
   const headerIndex = headerRowOf(grid, profile)
   if (headerIndex === null) {
-    throw new StatementRefused(`No row in the first ${HEADER_SEARCH_ROWS} of ${fileName} carries every column of the profile ${profile.name}: ${profileColumns(profile).map((column) => `"${column}"`).join(', ')}.`)
+    throw new StatementRefused(
+      `No row in the first ${HEADER_SEARCH_ROWS} of ${fileName} carries every column of the profile ${profile.name}: ${profileColumns(profile)
+        .map((column) => `"${column}"`)
+        .join(', ')}.`,
+    )
   }
   const header = grid[headerIndex]!.map((cell) => headerKey(cellString(cell)))
   const columnOf = (name: string): number => (name === '' ? -1 : header.indexOf(headerKey(name)))
@@ -120,7 +124,9 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
     })
   })
   if (problems.length > 0) {
-    throw new StatementRefused(`${fileName} has rows the profile ${profile.name} cannot read, so nothing of it is imported: ${problems.slice(0, 5).join('; ')}${problems.length > 5 ? `, and ${problems.length - 5} more` : ''}.`)
+    throw new StatementRefused(
+      `${fileName} has rows the profile ${profile.name} cannot read, so nothing of it is imported: ${problems.slice(0, 5).join('; ')}${problems.length > 5 ? `, and ${problems.length - 5} more` : ''}.`,
+    )
   }
   if (rows.length === 0) {
     throw new StatementRefused(`${fileName} holds no rows with a date under the header row.`)
@@ -287,4 +293,3 @@ function cellString(cell: StatementCell | undefined): string {
 function headerKey(text: string): string {
   return text.replace(/\s+/g, ' ').trim().toLowerCase()
 }
-

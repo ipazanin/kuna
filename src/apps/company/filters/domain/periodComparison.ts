@@ -12,9 +12,7 @@ export function priorPeriod(period: CalendarPeriod): CalendarPeriod {
     case 'year':
       return { preset: 'year', year: period.year - 1 }
     case 'quarter':
-      return period.quarter === 1
-        ? { preset: 'quarter', year: period.year - 1, quarter: 4 }
-        : { preset: 'quarter', year: period.year, quarter: (period.quarter - 1) as 1 | 2 | 3 }
+      return period.quarter === 1 ? { preset: 'quarter', year: period.year - 1, quarter: 4 } : { preset: 'quarter', year: period.year, quarter: (period.quarter - 1) as 1 | 2 | 3 }
     case 'custom': {
       const length = daysBetween(period.range.from, period.range.to) + 1
       const to = addDays(period.range.from, -1)

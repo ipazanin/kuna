@@ -159,13 +159,7 @@ export function keptInMonthPaid(entry: CountedBooking): CountedBooking {
   return { ...entry, timing: 'kept-in-month-paid', shares: [{ month: monthOf(entry.booking.date), amount: entry.vat.cost.amount }] }
 }
 
-function timed(
-  booking: Booking,
-  vat: VatSplit,
-  category: Category,
-  workbook: HrDooWorkbook,
-  rules: RuleSource,
-): { readonly timing: BookingTiming; readonly shares: readonly MonthShare[] } {
+function timed(booking: Booking, vat: VatSplit, category: Category, workbook: HrDooWorkbook, rules: RuleSource): { readonly timing: BookingTiming; readonly shares: readonly MonthShare[] } {
   const cost = vat.cost.amount
   if (category.roles.includes(PACK_ROLES.arrears)) {
     return { timing: 'arrears', shares: [{ month: serviceMonthOf(booking, workbook.categories, workbook.companyFacts), amount: cost }] }

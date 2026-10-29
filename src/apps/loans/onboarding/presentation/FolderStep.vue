@@ -72,7 +72,12 @@ async function create(): Promise<void> {
   }
   const chosen = store.state.choice
   if (chosen !== before && chosen?.source === 'drive') {
-    toast.add({ title: `Created ${chosen.name} in ${folder.path === null ? folder.name : folderTrail(folder.path)}`, description: 'The app keeps a copy in this browser, and a backups folder beside the file.', icon: 'i-lucide-check', color: 'success' })
+    toast.add({
+      title: `Created ${chosen.name} in ${folder.path === null ? folder.name : folderTrail(folder.path)}`,
+      description: 'The app keeps a copy in this browser, and a backups folder beside the file.',
+      icon: 'i-lucide-check',
+      color: 'success',
+    })
     await start.finish()
   } else if (store.state.status === 'error') {
     failure.value = store.state.error
@@ -86,11 +91,15 @@ async function create(): Promise<void> {
       <p class="text-sm text-muted">The Loans file will be saved in</p>
       <p v-if="picked.path" class="identifier text-sm font-medium break-words text-highlighted">{{ folderTrail(picked.path) }}</p>
       <p v-else class="text-sm text-toned">
-        <span class="identifier font-medium text-highlighted">{{ picked.name }}</span>, inside folders the app cannot see. Open it in Drive to check where it is.
+        <span class="identifier font-medium text-highlighted">{{ picked.name }}</span
+        >, inside folders the app cannot see. Open it in Drive to check where it is.
       </p>
       <p class="flex items-center gap-2 text-sm text-toned">
         <UIcon name="i-lucide-file-json" class="size-4 shrink-0 text-muted" aria-hidden="true" />
-        <span class="min-w-0"><span class="identifier">{{ LOANS_FILE_NAME }}</span>, with a backups folder beside it</span>
+        <span class="min-w-0"
+          ><span class="identifier">{{ LOANS_FILE_NAME }}</span
+          >, with a backups folder beside it</span
+        >
       </p>
       <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target folder-link text-sm">
         Open this folder in Drive
@@ -105,7 +114,11 @@ async function create(): Promise<void> {
       color="warning"
       variant="subtle"
       title="Your Loans file is on Drive already"
-      :description="dropsBrowserFile ? `${alreadyOnDrive.message} Opening it deletes the Loans file in this browser, which exists only here and in the files you exported. Export it first if you want to keep it.` : alreadyOnDrive.message"
+      :description="
+        dropsBrowserFile
+          ? `${alreadyOnDrive.message} Opening it deletes the Loans file in this browser, which exists only here and in the files you exported. Export it first if you want to keep it.`
+          : alreadyOnDrive.message
+      "
       data-testid="loans-start-on-drive"
     />
 

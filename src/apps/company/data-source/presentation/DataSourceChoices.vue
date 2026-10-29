@@ -58,9 +58,8 @@ async function startNewBooks(): Promise<void> {
       <div class="choice-body">
         <h3 class="text-sm font-medium text-highlighted">{{ current === 'drive' ? 'Open your books on Google Drive again' : 'Open your books on Google Drive' }}</h3>
         <p class="mt-1 text-sm text-muted">
-          For books another device keeps on Drive. Sign in with Google, then Find the file opens the file the app marked as its books, or
-          asks you to pick it when there is none. Pick another file lets you choose the .json file yourself. The app keeps a copy in this
-          browser, and writes only that file and the backups folder beside it.
+          For books another device keeps on Drive. Sign in with Google, then Find the file opens the file the app marked as its books, or asks you to pick it when there is none. Pick another file lets
+          you choose the .json file yourself. The app keeps a copy in this browser, and writes only that file and the backups folder beside it.
         </p>
       </div>
       <div class="choice-action">
@@ -84,9 +83,7 @@ async function startNewBooks(): Promise<void> {
             @click="openFromDrive('pick')"
           />
         </div>
-        <p v-if="signInByRedirect" class="mt-2 max-w-56 text-xs text-muted" data-testid="redirect-sign-in-note">
-          Google may ask about cookies first, then brings you back here.
-        </p>
+        <p v-if="signInByRedirect" class="mt-2 max-w-56 text-xs text-muted" data-testid="redirect-sign-in-note">Google may ask about cookies first, then brings you back here.</p>
       </div>
     </li>
 
@@ -95,8 +92,7 @@ async function startNewBooks(): Promise<void> {
       <div class="choice-body">
         <h3 class="text-sm font-medium text-highlighted">Open a file</h3>
         <p class="mt-1 text-sm text-muted">
-          An Excel workbook, such as a download of your Google Sheet, or a Kuna file from the backups folder. Check what it holds,
-          then keep it on Google Drive or in this browser.
+          An Excel workbook, such as a download of your Google Sheet, or a Kuna file from the backups folder. Check what it holds, then keep it on Google Drive or in this browser.
         </p>
         <UFileUpload
           v-model="pickedFile"

@@ -43,20 +43,24 @@ export function assetOf(fields: StoredFields, id: RecordId | null): Asset {
   }
 }
 
-export const ASSET_CODEC: RecordCodec<Asset> = withIdField(ASSET_RECORDS, (fields) => labelWords([textOf(fields.asset)]), assetOf, (asset) =>
-  filledFields({
-    asset: asset.name,
-    bought: asset.bought,
-    // A blank in_use reads as the day it was bought, so that day is kept blank.
-    in_use: asset.inUse === asset.bought ? null : asset.inUse,
-    cost_net: amountText(asset.costNet),
-    group: asset.group,
-    doubled: asset.doubledRate ? true : null,
-    disposed: asset.disposed,
-    funded_by: asset.fundedBy,
-    ledger_reference: asset.ledgerReference,
-    note: asset.note,
-  }),
+export const ASSET_CODEC: RecordCodec<Asset> = withIdField(
+  ASSET_RECORDS,
+  (fields) => labelWords([textOf(fields.asset)]),
+  assetOf,
+  (asset) =>
+    filledFields({
+      asset: asset.name,
+      bought: asset.bought,
+      // A blank in_use reads as the day it was bought, so that day is kept blank.
+      in_use: asset.inUse === asset.bought ? null : asset.inUse,
+      cost_net: amountText(asset.costNet),
+      group: asset.group,
+      doubled: asset.doubledRate ? true : null,
+      disposed: asset.disposed,
+      funded_by: asset.fundedBy,
+      ledger_reference: asset.ledgerReference,
+      note: asset.note,
+    }),
 )
 
 /**

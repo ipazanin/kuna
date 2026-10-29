@@ -140,8 +140,23 @@ export interface ProfitTaxValues {
 const LOADED_ON = day('2026-10-18')
 
 const ZPD_ISSUES: readonly string[] = [
-  '177/04', '90/05', '57/06', '146/08', '80/10', '22/12', '148/13', '143/14', '50/16',
-  '115/16', '106/18', '121/19', '32/20', '138/20', '114/22', '114/23', '151/25',
+  '177/04',
+  '90/05',
+  '57/06',
+  '146/08',
+  '80/10',
+  '22/12',
+  '148/13',
+  '143/14',
+  '50/16',
+  '115/16',
+  '106/18',
+  '121/19',
+  '32/20',
+  '138/20',
+  '114/22',
+  '114/23',
+  '151/25',
 ]
 const PRAV_PD_ISSUES: readonly string[] = ['95/05', '156/23', '16/25', '39/26']
 const ZPDOH_ISSUES: readonly string[] = ['115/16', '106/18', '121/19', '32/20', '138/20', '151/22', '114/23', '152/24']
@@ -257,7 +272,9 @@ export const profitTaxRules: readonly RuleIn<ProfitTaxValues>[] = [
         },
         sources: [zpdSource('6(6), 6(7)'), pravPdSource('9(7), 47(3) line 43')],
         confidence: 'reading',
-        note: 'The test uses PD line 1 less line 28. Line 28 holds only grants for special circumstances, so an ordinary grant such as a self-employment grant counts toward the threshold. This is a reading of the closed list in Art. 6. ' + ASSUMED_FOR_2027,
+        note:
+          'The test uses PD line 1 less line 28. Line 28 holds only grants for special circumstances, so an ordinary grant such as a self-employment grant counts toward the threshold. This is a reading of the closed list in Art. 6. ' +
+          ASSUMED_FOR_2027,
       },
     ],
   },
@@ -470,11 +487,7 @@ export const profitTaxRules: readonly RuleIn<ProfitTaxValues>[] = [
           capShareOfRevenue: basisPoints(200),
           revenueBasis: text('prior-or-current-period'),
         },
-        sources: [
-          zpdSource('7(7) to 7(9), 7(1)(10)', ['114/23', '151/25']),
-          amendingActSource('ZPD', '114/23', '4'),
-          amendingActSource('ZPD', '151/25', '3'),
-        ],
+        sources: [zpdSource('7(7) to 7(9), 7(1)(10)', ['114/23', '151/25']), amendingActSource('ZPD', '114/23', '4'), amendingActSource('ZPD', '151/25', '3')],
         confidence: 'confirmed-nn',
         note: `Donations up to 2% of the revenue of the previous or the current period are deductible. The excess, and any donation with a direct or indirect benefit to the company or a related person, is added back. ${ASSUMED_FOR_2027}`,
       },
@@ -781,11 +794,7 @@ export const profitTaxRules: readonly RuleIn<ProfitTaxValues>[] = [
         value: {
           shortfallTaxedToRecipient: flag(true),
         },
-        sources: [
-          zpdSource('10.a'),
-          pravPdSource('35.a'),
-          { act: 'ZPDoh', nn: ZPDOH_ISSUES, article: '66(2)', url: ZPDOH_TEXT_URL, loadedOn: LOADED_ON },
-        ],
+        sources: [zpdSource('10.a'), pravPdSource('35.a'), { act: 'ZPDoh', nn: ZPDOH_ISSUES, article: '66(2)', url: ZPDOH_TEXT_URL, loadedOn: LOADED_ON }],
         confidence: 'confirmed-consolidated',
         note: `When a natural person receives an advance on profit and the profit of the period does not cover it, the difference is a receipt taxed under the income tax act. The company should pay advances only up to an interim income statement. ${ASSUMED_FOR_2027}`,
       },

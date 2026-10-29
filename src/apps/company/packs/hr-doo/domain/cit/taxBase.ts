@@ -80,17 +80,8 @@ export function taxBase(input: TaxBaseInput, rules: RuleSource = ruleValue): Tax
   const ordinaryIncreases = [
     addBack('PD line 6, representation', input.representation, representation.value.addBackShare.basisPoints, [representation.citation]),
     addBack('PD line 7, personal transport', input.personalTransport, transport.value.addBackShare.basisPoints, [transport.citation]),
-    addBack('PD lines 9, 11 and 24, fines, forced collection and private costs', input.nonDeductible, privateCosts.value.addBackShare.basisPoints, [
-      fines.citation,
-      privateCosts.citation,
-    ]),
-    tracedFigure(
-      'PD line 18, depreciation above the allowed rates and caps',
-      input.depreciationAboveAllowed.amount,
-      'assets',
-      input.depreciationAboveAllowed.rules,
-      [input.depreciationAboveAllowed],
-    ),
+    addBack('PD lines 9, 11 and 24, fines, forced collection and private costs', input.nonDeductible, privateCosts.value.addBackShare.basisPoints, [fines.citation, privateCosts.citation]),
+    tracedFigure('PD line 18, depreciation above the allowed rates and caps', input.depreciationAboveAllowed.amount, 'assets', input.depreciationAboveAllowed.rules, [input.depreciationAboveAllowed]),
   ]
 
   const scope = rules('hr.cit.related-party-scope', period)
@@ -105,9 +96,7 @@ export function taxBase(input: TaxBaseInput, rules: RuleSource = ruleValue): Tax
         [scope.citation, ...input.relatedPartyInterestShortfall.rules],
         [input.relatedPartyInterestShortfall],
       )
-    : tracedFigure('PD lines 16 and 25, no related-party interest: the rule reaches a resident owner only while the company has a tax loss', ZERO, 'ledger', [
-        scope.citation,
-      ])
+    : tracedFigure('PD lines 16 and 25, no related-party interest: the rule reaches a resident owner only while the company has a tax loss', ZERO, 'ledger', [scope.citation])
   const increases = summed('PD line 26, increases', [...ordinaryIncreases, relatedParty], 'ledger')
 
   const sponsorship = rules('hr.cit.sponsorship-decrease', period)
@@ -122,10 +111,7 @@ export function taxBase(input: TaxBaseInput, rules: RuleSource = ruleValue): Tax
     [profitBeforeTax, increases, deducted(decreases)],
   )
   const losses = lossRelief(input.year, beforeLosses.amount, input.lossesBroughtForward, rules)
-  const base = tracedFigure('PD line 38, tax base', subtractMoney(beforeLosses.amount, losses.used.amount), 'ledger', rulesOf([beforeLosses, losses.used]), [
-    beforeLosses,
-    deducted(losses.used),
-  ])
+  const base = tracedFigure('PD line 38, tax base', subtractMoney(beforeLosses.amount, losses.used.amount), 'ledger', rulesOf([beforeLosses, losses.used]), [beforeLosses, deducted(losses.used)])
   const ownLoss: CarriedLoss[] = base.amount < 0 ? [{ year: input.year, remaining: moneyFromCents(0 - base.amount) }] : []
   return {
     year: input.year,
@@ -150,17 +136,12 @@ export function lossesCarriedInto(year: number, yearEnd: readonly YearEndLine[],
     const found = yearEnd.find((candidate) => candidate.year === taxYear && candidate.statement === 'tax' && candidate.line === line)
     return found?.figure.kind === 'money' ? found.figure.amount : null
   }
-  const years = [...new Set(yearEnd.filter((line) => line.statement === 'tax' && line.line === 'tax-base' && line.year < year).map((line) => line.year))].sort(
-    (earlier, later) => earlier - later,
-  )
+  const years = [...new Set(yearEnd.filter((line) => line.statement === 'tax' && line.line === 'tax-base' && line.year < year).map((line) => line.year))].sort((earlier, later) => earlier - later)
   let open: readonly CarriedLoss[] = []
   for (const taxYear of years) {
     const base = moneyOf(taxYear, 'tax-base') ?? ZERO
     const [revenue, expenses, increases, decreases] = ['revenue', 'expenses', 'increases', 'decreases'].map((line) => moneyOf(taxYear, line))
-    const beforeLosses =
-      revenue === null || expenses === null || increases === null || decreases === null
-        ? base
-        : subtractMoney(addMoney(subtractMoney(revenue, expenses), increases), decreases)
+    const beforeLosses = revenue === null || expenses === null || increases === null || decreases === null ? base : subtractMoney(addMoney(subtractMoney(revenue, expenses), increases), decreases)
     const relief = lossRelief(taxYear, beforeLosses, open, rules)
     open = base < 0 ? [...relief.left, { year: taxYear, remaining: moneyFromCents(0 - base) }] : relief.left
   }
@@ -177,12 +158,7 @@ function addBack(label: string, cost: TracedFigure, share: Rate, citations: read
   return tracedFigure(`${label}, ${percentText(share)} added back`, subtractMoney(cost.amount, deductible), 'ledger', [...citations, ...cost.rules], [cost])
 }
 
-function lossRelief(
-  year: number,
-  baseBeforeLosses: Money,
-  brought: readonly CarriedLoss[],
-  rules: RuleSource,
-): { readonly used: TracedFigure; readonly left: readonly CarriedLoss[] } {
+function lossRelief(year: number, baseBeforeLosses: Money, brought: readonly CarriedLoss[], rules: RuleSource): { readonly used: TracedFigure; readonly left: readonly CarriedLoss[] } {
   const rule = rules('hr.cit.loss-carry-forward', civilDate(year, 1, 1))
   if (rule.value.carryBack.holds) {
     throw new RangeError(`The loss rule in force in ${year} carries losses back, which this build-up does not model.`)

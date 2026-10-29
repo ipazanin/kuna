@@ -80,10 +80,16 @@ function spoken(cell: CadenceCell): string {
     </ul>
     <div class="overflow-x-auto">
       <table class="cadence-table w-full">
-        <caption class="sr-only">{{ name }}, month by month</caption>
+        <caption class="sr-only">
+          {{
+            name
+          }}, month by month
+        </caption>
         <thead>
           <tr>
-            <th scope="col"><span class="sr-only">{{ phone ? 'Month' : 'Year' }}</span></th>
+            <th scope="col">
+              <span class="sr-only">{{ phone ? 'Month' : 'Year' }}</span>
+            </th>
             <th v-for="column in grid.columns" :key="column" scope="col" class="text-center text-xs font-medium text-muted">{{ column }}</th>
           </tr>
         </thead>
@@ -91,14 +97,7 @@ function spoken(cell: CadenceCell): string {
           <tr v-for="row in grid.rows" :key="row.label">
             <th scope="row" class="pe-2 text-start text-xs font-medium text-muted">{{ row.label }}</th>
             <td v-for="(cell, index) in row.cells" :key="index">
-              <DrillLink
-                v-if="cell"
-                :to="cell.to"
-                :label="spoken(cell)"
-                class="cadence-cell"
-                :class="`is-${cell.state}`"
-                :data-testid="`cadence-${cell.state}`"
-              >
+              <DrillLink v-if="cell" :to="cell.to" :label="spoken(cell)" class="cadence-cell" :class="`is-${cell.state}`" :data-testid="`cadence-${cell.state}`">
                 <UIcon :name="STATES[cell.state].icon" class="size-3.5 shrink-0" aria-hidden="true" />
                 <span v-if="cell.state === 'paid'" class="cadence-amount figure">{{ formatCompactMoney(cell.amount) }}</span>
               </DrillLink>
@@ -149,9 +148,7 @@ function spoken(cell: CadenceCell): string {
 }
 
 .cadence-cell.is-not-yet-due {
-  background:
-    repeating-linear-gradient(45deg, var(--chart-ghost) 0 1.5px, transparent 1.5px 5px),
-    var(--surface-elevated);
+  background: repeating-linear-gradient(45deg, var(--chart-ghost) 0 1.5px, transparent 1.5px 5px), var(--surface-elevated);
   color: var(--ink-muted);
 }
 

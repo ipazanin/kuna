@@ -72,10 +72,24 @@ const problem = computed(() => profileDraftProblem(profile.value))
   <div class="flex flex-col gap-4" data-testid="profile-editor">
     <div class="grid gap-3 sm:grid-cols-2">
       <UFormField label="Profile name" help="Saved on the settings tab, so it follows the workbook.">
-        <UInput :model-value="profile.name" :disabled="editing" placeholder="otp-business" class="w-full" data-testid="profile-name" @update:model-value="update({ name: String($event).trim().toLowerCase() })" />
+        <UInput
+          :model-value="profile.name"
+          :disabled="editing"
+          placeholder="otp-business"
+          class="w-full"
+          data-testid="profile-name"
+          @update:model-value="update({ name: String($event).trim().toLowerCase() })"
+        />
       </UFormField>
       <UFormField label="Account">
-        <USelect :model-value="profile.account" :items="[...accounts]" placeholder="Choose an account" class="w-full" data-testid="profile-account" @update:model-value="update({ account: String($event) })" />
+        <USelect
+          :model-value="profile.account"
+          :items="[...accounts]"
+          placeholder="Choose an account"
+          class="w-full"
+          data-testid="profile-account"
+          @update:model-value="update({ account: String($event) })"
+        />
       </UFormField>
       <UFormField label="Date column">
         <USelect :model-value="profile.date" :items="columnItems" placeholder="Choose a column" class="w-full" data-testid="profile-date" @update:model-value="update({ date: String($event) })" />

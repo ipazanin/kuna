@@ -69,13 +69,7 @@ describe('invoice matching', () => {
   })
 
   it('fills invoices oldest first and lets a payment reach only invoices issued by its day', () => {
-    const north = client(
-      match(
-        [paid('2026-01-05', 300), paid('2026-02-10', 1000), paid('2026-03-12', 400)],
-        [invoice('1', 1000, '2026-01-31'), invoice('2', 600, '2026-02-28')],
-      ),
-      'north',
-    )
+    const north = client(match([paid('2026-01-05', 300), paid('2026-02-10', 1000), paid('2026-03-12', 400)], [invoice('1', 1000, '2026-01-31'), invoice('2', 600, '2026-02-28')]), 'north')
 
     // The January credit lands before any invoice exists, so it is a credit with no invoice. The
     // February one fills invoice 1, and the March one fills 400 of invoice 2.
@@ -92,30 +86,19 @@ describe('invoice matching', () => {
   })
 
   it('lands an overpayment on the newest invoice the payment could reach, and never owes less than nothing', () => {
-    const north = client(
-      match([paid('2026-02-03', 1070), paid('2026-03-03', 500)], [invoice('1', 1000, '2026-01-31'), invoice('2', 500, '2026-02-28')]),
-      'north',
-    )
+    const north = client(match([paid('2026-02-03', 1070), paid('2026-03-03', 500)], [invoice('1', 1000, '2026-01-31'), invoice('2', 500, '2026-02-28')]), 'north')
 
     expect(states(north)).toEqual([
       ['1', 'paid', euros(0), civil('2026-02-03')],
       ['2', 'paid', euros(0), civil('2026-03-03')],
     ])
-    expect(north.invoices[0]?.overpayments.map((overpayment) => [overpayment.payment.transaction.date, overpayment.amount])).toEqual([
-      [civil('2026-02-03'), euros(70)],
-    ])
+    expect(north.invoices[0]?.overpayments.map((overpayment) => [overpayment.payment.transaction.date, overpayment.amount])).toEqual([[civil('2026-02-03'), euros(70)]])
     expect(north.invoices[1]?.overpayments).toEqual([])
     expect([north.outstanding, north.overpaid, north.creditsWithNoInvoice]).toEqual([euros(0), euros(70), euros(0)])
   })
 
   it('gives each invoice the payments that went towards it, a payment spanning two invoices in both', () => {
-    const north = client(
-      match(
-        [paid('2026-02-10', 600), paid('2026-03-10', 900)],
-        [invoice('1', 1000, '2026-01-31'), invoice('2', 800, '2026-02-28')],
-      ),
-      'north',
-    )
+    const north = client(match([paid('2026-02-10', 600), paid('2026-03-10', 900)], [invoice('1', 1000, '2026-01-31'), invoice('2', 800, '2026-02-28')]), 'north')
 
     expect(north.invoices.map((matched) => matched.allocations.map((allocation) => [allocation.payment.transaction.date, allocation.amount]))).toEqual([
       [

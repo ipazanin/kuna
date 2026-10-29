@@ -22,15 +22,7 @@ function update(tags: readonly unknown[]): void {
 </script>
 
 <template>
-  <UInputTags
-    :model-value="[...modelValue]"
-    delimiter=","
-    add-on-paste
-    add-on-blur
-    placeholder="Add an IBAN"
-    :ui="{ item: 'identifier', input: 'identifier min-w-28' }"
-    @update:model-value="update"
-  />
+  <UInputTags :model-value="[...modelValue]" delimiter="," add-on-paste add-on-blur placeholder="Add an IBAN" :ui="{ item: 'identifier', input: 'identifier min-w-28' }" @update:model-value="update" />
 </template>
 
 <style scoped>

@@ -222,12 +222,7 @@ function restore(dismissal: Dismissal): void {
 
               <component :is="card.component" v-for="(card, index) in packCards" :key="index" :busy="busy" />
 
-              <SessionChanges
-                :writes="sessionWrites"
-                :categories="ledger.workbook.categories"
-                :busy="busy"
-                @undo="undoSessionWrite"
-              />
+              <SessionChanges :writes="sessionWrites" :categories="ledger.workbook.categories" :busy="busy" @undo="undoSessionWrite" />
 
               <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
             </template>
@@ -238,14 +233,7 @@ function restore(dismissal: Dismissal): void {
       <template #rules>
         <div v-if="state.workbook" class="flex flex-col gap-6">
           <RulesTab />
-          <RuleCoverage
-            :coverage="coverage.coverage"
-            :categories="state.workbook.categories"
-            :busy="busy"
-            :dismissed-count="hiddenGroups"
-            @make-rule="makeRuleForGroup"
-            @dismiss="dismiss"
-          />
+          <RuleCoverage :coverage="coverage.coverage" :categories="state.workbook.categories" :busy="busy" :dismissed-count="hiddenGroups" @make-rule="makeRuleForGroup" @dismiss="dismiss" />
           <DismissedSuggestions v-if="coverage.dismissed.length" :dismissed="coverage.dismissed" :categories="state.workbook.categories" :busy="busy" @restore="restore" />
         </div>
       </template>

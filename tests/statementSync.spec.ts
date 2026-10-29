@@ -39,7 +39,12 @@ function grids(): Record<string, CellValue[][]> {
       ...LEDGER_ROWS.map((row) => row.map((cell, column) => (column === 2 ? labels[String(cell)]! : cell))),
       [46296, 'savings', '2026-10-01-statement-001', 'Opening deposit', '', 'Deposit', 250, 250, 'revenue', 'rule', 'SAV-1', '', '', '', '', '', '', ''],
     ],
-    accounts: [['account', 'iban'], ['main', MAIN_IBAN], ['savings', SAVINGS_IBAN], ['reserve', RESERVE_IBAN]],
+    accounts: [
+      ['account', 'iban'],
+      ['main', MAIN_IBAN],
+      ['savings', SAVINGS_IBAN],
+      ['reserve', RESERVE_IBAN],
+    ],
   }
 }
 
@@ -115,8 +120,8 @@ function writesTo(harness: WriteBackHarness): number {
 
 /** The account's rows, newest booking first. */
 function ledgerOf(store: WorkbookStore<CompanyBooks, DocumentCopy>, account: string): string[] {
-  return store.state.workbook!.transactions
-    .filter((row) => row.account === account)
+  return store.state
+    .workbook!.transactions.filter((row) => row.account === account)
     .sort((newer, older) => older.sequence - newer.sequence)
     .map((row) => `${row.date} ${row.reference} ${row.balance}`)
 }
@@ -242,13 +247,27 @@ describe.each([
   })
 })
 
-describe('the statements step against another device\'s sync', () => {
+describe("the statements step against another device's sync", () => {
   it('reads the file again and runs the dry run once more when another device filed the same rows first, and writes nothing', async () => {
     const harness = await driveHarness(used, grids())
     const { store, drive } = harness
     const workbook = store.state.workbook!
     const run = dryRunFor(statementReadings({ kind: 'camt', fileName: 'x.xml', document: new DOMParser().parseFromString(MAIN_003, 'application/xml') }, workbook, null), workbook, new Map())
-    const filedElsewhere = { date: '2026-10-06', account: 'main', statement: '2026-10-06-statement-003', description: 'Entry M3-1', amount: '100.00', balance: '1100.00', category: 'revenue', flagged_by: 'rule', reference: 'M3-1', tx_domain: 'PMNT', tx_family: 'RCDT', tx_sub_family: 'ESCT', id: 'another-device' }
+    const filedElsewhere = {
+      date: '2026-10-06',
+      account: 'main',
+      statement: '2026-10-06-statement-003',
+      description: 'Entry M3-1',
+      amount: '100.00',
+      balance: '1100.00',
+      category: 'revenue',
+      flagged_by: 'rule',
+      reference: 'M3-1',
+      tx_domain: 'PMNT',
+      tx_family: 'RCDT',
+      tx_sub_family: 'ESCT',
+      id: 'another-device',
+    }
     expect(run.added).toHaveLength(1)
     const fileId = store.state.choice!.id
     const held = decodeDocument(await drive!.download(fileId))

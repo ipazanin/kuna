@@ -41,9 +41,7 @@ watch(
 
 const preview = useRulesChangePreview(() => (open.value ? (props.pending?.change ?? null) : null))
 const needsAcceptance = computed(() => (preview.value?.backtest.brokenAgreements.length ?? 0) + (preview.value?.backtest.humanConflicts.length ?? 0) > 0)
-const canSave = computed(
-  () => preview.value !== null && preview.value.refusals.length === 0 && (!needsAcceptance.value || accepted.value) && !rulesWrites.busy.value && !state.writing,
-)
+const canSave = computed(() => preview.value !== null && preview.value.refusals.length === 0 && (!needsAcceptance.value || accepted.value) && !rulesWrites.busy.value && !state.writing)
 
 async function save(): Promise<void> {
   if (props.pending === null || !canSave.value) return

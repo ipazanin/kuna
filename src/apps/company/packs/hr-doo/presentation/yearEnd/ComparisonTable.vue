@@ -83,7 +83,9 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
       <dl class="line-cells mt-2">
         <div>
           <dt>Accountant</dt>
-          <dd><MoneyText v-if="isMoney(row.accountant)" :cents="row.accountant.cents" /><template v-else>{{ row.accountant.text }}</template></dd>
+          <dd>
+            <MoneyText v-if="isMoney(row.accountant)" :cents="row.accountant.cents" /><template v-else>{{ row.accountant.text }}</template>
+          </dd>
         </div>
         <div>
           <dt>Ours, accrual</dt>
@@ -113,17 +115,15 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
         </div>
       </dl>
       <p v-if="row.explainedBy.length > 0" class="mt-2 text-xs text-muted">
-        Explained by {{ row.explainedBy.slice(0, NAMED).map((step) => step.label).join(', ')
+        Explained by
+        {{
+          row.explainedBy
+            .slice(0, NAMED)
+            .map((step) => step.label)
+            .join(', ')
         }}<template v-if="row.explainedBy.length > NAMED"> and {{ row.explainedBy.length - NAMED }} more</template>
       </p>
-      <button
-        type="button"
-        class="line-toggle mt-auto"
-        :aria-expanded="open.has(row.key)"
-        :aria-controls="`${testId}-${row.key}`"
-        data-testid="comparison-toggle"
-        @click="toggle(row.key)"
-      >
+      <button type="button" class="line-toggle mt-auto" :aria-expanded="open.has(row.key)" :aria-controls="`${testId}-${row.key}`" data-testid="comparison-toggle" @click="toggle(row.key)">
         <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-dimmed" :class="{ 'is-open': open.has(row.key) }" aria-hidden="true" />
         <span>{{ open.has(row.key) ? 'Hide how ours is built' : 'How ours is built' }}</span>
       </button>
@@ -169,7 +169,9 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
                 </span>
               </button>
             </th>
-            <td class="text-end"><MoneyText v-if="isMoney(row.accountant)" :cents="row.accountant.cents" /><span v-else class="figure">{{ row.accountant.text }}</span></td>
+            <td class="text-end">
+              <MoneyText v-if="isMoney(row.accountant)" :cents="row.accountant.cents" /><span v-else class="figure">{{ row.accountant.text }}</span>
+            </td>
             <td class="text-end">
               <span v-if="row.ours === null" class="text-dimmed">Not computed</span>
               <DrillLink v-else :to="row.oursTo" :label="`${row.label}, ours, open the rows`">

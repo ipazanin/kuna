@@ -1,17 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  createFile,
-  createFolder,
-  downloadFile,
-  downloadRevision,
-  filesWithAppProperty,
-  getFile,
-  listRevisions,
-  trashFile,
-  unkeepRevision,
-  uploadContent,
-} from '../src/shared/google/driveClient'
+import { createFile, createFolder, downloadFile, downloadRevision, filesWithAppProperty, getFile, listRevisions, trashFile, unkeepRevision, uploadContent } from '../src/shared/google/driveClient'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 import { googleDocumentDrive } from '../src/shared/storage/infrastructure/googleDocumentDrive'
 
@@ -154,7 +143,13 @@ describe('driveClient', () => {
   it("reads Google's reason from a refusal", async () => {
     stubDrive(
       Response.json(
-        { error: { code: 403, message: 'A maximum of 200 revisions can be kept forever.', errors: [{ domain: 'global', reason: 'keptRevisionsLimitExceeded', message: 'A maximum of 200 revisions can be kept forever.' }] } },
+        {
+          error: {
+            code: 403,
+            message: 'A maximum of 200 revisions can be kept forever.',
+            errors: [{ domain: 'global', reason: 'keptRevisionsLimitExceeded', message: 'A maximum of 200 revisions can be kept forever.' }],
+          },
+        },
         { status: 403 },
       ),
       new Response('Bad gateway', { status: 502 }),

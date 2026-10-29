@@ -23,7 +23,10 @@ function hasYear(pattern: string): boolean {
 
 /** The pattern filled in for one sequence number and year. */
 export function invoiceNumberOf(pattern: string, sequence: number, year: number): string {
-  return pattern.replaceAll('{yyyy}', String(year)).replaceAll('{yy}', String(year % 100).padStart(2, '0')).replaceAll('{n}', String(sequence))
+  return pattern
+    .replaceAll('{yyyy}', String(year))
+    .replaceAll('{yy}', String(year % 100).padStart(2, '0'))
+    .replaceAll('{n}', String(sequence))
 }
 
 function sequenceOf(pattern: string, number: string, year: number): number | null {

@@ -5,10 +5,7 @@ import { axisTooltip } from '../../../shared/charts/chartTooltip'
 import { formatCompactMoney, formatMoney, formatPercent } from '../../../shared/money/moneyFormat'
 
 /** Made-up figures in cents for a small one-person company. None of it comes from a real ledger. */
-export const SAMPLE_MONTHS = [
-  'Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026',
-  'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026',
-]
+export const SAMPLE_MONTHS = ['Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026']
 const CURRENT_MONTH_INDEX = SAMPLE_MONTHS.length - 1
 const INCOMPLETE_MONTHS = [SAMPLE_MONTHS[CURRENT_MONTH_INDEX] ?? '']
 const INCOMPLETE = SAMPLE_MONTHS.map((_, index) => index === CURRENT_MONTH_INDEX)

@@ -76,7 +76,13 @@ function advancesByCategory(records: RecordsOfKind): ReadonlyMap<string, number>
   return advances
 }
 
-function categoryFieldsOf(fields: StoredFields): { readonly slug: string; readonly bucket: string; readonly colour: string; readonly roles: readonly string[]; readonly ownerShare: OwnerShare | null } {
+function categoryFieldsOf(fields: StoredFields): {
+  readonly slug: string
+  readonly bucket: string
+  readonly colour: string
+  readonly roles: readonly string[]
+  readonly ownerShare: OwnerShare | null
+} {
   return { slug: slugOf(fields.category), bucket: slugOf(fields.bucket), colour: textOf(fields.colour), roles: slugListOf(fields.roles), ownerShare: storedOwnerShare(fields.owner_share) }
 }
 
@@ -97,16 +103,23 @@ export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
     const recordsOfKind: RecordsOfKind = (kind) => fresh.of(kind)
     const edits = pickedEdits(change, categoryFieldsOf)
     return [
-      ...categoryChangeRefusals(edits, pickedUntouched(change, (fields) => ({ slug: slugOf(fields.category) })).filter((row) => row.slug !== ''), {
-        named: categoryUses(recordsOfKind),
-        advances: advancesByCategory(recordsOfKind),
-      }),
+      ...categoryChangeRefusals(
+        edits,
+        pickedUntouched(change, (fields) => ({ slug: slugOf(fields.category) })).filter((row) => row.slug !== ''),
+        {
+          named: categoryUses(recordsOfKind),
+          advances: advancesByCategory(recordsOfKind),
+        },
+      ),
       ...(change.undoing
         ? []
         : [
             ...categoryColourRefusals(edits),
             ...categoryRoleRefusals(edits, knownRoles(installedPack().workbook?.categoryRoles ?? [])),
-            ...categoryShareRefusals(edits, change.after.records.map((stored) => categoryFieldsOf(stored.fields))),
+            ...categoryShareRefusals(
+              edits,
+              change.after.records.map((stored) => categoryFieldsOf(stored.fields)),
+            ),
           ]),
     ]
   },
@@ -123,10 +136,14 @@ export const ACCOUNT_WRITES: WriteRules<AccountRecord> = {
   undoable: true,
   read: (read) => readAccounts(read, null),
   refusals: (change, fresh) =>
-    accountChangeRefusals(pickedEdits(change, accountOfFields), pickedUntouched(change, accountOfFields).filter((row) => row.slug !== ''), {
-      named: accountUses((kind) => fresh.of(kind)),
-      clientIbans: new Map(readClients(fresh.of(CLIENT_RECORDS)).facts.flatMap((client) => client.ibans.map((iban) => [iban, client.slug] as const))),
-    }),
+    accountChangeRefusals(
+      pickedEdits(change, accountOfFields),
+      pickedUntouched(change, accountOfFields).filter((row) => row.slug !== ''),
+      {
+        named: accountUses((kind) => fresh.of(kind)),
+        clientIbans: new Map(readClients(fresh.of(CLIENT_RECORDS)).facts.flatMap((client) => client.ibans.map((iban) => [iban, client.slug] as const))),
+      },
+    ),
 }
 
 function clientCellsOf(fields: StoredFields): { readonly slug: string; readonly ibans: readonly string[] } {
@@ -140,8 +157,12 @@ export const CLIENT_WRITES: WriteRules<ClientRecord> = {
   undoable: true,
   read: (read) => readClients(read),
   refusals: (change, fresh) =>
-    clientChangeRefusals(pickedEdits(change, clientCellsOf), pickedUntouched(change, clientCellsOf).filter((client) => client.slug !== ''), {
-      named: clientUses((kind) => fresh.of(kind)),
-      accountIbans: new Map(readAccounts(fresh.of(ACCOUNT_RECORDS), null).facts.flatMap((account) => (account.iban === '' ? [] : [[account.iban, account.slug] as const]))),
-    }),
+    clientChangeRefusals(
+      pickedEdits(change, clientCellsOf),
+      pickedUntouched(change, clientCellsOf).filter((client) => client.slug !== ''),
+      {
+        named: clientUses((kind) => fresh.of(kind)),
+        accountIbans: new Map(readAccounts(fresh.of(ACCOUNT_RECORDS), null).facts.flatMap((account) => (account.iban === '' ? [] : [[account.iban, account.slug] as const]))),
+      },
+    ),
 }

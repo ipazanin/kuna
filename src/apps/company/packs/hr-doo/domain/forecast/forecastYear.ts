@@ -284,12 +284,20 @@ function forecastOne(context: ForecastContext): YearForecast {
     basis: 'invoices',
     lastActual: lastActualRevenue,
     actual: (month) => deliveredIn(yearOfMonth(month)).months.find((entry) => entry.month === month)?.revenue ?? tracedFigure(`Revenue delivered in ${monthLabel(month)}`, ZERO, 'invoices', []),
-    planned: (month) => expectedRevenue(expected.filter((entry) => entry.month === month), month, clientName),
+    planned: (month) =>
+      expectedRevenue(
+        expected.filter((entry) => entry.month === month),
+        month,
+        clientName,
+      ),
     paidAhead: () => null,
     comparison: (month) => billedPlan(known, month, clientName),
   })
 
-  const plannedAssets = plannedAssetsOf(known.planLines.filter((line) => line.year <= year && guarded(line) === null), calendar)
+  const plannedAssets = plannedAssetsOf(
+    known.planLines.filter((line) => line.year <= year && guarded(line) === null),
+    calendar,
+  )
   const books = assetBooks([...known.assets, ...plannedAssets], known.grants, known.companyFacts, rules)
   const scheduled = scheduledLines(calendar, books, year)
 
@@ -318,7 +326,11 @@ function forecastOne(context: ForecastContext): YearForecast {
   ])
 
   const revenueTotal = summed('Revenue', [revenue.total, otherIncome.total], 'ledger')
-  const expenses = summed('Expenses', costLines.map((entry) => entry.forecast.total), 'ledger')
+  const expenses = summed(
+    'Expenses',
+    costLines.map((entry) => entry.forecast.total),
+    'ledger',
+  )
   const costOfRole = (role: PackRole, label: string): TracedFigure => {
     const slugs = categoriesWithRole(known.categories, role)
     const figures = categories.filter((entry) => slugs.includes(entry.category.slug)).map((entry) => entry.forecast.total)
@@ -339,10 +351,13 @@ function forecastOne(context: ForecastContext): YearForecast {
   const base = taxBase(taxBaseInput, rules)
 
   const cit = citOf(context, period, base)
-  const profitAfterTax = tracedFigure('Profit after tax', subtractMoney(base.profitBeforeTax.amount, cit.liability.liability.amount), 'ledger', rulesOf([base.profitBeforeTax, cit.liability.liability]), [
-    base.profitBeforeTax,
-    deducted(cit.liability.liability),
-  ])
+  const profitAfterTax = tracedFigure(
+    'Profit after tax',
+    subtractMoney(base.profitBeforeTax.amount, cit.liability.liability.amount),
+    'ledger',
+    rulesOf([base.profitBeforeTax, cit.liability.liability]),
+    [base.profitBeforeTax, deducted(cit.liability.liability)],
+  )
 
   const byPolicy = accrualBookings(known, rules)
   const settlementSlugs = categoriesWithRole(known.categories, PACK_ROLES.vatSettlement)
@@ -446,7 +461,8 @@ function categoryForecasts(
       basis: 'ledger',
       lastActual,
       actual,
-      planned: (month) => (handedOver && (lastActual === null || month > lastActual) ? tracedFigure(`${label}, ${monthLabel(month)}: set by the owner pay scenario`, ZERO, 'plan', []) : fromPlan(month)),
+      planned: (month) =>
+        handedOver && (lastActual === null || month > lastActual) ? tracedFigure(`${label}, ${monthLabel(month)}: set by the owner pay scenario`, ZERO, 'plan', []) : fromPlan(month),
       paidAhead: (month) => (category.roles.includes(PACK_ROLES.prepaidAnnual) && shares.has(shareKey(category.slug, month)) ? actual(month) : null),
       comparison: fromPlan,
       averagedMonths: arrears ? ARREARS_AVERAGED_MONTHS : AVERAGED_MONTHS,
@@ -510,7 +526,11 @@ function ownerPayForecast(plan: PlannedOwnerPay, director: Employee, known: HrDo
       : summed(`Salary from ${scenarioName}, ${monthLabel(month)}`, [paid.employerCost, paid.nontaxablePayments], 'plan')
   })
   const rent = lineOf('owner-pay-scenario-rent', `Rent from ${scenarioName}`, 'material-costs', (month) =>
-    summed(`Rent from ${scenarioName}, ${monthLabel(month)}`, pay.rent.filter((part) => part.month === month).map((part) => part.rent), 'plan'),
+    summed(
+      `Rent from ${scenarioName}, ${monthLabel(month)}`,
+      pay.rent.filter((part) => part.month === month).map((part) => part.rent),
+      'plan',
+    ),
   )
   return { plan, pay, lines: pay.rent.length === 0 ? [salary] : [salary, rent], lastActual: handover.lastActual, salaryDropped: salaryDropped(pay.schedule, known.grants) }
 }
@@ -563,7 +583,13 @@ function plannedDividendOf(plan: readonly PlanLine[], calendar: ForecastCalendar
     return null
   }
   const taxRule = rules('hr.pit.dividend', firstDayOf(month))
-  const tax = tracedFigure(`Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`, atRate(gross.amount, taxRule.value.rate.basisPoints), 'plan', [taxRule.citation], [gross])
+  const tax = tracedFigure(
+    `Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`,
+    atRate(gross.amount, taxRule.value.rate.basisPoints),
+    'plan',
+    [taxRule.citation],
+    [gross],
+  )
   const net = summed('Dividend after its tax', [gross, deducted(tax)], 'plan')
   const owed = owedByOwnerOn(known, asOf)
   const setOff = tracedFigure('Set off against what the owner owes', net.amount < owed.amount ? net.amount : owed.amount, 'plan', [], [net, owed])
@@ -592,30 +618,18 @@ function runwayOf(cash: TracedFigure, costLines: readonly ForecastPlLine[], nonC
 }
 
 /** The schedules of every year from the first tax period, matched to the bank rows, and the year's liability on them. */
-function citOf(
-  context: ForecastContext,
-  period: TaxPeriod,
-  base: TaxBase,
-): { readonly liability: CitLiability; readonly forecast: CitForecast } {
+function citOf(context: ForecastContext, period: TaxPeriod, base: TaxBase): { readonly liability: CitLiability; readonly forecast: CitForecast } {
   const { known, year, asOf, registered, rules } = context
   const facts = known.companyFacts
   const firstYear = yearOf(registered)
   const returnOf = (taxYear: number): PriorReturn => closedYearReturn(known.yearEndLines, taxYear, registered, rules) ?? context.forecastOf(taxYear).liability
   const returnsBefore = (taxYear: number) => [taxYear - 1, taxYear - 2].filter((prior) => prior >= firstYear).map(returnOf)
-  const schedules = Array.from({ length: year - firstYear + 1 }, (_, offset) => firstYear + offset).map((taxYear) =>
-    citSchedule(taxYear, returnsBefore(taxYear), facts, rules),
-  )
+  const schedules = Array.from({ length: year - firstYear + 1 }, (_, offset) => firstYear + offset).map((taxYear) => citSchedule(taxYear, returnsBefore(taxYear), facts, rules))
   const own = schedules[schedules.length - 1] as CitSchedule
   const matching = matchCitPayments(schedules, known.transactions, known.categories, asOf)
   const obligations = matching.obligations.filter((entry) => own.obligations.includes(entry.obligation))
   const advancesPaid = matching.advancesPaid.find((entry) => entry.year === year)?.paid ?? summed(`PD line 56, advances paid for ${year}`, [], 'ledger')
-  const advancesToCome = summed(
-    `Advances still to come for ${year}`,
-    obligations
-      .filter((entry) => entry.obligation.kind === 'advance' && entry.outstanding > 0)
-      .map(outstandingFigure),
-    'ledger',
-  )
+  const advancesToCome = summed(`Advances still to come for ${year}`, obligations.filter((entry) => entry.obligation.kind === 'advance' && entry.outstanding > 0).map(outstandingFigure), 'ledger')
   const liability = citLiability(base, period, summed(`PD line 56, advances paid and still to come for ${year}`, [advancesPaid, advancesToCome], 'ledger'), rules)
   const thisReturn = closedYearReturn(known.yearEndLines, year, registered, rules) ?? liability
   const nextYear = citSchedule(year + 1, [thisReturn, ...(year - 1 >= firstYear ? [returnOf(year - 1)] : [])], facts, rules)
@@ -634,7 +648,6 @@ function citOf(
     },
   }
 }
-
 
 function shareKey(slug: string, month: MonthKey): string {
   return `${slug} ${month}`
@@ -757,7 +770,14 @@ function unmodelled(
       if (ownerPayChoice.kind === 'refused') {
         return [{ line, reason: ownerPayChoice.guards.map((guard) => guard.reason).join(' ') }]
       }
-      return ownerPay === null ? [{ line, reason: "The payroll needs the director's row on the employees tab, with the city that sets its income tax rates, so the owner pay categories follow their own plan rows or averages." }] : []
+      return ownerPay === null
+        ? [
+            {
+              line,
+              reason: "The payroll needs the director's row on the employees tab, with the city that sets its income tax rates, so the owner pay categories follow their own plan rows or averages.",
+            },
+          ]
+        : []
     }
     const guard = guards.find((candidate) => candidate.ids.includes(line.id))
     if (guard !== undefined) {

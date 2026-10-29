@@ -268,7 +268,9 @@ describe('a sync over several apps', () => {
 
   it("runs each app's group in turn, and skips only the steps of the app whose books could not be read", async () => {
     const order: string[] = []
-    const noted = (id: string, result: StepResult = DONE) => async () => (order.push(id), result)
+    const noted =
+      (id: string, result: StepResult = DONE) =>
+      async () => (order.push(id), result)
     const companyBooks = step('books', 'drive.file', noted('company books', { kind: 'failed', line: 'Google did not answer.', link: null }))
     const statements = step('statements', 'drive.readonly', noted('statements'))
     const loansBooks = step('books', 'drive.file', noted('loans books'))
@@ -280,8 +282,22 @@ describe('a sync over several apps', () => {
     expect(order).toEqual(['company books', 'loans books', 'rates'])
     expect(statements.runs).not.toHaveBeenCalled()
     expect(sync.state.run?.groups.map((candidate) => [candidate.app, candidate.name, candidate.steps.map((planned) => [planned.id, planned.state.kind])])).toEqual([
-      ['company', 'Company', [['books', 'failed'], ['statements', 'skipped']]],
-      ['loans', 'Loans', [['books', 'done'], ['rates', 'done']]],
+      [
+        'company',
+        'Company',
+        [
+          ['books', 'failed'],
+          ['statements', 'skipped'],
+        ],
+      ],
+      [
+        'loans',
+        'Loans',
+        [
+          ['books', 'done'],
+          ['rates', 'done'],
+        ],
+      ],
     ])
     expect(control()).toEqual({ kind: 'problems', count: 1, labels: ['Books'] })
   })

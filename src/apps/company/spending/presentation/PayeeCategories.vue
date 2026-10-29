@@ -80,12 +80,7 @@ const spokenBreakdown = computed(
     </UPopover>
     <slot />
     <span v-if="categories.length > 1" class="split" aria-hidden="true">
-      <span
-        v-for="line in categories"
-        :key="line.category"
-        class="split-part"
-        :style="{ flexGrow: Math.max(0, line.amount) / paid, background: colours(line.category, line.bucket) }"
-      />
+      <span v-for="line in categories" :key="line.category" class="split-part" :style="{ flexGrow: Math.max(0, line.amount) / paid, background: colours(line.category, line.bucket) }" />
     </span>
   </div>
 </template>

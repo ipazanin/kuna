@@ -54,7 +54,13 @@ function paymentOrderKind(folded: string): PaymentOrderKind | null {
 
 /** The employee an IP1 form is for: the one whose name it carries, or else the only one employed in the month. */
 function ip1Employee(folded: string, month: MonthKey, employees: readonly Employee[]): Employee | null {
-  const named = employees.filter((employee) => employee.name !== '' && fold(employee.name).split(' ').every((word) => folded.includes(word)))
+  const named = employees.filter(
+    (employee) =>
+      employee.name !== '' &&
+      fold(employee.name)
+        .split(' ')
+        .every((word) => folded.includes(word)),
+  )
   if (named.length === 1) return named[0]!
   const employed = employees.filter((employee) => weekdaysEmployed(employee, month) !== null)
   return employed.length === 1 ? employed[0]! : null
@@ -95,7 +101,9 @@ export function payrollNamings(message: MailMessage, phrase: string, folder: rea
     if (kind !== null) return named(attachment, folders, `${month}-payment-order-${kind}.pdf`)
     if (/^PLATNI NALOG/.test(folded)) return { kind: 'unmatched', attachment, reason: 'It is a payment order of a kind the app does not know, so it is not filed under a guess.' }
     if (/^UN/.test(folded) && folded.endsWith('.XML')) {
-      return orderKind === null ? { kind: 'unmatched', attachment, reason: 'No payment order PDF in the same mail says which order it carries.' } : named(attachment, folders, `${month}-payment-order-${orderKind}.xml`)
+      return orderKind === null
+        ? { kind: 'unmatched', attachment, reason: 'No payment order PDF in the same mail says which order it carries.' }
+        : named(attachment, folders, `${month}-payment-order-${orderKind}.xml`)
     }
     return { kind: 'unmatched', attachment, reason: 'It is not a payroll document the app knows how to name.' }
   })

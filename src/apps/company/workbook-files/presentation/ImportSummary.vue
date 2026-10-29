@@ -79,14 +79,11 @@ const facts = computed(() => {
         </section>
 
         <p v-if="preview.summary.defaultedTabs.length" class="text-sm text-muted">
-          No {{ inWords(preview.summary.defaultedTabs) }} tab, so {{ preview.summary.defaultedTabs.length === 1 ? 'it reads' : 'they read' }} as
-          empty and the defaults apply.
+          No {{ inWords(preview.summary.defaultedTabs) }} tab, so {{ preview.summary.defaultedTabs.length === 1 ? 'it reads' : 'they read' }} as empty and the defaults apply.
         </p>
 
         <section v-if="preview.summary.problems.length" class="flex flex-col gap-2">
-          <h3 class="text-sm font-medium text-highlighted">
-            {{ preview.summary.problems.length }} {{ preview.summary.problems.length === 1 ? 'row' : 'rows' }} the app could not use as written
-          </h3>
+          <h3 class="text-sm font-medium text-highlighted">{{ preview.summary.problems.length }} {{ preview.summary.problems.length === 1 ? 'row' : 'rows' }} the app could not use as written</h3>
           <ProblemList :problems="preview.summary.problems" />
         </section>
         <p v-else class="flex items-center gap-2 text-sm text-toned">

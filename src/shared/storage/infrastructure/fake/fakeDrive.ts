@@ -166,9 +166,7 @@ export function createFakeDrive(): FakeDrive {
 
     async revisions(fileId) {
       requests.push('revisions')
-      return [...fileOf(fileId).revisions]
-        .sort((left, right) => left.modifiedTime.localeCompare(right.modifiedTime))
-        .map(({ id, modifiedTime, keepForever }) => ({ id, modifiedTime, keepForever }))
+      return [...fileOf(fileId).revisions].sort((left, right) => left.modifiedTime.localeCompare(right.modifiedTime)).map(({ id, modifiedTime, keepForever }) => ({ id, modifiedTime, keepForever }))
     },
 
     async downloadRevision(fileId, revisionId) {

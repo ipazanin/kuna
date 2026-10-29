@@ -24,7 +24,13 @@ describe('the pack part', () => {
   })
 
   it('puts drafted company facts on the books, so the mail a save of them switches on is read before it', () => {
-    const facts = { ...hrDooWorkbook(workbook).companyFacts, accountantMailFrom: ['office@accountant.example.com'], payrollMailSync: true, payrollMailSubject: 'Plaća za', payrollFolder: ['finance', 'payroll'] }
+    const facts = {
+      ...hrDooWorkbook(workbook).companyFacts,
+      accountantMailFrom: ['office@accountant.example.com'],
+      payrollMailSync: true,
+      payrollMailSubject: 'Plaća za',
+      payrollFolder: ['finance', 'payroll'],
+    }
     const drafted = hrDooPack.companyFacts!.withFacts(workbook, facts)
     const payroll = hrDooPack.mailSources[0]!
 

@@ -43,7 +43,14 @@ describe('switchedScenario', () => {
   it('moves a tax-free item of the second scenario to the switch day at the earliest', () => {
     const switched = switchedScenario(BOARD, FLOOR, civil('2027-03-01'))
     expect(switched.components.find((component) => component.component === 'nontaxable')?.from).toBe('2027-12-01')
-    const early = switchedScenario(BOARD, scenario('gift', 2027, [{ component: 'salary_gross', gross: 'floor', from: null, to: null }, { component: 'nontaxable', item: 'occasional-gift', amount: euros(133), from: null, to: null }]), civil('2027-03-01'))
+    const early = switchedScenario(
+      BOARD,
+      scenario('gift', 2027, [
+        { component: 'salary_gross', gross: 'floor', from: null, to: null },
+        { component: 'nontaxable', item: 'occasional-gift', amount: euros(133), from: null, to: null },
+      ]),
+      civil('2027-03-01'),
+    )
     expect(early.components.find((component) => component.component === 'nontaxable')?.from).toBe('2027-03-01')
   })
 })
@@ -68,9 +75,21 @@ describe('ownerPayPlan', () => {
   })
 
   it.each([
-    ['two switches', [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'board', '2027-06-05', 3), planOwnerPay(2027, 'raised', '2027-09-01', 4)], "The owner pay of 2027 switches on 2027-06-05 and 2027-09-01. A year's plan switches once, from one scenario to another."],
-    ['a switch with nothing before it', [planOwnerPay(2027, 'board', '2027-06-05', 3)], 'The owner pay switches to board on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.'],
-    ['a switch on 1 January', [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'board', '2027-01-01', 3)], 'The switch to board is dated 1 January 2027, which leaves the first scenario no day. Leave its date blank instead.'],
+    [
+      'two switches',
+      [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'board', '2027-06-05', 3), planOwnerPay(2027, 'raised', '2027-09-01', 4)],
+      "The owner pay of 2027 switches on 2027-06-05 and 2027-09-01. A year's plan switches once, from one scenario to another.",
+    ],
+    [
+      'a switch with nothing before it',
+      [planOwnerPay(2027, 'board', '2027-06-05', 3)],
+      'The owner pay switches to board on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.',
+    ],
+    [
+      'a switch on 1 January',
+      [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'board', '2027-01-01', 3)],
+      'The switch to board is dated 1 January 2027, which leaves the first scenario no day. Leave its date blank instead.',
+    ],
     ['a scenario of another year', [planOwnerPay(2027, 'old', null, 2)], 'The owner pay of 2027 names old, a scenario for 2026.'],
     [
       'two salaries in the switch month',

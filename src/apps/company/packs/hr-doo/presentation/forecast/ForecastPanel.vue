@@ -119,7 +119,8 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
       >
         <div class="px-4 pt-2 pb-3 sm:px-5">
           <p v-if="view.runway" class="pb-2 text-sm text-toned">
-            Cash at the year end lasts {{ view.runway.lasts }} at the cost of October to December, <MoneyText :cents="view.runway.monthlyCost" /> a month with the corporate tax due, as Overview counts runway.
+            Cash at the year end lasts {{ view.runway.lasts }} at the cost of October to December, <MoneyText :cents="view.runway.monthlyCost" /> a month with the corporate tax due, as Overview counts
+            runway.
           </p>
           <BuildUpList :lines="view.cashMonths" test-id="forecast-cash-months" />
         </div>

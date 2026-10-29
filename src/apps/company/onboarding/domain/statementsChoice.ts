@@ -48,7 +48,13 @@ export function statementSettingsOf(source: StatementsSource, mail: StatementMai
       return { ...none, statementsSync: true }
     case 'mail': {
       const { senders, subject } = mailTermsOf(mail)
-      return { statementsSync: true, statementsFolder: [BOOKS_FOLDER, MAIL_STATEMENTS_FOLDER], statementsMailFrom: senders, statementsMailSubject: subject, mailSince: mail.since ?? firstMailDay(today) }
+      return {
+        statementsSync: true,
+        statementsFolder: [BOOKS_FOLDER, MAIL_STATEMENTS_FOLDER],
+        statementsMailFrom: senders,
+        statementsMailSubject: subject,
+        mailSince: mail.since ?? firstMailDay(today),
+      }
     }
   }
 }

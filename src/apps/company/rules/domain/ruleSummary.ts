@@ -73,9 +73,7 @@ export function rulesChangeInWords(change: RulesTabChange): string {
   if (change.edited.every((edit) => changesOnly(edit, 'order'))) {
     const ahead = change.edited.find((edit) => orderOf(edit.fields) < orderOf(edit.expected))
     const behind = change.edited.find((edit) => edit !== ahead)
-    return change.edited.length === 2 && ahead !== undefined && behind !== undefined
-      ? `Moved ${idOf(ahead)} ahead of ${idOf(behind)}`
-      : `Renumbered ${change.edited.length} rules`
+    return change.edited.length === 2 && ahead !== undefined && behind !== undefined ? `Moved ${idOf(ahead)} ahead of ${idOf(behind)}` : `Renumbered ${change.edited.length} rules`
   }
   if (others.length === 0 && changesOnly(first, 'enabled')) {
     return `${cellText(first.fields.enabled).toUpperCase() === 'FALSE' ? 'Switched off' : 'Switched on'} ${idOf(first)}`

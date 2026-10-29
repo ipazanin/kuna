@@ -77,9 +77,7 @@ export function revenueByDelivery(invoices: readonly Invoice[], year: number, ru
       .map((share): MonthRevenue => ({
         month: share.month,
         revenue: tracedFigure(
-          periodGiven
-            ? `Invoice ${invoice.number}, ${share.days} of ${spread.totalDays} delivery days`
-            : `Invoice ${invoice.number}, on its issue date with no delivery period`,
+          periodGiven ? `Invoice ${invoice.number}, ${share.days} of ${spread.totalDays} delivery days` : `Invoice ${invoice.number}, on its issue date with no delivery period`,
           share.amount,
           'invoices',
           [accrual],

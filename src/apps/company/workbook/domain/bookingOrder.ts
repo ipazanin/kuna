@@ -57,9 +57,7 @@ function chained<Entry extends BookedEntry>(entries: readonly Entry[], opening: 
   const chain: Entry[] = []
   let balance = opening
   while (left.length > 0) {
-    const next = left.findIndex(
-      (entry, index) => (balance === null || openingOf(entry) === balance) && chainsFrom(entry.balance, [...left.slice(0, index), ...left.slice(index + 1)]),
-    )
+    const next = left.findIndex((entry, index) => (balance === null || openingOf(entry) === balance) && chainsFrom(entry.balance, [...left.slice(0, index), ...left.slice(index + 1)]))
     if (next === -1) {
       return null
     }

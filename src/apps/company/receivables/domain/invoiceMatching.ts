@@ -76,12 +76,7 @@ export interface Receivables {
  * Invoices against the revenue credits that paid them, client by client. A payment belongs to the
  * client whose IBAN sent it. Revenue and client refunds are the categories with those roles.
  */
-export function receivablesOf(
-  transactions: readonly Transaction[],
-  categories: readonly Category[],
-  invoices: readonly Invoice[],
-  clients: readonly Client[],
-): Receivables {
+export function receivablesOf(transactions: readonly Transaction[], categories: readonly Category[], invoices: readonly Invoice[], clients: readonly Client[]): Receivables {
   const revenue = categoriesWithRole(categories, RECEIVABLE_ROLES.revenue)
   const refunds = categoriesWithRole(categories, RECEIVABLE_ROLES.clientRefund)
   const clientOfIban = new Map(clients.flatMap((client) => client.ibans.map((iban) => [iban, client.slug] as const)))
@@ -115,11 +110,7 @@ export function receivablesOf(
  * day, less what earlier payments filled. So a credit that arrives before its invoice is a credit
  * with no invoice, and an overpayment never makes anything owed negative.
  */
-export function matchClientInvoices(
-  client: Client,
-  invoices: readonly Invoice[],
-  credits: readonly Transaction[],
-): Omit<ClientReceivables, 'refunded'> {
+export function matchClientInvoices(client: Client, invoices: readonly Invoice[], credits: readonly Transaction[]): Omit<ClientReceivables, 'refunded'> {
   const register = [...invoices].sort(invoiceOrder)
   const payments = oldestFirst(credits).map(paymentRow)
 
@@ -140,9 +131,7 @@ export function matchClientInvoices(
     return { payment, applied, leftover: subtractMoney(payment.transaction.amount, applied) }
   })
   // A leftover lands on the newest invoice for more than nothing that its payment could reach.
-  const overpayTargets = payments.map((payment) =>
-    register.reduce((target, invoice, position) => (invoice.issued <= payment.transaction.date && invoice.amount > 0 ? position : target), -1),
-  )
+  const overpayTargets = payments.map((payment) => register.reduce((target, invoice, position) => (invoice.issued <= payment.transaction.date && invoice.amount > 0 ? position : target), -1))
 
   let cumulative = ZERO
   const matched = register.map((invoice, position): MatchedInvoice => {

@@ -32,7 +32,11 @@ export function informalBalances(loan: InformalLoan, movements: readonly Movemen
 
 /** What is owed at the end of the day, nothing before the loan starts. */
 export function informalBalanceOn(loan: InformalLoan, movements: readonly Movement[], day: CivilDate): Money {
-  return informalBalances(loan, movements).filter((step) => step.date <= day).at(-1)?.balance ?? ZERO
+  return (
+    informalBalances(loan, movements)
+      .filter((step) => step.date <= day)
+      .at(-1)?.balance ?? ZERO
+  )
 }
 
 /** The newest movement, the last of its day in the file, or null when there is none. */

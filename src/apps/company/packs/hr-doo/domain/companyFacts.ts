@@ -69,103 +69,107 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     incomingInvoicesFolder: [],
   },
   definitions: [
-  {
-    key: 'hr_company_registered',
-    note: 'The day the company was registered, as a date or as text such as 2025-05-12. It starts the first tax period.',
-    type: 'date',
-    valueOf: (facts) => facts.companyRegistered ?? '',
-    apply: (facts, value) => {
-      const registered = parseCivilDate(value.trim())
-      return registered === null ? `"${value}" is not a date such as 2025-05-12` : withFacts(facts, { companyRegistered: registered })
+    {
+      key: 'hr_company_registered',
+      note: 'The day the company was registered, as a date or as text such as 2025-05-12. It starts the first tax period.',
+      type: 'date',
+      valueOf: (facts) => facts.companyRegistered ?? '',
+      apply: (facts, value) => {
+        const registered = parseCivilDate(value.trim())
+        return registered === null ? `"${value}" is not a date such as 2025-05-12` : withFacts(facts, { companyRegistered: registered })
+      },
     },
-  },
-  {
-    key: 'hr_cit_return',
-    note: 'pd for the corporate tax return on the accrual profit, pd-nn for the return on cash received and paid.',
-    type: 'text',
-    valueOf: (facts) => facts.citReturn,
-    apply: (facts, value) => {
-      const citReturn = value.trim().toLowerCase()
-      return isOneOf(citReturn, CIT_RETURNS) ? withFacts(facts, { citReturn }) : `"${citReturn}" is neither ${CIT_RETURNS.join(' nor ')}`
+    {
+      key: 'hr_cit_return',
+      note: 'pd for the corporate tax return on the accrual profit, pd-nn for the return on cash received and paid.',
+      type: 'text',
+      valueOf: (facts) => facts.citReturn,
+      apply: (facts, value) => {
+        const citReturn = value.trim().toLowerCase()
+        return isOneOf(citReturn, CIT_RETURNS) ? withFacts(facts, { citReturn }) : `"${citReturn}" is neither ${CIT_RETURNS.join(' nor ')}`
+      },
     },
-  },
-  {
-    key: 'hr_vat_principle',
-    note: 'invoice when VAT falls due on the invoice date, cash when it falls due on payment.',
-    type: 'text',
-    valueOf: (facts) => facts.vatPrinciple,
-    apply: (facts, value) => {
-      const vatPrinciple = value.trim().toLowerCase()
-      return isOneOf(vatPrinciple, VAT_PRINCIPLES) ? withFacts(facts, { vatPrinciple }) : `"${vatPrinciple}" is neither ${VAT_PRINCIPLES.join(' nor ')}`
+    {
+      key: 'hr_vat_principle',
+      note: 'invoice when VAT falls due on the invoice date, cash when it falls due on payment.',
+      type: 'text',
+      valueOf: (facts) => facts.vatPrinciple,
+      apply: (facts, value) => {
+        const vatPrinciple = value.trim().toLowerCase()
+        return isOneOf(vatPrinciple, VAT_PRINCIPLES) ? withFacts(facts, { vatPrinciple }) : `"${vatPrinciple}" is neither ${VAT_PRINCIPLES.join(' nor ')}`
+      },
     },
-  },
-  {
-    key: 'hr_depreciation_doubled',
-    note: 'TRUE when the accountant doubles the depreciation rates by default. An asset row can still say otherwise.',
-    type: 'flag',
-    valueOf: (facts) => flagText(facts.depreciationDoubled),
-    apply: (facts, value) => {
-      const doubled = booleanOf(value)
-      return doubled === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { depreciationDoubled: doubled })
+    {
+      key: 'hr_depreciation_doubled',
+      note: 'TRUE when the accountant doubles the depreciation rates by default. An asset row can still say otherwise.',
+      type: 'flag',
+      valueOf: (facts) => flagText(facts.depreciationDoubled),
+      apply: (facts, value) => {
+        const doubled = booleanOf(value)
+        return doubled === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { depreciationDoubled: doubled })
+      },
     },
-  },
-  {
-    key: 'hr_owner_loan_interest',
-    note: "The yearly interest rate the owner's loans from the company carry, as a percentage cell such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
-    type: 'number',
-    valueOf: (facts) => String(facts.ownerLoanInterest / BASIS_POINTS_PER_WHOLE),
-    apply: (facts, value) => {
-      const rate = rateOf(value)
-      return typeof rate === 'string' ? rate : (ownerLoanInterestProblem(rate) ?? withFacts(facts, { ownerLoanInterest: rate }))
+    {
+      key: 'hr_owner_loan_interest',
+      note: "The yearly interest rate the owner's loans from the company carry, as a percentage cell such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
+      type: 'number',
+      valueOf: (facts) => String(facts.ownerLoanInterest / BASIS_POINTS_PER_WHOLE),
+      apply: (facts, value) => {
+        const rate = rateOf(value)
+        return typeof rate === 'string' ? rate : (ownerLoanInterestProblem(rate) ?? withFacts(facts, { ownerLoanInterest: rate }))
+      },
     },
-  },
-  {
-    key: 'hr_vat_returns_folder',
-    note: "The Google Drive folder the accountant's VAT return mail is filed in, as a path from My Drive, with a folder for each year inside. Blank names none.",
-    type: 'text',
-    valueOf: (facts) => facts.vatReturnsFolder.join('/'),
-    apply: (facts, value) => {
-      const folders = folderPathOf(value)
-      return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { vatReturnsFolder: folders })
+    {
+      key: 'hr_vat_returns_folder',
+      note: "The Google Drive folder the accountant's VAT return mail is filed in, as a path from My Drive, with a folder for each year inside. Blank names none.",
+      type: 'text',
+      valueOf: (facts) => facts.vatReturnsFolder.join('/'),
+      apply: (facts, value) => {
+        const folders = folderPathOf(value)
+        return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { vatReturnsFolder: folders })
+      },
     },
-  },
-  {
-    key: 'hr_payroll_folder',
-    note: "The Google Drive folder the accountant's payroll mail is filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
-    type: 'text',
-    valueOf: (facts) => facts.payrollFolder.join('/'),
-    apply: (facts, value) => {
-      const folders = folderPathOf(value)
-      return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { payrollFolder: folders })
+    {
+      key: 'hr_payroll_folder',
+      note: "The Google Drive folder the accountant's payroll mail is filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
+      type: 'text',
+      valueOf: (facts) => facts.payrollFolder.join('/'),
+      apply: (facts, value) => {
+        const folders = folderPathOf(value)
+        return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { payrollFolder: folders })
+      },
     },
-  },
-  {
-    key: 'hr_accountant_mail_from',
-    note: "The addresses the accountant mails from, comma separated, which each kind of the accountant's mail that is switched on searches Gmail for.",
-    type: 'text',
-    valueOf: (facts) => facts.accountantMailFrom.join(', '),
-    apply: (facts, value) => {
-      const senders = mailAddressesOf(value)
-      return mailAddressesProblem(senders) ?? withFacts(facts, { accountantMailFrom: senders })
+    {
+      key: 'hr_accountant_mail_from',
+      note: "The addresses the accountant mails from, comma separated, which each kind of the accountant's mail that is switched on searches Gmail for.",
+      type: 'text',
+      valueOf: (facts) => facts.accountantMailFrom.join(', '),
+      apply: (facts, value) => {
+        const senders = mailAddressesOf(value)
+        return mailAddressesProblem(senders) ?? withFacts(facts, { accountantMailFrom: senders })
+      },
     },
-  },
-  mailSyncDefinition('hr_payroll_mail_sync', 'payrollMailSync', "TRUE to have each sync read the accountant's payroll mail. FALSE, the default, makes no Gmail or Drive call for it."),
-  mailSyncDefinition('hr_vat_mail_sync', 'vatMailSync', "TRUE to have each sync read the accountant's VAT return mail. FALSE, the default, makes no Gmail or Drive call for it."),
-  mailSyncDefinition('hr_invoices_mail_sync', 'invoicesMailSync', "TRUE to have each sync read the accountant's invoice mail. FALSE, the default, makes no Gmail or Drive call for it."),
-  mailSubjectDefinition('hr_payroll_mail_subject', 'payrollMailSubject', 'The words the subject of the payroll mail starts with, before the month, such as Plaća za.'),
-  mailSubjectDefinition('hr_vat_mail_subject', 'vatMailSubject', 'The words the subject of the VAT return mail starts with, before the period, such as PDV za.'),
-  mailSubjectDefinition('hr_invoices_mail_subject', 'invoicesMailSubject', "The words the subject of the accountant's invoice mail starts with, such as Račun za. Mail whose subject does not start with them is not filed."),
-  {
-    key: 'hr_incoming_invoices_folder',
-    note: "The Google Drive folder the accountant's own invoices are filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
-    type: 'text',
-    valueOf: (facts) => facts.incomingInvoicesFolder.join('/'),
-    apply: (facts, value) => {
-      const folders = folderPathOf(value)
-      return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { incomingInvoicesFolder: folders })
+    mailSyncDefinition('hr_payroll_mail_sync', 'payrollMailSync', "TRUE to have each sync read the accountant's payroll mail. FALSE, the default, makes no Gmail or Drive call for it."),
+    mailSyncDefinition('hr_vat_mail_sync', 'vatMailSync', "TRUE to have each sync read the accountant's VAT return mail. FALSE, the default, makes no Gmail or Drive call for it."),
+    mailSyncDefinition('hr_invoices_mail_sync', 'invoicesMailSync', "TRUE to have each sync read the accountant's invoice mail. FALSE, the default, makes no Gmail or Drive call for it."),
+    mailSubjectDefinition('hr_payroll_mail_subject', 'payrollMailSubject', 'The words the subject of the payroll mail starts with, before the month, such as Plaća za.'),
+    mailSubjectDefinition('hr_vat_mail_subject', 'vatMailSubject', 'The words the subject of the VAT return mail starts with, before the period, such as PDV za.'),
+    mailSubjectDefinition(
+      'hr_invoices_mail_subject',
+      'invoicesMailSubject',
+      "The words the subject of the accountant's invoice mail starts with, such as Račun za. Mail whose subject does not start with them is not filed.",
+    ),
+    {
+      key: 'hr_incoming_invoices_folder',
+      note: "The Google Drive folder the accountant's own invoices are filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
+      type: 'text',
+      valueOf: (facts) => facts.incomingInvoicesFolder.join('/'),
+      apply: (facts, value) => {
+        const folders = folderPathOf(value)
+        return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { incomingInvoicesFolder: folders })
+      },
     },
-  },
-],
+  ],
 }
 
 type MailSubjectFact = 'payrollMailSubject' | 'vatMailSubject' | 'invoicesMailSubject'

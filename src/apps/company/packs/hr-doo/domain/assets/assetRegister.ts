@@ -72,12 +72,7 @@ export interface AssetRegister {
  * dated before the ruleset knows a standard VAT rate is never claimed, and the asset that would
  * claim it says so.
  */
-export function assetRegister(
-  assets: readonly Asset[],
-  transactions: readonly Transaction[],
-  categories: readonly Category[],
-  rules: RuleSource = ruleValue,
-): AssetRegister {
+export function assetRegister(assets: readonly Asset[], transactions: readonly Transaction[], categories: readonly Category[], rules: RuleSource = ruleValue): AssetRegister {
   const capitalPurchaseCategories = categoriesWithRole(categories, PACK_ROLES.capitalPurchase)
   const debits = oldestFirst(transactions.filter((row) => row.amount < 0))
   const found = assets.map((asset) => referenceMatch(asset, debits))
@@ -96,9 +91,15 @@ export function assetRegister(
       return { asset, payment: known }
     }
     const open = purchases.filter((row) => !claimed.has(row))
-    const row = nearestTo(asset, open.filter((candidate) => vatRateKnown(candidate) && paysFor(candidate, asset.costNet, rules)))
+    const row = nearestTo(
+      asset,
+      open.filter((candidate) => vatRateKnown(candidate) && paysFor(candidate, asset.costNet, rules)),
+    )
     if (row === null) {
-      const unchecked = nearestTo(asset, open.filter((candidate) => !vatRateKnown(candidate)))
+      const unchecked = nearestTo(
+        asset,
+        open.filter((candidate) => !vatRateKnown(candidate)),
+      )
       if (unchecked !== null) {
         uncheckedClaims.push({ asset, row: unchecked, matchedBy: 'date-and-amount' })
       }
@@ -160,11 +161,17 @@ function referenceMatch(asset: Asset, debits: readonly Transaction[]): AssetPaym
   if (reference === '') {
     return null
   }
-  const exact = nearestTo(asset, debits.filter((row) => normalised(row.reference) === reference))
+  const exact = nearestTo(
+    asset,
+    debits.filter((row) => normalised(row.reference) === reference),
+  )
   if (exact !== null) {
     return { row: exact, matchedBy: 'reference', drill: rowDrill(exact) }
   }
-  const described = nearestTo(asset, debits.filter((row) => normalised(row.description).includes(reference)))
+  const described = nearestTo(
+    asset,
+    debits.filter((row) => normalised(row.description).includes(reference)),
+  )
   return described === null ? null : { row: described, matchedBy: 'description', drill: rowDrill(described) }
 }
 

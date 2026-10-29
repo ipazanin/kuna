@@ -128,43 +128,39 @@ const owed = computed(() => {
     advanceSummary: figuresOf(inPeriod.advances, ['Owed at the start', 'Paid by the owner', 'Reimbursed', 'Owed at the end']),
     advancesSummary: `${inPeriod.advanceList.length} ${inPeriod.advanceList.length === 1 ? 'cost' : 'costs'}, ${formatWholeMoney(inPeriod.advances.end.amount)} owed to the owner on ${on}`,
     loansSummary: `${inPeriod.loanList.length} ${inPeriod.loanList.length === 1 ? 'loan' : 'loans'}, ${inPeriod.openLoans === 0 ? 'none open' : `${inPeriod.openLoans} open`} on ${on}`,
-    advances: [...inPeriod.advanceList].reverse().map(
-      (line): AdvanceLine => ({
-        id: line.advance.id,
-        paidOn: dayLabel(line.advance.date),
-        description: line.advance.description,
-        category: names.value.category(line.advance.category),
-        amount: line.advance.amount,
-        to: drillLocation(line.drill),
-        remaining: line.remaining,
-        open: line.status === 'open',
-        repaidOn: line.repaidOn === null ? null : dayLabel(line.repaidOn),
-        repayments: line.repayments.map((share, shareIndex) => ({
-          key: `${share.repaidOn}-${shareIndex}`,
-          date: dayLabel(share.repaidOn),
-          applied: share.applied,
-          to: drillLocation(share.drill),
-        })),
-      }),
-    ),
-    loans: [...inPeriod.loanList].reverse().map(
-      (loan, index): LoanLine => ({
-        key: `${loan.lentOn}-${index}`,
-        lentOn: dayLabel(loan.lentOn),
-        part: loan.row.split === undefined ? null : partOfPayment(loan.row.split.whole, loan.row.split.note),
-        amount: loan.amount,
-        remaining: loan.remaining,
-        open: loan.status === 'open',
-        repaidOn: loan.repaidOn === null ? null : dayLabel(loan.repaidOn),
-        to: drillLocation(loan.drill),
-        repayments: loan.repayments.map((share, shareIndex) => ({
-          key: `${share.repaidOn}-${shareIndex}`,
-          date: dayLabel(share.repaidOn),
-          applied: share.applied,
-          to: drillLocation(share.drill),
-        })),
-      }),
-    ),
+    advances: [...inPeriod.advanceList].reverse().map((line): AdvanceLine => ({
+      id: line.advance.id,
+      paidOn: dayLabel(line.advance.date),
+      description: line.advance.description,
+      category: names.value.category(line.advance.category),
+      amount: line.advance.amount,
+      to: drillLocation(line.drill),
+      remaining: line.remaining,
+      open: line.status === 'open',
+      repaidOn: line.repaidOn === null ? null : dayLabel(line.repaidOn),
+      repayments: line.repayments.map((share, shareIndex) => ({
+        key: `${share.repaidOn}-${shareIndex}`,
+        date: dayLabel(share.repaidOn),
+        applied: share.applied,
+        to: drillLocation(share.drill),
+      })),
+    })),
+    loans: [...inPeriod.loanList].reverse().map((loan, index): LoanLine => ({
+      key: `${loan.lentOn}-${index}`,
+      lentOn: dayLabel(loan.lentOn),
+      part: loan.row.split === undefined ? null : partOfPayment(loan.row.split.whole, loan.row.split.note),
+      amount: loan.amount,
+      remaining: loan.remaining,
+      open: loan.status === 'open',
+      repaidOn: loan.repaidOn === null ? null : dayLabel(loan.repaidOn),
+      to: drillLocation(loan.drill),
+      repayments: loan.repayments.map((share, shareIndex) => ({
+        key: `${share.repaidOn}-${shareIndex}`,
+        date: dayLabel(share.repaidOn),
+        applied: share.applied,
+        to: drillLocation(share.drill),
+      })),
+    })),
   }
 })
 
@@ -193,16 +189,10 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
     </p>
 
     <div class="wide-pair">
-      <AppCard
-        v-if="owed.hasLoanRoles"
-        title="Every loan, with the repayments that closed it"
-        collapse-id="owner.loans"
-        :summary="owed.loansSummary"
-        data-testid="owner-loans"
-      >
+      <AppCard v-if="owed.hasLoanRoles" title="Every loan, with the repayments that closed it" collapse-id="owner.loans" :summary="owed.loansSummary" data-testid="owner-loans">
         <template #subtitle>
-          {{ owed.period }}. Each loan with a balance in the period, as it stood on {{ owed.on }}, private costs and the owner's parts of split company payments
-          included. Repayments first close the loans they equal exactly. The rest go to the oldest open loan first, and one that outruns a loan carries on to the next.
+          {{ owed.period }}. Each loan with a balance in the period, as it stood on {{ owed.on }}, private costs and the owner's parts of split company payments included. Repayments first close the
+          loans they equal exactly. The rest go to the oldest open loan first, and one that outruns a loan carries on to the next.
           <template v-if="owed.openCount > 0">{{ owed.openCount }} open, the oldest from {{ owed.oldestOpen }}.</template>
           <template v-else>None open.</template>
         </template>
@@ -225,8 +215,8 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
       <AppCard title="Costs the owner paid privately" collapse-id="owner.advances" :summary="owed.advancesSummary" data-testid="owner-advances">
         <template #subtitle>
           <span class="block max-w-[65ch]">
-            {{ owed.period }}, from the owner-advances tab. Each cost owed in the period, as it stood on {{ owed.on }}. Each counts as a cost on its date, in its
-            category. Reimbursements to the owner first repay the costs they equal exactly, and the rest repay the oldest first. They stay outside profit and loss.
+            {{ owed.period }}, from the owner-advances tab. Each cost owed in the period, as it stood on {{ owed.on }}. Each counts as a cost on its date, in its category. Reimbursements to the owner
+            first repay the costs they equal exactly, and the rest repay the oldest first. They stay outside profit and loss.
           </span>
         </template>
         <template #header>

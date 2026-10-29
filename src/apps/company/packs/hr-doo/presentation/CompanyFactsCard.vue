@@ -82,12 +82,7 @@ function missingFor(kind: MailKind): MailTermPiece[] {
 }
 
 const route = useRoute()
-const revealed = computed(
-  () =>
-    LINKED_FACTS.includes(route.hash.slice(1)) ||
-    Object.keys(props.errors).length > 0 ||
-    MAIL_KINDS.some((kind) => missingFor(kind).length > 0),
-)
+const revealed = computed(() => LINKED_FACTS.includes(route.hash.slice(1)) || Object.keys(props.errors).length > 0 || MAIL_KINDS.some((kind) => missingFor(kind).length > 0))
 const summary = computed(() => {
   const { companyRegistered, ownerLoanInterest } = props.saved
   return `${companyRegistered === null ? 'The registration day is not set' : `Registered on ${dayLabel(companyRegistered)}`}. Loans to the owner carry ${ownerLoanInterest / 100}%.`
@@ -180,12 +175,7 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
     <div class="flex flex-col gap-4 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField id="company-registered" label="Company registered on" help="Starts the first tax period.">
-          <UInput
-            :model-value="facts.companyRegistered ?? ''"
-            type="date"
-            class="w-full"
-            @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))"
-          />
+          <UInput :model-value="facts.companyRegistered ?? ''" type="date" class="w-full" @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))" />
         </UFormField>
         <UFormField
           id="owner-loan-interest"
@@ -221,7 +211,15 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
           help="Mail addresses, comma separated, which every kind below searches for."
           data-testid="accountant-mail-from"
         >
-          <UInput :model-value="accountantMailText" inputmode="email" autocapitalize="off" :spellcheck="false" placeholder="Not read" class="w-full" @update:model-value="updateAccountantMail(String($event))" />
+          <UInput
+            :model-value="accountantMailText"
+            inputmode="email"
+            autocapitalize="off"
+            :spellcheck="false"
+            placeholder="Not read"
+            class="w-full"
+            @update:model-value="updateAccountantMail(String($event))"
+          />
         </UFormField>
         <div class="flex flex-col divide-y divide-default">
           <section v-for="kind in MAIL_KINDS" :key="kind.id" class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0" :data-testid="`${kind.id}-mail-kind`">

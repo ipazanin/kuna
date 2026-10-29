@@ -174,7 +174,9 @@ async function remove(): Promise<void> {
   <UModal
     v-model:open="open"
     :title="id === null ? 'Add an invoice' : `Edit invoice ${opened.number}`"
-    :description="id === null ? 'One row of the invoices tab, for an invoice made elsewhere. Make invoice draws, files and records a new one.' : 'On the invoices tab. Only the cells you change are written.'"
+    :description="
+      id === null ? 'One row of the invoices tab, for an invoice made elsewhere. Make invoice draws, files and records a new one.' : 'On the invoices tab. Only the cells you change are written.'
+    "
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"
   >
@@ -209,16 +211,7 @@ async function remove(): Promise<void> {
     </template>
     <template #footer>
       <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="id !== null"
-          label="Delete invoice"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="invoice-delete"
-          @click="remove"
-        />
+        <UButton v-if="id !== null" label="Delete invoice" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="invoice-delete" @click="remove" />
         <UButton
           v-if="id !== null"
           label="Re-export"

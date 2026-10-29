@@ -10,11 +10,7 @@ import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
  * The rows a filter state selects, in the order given. The window is the whole ledger's, so the
  * rolling periods end where they end everywhere else.
  */
-export function filterTransactions(
-  transactions: readonly Transaction[],
-  filters: FilterState,
-  window: LedgerWindow,
-): Transaction[] {
+export function filterTransactions(transactions: readonly Transaction[], filters: FilterState, window: LedgerWindow): Transaction[] {
   return transactionsInPeriod(scopeTransactions(transactions, filters), filters.period, window)
 }
 
@@ -91,7 +87,5 @@ function includes<Value>(selection: readonly Value[], candidate: Value): boolean
 }
 
 function searchableText(transaction: Transaction): string {
-  return fold(
-    [transaction.counterparty, transaction.description, transaction.category, transaction.reference, transaction.statement].join(' '),
-  )
+  return fold([transaction.counterparty, transaction.description, transaction.category, transaction.reference, transaction.statement].join(' '))
 }

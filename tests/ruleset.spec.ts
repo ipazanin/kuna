@@ -10,17 +10,7 @@ import { companyLawOpenItems, companyLawRules } from '../src/apps/company/packs/
 import { ownerPayOpenItems, ownerPayRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/owner-pay'
 import { profitTaxOpenItems, profitTaxRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/profit-tax'
 import { vatOpenItems, vatRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/vat'
-import {
-  OPEN_ITEMS,
-  RULES,
-  RULESET_CHECKED_ON,
-  RULESET_FIRST_DAY,
-  citationOf,
-  ruleValue,
-  rulesFor,
-  versionOn,
-  watchItems,
-} from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import { OPEN_ITEMS, RULES, RULESET_CHECKED_ON, RULESET_FIRST_DAY, citationOf, ruleValue, rulesFor, versionOn, watchItems } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import type { RuleId } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import { ruleView, termFormat } from '../src/apps/company/packs/hr-doo/ruleset/presentation/ruleWording'
 import { basisPoints, cents, count, day, flag, isWatchedConfidence, table, text } from '../src/apps/company/packs/hr-doo/ruleset/schema'
@@ -370,10 +360,7 @@ describe('the ruleset data', () => {
         continue
       }
       const uncovered = forecastDays.filter(
-        (forecastDay) =>
-          rule.versions.filter(
-            (version) => version.validFrom <= forecastDay && (version.validTo === null || forecastDay <= version.validTo),
-          ).length !== 1,
+        (forecastDay) => rule.versions.filter((version) => version.validFrom <= forecastDay && (version.validTo === null || forecastDay <= version.validTo)).length !== 1,
       )
       if (uncovered.length > 0) {
         problems.push(`${id}: ${uncovered.length} days of 2025 and 2026 without exactly one version, the first ${uncovered[0]}`)

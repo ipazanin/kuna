@@ -61,7 +61,15 @@ function company(changes: Partial<ScenarioCompany> = {}): ScenarioCompany {
 type Draft = ScenarioComponent extends infer Each ? (Each extends ScenarioComponent ? Omit<Each, 'id' | 'from' | 'to'> & { from?: string; to?: string } : never) : never
 
 function scenario(year: number, drafts: readonly Draft[]): OwnerPayScenario {
-  const components = drafts.map((draft, index) => ({ ...draft, from: draft.from === undefined ? null : civil(draft.from), to: draft.to === undefined ? null : civil(draft.to), id: recordIdOf(SCENARIO_RECORDS, `row-${index + 2}`) }) as ScenarioComponent)
+  const components = drafts.map(
+    (draft, index) =>
+      ({
+        ...draft,
+        from: draft.from === undefined ? null : civil(draft.from),
+        to: draft.to === undefined ? null : civil(draft.to),
+        id: recordIdOf(SCENARIO_RECORDS, `row-${index + 2}`),
+      }) as ScenarioComponent,
+  )
   return { slug: 'test', label: 'Test', year, components }
 }
 

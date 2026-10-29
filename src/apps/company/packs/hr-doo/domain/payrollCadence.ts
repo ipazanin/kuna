@@ -40,9 +40,7 @@ export interface PayrollCadence {
  * owner paid privately counts too, so pass the bookings with the advances.
  */
 export function payrollCadence(transactions: readonly Booking[], categories: readonly Category[], window: LedgerWindow): PayrollCadence[] {
-  const watched = categoriesWithRole(categories, PACK_ROLES.watched).filter(
-    (slug) => categories.find((category) => category.slug === slug)?.bucket === 'taxes',
-  )
+  const watched = categoriesWithRole(categories, PACK_ROLES.watched).filter((slug) => categories.find((category) => category.slug === slug)?.bucket === 'taxes')
   return watched.flatMap((category) => {
     const rows = transactions.filter((transaction) => transaction.category === category)
     if (rows.length === 0) {

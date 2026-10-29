@@ -20,7 +20,11 @@ type Records = Partial<Record<'bank-loan' | 'rate-period' | 'extra-payment' | 'l
 
 function booksOf(records: Records) {
   const document = newDocument(LOANS_APP, { loans: 1 }, records, '2026-10-28T09:00:00.000Z')
-  return LOANS_DOCUMENT.read({ meta: { id: 'local', source: 'browser', title: 'kuna-loans.json', syncedAt: '2026-10-28T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }, revision: '1', document }).workbook
+  return LOANS_DOCUMENT.read({
+    meta: { id: 'local', source: 'browser', title: 'kuna-loans.json', syncedAt: '2026-10-28T09:00:00.000Z', lastExportedAt: null, unexportedSince: null },
+    revision: '1',
+    document,
+  }).workbook
 }
 
 /** Each problem as its kind, the record's label and the reason. */

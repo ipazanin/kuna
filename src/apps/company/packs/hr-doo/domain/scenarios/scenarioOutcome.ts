@@ -33,11 +33,7 @@ export type ScenarioWarning =
   | { readonly kind: 'cash-short'; readonly cashAfter: TracedFigure }
 
 /** What a scenario rests on that the figures cannot show, so a person can check it holds. */
-export type ScenarioNote =
-  | { readonly kind: 'tax-free-basis'; readonly item: string }
-  | { readonly kind: 'rent-basis' }
-  | { readonly kind: 'board-only' }
-  | { readonly kind: 'insured-elsewhere' }
+export type ScenarioNote = { readonly kind: 'tax-free-basis'; readonly item: string } | { readonly kind: 'rent-basis' } | { readonly kind: 'board-only' } | { readonly kind: 'insured-elsewhere' }
 
 export interface ScenarioTaxes {
   readonly pensionPillarOne: TracedFigure
@@ -128,12 +124,24 @@ export function scenarioOutcome(scenario: OwnerPayScenario, company: ScenarioCom
   const { schedule, payroll, settlement, own } = pay
   const warnings: ScenarioWarning[] = [...pay.warnings]
 
-  const rent = summed('Rent paid to you', pay.rent.map((part) => part.rent), BASIS)
-  const rentTax = summed('Rent tax', pay.rent.map((part) => part.tax), BASIS)
+  const rent = summed(
+    'Rent paid to you',
+    pay.rent.map((part) => part.rent),
+    BASIS,
+  )
+  const rentTax = summed(
+    'Rent tax',
+    pay.rent.map((part) => part.tax),
+    BASIS,
+  )
   const rentAfterTax = summed('Rent after the rent tax', [rent, deducted(rentTax)], BASIS)
 
   const byMonth = (pick: (month: PayrollMonth) => TracedFigure, label: string) =>
-    summed(label, payroll.map((month) => ({ ...pick(month), label: `${pick(month).label}, ${monthLabel(month.workedMonth)}` })), BASIS)
+    summed(
+      label,
+      payroll.map((month) => ({ ...pick(month), label: `${pick(month).label}, ${monthLabel(month.workedMonth)}` })),
+      BASIS,
+    )
   const grossTwo = byMonth((month) => month.employerCost, 'Gross II, the salary and health on top')
   const taxFree = byMonth((month) => month.nontaxablePayments, 'Tax-free items within their caps')
   const netSalary = byMonth((month) => month.net, 'Net salary')
@@ -202,12 +210,11 @@ export function scenarioOutcome(scenario: OwnerPayScenario, company: ScenarioCom
         ])
       : null
 
-  const cashAfter = summed("Cash after the year's owner pay, corporate tax and the dividend paid in cash", [
-    company.cashBeforeOwnerPay,
-    deducted(deductibleOwnerPay),
-    deducted(corporateTax),
-    deducted(dividend.cashOut),
-  ], BASIS)
+  const cashAfter = summed(
+    "Cash after the year's owner pay, corporate tax and the dividend paid in cash",
+    [company.cashBeforeOwnerPay, deducted(deductibleOwnerPay), deducted(corporateTax), deducted(dividend.cashOut)],
+    BASIS,
+  )
   if (cashAfter.amount < 0) {
     warnings.push({ kind: 'cash-short', cashAfter })
   }
@@ -265,14 +272,23 @@ function dividendOf(schedule: ScenarioSchedule, company: ScenarioCompany, profit
   const distributableRule = rules('hr.ztd.distributable-profit', yearEnd)
   const protection = rules('hr.ztd.capital-protection', yearEnd)
   const distributableSteps = [profitAfterTax, company.retainedBroughtIn]
-  const distributable = tracedFigure('Distributable profit', sumMoney(distributableSteps.map((step) => step.amount)), BASIS, [distributableRule.citation, ...rulesOf(distributableSteps)], distributableSteps)
+  const distributable = tracedFigure(
+    'Distributable profit',
+    sumMoney(distributableSteps.map((step) => step.amount)),
+    BASIS,
+    [distributableRule.citation, ...rulesOf(distributableSteps)],
+    distributableSteps,
+  )
   const netAssetsBefore = summed('Net assets at the year end, before the payout', [company.shareCapital, company.reserves, distributable], BASIS)
   const room = subtractMoney(netAssetsBefore.amount, company.shareCapital.amount)
   const most = distributable.amount < room ? distributable.amount : room
-  const maxPayout = tracedFigure('The most the year can pay out with the share capital still covered', most > 0 ? most : ZERO, BASIS, [distributableRule.citation, protection.citation], [
-    distributable,
-    tracedFigure('Net assets above the share capital', room, BASIS, [protection.citation], [netAssetsBefore, deducted(company.shareCapital)]),
-  ])
+  const maxPayout = tracedFigure(
+    'The most the year can pay out with the share capital still covered',
+    most > 0 ? most : ZERO,
+    BASIS,
+    [distributableRule.citation, protection.citation],
+    [distributable, tracedFigure('Net assets above the share capital', room, BASIS, [protection.citation], [netAssetsBefore, deducted(company.shareCapital)])],
+  )
   const chosen = schedule.dividend
   const ofYear = profitAfterTax.amount < maxPayout.amount ? profitAfterTax.amount : maxPayout.amount
   const gross =
@@ -282,7 +298,13 @@ function dividendOf(schedule: ScenarioSchedule, company: ScenarioCompany, profit
         ? tracedFigure("Dividend of the year's profit after tax, as far as the payout limit allows", ofYear > 0 ? ofYear : ZERO, BASIS, maxPayout.rules, [profitAfterTax, maxPayout])
         : tracedFigure('Dividend', chosen.amount, BASIS, [distributableRule.citation])
   const taxRule = rules('hr.pit.dividend', civilDate(year + 1, 1, 1))
-  const tax = tracedFigure(`Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`, atRate(gross.amount, taxRule.value.rate.basisPoints), BASIS, [taxRule.citation], [gross])
+  const tax = tracedFigure(
+    `Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`,
+    atRate(gross.amount, taxRule.value.rate.basisPoints),
+    BASIS,
+    [taxRule.citation],
+    [gross],
+  )
   const net = summed('Dividend after its tax', [gross, deducted(tax)], BASIS)
   const owed = company.owedByOwner.amount > 0 ? company.owedByOwner.amount : ZERO
   const setOff = tracedFigure('Of it, set off against what you owe the company', net.amount < owed ? net.amount : owed, BASIS, [], [net, company.owedByOwner])
@@ -324,4 +346,3 @@ function watchedIn(figures: readonly TracedFigure[]): RuleCitation[] {
   figures.forEach(walk)
   return [...found.values()]
 }
-

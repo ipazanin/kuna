@@ -62,13 +62,7 @@ const groupName = computed(() => {
 </script>
 
 <template>
-  <button
-    type="button"
-    class="group-toggle"
-    :aria-expanded="expanded"
-    data-testid="group-toggle"
-    @click="emit('toggle')"
-  >
+  <button type="button" class="group-toggle" :aria-expanded="expanded" data-testid="group-toggle" @click="emit('toggle')">
     <UIcon name="i-lucide-chevron-down" class="chevron" aria-hidden="true" />
 
     <span class="identity">
@@ -180,9 +174,7 @@ const groupName = computed(() => {
   width: 10px;
   height: 10px;
   border-radius: 2px;
-  background:
-    repeating-linear-gradient(45deg, var(--chart-hatch) 0 1.5px, transparent 1.5px 4px),
-    var(--chart-deemphasis);
+  background: repeating-linear-gradient(45deg, var(--chart-hatch) 0 1.5px, transparent 1.5px 4px), var(--chart-deemphasis);
 }
 
 .figures {

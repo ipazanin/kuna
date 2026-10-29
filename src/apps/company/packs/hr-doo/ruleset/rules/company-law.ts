@@ -264,7 +264,7 @@ export const companyLawOpenItems: readonly OpenItem[] = [
     area: 'company-law',
     title: 'Tourist board membership fee',
     status: 'unconfirmed',
-    note: 'Whether the company\'s activity is on the payer list of the Zakon o članarinama u turističkim zajednicama (NN 52/19, 144/20) is unchecked. The NN 144/20 amendment does not hold the activity list. The fee would be a fraction of a percent of revenue. The accountant can say whether a nil form is filed.',
+    note: "Whether the company's activity is on the payer list of the Zakon o članarinama u turističkim zajednicama (NN 52/19, 144/20) is unchecked. The NN 144/20 amendment does not hold the activity list. The fee would be a fraction of a percent of revenue. The accountant can say whether a nil form is filed.",
     url: null,
   },
   {

@@ -28,21 +28,9 @@ export interface AccountChecks {
  * would read a client's payment as a transfer between your own accounts. An account the ledger names
  * keeps an IBAN once it has one, since the app files no statement whose IBAN the tab does not name.
  */
-export function accountChangeRefusals(
-  edits: readonly AccountEdit[],
-  untouched: readonly AccountCells[],
-  checks: AccountChecks,
-): string[] {
-  const refusals = slugChangeRefusals(
-    'account',
-    { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
-    checks.named,
-    true,
-  )
-  const others = (edit: AccountEdit) => [
-    ...untouched,
-    ...edits.flatMap((other) => (other === edit || other.after === null ? [] : [other.after])),
-  ]
+export function accountChangeRefusals(edits: readonly AccountEdit[], untouched: readonly AccountCells[], checks: AccountChecks): string[] {
+  const refusals = slugChangeRefusals('account', { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched }, checks.named, true)
+  const others = (edit: AccountEdit) => [...untouched, ...edits.flatMap((other) => (other === edit || other.after === null ? [] : [other.after]))]
   for (const edit of edits) {
     const after = edit.after
     if (after !== null && after.iban === '' && edit.before !== null && edit.before.iban !== '' && checks.named.has(edit.before.slug)) {

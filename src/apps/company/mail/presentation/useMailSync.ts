@@ -126,7 +126,11 @@ export function useMailSync(): MailSync {
           state.stopped = null
         } catch (failure) {
           state.plan = null
-          state.stopped = isUnauthorized(failure) ? 'The last sync stopped before it finished with the mail. The sync control says what it needs.' : failure instanceof Error ? failure.message : String(failure)
+          state.stopped = isUnauthorized(failure)
+            ? 'The last sync stopped before it finished with the mail. The sync control says what it needs.'
+            : failure instanceof Error
+              ? failure.message
+              : String(failure)
           throw failure
         }
         const line = planLine(state.plan)

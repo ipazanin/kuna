@@ -72,7 +72,12 @@ function listedPaints(listed: readonly Category[], tokens: ChartTokens): { reado
  * A series for each listed category that moved, in its colour. The categories past the free slots
  * share one grey series rather than a made-up hue.
  */
-function seriesOf(listed: readonly Category[], moved: readonly string[], tokens: ChartTokens, nameOf: (slug: string) => string): { readonly series: CategorySeries[]; readonly spare: readonly Paint[] } {
+function seriesOf(
+  listed: readonly Category[],
+  moved: readonly string[],
+  tokens: ChartTokens,
+  nameOf: (slug: string) => string,
+): { readonly series: CategorySeries[]; readonly spare: readonly Paint[] } {
   const { paints, spare } = listedPaints(listed, tokens)
   const shown = listed.map((category) => category.slug).filter((slug) => moved.includes(slug))
   const others = shown.filter((slug) => paints.get(slug) === null)
@@ -287,7 +292,12 @@ export function taxByTypeChart(months: readonly CategoryMonth[], series: readonl
         : `Taxes paid by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatWholeMoney(total)} in all, net of refunds.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
-      return month === undefined ? null : drillOf(month, series.find((entry) => entry.name === seriesName))
+      return month === undefined
+        ? null
+        : drillOf(
+            month,
+            series.find((entry) => entry.name === seriesName),
+          )
     },
   }
 }
@@ -321,16 +331,18 @@ export function ownerDrawsChart(months: readonly OwnerTakeMonth[], series: reado
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       series: bars,
     },
-    description:
-      months.length === 0
-        ? 'No months to show.'
-        : `Owner pay by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatWholeMoney(total)} in all.`,
+    description: months.length === 0 ? 'No months to show.' : `Owner pay by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatWholeMoney(total)} in all.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {
         return null
       }
-      return seriesName === RENT_TAX_LABEL ? month.rentTax.drill : drillOf(month, series.find((entry) => entry.name === seriesName))
+      return seriesName === RENT_TAX_LABEL
+        ? month.rentTax.drill
+        : drillOf(
+            month,
+            series.find((entry) => entry.name === seriesName),
+          )
     },
   }
 }

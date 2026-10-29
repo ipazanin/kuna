@@ -199,14 +199,7 @@ function save(): void {
             <p v-if="errors.get(index)?.category" class="field-error">{{ errors.get(index)?.category }}</p>
           </td>
           <td>
-            <UInput
-              :model-value="draft.label"
-              :placeholder="displayName(draft.category)"
-              aria-label="Shown as"
-              size="sm"
-              class="w-44"
-              @update:model-value="update(index, 'label', String($event))"
-            />
+            <UInput :model-value="draft.label" :placeholder="displayName(draft.category)" aria-label="Shown as" size="sm" class="w-44" @update:model-value="update(index, 'label', String($event))" />
           </td>
           <td>
             <UInput

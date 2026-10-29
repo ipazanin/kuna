@@ -32,9 +32,7 @@ export function euroDonut(split: EuroSplit, settings: Settings, linkOf: (drill: 
     const slice = split.slices.find((candidate) => candidate.part === part)
     return slice === undefined ? [] : [{ key: part, label: name, value: slice.total, colour, to: linkOf(slice.drill) }]
   })
-  const shares = parts
-    .map((part) => `${inSentence(part.label)} ${formatPercent(split.slices.find((slice) => slice.part === part.key)?.share ?? 0)}`)
-    .join(', ')
+  const shares = parts.map((part) => `${inSentence(part.label)} ${formatPercent(split.slices.find((slice) => slice.part === part.key)?.share ?? 0)}`).join(', ')
   return {
     parts,
     description:

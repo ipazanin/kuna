@@ -39,9 +39,7 @@ const TAX_FREE_ROLE = 'tax-free:'
  * A role per tax-free payment of the ruleset, such as `tax-free:results-bonus`: the category holds
  * that payment to an employee, paid in a row of its own.
  */
-export const TAX_FREE_ROLES: readonly string[] = [
-  ...new Set(ruleValue('hr.pit.nontaxable-caps', RULESET_FIRST_DAY).value.caps.rows.map((row) => `${TAX_FREE_ROLE}${row.payment.text}`)),
-]
+export const TAX_FREE_ROLES: readonly string[] = [...new Set(ruleValue('hr.pit.nontaxable-caps', RULESET_FIRST_DAY).value.caps.rows.map((row) => `${TAX_FREE_ROLE}${row.payment.text}`))]
 
 /** The ruleset's key of the tax-free payment the category holds, or null for a category with no such role. */
 export function taxFreePaymentOf(category: Category): string | null {

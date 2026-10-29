@@ -40,9 +40,7 @@ export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChang
     const matches = rows.filter((row) => sameId(row.fields.rule, id))
     if (matches.length !== 1) {
       refusals.push(
-        matches.length === 0
-          ? `no row on the rules tab has the id "${id}" any more`
-          : `${matches.length} rows on the rules tab have the id "${id}", so the app cannot tell which to change`,
+        matches.length === 0 ? `no row on the rules tab has the id "${id}" any more` : `${matches.length} rows on the rules tab have the id "${id}", so the app cannot tell which to change`,
       )
       return null
     }
@@ -59,10 +57,12 @@ export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChang
     if (row !== null) replaced.set(row, filledFields(edit.fields))
   }
   const removed = change.removed === null ? null : rowHolding(cellText(change.removed.rule), change.removed)
-  const changed = rows.filter((row) => row !== removed).map((row) => {
-    const fields = replaced.get(row)
-    return fields === undefined ? row : { fields }
-  })
+  const changed = rows
+    .filter((row) => row !== removed)
+    .map((row) => {
+      const fields = replaced.get(row)
+      return fields === undefined ? row : { fields }
+    })
   const appended = change.appended === null ? [] : [{ fields: filledFields(change.appended) }]
   return { rows: [...changed, ...appended], refusals }
 }

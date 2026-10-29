@@ -75,14 +75,7 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
 
 <template>
   <div class="flex flex-col gap-4" data-testid="rule-backtest">
-    <UAlert
-      v-if="preview.refusals.length"
-      icon="i-lucide-octagon-x"
-      color="error"
-      variant="subtle"
-      title="This cannot be saved yet"
-      data-testid="rule-refusals"
-    >
+    <UAlert v-if="preview.refusals.length" icon="i-lucide-octagon-x" color="error" variant="subtle" title="This cannot be saved yet" data-testid="rule-refusals">
       <template #description>
         <ul class="list-disc ps-4">
           <li v-for="refusal in preview.refusals" :key="refusal" class="break-words">{{ refusal }}</li>
@@ -114,9 +107,7 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
               <span v-if="change.after.flaggedBy === 'ai'" class="text-dimmed">waits for review</span>
             </span>
           </span>
-          <span v-if="change.from !== change.transaction.category" class="text-xs text-dimmed" data-testid="backtest-stored">
-            Stored as {{ names.category(change.transaction.category) }}
-          </span>
+          <span v-if="change.from !== change.transaction.category" class="text-xs text-dimmed" data-testid="backtest-stored"> Stored as {{ names.category(change.transaction.category) }} </span>
         </li>
         <li v-if="list.changes.length > SHOWN_ROWS" class="px-3 py-2 text-xs text-muted">and {{ list.changes.length - SHOWN_ROWS }} more</li>
       </ul>

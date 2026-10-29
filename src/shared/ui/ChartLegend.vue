@@ -28,13 +28,7 @@ const emit = defineEmits<{
 <template>
   <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-toned">
     <li v-for="entry in entries" :key="entry.label" class="inline-flex items-center">
-      <button
-        v-if="toggleable"
-        type="button"
-        class="legend-toggle inline-flex items-center gap-1.5"
-        :aria-pressed="!hidden.includes(entry.label)"
-        @click="emit('toggle', entry.label)"
-      >
+      <button v-if="toggleable" type="button" class="legend-toggle inline-flex items-center gap-1.5" :aria-pressed="!hidden.includes(entry.label)" @click="emit('toggle', entry.label)">
         <span class="swatch" :class="`swatch-${entry.mark ?? 'bar'}`" :style="{ '--swatch': entry.colour }" aria-hidden="true" />
         <span>{{ entry.label }}</span>
       </button>
@@ -83,9 +77,7 @@ const emit = defineEmits<{
 }
 
 .swatch-hatched {
-  background:
-    repeating-linear-gradient(45deg, var(--chart-hatch) 0 1.5px, transparent 1.5px 4px),
-    var(--swatch);
+  background: repeating-linear-gradient(45deg, var(--chart-hatch) 0 1.5px, transparent 1.5px 4px), var(--swatch);
 }
 
 .swatch-ghost {

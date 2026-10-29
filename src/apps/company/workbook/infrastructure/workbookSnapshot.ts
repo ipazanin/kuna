@@ -73,10 +73,7 @@ export function sheetRowsFromValues(values: readonly (readonly (CellValue | null
       cells: Object.fromEntries(
         headerNames
           .map((name, column) => [name, cells?.[column]] as const)
-          .filter(
-            (pair): pair is readonly [string, CellValue] =>
-              pair[0] !== '' && pair[1] !== undefined && pair[1] !== null && pair[1] !== '',
-          ),
+          .filter((pair): pair is readonly [string, CellValue] => pair[0] !== '' && pair[1] !== undefined && pair[1] !== null && pair[1] !== ''),
       ),
     }))
     .filter((row) => Object.keys(row.cells).length > 0)

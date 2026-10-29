@@ -26,7 +26,9 @@ export function useFindLoansFile(): (lookup: DriveFileLookup) => Promise<boolean
     const already = before?.source === 'drive' && before.id === chosen.id
     toast.add({
       title: already ? 'Your Loans file is already open' : `Opened ${chosen.name}`,
-      description: already ? `${chosen.name} on Google Drive is the file on screen, read again just now.` : `${chosen.name} on Google Drive is on screen now, and the app keeps a copy in this browser.`,
+      description: already
+        ? `${chosen.name} on Google Drive is the file on screen, read again just now.`
+        : `${chosen.name} on Google Drive is on screen now, and the app keeps a copy in this browser.`,
       icon: 'i-lucide-check',
       color: 'success',
     })

@@ -64,11 +64,7 @@ export async function pickFromDrive(kind: PickerKind, accessToken: string, folde
   const view = kind === 'json' ? jsonView() : folderView()
 
   return new Promise<PickedDocument[]>((resolve) => {
-    const builder = new google.picker.PickerBuilder()
-      .addView(view)
-      .setAppId(projectNumber)
-      .setOAuthToken(accessToken)
-      .setDeveloperKey(apiKey)
+    const builder = new google.picker.PickerBuilder().addView(view).setAppId(projectNumber).setOAuthToken(accessToken).setDeveloperKey(apiKey)
     if (folders.title !== undefined) builder.setTitle(folders.title)
     if (folders.several === true) builder.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
     const picker = builder

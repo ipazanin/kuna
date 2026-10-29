@@ -57,7 +57,9 @@ const addingInformal = ref(false)
       </AppCard>
       <template v-else>
         <p class="text-sm text-toned" data-testid="loans-total">
-          You owe <MoneyText :cents="totals.owed" class="font-semibold text-highlighted" /> in all<template v-if="totals.owedToYou > 0">, and <MoneyText :cents="totals.owedToYou" class="font-semibold text-highlighted" /> is owed to you</template>.
+          You owe <MoneyText :cents="totals.owed" class="font-semibold text-highlighted" /> in all<template v-if="totals.owedToYou > 0"
+            >, and <MoneyText :cents="totals.owedToYou" class="font-semibold text-highlighted" /> is owed to you</template
+          >.
         </p>
         <UAlert
           v-if="state.workbook.problems.length > 0"

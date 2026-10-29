@@ -120,7 +120,11 @@ function sheetRows(book, sheetName) {
 }
 
 function columnOf(header, title, path) {
-  const index = header.findIndex((cell) => String(cell ?? '').trim().startsWith(title))
+  const index = header.findIndex((cell) =>
+    String(cell ?? '')
+      .trim()
+      .startsWith(title),
+  )
   if (index < 0) {
     fail(`${path}: no "${title}" column.`)
   }
@@ -180,7 +184,9 @@ function readRateTable(path) {
     .map((row) => {
       const code = row[columns.code]
       const where = `${basename(path)} code ${code}`
-      const issues = String(row[columns.decision]).split(',').map((issue) => issue.trim())
+      const issues = String(row[columns.decision])
+        .split(',')
+        .map((issue) => issue.trim())
       if (!issues.every((issue) => NN_ISSUE.test(issue))) {
         fail(`${where}: "${row[columns.decision]}" is not a list of NN issues.`)
       }
@@ -200,9 +206,7 @@ function unitsByCode(rateRows, census) {
   const byName = Map.groupBy(census, (unit) => nameKey(unit.name))
   const joined = new Map()
   for (const row of rateRows) {
-    const candidates = (byName.get(nameKey(row.name)) ?? []).filter(
-      (unit) => !COUNTY_BY_SHARED_NAME_CODE.has(row.code) || unit.county === COUNTY_BY_SHARED_NAME_CODE.get(row.code),
-    )
+    const candidates = (byName.get(nameKey(row.name)) ?? []).filter((unit) => !COUNTY_BY_SHARED_NAME_CODE.has(row.code) || unit.county === COUNTY_BY_SHARED_NAME_CODE.get(row.code))
     if (candidates.length !== 1) {
       fail(`Code ${row.code} ${row.name} matches ${candidates.length} census units.`)
     }
@@ -265,7 +269,9 @@ tables.forEach((later, laterIndex) => {
     for (const row of later.rows) {
       const before = earlierByCode.get(row.code)
       if (row.appliesFrom <= earlier.validFrom && (before.lowerRate !== row.lowerRate || before.higherRate !== row.higherRate)) {
-        mismatches.push(`${units.get(row.code).unit}: ${basename(later.path)} dates ${row.lowerRate}/${row.higherRate} from ${row.appliesFrom}, ${basename(earlier.path)} has ${before.lowerRate}/${before.higherRate}`)
+        mismatches.push(
+          `${units.get(row.code).unit}: ${basename(later.path)} dates ${row.lowerRate}/${row.higherRate} from ${row.appliesFrom}, ${basename(earlier.path)} has ${before.lowerRate}/${before.higherRate}`,
+        )
       }
     }
   }
@@ -293,9 +299,7 @@ function rowLine(row) {
 const NO_DECISION_ISSUE = '114/23'
 
 function decisionIssuesOf(rows) {
-  return [...new Set(rows.flatMap((row) => row.decision.split(', ')))]
-    .filter((issue) => issue !== NO_DECISION_ISSUE)
-    .sort((first, second) => issueOrder(first) - issueOrder(second))
+  return [...new Set(rows.flatMap((row) => row.decision.split(', ')))].filter((issue) => issue !== NO_DECISION_ISSUE).sort((first, second) => issueOrder(first) - issueOrder(second))
 }
 
 function tableBlock(table) {
@@ -338,13 +342,15 @@ const lines = [
   'export interface LocalRateTable {',
   '  readonly validFrom: string',
   '  readonly validTo: string',
-  '  /** The NN issues of the units\' decisions in the table, oldest first, without `114/23`. */',
+  "  /** The NN issues of the units' decisions in the table, oldest first, without `114/23`. */",
   '  readonly decisionIssues: readonly string[]',
   '  readonly rows: readonly LocalRateRow[]',
   '}',
   '',
   '/** The NN issues of every table, oldest first. */',
-  `export const LOCAL_RATE_DECISION_ISSUES: readonly string[] = [${decisionIssuesOf(tables.flatMap((table) => table.rows)).map(quoted).join(', ')}]`,
+  `export const LOCAL_RATE_DECISION_ISSUES: readonly string[] = [${decisionIssuesOf(tables.flatMap((table) => table.rows))
+    .map(quoted)
+    .join(', ')}]`,
   '',
   'export const LOCAL_RATE_TABLES: readonly LocalRateTable[] = [',
   ...tables.flatMap(tableBlock),

@@ -131,13 +131,7 @@ describe('import boundaries', () => {
 
   it('keeps the shell off the apps, which main.ts installs by importing each app.ts when it starts', () => {
     expect(
-      broken(
-        (entry) =>
-          entry.target === null ||
-          !entry.target.startsWith('src/apps/') ||
-          appOf(entry.from) !== null ||
-          (entry.from === 'src/main.ts' && entry.dynamic && isAppEntry(entry.target)),
-      ),
+      broken((entry) => entry.target === null || !entry.target.startsWith('src/apps/') || appOf(entry.from) !== null || (entry.from === 'src/main.ts' && entry.dynamic && isAppEntry(entry.target))),
     ).toEqual([])
   })
 

@@ -81,9 +81,7 @@ async function startOver(): Promise<void> {
     </div>
     <p class="text-sm text-toned">
       {{
-        onDrive
-          ? 'Start over trashes this file in Drive, where the bin keeps it for 30 days, so you can choose again.'
-          : 'Start over removes these books from this browser, so you can choose again.'
+        onDrive ? 'Start over trashes this file in Drive, where the bin keeps it for 30 days, so you can choose again.' : 'Start over removes these books from this browser, so you can choose again.'
       }}
     </p>
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="Start over did not work" :description="failure" />
@@ -107,14 +105,7 @@ async function startOver(): Promise<void> {
     <template #footer>
       <div class="flex w-full flex-wrap justify-end gap-2">
         <UButton label="Keep them" color="neutral" variant="ghost" :disabled="dropping" data-testid="onboarding-keep-books" @click="confirming = false" />
-        <UButton
-          :label="onDrive ? 'Trash the file' : 'Delete the books'"
-          icon="i-lucide-trash-2"
-          color="error"
-          :loading="dropping"
-          data-testid="onboarding-confirm-start-over"
-          @click="startOver"
-        />
+        <UButton :label="onDrive ? 'Trash the file' : 'Delete the books'" icon="i-lucide-trash-2" color="error" :loading="dropping" data-testid="onboarding-confirm-start-over" @click="startOver" />
       </div>
     </template>
   </UModal>

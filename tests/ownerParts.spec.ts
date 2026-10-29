@@ -28,8 +28,24 @@ const shared = withOwnerParts(workbookOf(EXAMPLE)).transactions as readonly Book
 
 describe('the worked example', () => {
   it('moves the shares from operating cost to owner pay and leaves cost and net alone', () => {
-    expect(bucketTotals(booked)).toMatchObject({ income: euros(50000), operating: euros(11200), taxes: euros(6000), ownerPay: euros(20000), cost: euros(37200), net: euros(12800), ownerEarns: euros(32800) })
-    expect(bucketTotals(shared)).toMatchObject({ income: euros(50000), operating: euros(10000), taxes: euros(6000), ownerPay: euros(21200), cost: euros(37200), net: euros(12800), ownerEarns: euros(34000) })
+    expect(bucketTotals(booked)).toMatchObject({
+      income: euros(50000),
+      operating: euros(11200),
+      taxes: euros(6000),
+      ownerPay: euros(20000),
+      cost: euros(37200),
+      net: euros(12800),
+      ownerEarns: euros(32800),
+    })
+    expect(bucketTotals(shared)).toMatchObject({
+      income: euros(50000),
+      operating: euros(10000),
+      taxes: euros(6000),
+      ownerPay: euros(21200),
+      cost: euros(37200),
+      net: euros(12800),
+      ownerEarns: euros(34000),
+    })
   })
 
   it('lists the business parts under their categories and the owner parts under the benefit category', () => {
@@ -80,8 +96,20 @@ describe('ownerPartsOf', () => {
     const [business, owner] = ownerPartsOf(laptop!, BENEFIT)
 
     expect(business).toMatchObject({ amount: euros(-1400), category: 'equipment', bucket: 'operating', ownerPart: { share: 30, sourceCategory: 'equipment', side: 'business', whole: laptop } })
-    expect(owner).toMatchObject({ amount: euros(-600), category: 'benefits', family: 'owner-pay', bucket: 'owner-pay', ownerPart: { share: 30, sourceCategory: 'equipment', side: 'owner', whole: laptop } })
-    expect([business!.balance, business!.sequence, owner!.balance, owner!.sequence, owner!.counterparty]).toEqual([laptop!.balance, laptop!.sequence, laptop!.balance, laptop!.sequence, laptop!.counterparty])
+    expect(owner).toMatchObject({
+      amount: euros(-600),
+      category: 'benefits',
+      family: 'owner-pay',
+      bucket: 'owner-pay',
+      ownerPart: { share: 30, sourceCategory: 'equipment', side: 'owner', whole: laptop },
+    })
+    expect([business!.balance, business!.sequence, owner!.balance, owner!.sequence, owner!.counterparty]).toEqual([
+      laptop!.balance,
+      laptop!.sequence,
+      laptop!.balance,
+      laptop!.sequence,
+      laptop!.counterparty,
+    ])
   })
 
   it('rounds the owner part to the cent half away from zero, and the parts always add up to the row', () => {
@@ -130,8 +158,21 @@ describe('ownerPartsOf', () => {
 
   it('shares each part of a split row by the part’s own share, and ignores the row’s', () => {
     const [order] = rows([{ date: '2026-05-10', amount: -300, category: 'equipment', share: 90 }])
-    const split = splitOf(order!, [[-200, 'ai-services', 'seats'], [-100, 'equipment', 'cable']], CATEGORIES)
-    const parts = { ...split, parts: [{ ...split.parts[0]!, ownerShare: share(50) }, { ...split.parts[1]!, ownerShare: share(10) }] }
+    const split = splitOf(
+      order!,
+      [
+        [-200, 'ai-services', 'seats'],
+        [-100, 'equipment', 'cable'],
+      ],
+      CATEGORIES,
+    )
+    const parts = {
+      ...split,
+      parts: [
+        { ...split.parts[0]!, ownerShare: share(50) },
+        { ...split.parts[1]!, ownerShare: share(10) },
+      ],
+    }
     const workbook = workbookOf([order!], { splits: [parts] })
     const counted = withOwnerParts(presentedWorkbook(workbook)).transactions
 
@@ -146,7 +187,16 @@ describe('ownerPartsOf', () => {
 })
 
 describe('withOwnerParts', () => {
-  const advance: OwnerAdvance = { date: civil('2026-06-02'), amount: euros(100), description: 'Seats', category: 'ai-services', family: 'operating', bucket: 'operating', ownerShare: share(25), id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') }
+  const advance: OwnerAdvance = {
+    date: civil('2026-06-02'),
+    amount: euros(100),
+    description: 'Seats',
+    category: 'ai-services',
+    family: 'operating',
+    bucket: 'operating',
+    ownerShare: share(25),
+    id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2'),
+  }
 
   it('shares an owner advance the same way, and its bookings say which part they are', () => {
     const parts = withOwnerParts(workbookOf(EXAMPLE, { ownerAdvances: [advance] })).ownerAdvances
@@ -174,12 +224,16 @@ describe('withOwnerParts', () => {
     const without = CATEGORIES.filter((candidate) => candidate !== BENEFIT)
     const presentedWith = (categories: readonly Category[]) => presentedWorkbook(workbookOf(EXAMPLE, { categories, ownerAdvances: [advance] }))
     const reasonWith = (categories: readonly Category[]) =>
-      presentedWith(categories).problems.filter((problem) => problem.label === 'owner-benefit').map((problem) => `${problem.tab}: ${problem.reason}`)
+      presentedWith(categories)
+        .problems.filter((problem) => problem.label === 'owner-benefit')
+        .map((problem) => `${problem.tab}: ${problem.reason}`)
     const unshared = presentedWith(without)
 
     expect(withOwnerParts(unshared)).toBe(unshared)
 
-    expect(reasonWith(without)).toEqual(['categories: 14 rows hold an owner share, but no category carries the owner-benefit role. So every share counts as 0 until one owner-pay category carries the role.'])
+    expect(reasonWith(without)).toEqual([
+      'categories: 14 rows hold an owner share, but no category carries the owner-benefit role. So every share counts as 0 until one owner-pay category carries the role.',
+    ])
     expect(reasonWith([...CATEGORIES, category('perks', 'owner-pay', ['owner-benefit'])])).toEqual([
       'categories: 14 rows hold an owner share, but the owner-benefit role is on "benefits" and "perks", and only one category may carry it. So every share counts as 0 until one owner-pay category carries the role.',
     ])
@@ -187,7 +241,14 @@ describe('withOwnerParts', () => {
       'categories: 14 rows hold an owner share, but the owner-benefit role is on "perks" in the operating bucket, and only an owner-pay category may carry it. So every share counts as 0 until one owner-pay category carries the role.',
     ])
     expect(reasonWith(CATEGORIES)).toEqual([])
-    expect(ownerShareProblems(workbookOf(EXAMPLE.map((row) => ({ ...row, ownerShare: null })), { categories: without }))).toEqual([])
+    expect(
+      ownerShareProblems(
+        workbookOf(
+          EXAMPLE.map((row) => ({ ...row, ownerShare: null })),
+          { categories: without },
+        ),
+      ),
+    ).toEqual([])
   })
 })
 
@@ -197,12 +258,32 @@ describe('a shared row on Transactions', () => {
     { date: '2026-03-16', amount: -40, category: 'other-costs', counterparty: 'Bistro' },
     { date: '2026-03-17', amount: -300, category: 'equipment', counterparty: 'Office shop' },
   ])
-  const split = splitOf(order!, [[-200, 'ai-services'], [-100, 'equipment']], CATEGORIES)
-  const advance: OwnerAdvance = { date: civil('2026-03-18'), amount: euros(100), description: 'Seats', category: 'ai-services', family: 'operating', bucket: 'operating', ownerShare: share(25), id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2') }
-  const cash = withOwnerParts(presentedWorkbook(workbookOf([laptop!, lunch!, order!], { splits: [{ ...split, parts: [{ ...split.parts[0]!, ownerShare: share(50) }, split.parts[1]!] }], ownerAdvances: [advance] })))
+  const split = splitOf(
+    order!,
+    [
+      [-200, 'ai-services'],
+      [-100, 'equipment'],
+    ],
+    CATEGORIES,
+  )
+  const advance: OwnerAdvance = {
+    date: civil('2026-03-18'),
+    amount: euros(100),
+    description: 'Seats',
+    category: 'ai-services',
+    family: 'operating',
+    bucket: 'operating',
+    ownerShare: share(25),
+    id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-2'),
+  }
+  const cash = withOwnerParts(
+    presentedWorkbook(workbookOf([laptop!, lunch!, order!], { splits: [{ ...split, parts: [{ ...split.parts[0]!, ownerShare: share(50) }, split.parts[1]!] }], ownerAdvances: [advance] })),
+  )
   const listed = listedRows(cash.transactions, cash.ownerAdvances)
   const shown = (entries: readonly ListedEntry[]) =>
-    entries.map((entry) => (entry.kind === 'row' ? `${entry.row.kind} ${entry.row.category} ${entry.row.amount}` : entry.kind === 'shared' ? `shared ${entry.share}% ${entry.whole.amount}` : `split ${entry.whole.amount}`))
+    entries.map((entry) =>
+      entry.kind === 'row' ? `${entry.row.kind} ${entry.row.category} ${entry.row.amount}` : entry.kind === 'shared' ? `shared ${entry.share}% ${entry.whole.amount}` : `split ${entry.whole.amount}`,
+    )
 
   it('heads its parts, the business part first, like a split row, and keeps the owner’s parts of a split part under the split', () => {
     expect(shown(withPartHeadings([...listed].sort((left, right) => left.amount - right.amount)))).toEqual([
@@ -237,7 +318,9 @@ describe('a shared row on Transactions', () => {
   })
 
   it('writes both parts to the CSV with the row’s owner share', () => {
-    const lines = transactionsCsv(listed.filter((row) => row.counterparty === 'Computer store' || row.kind === 'owner-advance')).trim().split('\r\n')
+    const lines = transactionsCsv(listed.filter((row) => row.counterparty === 'Computer store' || row.kind === 'owner-advance'))
+      .trim()
+      .split('\r\n')
 
     expect(lines[0]).toContain(',note,owner_share,tab')
     expect(lines.slice(1).map((line) => line.split(',').slice(5).join(','))).toEqual([
@@ -257,7 +340,20 @@ describe('a category filter on shared rows', () => {
         { date: '2026-04-03', amount: -500, category: 'equipment', share: 40, counterparty: 'Computer store' },
         { date: '2026-04-04', amount: -90, category: 'ai-services', share: 50, counterparty: 'Model host' },
       ]),
-      { ownerAdvances: [{ date: civil('2026-04-05'), amount: euros(80), description: 'Chair', category: 'equipment', family: 'operating', bucket: 'operating', ownerShare: share(100), id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-3') }] },
+      {
+        ownerAdvances: [
+          {
+            date: civil('2026-04-05'),
+            amount: euros(80),
+            description: 'Chair',
+            category: 'equipment',
+            family: 'operating',
+            bucket: 'operating',
+            ownerShare: share(100),
+            id: recordIdOf(OWNER_ADVANCE_RECORDS, 'row-3'),
+          },
+        ],
+      },
     ),
   )
   const equipment = { ...DEFAULT_FILTERS, categories: ['equipment'] }

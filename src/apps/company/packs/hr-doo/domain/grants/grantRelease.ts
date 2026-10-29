@@ -71,12 +71,7 @@ interface PolicyPlan {
  * variable part. Costs of a funded asset from before the receipt are released in the month of
  * receipt. `straight-line` spreads the whole grant over its period by days.
  */
-export function grantRelease(
-  grant: Grant,
-  schedules: readonly DepreciationSchedule[],
-  policy: GrantRelease = grant.release,
-  rules: RuleSource = ruleValue,
-): GrantReleaseSchedule {
+export function grantRelease(grant: Grant, schedules: readonly DepreciationSchedule[], policy: GrantRelease = grant.release, rules: RuleSource = ruleValue): GrantReleaseSchedule {
   const plan = policy === 'fixed-then-assets' ? fixedThenAssets(grant, schedules) : straightLine(grant)
   const receiptMonth = monthOf(grant.received)
   const months = monthsFrom(receiptMonth, plan.lastMonth).map((month): GrantMonth => ({
@@ -100,7 +95,12 @@ export function grantRelease(
 
 /** The grant received and not yet released, by the end of the last month that has ended on the day. */
 export function deferredOn(schedule: GrantReleaseSchedule, on: CivilDate): TracedFigure {
-  return deferredBy(schedule.grant, schedule.months, schedule.years.map((year) => year.released), on)
+  return deferredBy(
+    schedule.grant,
+    schedule.months,
+    schedule.years.map((year) => year.released),
+    on,
+  )
 }
 
 /**
@@ -174,12 +174,7 @@ function fixedThenAssets(grant: Grant, schedules: readonly DepreciationSchedule[
     return [...fixedStep, ...assetSteps, ...capStep]
   }
 
-  const neverReleased = tracedFigure(
-    'Variable part beyond what the funded assets cost',
-    totalFunded < variable ? subtractMoney(variable, totalFunded) : ZERO,
-    'assets',
-    [],
-  )
+  const neverReleased = tracedFigure('Variable part beyond what the funded assets cost', totalFunded < variable ? subtractMoney(variable, totalFunded) : ZERO, 'assets', [])
   // The schedule ends with the last funded cost, or earlier once the variable part is all released.
   const laterMonths = [...new Set(costs.map((cost) => cost.month))].filter((month) => month > receiptMonth).sort()
   const candidates = [receiptMonth, ...laterMonths]
@@ -262,9 +257,6 @@ function compared(accountant: TracedFigure | null, ours: TracedFigure): GrantCom
   if (accountant === null) {
     return null
   }
-  const residual = tracedFigure('Not explained by our policy', subtractMoney(accountant.amount, ours.amount), 'accountant', ours.rules, [
-    accountant,
-    deducted(ours),
-  ])
+  const residual = tracedFigure('Not explained by our policy', subtractMoney(accountant.amount, ours.amount), 'accountant', ours.rules, [accountant, deducted(ours)])
   return { accountant, ours, residual }
 }

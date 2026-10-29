@@ -60,7 +60,8 @@ const ring = computed(() => {
 
 const workbook = computed(() => hrDooWorkbook(props.ledger.booked))
 
-type Comparison = { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly taxAvoided: FigureDetail; readonly asDividend: number }
+type Comparison =
+  { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly taxAvoided: FigureDetail; readonly asDividend: number }
 
 const comparison = computed((): Comparison => {
   if (workbook.value.companyFacts.companyRegistered === null) {

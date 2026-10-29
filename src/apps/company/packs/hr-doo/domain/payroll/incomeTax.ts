@@ -50,14 +50,7 @@ export function personalAllowance(dependants: number, on: CivilDate, basis: Figu
   const citations = [lookup.citation]
   const dependantShares = coefficients
     .filter((row) => row.position.count <= dependants)
-    .map((row) =>
-      tracedFigure(
-        `Dependant ${row.position.count} at ${row.coefficient.basisPoints / 10_000} of the allowance`,
-        atRate(basicAllowance, row.coefficient.basisPoints),
-        basis,
-        citations,
-      ),
-    )
+    .map((row) => tracedFigure(`Dependant ${row.position.count} at ${row.coefficient.basisPoints / 10_000} of the allowance`, atRate(basicAllowance, row.coefficient.basisPoints), basis, citations))
   const steps = [tracedFigure('Basic allowance', basicAllowance, basis, citations), ...dependantShares]
   return tracedFigure('Personal allowance', sumMoney(steps.map((step) => step.amount)), basis, citations, steps)
 }
@@ -68,13 +61,7 @@ export interface BracketTax {
 }
 
 /** The lower rate up to the threshold and the higher rate on the rest, each rounded to the cent. */
-export function taxInBrackets(
-  taxable: Money,
-  threshold: Money,
-  rates: LocalRates,
-  basis: FigureBasis,
-  rules: readonly RuleCitation[],
-): BracketTax {
+export function taxInBrackets(taxable: Money, threshold: Money, rates: LocalRates, basis: FigureBasis, rules: readonly RuleCitation[]): BracketTax {
   const lowerPart = taxable < threshold ? taxable : threshold
   const higherPart = taxable > threshold ? subtractMoney(taxable, threshold) : ZERO
   return {

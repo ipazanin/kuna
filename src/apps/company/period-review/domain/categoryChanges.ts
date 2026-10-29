@@ -56,14 +56,24 @@ export function categoryChanges(
       })
       .sort(
         (left, right) =>
-          Math.abs(right.change ?? 0) - Math.abs(left.change ?? 0) ||
-          Math.abs(right.current?.amount ?? 0) - Math.abs(left.current?.amount ?? 0) ||
-          left.category.localeCompare(right.category),
+          Math.abs(right.change ?? 0) - Math.abs(left.change ?? 0) || Math.abs(right.current?.amount ?? 0) - Math.abs(left.current?.amount ?? 0) || left.category.localeCompare(right.category),
       )
   }
   const sections: CategoryChangeSection[] = [
-    { key: 'income', rows: compare(now.filter((row) => row.direction === 'income'), before.filter((row) => row.direction === 'income')) },
-    { key: 'cost', rows: compare(now.filter((row) => row.direction === 'cost'), before.filter((row) => row.direction === 'cost')) },
+    {
+      key: 'income',
+      rows: compare(
+        now.filter((row) => row.direction === 'income'),
+        before.filter((row) => row.direction === 'income'),
+      ),
+    },
+    {
+      key: 'cost',
+      rows: compare(
+        now.filter((row) => row.direction === 'cost'),
+        before.filter((row) => row.direction === 'cost'),
+      ),
+    },
     { key: 'outside', rows: compare(outsideNow, outsideBefore) },
   ]
   return sections.filter((section) => section.rows.length > 0)

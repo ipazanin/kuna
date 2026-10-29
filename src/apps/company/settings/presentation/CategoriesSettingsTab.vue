@@ -42,7 +42,13 @@ const fillOpen = ref(false)
 /** A save that sets or changes a default first asks whether the rows of the category without a share take it too. */
 function saveCategories(made: MadeCategories): void {
   const workbook = state.workbook
-  const fills = workbook !== null && settings.value.ownerPayModule ? shareFillsOf(workbook, made.map((draft) => draft.record)) : []
+  const fills =
+    workbook !== null && settings.value.ownerPayModule
+      ? shareFillsOf(
+          workbook,
+          made.map((draft) => draft.record),
+        )
+      : []
   if (fills.length === 0) {
     writeCategories(made, [])
     return
@@ -76,16 +82,8 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
 </script>
 
 <template>
-  <AppCard
-    title="Categories"
-    collapse-id="settings.categories"
-    :summary="rowsInWords(storedCount(categories), 'category', 'categories')"
-    :reveal="linked"
-  >
-    <template #subtitle>
-      The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name and its
-      row.
-    </template>
+  <AppCard title="Categories" collapse-id="settings.categories" :summary="rowsInWords(storedCount(categories), 'category', 'categories')" :reveal="linked">
+    <template #subtitle> The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name and its row. </template>
     <CategoriesEditor :records="categories" :uses="categoriesInUse" :roles="roles" :shares="settings.ownerPayModule" :saving="saving" @save="saveCategories" />
   </AppCard>
   <ShareFillDialog v-if="filling" v-model:open="fillOpen" :fills="filling.fills" @answer="answerFill" />

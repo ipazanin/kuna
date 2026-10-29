@@ -29,9 +29,7 @@ export interface PlannedOwnerPay {
 }
 
 export type OwnerPayPlan =
-  | { readonly kind: 'none' }
-  | { readonly kind: 'refused'; readonly lines: readonly OwnerPayLine[]; readonly guards: readonly PlanGuard[] }
-  | { readonly kind: 'planned'; readonly pay: PlannedOwnerPay }
+  { readonly kind: 'none' } | { readonly kind: 'refused'; readonly lines: readonly OwnerPayLine[]; readonly guards: readonly PlanGuard[] } | { readonly kind: 'planned'; readonly pay: PlannedOwnerPay }
 
 /**
  * What stops the plan tab from being planned with, year by year: an owner pay that switches more
@@ -66,7 +64,9 @@ export function ownerPayPlan(yearLines: readonly PlanLine[], scenarios: readonly
   const undated = lines.filter((line) => line.from === null)
   const dated = lines.filter((line) => line.from !== null)
   if (dated.length > 1) {
-    return refused([{ ids: dated.map((line) => line.id), reason: `The owner pay of ${year} switches on ${listed(dated.map((line) => line.from ?? ''))}. A year's plan switches once, from one scenario to another.` }])
+    return refused([
+      { ids: dated.map((line) => line.id), reason: `The owner pay of ${year} switches on ${listed(dated.map((line) => line.from ?? ''))}. A year's plan switches once, from one scenario to another.` },
+    ])
   }
   const [switching] = dated
   if (switching !== undefined && switching.from === civilDate(year, 1, 1)) {

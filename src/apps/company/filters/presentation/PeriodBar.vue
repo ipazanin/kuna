@@ -86,58 +86,24 @@ function choosePreset(preset: PeriodPreset): void {
 
 <template>
   <div class="flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="period-bar">
-    <div
-      role="group"
-      aria-label="Period"
-      class="presets flex max-w-full rounded-control border border-default bg-raised p-0.5"
-      :class="stacked ? 'presets-stacked w-full' : 'overflow-x-auto'"
-    >
-      <button
-        v-for="preset in presets"
-        :key="preset"
-        type="button"
-        class="preset"
-        :aria-pressed="period.preset === preset"
-        @click="choosePreset(preset)"
-      >
+    <div role="group" aria-label="Period" class="presets flex max-w-full rounded-control border border-default bg-raised p-0.5" :class="stacked ? 'presets-stacked w-full' : 'overflow-x-auto'">
+      <button v-for="preset in presets" :key="preset" type="button" class="preset" :aria-pressed="period.preset === preset" @click="choosePreset(preset)">
         {{ PRESET_LABELS[preset] }}
       </button>
     </div>
 
-    <div v-if="(period.preset === 'year' || period.preset === 'quarter')" class="flex items-center gap-2">
+    <div v-if="period.preset === 'year' || period.preset === 'quarter'" class="flex items-center gap-2">
       <USelect v-model="selectedYear" :items="yearItems" size="sm" aria-label="Year" class="w-24" />
-      <USelect
-        v-if="period.preset === 'quarter'"
-        v-model="selectedQuarter"
-        :items="QUARTERS"
-        size="sm"
-        aria-label="Quarter"
-        class="w-20"
-      />
+      <USelect v-if="period.preset === 'quarter'" v-model="selectedQuarter" :items="QUARTERS" size="sm" aria-label="Quarter" class="w-20" />
     </div>
 
     <div v-if="customRange" class="flex flex-wrap items-center gap-2">
-      <UInput
-        type="date"
-        size="sm"
-        aria-label="From"
-        :model-value="customRange.from"
-        class="w-40"
-        @change="(event: Event) => setCustomEnd('from', (event.target as HTMLInputElement).value)"
-      />
+      <UInput type="date" size="sm" aria-label="From" :model-value="customRange.from" class="w-40" @change="(event: Event) => setCustomEnd('from', (event.target as HTMLInputElement).value)" />
       <span class="text-xs text-muted">to</span>
-      <UInput
-        type="date"
-        size="sm"
-        aria-label="To"
-        :model-value="customRange.to"
-        class="w-40"
-        @change="(event: Event) => setCustomEnd('to', (event.target as HTMLInputElement).value)"
-      />
+      <UInput type="date" size="sm" aria-label="To" :model-value="customRange.to" class="w-40" @change="(event: Event) => setCustomEnd('to', (event.target as HTMLInputElement).value)" />
     </div>
 
     <p v-if="!customRange" class="figure text-sm text-toned" data-testid="period-range">{{ rangeText }}</p>
-
   </div>
 </template>
 

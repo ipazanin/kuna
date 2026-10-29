@@ -25,20 +25,22 @@ export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer)
     },
     name: (message, terms, reading) =>
       Promise.all(
-        message.attachments.filter((attachment) => /\.(pdf|xml)$/i.test(attachment.name)).map(async (attachment): Promise<AttachmentNaming> => {
-          if (/\.pdf$/i.test(attachment.name)) {
-            return statementPdfNaming(attachment, message.subject, terms.subject, civilDateIn(message.date, timeZone), terms.folder)
-          }
-          const bytes = await reading.bytes(attachment)
-          let loaded: LoadedImportFile
-          try {
-            loaded = await load(attachment.name, bytes)
-          } catch (failure) {
-            return { kind: 'unmatched', attachment, reason: failure instanceof Error ? failure.message : String(failure) }
-          }
-          const head = loaded.kind === 'camt' ? camtStatementHead(loaded.document, accountsByIban(reading.workbook)) : null
-          return head === null ? { kind: 'unmatched', attachment, reason: 'It is not a camt.053 statement with a creation day and a number.' } : statementXmlNaming(attachment, head, terms.folder)
-        }),
+        message.attachments
+          .filter((attachment) => /\.(pdf|xml)$/i.test(attachment.name))
+          .map(async (attachment): Promise<AttachmentNaming> => {
+            if (/\.pdf$/i.test(attachment.name)) {
+              return statementPdfNaming(attachment, message.subject, terms.subject, civilDateIn(message.date, timeZone), terms.folder)
+            }
+            const bytes = await reading.bytes(attachment)
+            let loaded: LoadedImportFile
+            try {
+              loaded = await load(attachment.name, bytes)
+            } catch (failure) {
+              return { kind: 'unmatched', attachment, reason: failure instanceof Error ? failure.message : String(failure) }
+            }
+            const head = loaded.kind === 'camt' ? camtStatementHead(loaded.document, accountsByIban(reading.workbook)) : null
+            return head === null ? { kind: 'unmatched', attachment, reason: 'It is not a camt.053 statement with a creation day and a number.' } : statementXmlNaming(attachment, head, terms.folder)
+          }),
       ),
   }
 }

@@ -121,16 +121,7 @@ async function remove(): Promise<void> {
     </template>
     <template #footer>
       <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="book !== null"
-          label="Delete loan"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="informal-loan-delete"
-          @click="remove"
-        />
+        <UButton v-if="book !== null" label="Delete loan" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="informal-loan-delete" @click="remove" />
         <div class="ms-auto flex flex-wrap gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
           <UButton

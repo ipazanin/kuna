@@ -66,8 +66,7 @@ async function write(): Promise<void> {
     <template #body>
       <div class="flex flex-col gap-3" data-testid="fill-preview">
         <p v-if="fill.kind === 'refused'" class="text-sm text-toned">
-          {{ fill.reason }} The terms are on
-          <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">Invoicing, Clients</DrillLink>.
+          {{ fill.reason }} The terms are on <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">Invoicing, Clients</DrillLink>.
         </p>
         <p v-else-if="rows.length === 0" class="text-sm text-toned">Every month to December already has its rows for {{ clientName }}. Nothing to add.</p>
         <template v-else>

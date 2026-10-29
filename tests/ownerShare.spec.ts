@@ -74,7 +74,10 @@ describe('reading the owner share', () => {
       ['travel', 'operating', 'operating', 'most'],
       ['benefits', 'owner', 'owner-pay', ''],
     ],
-    accounts: [['account', 'iban'], ['main', 'XX00FAKE0000000001']],
+    accounts: [
+      ['account', 'iban'],
+      ['main', 'XX00FAKE0000000001'],
+    ],
     ledger: [
       ['date', 'account', 'amount', 'balance', 'counterparty', 'category', 'reference', 'owner_share'],
       [46300, 'main', -20, 980, 'MODEL API INC', 'ai-services', 'REF-3', 50],
@@ -134,7 +137,10 @@ describe('reading the owner share', () => {
   it('reads a Sheet without the column as every share blank, with no problem', () => {
     const without = readSnapshot(
       snapshotOf({
-        categories: [['category', 'family', 'bucket'], ['ai-services', 'operating', 'operating']],
+        categories: [
+          ['category', 'family', 'bucket'],
+          ['ai-services', 'operating', 'operating'],
+        ],
         accounts: tabs.accounts,
         ledger: [
           ['date', 'account', 'amount', 'balance', 'category', 'reference'],
@@ -183,16 +189,22 @@ describe('categoryShareRefusals', () => {
     const perks = { slug: 'perks', bucket: 'owner-pay', roles: ['owner-benefit'], ownerShare: null }
     const movedOut = { ...benefit, bucket: 'operating' }
 
-    expect(categoryShareRefusals([{ before: null, after: perks }], [benefit, perks, ai])).toEqual([
-      '"perks" takes the owner-benefit role only once no other category carries it, and "benefits" does.',
-    ])
-    expect(categoryShareRefusals([{ before: { ...ai, ownerShare: null }, after: { ...ai, ownerShare: null, roles: ['owner-benefit'] } }], [{ ...ai, ownerShare: null, roles: ['owner-benefit'] }])).toEqual([
-      '"ai-services" is in the operating bucket, and only an owner-pay category carries the owner-benefit role, since the owner\'s part of a shared cost counts there.',
-    ])
+    expect(categoryShareRefusals([{ before: null, after: perks }], [benefit, perks, ai])).toEqual(['"perks" takes the owner-benefit role only once no other category carries it, and "benefits" does.'])
+    expect(
+      categoryShareRefusals([{ before: { ...ai, ownerShare: null }, after: { ...ai, ownerShare: null, roles: ['owner-benefit'] } }], [{ ...ai, ownerShare: null, roles: ['owner-benefit'] }]),
+    ).toEqual(['"ai-services" is in the operating bucket, and only an owner-pay category carries the owner-benefit role, since the owner\'s part of a shared cost counts there.'])
     expect(categoryShareRefusals([{ before: benefit, after: movedOut }], [movedOut, ai])).toEqual([
       '"benefits" is in the operating bucket, and only an owner-pay category carries the owner-benefit role, since the owner\'s part of a shared cost counts there.',
     ])
-    expect(categoryShareRefusals([{ before: benefit, after: { ...benefit, roles: [] } }, { before: null, after: perks }], [{ ...benefit, roles: [] }, perks, ai])).toEqual([])
+    expect(
+      categoryShareRefusals(
+        [
+          { before: benefit, after: { ...benefit, roles: [] } },
+          { before: null, after: perks },
+        ],
+        [{ ...benefit, roles: [] }, perks, ai],
+      ),
+    ).toEqual([])
     expect(categoryShareRefusals([{ before: benefit, after: { ...benefit, roles: ['owner-benefit', 'watched'] } }], [benefit, ai])).toEqual([])
   })
 })

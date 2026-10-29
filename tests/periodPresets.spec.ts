@@ -41,9 +41,7 @@ describe('periodMonths', () => {
   })
 
   it('clips a calendar period to the months the ledger holds', () => {
-    expect(periodMonths({ preset: 'year', year: 2025 }, window)).toEqual([
-      '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12',
-    ])
+    expect(periodMonths({ preset: 'year', year: 2025 }, window)).toEqual(['2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12'])
     expect(periodMonths({ preset: 'year', year: 2024 }, window)).toEqual([])
   })
 })

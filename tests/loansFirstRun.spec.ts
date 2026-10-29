@@ -133,5 +133,4 @@ describe('the Loans first run on the fake Drive', () => {
 
     await expect(previewImport(new File([download!.contents as string], fileName))).rejects.toThrow('holds the books of another Kuna app, loans')
   })
-
 })

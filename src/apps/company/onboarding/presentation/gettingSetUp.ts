@@ -26,7 +26,11 @@ export function gettingSetUp(workbook: Workbook): SetUpLine[] {
     lines.push({ key: 'statements-folder', text: 'Name the Drive folder your bank statements are filed in, or switch filing on sync off', link: { label: 'Settings', to: '/settings' } })
   }
   if (categoriesAsNewBooksStart(workbook.categories)) {
-    lines.push({ key: 'categories', text: 'Look over the categories, which are still the ones new books start with', link: { label: 'Categories', to: { path: '/settings', query: { tab: 'categories' } } } })
+    lines.push({
+      key: 'categories',
+      text: 'Look over the categories, which are still the ones new books start with',
+      link: { label: 'Categories', to: { path: '/settings', query: { tab: 'categories' } } },
+    })
   }
   if (workbook.clients.length > 0 && REQUIRED_ISSUER.some(([field]) => workbook.settings.invoicing[field].trim() === '')) {
     lines.push({ key: 'invoice-terms', text: 'Fill in what your invoices print about your company', link: { label: 'Clients', to: { path: '/company/invoicing', query: { tab: 'clients' } } } })

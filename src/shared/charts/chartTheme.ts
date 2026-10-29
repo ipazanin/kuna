@@ -95,11 +95,7 @@ export interface IncompletePoint {
 }
 
 /** Hatches the points of months that are not complete, such as the current part-month. */
-export function markIncomplete(
-  values: readonly (number | null)[],
-  incomplete: readonly boolean[],
-  tokens: ChartTokens,
-): (number | null | IncompletePoint)[] {
+export function markIncomplete(values: readonly (number | null)[], incomplete: readonly boolean[], tokens: ChartTokens): (number | null | IncompletePoint)[] {
   return values.map((amount, index) => {
     if (!incomplete[index]) return amount
     return { value: amount, itemStyle: { decal: incompleteDecal(tokens) } }

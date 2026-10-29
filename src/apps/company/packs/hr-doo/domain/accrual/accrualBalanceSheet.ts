@@ -87,7 +87,11 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const invoiceYears = workbook.invoices.map((invoice) => yearOf(invoice.deliveryPeriod?.from ?? invoice.issued))
   const firstInvoiceYear = Math.min(year, ...invoiceYears)
   const deliveredYears = Array.from({ length: year - firstInvoiceYear + 1 }, (_, offset) => revenueByDelivery(workbook.invoices, firstInvoiceYear + offset, rules))
-  const delivered = summed('Revenue delivered to the year end', deliveredYears.map((entry) => entry.total), 'invoices')
+  const delivered = summed(
+    'Revenue delivered to the year end',
+    deliveredYears.map((entry) => entry.total),
+    'invoices',
+  )
   const accruedIncome = summed(
     'Delivered by the year end on invoices issued after it',
     deliveredYears.flatMap((entry) => entry.invoices.filter((invoice) => invoice.invoice.issued > yearEnd).map((invoice) => invoice.revenue)),
@@ -107,18 +111,17 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
 
   const counted = bookings.filter(isCounted)
   const accrued = counted.filter((entry) => entry.timing === 'arrears' && entry.booking.date > yearEnd && entry.shares.some((share) => yearOfMonth(share.month) <= year))
-  const accruedIn = (bucket: DefinedBucket) =>
-    accrued
-      .filter((entry) => entry.booking.bucket === bucket)
-      .map((entry) => bookingFigure(entry, negateMoney(entry.booking.amount)))
+  const accruedIn = (bucket: DefinedBucket) => accrued.filter((entry) => entry.booking.bucket === bucket).map((entry) => bookingFigure(entry, negateMoney(entry.booking.amount)))
   const prepaid = counted
     .filter((entry) => entry.timing === 'prepaid' && entry.booking.date <= yearEnd)
-    .map((entry) =>
-      bookingFigure(entry, negateMoney(sumMoney(entry.shares.filter((share) => yearOfMonth(share.month) > year).map((share) => share.amount)))),
-    )
+    .map((entry) => bookingFigure(entry, negateMoney(sumMoney(entry.shares.filter((share) => yearOfMonth(share.month) > year).map((share) => share.amount)))))
     .filter((figure) => figure.amount !== 0)
 
-  const policyDeferred = summed('Grant deferred by our policy', books.grants.map((schedule) => deferredOn(schedule, yearEnd)), 'assets')
+  const policyDeferred = summed(
+    'Grant deferred by our policy',
+    books.grants.map((schedule) => deferredOn(schedule, yearEnd)),
+    'assets',
+  )
   const judgedReleases = context.grantChecks.flatMap((check) =>
     check.year <= year && check.released !== null && check.released.residual.amount !== 0
       ? [deducted({ ...check.released.residual, label: `Released in ${check.year} as the accountant released it` })]
@@ -140,11 +143,7 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   put('inventories', nothing('No category role records inventories'))
   put('receivables-trade', receivablesTrade)
   put('receivables-members-employees', summed('Receivable from the owner', positive(owedFigure), 'ledger'))
-  put(
-    'receivables-state',
-    summed('Receivable from the state', [...positive(vat), ...negativeAsOwed(citOwed, 'Corporate tax overpaid')], 'ledger'),
-    citOwed.amount < 0 ? context.profitJudgements : [],
-  )
+  put('receivables-state', summed('Receivable from the state', [...positive(vat), ...negativeAsOwed(citOwed, 'Corporate tax overpaid')], 'ledger'), citOwed.amount < 0 ? context.profitJudgements : [])
   put('receivables-other', nothing('No category role records other receivables'))
   const cash = latestBalances(rows).cashOnHand
   put('cash', withDrill(tracedFigure('Cash at the year end', cash.amount, 'ledger', []), cash.drill))
@@ -178,7 +177,12 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
 
   const assetLines = ['intangible-assets', 'tangible-assets', 'financial-assets', 'inventories', ...RECEIVABLE_LINES, 'cash']
   const liabilityLines = ['provisions', 'long-term-liabilities', ...LIABILITY_LINES]
-  const totalOf = (label: string, lines: readonly string[]) => summed(label, lines.flatMap((line) => ours.get(line)?.figure ?? []), 'ledger')
+  const totalOf = (label: string, lines: readonly string[]) =>
+    summed(
+      label,
+      lines.flatMap((line) => ours.get(line)?.figure ?? []),
+      'ledger',
+    )
   const judgementsOf = (lines: readonly string[]) => lines.flatMap((line) => beforePlacement.get(line) ?? [])
   const totalAssets = totalOf('Total assets', assetLines)
   put('total-assets', totalAssets, judgementsOf(assetLines))

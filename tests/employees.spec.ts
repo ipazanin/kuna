@@ -51,8 +51,25 @@ describe('the days an employee worked in a month', () => {
 describe('the employees tab', () => {
   it('reads a row with its flags, numbers and dates, blank flags reading FALSE', () => {
     const [read] = tab({ ...DORA, name: 'Dora Example', pension_pillar_2: true, dependants: '2', birth_year: '1990', to: '2026-12-31' }).records
-    expect(read?.record).toMatchObject({ slug: 'dora', name: 'Dora Example', residenceCity: 'Zagreb', pensionPillarTwo: true, dependants: 2, birthYear: 1990, from: '2025-01-01', to: '2026-12-31', director: true })
-    expect(tab({ employee: 'ivo', residence_city: 'Split', from: '2026-01-12' }).records[0]?.record).toMatchObject({ pensionPillarTwo: false, dependants: 0, birthYear: null, agreedGross: null, to: null, director: false })
+    expect(read?.record).toMatchObject({
+      slug: 'dora',
+      name: 'Dora Example',
+      residenceCity: 'Zagreb',
+      pensionPillarTwo: true,
+      dependants: 2,
+      birthYear: 1990,
+      from: '2025-01-01',
+      to: '2026-12-31',
+      director: true,
+    })
+    expect(tab({ employee: 'ivo', residence_city: 'Split', from: '2026-01-12' }).records[0]?.record).toMatchObject({
+      pensionPillarTwo: false,
+      dependants: 0,
+      birthYear: null,
+      agreedGross: null,
+      to: null,
+      director: false,
+    })
     expect(tab({ employee: 'ivo', residence_city: 'Split', from: '2026-01-12', agreed_gross: '1200' }).records[0]?.record.agreedGross).toBe(euros(1200))
   })
 
@@ -101,10 +118,7 @@ describe('the employees tab', () => {
 
   it('reads the accounts a salary is paid into, and counts an account two employees name for neither', () => {
     const reading = readEmployees(
-      tab(
-        { ...DORA, iban: 'xx00 fake 0000 0000 0000 0105, XX00FAKE0000000000000107' },
-        { employee: 'ivo', residence_city: 'Split', from: '2026-01-12', iban: 'XX00FAKE0000000000000107' },
-      ),
+      tab({ ...DORA, iban: 'xx00 fake 0000 0000 0000 0105, XX00FAKE0000000000000107' }, { employee: 'ivo', residence_city: 'Split', from: '2026-01-12', iban: 'XX00FAKE0000000000000107' }),
     )
     expect(reading.facts.map((employee) => [employee.slug, employee.ibans])).toEqual([
       ['dora', ['XX00FAKE0000000000000105']],
@@ -117,7 +131,18 @@ describe('the employees tab', () => {
   })
 
   it('writes a row back as the fields it was read from', () => {
-    const fields = { employee: 'dora', name: 'Dora Example', iban: 'XX00FAKE0000000000000105, XX00FAKE0000000000000106', residence_city: 'Zagreb', pension_pillar_2: true, dependants: '2', birth_year: '1990', agreed_gross: '1600.00', from: '2025-01-01', director: true }
+    const fields = {
+      employee: 'dora',
+      name: 'Dora Example',
+      iban: 'XX00FAKE0000000000000105, XX00FAKE0000000000000106',
+      residence_city: 'Zagreb',
+      pension_pillar_2: true,
+      dependants: '2',
+      birth_year: '1990',
+      agreed_gross: '1600.00',
+      from: '2025-01-01',
+      director: true,
+    }
     expect(EMPLOYEE_CODEC.fieldsOf(employeeOf(storedFieldsOfValues(fields), recordIdOf(EMPLOYEE_RECORDS, 'dora')))).toEqual(fields)
   })
 
@@ -153,9 +178,19 @@ describe('the payroll of a director row', () => {
     // Pillar I 15% of 1,295.45 less the 2.28 relief, 193.98. Pillar II 5%, 64.77. Income 1,036.70, less 600.00 allowance.
     // Tax 20% of 436.70, 87.34. Health 16.5%, 213.75. Total cost 1,509.20 + 135.00, paid out 949.36 + 135.00.
     expect(
-      [payroll.gross, payroll.pensionPillarOne, payroll.pensionPillarTwo, payroll.income, payroll.taxableIncome, payroll.incomeTax, payroll.net, payroll.health, payroll.employerCost, payroll.totalCompanyCost, payroll.paidToEmployee].map(
-        (figure) => figure.amount,
-      ),
+      [
+        payroll.gross,
+        payroll.pensionPillarOne,
+        payroll.pensionPillarTwo,
+        payroll.income,
+        payroll.taxableIncome,
+        payroll.incomeTax,
+        payroll.net,
+        payroll.health,
+        payroll.employerCost,
+        payroll.totalCompanyCost,
+        payroll.paidToEmployee,
+      ].map((figure) => figure.amount),
     ).toEqual([1295.45, 193.98, 64.77, 1036.7, 436.7, 87.34, 949.36, 213.75, 1509.2, 1644.2, 1084.36].map(euros))
   })
 

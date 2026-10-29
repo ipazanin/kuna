@@ -35,8 +35,7 @@ export interface ItemYearsChart {
 export function itemYearsChart(years: readonly YearItems[], items: readonly string[], tokens: ChartTokens): ItemYearsChart {
   const colours = itemColours(items, tokens)
   const names = [...new Set(items.map((item) => seriesNameOf(item, items)))]
-  const amountOf = (year: YearItems, name: string): number =>
-    sumMoney(year.items.filter((entry) => seriesNameOf(entry.item, items) === name).map((entry) => entry.amount))
+  const amountOf = (year: YearItems, name: string): number => sumMoney(year.items.filter((entry) => seriesNameOf(entry.item, items) === name).map((entry) => entry.amount))
   const series: BarSeries[] = names.map((name) => ({
     type: 'bar',
     name,
@@ -53,9 +52,7 @@ export function itemYearsChart(years: readonly YearItems[], items: readonly stri
       yAxis: { type: 'category', inverse: true, data: years.map((year) => String(year.year)), axisLabel: { color: tokens.inkSecondary } },
       series,
     },
-    description: years
-      .map((year) => `${year.year}: ${formatWholeMoney(year.total)}, of it ${year.items.map((entry) => `${entry.item} ${formatWholeMoney(entry.amount)}`).join(', ')}.`)
-      .join(' '),
+    description: years.map((year) => `${year.year}: ${formatWholeMoney(year.total)}, of it ${year.items.map((entry) => `${entry.item} ${formatWholeMoney(entry.amount)}`).join(', ')}.`).join(' '),
     legend: names.map((name) => ({ label: name, colour: name === OTHER_ITEMS ? 'var(--chart-deemphasis)' : (colours.get(name) ?? 'var(--chart-ink)') })),
   }
 }

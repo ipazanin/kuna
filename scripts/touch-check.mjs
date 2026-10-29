@@ -402,10 +402,9 @@ async function checkWidth(width) {
       await delay(200)
       await payeesToggle.tap()
     }
-    const several = await page.waitForFunction(
-      () => [...document.querySelectorAll('[data-testid="payee-categories"]')].find((trigger) => trigger.textContent?.includes('+')) ?? null,
-      { timeout: 10_000 },
-    )
+    const several = await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="payee-categories"]')].find((trigger) => trigger.textContent?.includes('+')) ?? null, {
+      timeout: 10_000,
+    })
     await several.asElement().evaluate((trigger) => trigger.scrollIntoView({ block: 'center' }))
     await several.asElement().tap()
     await page.waitForSelector('[data-testid="payee-breakdown"] a')
@@ -931,9 +930,11 @@ async function checkWidth(width) {
     await shoot('pay-starting-figures')
     await (await page.waitForSelector('[data-testid="starting-figures"] [data-testid="build-up-button"]')).tap()
     await page.waitForSelector('[data-testid="figure-detail"]')
-    await page.waitForFunction(() => !document.querySelector('[data-testid="starting-figures"]'), { timeout: 5_000 }).catch(() => {
-      throw new Error('the starting figures stayed open under the build-up')
-    })
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="starting-figures"]'), { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('the starting figures stayed open under the build-up')
+      })
     await page.keyboard.press('Escape')
     await page.waitForFunction(() => !document.querySelector('[data-testid="figure-detail"]'))
   })
@@ -1083,9 +1084,11 @@ async function checkWidth(width) {
     await inspect(page, `${width}px rule detail`)
     await shoot('ruleset-linked')
     await (await page.waitForSelector('[role="dialog"] button[aria-label="Close"]')).tap()
-    await page.waitForFunction(() => !document.querySelector('[role="dialog"]') && !window.location.hash.includes('rule='), { timeout: 5_000 }).catch(() => {
-      throw new Error('closing the rule did not take it out of the address')
-    })
+    await page
+      .waitForFunction(() => !document.querySelector('[role="dialog"]') && !window.location.hash.includes('rule='), { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('closing the rule did not take it out of the address')
+      })
     const list = page.url()
     await page.goBack({ waitUntil: 'networkidle0' })
     await expect(page.url(), (address) => address !== list, 'Back after closing the rule showed the same list again')
@@ -1432,18 +1435,22 @@ async function checkWidth(width) {
         return { label: button?.textContent?.trim() ?? '', name: button?.getAttribute('aria-label') ?? '' }
       })
     const controlShows = (kind, failure) =>
-      page.waitForFunction((wanted) => document.querySelector('[data-testid="sync-status"]')?.dataset.control === wanted, { timeout: 12_000 }, kind).catch(() => {
-        throw new Error(failure)
-      })
+      page
+        .waitForFunction((wanted) => document.querySelector('[data-testid="sync-status"]')?.dataset.control === wanted, { timeout: 12_000 }, kind)
+        .catch(() => {
+          throw new Error(failure)
+        })
     const watchSync = await page.evaluateOnNewDocument(() => {
       new MutationObserver(() => {
         if (document.querySelector('[data-testid="sync-status"]')?.dataset.control === 'running') window.sawSyncing = true
       }).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['data-control'] })
     })
     const syncStarted = (after) =>
-      page.waitForFunction(() => window.sawSyncing === true, { timeout: 10_000 }).catch(() => {
-        throw new Error(`the sync did not start by itself after ${after}`)
-      })
+      page
+        .waitForFunction(() => window.sawSyncing === true, { timeout: 10_000 })
+        .catch(() => {
+          throw new Error(`the sync did not start by itself after ${after}`)
+        })
 
     await page.goto(`${BASE}?theme=dark&fake=empty#/company/start?step=access`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Kuna')
@@ -1499,7 +1506,7 @@ async function checkWidth(width) {
     await shoot('google-return-silent-refused')
     await (await page.waitForSelector('header [data-testid="sync-button"]')).tap()
     await controlShows('ready', 'Allow access after a refused silent trip did not sync')
-    await expect(deviceMark(), (mark) => mark === 'interaction_required', 'a tap\'s token cleared a mark Google gave as needing a person')
+    await expect(deviceMark(), (mark) => mark === 'interaction_required', "a tap's token cleared a mark Google gave as needing a person")
 
     // Not signed in to Google: the control says so, and its tap signs in, syncs and lets the next open go silently again.
     await comeBack('drive', silentAsk, 'error=login_required&state=touch-check')
@@ -1528,9 +1535,11 @@ async function checkWidth(width) {
     await comeBack('empty', { ...tapAsk, scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/start?step=access&statements=folder' }, tokenOf(scopeOf('drive.file')))
     await waitForTitle(page, 'Kuna')
     await expect(hashOf(page), (hash) => hash === '#/company/start?step=access&statements=folder', 'the return did not land on the step the tap left')
-    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].map((badge) => badge.textContent?.trim()).join(',') === 'Allowed,Not allowed', { timeout: 10_000 }).catch(() => {
-      throw new Error('the access step does not say Google allowed the books file and not Drive read')
-    })
+    await page
+      .waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].map((badge) => badge.textContent?.trim()).join(',') === 'Allowed,Not allowed', { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the access step does not say Google allowed the books file and not Drive read')
+      })
     await expect(noMessage(), (none) => none, 'the return to the access step showed a message')
     await inspect(page, `${width}px access step after Google`)
     await shoot('google-return-onboarding')
@@ -1547,17 +1556,25 @@ async function checkWidth(width) {
       localStorage.removeItem('kuna.google-silent-refused')
       localStorage.setItem('kuna.google-redirect', JSON.stringify(remembered))
     }, pending)
-    await page.goto(`${BASE}?theme=dark&loans=other-device&load=${Date.now()}#access_token=fake-one-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`, { waitUntil: 'networkidle0' })
-    await waitForText(page, 'li[data-slot="base"]', 'Opened kuna-loans.json')
-    await page.waitForFunction(() => window.location.hash === '#/loans' && document.querySelector('[data-testid="loans-empty"]') !== null, { timeout: 10_000 }).catch(() => {
-      throw new Error('the find the tap resumed did not end on the Loans Overview')
+    await page.goto(`${BASE}?theme=dark&loans=other-device&load=${Date.now()}#access_token=fake-one-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=touch-check`, {
+      waitUntil: 'networkidle0',
     })
+    await waitForText(page, 'li[data-slot="base"]', 'Opened kuna-loans.json')
+    await page
+      .waitForFunction(() => window.location.hash === '#/loans' && document.querySelector('[data-testid="loans-empty"]') !== null, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the find the tap resumed did not end on the Loans Overview')
+      })
     await expect(
       page.evaluate(() => [...document.querySelectorAll('li[data-slot="base"] [data-slot="title"]')].map((title) => title.textContent?.trim())),
       (titles) => titles.length === 1,
       'the company books acted on the Loans find too',
     )
-    await expect(page.evaluate(() => !window.location.href.includes('access_token')), (gone) => gone, 'the token stayed in the address after the Loans find resumed')
+    await expect(
+      page.evaluate(() => !window.location.href.includes('access_token')),
+      (gone) => gone,
+      'the token stayed in the address after the Loans find resumed',
+    )
     await inspect(page, `${width}px resumed Loans find`)
     await shoot('google-return-loans-find')
   })
@@ -1702,11 +1719,7 @@ async function openFreshBrowser(page, hash, title) {
 }
 
 async function waitForTitle(page, title) {
-  await page.waitForFunction(
-    (expected) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === expected,
-    { timeout: 10_000 },
-    title,
-  )
+  await page.waitForFunction((expected) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === expected, { timeout: 10_000 }, title)
 }
 
 async function openDrawer(page) {
@@ -1769,9 +1782,7 @@ async function tapChart(page, { row, column }, selector = '.chart-body canvas') 
 /** Whether the group of one category is expanded, and how many cards it shows. */
 function groupState(page, category) {
   return page.evaluate((wanted) => {
-    const group = [...document.querySelectorAll('[data-testid="transaction-group"]')].find(
-      (section) => section.querySelector('.category-chip')?.textContent?.trim() === wanted,
-    )
+    const group = [...document.querySelectorAll('[data-testid="transaction-group"]')].find((section) => section.querySelector('.category-chip')?.textContent?.trim() === wanted)
     if (!group) return null
     return {
       expanded: group.querySelector('[data-testid="group-toggle"]')?.getAttribute('aria-expanded') === 'true',

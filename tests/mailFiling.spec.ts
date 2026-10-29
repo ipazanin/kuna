@@ -95,7 +95,10 @@ describe('the bank statements in mail', () => {
     const fresh = await plan(mails)
     const filed = await plan(mails, [{ folders: ['2031-statements'], name: '2031-03-12-statement-042-main.xml', created: '2031-03-12T05:00:00Z', content: null }])
 
-    expect(targets(fresh.sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-03-12-statement-042-main.xml', 'already work/bank/statements/2031-statements/2031-03-13-statement-042-main.xml'])
+    expect(targets(fresh.sources[0])).toEqual([
+      'filed work/bank/statements/2031-statements/2031-03-12-statement-042-main.xml',
+      'already work/bank/statements/2031-statements/2031-03-13-statement-042-main.xml',
+    ])
     expect(targets(filed.sources[0]).map((target) => target.split(' ')[0])).toEqual(['already', 'already'])
     expect(planLine(filed)).toBe('Nothing new, already there 2.')
   })
@@ -112,7 +115,15 @@ describe('the bank statements in mail', () => {
 
   it('files a PDF of another shape under the day of the mail and the bank’s own name, and leaves an XML it cannot read unmatched with why', async () => {
     const { sources } = await plan([
-      { id: 'other', subject: 'Izvadak, Example Studio d.o.o.', at: '2031-03-31T22:30:00Z', attachments: [['Statement March.pdf', 'pdf'], ['broken.xml', '<Document><BkToCstmrStmt>']] },
+      {
+        id: 'other',
+        subject: 'Izvadak, Example Studio d.o.o.',
+        at: '2031-03-31T22:30:00Z',
+        attachments: [
+          ['Statement March.pdf', 'pdf'],
+          ['broken.xml', '<Document><BkToCstmrStmt>'],
+        ],
+      },
       { id: 'no-number', subject: 'Izvadak', at: '2031-03-13T04:00:00Z', attachments: [['IZV_2031_03_13 03_05_19_314_503.pdf', 'pdf']] },
     ])
 
@@ -121,15 +132,25 @@ describe('the bank statements in mail', () => {
       'filed work/bank/statements/2031-statements/2031-04-01-Statement March.pdf',
       'unmatched broken.xml',
     ])
-    expect(entriesOf(sources[0]).filter((entry) => entry.kind === 'unmatched').map((entry) => 'reason' in entry && entry.reason)).toEqual([
-      'broken.xml is not well-formed XML, so it cannot be read as a camt.053 statement.',
-    ])
+    expect(
+      entriesOf(sources[0])
+        .filter((entry) => entry.kind === 'unmatched')
+        .map((entry) => 'reason' in entry && entry.reason),
+    ).toEqual(['broken.xml is not well-formed XML, so it cannot be read as a camt.053 statement.'])
   })
 
   it('passes over the HTML copy the bank mails beside each PDF, and anything else that is neither a PDF nor an XML, as the fetch does', async () => {
     const { sources } = await plan([
       { id: 'pdf', subject: 'Izvadak 042, Example Studio d.o.o.', at: '2031-03-12T04:00:00Z', attachments: [['IZV_2031_03_12 03_05_19_314_503.pdf', 'pdf']] },
-      { id: 'html', subject: 'Izvadak 042, Example Studio d.o.o.', at: '2031-03-12T04:00:00Z', attachments: [['IZV_2031_03_12 03_05_19_314_503.html', 'html'], ['Terms.docx', 'docx']] },
+      {
+        id: 'html',
+        subject: 'Izvadak 042, Example Studio d.o.o.',
+        at: '2031-03-12T04:00:00Z',
+        attachments: [
+          ['IZV_2031_03_12 03_05_19_314_503.html', 'html'],
+          ['Terms.docx', 'docx'],
+        ],
+      },
     ])
 
     expect(targets(sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-03-12-statement-042.pdf'])
@@ -178,7 +199,12 @@ describe('the mail step', () => {
       at: `2031-03-1${index}T04:00:00Z`,
       attachments: [[`IZV_2031_03_1${index} 03_05_19_314_503.pdf`, `pdf ${index}`]],
     }))
-    const byOtherApp: TestFiled[] = mails.map((_, index) => ({ folders: ['2031-statements'], name: `2031-03-1${index}-statement-04${index}.pdf`, created: `2031-03-1${index}T06:00:00Z`, content: null }))
+    const byOtherApp: TestFiled[] = mails.map((_, index) => ({
+      folders: ['2031-statements'],
+      name: `2031-03-1${index}-statement-04${index}.pdf`,
+      created: `2031-03-1${index}T06:00:00Z`,
+      content: null,
+    }))
     const mailbox = testMailbox(mails)
 
     const result = await plan([], byOtherApp, { mailbox })
@@ -228,7 +254,13 @@ describe('the mail step', () => {
     const { sources } = await plan(mails, [], { mailbox })
 
     expect(mailbox.queries).toHaveLength(3)
-    expect(targets(sources[0]).map((target) => target.split('/').at(-1))).toEqual(['2031-03-10-statement-001.pdf', '2031-03-11-statement-002.pdf', '2031-03-12-statement-003.pdf', '2031-03-13-statement-004.pdf', '2031-03-14-statement-005.pdf'])
+    expect(targets(sources[0]).map((target) => target.split('/').at(-1))).toEqual([
+      '2031-03-10-statement-001.pdf',
+      '2031-03-11-statement-002.pdf',
+      '2031-03-12-statement-003.pdf',
+      '2031-03-13-statement-004.pdf',
+      '2031-03-14-statement-005.pdf',
+    ])
   })
 
   it('lets a source that fails leave the others running, and says both in its line', async () => {

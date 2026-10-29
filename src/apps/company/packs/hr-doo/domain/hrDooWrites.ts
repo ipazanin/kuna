@@ -139,9 +139,7 @@ function scenarioRefusals(change: KindChange<ScenarioRow>, fresh: FreshRecords):
   }
   const touched = new Set(edits.flatMap((edit) => [edit.from, edit.to]).filter((slug): slug is string => slug !== null))
   const after = readScenarios(change.after).scenarios
-  const stopped = after
-    .filter((scenario) => touched.has(scenario.slug))
-    .flatMap((scenario) => scenarioGuards(scenario).map((guard) => `${scenario.label || scenario.slug}: ${guard.reason}`))
+  const stopped = after.filter((scenario) => touched.has(scenario.slug)).flatMap((scenario) => scenarioGuards(scenario).map((guard) => `${scenario.label || scenario.slug}: ${guard.reason}`))
   if (stopped.length > 0) {
     return stopped
   }

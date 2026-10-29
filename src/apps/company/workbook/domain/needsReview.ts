@@ -11,9 +11,5 @@ export function isHumanConfirmed(transaction: Pick<Transaction, 'flaggedBy'>): b
  * statement parser gave a reason to look at it, such as a reversal, until a person confirms it.
  */
 export function needsReview(transaction: Pick<Transaction, 'flaggedBy' | 'bucket' | 'reviewReasons'>): boolean {
-  return (
-    transaction.flaggedBy === 'ai' ||
-    transaction.bucket === UNCLASSIFIED ||
-    (transaction.reviewReasons.length > 0 && !isHumanConfirmed(transaction))
-  )
+  return transaction.flaggedBy === 'ai' || transaction.bucket === UNCLASSIFIED || (transaction.reviewReasons.length > 0 && !isHumanConfirmed(transaction))
 }

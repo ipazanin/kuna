@@ -240,7 +240,9 @@ export async function renderInvoicePdf(invoice: InvoiceDocument, fonts: InvoiceF
   const footerTop = Math.max(676, paymentTop + LINE * 9 + 60)
   line(page, [LEFT, footerTop], [RIGHT, footerTop], 1.2, true)
   const footer = [
-    [issuer.name, issuer.address, issuer.vatId === '' ? '' : `VAT ID: ${issuer.vatId}`, issuer.courtRegister === '' ? '' : `Court register ID number: ${issuer.courtRegister}`].filter((part) => part !== '').join('; '),
+    [issuer.name, issuer.address, issuer.vatId === '' ? '' : `VAT ID: ${issuer.vatId}`, issuer.courtRegister === '' ? '' : `Court register ID number: ${issuer.courtRegister}`]
+      .filter((part) => part !== '')
+      .join('; '),
     issuer.shareCapital === '' ? '' : `Share capital: ${issuer.shareCapital};`,
     [`IBAN ${issuer.iban}`, issuer.bank === '' ? '' : `opened with ${issuer.bank}`, issuer.swift === '' ? '' : `(SWIFT: ${issuer.swift})`].filter((part) => part !== '').join(' '),
   ].filter((text) => text !== '')

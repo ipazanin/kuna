@@ -18,10 +18,7 @@ interface TrendLine {
 export function cumulativeNetChart(months: readonly MonthOfProfitAndLoss[], tokens: ChartTokens): DrillChart {
   const last = months[months.length - 1]
   return trendChart(months, tokens, [{ name: 'Cumulative net', colour: tokens.accent, amounts: months.map((month) => month.cumulativeNet), area: true }], {
-    description:
-      last === undefined
-        ? 'No months to show.'
-        : `Cumulative net since the ledger began, ${formatWholeMoney(last.cumulativeNet)} by ${monthLabel(last.month)}.`,
+    description: last === undefined ? 'No months to show.' : `Cumulative net since the ledger began, ${formatWholeMoney(last.cumulativeNet)} by ${monthLabel(last.month)}.`,
   })
 }
 
@@ -45,12 +42,7 @@ export function rollingNetChart(months: readonly MonthOfProfitAndLoss[], tokens:
   )
 }
 
-function trendChart(
-  months: readonly MonthOfProfitAndLoss[],
-  tokens: ChartTokens,
-  lines: readonly TrendLine[],
-  { description }: { readonly description: string },
-): DrillChart {
+function trendChart(months: readonly MonthOfProfitAndLoss[], tokens: ChartTokens, lines: readonly TrendLine[], { description }: { readonly description: string }): DrillChart {
   const categories: string[] = months.map((month) => month.month)
   const incomplete = months.map((month) => !month.complete)
   const series: LineSeries[] = lines.map((line, index) => ({

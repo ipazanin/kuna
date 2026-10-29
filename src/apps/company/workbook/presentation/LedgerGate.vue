@@ -63,13 +63,7 @@ const gate = computed(() => {
     variant="outline"
     class="rounded-card border-dashed bg-raised/40"
   />
-  <UEmpty
-    v-else-if="gate === 'syncing'"
-    icon="i-lucide-refresh-cw"
-    title="Reading the file"
-    description="The first copy is on its way."
-    variant="naked"
-  />
+  <UEmpty v-else-if="gate === 'syncing'" icon="i-lucide-refresh-cw" title="Reading the file" description="The first copy is on its way." variant="naked" />
   <UEmpty
     v-else-if="gate === 'ready'"
     icon="i-lucide-refresh-cw"

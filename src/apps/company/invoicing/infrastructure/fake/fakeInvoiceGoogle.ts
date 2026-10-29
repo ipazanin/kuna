@@ -92,6 +92,9 @@ let session: FakeInvoiceGoogle | null = null
  * confirm dialog: OK picks every folder offered, Cancel picks none.
  */
 export function fakeInvoiceGoogleSession(): FakeInvoiceGoogle {
-  session ??= createFakeInvoiceGoogle((title, offered) => (window.confirm(`Fake Google Picker\n\n${title}\n\nOK picks every folder shown, Cancel closes the Picker.`) ? offered : []), new Date().getFullYear())
+  session ??= createFakeInvoiceGoogle(
+    (title, offered) => (window.confirm(`Fake Google Picker\n\n${title}\n\nOK picks every folder shown, Cancel closes the Picker.`) ? offered : []),
+    new Date().getFullYear(),
+  )
   return session
 }

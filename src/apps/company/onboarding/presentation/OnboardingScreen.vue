@@ -87,9 +87,7 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
 /* Faint ruled lines, as on a ledger page, fading out further down. */
 .onboarding {
   background-color: var(--surface-page);
-  background-image:
-    linear-gradient(to bottom, transparent 0, var(--surface-page) 42rem),
-    repeating-linear-gradient(to bottom, transparent 0 31px, var(--border-default) 31px 32px);
+  background-image: linear-gradient(to bottom, transparent 0, var(--surface-page) 42rem), repeating-linear-gradient(to bottom, transparent 0 31px, var(--border-default) 31px 32px);
 }
 
 /* The margin rule of a ledger book, in the brass accent, beside the column on wide screens. */

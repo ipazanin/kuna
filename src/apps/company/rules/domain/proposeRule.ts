@@ -17,11 +17,7 @@ const DIRECTION_PAIRED_ROLES: ReadonlySet<string> = new Set(['revenue', 'client-
  * the rule that decides the row today, or last when none does. Where that needs other rules
  * renumbered, the order here ties and the save renumbers them. Null when the row's category is not defined or nothing names the counterparty.
  */
-export function proposeRule(
-  transaction: CategorisableTransaction & Pick<Transaction, 'category'>,
-  workbook: Pick<Workbook, 'rules' | 'categories'>,
-  context: CategorisationContext,
-): Rule | null {
+export function proposeRule(transaction: CategorisableTransaction & Pick<Transaction, 'category'>, workbook: Pick<Workbook, 'rules' | 'categories'>, context: CategorisationContext): Rule | null {
   const category = workbook.categories.find((candidate) => candidate.slug === transaction.category)
   if (category === undefined) {
     return null
@@ -29,11 +25,7 @@ export function proposeRule(
   const counterparty = counterpartyIdentity(transaction, context.cardSettlementIbans)
   const merchant = foldRuleText(counterparty.writtenName)
   const identity: RuleCondition | null =
-    counterparty.iban !== ''
-      ? { column: 'counterparty_iban', iban: counterparty.iban }
-      : merchant !== ''
-        ? { column: 'counterparty_contains', fragment: merchant }
-        : null
+    counterparty.iban !== '' ? { column: 'counterparty_iban', iban: counterparty.iban } : merchant !== '' ? { column: 'counterparty_contains', fragment: merchant } : null
   if (identity === null) {
     return null
   }
@@ -49,9 +41,7 @@ export function proposeRule(
     category: category.slug,
     confidence: 'rule',
     note:
-      (identity.column === 'counterparty_iban'
-        ? 'A counterparty whose account settles the category on its own.'
-        : 'A merchant, by the name the bank puts in the counterparty field.') +
+      (identity.column === 'counterparty_iban' ? 'A counterparty whose account settles the category on its own.' : 'A merchant, by the name the bank puts in the counterparty field.') +
       (directionPaired ? ` Only ${direction === 'credit' ? 'credits' : 'debits'}, since the category is one side of a pair.` : ''),
   }
 }
@@ -66,5 +56,10 @@ export function unusedId(stem: string, rules: readonly Rule[]): string {
 }
 
 function slugOf(fragment: string): string {
-  return fragment.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'counterparty'
+  return (
+    fragment
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'counterparty'
+  )
 }

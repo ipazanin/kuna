@@ -84,7 +84,12 @@ describe('fake workbook', () => {
     expect(aiRows.length).toBeGreaterThan(0)
     expect(aiRows.every((row) => row.ownerShare === 50)).toBe(true)
     expect(workbook.transactions.filter((row) => row.category !== 'ai-services' && row.ownerShare !== null).map((row) => [row.category, row.ownerShare])).toEqual([['equipment', 30]])
-    expect(workbook.splits.flatMap((split) => split.parts).filter((part) => part.ownerShare !== null).map((part) => [part.category, part.ownerShare])).toEqual([['office-supplies', 20]])
+    expect(
+      workbook.splits
+        .flatMap((split) => split.parts)
+        .filter((part) => part.ownerShare !== null)
+        .map((part) => [part.category, part.ownerShare]),
+    ).toEqual([['office-supplies', 20]])
     expect(workbook.ownerAdvances.filter((advance) => advance.ownerShare !== null).map((advance) => [advance.category, advance.ownerShare])).toEqual([['software-subscriptions', 25]])
   })
 
@@ -126,9 +131,7 @@ describe('fake workbook', () => {
     const [lumen, northwind] = plannedAgainstInvoiced(workbook.billingPlan, workbook.invoices)
     const inBrowser = fakeBooks('browser')
 
-    expect(new Set(workbook.billingPlan.map((row) => row.item))).toEqual(
-      new Set(['Part Time Fee', 'Monthly Fee', 'Bonus', 'Plane Tickets', 'Hotel', 'External Contractor', 'Subscription']),
-    )
+    expect(new Set(workbook.billingPlan.map((row) => row.item))).toEqual(new Set(['Part Time Fee', 'Monthly Fee', 'Bonus', 'Plane Tickets', 'Hotel', 'External Contractor', 'Subscription']))
     expect(northwind?.withoutPlan).toEqual([])
     expect(northwind?.months.flatMap((month) => month.items.filter((item) => item.open > 0).map((item) => [item.row.date, item.row.item]))).toEqual([
       ['2026-10-31', 'Monthly Fee'],

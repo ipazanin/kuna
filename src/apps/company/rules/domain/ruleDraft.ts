@@ -75,9 +75,7 @@ export function draftChange(draft: RuleDraft, rules: readonly Rule[], rows: read
     const row = rows.find((candidate) => sameId(candidate.fields.rule, id))
     return row === undefined ? [] : [{ id, expected: row.fields, fields: { ...row.fields, order: String(order) } }]
   })
-  return edited === null
-    ? { appended: fields, edited: renumbered, removed: null }
-    : { appended: null, edited: [{ id: edited.id, expected: edited.expected, fields }, ...renumbered], removed: null }
+  return edited === null ? { appended: fields, edited: renumbered, removed: null } : { appended: null, edited: [{ id: edited.id, expected: edited.expected, fields }, ...renumbered], removed: null }
 }
 
 function fieldsOfDraft(draft: RuleDraft): RuleFields {
@@ -95,11 +93,7 @@ function fieldsOfDraft(draft: RuleDraft): RuleFields {
 }
 
 /** A draft that files rows like this one, as `proposeRule` words it, tried just before the rule that decides the row now. */
-export function draftForRow(
-  transaction: CategorisableTransaction & Pick<Transaction, 'category'>,
-  workbook: Pick<Workbook, 'rules' | 'categories'>,
-  context: CategorisationContext,
-): RuleDraft {
+export function draftForRow(transaction: CategorisableTransaction & Pick<Transaction, 'category'>, workbook: Pick<Workbook, 'rules' | 'categories'>, context: CategorisationContext): RuleDraft {
   const proposal = proposeRule(transaction, workbook, context)
   if (proposal === null) {
     return { ...blankDraft(workbook.rules), category: workbook.categories.some((category) => category.slug === transaction.category) ? transaction.category : '' }

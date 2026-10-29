@@ -55,15 +55,7 @@ function domId(key: string): string {
   <ul class="flex flex-col" :data-testid="testId">
     <li v-for="line in lines" :key="line.key" class="line-row" :class="{ 'is-total': line.total }">
       <div class="line-head">
-        <button
-          v-if="opens(line)"
-          type="button"
-          class="line-toggle"
-          :aria-expanded="open.has(line.key)"
-          :aria-controls="domId(line.key)"
-          data-testid="build-up-toggle"
-          @click="toggle(line.key)"
-        >
+        <button v-if="opens(line)" type="button" class="line-toggle" :aria-expanded="open.has(line.key)" :aria-controls="domId(line.key)" data-testid="build-up-toggle" @click="toggle(line.key)">
           <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-dimmed" :class="{ 'is-open': open.has(line.key) }" aria-hidden="true" />
           <span class="min-w-0">
             <span class="block text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'">{{ line.label }}</span>

@@ -51,9 +51,7 @@ describe('categorySeries', () => {
   })
 
   it('paints a category in the swatch it was given, and the rest by their place', () => {
-    const listed = TAXES.map((category) =>
-      category.slug === 'corporate-income-tax' ? taxed(category.slug, '#6250D6') : category.slug === 'tax-refund' ? taxed(category.slug, '#a3adb9') : category,
-    )
+    const listed = TAXES.map((category) => (category.slug === 'corporate-income-tax' ? taxed(category.slug, '#6250D6') : category.slug === 'tax-refund' ? taxed(category.slug, '#a3adb9') : category))
 
     expect(paints(listed, ['payroll-contributions', 'corporate-income-tax', 'tax-refund'])).toEqual([
       ['payroll-contributions', '--series-1', 's1'],
@@ -125,15 +123,20 @@ describe('ownerDrawsChart', () => {
   const PAY = PACK_CATEGORIES.filter((category) => category.bucket === 'owner-pay')
   const LOANS = ['owner-loan-out', 'owner-loan-repaid']
   const valuesOf = (chart: ReturnType<typeof ownerDrawsChart>, seriesName: string) =>
-    (chart.option.series as { name: string; data: (number | { value: number })[] }[])
-      .find((entry) => entry.name === seriesName)
-      ?.data.map((point) => (typeof point === 'number' ? point : point.value))
+    (chart.option.series as { name: string; data: (number | { value: number })[] }[]).find((entry) => entry.name === seriesName)?.data.map((point) => (typeof point === 'number' ? point : point.value))
 
   function drawn(rows: Parameters<typeof ledger>[0], from: string, to: string) {
     const window = windowOf(from, to)
     const months = ownerTakeByMonth(withPackBuckets(ledger(rows)), PACK_CATEGORIES, periodMonths({ preset: 'all' }, window), window)
     const moved = PAY.map((category) => category.slug).filter((slug) => months.some((month) => month.byCategory[slug]?.amount !== 0))
-    const series = ownerPaySeries(PAY, moved, LOANS, months.some((month) => month.rentTax.amount !== 0), TOKENS, name)
+    const series = ownerPaySeries(
+      PAY,
+      moved,
+      LOANS,
+      months.some((month) => month.rentTax.amount !== 0),
+      TOKENS,
+      name,
+    )
     return ownerDrawsChart(months, series, TOKENS)
   }
 

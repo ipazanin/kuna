@@ -122,9 +122,7 @@ const sortedRows = computed<ListedRow[]>(() => {
 
 const groups = computed<TransactionGroup[] | null>(() => {
   const shown = ledger.value
-  return groupBy.value === 'none' || shown === null
-    ? null
-    : groupTransactions(sortedRows.value, groupBy.value, { window: shown.window, counterpartyLabels: labels.value })
+  return groupBy.value === 'none' || shown === null ? null : groupTransactions(sortedRows.value, groupBy.value, { window: shown.window, counterpartyLabels: labels.value })
 })
 
 const bucketLabels = computed(() => ledger.value?.workbook.settings.bucketLabels ?? DEFAULT_BUCKET_LABELS)
@@ -240,9 +238,7 @@ function categoryOf(listed: ListedRow) {
   return h('span', { class: 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-toned' }, [
     h('span', { class: 'inline-flex items-center gap-1.5' }, [
       h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: colours.value(listed.category, listed.bucket) }, 'aria-hidden': 'true' }),
-      listed.category === ''
-        ? h('span', { class: 'text-muted' }, 'No category')
-        : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
+      listed.category === '' ? h('span', { class: 'text-muted' }, 'No category') : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
     ]),
     ownerPartNote(listed),
     reviewBadge(listed),
@@ -352,7 +348,14 @@ const columns: TableColumn<TableEntry>[] = [
   },
   {
     id: 'account',
-    accessorFn: (entry) => (entry.kind === 'row' && entry.row.kind === 'bank' ? entry.row.account : entry.kind === 'split' ? entry.whole.account : entry.kind === 'shared' && entry.whole.kind === 'bank' ? entry.whole.account : ''),
+    accessorFn: (entry) =>
+      entry.kind === 'row' && entry.row.kind === 'bank'
+        ? entry.row.account
+        : entry.kind === 'split'
+          ? entry.whole.account
+          : entry.kind === 'shared' && entry.whole.kind === 'bank'
+            ? entry.whole.account
+            : '',
     header: 'Account',
     // The account is the first column a narrow card gives up, since the filters name it too.
     meta: { class: { th: 'hidden @4xl:table-cell', ...besideHeading('hidden @4xl:table-cell').class } },
@@ -471,14 +474,7 @@ function exportCsv(): void {
               <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
 
               <div class="flex flex-wrap items-center gap-2">
-                <UInput
-                  v-model="search"
-                  icon="i-lucide-search"
-                  placeholder="Search counterparty, description, category, reference"
-                  aria-label="Search transactions"
-                  size="sm"
-                  class="w-full sm:w-96"
-                />
+                <UInput v-model="search" icon="i-lucide-search" placeholder="Search counterparty, description, category, reference" aria-label="Search transactions" size="sm" class="w-full sm:w-96" />
                 <USelect v-model="groupBy" :items="[...GROUPINGS]" size="sm" aria-label="Group rows" class="w-44" />
                 <template v-if="groups">
                   <UButton
@@ -502,16 +498,7 @@ function exportCsv(): void {
                     @click="collapsed.expandAll()"
                   />
                 </template>
-                <UButton
-                  icon="i-lucide-download"
-                  label="Export CSV"
-                  color="neutral"
-                  variant="outline"
-                  size="sm"
-                  class="sm:ms-auto"
-                  :disabled="rows.length === 0"
-                  @click="exportCsv"
-                />
+                <UButton icon="i-lucide-download" label="Export CSV" color="neutral" variant="outline" size="sm" class="sm:ms-auto" :disabled="rows.length === 0" @click="exportCsv" />
               </div>
 
               <p v-if="advancesLeftOut" class="flex items-start gap-2 text-xs text-muted" data-testid="advances-left-out">

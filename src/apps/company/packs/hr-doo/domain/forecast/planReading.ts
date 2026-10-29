@@ -119,7 +119,9 @@ function unknownReference(line: PlanLine, categorySlugs: ReadonlySet<string>, sc
     case 'owner-pay-scenario':
       return scenarioSlugs.has(line.scenario) ? null : `"${line.scenario}" is not a scenario on the scenarios tab`
     case 'amount':
-      return (PLAN_KEYWORDS as readonly string[]).includes(line.item) || categorySlugs.has(line.item) ? null : `"${line.item}" is neither ${PLAN_KEYWORDS.join(', ')} nor a category on the categories tab`
+      return (PLAN_KEYWORDS as readonly string[]).includes(line.item) || categorySlugs.has(line.item)
+        ? null
+        : `"${line.item}" is neither ${PLAN_KEYWORDS.join(', ')} nor a category on the categories tab`
     case 'purchase':
       return null
   }

@@ -253,7 +253,7 @@ export const vatRules: readonly RuleIn<VatValues>[] = [
           },
         ],
         confidence: 'confirmed-consolidated',
-        note: 'A registered Croatian recipient pays the VAT on a business service from a non-resident supplier, EU or not. The VAT is shown on the return and deducted on the same return, so the net cash effect is zero. Services from EU suppliers also go on the PDV-S form. VAT charged by a foreign supplier on its own country\'s rules stays a cost and is not deductible in Croatia. 2027 is assumed: no enacted change was found through NN 109/26.',
+        note: "A registered Croatian recipient pays the VAT on a business service from a non-resident supplier, EU or not. The VAT is shown on the return and deducted on the same return, so the net cash effect is zero. Services from EU suppliers also go on the PDV-S form. VAT charged by a foreign supplier on its own country's rules stays a cost and is not deductible in Croatia. 2027 is assumed: no enacted change was found through NN 109/26.",
       },
     ],
   },

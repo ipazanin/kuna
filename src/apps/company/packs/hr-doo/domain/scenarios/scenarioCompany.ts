@@ -52,7 +52,9 @@ export function scenarioCompany(workbook: HrDooWorkbook, year: number, asOf: Civ
 
   const payLines = forecast.categories
     .filter((entry) => isOwnerPayCost(entry.category))
-    .map((entry) => tracedFigure(displayName(entry.category.slug, entry.category.label ?? ''), negateMoney(entry.forecast.total.amount), 'ledger', entry.forecast.total.rules, [deducted(entry.forecast.total)]))
+    .map((entry) =>
+      tracedFigure(displayName(entry.category.slug, entry.category.label ?? ''), negateMoney(entry.forecast.total.amount), 'ledger', entry.forecast.total.rules, [deducted(entry.forecast.total)]),
+    )
   const ownerPayInForecast = summed(`Owner pay in the ${takenFrom} forecast`, payLines, 'ledger')
 
   const { expenses } = forecast.taxBaseInput

@@ -75,7 +75,8 @@ async function chooseFolder(): Promise<void> {
   try {
     const chosen = await withGoogleAccess(['drive.readonly'], () => store.pickDriveFolder('Choose the folder of your bank statements'))
     if (chosen !== null && chosen.path === null) {
-      folderFailure.value = 'Google did not allow Drive read, so the app cannot name the folder’s path. Choose the folder again to ask Google once more, or skip and name it later on Settings, General.'
+      folderFailure.value =
+        'Google did not allow Drive read, so the app cannot name the folder’s path. Choose the folder again to ask Google once more, or skip and name it later on Settings, General.'
     } else if (chosen?.path) {
       const path = chosen.path
       await store.write('Settings saved', (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: 'statements_folder', value: path.join('/') }]))
@@ -112,10 +113,16 @@ async function importNow(): Promise<void> {
       <UIcon name="i-lucide-mail" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
       <div class="min-w-0">
         <p class="text-sm text-highlighted">Statements from your mail</p>
-        <p class="text-xs text-muted">Each sync files the bank's mail into the statements folder beside your books file, then imports it. A statement of an account the books do not hold yet waits on Import.</p>
+        <p class="text-xs text-muted">
+          Each sync files the bank's mail into the statements folder beside your books file, then imports it. A statement of an account the books do not hold yet waits on Import.
+        </p>
       </div>
     </div>
-    <div v-else-if="source === 'folder'" class="flex flex-wrap items-center justify-between gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-statements-folder">
+    <div
+      v-else-if="source === 'folder'"
+      class="flex flex-wrap items-center justify-between gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3"
+      data-testid="onboarding-statements-folder"
+    >
       <div class="min-w-0">
         <p class="text-sm text-highlighted">Statements folder</p>
         <p class="identifier text-xs break-words text-muted">{{ folder.length ? folderTrail(folder) : 'Not chosen yet. Each sync files the statements it holds.' }}</p>
@@ -137,7 +144,17 @@ async function importNow(): Promise<void> {
       :ui="{ base: 'min-h-28 border-dashed bg-elevated/40' }"
       data-testid="onboarding-statement-file"
     />
-    <UButton v-if="offersSample" label="The made-up company's camt.053 statement" icon="i-lucide-file-code" color="neutral" variant="link" size="sm" class="self-start" data-testid="sample-camt" @click="loadSample" />
+    <UButton
+      v-if="offersSample"
+      label="The made-up company's camt.053 statement"
+      icon="i-lucide-file-code"
+      color="neutral"
+      variant="link"
+      size="sm"
+      class="self-start"
+      data-testid="sample-camt"
+      @click="loadSample"
+    />
     <UAlert v-if="loadFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="loadFailure" />
     <p v-if="loaded" class="flex items-center gap-2 text-sm text-toned">
       <UIcon :name="loaded.kind === 'camt' ? 'i-lucide-file-code' : 'i-lucide-file-spreadsheet'" class="size-4 shrink-0" aria-hidden="true" />

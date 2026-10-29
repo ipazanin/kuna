@@ -110,7 +110,14 @@ describe('a run over two apps', () => {
     return startedRun(
       [
         ...started().groups.map((group) => ({ ...group, steps: group.steps.map((step) => ({ ...step, on: step.state.kind === 'queued' })) })),
-        { app: 'loans', name: 'Loans', steps: [{ ...BOOKS_STEP, on: true }, { id: 'rates', label: 'Rates', scopes: ['drive.readonly'], on: true }] },
+        {
+          app: 'loans',
+          name: 'Loans',
+          steps: [
+            { ...BOOKS_STEP, on: true },
+            { id: 'rates', label: 'Rates', scopes: ['drive.readonly'], on: true },
+          ],
+        },
       ],
       STARTED,
     )
@@ -178,7 +185,10 @@ describe('the sync control', () => {
 
   it('counts the steps that failed or wait for you as problems, and is ready otherwise', () => {
     const waits: StepState = { kind: 'waits', line: '1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/company/transactions?tab=import' } }
-    const problems = finishedRun(withStep(withStep(withStep(started(), 'company', 'books', DONE), 'company', 'statements', waits), 'company', 'accountant', { kind: 'failed', line: 'No folder.', link: null }), FINISHED)
+    const problems = finishedRun(
+      withStep(withStep(withStep(started(), 'company', 'books', DONE), 'company', 'statements', waits), 'company', 'accountant', { kind: 'failed', line: 'No folder.', link: null }),
+      FINISHED,
+    )
     const clean = finishedRun(withStep(withStep(withStep(started(), 'company', 'books', DONE), 'company', 'statements', DONE), 'company', 'accountant', DONE), FINISHED)
 
     expect(syncControlOf(problems, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'problems', count: 2, labels: ['Statements', 'Accountant'] })
@@ -194,7 +204,7 @@ describe('the sync control', () => {
   })
 })
 
-describe('what the page\'s Google token lacks', () => {
+describe("what the page's Google token lacks", () => {
   const NEEDS: readonly AccessNeed[] = [
     { scope: 'drive.file', label: 'Books' },
     { scope: 'drive.readonly', label: 'Statements' },

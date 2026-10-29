@@ -30,17 +30,29 @@ describe('a slug', () => {
     expect(slugChangeRefusals('category', { edits: [{ from: null, to: 'travel' }], untouched }, new Map(), true)).toEqual(['"travel" is already a category.'])
     expect(slugChangeRefusals('client', { edits: [{ from: null, to: 'travel' }], untouched }, new Map(), false)).toEqual([])
     expect(
-      slugChangeRefusals('category', { edits: [{ from: null, to: 'meals' }, { from: null, to: 'meals' }], untouched }, new Map(), true),
+      slugChangeRefusals(
+        'category',
+        {
+          edits: [
+            { from: null, to: 'meals' },
+            { from: null, to: 'meals' },
+          ],
+          untouched,
+        },
+        new Map(),
+        true,
+      ),
     ).toEqual(['"meals" is added twice.', '"meals" is added twice.'])
     expect(slugChangeRefusals('category', { edits: [{ from: 'Old Name', to: 'Old Name' }], untouched }, new Map(), true)).toEqual([])
   })
 
   it('in use is never renamed or deleted, unless another row of the tab keeps it', () => {
-    const uses = new Map([['startup', ['1 asset']], ['acme', ['2 invoices', 'the billing_client setting']]])
-
-    expect(slugChangeRefusals('grant', { edits: [{ from: 'startup', to: 'start-up' }], untouched: [] }, uses, true)).toEqual([
-      '"startup" cannot be renamed, since it is used by 1 asset.',
+    const uses = new Map([
+      ['startup', ['1 asset']],
+      ['acme', ['2 invoices', 'the billing_client setting']],
     ])
+
+    expect(slugChangeRefusals('grant', { edits: [{ from: 'startup', to: 'start-up' }], untouched: [] }, uses, true)).toEqual(['"startup" cannot be renamed, since it is used by 1 asset.'])
     expect(slugChangeRefusals('client', { edits: [{ from: 'acme', to: null }], untouched: [] }, uses, false)).toEqual([
       '"acme" cannot be deleted, since it is used by 2 invoices and the billing_client setting.',
     ])
@@ -162,7 +174,16 @@ describe('the clients tab', () => {
   it('takes the IBAN of a row the same change deletes, as merging two rows of a client does', () => {
     const second = { slug: 'acme', ibans: [OTHER_IBAN] }
 
-    expect(clientChangeRefusals([{ before: acme, after: { ...acme, ibans: [VALID_IBAN, OTHER_IBAN] } }, { before: second, after: null }], [], checks)).toEqual([])
+    expect(
+      clientChangeRefusals(
+        [
+          { before: acme, after: { ...acme, ibans: [VALID_IBAN, OTHER_IBAN] } },
+          { before: second, after: null },
+        ],
+        [],
+        checks,
+      ),
+    ).toEqual([])
   })
 
   it('keeps a client with invoices', () => {
@@ -175,9 +196,7 @@ describe('the invoices tab', () => {
     const untouched = [{ number: '1-1-26' }]
 
     expect(invoiceChangeRefusals([{ before: null, after: { number: '2-1-26', amount: 4200 } }], untouched)).toEqual([])
-    expect(invoiceChangeRefusals([{ before: null, after: { number: ' 1-1-26 ', amount: 4200 } }], untouched)).toEqual([
-      'Invoice 1-1-26 is already on the invoices tab, and each number is used once.',
-    ])
+    expect(invoiceChangeRefusals([{ before: null, after: { number: ' 1-1-26 ', amount: 4200 } }], untouched)).toEqual(['Invoice 1-1-26 is already on the invoices tab, and each number is used once.'])
     expect(invoiceChangeRefusals([{ before: { number: '2-1-26', amount: 10 }, after: { number: '2-1-26', amount: -10 } }], untouched)).toEqual([
       'Invoice 2-1-26 is for -10, and an invoice is for an amount above zero.',
     ])
@@ -207,12 +226,16 @@ describe('an editor save', () => {
       discard: (held) => calls.push(`discard ${held.label}`),
     }
 
-    writeDrafts(items, [read('laptop'), read('desk'), read('lamp'), refused('chair'), refused('stool')], [
-      { saved: 0, record: { name: 'laptop' } },
-      { saved: 1, record: { name: 'standing desk' } },
-      { saved: 3, record: { name: 'chair' } },
-      { saved: null, record: { name: 'shelf' } },
-    ])
+    writeDrafts(
+      items,
+      [read('laptop'), read('desk'), read('lamp'), refused('chair'), refused('stool')],
+      [
+        { saved: 0, record: { name: 'laptop' } },
+        { saved: 1, record: { name: 'standing desk' } },
+        { saved: 3, record: { name: 'chair' } },
+        { saved: null, record: { name: 'shelf' } },
+      ],
+    )
 
     expect(calls).toEqual(['change desk to standing desk', 'repair chair as chair', 'add shelf', 'remove lamp', 'discard stool'])
   })

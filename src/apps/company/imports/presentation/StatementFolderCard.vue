@@ -73,7 +73,8 @@ async function confirm(): Promise<void> {
             <li v-for="statement in filed" :key="`${statement.account}-${statement.label}`" class="flex items-start gap-2">
               <UIcon name="i-lucide-check" class="mt-0.5 size-4 shrink-0 text-[var(--tone-positive)]" aria-hidden="true" />
               <span class="min-w-0 flex-1 break-words">
-                {{ statement.label }}, {{ names.account(statement.account) }}, {{ statement.rows === 1 ? '1 row' : `${statement.rows} rows` }}<template v-if="statement.waiting">, {{ statement.waiting }} on Review</template>
+                {{ statement.label }}, {{ names.account(statement.account) }}, {{ statement.rows === 1 ? '1 row' : `${statement.rows} rows`
+                }}<template v-if="statement.waiting">, {{ statement.waiting }} on Review</template>
               </span>
             </li>
           </ul>

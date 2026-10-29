@@ -29,8 +29,24 @@ describe('itemStatistics', () => {
     const { years } = itemStatistics(plan)
 
     expect(years.map((year) => [year.year, year.total, year.items.map((total) => [total.item, total.amount])])).toEqual([
-      [2025, euros(12220), [['Monthly Fee', euros(10000)], ['External Contractor', euros(1800)], ['Hotel', euros(420)]]],
-      [2026, euros(8180), [['Monthly Fee', euros(5000)], ['Bonus', euros(3000)], ['Plane Tickets', euros(180)]]],
+      [
+        2025,
+        euros(12220),
+        [
+          ['Monthly Fee', euros(10000)],
+          ['External Contractor', euros(1800)],
+          ['Hotel', euros(420)],
+        ],
+      ],
+      [
+        2026,
+        euros(8180),
+        [
+          ['Monthly Fee', euros(5000)],
+          ['Bonus', euros(3000)],
+          ['Plane Tickets', euros(180)],
+        ],
+      ],
     ])
   })
 

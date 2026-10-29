@@ -89,9 +89,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     },
     {
       name: 'colour',
-      note:
-        'The colour the app paints the category with, one of the nine swatches on Settings, Categories, such as #2a78d6 for Blue. ' +
-        'Blank, or any other colour, paints it in its bucket colour.',
+      note: 'The colour the app paints the category with, one of the nine swatches on Settings, Categories, such as #2a78d6 for Blue. ' + 'Blank, or any other colour, paints it in its bucket colour.',
     },
     { name: 'roles', note: 'Optional, comma separated, such as revenue or watched, for features that pick categories by role.' },
     { name: 'label', note: 'What the screens call the category, such as Software. Optional. Blank shows the category with spaces for hyphens.' },
@@ -141,8 +139,14 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'reverse_charge', note: 'TRUE when the client accounts for the VAT, so the invoice carries none and prints the reverse-charge note. The app makes only such invoices.' },
   ],
   'outgoing-plan': [
-    { name: 'item', note: 'What kind of item it is, such as the monthly fee, a bonus, a re-billed plane ticket or hotel, a contractor or a subscription. Rows of one kind share the same text. Required.' },
-    { name: 'date', note: 'The day it becomes billable, as a date cell: the last day of the worked month for a monthly fee, the purchase day for a re-billed cost, the day a bonus is agreed. Required.' },
+    {
+      name: 'item',
+      note: 'What kind of item it is, such as the monthly fee, a bonus, a re-billed plane ticket or hotel, a contractor or a subscription. Rows of one kind share the same text. Required.',
+    },
+    {
+      name: 'date',
+      note: 'The day it becomes billable, as a date cell: the last day of the worked month for a monthly fee, the purchase day for a re-billed cost, the day a bonus is agreed. Required.',
+    },
     { name: 'amount', note: 'What to invoice for it, as a number above zero. A formula is fine. Required.' },
     { name: 'client', note: 'Who to invoice, by the client name in the clients tab. Required.' },
     { name: 'description', note: 'What the invoice line says, such as October fee. Optional.' },

@@ -203,7 +203,8 @@ const taken = computed(() => {
         label: 'Monthly net pay',
         value: perMonth === null ? '–' : formatWholeMoney(perMonth.perMonth),
         to: drillLocation(averaged.value.take.withoutLoans.drill),
-        caption: perMonth === null ? 'No month of the ledger in view' : `${formatWholeMoney(averaged.value.take.withoutLoans.amount)} over ${perMonth.months} ${perMonth.months === 1 ? 'month' : 'months'}`,
+        caption:
+          perMonth === null ? 'No month of the ledger in view' : `${formatWholeMoney(averaged.value.take.withoutLoans.amount)} over ${perMonth.months} ${perMonth.months === 1 ? 'month' : 'months'}`,
         definition:
           `What the owner was paid a month from every owner pay category, such as salary, bonus, dividend and rent${benefits === null ? '' : `, ${benefitName.toLowerCase()} included`}: the owner take without loans over the months of the period. ` +
           `A rolling window leaves out the month so far, which the chart of ${payLabel.toLowerCase()} by month draws. Any other period counts a month the ledger covers only in part, such as the month so far, as a whole month, as the chart does.${loanNote}${rentNote}`,
@@ -284,20 +285,15 @@ const taken = computed(() => {
           <p v-if="taken.reimbursements.length > 0" class="mt-3 text-xs text-muted" data-testid="owner-reimbursements">
             Outside the owner take, since they settle costs:
             <template v-for="(line, index) in taken.reimbursements" :key="line.key">
-              <DrillLink :to="line.to" in-prose class="text-toned">{{ line.name }}</DrillLink> <MoneyText :cents="line.amount" precision="whole" />{{ index < taken.reimbursements.length - 1 ? ', ' : '.' }}
+              <DrillLink :to="line.to" in-prose class="text-toned">{{ line.name }}</DrillLink> <MoneyText :cents="line.amount" precision="whole" />{{
+                index < taken.reimbursements.length - 1 ? ', ' : '.'
+              }}
             </template>
           </p>
         </template>
       </DonutCard>
 
-      <DrillChartCard
-        :chart="taken.draws"
-        :title="`${taken.payLabel} by month`"
-        :subtitle="taken.drawsSubtitle"
-        :empty="taken.drawsEmpty"
-        :height="320"
-        :phone-height="260"
-      >
+      <DrillChartCard :chart="taken.draws" :title="`${taken.payLabel} by month`" :subtitle="taken.drawsSubtitle" :empty="taken.drawsEmpty" :height="320" :phone-height="260">
         <template #legend><ChartLegend :entries="taken.drawsLegend" /></template>
       </DrillChartCard>
     </div>

@@ -33,12 +33,7 @@ async function setField(input, value) {
 /** The row of an editor table whose first field reads `name`. */
 async function rowNamed(page, rowSelector, name) {
   return page
-    .waitForFunction(
-      (selector, wanted) => [...document.querySelectorAll(selector)].find((row) => row.querySelector('input')?.value === wanted) ?? null,
-      { timeout: 10_000 },
-      rowSelector,
-      name,
-    )
+    .waitForFunction((selector, wanted) => [...document.querySelectorAll(selector)].find((row) => row.querySelector('input')?.value === wanted) ?? null, { timeout: 10_000 }, rowSelector, name)
     .then((handle) => handle.asElement())
     .catch(() => {
       throw new Error(`no ${rowSelector} named "${name}"`)
@@ -94,9 +89,11 @@ async function dismissToasts(page) {
   await page.evaluate((selector) => {
     for (const close of document.querySelectorAll(`${selector} button[aria-label="Close"]`)) close.click()
   }, TOAST)
-  await page.waitForFunction((selector) => document.querySelectorAll(selector).length === 0, { timeout: 5_000 }, TOAST).catch(() => {
-    throw new Error('the toasts did not close')
-  })
+  await page
+    .waitForFunction((selector) => document.querySelectorAll(selector).length === 0, { timeout: 5_000 }, TOAST)
+    .catch(() => {
+      throw new Error('the toasts did not close')
+    })
 }
 
 /** Presses Undo on the one toast that offers it and waits for "Undone". */
@@ -142,7 +139,11 @@ async function pickCategoryColour(page, press, row, name) {
 
   await press(await page.$(`[data-testid="colour-swatch-picker"] [role="radio"][aria-label="${name}"]`))
   await page
-    .waitForFunction((wanted) => document.querySelector(`[data-testid="colour-swatch-picker"] [role="radio"][aria-label="${wanted}"]`)?.getAttribute('aria-checked') === 'true', { timeout: 5_000 }, name)
+    .waitForFunction(
+      (wanted) => document.querySelector(`[data-testid="colour-swatch-picker"] [role="radio"][aria-label="${wanted}"]`)?.getAttribute('aria-checked') === 'true',
+      { timeout: 5_000 },
+      name,
+    )
     .catch(() => {
       throw new Error(`pressing ${name} did not pick it`)
     })
@@ -323,9 +324,11 @@ export async function categoryFiltersFlow(page, { press, shoot }) {
   await categoriesShow(page, order, 'typing a family that sorts last')
   await choose(page, press, await row.$('[aria-label="Bucket"]'), 'income')
   await categoriesShow(page, order, 'a new bucket outside the filter')
-  await page.waitForFunction(() => document.querySelector('[data-testid="category-kept"]')?.textContent?.trim() === '1 of them shows only for an unsaved change or an error.', { timeout: 5_000 }).catch(() => {
-    throw new Error('the count does not say a row shows only for its unsaved change')
-  })
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="category-kept"]')?.textContent?.trim() === '1 of them shows only for an unsaved change or an error.', { timeout: 5_000 })
+    .catch(() => {
+      throw new Error('the count does not say a row shows only for its unsaved change')
+    })
   await shoot('categories-edit-filtered')
 
   await pressSelector(page, press, '[data-testid="save-categories"]')
@@ -360,9 +363,11 @@ export async function advanceFlow(page, { press, shoot }) {
   await dialogGone(page, '[data-testid="add-advance"]')
   if ((await first()).includes('Train tickets, changed')) throw new Error('the deleted advance is still listed')
   await undo(page, press)
-  await page.waitForFunction(() => document.querySelector('[data-testid="advance-list"] li')?.textContent?.includes('Train tickets, changed') ?? false, { timeout: 10_000 }).catch(() => {
-    throw new Error('Undo did not bring the advance back')
-  })
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="advance-list"] li')?.textContent?.includes('Train tickets, changed') ?? false, { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('Undo did not bring the advance back')
+    })
   await dismissToasts(page)
 }
 
@@ -429,14 +434,16 @@ function invoiceListed(page, number) {
 }
 
 async function waitForInvoice(page, number, listed) {
-  await page.waitForFunction(
-    (wanted, shown) => [...document.querySelectorAll('[data-testid="invoice-list"] .figure')].some((element) => element.textContent?.trim() === wanted) === shown,
-    { timeout: 10_000 },
-    number,
-    listed,
-  ).catch(() => {
-    throw new Error(`invoice ${number} is ${listed ? 'not' : 'still'} on the list`)
-  })
+  await page
+    .waitForFunction(
+      (wanted, shown) => [...document.querySelectorAll('[data-testid="invoice-list"] .figure')].some((element) => element.textContent?.trim() === wanted) === shown,
+      { timeout: 10_000 },
+      number,
+      listed,
+    )
+    .catch(() => {
+      throw new Error(`invoice ${number} is ${listed ? 'not' : 'still'} on the list`)
+    })
 }
 
 async function dialogClosed(page) {
@@ -569,9 +576,11 @@ export async function invoiceRunFlow(page, { press, shoot, inspect }) {
 }
 
 async function dialogGone(page, selector) {
-  await page.waitForFunction((wanted) => !document.querySelector(wanted), { timeout: 10_000 }, selector).catch(() => {
-    throw new Error(`${selector} is still open`)
-  })
+  await page
+    .waitForFunction((wanted) => !document.querySelector(wanted), { timeout: 10_000 }, selector)
+    .catch(() => {
+      throw new Error(`${selector} is still open`)
+    })
   await delay(300)
 }
 
@@ -587,7 +596,8 @@ function componentIn(page, scenario, text) {
 async function waitForComponent(page, scenario, text, shown) {
   await page
     .waitForFunction(
-      (slug, wanted, present) => [...document.querySelectorAll(`[data-scenario="${slug}"] [data-testid="scenario-component"]`)].some((button) => button.textContent?.trim().startsWith(wanted)) === present,
+      (slug, wanted, present) =>
+        [...document.querySelectorAll(`[data-scenario="${slug}"] [data-testid="scenario-component"]`)].some((button) => button.textContent?.trim().startsWith(wanted)) === present,
       { timeout: 10_000 },
       scenario,
       text,
@@ -680,21 +690,18 @@ export async function startingScenariosFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-scenario="floor-salary-2027"]')
   await shoot('starting-added')
   await undo(page, press)
-  await page.waitForFunction(() => !document.querySelector('[data-scenario]'), { timeout: 10_000 }).catch(() => {
-    throw new Error('Undo left starting scenarios on the screen')
-  })
+  await page
+    .waitForFunction(() => !document.querySelector('[data-scenario]'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('Undo left starting scenarios on the screen')
+    })
   await dismissToasts(page)
 }
 
 /** The text of a category's row in the plan editor, once it holds `wanted`. */
 async function waitForPlanCategory(page, slug, wanted) {
   await page
-    .waitForFunction(
-      (category, text) => document.querySelector(`[data-testid="plan-category"][data-category="${category}"]`)?.textContent?.includes(text) ?? false,
-      { timeout: 10_000 },
-      slug,
-      wanted,
-    )
+    .waitForFunction((category, text) => document.querySelector(`[data-testid="plan-category"][data-category="${category}"]`)?.textContent?.includes(text) ?? false, { timeout: 10_000 }, slug, wanted)
     .catch(() => {
       throw new Error(`the plan of ${slug} does not say "${wanted}"`)
     })
@@ -769,9 +776,11 @@ export async function planTabFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="plan-purchase"]')
   await shoot('plan-purchase-added')
   await undo(page, press)
-  await page.waitForFunction(() => !document.querySelector('[data-testid="plan-purchase"]'), { timeout: 10_000 }).catch(() => {
-    throw new Error('Undo left the planned purchase on the screen')
-  })
+  await page
+    .waitForFunction(() => !document.querySelector('[data-testid="plan-purchase"]'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('Undo left the planned purchase on the screen')
+    })
   await dismissToasts(page)
 }
 
@@ -811,9 +820,11 @@ async function setPart(page, index, amount) {
 }
 
 async function waitForSplit(page, present) {
-  await page.waitForFunction((wanted) => (document.querySelector('[data-testid="edit-split"]') !== null) === wanted, { timeout: 10_000 }, present).catch(() => {
-    throw new Error(present ? 'the split row is not listed with its parts' : 'the split row is still listed with its parts')
-  })
+  await page
+    .waitForFunction((wanted) => (document.querySelector('[data-testid="edit-split"]') !== null) === wanted, { timeout: 10_000 }, present)
+    .catch(() => {
+      throw new Error(present ? 'the split row is not listed with its parts' : 'the split row is still listed with its parts')
+    })
 }
 
 /** Transactions: split the one gadget purchase in two, change the parts, delete the split, and Undo the delete. */
@@ -880,9 +891,11 @@ async function openChangeOfRow(page, press, part = false) {
 }
 
 async function pageSays(page, text, says) {
-  await page.waitForFunction((wanted, shown) => document.body.innerText.includes(wanted) === shown, { timeout: 10_000 }, text, says).catch(() => {
-    throw new Error(says ? `"${text}" is not on the page` : `"${text}" is still on the page`)
-  })
+  await page
+    .waitForFunction((wanted, shown) => document.body.innerText.includes(wanted) === shown, { timeout: 10_000 }, text, says)
+    .catch(() => {
+      throw new Error(says ? `"${text}" is not on the page` : `"${text}" is still on the page`)
+    })
 }
 
 /**
@@ -1013,7 +1026,16 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
   await delay(400)
   const detail = await page.$eval('[data-testid="figure-detail"]', (element) => element.textContent ?? '')
-  for (const line of ['Pay without loans and dividends, 10 months', 'Rent tax the owner pays the tax office', 'Pay after the rent tax', 'Profit before tax, Jan 2026 – Sept 2026', 'Corporate tax at', 'Dividend tax at', 'Profit after both taxes, 9 months', 'Left in the company']) {
+  for (const line of [
+    'Pay without loans and dividends, 10 months',
+    'Rent tax the owner pays the tax office',
+    'Pay after the rent tax',
+    'Profit before tax, Jan 2026 – Sept 2026',
+    'Corporate tax at',
+    'Dividend tax at',
+    'Profit after both taxes, 9 months',
+    'Left in the company',
+  ]) {
     if (!detail.includes(line)) throw new Error(`the build-up lacks "${line}", it says: ${detail.slice(0, 300)}`)
   }
   await inspect?.('owner net build-up')
@@ -1064,7 +1086,13 @@ export async function shareFillFlow(page, { press, shoot, inspect }) {
   await dialogGone(page, '[data-testid="share-fill"]')
   await undo(page, press)
   await page
-    .waitForFunction(() => [...document.querySelectorAll('[data-testid="category-row"]')].find((element) => element.querySelector('input')?.value === 'software-subscriptions')?.querySelector('[data-testid="category-owner-share"]')?.value === '', { timeout: 10_000 })
+    .waitForFunction(
+      () =>
+        [...document.querySelectorAll('[data-testid="category-row"]')]
+          .find((element) => element.querySelector('input')?.value === 'software-subscriptions')
+          ?.querySelector('[data-testid="category-owner-share"]')?.value === '',
+      { timeout: 10_000 },
+    )
     .catch(() => {
       throw new Error('Undo did not take the default off software subscriptions')
     })
@@ -1129,9 +1157,11 @@ export function importCamtFlow(path) {
 export function importTableFlow(path) {
   return async (page, { press, shoot, inspect }) => {
     await dropFile(page, path)
-    const name = await page.waitForSelector('[data-testid="profile-editor"] input[data-testid="profile-name"], [data-testid="profile-editor"] [data-testid="profile-name"] input', { timeout: 10_000 }).catch(() => {
-      throw new Error('no profile editor for an export no saved profile fits')
-    })
+    const name = await page
+      .waitForSelector('[data-testid="profile-editor"] input[data-testid="profile-name"], [data-testid="profile-editor"] [data-testid="profile-name"] input', { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('no profile editor for an export no saved profile fits')
+      })
     await setField(name, 'example-bank')
     await dryRunSays(page, 'Confirming adds 4 rows')
     await inspect?.('the new profile')
@@ -1139,9 +1169,11 @@ export function importTableFlow(path) {
     await pressSelector(page, press, '[data-testid="profile-save"]')
     await toast(page, 'Profile saved')
     await dismissToasts(page)
-    await page.waitForFunction(() => !document.querySelector('[data-testid="profile-editor"]'), { timeout: 10_000 }).catch(() => {
-      throw new Error('the saved profile is not the one picked')
-    })
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="profile-editor"]'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the saved profile is not the one picked')
+      })
     await dryRunSays(page, 'Confirming adds 4 rows')
     await shoot('import-table-dry-run')
     await pressSelector(page, press, '[data-testid="import-confirm"]')
@@ -1171,7 +1203,8 @@ const SYNC_CARD = '[data-testid="sync-card"]'
 async function toastMatching(page, pattern) {
   const shown = await page
     .waitForFunction(
-      (selector, source) => [...document.querySelectorAll(selector)].find((element) => new RegExp(source).test(element.querySelector('[data-slot="title"]')?.textContent?.trim() ?? ''))?.textContent ?? null,
+      (selector, source) =>
+        [...document.querySelectorAll(selector)].find((element) => new RegExp(source).test(element.querySelector('[data-slot="title"]')?.textContent?.trim() ?? ''))?.textContent ?? null,
       { timeout: 10_000 },
       TOAST,
       pattern.source,
@@ -1204,7 +1237,11 @@ async function syncButton(page) {
 /** Waits until the sync control shows the state, and returns what its button says and what a screen reader hears. */
 async function controlShows(page, kind) {
   await page
-    .waitForFunction((wanted) => [...document.querySelectorAll('[data-testid="sync-status"]')].some((element) => element.offsetParent !== null && element.dataset.control === wanted), { timeout: 12_000, polling: 100 }, kind)
+    .waitForFunction(
+      (wanted) => [...document.querySelectorAll('[data-testid="sync-status"]')].some((element) => element.offsetParent !== null && element.dataset.control === wanted),
+      { timeout: 12_000, polling: 100 },
+      kind,
+    )
     .catch(async () => {
       const shown = await page.evaluate(() => [...document.querySelectorAll('[data-testid="sync-status"]')].map((element) => element.dataset.control).join(', '))
       throw new Error(`the sync control does not show ${kind}, it shows ${shown || 'nothing'}`)
@@ -1270,9 +1307,11 @@ export async function statementSyncFlow(page, { press, shoot, inspect }) {
   await shoot('statements-filed')
   await pressSelector(page, press, `${SYNC_CARD} [data-step="statements"] [data-testid="sync-step-undo"]`)
   await toast(page, 'Undone')
-  await page.waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, `${SYNC_CARD} [data-testid="sync-step-undo"]`).catch(() => {
-    throw new Error('the statements step still offers Undo after it was undone')
-  })
+  await page
+    .waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, `${SYNC_CARD} [data-testid="sync-step-undo"]`)
+    .catch(() => {
+      throw new Error('the statements step still offers Undo after it was undone')
+    })
   await dismissToasts(page)
 
   await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)
@@ -1319,9 +1358,11 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
     .catch(() => {
       throw new Error('Import does not offer the account the held statement names')
     })
-  await page.waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, SYNC_STEPS).catch(() => {
-    throw new Error('the steps stayed open over Import')
-  })
+  await page
+    .waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, SYNC_STEPS)
+    .catch(() => {
+      throw new Error('the steps stayed open over Import')
+    })
   await delay(300)
   await inspect?.('the held statement on Import')
   await shoot('statements-held-import')
@@ -1341,15 +1382,19 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
   await setField(name, 'second')
   await pressSelector(page, press, '[data-testid="statement-folder-confirm"]')
   await toastMatching(page, /^Filed statement/)
-  await page.waitForFunction(() => !document.querySelector('[data-testid="dry-run-new-account"]'), { timeout: 10_000 }).catch(() => {
-    throw new Error('the held statement still offers its account after it was filed')
-  })
+  await page
+    .waitForFunction(() => !document.querySelector('[data-testid="dry-run-new-account"]'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('the held statement still offers its account after it was filed')
+    })
   await page.evaluate(() => {
     window.location.hash = '#/settings?tab=accounts'
   })
-  await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'second'), { timeout: 10_000 }).catch(() => {
-    throw new Error('Settings, Accounts does not list the account the import added')
-  })
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'second'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('Settings, Accounts does not list the account the import added')
+    })
 }
 
 /** Makes the next load's token come without Drive read, as when the person unticked it on Google's consent screen. */
@@ -1415,7 +1460,10 @@ async function mailListShows(page, wanted) {
     )
     .then((handle) => handle.jsonValue())
     .catch(async () => {
-      const shown = await page.evaluate((selector) => [...document.querySelectorAll(`${selector} [data-source]`)].map((source) => `${source.dataset.source}:${source.dataset.state}`).join(', '), MAIL_PLAN)
+      const shown = await page.evaluate(
+        (selector) => [...document.querySelectorAll(`${selector} [data-source]`)].map((source) => `${source.dataset.source}:${source.dataset.state}`).join(', '),
+        MAIL_PLAN,
+      )
       throw new Error(`the mail card does not list ${wanted.join(', ')}, it lists ${shown || 'nothing'}`)
     })
 }
@@ -1423,9 +1471,11 @@ async function mailListShows(page, wanted) {
 /** Presses the link of the mail step's line, the one in the steps on screen, and waits for the mail card to open on its list. */
 async function openMailList(page, press, scope) {
   await pressSelector(page, press, `${scope} ${SYNC_STEPS} [data-step="mail"] a`)
-  await page.waitForFunction((selector) => document.querySelector(selector)?.getAttribute('data-collapsed') === 'false', { timeout: 10_000 }, MAIL_CARD).catch(() => {
-    throw new Error('the link of the mail step did not open the mail card')
-  })
+  await page
+    .waitForFunction((selector) => document.querySelector(selector)?.getAttribute('data-collapsed') === 'false', { timeout: 10_000 }, MAIL_CARD)
+    .catch(() => {
+      throw new Error('the link of the mail step did not open the mail card')
+    })
 }
 
 /** Scrolls the element under the selector to the top of the window, below the bars that stick there. */
@@ -1461,7 +1511,11 @@ export async function mailOffFlow(page, { press, shoot, inspect }) {
   await shoot('mail-card-off')
   await setField(senders, 'statements@bank.example.com')
   await page
-    .waitForFunction((selector) => document.querySelector(`${selector} [data-testid="statements-mail-subject"]`)?.textContent?.includes('name the words before the statement number') ?? false, { timeout: 5_000 }, MAIL_CARD)
+    .waitForFunction(
+      (selector) => document.querySelector(`${selector} [data-testid="statements-mail-subject"]`)?.textContent?.includes('name the words before the statement number') ?? false,
+      { timeout: 5_000 },
+      MAIL_CARD,
+    )
     .catch(() => {
       throw new Error('the mail card does not ask for a subject beside a sender')
     })
@@ -1743,7 +1797,8 @@ export async function mailWindowFlow(page, { press, shoot, inspect }) {
   })
   await mailListShows(page, ALL_SOURCES)
   const windows = await page.$$eval(`${MAIL_PLAN} [data-testid="mail-source-window"]`, (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
-  if (windows.length !== 4 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the newest file in its folder$/.test(line))) throw new Error(`the sources searched ${JSON.stringify(windows)}`)
+  if (windows.length !== 4 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the newest file in its folder$/.test(line)))
+    throw new Error(`the sources searched ${JSON.stringify(windows)}`)
   await scrollToTop(page, MAIL_PLAN)
   await inspect?.('the list searched from a week before the newest file in each folder')
   await shoot('mail-window')
@@ -1762,7 +1817,11 @@ export async function accessClosedFlow(page, { press, shoot, inspect }) {
   await press(await syncButton(page))
   const said = "Google's window was closed before access was allowed. Tap Allow access to try again."
   await page
-    .waitForFunction((text) => [...document.querySelectorAll('[data-testid="sync-button"]')].some((button) => button.offsetParent !== null && (button.getAttribute('aria-label') ?? '').includes(text)), { timeout: 10_000 }, said)
+    .waitForFunction(
+      (text) => [...document.querySelectorAll('[data-testid="sync-button"]')].some((button) => button.offsetParent !== null && (button.getAttribute('aria-label') ?? '').includes(text)),
+      { timeout: 10_000 },
+      said,
+    )
     .catch(async () => {
       throw new Error(`a screen reader does not hear why Google gave no token, it hears "${(await controlShows(page, 'allow-access')).name}"`)
     })
@@ -1775,7 +1834,7 @@ export async function accessClosedFlow(page, { press, shoot, inspect }) {
   })
   if (shown !== said) throw new Error(`the sync control says "${shown}" after Google's window closed`)
   if (await page.$('[data-testid="sync-steps"] [data-step]')) throw new Error('a sync ran after Google gave no token')
-  await noToast(page, "a closed Google window showed a toast")
+  await noToast(page, 'a closed Google window showed a toast')
   await inspect?.("the sync control after Google's window closed")
   await shoot('sync-access-closed')
   await page.evaluate(() => localStorage.removeItem('kuna.google-silent-refused'))
@@ -1838,9 +1897,11 @@ export async function dismissFlow(page, { press, shoot, inspect }) {
   await coverageGroupShown(page, 'Laptop Store', false)
   await dismissToasts(page)
   await openCard(page, press, 'dismissed-suggestions')
-  await page.waitForFunction(() => document.querySelector('[data-testid="dismissed-suggestion"]')?.textContent?.includes('Laptop Store') ?? false, { timeout: 10_000 }).catch(() => {
-    throw new Error('the dismissed group is not under the dismissed suggestions')
-  })
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="dismissed-suggestion"]')?.textContent?.includes('Laptop Store') ?? false, { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('the dismissed group is not under the dismissed suggestions')
+    })
   await inspect?.('dismissed suggestions')
   await shoot('dismissed-suggestions')
   await pressSelector(page, press, '[data-testid="restore-suggestion"]')
@@ -1983,9 +2044,11 @@ export async function cardSettlementIbansFlow(page, { press, shoot, inspect }) {
   await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'a typed IBAN')
   await typeIban(page, press, await input(), 'XX00 NOT AN IBAN')
   await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN, 'XX00NOTANIBAN'], 'an entry that is not an IBAN')
-  await page.waitForFunction((selector) => document.querySelector(selector)?.textContent?.includes('"XX00NOTANIBAN" is not an IBAN'), { timeout: 5_000 }, CARD_IBANS).catch(() => {
-    throw new Error('the field does not say the entry is not an IBAN')
-  })
+  await page
+    .waitForFunction((selector) => document.querySelector(selector)?.textContent?.includes('"XX00NOTANIBAN" is not an IBAN'), { timeout: 5_000 }, CARD_IBANS)
+    .catch(() => {
+      throw new Error('the field does not say the entry is not an IBAN')
+    })
   await saveSettingsButton(page, false)
   await inspect?.('card settlement IBANs with one that is not an IBAN')
   await shoot('card-ibans-invalid')
@@ -2008,7 +2071,12 @@ const RULE_ROW = '[data-testid="rule-row"]'
 /** The rules tab's row of this rule, by its id. */
 async function ruleRowOf(page, id) {
   return page
-    .waitForFunction((selector, wanted) => [...document.querySelectorAll(selector)].find((row) => row.querySelector('.identifier')?.textContent?.trim() === wanted) ?? null, { timeout: 10_000 }, RULE_ROW, id)
+    .waitForFunction(
+      (selector, wanted) => [...document.querySelectorAll(selector)].find((row) => row.querySelector('.identifier')?.textContent?.trim() === wanted) ?? null,
+      { timeout: 10_000 },
+      RULE_ROW,
+      id,
+    )
     .then((handle) => handle.asElement())
     .catch(() => {
       throw new Error(`the rules tab has no rule ${id}`)
@@ -2134,9 +2202,11 @@ async function deviceShowsDriveFile(page, saved = false) {
   await page.evaluate(() => {
     window.location.hash = '#/settings?tab=device'
   })
-  await page.waitForFunction(() => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === 'Books', { timeout: 10_000 }).catch(() => {
-    throw new Error('Settings, This device does not name the Books folder the file sits in')
-  })
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === 'Books', { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('Settings, This device does not name the Books folder the file sits in')
+    })
   await pageSays(page, 'kuna-company.json', true)
   await pageSays(page, 'None yet. The first save of a day makes one.', !saved)
 }
@@ -2171,9 +2241,11 @@ async function allowGoogle(page, press, { shoot, inspect }) {
   await inspect?.('the access step')
   await shoot('onboarding-access')
   if (await page.$('[data-testid="onboarding-google"]')) await pressSelector(page, press, '[data-testid="onboarding-google"]')
-  await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].some((badge) => badge.textContent?.trim() === 'Allowed'), { timeout: 10_000 }).catch(() => {
-    throw new Error('the access step does not say Google allowed the books file')
-  })
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].some((badge) => badge.textContent?.trim() === 'Allowed'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('the access step does not say Google allowed the books file')
+    })
   await shoot('onboarding-access-allowed')
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
 }
@@ -2230,10 +2302,10 @@ async function folderRefusedOnDrive(page, press, dropsBrowserBooks) {
   })
   const said = await alert.evaluate((element) => element.textContent ?? '')
   for (const text of ['Drive already holds kuna-company.json', 'trash it in Drive first']) if (!said.includes(text)) throw new Error(`the folder step says "${said}", not ${text}`)
-  if (said.includes('deletes the books in this browser') !== dropsBrowserBooks) throw new Error(`the folder step says "${said}", which ${dropsBrowserBooks ? 'does not warn' : 'warns'} that the books in this browser are deleted`)
+  if (said.includes('deletes the books in this browser') !== dropsBrowserBooks)
+    throw new Error(`the folder step says "${said}", which ${dropsBrowserBooks ? 'does not warn' : 'warns'} that the books in this browser are deleted`)
   if (await page.$('[data-testid="onboarding-folder-failure"]')) throw new Error('the folder step shows the refusal as a failure too')
 }
-
 
 /** The lines Overview's Getting set up card shows, by key. */
 async function setUpLines(page) {
@@ -2305,9 +2377,11 @@ export async function onboardingDriveReadFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
   await onboardingAt(page, 'access')
   await chooseOption(page, press, 'onboarding-statements', 'From a folder in my Drive')
-  await page.waitForFunction(() => window.location.hash.includes('statements=folder'), { timeout: 5_000 }).catch(() => {
-    throw new Error('the statements choice did not reach the address, so a trip to Google would lose it')
-  })
+  await page
+    .waitForFunction(() => window.location.hash.includes('statements=folder'), { timeout: 5_000 })
+    .catch(() => {
+      throw new Error('the statements choice did not reach the address, so a trip to Google would lose it')
+    })
   await allowGoogle(page, press, { shoot, inspect })
   await confirmFolder(page, press, { shoot, inspect }, 'My Drive › Books')
   await toastMatching(page, /^Created kuna-company\.json in My Drive › Books$/)
@@ -2321,9 +2395,11 @@ export async function onboardingDriveReadFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
   await onboardingAt(page, 'statement')
   await pressButton(page, press, '[data-testid="onboarding-statements-folder"] button', 'Choose folder')
-  await page.waitForFunction(() => document.querySelector('[data-testid="onboarding-statements-folder"]')?.textContent?.includes('My Drive › Books') ?? false, { timeout: 10_000 }).catch(() => {
-    throw new Error('the statement step does not show the statements folder chosen')
-  })
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="onboarding-statements-folder"]')?.textContent?.includes('My Drive › Books') ?? false, { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('the statement step does not show the statements folder chosen')
+    })
   await shoot('onboarding-statements-folder')
   await pressSelector(page, press, '[data-testid="onboarding-skip"]')
   await onboardingAt(page, 'overview')
@@ -2357,12 +2433,15 @@ export async function onboardingMailFlow(page, { press, shoot, inspect }) {
   await inspect?.('the access step with mail from Erste')
   await shoot('onboarding-access-mail')
   await choose(page, press, await page.waitForSelector('[data-testid="onboarding-bank"]'), 'Another bank')
-  if (!(await page.$eval('[data-testid="onboarding-google"], [data-testid="onboarding-continue"]', (button) => button.disabled))) throw new Error('the access step goes on before another bank is named')
+  if (!(await page.$eval('[data-testid="onboarding-google"], [data-testid="onboarding-continue"]', (button) => button.disabled)))
+    throw new Error('the access step goes on before another bank is named')
   await setField(await page.waitForSelector('input[data-testid="onboarding-mail-from"]', { visible: true }), 'statements@bank.example.com')
   await setField(await page.waitForSelector('input[data-testid="onboarding-mail-subject"]'), 'Izvadak')
-  await page.waitForFunction(() => /statements=mail/.test(window.location.hash) && /bank=other/.test(window.location.hash) && /subject=Izvadak/.test(window.location.hash), { timeout: 5_000 }).catch(() => {
-    throw new Error('the mail typed did not reach the address, so a trip to Google would lose it')
-  })
+  await page
+    .waitForFunction(() => /statements=mail/.test(window.location.hash) && /bank=other/.test(window.location.hash) && /subject=Izvadak/.test(window.location.hash), { timeout: 5_000 })
+    .catch(() => {
+      throw new Error('the mail typed did not reach the address, so a trip to Google would lose it')
+    })
   await shoot('onboarding-access-mail-other')
   await allowGoogle(page, press, { shoot: shootMail, inspect })
   const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('kuna.google-needed') ?? '[]'))
@@ -2452,9 +2531,11 @@ export async function onboardingBrowserFlow(page, { press, shoot, inspect }) {
   await page.evaluate(() => {
     window.location.hash = '#/settings'
   })
-  await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Example Studio'), { timeout: 10_000 }).catch(() => {
-    throw new Error('Settings, General does not name the company the company step named')
-  })
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Example Studio'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('Settings, General does not name the company the company step named')
+    })
 }
 
 /**
@@ -2473,9 +2554,11 @@ export function onboardingBringFlow(path) {
     await onboardingAt(page, 'file')
     const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
     await input.uploadFile(path)
-    await page.waitForFunction(() => /^\d+ records, by tab$/.test(document.querySelector('[data-testid="record-counts"] h3')?.textContent?.trim() ?? ''), { timeout: 10_000 }).catch(() => {
-      throw new Error('the file step does not count the records by tab')
-    })
+    await page
+      .waitForFunction(() => /^\d+ records, by tab$/.test(document.querySelector('[data-testid="record-counts"] h3')?.textContent?.trim() ?? ''), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the file step does not count the records by tab')
+      })
     await delay(400)
     await inspect?.('the file summary')
     await shoot('onboarding-file')
@@ -2646,10 +2729,12 @@ export async function onboardingStatementAccessFlow(page, { press, shoot, inspec
   await page.reload({ waitUntil: 'networkidle0' })
   await onboardingAt(page, 'statement')
   await pressButton(page, press, '[data-testid="onboarding-statements-folder"] button', 'Choose folder')
-  await page.waitForFunction(() => document.querySelector('[data-testid="onboarding-statements-folder"]')?.textContent?.includes('My Drive › Books') ?? false, { timeout: 10_000 }).catch(async () => {
-    const said = await page.$eval(STEP, (element) => element.textContent ?? '')
-    throw new Error(`the statement step does not show the folder chosen with its path, it says: ${said}`)
-  })
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="onboarding-statements-folder"]')?.textContent?.includes('My Drive › Books') ?? false, { timeout: 10_000 })
+    .catch(async () => {
+      const said = await page.$eval(STEP, (element) => element.textContent ?? '')
+      throw new Error(`the statement step does not show the folder chosen with its path, it says: ${said}`)
+    })
   if ((await page.$eval(STEP, (element) => element.textContent ?? '')).includes('sync control')) throw new Error('the statement step points to the sync control')
   const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('kuna.google-granted') ?? '[]'))
   if (!granted.includes('drive.readonly')) throw new Error(`Choose folder asked Google for ${granted.join(', ')}, without Drive read`)
@@ -2663,9 +2748,11 @@ function queueLength(page) {
 }
 
 async function queueHolds(page, count, failure) {
-  await page.waitForFunction((wanted) => document.querySelectorAll('[data-testid="review-row"]').length === wanted, { timeout: 10_000 }, count).catch(async () => {
-    throw new Error(`${failure} (the queue holds ${await queueLength(page)})`)
-  })
+  await page
+    .waitForFunction((wanted) => document.querySelectorAll('[data-testid="review-row"]').length === wanted, { timeout: 10_000 }, count)
+    .catch(async () => {
+      throw new Error(`${failure} (the queue holds ${await queueLength(page)})`)
+    })
 }
 
 /**
@@ -2705,9 +2792,11 @@ async function elementSays(page, selector, texts, failure) {
 }
 
 async function screenTitled(page, title) {
-  await page.waitForFunction((wanted) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === wanted, { timeout: 10_000 }, title).catch(() => {
-    throw new Error(`${title} did not open`)
-  })
+  await page
+    .waitForFunction((wanted) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === wanted, { timeout: 10_000 }, title)
+    .catch(() => {
+      throw new Error(`${title} did not open`)
+    })
 }
 
 /**
@@ -2924,7 +3013,12 @@ async function chooseStartingWith(page, press, trigger, start) {
 
 async function loanCardShown(page, name, shown) {
   await page
-    .waitForFunction((wanted, expected) => [...document.querySelectorAll('[data-testid="loan-card"] h2')].some((heading) => heading.textContent?.trim() === wanted) === expected, { timeout: 10_000 }, name, shown)
+    .waitForFunction(
+      (wanted, expected) => [...document.querySelectorAll('[data-testid="loan-card"] h2')].some((heading) => heading.textContent?.trim() === wanted) === expected,
+      { timeout: 10_000 },
+      name,
+      shown,
+    )
     .catch(() => {
       throw new Error(shown ? `the Loans Overview has no card for ${name}` : `the Loans Overview still has a card for ${name}`)
     })
@@ -2937,7 +3031,11 @@ async function openLoanCard(page, press, name) {
   })
   await screenTitled(page, 'Overview')
   const card = await page
-    .waitForFunction((wanted) => [...document.querySelectorAll('[data-testid="loan-card"]')].find((element) => element.querySelector('h2')?.textContent?.trim() === wanted) ?? null, { timeout: 10_000 }, name)
+    .waitForFunction(
+      (wanted) => [...document.querySelectorAll('[data-testid="loan-card"]')].find((element) => element.querySelector('h2')?.textContent?.trim() === wanted) ?? null,
+      { timeout: 10_000 },
+      name,
+    )
     .catch(() => {
       throw new Error(`no card for ${name} on the Loans Overview`)
     })

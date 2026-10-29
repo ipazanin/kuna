@@ -88,7 +88,6 @@ const invoiceDialog = computed(() => {
 const ALL_CLIENTS = 'all'
 const PRESETS = ['l3', 'l12', 'year', 'all'] as const
 
-
 const period = computed({
   get: () => filters.value.period,
   set: (next: Period) => void setFilters({ ...filters.value, period: next }),
@@ -139,12 +138,14 @@ const view = computed(() => {
   const payers = new Set(unattributed.map((credit) => counterpartyIdentity(credit.transaction).key)).size
   const tokens = chartTokens()
 
-  const paymentLine = (prefix: string) => (allocation: { payment: PaymentRow; amount: Money }, index: number): InvoicePaymentLine => ({
-    key: `${prefix}-${listedRowKey(allocation.payment.transaction)}-${index}`,
-    date: dayLabel(allocation.payment.transaction.date),
-    amount: allocation.amount,
-    to: drillLocation(allocation.payment.drill),
-  })
+  const paymentLine =
+    (prefix: string) =>
+    (allocation: { payment: PaymentRow; amount: Money }, index: number): InvoicePaymentLine => ({
+      key: `${prefix}-${listedRowKey(allocation.payment.transaction)}-${index}`,
+      date: dayLabel(allocation.payment.transaction.date),
+      amount: allocation.amount,
+      to: drillLocation(allocation.payment.drill),
+    })
 
   const listed = matched
     .filter(({ invoice }) => invoice.remaining > 0 || range === null || rangeContains(range, invoice.invoice.issued))
@@ -210,8 +211,7 @@ const view = computed(() => {
     ageingLegend: ageingLegend(tokens),
     ageingHeight: Math.max(140, ageingClients.length * 48 + 56),
     daysRows,
-    daysSummary:
-      paid.median === null ? 'No invoice paid in the period' : `Median ${formatDays(paid.median)} days, mean ${formatDays(paid.mean ?? 0)} over ${paid.days.length} paid`,
+    daysSummary: paid.median === null ? 'No invoice paid in the period' : `Median ${formatDays(paid.median)} days, mean ${formatDays(paid.mean ?? 0)} over ${paid.days.length} paid`,
     invoices: listed,
     invoicesSummary: `${listed.length} ${listed.length === 1 ? 'invoice' : 'invoices'}, ${formatWholeMoney(outstanding)} outstanding`,
     sums,
@@ -259,14 +259,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
         <template v-else>
           <div class="flex flex-wrap items-center gap-3" data-testid="receivables-controls">
             <PeriodBar v-model:period="period" :window="view.window" :presets="PRESETS" :stacked="phone" />
-            <USelect
-              v-if="view.showClientPicker"
-              v-model="chosenClient"
-              :items="view.clientItems"
-              aria-label="Client"
-              class="w-full sm:w-48"
-              data-testid="client-picker"
-            />
+            <USelect v-if="view.showClientPicker" v-model="chosenClient" :items="view.clientItems" aria-label="Client" class="w-full sm:w-48" data-testid="client-picker" />
           </div>
 
           <div class="wide-pair">
@@ -279,8 +272,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
               data-testid="invoices"
             >
               <template #subtitle>
-                The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already issued on
-                the day a payment arrives.
+                The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already issued on the day a payment arrives.
               </template>
               <template #actions>
                 <UButton

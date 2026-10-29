@@ -33,10 +33,7 @@ const chosen = defineModel<string>({ required: true })
 /** The radio value of the blank choice, which no swatch's value can be. */
 const BLANK = 'blank'
 
-const choices = computed(() => [
-  { ...props.blank, value: BLANK, class: 'col-span-full' },
-  ...props.swatches.map((swatch) => ({ ...swatch, class: 'size-11' })),
-])
+const choices = computed(() => [{ ...props.blank, value: BLANK, class: 'col-span-full' }, ...props.swatches.map((swatch) => ({ ...swatch, class: 'size-11' }))])
 
 /** A value outside the swatches reads as blank, and stays as stored until a swatch is picked. */
 const picked = computed(() => choices.value.find((choice) => choice.value !== BLANK && choice.value.toLowerCase() === chosen.value.trim().toLowerCase()) ?? choices.value[0]!)

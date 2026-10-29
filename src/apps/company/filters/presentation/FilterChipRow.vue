@@ -74,15 +74,7 @@ watch(
     <div class="contents" aria-label="Active filters" role="group">
       <span v-for="chip in shownChips" :key="chip.id" class="filter-chip" data-testid="filter-chip">
         <span class="truncate">{{ chip.label }}</span>
-        <UButton
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          class="rounded-full p-0.5"
-          :aria-label="`Remove filter ${chip.label}`"
-          @click="emit('remove', chip.id)"
-        />
+        <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full p-0.5" :aria-label="`Remove filter ${chip.label}`" @click="emit('remove', chip.id)" />
       </span>
       <UPopover v-if="foldedChips.length" :content="{ align: 'start', collisionPadding: 12 }">
         <UButton :label="`+${foldedChips.length} more`" color="neutral" variant="ghost" size="xs" class="shrink-0" data-testid="more-filters" />
@@ -90,15 +82,7 @@ watch(
           <ul class="flex max-w-80 flex-col gap-1 p-2">
             <li v-for="chip in foldedChips" :key="chip.id" class="filter-chip justify-between">
               <span class="truncate">{{ chip.label }}</span>
-              <UButton
-                icon="i-lucide-x"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="rounded-full p-0.5"
-                :aria-label="`Remove filter ${chip.label}`"
-                @click="emit('remove', chip.id)"
-              />
+              <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full p-0.5" :aria-label="`Remove filter ${chip.label}`" @click="emit('remove', chip.id)" />
             </li>
           </ul>
         </template>

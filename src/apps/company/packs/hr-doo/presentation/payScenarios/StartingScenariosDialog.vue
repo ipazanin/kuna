@@ -62,7 +62,13 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="`Add the starting scenarios for ${year}`" description="Each one is rows on the scenarios tab, editable here." :fullscreen="phone" :ui="{ header: 'pe-16 sm:pe-6' }">
+  <UModal
+    v-model:open="open"
+    :title="`Add the starting scenarios for ${year}`"
+    description="Each one is rows on the scenarios tab, editable here."
+    :fullscreen="phone"
+    :ui="{ header: 'pe-16 sm:pe-6' }"
+  >
     <template #body>
       <form id="starting-scenarios" class="flex flex-col gap-4" data-testid="starting-scenarios-form" @submit.prevent="save">
         <ol class="flex list-decimal flex-col gap-1 ps-5 text-sm text-toned">
@@ -70,10 +76,16 @@ async function save(): Promise<void> {
         </ol>
         <p class="text-xs text-muted">
           Each pays out the rest of the year's profit as a dividend. The tax-free items use their yearly caps from the ruleset.
-          <template v-if="seeded.switchOn !== null && seeded.switchOn > `${year}-01-01`"> The two that stop the salary stop it on {{ dayLabel(seeded.switchOn) }}, the day after the grants no longer require the employment.</template>
+          <template v-if="seeded.switchOn !== null && seeded.switchOn > `${year}-01-01`">
+            The two that stop the salary stop it on {{ dayLabel(seeded.switchOn) }}, the day after the grants no longer require the employment.</template
+          >
           <template v-else-if="seeded.switchOn === null"> No day of {{ year }} is free of the grants' employment condition, so the two that stop the salary are left out.</template>
         </p>
-        <UFormField label="Monthly rent you charge the company" help="Your own figure, for the scenario with rent. Blank leaves the rent out." :error="(tried && parsedRent === 'bad' && 'An amount above zero with at most two decimals') || false">
+        <UFormField
+          label="Monthly rent you charge the company"
+          help="Your own figure, for the scenario with rent. Blank leaves the rent out."
+          :error="(tried && parsedRent === 'bad' && 'An amount above zero with at most two decimals') || false"
+        >
           <UInput v-model="rent" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="starting-rent" />
         </UFormField>
         <p v-if="clash.length > 0" class="text-sm text-error" role="alert">The tab already has {{ clash.join(', ') }}, so the starting scenarios for {{ year }} are there.</p>

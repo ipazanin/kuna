@@ -175,7 +175,15 @@ export function sampleTableGrid(): CellValue[][] {
     [],
     ['Datum knjiženja', 'Naziv primatelja / platitelja', 'IBAN', 'Opis plaćanja', 'Isplata', 'Uplata', 'Stanje'],
     ...lines.reverse(),
-    ['Ukupno', '', '', '', comma(rows.filter((row) => row.cents < 0).reduce((total, row) => total + row.cents, 0)), comma(rows.filter((row) => row.cents > 0).reduce((total, row) => total + row.cents, 0)), ''],
+    [
+      'Ukupno',
+      '',
+      '',
+      '',
+      comma(rows.filter((row) => row.cents < 0).reduce((total, row) => total + row.cents, 0)),
+      comma(rows.filter((row) => row.cents > 0).reduce((total, row) => total + row.cents, 0)),
+      '',
+    ],
   ]
 }
 

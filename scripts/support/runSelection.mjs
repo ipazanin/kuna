@@ -14,7 +14,11 @@ import { parseArgs } from 'node:util'
  */
 export function runSelection(widths) {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: { only: { type: 'string' }, widths: { type: 'string' } } })
-  const listOf = (text) => (text ?? '').split(',').map((entry) => entry.trim()).filter((entry) => entry !== '')
+  const listOf = (text) =>
+    (text ?? '')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry !== '')
   const only = values.only === undefined ? null : listOf(values.only)
   const chosenWidths = values.widths === undefined ? null : listOf(values.widths).map(Number)
   const unknownWidths = (chosenWidths ?? []).filter((width) => !widths.includes(width))

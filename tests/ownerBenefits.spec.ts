@@ -84,7 +84,14 @@ describe('ownerBenefits', () => {
   })
 
   it('is null without one owner-pay category carrying the owner-benefit role', () => {
-    expect(ownerBenefits(cashOf(EXAMPLE), CATEGORIES.filter((candidate) => candidate !== BENEFIT), YEAR, WINDOW)).toBeNull()
+    expect(
+      ownerBenefits(
+        cashOf(EXAMPLE),
+        CATEGORIES.filter((candidate) => candidate !== BENEFIT),
+        YEAR,
+        WINDOW,
+      ),
+    ).toBeNull()
   })
 })
 

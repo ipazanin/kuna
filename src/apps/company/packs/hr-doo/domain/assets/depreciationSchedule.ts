@@ -113,10 +113,7 @@ export function bookValueOn(schedule: DepreciationSchedule, on: CivilDate): Trac
 }
 
 /** The last month that carries depreciation: the month of disposal, or the one before when the rule stops earlier. */
-function lastDepreciatedMonth(
-  disposed: CivilDate,
-  rules: RuleSource,
-): { readonly month: MonthKey; readonly rule: RuleLookup<RuleValues['hr.cit.depreciation-start']> } {
+function lastDepreciatedMonth(disposed: CivilDate, rules: RuleSource): { readonly month: MonthKey; readonly rule: RuleLookup<RuleValues['hr.cit.depreciation-start']> } {
   const rule = rules('hr.cit.depreciation-start', taxPeriodOf(yearOf(disposed)))
   const month = rule.value.endsInMonthOfDisposal.holds ? monthOf(disposed) : addMonths(monthOf(disposed), -1)
   return { month, rule }
@@ -171,23 +168,16 @@ function chargeForMonths(base: Money, rate: Rate, months: number): number {
   return dividedRounded(base * rate * months, BASIS_POINTS_PER_WHOLE * MONTHS_PER_YEAR)
 }
 
-function deductibleOf(
-  charge: TracedFigure,
-  cost: Money,
-  capRule: RuleLookup<RuleValues['hr.cit.car-depreciation-cap']> | null,
-): TracedFigure {
+function deductibleOf(charge: TracedFigure, cost: Money, capRule: RuleLookup<RuleValues['hr.cit.car-depreciation-cap']> | null): TracedFigure {
   if (capRule === null || cost <= capRule.value.costCapPerCar.cents) {
     return tracedFigure('Depreciation the corporate tax allows, all of it', charge.amount, 'assets', charge.rules, [charge])
   }
   const cap = capRule.value.costCapPerCar.cents
   const capped = tracedFigure('Car cost the corporate tax counts', cap, 'assets', [capRule.citation])
-  return tracedFigure(
-    'Depreciation the corporate tax allows, in proportion to the capped cost',
-    moneyFromCents(dividedRounded(charge.amount * cap, cost)),
-    'assets',
-    rulesOf([charge, capped]),
-    [charge, capped],
-  )
+  return tracedFigure('Depreciation the corporate tax allows, in proportion to the capped cost', moneyFromCents(dividedRounded(charge.amount * cap, cost)), 'assets', rulesOf([charge, capped]), [
+    charge,
+    capped,
+  ])
 }
 
 function smallInventory(
@@ -199,28 +189,17 @@ function smallInventory(
   if (!capitalisationRule.value.smallInventoryWrittenOffOnUse.holds) {
     throw new RangeError(`The capitalisation rule in force on ${asset.inUse} does not write small inventory off when put in use.`)
   }
-  const figure = tracedFigure('Small inventory, written off when put in use', cost.amount, 'assets', [
-    thresholdRule.citation,
-    capitalisationRule.citation,
-  ], [cost])
+  const figure = tracedFigure('Small inventory, written off when put in use', cost.amount, 'assets', [thresholdRule.citation, capitalisationRule.citation], [cost])
   return { asset, treatment: 'small-inventory', cost, months: [], years: [], writeOff: { on: asset.inUse, figure } }
 }
 
-function disposalWriteOff(
-  asset: Asset,
-  cost: TracedFigure,
-  months: readonly DepreciationMonth[],
-  years: readonly DepreciationYear[],
-): AssetWriteOff | null {
+function disposalWriteOff(asset: Asset, cost: TracedFigure, months: readonly DepreciationMonth[], years: readonly DepreciationYear[]): AssetWriteOff | null {
   if (asset.disposed === null) {
     return null
   }
   const charges = years.map((year) => year.charge)
   const accumulated = tracedFigure('Depreciation until disposal', sumMoney(months.map((entry) => entry.charge)), 'assets', rulesOf(charges))
-  const figure = tracedFigure('Book value written off on disposal', subtractMoney(cost.amount, accumulated.amount), 'assets', accumulated.rules, [
-    cost,
-    deducted(accumulated),
-  ])
+  const figure = tracedFigure('Book value written off on disposal', subtractMoney(cost.amount, accumulated.amount), 'assets', accumulated.rules, [cost, deducted(accumulated)])
   return { on: asset.disposed, figure }
 }
 

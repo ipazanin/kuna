@@ -166,7 +166,9 @@ describe('invoice settings and client details', () => {
       filePath: DEFAULT_FILE_PATH,
       mailSubject: 'Invoice {month}',
     })
-    expect(problems).toEqual([{ id: recordIdOf(SETTING_RECORDS, 'invoice_file_path'), label: 'invoice_file_path', reason: 'the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf, so the default is used' }])
+    expect(problems).toEqual([
+      { id: recordIdOf(SETTING_RECORDS, 'invoice_file_path'), label: 'invoice_file_path', reason: 'the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf, so the default is used' },
+    ])
     expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, iban: 'HR00', numberPattern: '{yy}' } })).toEqual({
       iban: '"HR00" is not an IBAN',
       numberPattern: 'the pattern needs {n}, the sequence, exactly once',

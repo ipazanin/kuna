@@ -112,10 +112,7 @@ describe('plannedAgainstInvoiced', () => {
   })
 
   it('lets an invoice bill next month’s fee ahead, and no row after that month', () => {
-    const plan = [
-      planRow('Monthly Fee', '2026-05-31', 5000, 'north', 'May fee'),
-      planRow('Monthly Fee', '2026-06-30', 5000, 'north', 'June fee'),
-    ]
+    const plan = [planRow('Monthly Fee', '2026-05-31', 5000, 'north', 'May fee'), planRow('Monthly Fee', '2026-06-30', 5000, 'north', 'June fee')]
     const match = matchOf(plan, [invoiceOf('5-1-26', 7000, '2026-04-26')])
 
     expect(billedBy(match)).toEqual([

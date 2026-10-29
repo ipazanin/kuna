@@ -167,7 +167,14 @@ function openDetail(opened: FigureDetail): void {
       <div class="flex flex-wrap items-center gap-2 sm:ms-auto">
         <label v-if="shown && chosen.length > 1" class="flex items-center gap-2 text-sm text-toned">
           <span class="shrink-0">Compare against</span>
-          <USelect :model-value="base" :items="shown.columns.map((column) => ({ label: column.label, value: column.slug }))" size="sm" class="min-w-48" data-testid="scenario-base" @update:model-value="pickBase(String($event))" />
+          <USelect
+            :model-value="base"
+            :items="shown.columns.map((column) => ({ label: column.label, value: column.slug }))"
+            size="sm"
+            class="min-w-48"
+            data-testid="scenario-base"
+            @update:model-value="pickBase(String($event))"
+          />
         </label>
         <UButton label="What the scenarios start from" icon="i-lucide-list-tree" color="neutral" variant="outline" size="sm" data-testid="open-starting-figures" @click="startingOpen = true" />
       </div>

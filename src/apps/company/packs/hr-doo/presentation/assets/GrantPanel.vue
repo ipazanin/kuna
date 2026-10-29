@@ -51,9 +51,13 @@ defineProps<{
   <div v-else class="grid gap-x-8 gap-y-5 lg:grid-cols-2" data-testid="grant-panel">
     <section v-for="grant in grants" :key="grant.key" :aria-label="grant.name" class="flex min-w-0 flex-col gap-3">
       <div>
-        <h3 class="text-sm font-medium text-highlighted"><span class="identifier">{{ grant.name }}</span>, <MoneyText :cents="grant.amount" /></h3>
+        <h3 class="text-sm font-medium text-highlighted">
+          <span class="identifier">{{ grant.name }}</span
+          >, <MoneyText :cents="grant.amount" />
+        </h3>
         <p class="text-xs text-muted">
-          Received <DrillLink :to="grant.receipt" in-prose :label="`Grant received ${grant.received}, open the row`">{{ grant.received }}</DrillLink>. {{ grant.policy }}
+          Received <DrillLink :to="grant.receipt" in-prose :label="`Grant received ${grant.received}, open the row`">{{ grant.received }}</DrillLink
+          >. {{ grant.policy }}
         </p>
       </div>
 
@@ -81,9 +85,7 @@ defineProps<{
         </thead>
         <tbody>
           <tr v-for="year in grant.years" :key="year.year">
-            <th scope="row" class="figure text-start font-normal text-toned">
-              {{ year.year }}<span v-if="year.when === 'ahead'" class="block text-xs text-muted sm:ms-1.5 sm:inline">to come</span>
-            </th>
+            <th scope="row" class="figure text-start font-normal text-toned">{{ year.year }}<span v-if="year.when === 'ahead'" class="block text-xs text-muted sm:ms-1.5 sm:inline">to come</span></th>
             <td class="text-end"><MoneyText :cents="year.released" /></td>
             <td class="text-end"><MoneyText :cents="year.deferred" /></td>
           </tr>
@@ -100,8 +102,14 @@ defineProps<{
         <li v-for="line in comparisons" :key="line.key" class="comparison-row">
           <p class="text-sm text-toned">{{ line.label }}</p>
           <dl class="comparison-figures">
-            <div><dt>Accountant</dt><dd><MoneyText :cents="line.accountant" /></dd></div>
-            <div><dt>Ours</dt><dd><MoneyText :cents="line.ours" /></dd></div>
+            <div>
+              <dt>Accountant</dt>
+              <dd><MoneyText :cents="line.accountant" /></dd>
+            </div>
+            <div>
+              <dt>Ours</dt>
+              <dd><MoneyText :cents="line.ours" /></dd>
+            </div>
             <div>
               <dt>Residual</dt>
               <dd :class="line.residual === 0 ? 'text-positive' : 'text-[var(--tone-warning)]'"><MoneyText :cents="line.residual" sign="always" /></dd>

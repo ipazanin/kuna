@@ -28,15 +28,15 @@ export function ownerNetDetail(net: OwnerNetWithProfit, period: string, link: (d
     ]
   })
   const paidOutLines = several
-    ? net.years.filter((entry) => entry.paidOut.amount !== 0).map((entry) => step(`paid-${entry.year}`, `Paid in ${entry.year + 1} out of ${entry.year}`, entry.paidOut.amount, link(entry.paidOut.drill), 1))
+    ? net.years
+        .filter((entry) => entry.paidOut.amount !== 0)
+        .map((entry) => step(`paid-${entry.year}`, `Paid in ${entry.year + 1} out of ${entry.year}`, entry.paidOut.amount, link(entry.paidOut.drill), 1))
     : []
   const [only] = net.years
   const steps: BuildUpStep[] = [
     step('pay', `Pay without loans and dividends, ${months(net.payMonths)}`, addMoney(net.pay.amount, net.rentTax.amount), link(net.pay.drill)),
     ...(net.dividendsLeftOut.amount === 0 ? [] : [step('dividends', 'Dividends left out, since the profit counts them', net.dividendsLeftOut.amount, link(net.dividendsLeftOut.drill), 1)]),
-    ...(net.rentTax.amount !== 0
-      ? [step('rent-tax', RENT_TAX_LABEL, negateMoney(net.rentTax.amount), link(net.rentTax.drill), 1), step('pay-kept', 'Pay after the rent tax', net.pay.amount)]
-      : []),
+    ...(net.rentTax.amount !== 0 ? [step('rent-tax', RENT_TAX_LABEL, negateMoney(net.rentTax.amount), link(net.rentTax.drill), 1), step('pay-kept', 'Pay after the rent tax', net.pay.amount)] : []),
     ...(net.profitMonths.length === 0 ? [step('no-profit', 'No complete month of profit yet', null)] : profitLines),
     step('profit', `Profit after both taxes, ${months(net.profitMonths.length)}`, net.profit.amount),
     step('pay-a-month', 'Pay a month', net.payPerMonth),

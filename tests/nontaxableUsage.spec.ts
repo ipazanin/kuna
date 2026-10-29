@@ -38,11 +38,7 @@ describe('non-taxable payments against their caps', () => {
   it('checks a monthly cap month by month', () => {
     // Living apart from the family: 300.00 a month. March 200.00 + 150.00 is 50.00 over. April 250.00 leaves 50.00.
     expect(
-      usageIn([
-        made('living-apart-from-family', '2026-03-05', 200),
-        made('living-apart-from-family', '2026-03-20', 150),
-        made('living-apart-from-family', '2026-04-05', 250),
-      ]).map(summary),
+      usageIn([made('living-apart-from-family', '2026-03-05', 200), made('living-apart-from-family', '2026-03-20', 150), made('living-apart-from-family', '2026-04-05', 250)]).map(summary),
     ).toEqual([
       ['living-apart-from-family', '2026-03', euros(350), euros(300), euros(0), euros(50)],
       ['living-apart-from-family', '2026-04', euros(250), euros(300), euros(50), euros(0)],

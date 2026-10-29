@@ -39,12 +39,7 @@ const saving = computed(() => writes.busy.value || state.writing)
 
 <template>
   <div v-if="state.workbook" class="flex flex-col gap-6">
-    <GeneralSettingsForm
-      :settings="settings"
-      :facts="packFacts"
-      :saving="savingSettings || state.writing"
-      @save="saveGeneral"
-    />
+    <GeneralSettingsForm :settings="settings" :facts="packFacts" :saving="savingSettings || state.writing" @save="saveGeneral" />
     <component :is="card" v-for="(card, index) in pack.settingsCards" :key="index" />
     <AppCard
       title="Rows the app could not use as written"

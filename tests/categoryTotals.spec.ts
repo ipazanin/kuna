@@ -49,9 +49,7 @@ describe('outsideProfitAndLossTotals', () => {
   it('lists financing categories signed as booked, with no share, and nothing else', () => {
     const outside = outsideProfitAndLossTotals(rows, thirdQuarter, window)
 
-    expect(outside.map((total) => [total.category, total.family, total.amount.amount])).toEqual([
-      ['reimbursement-to-owner', 'owner', euros(-400)],
-    ])
+    expect(outside.map((total) => [total.category, total.family, total.amount.amount])).toEqual([['reimbursement-to-owner', 'owner', euros(-400)]])
     expect(outside[0]?.amount.drill.filters).toEqual({ period: thirdQuarter, categories: ['reimbursement-to-owner'] })
   })
 })

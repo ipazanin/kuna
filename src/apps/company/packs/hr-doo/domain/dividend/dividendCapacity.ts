@@ -131,15 +131,22 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
 
   const opening = openingEquity(year, forecast, workbook, rules)
   const retainedEarnings = { ...opening.retained, amount: opening.retained.amount > 0 ? opening.retained.amount : ZERO, label: `Retained earnings at the start of ${year}` }
-  const lossesBroughtForward = tracedFigure(`Losses brought forward into ${year}`, opening.retained.amount < 0 ? negateMoney(opening.retained.amount) : ZERO, opening.retained.basis, [
-    distributableRule.citation,
-  ], [opening.retained])
+  const lossesBroughtForward = tracedFigure(
+    `Losses brought forward into ${year}`,
+    opening.retained.amount < 0 ? negateMoney(opening.retained.amount) : ZERO,
+    opening.retained.basis,
+    [distributableRule.citation],
+    [opening.retained],
+  )
   const paidOutInYear = paidOutIn(year, rows, workbook, forecast)
   const distributableSteps = [forecast.profitAfterTax, retainedEarnings, deducted(lossesBroughtForward), deducted(paidOutInYear)]
-  const distributable = tracedFigure('Distributable profit', sumMoney(distributableSteps.map((step) => step.amount)), 'ledger', [
-    distributableRule.citation,
-    ...rulesOf(distributableSteps),
-  ], distributableSteps)
+  const distributable = tracedFigure(
+    'Distributable profit',
+    sumMoney(distributableSteps.map((step) => step.amount)),
+    'ledger',
+    [distributableRule.citation, ...rulesOf(distributableSteps)],
+    distributableSteps,
+  )
 
   const shareCapital = shareCapitalOf(workbook, year, rules)
   const netAssetsSteps = [shareCapital, opening.reserves, distributable]
@@ -158,16 +165,13 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
   const decideBy = lastDayOf(addMonths(monthKey(year, 12), deadline.value.monthsAfterFinancialYearEnd.count))
 
   const balanceDue = forecast.liability.balanceDue ?? tracedFigure('PD line 57, not known', ZERO, 'ledger', [])
-  const advancesAfterYearEnd = forecast.cit.obligations
-    .filter((entry) => entry.obligation.dueOn > yearEnd && entry.outstanding > 0)
-    .map(outstandingFigure)
+  const advancesAfterYearEnd = forecast.cit.obligations.filter((entry) => entry.obligation.dueOn > yearEnd && entry.outstanding > 0).map(outstandingFigure)
   const decemberDue = summed('December’s pay, rent and corporate tax advance paid in January', [forecast.decemberArrears, ...advancesAfterYearEnd], 'ledger')
-  const cashAfterObligations = summed('Cash at the year end with December settled, less the corporate tax balance', [
-    forecast.cashAtYearEnd,
-    forecast.receivableAtYearEnd,
-    deducted(decemberDue),
-    deducted(balanceDue),
-  ], 'ledger')
+  const cashAfterObligations = summed(
+    'Cash at the year end with December settled, less the corporate tax balance',
+    [forecast.cashAtYearEnd, forecast.receivableAtYearEnd, deducted(decemberDue), deducted(balanceDue)],
+    'ledger',
+  )
   const owedNow = owedByOwnerOn(workbook, asOf)
   const owedByOwner =
     forecast.plannedDividend === null || forecast.plannedDividend.setOff.amount === 0
@@ -253,7 +257,13 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
   const ruleDay = choice.earliestOn ?? context.yearEnd
   const taxRule = rules('hr.pit.dividend', ruleDay)
   const gross = choice.gross
-  const dividendTax = tracedFigure(`Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`, atRate(gross.amount, taxRule.value.rate.basisPoints), 'ledger', [taxRule.citation], [gross])
+  const dividendTax = tracedFigure(
+    `Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`,
+    atRate(gross.amount, taxRule.value.rate.basisPoints),
+    'ledger',
+    [taxRule.citation],
+    [gross],
+  )
   const net = tracedFigure('Paid to the owner after the dividend tax', subtractMoney(gross.amount, dividendTax.amount), 'ledger', rulesOf([gross, dividendTax]), [gross, deducted(dividendTax)])
   const settled = choice.setsOff ? (net.amount < owedByOwner.amount ? net.amount : owedByOwner.amount) : ZERO
   const setOff = tracedFigure(choice.setsOff ? 'Set off against what the owner owes' : 'Nothing set off', settled, 'ledger', [], choice.setsOff ? [net, owedByOwner] : [])
@@ -337,10 +347,13 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, rows: rea
     latestOn: yearEnd,
     gross,
     setsOff: false,
-    shortfall: tracedFigure('Not covered by the year’s distributable profit, taxed as the owner’s income', uncovered > 0 ? uncovered : ZERO, 'ledger', [shortfallRule.citation], [
-      gross,
-      deducted(distributable),
-    ]),
+    shortfall: tracedFigure(
+      'Not covered by the year’s distributable profit, taxed as the owner’s income',
+      uncovered > 0 ? uncovered : ZERO,
+      'ledger',
+      [shortfallRule.citation],
+      [gross, deducted(distributable)],
+    ),
     cashNow,
   })
 }
@@ -381,7 +394,18 @@ function openingEquity(year: number, forecast: YearForecast, workbook: HrDooWork
   }
   const prior = forecastYear(workbook, year - 1, forecast.asOf, rules)
   const before = openingEquity(year - 1, prior, workbook, rules)
-  const steps = [before.retained, deducted(paidOutIn(year - 1, workbook.transactions.filter((row) => row.date <= forecast.asOf), workbook, prior)), prior.profitAfterTax]
+  const steps = [
+    before.retained,
+    deducted(
+      paidOutIn(
+        year - 1,
+        workbook.transactions.filter((row) => row.date <= forecast.asOf),
+        workbook,
+        prior,
+      ),
+    ),
+    prior.profitAfterTax,
+  ]
   return {
     reserves: before.reserves,
     retained: tracedFigure(`Retained at the start of ${year}, with the forecast profit of ${year - 1}`, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps),

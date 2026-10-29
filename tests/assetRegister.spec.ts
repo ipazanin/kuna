@@ -51,11 +51,7 @@ describe('assetRegister', () => {
       { date: '2025-07-14', amount: -1250, category: 'equipment' },
       { date: '2025-07-15', amount: -1500, category: 'office-supplies', description: 'Order  4410-25 web shop' },
     ])
-    const register = assetRegister(
-      [asset('Example laptop', 1000, '2025-07-14', 'REF-2'), asset('Example monitor', 1200, '2025-07-20', 'order 4410-25')],
-      transactions,
-      CATEGORIES,
-    )
+    const register = assetRegister([asset('Example laptop', 1000, '2025-07-14', 'REF-2'), asset('Example monitor', 1200, '2025-07-20', 'order 4410-25')], transactions, CATEGORIES)
 
     expect(register.assets.map((entry) => [entry.asset.name, entry.payment?.matchedBy, entry.payment?.row.amount])).toEqual([
       ['Example laptop', 'reference', euros(-1250)],
@@ -117,11 +113,7 @@ describe('assetRegister', () => {
     ])
     // The phone and the mouse cost 880.00 together, which is 1,100.00 with VAT. The monitor's 760.00 is neither 900.00 nor 950.00.
     const register = assetRegister(
-      [
-        asset('Example phone', 800, '2025-07-22', 'Invoice 55/1'),
-        asset('Example mouse', 80, '2025-07-22', 'Invoice 55/1'),
-        asset('Example monitor', 760, '2025-07-23', 'Invoice 56/1'),
-      ],
+      [asset('Example phone', 800, '2025-07-22', 'Invoice 55/1'), asset('Example mouse', 80, '2025-07-22', 'Invoice 55/1'), asset('Example monitor', 760, '2025-07-23', 'Invoice 56/1')],
       transactions,
       CATEGORIES,
     )
@@ -177,10 +169,7 @@ describe('a workbook with a capital purchase dated before the ruleset', () => {
 
     expect(workbook.assets.map((asset) => asset.name)).toContain('Example dock')
     expect(workbook.problems.filter((problem) => problem.tab === 'assets').map((problem) => [problem.label, problem.reason])).toEqual([
-      [
-        'Example dock',
-        'its ledger_reference finds the bank row of 2024-05-24, but the app has no standard VAT rate for that day to check the amount against, so the row is left unclaimed',
-      ],
+      ['Example dock', 'its ledger_reference finds the bank row of 2024-05-24, but the app has no standard VAT rate for that day to check the amount against, so the row is left unclaimed'],
     ])
   })
 })

@@ -115,13 +115,33 @@ export function forecastLine(calendar: ForecastCalendar, sources: LineSources): 
     return { month, bases: ['averaged'], figure: tracedFigure(`${sources.label}, ${monthLabel(month)}: averaged`, average.amount, sources.basis, average.rules, [average]), soFar, plan: null }
   })
   const averaged = months.some((entry) => entry.bases.includes('averaged'))
-  return { label: sources.label, months, total: summed(sources.label, months.map((entry) => entry.figure), sources.basis), averagedOver: averaged ? span : null, average }
+  return {
+    label: sources.label,
+    months,
+    total: summed(
+      sources.label,
+      months.map((entry) => entry.figure),
+      sources.basis,
+    ),
+    averagedOver: averaged ? span : null,
+    average,
+  }
 }
 
 /** A line the asset and grant engines give for every month of the year. */
 export function scheduledLine(calendar: ForecastCalendar, label: string, monthFigure: (month: MonthKey) => TracedFigure): ForecastLine {
   const months = calendar.months.map((month): ForecastMonth => ({ month, bases: ['scheduled'], figure: monthFigure(month), soFar: null, plan: null }))
-  return { label, months, total: summed(label, months.map((entry) => entry.figure), 'assets'), averagedOver: null, average: null }
+  return {
+    label,
+    months,
+    total: summed(
+      label,
+      months.map((entry) => entry.figure),
+      'assets',
+    ),
+    averagedOver: null,
+    average: null,
+  }
 }
 
 /** One line counted into another, added or taken away. */
@@ -139,12 +159,33 @@ export function addedUpLine(calendar: ForecastCalendar, label: string, parts: re
     return {
       month,
       bases: [...new Set(inMonth.flatMap(({ entry }) => entry.bases))],
-      figure: summed(`${label}, ${monthLabel(month)}`, inMonth.map(({ part, entry }) => signed(entry.figure, part.sign)), 'ledger'),
-      soFar: shown.length === 0 ? null : summed(`${label}, ${monthLabel(month)} so far`, shown.map(({ part, entry }) => signed(entry.soFar as TracedFigure, part.sign)), 'ledger'),
+      figure: summed(
+        `${label}, ${monthLabel(month)}`,
+        inMonth.map(({ part, entry }) => signed(entry.figure, part.sign)),
+        'ledger',
+      ),
+      soFar:
+        shown.length === 0
+          ? null
+          : summed(
+              `${label}, ${monthLabel(month)} so far`,
+              shown.map(({ part, entry }) => signed(entry.soFar as TracedFigure, part.sign)),
+              'ledger',
+            ),
       plan: null,
     }
   })
-  return { label, months, total: summed(label, parts.map((part) => signed(part.line.total, part.sign)), 'ledger'), averagedOver: null, average: null }
+  return {
+    label,
+    months,
+    total: summed(
+      label,
+      parts.map((part) => signed(part.line.total, part.sign)),
+      'ledger',
+    ),
+    averagedOver: null,
+    average: null,
+  }
 }
 
 /** A line's figure for one month of its year. */
@@ -174,11 +215,7 @@ function averageOf(sources: LineSources, span: MonthSpan | null): TracedFigure {
   if (span.monthCount === 1) {
     return { ...total, label: `As in ${monthLabel(span.from)}, the last month the ledger settles` }
   }
-  return tracedFigure(
-    `Average of the ${span.monthCount} months from ${monthLabel(span.from)} to ${monthLabel(span.to)}`,
-    divideMoney(total.amount, span.monthCount),
-    sources.basis,
-    total.rules,
-    [total],
-  )
+  return tracedFigure(`Average of the ${span.monthCount} months from ${monthLabel(span.from)} to ${monthLabel(span.to)}`, divideMoney(total.amount, span.monthCount), sources.basis, total.rules, [
+    total,
+  ])
 }

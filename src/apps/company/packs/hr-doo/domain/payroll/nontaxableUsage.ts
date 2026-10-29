@@ -51,12 +51,7 @@ const PER_UNIT_PERIODS = new Map([
 ])
 
 /** The payments of a year against their caps, each cap looked up on the last payment date of its period. */
-export function nontaxableUsage(
-  payments: readonly NontaxablePaymentMade[],
-  year: number,
-  basis: FigureBasis,
-  rules: RuleSource = ruleValue,
-): readonly NontaxableUsage[] {
+export function nontaxableUsage(payments: readonly NontaxablePaymentMade[], year: number, basis: FigureBasis, rules: RuleSource = ruleValue): readonly NontaxableUsage[] {
   const groups = new Map<string, PaymentsInPeriod>()
   for (const made of payments.filter((payment) => yearOf(payment.paidOn) === year)) {
     if (made.amount < 0) {
@@ -74,13 +69,7 @@ export function nontaxableUsage(
     .map((group) => usageOf(group.payment, group.periodKey, group.made, basis, rules))
 }
 
-function usageOf(
-  payment: string,
-  periodKey: string,
-  made: readonly NontaxablePaymentMade[],
-  basis: FigureBasis,
-  rules: RuleSource,
-): NontaxableUsage {
+function usageOf(payment: string, periodKey: string, made: readonly NontaxablePaymentMade[], basis: FigureBasis, rules: RuleSource): NontaxableUsage {
   const lastPaidOn = made.map((payment) => payment.paidOn).reduce((latest, paidOn) => (paidOn > latest ? paidOn : latest))
   const capsRule = rules('hr.pit.nontaxable-caps', lastPaidOn)
   const rows = capRowsOf(payment, capsRule)
@@ -94,17 +83,8 @@ function usageOf(
   if (cap === null) {
     return { payment, items, period, periodKey, paid, cap, remaining: null, excess: tracedFigure('No cap applies here', ZERO, basis, citations) }
   }
-  const remaining = tracedFigure('Left under the cap', cap.amount > paid.amount ? subtractMoney(cap.amount, paid.amount) : ZERO, basis, citations, [
-    cap,
-    deducted(paid),
-  ])
-  const excess = tracedFigure(
-    'Over the cap, taxed as salary',
-    paid.amount > cap.amount ? subtractMoney(paid.amount, cap.amount) : ZERO,
-    basis,
-    citations,
-    [paid, deducted(cap)],
-  )
+  const remaining = tracedFigure('Left under the cap', cap.amount > paid.amount ? subtractMoney(cap.amount, paid.amount) : ZERO, basis, citations, [cap, deducted(paid)])
+  const excess = tracedFigure('Over the cap, taxed as salary', paid.amount > cap.amount ? subtractMoney(paid.amount, cap.amount) : ZERO, basis, citations, [paid, deducted(cap)])
   return { payment, items, period, periodKey, paid, cap, remaining, excess }
 }
 
@@ -117,12 +97,7 @@ function capRowsOf(payment: string, capsRule: RuleLookup<RuleValues['hr.pit.nont
   return [first, ...rest]
 }
 
-function capOf(
-  capRow: CapRow,
-  made: readonly NontaxablePaymentMade[],
-  basis: FigureBasis,
-  capsRule: RuleLookup<RuleValues['hr.pit.nontaxable-caps']>,
-): TracedFigure | null {
+function capOf(capRow: CapRow, made: readonly NontaxablePaymentMade[], basis: FigureBasis, capsRule: RuleLookup<RuleValues['hr.pit.nontaxable-caps']>): TracedFigure | null {
   const period = capRow.period.text
   if (UNCAPPED_PERIODS.has(period)) {
     return null

@@ -144,7 +144,7 @@ export function savePendingRedirect(pending: PendingRedirect): void {
   try {
     localStorage.setItem(PENDING_KEY, JSON.stringify(pending))
   } catch {
-    throw new Error('This browser keeps no site storage, so the app could not check Google\'s answer. Sign in from an ordinary window.')
+    throw new Error("This browser keeps no site storage, so the app could not check Google's answer. Sign in from an ordinary window.")
   }
 }
 

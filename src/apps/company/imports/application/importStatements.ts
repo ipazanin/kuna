@@ -17,8 +17,7 @@ import type { CellGrid } from '../domain/tabularStatement'
 
 /** A file dropped on Import, as far as reading it goes: a camt document, or a spreadsheet's first sheet as cells. */
 export type LoadedImportFile =
-  | { readonly kind: 'camt'; readonly fileName: string; readonly document: Document }
-  | { readonly kind: 'table'; readonly fileName: string; readonly fileHash: string; readonly grid: CellGrid }
+  { readonly kind: 'camt'; readonly fileName: string; readonly document: Document } | { readonly kind: 'table'; readonly fileName: string; readonly fileHash: string; readonly grid: CellGrid }
 
 /** The workbook's account for each IBAN on the accounts tab, normalised. */
 export function accountsByIban(workbook: Pick<Workbook, 'accounts'>): ReadonlyMap<string, string> {
@@ -34,7 +33,13 @@ export function statementReadings(file: LoadedImportFile, workbook: Pick<Workboo
     return []
   }
   if (!workbook.accounts.some((account) => account.slug === profile.account)) {
-    return [{ fileName: file.fileName, label: file.fileName, refusal: `The profile ${profile.name || 'being made'} is for ${profile.account || 'no account'}, which is not on the accounts tab. Pick one of its accounts.` }]
+    return [
+      {
+        fileName: file.fileName,
+        label: file.fileName,
+        refusal: `The profile ${profile.name || 'being made'} is for ${profile.account || 'no account'}, which is not on the accounts tab. Pick one of its accounts.`,
+      },
+    ]
   }
   return [readTabularStatement(file.grid, profile, file.fileName, file.fileHash)]
 }

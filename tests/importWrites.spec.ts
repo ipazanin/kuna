@@ -44,7 +44,11 @@ function grids(): Record<string, CellValue[][]> {
   const base = workbookGrids()
   return {
     ...base,
-    accounts: [['account', 'iban'], ['main', MAIN_IBAN], ['savings', SAVINGS_IBAN]],
+    accounts: [
+      ['account', 'iban'],
+      ['main', MAIN_IBAN],
+      ['savings', SAVINGS_IBAN],
+    ],
     rules: [...base.rules!, ruleRow({ rule: 'client-northwind', order: 200, enabled: true, direction: 'credit', counterparty_iban: 'HR2420011116383368706', category: 'revenue', confidence: 'rule' })],
   }
 }
@@ -135,7 +139,7 @@ describe('the import dry run', () => {
 
     expect(run.newRows).toBe(0)
     expect(run.statements[0]?.refusal).toBe(
-      'The ledger ends main at 1000.00 on 2026-10-05, but this statement\'s first new entry starts from 900.00, so a statement between the two is missing. Import that one first.',
+      "The ledger ends main at 1000.00 on 2026-10-05, but this statement's first new entry starts from 900.00, so a statement between the two is missing. Import that one first.",
     )
   })
 
@@ -164,7 +168,9 @@ describe('the import dry run', () => {
 
   it('refuses an entry without a reference, which a second import could not tell from others', async () => {
     const { store } = await driveHarness(used, grids())
-    const unreferenced = creditStatement().replace(/<NtryRef>.*?<\/NtryRef>/, '').replace(/(<\/RvslInd>[\s\S]*?)<AcctSvcrRef>.*?<\/AcctSvcrRef>/, '$1')
+    const unreferenced = creditStatement()
+      .replace(/<NtryRef>.*?<\/NtryRef>/, '')
+      .replace(/(<\/RvslInd>[\s\S]*?)<AcctSvcrRef>.*?<\/AcctSvcrRef>/, '$1')
 
     expect(dryRun(store, unreferenced).statements[0]?.refusal).toMatch(/^An entry carries no bank reference/)
   })
@@ -210,7 +216,6 @@ describe.each([
     expect(again).toMatchObject({ newRows: 0, inLedger: 1, added: [] })
     expect(again.statements[0]?.notes).toEqual(['Every entry is on the ledger already, so importing it writes nothing.'])
 
-
     const write = store.state.writes[0]!
     await store.undo(write)
     expect(ledgerCells(store)).toEqual(before)
@@ -222,9 +227,7 @@ describe.each([
     await importRows(store, run.added)
     const after = ledgerCells(store)
 
-    await expect(importRows(store, run.added)).rejects.toThrow(
-      'The ledger row "2031-03-11, Northwind Analytics Ltd, 923.15, balance 1923.15" is in the workbook already, so it is not added again.',
-    )
+    await expect(importRows(store, run.added)).rejects.toThrow('The ledger row "2031-03-11, Northwind Analytics Ltd, 923.15, balance 1923.15" is in the workbook already, so it is not added again.')
     expect(ledgerCells(store)).toEqual(after)
     expect(after).toHaveLength(5)
   })
@@ -251,7 +254,11 @@ describe.each([
     const { store } = await harnessOf(used, grids())
     await importRows(store, dryRun(store, creditStatement()).added)
     const imported = store.state.writes[0]!
-    const later = creditStatement('1923.15', '2846.30').replace(/2031-03-12T/g, '2031-03-14T').replace(/<Dt>2031-03-11<\/Dt>/g, '<Dt>2031-03-13</Dt>').replace(/2031-74101882-00752204301/g, 'LATER-1').replace('<LglSeqNb>42</LglSeqNb>', '<LglSeqNb>43</LglSeqNb>')
+    const later = creditStatement('1923.15', '2846.30')
+      .replace(/2031-03-12T/g, '2031-03-14T')
+      .replace(/<Dt>2031-03-11<\/Dt>/g, '<Dt>2031-03-13</Dt>')
+      .replace(/2031-74101882-00752204301/g, 'LATER-1')
+      .replace('<LglSeqNb>42</LglSeqNb>', '<LglSeqNb>43</LglSeqNb>')
     await importRows(store, dryRun(store, later).added)
 
     await expect(store.undo(imported)).rejects.toThrow('The main row of 2031-03-13 with the balance 2846.30 is booked after the rows to take out, so its balance follows from them.')
@@ -261,8 +268,24 @@ describe.each([
 describe('a tabular import through its profile', () => {
   it('works balances out from the ledger when the export gives none', async () => {
     const { store } = await driveHarness(used, grids())
-    const profile: ImportProfile = { name: 'bank', account: 'main', date: 'Datum', dateFormat: 'dd.mm.yyyy', decimal: 'comma', amount: { signed: 'Iznos' }, balance: '', counterparty: 'Naziv', counterpartyIban: '', description: 'Opis', reference: '' }
-    const grid = [['Datum', 'Naziv', 'Opis', 'Iznos'], ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'], ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00']]
+    const profile: ImportProfile = {
+      name: 'bank',
+      account: 'main',
+      date: 'Datum',
+      dateFormat: 'dd.mm.yyyy',
+      decimal: 'comma',
+      amount: { signed: 'Iznos' },
+      balance: '',
+      counterparty: 'Naziv',
+      counterpartyIban: '',
+      description: 'Opis',
+      reference: '',
+    }
+    const grid = [
+      ['Datum', 'Naziv', 'Opis', 'Iznos'],
+      ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'],
+      ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00'],
+    ]
     const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), grid }
     const workbook = store.state.workbook!
     const run = dryRunFor(statementReadings(file, workbook, profile), workbook, new Map())
@@ -277,8 +300,24 @@ describe('a tabular import through its profile', () => {
 
   it('finds a file it imported on the ledger, and refuses it once a changed profile gives its rows other keys', async () => {
     const { store } = await driveHarness(used, grids())
-    const profile: ImportProfile = { name: 'bank', account: 'main', date: 'Datum', dateFormat: 'dd.mm.yyyy', decimal: 'comma', amount: { signed: 'Iznos' }, balance: '', counterparty: 'Naziv', counterpartyIban: '', description: 'Opis', reference: '' }
-    const grid = [['Datum', 'Naziv', 'Opis', 'Iznos'], ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'], ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00']]
+    const profile: ImportProfile = {
+      name: 'bank',
+      account: 'main',
+      date: 'Datum',
+      dateFormat: 'dd.mm.yyyy',
+      decimal: 'comma',
+      amount: { signed: 'Iznos' },
+      balance: '',
+      counterparty: 'Naziv',
+      counterpartyIban: '',
+      description: 'Opis',
+      reference: '',
+    }
+    const grid = [
+      ['Datum', 'Naziv', 'Opis', 'Iznos'],
+      ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'],
+      ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00'],
+    ]
     const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), grid }
     const runOf = (read: ImportProfile) => dryRunFor(statementReadings(file, store.state.workbook!, read), store.state.workbook!, new Map())
     await importRows(store, runOf(profile).added)

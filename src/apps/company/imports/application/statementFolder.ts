@@ -1,9 +1,7 @@
 import type { StatementFile } from '../domain/statementFiles'
 
 /** The files of the statements folder's year folders, or why the path leads to no single folder. */
-export type StatementFolderListing =
-  | { readonly kind: 'listed'; readonly files: readonly StatementFile[] }
-  | { readonly kind: 'refused'; readonly reason: string }
+export type StatementFolderListing = { readonly kind: 'listed'; readonly files: readonly StatementFile[] } | { readonly kind: 'refused'; readonly reason: string }
 
 /** The folder the bank's statements are filed in, read only. The statements step never makes or changes a folder there. */
 export interface StatementFolder {

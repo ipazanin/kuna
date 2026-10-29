@@ -159,7 +159,15 @@ async function remove(): Promise<void> {
           <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" />
         </UFormField>
         <UFormField label="Category" :error="(tried && errors.category) || false" help="Operating costs and taxes only." class="sm:col-span-2">
-          <USelectMenu v-model="category" data-testid="advance-category" :items="categoryItems" value-key="value" placeholder="Choose a category" :search-input="{ placeholder: 'Search categories' }" class="w-full" />
+          <USelectMenu
+            v-model="category"
+            data-testid="advance-category"
+            :items="categoryItems"
+            value-key="value"
+            placeholder="Choose a category"
+            :search-input="{ placeholder: 'Search categories' }"
+            class="w-full"
+          />
         </UFormField>
         <UFormField label="What it was for" class="sm:col-span-2">
           <UInput v-model="description" placeholder="Train tickets to the client" class="w-full" />

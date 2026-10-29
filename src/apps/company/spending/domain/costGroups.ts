@@ -47,8 +47,7 @@ export function costGroups(current: readonly CategoryTotal[], prior: readonly Ca
       return []
     }
     const back = (now === undefined ? beforeAmount : nowAmount) < 0
-    const flip = (figure: Figure | undefined): Figure | null =>
-      figure === undefined ? null : back ? { ...figure, amount: negateMoney(figure.amount) } : figure
+    const flip = (figure: Figure | undefined): Figure | null => (figure === undefined ? null : back ? { ...figure, amount: negateMoney(figure.amount) } : figure)
     const shownNow = flip(now?.amount)
     const shownBefore = flip(before?.amount)
     return [

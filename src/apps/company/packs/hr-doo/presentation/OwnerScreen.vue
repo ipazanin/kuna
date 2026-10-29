@@ -60,14 +60,7 @@ const missing = computed(() => {
   <section class="flex flex-col gap-6">
     <PageHeader title="Owner" description="What the owner took out, and who owes whom between the owner and the company.">
       <template v-if="settings.ownerPayModule" #actions>
-        <UButton
-          label="Add advance"
-          icon="i-lucide-plus"
-          size="sm"
-          :disabled="ledger === null || state.writing"
-          data-testid="open-add-advance"
-          @click="addingAdvance = true"
-        />
+        <UButton label="Add advance" icon="i-lucide-plus" size="sm" :disabled="ledger === null || state.writing" data-testid="open-add-advance" @click="addingAdvance = true" />
         <UButton label="Compare pay mixes" icon="i-lucide-scale" :to="payMixes" color="neutral" variant="outline" size="sm" data-testid="owner-pay-scenarios" />
       </template>
     </PageHeader>

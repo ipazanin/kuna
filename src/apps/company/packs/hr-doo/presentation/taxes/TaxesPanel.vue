@@ -78,7 +78,13 @@ const taxes = computed(() => {
   const words = periodInWords(period, window)
   const parts = byType.types
     .filter((type) => type.total.amount > 0)
-    .map((type): DonutPart => ({ key: type.category, label: categoryName(type.category), value: type.total.amount, colour: tokenOf.get(type.category) ?? '--chart-deemphasis', to: drillLocation(type.total.drill) }))
+    .map((type): DonutPart => ({
+      key: type.category,
+      label: categoryName(type.category),
+      value: type.total.amount,
+      colour: tokenOf.get(type.category) ?? '--chart-deemphasis',
+      to: drillLocation(type.total.drill),
+    }))
   const refunds = byType.types
     .filter((type) => type.total.amount < 0)
     .map((type) => ({ key: type.category, label: categoryName(type.category), amount: type.total.amount, to: drillLocation(type.total.drill) }))
@@ -212,8 +218,8 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
       data-testid="corporate-tax"
     >
       <template #subtitle>
-        Each year's balance due and monthly advances from the first tax period on, filled by the bank rows oldest due date first, since the annual payment
-        and the advances share one payment code. A year whose return is not on the year-end tab sets its advances from our own estimate.
+        Each year's balance due and monthly advances from the first tax period on, filled by the bank rows oldest due date first, since the annual payment and the advances share one payment code. A
+        year whose return is not on the year-end tab sets its advances from our own estimate.
         <template v-if="corporateTax.state === 'ready'">Seen on {{ dayLabel(asOf) }}, the newest booking.</template>
       </template>
       <div v-if="corporateTax.state === 'unregistered'" class="flex items-start gap-2 px-4 py-4 text-sm text-toned sm:px-5">
@@ -229,8 +235,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
           <p v-if="corporateTax.overdue.count > 0" class="flex items-start gap-2 text-sm text-error" data-testid="corporate-tax-overdue">
             <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <span>
-              {{ corporateTax.overdue.count }} {{ corporateTax.overdue.count === 1 ? 'payment is' : 'payments are' }} overdue,
-              <MoneyText :cents="corporateTax.overdue.outstanding" /> still owed.
+              {{ corporateTax.overdue.count }} {{ corporateTax.overdue.count === 1 ? 'payment is' : 'payments are' }} overdue, <MoneyText :cents="corporateTax.overdue.outstanding" /> still owed.
             </span>
           </p>
           <div v-if="corporateTax.unmatched.length > 0" class="flex items-start gap-2 text-sm text-toned" data-testid="unmatched-payments">

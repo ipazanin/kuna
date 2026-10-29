@@ -209,17 +209,42 @@ function cashFigures(workbook: HrDooWorkbook, accrual: AccrualYear): ReadonlyMap
   const nothing = tracedFigure('Nothing in the cash view', ZERO, 'ledger', [])
   const grantSlugs = categoriesWithRole(workbook.categories, PACK_ROLES.grant)
   const figures: [string, TracedFigure][] = [
-    ['pl:sales', byCategory('Client payments received', income.filter((entry) => entry.treatment === 'revenue'), 1)],
+    [
+      'pl:sales',
+      byCategory(
+        'Client payments received',
+        income.filter((entry) => entry.treatment === 'revenue'),
+        1,
+      ),
+    ],
     ['pl:own-use', nothing],
-    ['pl:other-operating-income', byCategory('Other income received', income.filter((entry) => entry.treatment !== 'revenue'), 1)],
+    [
+      'pl:other-operating-income',
+      byCategory(
+        'Other income received',
+        income.filter((entry) => entry.treatment !== 'revenue'),
+        1,
+      ),
+    ],
     ['pl:financial-income', nothing],
     ...COST_LINES.map((line): [string, TracedFigure] => [
       `pl:${line}`,
-      byCategory('Paid in the year', costs.filter((entry) => costLineOf(entry.category, year, workbook.yearEndLines) === line), -1),
+      byCategory(
+        'Paid in the year',
+        costs.filter((entry) => costLineOf(entry.category, year, workbook.yearEndLines) === line),
+        -1,
+      ),
     ]),
     ['pl:profit-before-tax', accrual.bridge.cashNet],
     ['pl:profit-after-tax', accrual.bridge.cashNet],
-    ['grant:released-in-year', byCategory('Grant received', income.filter((entry) => grantSlugs.includes(entry.category.slug)), 1)],
+    [
+      'grant:released-in-year',
+      byCategory(
+        'Grant received',
+        income.filter((entry) => grantSlugs.includes(entry.category.slug)),
+        1,
+      ),
+    ],
   ]
   const cash = accrualLine(accrual, 'balance', 'cash')
   if (cash?.kind === 'money') {

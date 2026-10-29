@@ -3,17 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../src/shared/google/loadScript', () => ({ loadScript: async () => {} }))
 
-import {
-  askSilentlyOnOpen,
-  currentToken,
-  forgetGoogleSignIn,
-  googleAccess,
-  needScopes,
-  requestAccess,
-  signsInByRedirect,
-  takeGoogleRedirect,
-  tokenFor,
-} from '../src/shared/google/googleAuth'
+import { askSilentlyOnOpen, currentToken, forgetGoogleSignIn, googleAccess, needScopes, requestAccess, signsInByRedirect, takeGoogleRedirect, tokenFor } from '../src/shared/google/googleAuth'
 import { REDIRECT_SIGN_IN_QUERY, authorizationUrl, redirectFragmentOf, resumedBy, savePendingRedirect, settleRedirect, takePendingRedirect } from '../src/shared/google/googleRedirect'
 import type { PendingRedirect } from '../src/shared/google/googleRedirect'
 import { scopeRequest } from '../src/shared/google/googleScopes'
@@ -103,9 +93,7 @@ describe('the address the tab goes to', () => {
   })
 
   it('shows no screen at Google when the ask is silent, and leaves the login hint out when no account is remembered', () => {
-    const url = new URL(
-      authorizationUrl({ clientId: 'client', redirectUri: 'https://ipazanin.github.io/kuna/', scopes: ['drive.file'], state: 's', loginHint: null, silent: true }),
-    )
+    const url = new URL(authorizationUrl({ clientId: 'client', redirectUri: 'https://ipazanin.github.io/kuna/', scopes: ['drive.file'], state: 's', loginHint: null, silent: true }))
 
     expect(url.searchParams.get('scope')).toBe(scopeRequest(['drive.file']))
     expect(url.searchParams.get('prompt')).toBe('none')
@@ -184,7 +172,7 @@ describe('checking the answer against the request', () => {
     expect(settleRedirect(token, null, BACK_AT).route).toBe('#/')
   })
 
-  it('carries Google\'s error, and what the ask resumes, whatever Google answers', () => {
+  it("carries Google's error, and what the ask resumes, whatever Google answers", () => {
     const denied = settleRedirect({ kind: 'error', error: 'access_denied', description: null, state: 'one-time-state' }, PENDING, BACK_AT)
     const silent = settleRedirect({ kind: 'error', error: 'interaction_required', description: null, state: 'one-time-state' }, { ...PENDING, resume: 'none', ask: 'silent' }, BACK_AT)
 
@@ -209,7 +197,11 @@ describe('the pending redirect', () => {
     localStorage.setItem('kuna.google-redirect', JSON.stringify({ ...PENDING, scopes: ['drive.file', 'calendar'] }))
     expect(takePendingRedirect()).toEqual({ ...PENDING, scopes: ['drive.file'] })
 
-    for (const broken of [{ ...PENDING, resume: 'open' }, { ...PENDING, ask: 'silent-on-open' }, { ...PENDING, scopes: 'drive.file' }]) {
+    for (const broken of [
+      { ...PENDING, resume: 'open' },
+      { ...PENDING, ask: 'silent-on-open' },
+      { ...PENDING, scopes: 'drive.file' },
+    ]) {
       localStorage.setItem('kuna.google-redirect', JSON.stringify(broken))
       expect(takePendingRedirect()).toBeNull()
     }
@@ -220,7 +212,11 @@ describe('the pending redirect', () => {
     savePendingRedirect(find)
     expect(takePendingRedirect()).toEqual(find)
 
-    for (const broken of [{ ...PENDING, resume: 'find' }, { ...PENDING, resume: 'pick', app: '' }, { ...PENDING, resume: 'pick', app: 7 }]) {
+    for (const broken of [
+      { ...PENDING, resume: 'find' },
+      { ...PENDING, resume: 'pick', app: '' },
+      { ...PENDING, resume: 'pick', app: 7 },
+    ]) {
       localStorage.setItem('kuna.google-redirect', JSON.stringify(broken))
       expect(takePendingRedirect()).toBeNull()
     }
@@ -375,7 +371,7 @@ describe('the silent trip as the app opens', () => {
     }
   })
 
-  it('stops going round when the tab came back without Google\'s answer', () => {
+  it("stops going round when the tab came back without Google's answer", () => {
     configureGoogle()
     expect(askSilentlyOnOpen()).toBe(true)
     takePendingRedirect()
@@ -437,7 +433,7 @@ describe('asking in a tap', () => {
     expect(takePendingRedirect()).toBeNull()
   })
 
-  it('on a desktop, holds the popup\'s one token, and says when it lacks the scope the action needs', async () => {
+  it("on a desktop, holds the popup's one token, and says when it lacks the scope the action needs", async () => {
     configureGoogle()
     onPhone(false)
     const asked: string[] = []

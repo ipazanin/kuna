@@ -63,20 +63,18 @@ function grouped(iban: string): string {
 </script>
 
 <template>
-  <AppCard
-    :title="statement.label"
-    :subtitle="subtitle"
-    :collapse-id="collapseId"
-    :summary="summary"
-    data-testid="dry-run-statement"
-  >
+  <AppCard :title="statement.label" :subtitle="subtitle" :collapse-id="collapseId" :summary="summary" data-testid="dry-run-statement">
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
       <UAlert v-if="statement.refusal" icon="i-lucide-file-x" color="error" variant="subtle" :title="statement.refusal" data-testid="dry-run-refusal" />
 
       <div v-if="statement.newAccount" class="flex flex-col gap-3 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-new-account">
         <p class="text-sm text-toned">
-          <span class="identifier">{{ grouped(statement.newAccount.iban) }}</span> ({{ statement.newAccount.currency }}) is new. Add it as an account<template v-if="statement.newAccount.opening !== null">
-            from {{ formatMoney(statement.newAccount.opening) }}</template><template v-if="statement.newAccount.date"> on {{ dayLabel(statement.newAccount.date) }}</template>?
+          <span class="identifier">{{ grouped(statement.newAccount.iban) }}</span> ({{ statement.newAccount.currency }}) is new. Add it as an account<template
+            v-if="statement.newAccount.opening !== null"
+          >
+            from {{ formatMoney(statement.newAccount.opening) }}</template
+          ><template v-if="statement.newAccount.date"> on {{ dayLabel(statement.newAccount.date) }}</template
+          >?
         </p>
         <UFormField label="Account name" :error="accountNameProblem ?? false" help="Lower-case letters, digits and single hyphens. The screens show it until you give the account a label.">
           <UInput :model-value="accountName ?? ''" class="identifier w-48" data-testid="dry-run-account-name" @update:model-value="emit('update:accountName', String($event))" />
@@ -84,9 +82,7 @@ function grouped(iban: string): string {
       </div>
 
       <div v-else-if="statement.start" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-start">
-        <p class="text-sm text-toned">
-          The ledger has no rows of {{ names.account(statement.start.account) }} yet, so nothing earlier can show this statement follows on.
-        </p>
+        <p class="text-sm text-toned">The ledger has no rows of {{ names.account(statement.start.account) }} yet, so nothing earlier can show this statement follows on.</p>
         <UCheckbox
           v-if="statement.start.opening !== null"
           :model-value="started"
@@ -94,8 +90,19 @@ function grouped(iban: string): string {
           data-testid="dry-run-start-confirm"
           @update:model-value="emit('update:started', $event === true)"
         />
-        <UFormField v-else :label="`Balance of ${names.account(statement.start.account)} before ${dayLabel(statement.start.date)}`" help="The file gives no balances, so they are worked out from this one.">
-          <UInput :model-value="typedOpening" inputmode="decimal" placeholder="0.00" class="w-40" data-testid="dry-run-start-opening" @update:model-value="emit('update:typedOpening', String($event))" />
+        <UFormField
+          v-else
+          :label="`Balance of ${names.account(statement.start.account)} before ${dayLabel(statement.start.date)}`"
+          help="The file gives no balances, so they are worked out from this one."
+        >
+          <UInput
+            :model-value="typedOpening"
+            inputmode="decimal"
+            placeholder="0.00"
+            class="w-40"
+            data-testid="dry-run-start-opening"
+            @update:model-value="emit('update:typedOpening', String($event))"
+          />
         </UFormField>
       </div>
 

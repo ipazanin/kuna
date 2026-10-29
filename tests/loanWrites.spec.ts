@@ -125,10 +125,14 @@ describe('Loans writes', () => {
     })
     const before = bankBook(store)
 
-    await expect(store.write('Deleted', (unit) => unit.of(BANK_LOAN_WRITES).remove(LOAN))).rejects.toThrow('The rate period "12%, from 2026-02-05" would then be left out: names no bank loan in the file.')
+    await expect(store.write('Deleted', (unit) => unit.of(BANK_LOAN_WRITES).remove(LOAN))).rejects.toThrow(
+      'The rate period "12%, from 2026-02-05" would then be left out: names no bank loan in the file.',
+    )
 
     const receipt = await store.write('Deleted', (unit) => removeBankLoan(unit, store.state.records!, LOAN))
-    expect(recordsChangeInWords(receipt!, null)).toBe('Deleted the bank loan "Car loan", deleted 2 rate periods, deleted the extra payment "2026-07-05, 300" and deleted the late instalment "due 2026-03-05, paid 2026-03-23"')
+    expect(recordsChangeInWords(receipt!, null)).toBe(
+      'Deleted the bank loan "Car loan", deleted 2 rate periods, deleted the extra payment "2026-07-05, 300" and deleted the late instalment "due 2026-03-05, paid 2026-03-23"',
+    )
     expect(store.state.workbook!.bankLoans).toEqual([])
     expect(store.state.workbook!.problems).toEqual([])
     expect(store.state.workbook!.informalLoans).toHaveLength(1)

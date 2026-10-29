@@ -105,7 +105,13 @@ function decimalOf(cells: readonly (StatementCell | undefined)[]): DecimalMark {
 
 /** The account whose IBAN the file names in its first rows, as a bank's title lines do, or the only account there is, or blank. */
 export function accountNamedIn(grid: CellGrid, accounts: readonly Pick<Account, 'slug' | 'iban'>[]): string {
-  const text = normaliseIban(grid.slice(0, 40).flat().map((cell) => (cell === undefined ? '' : String(cell))).join(' '))
+  const text = normaliseIban(
+    grid
+      .slice(0, 40)
+      .flat()
+      .map((cell) => (cell === undefined ? '' : String(cell)))
+      .join(' '),
+  )
   const named = accounts.find((account) => account.iban !== '' && text.includes(account.iban))
   return named?.slug ?? (accounts.length === 1 ? accounts[0]!.slug : '')
 }

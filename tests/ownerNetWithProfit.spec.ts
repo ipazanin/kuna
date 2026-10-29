@@ -29,7 +29,17 @@ function profitLine(year: number, euroByMonth: (month: number) => number): Forec
     const month = monthKey(year, index + 1)
     return { month, bases: ['actual' as const], figure: tracedFigure(`Profit before tax, ${month}`, euros(euroByMonth(index + 1)), 'ledger', []), soFar: null, plan: null }
   })
-  return { label: 'Profit before tax', months, total: summed('Profit before tax', months.map((entry) => entry.figure), 'ledger'), averagedOver: null, average: null }
+  return {
+    label: 'Profit before tax',
+    months,
+    total: summed(
+      'Profit before tax',
+      months.map((entry) => entry.figure),
+      'ledger',
+    ),
+    averagedOver: null,
+    average: null,
+  }
 }
 
 function booksOf(rows: readonly RowSpec[], registered: string | null = '2025-01-02'): HrDooWorkbook {
@@ -160,7 +170,11 @@ describe('ownerNetWithProfit', () => {
   })
 
   it('reads pay alone when the period holds no complete month, and never asks for a forecast', () => {
-    const rows: RowSpec[] = [{ date: '2026-06-01', amount: 100, category: 'revenue' }, { date: '2026-07-10', amount: -1200, category: 'salary-net' }, { date: '2026-07-20', amount: 100, category: 'revenue' }]
+    const rows: RowSpec[] = [
+      { date: '2026-06-01', amount: 100, category: 'revenue' },
+      { date: '2026-07-10', amount: -1200, category: 'salary-net' },
+      { date: '2026-07-20', amount: 100, category: 'revenue' },
+    ]
     const net = ready(netOf(booksOf(rows), { preset: 'quarter', year: 2026, quarter: 3 }, windowOf('2026-06-01', '2026-07-20'), '2026-07-20', noForecast, noForecast))
 
     expect(net.payMonths).toBe(1)
@@ -171,7 +185,10 @@ describe('ownerNetWithProfit', () => {
   })
 
   it('taxes each year of a period across two years at its own corporate rate', () => {
-    const rows: RowSpec[] = [{ date: '2025-10-01', amount: 100, category: 'revenue' }, { date: '2026-03-05', amount: 100, category: 'revenue' }]
+    const rows: RowSpec[] = [
+      { date: '2025-10-01', amount: 100, category: 'revenue' },
+      { date: '2026-03-05', amount: 100, category: 'revenue' },
+    ]
     const profit = (year: number) => profitLine(year, (month) => (year === 2025 ? (month >= 11 ? 1000 : 0) : month <= 2 ? 1000 : 0))
     const net = ready(netOf(booksOf(rows), days('2025-11-01', '2026-02-28'), windowOf('2025-10-01', '2026-03-05'), '2026-03-05', profit, (year) => rateOf(year === 2025 ? 18 : 10)))
 
@@ -186,7 +203,10 @@ describe('ownerNetWithProfit', () => {
   })
 
   it('covers every complete month on all time, and no year before the company was registered', () => {
-    const rows: RowSpec[] = [{ date: '2024-11-14', amount: 100, category: 'revenue' }, { date: '2026-04-10', amount: 100, category: 'revenue' }]
+    const rows: RowSpec[] = [
+      { date: '2024-11-14', amount: 100, category: 'revenue' },
+      { date: '2026-04-10', amount: 100, category: 'revenue' },
+    ]
     const profit = (year: number) => (year < 2025 ? noForecast(year) : profitLine(year, () => 1000))
     const net = ready(netOf(booksOf(rows), { preset: 'all' }, windowOf('2024-11-14', '2026-04-10'), '2026-04-10', profit))
 
@@ -200,7 +220,10 @@ describe('ownerNetWithProfit', () => {
   })
 
   it('counts the ledger’s first part month in profit, as Year does, and never the month so far', () => {
-    const rows: RowSpec[] = [{ date: '2025-05-12', amount: 100, category: 'revenue' }, { date: '2025-08-04', amount: 100, category: 'revenue' }]
+    const rows: RowSpec[] = [
+      { date: '2025-05-12', amount: 100, category: 'revenue' },
+      { date: '2025-08-04', amount: 100, category: 'revenue' },
+    ]
     const net = ready(netOf(booksOf(rows, '2025-05-12'), { preset: 'year', year: 2025 }, windowOf('2025-05-12', '2025-08-04'), '2025-08-04', () => profitLine(2025, () => 1000)))
 
     expect(net.payMonths).toBe(4)
@@ -219,7 +242,16 @@ describe('ownerNetWithProfit', () => {
     const books = steadyStudio()
     const window = ledgerWindowOf(books.transactions)!
     const forecast = forecastYear(books, 2025, civil('2026-10-10'))
-    const net = ready(netOf(books, { preset: 'year', year: 2025 }, window, '2026-10-10', (year) => forecastYear(books, year, civil('2026-10-10')).profitBeforeTax, () => forecast.liability.rate))
+    const net = ready(
+      netOf(
+        books,
+        { preset: 'year', year: 2025 },
+        window,
+        '2026-10-10',
+        (year) => forecastYear(books, year, civil('2026-10-10')).profitBeforeTax,
+        () => forecast.liability.rate,
+      ),
+    )
 
     expect(net.profitMonths).toHaveLength(12)
     expect(net.years[0]?.amount.amount).toBe(forecast.profitBeforeTax.total.amount)

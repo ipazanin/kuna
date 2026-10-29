@@ -30,9 +30,7 @@ export const hrDooPack: PackContribution = {
       shows: (ledger) => unaccountedInView(ledger).length > 0,
     },
   ],
-  settingsTabs: [
-    { value: 'ruleset', label: 'Ruleset', icon: 'i-lucide-scale', component: defineAsyncComponent(() => import('./ruleset/presentation/RulesetPanel.vue')) },
-  ],
+  settingsTabs: [{ value: 'ruleset', label: 'Ruleset', icon: 'i-lucide-scale', component: defineAsyncComponent(() => import('./ruleset/presentation/RulesetPanel.vue')) }],
   settingsCards: [defineAsyncComponent(() => import('./presentation/LoanBucketSwitch.vue'))],
   companyFacts: {
     card: defineAsyncComponent(() => import('./presentation/CompanyFactsCard.vue')),

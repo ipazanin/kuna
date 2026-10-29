@@ -69,7 +69,9 @@ function removedRefusals(removedRows: ReadonlySet<RecordId | null>, before: read
     const oldest = Math.min(...removed.filter((row) => row.account === account).map((row) => row.sequence))
     const newer = before.find((row) => row.account === account && row.sequence > oldest && !removedRows.has(row.id))
     if (newer !== undefined) {
-      refusals.push(`The ${account} row of ${newer.date} with the balance ${plainAmount(newer.balance)} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`)
+      refusals.push(
+        `The ${account} row of ${newer.date} with the balance ${plainAmount(newer.balance)} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`,
+      )
     }
   }
   return refusals

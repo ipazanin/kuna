@@ -77,12 +77,7 @@ export function billingYears(figures: BillingPlanFigures, asOf: CivilDate): numb
 }
 
 /** What the Plan tab of Invoicing shows for one year. */
-export function billingView(
-  figures: BillingPlanFigures,
-  register: { readonly clients: readonly Client[]; readonly invoices: readonly Invoice[] },
-  year: number,
-  tokens: ChartTokens,
-) {
+export function billingView(figures: BillingPlanFigures, register: { readonly clients: readonly Client[]; readonly invoices: readonly Invoice[] }, year: number, tokens: ChartTokens) {
   const { clients, invoices } = register
   const nameOf = (slug: string): string => clients.find((client) => client.slug === slug)?.name || slug
   const colours = itemColours(
@@ -111,15 +106,13 @@ export function billingView(
   const withoutPlan = figures.matches
     .flatMap((match) => match.withoutPlan)
     .filter((share) => yearOf(share.invoice.issued) === year)
-    .map(
-      (share): WithoutPlanLine => ({
-        key: share.invoice.id,
-        number: share.invoice.number,
-        clientName: nameOf(share.invoice.client),
-        issued: share.invoice.issued,
-        amount: share.amount,
-      }),
-    )
+    .map((share): WithoutPlanLine => ({
+      key: share.invoice.id,
+      number: share.invoice.number,
+      clientName: nameOf(share.invoice.client),
+      issued: share.invoice.issued,
+      amount: share.amount,
+    }))
 
   const months = monthsFrom(monthKey(year, 1), monthKey(year, 12)).map((month): BillingMonthLine => {
     const monthRows = rows.filter((row) => monthOf(row.date) === month)
@@ -170,15 +163,11 @@ export function billingView(
         ? 'No month with plan rows'
         : `${listedMonths.filter((month) => month.status === 'invoiced').length} of ${listedMonths.filter((month) => month.status !== null).length} months invoiced, ${formatWholeMoney(openInYear)} not invoiced yet`,
     rowsSummary:
-      rows.length === 0
-        ? 'No plan rows in the year'
-        : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}, ${openRows.length === 0 ? 'every one invoiced' : `${openRows.length} not invoiced yet`}`,
+      rows.length === 0 ? 'No plan rows in the year' : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}, ${openRows.length === 0 ? 'every one invoiced' : `${openRows.length} not invoiced yet`}`,
     rows: [...rows].sort((earlier, later) => later.date.localeCompare(earlier.date) || billingItemOrder(earlier, later)),
     items,
     itemsSummary:
-      largest === undefined
-        ? `No plan row is dated in ${year}`
-        : `${items.length} ${items.length === 1 ? 'item' : 'items'} in ${year}, ${largest.item} the largest at ${formatPercent(largest.share)}`,
+      largest === undefined ? `No plan row is dated in ${year}` : `${items.length} ${items.length === 1 ? 'item' : 'items'} in ${year}, ${largest.item} the largest at ${formatPercent(largest.share)}`,
     itemsChart: itemYearsChart(
       figures.statistics.years,
       figures.statistics.items.map((total) => total.item),

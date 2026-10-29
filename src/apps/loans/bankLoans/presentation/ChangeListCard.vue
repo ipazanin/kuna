@@ -49,7 +49,17 @@ const emit = defineEmits<{
           <p class="text-sm text-highlighted">{{ line.title }}</p>
           <p class="text-xs text-muted">{{ line.detail }}</p>
         </div>
-        <UButton label="Change" icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" class="shrink-0" :aria-label="`Change ${line.title}`" data-testid="change-edit" @click="emit('change', line.key)" />
+        <UButton
+          label="Change"
+          icon="i-lucide-pencil"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="shrink-0"
+          :aria-label="`Change ${line.title}`"
+          data-testid="change-edit"
+          @click="emit('change', line.key)"
+        />
       </li>
     </ul>
   </AppCard>

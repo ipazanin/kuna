@@ -80,7 +80,16 @@ export function settlePayments(rows: readonly Money[], payments: readonly Money[
   const exact = payments.map((amount, payment) => take(closedExactly(open, amount, (row) => mayMatch(payment, row)) ?? []))
   return payments.map((amount, payment) => {
     const closed = exact[payment]!
-    return closed.length > 0 ? closed : take(settleOpenRows(open, amount, (row) => mayMatch(payment, row), () => true))
+    return closed.length > 0
+      ? closed
+      : take(
+          settleOpenRows(
+            open,
+            amount,
+            (row) => mayMatch(payment, row),
+            () => true,
+          ),
+        )
   })
 }
 

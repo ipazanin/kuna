@@ -98,7 +98,6 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
   const { tab: _tab, employee: _employee, ...others } = route.query
   return { query: { ...others, year: paydayMonth.slice(0, 4), month: paydayMonth, ...(slug === null ? {} : { employee: slug }) } }
 }
-
 </script>
 
 <template>
@@ -168,8 +167,7 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
           </template>
         </PageTabs>
         <p v-else-if="employees.length > 0" class="text-sm text-toned" data-testid="salaries-no-payday">
-          No payday yet. A month shows here once the ledger holds a row in a category with the <span class="identifier">salary</span> role or a payroll tax paid in
-          it.
+          No payday yet. A month shows here once the ledger holds a row in a category with the <span class="identifier">salary</span> role or a payroll tax paid in it.
         </p>
 
         <FactTabCard

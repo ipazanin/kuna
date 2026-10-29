@@ -55,7 +55,9 @@ const narrow = useMediaQuery('(max-width: 1439px)')
             <DrillLink :to="line.payment" :label="`${line.name}, open the payment`" class="text-sm font-medium text-highlighted">
               <span class="truncate">{{ line.name }}</span>
             </DrillLink>
-            <p class="text-xs text-muted">{{ line.group }}<template v-if="line.fundedBy">, paid by {{ line.fundedBy }}</template></p>
+            <p class="text-xs text-muted">
+              {{ line.group }}<template v-if="line.fundedBy">, paid by {{ line.fundedBy }}</template>
+            </p>
           </div>
           <div class="shrink-0 text-end">
             <MoneyText :cents="line.bookValue" class="text-sm font-medium text-highlighted" />
@@ -63,22 +65,45 @@ const narrow = useMediaQuery('(max-width: 1439px)')
           </div>
         </div>
         <dl class="asset-cells mt-2">
-          <div><dt>Bought</dt><dd>{{ line.bought }}</dd></div>
-          <div><dt>In use from</dt><dd>{{ line.inUse }}</dd></div>
-          <div><dt>Cost without VAT</dt><dd><MoneyText :cents="line.cost" /></dd></div>
+          <div>
+            <dt>Bought</dt>
+            <dd>{{ line.bought }}</dd>
+          </div>
+          <div>
+            <dt>In use from</dt>
+            <dd>{{ line.inUse }}</dd>
+          </div>
+          <div>
+            <dt>Cost without VAT</dt>
+            <dd><MoneyText :cents="line.cost" /></dd>
+          </div>
           <div>
             <dt>Yearly rate</dt>
-            <dd><DrillLink :to="line.rateLink" :label="`${line.rate}, open the rule`">{{ line.rate }}</DrillLink></dd>
+            <dd>
+              <DrillLink :to="line.rateLink" :label="`${line.rate}, open the rule`">{{ line.rate }}</DrillLink>
+            </dd>
           </div>
-          <div><dt>Charge in {{ year }}</dt><dd><MoneyText v-if="line.charge !== null" :cents="line.charge" /><span v-else class="text-dimmed">–</span></dd></div>
-          <div><dt>Accumulated</dt><dd><MoneyText :cents="line.accumulated" /></dd></div>
+          <div>
+            <dt>Charge in {{ year }}</dt>
+            <dd><MoneyText v-if="line.charge !== null" :cents="line.charge" /><span v-else class="text-dimmed">–</span></dd>
+          </div>
+          <div>
+            <dt>Accumulated</dt>
+            <dd><MoneyText :cents="line.accumulated" /></dd>
+          </div>
         </dl>
         <p v-if="line.payment === null" class="mt-1.5 text-xs text-[var(--tone-warning)]">No ledger payment found</p>
       </li>
     </ul>
     <dl class="asset-cells px-3">
-      <div><dt>All assets, cost</dt><dd><MoneyText :cents="totals.cost" /></dd></div>
-      <div><dt>Book value {{ today }}</dt><dd class="font-medium text-highlighted"><MoneyText :cents="totals.bookValue" /></dd></div>
+      <div>
+        <dt>All assets, cost</dt>
+        <dd><MoneyText :cents="totals.cost" /></dd>
+      </div>
+      <div>
+        <dt>Book value {{ today }}</dt>
+        <dd class="font-medium text-highlighted"><MoneyText :cents="totals.bookValue" /></dd>
+      </div>
     </dl>
   </div>
 
@@ -119,7 +144,8 @@ const narrow = useMediaQuery('(max-width: 1439px)')
             <span v-if="line.gone" class="block text-xs text-muted">{{ line.gone }}</span>
           </td>
           <td class="cell-wraps text-toned">
-            <span v-if="line.fundedBy" class="identifier">{{ line.fundedBy }}</span><span v-else class="text-dimmed">–</span>
+            <span v-if="line.fundedBy" class="identifier">{{ line.fundedBy }}</span
+            ><span v-else class="text-dimmed">–</span>
           </td>
         </tr>
       </tbody>

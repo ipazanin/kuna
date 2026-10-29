@@ -121,8 +121,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
   )
 
   const sync = createSync({
-    groups: (): SyncGroup[] =>
-      driveGroups().map((group) => ({ app: group.app, name: group.name, books: booksStep(group.store), steps: () => group.steps(), whenIdle: () => whenIdle(group.store) })),
+    groups: (): SyncGroup[] => driveGroups().map((group) => ({ app: group.app, name: group.name, books: booksStep(group.store), steps: () => group.steps(), whenIdle: () => whenIdle(group.store) })),
     granted,
     askForAccess,
     asksByLeaving: signsInByRedirect,

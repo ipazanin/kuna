@@ -72,8 +72,7 @@ const YEAR_END_COLUMNS: readonly TemplateColumn[] = [
   { name: 'label', note: 'The line as the accountant printed it. Optional.' },
   {
     name: 'amount',
-    note:
-      'The figure as printed, costs as positive numbers. A date line such as filed-on takes a date cell, rate a percentage cell such as 10%, and months-of-operation a whole number. Required.',
+    note: 'The figure as printed, costs as positive numbers. A date line such as filed-on takes a date cell, rate a percentage cell such as 10%, and months-of-operation a whole number. Required.',
   },
   { name: 'categories', note: 'On a konto row, the app categories the account matches, comma separated. Optional, and ignored on other rows.' },
   { name: 'aop', note: 'The AOP code of the line on the official form, when the package has one. Optional.' },
@@ -115,8 +114,7 @@ const SCENARIO_COLUMNS: readonly TemplateColumn[] = [
   },
   {
     name: 'amount',
-    note:
-      `A number above zero: a month's gross salary or rent, or a year's tax-free item or dividend. salary_gross also takes floor, dividend also takes max, and director_basis takes ${DIRECTOR_BASES.join(', ')}. Required.`,
+    note: `A number above zero: a month's gross salary or rent, or a year's tax-free item or dividend. salary_gross also takes floor, dividend also takes max, and director_basis takes ${DIRECTOR_BASES.join(', ')}. Required.`,
   },
   { name: 'from', note: 'The first day it holds, as a date cell in the scenario year. Blank means the start of the year.' },
   { name: 'to', note: 'The last day it holds, as a date cell in the scenario year. Blank means the end of the year.' },

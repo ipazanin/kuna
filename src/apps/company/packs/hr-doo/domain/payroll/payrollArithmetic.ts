@@ -28,13 +28,7 @@ export function percentText(rate: Rate): string {
   return `${rate / 100}%`
 }
 
-export function tracedFigure(
-  label: string,
-  amount: Money,
-  basis: FigureBasis,
-  rules: readonly RuleCitation[],
-  steps: readonly TracedFigure[] = [],
-): TracedFigure {
+export function tracedFigure(label: string, amount: Money, basis: FigureBasis, rules: readonly RuleCitation[], steps: readonly TracedFigure[] = []): TracedFigure {
   return { label, on: null, amount, drill: null, basis, rules, steps }
 }
 

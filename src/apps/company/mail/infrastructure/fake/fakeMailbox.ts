@@ -100,10 +100,34 @@ function fakeMails(): FakeMail[] {
       ],
       filed: false,
     },
-    { id: 'bank-xml', subject: `Izvadak ${sampleNumber}, Example Studio d.o.o.`, at: `${sampleDay}T05:11:00Z`, attachments: [{ name: bankFileName(sampleDay, 'xml'), content: 'sample-camt' }], filed: true },
-    { id: 'bank-xml-again', subject: `Izvadak ${sampleNumber}, Example Studio d.o.o.`, at: `${nextDay}T05:11:00Z`, attachments: [{ name: bankFileName(nextDay, 'xml'), content: 'sample-camt' }], filed: true },
-    { id: 'bank-pdf-filed', subject: `Izvadak ${newest.number}, Example Studio d.o.o.`, at: `${newest.day}T05:10:00Z`, attachments: [{ name: bankFileName(newest.day, 'pdf'), content: 'older statement pdf' }], filed: true },
-    { id: 'bank-terms', subject: 'Izvadak 000, novi opći uvjeti poslovanja', at: `${addDays(parseCivilDate(newest.day)!, -2)}T09:00:00Z`, attachments: [{ name: 'Opći uvjeti poslovanja.xml', content: '<obavijest>Opći uvjeti poslovanja</obavijest>' }], filed: false },
+    {
+      id: 'bank-xml',
+      subject: `Izvadak ${sampleNumber}, Example Studio d.o.o.`,
+      at: `${sampleDay}T05:11:00Z`,
+      attachments: [{ name: bankFileName(sampleDay, 'xml'), content: 'sample-camt' }],
+      filed: true,
+    },
+    {
+      id: 'bank-xml-again',
+      subject: `Izvadak ${sampleNumber}, Example Studio d.o.o.`,
+      at: `${nextDay}T05:11:00Z`,
+      attachments: [{ name: bankFileName(nextDay, 'xml'), content: 'sample-camt' }],
+      filed: true,
+    },
+    {
+      id: 'bank-pdf-filed',
+      subject: `Izvadak ${newest.number}, Example Studio d.o.o.`,
+      at: `${newest.day}T05:10:00Z`,
+      attachments: [{ name: bankFileName(newest.day, 'pdf'), content: 'older statement pdf' }],
+      filed: true,
+    },
+    {
+      id: 'bank-terms',
+      subject: 'Izvadak 000, novi opći uvjeti poslovanja',
+      at: `${addDays(parseCivilDate(newest.day)!, -2)}T09:00:00Z`,
+      attachments: [{ name: 'Opći uvjeti poslovanja.xml', content: '<obavijest>Opći uvjeti poslovanja</obavijest>' }],
+      filed: false,
+    },
     {
       id: 'payroll-09',
       subject: 'Plaća za 9/2026',
@@ -141,8 +165,20 @@ function fakeFiled(variant: string | null): FakeFiled[] {
   const statements = [...new Set((records['ledger-row'] ?? []).map((row) => `${String(row.statement)}-${String(row.account)}.xml`))]
   const newest = newestMainStatement()
   return [
-    ...[...statements, ...(sampleStatementByMail(variant) ? [] : [`${sampleCamtLabel()}-main.xml`])].map((name) => ({ folder: FAKE_FOLDERS.statements, folders: [`${name.slice(0, 4)}-statements`], name, created: `${name.slice(0, 10)}T07:00:00Z`, content: null })),
-    { folder: FAKE_FOLDERS.statements, folders: [`${newest.day.slice(0, 4)}-statements`], name: `${newest.day}-statement-${newest.number}.pdf`, created: `${newest.day}T07:00:00Z`, content: 'older statement pdf' },
+    ...[...statements, ...(sampleStatementByMail(variant) ? [] : [`${sampleCamtLabel()}-main.xml`])].map((name) => ({
+      folder: FAKE_FOLDERS.statements,
+      folders: [`${name.slice(0, 4)}-statements`],
+      name,
+      created: `${name.slice(0, 10)}T07:00:00Z`,
+      content: null,
+    })),
+    {
+      folder: FAKE_FOLDERS.statements,
+      folders: [`${newest.day.slice(0, 4)}-statements`],
+      name: `${newest.day}-statement-${newest.number}.pdf`,
+      created: `${newest.day}T07:00:00Z`,
+      content: 'older statement pdf',
+    },
     { folder: FAKE_FOLDERS.payroll, folders: ['2026-payroll', '2026-08'], name: '2026-08-salary.xlsx', created: '2026-09-05T11:00:00Z', content: 'salary 2026-08' },
     { folder: FAKE_FOLDERS.vatReturns, folders: ['2026-vat-returns'], name: '2026-08-pdv.xlsx', created: '2026-09-15T11:00:00Z', content: 'vat 2026-08' },
     { folder: FAKE_FOLDERS.vatReturns, folders: ['2026-vat-returns'], name: '2026-07-pdv.xlsx', created: '2026-08-14T11:00:00Z', content: null },
@@ -210,9 +246,13 @@ export function fakeMailFolders(variant: string | null, made: FakeMadeFile[] = P
         sha256: file.content === null ? null : await sha256Hex(bytesOf(file.content)),
         filedFrom: null,
       }))
-      const byApp: Promise<FiledFile>[] = made
-        .filter(inFolder)
-        .map(async (file) => ({ folders: file.folders, name: file.name, createdTime: Date.parse(file.created), sha256: await sha256Hex(file.bytes), filedFrom: Date.parse(file.appProperties[MAIL_DATE_PROPERTY] ?? file.created) }))
+      const byApp: Promise<FiledFile>[] = made.filter(inFolder).map(async (file) => ({
+        folders: file.folders,
+        name: file.name,
+        createdTime: Date.parse(file.created),
+        sha256: await sha256Hex(file.bytes),
+        filedFrom: Date.parse(file.appProperties[MAIL_DATE_PROPERTY] ?? file.created),
+      }))
       return { kind: 'listed', files: await Promise.all([...byOthers, ...byApp]) }
     },
 

@@ -52,7 +52,9 @@ interface VerdictChange {
 
 /** The verdicts a write changed, or null for a write that did anything else. */
 function verdictsOf(receipt: WriteReceipt): VerdictChange[] | null {
-  const verdicts = receipt.records.flatMap(({ change }) => (change.kind.name === LEDGER_RECORDS.name && change.verb === 'change' ? [{ before: change.before as LedgerEntry, after: change.after as LedgerEntry }] : []))
+  const verdicts = receipt.records.flatMap(({ change }) =>
+    change.kind.name === LEDGER_RECORDS.name && change.verb === 'change' ? [{ before: change.before as LedgerEntry, after: change.after as LedgerEntry }] : [],
+  )
   return verdicts.length === receipt.records.length && verdicts.length > 0 ? verdicts : null
 }
 
@@ -103,7 +105,9 @@ function flaggedByInWords(flaggedBy: string): string {
       <UBadge :label="String(writes.length)" color="neutral" variant="subtle" size="sm" class="figure" data-testid="session-count" />
     </template>
     <div class="mt-3 border-t border-default">
-      <p class="px-4 pt-3 text-xs text-muted sm:px-5">Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules are changed back on the Rules tab, and settings on Settings.</p>
+      <p class="px-4 pt-3 text-xs text-muted sm:px-5">
+        Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules are changed back on the Rules tab, and settings on Settings.
+      </p>
       <ol class="mt-2">
         <li v-for="write in writes" :key="write.id" class="session-write" data-testid="session-write">
           <span class="flex items-start justify-between gap-3">
@@ -151,7 +155,8 @@ function flaggedByInWords(flaggedBy: string): string {
           </ul>
           <ul v-else class="detail-list">
             <li v-for="(record, index) in write.receipt.records.slice(0, SHOWN_ROWS)" :key="`record-${index}`" class="text-xs text-muted">
-              {{ VERBS[record.change.verb] }} <span class="text-toned">{{ record.label }}</span>, {{ record.change.kind.noun.article }} {{ record.change.kind.noun.one }}
+              {{ VERBS[record.change.verb] }} <span class="text-toned">{{ record.label }}</span
+              >, {{ record.change.kind.noun.article }} {{ record.change.kind.noun.one }}
             </li>
             <li v-if="write.receipt.records.length > SHOWN_ROWS" class="text-xs text-muted">and {{ write.receipt.records.length - SHOWN_ROWS }} more</li>
           </ul>

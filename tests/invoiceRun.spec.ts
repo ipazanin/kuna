@@ -204,7 +204,15 @@ describe('the PDF', () => {
   const fonts: InvoiceFontFiles = { regular: pair(400, 'normal'), bold: pair(600, 'normal'), italic: pair(400, 'italic') }
 
   it('draws one A4 page with the Croatian letters in Inter', async () => {
-    const issuer = { ...DEFAULT_SETTINGS.invoicing, name: 'Primjer d.o.o.', address: 'Ulica 1, Đakovo', vatId: 'HR1', iban: 'HR6212345670000000001', place: 'Đakovo', signatory: 'Ana Čičić, Šimić-Žužić' }
+    const issuer = {
+      ...DEFAULT_SETTINGS.invoicing,
+      name: 'Primjer d.o.o.',
+      address: 'Ulica 1, Đakovo',
+      vatId: 'HR1',
+      iban: 'HR6212345670000000001',
+      place: 'Đakovo',
+      signatory: 'Ana Čičić, Šimić-Žužić',
+    }
     const bytes = await renderInvoicePdf(
       {
         number: '10-1-26',

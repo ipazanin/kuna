@@ -28,10 +28,7 @@ const appTabs = computed(() => {
   }
   return found
 })
-const tabs = computed((): PageTab[] => [
-  ...appTabs.value.map(({ label, value, icon }) => ({ label, value, icon })),
-  { label: 'This device', value: DEVICE_TAB, icon: 'i-lucide-monitor-smartphone' },
-])
+const tabs = computed((): PageTab[] => [...appTabs.value.map(({ label, value, icon }) => ({ label, value, icon })), { label: 'This device', value: DEVICE_TAB, icon: 'i-lucide-monitor-smartphone' }])
 const deviceCards = computed(() => props.parts.flatMap((part) => part.deviceCards()))
 const { groups } = usePageSync()
 const someOnDrive = computed(() => groups.some((group) => group.store.state.choice?.source === 'drive'))
@@ -43,7 +40,10 @@ provide(LINKED_SETTINGS_TAB, linkedTab)
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader title="Settings" description="How each app's books and this device are set up. A save writes what you changed to the app's file, on Drive or in this browser, checks it reads back, and offers Undo." />
+    <PageHeader
+      title="Settings"
+      description="How each app's books and this device are set up. A save writes what you changed to the app's file, on Drive or in this browser, checks it reads back, and offers Undo."
+    />
 
     <PageTabs :tabs="tabs" label="Parts of the settings" data-testid="settings-tabs" @select="linkedTab = null">
       <template v-for="tab in appTabs" :key="tab.value" #[tab.value]>

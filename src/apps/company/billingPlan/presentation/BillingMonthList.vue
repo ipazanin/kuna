@@ -67,8 +67,12 @@ function toggle(month: MonthKey): void {
           <li v-for="row in month.rows" :key="row.id" class="plan-line" data-testid="billing-month-row">
             <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
             <span class="min-w-0">
-              <span class="block truncate text-sm text-toned">{{ row.item }}<span v-if="row.description" class="text-muted">, {{ row.description }}</span></span>
-              <span class="figure block text-xs text-muted">{{ shortDayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></span>
+              <span class="block truncate text-sm text-toned"
+                >{{ row.item }}<span v-if="row.description" class="text-muted">, {{ row.description }}</span></span
+              >
+              <span class="figure block text-xs text-muted"
+                >{{ shortDayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></span
+              >
               <span v-if="row.invoices.length > 0 || row.open > 0" class="mt-1 flex flex-wrap gap-1">
                 <span v-for="share in row.invoices" :key="share.key" class="share">
                   <span class="text-muted">{{ share.number }}</span>

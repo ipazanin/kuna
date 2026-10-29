@@ -92,7 +92,9 @@ describe.each([
     const before = recordsOfKindIn(store.state.records!, OWNER_ADVANCE_RECORDS).records[0]!.record
 
     const changed = await store.write('Advance changed', (unit) =>
-      unit.of(OWNER_ADVANCE_WRITES).change(before, ownerAdvanceOfDraft({ date: before.date, amount: euros(42.5), description: 'Printer paper and toner ', category: 'ai-services' }, store.state.workbook!.categories, before)),
+      unit
+        .of(OWNER_ADVANCE_WRITES)
+        .change(before, ownerAdvanceOfDraft({ date: before.date, amount: euros(42.5), description: 'Printer paper and toner ', category: 'ai-services' }, store.state.workbook!.categories, before)),
     )
 
     expect(cellsOf(changed, 'change')).toEqual([expect.objectContaining({ date: 46200, amount: 42.5, description: 'Printer paper and toner', category: 'ai-services' })])
@@ -128,10 +130,7 @@ describe.each([
 
     await switchLoans(store, 'financing')
 
-    expect(store.state.workbook?.categories.filter((category) => category.slug.startsWith('owner-loan')).map((category) => category.bucket)).toEqual([
-      'financing',
-      'financing',
-    ])
+    expect(store.state.workbook?.categories.filter((category) => category.slug.startsWith('owner-loan')).map((category) => category.bucket)).toEqual(['financing', 'financing'])
     await expect(store.write('Switched', (unit) => unit.of(CATEGORY_WRITES).change(stale, { ...stale, bucket: 'financing' }))).rejects.toThrow(
       'The category "owner-loan-out" changed since the app read it',
     )
@@ -155,10 +154,7 @@ describe.each([
       [false, true],
       [false, true],
     ])
-    expect(store.state.workbook?.categories.filter((category) => category.slug.startsWith('owner-loan')).map((category) => category.bucket)).toEqual([
-      'owner-pay',
-      'owner-pay',
-    ])
+    expect(store.state.workbook?.categories.filter((category) => category.slug.startsWith('owner-loan')).map((category) => category.bucket)).toEqual(['owner-pay', 'owner-pay'])
     expect(store.state.workbook?.ownerAdvances).toHaveLength(1)
     await expect(store.undo(added!)).rejects.toThrow(WorkbookWriteRefused)
   })

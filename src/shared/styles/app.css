@@ -23,7 +23,9 @@ body {
   font-size: 0.875rem;
   line-height: 1.45;
   /* Single-storey a and open digits give Inter a calmer, more technical texture. */
-  font-feature-settings: 'cv11' 1, 'ss01' 1;
+  font-feature-settings:
+    'cv11' 1,
+    'ss01' 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -45,7 +47,10 @@ body {
 /* Numbers that line up in columns: tables, axis-like lists, money in running text. */
 .figure {
   font-variant-numeric: tabular-nums;
-  font-feature-settings: 'cv11' 1, 'ss01' 1, 'tnum' 1;
+  font-feature-settings:
+    'cv11' 1,
+    'ss01' 1,
+    'tnum' 1;
 }
 
 .identifier {

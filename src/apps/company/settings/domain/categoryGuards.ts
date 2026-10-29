@@ -30,12 +30,7 @@ export function categoryChangeRefusals(
   untouched: readonly { readonly slug: string }[],
   uses: CategoryUses,
 ): string[] {
-  const refusals = slugChangeRefusals(
-    'category',
-    { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
-    uses.named,
-    true,
-  )
+  const refusals = slugChangeRefusals('category', { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched }, uses.named, true)
   for (const edit of edits) {
     if (edit.before === null || edit.after === null || edit.before.slug !== edit.after.slug || edit.before.bucket === edit.after.bucket) {
       continue

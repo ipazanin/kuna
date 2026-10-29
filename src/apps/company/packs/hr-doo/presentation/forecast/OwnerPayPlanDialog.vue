@@ -60,8 +60,7 @@ const day = computed((): CivilDate | null => parseCivilDate(switchOn.value.trim(
 const errors = computed(() => ({
   first: first.value === '' ? 'Choose the scenario the year starts with' : null,
   second: switching.value && (second.value === '' || second.value === first.value) ? 'Choose another scenario' : null,
-  switchOn:
-    switching.value && (day.value === null || yearOf(day.value) !== props.year || day.value === civilDate(props.year, 1, 1)) ? `A day in ${props.year} after 1 January` : null,
+  switchOn: switching.value && (day.value === null || yearOf(day.value) !== props.year || day.value === civilDate(props.year, 1, 1)) ? `A day in ${props.year} after 1 January` : null,
 }))
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
@@ -85,7 +84,13 @@ async function save(): Promise<void> {
 
 async function clear(): Promise<void> {
   const holding = held()
-  if (await writes.write('Owner pay plan cleared', (lines) => replacePlanLines(lines, holding, []), { description: `The owner pay categories of ${props.year} take their averages again.`, failedTitle: 'Not cleared' })) open.value = false
+  if (
+    await writes.write('Owner pay plan cleared', (lines) => replacePlanLines(lines, holding, []), {
+      description: `The owner pay categories of ${props.year} take their averages again.`,
+      failedTitle: 'Not cleared',
+    })
+  )
+    open.value = false
 }
 </script>
 
@@ -109,7 +114,11 @@ async function clear(): Promise<void> {
           <UFormField label="Then" :error="(tried && errors.second) || false">
             <USelect v-model="second" :items="choices" class="w-full" data-testid="owner-pay-second" />
           </UFormField>
-          <UFormField label="From" :error="(tried && errors.switchOn) || false" :help="suggestedSwitch === null ? 'The second scenario takes over on this day.' : 'Starts on the day after the grants stop requiring the employment.'">
+          <UFormField
+            label="From"
+            :error="(tried && errors.switchOn) || false"
+            :help="suggestedSwitch === null ? 'The second scenario takes over on this day.' : 'Starts on the day after the grants stop requiring the employment.'"
+          >
             <UInput v-model="switchOn" type="date" class="w-full" data-testid="owner-pay-switch-on" />
           </UFormField>
         </template>

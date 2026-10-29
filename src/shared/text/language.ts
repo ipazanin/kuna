@@ -55,8 +55,7 @@ export const languageChoice: LanguageChoice = languageChoiceFrom(storedLanguage(
  * The language on screen. Outside a browser it is English, since Node gives scripts and specs a
  * navigator that follows the machine's own languages.
  */
-export const language: Language =
-  typeof window === 'undefined' ? 'en' : resolveLanguage(languageFromQuery(window.location.search), languageChoice, browserLanguage(navigator.languages))
+export const language: Language = typeof window === 'undefined' ? 'en' : resolveLanguage(languageFromQuery(window.location.search), languageChoice, browserLanguage(navigator.languages))
 
 /** The BCP 47 tag that dates, numbers and sorted lists in the language are written with. */
 export const intlLocale = INTL_LOCALES[language]

@@ -51,12 +51,7 @@ export function withVerdict(entry: LedgerEntry, verdict: LedgerVerdict, categori
  * a person confirmed. Each takes the rule's category and `rule`, as a sync or an import would have
  * written had the rule existed.
  */
-export function waitingRowsSettledBy(
-  ruleId: string,
-  transactions: readonly (ReviewedRow & CategorisableTransaction)[],
-  rules: readonly Rule[],
-  context: CategorisationContext,
-): RowVerdict[] {
+export function waitingRowsSettledBy(ruleId: string, transactions: readonly (ReviewedRow & CategorisableTransaction)[], rules: readonly Rule[], context: CategorisationContext): RowVerdict[] {
   const verdicts: RowVerdict[] = []
   for (const transaction of transactions) {
     if (isHumanConfirmed(transaction) || (transaction.flaggedBy !== 'ai' && transaction.bucket !== UNCLASSIFIED)) {

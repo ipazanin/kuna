@@ -209,7 +209,13 @@ async function remove(): Promise<void> {
         <template v-if="book === null">
           <p class="text-sm font-medium text-highlighted sm:col-span-2">The rate from the first instalment</p>
           <RateFields v-model="rate" :tried="tried" />
-          <USwitch v-model="subsidised" label="A subsidy pays part of each instalment" description="Such as APN's, for a set number of instalments." class="sm:col-span-2" data-testid="bank-loan-subsidised" />
+          <USwitch
+            v-model="subsidised"
+            label="A subsidy pays part of each instalment"
+            description="Such as APN's, for a set number of instalments."
+            class="sm:col-span-2"
+            data-testid="bank-loan-subsidised"
+          />
           <SubsidyFields v-if="subsidised" v-model="subsidy" :tried="tried" :loan-instalments="typed.instalments" />
         </template>
         <UFormField label="Note" class="sm:col-span-2">
@@ -219,16 +225,7 @@ async function remove(): Promise<void> {
     </template>
     <template #footer>
       <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="book !== null"
-          label="Delete loan"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="bank-loan-delete"
-          @click="remove"
-        />
+        <UButton v-if="book !== null" label="Delete loan" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="bank-loan-delete" @click="remove" />
         <div class="ms-auto flex flex-wrap gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
           <UButton

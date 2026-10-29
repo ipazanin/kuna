@@ -99,9 +99,7 @@ export function balanceSeries(accountTransactions: readonly Transaction[], windo
 
 /** Each account's rows in booking order, oldest first. Accounts sorted by name. */
 function rowsByAccount(transactions: readonly Transaction[]): Map<string, Transaction[]> {
-  const ordered = [...transactions].sort(
-    (earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence,
-  )
+  const ordered = [...transactions].sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
   const byAccount = new Map<string, Transaction[]>()
   for (const account of [...new Set(ordered.map((transaction) => transaction.account))].sort()) {
     byAccount.set(account, [])

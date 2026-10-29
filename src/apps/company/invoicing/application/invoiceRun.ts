@@ -140,9 +140,7 @@ async function fileThePdf(plan: RunPlan, drive: InvoiceDrive): Promise<string> {
     return `Replaced ${plan.fileName}.`
   }
   await drive.createPdf(target.folderId, plan.fileName, plan.pdf)
-  return plan.replace
-    ? `Filed ${plan.fileName}. The app could not see an earlier PDF of this name, so if the old generator filed one, delete it in Drive.`
-    : `Filed ${plan.fileName}.`
+  return plan.replace ? `Filed ${plan.fileName}. The app could not see an earlier PDF of this name, so if the old generator filed one, delete it in Drive.` : `Filed ${plan.fileName}.`
 }
 
 /**

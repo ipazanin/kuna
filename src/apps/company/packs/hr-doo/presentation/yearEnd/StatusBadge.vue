@@ -13,14 +13,5 @@ const wording = computed(() => STATUS_WORDING[props.status])
 </script>
 
 <template>
-  <UBadge
-    :label="wording.label"
-    :icon="wording.icon"
-    :color="wording.color"
-    variant="subtle"
-    size="sm"
-    class="shrink-0"
-    :title="wording.meaning"
-    :data-status="status"
-  />
+  <UBadge :label="wording.label" :icon="wording.icon" :color="wording.color" variant="subtle" size="sm" class="shrink-0" :title="wording.meaning" :data-status="status" />
 </template>

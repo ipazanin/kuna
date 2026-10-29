@@ -35,12 +35,16 @@ const name = ref('')
 const label = ref('')
 const tried = ref(false)
 
-watch(open, (opened) => {
-  if (!opened) return
-  name.value = props.mode === 'copy' ? `${props.scenario.slug}-copy` : props.scenario.slug
-  label.value = props.mode === 'copy' ? `${props.scenario.label || props.scenario.slug}, copy` : props.scenario.label
-  tried.value = false
-}, { immediate: true })
+watch(
+  open,
+  (opened) => {
+    if (!opened) return
+    name.value = props.mode === 'copy' ? `${props.scenario.slug}-copy` : props.scenario.slug
+    label.value = props.mode === 'copy' ? `${props.scenario.label || props.scenario.slug}, copy` : props.scenario.label
+    tried.value = false
+  },
+  { immediate: true },
+)
 
 const nameError = computed(() => {
   const slug = name.value.trim()

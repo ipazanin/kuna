@@ -24,19 +24,12 @@ export interface AxisTooltipSettings {
  * user's Sheet, so they are escaped before they reach the tooltip's HTML.
  */
 export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) => string {
-  const {
-    tokens,
-    incompleteCategories = [],
-    formatAmount = (amount: number) => formatMoney(amount),
-    categoryLabel = (category: string) => category,
-  } = settings
+  const { tokens, incompleteCategories = [], formatAmount = (amount: number) => formatMoney(amount), categoryLabel = (category: string) => category } = settings
   return (points: unknown) => {
     const rows = (Array.isArray(points) ? points : [points]) as AxisTooltipPoint[]
     const category = rows[0]?.axisValueLabel ?? rows[0]?.name ?? ''
     const header = `<div style="font-weight:600;color:${tokens.ink};margin-bottom:4px">${escapeHtml(categoryLabel(category))}</div>`
-    const incomplete = incompleteCategories.includes(category)
-      ? `<div style="color:${tokens.inkMuted};margin:-2px 0 6px">Incomplete month, figures so far</div>`
-      : ''
+    const incomplete = incompleteCategories.includes(category) ? `<div style="color:${tokens.inkMuted};margin:-2px 0 6px">Incomplete month, figures so far</div>` : ''
     const body = rows
       .map((row) => {
         const amount = numericValue(row.value)

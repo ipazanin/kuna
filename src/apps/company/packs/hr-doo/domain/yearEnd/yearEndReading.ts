@@ -56,7 +56,11 @@ function figureText(figure: YearEndFigure): string {
 
 export const YEAR_END_CODEC: RecordCodec<YearEndLine> = withIdField(
   YEAR_END_RECORDS,
-  (fields) => [fields.year, fields.statement, fields.line].map(textOf).filter((part) => part !== '').join(' ') || UNNAMED,
+  (fields) =>
+    [fields.year, fields.statement, fields.line]
+      .map(textOf)
+      .filter((part) => part !== '')
+      .join(' ') || UNNAMED,
   yearEndLineOf,
   (line) =>
     filledFields({
@@ -158,7 +162,12 @@ function tieProblems(kept: readonly ReadRecord<YearEndLine>[]): RecordProblem[] 
       const stated = total.figure.amount
       if (computed !== stated) {
         const apart = plainAmount(Math.abs(subtractMoney(computed, stated)) as Money)
-        problems.push(problemOf(kept.find((stored) => stored.record === total)!, `${year}: ${partsInWords} ${plainAmount(computed)}, but ${totalLine} is ${plainAmount(stated)}, ${apart} apart`))
+        problems.push(
+          problemOf(
+            kept.find((stored) => stored.record === total)!,
+            `${year}: ${partsInWords} ${plainAmount(computed)}, but ${totalLine} is ${plainAmount(stated)}, ${apart} apart`,
+          ),
+        )
       }
     }
     const expenses = side('expense')

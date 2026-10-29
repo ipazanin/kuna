@@ -60,12 +60,7 @@ const STRIP_MONTHS = 12
 const MONTHLY_SHARE = 0.75
 
 /** Who the company paid most over a period, grouped by counterparty identity. */
-export function topCounterparties(
-  transactions: readonly Transaction[],
-  period: Period,
-  window: LedgerWindow,
-  limit = 15,
-): CounterpartyTotal[] {
+export function topCounterparties(transactions: readonly Transaction[], period: Period, window: LedgerWindow, limit = 15): CounterpartyTotal[] {
   const range = periodRange(period, window)
   const lastMonth = range === null || monthOf(range.to) > window.partMonth ? window.partMonth : monthOf(range.to)
   const stripMonths = monthsFrom(addMonths(lastMonth, 1 - STRIP_MONTHS), lastMonth)
@@ -108,8 +103,7 @@ export function topCounterparties(
         },
         transactionCount: group.payments.size,
         strip,
-        rhythm:
-          paidMonths >= 3 && paidMonths >= coveredStripMonths * MONTHLY_SHARE ? 'monthly' : group.payments.size === 1 ? 'one-off' : null,
+        rhythm: paidMonths >= 3 && paidMonths >= coveredStripMonths * MONTHLY_SHARE ? 'monthly' : group.payments.size === 1 ? 'one-off' : null,
         categories: [...group.byCategory]
           .map(([category, paid]): CounterpartyCategory => ({
             category,

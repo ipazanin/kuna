@@ -45,13 +45,16 @@
 
       body {
         color: var(--ink);
-        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
         font-size: 1rem;
         line-height: 1.6;
         -webkit-font-smoothing: antialiased;
-        background-image:
-          linear-gradient(to bottom, transparent 0, var(--page) 36rem),
-          repeating-linear-gradient(to bottom, transparent 0 31px, var(--border) 31px 32px);
+        background-image: linear-gradient(to bottom, transparent 0, var(--page) 36rem), repeating-linear-gradient(to bottom, transparent 0 31px, var(--border) 31px 32px);
       }
 
       main {
@@ -155,104 +158,89 @@
         <section>
           <h2>What the app asks Google for</h2>
           <p>
-            Each permission is shown with the words Google uses for it on its consent screen, then what Kuna does with it. Where
-            that screen lets you untick one, the app skips what needs it and shows "Allow access" in its sync control.
+            Each permission is shown with the words Google uses for it on its consent screen, then what Kuna does with it. Where that screen lets you untick one, the app skips what needs it and shows
+            "Allow access" in its sync control.
           </p>
           <ul>
             <li>
-              <code>drive.file</code>, "See, edit, create, and delete only the specific Google Drive files you use with this app". Always
-              asked. It covers the files and folders you pick in Google's file picker and the files the app makes. The app reads and saves
-              your books in <code>kuna-company.json</code>, the file it makes in the folder you pick, and reads the names of that
-              folder and of the backups beside the file. When you make an invoice, it lists the folders inside the invoice folder you
-              picked, and files the PDF there. When a sync files your bank's statement mail or a kind of your accountant's mail you
-              switched on, it makes the files, and a missing year or month folder, in that mail's folder.
+              <code>drive.file</code>, "See, edit, create, and delete only the specific Google Drive files you use with this app". Always asked. It covers the files and folders you pick in Google's
+              file picker and the files the app makes. The app reads and saves your books in <code>kuna-company.json</code>, the file it makes in the folder you pick, and reads the names of that
+              folder and of the backups beside the file. When you make an invoice, it lists the folders inside the invoice folder you picked, and files the PDF there. When a sync files your bank's
+              statement mail or a kind of your accountant's mail you switched on, it makes the files, and a missing year or month folder, in that mail's folder.
             </li>
             <li>
-              <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank
-              statements from a Drive folder or file your mail into one. Google's wording covers your whole Drive. The app uses it to read
-              the bank statements in your statements folder that are not on the ledger yet, since <code>drive.file</code> cannot see
-              files another app filed there. While it reads your mail, it also lists the names, dates and checksums of the files in the
-              folders that mail goes into, to tell what is filed already. It reads nothing else with it and changes nothing.
+              <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank statements from a Drive folder or file your mail into one.
+              Google's wording covers your whole Drive. The app uses it to read the bank statements in your statements folder that are not on the ledger yet, since <code>drive.file</code> cannot see
+              files another app filed there. While it reads your mail, it also lists the names, dates and checksums of the files in the folders that mail goes into, to tell what is filed already. It
+              reads nothing else with it and changes nothing.
             </li>
             <li>
-              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank
-              mails from, or switch on a kind of your accountant's mail. Google's wording covers your whole mailbox. On each sync the app searches it for mail from
-              those addresses whose subject starts with the words you set, reads each one's subject, date and attachment names, downloads
-              a bank statement's XML to read its number and account, and downloads an attachment to file it or to compare it with a
-              file of the same name in your Drive. It files your bank's new statements and the kinds of your accountant's mail you
-              switched on into your Drive, as "What the app writes" says. Nothing it reads leaves your browser except those files, which
-              go to your own Drive. It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
+              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from, or switch on a kind of your accountant's mail. Google's
+              wording covers your whole mailbox. On each sync the app searches it for mail from those addresses whose subject starts with the words you set, reads each one's subject, date and
+              attachment names, downloads a bank statement's XML to read its number and account, and downloads an attachment to file it or to compare it with a file of the same name in your Drive. It
+              files your bank's new statements and the kinds of your accountant's mail you switched on into your Drive, as "What the app writes" says. Nothing it reads leaves your browser except those
+              files, which go to your own Drive. It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
             </li>
             <li>
-              <code>gmail.compose</code>, "Manage drafts and send emails". Asked only while "Create the mail draft" is on for invoices. The
-              app saves one draft per invoice in your Gmail. It never sends mail, although Google's wording for this permission includes
-              sending.
+              <code>gmail.compose</code>, "Manage drafts and send emails". Asked only while "Create the mail draft" is on for invoices. The app saves one draft per invoice in your Gmail. It never
+              sends mail, although Google's wording for this permission includes sending.
             </li>
             <li>
-              <code>openid</code> and <code>email</code>, "Associate you with your personal info on Google" and "See your primary Google
-              Account email address". Always asked. They tell the app which account signed in, and that is all it reads about your account.
+              <code>openid</code> and <code>email</code>, "Associate you with your personal info on Google" and "See your primary Google Account email address". Always asked. They tell the app which
+              account signed in, and that is all it reads about your account.
             </li>
           </ul>
           <p>
             Kuna is not verified by Google. Google shows a warning on its consent screen for the restricted permissions
-            <code>drive.readonly</code>, <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users
-            Google allows an unverified app.
+            <code>drive.readonly</code>, <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users Google allows an unverified app.
           </p>
           <p>A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only.</p>
         </section>
         <section>
           <h2>What the app writes</h2>
           <p>
-            In your books, only what you save, and only in <code>kuna-company.json</code>: the records you add, change or delete,
-            and the bank statements a sync files on the ledger. Before each save it reads the file again, and it refuses when a record it means changed since. Each save
-            keeps its revision of the file, and the first save of a day copies the file as it stood into a <code>backups</code> folder
-            beside it. The app keeps the last 30 daily copies and the first of each month.
+            In your books, only what you save, and only in <code>kuna-company.json</code>: the records you add, change or delete, and the bank statements a sync files on the ledger. Before each save
+            it reads the file again, and it refuses when a record it means changed since. Each save keeps its revision of the file, and the first save of a day copies the file as it stood into a
+            <code>backups</code> folder beside it. The app keeps the last 30 daily copies and the first of each month.
           </p>
           <p>
-            When you make an invoice, it files the PDF in the invoice folder you picked, making a year or month folder there only when you
-            ask it to, and it never overwrites a file except on a re-export you start.
+            When you make an invoice, it files the PDF in the invoice folder you picked, making a year or month folder there only when you ask it to, and it never overwrites a file except on a
+            re-export you start.
           </p>
           <p>
-            While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the
-            statement PDF and XML, into your statements folder in Drive, in a folder for the year that it makes when it is missing.
-            While you switch on a kind of your accountant's mail, each sync files its new payroll documents, VAT returns or the
-            accountant's invoices into the folder you set for that kind, in a folder for the year, and for the payroll and the invoices
-            one for the month, that it makes when it is missing. Nothing in the app reads those files. Each file it makes carries three labels only this app sees: that the app filed it from mail, the Gmail id of the mail, and the
-            mail's date. The next sync starts a week before the newest file in the folder, whoever filed it. It never trashes, renames or overwrites a file there, and it never
-            changes your mail.
+            While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the statement PDF and XML, into your statements folder in Drive, in a
+            folder for the year that it makes when it is missing. While you switch on a kind of your accountant's mail, each sync files its new payroll documents, VAT returns or the accountant's
+            invoices into the folder you set for that kind, in a folder for the year, and for the payroll and the invoices one for the month, that it makes when it is missing. Nothing in the app reads
+            those files. Each file it makes carries three labels only this app sees: that the app filed it from mail, the Gmail id of the mail, and the mail's date. The next sync starts a week before
+            the newest file in the folder, whoever filed it. It never trashes, renames or overwrites a file there, and it never changes your mail.
           </p>
         </section>
         <section>
           <h2>Where your data goes</h2>
           <p>
-            There is no server. The page talks only to Google's own APIs, and only to read and write your books on Drive, read your bank statements and your mail, file the invoices you make and save their drafts. No analytics, no tracking, no
-            third-party scripts beyond Google's sign-in and file picker.
+            There is no server. The page talks only to Google's own APIs, and only to read and write your books on Drive, read your bank statements and your mail, file the invoices you make and save
+            their drafts. No analytics, no tracking, no third-party scripts beyond Google's sign-in and file picker.
           </p>
         </section>
         <section>
           <h2>Where your data is kept</h2>
+          <p>With your books on Google Drive, the file there is the original. The app keeps a copy in this browser's storage so the figures show at once.</p>
           <p>
-            With your books on Google Drive, the file there is the original. The app keeps a copy in this browser's storage so the figures
-            show at once.
+            Google's access token is kept only in the open page, so it is gone when you close or reload the page, and it expires about an hour after Google issues it. Nothing in this browser's storage
+            holds a token. The app keeps the email address of the account you signed in with, to skip Google's account chooser, and the names of the permissions Google granted and the books need. Each
+            time the app opens your books on Drive, it asks Google for a new token without showing you a screen. Where Google needs your sign-in or your consent first, the app waits for you to tap.
+            Sign out of Google in Settings forgets the email and the granted permissions and revokes the token.
           </p>
           <p>
-            Google's access token is kept only in the open page, so it is gone when you close or reload the page, and it expires about an
-            hour after Google issues it. Nothing in this browser's storage holds a token. The app keeps the email address of the account
-            you signed in with, to skip Google's account chooser, and the names of the permissions Google granted and the books need.
-            Each time the app opens your books on Drive, it asks Google for a new token without showing you a screen. Where Google needs your
-            sign-in or your consent first, the app waits for you to tap. Sign out of Google in Settings forgets the email and the granted
-            permissions and revokes the token.
-          </p>
-          <p>
-            With your books kept in this browser, they live in this browser's storage and in the files you export. Clearing this site's data in
-            the browser deletes them, so export to keep a copy, or keep them on Google Drive.
+            With your books kept in this browser, they live in this browser's storage and in the files you export. Clearing this site's data in the browser deletes them, so export to keep a copy, or
+            keep them on Google Drive.
           </p>
         </section>
         <section>
           <h2>How to revoke access</h2>
           <p>
-            Remove Kuna at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. To remove the copy in
-            this browser, clear the site data for this page in your browser's settings.
+            Remove Kuna at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. To remove the copy in this browser, clear the site data for this page in your
+            browser's settings.
           </p>
         </section>
         <section>

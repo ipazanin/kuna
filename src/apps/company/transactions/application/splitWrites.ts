@@ -79,7 +79,11 @@ export const SPLIT_WRITES: WriteRules<SplitTabRow> = {
   refusals: (change, fresh) => {
     const pack = installedPack().workbook
     const { transactions, categories } = ledgerOfRecords(fresh)
-    const keptWhole = pack?.rowsKeptWhole(packRecordsOf(pack.keptWholeReads, (kind) => fresh.of(kind)), { transactions, categories }) ?? new Map<RecordId, string>()
+    const keptWhole =
+      pack?.rowsKeptWhole(
+        packRecordsOf(pack.keptWholeReads, (kind) => fresh.of(kind)),
+        { transactions, categories },
+      ) ?? new Map<RecordId, string>()
     const written = change.edits.flatMap((edit) => (edit.after === null ? [] : [edit.after.fields]))
     return transactions.flatMap((row) => {
       const why = keptWhole.get(row.id)

@@ -50,7 +50,11 @@ export function citSchedule(year: number, priorReturns: readonly PriorReturn[], 
   return {
     year,
     obligations,
-    advances: summed(`Advances expected for ${year}`, advances.map((advance) => advance.expected), 'ledger'),
+    advances: summed(
+      `Advances expected for ${year}`,
+      advances.map((advance) => advance.expected),
+      'ledger',
+    ),
   }
 }
 
@@ -69,9 +73,7 @@ function priorReturnLookup(year: number, priorReturns: readonly PriorReturn[], f
     const found = priorReturns.filter((candidate) => yearOf(candidate.period.to) === taxYear)
     if (found.length !== 1) {
       throw new RangeError(
-        found.length === 0
-          ? `The corporate tax schedule of ${year} needs the return for ${taxYear}.`
-          : `The corporate tax schedule of ${year} was given ${found.length} returns for ${taxYear}.`,
+        found.length === 0 ? `The corporate tax schedule of ${year} needs the return for ${taxYear}.` : `The corporate tax schedule of ${year} was given ${found.length} returns for ${taxYear}.`,
       )
     }
     return found[0] ?? null
@@ -126,7 +128,16 @@ function balanceDueOf(taxYear: number, returnOf: ReturnLookup, rules: RuleSource
   }
   const steps =
     filed.balanceDue === null
-      ? [filed.liability, deducted(summed(`Advances expected for ${taxYear}`, advancesOf(taxYear, returnOf, rules).map((advance) => advance.expected), 'ledger'))]
+      ? [
+          filed.liability,
+          deducted(
+            summed(
+              `Advances expected for ${taxYear}`,
+              advancesOf(taxYear, returnOf, rules).map((advance) => advance.expected),
+              'ledger',
+            ),
+          ),
+        ]
       : [filed.balanceDue]
   const amount = sumMoney(steps.map((step) => step.amount))
   if (amount <= 0) {

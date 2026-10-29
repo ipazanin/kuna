@@ -83,11 +83,7 @@ export function periodRange(period: Period, window: LedgerWindow): DateRange | n
   }
 }
 
-export function transactionsInPeriod<Row extends Pick<Transaction, 'date'>>(
-  transactions: readonly Row[],
-  period: Period,
-  window: LedgerWindow,
-): Row[] {
+export function transactionsInPeriod<Row extends Pick<Transaction, 'date'>>(transactions: readonly Row[], period: Period, window: LedgerWindow): Row[] {
   const range = periodRange(period, window)
   return range === null ? [...transactions] : transactions.filter((transaction) => rangeContains(range, transaction.date))
 }

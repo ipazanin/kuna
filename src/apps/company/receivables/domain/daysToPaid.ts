@@ -18,9 +18,7 @@ export interface DaysToPaid {
 export function daysToPaid(invoices: readonly MatchedInvoice[], range: DateRange | null): DaysToPaid {
   const days = invoices
     .flatMap((matched) =>
-      matched.status === 'paid' && matched.received !== null && (range === null || rangeContains(range, matched.received))
-        ? [daysBetween(matched.invoice.issued, matched.received)]
-        : [],
+      matched.status === 'paid' && matched.received !== null && (range === null || rangeContains(range, matched.received)) ? [daysBetween(matched.invoice.issued, matched.received)] : [],
     )
     .sort((shorter, longer) => shorter - longer)
   if (days.length === 0) {
