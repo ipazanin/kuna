@@ -16,9 +16,10 @@ const rows = ledger([
   { date: '2026-10-01', amount: -1, category: 'travel' },
 ])
 const window = windowOf('2026-07-04', '2026-10-01')
+const thirdQuarter = { preset: 'quarter', year: 2026, quarter: 3 } as const
 
 describe('categoryTotals', () => {
-  const totals = categoryTotals(rows, { preset: 'l3' }, window)
+  const totals = categoryTotals(rows, thirdQuarter, window)
 
   it('shares each category within its own direction: income over income, cost over cost', () => {
     // income 9900, cost 3000 (loan out 3000, equipment 1000, repaid -1000)
@@ -40,17 +41,17 @@ describe('categoryTotals', () => {
   })
 
   it('links each category to its rows in the period', () => {
-    expect(totals[4].amount.drill).toEqual({ filters: { period: { preset: 'l3' }, categories: ['equipment'] } })
+    expect(totals[4].amount.drill).toEqual({ filters: { period: thirdQuarter, categories: ['equipment'] } })
   })
 })
 
 describe('outsideProfitAndLossTotals', () => {
   it('lists financing categories signed as booked, with no share, and nothing else', () => {
-    const outside = outsideProfitAndLossTotals(rows, { preset: 'l3' }, window)
+    const outside = outsideProfitAndLossTotals(rows, thirdQuarter, window)
 
     expect(outside.map((total) => [total.category, total.family, total.amount.amount])).toEqual([
       ['reimbursement-to-owner', 'owner', euros(-400)],
     ])
-    expect(outside[0]?.amount.drill.filters).toEqual({ period: { preset: 'l3' }, categories: ['reimbursement-to-owner'] })
+    expect(outside[0]?.amount.drill.filters).toEqual({ period: thirdQuarter, categories: ['reimbursement-to-owner'] })
   })
 })

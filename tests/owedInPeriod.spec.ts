@@ -37,8 +37,8 @@ describe('who owes whom over a period, on the fake workbook', () => {
     expect(owed.advanceList).toEqual([])
   })
 
-  it('reads the last 12 months on 30 September 2026, before the reimbursements of 5 October', () => {
-    const owed = owedInPeriod(books, { preset: 'l12' }, window, newest)
+  it('reads a period that ends on 30 September 2026 on that day, before the reimbursements of 5 October', () => {
+    const owed = owedInPeriod(books, { preset: 'custom', range: { from: civil('2025-10-01'), to: civil('2026-09-30') } }, window, newest)
 
     // The loan book holds 3,038.45 lent less 3,000.00 repaid. The owner paid 335.70 of costs and had 212.50 back by 30 September,
     // so the company owed 123.20: 38.45 − 123.20 = −84.75, which the tile shows as −€85.
@@ -47,6 +47,13 @@ describe('who owes whom over a period, on the fake workbook', () => {
     expect(figures(owed.loans)).toEqual([euros(0), euros(3038.45), euros(3000), euros(38.45)])
     expect(figures(owed.advances)).toEqual([euros(0), euros(335.7), euros(212.5), euros(123.2)])
     expect(owed.unaccountedTotal).toBe(euros(0))
+  })
+
+  it('reads the last 12 months on the newest booking, the reimbursements of 5 October included', () => {
+    const owed = owedInPeriod(books, { preset: 'l12' }, window, newest)
+
+    expect(owed.on).toBe(newest)
+    expect(owed.net.amount).toBe(euros(76.95))
   })
 
   it('reads all time on the newest booking, as the page did before it had a period', () => {

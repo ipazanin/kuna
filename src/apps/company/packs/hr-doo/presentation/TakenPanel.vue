@@ -13,7 +13,7 @@ import KpiTile from '../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../../filters/application/filterStore'
 import { periodInWords } from '../../../filters/domain/periodInWords'
-import { chartedMonths } from '../../../filters/domain/periodPresets'
+import { averagedPeriod, periodMonths } from '../../../filters/domain/periodPresets'
 import DrillChartCard from '../../../filters/presentation/DrillChartCard.vue'
 import DrillChartPlot from '../../../filters/presentation/DrillChartPlot.vue'
 import { filterChips } from '../../../filters/domain/filterChips'
@@ -76,6 +76,13 @@ const takeInView = computed(() => {
   return ownerTake(profitAndLossRows, workbook.categories, filters.period, window)
 })
 
+/** The days an average counts and the take over them. A rolling window leaves out the month so far. */
+const averaged = computed(() => {
+  const { profitAndLossRows, workbook, window, filters } = props.ledger
+  const period = averagedPeriod(filters.period, window)
+  return { period, take: ownerTake(profitAndLossRows, workbook.categories, period, window) }
+})
+
 /** The tile beside Monthly net pay that counts the period's profit as the months earn it, with its build-up. */
 const net = computed(() => {
   const { window, filters } = props.ledger
@@ -86,13 +93,13 @@ const net = computed(() => {
     to: null,
     caption,
     definition:
-      'What the owner earns a month once the profit counts as the months earn it. Pay is the owner take without loans and dividends over the months of the period, the rent after the rent tax. ' +
+      'What the owner earns a month once the profit counts as the months earn it. Pay is the owner take without loans and dividends over the months of the period, the rent after the rent tax. A rolling window leaves out the month so far. ' +
       'Profit is the profit before tax of the period up to the last complete month, as Year counts it, less corporate tax at the rate Year works out for each year and dividend tax, over those months. ' +
       'A dividend pays out profit those months already count, so pay leaves it out. The profit is the company’s, so it follows the period and not the other filters.',
   })
   const empty = { detail: null, unregistered: false, periodOnly }
   try {
-    const figures = ownerNetWithProfit(takeInView.value, booked.value, filters.period, window, props.asOf, {
+    const figures = ownerNetWithProfit(averaged.value.take, booked.value, filters.period, window, props.asOf, {
       profitBeforeTax: (year) => forecastOf.value(year).profitBeforeTax,
       corporateRate: corporateRateOf.value,
     })
@@ -126,8 +133,8 @@ const taken = computed(() => {
   const take = takeInView.value
   const cost = ownerCost(profitAndLossRows, categories, filters.period, window)
   const benefits = ownerBenefits(profitAndLossRows, categories, filters.period, window)
-  const perMonth = netPayPerMonth(take, filters.period, window)
-  const months = chartedMonths(filters.period, window)
+  const perMonth = netPayPerMonth(averaged.value.take, averaged.value.period, window)
+  const months = periodMonths(filters.period, window)
   const takeMonths = ownerTakeByMonth(profitAndLossRows, categories, months, window)
   const pay = categories.filter((category) => category.bucket === 'owner-pay')
   const loanOut = categoriesWithRole(categories, PACK_ROLES.ownerLoanOut)
@@ -195,11 +202,11 @@ const taken = computed(() => {
       {
         label: 'Monthly net pay',
         value: perMonth === null ? '–' : formatWholeMoney(perMonth.perMonth),
-        to: drillLocation(take.withoutLoans.drill),
-        caption: perMonth === null ? 'No month of the ledger in view' : `${withoutLoans} over ${perMonth.months} ${perMonth.months === 1 ? 'month' : 'months'}`,
+        to: drillLocation(averaged.value.take.withoutLoans.drill),
+        caption: perMonth === null ? 'No month of the ledger in view' : `${formatWholeMoney(averaged.value.take.withoutLoans.amount)} over ${perMonth.months} ${perMonth.months === 1 ? 'month' : 'months'}`,
         definition:
           `What the owner was paid a month from every owner pay category, such as salary, bonus, dividend and rent${benefits === null ? '' : `, ${benefitName.toLowerCase()} included`}: the owner take without loans over the months of the period. ` +
-          `A month the ledger covers only in part, such as the month so far, counts as a whole month, as it does in the chart of ${payLabel.toLowerCase()} by month.${loanNote}${rentNote}`,
+          `A rolling window leaves out the month so far, which the chart of ${payLabel.toLowerCase()} by month draws. Any other period counts a month the ledger covers only in part, such as the month so far, as a whole month, as the chart does.${loanNote}${rentNote}`,
       },
     ],
     ring: {

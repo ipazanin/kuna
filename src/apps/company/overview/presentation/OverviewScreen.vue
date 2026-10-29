@@ -16,6 +16,9 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import { balanceSeries, latestBalances } from '../../cash/domain/balances'
 import { TOTAL_SERIES, accountColours, balanceChart } from '../../cash/presentation/cashChart'
 import { useFilters } from '../../filters/application/filterStore'
+import { drillToTransactions } from '../../filters/domain/drillTarget'
+import { transactionsInPeriod } from '../../filters/domain/filterState'
+import type { Period } from '../../filters/domain/filterState'
 import { useStatementSync } from '../../imports/presentation/useStatementSync'
 import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
@@ -24,6 +27,7 @@ import { costLabelsInSentence, lineLabel, shownLines } from '../../settings/doma
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { monthlyProfitAndLoss } from '../../trends/domain/monthlyProfitAndLoss'
 import { ROLLING_3_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSeries } from '../../trends/presentation/profitAndLossChart'
+import { LINE_BUCKETS, bucketTotals } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -45,6 +49,7 @@ const { drillLocation } = useFilters()
 const names = useDisplayNames()
 
 const EMPHASISED_LINES: readonly ProfitAndLossLine[] = ['net', 'ownerEarns']
+const LAST_12_MONTHS: Period = { preset: 'l12' }
 
 
 
@@ -99,7 +104,9 @@ const overview = computed(() => {
 
   const costChange = averages.last3.lines.cost.perMonth - averages.last12.lines.cost.perMonth
   const said = headline(months)
-  const euro = euroSplit(averages.last12.totals, averages.last12.period)
+  const lastTwelveTotals = bucketTotals(transactionsInPeriod(profitAndLossRows, LAST_12_MONTHS, window))
+  const averagedMonths = `${monthLabel(averages.last12.span.from)} – ${monthLabel(averages.last12.span.to)}`
+  const euro = euroSplit(lastTwelveTotals, LAST_12_MONTHS)
   const closedCount = balances.accounts.filter((account) => account.closed).length
   return {
     headline:
@@ -124,11 +131,11 @@ const overview = computed(() => {
       },
       {
         label: 'Net, last 12 months',
-        value: formatWholeMoney(averages.last12.lines.net.total),
-        to: drillLocation(averages.last12.lines.net.drill),
+        value: formatWholeMoney(lastTwelveTotals.net),
+        to: drillLocation(drillToTransactions({ period: LAST_12_MONTHS, buckets: LINE_BUCKETS.net })),
         trend: lastTwelve.map((month) => month.lines.net.amount),
-        caption: `${formatWholeMoney(averages.last12.lines.net.perMonth)} a month`,
-        definition: `${shown.bucketLabels.income} less ${costs} over the last 12 complete months. Transfers and reimbursements are left out.`,
+        caption: `${formatWholeMoney(averages.last12.lines.net.perMonth)} a month over ${averagedMonths}`,
+        definition: `${shown.bucketLabels.income} less ${costs} over the last 12 months, the month so far included. The caption averages the 12 complete months before the month so far. Transfers and reimbursements are left out.`,
       },
       {
         label: 'Monthly costs',

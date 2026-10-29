@@ -8,6 +8,7 @@ import { basisPoints } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { withPackBuckets, PACK_CATEGORIES } from './fixtures/hrDooCategories'
 import type { Period } from '../src/apps/company/filters/domain/filterState'
+import { averagedPeriod } from '../src/apps/company/filters/domain/periodPresets'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 
 const transactions = withPackBuckets(
@@ -28,7 +29,7 @@ const transactions = withPackBuckets(
   ]),
 )
 const window = windowOf('2026-07-04', '2026-10-01')
-const lastThree = { preset: 'l3' } as const
+const thirdQuarter = { preset: 'quarter', year: 2026, quarter: 3 } as const
 
 function days(from: string, to: string): Period {
   return { preset: 'custom', range: { from: civil(from), to: civil(to) } }
@@ -36,7 +37,7 @@ function days(from: string, to: string): Period {
 
 describe('owner take', () => {
   it('sums the owner-pay bucket with loans net of repayments, by category in the tab’s order', () => {
-    const take = ownerTake(transactions, PACK_CATEGORIES, lastThree, window)
+    const take = ownerTake(transactions, PACK_CATEGORIES, thirdQuarter, window)
 
     expect(take.total.amount).toBe(euros(1100 + 3000 + 1100 - 1000 + 4000))
     expect(take.byCategory.map((line) => [line.category, line.amount.amount])).toEqual([
@@ -45,13 +46,13 @@ describe('owner take', () => {
       ['owner-loan-out', euros(3000)],
       ['owner-loan-repaid', euros(-1000)],
     ])
-    expect(take.total.drill.filters).toEqual({ period: lastThree, buckets: ['owner-pay'] })
+    expect(take.total.drill.filters).toEqual({ period: thirdQuarter, buckets: ['owner-pay'] })
     expect(take.withoutLoans.amount).toBe(euros(2200 + 4000))
     expect(take.withoutLoans.drill.filters.categories).not.toContain('owner-loan-out')
   })
 
   it('lists reimbursements beside owner pay, paid to the owner read positive, and leaves them out of the total', () => {
-    const take = ownerTake(transactions, PACK_CATEGORIES, lastThree, window)
+    const take = ownerTake(transactions, PACK_CATEGORIES, thirdQuarter, window)
 
     expect(take.reimbursements.map((line) => [line.category, line.amount.amount])).toEqual([
       ['reimbursement-to-owner', euros(212.5)],
@@ -70,11 +71,19 @@ describe('owner take', () => {
 })
 
 describe('net pay per month', () => {
-  it('divides the take without loans by the months of a rolling period', () => {
-    const take = ownerTake(transactions, PACK_CATEGORIES, lastThree, window)
+  it('divides the take without loans by the months of a period', () => {
+    const take = ownerTake(transactions, PACK_CATEGORIES, thirdQuarter, window)
 
     // July to September: salary 2,200 and dividend 4,000, the 2,000 of loans left out, over 3 months.
-    expect(netPayPerMonth(take, lastThree, window)).toEqual({ perMonth: euros(2066.67), months: 3 })
+    expect(netPayPerMonth(take, thirdQuarter, window)).toEqual({ perMonth: euros(2066.67), months: 3 })
+  })
+
+  it('averages a rolling period over its complete months, leaving out the month so far', () => {
+    const averaged = averagedPeriod({ preset: 'l3' }, window)
+    const take = ownerTake(transactions, PACK_CATEGORIES, averaged, window)
+
+    // August and September: salary 1,100 and dividend 4,000 over 2 months. October's salary stays out.
+    expect(netPayPerMonth(take, averaged, window)).toEqual({ perMonth: euros(2550), months: 2 })
   })
 
   it('counts each month the ledger covers only in part as a whole month', () => {
@@ -94,7 +103,7 @@ describe('net pay per month', () => {
 
 describe('gross cost of the owner', () => {
   it('adds the taxes with the owner-pay-tax role and leaves corporate income tax out', () => {
-    const cost = ownerCost(transactions, PACK_CATEGORIES, lastThree, window)
+    const cost = ownerCost(transactions, PACK_CATEGORIES, thirdQuarter, window)
 
     expect(cost.take.amount).toBe(euros(8200))
     expect(cost.taxOnPay.amount).toBe(euros(460 + 94 + 400))

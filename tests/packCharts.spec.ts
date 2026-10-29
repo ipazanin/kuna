@@ -13,7 +13,7 @@ import { loanMonths } from '../src/apps/company/packs/hr-doo/domain/ownerLoans'
 import { ownerTake, ownerTakeByMonth } from '../src/apps/company/packs/hr-doo/domain/ownerTake'
 import { PACK_ROLES, categoriesWithRole } from '../src/apps/company/packs/hr-doo/domain/packRoles'
 import { RENT_TAX_LABEL, categorySeries, loanBalanceChart, ownerDrawsChart, ownerPaySeries } from '../src/apps/company/packs/hr-doo/presentation/packCharts'
-import { chartedMonths } from '../src/apps/company/filters/domain/periodPresets'
+import { periodMonths } from '../src/apps/company/filters/domain/periodPresets'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 
@@ -99,22 +99,22 @@ describe('loanBalanceChart', () => {
     ]),
   )
   const window = windowOf('2026-01-10', '2026-06-03')
-  const months = loanMonths(transactions, PACK_CATEGORIES, chartedMonths({ preset: 'l3' }, window), window)
+  const months = loanMonths(transactions, PACK_CATEGORIES, periodMonths({ preset: 'l3' }, window), window)
   const chart = loanBalanceChart(months, 'owner-pay', TOKENS)
 
   it('draws what the owner owed at each month end of the period, counting the loans lent before it', () => {
     const [bars] = chart.option.series as { data: (number | { value: number })[] }[]
     const values = bars!.data.map((point) => (typeof point === 'number' ? point : point.value))
 
-    // March: 1,000 from January and 400 lent, April: 600 repaid, May: 200 paid back on a reimbursement, June so far: nothing new.
-    expect(months.map((month) => month.month)).toEqual(['2026-03', '2026-04', '2026-05', '2026-06'])
-    expect(values).toEqual([euros(1400), euros(800), euros(600), euros(600)])
-    expect(typeof bars!.data[3]).toBe('object')
+    // April: 1,400 lent in January and March less 600 repaid, May: 200 paid back on a reimbursement, June so far: nothing new.
+    expect(months.map((month) => month.month)).toEqual(['2026-04', '2026-05', '2026-06'])
+    expect(values).toEqual([euros(800), euros(600), euros(600)])
+    expect(typeof bars!.data[2]).toBe('object')
     expect(chart.description).toContain('So far in Jun 2026 the owner owed €600.')
   })
 
   it('opens every loan row from the ledger’s first month to the end of the month clicked', () => {
-    const drill = chart.drillAt({ seriesName: '', category: '2026-04', dataIndex: 1 })
+    const drill = chart.drillAt({ seriesName: '', category: '2026-04', dataIndex: 0 })
 
     expect(drill?.filters.period).toEqual({ preset: 'custom', range: { from: civil('2026-01-01'), to: civil('2026-04-30') } })
     expect(drill?.filters.categories).toEqual(expect.arrayContaining(['owner-loan-out', 'owner-loan-repaid', 'reimbursement-from-owner']))
@@ -131,7 +131,7 @@ describe('ownerDrawsChart', () => {
 
   function drawn(rows: Parameters<typeof ledger>[0], from: string, to: string) {
     const window = windowOf(from, to)
-    const months = ownerTakeByMonth(withPackBuckets(ledger(rows)), PACK_CATEGORIES, chartedMonths({ preset: 'all' }, window), window)
+    const months = ownerTakeByMonth(withPackBuckets(ledger(rows)), PACK_CATEGORIES, periodMonths({ preset: 'all' }, window), window)
     const moved = PAY.map((category) => category.slug).filter((slug) => months.some((month) => month.byCategory[slug]?.amount !== 0))
     const series = ownerPaySeries(PAY, moved, LOANS, months.some((month) => month.rentTax.amount !== 0), TOKENS, name)
     return ownerDrawsChart(months, series, TOKENS)
@@ -182,7 +182,7 @@ describe('ownerDrawsChart', () => {
       ['all time', { preset: 'all' }],
     ])('adds up to the owner take in %s', (_, period) => {
       const take = ownerTake(workbook.transactions, workbook.categories, period, window)
-      const months = ownerTakeByMonth(workbook.transactions, workbook.categories, chartedMonths(period, window), window)
+      const months = ownerTakeByMonth(workbook.transactions, workbook.categories, periodMonths(period, window), window)
       const moved = pay.map((category) => category.slug).filter((slug) => months.some((month) => month.byCategory[slug]?.amount !== 0))
       const chart = ownerDrawsChart(months, ownerPaySeries(pay, moved, loanSlugs, true, TOKENS, name), TOKENS)
 

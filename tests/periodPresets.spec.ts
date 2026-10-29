@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { chartedMonths, ledgerYears, periodWithPreset } from '../src/apps/company/filters/domain/periodPresets'
+import { averagedPeriod, ledgerYears, periodMonths, periodWithPreset } from '../src/apps/company/filters/domain/periodPresets'
 import { civil, windowOf } from './fixtures/ledger'
 
 // Complete months run from 2025-06 to 2026-09. October 2026 is the part-month.
@@ -20,7 +20,7 @@ describe('periodWithPreset', () => {
   it('opens a custom range on the days the current period covers', () => {
     expect(periodWithPreset({ preset: 'l3' }, 'custom', window)).toEqual({
       preset: 'custom',
-      range: { from: civil('2026-07-01'), to: civil('2026-09-30') },
+      range: { from: civil('2026-08-01'), to: civil('2026-10-31') },
     })
     expect(periodWithPreset({ preset: 'all' }, 'custom', window)).toEqual({
       preset: 'custom',
@@ -35,15 +35,28 @@ describe('ledgerYears', () => {
   })
 })
 
-describe('chartedMonths', () => {
-  it('draws the part-month after a rolling window', () => {
-    expect(chartedMonths({ preset: 'l3' }, window)).toEqual(['2026-07', '2026-08', '2026-09', '2026-10'])
+describe('periodMonths', () => {
+  it('ends a rolling window with the part month, once', () => {
+    expect(periodMonths({ preset: 'l3' }, window)).toEqual(['2026-08', '2026-09', '2026-10'])
   })
 
   it('clips a calendar period to the months the ledger holds', () => {
-    expect(chartedMonths({ preset: 'year', year: 2025 }, window)).toEqual([
+    expect(periodMonths({ preset: 'year', year: 2025 }, window)).toEqual([
       '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12',
     ])
-    expect(chartedMonths({ preset: 'year', year: 2024 }, window)).toEqual([])
+    expect(periodMonths({ preset: 'year', year: 2024 }, window)).toEqual([])
+  })
+})
+
+describe('averagedPeriod', () => {
+  it('leaves the part month out of a rolling window', () => {
+    expect(averagedPeriod({ preset: 'l12' }, window)).toEqual({ preset: 'custom', range: { from: '2025-11-01', to: '2026-09-30' } })
+    expect(periodMonths(averagedPeriod({ preset: 'l3' }, window), window)).toEqual(['2026-08', '2026-09'])
+  })
+
+  it('keeps any other period as it is, the month so far included', () => {
+    const year = { preset: 'year', year: 2026 } as const
+    expect(averagedPeriod(year, window)).toBe(year)
+    expect(averagedPeriod({ preset: 'all' }, window)).toEqual({ preset: 'all' })
   })
 })

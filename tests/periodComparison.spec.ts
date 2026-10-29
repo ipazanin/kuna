@@ -17,9 +17,16 @@ describe('priorPeriod', () => {
 })
 
 describe('priorEqualPeriod', () => {
-  it('compares a rolling window with as many complete months just before it', () => {
-    expect(priorEqualPeriod({ preset: 'l3' }, window)).toEqual({ preset: 'custom', range: { from: '2026-04-01', to: '2026-06-30' } })
-    expect(priorEqualPeriod({ preset: 'l12' }, window)).toEqual({ preset: 'custom', range: { from: '2024-10-01', to: '2025-09-30' } })
+  it('compares a rolling window with the same days one window earlier, up to the newest row’s day', () => {
+    const onTheTwentyNinth = windowOf('2025-05-14', '2026-10-29')
+
+    expect(priorEqualPeriod({ preset: 'l12' }, onTheTwentyNinth)).toEqual({ preset: 'custom', range: { from: '2024-11-01', to: '2025-10-29' } })
+    expect(priorEqualPeriod({ preset: 'l3' }, onTheTwentyNinth)).toEqual({ preset: 'custom', range: { from: '2026-05-01', to: '2026-07-29' } })
+  })
+
+  it('ends the earlier window on its month’s last day when that month is shorter', () => {
+    expect(priorEqualPeriod({ preset: 'l3' }, windowOf('2025-05-14', '2026-05-31'))).toEqual({ preset: 'custom', range: { from: '2025-12-01', to: '2026-02-28' } })
+    expect(priorEqualPeriod({ preset: 'l12' }, windowOf('2025-05-14', '2028-02-29'))).toEqual({ preset: 'custom', range: { from: '2026-03-01', to: '2027-02-28' } })
   })
 
   it('compares a calendar period with the one before it, and all time with nothing', () => {

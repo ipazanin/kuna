@@ -23,7 +23,7 @@ import { plannedAgainstInvoiced } from '../src/apps/company/billingPlan/domain/p
 import { balanceSeries, latestBalances } from '../src/apps/company/cash/domain/balances.ts'
 import { DEFAULT_FILTERS, periodRange, transactionsInPeriod } from '../src/apps/company/filters/domain/filterState.ts'
 import { priorEqualPeriod } from '../src/apps/company/filters/domain/periodComparison.ts'
-import { chartedMonths } from '../src/apps/company/filters/domain/periodPresets.ts'
+import { averagedPeriod, periodMonths } from '../src/apps/company/filters/domain/periodPresets.ts'
 import { euroSplit } from '../src/apps/company/overview/domain/euroSplit.ts'
 import { headline } from '../src/apps/company/overview/domain/headline.ts'
 import { runway } from '../src/apps/company/overview/domain/runway.ts'
@@ -50,6 +50,7 @@ import { advancesLeftOutByBankFilters, filterTransactions, scopeOwnerAdvances, s
 import { listedRows } from '../src/apps/company/transactions/domain/listedRows.ts'
 import { groupTransactions } from '../src/apps/company/transactions/domain/transactionGroups.ts'
 import { monthlyProfitAndLoss } from '../src/apps/company/trends/domain/monthlyProfitAndLoss.ts'
+import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals.ts'
 import { counterpartyLabels } from '../src/apps/company/workbook/domain/counterpartyIdentity.ts'
 import { needsReview } from '../src/apps/company/workbook/domain/needsReview.ts'
 import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkbook.ts'
@@ -171,7 +172,7 @@ if (companyAsked) {
   group('overview.runway', () => [runway(balances.cashOnHand, averages.last3), runway(balances.cashOnHand, averages.last12)])
   group('overview.months', months)
   group('overview.headline', () => headline(months))
-  group('overview.euro-split', () => euroSplit(averages.last12.totals, averages.last12.period))
+  group('overview.euro-split', () => euroSplit(bucketTotals(transactionsInPeriod(rows, { preset: 'l12' }, window)), { preset: 'l12' }))
   group('overview.waiting', () => waitingJobs(booked, raw.transactions))
   group('overview.pack-waiting', () => packWaitingJobs(books, asOf))
 
@@ -197,20 +198,22 @@ if (companyAsked) {
     group(`transactions.${at}.advances-left-out`, advancesLeftOutByBankFilters(booked.ownerAdvances, filters, window))
     const prior = priorEqualPeriod(period, window)
     group(`analysis.${at}.breakdown`, () => [costGroups(categoryTotals(rows, period, window), prior && categoryTotals(rows, prior, window)), topCounterparties(scoped, period, window)])
-    group(`analysis.${at}.over-time`, () => months.filter((month) => chartedMonths(period, window).includes(month.month)))
+    group(`analysis.${at}.over-time`, () => months.filter((month) => periodMonths(period, window).includes(month.month)))
     group(`analysis.${at}.compare`, () => {
       const review = periodReview(rows, reviewPeriodOf(period, window), window)
       return [review, categoryChanges(rows, review.current.range, review.prior, window)]
     })
     group(`invoicing.${at}.days-to-paid`, () => daysToPaid(matched, periodRange(period, window)))
     const take = ownerTake(rows, cash.categories, period, window)
-    group(`owner.${at}.taken`, () => [take, netPayPerMonth(take, period, window), ownerTakeByMonth(rows, cash.categories, chartedMonths(period, window), window), ownerCost(rows, cash.categories, period, window)])
+    const averaged = averagedPeriod(period, window)
+    const averagedTake = ownerTake(rows, cash.categories, averaged, window)
+    group(`owner.${at}.taken`, () => [take, netPayPerMonth(averagedTake, averaged, window), ownerTakeByMonth(rows, cash.categories, periodMonths(period, window), window), ownerCost(rows, cash.categories, period, window)])
     group(`owner.${at}.benefits`, () => {
       const benefits = ownerBenefits(rows, cash.categories, period, window)
       return [benefits, benefits && books.companyFacts.companyRegistered !== null && dividendComparison(benefits.byYear, 'Benefits', (year) => forecastOf(year).liability.rate)]
     })
-    group(`owner.${at}.net`, () => ownerNetWithProfit(take, books, period, window, asOf, { profitBeforeTax: (year) => forecastOf(year).profitBeforeTax, corporateRate: (year) => forecastOf(year).liability.rate }))
-    group(`owner.${at}.owed`, () => [owedInPeriod(books, period, window, asOf), loanMonths(books.transactions, books.categories, chartedMonths(period, window), window)])
+    group(`owner.${at}.net`, () => ownerNetWithProfit(averagedTake, books, period, window, asOf, { profitBeforeTax: (year) => forecastOf(year).profitBeforeTax, corporateRate: (year) => forecastOf(year).liability.rate }))
+    group(`owner.${at}.owed`, () => [owedInPeriod(books, period, window, asOf), loanMonths(books.transactions, books.categories, periodMonths(period, window), window)])
   }
 
   const bookings = [...books.transactions, ...books.ownerAdvances.map(bookingOfAdvance)]

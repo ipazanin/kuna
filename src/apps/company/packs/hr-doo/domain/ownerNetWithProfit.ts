@@ -9,7 +9,7 @@ import { drillToTransactions } from '../../../filters/domain/drillTarget'
 import type { DrillTarget, Figure } from '../../../filters/domain/drillTarget'
 import { periodRange } from '../../../filters/domain/filterState'
 import type { Period } from '../../../filters/domain/filterState'
-import { periodMonths } from '../../../filters/domain/periodPresets'
+import { averagedPeriod, periodMonths } from '../../../filters/domain/periodPresets'
 import { ruleValue } from '../ruleset/ruleset'
 import type { TracedFigure } from '../ruleset/tracedFigure'
 import type { TracedRate } from './cit/citLiability'
@@ -40,7 +40,7 @@ export interface OwnerNetWithProfit {
   readonly rentTax: Figure
   /** The dividends the pay leaves out, since they pay out profit the months that earned it count. */
   readonly dividendsLeftOut: Figure
-  /** The months the pay covers, a month the ledger covers only in part counting as one. */
+  /** The months the pay covers. A rolling window leaves out its part month, and any other period counts a month the ledger covers in part as one. */
   readonly payMonths: number
   readonly payPerMonth: Money
   /** The months the period covers whole, up to the last complete one, oldest first. The profit covers these alone. */
@@ -69,8 +69,9 @@ export type OwnerNet = { readonly state: 'unregistered' } | OwnerNetWithProfit
  * dividend tax at the next year's, over those months. The ledger's first part month counts, as it
  * does on Year. A dividend pays out profit the months that earned it already count, so it never
  * counts again in the period it is paid in. The profit is the company's, so it follows the period
- * alone. A year before the company was registered has no profit. Null when the period holds no
- * month of the ledger.
+ * alone. A year before the company was registered has no profit. Pay and profit cover the days an
+ * average counts, so `take` is the owner take over `averagedPeriod`, while what the owner owes
+ * stands on the period's own last day. Null when those days hold no month of the ledger.
  */
 export function ownerNetWithProfit(
   take: OwnerTake,
@@ -81,7 +82,8 @@ export function ownerNetWithProfit(
   forecast: { readonly profitBeforeTax: (year: number) => ForecastLine; readonly corporateRate: (year: number) => TracedRate },
   rules: RuleSource = ruleValue,
 ): OwnerNet | null {
-  const months = periodMonths(period, window)
+  const averaged = averagedPeriod(period, window)
+  const months = periodMonths(averaged, window)
   if (months.length === 0) {
     return null
   }

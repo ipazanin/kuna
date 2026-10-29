@@ -8,7 +8,7 @@ import { drillToTransactions, monthPeriod } from '../../../filters/domain/drillT
 import type { Figure } from '../../../filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../../filters/domain/filterState'
 import type { Period } from '../../../filters/domain/filterState'
-import { chartedMonths } from '../../../filters/domain/periodPresets'
+import { periodMonths } from '../../../filters/domain/periodPresets'
 import type { Booking, Category } from '../../../workbook/domain/workbook'
 import { paidOut } from './paidOut'
 import { categoriesInBucket } from './packRoles'
@@ -41,7 +41,7 @@ export interface TaxByType {
  */
 export function taxByType(bookings: readonly Booking[], categories: readonly Category[], period: Period, window: LedgerWindow): TaxByType {
   const taxCategories = categoriesInBucket(categories, 'taxes')
-  const months = chartedMonths(period, window)
+  const months = periodMonths(period, window)
   const shown = new Set(months)
   const taxRows = bookings.filter((booking) => booking.bucket === 'taxes')
   const inPeriod = transactionsInPeriod(taxRows, period, window)

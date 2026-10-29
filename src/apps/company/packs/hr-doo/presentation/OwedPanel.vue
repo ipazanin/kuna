@@ -17,7 +17,7 @@ import { useFilters } from '../../../filters/application/filterStore'
 import { filterChips } from '../../../filters/domain/filterChips'
 import { periodRange } from '../../../filters/domain/filterState'
 import { periodInWords } from '../../../filters/domain/periodInWords'
-import { chartedMonths } from '../../../filters/domain/periodPresets'
+import { periodMonths } from '../../../filters/domain/periodPresets'
 import DrillChartCard from '../../../filters/presentation/DrillChartCard.vue'
 import type { FilteredLedger } from '../../../transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
@@ -83,7 +83,7 @@ const owed = computed(() => {
   const balance = inPeriod.net
   const on = dayLabel(inPeriod.on)
   const unaccounted = ownerAdvances(workbook.ownerAdvances, transactions, categories).unaccounted
-  const months = loanMonths(transactions, categories, chartedMonths(filters.period, window), window)
+  const months = loanMonths(transactions, categories, periodMonths(filters.period, window), window)
   const lentInMonths = months.reduce((sum, month) => sum + month.lent.amount, 0)
   const repaidInMonths = months.reduce((sum, month) => sum + month.repaid.amount, 0)
   const colours = { lent: tokens.buckets['owner-pay'], repaid: tokens.buckets.income }

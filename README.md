@@ -396,10 +396,11 @@ Year, Taxes, at their cards). The pack's jobs need the `owner_pay_module`, and t
 `hr_company_registered`. A job already late has a red dot, and the card is gone when nothing waits.
 `waitingJobs` in `src/apps/company/overview/presentation/waitingForYou.ts` builds it, and the pack's
 jobs come from `src/apps/company/packs/hr-doo/presentation/packWaitingJobs.ts`. Below it sit the tiles (cash on hand, net over
-the last 12 months, monthly costs, and runway at the last three months' cost with the twelve months'
+the last 12 months with the month so far and, in its caption, the average of the 12 complete months
+before it, monthly costs, and runway at the last three months' cost with the twelve months'
 in its caption), the typical month three ways, income and costs by month, the balance at each month
 end over the last 12 months and the month so far, and "Every euro earned" as a ring of the last 12
-months: each cost bucket and what was kept. A loss keeps nothing, so the ring then splits every euro
+months with the month so far: each cost bucket and what was kept. A loss keeps nothing, so the ring then splits every euro
 spent and its middle says how much more went out than came in. "Accounts", collapsed, gives each
 account's newest balance.
 
@@ -735,12 +736,13 @@ owner was paid, so 60,000 on
 paid it. A loan is neither pay nor a cost, so it stays out of
 both, and the gross cost it divides by can be lower than the gross cost tile when loans count as
 owner pay. The monthly net pay is the owner take without loans over the months of the period: every
-owner pay category, benefits from company costs included, and no loan. A month the ledger covers
-only in part, such as the month so far or the ledger's first, counts as a whole month, as it does in
-owner pay by month. Rolling periods hold complete months only. `ownerCost` in
+owner pay category, benefits from company costs included, and no loan. A rolling period averages its
+complete months and leaves out the month so far, which owner pay by month draws. Any other period
+counts a month the ledger covers only in part, such as the month so far or the ledger's first, as a
+whole month, as owner pay by month does. `ownerCost` in
 `src/apps/company/packs/hr-doo/domain/ownerCost.ts` and `netPayPerMonth` in `ownerTake.ts` work them out.
 Beside it, "Monthly net, profit included" counts the profit as the months earn it: the pay without
-loans and dividends over the months of the period, plus the profit before tax of the period's
+loans and dividends over the months of the period, a rolling period's month so far left out, plus the profit before tax of the period's
 months up to the last complete one from Year's forecast, the ledger's first part month included,
 after corporate tax at each year's rate and the `hr.pit.dividend` rate of the year after, over
 those months. A dividend pays out profit its months
@@ -759,8 +761,8 @@ owner's parts of shared costs count in the take, untaxed, as *Owner share* descr
 owes whom reads the advances as booked. Who owes whom, at `?tab=owed`, follows the period only,
 since a balance of one account or category is no debt anyone owes, and a line says so while other
 filters are set. It reads the books as they stood on the period's last day, or on the newest booking
-when the period runs past it, a cost the owner paid after the last bank row included, so last 12 months stand on the last day of the last complete month and
-all time on the newest booking. `owedInPeriod` in `src/apps/company/packs/hr-doo/domain/owedInPeriod.ts` cuts the
+when the period runs past it, a cost the owner paid after the last bank row included, so last 12 months and all time stand on
+the newest booking. `owedInPeriod` in `src/apps/company/packs/hr-doo/domain/owedInPeriod.ts` cuts the
 rows and advances at that day and runs the same matching, so a repayment after it is not known and a
 loan can read open there though the whole ledger shows it repaid. The tab holds the Net owed tile,
 which names the day, a line saying how many reimbursements with no cost on file wait on Review

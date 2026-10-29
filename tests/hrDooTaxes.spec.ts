@@ -60,7 +60,7 @@ describe('tax by type', () => {
 
 describe('effective tax rate', () => {
   it('is net taxes over client revenue, with a refund lowering the taxes and a grant left out of the base', () => {
-    const rate = effectiveTaxRate(transactions, PACK_CATEGORIES, { preset: 'l3' }, window)
+    const rate = effectiveTaxRate(transactions, PACK_CATEGORIES, { preset: 'quarter', year: 2026, quarter: 3 }, window)
 
     // July to September: 480 + 1650 of tax against 12,000 of revenue.
     expect(rate.netTaxes.amount).toBe(euros(2130))

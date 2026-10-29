@@ -1,6 +1,6 @@
 import { monthRange, monthsOfRange } from '../../../../shared/calendar/dateRange'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
-import { monthNumber, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
+import { lastDayOf, monthNumber, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { periodRange } from './filterState'
 import type { Period, Quarter } from './filterState'
@@ -52,12 +52,14 @@ export function periodMonths(period: Period, window: LedgerWindow): MonthKey[] {
 }
 
 /**
- * The months a monthly chart of a period draws, within the ledger. A rolling window ends with the
- * last complete month, so the part-month after it is added: it is always drawn, never averaged.
+ * The days an average over a period counts. A rolling window leaves out its part month, which is
+ * drawn but never averaged. Any other period counts as it is.
  */
-export function chartedMonths(period: Period, window: LedgerWindow): MonthKey[] {
-  const months = periodMonths(period, window)
-  return period.preset === 'l3' || period.preset === 'l12' ? [...months, window.partMonth] : months
+export function averagedPeriod(period: Period, window: LedgerWindow): Period {
+  if (period.preset !== 'l3' && period.preset !== 'l12') {
+    return period
+  }
+  return { preset: 'custom', range: { from: periodRange(period, window).from, to: lastDayOf(window.lastCompleteMonth) } }
 }
 
 function quarterOf(month: MonthKey): Quarter {

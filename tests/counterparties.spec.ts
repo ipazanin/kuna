@@ -61,7 +61,8 @@ describe('topCounterparties', () => {
     { date: '2026-09-10', amount: -30, counterparty: 'Model API', category: 'ai-services' },
   ])
   const window = windowOf('2026-07-03', '2026-10-01')
-  const top = topCounterparties(rows, { preset: 'l3' }, window)
+  const thirdQuarter = { preset: 'quarter', year: 2026, quarter: 3 } as const
+  const top = topCounterparties(rows, thirdQuarter, window)
 
   it('ranks debits by counterparty, leaving out neutral and financing but not unclassified rows', () => {
     expect(top.map((payee) => [payee.label, payee.total.amount, payee.transactionCount])).toEqual([
@@ -78,7 +79,7 @@ describe('topCounterparties', () => {
       { date: '2026-08-03', amount: -10, counterparty: 'Pixel Studio', iban: 'XX00FAKE0002' },
       { date: '2026-09-03', amount: -10, counterparty: '  Pixel   Studio · design work', iban: 'XX00FAKE0002' },
     ])
-    expect(topCounterparties(often, { preset: 'l3' }, window)[0]?.label).toBe('Pixel Studio')
+    expect(topCounterparties(often, thirdQuarter, window)[0]?.label).toBe('Pixel Studio')
   })
 
   it('draws the 12 months up to the end of the period, whatever its length', () => {
@@ -90,6 +91,11 @@ describe('topCounterparties', () => {
       { month: '2026-09', amount: 0 },
     ])
     expect(strip[0]?.month).toBe('2025-10')
+  })
+
+  it('ends the strip of a rolling window with the month so far', () => {
+    const strip = topCounterparties(rows, { preset: 'l3' }, window).find((payee) => payee.key === 'iban:XX00FAKE0001')?.strip ?? []
+    expect(strip.slice(-3).map((cell) => cell.month)).toEqual(['2026-08', '2026-09', '2026-10'])
   })
 
   it('tags a payee paid in most months as monthly and one paid once as one-off', () => {
@@ -135,7 +141,7 @@ describe('topCounterparties', () => {
 
   it('drills to the same debits it ranked', () => {
     expect(top[0].total.drill.filters).toEqual({
-      period: { preset: 'l3' },
+      period: thirdQuarter,
       counterparties: ['iban:XX00FAKE0020'],
       buckets: ['income', 'operating', 'taxes', 'owner-pay', 'unclassified'],
       amount: { min: null, max: -1 },
@@ -149,7 +155,7 @@ describe('topCounterparties', () => {
       { date: '2026-09-05', amount: -1500, counterparty: 'Alex Example', iban: 'XX00FAKE0020', category: 'salary-net' },
       { date: '2026-09-07', amount: -40, counterparty: 'Alex Example', iban: 'XX00FAKE0020', category: 'zzz-test' },
     ])
-    const [alex] = topCounterparties(owner, { preset: 'l3' }, window)
+    const [alex] = topCounterparties(owner, thirdQuarter, window)
 
     expect(alex?.categories.map((part) => [part.category, part.bucket, part.amount.amount, part.transactionCount])).toEqual([
       ['salary-net', 'owner-pay', euros(3000), 2],
@@ -157,7 +163,7 @@ describe('topCounterparties', () => {
       ['zzz-test', 'unclassified', euros(40), 1],
     ])
     expect(alex?.categories[1]?.amount.drill.filters).toEqual({
-      period: { preset: 'l3' },
+      period: thirdQuarter,
       counterparties: ['iban:XX00FAKE0020'],
       categories: ['owner-loan-out'],
       amount: { min: null, max: -1 },
@@ -165,6 +171,6 @@ describe('topCounterparties', () => {
   })
 
   it('keeps to the limit', () => {
-    expect(topCounterparties(rows, { preset: 'l3' }, window, 2)).toHaveLength(2)
+    expect(topCounterparties(rows, thirdQuarter, window, 2)).toHaveLength(2)
   })
 })

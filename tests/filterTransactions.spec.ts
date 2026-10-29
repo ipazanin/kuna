@@ -21,7 +21,7 @@ function amountsFor(filters: Partial<FilterState>): number[] {
 
 describe('filterTransactions', () => {
   it('applies the period, against the whole ledger’s window', () => {
-    expect(amountsFor({ period: { preset: 'l3' } })).toEqual([euros(-150), euros(-70), euros(-1100)])
+    expect(amountsFor({ period: { preset: 'l3' } })).toEqual([euros(-6.4), euros(-150), euros(-70)])
     expect(amountsFor({ period: { preset: 'all' } })).toHaveLength(5)
   })
 

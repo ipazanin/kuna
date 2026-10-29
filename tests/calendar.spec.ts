@@ -91,6 +91,7 @@ describe('ledger window', () => {
     const window = anchorWindow(civil('2025-06-12'), civil('2026-10-16'))
 
     expect(window.partMonth).toBe('2026-10')
+    expect(window.newestDay).toBe('2026-10-16')
     expect(window.lastCompleteMonth).toBe('2026-09')
     expect(spanRange(lastMonths(window, 3))).toEqual({ from: '2026-07-01', to: '2026-09-30' })
     expect(spanRange(lastMonths(window, 12))).toEqual({ from: '2025-10-01', to: '2026-09-30' })

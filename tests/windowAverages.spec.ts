@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { transactionsInPeriod } from '../src/apps/company/filters/domain/filterState'
 import { euroSplit } from '../src/apps/company/overview/domain/euroSplit'
 import { runway } from '../src/apps/company/overview/domain/runway'
 import { recentChange, windowAverages } from '../src/apps/company/overview/domain/windowAverages'
+import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { ZERO } from '../src/shared/money/money'
 import { euros, ledger, windowOf } from './fixtures/ledger'
 
@@ -43,8 +45,9 @@ describe('windowAverages', () => {
     expect(averages.allTime?.lines.income.total).toBe(euros(9000))
   })
 
-  it('links every figure to the rows that make it up', () => {
-    expect(averages.last3.lines.taxes.drill).toEqual({ filters: { period: { preset: 'l3' }, buckets: ['taxes'] } })
+  it('links every figure to the complete months it averages, not to the rolling preset that reaches into October', () => {
+    expect(averages.last3.lines.taxes.drill).toEqual({ filters: { period: { preset: 'custom', range: { from: '2026-07-01', to: '2026-09-30' } }, buckets: ['taxes'] } })
+    expect(averages.last12.lines.income.drill.filters.period).toEqual({ preset: 'custom', range: { from: '2025-10-01', to: '2026-09-30' } })
     expect(averages.allTime?.lines.net.drill.filters).toEqual({
       period: { preset: 'custom', range: { from: '2026-07-01', to: '2026-09-30' } },
       buckets: ['income', 'operating', 'taxes', 'owner-pay'],
@@ -57,8 +60,10 @@ describe('windowAverages', () => {
 })
 
 describe('euroSplit', () => {
+  const thirdQuarter = { preset: 'quarter', year: 2026, quarter: 3 } as const
+
   it('splits income into the three costs and what is kept while there is a profit', () => {
-    const split = euroSplit(windowAverages(rows, window).last3.totals, { preset: 'l3' })
+    const split = euroSplit(bucketTotals(transactionsInPeriod(rows, thirdQuarter, window)), thirdQuarter)
 
     expect(split.basis).toBe('income')
     expect(split.slices.map((slice) => [slice.part, slice.total])).toEqual([
@@ -71,13 +76,22 @@ describe('euroSplit', () => {
     expect(split.shortfall).toBeNull()
   })
 
+  it('splits the last 12 months up to the month so far and opens that preset, as Overview does', () => {
+    const lastTwelve = { preset: 'l12' } as const
+    const split = euroSplit(bucketTotals(transactionsInPeriod(rows, lastTwelve, window)), lastTwelve)
+
+    // June to September earned 18,000 and October so far 50,000.
+    expect(split.whole).toBe(euros(68000))
+    expect(split.slices[0]?.drill.filters.period).toEqual(lastTwelve)
+  })
+
   it('switches to cost as the whole in a loss, so no slice goes negative', () => {
     const loss = ledger([
       { date: '2026-07-04', amount: 1000, category: 'revenue' },
       { date: '2026-07-12', amount: -1500, category: 'salary-net' },
       { date: '2026-07-21', amount: -3500, category: 'equipment' },
     ])
-    const split = euroSplit(windowAverages(loss, windowOf('2026-07-01', '2026-08-03')).last3.totals, { preset: 'l3' })
+    const split = euroSplit(bucketTotals(loss), thirdQuarter)
 
     expect(split.basis).toBe('cost')
     expect(split.whole).toBe(euros(5000))
@@ -90,9 +104,7 @@ describe('euroSplit', () => {
   })
 
   it('has nothing to split without income', () => {
-    const empty = windowAverages([], window).last3.totals
-
-    expect(euroSplit(empty, { preset: 'l3' })).toMatchObject({ basis: 'income', whole: ZERO, shortfall: null })
+    expect(euroSplit(bucketTotals([]), thirdQuarter)).toMatchObject({ basis: 'income', whole: ZERO, shortfall: null })
   })
 })
 

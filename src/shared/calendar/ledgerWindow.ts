@@ -15,10 +15,12 @@ export interface LedgerWindow {
   readonly firstMonth: MonthKey
   /** The first month the ledger covers from its first day. */
   readonly firstCompleteMonth: MonthKey
-  /** The month before the newest transaction's month. Every rolling window ends here. */
+  /** The month before the newest transaction's month. Every average over complete months ends here. */
   readonly lastCompleteMonth: MonthKey
-  /** The newest transaction's month. Drawn, but never counted in an average. */
+  /** The newest transaction's month. Every rolling window ends with it. Drawn, but never counted in an average. */
   readonly partMonth: MonthKey
+  /** The newest transaction's day, which is how far into the part month the ledger reaches. */
+  readonly newestDay: CivilDate
 }
 
 /** A run of whole months, with how many months an average over it divides by. */
@@ -36,6 +38,7 @@ export function anchorWindow(earliest: CivilDate, newest: CivilDate): LedgerWind
     firstCompleteMonth: dayOfMonth(earliest) === 1 ? firstMonth : addMonths(firstMonth, 1),
     lastCompleteMonth: addMonths(partMonth, -1),
     partMonth,
+    newestDay: newest,
   }
 }
 

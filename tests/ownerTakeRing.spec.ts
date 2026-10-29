@@ -20,7 +20,7 @@ const rows = withPackBuckets(
     { date: '2026-09-20', amount: 300, category: 'rent-owner' },
   ]),
 )
-const period = { preset: 'l3' } as const
+const period = { preset: 'quarter', year: 2026, quarter: 3 } as const
 const take = ownerTake(rows, PACK_CATEGORIES, period, windowOf('2026-07-01', '2026-10-01'))
 
 describe('ownerPaySeries', () => {

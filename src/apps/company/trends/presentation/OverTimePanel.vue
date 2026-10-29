@@ -8,7 +8,7 @@ import type { ChartZoomWindow } from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import { useFilters } from '../../filters/application/filterStore'
-import { chartedMonths } from '../../filters/domain/periodPresets'
+import { periodMonths } from '../../filters/domain/periodPresets'
 import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
 import { useSettings } from '../../settings/application/useSettings'
 import { costLabelsInSentence } from '../../settings/domain/profitAndLossLabels'
@@ -38,7 +38,7 @@ const trends = computed(() => {
   }
   const tokens = chartTokens()
   const months = monthlyProfitAndLoss(current.profitAndLossRows, current.window)
-  const charted = new Set(chartedMonths(current.filters.period, current.window))
+  const charted = new Set(periodMonths(current.filters.period, current.window))
   const shown = months.filter((month) => charted.has(month.month))
   const startIndex = Math.max(0, months.findIndex((month) => charted.has(month.month)))
   const endIndex = months.length - 1 - Math.max(0, [...months].reverse().findIndex((month) => charted.has(month.month)))

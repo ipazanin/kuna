@@ -1,8 +1,8 @@
 import { civilDate } from '../../../../shared/calendar/civilDate'
-import { rangeContains } from '../../../../shared/calendar/dateRange'
+import { monthRange, rangeContains } from '../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
-import { completeRange, lastMonths, spanRange } from '../../../../shared/calendar/ledgerWindow'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
+import { addMonths } from '../../../../shared/calendar/monthKey'
 import type { Money } from '../../../../shared/money/money'
 import type { Bucket } from '../../workbook/domain/bucket'
 import type { Transaction } from '../../workbook/domain/workbook'
@@ -10,8 +10,8 @@ import type { Transaction } from '../../workbook/domain/workbook'
 export type Quarter = 1 | 2 | 3 | 4
 
 /**
- * Which days a view covers. `l3` and `l12` are the complete months ending with the last complete
- * one. `all` is every row, part-months included.
+ * Which days a view covers. `l3` and `l12` are the months ending with the part month, so they list
+ * every row up to the newest. `all` is every row, part-months included.
  */
 export type Period =
   | { readonly preset: 'l3' }
@@ -69,9 +69,9 @@ export function periodRange(period: Period, window: LedgerWindow): DateRange | n
 export function periodRange(period: Period, window: LedgerWindow): DateRange | null {
   switch (period.preset) {
     case 'l3':
-      return spanRange(lastMonths(window, 3))
+      return monthRange(addMonths(window.partMonth, -2), window.partMonth)
     case 'l12':
-      return spanRange(lastMonths(window, 12))
+      return monthRange(addMonths(window.partMonth, -11), window.partMonth)
     case 'all':
       return null
     case 'year':
@@ -96,9 +96,4 @@ export function quarterRange(year: number, quarter: Quarter): DateRange {
   const firstMonth = (quarter - 1) * 3 + 1
   const lastDay = new Date(Date.UTC(year, firstMonth + 2, 0)).getUTCDate()
   return { from: civilDate(year, firstMonth, 1), to: civilDate(year, firstMonth + 2, lastDay) }
-}
-
-/** Every complete month of the ledger as a custom period, which is what an all-time average covers. */
-export function allCompleteMonths(window: LedgerWindow): Period {
-  return { preset: 'custom', range: completeRange(window) }
 }
