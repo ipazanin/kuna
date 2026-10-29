@@ -78,18 +78,6 @@ function barStyle(change: number): Record<string, string> {
   vertical-align: bottom;
 }
 
-/* Three columns of figures with cents need the cell padding of a narrow card cut further to fit a 360 px phone. */
-@container (max-width: 24rem) {
-  .window-table th,
-  .window-table td {
-    padding-inline: 0.25rem;
-  }
-
-  .window-table th:first-child {
-    padding-inline-start: 0;
-  }
-}
-
 .window-table tbody tr.emphasised:not(.emphasised + .emphasised) th,
 .window-table tbody tr.emphasised:not(.emphasised + .emphasised) td {
   border-top-color: var(--border-strong);

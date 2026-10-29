@@ -112,11 +112,15 @@ body {
   white-space: nowrap;
 }
 
-/* In a narrow card the cells sit closer, so a table of figures fits without scrolling. */
-@container (max-width: 24rem) {
+/* In a phone's card the cells sit closer, so three columns of figures with cents fit without scrolling. */
+@container (max-width: 26rem) {
   .data-table th,
   .data-table td {
-    padding-inline: 0.5rem;
+    padding-inline: 0.25rem;
+  }
+
+  .data-table th:first-child {
+    padding-inline-start: 0;
   }
 }
 
