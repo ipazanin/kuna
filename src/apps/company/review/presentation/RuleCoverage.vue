@@ -111,7 +111,7 @@ function rowsInWords(count: number): string {
 
     <template v-if="coverage.exceptions.length">
       <header class="group-heading">
-        <UIcon name="i-lucide-split" class="size-4 shrink-0 self-center text-[var(--tone-warning)]" aria-hidden="true" />
+        <UIcon name="i-lucide-split" class="size-4 shrink-0 self-center text-warning" aria-hidden="true" />
         <h3 class="text-sm font-medium text-highlighted">Exceptions</h3>
         <span class="figure text-sm text-muted">{{ coverage.exceptions.length }}</span>
         <p class="basis-full text-xs text-muted">A rule files these differently than the person did. A new rule would file that rule's other rows the same way, so these stay as filed.</p>

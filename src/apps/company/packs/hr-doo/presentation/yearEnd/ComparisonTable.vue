@@ -90,7 +90,7 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
         <div>
           <dt>Ours, accrual</dt>
           <dd>
-            <template v-if="row.ours === null"><span class="text-dimmed">Not computed</span></template>
+            <template v-if="row.ours === null"><span class="text-muted">Not computed</span></template>
             <DrillLink v-else :to="row.oursTo" :label="`${row.label}, ours, open the rows`">
               <MoneyText v-if="isMoney(row.ours)" :cents="row.ours.cents" /><template v-else>{{ row.ours.text }}</template>
             </DrillLink>
@@ -100,17 +100,17 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
           <dt>Ours, cash</dt>
           <dd>
             <DrillLink v-if="row.cash !== null" :to="row.cashTo" :label="`${row.label}, cash, open the rows`"><MoneyText :cents="row.cash" /></DrillLink>
-            <span v-else class="text-dimmed">–</span>
+            <span v-else class="text-muted">–</span>
           </dd>
         </div>
         <div v-if="hasCash">
           <dt>Difference</dt>
-          <dd><MoneyText v-if="row.difference !== null" :cents="row.difference" sign="always" /><span v-else class="text-dimmed">–</span></dd>
+          <dd><MoneyText v-if="row.difference !== null" :cents="row.difference" sign="always" /><span v-else class="text-muted">–</span></dd>
         </div>
         <div>
           <dt>Residual</dt>
-          <dd :class="row.residual === 0 ? 'text-positive' : row.residual === null ? '' : 'text-[var(--tone-warning)]'">
-            <MoneyText v-if="row.residual !== null" :cents="row.residual" sign="always" /><span v-else class="text-dimmed">–</span>
+          <dd :class="row.residual === 0 ? 'text-success' : row.residual === null ? '' : 'text-warning'">
+            <MoneyText v-if="row.residual !== null" :cents="row.residual" sign="always" /><span v-else class="text-muted">–</span>
           </dd>
         </div>
       </dl>
@@ -124,7 +124,7 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
         }}<template v-if="row.explainedBy.length > NAMED"> and {{ row.explainedBy.length - NAMED }} more</template>
       </p>
       <button type="button" class="line-toggle mt-auto" :aria-expanded="open.has(row.key)" :aria-controls="`${testId}-${row.key}`" data-testid="comparison-toggle" @click="toggle(row.key)">
-        <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-dimmed" :class="{ 'is-open': open.has(row.key) }" aria-hidden="true" />
+        <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(row.key) }" aria-hidden="true" />
         <span>{{ open.has(row.key) ? 'Hide how ours is built' : 'How ours is built' }}</span>
       </button>
       <div v-if="open.has(row.key)" :id="`${testId}-${row.key}`" class="border-t border-default pt-3 pb-1">
@@ -162,7 +162,7 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
                 data-testid="comparison-toggle"
                 @click="toggle(row.key)"
               >
-                <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-dimmed" :class="{ 'is-open': open.has(row.key) }" aria-hidden="true" />
+                <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(row.key) }" aria-hidden="true" />
                 <span class="min-w-0">
                   <span class="block text-highlighted">{{ row.label }}</span>
                   <span class="block truncate text-xs text-muted">{{ row.printed }}</span>
@@ -173,7 +173,7 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
               <MoneyText v-if="isMoney(row.accountant)" :cents="row.accountant.cents" /><span v-else class="figure">{{ row.accountant.text }}</span>
             </td>
             <td class="text-end">
-              <span v-if="row.ours === null" class="text-dimmed">Not computed</span>
+              <span v-if="row.ours === null" class="text-muted">Not computed</span>
               <DrillLink v-else :to="row.oursTo" :label="`${row.label}, ours, open the rows`">
                 <MoneyText v-if="isMoney(row.ours)" :cents="row.ours.cents" /><span v-else class="figure">{{ row.ours.text }}</span>
               </DrillLink>
@@ -181,9 +181,9 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
             <template v-if="hasCash">
               <td class="text-end">
                 <DrillLink v-if="row.cash !== null" :to="row.cashTo" :label="`${row.label}, cash, open the rows`"><MoneyText :cents="row.cash" class="text-toned" /></DrillLink>
-                <span v-else class="text-dimmed">–</span>
+                <span v-else class="text-muted">–</span>
               </td>
-              <td class="text-end"><MoneyText v-if="row.difference !== null" :cents="row.difference" sign="always" class="text-toned" /><span v-else class="text-dimmed">–</span></td>
+              <td class="text-end"><MoneyText v-if="row.difference !== null" :cents="row.difference" sign="always" class="text-toned" /><span v-else class="text-muted">–</span></td>
             </template>
             <td class="explained-cell cell-wraps">
               <ul v-if="row.explainedBy.length > 0" class="flex flex-col">
@@ -192,10 +192,10 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
                 </li>
                 <li v-if="row.explainedBy.length > NAMED" class="text-xs text-muted">and {{ row.explainedBy.length - NAMED }} more</li>
               </ul>
-              <span v-else class="text-dimmed">–</span>
+              <span v-else class="text-muted">–</span>
             </td>
-            <td class="text-end" :class="row.residual === 0 ? 'text-positive' : row.residual === null ? '' : 'text-[var(--tone-warning)]'">
-              <MoneyText v-if="row.residual !== null" :cents="row.residual" sign="always" /><span v-else class="text-dimmed">–</span>
+            <td class="text-end" :class="row.residual === 0 ? 'text-success' : row.residual === null ? '' : 'text-warning'">
+              <MoneyText v-if="row.residual !== null" :cents="row.residual" sign="always" /><span v-else class="text-muted">–</span>
             </td>
             <td><StatusBadge :status="row.status" /></td>
           </tr>

@@ -1,7 +1,7 @@
 /**
  * Strings that prove dev-only code reached a production bundle. The fake workbook's spreadsheet id
- * is the first, because every use of the fixture carries it. The gallery page's root attribute is
- * the second. The fixture and GalleryScreen.vue cannot import from here, so
+ * is the first, because every use of the fixture carries it. The root attribute of the gallery page
+ * and of each app's part of it is the second. The fixture and the gallery cannot import from here, so
  * tests/devOnlyMarkers.spec.ts holds their copies to these.
  */
 

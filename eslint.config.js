@@ -37,6 +37,10 @@ const restrictedClasses = [
     message: '"$0": colours come from the tokens, never from a literal or a palette variable.',
   },
   {
+    pattern: utility(String.raw`text-dimmed`),
+    message: '"$0": dimmed ink is the same colour as muted ink, so use text-muted.',
+  },
+  {
     pattern: utility(String.raw`z-[\d\[(].*`),
     message: '"$0": stack with a named layer, not a number.',
   },
@@ -101,6 +105,7 @@ export default defineConfig(
           ...getDefaultSelectors(),
           { kind: 'attribute', name: '^v-bind:ui$', match: [{ type: 'objectValues' }] },
           { kind: 'callee', name: '^h$', match: [{ type: 'objectValues', path: '^class$' }] },
+          { kind: 'variable', name: '^(?:LAYOUTS|WIDTHS)$', match: [{ type: 'objectValues' }] },
         ],
       },
     },

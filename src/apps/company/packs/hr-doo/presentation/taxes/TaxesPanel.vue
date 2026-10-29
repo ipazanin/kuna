@@ -13,6 +13,7 @@ import { sumMoney } from '../../../../../../shared/money/money'
 import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../../../shared/ui/DonutCard.vue'
 import type { DonutPart } from '../../../../../../shared/ui/DonutCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
@@ -205,9 +206,9 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
 
 <template>
   <div class="flex flex-col gap-6">
-    <div class="grid grid-cols-2 gap-3" data-testid="taxes-tiles">
+    <DashboardGrid layout="tiles" data-testid="taxes-tiles">
       <KpiTile v-for="tile in taxes.tiles" :key="tile.label" v-bind="tile" />
-    </div>
+    </DashboardGrid>
 
     <AppCard
       id="corporate-tax"
@@ -223,7 +224,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
         <template v-if="corporateTax.state === 'ready'">Seen on {{ dayLabel(asOf) }}, the newest booking.</template>
       </template>
       <div v-if="corporateTax.state === 'unregistered'" class="flex items-start gap-2 px-4 py-4 text-sm text-toned sm:px-5">
-        <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+        <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
         <p>
           <span class="identifier">hr_company_registered</span> is blank, so the tax periods and the schedule of advances are not known.
           <DrillLink :to="{ path: '/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
@@ -239,7 +240,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
             </span>
           </p>
           <div v-if="corporateTax.unmatched.length > 0" class="flex items-start gap-2 text-sm text-toned" data-testid="unmatched-payments">
-            <UIcon name="i-lucide-circle-question-mark" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <UIcon name="i-lucide-circle-question-mark" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <p>Payments no obligation takes, and refunds:</p>
               <ul class="flex flex-col">
@@ -291,7 +292,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
             </div>
             <div class="min-w-0">
               <dt class="text-xs text-muted">Missed</dt>
-              <dd class="figure text-sm font-medium" :class="cadence.missed === 0 ? 'text-highlighted' : 'text-negative'">{{ cadence.missed === 0 ? 'None' : cadence.missed }}</dd>
+              <dd class="figure text-sm font-medium" :class="cadence.missed === 0 ? 'text-highlighted' : 'text-error'">{{ cadence.missed === 0 ? 'None' : cadence.missed }}</dd>
             </div>
             <div class="min-w-0">
               <dt class="text-xs text-muted">Typical month</dt>

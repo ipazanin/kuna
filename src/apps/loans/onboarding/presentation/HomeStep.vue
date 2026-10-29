@@ -4,9 +4,9 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { newLoansFileContents } from '../../workbook/presentation/loansFile'
-import StepCard from './StepCard.vue'
 import { useLoansStart } from './useLoansStart'
 
 type LoansHome = 'drive' | 'browser' | 'open'

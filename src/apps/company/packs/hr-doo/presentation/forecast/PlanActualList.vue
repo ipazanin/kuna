@@ -23,7 +23,7 @@ function toggle(key: string): void {
   <ul class="flex flex-col" data-testid="plan-actual">
     <li v-for="line in lines" :key="line.key" class="compare-line">
       <button type="button" class="compare-toggle" :aria-expanded="open.has(line.key)" :aria-controls="`plan-actual-${line.key}`" @click="toggle(line.key)">
-        <UIcon name="i-lucide-chevron-right" class="compare-chevron size-4 shrink-0 text-dimmed" :class="{ 'is-open': open.has(line.key) }" aria-hidden="true" />
+        <UIcon name="i-lucide-chevron-right" class="compare-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(line.key) }" aria-hidden="true" />
         <span class="min-w-0 flex-1 text-start">
           <span class="block text-sm text-toned">{{ line.label }}</span>
           <span class="block text-xs text-muted">{{ line.verdict }}</span>

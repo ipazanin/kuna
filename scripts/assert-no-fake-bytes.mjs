@@ -2,7 +2,7 @@
  * Fails the build if the fake workbook or the component gallery reached the production bundle.
  *
  * Both are dropped only because their guards are written inline (`import.meta.env.VITE_FAKE_WORKBOOK
- * === 'true'` in main.ts and the router, `import.meta.env.DEV` in the router), which the build folds
+ * === 'true'` and `import.meta.env.DEV` in the router and each app's app.ts), which the build folds
  * to false.
  * Moving a guard into a shared constant can stop that folding without any visible change in the
  * source, so the proof is taken from the output.

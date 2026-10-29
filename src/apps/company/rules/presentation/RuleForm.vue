@@ -7,6 +7,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import CategoryPicker from '../../transactions/presentation/CategoryPicker.vue'
 import type { Category } from '../../workbook/domain/workbook'
 import { CONDITION_COLUMNS, inTryingOrder } from '../domain/rule'
@@ -84,7 +85,7 @@ function presenceOf(value: DraftCondition['value']): string {
 
 <template>
   <div class="flex flex-col gap-5" data-testid="rule-form">
-    <div class="grid gap-4 sm:grid-cols-2">
+    <FormGrid>
       <UFormField label="Rule id" help="A short name, used once, such as merchant-telecom.">
         <UInput :model-value="draft.id" class="identifier w-full" aria-label="Rule id" @update:model-value="update('id', String($event))" />
       </UFormField>
@@ -98,7 +99,7 @@ function presenceOf(value: DraftCondition['value']): string {
           @update:model-value="update('before', $event === LAST ? null : String($event))"
         />
       </UFormField>
-    </div>
+    </FormGrid>
 
     <fieldset class="flex flex-col gap-3">
       <legend class="text-sm font-medium text-highlighted">Conditions</legend>
@@ -133,7 +134,7 @@ function presenceOf(value: DraftCondition['value']): string {
           <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="`Remove ${CONDITION_LABELS[condition.column]}`" @click="removeCondition(index)" />
         </li>
       </ul>
-      <p v-else class="text-xs text-dimmed">No condition yet. An enabled rule needs at least one.</p>
+      <p v-else class="text-xs text-muted">No condition yet. An enabled rule needs at least one.</p>
       <USelect
         v-if="unusedColumns.length"
         :key="draft.conditions.length"
@@ -149,7 +150,7 @@ function presenceOf(value: DraftCondition['value']): string {
       />
     </fieldset>
 
-    <div class="grid gap-4 sm:grid-cols-2">
+    <FormGrid>
       <UFormField label="Files the row as">
         <CategoryPicker
           :model-value="draft.category"
@@ -163,7 +164,7 @@ function presenceOf(value: DraftCondition['value']): string {
       <UFormField label="Confidence" :help="draft.confidence === 'rule' ? 'Files the row as rule, settled.' : 'Files it as ai, so it shows on Review.'">
         <USelect :model-value="draft.confidence" :items="confidenceItems" class="w-full" aria-label="Confidence" @update:model-value="update('confidence', $event as RuleConfidence)" />
       </UFormField>
-    </div>
+    </FormGrid>
 
     <UFormField label="Note" help="Why the rule exists and why it sits where it does.">
       <UTextarea :model-value="draft.note" :rows="2" autoresize class="w-full" aria-label="Note" @update:model-value="update('note', String($event))" />

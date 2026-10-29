@@ -4,11 +4,11 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import ImportSummary from '../../workbook-files/presentation/ImportSummary.vue'
 import { useImportPreview } from '../../workbook-files/presentation/useImportPreview'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
-import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 
 /**

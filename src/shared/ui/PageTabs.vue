@@ -159,7 +159,7 @@ watch(
       color="neutral"
       class="page-tabs"
       :class="{ 'shared-width': tabs.length <= 4, 'fade-start': overflow.start, 'fade-end': overflow.end }"
-      :ui="{ root: 'min-w-0 gap-5', list: 'page-tabs-list', indicator: 'bottom-0 h-0.5 bg-[var(--accent)]', trigger: 'page-tab shrink-0' }"
+      :ui="{ root: 'min-w-0 gap-5', list: 'page-tabs-list', indicator: 'bottom-0 h-0.5 bg-primary', trigger: 'page-tab shrink-0' }"
       data-testid="page-tabs"
       @update:model-value="open"
     >

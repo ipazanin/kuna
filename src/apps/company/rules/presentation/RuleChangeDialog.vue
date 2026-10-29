@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { useRulesChangePreview } from '../application/useRulesChange'
 import { writeRulesChange } from '../application/ruleWrites'
 import type { RulesTabChange } from '../domain/rulesTabChange'
@@ -28,7 +27,6 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { required: true })
 
 const { state } = useWorkbook()
-const phone = usePhoneLayout()
 const rulesWrites = useRecordWrites(useWorkbook())
 const accepted = ref(false)
 
@@ -51,21 +49,11 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <UModal
-    v-model:open="open"
-    :title="pending?.title ?? 'Change the rules'"
-    v-bind="pending ? { description: pending.description } : {}"
-    :fullscreen="phone"
-    :ui="{ content: 'sm:max-w-2xl', header: 'pe-16 sm:pe-6', footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]' }"
-  >
-    <template #body>
-      <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
+  <AppDialog v-model:open="open" width="2xl" :title="pending?.title ?? 'Change the rules'" :description="pending?.description">
+    <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
+      <UButton :label="pending?.action ?? 'Save'" icon="i-lucide-save" :loading="rulesWrites.busy.value" :disabled="!canSave" data-testid="save-rules-change" @click="save" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap justify-end gap-2">
-        <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
-        <UButton :label="pending?.action ?? 'Save'" icon="i-lucide-save" :loading="rulesWrites.busy.value" :disabled="!canSave" data-testid="save-rules-change" @click="save" />
-      </div>
-    </template>
-  </UModal>
+  </AppDialog>
 </template>

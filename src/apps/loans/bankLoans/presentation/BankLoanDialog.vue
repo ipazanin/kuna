@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { BANK_LOAN_WRITES, RATE_PERIOD_WRITES, newBankLoan, newRatePeriod, removeBankLoan } from '../application/bankLoanWrites'
@@ -13,10 +12,11 @@ import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { BankLoan, InterimInterest } from '../../workbook/domain/bankLoan'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { amountOf } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import RateFields, { rateError, typedRate } from './RateFields.vue'
 import type { RateTexts } from './RateFields.vue'
 import SubsidyFields, { subsidyTexts, typedSubsidy } from './SubsidyFields.vue'
@@ -37,7 +37,6 @@ const props = defineProps<{
 const store = useLoansBooks()
 const writes = useRecordWrites(store)
 const router = useRouter()
-const phone = usePhoneLayout()
 
 const name = ref('')
 const lender = ref('')
@@ -173,72 +172,60 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="book === null ? 'Add a bank loan' : 'Change the bank loan'"
     :description="book === null ? 'Its terms as the contract gives them. Kuna works out the plan from them.' : 'Its terms. Rate periods, the subsidy and extra payments change on the loan\'s page.'"
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="bank-loan" class="grid gap-4 sm:grid-cols-2" data-testid="bank-loan-form" @submit.prevent="save">
-        <UFormField label="Name" :error="(tried && errors.name) || false">
-          <UInput v-model="name" placeholder="Home loan" class="w-full" data-testid="bank-loan-name" />
-        </UFormField>
-        <UFormField label="Lender">
-          <UInput v-model="lender" placeholder="The bank" class="w-full" />
-        </UFormField>
-        <UFormField label="Amount borrowed" :error="(tried && errors.principal) || false">
-          <UInput v-model="principal" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="bank-loan-principal" />
-        </UFormField>
-        <UFormField label="Monthly instalments" :error="(tried && errors.instalments) || false" help="240 for 20 years.">
-          <UInput v-model="instalments" inputmode="numeric" class="w-full" data-testid="bank-loan-instalments" />
-        </UFormField>
-        <UFormField label="Paid out on" :error="(tried && errors.drawdown) || false">
-          <UInput v-model="drawdown" type="date" class="w-full" data-testid="bank-loan-drawdown" />
-        </UFormField>
-        <UFormField label="First instalment" :error="(tried && errors.firstInstalment) || false" help="Every instalment falls on this day of the month.">
-          <UInput v-model="firstInstalment" type="date" class="w-full" data-testid="bank-loan-first-instalment" />
-        </UFormField>
-        <UFormField label="Interest before the first instalment" :error="(tried && errors.interim) || false" help="What the bank charged from the payout, if it did.">
-          <UInput v-model="interimAmount" inputmode="decimal" placeholder="0.00" class="w-full" />
-        </UFormField>
-        <UFormField label="Charged on">
-          <UInput v-model="interimDate" type="date" class="w-full" />
-        </UFormField>
-        <template v-if="book === null">
-          <p class="text-sm font-medium text-highlighted sm:col-span-2">The rate from the first instalment</p>
-          <RateFields v-model="rate" :tried="tried" />
-          <USwitch
-            v-model="subsidised"
-            label="A subsidy pays part of each instalment"
-            description="Such as APN's, for a set number of instalments."
-            class="sm:col-span-2"
-            data-testid="bank-loan-subsidised"
-          />
-          <SubsidyFields v-if="subsidised" v-model="subsidy" :tried="tried" :loan-instalments="typed.instalments" />
-        </template>
-        <UFormField label="Note" class="sm:col-span-2">
-          <UInput v-model="note" class="w-full" />
-        </UFormField>
-      </form>
+    <FormGrid id="bank-loan" as="form" data-testid="bank-loan-form" @submit.prevent="save">
+      <UFormField label="Name" :error="(tried && errors.name) || false">
+        <UInput v-model="name" placeholder="Home loan" class="w-full" data-testid="bank-loan-name" />
+      </UFormField>
+      <UFormField label="Lender">
+        <UInput v-model="lender" placeholder="The bank" class="w-full" />
+      </UFormField>
+      <UFormField label="Amount borrowed" :error="(tried && errors.principal) || false">
+        <UInput v-model="principal" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="bank-loan-principal" />
+      </UFormField>
+      <UFormField label="Monthly instalments" :error="(tried && errors.instalments) || false" help="240 for 20 years.">
+        <UInput v-model="instalments" inputmode="numeric" class="w-full" data-testid="bank-loan-instalments" />
+      </UFormField>
+      <UFormField label="Paid out on" :error="(tried && errors.drawdown) || false">
+        <UInput v-model="drawdown" type="date" class="w-full" data-testid="bank-loan-drawdown" />
+      </UFormField>
+      <UFormField label="First instalment" :error="(tried && errors.firstInstalment) || false" help="Every instalment falls on this day of the month.">
+        <UInput v-model="firstInstalment" type="date" class="w-full" data-testid="bank-loan-first-instalment" />
+      </UFormField>
+      <UFormField label="Interest before the first instalment" :error="(tried && errors.interim) || false" help="What the bank charged from the payout, if it did.">
+        <UInput v-model="interimAmount" inputmode="decimal" placeholder="0.00" class="w-full" />
+      </UFormField>
+      <UFormField label="Charged on">
+        <UInput v-model="interimDate" type="date" class="w-full" />
+      </UFormField>
+      <template v-if="book === null">
+        <p class="text-sm font-medium text-highlighted">The rate from the first instalment</p>
+        <RateFields v-model="rate" :tried="tried" />
+        <USwitch v-model="subsidised" label="A subsidy pays part of each instalment" description="Such as APN's, for a set number of instalments." data-testid="bank-loan-subsidised" />
+        <SubsidyFields v-if="subsidised" v-model="subsidy" :tried="tried" :loan-instalments="typed.instalments" />
+      </template>
+      <UFormField label="Note" class="sm:col-span-2">
+        <UInput v-model="note" class="w-full" />
+      </UFormField>
+    </FormGrid>
+    <template #start>
+      <UButton v-if="book !== null" label="Delete loan" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="bank-loan-delete" @click="remove" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton v-if="book !== null" label="Delete loan" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="bank-loan-delete" @click="remove" />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="bank-loan"
-            :label="book === null ? 'Add loan' : 'Save loan'"
-            :icon="book === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-            data-testid="bank-loan-save"
-          />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="bank-loan"
+        :label="book === null ? 'Add loan' : 'Save loan'"
+        :icon="book === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+        data-testid="bank-loan-save"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

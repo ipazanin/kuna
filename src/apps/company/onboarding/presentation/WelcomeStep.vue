@@ -3,9 +3,9 @@ import { ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import { stepsOf } from '../domain/onboardingSteps'
 import type { OnboardingPath } from '../domain/onboardingSteps'
-import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 
 /** Why the person came: new books, books from a file, or books another device keeps on Drive. */

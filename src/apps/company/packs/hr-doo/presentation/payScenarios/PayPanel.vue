@@ -2,9 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
@@ -15,6 +13,8 @@ import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 import { useFilters } from '../../../../filters/application/filterStore'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
@@ -131,25 +131,15 @@ function openDetail(opened: FigureDetail): void {
 
 <template>
   <div class="flex flex-col gap-6">
-    <UEmpty
+    <EmptyState
       v-if="pay.state === 'needs'"
       icon="i-lucide-settings-2"
       :title="`The figures need ${pay.need}`"
       :description="`${pay.why} The scenarios below can be edited meanwhile.`"
       :actions="[{ label: pay.action.label, to: pay.action.to, color: 'neutral', variant: 'outline' }]"
-      variant="outline"
-      class="rounded-card border-dashed bg-raised/40"
       data-testid="scenarios-needs-setting"
     />
-    <UEmpty
-      v-else-if="pay.state === 'failed'"
-      icon="i-lucide-triangle-alert"
-      title="The scenarios could not be worked out"
-      :description="pay.failure"
-      variant="outline"
-      class="rounded-card border-error/40 bg-raised"
-      :ui="{ avatar: 'text-error' }"
-    />
+    <EmptyState v-else-if="pay.state === 'failed'" icon="i-lucide-triangle-alert" title="The scenarios could not be worked out" :description="pay.failure" tone="error" />
     <div v-else-if="ready" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between" data-testid="scenario-picker">
       <div v-if="workedOut.length > 1" class="flex flex-wrap gap-1.5" role="group" :aria-label="`Scenarios to compare, up to ${MOST_COMPARED}`">
         <UButton
@@ -183,13 +173,11 @@ function openDetail(opened: FigureDetail): void {
     <DividendCard v-if="dividend" v-bind="dividend" :year="year" :chosen="payout" @choose="pickPayout" />
 
     <template v-if="ready && shown && bars">
-      <UEmpty
+      <EmptyState
         v-if="shown.columns.length === 0"
         icon="i-lucide-scale"
         :title="`No scenario for ${year} to compare yet`"
         description="Add the starting scenarios below, then edit, copy or rename them."
-        variant="outline"
-        class="rounded-card border-dashed bg-raised/40"
         data-testid="no-scenarios"
       />
       <template v-else>
@@ -223,7 +211,7 @@ function openDetail(opened: FigureDetail): void {
                     <div class="flex max-w-80 flex-col gap-3 p-3" data-testid="scenario-warning-list">
                       <ul v-if="column.warnings.length > 0" class="flex flex-col gap-1.5">
                         <li v-for="warning in column.warnings" :key="warning" class="flex items-start gap-2 text-sm text-toned">
-                          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+                          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
                           <span>{{ warning }}</span>
                         </li>
                       </ul>
@@ -234,7 +222,7 @@ function openDetail(opened: FigureDetail): void {
                   </template>
                 </UPopover>
                 <span v-else class="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted">
-                  <UIcon name="i-lucide-circle-check" class="size-3.5 text-[var(--tone-positive)]" aria-hidden="true" />
+                  <UIcon name="i-lucide-circle-check" class="size-3.5 text-success" aria-hidden="true" />
                   Nothing to warn about
                 </span>
               </li>
@@ -276,22 +264,18 @@ function openDetail(opened: FigureDetail): void {
 
     <ScenarioEditor :year="year" :scenarios="yearScenarios" :refusals="refusals" :grants="workbook.grants" :taken="taken" />
 
-    <UModal
+    <AppDialog
       v-model:open="startingOpen"
       title="What the scenarios start from"
       :description="ready ? `The ${ready.company.takenFrom} forecast with its owner pay taken back out, so each scenario sets its own. Open a figure for how it is built.` : ''"
-      :fullscreen="phone"
-      :ui="{ header: 'pe-16 sm:pe-6' }"
     >
-      <template #body>
-        <ul class="flex flex-col" data-testid="starting-figures">
-          <li v-for="line in companyLines" :key="line.title" class="starting-row">
-            <span class="min-w-0 text-sm text-toned">{{ line.title }}</span>
-            <BuildUpButton :cents="line.cents" :label="line.title" class="shrink-0 text-sm text-highlighted" @open="openDetail(line)" />
-          </li>
-        </ul>
-      </template>
-    </UModal>
+      <ul class="flex flex-col" data-testid="starting-figures">
+        <li v-for="line in companyLines" :key="line.title" class="starting-row">
+          <span class="min-w-0 text-sm text-toned">{{ line.title }}</span>
+          <BuildUpButton :cents="line.cents" :label="line.title" class="shrink-0 text-sm text-highlighted" @open="openDetail(line)" />
+        </li>
+      </ul>
+    </AppDialog>
     <FigureDialog v-model:open="detailOpen" :detail="detail" />
   </div>
 </template>

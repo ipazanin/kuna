@@ -5,7 +5,11 @@
  * outside the editors allowed to scroll sideways, no console errors (CSP violations included), no
  * request to another origin, that each screen rendered its title, and that it drew as many charts as
  * it has from the fake workbook. Every chart on the gallery must draw and every icon must come from
- * the bundle. From 768 px, cards whose tops line up in a row must end at the same height. A deep
+ * the bundle. From 768 px, cards whose tops line up in a row must end at the same height. Two fields
+ * side by side in a form, a dialog or a card must have their inputs at the same height, on every
+ * screen and in every flow, and every DashboardGrid must rearrange from 768 to 1440 px and again to
+ * 1920 px, unless its cards already sit in one row at the wider width. Cards side by side in a grid
+ * that is not a DashboardGrid fail, outside Settings, This device and the gallery. A deep
  * link to a rule on Settings, Ruleset must open that rule in the side panel and bring its line to
  * just below the search bar, marked, and keep it there once slow web fonts swap in. Deep links into
  * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
@@ -32,7 +36,8 @@
  * It also makes an invoice through the checks and every step, with the fake Picker picking the
  * invoice and year folders and the month folder made on request, then re-exports it.
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
- * adds the starting scenarios to a workbook without any.
+ * adds the starting scenarios to a workbook without any. At every width it opens each Loans dialog
+ * and the Company dialogs whose fields sit two to a row.
  * It plans a category for 2027 on Year, Plan, edits, clears and undoes it, and plans a purchase in a
  * workbook without plan rows. On Transactions it splits a payment, edits the split, deletes it and
  * undoes the delete. On Review it does the same from a row of the queue, and dismisses a group of
@@ -105,6 +110,7 @@ import {
   categoryFlow,
   changeCategoryFlow,
   clientIbansFlow,
+  companyDialogsFlow,
   dismissFlow,
   heldStatementFlow,
   importCamtFlow,
@@ -112,6 +118,7 @@ import {
   invoiceFlow,
   invoiceRunFlow,
   loansBrowserFlow,
+  loansDialogsFlow,
   loansDriveFlow,
   loansEditorFlow,
   loansOpenFlow,
@@ -185,7 +192,7 @@ const selection = runSelection(VIEWPORTS.map((viewport) => viewport.width))
 const BASE = selection.base
 
 /** A card is a raised surface. One nested inside another card is part of that card. */
-const CARD_SELECTOR = '.rounded-card, .gallery-frame'
+const CARD_SELECTOR = '.rounded-card'
 
 /**
  * `charts` is how many charts the screen draws from the fake workbook. `shows` is the text, or the
@@ -532,7 +539,7 @@ const VISITS = [
   ...THEMES.flatMap((theme) => SOURCE_SCREENS.map((screen) => ({ ...screen, theme, file: `${screen.name}-${theme}` }))),
   ...THEMES.map((theme) => ({
     name: `gallery-${theme}`,
-    hash: '#/company/gallery',
+    hash: '#/gallery',
     title: 'Gallery',
     gallery: true,
     theme,
@@ -558,9 +565,23 @@ const SIDEWAYS_SCROLL_ALLOWED = [
   { card: 'salaries.employees', upTo: Infinity, reason: 'Eleven input columns are wider than the 100rem measure the Salaries screen keeps.' },
 ]
 
+/** The screens whose cards may sit side by side in a grid of their own, each with why. */
+const HAND_BUILT_GRIDS_ALLOWED = [
+  { screen: 'settings-device', reason: 'Settings, This device is a page of settings cards, not a dashboard.' },
+  { screen: 'gallery', reason: 'The gallery sets specimens side by side to compare their states.' },
+]
+
 const failures = []
 /** Every card found wider than its content, allowed or not, listed at the end. */
 const overflowSeen = []
+
+/**
+ * A dashboard grid has to rearrange as the screen widens from one of these widths to the next, unless
+ * all its cards already sit in one row at the wider one.
+ */
+const REFLOW_WIDTHS = [768, 1440, 1920]
+/** The dashboard grids each screen showed, by its name and the width, such as `overview 1440`. */
+const dashboardGridsSeen = new Map()
 
 function fail(scope, message) {
   failures.push(`[${scope}] ${message}`)
@@ -607,6 +628,73 @@ function readPage(page) {
       text: document.body.innerText,
       raggedRows: raggedCardRows(cardSelector),
       cardOverflow: overflowingCards(cardSelector),
+      unevenFieldRows: unevenFieldRows(),
+      dashboardGrids: dashboardGrids(),
+      handBuiltGrids: handBuiltGrids(cardSelector),
+    }
+
+    /**
+     * Pairs of side-by-side fields in one form, dialog or card whose tops line up but whose controls
+     * start more than 1 px apart, as when a label that wraps pushes its input below its neighbour's.
+     * A field without an input, a select or a text area, such as a radio group or a switch, has no
+     * control to line up.
+     */
+    function unevenFieldRows() {
+      const control = 'input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="file"]), select, textarea, [role="combobox"]'
+      const fields = [...document.querySelectorAll('[data-slot="root"]:has(> [data-slot="wrapper"])')].flatMap((field) => {
+        const input = [...field.querySelectorAll(control)].find((element) => element.getClientRects().length > 0)
+        if (input === undefined) return []
+        // An input inside a Nuxt UI input box starts where its box does, past the box's icon or tags.
+        const box = input.parentElement.closest('[data-slot="root"]')
+        const measured = box !== field && field.contains(box) ? box : input
+        return [{ field, frame: field.closest('form, [role="dialog"], .rounded-card'), box: field.getBoundingClientRect(), control: measured.getBoundingClientRect().top }]
+      })
+      const label = ({ field }) => (field.querySelector('[data-slot="label"]')?.textContent ?? '').trim().slice(0, 32)
+      const uneven = []
+      for (const [index, left] of fields.entries()) {
+        for (const right of fields.slice(index + 1)) {
+          const sideBySide = left.box.right <= right.box.left + 1 || right.box.right <= left.box.left + 1
+          if (left.frame !== right.frame || !sideBySide || Math.abs(left.box.top - right.box.top) > 1) continue
+          const gap = Math.abs(left.control - right.control)
+          if (gap > 1) uneven.push(`"${label(left)}" and "${label(right)}" have their inputs ${Math.round(gap)} px apart`)
+        }
+      }
+      return uneven
+    }
+
+    /**
+     * Each dashboard grid laid out as a grid, in page order, with how many of its parts sit in each
+     * of its rows. Below 3xl a pair is not a grid, its parts stacking in the screen's column.
+     */
+    function dashboardGrids() {
+      const grids = []
+      for (const grid of document.querySelectorAll('[data-layout]')) {
+        if (getComputedStyle(grid).display !== 'grid') continue
+        const rows = new Map()
+        for (const part of [...grid.children].filter((child) => child.getClientRects().length > 0)) {
+          const top = Math.round(part.getBoundingClientRect().top)
+          const row = [...rows.keys()].find((start) => Math.abs(start - top) <= 1) ?? top
+          rows.set(row, (rows.get(row) ?? 0) + 1)
+        }
+        const name = (grid.dataset.testid ?? grid.querySelector('h2, h3, p')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 32)
+        grids.push({ name, layout: grid.dataset.layout, rows: [...rows.entries()].sort(([first], [second]) => first - second).map(([, count]) => count) })
+      }
+      return grids
+    }
+
+    /**
+     * Grids on the screen that set two of their cards side by side without being a DashboardGrid, so
+     * they rearrange by breakpoints of their own. A grid inside a card is part of that card.
+     */
+    function handBuiltGrids(selector) {
+      const found = []
+      for (const grid of new Set([...document.querySelectorAll(`main ${selector}`)].map((card) => card.parentElement))) {
+        if (grid.dataset.layout !== undefined || grid.closest(selector) !== null || getComputedStyle(grid).display !== 'grid') continue
+        const tops = [...grid.children].filter((child) => child.matches(selector) && child.getClientRects().length > 0).map((card) => Math.round(card.getBoundingClientRect().top))
+        if (!tops.some((top, index) => tops.slice(index + 1).some((other) => Math.abs(other - top) <= 1))) continue
+        found.push((grid.dataset.testid ?? grid.querySelector('h2, h3, p')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 32))
+      }
+      return found
     }
 
     /**
@@ -762,6 +850,9 @@ function writeImportFile() {
 const IMPORT_FILE = writeImportFile()
 const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 
+/** The dialog flows run at every width, so the uneven form row rule sees each dialog as every width lays it out. */
+const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
+
 /** The editors' flows, each on a fresh load, so the fake file on Drive and the workbook kept in this browser start from their seed. */
 const FLOWS = [
   { name: 'page-tabs', hash: '#/settings', title: 'Settings', run: pageTabsFlow },
@@ -838,6 +929,8 @@ const FLOWS = [
   { name: 'loans-start-on-drive', hash: '#/loans/start?step=folder', title: 'Loans', run: loansStartOnDriveFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
   { name: 'loans-editor', hash: '#/loans', title: 'Overview', run: loansEditorFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
+  { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample' } },
+  { name: 'dialogs-company', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: companyDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'] },
   { name: 'menu-groups', hash: '#/loans', title: 'Overview', run: menuGroupsFlow, queries: { drive: '&loans=drive', browser: '&fake=browser&loans=browser' } },
   { name: 'move-browser', hash: '#/settings?tab=device', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
   { name: 'race', hash: '#/company/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
@@ -948,6 +1041,11 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
       fail(scope, `drew donuts ${report.donutHeights.map(Math.round).join(', ')} px tall, expected ${GALLERY_DONUTS} of at least 150 px`)
     }
     if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
+    for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
+    if (REFLOW_WIDTHS.includes(viewport.width)) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, report.dashboardGrids)
+    if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
+      for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
+    }
     for (const wide of report.cardOverflow) {
       const allowed = SIDEWAYS_SCROLL_ALLOWED.find((entry) => entry.card === wide.card && viewport.width <= entry.upTo)
       overflowSeen.push({ viewport: viewport.width, screen: visit.name, theme: visit.theme, ...wide, allowed: allowed !== undefined })
@@ -996,9 +1094,27 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
   }
 }
 
-for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 'desktop'].includes(candidate.name) && selection.takesWidth(candidate.width))) {
+if (REFLOW_WIDTHS.every((width) => selection.takesWidth(width))) {
+  // Two grids of one screen may open with the same title, so each is known by its title and how many came before it with that title.
+  const keyed = (grids) => grids.map((grid, index) => [`${grid.name} ${grids.slice(0, index).filter((other) => other.name === grid.name).length}`, grid])
+  for (const name of new Set(visits.map((visit) => visit.name))) {
+    for (const [narrow, wide] of REFLOW_WIDTHS.slice(1).map((width, index) => [REFLOW_WIDTHS[index], width])) {
+      const before = new Map(keyed(dashboardGridsSeen.get(`${name} ${narrow}`) ?? []))
+      for (const [key, grid] of keyed(dashboardGridsSeen.get(`${name} ${wide}`) ?? [])) {
+        if (grid.rows.length > 1 && before.get(key)?.rows.join() === grid.rows.join()) {
+          fail(`${name} ${wide}px`, `the ${grid.layout} grid "${grid.name}" keeps ${grid.rows.join(', ')} cards a row from ${narrow} px, so it does not rearrange for the wider screen`)
+        }
+      }
+    }
+  }
+} else {
+  console.log(`\nthe dashboard grids were not compared, which needs the widths ${REFLOW_WIDTHS.join(', ')}`)
+}
+
+for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
   for (const mode of MODES) {
     for (const theme of THEMES) {
+      if (viewport.theme && theme !== viewport.theme) continue
       for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name) && (candidate.modes ?? ['drive', 'browser']).includes(mode.name))) {
         const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
         const context = await browser.createBrowserContext()
@@ -1008,9 +1124,10 @@ for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 
         await page.setViewport({ width: viewport.width, height: viewport.height })
         await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
         const file = (name) => join(SCREENSHOT_DIR, `${viewport.name}-${mode.name}-${name}-${theme}.png`)
-        const overflowCheck = async (when) => {
+        const stateCheck = async (when) => {
           const report = await readPage(page)
           if (report.scrollWidth > report.clientWidth + 1) fail(scope, `${when}: horizontal overflow, scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
+          for (const row of report.unevenFieldRows) fail(scope, `${when}: uneven form row: ${row}`)
         }
         try {
           await page.goto(`${BASE}?theme=${theme}${flow.queries?.[mode.name] ?? mode.query}${flow.hash}`, { waitUntil: 'networkidle0' })
@@ -1018,12 +1135,12 @@ for (const viewport of VIEWPORTS.filter((candidate) => ['phone', 'phone-large', 
           await flow.run(page, {
             press: (handle) => handle.click(),
             shoot: async (name) => {
-              await overflowCheck(name)
+              await stateCheck(name)
               await page.screenshot({ path: file(name) })
             },
-            inspect: overflowCheck,
+            inspect: stateCheck,
           })
-          await overflowCheck('after the flow')
+          await stateCheck('after the flow')
         } catch (error) {
           fail(scope, error.message)
           await page.screenshot({ path: file(`${flow.name}-failed`) }).catch(() => {})

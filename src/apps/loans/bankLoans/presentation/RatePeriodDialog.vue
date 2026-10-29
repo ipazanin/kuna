@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { RATE_PERIOD_WRITES, newRatePeriod } from '../application/bankLoanWrites'
@@ -13,8 +12,9 @@ import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import RateFields, { rateError, typedRate } from './RateFields.vue'
 import type { RateTexts } from './RateFields.vue'
 
@@ -28,7 +28,6 @@ const props = defineProps<{
 }>()
 
 const writes = useRecordWrites(useLoansBooks())
-const phone = usePhoneLayout()
 
 const from = ref('')
 const rate = ref<RateTexts>({ rate: '', rateType: 'variable', note: '' })
@@ -80,55 +79,49 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="editing === null ? 'Add a rate period' : 'Change the rate period'"
     description="The rate the bank applies from a due date until the next period. Kuna works out the instalment again on what is left."
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="rate-period" class="grid gap-4 sm:grid-cols-2" data-testid="rate-period-form" @submit.prevent="save">
-        <UFormField label="From the instalment due" :error="(tried && errors.from) || false" help="The first period starts at the first instalment." class="sm:col-span-2">
-          <USelectMenu
-            v-model="from"
-            :items="dueItems"
-            value-key="value"
-            :disabled="isFirst"
-            placeholder="Choose a due date"
-            :search-input="{ placeholder: 'Search due dates' }"
-            class="w-full"
-            data-testid="rate-period-from"
-          />
-        </UFormField>
-        <RateFields v-model="rate" :tried="tried" />
-      </form>
-    </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="editing !== null && !isFirst"
-          label="Delete period"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="rate-period-delete"
-          @click="remove"
+    <FormGrid id="rate-period" as="form" data-testid="rate-period-form" @submit.prevent="save">
+      <UFormField label="From the instalment due" :error="(tried && errors.from) || false" help="The first period starts at the first instalment." class="sm:col-span-2">
+        <USelectMenu
+          v-model="from"
+          :items="dueItems"
+          value-key="value"
+          :disabled="isFirst"
+          placeholder="Choose a due date"
+          :search-input="{ placeholder: 'Search due dates' }"
+          class="w-full"
+          data-testid="rate-period-from"
         />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="rate-period"
-            :label="editing === null ? 'Add period' : 'Save period'"
-            :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-            data-testid="rate-period-save"
-          />
-        </div>
-      </div>
+      </UFormField>
+      <RateFields v-model="rate" :tried="tried" />
+    </FormGrid>
+    <template #start>
+      <UButton
+        v-if="editing !== null && !isFirst"
+        label="Delete period"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="rate-period-delete"
+        @click="remove"
+      />
     </template>
-  </UModal>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="rate-period"
+        :label="editing === null ? 'Add period' : 'Save period'"
+        :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+        data-testid="rate-period-save"
+      />
+    </template>
+  </AppDialog>
 </template>

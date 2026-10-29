@@ -2,16 +2,15 @@
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { sumMoney } from '../../../../shared/money/money'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { TERMS_LINK } from '../../invoicing/presentation/invoicingLinks'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingItemDraft, RestOfYearFill } from '../domain/fillRestOfYear'
 
@@ -27,7 +26,6 @@ const props = defineProps<{
 }>()
 
 const writes = useRecordWrites(useWorkbook())
-const phone = usePhoneLayout()
 
 const rows = computed(() => (props.fill.kind === 'rows' ? props.fill.rows : []))
 const total = computed(() => sumMoney(rows.value.map((row) => row.amount)))
@@ -56,59 +54,53 @@ async function write(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="title"
     description="The monthly fee and the subscription for every month to December that has no row of them yet. Each description follows the item's latest row, with its month moved on, and can be edited before the rows are added."
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <div class="flex flex-col gap-3" data-testid="fill-preview">
-        <p v-if="fill.kind === 'refused'" class="text-sm text-toned">
-          {{ fill.reason }} The terms are on <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">Invoicing, Clients</DrillLink>.
+    <div class="flex flex-col gap-3" data-testid="fill-preview">
+      <p v-if="fill.kind === 'refused'" class="text-sm text-toned">
+        {{ fill.reason }} The terms are on <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">Invoicing, Clients</DrillLink>.
+      </p>
+      <p v-else-if="rows.length === 0" class="text-sm text-toned">Every month to December already has its rows for {{ clientName }}. Nothing to add.</p>
+      <template v-else>
+        <p class="text-sm text-toned">
+          {{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }} for {{ clientName }}, <MoneyText :cents="total" /> in all, appended to the foot of the outgoing-plan tab.
         </p>
-        <p v-else-if="rows.length === 0" class="text-sm text-toned">Every month to December already has its rows for {{ clientName }}. Nothing to add.</p>
-        <template v-else>
-          <p class="text-sm text-toned">
-            {{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }} for {{ clientName }}, <MoneyText :cents="total" /> in all, appended to the foot of the outgoing-plan tab.
-          </p>
-          <ul class="flex flex-col">
-            <li v-for="row in rows" :key="keyOf(row)" class="fill-row" data-testid="fill-row">
-              <span class="swatch" :style="{ background: colours.get(row.item) ?? 'var(--chart-deemphasis)' }" aria-hidden="true" />
-              <span class="min-w-0">
-                <span class="block truncate text-sm text-highlighted">{{ row.item }}</span>
-                <span class="figure block text-xs text-muted">{{ dayLabel(row.date) }}</span>
-              </span>
-              <MoneyText :cents="row.amount" class="text-sm text-toned" />
-              <UInput
-                :model-value="descriptionOf(row)"
-                size="sm"
-                class="fill-description"
-                placeholder="Description"
-                :aria-label="`Description of the ${row.item} row of ${dayLabel(row.date)}`"
-                data-testid="fill-description"
-                @update:model-value="edited = { ...edited, [keyOf(row)]: String($event) }"
-              />
-            </li>
-          </ul>
-        </template>
-      </div>
+        <ul class="flex flex-col">
+          <li v-for="row in rows" :key="keyOf(row)" class="fill-row" data-testid="fill-row">
+            <span class="swatch" :style="{ background: colours.get(row.item) ?? 'var(--chart-deemphasis)' }" aria-hidden="true" />
+            <span class="min-w-0">
+              <span class="block truncate text-sm text-highlighted">{{ row.item }}</span>
+              <span class="figure block text-xs text-muted">{{ dayLabel(row.date) }}</span>
+            </span>
+            <MoneyText :cents="row.amount" class="text-sm text-toned" />
+            <UInput
+              :model-value="descriptionOf(row)"
+              size="sm"
+              class="fill-description"
+              placeholder="Description"
+              :aria-label="`Description of the ${row.item} row of ${dayLabel(row.date)}`"
+              data-testid="fill-description"
+              @update:model-value="edited = { ...edited, [keyOf(row)]: String($event) }"
+            />
+          </li>
+        </ul>
+      </template>
+    </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        :label="rows.length === 0 ? 'Add rows' : `Add ${rows.length} ${rows.length === 1 ? 'row' : 'rows'}`"
+        icon="i-lucide-calendar-plus"
+        :loading="writes.busy.value"
+        :disabled="rows.length === 0 || writes.busy.value"
+        data-testid="fill-write"
+        @click="write"
+      />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap justify-end gap-2">
-        <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-        <UButton
-          :label="rows.length === 0 ? 'Add rows' : `Add ${rows.length} ${rows.length === 1 ? 'row' : 'rows'}`"
-          icon="i-lucide-calendar-plus"
-          :loading="writes.busy.value"
-          :disabled="rows.length === 0 || writes.busy.value"
-          data-testid="fill-write"
-          @click="write"
-        />
-      </div>
-    </template>
-  </UModal>
+  </AppDialog>
 </template>
 
 <style scoped>

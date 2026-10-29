@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
@@ -16,6 +15,7 @@ import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/mo
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
@@ -31,6 +31,7 @@ import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import { assetOfFields, readAssets } from '../../domain/assets/assetsReading'
 import { grantOfFields, readGrants } from '../../domain/grants/grantsReading'
 import type { RecordsRead } from '../../../../../../shared/storage/domain/recordsRead'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 import { ruleValue } from '../../ruleset/ruleset'
 import { ruleLink } from '../../ruleset/presentation/ruleWording'
 import { assetBooks, depreciationByYear, doubledRatesEffect } from '../../domain/assets/assetBooks'
@@ -321,24 +322,14 @@ function employmentState(until: CivilDate | null): string | null {
 
 <template>
   <div class="flex flex-col gap-6">
-    <UEmpty
+    <EmptyState
       v-if="workbook.assets.length === 0"
       icon="i-lucide-package"
       title="No assets on the assets tab"
       description="The assets tab lists what the company bought to keep, such as a laptop or a car: its cost without VAT, its depreciation group and the day it was put in use. Each row is depreciated here, and a grant that paid for it is released beside it. Add the first one under Asset rows."
-      variant="outline"
-      class="rounded-card border-dashed bg-raised/40"
       data-testid="assets-empty"
     />
-    <UEmpty
-      v-else-if="view && view.failure !== null"
-      icon="i-lucide-triangle-alert"
-      title="The assets could not be depreciated"
-      :description="view.failure"
-      variant="outline"
-      class="rounded-card border-error/40 bg-raised"
-      :ui="{ avatar: 'text-error' }"
-    />
+    <EmptyState v-else-if="view && view.failure !== null" icon="i-lucide-triangle-alert" title="The assets could not be depreciated" :description="view.failure" tone="error" />
     <template v-else-if="view && view.failure === null">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-8" data-testid="doubled-rates">
         <USwitch
@@ -374,9 +365,9 @@ function employmentState(until: CivilDate | null): string | null {
         </div>
       </AppCard>
 
-      <div class="grid grid-cols-2 gap-3" :class="view.tiles.length === 4 ? 'lg:grid-cols-4' : ''">
+      <DashboardGrid layout="tiles">
         <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
-      </div>
+      </DashboardGrid>
 
       <AppCard
         title="Asset register"
@@ -393,14 +384,14 @@ function employmentState(until: CivilDate | null): string | null {
           data-testid="asset-notices"
         >
           <div v-if="view.unmatchedAssets.length > 0" class="flex items-start gap-2 text-sm text-toned">
-            <UIcon name="i-lucide-search-x" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <UIcon name="i-lucide-search-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               No ledger payment found for {{ view.unmatchedAssets.join(', ') }}. Put the bank reference, or words from the bank description, in its
               <span class="identifier">ledger_reference</span> under Asset rows.
             </p>
           </div>
           <div v-if="view.unmatchedPurchases.length > 0" class="flex items-start gap-2 text-sm text-toned">
-            <UIcon name="i-lucide-package-search" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <UIcon name="i-lucide-package-search" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
                 {{ view.unmatchedPurchases.length }} {{ view.unmatchedPurchases.length === 1 ? 'purchase' : 'purchases' }} on a capital-purchase category
@@ -419,7 +410,7 @@ function employmentState(until: CivilDate | null): string | null {
             </div>
           </div>
           <div v-if="view.mismatchedPayments.length > 0" class="flex items-start gap-2 text-sm text-toned">
-            <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
                 {{ view.mismatchedPayments.length }} {{ view.mismatchedPayments.length === 1 ? 'payment' : 'payments' }} found by a <span class="identifier">ledger_reference</span>

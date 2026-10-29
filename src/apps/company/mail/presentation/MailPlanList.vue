@@ -22,11 +22,11 @@ const ORDER: readonly PlanEntry['kind'][] = ['not-filed', 'filed', 'correction',
 
 const ICONS: Readonly<Record<PlanEntry['kind'], { readonly name: string; readonly tone: string; readonly words: string }>> = {
   'not-filed': { name: 'i-lucide-file-x', tone: 'text-error', words: 'Not filed' },
-  filed: { name: 'i-lucide-file-check', tone: 'text-[var(--tone-positive)]', words: 'Filed' },
+  filed: { name: 'i-lucide-file-check', tone: 'text-success', words: 'Filed' },
   correction: { name: 'i-lucide-file-diff', tone: 'text-warning', words: 'Correction' },
   unchecked: { name: 'i-lucide-file-question-mark', tone: 'text-warning', words: 'Not compared' },
   unmatched: { name: 'i-lucide-mail-x', tone: 'text-warning', words: 'Unmatched' },
-  already: { name: 'i-lucide-check', tone: 'text-[var(--tone-positive)]', words: 'Already there' },
+  already: { name: 'i-lucide-check', tone: 'text-success', words: 'Already there' },
 }
 
 const expanded = reactive<Record<string, boolean>>({})

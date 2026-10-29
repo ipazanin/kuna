@@ -5,6 +5,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../../../shared/ui/DonutCard.vue'
 import KpiTile from '../../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
@@ -36,13 +37,13 @@ const dialogOpen = computed({
 <template>
   <div class="flex flex-col gap-6" :data-payday="view.payday">
     <p v-if="view.unpaid" class="flex items-start gap-2 text-sm text-toned" data-testid="salaries-unpaid">
-      <UIcon name="i-lucide-hourglass" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+      <UIcon name="i-lucide-hourglass" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>{{ view.label }} is still running, so its payroll may not all be paid yet.</span>
     </p>
 
-    <div class="salary-tiles grid grid-cols-2 gap-3 lg:grid-cols-5" data-testid="salaries-tiles">
+    <DashboardGrid layout="tiles" data-testid="salaries-tiles">
       <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
-    </div>
+    </DashboardGrid>
 
     <p v-if="view.strip" class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-toned" data-testid="salaries-strip">
       <span class="font-medium text-highlighted">{{ view.strip.name }}</span>
@@ -53,7 +54,7 @@ const dialogOpen = computed({
       </span>
     </p>
 
-    <div class="grid gap-4 xl:grid-cols-2">
+    <DashboardGrid>
       <DonutCard
         title="Where the company’s money goes"
         :subtitle="`Paid in ${view.label}, out of the cost to the company.`"
@@ -83,7 +84,7 @@ const dialogOpen = computed({
       >
         <template #legend><ChartLegend :entries="bridge.legend" /></template>
       </DrillChartCard>
-    </div>
+    </DashboardGrid>
 
     <SalaryProblemList :problems="view.problems" :label="view.label" @open="opened = $event" />
 
@@ -92,16 +93,3 @@ const dialogOpen = computed({
     <FigureDialog v-model:open="dialogOpen" :detail="opened" />
   </div>
 </template>
-
-<style scoped>
-/* A phone sets the tiles two by two, and the last one takes its own row. */
-.salary-tiles > :last-child {
-  grid-column: 1 / -1;
-}
-
-@media (min-width: 1024px) {
-  .salary-tiles > :last-child {
-    grid-column: auto;
-  }
-}
-</style>

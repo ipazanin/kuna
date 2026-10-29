@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { LATE_INSTALMENT_WRITES, newLateInstalment } from '../application/bankLoanWrites'
@@ -13,9 +12,10 @@ import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
 /** An instalment that went out after its due date. Every other instalment counts as paid on its due date. */
 const open = defineModel<boolean>('open', { required: true })
@@ -29,7 +29,6 @@ const props = defineProps<{
 }>()
 
 const writes = useRecordWrites(useLoansBooks())
-const phone = usePhoneLayout()
 
 const due = ref('')
 const paid = ref('')
@@ -81,47 +80,41 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="editing === null ? 'Mark an instalment late' : 'Change the late instalment'"
     description="The day an instalment actually went out. It changes when the row counts as paid, not the plan."
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="late-instalment" class="grid gap-4 sm:grid-cols-2" data-testid="late-instalment-form" @submit.prevent="save">
-        <UFormField label="Instalment due" :error="(tried && errors.due) || false">
-          <USelectMenu
-            v-model="due"
-            :items="dueItems"
-            value-key="value"
-            placeholder="Choose an instalment"
-            :search-input="{ placeholder: 'Search due dates' }"
-            class="w-full"
-            data-testid="late-instalment-due"
-          />
-        </UFormField>
-        <UFormField label="Paid on" :error="(tried && errors.paid) || false">
-          <UInput v-model="paid" type="date" class="w-full" data-testid="late-instalment-paid" />
-        </UFormField>
-      </form>
+    <FormGrid id="late-instalment" as="form" data-testid="late-instalment-form" @submit.prevent="save">
+      <UFormField label="Instalment due" :error="(tried && errors.due) || false">
+        <USelectMenu
+          v-model="due"
+          :items="dueItems"
+          value-key="value"
+          placeholder="Choose an instalment"
+          :search-input="{ placeholder: 'Search due dates' }"
+          class="w-full"
+          data-testid="late-instalment-due"
+        />
+      </UFormField>
+      <UFormField label="Paid on" :error="(tried && errors.paid) || false">
+        <UInput v-model="paid" type="date" class="w-full" data-testid="late-instalment-paid" />
+      </UFormField>
+    </FormGrid>
+    <template #start>
+      <UButton v-if="editing !== null" label="Delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="late-instalment-delete" @click="remove" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton v-if="editing !== null" label="Delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="late-instalment-delete" @click="remove" />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="late-instalment"
-            :label="editing === null ? 'Mark late' : 'Save'"
-            :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-            data-testid="late-instalment-save"
-          />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="late-instalment"
+        :label="editing === null ? 'Mark late' : 'Save'"
+        :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+        data-testid="late-instalment-save"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

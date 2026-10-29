@@ -3,9 +3,9 @@ import { ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { DriveFileLookup } from '../../../../shared/storage/application/workbookPorts'
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
-import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 
 /** The books another device keeps on Drive: found by the app's mark, or picked. Once they are on screen, Overview. */

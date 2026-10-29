@@ -5,12 +5,12 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import { today } from '../../../../shared/calendar/civilDate'
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NEW_BOOKS_TITLE, newBooksDocument } from '../../workbook/presentation/workbookFiles'
 import { nextStep } from '../domain/onboardingSteps'
 import type { BooksHome } from '../domain/onboardingSteps'
 import { statementSettingsOf } from '../domain/statementsChoice'
-import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 
 /** Where the books live. New books kept in this browser are made here, since they need nothing from Google. */

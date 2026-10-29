@@ -98,7 +98,7 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
                 <span class="block text-sm text-toned">{{ componentText(component) }}</span>
                 <span class="block text-xs text-muted">{{ spanText(component) }}</span>
               </span>
-              <UIcon name="i-lucide-pencil" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />
+              <UIcon name="i-lucide-pencil" class="size-4 shrink-0 text-muted" aria-hidden="true" />
             </button>
           </li>
         </ul>

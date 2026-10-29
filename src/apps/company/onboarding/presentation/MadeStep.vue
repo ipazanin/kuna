@@ -3,13 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import type { DriveFilePlace } from '../../../../shared/storage/application/workbookPorts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 
 /**
@@ -28,7 +27,6 @@ const folderLink = computed(() => (where.value === null ? null : `https://drive.
 const dropping = ref(false)
 const failure = ref<string | null>(null)
 const confirming = ref(false)
-const phone = usePhoneLayout()
 
 const held = computed(() => {
   const transactions = store.state.workbook?.transactions.length ?? 0
@@ -92,23 +90,17 @@ async function startOver(): Promise<void> {
     </template>
   </StepCard>
 
-  <UModal
+  <AppDialog
     v-model:open="confirming"
     :title="onDrive ? `Trash ${books?.name ?? 'the file'}` : 'Delete the books in this browser'"
     :description="onDrive ? 'The file moves to the Drive bin, where you can restore it for 30 days.' : 'The books are deleted from this browser and cannot be recovered.'"
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <UAlert icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="held" data-testid="onboarding-start-over-holds" />
+    <UAlert icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="held" data-testid="onboarding-start-over-holds" />
+    <template #end>
+      <UButton label="Keep them" color="neutral" variant="ghost" :disabled="dropping" data-testid="onboarding-keep-books" @click="confirming = false" />
+      <UButton :label="onDrive ? 'Trash the file' : 'Delete the books'" icon="i-lucide-trash-2" color="error" :loading="dropping" data-testid="onboarding-confirm-start-over" @click="startOver" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap justify-end gap-2">
-        <UButton label="Keep them" color="neutral" variant="ghost" :disabled="dropping" data-testid="onboarding-keep-books" @click="confirming = false" />
-        <UButton :label="onDrive ? 'Trash the file' : 'Delete the books'" icon="i-lucide-trash-2" color="error" :loading="dropping" data-testid="onboarding-confirm-start-over" @click="startOver" />
-      </div>
-    </template>
-  </UModal>
+  </AppDialog>
 </template>
 
 <style scoped>

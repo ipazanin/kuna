@@ -33,6 +33,11 @@ export function createAppRouter(): Router {
   const routes: RouteRecordRaw[] = [
     { path: '/', redirect: homeApp().screens[0]?.path ?? SETTINGS_SCREEN.path },
     ...named.map(({ screen, name }) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true, title: name } })),
+    // Written inline so the production build folds it to false and drops the gallery chunk entirely.
+    // The fake build keeps it, because the visual check screenshots the gallery from that build.
+    ...(import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true'
+      ? [{ path: '/gallery', component: () => import('../gallery/GalleryScreen.vue'), meta: { bare: false, title: 'Gallery' } }]
+      : []),
     { path: '/:unknown(.*)*', redirect: '/' },
   ]
 

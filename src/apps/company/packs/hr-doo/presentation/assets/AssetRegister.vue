@@ -85,14 +85,14 @@ const narrow = useMediaQuery('(max-width: 1439px)')
           </div>
           <div>
             <dt>Charge in {{ year }}</dt>
-            <dd><MoneyText v-if="line.charge !== null" :cents="line.charge" /><span v-else class="text-dimmed">–</span></dd>
+            <dd><MoneyText v-if="line.charge !== null" :cents="line.charge" /><span v-else class="text-muted">–</span></dd>
           </div>
           <div>
             <dt>Accumulated</dt>
             <dd><MoneyText :cents="line.accumulated" /></dd>
           </div>
         </dl>
-        <p v-if="line.payment === null" class="mt-1.5 text-xs text-[var(--tone-warning)]">No ledger payment found</p>
+        <p v-if="line.payment === null" class="mt-1.5 text-xs text-warning">No ledger payment found</p>
       </li>
     </ul>
     <dl class="asset-cells px-3">
@@ -128,7 +128,7 @@ const narrow = useMediaQuery('(max-width: 1439px)')
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink v-if="line.payment" :to="line.payment" :label="`${line.name}, open the payment`" class="text-highlighted">{{ line.name }}</DrillLink>
             <span v-else class="text-highlighted">{{ line.name }}</span>
-            <span v-if="line.payment === null" class="block text-xs text-[var(--tone-warning)]">No ledger payment found</span>
+            <span v-if="line.payment === null" class="block text-xs text-warning">No ledger payment found</span>
           </th>
           <td class="figure text-toned">{{ line.bought }}</td>
           <td class="figure text-toned">{{ line.inUse }}</td>
@@ -137,7 +137,7 @@ const narrow = useMediaQuery('(max-width: 1439px)')
           <td class="figure cell-wraps text-end">
             <DrillLink :to="line.rateLink" :label="`${line.rate}, open the rule`">{{ line.rate }}</DrillLink>
           </td>
-          <td class="text-end"><MoneyText v-if="line.charge !== null" :cents="line.charge" /><span v-else class="text-dimmed">–</span></td>
+          <td class="text-end"><MoneyText v-if="line.charge !== null" :cents="line.charge" /><span v-else class="text-muted">–</span></td>
           <td class="text-end"><MoneyText :cents="line.accumulated" /></td>
           <td class="text-end">
             <MoneyText :cents="line.bookValue" class="text-highlighted" />
@@ -145,7 +145,7 @@ const narrow = useMediaQuery('(max-width: 1439px)')
           </td>
           <td class="cell-wraps text-toned">
             <span v-if="line.fundedBy" class="identifier">{{ line.fundedBy }}</span
-            ><span v-else class="text-dimmed">–</span>
+            ><span v-else class="text-muted">–</span>
           </td>
         </tr>
       </tbody>

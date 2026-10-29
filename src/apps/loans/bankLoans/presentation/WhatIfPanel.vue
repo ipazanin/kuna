@@ -14,6 +14,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /** An extra payment tried out against the plan, both ways the bank offers, without saving anything. */
@@ -58,14 +59,14 @@ function apply(outcome: ExtraPaymentOutcome): void {
 <template>
   <AppCard title="What if I pay extra" subtitle="Try an amount and a date. Nothing is saved until you apply it." data-testid="what-if">
     <div class="flex flex-col gap-4 px-4 pb-4 sm:px-5">
-      <div class="grid gap-4 sm:grid-cols-2">
+      <FormGrid>
         <UFormField label="Extra amount">
           <UInput v-model="amount" inputmode="decimal" placeholder="10000.00" class="w-full" data-testid="what-if-amount" />
         </UFormField>
         <UFormField label="Paid on">
           <UInput v-model="date" type="date" class="w-full" data-testid="what-if-date" />
         </UFormField>
-      </div>
+      </FormGrid>
       <UAlert
         v-if="result?.subsidyRepaidUntil"
         icon="i-lucide-triangle-alert"

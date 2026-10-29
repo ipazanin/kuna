@@ -2,7 +2,6 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
@@ -18,6 +17,7 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { fittingProfiles, importTitle, statementReadings, writeImport } from '../application/importStatements'
 import { profileDraftProblem, profileKey, profileValue } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
@@ -202,13 +202,11 @@ const summary = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <UEmpty
+    <EmptyState
       v-if="workbook === null"
       icon="i-lucide-book-open"
       title="Open a workbook first"
       description="Statements go into the ledger of the workbook on screen. Choose one on Settings, This device."
-      variant="outline"
-      class="rounded-card border-dashed bg-raised/40"
     />
 
     <template v-else>
@@ -296,7 +294,7 @@ const summary = computed(() => {
             <p class="text-sm text-toned" data-testid="dry-run-summary">{{ summary }}</p>
             <div v-if="importedRows" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-toned" role="status" data-testid="import-waiting">
               <p class="flex items-start gap-2">
-                <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0" :class="importedRows.waiting > 0 ? 'text-[var(--tone-warning)]' : 'text-muted'" aria-hidden="true" />
+                <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0" :class="importedRows.waiting > 0 ? 'text-warning' : 'text-muted'" aria-hidden="true" />
                 <span v-if="importedRows.waiting > 0">{{ importedRows.waiting }} new {{ importedRows.waiting === 1 ? 'row waits' : 'rows wait' }} on Review.</span>
                 <span v-else>The rules settled every new row, so none waits on Review.</span>
               </p>
@@ -316,13 +314,11 @@ const summary = computed(() => {
         </AppCard>
       </template>
 
-      <UEmpty
+      <EmptyState
         v-else-if="loaded?.kind === 'table' && !activeProfile"
         icon="i-lucide-columns-3"
         title="Pick or make a profile"
         description="The dry run shows once a profile says which column holds what."
-        variant="outline"
-        class="rounded-card border-dashed bg-raised/40"
       />
     </template>
   </div>

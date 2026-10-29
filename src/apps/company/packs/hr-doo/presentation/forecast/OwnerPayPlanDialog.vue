@@ -4,14 +4,13 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { OwnerPayScenario } from '../../domain/scenarios/ownerPayScenarios'
 import type { PlanLine } from '../../domain/forecast/plan'
 import { civilDate, parseCivilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
+import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import { ownerPayPlanLine, replacePlanLines } from '../../application/planWrites'
 import type { KeyedLine } from '../../application/planWrites'
 import { usePlanWrites } from './usePlanWrites'
@@ -31,7 +30,6 @@ const props = defineProps<{
 }>()
 
 const writes = usePlanWrites()
-const phone = usePhoneLayout()
 
 const first = ref('')
 const switching = ref(false)
@@ -95,43 +93,37 @@ async function clear(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="`Owner pay for ${year}`"
     description="The scenario the forecast takes the salary, its contributions, the tax-free items and the rent from. Its dividend is left out, since the plan sets the payout on its own row."
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="owner-pay-plan" class="flex flex-col gap-4" data-testid="owner-pay-plan-form" @submit.prevent="save">
-        <UFormField label="From 1 January" :error="(tried && errors.first) || false">
-          <USelect v-model="first" :items="choices" class="w-full" data-testid="owner-pay-first" />
+    <form id="owner-pay-plan" class="flex flex-col gap-4" data-testid="owner-pay-plan-form" @submit.prevent="save">
+      <UFormField label="From 1 January" :error="(tried && errors.first) || false">
+        <USelect v-model="first" :items="choices" class="w-full" data-testid="owner-pay-first" />
+      </UFormField>
+      <UFormField help="Such as the floor salary while a grant requires the employment, and another scenario after.">
+        <UCheckbox v-model="switching" label="Switch to another scenario on a day" data-testid="owner-pay-switch" />
+      </UFormField>
+      <template v-if="switching">
+        <UFormField label="Then" :error="(tried && errors.second) || false">
+          <USelect v-model="second" :items="choices" class="w-full" data-testid="owner-pay-second" />
         </UFormField>
-        <UFormField help="Such as the floor salary while a grant requires the employment, and another scenario after.">
-          <UCheckbox v-model="switching" label="Switch to another scenario on a day" data-testid="owner-pay-switch" />
+        <UFormField
+          label="From"
+          :error="(tried && errors.switchOn) || false"
+          :help="suggestedSwitch === null ? 'The second scenario takes over on this day.' : 'Starts on the day after the grants stop requiring the employment.'"
+        >
+          <UInput v-model="switchOn" type="date" class="w-full" data-testid="owner-pay-switch-on" />
         </UFormField>
-        <template v-if="switching">
-          <UFormField label="Then" :error="(tried && errors.second) || false">
-            <USelect v-model="second" :items="choices" class="w-full" data-testid="owner-pay-second" />
-          </UFormField>
-          <UFormField
-            label="From"
-            :error="(tried && errors.switchOn) || false"
-            :help="suggestedSwitch === null ? 'The second scenario takes over on this day.' : 'Starts on the day after the grants stop requiring the employment.'"
-          >
-            <UInput v-model="switchOn" type="date" class="w-full" data-testid="owner-pay-switch-on" />
-          </UFormField>
-        </template>
-      </form>
+      </template>
+    </form>
+    <template #start>
+      <UButton v-if="lines.length > 0" label="Stop planning it" icon="i-lucide-eraser" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="owner-pay-clear" @click="clear" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton v-if="lines.length > 0" label="Stop planning it" icon="i-lucide-eraser" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="owner-pay-clear" @click="clear" />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton type="submit" form="owner-pay-plan" label="Save owner pay" icon="i-lucide-save" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="owner-pay-save" />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton type="submit" form="owner-pay-plan" label="Save owner pay" icon="i-lucide-save" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="owner-pay-save" />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

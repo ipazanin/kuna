@@ -10,8 +10,8 @@ describe('dev-only markers', () => {
     expect(FAKE_WORKBOOK_ID).toBe(FAKE_WORKBOOK_MARKER)
   })
 
-  it('stamps the gallery root with the marker the build looks for', () => {
-    const gallery = readFileSync(join(import.meta.dirname, '../src/apps/company/gallery/GalleryScreen.vue'), 'utf8')
+  it.each(['src/shell/gallery/GalleryScreen.vue', 'src/apps/company/gallery/CompanyGallery.vue'])('stamps the root of %s with the marker the build looks for', (file) => {
+    const gallery = readFileSync(join(import.meta.dirname, '..', file), 'utf8')
 
     expect(gallery).toContain(`data-dev-only="${GALLERY_MARKER}"`)
   })

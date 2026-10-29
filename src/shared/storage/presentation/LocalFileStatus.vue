@@ -53,7 +53,7 @@ const reminder = computed(() => {
       :class="{ 'top-bar-action': compact, 'has-reminder': compact && reminder }"
       @click="emit('export')"
     />
-    <p v-if="reminder && !compact" class="flex w-full items-start gap-1.5 text-xs text-[var(--tone-warning)]" role="status">
+    <p v-if="reminder && !compact" class="flex w-full items-start gap-1.5 text-xs text-warning" role="status">
       <UIcon name="i-lucide-clock-alert" class="mt-px size-3.5 shrink-0" aria-hidden="true" />
       <span>{{ reminder }}</span>
     </p>

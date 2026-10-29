@@ -112,7 +112,7 @@ const phone = usePhoneLayout()
           <td class="text-end">
             <DrillLink :to="line.paidTo" :label="`${line.label}, paid, open the rows`"><MoneyText :cents="line.paid" /></DrillLink>
           </td>
-          <td class="text-end" :class="{ 'text-error': line.status === 'overdue' }"><MoneyText v-if="line.outstanding > 0" :cents="line.outstanding" /><span v-else class="text-dimmed">–</span></td>
+          <td class="text-end" :class="{ 'text-error': line.status === 'overdue' }"><MoneyText v-if="line.outstanding > 0" :cents="line.outstanding" /><span v-else class="text-muted">–</span></td>
           <td class="hidden @2xl:table-cell"><UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" /></td>
         </tr>
       </tbody>

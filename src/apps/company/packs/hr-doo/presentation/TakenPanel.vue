@@ -6,6 +6,7 @@ import { chartTokens } from '../../../../../shared/charts/chartTokens'
 import { addMoney } from '../../../../../shared/money/money'
 import { formatWholeMoney } from '../../../../../shared/money/moneyFormat'
 import ChartLegend from '../../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../../shared/ui/DonutCard.vue'
 import type { DonutPart } from '../../../../../shared/ui/DonutCard.vue'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
@@ -234,7 +235,7 @@ const taken = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <div class="taken-tiles grid grid-cols-2 gap-3" :class="taken.benefits === null ? 'is-five lg:grid-cols-5' : 'lg:grid-cols-3 2xl:grid-cols-6'" data-testid="owner-taken-tiles">
+    <DashboardGrid layout="tiles" data-testid="owner-taken-tiles">
       <KpiTile v-for="tile in taken.tiles" :key="tile.label" v-bind="tile" />
       <KpiTile v-bind="net.tile" data-testid="owner-net-with-profit">
         <template v-if="net.detail" #value>
@@ -246,10 +247,10 @@ const taken = computed(() => {
         </p>
         <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">The profit follows the period only.</p>
       </KpiTile>
-    </div>
+    </DashboardGrid>
     <FigureDialog v-if="net.detail" v-model:open="netOpen" :detail="net.detail" />
 
-    <div class="grid gap-4 xl:grid-cols-2">
+    <DashboardGrid>
       <DonutCard
         title="Owner take by type"
         :subtitle="`${taken.period}. Paid to the owner on balance, by category.`"
@@ -296,24 +297,13 @@ const taken = computed(() => {
       <DrillChartCard :chart="taken.draws" :title="`${taken.payLabel} by month`" :subtitle="taken.drawsSubtitle" :empty="taken.drawsEmpty" :height="320" :phone-height="260">
         <template #legend><ChartLegend :entries="taken.drawsLegend" /></template>
       </DrillChartCard>
-    </div>
+    </DashboardGrid>
 
     <OwnerBenefitsCard v-if="taken.benefits" :ledger="ledger" :benefits="taken.benefits" :period="taken.period" :corporate-rate-of="corporateRateOf" />
   </div>
 </template>
 
 <style scoped>
-/* Five tiles leave the last alone in a row of two, so it takes the whole row. */
-.taken-tiles.is-five > :last-child {
-  grid-column: 1 / -1;
-}
-
-@media (min-width: 1024px) {
-  .taken-tiles.is-five > :last-child {
-    grid-column: auto;
-  }
-}
-
 .aside-row {
   display: flex;
   align-items: center;

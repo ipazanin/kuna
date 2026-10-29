@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, watch } from 'vue'
+import { computed, nextTick, provide, watch } from 'vue'
 import type { Component } from 'vue'
 
+import { STEP_FLOW } from '../../../../shared/ui/StepCard.vue'
 import FindStep from './FindStep.vue'
 import FolderStep from './FolderStep.vue'
 import HomeStep from './HomeStep.vue'
@@ -10,13 +11,14 @@ import type { LoansStartStep } from './useLoansStart'
 
 /** The Loans first run at `#/loans/start?step=…`, on the ruled page of a first run: where the file lives, then the folder or the find for a file on Drive. */
 const start = useLoansStart()
+provide(STEP_FLOW, { step: start.step, canGoBack: computed(() => start.step.value !== 'home'), back: () => void start.go('home') })
 
 const STEPS: Readonly<Record<LoansStartStep, Component>> = { home: HomeStep, folder: FolderStep, find: FindStep }
 
 // A new step takes focus, so a screen reader announces its card.
 watch(
   () => start.step.value,
-  () => void nextTick(() => document.querySelector<HTMLElement>('[data-testid="loans-start-step"]')?.focus()),
+  () => void nextTick(() => document.querySelector<HTMLElement>('[data-testid="onboarding-step"]')?.focus()),
 )
 
 const step = computed(() => STEPS[start.step.value])

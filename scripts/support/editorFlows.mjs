@@ -2848,7 +2848,7 @@ export async function salariesFlow(page, { press, shoot, inspect }) {
   await elementSays(page, '[data-testid="salaries-strip"]', ['Mia Primjer'], 'the month opened without the employee picked')
 }
 
-const LOANS_STEP = '[data-testid="loans-start-step"]'
+const LOANS_STEP = '[data-testid="onboarding-step"]'
 
 /** Waits for the Loans first run to show this step, or for the Loans Overview once it is over. */
 async function loansStartAt(page, step) {
@@ -3144,4 +3144,83 @@ export async function loansWhatIfFlow(page, { press, shoot, inspect }) {
   await shoot('loans-what-if-apply')
   await page.keyboard.press('Escape')
   await dialogGone(page, '[data-testid="extra-payment-form"]')
+}
+
+/** Opens a dialog with `opener`, waits for `shown` in it, shoots it under `name` and closes it with Escape. */
+async function lookAtDialog(page, press, shoot, opener, shown, name) {
+  await pressSelector(page, press, opener)
+  await page.waitForSelector(shown, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error(`${opener} opened no ${shown}`)
+  })
+  await delay(400)
+  await shoot(name)
+  await page.keyboard.press('Escape')
+  await dialogGone(page, shown)
+}
+
+/** Moves to another screen of the app without a reload. */
+async function goTo(page, hash, title) {
+  await page.evaluate((target) => {
+    window.location.hash = target
+  }, hash)
+  await screenTitled(page, title)
+  await delay(300)
+}
+
+/**
+ * Every Loans dialog with the sample file, opened and closed again: a new bank loan with and without
+ * a subsidy, a new informal loan, each loan's own dialog, and the dialog of each change of the bank loan.
+ */
+export async function loansDialogsFlow(page, { press, shoot }) {
+  await lookAtDialog(page, press, shoot, '[data-testid="add-informal-loan"]', '[data-testid="informal-loan-form"]', 'dialog-add-informal-loan')
+  await lookAtDialog(page, press, shoot, '[data-testid="add-bank-loan"]', '[data-testid="bank-loan-form"]', 'dialog-add-bank-loan')
+  await pressSelector(page, press, '[data-testid="add-bank-loan"]')
+  await pressSelector(page, press, ':is([data-testid="bank-loan-subsidised"][role="switch"], [data-testid="bank-loan-subsidised"] [role="switch"])')
+  await switchIs(page, 'bank-loan-subsidised', true)
+  await delay(300)
+  await shoot('dialog-add-bank-loan-subsidy')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[data-testid="bank-loan-form"]')
+
+  await openLoanCard(page, press, 'Home loan')
+  await lookAtDialog(page, press, shoot, '[data-testid="bank-loan-edit"]', '[data-testid="bank-loan-form"]', 'dialog-bank-loan')
+  for (const [card, form] of [
+    ['rate-periods', 'rate-period-form'],
+    ['loan-subsidy', 'subsidy-form'],
+    ['extra-payments', 'extra-payment-form'],
+    ['late-instalments', 'late-instalment-form'],
+  ]) {
+    await lookAtDialog(page, press, shoot, `[data-testid="${card}"] [data-testid="change-edit"]`, `[data-testid="${form}"]`, `dialog-${form}`)
+  }
+  await lookAtDialog(page, press, shoot, '[data-testid="rate-periods"] [data-testid="change-add"]', '[data-testid="rate-period-form"]', 'dialog-add-rate-period')
+
+  await openLoanCard(page, press, 'From Marko')
+  await lookAtDialog(page, press, shoot, '[data-testid="informal-loan-edit"]', '[data-testid="informal-loan-form"]', 'dialog-informal-loan')
+  await lookAtDialog(page, press, shoot, '[data-testid="movement-edit"]', '[data-testid="movement-form"]', 'dialog-movement')
+}
+
+/**
+ * The Company dialogs whose fields sit two to a row, opened and closed again: an invoice and the
+ * invoice run on Invoicing, a plan row, an owner advance, the plan dialogs of Year, a pay
+ * scenario's component and a rule's editor.
+ */
+export async function companyDialogsFlow(page, { press, shoot }) {
+  await lookAtDialog(page, press, shoot, '[data-testid="invoice-add"]', '[data-testid="invoice-form"]', 'dialog-invoice')
+  await lookAtDialog(page, press, shoot, '[data-testid="invoice-make"]', '[data-testid="invoice-run-number"]', 'dialog-invoice-run')
+  await goTo(page, '#/company/invoicing?tab=plan', 'Invoicing')
+  await lookAtDialog(page, press, shoot, '[data-testid="billing-add"]', '[data-testid="billing-row-form"]', 'dialog-billing-row')
+  await goTo(page, '#/company/owner?tab=owed', 'Owner')
+  await lookAtDialog(page, press, shoot, '[data-testid="advance-edit"]', '[data-testid="add-advance"]', 'dialog-advance')
+  await goTo(page, '#/company/year?year=2027&tab=plan', 'Year')
+  await lookAtDialog(page, press, shoot, '[data-testid="plan-category"]:not([disabled])', '[data-testid="category-plan-form"]', 'dialog-category-plan')
+  await lookAtDialog(page, press, shoot, '[data-testid="plan-add-purchase"]', '[data-testid="purchase-plan-form"]', 'dialog-purchase-plan')
+  await lookAtDialog(page, press, shoot, ':is([data-testid="plan-add-dividend"], [data-testid="plan-dividend-row"])', '[data-testid="dividend-plan-form"]', 'dialog-dividend-plan')
+  await goTo(page, '#/company/year?year=2027&tab=pay', 'Year')
+  await openCard(page, press, 'scenario-editor')
+  await lookAtDialog(page, press, shoot, '[data-scenario="floor-salary"] [data-testid="scenario-add-component"]', '[data-testid="scenario-component-form"]', 'dialog-component')
+  await goTo(page, '#/company/review?tab=rules', 'Review')
+  await editRule(page, press, 'merchant-airline')
+  await shoot('dialog-rule')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[role="dialog"] [data-testid="rule-editor"]')
 }

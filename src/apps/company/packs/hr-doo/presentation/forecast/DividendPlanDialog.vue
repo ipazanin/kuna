@@ -3,15 +3,15 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { PlanLine } from '../../domain/forecast/plan'
-import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import type { Money } from '../../../../../../shared/money/money'
 import { dividendPlanLine, replacePlanLines } from '../../application/planWrites'
 import { fieldAmount, monthsOf } from './planWording'
 import { typedAmount } from '../../../../../../shared/money/typedAmount'
+import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { usePlanWrites } from './usePlanWrites'
 
 type AmountLine = Extract<PlanLine, { readonly kind: 'amount' }>
@@ -26,7 +26,6 @@ const props = defineProps<{
 }>()
 
 const writes = usePlanWrites()
-const phone = usePhoneLayout()
 
 const amount = ref('')
 const month = ref(6)
@@ -69,42 +68,36 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="dividend === null ? `Plan a dividend in ${year}` : 'Edit the planned dividend'"
     description="The payout before its tax. The tax is withheld when it is paid, and the rest settles what the owner owes the company before any of it leaves the cash."
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="dividend-plan" class="grid gap-4 sm:grid-cols-2" data-testid="dividend-plan-form" @submit.prevent="save">
-        <UFormField label="Dividend before tax" :error="(tried && invalid && 'An amount above zero with at most two decimals') || false">
-          <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="dividend-amount" />
-        </UFormField>
-        <UFormField label="Paid in">
-          <USelect v-model="month" :items="months" class="w-full" data-testid="dividend-month" />
-        </UFormField>
-        <UFormField label="Note" class="sm:col-span-2">
-          <UInput v-model="note" placeholder="After the statements are adopted" class="w-full" data-testid="dividend-note" />
-        </UFormField>
-      </form>
+    <FormGrid id="dividend-plan" as="form" data-testid="dividend-plan-form" @submit.prevent="save">
+      <UFormField label="Dividend before tax" :error="(tried && invalid && 'An amount above zero with at most two decimals') || false">
+        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="dividend-amount" />
+      </UFormField>
+      <UFormField label="Paid in">
+        <USelect v-model="month" :items="months" class="w-full" data-testid="dividend-month" />
+      </UFormField>
+      <UFormField label="Note" class="sm:col-span-2">
+        <UInput v-model="note" placeholder="After the statements are adopted" class="w-full" data-testid="dividend-note" />
+      </UFormField>
+    </FormGrid>
+    <template #start>
+      <UButton v-if="dividend !== null" label="Delete dividend" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="dividend-delete" @click="remove" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton v-if="dividend !== null" label="Delete dividend" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="dividend-delete" @click="remove" />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="dividend-plan"
-            :label="dividend === null ? 'Plan dividend' : 'Save dividend'"
-            :icon="dividend === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-            data-testid="dividend-save"
-          />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="dividend-plan"
+        :label="dividend === null ? 'Plan dividend' : 'Save dividend'"
+        :icon="dividend === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+        data-testid="dividend-save"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

@@ -4,7 +4,9 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { monthLabel, shortMonthName } from '../../../../shared/calendar/monthLabel'
@@ -136,123 +138,119 @@ const shownSections = computed(() => {
 <template>
   <div v-if="review" class="flex flex-col gap-6">
     <p v-if="review.coverage" class="flex items-start gap-2 text-sm text-toned" data-testid="review-coverage">
-      <UIcon name="i-lucide-calendar-clock" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+      <UIcon name="i-lucide-calendar-clock" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>{{ review.coverage }}</span>
     </p>
 
-    <div class="wide-pair">
+    <DashboardGrid layout="pair">
       <AppCard title="Profit and loss" :subtitle="review.priorLabel ? `Against ${review.priorLabel}` : 'No earlier period to compare'">
-        <div class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-          <table class="data-table w-full text-sm">
-            <thead>
-              <tr>
-                <th scope="col" class="text-start">Line</th>
-                <th scope="col" class="text-end">{{ review.currentLabel }}</th>
-                <th scope="col" class="text-end">{{ review.priorLabel ?? 'Prior period' }}</th>
-                <th scope="col" class="hidden text-end @sm:table-cell">Change</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="line in review.lines" :key="line.line">
-                <th scope="row" class="cell-wraps text-start" :class="line.emphasised ? 'font-medium text-highlighted' : 'font-normal text-toned'">
-                  {{ line.label }}
-                  <MoneyText
-                    v-if="line.change !== null"
-                    :cents="line.change"
-                    precision="whole"
-                    sign="always"
-                    class="block text-xs font-normal @sm:hidden"
-                    :class="line.changeSign > 0 ? 'text-positive' : line.changeSign < 0 ? 'text-negative' : 'text-muted'"
-                  />
-                </th>
-                <td class="text-end">
-                  <DrillLink :to="line.currentTo" :label="`${line.label}, ${review.currentLabel}, open the rows`">
-                    <MoneyText :cents="line.current" precision="whole" />
-                  </DrillLink>
-                </td>
-                <td class="text-end">
-                  <DrillLink v-if="line.prior !== null" :to="line.priorTo" :label="`${line.label}, ${review.priorLabel}, open the rows`">
-                    <MoneyText :cents="line.prior" precision="whole" class="text-muted" />
-                  </DrillLink>
-                  <span v-else class="text-dimmed">No data</span>
-                </td>
-                <td class="hidden text-end @sm:table-cell">
-                  <MoneyText
-                    v-if="line.change !== null"
-                    :cents="line.change"
-                    precision="whole"
-                    sign="always"
-                    :class="line.changeSign > 0 ? 'text-positive' : line.changeSign < 0 ? 'text-negative' : 'text-muted'"
-                  />
-                  <span v-else class="text-dimmed">–</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <FigureTable class="px-1 pt-2 pb-2 sm:px-2">
+          <thead>
+            <tr>
+              <th scope="col" class="text-start">Line</th>
+              <th scope="col" class="text-end">{{ review.currentLabel }}</th>
+              <th scope="col" class="text-end">{{ review.priorLabel ?? 'Prior period' }}</th>
+              <th scope="col" class="hidden text-end @sm:table-cell">Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="line in review.lines" :key="line.line">
+              <th scope="row" class="cell-wraps text-start" :class="line.emphasised ? 'font-medium text-highlighted' : 'font-normal text-toned'">
+                {{ line.label }}
+                <MoneyText
+                  v-if="line.change !== null"
+                  :cents="line.change"
+                  precision="whole"
+                  sign="always"
+                  class="block text-xs font-normal @sm:hidden"
+                  :class="line.changeSign > 0 ? 'text-success' : line.changeSign < 0 ? 'text-error' : 'text-muted'"
+                />
+              </th>
+              <td class="text-end">
+                <DrillLink :to="line.currentTo" :label="`${line.label}, ${review.currentLabel}, open the rows`">
+                  <MoneyText :cents="line.current" precision="whole" />
+                </DrillLink>
+              </td>
+              <td class="text-end">
+                <DrillLink v-if="line.prior !== null" :to="line.priorTo" :label="`${line.label}, ${review.priorLabel}, open the rows`">
+                  <MoneyText :cents="line.prior" precision="whole" class="text-muted" />
+                </DrillLink>
+                <span v-else class="text-muted">No data</span>
+              </td>
+              <td class="hidden text-end @sm:table-cell">
+                <MoneyText
+                  v-if="line.change !== null"
+                  :cents="line.change"
+                  precision="whole"
+                  sign="always"
+                  :class="line.changeSign > 0 ? 'text-success' : line.changeSign < 0 ? 'text-error' : 'text-muted'"
+                />
+                <span v-else class="text-muted">–</span>
+              </td>
+            </tr>
+          </tbody>
+        </FigureTable>
       </AppCard>
 
       <AppCard title="By category" subtitle="Biggest changes first." collapse-id="analysis.compare-categories" :summary="review.categoriesSummary">
         <p v-if="review.sections.length === 0" class="px-5 py-8 text-sm text-muted">No categorised rows in this period.</p>
-        <div v-else class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-          <table class="data-table w-full text-sm">
-            <template v-for="section in shownSections" :key="section.key">
-              <thead>
-                <tr>
-                  <th scope="colgroup" class="section-heading text-start">{{ section.title }}</th>
-                  <th scope="col" class="hidden text-start @2xl:table-cell">Family</th>
-                  <th scope="col" class="text-end">{{ review.currentLabel }}</th>
-                  <th scope="col" class="text-end">{{ review.priorLabel ?? 'Prior period' }}</th>
-                  <th scope="col" class="hidden text-end @md:table-cell">Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in section.rows" :key="row.key">
-                  <th scope="row" class="cell-wraps text-start font-normal text-highlighted">
-                    {{ row.category }}
-                    <MoneyText
-                      v-if="row.change !== null"
-                      :cents="row.change"
-                      precision="whole"
-                      sign="always"
-                      class="block text-xs @md:hidden"
-                      :class="row.changeSign > 0 ? 'text-positive' : row.changeSign < 0 ? 'text-negative' : 'text-muted'"
-                    />
-                  </th>
-                  <td class="hidden text-muted @2xl:table-cell">{{ row.family }}</td>
-                  <td class="text-end">
-                    <DrillLink v-if="row.current !== null" :to="row.currentTo" :label="`${row.category}, ${review.currentLabel}, open the rows`">
-                      <MoneyText :cents="row.current" precision="whole" />
-                    </DrillLink>
-                    <span v-else class="text-dimmed">–</span>
-                  </td>
-                  <td class="text-end">
-                    <DrillLink v-if="row.prior !== null" :to="row.priorTo" :label="`${row.category}, ${review.priorLabel}, open the rows`">
-                      <MoneyText :cents="row.prior" precision="whole" class="text-muted" />
-                    </DrillLink>
-                    <span v-else class="text-dimmed">–</span>
-                  </td>
-                  <td class="hidden text-end @md:table-cell">
-                    <MoneyText
-                      v-if="row.change !== null"
-                      :cents="row.change"
-                      precision="whole"
-                      sign="always"
-                      :class="row.changeSign > 0 ? 'text-positive' : row.changeSign < 0 ? 'text-negative' : 'text-muted'"
-                    />
-                    <span v-else class="text-dimmed">–</span>
-                  </td>
-                </tr>
-              </tbody>
-            </template>
-          </table>
-        </div>
+        <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
+          <template v-for="section in shownSections" :key="section.key">
+            <thead>
+              <tr>
+                <th scope="colgroup" class="section-heading text-start">{{ section.title }}</th>
+                <th scope="col" class="hidden text-start @2xl:table-cell">Family</th>
+                <th scope="col" class="text-end">{{ review.currentLabel }}</th>
+                <th scope="col" class="text-end">{{ review.priorLabel ?? 'Prior period' }}</th>
+                <th scope="col" class="hidden text-end @md:table-cell">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in section.rows" :key="row.key">
+                <th scope="row" class="cell-wraps text-start font-normal text-highlighted">
+                  {{ row.category }}
+                  <MoneyText
+                    v-if="row.change !== null"
+                    :cents="row.change"
+                    precision="whole"
+                    sign="always"
+                    class="block text-xs @md:hidden"
+                    :class="row.changeSign > 0 ? 'text-success' : row.changeSign < 0 ? 'text-error' : 'text-muted'"
+                  />
+                </th>
+                <td class="hidden text-muted @2xl:table-cell">{{ row.family }}</td>
+                <td class="text-end">
+                  <DrillLink v-if="row.current !== null" :to="row.currentTo" :label="`${row.category}, ${review.currentLabel}, open the rows`">
+                    <MoneyText :cents="row.current" precision="whole" />
+                  </DrillLink>
+                  <span v-else class="text-muted">–</span>
+                </td>
+                <td class="text-end">
+                  <DrillLink v-if="row.prior !== null" :to="row.priorTo" :label="`${row.category}, ${review.priorLabel}, open the rows`">
+                    <MoneyText :cents="row.prior" precision="whole" class="text-muted" />
+                  </DrillLink>
+                  <span v-else class="text-muted">–</span>
+                </td>
+                <td class="hidden text-end @md:table-cell">
+                  <MoneyText
+                    v-if="row.change !== null"
+                    :cents="row.change"
+                    precision="whole"
+                    sign="always"
+                    :class="row.changeSign > 0 ? 'text-success' : row.changeSign < 0 ? 'text-error' : 'text-muted'"
+                  />
+                  <span v-else class="text-muted">–</span>
+                </td>
+              </tr>
+            </tbody>
+          </template>
+        </FigureTable>
         <ShowAllButton v-if="review.categoryCount > FIRST_SHOWN" v-model:expanded="showAllCategories" :total="review.categoryCount" class="px-4 pb-4 sm:px-5" />
         <p v-if="review.sections.some((section) => section.key === 'outside')" class="px-4 pb-4 text-xs text-muted sm:px-5">
           Outside profit and loss: reimbursements and other financing settle costs counted above, so they are listed here and left out of both directions.
         </p>
       </AppCard>
-    </div>
+    </DashboardGrid>
   </div>
 </template>
 

@@ -9,6 +9,7 @@ import { negateMoney } from '../../../../../shared/money/money'
 import { formatMoney, formatWholeMoney } from '../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
@@ -175,12 +176,12 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
       <span>Who owes whom follows the period only. The accounts and the other filters apply on Taken.</span>
     </p>
 
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="owner-owed-tiles">
+    <DashboardGrid layout="tiles" data-testid="owner-owed-tiles">
       <KpiTile v-for="tile in owed.tiles" :key="tile.label" v-bind="tile" />
-    </div>
+    </DashboardGrid>
 
     <p v-if="owed.unaccounted > 0" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="owner-unaccounted">
-      <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+      <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>
         Whatever the period, {{ owed.unaccounted }} {{ owed.unaccounted === 1 ? 'reimbursement' : 'reimbursements' }} to the owner with no cost on file
         {{ owed.unaccounted === 1 ? 'waits' : 'wait' }} on Review. Net owed counts {{ owed.unaccounted === 1 ? 'it' : 'them' }} as paid to the owner until the cost is added.
@@ -188,7 +189,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
       </span>
     </p>
 
-    <div class="wide-pair">
+    <DashboardGrid layout="pair">
       <AppCard v-if="owed.hasLoanRoles" title="Every loan, with the repayments that closed it" collapse-id="owner.loans" :summary="owed.loansSummary" data-testid="owner-loans">
         <template #subtitle>
           {{ owed.period }}. Each loan with a balance in the period, as it stood on {{ owed.on }}, private costs and the owner's parts of split company payments included. Repayments first close the
@@ -234,7 +235,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
         </div>
         <ShowAllButton v-if="owed.advances.length > FIRST_SHOWN" v-model:expanded="showAllAdvances" :total="owed.advances.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>
-    </div>
+    </DashboardGrid>
 
     <DrillChartCard
       v-if="owed.hasLoanRoles"

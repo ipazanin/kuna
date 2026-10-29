@@ -57,7 +57,7 @@ const chart = computed(() => salaryMonthsChart(props.rows, chartTokens()))
               <td class="hidden text-end @lg:table-cell"><MoneyText :cents="row.parts.employee" /></td>
               <td class="hidden text-end @2xl:table-cell"><MoneyText :cents="row.parts.pensionSavings" /></td>
               <td class="hidden text-end @md:table-cell"><MoneyText :cents="row.toState" /></td>
-              <td class="figure text-end" :class="row.problems === 0 ? 'text-muted' : 'text-negative'">{{ row.problems }}</td>
+              <td class="figure text-end" :class="row.problems === 0 ? 'text-muted' : 'text-error'">{{ row.problems }}</td>
             </tr>
           </tbody>
         </table>

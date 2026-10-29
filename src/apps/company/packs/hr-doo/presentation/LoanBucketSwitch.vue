@@ -55,7 +55,7 @@ async function choose(asPay: boolean): Promise<void> {
           "
           @update:model-value="choose($event)"
         />
-        <p v-if="mixed" class="mt-3 text-xs text-[var(--tone-warning)]">The loan categories sit in different buckets now: {{ listed }}. Switching puts both in one.</p>
+        <p v-if="mixed" class="mt-3 text-xs text-warning">The loan categories sit in different buckets now: {{ listed }}. Switching puts both in one.</p>
       </template>
     </div>
   </AppCard>

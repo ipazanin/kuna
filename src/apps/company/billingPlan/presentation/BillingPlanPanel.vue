@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { yearOf } from '../../../../shared/calendar/civilDate'
@@ -13,8 +12,10 @@ import { formatPercent } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { TERMS_LINK } from '../../invoicing/presentation/invoicingLinks'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { BILLING_RECORDS } from '../../workbook/domain/coreKinds'
@@ -124,7 +125,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
 <template>
   <div class="flex flex-col gap-6">
     <LedgerGate>
-      <UEmpty v-if="tabState === 'empty'" icon="i-lucide-calendar-clock" title="No plan rows yet" variant="outline" class="rounded-card border-dashed bg-raised/40" data-testid="billing-empty">
+      <EmptyState v-if="tabState === 'empty'" icon="i-lucide-calendar-clock" title="No plan rows yet" data-testid="billing-empty">
         <template #description>
           <span class="block max-w-[60ch]">
             The billing plan is one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel, dated on the day it becomes billable. It lives on the
@@ -138,7 +139,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             <UButton v-if="fillCount > 0" :label="fillLabel" icon="i-lucide-calendar-plus" color="neutral" variant="outline" :disabled="state.writing" @click="fillDialogOpen = true" />
           </div>
         </template>
-      </UEmpty>
+      </EmptyState>
       <template v-else-if="view && figures">
         <div v-if="years.length > 1" class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">
           <UButton
@@ -174,7 +175,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
           </p>
         </div>
 
-        <div class="wide-pair">
+        <DashboardGrid layout="pair">
           <AppCard id="billing-rows-card" :title="`Plan rows, ${year}`" collapse-id="invoicing.plan-rows" :summary="view.rowsSummary" :reveal="route.hash === '#billing-rows-card'">
             <template #subtitle> The billing plan is the one place for planned revenue, and the forecast reads it. </template>
             <template #actions>
@@ -207,7 +208,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             </div>
           </AppCard>
 
-          <div class="grid gap-4 xl:grid-cols-2 3xl:grid-cols-1 3xl:content-start">
+          <DashboardGrid>
             <AppCard
               id="billing-months-card"
               class="xl:col-span-2 3xl:col-span-1"
@@ -289,8 +290,8 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
                 </dl>
               </div>
             </AppCard>
-          </div>
-        </div>
+          </DashboardGrid>
+        </DashboardGrid>
       </template>
     </LedgerGate>
 

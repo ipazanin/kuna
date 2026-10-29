@@ -43,7 +43,7 @@ const lists = computed(() => [
     help: 'Waiting for review now, filed at rule confidence after.',
     fromLabel: 'Waiting as',
     icon: 'i-lucide-check-check',
-    tone: 'text-positive',
+    tone: 'text-success',
     changes: props.preview.backtest.settled,
   },
   {
@@ -52,7 +52,7 @@ const lists = computed(() => [
     help: 'Rows a rule filed. The rules decide them one way now and another way after.',
     fromLabel: 'Rules now',
     icon: 'i-lucide-split',
-    tone: 'text-[var(--tone-warning)]',
+    tone: 'text-warning',
     changes: props.preview.backtest.brokenAgreements,
   },
   {
@@ -61,7 +61,7 @@ const lists = computed(() => [
     help: 'A person set these. Their category stays, but the rules would file the next row like them differently.',
     fromLabel: 'Person filed',
     icon: 'i-lucide-user-x',
-    tone: 'text-negative',
+    tone: 'text-error',
     changes: props.preview.backtest.humanConflicts,
   },
 ])
@@ -104,14 +104,14 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
               <UIcon name="i-lucide-arrow-right" class="size-3.5 shrink-0" aria-label="becomes" />
               <span>after</span>
               <CategoryChip :category="change.after.category" :bucket="bucketOf(change.after.category)" />
-              <span v-if="change.after.flaggedBy === 'ai'" class="text-dimmed">waits for review</span>
+              <span v-if="change.after.flaggedBy === 'ai'" class="text-muted">waits for review</span>
             </span>
           </span>
-          <span v-if="change.from !== change.transaction.category" class="text-xs text-dimmed" data-testid="backtest-stored"> Stored as {{ names.category(change.transaction.category) }} </span>
+          <span v-if="change.from !== change.transaction.category" class="text-xs text-muted" data-testid="backtest-stored"> Stored as {{ names.category(change.transaction.category) }} </span>
         </li>
         <li v-if="list.changes.length > SHOWN_ROWS" class="px-3 py-2 text-xs text-muted">and {{ list.changes.length - SHOWN_ROWS }} more</li>
       </ul>
-      <p v-else class="text-xs text-dimmed">None.</p>
+      <p v-else class="text-xs text-muted">None.</p>
     </section>
 
     <UCheckbox

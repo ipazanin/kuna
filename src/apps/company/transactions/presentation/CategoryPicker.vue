@@ -70,12 +70,12 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
       <span v-if="picked.colour" class="size-2 shrink-0 rounded-[2px]" :style="{ background: picked.colour }" aria-hidden="true" />
       <span class="truncate">{{ picked.label }}</span>
     </span>
-    <span v-else class="text-dimmed">{{ placeholder }}</span>
+    <span v-else class="text-muted">{{ placeholder }}</span>
     <template #item-leading="{ item }">
       <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: item.colour ?? 'transparent' }" aria-hidden="true" />
     </template>
     <template #item-trailing="{ item }">
-      <span v-if="item.value !== NONE" class="identifier text-xs text-dimmed">{{ item.value }}</span>
+      <span v-if="item.value !== NONE" class="identifier text-xs text-muted">{{ item.value }}</span>
     </template>
   </USelectMenu>
 </template>

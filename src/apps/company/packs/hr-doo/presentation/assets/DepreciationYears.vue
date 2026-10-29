@@ -45,7 +45,7 @@ const WHEN = { past: '', current: 'This year', ahead: 'To come' } as const
   <ul class="flex flex-col" data-testid="depreciation-years">
     <li v-for="line in years" :key="line.year" class="year-row">
       <button type="button" class="year-toggle" :aria-expanded="open.has(line.year)" :aria-controls="`depreciation-${line.year}`" data-testid="depreciation-year-toggle" @click="toggle(line.year)">
-        <UIcon name="i-lucide-chevron-right" class="year-chevron size-4 shrink-0 text-dimmed" :class="{ 'is-open': open.has(line.year) }" aria-hidden="true" />
+        <UIcon name="i-lucide-chevron-right" class="year-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(line.year) }" aria-hidden="true" />
         <span class="figure text-sm font-medium text-highlighted">{{ line.year }}</span>
         <span v-if="WHEN[line.when]" class="text-xs text-muted">{{ WHEN[line.when] }}</span>
         <MoneyText :cents="line.total" class="ms-auto text-sm font-medium text-highlighted" />

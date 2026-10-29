@@ -3,7 +3,6 @@ import { computed, h, onBeforeUnmount, ref, watch } from 'vue'
 import type { SortingState } from '@tanstack/vue-table'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
@@ -20,6 +19,7 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../../shared/ui/PageTabs.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { DEFAULT_BUCKET_LABELS } from '../../settings/domain/settings'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
@@ -506,14 +506,12 @@ function exportCsv(): void {
                 <span>{{ advancesLeftOut }}</span>
               </p>
 
-              <UEmpty
+              <EmptyState
                 v-if="rows.length === 0"
                 icon="i-lucide-search-x"
                 title="No transactions match these filters"
                 description="Clear a filter or pick a longer period."
                 :actions="[{ label: 'Clear filters', color: 'neutral', variant: 'outline', onClick: () => setFilters(withoutChips(filters)) }]"
-                variant="outline"
-                class="rounded-card bg-raised"
               />
               <TransactionCards
                 v-else-if="phone"

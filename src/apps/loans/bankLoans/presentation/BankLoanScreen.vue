@@ -30,6 +30,7 @@ import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 
 /** One bank loan: its figures, its balance over time, what an extra payment would do, its plan, and what changes it. */
@@ -114,7 +115,7 @@ function openLate(key: string | null): void {
 </script>
 
 <template>
-  <section class="flex max-w-measure flex-col gap-6">
+  <section class="flex flex-col gap-6">
     <UButton :to="LOANS_OVERVIEW_ROUTE" label="All loans" icon="i-lucide-arrow-left" color="neutral" variant="link" class="-mb-4 self-start px-0" data-testid="back-to-loans" />
     <template v-if="book !== null">
       <PageHeader :title="book.loan.name" :description="[book.loan.lender, `${formatMoney(book.loan.principal)} over ${book.loan.instalments} instalments`].filter((part) => part !== '').join(', ')">
@@ -145,7 +146,7 @@ function openLate(key: string | null): void {
         <WhatIfPanel :book="book" :default-date="figures.next?.date ?? day" @apply="openExtra" />
         <PlanCard :years="years" :open-year="openYear" :has-subsidy="book.loan.subsidy !== null" />
       </template>
-      <div class="wide-pair">
+      <DashboardGrid layout="pair">
         <ChangeListCard
           title="Rate periods"
           subtitle="The rate from each due date on. A new rate works the instalment out again."
@@ -169,8 +170,8 @@ function openLate(key: string | null): void {
           @add="subsidyOpen = true"
           @change="subsidyOpen = true"
         />
-      </div>
-      <div class="wide-pair">
+      </DashboardGrid>
+      <DashboardGrid layout="pair">
         <ChangeListCard
           title="Extra payments"
           subtitle="Principal paid back early, for a shorter term or a lower instalment."
@@ -193,7 +194,7 @@ function openLate(key: string | null): void {
           @add="openLate(null)"
           @change="openLate"
         />
-      </div>
+      </DashboardGrid>
       <BankLoanDialog v-model:open="editingLoan" :book="book" />
       <RatePeriodDialog v-model:open="rateOpen" :book="book" :editing="editingRate" />
       <SubsidyDialog v-model:open="subsidyOpen" :book="book" />

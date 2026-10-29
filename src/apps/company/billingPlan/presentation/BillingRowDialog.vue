@@ -3,20 +3,20 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { amountOf } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingRowLine } from './billingView'
 
@@ -35,7 +35,6 @@ const props = defineProps<{
 
 const store = useWorkbook()
 const writes = useRecordWrites(store)
-const phone = usePhoneLayout()
 
 const item = ref('')
 const date = ref('')
@@ -119,56 +118,50 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="row === null ? 'Add a plan row' : 'Edit the plan row'"
     :description="row === null ? 'Something to invoice a client, from the day it becomes billable.' : `${named(row)}, on the outgoing-plan tab. Only the cells you change are written.`"
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="billing-row" class="grid gap-4 sm:grid-cols-2" data-testid="billing-row-form" @submit.prevent="save">
-        <UFormField label="Item" :error="(tried && errors.item) || false" help="Rows of one kind share this text." class="sm:col-span-2">
-          <USelectMenu
-            v-model="item"
-            :items="itemChoices"
-            create-item
-            placeholder="Choose or type an item"
-            :search-input="{ placeholder: 'Search or type a new item' }"
-            class="w-full"
-            data-testid="billing-row-item"
-            @create="createItem"
-          />
-        </UFormField>
-        <UFormField label="Billable from" :error="(tried && errors.date) || false" help="The last day of the worked month for a monthly fee.">
-          <UInput v-model="date" type="date" class="w-full" />
-        </UFormField>
-        <UFormField label="Amount" :error="(tried && errors.amount) || false">
-          <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="billing-row-amount" />
-        </UFormField>
-        <UFormField label="Client" :error="(tried && errors.client) || false" class="sm:col-span-2">
-          <USelect v-model="client" :items="clientItems" placeholder="Choose a client" class="w-full" />
-        </UFormField>
-        <UFormField label="Description" help="What the invoice line says, such as Oct 2026." class="sm:col-span-2">
-          <UInput v-model="description" class="w-full" data-testid="billing-row-description" />
-        </UFormField>
-      </form>
+    <FormGrid id="billing-row" as="form" data-testid="billing-row-form" @submit.prevent="save">
+      <UFormField label="Item" :error="(tried && errors.item) || false" help="Rows of one kind share this text." class="sm:col-span-2">
+        <USelectMenu
+          v-model="item"
+          :items="itemChoices"
+          create-item
+          placeholder="Choose or type an item"
+          :search-input="{ placeholder: 'Search or type a new item' }"
+          class="w-full"
+          data-testid="billing-row-item"
+          @create="createItem"
+        />
+      </UFormField>
+      <UFormField label="Billable from" :error="(tried && errors.date) || false" help="The last day of the worked month for a monthly fee.">
+        <UInput v-model="date" type="date" class="w-full" />
+      </UFormField>
+      <UFormField label="Amount" :error="(tried && errors.amount) || false">
+        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="billing-row-amount" />
+      </UFormField>
+      <UFormField label="Client" :error="(tried && errors.client) || false" class="sm:col-span-2">
+        <USelect v-model="client" :items="clientItems" placeholder="Choose a client" class="w-full" />
+      </UFormField>
+      <UFormField label="Description" help="What the invoice line says, such as Oct 2026." class="sm:col-span-2">
+        <UInput v-model="description" class="w-full" data-testid="billing-row-description" />
+      </UFormField>
+    </FormGrid>
+    <template #start>
+      <UButton v-if="row !== null" label="Delete row" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="billing-row-delete" @click="remove" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton v-if="row !== null" label="Delete row" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="billing-row-delete" @click="remove" />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="billing-row"
-            :label="row === null ? 'Add row' : 'Save row'"
-            :icon="row === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-          />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="billing-row"
+        :label="row === null ? 'Add row' : 'Save row'"
+        :icon="row === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

@@ -20,7 +20,7 @@ defineProps<{
               <span lang="hr">{{ source.act }}</span
               >, {{ source.reference }}
             </span>
-            <UIcon name="i-lucide-external-link" class="mt-0.5 size-3.5 shrink-0 text-dimmed" aria-hidden="true" />
+            <UIcon name="i-lucide-external-link" class="mt-0.5 size-3.5 shrink-0 text-muted" aria-hidden="true" />
           </span>
           <span class="figure text-xs text-muted">
             <span v-if="source.periods !== null" class="text-toned">For {{ source.periods }}. </span>

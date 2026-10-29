@@ -161,7 +161,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
           </template>
           <template v-else>Not planned, so the owner pay categories take their averages.</template>
         </p>
-        <p v-for="reason in ownerPayReasons" :key="reason" class="flex items-start gap-2 text-xs text-[var(--tone-warning)]">
+        <p v-for="reason in ownerPayReasons" :key="reason" class="flex items-start gap-2 text-xs text-warning">
           <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           <span>Not counted. {{ reason }}</span>
         </p>
@@ -184,9 +184,9 @@ function editPurchase(purchase: PurchaseLine | null): void {
               <span class="min-w-0 text-start">
                 <span class="block text-sm text-toned">{{ entry.name }}</span>
                 <span class="block text-xs text-muted">{{ entry.caption }}</span>
-                <span v-for="reason in entry.reasons" :key="reason" class="mt-0.5 block text-xs text-[var(--tone-warning)]">Not counted. {{ reason }}</span>
+                <span v-for="reason in entry.reasons" :key="reason" class="mt-0.5 block text-xs text-warning">Not counted. {{ reason }}</span>
               </span>
-              <UIcon v-if="!(ownerPaySet && isOwnerPayCost(entry.category))" name="i-lucide-pencil" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />
+              <UIcon v-if="!(ownerPaySet && isOwnerPayCost(entry.category))" name="i-lucide-pencil" class="size-4 shrink-0 text-muted" aria-hidden="true" />
             </button>
           </li>
         </ul>
@@ -220,7 +220,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
               <span class="min-w-0 text-start">
                 <span class="block text-sm text-toned">{{ purchase.note || 'Purchase' }}</span>
                 <span class="block text-xs text-muted">{{ dayLabel(purchase.date) }}, {{ GROUP_WORDS[purchase.group].toLowerCase() }}</span>
-                <span v-if="notCounted.get(purchase.id)" class="mt-0.5 block text-xs text-[var(--tone-warning)]">Not counted. {{ notCounted.get(purchase.id) }}</span>
+                <span v-if="notCounted.get(purchase.id)" class="mt-0.5 block text-xs text-warning">Not counted. {{ notCounted.get(purchase.id) }}</span>
               </span>
               <MoneyText :cents="purchase.amount" class="shrink-0 text-sm text-toned" />
             </button>
@@ -248,7 +248,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
           <span class="min-w-0 text-start">
             <span class="block text-sm text-toned">Paid in {{ dividend.month === null ? year : monthLabel(monthKey(year, dividend.month)) }}</span>
             <span v-if="dividend.note" class="block text-xs text-muted">{{ dividend.note }}</span>
-            <span v-if="notCounted.get(dividend.id)" class="mt-0.5 block text-xs text-[var(--tone-warning)]">Not counted. {{ notCounted.get(dividend.id) }}</span>
+            <span v-if="notCounted.get(dividend.id)" class="mt-0.5 block text-xs text-warning">Not counted. {{ notCounted.get(dividend.id) }}</span>
           </span>
           <MoneyText :cents="dividend.amount" class="shrink-0 text-sm text-toned" />
         </button>

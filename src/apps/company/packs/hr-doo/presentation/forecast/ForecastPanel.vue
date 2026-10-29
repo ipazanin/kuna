@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 import DrillChartCard from '../../../../filters/presentation/DrillChartCard.vue'
 import BuildUpList from './BuildUpList.vue'
 import { forecastChart } from './forecastChart'
@@ -27,25 +28,21 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
 
 <template>
   <div class="flex flex-col gap-6">
-    <UEmpty
+    <EmptyState
       v-if="forecast.state === 'unregistered'"
       icon="i-lucide-calendar-x"
       title="The forecast needs the day the company was registered"
       description="The tax periods, the advances and the balance due all count from it. Set hr_company_registered, such as 2025-05-12."
       :actions="[{ label: 'Set it on Settings', to: { path: '/settings', hash: '#company-registered' }, color: 'neutral', variant: 'outline' }]"
-      variant="outline"
-      class="rounded-card border-dashed bg-raised/40"
       data-testid="forecast-unregistered"
     />
-    <UEmpty
+    <EmptyState
       v-else-if="forecast.state === 'failed'"
       icon="i-lucide-triangle-alert"
       title="The year could not be forecast"
       :description="forecast.failure"
       :actions="[{ label: 'Open Settings', to: '/settings', color: 'neutral', variant: 'outline' }]"
-      variant="outline"
-      class="rounded-card border-error/40 bg-raised"
-      :ui="{ avatar: 'text-error' }"
+      tone="error"
     />
     <template v-else-if="view && chart">
       <div v-if="view.employment.length > 0 || view.uninvoiced.length > 0 || view.rowsToInvoice > 0" class="flex flex-col gap-2 text-sm text-toned" data-testid="forecast-notices">
@@ -54,7 +51,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
           <span>{{ line }}</span>
         </p>
         <p v-if="view.uninvoiced.length > 0" class="flex items-start gap-2">
-          <UIcon name="i-lucide-file-question-mark" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+          <UIcon name="i-lucide-file-question-mark" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           <span>
             No invoice delivers in {{ view.uninvoiced.map((entry) => entry.month).join(', ') }}, though a later one does, so revenue reads nothing there. Fill
             <span class="identifier">period_from</span> and <span class="identifier">period_to</span> on the invoice that covers it.
@@ -69,9 +66,9 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
         </p>
       </div>
 
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="forecast-tiles">
+      <DashboardGrid layout="tiles" data-testid="forecast-tiles">
         <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
-      </div>
+      </DashboardGrid>
 
       <DrillChartCard
         :chart="chart"
@@ -84,7 +81,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
         <template #legend><ChartLegend :entries="chart.legend" /></template>
       </DrillChartCard>
 
-      <div class="grid gap-4 xl:grid-cols-2">
+      <DashboardGrid>
         <AppCard
           title="Profit and loss"
           subtitle="By the lines the accountant prints. Open a line for what it adds up and the months a plan row or an average stands in for."
@@ -107,7 +104,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
             <BuildUpList :lines="view.pdReturn" test-id="forecast-pd-return" />
           </div>
         </AppCard>
-      </div>
+      </DashboardGrid>
 
       <AppCard
         :title="`Cash by month, ${year}`"

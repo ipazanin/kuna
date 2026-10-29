@@ -56,12 +56,7 @@ const groups = computed(() => ORDER.map((group) => ({ group, wording: GROUP_WORD
       </div>
       <ul class="flex flex-col">
         <li v-for="item in entry.items" :key="item.key" class="item-row" :data-settled="item.settled">
-          <UIcon
-            :name="item.settled ? 'i-lucide-circle-check' : 'i-lucide-circle-dot'"
-            class="mt-0.5 size-4 shrink-0"
-            :class="item.settled ? 'text-positive' : 'text-[var(--tone-warning)]'"
-            aria-hidden="true"
-          />
+          <UIcon :name="item.settled ? 'i-lucide-circle-check' : 'i-lucide-circle-dot'" class="mt-0.5 size-4 shrink-0" :class="item.settled ? 'text-success' : 'text-warning'" aria-hidden="true" />
           <div class="flex min-w-0 flex-1 flex-col gap-1">
             <div class="flex items-baseline justify-between gap-3">
               <p class="min-w-0 text-sm text-highlighted">{{ item.title }}</p>

@@ -27,8 +27,8 @@ const formatted = computed(() => {
 
 const tone = computed(() => {
   if (props.tone === undefined || props.cents === 0) return ''
-  if (props.cents > 0) return 'text-positive'
-  return props.tone === 'outcome' ? 'text-negative' : ''
+  if (props.cents > 0) return 'text-success'
+  return props.tone === 'outcome' ? 'text-error' : ''
 })
 </script>
 

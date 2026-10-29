@@ -26,6 +26,13 @@ export default defineConfig({
           primary: 'amber',
           neutral: 'slate',
         },
+        modal: {
+          slots: {
+            // Clear of the close button, and on a phone, where a dialog is full screen, of the gesture bar.
+            header: 'pe-16 sm:pe-6',
+            footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]',
+          },
+        },
         table: {
           slots: {
             th: 'px-3 py-2.5 text-xs font-medium text-muted',

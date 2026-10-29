@@ -1,8 +1,8 @@
-import type { BarSeries, ChartOption, LineSeries } from '../../../shared/charts/echarts'
-import { BAR_END_DOWN, BAR_END_RIGHT, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } from '../../../shared/charts/chartTheme'
-import type { ChartTokens } from '../../../shared/charts/chartTokens'
-import { axisTooltip } from '../../../shared/charts/chartTooltip'
-import { formatCompactMoney, formatMoney, formatPercent } from '../../../shared/money/moneyFormat'
+import type { BarSeries, ChartOption, LineSeries } from '../../shared/charts/echarts'
+import { BAR_END_DOWN, BAR_END_RIGHT, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } from '../../shared/charts/chartTheme'
+import type { ChartTokens } from '../../shared/charts/chartTokens'
+import { axisTooltip } from '../../shared/charts/chartTooltip'
+import { formatCompactMoney, formatMoney, formatPercent } from '../../shared/money/moneyFormat'
 
 /** Made-up figures in cents for a small one-person company. None of it comes from a real ledger. */
 export const SAMPLE_MONTHS = ['Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026']

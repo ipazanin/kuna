@@ -61,7 +61,7 @@ const facts = computed(() => {
         description="Open an Excel download of the Google Sheet, a file the app exported, or a Kuna file from the backups folder."
       />
       <template v-else>
-        <dl class="grid gap-px sm:grid-cols-2 overflow-hidden rounded-control border border-default bg-[var(--border-default)]">
+        <dl class="grid gap-px sm:grid-cols-2 overflow-hidden rounded-control border border-default bg-border">
           <div v-for="fact in facts" :key="fact.label" class="min-w-0 bg-raised px-3 py-2.5">
             <dt class="text-xs text-muted">{{ fact.label }}</dt>
             <dd class="figure mt-0.5 truncate text-sm font-medium text-highlighted" :title="fact.value">{{ fact.value }}</dd>
@@ -87,7 +87,7 @@ const facts = computed(() => {
           <ProblemList :problems="preview.summary.problems" />
         </section>
         <p v-else class="flex items-center gap-2 text-sm text-toned">
-          <UIcon name="i-lucide-check" class="size-4 text-positive" aria-hidden="true" />
+          <UIcon name="i-lucide-check" class="size-4 text-success" aria-hidden="true" />
           Every row reads cleanly.
         </p>
         <slot />

@@ -29,6 +29,7 @@ import { formatWholeMoney } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import ChartCanvas from './ChartCanvas.vue'
 import DrillLink from './DrillLink.vue'
+import FigureTable from './FigureTable.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -126,7 +127,7 @@ function valueOf(point: unknown): number | null {
   >
     <template #title>
       {{ title }}
-      <UIcon v-if="loading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-dimmed" aria-label="Loading" />
+      <UIcon v-if="loading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-muted" aria-label="Loading" />
     </template>
     <template v-if="!empty" #actions>
       <UButton
@@ -148,35 +149,33 @@ function valueOf(point: unknown): number | null {
 
     <div class="chart-body grow px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px` }">
       <UEmpty v-if="empty && !loading" icon="i-lucide-chart-no-axes-column" :title="emptyTitle" :description="emptyDescription" variant="naked" size="sm" class="h-full" />
-      <div v-else-if="showTable" class="h-full overflow-auto" data-testid="chart-table">
-        <table class="data-table w-full text-sm">
-          <caption class="sr-only">
-            {{
-              title
-            }}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col" class="text-start"><span class="sr-only">Category</span></th>
-              <th v-for="column in table.columns" :key="column" scope="col" class="text-end">{{ column }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in table.rows" :key="row.label">
-              <th scope="row" class="text-start font-normal text-toned">{{ row.label }}</th>
-              <td v-for="(cell, index) in row.cells" :key="index" class="figure text-end">
-                <DrillLink v-if="cell.value !== null" :to="cell.to" :label="`${row.label}, ${table.columns[index]}, open the rows`">
-                  {{ formatValue(cell.value) }}
-                </DrillLink>
-                <span v-else class="text-dimmed">–</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <FigureTable v-else-if="showTable" class="h-full overflow-auto" data-testid="chart-table">
+        <caption class="sr-only">
+          {{
+            title
+          }}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" class="text-start"><span class="sr-only">Category</span></th>
+            <th v-for="column in table.columns" :key="column" scope="col" class="text-end">{{ column }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in table.rows" :key="row.label">
+            <th scope="row" class="text-start font-normal text-toned">{{ row.label }}</th>
+            <td v-for="(cell, index) in row.cells" :key="index" class="figure text-end">
+              <DrillLink v-if="cell.value !== null" :to="cell.to" :label="`${row.label}, ${table.columns[index]}, open the rows`">
+                {{ formatValue(cell.value) }}
+              </DrillLink>
+              <span v-else class="text-muted">–</span>
+            </td>
+          </tr>
+        </tbody>
+      </FigureTable>
       <ChartCanvas
         v-else
-        class="transition-opacity duration-base"
+        class="transition-opacity duration-fade"
         :class="{ 'opacity-40': loading }"
         :option="option"
         :description="description"

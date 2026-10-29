@@ -44,7 +44,7 @@ const deltaPresentation = computed(() => {
   const good = rose === props.higherIsBetter
   return {
     icon: rose ? 'i-lucide-arrow-up-right' : 'i-lucide-arrow-down-right',
-    tone: good ? 'text-positive' : 'text-negative',
+    tone: good ? 'text-success' : 'text-error',
     verdict: good ? 'better' : 'worse',
   }
 })
@@ -58,7 +58,7 @@ const deltaPresentation = computed(() => {
         <span class="sr-only">: {{ value }}</span>
       </RouterLink>
       <p v-else class="kpi-label min-w-0 truncate text-sm text-muted">{{ label }}</p>
-      <div v-if="definition" class="relative z-lifted -my-1 -me-1.5">
+      <div v-if="definition" class="relative z-control -my-1 -me-1.5">
         <InfoPopover :subject="label" :definition="definition" />
       </div>
     </div>

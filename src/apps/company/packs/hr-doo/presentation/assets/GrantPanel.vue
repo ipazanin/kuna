@@ -112,7 +112,7 @@ defineProps<{
             </div>
             <div>
               <dt>Residual</dt>
-              <dd :class="line.residual === 0 ? 'text-positive' : 'text-[var(--tone-warning)]'"><MoneyText :cents="line.residual" sign="always" /></dd>
+              <dd :class="line.residual === 0 ? 'text-success' : 'text-warning'"><MoneyText :cents="line.residual" sign="always" /></dd>
             </div>
           </dl>
         </li>

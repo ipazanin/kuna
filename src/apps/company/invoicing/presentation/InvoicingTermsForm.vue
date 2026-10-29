@@ -9,6 +9,7 @@ import UTextarea from '@nuxt/ui/components/Textarea.vue'
 import { amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { settingsErrors } from '../../settings/domain/settings'
 import type { BillingAmountField, BillingItemField, BillingTerms, InvoicingField, Settings } from '../../settings/domain/settings'
 
@@ -131,7 +132,7 @@ function updateInvoicing(field: InvoicingField, value: string): void {
         What a client is billed on terms. "Fill the rest of the year" on the Plan tab adds the monthly rows from them. Name each item exactly as the outgoing-plan tab writes it, or the fill adds a
         second row in a month that already has one.
       </p>
-      <div class="grid gap-4 sm:grid-cols-2">
+      <FormGrid>
         <template v-for="term in BILLING_TERMS" :key="term.amount">
           <UFormField :label="term.label" :error="errors[term.amount] ?? false" :help="term.help">
             <UInput :model-value="billingAmountTexts[term.amount]" inputmode="decimal" placeholder="Not set" class="w-full" @update:model-value="updateBillingAmount(term.amount, String($event))" />
@@ -160,13 +161,13 @@ function updateInvoicing(field: InvoicingField, value: string): void {
             @update:model-value="updateBilling('client', String($event ?? ''))"
           />
         </UFormField>
-      </div>
+      </FormGrid>
     </fieldset>
 
     <fieldset class="flex flex-col gap-3" data-testid="invoicing-terms">
       <legend class="text-sm font-medium text-highlighted">Invoices</legend>
       <p class="-mt-1 text-xs text-muted">What an invoice prints about your company, and how it is numbered, filed and mailed. The client’s address and mail are on the clients tab above.</p>
-      <div class="grid gap-4 sm:grid-cols-2">
+      <FormGrid>
         <UFormField v-for="entry in INVOICING_FIELDS" :key="entry.field" :label="entry.label" :help="entry.help ?? ''" :error="errors[entry.field] ?? false" :class="{ 'sm:col-span-2': entry.wide }">
           <UTextarea
             v-if="entry.lines"
@@ -187,7 +188,7 @@ function updateInvoicing(field: InvoicingField, value: string): void {
             @update:model-value="updateInvoicing(entry.field, String($event))"
           />
         </UFormField>
-      </div>
+      </FormGrid>
     </fieldset>
 
     <div class="flex flex-wrap items-center gap-2">

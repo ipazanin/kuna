@@ -58,6 +58,8 @@ export interface AppContribution {
   syncGroup(): AppSyncGroup
   /** The app's parts of Settings, loaded with the Settings screen's code. */
   settings(): Promise<AppSettings>
+  /** The app's own specimens for the gallery, which only development and fake builds load. */
+  readonly gallery?: () => Promise<Component>
   /** Whether the page should fetch its Google token on the way in, with no screen at Google. */
   asksGoogleOnOpen(): boolean
   /**

@@ -52,7 +52,7 @@ const phone = usePhoneLayout()
           </div>
           <div>
             <dt>Problems</dt>
-            <dd class="figure" :class="person.problems === 0 ? 'text-muted' : 'text-negative'">{{ person.problems }}</dd>
+            <dd class="figure" :class="person.problems === 0 ? 'text-muted' : 'text-error'">{{ person.problems }}</dd>
           </div>
         </dl>
       </li>
@@ -81,7 +81,7 @@ const phone = usePhoneLayout()
             <td class="hidden text-end @3xl:table-cell"><MoneyText :cents="person.pensionSavings" /></td>
             <td class="hidden text-end @xl:table-cell"><MoneyText :cents="person.toState" /></td>
             <td class="text-end"><MoneyText :cents="person.cost" /></td>
-            <td class="figure text-end" :class="person.problems === 0 ? 'text-muted' : 'text-negative'">{{ person.problems }}</td>
+            <td class="figure text-end" :class="person.problems === 0 ? 'text-muted' : 'text-error'">{{ person.problems }}</td>
           </tr>
         </tbody>
       </table>

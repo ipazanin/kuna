@@ -85,7 +85,7 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
             <dt>{{ figure.label }}</dt>
             <dd>
               <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`">
-                <MoneyText :cents="figure.cents" :class="{ 'text-negative': figure.key === 'cash-left' && figure.cents < 0 }" />
+                <MoneyText :cents="figure.cents" :class="{ 'text-error': figure.key === 'cash-left' && figure.cents < 0 }" />
               </DrillLink>
             </dd>
           </div>

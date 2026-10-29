@@ -2,6 +2,7 @@
 import type { BankLoanFigures } from './bankLoanView'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 
 /** What the bank loan's page leads with: owed today, the next payment, the subsidy's end, the payoff and the interest. */
@@ -11,7 +12,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-3" data-testid="bank-loan-tiles">
+  <DashboardGrid layout="tiles" data-testid="bank-loan-tiles">
     <KpiTile label="Owed today" :value="formatMoney(figures.owed)" :to="null" />
     <KpiTile
       label="Next payment"
@@ -40,5 +41,5 @@ defineProps<{
       :caption="figures.subsidy.ended || figures.subsidy.after === null ? '' : `then ${formatMoney(figures.subsidy.after)} a month`"
       :to="null"
     />
-  </div>
+  </DashboardGrid>
 </template>

@@ -17,13 +17,11 @@ import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import { rangeContains } from '../../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../../shared/calendar/dateRange'
-import { usePhoneLayout } from '../../../../../shared/layout/viewport'
 import { amountOf } from '../../../../../shared/money/money'
 import { typedAmount } from '../../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
@@ -37,6 +35,8 @@ import { ADVANCE_BUCKETS } from '../../../workbook/domain/workbook'
 import type { Category } from '../../../workbook/domain/workbook'
 import { useWorkbook } from '../../../workbook/application/workbookStore'
 import { useRecordWrites } from '../../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../../shared/ui/FormGrid.vue'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -59,7 +59,6 @@ const writes = useRecordWrites(useWorkbook())
 const names = useDisplayNames()
 const router = useRouter()
 const { drillLocation } = useFilters()
-const phone = usePhoneLayout()
 
 const date = ref<string>(props.defaultDate)
 const amount = ref('')
@@ -139,7 +138,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="editing ? 'Change the advance' : 'Add an advance'"
     :description="
@@ -147,57 +146,43 @@ async function remove(): Promise<void> {
         ? 'A cost the owner paid privately for the company, on the owner-advances tab. Only the cells you change are written.'
         : 'A cost the owner paid privately for the company. It counts as a cost on its date, and reimbursements to the owner repay it.'
     "
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="add-advance" class="grid gap-4 sm:grid-cols-2" data-testid="add-advance" @submit.prevent="save">
-        <UFormField label="Date" :error="(tried && errors.date) || false">
-          <UInput v-model="date" type="date" class="w-full" />
-        </UFormField>
-        <UFormField label="Amount" :error="(tried && errors.amount) || false">
-          <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" />
-        </UFormField>
-        <UFormField label="Category" :error="(tried && errors.category) || false" help="Operating costs and taxes only." class="sm:col-span-2">
-          <USelectMenu
-            v-model="category"
-            data-testid="advance-category"
-            :items="categoryItems"
-            value-key="value"
-            placeholder="Choose a category"
-            :search-input="{ placeholder: 'Search categories' }"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="What it was for" class="sm:col-span-2">
-          <UInput v-model="description" placeholder="Train tickets to the client" class="w-full" />
-        </UFormField>
-        <p class="text-xs text-muted sm:col-span-2">Part of a payment the company made was yours? Split that payment on Transactions instead.</p>
-      </form>
-    </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap justify-end gap-2">
-        <UButton
-          v-if="editing"
-          label="Delete advance"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          class="me-auto"
-          :disabled="writes.busy.value"
-          data-testid="advance-delete"
-          @click="remove"
+    <FormGrid id="add-advance" as="form" data-testid="add-advance" @submit.prevent="save">
+      <UFormField label="Date" :error="(tried && errors.date) || false">
+        <UInput v-model="date" type="date" class="w-full" />
+      </UFormField>
+      <UFormField label="Amount" :error="(tried && errors.amount) || false">
+        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" />
+      </UFormField>
+      <UFormField label="Category" :error="(tried && errors.category) || false" help="Operating costs and taxes only." class="sm:col-span-2">
+        <USelectMenu
+          v-model="category"
+          data-testid="advance-category"
+          :items="categoryItems"
+          value-key="value"
+          placeholder="Choose a category"
+          :search-input="{ placeholder: 'Search categories' }"
+          class="w-full"
         />
-        <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-        <UButton
-          type="submit"
-          form="add-advance"
-          :label="editing ? 'Save advance' : 'Add advance'"
-          :icon="editing ? 'i-lucide-save' : 'i-lucide-plus'"
-          :loading="writes.busy.value"
-          :disabled="writes.busy.value"
-        />
-      </div>
+      </UFormField>
+      <UFormField label="What it was for" class="sm:col-span-2">
+        <UInput v-model="description" placeholder="Train tickets to the client" class="w-full" />
+      </UFormField>
+      <p class="text-xs text-muted">Part of a payment the company made was yours? Split that payment on Transactions instead.</p>
+    </FormGrid>
+    <template #start>
+      <UButton v-if="editing" label="Delete advance" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="advance-delete" @click="remove" />
     </template>
-  </UModal>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="add-advance"
+        :label="editing ? 'Save advance' : 'Add advance'"
+        :icon="editing ? 'i-lucide-save' : 'i-lucide-plus'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+      />
+    </template>
+  </AppDialog>
 </template>

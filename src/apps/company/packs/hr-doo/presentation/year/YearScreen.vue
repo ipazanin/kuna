@@ -3,7 +3,6 @@ import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { yearOf } from '../../../../../../shared/calendar/civilDate'
@@ -21,6 +20,7 @@ import { newestBookingOf } from '../../../../workbook/domain/workbook'
 import LedgerGate from '../../../../workbook/presentation/LedgerGate.vue'
 import { useDisplayNames } from '../../../../workbook/application/useDisplayNames'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 import ConfidenceBadge from '../../ruleset/presentation/ConfidenceBadge.vue'
 import { RULESET_CHECKED_ON } from '../../ruleset/ruleset'
 import { planDefaults } from '../../domain/forecast/forecastYear'
@@ -224,14 +224,14 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
           </p>
           <MissingRoles :missing="missingRoles" />
           <div v-if="noVat" class="flex items-start gap-2 text-sm text-toned">
-            <UIcon name="i-lucide-receipt" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <UIcon name="i-lucide-receipt" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               No category has a <span class="identifier">vat</span> treatment, so no input VAT leaves the costs.
               <DrillLink to="/settings?tab=categories" in-prose class="text-highlighted">Set it on Settings, Categories</DrillLink>
             </p>
           </div>
           <div v-if="unregistered" class="flex items-start gap-2 text-sm text-toned">
-            <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+            <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               <span class="identifier">hr_company_registered</span> is blank, so {{ shown.year }} counts as a full tax period and the advances paid in it are not known.
               <DrillLink :to="{ path: '/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
@@ -241,15 +241,7 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
 
         <PageTabs :tabs="tabs" label="Parts of the year" data-testid="year-tabs">
           <template #accountant>
-            <UEmpty
-              v-if="closed?.view === null"
-              icon="i-lucide-triangle-alert"
-              title="The year could not be worked out"
-              :description="closed.failure ?? ''"
-              variant="outline"
-              class="rounded-card border-error/40 bg-raised"
-              :ui="{ avatar: 'text-error' }"
-            />
+            <EmptyState v-if="closed?.view === null" icon="i-lucide-triangle-alert" title="The year could not be worked out" :description="closed.failure ?? ''" tone="error" />
             <AccountantPanel v-else-if="closed?.view" :view="closed.view" :year="shown.year" />
           </template>
           <template #statements>

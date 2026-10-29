@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import UEmpty from '@nuxt/ui/components/Empty.vue'
 
 import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { useExport } from '../../workbook-files/presentation/useExport'
 import { useWorkbook } from '../application/workbookStore'
 
@@ -31,17 +32,15 @@ const gate = computed(() => {
 
 <template>
   <slot v-if="gate === 'open'" />
-  <UEmpty
+  <EmptyState
     v-else-if="gate === 'error'"
     icon="i-lucide-triangle-alert"
     :title="inBrowser ? 'The workbook in this browser could not be read' : 'The file on Drive could not be read'"
     :description="state.error ?? ''"
     :actions="inBrowser ? [] : [{ label: 'Try again', color: 'neutral', variant: 'outline', onClick: () => sync() }]"
-    variant="outline"
-    class="rounded-card border-error/40 bg-raised"
-    :ui="{ avatar: 'text-error' }"
+    tone="error"
   />
-  <UEmpty
+  <EmptyState
     v-else-if="gate === 'empty-ledger' && inBrowser"
     icon="i-lucide-file-spreadsheet"
     title="The ledger has no transactions yet"
@@ -51,26 +50,20 @@ const gate = computed(() => {
       { label: 'Export to Excel', icon: 'i-lucide-download', color: 'neutral', variant: 'outline', onClick: exportNow },
       { label: 'Open Settings', icon: 'i-lucide-settings', color: 'neutral', variant: 'outline', onClick: () => router.push('/settings') },
     ]"
-    variant="outline"
-    class="rounded-card border-dashed bg-raised/40"
   />
-  <UEmpty
+  <EmptyState
     v-else-if="gate === 'empty-ledger'"
     icon="i-lucide-hard-drive"
     title="The ledger has no transactions yet"
     description="Import a bank statement, or sync once the statements folder holds one."
     :actions="[{ label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/company/transactions', query: { tab: 'import' } }) }]"
-    variant="outline"
-    class="rounded-card border-dashed bg-raised/40"
   />
   <UEmpty v-else-if="gate === 'syncing'" icon="i-lucide-refresh-cw" title="Reading the file" description="The first copy is on its way." variant="naked" />
-  <UEmpty
+  <EmptyState
     v-else-if="gate === 'ready'"
     icon="i-lucide-refresh-cw"
     :title="`Sync to read ${state.choice?.name ?? 'the file'}`"
     description="This browser has no copy of it yet."
     :actions="[{ label: 'Sync', icon: 'i-lucide-refresh-cw', onClick: () => sync() }]"
-    variant="outline"
-    class="rounded-card border-dashed bg-raised/40"
   />
 </template>

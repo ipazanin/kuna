@@ -15,17 +15,17 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import { EXTRA_PAYMENT_WRITES, newExtraPayment } from '../application/bankLoanWrites'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { amountOf } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
 /** Principal paid back early, and whether the bank shortens the term or lowers the instalment for it. */
 const open = defineModel<boolean>('open', { required: true })
@@ -37,7 +37,6 @@ const props = defineProps<{
 }>()
 
 const writes = useRecordWrites(useLoansBooks())
-const phone = usePhoneLayout()
 
 const date = ref('')
 const amount = ref('')
@@ -88,49 +87,34 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="editing === null ? 'Add an extra payment' : 'Change the extra payment'"
     description="Principal paid back on top of the instalments. A housing loan charges no fee for it."
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="extra-payment" class="grid gap-4 sm:grid-cols-2" data-testid="extra-payment-form" @submit.prevent="save">
-        <UFormField label="Paid on" :error="(tried && errors.date) || false">
-          <UInput v-model="date" type="date" class="w-full" data-testid="extra-payment-date" />
-        </UFormField>
-        <UFormField label="Amount" :error="(tried && errors.amount) || false">
-          <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="extra-payment-amount" />
-        </UFormField>
-        <URadioGroup v-model="effect" :items="EFFECT_ITEMS" legend="What the bank does" class="sm:col-span-2" data-testid="extra-payment-effect" />
-      </form>
+    <FormGrid id="extra-payment" as="form" data-testid="extra-payment-form" @submit.prevent="save">
+      <UFormField label="Paid on" :error="(tried && errors.date) || false">
+        <UInput v-model="date" type="date" class="w-full" data-testid="extra-payment-date" />
+      </UFormField>
+      <UFormField label="Amount" :error="(tried && errors.amount) || false">
+        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="extra-payment-amount" />
+      </UFormField>
+      <URadioGroup v-model="effect" :items="EFFECT_ITEMS" legend="What the bank does" data-testid="extra-payment-effect" />
+    </FormGrid>
+    <template #start>
+      <UButton v-if="editing !== null" label="Delete payment" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="extra-payment-delete" @click="remove" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="editing !== null"
-          label="Delete payment"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="extra-payment-delete"
-          @click="remove"
-        />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="extra-payment"
-            :label="editing === null ? 'Add payment' : 'Save payment'"
-            :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-            data-testid="extra-payment-save"
-          />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="extra-payment"
+        :label="editing === null ? 'Add payment' : 'Save payment'"
+        :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+        data-testid="extra-payment-save"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

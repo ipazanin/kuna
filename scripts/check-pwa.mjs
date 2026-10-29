@@ -210,7 +210,7 @@ try {
   // The Loans first run keeps its own file in this browser too.
   await page.goto(`${appUrl}#/loans`)
   await clickStart(page, '[data-testid="loans-start-home"] label', 'A new file in this browser')
-  await clickText(page, '[data-testid="loans-start-step"] button', 'Continue')
+  await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
   await page.waitForSelector('[data-testid="loans-empty"]')
   assert.deepEqual(await cachedForeignUrls(page, origin), [], 'Nothing from another origin may be cached.')
 

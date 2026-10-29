@@ -12,6 +12,7 @@ import { folderPathOf } from '../../../../../shared/text/folderPath'
 import { mailAddressesOf, missingTerms, missingWords } from '../../../mail/domain/mailSource'
 import type { MailTermPiece } from '../../../mail/domain/mailSource'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
+import FormGrid from '../../../../../shared/ui/FormGrid.vue'
 import type { CitReturn, CompanyFacts, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
 
 /**
@@ -173,7 +174,7 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
     data-testid="company-facts"
   >
     <div class="flex flex-col gap-4 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-      <div class="grid gap-4 sm:grid-cols-2">
+      <FormGrid>
         <UFormField id="company-registered" label="Company registered on" help="Starts the first tax period.">
           <UInput :model-value="facts.companyRegistered ?? ''" type="date" class="w-full" @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))" />
         </UFormField>
@@ -191,7 +192,7 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
         <UFormField label="VAT falls due">
           <USelect :model-value="facts.vatPrinciple" :items="vatPrincipleItems" class="w-full" @update:model-value="updateFact('vatPrinciple', $event as VatPrinciple)" />
         </UFormField>
-      </div>
+      </FormGrid>
       <USwitch
         :model-value="facts.depreciationDoubled"
         label="Depreciation rates are doubled"
@@ -231,14 +232,14 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
               @update:model-value="updateFact(kind.on, $event)"
             />
             <p v-if="missingFor(kind).length > 0" class="text-sm text-warning" data-testid="mail-kind-missing">It is on, but has {{ missingWords(missingFor(kind)) }}.</p>
-            <div class="grid gap-4 sm:grid-cols-2">
+            <FormGrid>
               <UFormField :label="kind.subjectLabel" :error="errors[kind.subject] ?? false" :help="kind.subjectHelp" :data-testid="`${kind.id}-mail-subject`">
                 <UInput :model-value="facts[kind.subject]" placeholder="Not set" class="w-full" @update:model-value="updateFact(kind.subject, String($event))" />
               </UFormField>
               <UFormField :label="kind.folderLabel" :help="kind.folderHelp" :data-testid="`${kind.id}-mail-folder`">
                 <UInput :model-value="folderTexts[kind.folder]" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateFolder(kind.folder, String($event))" />
               </UFormField>
-            </div>
+            </FormGrid>
           </section>
         </div>
       </div>

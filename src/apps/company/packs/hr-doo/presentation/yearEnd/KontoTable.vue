@@ -49,7 +49,7 @@ defineProps<{
           <dd><MoneyText :cents="category.cents" /></dd>
         </div>
       </dl>
-      <p class="konto-difference" :class="group.difference === 0 ? 'text-positive' : 'text-[var(--tone-warning)]'">
+      <p class="konto-difference" :class="group.difference === 0 ? 'text-success' : 'text-warning'">
         <span class="text-xs text-muted sm:hidden">Difference </span><MoneyText :cents="group.difference" sign="always" />
       </p>
     </li>

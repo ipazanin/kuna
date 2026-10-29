@@ -11,6 +11,33 @@
 @import '@nuxt/ui';
 @import './tokens.css';
 
+/* Type roles, named after their job, so a screen picks a role rather than a size and an ink. */
+@utility type-page-title {
+  @apply text-title font-semibold text-highlighted;
+}
+
+@utility type-card-title {
+  @apply text-sm font-medium text-highlighted;
+}
+
+@utility type-body {
+  @apply text-sm text-toned;
+}
+
+/* The small heading over a group of figures or a column. */
+@utility type-label {
+  @apply text-xs font-medium text-muted;
+}
+
+@utility type-caption {
+  @apply text-xs text-muted;
+}
+
+/* The figure a tile or a card leads with. */
+@utility type-figure {
+  @apply text-figure-lg font-semibold text-highlighted tabular-nums;
+}
+
 html {
   background: var(--surface-page);
   -webkit-text-size-adjust: 100%;
@@ -103,24 +130,6 @@ body {
   border-top: 1px solid var(--border-strong);
   font-weight: 500;
   color: var(--ink-strong);
-}
-
-/*
- * Two cards, or a card and a column of cards, side by side on a wide screen. Below 3xl the wrapper
- * steps aside, so its cards stack in the screen's own column with the screen's own gaps.
- */
-.wide-pair {
-  display: contents;
-
-  @variant 3xl {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-  }
-}
-
-.wide-pair > :only-child {
-  grid-column: 1 / -1;
 }
 
 /*

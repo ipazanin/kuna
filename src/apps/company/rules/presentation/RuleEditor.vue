@@ -2,10 +2,8 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { fileRows } from '../../review/application/fileRows'
 import { waitingRowsSettledBy } from '../../review/domain/verdictChanges'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
@@ -15,6 +13,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import { NO_RECORDS, recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { writeRulesChange } from '../application/ruleWrites'
 import { useRulesChangePreview } from '../application/useRulesChange'
 import type { CategoryCount } from '../domain/ruleCoverage'
@@ -48,7 +47,6 @@ const open = defineModel<boolean>('open', { required: true })
 
 const store = useWorkbook()
 const { state } = store
-const phone = usePhoneLayout()
 const names = useDisplayNames()
 const toast = useToast()
 const recordWrites = useRecordWrites(store)
@@ -144,92 +142,79 @@ async function applyToWaiting(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
+    width="3xl"
     :title="savedId ? `Saved ${savedId}` : deleting && source?.edited ? `Delete ${source.edited.id}` : (source?.title ?? 'Rule')"
-    v-bind="savedId ? {} : { description: deleting ? 'The back-test below lists the rows it decides today.' : 'The back-test below follows every change to the form.' }"
-    :fullscreen="phone"
-    :ui="{ content: 'sm:max-w-3xl', header: 'pe-16 sm:pe-6', footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]' }"
+    :description="savedId ? undefined : deleting ? 'The back-test below lists the rows it decides today.' : 'The back-test below follows every change to the form.'"
   >
-    <template #body>
-      <div v-if="savedId === null && deleting" class="flex flex-col gap-4" data-testid="rule-delete">
-        <p class="text-sm text-toned">Its row leaves the rules tab. Rows already filed keep their category, and new rows it would decide go to the next rule that holds, or wait for review.</p>
+    <div v-if="savedId === null && deleting" class="flex flex-col gap-4" data-testid="rule-delete">
+      <p class="text-sm text-toned">Its row leaves the rules tab. Rows already filed keep their category, and new rows it would decide go to the next rule that holds, or wait for review.</p>
+      <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
+    </div>
+    <div v-else-if="savedId === null && draft" class="flex flex-col gap-6" data-testid="rule-editor">
+      <UAlert v-if="split" icon="i-lucide-split" color="warning" variant="subtle" :title="`A person filed these ${splitRows} rows in ${split.length} categories`" data-testid="rule-split">
+        <template #description>
+          <ul class="mt-1 flex flex-wrap gap-1.5">
+            <li v-for="entry in split" :key="entry.category" class="flex items-center gap-1">
+              <CategoryChip :category="entry.category" :bucket="bucketBySlug.get(entry.category) ?? UNCLASSIFIED" />
+              <span class="figure text-xs">{{ entry.count }}</span>
+            </li>
+          </ul>
+          <p class="mt-2">
+            The form starts on {{ names.category(split[0]!.category) }}, the most common. One rule files every next row the same way, so the back-test lists the others as confirmed rows it would file
+            differently.
+          </p>
+        </template>
+      </UAlert>
+      <RuleForm v-model="draft" :rules="state.workbook?.rules ?? []" :categories="state.workbook?.categories ?? []" :editing-id="source?.edited?.id ?? null" />
+      <section class="flex flex-col gap-3 border-t border-default pt-5">
+        <header>
+          <h2 class="text-sm font-medium text-highlighted">Back-test over the whole ledger</h2>
+          <p class="mt-0.5 text-xs text-muted">Every row, filed by the rules as they are and as they would be.</p>
+        </header>
         <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
-      </div>
-      <div v-else-if="savedId === null && draft" class="flex flex-col gap-6" data-testid="rule-editor">
-        <UAlert v-if="split" icon="i-lucide-split" color="warning" variant="subtle" :title="`A person filed these ${splitRows} rows in ${split.length} categories`" data-testid="rule-split">
-          <template #description>
-            <ul class="mt-1 flex flex-wrap gap-1.5">
-              <li v-for="entry in split" :key="entry.category" class="flex items-center gap-1">
-                <CategoryChip :category="entry.category" :bucket="bucketBySlug.get(entry.category) ?? UNCLASSIFIED" />
-                <span class="figure text-xs">{{ entry.count }}</span>
-              </li>
-            </ul>
-            <p class="mt-2">
-              The form starts on {{ names.category(split[0]!.category) }}, the most common. One rule files every next row the same way, so the back-test lists the others as confirmed rows it would
-              file differently.
-            </p>
-          </template>
-        </UAlert>
-        <RuleForm v-model="draft" :rules="state.workbook?.rules ?? []" :categories="state.workbook?.categories ?? []" :editing-id="source?.edited?.id ?? null" />
-        <section class="flex flex-col gap-3 border-t border-default pt-5">
-          <header>
-            <h2 class="text-sm font-medium text-highlighted">Back-test over the whole ledger</h2>
-            <p class="mt-0.5 text-xs text-muted">Every row, filed by the rules as they are and as they would be.</p>
-          </header>
-          <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
-        </section>
-      </div>
-      <div v-else class="flex flex-col gap-4" data-testid="rule-saved">
-        <p class="text-sm text-toned">
-          {{ onDrive ? 'It is in the file on Drive now, and the next sync or import files new rows by it.' : 'It is in the workbook kept in this browser, and an export writes it into the file.' }}
-        </p>
-        <UAlert
-          v-if="waiting.length"
-          icon="i-lucide-inbox"
-          color="info"
-          variant="subtle"
-          :title="`${waiting.length} ${waiting.length === 1 ? 'row waits' : 'rows wait'} for review that this rule settles`"
-          description="Applying files them as the rule says, with flagged_by rule. Rows a person confirmed are left alone."
-        />
-        <p v-else class="text-sm text-muted">No row waiting for review is settled by it.</p>
-      </div>
-    </template>
+      </section>
+    </div>
+    <div v-else class="flex flex-col gap-4" data-testid="rule-saved">
+      <p class="text-sm text-toned">
+        {{ onDrive ? 'It is in the file on Drive now, and the next sync or import files new rows by it.' : 'It is in the workbook kept in this browser, and an export writes it into the file.' }}
+      </p>
+      <UAlert
+        v-if="waiting.length"
+        icon="i-lucide-inbox"
+        color="info"
+        variant="subtle"
+        :title="`${waiting.length} ${waiting.length === 1 ? 'row waits' : 'rows wait'} for review that this rule settles`"
+        description="Applying files them as the rule says, with flagged_by rule. Rows a person confirmed are left alone."
+      />
+      <p v-else class="text-sm text-muted">No row waiting for review is settled by it.</p>
+    </div>
 
-    <template #footer>
-      <div class="flex w-full flex-wrap justify-end gap-2">
-        <template v-if="savedId === null && deleting">
-          <UButton label="Keep it" color="neutral" variant="ghost" data-testid="keep-rule" @click="deleting = false" />
-          <UButton label="Delete rule" icon="i-lucide-trash-2" color="error" :loading="state.writing" :disabled="!canSave" data-testid="confirm-delete-rule" @click="deleteRule" />
-        </template>
-        <template v-else-if="savedId === null">
-          <UButton
-            v-if="source?.edited"
-            label="Delete"
-            icon="i-lucide-trash-2"
-            color="error"
-            variant="ghost"
-            class="me-auto"
-            :disabled="state.writing"
-            data-testid="delete-rule"
-            @click="deleting = true"
-          />
-          <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
-          <UButton :label="source?.edited ? 'Save rule' : 'Add rule'" icon="i-lucide-save" :loading="state.writing" :disabled="!canSave" data-testid="save-rule" @click="save" />
-        </template>
-        <template v-else>
-          <UButton label="Done" color="neutral" :variant="waiting.length ? 'ghost' : 'solid'" @click="open = false" />
-          <UButton
-            v-if="waiting.length"
-            :label="`Apply to the ${waiting.length} ${waiting.length === 1 ? 'row' : 'rows'} still waiting`"
-            icon="i-lucide-check-check"
-            :loading="recordWrites.busy.value"
-            :disabled="state.writing"
-            data-testid="apply-rule"
-            @click="applyToWaiting"
-          />
-        </template>
-      </div>
+    <template v-if="savedId === null && !deleting && source?.edited" #start>
+      <UButton label="Delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="state.writing" data-testid="delete-rule" @click="deleting = true" />
     </template>
-  </UModal>
+    <template #end>
+      <template v-if="savedId === null && deleting">
+        <UButton label="Keep it" color="neutral" variant="ghost" data-testid="keep-rule" @click="deleting = false" />
+        <UButton label="Delete rule" icon="i-lucide-trash-2" color="error" :loading="state.writing" :disabled="!canSave" data-testid="confirm-delete-rule" @click="deleteRule" />
+      </template>
+      <template v-else-if="savedId === null">
+        <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
+        <UButton :label="source?.edited ? 'Save rule' : 'Add rule'" icon="i-lucide-save" :loading="state.writing" :disabled="!canSave" data-testid="save-rule" @click="save" />
+      </template>
+      <template v-else>
+        <UButton label="Done" color="neutral" :variant="waiting.length ? 'ghost' : 'solid'" @click="open = false" />
+        <UButton
+          v-if="waiting.length"
+          :label="`Apply to the ${waiting.length} ${waiting.length === 1 ? 'row' : 'rows'} still waiting`"
+          icon="i-lucide-check-check"
+          :loading="recordWrites.busy.value"
+          :disabled="state.writing"
+          data-testid="apply-rule"
+          @click="applyToWaiting"
+        />
+      </template>
+    </template>
+  </AppDialog>
 </template>

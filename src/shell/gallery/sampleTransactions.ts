@@ -1,4 +1,4 @@
-import type { BucketTone } from '../../../shared/charts/chartTokens'
+import type { BucketTone } from '../../shared/charts/chartTokens'
 
 export interface SampleTransaction {
   readonly id: string

@@ -7,6 +7,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import type { Settings, SettingsField } from '../../settings/domain/settings'
 import { mailAddressesOf } from '../domain/mailSource'
 import MailPlanList from './MailPlanList.vue'
@@ -70,7 +71,7 @@ function updateSenders(text: string): void {
     data-testid="mail-settings"
   >
     <div class="flex flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-      <div class="grid gap-4 sm:grid-cols-2">
+      <FormGrid>
         <UFormField
           label="The bank mails statements from"
           :error="errors.statementsMailFrom ?? false"
@@ -90,7 +91,7 @@ function updateSenders(text: string): void {
         >
           <UInput :model-value="settings.mailSince ?? ''" type="date" class="w-full" @update:model-value="update('mailSince', parseCivilDate(String($event ?? '')))" />
         </UFormField>
-      </div>
+      </FormGrid>
       <div class="flex flex-col gap-3">
         <h3 class="text-sm font-medium text-highlighted">What the last sync found</h3>
         <MailPlanList :plan="mail.state.plan" :stopped="mail.state.stopped" />

@@ -3,9 +3,9 @@ import { ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { DriveFileLookup } from '../../../../shared/storage/application/workbookPorts'
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import { LOANS_FILE_NAME } from '../../workbook/presentation/loansFile'
 import { useFindLoansFile } from '../../workbook/presentation/useFindLoansFile'
-import StepCard from './StepCard.vue'
 import { useLoansStart } from './useLoansStart'
 
 /** The Loans file another device keeps on Drive: found by the app's mark, or picked. Once it is on screen, the Loans Overview. */

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, watch } from 'vue'
+import { computed, nextTick, provide, watch } from 'vue'
 import type { Component } from 'vue'
 
-import { makingStep } from '../domain/onboardingSteps'
+import { STEP_FLOW } from '../../../../shared/ui/StepCard.vue'
+import { makingStep, previousStep } from '../domain/onboardingSteps'
 import type { OnboardingStep } from '../domain/onboardingSteps'
 import AccessStep from './AccessStep.vue'
 import CompanyStep from './CompanyStep.vue'
@@ -22,6 +23,11 @@ import { useOnboarding } from './useOnboarding'
  * Back to the step that made the books of this run shows them made, so it never makes a second set.
  */
 const onboarding = useOnboarding()
+provide(STEP_FLOW, {
+  step: computed(() => onboarding.place.value.step),
+  canGoBack: computed(() => previousStep(onboarding.place.value) !== null),
+  back: () => void onboarding.back(),
+})
 
 const STEPS: Readonly<Record<OnboardingStep, { readonly title: string; readonly component: Component }>> = {
   welcome: { title: 'Welcome', component: WelcomeStep },

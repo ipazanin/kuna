@@ -3,10 +3,8 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { subtractMoney, ZERO } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
@@ -14,6 +12,7 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { writeOwnerShare } from '../application/ownerShareWrites'
 import { ownerPartOf, typedOwnerShare } from '../domain/ownerShare'
 import type { ShareTarget } from '../domain/ownerShare'
@@ -30,7 +29,6 @@ const props = defineProps<{
 const { state } = useWorkbook()
 const writes = useRecordWrites(useWorkbook())
 const names = useDisplayNames()
-const phone = usePhoneLayout()
 
 const textOf = (share: number | null): string => (share === null ? '' : String(share))
 
@@ -67,59 +65,49 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <UModal
-    v-model:open="open"
-    title="Owner share"
-    :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`"
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6', content: 'sm:max-w-md' }"
-  >
-    <template #body>
-      <form id="owner-share" class="flex flex-col gap-4" data-testid="owner-share" @submit.prevent="save">
-        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <CategoryChip :category="row.category" :bucket="row.bucket" />
-          <MoneyText :cents="row.amount" tone="flow" class="font-medium" />
-        </div>
-        <UFormField label="Share to the owner" :help="defaultInWords" :error="share === undefined ? 'A whole number from 0 to 100, or blank for none' : false">
-          <div class="flex flex-wrap items-center gap-2">
-            <UInput v-model="typed" inputmode="numeric" placeholder="None" class="w-28" aria-label="Share to the owner, in percent" data-testid="owner-share-input">
-              <template #trailing><span class="text-muted">%</span></template>
-            </UInput>
-            <UButton
-              label="Use the category's default"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :disabled="typed.trim() === textOf(categoryDefault)"
-              data-testid="owner-share-default"
-              @click="typed = textOf(categoryDefault)"
-            />
-          </div>
-        </UFormField>
-        <dl class="split" data-testid="owner-share-split">
-          <dt>The company keeps</dt>
-          <dd><MoneyText :cents="companyPart" sign="magnitude" /></dd>
-          <dt>You take</dt>
-          <dd><MoneyText :cents="ownerPart" sign="magnitude" /></dd>
-        </dl>
-        <p class="text-xs text-muted">Changing the category later sets the new category's default. A blank share counts as none.</p>
-      </form>
-    </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap justify-end gap-2">
-        <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-        <UButton
-          type="submit"
-          form="owner-share"
-          label="Save"
-          icon="i-lucide-check"
-          :loading="writes.busy.value"
-          :disabled="!changed || writes.busy.value || state.writing"
-          data-testid="owner-share-save"
-        />
+  <AppDialog v-model:open="open" width="md" title="Owner share" :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`">
+    <form id="owner-share" class="flex flex-col gap-4" data-testid="owner-share" @submit.prevent="save">
+      <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <CategoryChip :category="row.category" :bucket="row.bucket" />
+        <MoneyText :cents="row.amount" tone="flow" class="font-medium" />
       </div>
+      <UFormField label="Share to the owner" :help="defaultInWords" :error="share === undefined ? 'A whole number from 0 to 100, or blank for none' : false">
+        <div class="flex flex-wrap items-center gap-2">
+          <UInput v-model="typed" inputmode="numeric" placeholder="None" class="w-28" aria-label="Share to the owner, in percent" data-testid="owner-share-input">
+            <template #trailing><span class="text-muted">%</span></template>
+          </UInput>
+          <UButton
+            label="Use the category's default"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="typed.trim() === textOf(categoryDefault)"
+            data-testid="owner-share-default"
+            @click="typed = textOf(categoryDefault)"
+          />
+        </div>
+      </UFormField>
+      <dl class="split" data-testid="owner-share-split">
+        <dt>The company keeps</dt>
+        <dd><MoneyText :cents="companyPart" sign="magnitude" /></dd>
+        <dt>You take</dt>
+        <dd><MoneyText :cents="ownerPart" sign="magnitude" /></dd>
+      </dl>
+      <p class="text-xs text-muted">Changing the category later sets the new category's default. A blank share counts as none.</p>
+    </form>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="owner-share"
+        label="Save"
+        icon="i-lucide-check"
+        :loading="writes.busy.value"
+        :disabled="!changed || writes.busy.value || state.writing"
+        data-testid="owner-share-save"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>
 
 <style scoped>

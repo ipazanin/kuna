@@ -43,11 +43,6 @@ export const companyApp: AppContribution = {
     ...CORE_SCREENS,
     ...hrDooPack.screens,
     { path: ONBOARDING_ROUTE, title: 'Start', icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/OnboardingScreen.vue'), bare: true },
-    // Written inline so the production build folds it to false and drops the gallery chunk entirely.
-    // The fake build keeps it, because the visual check screenshots the gallery from that build.
-    ...(import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true'
-      ? [{ path: '/company/gallery', title: 'Gallery', icon: 'i-lucide-swatch-book', component: () => import('./gallery/GalleryScreen.vue') } as const]
-      : []),
   ],
   menu: () => [...CORE_SCREENS, ...shownPack(settings.value).screens],
   // Review counts every row that waits, whatever the filters, since the queue has no period.
@@ -58,6 +53,8 @@ export const companyApp: AppContribution = {
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: ONBOARDING_ROUTE,
   syncGroup: companySyncGroup,
+  // Written inline so the production build folds it away with the gallery's chunk.
+  ...(import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true' ? { gallery: async () => (await import('./gallery/CompanyGallery.vue')).default } : {}),
   settings: async () => (await import('./settings/presentation/companySettings')).COMPANY_SETTINGS,
   // Each open of the books on Drive on a device that syncs as it opens fetches the page's one token first.
   asksGoogleOnOpen: () => loadWorkbookChoice(COMPANY_APP)?.source === 'drive' && autoSyncOn.value,

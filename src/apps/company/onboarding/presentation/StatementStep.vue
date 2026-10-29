@@ -15,10 +15,9 @@ import { setSettings } from '../../settings/application/settingWrites'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
-
+import StepCard from '../../../../shared/ui/StepCard.vue'
 /**
  * The first statement: a camt.053 file, whose IBAN, currency and opening balance make the account
  * the person names, as Import's dry run offers. A bank export needs its columns named, which Import

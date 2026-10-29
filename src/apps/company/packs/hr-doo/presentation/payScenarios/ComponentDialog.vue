@@ -4,7 +4,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { recordsOfKindIn } from '../../../../workbook/domain/readWorkbook'
@@ -16,11 +15,12 @@ import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from '../../d
 import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import { parseCivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { amountOf } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { typedAmount } from '../../../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
+import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
 import { scenarioRowOfComponent } from '../../domain/scenarios/scenariosReading'
 import type { ScenarioRow } from '../../domain/scenarios/scenariosReading'
@@ -48,7 +48,6 @@ const props = defineProps<{
 
 const store = useWorkbook()
 const writes = useRecordWrites(store)
-const phone = usePhoneLayout()
 
 const kind = ref<Kind>('salary_gross')
 const atFloor = ref(true)
@@ -186,81 +185,66 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="component === null ? 'Add a component' : 'Edit the component'"
     :description="component === null ? `To ${scenario.label || scenario.slug}, for ${scenario.year}.` : `On the scenarios tab: ${componentInWords(component)}. Only the cells you change are written.`"
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="scenario-component" class="grid gap-4 sm:grid-cols-2" data-testid="scenario-component-form" @submit.prevent="save">
-        <UFormField label="What it is" class="sm:col-span-2">
-          <USelect v-model="kind" :items="[...KINDS]" class="w-full" data-testid="component-kind" />
-        </UFormField>
-        <UFormField v-if="kind === 'salary_gross'" class="sm:col-span-2" help="The floor is the lowest base a director employed by the company can be paid on, from the ruleset for the year.">
-          <UCheckbox v-model="atFloor" label="At the director floor" data-testid="component-at-floor" />
-        </UFormField>
-        <UFormField v-if="kind === 'dividend'" class="sm:col-span-2" help="Paid out of the year's profit once its statements are adopted.">
-          <UCheckbox v-model="atMost" label="The year's profit after tax, as far as it can be paid out" data-testid="component-at-most" />
-        </UFormField>
-        <UFormField v-if="kind === 'nontaxable'" label="Item" :error="(tried && errors.item) || false" class="sm:col-span-2">
-          <USelect v-model="item" :items="itemChoices" class="w-full" data-testid="component-item" />
-        </UFormField>
-        <UFormField
-          v-if="kind === 'director_basis'"
-          label="Insured"
-          class="sm:col-span-2"
-          help="On a day with a salary the director is an employee. Without one he is a board member only, unless a job elsewhere insures him."
-        >
-          <USelect v-model="basis" :items="basisChoices" class="w-full" data-testid="component-basis" />
-        </UFormField>
-        <UFormField
-          v-if="needsAmount"
-          :label="kind === 'nontaxable' ? 'Amount for the year' : kind === 'dividend' ? 'Dividend' : 'Amount a month'"
-          :error="(tried && errors.amount) || false"
-          class="sm:col-span-2"
-        >
-          <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="component-amount" />
-        </UFormField>
-        <UFormField
-          v-if="hasSpan"
-          :label="kind === 'nontaxable' ? 'Paid in the month of' : 'From'"
-          :error="(tried && errors.from) || false"
-          :help="kind === 'nontaxable' ? 'Blank pays it with the January salary.' : 'Blank is 1 January.'"
-        >
-          <UInput v-model="from" type="date" class="w-full" data-testid="component-from" />
-        </UFormField>
-        <UFormField v-if="hasEnd" label="To" :error="(tried && errors.to) || false" help="Blank is 31 December.">
-          <UInput v-model="to" type="date" class="w-full" data-testid="component-to" />
-        </UFormField>
-      </form>
+    <FormGrid id="scenario-component" as="form" data-testid="scenario-component-form" @submit.prevent="save">
+      <UFormField label="What it is" class="sm:col-span-2">
+        <USelect v-model="kind" :items="[...KINDS]" class="w-full" data-testid="component-kind" />
+      </UFormField>
+      <UFormField v-if="kind === 'salary_gross'" class="sm:col-span-2" help="The floor is the lowest base a director employed by the company can be paid on, from the ruleset for the year.">
+        <UCheckbox v-model="atFloor" label="At the director floor" data-testid="component-at-floor" />
+      </UFormField>
+      <UFormField v-if="kind === 'dividend'" class="sm:col-span-2" help="Paid out of the year's profit once its statements are adopted.">
+        <UCheckbox v-model="atMost" label="The year's profit after tax, as far as it can be paid out" data-testid="component-at-most" />
+      </UFormField>
+      <UFormField v-if="kind === 'nontaxable'" label="Item" :error="(tried && errors.item) || false" class="sm:col-span-2">
+        <USelect v-model="item" :items="itemChoices" class="w-full" data-testid="component-item" />
+      </UFormField>
+      <UFormField
+        v-if="kind === 'director_basis'"
+        label="Insured"
+        class="sm:col-span-2"
+        help="On a day with a salary the director is an employee. Without one he is a board member only, unless a job elsewhere insures him."
+      >
+        <USelect v-model="basis" :items="basisChoices" class="w-full" data-testid="component-basis" />
+      </UFormField>
+      <UFormField
+        v-if="needsAmount"
+        :label="kind === 'nontaxable' ? 'Amount for the year' : kind === 'dividend' ? 'Dividend' : 'Amount a month'"
+        :error="(tried && errors.amount) || false"
+        class="sm:col-span-2"
+      >
+        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="component-amount" />
+      </UFormField>
+      <UFormField
+        v-if="hasSpan"
+        :label="kind === 'nontaxable' ? 'Paid in the month of' : 'From'"
+        :error="(tried && errors.from) || false"
+        :help="kind === 'nontaxable' ? 'Blank pays it with the January salary.' : 'Blank is 1 January.'"
+      >
+        <UInput v-model="from" type="date" class="w-full" data-testid="component-from" />
+      </UFormField>
+      <UFormField v-if="hasEnd" label="To" :error="(tried && errors.to) || false" help="Blank is 31 December.">
+        <UInput v-model="to" type="date" class="w-full" data-testid="component-to" />
+      </UFormField>
+    </FormGrid>
+    <template #start>
+      <UButton v-if="component !== null" label="Delete component" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="component-delete" @click="remove" />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="component !== null"
-          label="Delete component"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="component-delete"
-          @click="remove"
-        />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="scenario-component"
-            :label="component === null ? 'Add component' : 'Save component'"
-            :icon="component === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-            data-testid="component-save"
-          />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="scenario-component"
+        :label="component === null ? 'Add component' : 'Save component'"
+        :icon="component === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+        data-testid="component-save"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

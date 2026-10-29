@@ -86,7 +86,7 @@ function cellLabel(line: ComparedLine, cell: ComparedCell, column: ScenarioColum
           <td v-for="{ column, cell } in cells" :key="column.slug" class="figure-cell">
             <button type="button" class="figure-button" :aria-label="cellLabel(line, cell, column)" @click="emit('open', cell.detail)">
               <span class="inline-flex items-center gap-1">
-                <UIcon v-if="cell.best" name="i-lucide-circle-check" class="size-3.5 text-[var(--tone-positive)]" aria-hidden="true" />
+                <UIcon v-if="cell.best" name="i-lucide-circle-check" class="size-3.5 text-success" aria-hidden="true" />
                 <MoneyText :cents="cell.cents" :class="line.total || cell.best ? 'font-medium text-highlighted' : 'text-toned'" />
               </span>
               <MoneyText v-if="cell.vsBase !== null && cell.vsBase !== 0" :cents="cell.vsBase" sign="always" class="block text-xs text-muted" />

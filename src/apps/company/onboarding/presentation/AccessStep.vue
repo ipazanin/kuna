@@ -14,6 +14,8 @@ import { googleAccess, needScopes, requestAccess } from '../../../../shared/goog
 import { REDIRECT_SIGN_IN_QUERY } from '../../../../shared/google/googleRedirect'
 import type { GoogleScope } from '../../../../shared/google/googleScopes'
 import { useMediaQuery } from '../../../../shared/layout/viewport'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import { mailDraftsOn, switchMailDrafts } from '../../invoicing/infrastructure/mailDraftSwitch'
 import { BANK_PRESETS } from '../../mail/domain/bankPresets'
 import { useSync } from '../../sync/presentation/useSync'
@@ -22,7 +24,6 @@ import { scopesOfChoices } from '../application/onboardingScopes'
 import { OTHER_BANK, offersMail } from '../domain/onboardingSteps'
 import type { StatementMail, StatementsSource } from '../domain/onboardingSteps'
 import { firstMailDay, statementMailProblems } from '../domain/statementsChoice'
-import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 
 /**
@@ -126,7 +127,7 @@ async function ask(): Promise<void> {
           :ui="{ legend: 'text-sm font-medium text-highlighted mb-2', fieldset: 'gap-3' }"
           data-testid="onboarding-statements"
         />
-        <div v-if="statements === 'mail'" class="grid gap-4 sm:grid-cols-2" data-testid="onboarding-mail">
+        <FormGrid v-if="statements === 'mail'" data-testid="onboarding-mail">
           <UFormField label="Your bank" :help="preset ? `Mail from ${preset.senders.join(', ')} with ${preset.subject} in the subject.` : 'Type its address and subject words below.'">
             <USelect :model-value="mail.bank" :items="BANKS" class="w-full" data-testid="onboarding-bank" @update:model-value="chooseMail({ bank: String($event) })" />
           </UFormField>
@@ -150,7 +151,7 @@ async function ask(): Promise<void> {
               <UInput :model-value="mail.subject" placeholder="Statement" class="w-full" data-testid="onboarding-mail-subject" @update:model-value="chooseMail({ subject: String($event) })" />
             </UFormField>
           </template>
-        </div>
+        </FormGrid>
         <p v-if="answered && statements !== 'hand'" class="flex items-center gap-2 text-sm">
           <UBadge :label="allowed(statementScope) ? 'Allowed' : 'Not allowed'" :color="allowed(statementScope) ? 'success' : 'error'" variant="subtle" data-testid="access-status" />
           <UButton v-if="!allowed(statementScope)" label="Ask again" color="neutral" variant="link" size="sm" :loading="asking" @click="ask" />

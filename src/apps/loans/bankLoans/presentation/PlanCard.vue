@@ -7,6 +7,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import type { PlanLine, PlanYear } from './bankLoanView'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /**
@@ -66,82 +67,80 @@ function dateOf(line: PlanLine): string {
             <UIcon name="i-lucide-chevron-down" class="size-4 transition-transform" :class="{ 'rotate-180': opened.has(year.year) }" aria-hidden="true" />
           </span>
         </button>
-        <div v-if="opened.has(year.year)" class="@container px-1 pb-2 sm:px-2">
-          <table class="data-table w-full text-sm" :aria-label="`Plan for ${year.year}`">
-            <thead>
-              <tr>
-                <th scope="col" class="text-start">Due</th>
-                <th scope="col" class="text-end">You pay</th>
-                <th scope="col" class="hidden text-end @md:table-cell">Instalment</th>
-                <th scope="col" class="hidden text-end @xl:table-cell">Interest</th>
-                <th scope="col" class="hidden text-end @xl:table-cell">Principal</th>
-                <th v-if="hasSubsidy" scope="col" class="hidden text-end @3xl:table-cell">Subsidy</th>
-                <th scope="col" class="text-end">Owed after</th>
-                <th scope="col" class="hidden text-start @4xl:table-cell">Status</th>
+        <FigureTable v-if="opened.has(year.year)" class="px-1 pb-2 sm:px-2" :label="`Plan for ${year.year}`">
+          <thead>
+            <tr>
+              <th scope="col" class="text-start">Due</th>
+              <th scope="col" class="text-end">You pay</th>
+              <th scope="col" class="hidden text-end @md:table-cell">Instalment</th>
+              <th scope="col" class="hidden text-end @xl:table-cell">Interest</th>
+              <th scope="col" class="hidden text-end @xl:table-cell">Principal</th>
+              <th v-if="hasSubsidy" scope="col" class="hidden text-end @3xl:table-cell">Subsidy</th>
+              <th scope="col" class="text-end">Owed after</th>
+              <th scope="col" class="hidden text-start @4xl:table-cell">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="line in year.lines" :key="line.key">
+              <tr :data-kind="line.kind" :data-late="line.late || undefined" data-testid="plan-row">
+                <th scope="row" class="text-start font-normal">
+                  <UButton
+                    color="neutral"
+                    variant="link"
+                    class="-mx-1 px-1 @4xl:hidden"
+                    :aria-expanded="tapped.has(line.key)"
+                    :aria-label="`${dateOf(line)}, show interest, principal and status`"
+                    data-testid="plan-row-toggle"
+                    @click="tapped = toggle(tapped, line.key)"
+                  >
+                    <span class="text-highlighted">{{ dateOf(line) }}</span>
+                  </UButton>
+                  <span class="hidden text-highlighted @4xl:inline">{{ dateOf(line) }}</span>
+                  <span v-if="line.estimate" class="ms-1 text-xs text-muted">est.</span>
+                  <span v-if="line.late" class="ms-1 text-xs text-warning">late</span>
+                  <span v-if="line.kind === 'extra-payment'" class="ms-1 text-xs text-muted">extra</span>
+                </th>
+                <td class="text-end"><MoneyText :cents="line.yourShare" /></td>
+                <td class="hidden text-end @md:table-cell"><MoneyText :cents="line.payment" /></td>
+                <td class="hidden text-end @xl:table-cell"><MoneyText :cents="line.interest" /></td>
+                <td class="hidden text-end @xl:table-cell"><MoneyText :cents="line.principal" /></td>
+                <td v-if="hasSubsidy" class="hidden text-end @3xl:table-cell"><MoneyText :cents="line.subsidy" /></td>
+                <td class="text-end"><MoneyText :cents="line.balance" /></td>
+                <td class="hidden text-start text-muted @4xl:table-cell">{{ line.status }}</td>
               </tr>
-            </thead>
-            <tbody>
-              <template v-for="line in year.lines" :key="line.key">
-                <tr :data-kind="line.kind" :data-late="line.late || undefined" data-testid="plan-row">
-                  <th scope="row" class="text-start font-normal">
-                    <UButton
-                      color="neutral"
-                      variant="link"
-                      class="-mx-1 px-1 @4xl:hidden"
-                      :aria-expanded="tapped.has(line.key)"
-                      :aria-label="`${dateOf(line)}, show interest, principal and status`"
-                      data-testid="plan-row-toggle"
-                      @click="tapped = toggle(tapped, line.key)"
-                    >
-                      <span class="text-highlighted">{{ dateOf(line) }}</span>
-                    </UButton>
-                    <span class="hidden text-highlighted @4xl:inline">{{ dateOf(line) }}</span>
-                    <span v-if="line.estimate" class="ms-1 text-xs text-muted">est.</span>
-                    <span v-if="line.late" class="ms-1 text-xs text-warning">late</span>
-                    <span v-if="line.kind === 'extra-payment'" class="ms-1 text-xs text-muted">extra</span>
-                  </th>
-                  <td class="text-end"><MoneyText :cents="line.yourShare" /></td>
-                  <td class="hidden text-end @md:table-cell"><MoneyText :cents="line.payment" /></td>
-                  <td class="hidden text-end @xl:table-cell"><MoneyText :cents="line.interest" /></td>
-                  <td class="hidden text-end @xl:table-cell"><MoneyText :cents="line.principal" /></td>
-                  <td v-if="hasSubsidy" class="hidden text-end @3xl:table-cell"><MoneyText :cents="line.subsidy" /></td>
-                  <td class="text-end"><MoneyText :cents="line.balance" /></td>
-                  <td class="hidden text-start text-muted @4xl:table-cell">{{ line.status }}</td>
-                </tr>
-                <tr v-if="tapped.has(line.key)" class="@4xl:hidden" data-testid="plan-row-detail">
-                  <td :colspan="hasSubsidy ? 8 : 7" class="cell-wraps">
-                    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                      <dt class="text-muted">Instalment</dt>
-                      <dd class="text-end"><MoneyText :cents="line.payment" /></dd>
-                      <dt class="text-muted">Interest</dt>
-                      <dd class="text-end"><MoneyText :cents="line.interest" /></dd>
-                      <dt class="text-muted">Principal</dt>
-                      <dd class="text-end"><MoneyText :cents="line.principal" /></dd>
-                      <template v-if="hasSubsidy">
-                        <dt class="text-muted">Subsidy</dt>
-                        <dd class="text-end"><MoneyText :cents="line.subsidy" /></dd>
-                      </template>
-                      <dt class="text-muted">Status</dt>
-                      <dd class="text-end">{{ line.status }}{{ line.estimate ? ', an estimate' : '' }}</dd>
-                    </dl>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-            <tfoot>
-              <tr>
-                <th scope="row" class="text-start">Total {{ year.year }}</th>
-                <td class="text-end"><MoneyText :cents="year.totals.yourShare" /></td>
-                <td class="hidden text-end @md:table-cell"><MoneyText :cents="year.totals.payment" /></td>
-                <td class="hidden text-end @xl:table-cell"><MoneyText :cents="year.totals.interest" /></td>
-                <td class="hidden text-end @xl:table-cell"><MoneyText :cents="year.totals.principal" /></td>
-                <td v-if="hasSubsidy" class="hidden text-end @3xl:table-cell"><MoneyText :cents="year.totals.subsidy" /></td>
-                <td class="text-end"><MoneyText :cents="year.balance" /></td>
-                <td class="hidden @4xl:table-cell" />
+              <tr v-if="tapped.has(line.key)" class="@4xl:hidden" data-testid="plan-row-detail">
+                <td :colspan="hasSubsidy ? 8 : 7" class="cell-wraps">
+                  <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                    <dt class="text-muted">Instalment</dt>
+                    <dd class="text-end"><MoneyText :cents="line.payment" /></dd>
+                    <dt class="text-muted">Interest</dt>
+                    <dd class="text-end"><MoneyText :cents="line.interest" /></dd>
+                    <dt class="text-muted">Principal</dt>
+                    <dd class="text-end"><MoneyText :cents="line.principal" /></dd>
+                    <template v-if="hasSubsidy">
+                      <dt class="text-muted">Subsidy</dt>
+                      <dd class="text-end"><MoneyText :cents="line.subsidy" /></dd>
+                    </template>
+                    <dt class="text-muted">Status</dt>
+                    <dd class="text-end">{{ line.status }}{{ line.estimate ? ', an estimate' : '' }}</dd>
+                  </dl>
+                </td>
               </tr>
-            </tfoot>
-          </table>
-        </div>
+            </template>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" class="text-start">Total {{ year.year }}</th>
+              <td class="text-end"><MoneyText :cents="year.totals.yourShare" /></td>
+              <td class="hidden text-end @md:table-cell"><MoneyText :cents="year.totals.payment" /></td>
+              <td class="hidden text-end @xl:table-cell"><MoneyText :cents="year.totals.interest" /></td>
+              <td class="hidden text-end @xl:table-cell"><MoneyText :cents="year.totals.principal" /></td>
+              <td v-if="hasSubsidy" class="hidden text-end @3xl:table-cell"><MoneyText :cents="year.totals.subsidy" /></td>
+              <td class="text-end"><MoneyText :cents="year.balance" /></td>
+              <td class="hidden @4xl:table-cell" />
+            </tr>
+          </tfoot>
+        </FigureTable>
       </li>
     </ol>
   </AppCard>

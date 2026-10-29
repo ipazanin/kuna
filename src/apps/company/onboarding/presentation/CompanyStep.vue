@@ -14,10 +14,10 @@ import { currencyProblem, flagText } from '../../settings/domain/settings'
 import { CURRENCY_ITEMS, FOLLOW_LANGUAGE, numberStyleItems } from '../../settings/presentation/moneyChoices'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
-import StepCard from './StepCard.vue'
 import { useOnboarding } from './useOnboarding'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
-
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import StepCard from '../../../../shared/ui/StepCard.vue'
 /**
  * The company: its name, its money, and the pack's one question, whose Yes switches on the owner-pay
  * module. For books brought along it confirms what the file says. Continue writes a row for each
@@ -74,7 +74,7 @@ async function proceed(): Promise<void> {
   <StepCard title="Your company" :subtitle="onboarding.place.value.path === 'bring' ? 'As the file says. Change what is wrong.' : undefined">
     <UAlert v-if="settings === null" icon="i-lucide-file-question" color="warning" variant="subtle" title="There are no books on screen yet" description="Go back a step to make them." />
     <template v-else>
-      <div class="grid gap-4 sm:grid-cols-2">
+      <FormGrid>
         <UFormField label="Company name" class="sm:col-span-2">
           <UInput v-model="name" placeholder="Example Studio" class="w-full" data-testid="onboarding-company-name" />
         </UFormField>
@@ -84,7 +84,7 @@ async function proceed(): Promise<void> {
         <UFormField label="Number style">
           <USelect v-model="numberLocale" :items="numberStyles" class="w-full" data-testid="onboarding-number-style" />
         </UFormField>
-      </div>
+      </FormGrid>
 
       <template v-if="pack">
         <URadioGroup v-model="packOn" :items="answers" :legend="pack.question" :ui="{ legend: 'text-sm font-medium text-highlighted mb-2', fieldset: 'gap-3' }" data-testid="onboarding-pack" />

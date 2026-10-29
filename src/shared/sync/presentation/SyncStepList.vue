@@ -23,14 +23,14 @@ const page = usePageSync()
 const stamp = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 const ICONS: Readonly<Record<StepState['kind'], { readonly name: string; readonly tone: string }>> = {
-  off: { name: 'i-lucide-circle-off', tone: 'text-dimmed' },
-  queued: { name: 'i-lucide-circle-dashed', tone: 'text-dimmed' },
+  off: { name: 'i-lucide-circle-off', tone: 'text-muted' },
+  queued: { name: 'i-lucide-circle-dashed', tone: 'text-muted' },
   running: { name: 'i-lucide-loader-circle', tone: 'text-muted animate-spin' },
-  done: { name: 'i-lucide-check', tone: 'text-[var(--tone-positive)]' },
+  done: { name: 'i-lucide-check', tone: 'text-success' },
   waits: { name: 'i-lucide-circle-alert', tone: 'text-warning' },
   'needs-access': { name: 'i-lucide-key-round', tone: 'text-warning' },
   failed: { name: 'i-lucide-triangle-alert', tone: 'text-error' },
-  skipped: { name: 'i-lucide-circle-slash', tone: 'text-dimmed' },
+  skipped: { name: 'i-lucide-circle-slash', tone: 'text-muted' },
 }
 
 const running = computed(() => props.run !== null && props.run.finishedAt === null)

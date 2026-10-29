@@ -9,9 +9,9 @@ import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import { BooksAlreadyOnDrive } from '../../../../shared/storage/application/booksAlreadyOnDrive'
 import type { PickedFolder } from '../../../../shared/storage/application/workbookPorts'
 import { folderTrail } from '../../../../shared/text/folderPath'
+import StepCard from '../../../../shared/ui/StepCard.vue'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { LOANS_FILE_NAME, newLoansFileContents } from '../../workbook/presentation/loansFile'
-import StepCard from './StepCard.vue'
 import { useLoansStart } from './useLoansStart'
 
 /**

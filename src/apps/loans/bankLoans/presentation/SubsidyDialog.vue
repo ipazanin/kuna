@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { BANK_LOAN_WRITES } from '../application/bankLoanWrites'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { LoanSubsidy } from '../../workbook/domain/bankLoan'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import SubsidyFields, { subsidyTexts, typedSubsidy } from './SubsidyFields.vue'
 import type { SubsidyTexts } from './SubsidyFields.vue'
 
@@ -20,7 +20,6 @@ const props = defineProps<{
 }>()
 
 const writes = useRecordWrites(useLoansBooks())
-const phone = usePhoneLayout()
 
 const texts = ref<SubsidyTexts>(subsidyTexts(null))
 const tried = ref(false)
@@ -46,42 +45,36 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="book.loan.subsidy === null ? 'Add a subsidy' : 'Change the subsidy'"
     description="A fixed amount a third party, such as APN, pays of each instalment it covers. It pays interest first and leaves the balance alone."
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="loan-subsidy" class="grid gap-4 sm:grid-cols-2" data-testid="subsidy-form" @submit.prevent="save">
-        <SubsidyFields v-model="texts" :tried="tried" :loan-instalments="book.loan.instalments" />
-      </form>
+    <FormGrid id="loan-subsidy" as="form" data-testid="subsidy-form" @submit.prevent="save">
+      <SubsidyFields v-model="texts" :tried="tried" :loan-instalments="book.loan.instalments" />
+    </FormGrid>
+    <template #start>
+      <UButton
+        v-if="book.loan.subsidy !== null"
+        label="Delete subsidy"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="subsidy-delete"
+        @click="write('Subsidy deleted', null, 'Not deleted')"
+      />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton
-          v-if="book.loan.subsidy !== null"
-          label="Delete subsidy"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="ghost"
-          :disabled="writes.busy.value"
-          data-testid="subsidy-delete"
-          @click="write('Subsidy deleted', null, 'Not deleted')"
-        />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="loan-subsidy"
-            :label="book.loan.subsidy === null ? 'Add subsidy' : 'Save subsidy'"
-            :icon="book.loan.subsidy === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-          />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="loan-subsidy"
+        :label="book.loan.subsidy === null ? 'Add subsidy' : 'Save subsidy'"
+        :icon="book.loan.subsidy === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

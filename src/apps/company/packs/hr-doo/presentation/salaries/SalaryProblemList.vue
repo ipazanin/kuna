@@ -23,12 +23,12 @@ const FACT = { hash: '#employee-rows' }
 <template>
   <AppCard id="salary-problems" title="Problems" :subtitle="`Paid in ${label}. Neither source wins, so each stays until the books say the same.`" data-testid="salaries-problems">
     <p v-if="problems.length === 0" class="flex items-center gap-2 px-4 pt-1 pb-4 text-sm text-toned sm:px-5">
-      <UIcon name="i-lucide-circle-check" class="size-4 shrink-0 text-positive" aria-hidden="true" />
+      <UIcon name="i-lucide-circle-check" class="size-4 shrink-0 text-success" aria-hidden="true" />
       The app and the bank agree on every line they both state.
     </p>
     <ul v-else class="flex flex-col px-4 pb-3 sm:px-5">
       <li v-for="problem in problems" :key="problem.key" class="problem-row" data-testid="salaries-problem">
-        <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+        <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           <p class="text-sm text-toned">{{ problem.text }}</p>
           <div v-if="problem.detail || problem.rows || problem.fact" class="flex flex-wrap gap-x-4 gap-y-1 text-xs">

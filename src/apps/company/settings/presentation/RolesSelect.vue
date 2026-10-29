@@ -46,7 +46,7 @@ const items = computed(() => [
     data-testid="category-roles"
   >
     <template #default="{ modelValue }">
-      <span v-if="!Array.isArray(modelValue) || modelValue.length === 0" class="text-dimmed">None</span>
+      <span v-if="!Array.isArray(modelValue) || modelValue.length === 0" class="text-muted">None</span>
       <span v-else class="flex min-w-0 flex-wrap gap-1">
         <UBadge
           v-for="role in modelValue"

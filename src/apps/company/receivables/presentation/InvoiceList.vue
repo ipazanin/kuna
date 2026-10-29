@@ -68,7 +68,7 @@ const STATUS = {
           <p v-if="invoice.item" class="truncate text-xs text-muted">{{ invoice.item }}</p>
         </div>
         <p class="invoice-timing figure text-xs text-toned">
-          {{ invoice.issued }}<span :class="invoice.late ? 'text-[var(--tone-warning)]' : 'text-muted'">, {{ invoice.timing }}</span>
+          {{ invoice.issued }}<span :class="invoice.late ? 'text-warning' : 'text-muted'">, {{ invoice.timing }}</span>
         </p>
         <MoneyText :cents="invoice.amount" precision="whole" class="invoice-amount text-end text-sm font-medium text-highlighted" />
         <UBadge :label="STATUS[invoice.status].label" :color="STATUS[invoice.status].color" variant="subtle" size="sm" class="invoice-status justify-self-start" />

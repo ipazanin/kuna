@@ -3,12 +3,10 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { amountOf } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -19,6 +17,8 @@ import { textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Invoice } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { INVOICE_WRITES } from '../application/invoiceWrites'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 
@@ -43,7 +43,6 @@ type Field = 'number' | 'client' | 'item' | 'amount' | 'issued' | 'due' | 'perio
 
 const store = useWorkbook()
 const writes = useRecordWrites(store)
-const phone = usePhoneLayout()
 
 const fields = ref<Record<Field, string>>(blankFields())
 const opened = ref<Record<Field, string>>(blankFields())
@@ -171,71 +170,65 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal
+  <AppDialog
     v-model:open="open"
     :title="id === null ? 'Add an invoice' : `Edit invoice ${opened.number}`"
     :description="
       id === null ? 'One row of the invoices tab, for an invoice made elsewhere. Make invoice draws, files and records a new one.' : 'On the invoices tab. Only the cells you change are written.'
     "
-    :fullscreen="phone"
-    :ui="{ header: 'pe-16 sm:pe-6' }"
   >
-    <template #body>
-      <form id="invoice-row" class="grid gap-4 sm:grid-cols-2" data-testid="invoice-form" @submit.prevent="save">
-        <UFormField label="Number" :error="(tried && errors.number) || false" :help="id === null && latestNumber ? `Each once. The newest is ${latestNumber}.` : 'Each number once.'">
-          <UInput v-model="fields.number" class="w-full" data-testid="invoice-number" />
-        </UFormField>
-        <UFormField label="Client" :error="(tried && errors.client) || false" help="From Invoicing, Clients.">
-          <USelect v-model="fields.client" :items="clientItems" placeholder="Choose a client" class="w-full" data-testid="invoice-client" />
-        </UFormField>
-        <UFormField label="Item" help="What the invoice is for.">
-          <UInput v-model="fields.item" class="w-full" data-testid="invoice-item" />
-        </UFormField>
-        <UFormField label="Amount" :error="(tried && errors.amount) || false" help="The invoice total.">
-          <UInput v-model="fields.amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="invoice-amount" />
-        </UFormField>
-        <UFormField label="Issued" :error="(tried && errors.issued) || false" help="The date on the invoice.">
-          <UInput v-model="fields.issued" type="date" class="w-full" data-testid="invoice-issued" />
-        </UFormField>
-        <UFormField label="Due" :error="(tried && errors.due) || false" help="Blank when it gives none.">
-          <UInput v-model="fields.due" type="date" class="w-full" />
-        </UFormField>
-        <UFormField label="Work from" :error="(tried && errors.period) || false">
-          <UInput v-model="fields.period_from" type="date" class="w-full" />
-        </UFormField>
-        <UFormField label="Work to">
-          <UInput v-model="fields.period_to" type="date" class="w-full" />
-        </UFormField>
-        <p class="-mt-2 text-xs text-muted sm:col-span-2">The work the invoice is for, which its revenue counts in. Both dates or neither.</p>
-      </form>
+    <FormGrid id="invoice-row" as="form" data-testid="invoice-form" @submit.prevent="save">
+      <UFormField label="Number" :error="(tried && errors.number) || false" :help="id === null && latestNumber ? `Each once. The newest is ${latestNumber}.` : 'Each number once.'">
+        <UInput v-model="fields.number" class="w-full" data-testid="invoice-number" />
+      </UFormField>
+      <UFormField label="Client" :error="(tried && errors.client) || false" help="From Invoicing, Clients.">
+        <USelect v-model="fields.client" :items="clientItems" placeholder="Choose a client" class="w-full" data-testid="invoice-client" />
+      </UFormField>
+      <UFormField label="Item" help="What the invoice is for.">
+        <UInput v-model="fields.item" class="w-full" data-testid="invoice-item" />
+      </UFormField>
+      <UFormField label="Amount" :error="(tried && errors.amount) || false" help="The invoice total.">
+        <UInput v-model="fields.amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="invoice-amount" />
+      </UFormField>
+      <UFormField label="Issued" :error="(tried && errors.issued) || false" help="The date on the invoice.">
+        <UInput v-model="fields.issued" type="date" class="w-full" data-testid="invoice-issued" />
+      </UFormField>
+      <UFormField label="Due" :error="(tried && errors.due) || false" help="Blank when it gives none.">
+        <UInput v-model="fields.due" type="date" class="w-full" />
+      </UFormField>
+      <UFormField label="Work from" :error="(tried && errors.period) || false">
+        <UInput v-model="fields.period_from" type="date" class="w-full" />
+      </UFormField>
+      <UFormField label="Work to">
+        <UInput v-model="fields.period_to" type="date" class="w-full" />
+      </UFormField>
+      <p class="-mt-2 text-xs text-muted">The work the invoice is for, which its revenue counts in. Both dates or neither.</p>
+    </FormGrid>
+    <template #start>
+      <UButton v-if="id !== null" label="Delete invoice" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="invoice-delete" @click="remove" />
+      <UButton
+        v-if="id !== null"
+        label="Re-export"
+        icon="i-lucide-file-output"
+        color="neutral"
+        variant="ghost"
+        title="Draw the PDF again, replace it in Drive and save a fresh mail draft"
+        :disabled="writes.busy.value"
+        data-testid="invoice-reexport"
+        @click="emit('reexport', id)"
+      />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap items-center gap-2">
-        <UButton v-if="id !== null" label="Delete invoice" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="invoice-delete" @click="remove" />
-        <UButton
-          v-if="id !== null"
-          label="Re-export"
-          icon="i-lucide-file-output"
-          color="neutral"
-          variant="ghost"
-          title="Draw the PDF again, replace it in Drive and save a fresh mail draft"
-          :disabled="writes.busy.value"
-          data-testid="invoice-reexport"
-          @click="emit('reexport', id)"
-        />
-        <div class="ms-auto flex flex-wrap gap-2">
-          <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-          <UButton
-            type="submit"
-            form="invoice-row"
-            :label="id === null ? 'Add invoice' : 'Save invoice'"
-            :icon="id === null ? 'i-lucide-plus' : 'i-lucide-save'"
-            :loading="writes.busy.value"
-            :disabled="writes.busy.value"
-            data-testid="invoice-save"
-          />
-        </div>
-      </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="invoice-row"
+        :label="id === null ? 'Add invoice' : 'Save invoice'"
+        :icon="id === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+        data-testid="invoice-save"
+      />
     </template>
-  </UModal>
+  </AppDialog>
 </template>

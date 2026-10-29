@@ -1,7 +1,7 @@
 /*
  * Design tokens. Every colour the app paints comes from here, Nuxt UI and the ECharts theme included.
- * The chart theme reads the --chart-*, --series-* and --bucket-* values with getComputedStyle, so
- * those stay plain hex or rgba: a canvas cannot resolve var() or color-mix().
+ * The chart theme reads the --chart-*, --series-*, --bucket-* and --loan-* values with getComputedStyle,
+ * so those stay plain hex or rgba: a canvas cannot resolve var() or color-mix().
  *
  * The categorical order is validated with the dataviz palette validator against --surface-raised in
  * both themes. Reordering or restepping a slot needs a new validator run.
@@ -14,6 +14,9 @@
   --text-figure-lg: 1.75rem;
   --text-figure-lg--line-height: 2rem;
   --text-figure-lg--letter-spacing: -0.02em;
+  --text-figure-xl: 2.5rem;
+  --text-figure-xl--line-height: 2.75rem;
+  --text-figure-xl--letter-spacing: -0.025em;
   --text-title: 1.625rem;
   --text-title--line-height: 2rem;
   --text-title--letter-spacing: -0.015em;
@@ -29,19 +32,16 @@
   --container-measure: 100rem;
   --breakpoint-3xl: 120rem;
 
-  /* z-lifted raises a control above a card's stretched link. The top bar sits above the sticky bands, which stack at 10. */
-  --z-index-lifted: 10;
+  /* z-control raises a control above the card link or label it sits on. The top bar sits above the sticky bands, which stack at 10. */
+  --z-index-control: 10;
   --z-index-top-bar: 20;
 
-  --transition-duration-base: 200ms;
+  --transition-duration-fade: 200ms;
 }
 
 @theme inline {
   --color-page: var(--surface-page);
   --color-raised: var(--surface-raised);
-  --color-positive: var(--tone-positive);
-  --color-negative: var(--tone-negative);
-  --color-accent: var(--accent);
   --shadow-raised: var(--elevation-raised);
   --shadow-overlay: var(--elevation-overlay);
 }
@@ -61,17 +61,16 @@
   --ink: #182433;
   --ink-secondary: #475467;
   --ink-muted: #5d6a7d;
-  --ink-dimmed: #8994a3;
 
   --accent: #8a6421;
   --accent-strong: #6f4f15;
   --accent-wash: rgba(138, 100, 33, 0.1);
   --accent-ink: #ffffff;
 
-  --tone-positive: #11774a;
-  --tone-negative: #bf3a30;
-  --tone-warning: #9a6200;
-  --tone-info: #2a64b8;
+  --tone-positive: #107348;
+  --tone-negative: #b4372d;
+  --tone-warning: #8d5900;
+  --tone-info: #2a63b6;
 
   --elevation-raised: 0 1px 0 rgba(12, 22, 34, 0.04), 0 1px 3px rgba(12, 22, 34, 0.06);
   --elevation-overlay: 0 8px 28px rgba(12, 22, 34, 0.14), 0 1px 3px rgba(12, 22, 34, 0.08);
@@ -97,6 +96,9 @@
   --series-7: #6250d6;
   --series-8: #e34948;
 
+  /* The brass of a loan's balance still to come. The accent fails as a chart colour, so this is its own step, validated with the loan aliases below. */
+  --loan-ahead: #b7860f;
+
   /* How late money owed is, one blue from not due yet to over 90 days. Validated as an ordinal ramp against the card surface. */
   --ageing-1: #88b1e8;
   --ageing-2: #5b91db;
@@ -120,7 +122,6 @@
   --ink: #e3e9f0;
   --ink-secondary: #a3afbd;
   --ink-muted: #7d8a9c;
-  --ink-dimmed: #5d6a7c;
 
   --accent: #d4ab63;
   --accent-strong: #e6c584;
@@ -156,6 +157,8 @@
   --series-7: #9085e9;
   --series-8: #e66767;
 
+  --loan-ahead: #be8a1a;
+
   /* On the dark card the ramp runs the other way, so the latest money is the brightest. */
   --ageing-1: #2c5288;
   --ageing-2: #3d6bad;
@@ -184,6 +187,10 @@
   --pay-pension: var(--series-2);
   --pay-income-tax: var(--series-3);
   --pay-health: var(--series-5);
+
+  /* A loan's principal and interest, validated with --loan-ahead against both chart surfaces. Interest is violet, since orange and brass cannot be told apart. */
+  --loan-principal: var(--series-1);
+  --loan-interest: var(--series-7);
 
   /*
    * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an
@@ -214,7 +221,7 @@
   --ui-bg-accented: var(--surface-accented);
   --ui-bg-inverted: var(--ink-strong);
 
-  --ui-text-dimmed: var(--ink-dimmed);
+  --ui-text-dimmed: var(--ink-muted);
   --ui-text-muted: var(--ink-muted);
   --ui-text-toned: var(--ink-secondary);
   --ui-text: var(--ink);

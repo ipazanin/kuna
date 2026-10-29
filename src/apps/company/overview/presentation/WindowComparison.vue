@@ -20,6 +20,7 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import { formatPercent } from '../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 defineProps<{
@@ -37,39 +38,37 @@ function barStyle(change: number): Record<string, string> {
 </script>
 
 <template>
-  <div class="@container relative overflow-x-auto">
-    <table class="data-table window-table w-full text-sm">
-      <thead>
-        <tr>
-          <th scope="col" class="text-start">Per month</th>
-          <th v-for="column in columns" :key="column" scope="col" class="text-end">{{ column }}</th>
-          <th scope="col" class="hidden text-end @md:table-cell">Last 3 vs 12 months</th>
-          <th scope="col" class="hidden w-32 @xl:table-cell"><span class="sr-only">The change on a scale of minus to plus 50%</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.label" :class="{ emphasised: row.emphasised }">
-          <th scope="row" class="cell-wraps text-start font-normal text-toned">
-            {{ row.label }}
-            <span v-if="row.recentChange !== null" class="figure block text-xs font-normal text-muted @md:hidden"> {{ formatPercent(row.recentChange, 'always') }} last 3 vs 12 months </span>
-          </th>
-          <td v-for="(cell, index) in row.cells" :key="index" class="text-end">
-            <DrillLink :to="cell.to" :label="`${row.label}, ${columns[index]}, open the rows`">
-              <MoneyText :cents="cell.perMonth" precision="whole" :class="row.emphasised ? 'font-medium text-highlighted' : ''" />
-            </DrillLink>
-          </td>
-          <td class="figure hidden text-end text-toned @md:table-cell">
-            {{ row.recentChange === null ? '–' : formatPercent(row.recentChange, 'always') }}
-          </td>
-          <td class="hidden @xl:table-cell">
-            <span class="change-scale" aria-hidden="true">
-              <span v-if="row.recentChange !== null" class="change-bar" :style="barStyle(row.recentChange)" />
-            </span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <FigureTable class="window-table">
+    <thead>
+      <tr>
+        <th scope="col" class="text-start">Per month</th>
+        <th v-for="column in columns" :key="column" scope="col" class="text-end">{{ column }}</th>
+        <th scope="col" class="hidden text-end @md:table-cell">Last 3 vs 12 months</th>
+        <th scope="col" class="hidden w-32 @xl:table-cell"><span class="sr-only">The change on a scale of minus to plus 50%</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="row in rows" :key="row.label" :class="{ emphasised: row.emphasised }">
+        <th scope="row" class="cell-wraps text-start font-normal text-toned">
+          {{ row.label }}
+          <span v-if="row.recentChange !== null" class="figure block text-xs font-normal text-muted @md:hidden"> {{ formatPercent(row.recentChange, 'always') }} last 3 vs 12 months </span>
+        </th>
+        <td v-for="(cell, index) in row.cells" :key="index" class="text-end">
+          <DrillLink :to="cell.to" :label="`${row.label}, ${columns[index]}, open the rows`">
+            <MoneyText :cents="cell.perMonth" precision="whole" :class="row.emphasised ? 'font-medium text-highlighted' : ''" />
+          </DrillLink>
+        </td>
+        <td class="figure hidden text-end text-toned @md:table-cell">
+          {{ row.recentChange === null ? '–' : formatPercent(row.recentChange, 'always') }}
+        </td>
+        <td class="hidden @xl:table-cell">
+          <span class="change-scale" aria-hidden="true">
+            <span v-if="row.recentChange !== null" class="change-bar" :style="barStyle(row.recentChange)" />
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </FigureTable>
 </template>
 
 <style scoped>

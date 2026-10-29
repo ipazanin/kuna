@@ -13,7 +13,8 @@ import InformalLoanCard from './InformalLoanCard.vue'
 import { today } from '../../../../shared/calendar/civilDate'
 import { ZERO, negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import AppCard from '../../../../shared/ui/AppCard.vue'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 
@@ -41,7 +42,7 @@ const addingInformal = ref(false)
 </script>
 
 <template>
-  <section class="flex max-w-measure flex-col gap-6">
+  <section class="flex flex-col gap-6">
     <PageHeader title="Overview">
       <template v-if="state.workbook !== null" #actions>
         <UButton label="Add bank loan" icon="i-lucide-landmark" color="neutral" variant="outline" data-testid="add-bank-loan" @click="addingBank = true" />
@@ -49,12 +50,13 @@ const addingInformal = ref(false)
       </template>
     </PageHeader>
     <template v-if="state.workbook !== null">
-      <AppCard v-if="empty">
-        <div class="flex flex-col gap-1 px-4 py-6 sm:px-5" data-testid="loans-empty">
-          <p class="text-base font-medium text-highlighted">No loans yet</p>
-          <p class="text-sm text-muted">Your Loans file is ready, kept {{ where }}. Add a bank loan from its contract, or an informal loan between people.</p>
-        </div>
-      </AppCard>
+      <EmptyState
+        v-if="empty"
+        icon="i-lucide-landmark"
+        title="No loans yet"
+        :description="`Your Loans file is ready, kept ${where}. Add a bank loan from its contract, or an informal loan between people.`"
+        data-testid="loans-empty"
+      />
       <template v-else>
         <p class="text-sm text-toned" data-testid="loans-total">
           You owe <MoneyText :cents="totals.owed" class="font-semibold text-highlighted" /> in all<template v-if="totals.owedToYou > 0"
@@ -75,10 +77,10 @@ const addingInformal = ref(false)
             </ul>
           </template>
         </UAlert>
-        <div class="grid gap-4 md:grid-cols-2" data-testid="loan-cards">
+        <DashboardGrid data-testid="loan-cards">
           <BankLoanCard v-for="card in bankCards" :key="card.book.loan.id" :book="card.book" :figures="card.figures" />
           <InformalLoanCard v-for="card in informalCards" :key="card.book.loan.id" :book="card.book" :figures="card.figures" />
-        </div>
+        </DashboardGrid>
       </template>
     </template>
     <BankLoanDialog v-model:open="addingBank" :book="null" />

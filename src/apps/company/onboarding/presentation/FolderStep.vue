@@ -13,10 +13,9 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
 import { newBooksDocument } from '../../workbook/presentation/workbookFiles'
 import { MAIL_STATEMENTS_FOLDER, statementSettingsOf } from '../domain/statementsChoice'
-import StepCard from './StepCard.vue'
 import { onboardingStart, useOnboarding } from './useOnboarding'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
-
+import StepCard from '../../../../shared/ui/StepCard.vue'
 /**
  * The folder the books are saved in: the Picker opens at My Drive, and nothing is made until the
  * person confirms the folder, by its path from My Drive when the app may read the whole Drive, and by

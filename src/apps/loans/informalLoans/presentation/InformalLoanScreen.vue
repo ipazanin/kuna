@@ -17,6 +17,7 @@ import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
@@ -45,7 +46,7 @@ function openMovement(movement: Movement | null): void {
 </script>
 
 <template>
-  <section class="flex max-w-measure flex-col gap-6">
+  <section class="flex flex-col gap-6">
     <UButton :to="LOANS_OVERVIEW_ROUTE" label="All loans" icon="i-lucide-arrow-left" color="neutral" variant="link" class="-mb-4 self-start px-0" data-testid="back-to-loans" />
     <template v-if="book !== null && figures !== null">
       <PageHeader :title="book.loan.name" :description="[book.loan.counterparty, 'No interest and no fixed plan', book.loan.note].filter((part) => part !== '').join('. ')">
@@ -54,7 +55,7 @@ function openMovement(movement: Movement | null): void {
           <UButton label="Add movement" icon="i-lucide-plus" data-testid="movement-add" @click="openMovement(null)" />
         </template>
       </PageHeader>
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <DashboardGrid layout="tiles">
         <KpiTile :label="whoOwes(figures.owedByYou)" :value="formatMoney(Math.abs(figures.owedByYou))" :caption="`At the end of ${dayLabel(day)}`" :to="null" />
         <KpiTile
           label="Last movement"
@@ -62,47 +63,49 @@ function openMovement(movement: Movement | null): void {
           :caption="figures.last === null ? `Started on ${dayLabel(book.loan.start)}` : `${MOVEMENT_KIND_NAMES[figures.last.kind]} on ${dayLabel(figures.last.date)}`"
           :to="null"
         />
-      </div>
-      <ChartCard
-        v-if="chart !== null"
-        title="Owed over time"
-        subtitle="What you owe at each month end. Below zero, they owe you."
-        :option="chart.option"
-        :description="chart.description"
-        :height="260"
-        :phone-height="220"
-        data-testid="loan-balance-chart"
-      />
-      <AppCard title="Movements" subtitle="Newest first, with what you owe after each." collapse-id="loans.movements" :summary="`${lines.length} movements`" data-testid="movement-list">
-        <p v-if="lines.length === 0" class="px-4 pb-4 text-sm text-muted sm:px-5">No movements yet. The loan owes its opening balance of {{ formatMoney(book.loan.openingBalance) }}.</p>
-        <ul v-else class="flex flex-col pb-2">
-          <li v-for="line in shown" :key="line.movement.id" class="flex items-center gap-3 border-t border-default px-4 py-2 first:border-t-0 sm:px-5" data-testid="movement-line">
-            <div class="min-w-0 flex-1">
-              <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
-                <span class="text-highlighted">{{ line.kind }}</span>
-                <MoneyText :cents="line.change" sign="always" />
+      </DashboardGrid>
+      <DashboardGrid layout="pair">
+        <ChartCard
+          v-if="chart !== null"
+          title="Owed over time"
+          subtitle="What you owe at each month end. Below zero, they owe you."
+          :option="chart.option"
+          :description="chart.description"
+          :height="260"
+          :phone-height="220"
+          data-testid="loan-balance-chart"
+        />
+        <AppCard title="Movements" subtitle="Newest first, with what you owe after each." collapse-id="loans.movements" :summary="`${lines.length} movements`" data-testid="movement-list">
+          <p v-if="lines.length === 0" class="px-4 pb-4 text-sm text-muted sm:px-5">No movements yet. The loan owes its opening balance of {{ formatMoney(book.loan.openingBalance) }}.</p>
+          <ul v-else class="flex flex-col pb-2">
+            <li v-for="line in shown" :key="line.movement.id" class="flex items-center gap-3 border-t border-default px-4 py-2 first:border-t-0 sm:px-5" data-testid="movement-line">
+              <div class="min-w-0 flex-1">
+                <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
+                  <span class="text-highlighted">{{ line.kind }}</span>
+                  <MoneyText :cents="line.change" sign="always" />
+                </p>
+                <p class="text-xs text-muted">{{ [dayLabel(line.movement.date), line.movement.note].filter((part) => part !== '').join(', ') }}</p>
+              </div>
+              <p class="text-end text-xs text-muted">
+                {{ whoOwes(line.owedAfter) }}<br />
+                <MoneyText :cents="Math.abs(line.owedAfter)" class="text-sm text-toned" />
               </p>
-              <p class="text-xs text-muted">{{ [dayLabel(line.movement.date), line.movement.note].filter((part) => part !== '').join(', ') }}</p>
-            </div>
-            <p class="text-end text-xs text-muted">
-              {{ whoOwes(line.owedAfter) }}<br />
-              <MoneyText :cents="Math.abs(line.owedAfter)" class="text-sm text-toned" />
-            </p>
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              :aria-label="`Change the movement of ${dayLabel(line.movement.date)}`"
-              data-testid="movement-edit"
-              @click="openMovement(line.movement)"
-            />
-          </li>
-        </ul>
-        <div v-if="lines.length > FIRST_SHOWN" class="px-4 pb-4 sm:px-5">
-          <ShowAllButton v-model:expanded="showAll" :total="lines.length" />
-        </div>
-      </AppCard>
+              <UButton
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                :aria-label="`Change the movement of ${dayLabel(line.movement.date)}`"
+                data-testid="movement-edit"
+                @click="openMovement(line.movement)"
+              />
+            </li>
+          </ul>
+          <div v-if="lines.length > FIRST_SHOWN" class="px-4 pb-4 sm:px-5">
+            <ShowAllButton v-model:expanded="showAll" :total="lines.length" />
+          </div>
+        </AppCard>
+      </DashboardGrid>
       <InformalLoanDialog v-model:open="editingLoan" :book="book" />
       <MovementDialog v-model:open="movementOpen" :book="book" :editing="editingMovement" :today="day" />
     </template>

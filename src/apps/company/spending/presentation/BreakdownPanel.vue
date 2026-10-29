@@ -5,6 +5,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { shownPack } from '../../packs/packContribution'
@@ -110,39 +111,37 @@ const spending = computed(() => {
       data-testid="top-payees"
     >
       <p v-if="spending.payees.length === 0" class="px-5 py-8 text-sm text-muted">Nothing left the company in this period.</p>
-      <div v-else class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-        <table class="data-table w-full text-sm">
-          <thead>
-            <tr>
-              <th scope="col" class="text-start">Counterparty</th>
-              <th scope="col" class="hidden @lg:table-cell"><span class="sr-only">The last 12 months</span></th>
-              <th scope="col" class="text-end">Rows</th>
-              <th scope="col" class="text-end">Paid</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="payee in spending.payees" :key="payee.key">
-              <th scope="row" class="cell-wraps w-full text-start font-normal">
-                <div class="payee-cell flex flex-col gap-1">
-                  <DrillLink :to="payee.to" class="min-w-0 text-highlighted"
-                    ><span class="block break-words">{{ payee.label }}</span></DrillLink
-                  >
-                  <PayeeCategories :payee="payee.label" :categories="payee.categories">
-                    <UBadge v-if="payee.rhythm" :label="payee.rhythm" color="neutral" variant="subtle" size="sm" class="shrink-0" />
-                  </PayeeCategories>
-                </div>
-              </th>
-              <td class="hidden @lg:table-cell"><MonthStrip :cells="payee.strip" :scale="spending.stripScale" /></td>
-              <td class="figure text-end text-muted">{{ payee.count }}</td>
-              <td class="text-end">
-                <DrillLink :to="payee.to" :label="`${payee.label}, open the rows`">
-                  <MoneyText :cents="payee.total" precision="whole" />
-                </DrillLink>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
+        <thead>
+          <tr>
+            <th scope="col" class="text-start">Counterparty</th>
+            <th scope="col" class="hidden @lg:table-cell"><span class="sr-only">The last 12 months</span></th>
+            <th scope="col" class="text-end">Rows</th>
+            <th scope="col" class="text-end">Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="payee in spending.payees" :key="payee.key">
+            <th scope="row" class="cell-wraps w-full text-start font-normal">
+              <div class="payee-cell flex flex-col gap-1">
+                <DrillLink :to="payee.to" class="min-w-0 text-highlighted"
+                  ><span class="block break-words">{{ payee.label }}</span></DrillLink
+                >
+                <PayeeCategories :payee="payee.label" :categories="payee.categories">
+                  <UBadge v-if="payee.rhythm" :label="payee.rhythm" color="neutral" variant="subtle" size="sm" class="shrink-0" />
+                </PayeeCategories>
+              </div>
+            </th>
+            <td class="hidden @lg:table-cell"><MonthStrip :cells="payee.strip" :scale="spending.stripScale" /></td>
+            <td class="figure text-end text-muted">{{ payee.count }}</td>
+            <td class="text-end">
+              <DrillLink :to="payee.to" :label="`${payee.label}, open the rows`">
+                <MoneyText :cents="payee.total" precision="whole" />
+              </DrillLink>
+            </td>
+          </tr>
+        </tbody>
+      </FigureTable>
     </AppCard>
   </div>
 </template>

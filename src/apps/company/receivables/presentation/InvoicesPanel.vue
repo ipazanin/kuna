@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -15,6 +14,7 @@ import type { Money } from '../../../../shared/money/money'
 import { formatDays, formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
@@ -31,6 +31,7 @@ import type { InvoiceRunMode } from '../../invoicing/presentation/useInvoiceRun'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { listedRowKey } from '../../workbook/domain/splits'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { invoiceOrder, newestBookingOf } from '../../workbook/domain/workbook'
@@ -238,7 +239,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
   <div class="flex flex-col gap-6">
     <LedgerGate>
       <template v-if="view">
-        <UEmpty
+        <EmptyState
           v-if="!view.hasInvoices"
           icon="i-lucide-receipt-text"
           title="No invoices yet"
@@ -247,8 +248,6 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
               ? 'Invoices are matched against the revenue credits, client by client. Add the clients first, each with every IBAN it pays from.'
               : 'Invoices are matched against the revenue credits, client by client. Make the first one with Make invoice, or record one made elsewhere.'
           "
-          variant="outline"
-          class="rounded-card border-dashed bg-raised/40"
           :actions="
             noClients
               ? [{ label: 'Add a client', icon: 'i-lucide-users', color: 'neutral', variant: 'outline', to: CLIENTS_LINK }]
@@ -262,7 +261,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
             <USelect v-if="view.showClientPicker" v-model="chosenClient" :items="view.clientItems" aria-label="Client" class="w-full sm:w-48" data-testid="client-picker" />
           </div>
 
-          <div class="wide-pair">
+          <DashboardGrid layout="pair">
             <AppCard
               id="invoices-card"
               title="Every invoice, with the payments that settled it"
@@ -304,7 +303,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
               </template>
             </AppCard>
 
-            <div class="grid gap-4 xl:grid-cols-2 3xl:grid-cols-1 3xl:content-start">
+            <DashboardGrid>
               <DrillChartCard
                 id="invoices-ageing"
                 class="xl:col-span-2 3xl:col-span-1"
@@ -351,8 +350,8 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                   </li>
                 </ul>
               </AppCard>
-            </div>
-          </div>
+            </DashboardGrid>
+          </DashboardGrid>
         </template>
       </template>
     </LedgerGate>

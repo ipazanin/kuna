@@ -8,6 +8,7 @@ import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { currencyUnitName, formatDecimal, formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
@@ -203,7 +204,7 @@ const overview = computed(() => {
           <DrillLink :to="overview.headline.cameIn.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.cameIn.amount" precision="whole" /></DrillLink>
           came in and
           <DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" precision="whole" /></DrillLink>
-          went out<template v-if="overview.headline.loss !== null">, a loss of <MoneyText :cents="overview.headline.loss" precision="whole" class="text-negative" /></template>.
+          went out<template v-if="overview.headline.loss !== null">, a loss of <MoneyText :cents="overview.headline.loss" precision="whole" class="text-error" /></template>.
         </p>
 
         <AppCard v-if="waiting.length" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
@@ -216,77 +217,80 @@ const overview = computed(() => {
           </ul>
         </AppCard>
 
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <DashboardGrid layout="tiles">
           <KpiTile v-for="tile in overview.tiles" :key="tile.label" v-bind="tile" />
-        </div>
+        </DashboardGrid>
 
-        <div class="wide-pair">
-          <AppCard title="A typical month, three ways" subtitle="Each window ends with the last complete month. A wide spread means recent months are not like the rest.">
+        <DashboardGrid>
+          <AppCard
+            title="A typical month, three ways"
+            subtitle="Each window ends with the last complete month. A wide spread means recent months are not like the rest."
+            class="xl:col-span-2 3xl:col-span-1"
+          >
             <div class="px-1 pt-2 pb-2 sm:px-2">
               <WindowComparison :columns="overview.columnLabels" :rows="overview.comparison" />
             </div>
           </AppCard>
 
-          <div class="grid gap-4 xl:grid-cols-2 3xl:contents">
-            <DrillChartCard
-              :chart="overview.monthly"
-              class="xl:col-span-2 3xl:col-span-1"
-              title="Income and costs by month"
-              subtitle="Last 12 complete months and the month so far. Income above zero, costs below it. Click a month or a bar for its rows."
-              :definition="`Costs are ${overview.costs}. The line is the average net of the three months up to each one, so it starts once three complete months exist.`"
-              :height="320"
-              :phone-height="260"
-            >
-              <template #legend><ChartLegend :entries="overview.monthlyLegend" /></template>
-            </DrillChartCard>
+          <DrillChartCard
+            :chart="overview.monthly"
+            class="xl:col-span-2"
+            title="Income and costs by month"
+            subtitle="Last 12 complete months and the month so far. Income above zero, costs below it. Click a month or a bar for its rows."
+            :definition="`Costs are ${overview.costs}. The line is the average net of the three months up to each one, so it starts once three complete months exist.`"
+            :height="320"
+            :phone-height="260"
+          >
+            <template #legend><ChartLegend :entries="overview.monthlyLegend" /></template>
+          </DrillChartCard>
 
-            <DrillChartCard
-              :chart="overview.balance"
-              title="Balance at month end"
-              subtitle="Last 12 months and the month so far, each account stacked with the total on top"
-              :height="280"
-              :phone-height="240"
-            >
-              <template #legend><ChartLegend :entries="overview.balanceLegend" /></template>
-            </DrillChartCard>
+          <DrillChartCard
+            :chart="overview.balance"
+            title="Balance at month end"
+            subtitle="Last 12 months and the month so far, each account stacked with the total on top"
+            :height="280"
+            :phone-height="240"
+          >
+            <template #legend><ChartLegend :entries="overview.balanceLegend" /></template>
+          </DrillChartCard>
 
-            <DonutCard
-              :title="`Every ${overview.unit} earned, last 12 months`"
-              :subtitle="overview.euro.loss ? `Costs ran above income, so the ring splits every ${overview.unit} spent.` : `Where each ${overview.unit} of income went.`"
-              :definition="`What is kept is income less ${overview.costs}. In a loss nothing is kept, so the ring splits every ${overview.unit} spent instead.`"
-              :description="overview.euro.description"
-              :parts="overview.euro.parts"
-              :total="overview.euro.total"
-              :total-label="overview.euro.totalLabel"
-            />
+          <DonutCard
+            class="3xl:col-span-2"
+            :title="`Every ${overview.unit} earned, last 12 months`"
+            :subtitle="overview.euro.loss ? `Costs ran above income, so the ring splits every ${overview.unit} spent.` : `Where each ${overview.unit} of income went.`"
+            :definition="`What is kept is income less ${overview.costs}. In a loss nothing is kept, so the ring splits every ${overview.unit} spent instead.`"
+            :description="overview.euro.description"
+            :parts="overview.euro.parts"
+            :total="overview.euro.total"
+            :total-label="overview.euro.totalLabel"
+          />
 
-            <AppCard
-              title="Accounts"
-              class="xl:col-span-2"
-              collapse-id="overview.accounts"
-              :summary="overview.accountsSummary"
-              start-collapsed
-              subtitle="Each account at its newest balance"
-              data-testid="overview-accounts"
-            >
-              <ul class="mt-3 border-t border-default">
-                <li v-for="account in overview.accounts" :key="account.account" class="account-row" :class="{ 'account-closed': account.closed }">
-                  <div class="min-w-0">
-                    <p class="flex flex-wrap items-center gap-2 text-sm text-toned">
-                      <span class="size-2.5 shrink-0 rounded-[2px]" :style="{ background: account.colour }" aria-hidden="true" />
-                      {{ account.name }}
-                      <UBadge v-if="account.closed" label="Closed" color="neutral" variant="subtle" size="sm" />
-                    </p>
-                    <p class="mt-0.5 text-xs text-muted">As of {{ account.asOf }}. {{ account.count }} rows since {{ account.firstSeen }}.</p>
-                  </div>
-                  <DrillLink :to="account.to" :label="`${account.name}, every row`" class="shrink-0">
-                    <span class="figure text-base font-semibold whitespace-nowrap text-highlighted">{{ formatWholeMoney(account.balance) }}</span>
-                  </DrillLink>
-                </li>
-              </ul>
-            </AppCard>
-          </div>
-        </div>
+          <AppCard
+            title="Accounts"
+            class="col-span-full"
+            collapse-id="overview.accounts"
+            :summary="overview.accountsSummary"
+            start-collapsed
+            subtitle="Each account at its newest balance"
+            data-testid="overview-accounts"
+          >
+            <ul class="mt-3 border-t border-default">
+              <li v-for="account in overview.accounts" :key="account.account" class="account-row" :class="{ 'account-closed': account.closed }">
+                <div class="min-w-0">
+                  <p class="flex flex-wrap items-center gap-2 text-sm text-toned">
+                    <span class="size-2.5 shrink-0 rounded-[2px]" :style="{ background: account.colour }" aria-hidden="true" />
+                    {{ account.name }}
+                    <UBadge v-if="account.closed" label="Closed" color="neutral" variant="subtle" size="sm" />
+                  </p>
+                  <p class="mt-0.5 text-xs text-muted">As of {{ account.asOf }}. {{ account.count }} rows since {{ account.firstSeen }}.</p>
+                </div>
+                <DrillLink :to="account.to" :label="`${account.name}, every row`" class="shrink-0">
+                  <span class="figure text-base font-semibold whitespace-nowrap text-highlighted">{{ formatWholeMoney(account.balance) }}</span>
+                </DrillLink>
+              </li>
+            </ul>
+          </AppCard>
+        </DashboardGrid>
       </template>
     </LedgerGate>
   </section>

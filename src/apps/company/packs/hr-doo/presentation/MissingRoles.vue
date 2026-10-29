@@ -11,7 +11,7 @@ defineProps<{
 
 <template>
   <div v-if="missing.length > 0" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="missing-roles">
-    <UIcon name="i-lucide-tag" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
+    <UIcon name="i-lucide-tag" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
     <div class="flex flex-col gap-1">
       <p v-for="entry in missing" :key="entry.role">
         No category has the role <span class="identifier">{{ entry.role }}</span

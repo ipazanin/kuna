@@ -50,7 +50,7 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
             <p class="flex items-center justify-between gap-2 text-sm">
               <span class="text-toned">{{ line.label }}</span>
               <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />Agrees</span>
-              <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-negative"
+              <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
                 ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Differs</span
               >
             </p>
@@ -95,7 +95,7 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
                 </td>
                 <td>
                   <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />Agrees</span>
-                  <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-negative"
+                  <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
                     ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Differs</span
                   >
                 </td>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import UEmpty from '@nuxt/ui/components/Empty.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { today } from '../../../../shared/calendar/civilDate'
@@ -33,6 +32,7 @@ import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import type { RecordWriteOptions } from '../../../../shared/storage/presentation/useRecordWrites'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { DISMISSAL_WRITES, dismissalOfGroup } from '../application/dismissalWrites'
 import { fileRows } from '../application/fileRows'
 import { withoutDismissed } from '../domain/dismissedSuggestions'
@@ -184,14 +184,7 @@ function restore(dismissal: Dismissal): void {
             <template v-if="ledger">
               <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
 
-              <UEmpty
-                v-if="nothingWaits"
-                icon="i-lucide-check-check"
-                title="Nothing waits for review"
-                description="Every row in view has a category a rule or a person set."
-                variant="outline"
-                class="rounded-card bg-raised"
-              />
+              <EmptyState v-if="nothingWaits" icon="i-lucide-check-check" title="Nothing waits for review" description="Every row in view has a category a rule or a person set." />
               <AppCard
                 v-if="queue.length > 0"
                 class="overflow-clip"

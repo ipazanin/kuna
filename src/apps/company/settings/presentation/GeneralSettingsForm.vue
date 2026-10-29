@@ -7,6 +7,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
@@ -97,7 +98,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
       :reveal="basicsRevealed"
     >
       <div class="flex flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-        <div class="grid gap-4 sm:grid-cols-2">
+        <FormGrid>
           <UFormField label="Company name" help="Shown under the app name and used in the name of an exported file.">
             <UInput :model-value="draft.companyName" placeholder="Not set" class="w-full" @update:model-value="update('companyName', String($event))" />
           </UFormField>
@@ -139,7 +140,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
           >
             <UInput :model-value="statementsFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateStatementsFolder(String($event))" />
           </UFormField>
-        </div>
+        </FormGrid>
 
         <USwitch
           :model-value="draft.statementsSync"

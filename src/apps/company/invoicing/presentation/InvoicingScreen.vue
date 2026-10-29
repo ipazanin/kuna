@@ -5,6 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { formatDays, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
@@ -112,9 +113,9 @@ const tiles = computed(() => {
       </template>
     </PageHeader>
 
-    <div v-if="tiles" class="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="invoicing-tiles">
+    <DashboardGrid v-if="tiles" layout="tiles" data-testid="invoicing-tiles">
       <KpiTile v-for="tile in tiles" :key="tile.label" v-bind="tile" />
-    </div>
+    </DashboardGrid>
 
     <PageTabs :tabs="TABS" label="Invoices, plan and clients" @select="clientsLinked = false">
       <template #invoices>

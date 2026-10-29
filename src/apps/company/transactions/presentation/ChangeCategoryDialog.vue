@@ -3,10 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
-import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { fileRows } from '../../review/application/fileRows'
 import { recategorisation } from '../../review/domain/verdictChanges'
@@ -18,6 +16,7 @@ import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import CategoryChip from './CategoryChip.vue'
 import CategoryPicker from './CategoryPicker.vue'
 
@@ -36,7 +35,6 @@ const { state } = useWorkbook()
 const router = useRouter()
 const writes = useRecordWrites(useWorkbook())
 const names = useDisplayNames()
-const phone = usePhoneLayout()
 
 const picked = ref<string | undefined>(undefined)
 watch(open, (opened) => {
@@ -72,40 +70,36 @@ async function change(): Promise<void> {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Change the category" :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`" :fullscreen="phone" :ui="{ header: 'pe-16 sm:pe-6' }">
-    <template #body>
-      <div class="flex flex-col gap-4" data-testid="change-category">
-        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <span class="flex min-w-0 flex-wrap items-center gap-2">
-            <CategoryChip :category="row.category" :bucket="row.bucket" />
-            <span class="text-xs text-muted">{{ settledBy }}</span>
-          </span>
-          <MoneyText :cents="row.amount" tone="flow" class="font-medium" />
-        </div>
-        <p v-if="row.description" class="text-sm text-toned">{{ row.description }}</p>
-        <CategoryPicker v-model="picked" :categories="categories" placeholder="Choose the new category" class="w-full" data-testid="change-category-picker" />
-        <p v-if="against" class="flex items-start gap-2 text-sm text-toned" data-testid="rule-against">
-          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-[var(--tone-warning)]" aria-hidden="true" />
-          <span>
-            The rule <span class="identifier">{{ against.ruleId }}</span> files rows like this one as {{ names.category(against.category) }}. Once this row says {{ names.category(picked ?? '') }},
-            Review lists it on its Rules tab among the rows the rule files differently.
-          </span>
-        </p>
-        <p class="text-xs text-muted">Writes the new category and <span class="identifier">flagged_by</span> {{ reviewLabel }} on the row, with Undo in the toast.</p>
+  <AppDialog v-model:open="open" title="Change the category" :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`">
+    <div class="flex flex-col gap-4" data-testid="change-category">
+      <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <span class="flex min-w-0 flex-wrap items-center gap-2">
+          <CategoryChip :category="row.category" :bucket="row.bucket" />
+          <span class="text-xs text-muted">{{ settledBy }}</span>
+        </span>
+        <MoneyText :cents="row.amount" tone="flow" class="font-medium" />
       </div>
+      <p v-if="row.description" class="text-sm text-toned">{{ row.description }}</p>
+      <CategoryPicker v-model="picked" :categories="categories" placeholder="Choose the new category" class="w-full" data-testid="change-category-picker" />
+      <p v-if="against" class="flex items-start gap-2 text-sm text-toned" data-testid="rule-against">
+        <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+        <span>
+          The rule <span class="identifier">{{ against.ruleId }}</span> files rows like this one as {{ names.category(against.category) }}. Once this row says {{ names.category(picked ?? '') }},
+          Review lists it on its Rules tab among the rows the rule files differently.
+        </span>
+      </p>
+      <p class="text-xs text-muted">Writes the new category and <span class="identifier">flagged_by</span> {{ reviewLabel }} on the row, with Undo in the toast.</p>
+    </div>
+    <template #end>
+      <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
+      <UButton
+        label="Change category"
+        icon="i-lucide-check"
+        :loading="writes.busy.value"
+        :disabled="!changed || writes.busy.value || state.writing"
+        data-testid="change-category-save"
+        @click="change"
+      />
     </template>
-    <template #footer>
-      <div class="flex w-full flex-wrap justify-end gap-2">
-        <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
-        <UButton
-          label="Change category"
-          icon="i-lucide-check"
-          :loading="writes.busy.value"
-          :disabled="!changed || writes.busy.value || state.writing"
-          data-testid="change-category-save"
-          @click="change"
-        />
-      </div>
-    </template>
-  </UModal>
+  </AppDialog>
 </template>
