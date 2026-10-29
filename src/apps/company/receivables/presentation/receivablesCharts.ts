@@ -3,7 +3,7 @@ import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { BarSeries } from '../../../../shared/charts/echarts'
 import type { Money } from '../../../../shared/money/money'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
@@ -40,7 +40,7 @@ export function ageingChart(clients: readonly ClientAgeing[], tokens: ChartToken
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: axisTooltip({ tokens, formatAmount: (amount) => formatWholeMoney(amount) }),
+        formatter: axisTooltip({ tokens, formatAmount: (amount) => formatMoney(amount) }),
       },
       xAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       yAxis: { type: 'category', inverse: true, data: clients.map((client) => client.name), axisLabel: { color: tokens.inkSecondary } },
@@ -49,12 +49,12 @@ export function ageingChart(clients: readonly ClientAgeing[], tokens: ChartToken
     description:
       total === 0
         ? 'Nothing is owed.'
-        : `Money still owed, ${formatWholeMoney(total)} in all, by client and by how late it is: ` +
+        : `Money still owed, ${formatMoney(total)} in all, by client and by how late it is: ` +
           clients
             .map(
               (client) =>
                 `${client.name}: ${AGEING_BUCKETS.filter((bucket) => client.byBucket[bucket] > 0)
-                  .map((bucket) => `${formatWholeMoney(client.byBucket[bucket])} ${AGEING_LABELS[bucket].toLowerCase()}`)
+                  .map((bucket) => `${formatMoney(client.byBucket[bucket])} ${AGEING_LABELS[bucket].toLowerCase()}`)
                   .join(', ')}`,
             )
             .join('. ') +

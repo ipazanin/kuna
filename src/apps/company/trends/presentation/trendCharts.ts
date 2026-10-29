@@ -3,7 +3,7 @@ import { incompleteBand, moneyAxisLabel } from '../../../../shared/charts/chartT
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import type { MonthOfProfitAndLoss } from '../domain/monthlyProfitAndLoss'
 
@@ -18,7 +18,7 @@ interface TrendLine {
 export function cumulativeNetChart(months: readonly MonthOfProfitAndLoss[], tokens: ChartTokens): DrillChart {
   const last = months[months.length - 1]
   return trendChart(months, tokens, [{ name: 'Cumulative net', colour: tokens.accent, amounts: months.map((month) => month.cumulativeNet), area: true }], {
-    description: last === undefined ? 'No months to show.' : `Cumulative net since the ledger began, ${formatWholeMoney(last.cumulativeNet)} by ${monthLabel(last.month)}.`,
+    description: last === undefined ? 'No months to show.' : `Cumulative net since the ledger began, ${formatMoney(last.cumulativeNet)} by ${monthLabel(last.month)}.`,
   })
 }
 
@@ -36,8 +36,8 @@ export function rollingNetChart(months: readonly MonthOfProfitAndLoss[], tokens:
       description:
         latest === undefined
           ? 'Not enough complete months for a rolling average yet.'
-          : `Average net per month. In ${monthLabel(latest.month)} the 3-month average was ${formatWholeMoney(latest.rolling3?.net ?? 0)}` +
-            (latest.rolling12 === null ? '.' : ` and the 12-month average ${formatWholeMoney(latest.rolling12.net)}.`),
+          : `Average net per month. In ${monthLabel(latest.month)} the 3-month average was ${formatMoney(latest.rolling3?.net ?? 0)}` +
+            (latest.rolling12 === null ? '.' : ` and the 12-month average ${formatMoney(latest.rolling12.net)}.`),
     },
   )
 }
@@ -63,7 +63,7 @@ function trendChart(months: readonly MonthOfProfitAndLoss[], tokens: ChartTokens
         tokens,
         incompleteCategories: categories.filter((_, index) => incomplete[index]),
         categoryLabel: monthAxisLabel('long'),
-        formatAmount: (amount) => formatWholeMoney(amount),
+        formatAmount: (amount) => formatMoney(amount),
       }),
     },
     xAxis: {

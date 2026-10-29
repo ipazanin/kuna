@@ -6,7 +6,7 @@ import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import type { ChartZoomWindow } from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { useFilters } from '../../filters/application/filterStore'
 import { periodMonths } from '../../filters/domain/periodPresets'
 import DrillChartCard from '../../filters/presentation/DrillChartCard.vue'
@@ -60,7 +60,7 @@ const trends = computed(() => {
     empty: shown.length === 0,
     byMonth: profitAndLossChart(months, tokens, { series: series.value, netLine: MONTHLY_NET, hidden: hidden.value, zoom: { startIndex, endIndex } }),
     cumulative: cumulativeNetChart(shown, tokens),
-    cumulativeSummary: last === undefined ? 'No months in the period' : `${formatWholeMoney(last.cumulativeNet)} since the ledger began, by ${monthLabel(last.month)}`,
+    cumulativeSummary: last === undefined ? 'No months in the period' : `${formatMoney(last.cumulativeNet)} since the ledger began, by ${monthLabel(last.month)}`,
     rolling: rollingNetChart(shown, tokens),
   }
 })

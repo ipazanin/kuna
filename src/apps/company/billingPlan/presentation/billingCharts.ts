@@ -3,7 +3,7 @@ import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption } from '../../../../shared/charts/echarts'
 import { sumMoney } from '../../../../shared/money/money'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import type { YearItems } from '../domain/itemStatistics'
 
@@ -47,12 +47,12 @@ export function itemYearsChart(years: readonly YearItems[], items: readonly stri
   return {
     option: {
       grid: { top: 8, right: 16 },
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatWholeMoney(amount) }) },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatMoney(amount) }) },
       xAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       yAxis: { type: 'category', inverse: true, data: years.map((year) => String(year.year)), axisLabel: { color: tokens.inkSecondary } },
       series,
     },
-    description: years.map((year) => `${year.year}: ${formatWholeMoney(year.total)}, of it ${year.items.map((entry) => `${entry.item} ${formatWholeMoney(entry.amount)}`).join(', ')}.`).join(' '),
+    description: years.map((year) => `${year.year}: ${formatMoney(year.total)}, of it ${year.items.map((entry) => `${entry.item} ${formatMoney(entry.amount)}`).join(', ')}.`).join(' '),
     legend: names.map((name) => ({ label: name, colour: name === OTHER_ITEMS ? 'var(--chart-deemphasis)' : (colours.get(name) ?? 'var(--chart-ink)') })),
   }
 }

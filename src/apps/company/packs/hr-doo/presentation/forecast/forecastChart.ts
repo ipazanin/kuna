@@ -7,7 +7,7 @@ import { axisTooltip } from '../../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../../../shared/charts/echarts'
 import { sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
-import { formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { DrillChart } from '../../../../filters/presentation/chartDrill'
@@ -101,7 +101,7 @@ export function forecastChart(months: readonly ForecastChartMonth[], running: Mo
           }
           return [monthLabel(month), month === running ? 'running' : null, basisOf.get(category) ?? null].filter((part) => part !== null).join(', ')
         },
-        formatAmount: (amount, seriesName) => formatWholeMoney(amount, seriesName === PROFIT ? 'negative' : 'magnitude'),
+        formatAmount: (amount, seriesName) => formatMoney(amount, seriesName === PROFIT ? 'negative' : 'magnitude'),
       }),
     },
     xAxis: {
@@ -144,7 +144,7 @@ function describe(months: readonly ForecastChartMonth[], running: MonthKey | nul
   const total = sumMoney(months.map((month) => month.profit))
   const forecast = months.filter((month) => month.incomeForecast || month.costsForecast).map((month) => monthLabel(month.month))
   return [
-    `Income and costs by month from ${monthLabel(first.month)} to ${monthLabel(last.month)}, with profit before tax as a line, ${formatWholeMoney(total)} for the year.`,
+    `Income and costs by month from ${monthLabel(first.month)} to ${monthLabel(last.month)}, with profit before tax as a line, ${formatMoney(total)} for the year.`,
     forecast.length === 0 ? 'Every month comes from the ledger.' : `A plan row or an average stands in for part of ${forecast.join(', ')}.`,
     running === null ? '' : `${monthLabel(running)} is still running and counts as forecast.`,
   ]

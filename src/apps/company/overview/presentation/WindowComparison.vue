@@ -55,7 +55,7 @@ function barStyle(change: number): Record<string, string> {
         </th>
         <td v-for="(cell, index) in row.cells" :key="index" class="text-end">
           <DrillLink :to="cell.to" :label="`${row.label}, ${columns[index]}, open the rows`">
-            <MoneyText :cents="cell.perMonth" precision="whole" :class="row.emphasised ? 'font-medium text-highlighted' : ''" />
+            <MoneyText :cents="cell.perMonth" :class="row.emphasised ? 'font-medium text-highlighted' : ''" />
           </DrillLink>
         </td>
         <td class="figure hidden text-end text-toned @md:table-cell">
@@ -76,6 +76,18 @@ function barStyle(change: number): Record<string, string> {
 .window-table thead th {
   white-space: normal;
   vertical-align: bottom;
+}
+
+/* Three columns of figures with cents need the cell padding of a narrow card cut further to fit a 360 px phone. */
+@container (max-width: 24rem) {
+  .window-table th,
+  .window-table td {
+    padding-inline: 0.25rem;
+  }
+
+  .window-table th:first-child {
+    padding-inline-start: 0;
+  }
 }
 
 .window-table tbody tr.emphasised:not(.emphasised + .emphasised) th,

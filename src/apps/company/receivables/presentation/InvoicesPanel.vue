@@ -11,7 +11,7 @@ import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { ZERO, addMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { formatDays, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatDays, formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -214,9 +214,9 @@ const view = computed(() => {
     daysRows,
     daysSummary: paid.median === null ? 'No invoice paid in the period' : `Median ${formatDays(paid.median)} days, mean ${formatDays(paid.mean ?? 0)} over ${paid.days.length} paid`,
     invoices: listed,
-    invoicesSummary: `${listed.length} ${listed.length === 1 ? 'invoice' : 'invoices'}, ${formatWholeMoney(outstanding)} outstanding`,
+    invoicesSummary: `${listed.length} ${listed.length === 1 ? 'invoice' : 'invoices'}, ${formatMoney(outstanding)} outstanding`,
     sums,
-    unattributedSummary: `${formatWholeMoney(unattributedTotal)} from ${payers} ${payers === 1 ? 'payer' : 'payers'}`,
+    unattributedSummary: `${formatMoney(unattributedTotal)} from ${payers} ${payers === 1 ? 'payer' : 'payers'}`,
     unattributed: unattributed.map((credit) => ({
       key: listedRowKey(credit.transaction),
       date: dayLabel(credit.transaction.date),
@@ -290,7 +290,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                 <dl class="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
                   <div v-for="sum in view.sums" :key="sum.label" class="min-w-0">
                     <dt class="text-xs text-muted">{{ sum.label }}</dt>
-                    <dd class="text-sm font-medium text-highlighted"><MoneyText :cents="sum.amount" precision="whole" /></dd>
+                    <dd class="text-sm font-medium text-highlighted"><MoneyText :cents="sum.amount" /></dd>
                   </div>
                 </dl>
               </template>
@@ -345,7 +345,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                     <span class="figure text-xs text-muted">{{ credit.date }}</span>
                     <span class="min-w-0 truncate text-sm text-toned">{{ credit.counterparty }}</span>
                     <DrillLink :to="credit.to" :label="`Credit of ${credit.date} from ${credit.counterparty}, open the row`" class="justify-self-end">
-                      <MoneyText :cents="credit.amount" precision="whole" class="text-sm font-medium text-highlighted" />
+                      <MoneyText :cents="credit.amount" class="text-sm font-medium text-highlighted" />
                     </DrillLink>
                   </li>
                 </ul>

@@ -5,7 +5,7 @@ import type { ChartTokens } from '../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../../shared/charts/echarts'
 import { negateMoney } from '../../../../../shared/money/money'
-import { formatWholeMoney } from '../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../shared/ui/ChartLegend.vue'
 import { drillToTransactions } from '../../../filters/domain/drillTarget'
 import type { DrillTarget, Figure } from '../../../filters/domain/drillTarget'
@@ -237,7 +237,7 @@ function monthTooltip(months: readonly { readonly month: MonthKey; readonly comp
     tokens,
     incompleteCategories: months.filter((month) => !month.complete).map((month) => month.month),
     categoryLabel: monthAxisLabel('long'),
-    formatAmount: (amount) => formatWholeMoney(amount, sign),
+    formatAmount: (amount) => formatMoney(amount, sign),
   })
 }
 
@@ -287,9 +287,7 @@ export function taxByTypeChart(months: readonly CategoryMonth[], series: readonl
   return {
     option,
     description:
-      months.length === 0
-        ? 'No months to show.'
-        : `Taxes paid by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatWholeMoney(total)} in all, net of refunds.`,
+      months.length === 0 ? 'No months to show.' : `Taxes paid by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatMoney(total)} in all, net of refunds.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       return month === undefined
@@ -331,7 +329,7 @@ export function ownerDrawsChart(months: readonly OwnerTakeMonth[], series: reado
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       series: bars,
     },
-    description: months.length === 0 ? 'No months to show.' : `Owner pay by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatWholeMoney(total)} in all.`,
+    description: months.length === 0 ? 'No months to show.' : `Owner pay by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatMoney(total)} in all.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {
@@ -398,7 +396,7 @@ export function loanTimelineChart(months: readonly LoanMonth[], colours: LoanCol
     description:
       months.length === 0
         ? 'No months to show.'
-        : `Loans to the owner by month ${spanOf(months)}: money lent below zero and repayments above it. ${formatWholeMoney(lent)} lent and ${formatWholeMoney(repaid)} repaid in all.`,
+        : `Loans to the owner by month ${spanOf(months)}: money lent below zero and repayments above it. ${formatMoney(lent)} lent and ${formatMoney(repaid)} repaid in all.`,
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {
@@ -440,7 +438,7 @@ export function loanBalanceChart(months: readonly LoanMonth[], colour: string, t
       last === undefined
         ? 'No months to show.'
         : `What the owner owed the company at each month's end ${spanOf(months)}. ` +
-          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the owner owed ${formatWholeMoney(last.outstanding.amount)}.`,
+          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the owner owed ${formatMoney(last.outstanding.amount)}.`,
     drillAt: ({ dataIndex }) => months[dataIndex]?.outstanding.drill ?? null,
   }
 }

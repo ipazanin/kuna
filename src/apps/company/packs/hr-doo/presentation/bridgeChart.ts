@@ -2,7 +2,7 @@ import { moneyAxisLabel } from '../../../../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../shared/charts/chartTooltip'
 import type { BarSeries } from '../../../../../shared/charts/echarts'
-import { formatMoney, formatWholeMoney } from '../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../shared/ui/ChartLegend.vue'
 import type { DrillTarget } from '../../../filters/domain/drillTarget'
 import type { DrillChart } from '../../../filters/presentation/chartDrill'
@@ -79,10 +79,10 @@ export function bridgeChart(bars: readonly BridgeBar[], tokens: ChartTokens, wor
     description:
       bars.length === 0
         ? 'No bridge to show.'
-        : `From ${bars[0]?.label} of ${formatWholeMoney(bars[0]?.amount ?? 0)}, one bar per step: ` +
+        : `From ${bars[0]?.label} of ${formatMoney(bars[0]?.amount ?? 0)}, one bar per step: ` +
           bars
             .slice(1)
-            .map((bar) => `${bar.label} ${formatWholeMoney(bar.amount, bar.kind === 'total' ? 'negative' : 'always')}`)
+            .map((bar) => `${bar.label} ${formatMoney(bar.amount, bar.kind === 'total' ? 'negative' : 'always')}`)
             .join(', ') +
           (last === undefined ? '.' : `. The last bar is ${last.label.toLowerCase()}.`),
     formatValue: (value) => formatMoney(value),

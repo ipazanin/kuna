@@ -4,7 +4,7 @@ import type { DonutPart } from '../../../../shared/ui/DonutCard.vue'
 import { inSentence, lineShown } from '../../settings/domain/profitAndLossLabels'
 import type { Settings } from '../../settings/domain/settings'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
-import { currencyUnitName, formatPercent, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { currencyUnitName, formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
 import type { EuroSplit, EuroSplitPart } from '../domain/euroSplit'
 
 interface SplitPart {
@@ -38,6 +38,6 @@ export function euroDonut(split: EuroSplit, settings: Settings, linkOf: (drill: 
     description:
       split.basis === 'income'
         ? `Of every ${unit} earned in the last 12 months: ${shares}.`
-        : `In the last 12 months costs exceeded income by ${formatWholeMoney(split.shortfall ?? 0)}, so the ring splits every ${unit} spent: ${shares}.`,
+        : `In the last 12 months costs exceeded income by ${formatMoney(split.shortfall ?? 0)}, so the ring splits every ${unit} spent: ${shares}.`,
   }
 }

@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { formatDays, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatDays, formatMoney } from '../../../../shared/money/moneyFormat'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
@@ -67,21 +67,21 @@ const tiles = computed(() => {
   return [
     {
       label: 'Next invoice',
-      value: next === null ? '–' : formatWholeMoney(next.amount),
+      value: next === null ? '–' : formatMoney(next.amount),
       caption: next === null ? 'Every plan row is invoiced' : `${monthLabel(next.month)}, ${nextClient}`,
       definition: 'The oldest month with plan rows no invoice has billed yet, for one client. It opens that month on the Plan tab.',
       to: next === null ? { path: '/company/invoicing', query: { tab: 'plan' } } : planMonthLink(next.month),
     },
     {
       label: 'Outstanding',
-      value: formatWholeMoney(owed.outstanding),
+      value: formatMoney(owed.outstanding),
       caption: owed.openCount === 0 ? 'Every invoice is paid' : `${owed.openCount} ${owed.openCount === 1 ? 'invoice' : 'invoices'} open`,
       definition: 'What every invoice still has unpaid, after the payments matched to it oldest first. An overpayment never makes it negative.',
       to: invoicesTab('#invoices-card'),
     },
     {
       label: 'Overdue',
-      value: formatWholeMoney(owed.overdue),
+      value: formatMoney(owed.overdue),
       caption: owed.overdueCount === 0 ? 'Nothing past its due date' : `${owed.overdueCount} ${owed.overdueCount === 1 ? 'invoice' : 'invoices'} past the due date`,
       definition: 'The part of what is outstanding whose due date has passed, as of the newest booking in the ledger. An invoice with no due date counts from its issue date.',
       to: invoicesTab('#invoices-ageing'),

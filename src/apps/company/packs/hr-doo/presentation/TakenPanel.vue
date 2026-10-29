@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { chartTokens } from '../../../../../shared/charts/chartTokens'
 import { addMoney } from '../../../../../shared/money/money'
-import { formatWholeMoney } from '../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import ChartLegend from '../../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../../shared/ui/DonutCard.vue'
@@ -112,10 +112,8 @@ const net = computed(() => {
     }
     const since = filters.period.preset === 'all' ? ', since the ledger began' : ''
     const caption =
-      figures.profitMonths.length === 0
-        ? 'No complete month of profit yet'
-        : `${formatWholeMoney(figures.payPerMonth)} pay and ${formatWholeMoney(figures.profitPerMonth)} from profit, a month${since}`
-    return { ...empty, tile: tile(formatWholeMoney(figures.perMonth), caption), detail: ownerNetDetail(figures, periodInWords(filters.period, window), drillLocation) }
+      figures.profitMonths.length === 0 ? 'No complete month of profit yet' : `${formatMoney(figures.payPerMonth)} pay and ${formatMoney(figures.profitPerMonth)} from profit, a month${since}`
+    return { ...empty, tile: tile(formatMoney(figures.perMonth), caption), detail: ownerNetDetail(figures, periodInWords(filters.period, window), drillLocation) }
   } catch (failure) {
     if (failure instanceof RangeError) {
       return { ...empty, tile: tile('–', `Could not be worked out. ${failure.message}`) }
@@ -147,12 +145,12 @@ const taken = computed(() => {
   const series = ownerPaySeries(pay, moved, loanSlugs, rentTaxDrawn, tokens, categoryName)
   const ring = ownerTakeRing(take, filters.period, series, categoryName)
   const percent = new Intl.NumberFormat(amountLocaleOf(settings.value), { style: 'percent', maximumFractionDigits: 0 })
-  const withoutLoans = formatWholeMoney(take.withoutLoans.amount)
+  const withoutLoans = formatMoney(take.withoutLoans.amount)
   const loanNote = loansArePay ? ' Loans to the owner and their repayments stay out, since a loan is not pay.' : ''
   const rentTaxed = take.rentTax.amount !== 0
   const rentNote = rentTaxed ? ' Rent counts after the rent tax, which the owner pays the tax office out of it.' : ''
   const parts = ring.parts.map((part): DonutPart => ({ ...part, to: drillLocation(part.drill) }))
-  const shares = parts.map((part) => `${part.label} ${formatWholeMoney(part.value)}`).join(', ')
+  const shares = parts.map((part) => `${part.label} ${formatMoney(part.value)}`).join(', ')
   const aside = ring.aside.map((line) => ({ ...line, to: drillLocation(line.drill) }))
   const benefitName = benefits === null ? '' : categoryName(benefits.category)
   const fromCosts = benefits !== null && benefits.total.amount !== 0
@@ -163,9 +161,9 @@ const taken = computed(() => {
     tiles: [
       {
         label: 'Owner take',
-        value: formatWholeMoney(take.total.amount),
+        value: formatMoney(take.total.amount),
         to: drillLocation(take.total.drill),
-        caption: fromCosts ? `${formatWholeMoney(benefits.total.amount)} of it from company costs` : loansArePay ? 'Loans in, repayments out' : 'Loans left out, as financing',
+        caption: fromCosts ? `${formatMoney(benefits.total.amount)} of it from company costs` : loansArePay ? 'Loans in, repayments out' : 'Loans left out, as financing',
         definition:
           (loansArePay
             ? `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. A loan to the owner is pay taken early and its repayment is pay handed back, so both count. Reimbursements settle costs and are left out.`
@@ -178,7 +176,7 @@ const taken = computed(() => {
         : [
             {
               label: benefitName,
-              value: formatWholeMoney(benefits.total.amount),
+              value: formatMoney(benefits.total.amount),
               to: drillLocation(benefits.total.drill),
               caption: `${benefits.payments} ${benefits.payments === 1 ? 'payment' : 'payments'}`,
               definition: `The owner's parts of company costs, at each row's owner share. They count as owner pay with no tax on them. The share is your own estimate, and the accountant books these costs in full.`,
@@ -186,26 +184,25 @@ const taken = computed(() => {
           ]),
       {
         label: 'Gross cost of the owner',
-        value: formatWholeMoney(cost.gross.amount),
+        value: formatMoney(cost.gross.amount),
         to: drillLocation(cost.gross.drill),
-        caption: `${formatWholeMoney(addMoney(cost.taxOnPay.amount, take.rentTax.amount))} of it tax on the pay`,
+        caption: `${formatMoney(addMoney(cost.taxOnPay.amount, take.rentTax.amount))} of it tax on the pay`,
         definition: `Owner take plus the taxes owed because the owner was paid, the categories with the owner-pay-tax role${rentTaxed ? ', and the rent tax the owner pays out of the rent' : ''}. Corporate income tax stays out.`,
       },
       {
         label: 'Net share of gross cost',
         value: cost.netShare === null ? '–' : percent.format(cost.netShare),
         to: drillLocation(cost.gross.drill),
-        caption: cost.netShare === null ? 'Nothing paid to the owner' : `${withoutLoans} of ${formatWholeMoney(cost.grossWithoutLoans)} gross cost`,
+        caption: cost.netShare === null ? 'Nothing paid to the owner' : `${withoutLoans} of ${formatMoney(cost.grossWithoutLoans)} gross cost`,
         definition:
           `How much of what the company spent on paying the owner reached the owner: the owner take without loans over itself plus the taxes owed because the owner was paid. ` +
           `100% would mean no tax on top.${loanNote}${rentNote}${benefits === null ? '' : ` ${benefitName} count in the take and carry no tax, so they raise it.`}`,
       },
       {
         label: 'Monthly net pay',
-        value: perMonth === null ? '–' : formatWholeMoney(perMonth.perMonth),
+        value: perMonth === null ? '–' : formatMoney(perMonth.perMonth),
         to: drillLocation(averaged.value.take.withoutLoans.drill),
-        caption:
-          perMonth === null ? 'No month of the ledger in view' : `${formatWholeMoney(averaged.value.take.withoutLoans.amount)} over ${perMonth.months} ${perMonth.months === 1 ? 'month' : 'months'}`,
+        caption: perMonth === null ? 'No month of the ledger in view' : `${formatMoney(averaged.value.take.withoutLoans.amount)} over ${perMonth.months} ${perMonth.months === 1 ? 'month' : 'months'}`,
         definition:
           `What the owner was paid a month from every owner pay category, such as salary, bonus, dividend and rent${benefits === null ? '' : `, ${benefitName.toLowerCase()} included`}: the owner take without loans over the months of the period. ` +
           `A rolling window leaves out the month so far, which the chart of ${payLabel.toLowerCase()} by month draws. Any other period counts a month the ledger covers only in part, such as the month so far, as a whole month, as the chart does.${loanNote}${rentNote}`,
@@ -213,15 +210,15 @@ const taken = computed(() => {
     ],
     ring: {
       parts,
-      total: formatWholeMoney(ring.ringTotal),
+      total: formatMoney(ring.ringTotal),
       totalLabel: aside.length === 0 ? 'owner take' : aside.some((line) => line.key === 'loans') && !rentTaxed ? 'without loans' : 'paid out',
       aside,
       takeTotal: { amount: ring.total, to: drillLocation(take.total.drill) },
       description:
         parts.length === 0
           ? `Nothing was paid to the owner in ${period}.`
-          : `Owner take by type in ${period}: ${shares}.${aside.map((line) => ` ${line.label} ${formatWholeMoney(line.amount, 'negative')}.`).join('')} Together ${formatWholeMoney(ring.total)}.`,
-      summary: `${formatWholeMoney(ring.total)} in all`,
+          : `Owner take by type in ${period}: ${shares}.${aside.map((line) => ` ${line.label} ${formatMoney(line.amount, 'negative')}.`).join('')} Together ${formatMoney(ring.total)}.`,
+      summary: `${formatMoney(ring.total)} in all`,
     },
     reimbursements: take.reimbursements.map((line) => ({ key: line.category, name: categoryName(line.category), amount: line.amount.amount, to: drillLocation(line.amount.drill) })),
     loanBalance: loanOut.length === 0 ? null : loanBalanceChart(loanMonths(booked.transactions, categories, months, window), tokens.buckets['owner-pay'], tokens),
@@ -239,7 +236,7 @@ const taken = computed(() => {
       <KpiTile v-for="tile in taken.tiles" :key="tile.label" v-bind="tile" />
       <KpiTile v-bind="net.tile" data-testid="owner-net-with-profit">
         <template v-if="net.detail" #value>
-          <BuildUpButton :cents="net.detail.cents" precision="whole" :label="OWNER_NET_TITLE" @open="netOpen = true" />
+          <BuildUpButton :cents="net.detail.cents" :label="OWNER_NET_TITLE" @open="netOpen = true" />
         </template>
         <p v-if="net.unregistered" class="mt-1.5 text-xs text-muted" data-testid="owner-net-unregistered">
           The profit needs <span class="identifier break-all">hr_company_registered</span>.
@@ -271,12 +268,12 @@ const taken = computed(() => {
           <ul v-if="taken.ring.aside.length > 0" class="mt-2 flex flex-col border-t border-default pt-2" data-testid="owner-take-aside">
             <li v-for="line in taken.ring.aside" :key="line.key" class="aside-row">
               <DrillLink :to="line.to" :label="`${line.label}, open the rows`" class="min-w-0 text-toned">{{ line.label }}</DrillLink>
-              <MoneyText :cents="line.amount" precision="whole" class="text-highlighted" />
+              <MoneyText :cents="line.amount" class="text-highlighted" />
             </li>
             <li class="aside-row font-medium">
               <span class="text-toned">Owner take</span>
               <DrillLink :to="taken.ring.takeTotal.to" label="Owner take, open the rows" data-testid="owner-take-total">
-                <MoneyText :cents="taken.ring.takeTotal.amount" precision="whole" class="text-highlighted" />
+                <MoneyText :cents="taken.ring.takeTotal.amount" class="text-highlighted" />
               </DrillLink>
             </li>
           </ul>
@@ -286,9 +283,7 @@ const taken = computed(() => {
           <p v-if="taken.reimbursements.length > 0" class="mt-3 text-xs text-muted" data-testid="owner-reimbursements">
             Outside the owner take, since they settle costs:
             <template v-for="(line, index) in taken.reimbursements" :key="line.key">
-              <DrillLink :to="line.to" in-prose class="text-toned">{{ line.name }}</DrillLink> <MoneyText :cents="line.amount" precision="whole" />{{
-                index < taken.reimbursements.length - 1 ? ', ' : '.'
-              }}
+              <DrillLink :to="line.to" in-prose class="text-toned">{{ line.name }}</DrillLink> <MoneyText :cents="line.amount" />{{ index < taken.reimbursements.length - 1 ? ', ' : '.' }}
             </template>
           </p>
         </template>

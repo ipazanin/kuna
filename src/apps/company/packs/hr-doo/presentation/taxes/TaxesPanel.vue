@@ -10,7 +10,7 @@ import type { LedgerWindow } from '../../../../../../shared/calendar/ledgerWindo
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import { sumMoney } from '../../../../../../shared/money/money'
-import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../../../shared/ui/DashboardGrid.vue'
@@ -115,7 +115,7 @@ const taxes = computed(() => {
     tiles: [
       {
         label: `${unit} paid`,
-        value: formatWholeMoney(rate.netTaxes.amount),
+        value: formatMoney(rate.netTaxes.amount),
         to: drillLocation(rate.netTaxes.drill),
         caption: 'Net of refunds',
         definition: `Everything in the ${unit.toLowerCase()} bucket over the year. A refund booked there lowers it.`,
@@ -124,7 +124,7 @@ const taxes = computed(() => {
         label: 'Effective tax rate',
         value: rate.rate === null ? '–' : percent.format(rate.rate),
         to: drillLocation(rate.netTaxes.drill),
-        caption: rate.rate === null ? 'No client revenue in this year' : `${formatWholeMoney(rate.netTaxes.amount)} on ${formatWholeMoney(rate.revenue.amount)} of revenue`,
+        caption: rate.rate === null ? 'No client revenue in this year' : `${formatMoney(rate.netTaxes.amount)} on ${formatMoney(rate.revenue.amount)} of revenue`,
         definition: RATE_DEFINITION,
       },
     ],
@@ -136,7 +136,7 @@ const taxes = computed(() => {
       description:
         parts.length === 0
           ? `No tax was paid in ${words}.`
-          : `Tax by type in ${words}: ${parts.map((part) => `${part.label} ${formatWholeMoney(part.value)}`).join(', ')}.${refunds.map((line) => ` ${line.label} ${formatWholeMoney(line.amount, 'negative')}.`).join('')} Net ${formatWholeMoney(rate.netTaxes.amount)}.`,
+          : `Tax by type in ${words}: ${parts.map((part) => `${part.label} ${formatMoney(part.value)}`).join(', ')}.${refunds.map((line) => ` ${line.label} ${formatMoney(line.amount, 'negative')}.`).join('')} Net ${formatMoney(rate.netTaxes.amount)}.`,
     },
     chart: taxByTypeChart(byType.months, series, tokens),
     empty: byType.types.length === 0,
@@ -298,7 +298,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
               <dt class="text-xs text-muted">Typical month</dt>
               <dd class="text-sm font-medium text-highlighted">
                 <DrillLink v-if="cadence.typical !== null" :to="cadence.allRows" :label="`${cadence.name}, typical month, open the rows`">
-                  <MoneyText :cents="cadence.typical" precision="whole" />
+                  <MoneyText :cents="cadence.typical" />
                 </DrillLink>
                 <span v-else>–</span>
               </dd>
@@ -319,7 +319,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
       definition="Each category of the taxes bucket that paid out more than it took back, as a share of the ring. A refund cannot be a slice, so it sits under the ring, and with it the ring makes the taxes paid."
       :description="taxes.ring.description"
       :parts="taxes.ring.parts"
-      :total="formatWholeMoney(taxes.ring.paid)"
+      :total="formatMoney(taxes.ring.paid)"
       :total-label="`paid in ${year}`"
       data-testid="tax-types"
     >
@@ -327,12 +327,12 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
         <ul class="mt-2 flex flex-col border-t border-default pt-2" data-testid="tax-refunds">
           <li v-for="line in taxes.ring.refunds" :key="line.key" class="aside-row">
             <DrillLink :to="line.to" :label="`${line.label}, open the rows`" class="min-w-0 text-toned">Less {{ line.label.toLowerCase() }}</DrillLink>
-            <MoneyText :cents="line.amount" precision="whole" class="text-highlighted" />
+            <MoneyText :cents="line.amount" class="text-highlighted" />
           </li>
           <li class="aside-row font-medium">
             <span class="text-toned">{{ settings.bucketLabels.taxes }} paid</span>
             <DrillLink :to="taxes.ring.net.to" :label="`${settings.bucketLabels.taxes} paid, open the rows`" data-testid="tax-net">
-              <MoneyText :cents="taxes.ring.net.amount" precision="whole" class="text-highlighted" />
+              <MoneyText :cents="taxes.ring.net.amount" class="text-highlighted" />
             </DrillLink>
           </li>
         </ul>

@@ -44,10 +44,10 @@ defineProps<{
         <DrillLink :to="loan.to" :label="`Loan of ${loan.lentOn}, open the row`" class="text-highlighted">
           <span class="text-sm">{{ loan.lentOn }}</span>
         </DrillLink>
-        <MoneyText :cents="loan.amount" precision="whole" class="text-sm font-medium text-highlighted" />
+        <MoneyText :cents="loan.amount" class="text-sm font-medium text-highlighted" />
         <UBadge :label="loan.open ? 'Open' : 'Repaid'" :color="loan.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
         <p class="loan-remaining text-xs text-muted">
-          <template v-if="loan.open"> <MoneyText :cents="loan.remaining" precision="whole" class="text-toned" /> still owed </template>
+          <template v-if="loan.open"> <MoneyText :cents="loan.remaining" class="text-toned" /> still owed </template>
           <template v-else-if="loan.repaidOn">Closed {{ loan.repaidOn }}</template>
           <template v-else>Nothing lent on this row</template>
         </p>
@@ -57,7 +57,7 @@ defineProps<{
         <li v-for="repayment in loan.repayments" :key="repayment.key">
           <DrillLink :to="repayment.to" :label="`Repayment of ${repayment.date}, open the row`" class="loan-share">
             <span class="text-muted">{{ repayment.date }}</span>
-            <MoneyText :cents="repayment.applied" precision="whole" class="text-toned" />
+            <MoneyText :cents="repayment.applied" class="text-toned" />
           </DrillLink>
         </li>
       </ol>

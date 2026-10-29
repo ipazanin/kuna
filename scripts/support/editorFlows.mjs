@@ -1016,7 +1016,7 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
     throw new Error('the monthly net with the profit included has no figure that opens its build-up')
   })
   const caption = await page.$eval(tile, (element) => element.textContent ?? '')
-  if (!/€[\d,]+ pay and €[\d,]+ from profit, a month/.test(caption)) throw new Error(`the tile does not split into pay and profit a month, it says: ${caption.trim()}`)
+  if (!/€[\d,]+\.\d{2} pay and €[\d,]+\.\d{2} from profit, a month/.test(caption)) throw new Error(`the tile does not split into pay and profit a month, it says: ${caption.trim()}`)
   const tiles = await page.$eval('[data-testid="owner-taken-tiles"]', (element) => element.textContent ?? '')
   if (!tiles.includes('Monthly net pay')) throw new Error('Monthly net pay is gone from beside the new tile')
   await inspect?.('owner net')
@@ -3090,9 +3090,8 @@ export async function homeFlow(page, { press, shoot, inspect }) {
   const total = await page
     .waitForFunction(() => document.querySelector('[data-testid="loans-total"]')?.textContent?.replace(/\s+/g, ' ').trim() ?? null, { timeout: 10_000 })
     .then((handle) => handle.jsonValue())
-  // The card rounds to whole euros, and the Overview's sentence keeps the cents.
   const euros = (text) => Number(/€[\d,]+(\.\d{2})?/.exec(text)?.[0].replace(/[€,]/g, '') ?? Number.NaN)
-  if (Math.round(euros(total)) !== euros(loans.figure)) throw new Error(`the Loans card says ${loans.figure} owed, the Loans Overview "${total}"`)
+  if (euros(total) !== euros(loans.figure)) throw new Error(`the Loans card says ${loans.figure} owed, the Loans Overview "${total}"`)
 }
 
 /**

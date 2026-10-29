@@ -26,7 +26,7 @@ import type { ChartOption } from '../charts/echarts'
 import { buildChartTheme } from '../charts/chartTheme'
 import { chartTokens, tokenColour } from '../charts/chartTokens'
 import { usePhoneLayout } from '../layout/viewport'
-import { formatWholeMoney } from '../money/moneyFormat'
+import { formatMoney } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import DrillLink from './DrillLink.vue'
 
@@ -55,7 +55,7 @@ const props = withDefaults(
     startCollapsed?: boolean
     reveal?: boolean
   }>(),
-  { formatValue: (value: number) => formatWholeMoney(value), opens: 'the rows', startCollapsed: false, reveal: false },
+  { formatValue: (value: number) => formatMoney(value), opens: 'the rows', startCollapsed: false, reveal: false },
 )
 
 const router = useRouter()
@@ -157,8 +157,8 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
 .donut-ring {
   position: relative;
   flex: none;
-  width: 180px;
-  height: 180px;
+  width: 200px;
+  height: 200px;
 }
 
 .ring-chart {
@@ -175,7 +175,7 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
   align-items: center;
   justify-content: center;
   gap: 0.125rem;
-  padding: 0 2.5rem;
+  padding: 0 1.75rem;
   text-align: center;
   pointer-events: none;
 }
@@ -240,8 +240,6 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
   }
 
   .donut-ring {
-    width: 168px;
-    height: 168px;
     margin-inline: auto;
   }
 }

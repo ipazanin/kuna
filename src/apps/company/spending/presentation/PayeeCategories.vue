@@ -18,7 +18,7 @@ export interface PayeeCategoryLine {
 import { computed, useTemplateRef } from 'vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
@@ -55,7 +55,7 @@ const anchor = {
 
 /** Hover and focus open the breakdown, so the trigger's name carries it too, for a keyboard that cannot reach the popover. */
 const spokenBreakdown = computed(
-  () => `${props.payee} by category: ${props.categories.map((line) => `${line.category === '' ? 'No category' : names.value.category(line.category)} ${formatWholeMoney(line.amount)}`).join(', ')}`,
+  () => `${props.payee} by category: ${props.categories.map((line) => `${line.category === '' ? 'No category' : names.value.category(line.category)} ${formatMoney(line.amount)}`).join(', ')}`,
 )
 </script>
 
@@ -72,7 +72,7 @@ const spokenBreakdown = computed(
             <DrillLink :to="line.to" class="breakdown-line">
               <CategoryChip :category="line.category" :bucket="line.bucket" class="min-w-0" />
               <span class="figure shrink-0 text-xs text-muted">{{ line.count }} {{ line.count === 1 ? 'row' : 'rows' }}</span>
-              <MoneyText :cents="line.amount" precision="whole" class="shrink-0 text-sm text-highlighted" />
+              <MoneyText :cents="line.amount" class="shrink-0 text-sm text-highlighted" />
             </DrillLink>
           </li>
         </ul>

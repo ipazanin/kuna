@@ -3,7 +3,7 @@ import { BAR_END_DOWN, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } fr
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../shared/charts/echarts'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import { shownBucketLines } from '../../settings/domain/profitAndLossLabels'
@@ -91,7 +91,7 @@ export function profitAndLossChart(months: readonly MonthOfProfitAndLoss[], toke
         tokens,
         incompleteCategories: months.filter((month) => !month.complete).map((month) => month.month),
         categoryLabel: monthAxisLabel('long'),
-        formatAmount: (amount, seriesName) => formatWholeMoney(amount, settings.series.some((series) => series.name === seriesName) ? 'magnitude' : 'negative'),
+        formatAmount: (amount, seriesName) => formatMoney(amount, settings.series.some((series) => series.name === seriesName) ? 'magnitude' : 'negative'),
       }),
     },
     xAxis: {
@@ -152,8 +152,8 @@ function describe(months: readonly MonthOfProfitAndLoss[], netLine: NetLine): st
   const worst = months.reduce((low, month) => (month.lines.net.amount < low.lines.net.amount ? month : low), first)
   const parts = [
     `Income and costs by month from ${monthLabel(first.month)} to ${monthLabel(last.month)}, with ${netLine.name.toLowerCase()} as a line.`,
-    `Best month ${monthLabel(best.month)} with a net of ${formatWholeMoney(best.lines.net.amount)}.`,
-    `Weakest month ${monthLabel(worst.month)} with a net of ${formatWholeMoney(worst.lines.net.amount)}.`,
+    `Best month ${monthLabel(best.month)} with a net of ${formatMoney(best.lines.net.amount)}.`,
+    `Weakest month ${monthLabel(worst.month)} with a net of ${formatMoney(worst.lines.net.amount)}.`,
   ]
   if (!last.complete) {
     parts.push(`${monthLabel(last.month)} is still running and is not counted in any average.`)

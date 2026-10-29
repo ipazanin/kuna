@@ -46,7 +46,7 @@ describe('billingView', () => {
     const view = viewOf(plan, [invoiceOf('8-1-26', 5000, '2026-09-02')], 2026)
 
     expect(view.yearLine).toEqual({ planned: 1020000, invoiced: 500000, notInvoiced: 520000, rowCount: 3, openRowCount: 2, issuedInYear: 1 })
-    expect(view.monthsSummary).toBe('1 of 2 months invoiced, €5,200 not invoiced yet')
+    expect(view.monthsSummary).toBe('1 of 2 months invoiced, €5,200.00 not invoiced yet')
     expect(view.itemsSummary).toBe('2 items in 2026, Monthly Fee the largest at 98%')
   })
 })

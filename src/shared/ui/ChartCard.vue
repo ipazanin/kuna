@@ -25,7 +25,7 @@ import type { ChartOption } from '../charts/echarts'
 import { categoryData, isCategoryAxis } from '../charts/chartAxes'
 import { monthAxisLabel } from '../calendar/monthLabel'
 import { usePhoneLayout } from '../layout/viewport'
-import { formatWholeMoney } from '../money/moneyFormat'
+import { formatMoney } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import ChartCanvas from './ChartCanvas.vue'
 import DrillLink from './DrillLink.vue'
@@ -47,7 +47,7 @@ const props = withDefaults(
     height?: number
     /** The height below the phone breakpoint, when the desktop one is too tall for a phone. */
     phoneHeight?: number
-    /** How the table view writes a value. Money in whole units unless the chart says otherwise. */
+    /** How the table view writes a value. Money with its cents unless the chart says otherwise. */
     formatValue?: (value: number) => string
     /** Where a value in the table view leads, when the chart's marks drill. */
     linkAt?: (selection: ChartPointSelection) => RouteLocationRaw | null
@@ -59,7 +59,7 @@ const props = withDefaults(
     reveal?: boolean
   }>(),
   {
-    formatValue: (value: number) => formatWholeMoney(value),
+    formatValue: (value: number) => formatMoney(value),
     linkAt: () => null,
     loading: false,
     empty: false,

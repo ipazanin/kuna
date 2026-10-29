@@ -158,15 +158,15 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
           <dl class="year-line">
             <div>
               <dt>Planned in {{ year }}</dt>
-              <dd><MoneyText :cents="view.yearLine.planned" precision="whole" /></dd>
+              <dd><MoneyText :cents="view.yearLine.planned" /></dd>
             </div>
             <div>
               <dt>Invoiced in {{ year }}</dt>
-              <dd><MoneyText :cents="view.yearLine.invoiced" precision="whole" /></dd>
+              <dd><MoneyText :cents="view.yearLine.invoiced" /></dd>
             </div>
             <div>
               <dt>Not yet invoiced</dt>
-              <dd><MoneyText :cents="view.yearLine.notInvoiced" precision="whole" /></dd>
+              <dd><MoneyText :cents="view.yearLine.notInvoiced" /></dd>
             </div>
           </dl>
           <p class="mt-1 text-xs text-muted">

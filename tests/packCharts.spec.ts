@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
-import { formatWholeMoney } from '../src/shared/money/moneyFormat'
+import { formatMoney } from '../src/shared/money/moneyFormat'
 import type { Period } from '../src/apps/company/filters/domain/filterState'
 import { categoryColourOf } from '../src/apps/company/workbook/domain/categoryColour'
 import { ledgerWindowOf } from '../src/apps/company/workbook/domain/workbook'
@@ -159,7 +159,7 @@ describe('ownerDrawsChart', () => {
       categories: ['rent-owner'],
     })
     // 2,200.00 of salary and 600.00 of rent less 50.40 of rent tax.
-    expect(chart.description).toContain('€2,750 in all.')
+    expect(chart.description).toContain('€2,749.60 in all.')
   })
 
   it('draws no rent tax band without rent', () => {
@@ -192,7 +192,7 @@ describe('ownerDrawsChart', () => {
       expect(take.rentTax.amount).toBeGreaterThan(0)
       expect(months.reduce((sum, month) => sum + month.rentTax.amount, 0)).toBe(take.rentTax.amount)
       expect(months.reduce((sum, month) => sum + month.total.amount, 0)).toBe(take.total.amount)
-      expect(chart.description).toContain(`${formatWholeMoney(take.total.amount)} in all.`)
+      expect(chart.description).toContain(`${formatMoney(take.total.amount)} in all.`)
     })
   })
 })

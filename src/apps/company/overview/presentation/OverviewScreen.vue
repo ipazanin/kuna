@@ -5,7 +5,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthInYear, monthLabel } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
-import { currencyUnitName, formatDecimal, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { currencyUnitName, formatDecimal, formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -120,29 +120,29 @@ const overview = computed(() => {
     tiles: [
       {
         label: 'Cash on hand',
-        value: formatWholeMoney(balances.cashOnHand.amount),
+        value: formatMoney(balances.cashOnHand.amount),
         to: drillLocation(balances.cashOnHand.drill),
         trend: cashMonths.slice(-12).map((month) => month.total.amount),
         ...(cashChange === null || lastMonthEnd === null
           ? {}
-          : { delta: { change: cashChange, text: formatWholeMoney(cashChange, 'always'), comparison: `since the end of ${monthLabel(lastMonthEnd.month)}` } }),
+          : { delta: { change: cashChange, text: formatMoney(cashChange, 'always'), comparison: `since the end of ${monthLabel(lastMonthEnd.month)}` } }),
         definition: 'The closing balance of every account in view on its newest booking day, added together.',
       },
       {
         label: 'Net, last 12 months',
-        value: formatWholeMoney(lastTwelveTotals.net),
+        value: formatMoney(lastTwelveTotals.net),
         to: drillLocation(drillToTransactions({ period: LAST_12_MONTHS, buckets: LINE_BUCKETS.net })),
         trend: lastTwelve.map((month) => month.lines.net.amount),
-        caption: `${formatWholeMoney(averages.last12.lines.net.perMonth)} a month over ${averagedMonths}`,
+        caption: `${formatMoney(averages.last12.lines.net.perMonth)} a month over ${averagedMonths}`,
         definition: `${shown.bucketLabels.income} less ${costs} over the last 12 months, the month so far included. The caption averages the 12 complete months before the month so far. Transfers and reimbursements are left out.`,
       },
       {
         label: 'Monthly costs',
-        value: formatWholeMoney(recentRunway.monthlyCost.amount),
+        value: formatMoney(recentRunway.monthlyCost.amount),
         to: drillLocation(recentRunway.monthlyCost.drill),
         trend: lastTwelve.map((month) => month.lines.cost.amount),
         higherIsBetter: false,
-        delta: { change: costChange, text: formatWholeMoney(costChange, 'always'), comparison: 'vs the 12-month average' },
+        delta: { change: costChange, text: formatMoney(costChange, 'always'), comparison: 'vs the 12-month average' },
         definition: `${costs.charAt(0).toUpperCase()}${costs.slice(1)} over the last three complete months, divided by three.`,
       },
       {
@@ -171,7 +171,7 @@ const overview = computed(() => {
     ],
     euro: {
       ...euroDonut(euro, shown, drillLocation),
-      total: formatWholeMoney(euro.shortfall ?? euro.whole),
+      total: formatMoney(euro.shortfall ?? euro.whole),
       totalLabel: euro.basis === 'income' ? 'income' : 'more out than in',
       loss: euro.basis === 'cost',
     },
@@ -201,10 +201,10 @@ const overview = computed(() => {
 
         <p v-if="overview.headline" class="headline" data-testid="headline">
           {{ overview.headline.month }}:
-          <DrillLink :to="overview.headline.cameIn.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.cameIn.amount" precision="whole" /></DrillLink>
+          <DrillLink :to="overview.headline.cameIn.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.cameIn.amount" /></DrillLink>
           came in and
-          <DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" precision="whole" /></DrillLink>
-          went out<template v-if="overview.headline.loss !== null">, a loss of <MoneyText :cents="overview.headline.loss" precision="whole" class="text-error" /></template>.
+          <DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" /></DrillLink>
+          went out<template v-if="overview.headline.loss !== null">, a loss of <MoneyText :cents="overview.headline.loss" class="text-error" /></template>.
         </p>
 
         <AppCard v-if="waiting.length" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
@@ -285,7 +285,7 @@ const overview = computed(() => {
                   <p class="mt-0.5 text-xs text-muted">As of {{ account.asOf }}. {{ account.count }} rows since {{ account.firstSeen }}.</p>
                 </div>
                 <DrillLink :to="account.to" :label="`${account.name}, every row`" class="shrink-0">
-                  <span class="figure text-base font-semibold whitespace-nowrap text-highlighted">{{ formatWholeMoney(account.balance) }}</span>
+                  <span class="figure text-base font-semibold whitespace-nowrap text-highlighted">{{ formatMoney(account.balance) }}</span>
                 </DrillLink>
               </li>
             </ul>

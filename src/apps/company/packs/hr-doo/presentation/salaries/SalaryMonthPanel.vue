@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
-import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../../../shared/ui/DonutCard.vue'
@@ -61,7 +61,7 @@ const dialogOpen = computed({
         definition="Health insurance is paid on top of the gross salary, so the cost to the company is the only whole the parts add up to. Pillar II is the employee’s own pension savings, set beside what they were paid and kept out of the state’s share."
         :description="view.ring.description"
         :parts="view.ring.parts"
-        :total="formatWholeMoney(view.ring.total)"
+        :total="formatMoney(view.ring.total)"
         total-label="cost to the company"
         :format-value="(value: number) => formatMoney(value)"
         data-testid="salaries-ring"

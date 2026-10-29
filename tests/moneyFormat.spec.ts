@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { DEFAULT_MONEY_FORMAT, currencyUnitName, formatCompactMoney, formatDecimal, formatMoney, formatPercent, formatWholeMoney, setMoneyFormat } from '../src/shared/money/moneyFormat'
+import { DEFAULT_MONEY_FORMAT, currencyUnitName, formatCompactMoney, formatDecimal, formatMoney, formatPercent, setMoneyFormat } from '../src/shared/money/moneyFormat'
 
 afterEach(() => {
   setMoneyFormat(DEFAULT_MONEY_FORMAT)
@@ -22,13 +22,12 @@ describe('money formatting with the default settings', () => {
     expect(formatMoney(0, 'always')).toBe('€0.00')
   })
 
-  it('rounds to whole euros and compacts for axis ticks', () => {
-    expect(formatWholeMoney(4821049)).toBe('€48,210')
+  it('compacts for axis ticks', () => {
     expect(formatCompactMoney(4821049)).toBe('€48.2k')
     expect(formatCompactMoney(-120000)).toBe('−€1.2k')
   })
 
-  it('keeps whole units under a thousand in compact form, so no decimal stands beside a k', () => {
+  it('drops the cents under a thousand in compact form, so no decimal stands beside a k', () => {
     expect(formatCompactMoney(90750)).toBe('€908')
     expect(formatCompactMoney(-4510)).toBe('−€45')
   })
@@ -57,16 +56,16 @@ describe('money formatting with another currency and locale', () => {
   it('uses the configured currency and its name', () => {
     setMoneyFormat({ currency: 'USD', locale: 'en-US' })
 
-    expect(formatWholeMoney(4821049)).toBe('$48,210')
+    expect(formatMoney(4821049)).toBe('$48,210.49')
     expect(currencyUnitName()).toBe('US dollar')
   })
 
   it("formats a figure in the format it is given, whatever the page's", () => {
     setMoneyFormat({ currency: 'USD', locale: 'en-US' })
 
-    expect(formatWholeMoney(4821049, 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('48.210\u00a0€')
+    expect(formatMoney(4821049, 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('48.210,49\u00a0€')
     expect(formatMoney(-98765, 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('−987,65\u00a0€')
     expect(formatCompactMoney(1240000, 'negative', { currency: 'EUR', locale: 'en-GB' })).toBe('€12.4k')
-    expect(formatWholeMoney(4821049)).toBe('$48,210')
+    expect(formatMoney(4821049)).toBe('$48,210.49')
   })
 })

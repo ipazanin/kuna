@@ -70,12 +70,12 @@ const STATUS = {
         <p class="invoice-timing figure text-xs text-toned">
           {{ invoice.issued }}<span :class="invoice.late ? 'text-warning' : 'text-muted'">, {{ invoice.timing }}</span>
         </p>
-        <MoneyText :cents="invoice.amount" precision="whole" class="invoice-amount text-end text-sm font-medium text-highlighted" />
+        <MoneyText :cents="invoice.amount" class="invoice-amount text-end text-sm font-medium text-highlighted" />
         <UBadge :label="STATUS[invoice.status].label" :color="STATUS[invoice.status].color" variant="subtle" size="sm" class="invoice-status justify-self-start" />
         <p class="invoice-outcome text-xs text-muted">
           <template v-if="invoice.status === 'paid' && invoice.received">Paid {{ invoice.received }}</template>
           <template v-else-if="invoice.status === 'paid'">Nothing to pay</template>
-          <template v-else><MoneyText :cents="invoice.remaining" precision="whole" class="text-toned" /> still owed</template>
+          <template v-else><MoneyText :cents="invoice.remaining" class="text-toned" /> still owed</template>
         </p>
         <UButton
           icon="i-lucide-square-pen"
@@ -93,13 +93,13 @@ const STATUS = {
         <li v-for="payment in invoice.payments" :key="payment.key">
           <DrillLink :to="payment.to" :label="`Payment of ${payment.date} towards invoice ${invoice.number}, open the row`" class="payment-share">
             <span class="text-muted">{{ payment.date }}</span>
-            <MoneyText :cents="payment.amount" precision="whole" class="text-toned" />
+            <MoneyText :cents="payment.amount" class="text-toned" />
           </DrillLink>
         </li>
         <li v-for="overpayment in invoice.overpayments" :key="`over-${overpayment.key}`">
           <DrillLink :to="overpayment.to" :label="`Overpaid on ${overpayment.date}, open the row`" class="payment-share overpaid">
             <span class="text-muted">Overpaid {{ overpayment.date }}</span>
-            <MoneyText :cents="overpayment.amount" precision="whole" sign="always" class="text-toned" />
+            <MoneyText :cents="overpayment.amount" sign="always" class="text-toned" />
           </DrillLink>
         </li>
       </ol>

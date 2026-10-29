@@ -8,7 +8,7 @@ import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
 import { chartTokens } from '../../shared/charts/chartTokens'
-import { formatMoney, formatWholeMoney } from '../../shared/money/moneyFormat'
+import { formatMoney } from '../../shared/money/moneyFormat'
 import type { SyncControl, SyncRun } from '../../shared/sync/application/syncRun'
 import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
 import { intlLocale } from '../../shared/text/language'
@@ -341,11 +341,11 @@ const columns: TableColumn<SampleTransaction>[] = [
     >
       <h3 class="type-label">Six tiles</h3>
       <DashboardGrid layout="tiles">
-        <KpiTile v-for="index in 6" :key="index" :label="`Tile ${index}`" :value="formatWholeMoney(index * 123_400)" :to="null" />
+        <KpiTile v-for="index in 6" :key="index" :label="`Tile ${index}`" :value="formatMoney(index * 123_400)" :to="null" />
       </DashboardGrid>
       <h3 class="type-label">Three tiles, the odd last one across both on a phone</h3>
       <DashboardGrid layout="tiles">
-        <KpiTile v-for="index in 3" :key="index" :label="`Tile ${index}`" :value="formatWholeMoney(index * 51_000)" :to="null" />
+        <KpiTile v-for="index in 3" :key="index" :label="`Tile ${index}`" :value="formatMoney(index * 51_000)" :to="null" />
       </DashboardGrid>
       <h3 class="type-label">A pair: a long card beside a column of cards</h3>
       <DashboardGrid layout="pair">
@@ -468,7 +468,7 @@ const columns: TableColumn<SampleTransaction>[] = [
           description="Made-up split of a year's income for the gallery: operating 28%, taxes 14%, owner pay 24%, kept 34%."
           subtitle="Where each euro of income went"
           :parts="EURO_PARTS"
-          :total="formatWholeMoney(8_586_000)"
+          :total="formatMoney(8_586_000)"
           total-label="income"
         />
         <DonutCard
@@ -476,14 +476,14 @@ const columns: TableColumn<SampleTransaction>[] = [
           description="Made-up taxes paid in a year for the gallery, by type."
           subtitle="Taxes paid in the year"
           :parts="TAX_PARTS"
-          :total="formatWholeMoney(1_027_900)"
+          :total="formatMoney(1_027_900)"
           total-label="paid"
           collapse-id="gallery.donut"
           summary="4 kinds of tax, €10,279 paid"
         >
           <template #below>
             <p class="mt-2 type-caption">
-              Less <span class="figure">{{ formatWholeMoney(64_000) }}</span> refunded, so the year's taxes come to <span class="figure">{{ formatWholeMoney(963_900) }}</span
+              Less <span class="figure">{{ formatMoney(64_000) }}</span> refunded, so the year's taxes come to <span class="figure">{{ formatMoney(963_900) }}</span
               >.
             </p>
           </template>

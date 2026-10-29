@@ -12,7 +12,7 @@ import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import { negateMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
-import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import { ruleLink } from '../../ruleset/presentation/ruleWording'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { dividendCapacity } from '../../domain/dividend/dividendCapacity'
@@ -251,7 +251,7 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
     tiles: [
       {
         label: 'Profit before tax',
-        value: formatWholeMoney(base.profitBeforeTax.amount),
+        value: formatMoney(base.profitBeforeTax.amount),
         to: null,
         caption: forecastMonths === 0 ? 'Every month from the ledger' : `${12 - forecastMonths} of 12 months from the ledger alone`,
         definition:
@@ -259,21 +259,21 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
       },
       {
         label: 'Corporate tax',
-        value: formatWholeMoney(liability.liability.amount),
+        value: formatMoney(liability.liability.amount),
         to: ruleLink('hr.cit.rate'),
-        caption: `At ${percentText(liability.rate.basisPoints)} on a base of ${formatWholeMoney(base.base.amount)}`,
+        caption: `At ${percentText(liability.rate.basisPoints)} on a base of ${formatMoney(base.base.amount)}`,
         definition: 'PD line 53, the tax on the base after the add-backs. Opens the rule with the rates.',
       },
       {
         label: 'Profit after tax',
-        value: formatWholeMoney(forecast.profitAfterTax.amount),
+        value: formatMoney(forecast.profitAfterTax.amount),
         to: null,
-        caption: `${formatWholeMoney(capacity.maxPayout.amount)} could be paid out`,
+        caption: `${formatMoney(capacity.maxPayout.amount)} could be paid out`,
         definition: 'Profit before tax less the corporate tax of the year. What can be paid out also counts earlier years and the share capital.',
       },
       {
         label: 'Cash at the year end',
-        value: formatWholeMoney(forecast.cashAtYearEnd.amount),
+        value: formatMoney(forecast.cashAtYearEnd.amount),
         to: null,
         caption: `Projected for 31 Dec ${year}`,
         definition: `Cash on the newest booking, then each month as it would be paid: revenue when the client pays, open invoices, the VAT position, costs, purchases, the dividend and the corporate tax. ${forecast.paymentLag.label}. A planning projection, not a bank balance.`,
@@ -281,19 +281,19 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
     ],
     chartMonths,
     profitAndLoss,
-    profitAndLossSummary: `Profit before tax ${formatWholeMoney(forecast.profitBeforeTax.total.amount)}`,
+    profitAndLossSummary: `Profit before tax ${formatMoney(forecast.profitBeforeTax.total.amount)}`,
     pdReturn,
-    pdReturnSummary: `Tax ${formatWholeMoney(liability.liability.amount)}, a monthly advance of ${formatWholeMoney(liability.monthlyAdvance.amount)}`,
+    pdReturnSummary: `Tax ${formatMoney(liability.liability.amount)}, a monthly advance of ${formatMoney(liability.monthlyAdvance.amount)}`,
     dividend: {
       capacity: capacityLines,
       prudence: prudenceLines,
       deterioration: ruleChips([prudence.deterioration]),
       decideBy: dayLabel(capacity.decideBy),
       payouts: capacity.options.map((option) => payoutView(option, linkOf)),
-      summary: `${formatWholeMoney(capacity.maxPayout.amount)} could be paid out`,
+      summary: `${formatMoney(capacity.maxPayout.amount)} could be paid out`,
     },
     cashMonths,
-    cashSummary: `${formatWholeMoney(forecast.cashAtYearEnd.amount)} on 31 Dec ${year}`,
+    cashSummary: `${formatMoney(forecast.cashAtYearEnd.amount)} on 31 Dec ${year}`,
     paymentLag: forecast.paymentLag.label,
     runway: runway.months === null ? null : { lasts: runwayInWords(runway.months), monthlyCost: runway.monthlyCost.amount },
     planActual: compared,
@@ -408,7 +408,7 @@ function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) 
 }
 
 function interimCashWarning(cash: InterimCash): string {
-  return `${figureLabel(cash.cash)}, less ${dueWords(cash)}, does not cover this payout and its tax. It covers an interim payout of at most ${formatWholeMoney(cash.largestPayout.amount)}.`
+  return `${figureLabel(cash.cash)}, less ${dueWords(cash)}, does not cover this payout and its tax. It covers an interim payout of at most ${formatMoney(cash.largestPayout.amount)}.`
 }
 
 function dueWords(cash: InterimCash): string {

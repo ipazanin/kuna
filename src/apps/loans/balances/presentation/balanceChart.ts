@@ -5,7 +5,7 @@ import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import type { Money } from '../../../../shared/money/money'
-import { formatMoney, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 
 /** What a loan owes at the end of a month. */
 export interface MonthBalance {
@@ -53,6 +53,6 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
       first === undefined || last === undefined || now === undefined
         ? 'No months to show.'
         : `What the loan owes at each month end from ${monthLabel(first.month)} to ${monthLabel(last.month)}. ` +
-          `At the end of ${monthLabel(now.month)} it is ${formatWholeMoney(now.owed)}${hasPlan ? `, and the plan reaches ${formatWholeMoney(last.owed)} by ${monthLabel(last.month)}` : ''}.`,
+          `At the end of ${monthLabel(now.month)} it is ${formatMoney(now.owed)}${hasPlan ? `, and the plan reaches ${formatMoney(last.owed)} by ${monthLabel(last.month)}` : ''}.`,
   }
 }

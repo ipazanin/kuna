@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
@@ -71,7 +71,7 @@ const spending = computed(() => {
     payeesSummary:
       payees[0] === undefined
         ? 'Nothing left the company in this period'
-        : `Top: ${payees[0].label}, ${formatWholeMoney(payees[0].total.amount)}, of ${payees.length} ${payees.length === 1 ? 'counterparty' : 'counterparties'}`,
+        : `Top: ${payees[0].label}, ${formatMoney(payees[0].total.amount)}, of ${payees.length} ${payees.length === 1 ? 'counterparty' : 'counterparties'}`,
     payees: payees.map((payee) => ({
       key: payee.key,
       label: payee.label,
@@ -136,7 +136,7 @@ const spending = computed(() => {
             <td class="figure text-end text-muted">{{ payee.count }}</td>
             <td class="text-end">
               <DrillLink :to="payee.to" :label="`${payee.label}, open the rows`">
-                <MoneyText :cents="payee.total" precision="whole" />
+                <MoneyText :cents="payee.total" />
               </DrillLink>
             </td>
           </tr>

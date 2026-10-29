@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 
 import { chartTokens } from '../../../../../shared/charts/chartTokens'
-import { formatWholeMoney } from '../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
 import DonutCard from '../../../../../shared/ui/DonutCard.vue'
 import type { DonutPart } from '../../../../../shared/ui/DonutCard.vue'
@@ -50,11 +50,11 @@ const ring = computed(() => {
     categoryName,
   )
   const parts = benefitsRing(props.benefits, series, categoryName).map((part): DonutPart => ({ ...part, to: drillLocation(part.drill) }))
-  const listed = parts.map((part) => `${part.label} at ${part.note} ${formatWholeMoney(part.value)}`).join(', ')
+  const listed = parts.map((part) => `${part.label} at ${part.note} ${formatMoney(part.value)}`).join(', ')
   return {
     parts,
-    total: formatWholeMoney(props.benefits.total.amount),
-    description: `${title.value} in ${props.period}, by the category each comes from: ${listed}. Together ${formatWholeMoney(props.benefits.total.amount)}.`,
+    total: formatMoney(props.benefits.total.amount),
+    description: `${title.value} in ${props.period}, by the category each comes from: ${listed}. Together ${formatMoney(props.benefits.total.amount)}.`,
   }
 })
 

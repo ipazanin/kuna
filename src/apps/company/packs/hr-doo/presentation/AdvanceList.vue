@@ -57,11 +57,11 @@ const emit = defineEmits<{
           <p class="truncate text-xs text-muted">{{ advance.paidOn }}, {{ advance.category }}</p>
         </div>
         <DrillLink :to="advance.to" :label="`Advance of ${advance.paidOn}, open the row`" class="text-end">
-          <MoneyText :cents="advance.amount" precision="whole" class="text-sm font-medium text-highlighted" />
+          <MoneyText :cents="advance.amount" class="text-sm font-medium text-highlighted" />
         </DrillLink>
         <UBadge :label="advance.open ? 'Owed to the owner' : 'Reimbursed'" :color="advance.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
         <p class="advance-remaining text-xs text-muted">
-          <template v-if="advance.open"><MoneyText :cents="advance.remaining" precision="whole" class="text-toned" /> still owed</template>
+          <template v-if="advance.open"><MoneyText :cents="advance.remaining" class="text-toned" /> still owed</template>
           <template v-else-if="advance.repaidOn">Reimbursed {{ advance.repaidOn }}</template>
         </p>
         <UButton
@@ -81,7 +81,7 @@ const emit = defineEmits<{
         <li v-for="repayment in advance.repayments" :key="repayment.key">
           <DrillLink :to="repayment.to" :label="`Reimbursement of ${repayment.date}, open the row`" class="advance-share">
             <span class="text-muted">{{ repayment.date }}</span>
-            <MoneyText :cents="repayment.applied" precision="whole" class="text-toned" />
+            <MoneyText :cents="repayment.applied" class="text-toned" />
           </DrillLink>
         </li>
       </ol>

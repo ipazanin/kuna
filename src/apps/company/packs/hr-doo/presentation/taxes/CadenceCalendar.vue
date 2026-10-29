@@ -19,7 +19,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { monthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
-import { formatCompactMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatCompactMoney, formatMoney } from '../../../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 
 /**
@@ -66,7 +66,7 @@ function spoken(cell: CadenceCell): string {
   const month = monthLabel(cell.month)
   if (cell.state === 'missing') return `${month}, missed, open the months around it`
   if (cell.state === 'not-yet-due') return `${month}, not due yet`
-  return `${month}, paid ${formatWholeMoney(cell.amount)}, open the rows`
+  return `${month}, paid ${formatMoney(cell.amount)}, open the rows`
 }
 </script>
 

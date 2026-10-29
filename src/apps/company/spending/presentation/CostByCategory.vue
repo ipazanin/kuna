@@ -29,7 +29,7 @@ export interface CostSection {
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { formatPercent, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
@@ -54,7 +54,7 @@ const summary = computed(() => {
   const lines = props.sections.flatMap((section) => section.lines)
   const largest = lines.reduce<CostLine | null>((best, line) => (best === null || line.current > best.current ? line : best), null)
   if (largest === null) return 'Nothing was spent in this period'
-  return `${lines.length} ${lines.length === 1 ? 'category' : 'categories'}, the largest ${largest.name} at ${formatWholeMoney(largest.current)}`
+  return `${lines.length} ${lines.length === 1 ? 'category' : 'categories'}, the largest ${largest.name} at ${formatMoney(largest.current)}`
 })
 
 function widthOf(amount: number): string {
@@ -81,7 +81,7 @@ function changeText(change: CostChange | null): string {
             {{ section.title }}
             <DrillLink v-if="section.link" :to="section.link.to" in-prose class="ms-1.5 text-xs font-normal text-muted">{{ section.link.label }}</DrillLink>
           </span>
-          <span class="cost-amount figure">{{ formatWholeMoney(section.total) }}</span>
+          <span class="cost-amount figure">{{ formatMoney(section.total) }}</span>
           <span v-if="compared" class="cost-change figure">{{ changeText(section.change) }}</span>
         </h3>
         <ul>
@@ -94,8 +94,8 @@ function changeText(change: CostChange | null): string {
               <span class="cost-current" :style="{ width: widthOf(line.current), background: line.colour }" />
             </span>
             <span class="cost-amount figure text-highlighted">
-              {{ formatWholeMoney(line.current) }}
-              <span v-if="compared && line.prior !== null" class="sr-only">, before {{ formatWholeMoney(line.prior) }}</span>
+              {{ formatMoney(line.current) }}
+              <span v-if="compared && line.prior !== null" class="sr-only">, before {{ formatMoney(line.prior) }}</span>
             </span>
             <span v-if="compared" class="cost-change figure">{{ changeText(line.change) }}</span>
           </li>

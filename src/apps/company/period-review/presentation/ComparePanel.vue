@@ -160,7 +160,6 @@ const shownSections = computed(() => {
                 <MoneyText
                   v-if="line.change !== null"
                   :cents="line.change"
-                  precision="whole"
                   sign="always"
                   class="block text-xs font-normal @sm:hidden"
                   :class="line.changeSign > 0 ? 'text-success' : line.changeSign < 0 ? 'text-error' : 'text-muted'"
@@ -168,23 +167,17 @@ const shownSections = computed(() => {
               </th>
               <td class="text-end">
                 <DrillLink :to="line.currentTo" :label="`${line.label}, ${review.currentLabel}, open the rows`">
-                  <MoneyText :cents="line.current" precision="whole" />
+                  <MoneyText :cents="line.current" />
                 </DrillLink>
               </td>
               <td class="text-end">
                 <DrillLink v-if="line.prior !== null" :to="line.priorTo" :label="`${line.label}, ${review.priorLabel}, open the rows`">
-                  <MoneyText :cents="line.prior" precision="whole" class="text-muted" />
+                  <MoneyText :cents="line.prior" class="text-muted" />
                 </DrillLink>
                 <span v-else class="text-muted">No data</span>
               </td>
               <td class="hidden text-end @sm:table-cell">
-                <MoneyText
-                  v-if="line.change !== null"
-                  :cents="line.change"
-                  precision="whole"
-                  sign="always"
-                  :class="line.changeSign > 0 ? 'text-success' : line.changeSign < 0 ? 'text-error' : 'text-muted'"
-                />
+                <MoneyText v-if="line.change !== null" :cents="line.change" sign="always" :class="line.changeSign > 0 ? 'text-success' : line.changeSign < 0 ? 'text-error' : 'text-muted'" />
                 <span v-else class="text-muted">–</span>
               </td>
             </tr>
@@ -212,7 +205,6 @@ const shownSections = computed(() => {
                   <MoneyText
                     v-if="row.change !== null"
                     :cents="row.change"
-                    precision="whole"
                     sign="always"
                     class="block text-xs @md:hidden"
                     :class="row.changeSign > 0 ? 'text-success' : row.changeSign < 0 ? 'text-error' : 'text-muted'"
@@ -221,24 +213,18 @@ const shownSections = computed(() => {
                 <td class="hidden text-muted @2xl:table-cell">{{ row.family }}</td>
                 <td class="text-end">
                   <DrillLink v-if="row.current !== null" :to="row.currentTo" :label="`${row.category}, ${review.currentLabel}, open the rows`">
-                    <MoneyText :cents="row.current" precision="whole" />
+                    <MoneyText :cents="row.current" />
                   </DrillLink>
                   <span v-else class="text-muted">–</span>
                 </td>
                 <td class="text-end">
                   <DrillLink v-if="row.prior !== null" :to="row.priorTo" :label="`${row.category}, ${review.priorLabel}, open the rows`">
-                    <MoneyText :cents="row.prior" precision="whole" class="text-muted" />
+                    <MoneyText :cents="row.prior" class="text-muted" />
                   </DrillLink>
                   <span v-else class="text-muted">–</span>
                 </td>
                 <td class="hidden text-end @md:table-cell">
-                  <MoneyText
-                    v-if="row.change !== null"
-                    :cents="row.change"
-                    precision="whole"
-                    sign="always"
-                    :class="row.changeSign > 0 ? 'text-success' : row.changeSign < 0 ? 'text-error' : 'text-muted'"
-                  />
+                  <MoneyText v-if="row.change !== null" :cents="row.change" sign="always" :class="row.changeSign > 0 ? 'text-success' : row.changeSign < 0 ? 'text-error' : 'text-muted'" />
                   <span v-else class="text-muted">–</span>
                 </td>
               </tr>

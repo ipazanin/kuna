@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { formatCompactMoney, formatMoney, formatWholeMoney } from '../money/moneyFormat'
+import { formatCompactMoney, formatMoney } from '../money/moneyFormat'
 import type { MoneyFormat, SignDisplay } from '../money/moneyFormat'
 
 const props = withDefaults(
@@ -9,7 +9,7 @@ const props = withDefaults(
     cents: number
     /** `magnitude` drops the sign, for costs that read positive. `always` adds a plus, for changes. */
     sign?: SignDisplay
-    precision?: 'cents' | 'whole' | 'compact'
+    precision?: 'cents' | 'compact'
     /**
      * `flow` colours money coming in and leaves money going out in the normal ink, since a cost is
      * not bad news. `outcome` is for a result such as a net, where a negative one is a loss.
@@ -22,7 +22,6 @@ const props = withDefaults(
 )
 
 const formatted = computed(() => {
-  if (props.precision === 'whole') return formatWholeMoney(props.cents, props.sign, props.format)
   if (props.precision === 'compact') return formatCompactMoney(props.cents, props.sign, props.format)
   return formatMoney(props.cents, props.sign, props.format)
 })

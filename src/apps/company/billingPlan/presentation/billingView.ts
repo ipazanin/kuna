@@ -5,7 +5,7 @@ import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { ZERO, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { formatPercent, formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { billingItemOrder } from '../../workbook/domain/billingPlan'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -161,7 +161,7 @@ export function billingView(figures: BillingPlanFigures, register: { readonly cl
     monthsSummary:
       listedMonths.length === 0
         ? 'No month with plan rows'
-        : `${listedMonths.filter((month) => month.status === 'invoiced').length} of ${listedMonths.filter((month) => month.status !== null).length} months invoiced, ${formatWholeMoney(openInYear)} not invoiced yet`,
+        : `${listedMonths.filter((month) => month.status === 'invoiced').length} of ${listedMonths.filter((month) => month.status !== null).length} months invoiced, ${formatMoney(openInYear)} not invoiced yet`,
     rowsSummary:
       rows.length === 0 ? 'No plan rows in the year' : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}, ${openRows.length === 0 ? 'every one invoiced' : `${openRows.length} not invoiced yet`}`,
     rows: [...rows].sort((earlier, later) => later.date.localeCompare(earlier.date) || billingItemOrder(earlier, later)),
@@ -174,7 +174,7 @@ export function billingView(figures: BillingPlanFigures, register: { readonly cl
       tokens,
     ),
     itemYears: figures.statistics.years.length,
-    totalsSummary: `${formatWholeMoney(all.planned)} planned, ${formatWholeMoney(all.invoiced)} invoiced, over every year`,
+    totalsSummary: `${formatMoney(all.planned)} planned, ${formatMoney(all.invoiced)} invoiced, over every year`,
     check: {
       sums: [
         { label: 'Total amount', amount: all.planned },

@@ -11,7 +11,7 @@ import type { LedgerWindow } from '../../../../../../shared/calendar/ledgerWindo
 import { monthOf } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
-import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
@@ -142,14 +142,14 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     tiles: [
       {
         label: 'Book value',
-        value: formatWholeMoney(bookValue),
+        value: formatMoney(bookValue),
         to: null,
         caption: `Today, ${held} of ${lines.length} ${lines.length === 1 ? 'asset' : 'assets'} on the books`,
         definition: 'Cost without VAT less the depreciation of every month that has ended. Small inventory is written off when put in use, so it carries no book value.',
       },
       {
         label: `Depreciation in ${year}`,
-        value: formatWholeMoney(yearsDepreciation),
+        value: formatMoney(yearsDepreciation),
         to: ruleLink('hr.cit.depreciation-rates'),
         caption: doubled ? 'At doubled rates' : 'At the rates the workbook asks for',
         definition: 'Straight-line from the month after an asset is put in use, at its group rate. Opens the rule with the rates.',
@@ -159,14 +159,14 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
         : [
             {
               label: 'Deferred',
-              value: formatWholeMoney(deferredToday),
+              value: formatMoney(deferredToday),
               to: null,
-              caption: `Grant not yet income today. ${formatWholeMoney(releasedInYear)} released in ${year}`,
+              caption: `Grant not yet income today. ${formatMoney(releasedInYear)} released in ${year}`,
               definition: 'Grant money received and not yet counted as income, as of the last month that has ended.',
             },
             {
               label: 'Clawback',
-              value: exposures.length === 0 ? '–' : formatWholeMoney(exposures.reduce((total, amount) => total + amount, 0)),
+              value: exposures.length === 0 ? '–' : formatMoney(exposures.reduce((total, amount) => total + amount, 0)),
               to: null,
               caption: firstCondition === undefined ? 'Repaid if employment ended today' : `Repaid if employment ended today. Required until ${dayLabel(firstCondition)}`,
               definition: 'What the grantor could claim back if a condition broke today, from the clawback terms on the grants tab. It is a risk to plan for, never a figure in profit.',
@@ -180,7 +180,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
       accumulated: lines.reduce((total, line) => total + line.accumulated, 0),
       bookValue,
     },
-    registerSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatWholeMoney(bookValue)} book value today`,
+    registerSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatMoney(bookValue)} book value today`,
     unmatchedAssets,
     unmatchedPurchases: register.unmatchedPurchases.map((purchase) => ({
       key: `${purchase.row.account}-${purchase.row.sequence}`,
@@ -198,7 +198,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     })),
     threshold: formatMoney(threshold),
     chart,
-    bookValueSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatWholeMoney(bookValue)} today`,
+    bookValueSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatMoney(bookValue)} today`,
     yearsSummary: years.length === 0 ? 'No asset is depreciated' : `${years.length} ${years.length === 1 ? 'year' : 'years'}, ${years[0]!.year} to ${years[years.length - 1]!.year}`,
     years: years.map((entry): DepreciationYearLine => ({
       year: entry.year,

@@ -2,7 +2,7 @@ import { BAR_END_RIGHT, stackGap } from '../../../../../../shared/charts/chartTh
 import type { ChartTokens } from '../../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption } from '../../../../../../shared/charts/echarts'
-import { formatPercent, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatMoney, formatPercent } from '../../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import { SEGMENT_LABELS } from './payScenariosView'
 import type { ScenarioSplit, SplitSegment } from './payScenariosView'
@@ -63,7 +63,7 @@ export function scenarioBars(splits: readonly ScenarioSplit[], tokens: ChartToke
   const description = splits
     .map(
       (split) =>
-        `${split.label}, of ${formatWholeMoney(split.whole)} profit before owner pay: ` +
+        `${split.label}, of ${formatMoney(split.whole)} profit before owner pay: ` +
         split.parts
           .filter((part) => shareOf(part.cents, split) > 0)
           .map((part) => `${SEGMENT_LABELS[part.segment].toLowerCase()} ${formatPercent(shareOf(part.cents, split) / 100)}`)

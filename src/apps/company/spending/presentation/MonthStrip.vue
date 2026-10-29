@@ -3,7 +3,7 @@ import { computed } from 'vue'
 
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 
 /** One small column per month, every payee on the same scale, so a large payee looks large beside a small one. */
 const props = defineProps<{
@@ -25,7 +25,7 @@ const paidMonths = computed(() => props.cells.filter((cell) => cell.amount > 0).
       class="month-cell"
       :class="{ unpaid: cell.amount <= 0 }"
       :style="{ height: `${cell.amount <= 0 || scale <= 0 ? 2 : Math.max(3, Math.round((cell.amount / scale) * HEIGHT))}px` }"
-      :title="`${monthLabel(cell.month)}: ${formatWholeMoney(cell.amount)}`"
+      :title="`${monthLabel(cell.month)}: ${formatMoney(cell.amount)}`"
     />
   </span>
 </template>

@@ -6,7 +6,7 @@ import { moneyAxisLabel } from '../../../../../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../../shared/charts/chartTooltip'
 import type { ChartOption, LineSeries } from '../../../../../../shared/charts/echarts'
-import { formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import { bookValueOn } from '../../domain/assets/depreciationSchedule'
 import type { DepreciationSchedule } from '../../domain/assets/depreciationSchedule'
@@ -48,7 +48,7 @@ export function bookValueChart(schedules: readonly DepreciationSchedule[], today
     data: valuesOf(line.schedules, months),
     ...(index === 0 ? { markArea: aheadBand(months, today, tokens) } : {}),
   }))
-  const tooltip = axisTooltip({ tokens, categoryLabel: monthAxisLabel('long'), formatAmount: (amount) => formatWholeMoney(amount) })
+  const tooltip = axisTooltip({ tokens, categoryLabel: monthAxisLabel('long'), formatAmount: (amount) => formatMoney(amount) })
   const option: ChartOption = {
     grid: { top: 16, right: 16 },
     tooltip: {
@@ -76,7 +76,7 @@ export function bookValueChart(schedules: readonly DepreciationSchedule[], today
     description:
       first === undefined || last === undefined
         ? 'No asset is depreciated.'
-        : `Book value of ${lines.map((line) => line.name).join(', ')} at the end of each month from ${monthLabel(first)} to ${monthLabel(last)}. ` + `${formatWholeMoney(todayValue)} in all today.`,
+        : `Book value of ${lines.map((line) => line.name).join(', ')} at the end of each month from ${monthLabel(first)} to ${monthLabel(last)}. ` + `${formatMoney(todayValue)} in all today.`,
   }
 }
 

@@ -88,15 +88,15 @@ const groupName = computed(() => {
       <template v-if="group.kind === 'month'">
         <span class="figure-pair">
           <span class="meta">{{ bucketLabels.income }}</span>
-          <MoneyText :cents="group.income" precision="whole" class="text-toned" />
+          <MoneyText :cents="group.income" class="text-toned" />
         </span>
         <span class="figure-pair">
           <span class="meta">Costs</span>
-          <MoneyText :cents="group.cost" precision="whole" class="text-toned" />
+          <MoneyText :cents="group.cost" class="text-toned" />
         </span>
         <span class="figure-pair">
           <span class="meta">Net</span>
-          <MoneyText :cents="group.net" precision="whole" tone="outcome" class="font-medium" />
+          <MoneyText :cents="group.net" tone="outcome" class="font-medium" />
         </span>
       </template>
       <template v-else>

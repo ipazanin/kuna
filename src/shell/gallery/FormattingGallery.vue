@@ -3,7 +3,7 @@ import { civilDate } from '../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../shared/calendar/dayLabel'
 import { monthKey } from '../../shared/calendar/monthKey'
 import { monthLabel, monthName, shortMonthLabel } from '../../shared/calendar/monthLabel'
-import { currencyUnitName, formatCompactMoney, formatDays, formatDecimal, formatMoney, formatPercent, formatWholeMoney } from '../../shared/money/moneyFormat'
+import { currencyUnitName, formatCompactMoney, formatDays, formatDecimal, formatMoney, formatPercent } from '../../shared/money/moneyFormat'
 import AppCard from '../../shared/ui/AppCard.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
@@ -18,7 +18,6 @@ const FORMATTED = [
   { name: 'formatMoney', use: 'An amount to the cent', text: formatMoney(1234567) },
   { name: 'formatMoney, negative', use: 'A true minus, so columns keep their width', text: formatMoney(-98765) },
   { name: 'formatMoney, always', use: 'A change, with its sign either way', text: formatMoney(31000, 'always') },
-  { name: 'formatWholeMoney', use: 'Tiles and labels, where the cents are noise', text: formatWholeMoney(4821049) },
   { name: 'formatCompactMoney', use: 'Axis ticks and tight labels', text: `${formatCompactMoney(4821049)}, ${formatCompactMoney(90700)}` },
   { name: 'formatPercent', use: 'A share', text: `${formatPercent(0.284)}, ${formatPercent(-0.031, 'always')}` },
   { name: 'formatDecimal', use: 'A plain number with one decimal', text: formatDecimal(7.4) },
@@ -37,7 +36,6 @@ const MONEY_TEXTS = [
   { label: 'Change, sign always', cents: 31000, props: { sign: 'always', tone: 'flow' } },
   { label: 'A loss, as an outcome', cents: -31000, props: { tone: 'outcome' } },
   { label: 'Cost as magnitude', cents: -412050, props: { sign: 'magnitude' } },
-  { label: 'Whole euros', cents: 4821049, props: { precision: 'whole' } },
   { label: 'Compact', cents: 4821049, props: { precision: 'compact' } },
 ] as const
 </script>

@@ -35,13 +35,13 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 
 ## Figures and tables
 
-| Component        | Props                                                                                                                                       | Company | Loans | Shell | Shared |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
-| `MoneyText`      | `cents`, `sign?`, `precision?: 'cents' \| 'whole' \| 'compact'`, `tone?: 'flow' \| 'outcome'`, `format?` for a figure shown outside its app | 54      | 6     | 1     | 0      |
-| `DrillLink`      | `to: RouteLocationRaw \| null`, `label?`, `inProse?`                                                                                        | 45      | 0     | 0     | 3      |
-| `FigureTable`    | `label?`. Wraps `.data-table` in a frame that scrolls sideways only when needed                                                             | 3       | 1     | 0     | 1      |
-| `SortableHeader` | `label`, `v-model` sort direction or null                                                                                                   | 1       | 0     | 0     | 0      |
-| `ShowAllButton`  | `total`, `v-model:expanded`. Shows the first ten entries of a list                                                                          | 5       | 1     | 0     | 0      |
+| Component        | Props                                                                                                                            | Company | Loans | Shell | Shared |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
+| `MoneyText`      | `cents`, `sign?`, `precision?: 'cents' \| 'compact'`, `tone?: 'flow' \| 'outcome'`, `format?` for a figure shown outside its app | 54      | 6     | 1     | 0      |
+| `DrillLink`      | `to: RouteLocationRaw \| null`, `label?`, `inProse?`                                                                             | 45      | 0     | 0     | 3      |
+| `FigureTable`    | `label?`. Wraps `.data-table` in a frame that scrolls sideways only when needed                                                  | 3       | 1     | 0     | 1      |
+| `SortableHeader` | `label`, `v-model` sort direction or null                                                                                        | 1       | 0     | 0     | 0      |
+| `ShowAllButton`  | `total`, `v-model:expanded`. Shows the first ten entries of a list                                                               | 5       | 1     | 0     | 0      |
 
 ## Controls
 

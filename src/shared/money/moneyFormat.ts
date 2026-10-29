@@ -26,7 +26,7 @@ const MINUS = '−'
 
 interface Formatters {
   readonly full: Intl.NumberFormat
-  readonly whole: Intl.NumberFormat
+  readonly compactSmall: Intl.NumberFormat
   readonly compact: Intl.NumberFormat
   readonly percent: Intl.NumberFormat
   readonly decimal: Intl.NumberFormat
@@ -50,7 +50,7 @@ function formatters(format: MoneyFormat = active.value): Formatters {
   if (found === undefined) {
     found = {
       full: new Intl.NumberFormat(locale, { style: 'currency', currency }),
-      whole: new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }),
+      compactSmall: new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }),
       compact: new Intl.NumberFormat(locale, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }),
       percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }),
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
@@ -88,16 +88,11 @@ export function formatMoney(cents: number, sign: SignDisplay = 'negative', forma
   return withSign(cents, formatters(format).full.format(Math.abs(cents) / 100), sign)
 }
 
-/** Whole units, for KPI values and labels where the cents are noise. */
-export function formatWholeMoney(cents: number, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
-  return withSign(cents, formatters(format).whole.format(Math.round(Math.abs(cents) / 100)), sign)
-}
-
-/** €12.4K style, for axis ticks and tight labels. Under a thousand it is whole units, so €907 sits beside €5.6K. */
+/** €12.4K style, for axis ticks and tight labels. Under a thousand it drops the cents, so €907 sits beside €5.6K. */
 export function formatCompactMoney(cents: number, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
   const units = Math.abs(cents) / 100
-  const { whole, compact } = formatters(format)
-  return withSign(cents, units < 1000 ? whole.format(Math.round(units)) : compact.format(units), sign)
+  const { compactSmall, compact } = formatters(format)
+  return withSign(cents, units < 1000 ? compactSmall.format(Math.round(units)) : compact.format(units), sign)
 }
 
 export function formatPercent(fraction: number, sign: SignDisplay = 'negative'): string {

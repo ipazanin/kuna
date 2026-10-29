@@ -6,7 +6,7 @@ import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { chartTokens } from '../../../../../shared/charts/chartTokens'
 import { negateMoney } from '../../../../../shared/money/money'
-import { formatMoney, formatWholeMoney } from '../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../../shared/ui/DashboardGrid.vue'
@@ -101,13 +101,13 @@ const owed = computed(() => {
     tiles: [
       {
         label: 'Net owed',
-        value: formatWholeMoney(balance.amount),
+        value: formatMoney(balance.amount),
         to: drillLocation(balance.drill),
         caption: `${balance.amount > 0 ? 'The owner owes the company' : balance.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way'} on ${on}`,
         definition:
           `One balance across both directions, as the books stood on ${on}, the last day of the period or the newest booking. The owner owes the company what was lent, private costs and the owner's parts of split company payments included, ` +
-          `less what the owner paid back on a loan or reimbursement category (${formatWholeMoney(balance.loanBalance)}). ` +
-          `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatWholeMoney(balance.advancesOutstanding)}). ` +
+          `less what the owner paid back on a loan or reimbursement category (${formatMoney(balance.loanBalance)}). ` +
+          `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatMoney(balance.advancesOutstanding)}). ` +
           (inPeriod.unaccountedTotal > 0
             ? `That figure counts the reimbursements with no cost on file (${formatMoney(inPeriod.unaccountedTotal)}) as paid to the owner until their costs are added. `
             : '') +
@@ -124,10 +124,10 @@ const owed = computed(() => {
       { label: LENT_SERIES, colour: colours.lent },
       { label: REPAID_SERIES, colour: colours.repaid },
     ],
-    timelineSummary: months.length === 0 ? 'No months to show' : `${formatWholeMoney(lentInMonths)} lent, ${formatWholeMoney(repaidInMonths)} repaid`,
+    timelineSummary: months.length === 0 ? 'No months to show' : `${formatMoney(lentInMonths)} lent, ${formatMoney(repaidInMonths)} repaid`,
     loanSummary: figuresOf(inPeriod.loans, ['Owed at the start', 'Lent', 'Repaid', 'Owed at the end']),
     advanceSummary: figuresOf(inPeriod.advances, ['Owed at the start', 'Paid by the owner', 'Reimbursed', 'Owed at the end']),
-    advancesSummary: `${inPeriod.advanceList.length} ${inPeriod.advanceList.length === 1 ? 'cost' : 'costs'}, ${formatWholeMoney(inPeriod.advances.end.amount)} owed to the owner on ${on}`,
+    advancesSummary: `${inPeriod.advanceList.length} ${inPeriod.advanceList.length === 1 ? 'cost' : 'costs'}, ${formatMoney(inPeriod.advances.end.amount)} owed to the owner on ${on}`,
     loansSummary: `${inPeriod.loanList.length} ${inPeriod.loanList.length === 1 ? 'loan' : 'loans'}, ${inPeriod.openLoans === 0 ? 'none open' : `${inPeriod.openLoans} open`} on ${on}`,
     advances: [...inPeriod.advanceList].reverse().map((line): AdvanceLine => ({
       id: line.advance.id,
@@ -202,7 +202,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
             <div v-for="figure in owed.loanSummary" :key="figure.label" class="min-w-0">
               <dt class="text-xs text-muted">{{ figure.label }}</dt>
               <dd class="text-sm font-medium text-highlighted">
-                <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" precision="whole" /></DrillLink>
+                <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" /></DrillLink>
               </dd>
             </div>
           </dl>
@@ -225,7 +225,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
             <div v-for="figure in owed.advanceSummary" :key="figure.label" class="min-w-0">
               <dt class="text-xs text-muted">{{ figure.label }}</dt>
               <dd class="text-sm font-medium text-highlighted">
-                <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" precision="whole" /></DrillLink>
+                <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" /></DrillLink>
               </dd>
             </div>
           </dl>

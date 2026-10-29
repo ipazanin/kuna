@@ -4,7 +4,7 @@ import type { ChartTokens } from '../../../../../../shared/charts/chartTokens'
 import { tokenColour } from '../../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../../shared/charts/chartTooltip'
 import type { BarSeries } from '../../../../../../shared/charts/echarts'
-import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import type { DrillChart } from '../../../../filters/presentation/chartDrill'
 import { PAY_PARTS, PAY_PART_COLOURS, PAY_PART_LABELS } from './salariesView'
@@ -55,7 +55,7 @@ export function salaryMonthsChart(rows: readonly SalaryMonthRow[], tokens: Chart
     description:
       first === undefined || final === undefined
         ? 'No payday to show.'
-        : `Cost to the company by payday from ${monthLabel(first.payday)} to ${monthLabel(final.payday)}, stacked by ${PAY_PARTS.map((part) => PAY_PART_LABELS[part].toLowerCase()).join(', ')}. ${formatWholeMoney(total)} in all.`,
+        : `Cost to the company by payday from ${monthLabel(first.payday)} to ${monthLabel(final.payday)}, stacked by ${PAY_PARTS.map((part) => PAY_PART_LABELS[part].toLowerCase()).join(', ')}. ${formatMoney(total)} in all.`,
     formatValue: (value) => formatMoney(value),
     drillAt: ({ seriesName, dataIndex }) => {
       const part = PAY_PARTS.find((candidate) => PAY_PART_LABELS[candidate] === seriesName)
