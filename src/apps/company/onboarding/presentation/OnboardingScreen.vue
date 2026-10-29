@@ -2,6 +2,7 @@
 import { computed, nextTick, watch } from 'vue'
 import type { Component } from 'vue'
 
+import { makingStep } from '../domain/onboardingSteps'
 import type { OnboardingStep } from '../domain/onboardingSteps'
 import AccessStep from './AccessStep.vue'
 import CompanyStep from './CompanyStep.vue'
@@ -9,6 +10,7 @@ import FileStep from './FileStep.vue'
 import FindStep from './FindStep.vue'
 import FolderStep from './FolderStep.vue'
 import HomeStep from './HomeStep.vue'
+import MadeStep from './MadeStep.vue'
 import StatementStep from './StatementStep.vue'
 import WelcomeStep from './WelcomeStep.vue'
 import { useOnboarding } from './useOnboarding'
@@ -17,6 +19,7 @@ import { useOnboarding } from './useOnboarding'
  * Onboarding at `#/company/start?step=…`, on the ruled page of the first run: the steps of the path in a row,
  * named from 640 px and numbered on a phone, and the step's card under it. The route holds the step,
  * so a trip to Google comes back into it. The row only shows where the person is, so it holds no buttons.
+ * Back to the step that made the books of this run shows them made, so it never makes a second set.
  */
 const onboarding = useOnboarding()
 
@@ -35,7 +38,10 @@ const items = computed(() => {
   const current = onboarding.steps.value.indexOf(onboarding.place.value.step)
   return onboarding.steps.value.map((step, index) => ({ step, title: STEPS[step].title, state: index < current ? 'done' : index === current ? 'current' : 'ahead' }))
 })
-const step = computed(() => STEPS[onboarding.place.value.step])
+const component = computed(() => {
+  const place = onboarding.place.value
+  return onboarding.madeBooks.value !== null && place.step === makingStep(place) ? MadeStep : STEPS[place.step].component
+})
 
 // A new step takes focus, so a screen reader announces its card, and it comes into view.
 watch(
@@ -67,7 +73,7 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
         </li>
       </ol>
 
-      <component :is="step.component" :key="onboarding.place.value.step" />
+      <component :is="component" :key="onboarding.place.value.step" />
 
       <footer class="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted">
         <span>No server. Your data stays in your Google Drive, this browser and the files you export.</span>

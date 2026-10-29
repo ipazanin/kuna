@@ -38,6 +38,11 @@ export interface OnboardingPlace {
   /** Read only while statements come from mail. */
   readonly mail: StatementMail
   readonly step: OnboardingStep
+  /**
+   * The id of the books this run made, so going back to the step that made them shows them made
+   * instead of making a second set. Null before they are made, and always on the open and move paths.
+   */
+  readonly made: string | null
 }
 
 const FIRST_BANK = BANK_PRESETS[0]!.id
@@ -91,7 +96,9 @@ export function onboardingPlaceOf(query: Readonly<Record<string, unknown>>): Onb
     subject: word('subject') ?? '',
     since: parseCivilDate(word('since') ?? ''),
   }
-  return { path, home, statements: statementsOf({ path, home }, word('statements')), mail, step }
+  // Starting over would lose books that moved here, since this browser no longer holds them, and the open path makes none.
+  const made = path === 'new' || path === 'bring' ? word('made') : null
+  return { path, home, statements: statementsOf({ path, home }, word('statements')), mail, step, made }
 }
 
 /** The route query of a place, leaving out what is the first choice anyway. The mail stays while another choice is made, so a switch back finds what was typed. */
@@ -106,6 +113,7 @@ export function onboardingQueryOf(place: OnboardingPlace): Record<string, string
     ...(from === '' ? {} : { from }),
     ...(subject === '' ? {} : { subject }),
     ...(since === null ? {} : { since }),
+    ...(place.made === null ? {} : { made: place.made }),
   }
 }
 
@@ -116,15 +124,13 @@ export function nextStep(place: OnboardingPlace): OnboardingStep | null {
 }
 
 /** The step whose Continue makes the books: the folder step on Drive, and in this browser the step that holds what they start from. */
-function makingStep(place: Pick<OnboardingPlace, 'path' | 'home'>): OnboardingStep {
+export function makingStep(place: Pick<OnboardingPlace, 'path' | 'home'>): OnboardingStep {
   if (place.home === 'drive') return 'folder'
   return place.path === 'new' ? 'home' : 'file'
 }
 
-/** The step before this one on its path, or null on the first and after the books are made, since that step would make them again. */
+/** The step before this one on its path, or null on the first. */
 export function previousStep(place: OnboardingPlace): OnboardingStep | null {
   const steps = stepsOf(place.path, place.home)
-  const at = steps.indexOf(place.step)
-  const making = steps.indexOf(makingStep(place))
-  return making !== -1 && at > making ? null : (steps[at - 1] ?? null)
+  return steps[steps.indexOf(place.step) - 1] ?? null
 }

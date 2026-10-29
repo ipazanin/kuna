@@ -15,7 +15,8 @@ export interface KeepOnDrive {
   /**
    * Keeps the books in a new file in the folder, from a click, with the folders named made beside it,
    * and says in a toast how it went: the file and where it is for new books, how many records moved
-   * for books brought along. Resolves to whether the books are now on Drive.
+   * for books brought along. Resolves to whether the books are now on Drive. Throws
+   * `BooksAlreadyOnDrive` as the store does, with no toast, so the step can offer those books.
    */
   keepOnDrive(folder: PickedFolder, document: WorkbookDocument, kept: KeptOnDrive, folders: readonly string[]): Promise<boolean>
 }

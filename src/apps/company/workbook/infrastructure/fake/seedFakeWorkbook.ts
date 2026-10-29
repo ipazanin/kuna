@@ -22,7 +22,8 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
 /**
  * Fills the browser from the synthetic workbook, as a successful sync would, and chooses it: a file
  * on the fake build's Drive, or with `?fake=browser` a workbook kept in this browser with changes nine
- * days past their last export. `?fake=empty` keeps nothing, which is a first run. A variant that ends
+ * days past their last export, and `?fake=browser-beside-drive` that workbook with a file another
+ * device made on the fake Drive too. `?fake=empty` keeps nothing, which is a first run. A variant that ends
  * in `no-billing-plan`, `no-scenarios` or `no-plan` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
  * first save. A variant that starts with `mail` names the bank's and the accountant's mail, which the
@@ -47,6 +48,9 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
     raceTheNextSave(otherDeviceSave)
   }
   const text = encodeDocument(document)
+  if (variant === 'browser-beside-drive') {
+    await onFakeDrive(text, savedAt, document)
+  }
   const copy: DocumentCopy =
     source === 'browser'
       ? {

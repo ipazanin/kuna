@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
+import { BooksAlreadyOnDrive } from '../src/shared/storage/application/booksAlreadyOnDrive'
 import { createWorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { WorkbookStore, WorkbookStorePorts } from '../src/shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
@@ -638,7 +639,7 @@ describe('workbook store with a workbook kept in this browser', () => {
     expect(await storedCopy('local-1')).not.toBeNull()
   })
 
-  it('makes no second file when Drive holds the app’s file already, refusing before the Picker opens, and keeps the browser’s workbook', async () => {
+  it('makes no second file when Drive holds the app’s file already, refusing before the Picker opens and on the make, and keeps the browser’s workbook', async () => {
     const side = driveSide()
     await onDrive(side, documentOf([1]))
     const store = storeOf(harness(null, side).ports)
@@ -646,12 +647,78 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    await expect(store.pickBooksFolder()).rejects.toThrow(/Drive already holds kuna-company.json/)
-    await store.keepOnDrive(side.pickedFolder, documentOf([10]), ['statements'])
+    await expect(store.pickBooksFolder()).rejects.toThrow(BooksAlreadyOnDrive)
+    await expect(store.keepOnDrive(side.pickedFolder, documentOf([10]), ['statements'])).rejects.toThrow(BooksAlreadyOnDrive)
 
-    expect(store.state.error).toMatch(/Drive already holds kuna-company.json/)
+    await expect(store.pickBooksFolder()).rejects.toThrow('Drive already holds kuna-company.json, so the app does not make a second one. Open that file, or trash it in Drive first.')
+    expect(store.state).toMatchObject({ status: 'ready', error: null })
     expect(await side.drive.children(side.pickedFolder)).toEqual([])
     expect(store.state.choice?.source).toBe('browser')
     expect(await storedCopy('local-1')).not.toBeNull()
+  })
+})
+
+describe('workbook store dropping the workbook a first run made', () => {
+  it('trashes the Drive file, forgets its copy and chooses none, so a new file can be made in its place', async () => {
+    const side = driveSide()
+    const { ports, chosen } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    side.pickedFolder = await side.drive.createFolder('root', 'books')
+    await store.keepOnDrive(side.pickedFolder, documentOf([10]), [])
+    const made = chosen()!
+    used.add(made.id)
+
+    await store.dropWorkbook(made.id)
+
+    expect(side.drive.file(made.id).trashed).toBe(true)
+    expect(chosen()).toBeNull()
+    expect(store.state).toMatchObject({ choice: null, workbook: null, records: null, snapshot: null, status: 'ready', error: null })
+    expect(await storedCopy(made.id)).toBeNull()
+    expect(await store.pickBooksFolder()).toMatchObject({ id: side.pickedFolder })
+  })
+
+  it('deletes the workbook kept in this browser and chooses none', async () => {
+    const { ports, chosen } = harness(null)
+    const store = storeOf(ports)
+    await store.open()
+    await store.replaceLocalWorkbook(documentOf([10]), 'New books')
+
+    await store.dropWorkbook('local-1')
+
+    expect(chosen()).toBeNull()
+    expect(store.state).toMatchObject({ choice: null, workbook: null, status: 'ready' })
+    expect(await storedCopy('local-1')).toBeNull()
+    const reopened = storeOf(harness(null).ports)
+    await reopened.open()
+    expect(reopened.state.choice).toBeNull()
+  })
+
+  it('drops nothing but the workbook chosen', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+
+    await store.dropWorkbook('file-99')
+
+    expect(store.state.choice).toEqual(choice)
+    expect(side.drive.file(choice.id).trashed).toBe(false)
+    expect(side.drive.requests).toEqual([])
+  })
+
+  it('keeps the workbook chosen when Drive fails to trash it', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    side.before = async (request) => {
+      if (request === 'trash') throw new Error('Drive answered 500.')
+    }
+
+    await store.dropWorkbook(choice.id)
+
+    expect(store.state).toMatchObject({ choice, status: 'error', error: 'Drive answered 500.' })
+    expect(await storedCopy(choice.id)).not.toBeNull()
   })
 })

@@ -1,32 +1,37 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { today } from '../../../../shared/calendar/civilDate'
 import { folderTrail } from '../../../../shared/text/folderPath'
+import { BooksAlreadyOnDrive } from '../../../../shared/storage/application/booksAlreadyOnDrive'
 import type { PickedFolder } from '../../../../shared/storage/application/workbookPorts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useKeepOnDrive } from '../../workbook/presentation/useKeepOnDrive'
 import { newBooksDocument } from '../../workbook/presentation/workbookFiles'
 import { MAIL_STATEMENTS_FOLDER, statementSettingsOf } from '../domain/statementsChoice'
 import StepCard from './StepCard.vue'
-import { useOnboarding } from './useOnboarding'
+import { onboardingStart, useOnboarding } from './useOnboarding'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 
 /**
  * The folder the books are saved in: the Picker opens at My Drive, and nothing is made until the
  * person confirms the folder, by its path from My Drive when the app may read the whole Drive, and by
  * its name and a link to it in Drive when it may not. "Create the file here" is the only action that writes.
+ * When Drive already holds the books, it offers to open them instead.
  */
 const onboarding = useOnboarding()
 const store = useWorkbook()
+const router = useRouter()
 const { keeping, keepOnDrive } = useKeepOnDrive()
 
 const picked = ref<PickedFolder | null>(null)
 const picking = ref(false)
 const failure = ref<string | null>(null)
+const alreadyOnDrive = ref<BooksAlreadyOnDrive | null>(null)
 
 const path = computed(() => onboarding.place.value.path)
 
@@ -39,13 +44,25 @@ const contents = computed(() => {
 
 const folderLink = computed(() => (picked.value === null ? null : `https://drive.google.com/drive/folders/${encodeURIComponent(picked.value.id)}`))
 
+/** Opening the books on Drive deletes the ones kept in this browser, as any switch to Drive does. */
+const dropsBrowserBooks = computed(() => store.state.choice?.source === 'browser')
+
+function failed(refused: unknown): void {
+  if (refused instanceof BooksAlreadyOnDrive) {
+    alreadyOnDrive.value = refused
+  } else {
+    failure.value = refused instanceof Error ? refused.message : String(refused)
+  }
+}
+
 async function choose(): Promise<void> {
   picking.value = true
   failure.value = null
+  alreadyOnDrive.value = null
   try {
     picked.value = (await withGoogleAccess(['drive.file'], () => store.pickBooksFolder())) ?? picked.value
   } catch (refused) {
-    failure.value = refused instanceof Error ? refused.message : String(refused)
+    failed(refused)
   } finally {
     picking.value = false
   }
@@ -61,14 +78,15 @@ async function create(): Promise<void> {
   const { statements, mail } = onboarding.place.value
   const document = held === 'new' ? newBooksDocument(statementSettingsOf(statements, mail, today()), new Date().toISOString()) : held
   failure.value = null
+  alreadyOnDrive.value = null
   let kept = false
   try {
     kept = await withGoogleAccess(['drive.file'], () => keepOnDrive(folder, document, path.value === 'new' ? 'created' : 'moved', fromMail.value ? [MAIL_STATEMENTS_FOLDER] : []))
   } catch (refused) {
-    failure.value = refused instanceof Error ? refused.message : String(refused)
+    failed(refused)
   }
   if (kept) {
-    await (path.value === 'move' ? onboarding.finish() : onboarding.next())
+    await (path.value === 'move' ? onboarding.finish() : onboarding.made())
   }
 }
 </script>
@@ -106,9 +124,22 @@ async function create(): Promise<void> {
     </template>
     <p v-else class="text-sm text-toned">Choose the folder the books go in. The app writes only its file there, the backups folder beside it{{ fromMail ? ' and the statements folder' : '' }}.</p>
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="That did not work" :description="failure" data-testid="onboarding-folder-failure" />
+    <UAlert
+      v-if="alreadyOnDrive"
+      icon="i-lucide-hard-drive"
+      color="warning"
+      variant="subtle"
+      title="Your books are on Drive already"
+      :description="dropsBrowserBooks ? `${alreadyOnDrive.message} Opening that file deletes the books in this browser, which exist only here and in the files you exported. Export them first if you want to keep them.` : alreadyOnDrive.message"
+      data-testid="onboarding-folder-on-drive"
+    />
 
     <template #actions>
-      <template v-if="picked && contents !== null">
+      <template v-if="alreadyOnDrive">
+        <UButton label="Choose a folder again" color="neutral" variant="outline" :loading="picking" @click="choose" />
+        <UButton label="Open the books on Drive" icon="i-lucide-folder-open" data-testid="onboarding-open-on-drive" @click="router.push(onboardingStart('open', 'find'))" />
+      </template>
+      <template v-else-if="picked && contents !== null">
         <UButton label="Choose another" color="neutral" variant="outline" :loading="picking" :disabled="keeping" data-testid="onboarding-folder-another" @click="choose" />
         <UButton label="Create the file here" icon="i-lucide-hard-drive-upload" :loading="keeping" data-testid="onboarding-create" @click="create" />
       </template>

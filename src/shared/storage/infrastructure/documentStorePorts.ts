@@ -1,5 +1,6 @@
 import { FOLDER_MIME_TYPE } from '../../google/driveClient'
 import type { RedirectResume } from '../../google/googleRedirect'
+import { BooksAlreadyOnDrive } from '../application/booksAlreadyOnDrive'
 import type { BooksRead, WorkbookStorePorts } from '../application/createWorkbookStore'
 import type { DocumentHome } from '../application/documentHome'
 import type { CopyMeta, PickedFolder } from '../application/workbookPorts'
@@ -49,6 +50,7 @@ export type DocumentStorePorts<Books extends BooksRead> = Pick<
   | 'pickDriveFolder'
   | 'createDriveFile'
   | 'driveFilePlace'
+  | 'trashDriveFile'
   | 'read'
   | 'keepInBrowser'
   | 'forgetBrowserWorkbook'
@@ -81,7 +83,7 @@ export function documentStorePorts<Books extends BooksRead>(
 
   async function refuseSecondFile(drive: DocumentDrive): Promise<void> {
     if ((await findDriveDocument(drive, app)) !== null) {
-      throw new Error(`Drive already holds ${documentName(app)}, so the app does not make a second one. Choose that file, or trash it in Drive first.`)
+      throw new BooksAlreadyOnDrive(documentName(app))
     }
   }
 
@@ -156,6 +158,13 @@ export function documentStorePorts<Books extends BooksRead>(
     async driveFilePlace(fileId) {
       const access = await driveAccess()
       return access.signedIn() ? placeOfDriveDocument(access.drive, fileId, app) : null
+    },
+
+    async trashDriveFile(fileId) {
+      const access = await driveAccess()
+      await access.signIn(null)
+      await access.drive.trash(fileId)
+      driveHomes.delete(fileId)
     },
 
     read,

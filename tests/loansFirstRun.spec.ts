@@ -6,6 +6,7 @@ import { loansApp } from '../src/apps/loans/app'
 import { useLoansBooks } from '../src/apps/loans/workbook/application/loansStore'
 import { LOANS_APP, LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
 import { exportLoansFile, newLoansFileContents } from '../src/apps/loans/workbook/presentation/loansFile'
+import { BooksAlreadyOnDrive } from '../src/shared/storage/application/booksAlreadyOnDrive'
 import { seedFakeWorkbook } from '../src/apps/company/workbook/infrastructure/fake/seedFakeWorkbook'
 import { previewImport } from '../src/apps/company/workbook/presentation/workbookFiles'
 import { APP_PROPERTY, refuseBackup } from '../src/shared/storage/infrastructure/driveDocument'
@@ -76,10 +77,14 @@ describe('the Loans first run on the fake Drive', () => {
     expect(loansApp.firstRun()).toBe(false)
   })
 
-  it('refuses a second Loans file on Drive', async () => {
-    const store = useLoansBooks()
+  it('refuses a second Loans file on Drive as books already there, before the Picker and on the make, so the folder step can offer to find them', async () => {
+    const store = otherDevice()
+    await store.open()
 
-    await expect(store.pickBooksFolder()).rejects.toThrow('Drive already holds kuna-loans.json')
+    await expect(store.pickBooksFolder()).rejects.toThrow(BooksAlreadyOnDrive)
+    await expect(store.keepOnDrive(await fakeBooksFolder(), newLoansFileContents(store), [])).rejects.toThrow('Drive already holds kuna-loans.json')
+    expect(store.state).toMatchObject({ status: 'ready', error: null, choice: null })
+    expect(await booksFolder()).toEqual({ 'kuna-company.json': 'company', 'kuna-loans.json': 'loans' })
   })
 
   it('lets a second device find the Loans file by its mark, and its Picker pick it, never the company file', async () => {

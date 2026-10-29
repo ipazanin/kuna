@@ -61,7 +61,10 @@
  * without a sender fails with what it lacks in the line and under its switch, Gmail asking to slow
  * down fails the step with one plain sentence, which the Mail card says too, and mail all filed by another app moves every
  * source's search to a week before the newest file in its folder.
- * The first run keeps an empty workbook on the fake Drive and one in this browser, and new books
+ * The first run keeps an empty workbook on the fake Drive and one in this browser, goes back to the
+ * step that made them, which shows them made and starts over, and offers to open the books the fake
+ * Drive already holds when new books, a move from this browser or the Loans file would make a
+ * second file. New books
  * on the fake Drive with statements from mail name the bank, make the statements folder beside the
  * books file and file the bank's mail there on the first sync. The statement step asks for Drive
  * read before the Picker when the page lacks it. An xlsx file
@@ -112,6 +115,7 @@ import {
   loansDriveFlow,
   loansEditorFlow,
   loansOpenFlow,
+  loansStartOnDriveFlow,
   loansWhatIfFlow,
   mailAccessFlow,
   mailFailedFlow,
@@ -126,12 +130,15 @@ import {
   mailWindowFlow,
   menuGroupsFlow,
   moveFromBrowserFlow,
+  moveOntoDriveFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
   onboardingDriveFlow,
   onboardingDriveReadFlow,
   onboardingMailFlow,
+  onboardingOnDriveFlow,
   onboardingOpenFlow,
+  onboardingStartOverFlow,
   onboardingStatementAccessFlow,
   ownerNetFlow,
   ownerNetUnregisteredFlow,
@@ -735,10 +742,14 @@ const FLOWS = [
   { name: 'onboarding-browser', hash: '#/', title: 'Kuna', run: onboardingBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
   { name: 'onboarding-bring', hash: '#/', title: 'Kuna', run: onboardingBringFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-open', hash: '#/company/start?path=open', title: 'Kuna', run: onboardingOpenFlow, modes: ['drive'] },
+  { name: 'onboarding-start-over', hash: '#/', title: 'Kuna', run: onboardingStartOverFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-on-drive', hash: '#/company/start?step=folder', title: 'Kuna', run: onboardingOnDriveFlow, modes: ['drive'] },
+  { name: 'onboarding-move-on-drive', hash: '#/settings?tab=device', title: 'Settings', run: moveOntoDriveFlow, modes: ['browser'], queries: { browser: '&fake=browser-beside-drive' } },
   { name: 'onboarding-statement-access', hash: '#/company/start?step=statement&statements=folder', title: 'Kuna', run: onboardingStatementAccessFlow, modes: ['drive'] },
   { name: 'loans-drive', hash: '#/loans', title: 'Loans', run: loansDriveFlow, modes: ['drive'] },
   { name: 'loans-browser', hash: '#/loans', title: 'Loans', run: loansBrowserFlow, modes: ['browser'] },
   { name: 'loans-open', hash: '#/loans', title: 'Loans', run: loansOpenFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
+  { name: 'loans-start-on-drive', hash: '#/loans/start?step=folder', title: 'Loans', run: loansStartOnDriveFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
   { name: 'loans-editor', hash: '#/loans', title: 'Overview', run: loansEditorFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'menu-groups', hash: '#/loans', title: 'Overview', run: menuGroupsFlow, queries: { drive: '&loans=drive', browser: '&fake=browser&loans=browser' } },

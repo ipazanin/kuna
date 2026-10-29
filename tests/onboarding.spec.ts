@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { scopesOfChoices } from '../src/apps/company/onboarding/application/onboardingScopes'
-import { OTHER_BANK, nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../src/apps/company/onboarding/domain/onboardingSteps'
-import type { OnboardingPlace, StatementMail } from '../src/apps/company/onboarding/domain/onboardingSteps'
+import { OTHER_BANK, makingStep, nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../src/apps/company/onboarding/domain/onboardingSteps'
+import type { BooksHome, OnboardingPath, OnboardingPlace, StatementMail } from '../src/apps/company/onboarding/domain/onboardingSteps'
 import { statementMailProblems, statementSettingsOf } from '../src/apps/company/onboarding/domain/statementsChoice'
 
 const ERSTE: StatementMail = { bank: 'erste', from: '', subject: '', since: null }
 
-const place = (changes: Partial<OnboardingPlace>): OnboardingPlace => ({ path: 'new', home: 'drive', statements: 'hand', mail: ERSTE, step: 'welcome', ...changes })
+const place = (changes: Partial<OnboardingPlace>): OnboardingPlace => ({ path: 'new', home: 'drive', statements: 'hand', mail: ERSTE, step: 'welcome', made: null, ...changes })
 
 const TODAY = '2026-10-27' as CivilDate
 
@@ -43,18 +43,46 @@ describe('the onboarding steps', () => {
     expect(onboardingPlaceOf({ step: 'access', statements: 'mail', bank: 'a-bank-with-no-preset' }).mail.bank).toBe('erste')
   })
 
-  it('go forward to Overview after the last step, and back only to steps that do not make the books again', () => {
+  it('go forward to Overview after the last step', () => {
     expect(nextStep(place({ step: 'access' }))).toBe('folder')
     expect(nextStep(place({ step: 'statement' }))).toBeNull()
     expect(nextStep(place({ path: 'bring', step: 'company' }))).toBeNull()
-    expect(previousStep(place({ step: 'welcome' }))).toBeNull()
-    expect(previousStep(place({ step: 'folder' }))).toBe('access')
-    expect(previousStep(place({ step: 'company' }))).toBeNull()
-    expect(previousStep(place({ step: 'statement' }))).toBeNull()
-    expect(previousStep(place({ home: 'browser', step: 'company' }))).toBeNull()
-    expect(previousStep(place({ path: 'bring', home: 'browser', step: 'file' }))).toBe('home')
-    expect(previousStep(place({ path: 'bring', home: 'browser', step: 'company' }))).toBeNull()
-    expect(previousStep(place({ path: 'open', step: 'find' }))).toBe('access')
+  })
+
+  it('go back from every step of every path to the step before it, the books made or not, and from none on the first', () => {
+    const paths: readonly (readonly [OnboardingPath, BooksHome])[] = [
+      ['new', 'drive'],
+      ['new', 'browser'],
+      ['bring', 'drive'],
+      ['bring', 'browser'],
+      ['open', 'drive'],
+      ['move', 'drive'],
+    ]
+    for (const [path, home] of paths) {
+      const steps = stepsOf(path, home)
+      steps.forEach((step, index) => {
+        for (const made of [null, 'file-1']) {
+          expect(previousStep(place({ path, home, step, made })), `${path} ${home} ${step}`).toBe(steps[index - 1] ?? null)
+        }
+      })
+    }
+  })
+
+  it('make the books on the folder step on Drive, and in this browser on the step that holds what they start from', () => {
+    expect(makingStep(place({}))).toBe('folder')
+    expect(makingStep(place({ path: 'bring' }))).toBe('folder')
+    expect(makingStep(place({ path: 'move' }))).toBe('folder')
+    expect(makingStep(place({ home: 'browser' }))).toBe('home')
+    expect(makingStep(place({ path: 'bring', home: 'browser' }))).toBe('file')
+  })
+
+  it('keep the books this run made in the route, so a trip to Google still knows them, but never on the open and move paths', () => {
+    const made = place({ step: 'company', made: 'file-1' })
+    expect(onboardingQueryOf(made)).toEqual({ step: 'company', made: 'file-1' })
+    expect(onboardingPlaceOf(onboardingQueryOf(made))).toEqual(made)
+    expect(onboardingPlaceOf({ path: 'bring', home: 'browser', step: 'company', made: 'local-1' }).made).toBe('local-1')
+    expect(onboardingPlaceOf({ path: 'move', step: 'folder', made: 'file-1' }).made).toBeNull()
+    expect(onboardingPlaceOf({ path: 'open', step: 'find', made: 'file-1' }).made).toBeNull()
   })
 
   it('ask Google for the books file, and for Drive read and Gmail only as the choices switch them on', () => {

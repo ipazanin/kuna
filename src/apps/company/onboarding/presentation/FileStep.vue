@@ -38,17 +38,19 @@ function another(): void {
 async function proceed(): Promise<void> {
   const file = held.value
   if (file === null || file.summary.refusal !== null) return
-  if (inBrowser.value) {
-    keeping.value = true
-    keepFailure.value = null
-    await store.replaceLocalWorkbook(file.document, file.title)
-    keeping.value = false
-    if (store.state.status === 'error') {
-      keepFailure.value = store.state.error
-      return
-    }
+  if (!inBrowser.value) {
+    await onboarding.next()
+    return
   }
-  await onboarding.next()
+  keeping.value = true
+  keepFailure.value = null
+  await store.replaceLocalWorkbook(file.document, file.title)
+  keeping.value = false
+  if (store.state.status === 'error') {
+    keepFailure.value = store.state.error
+    return
+  }
+  await onboarding.made()
 }
 </script>
 

@@ -28,18 +28,19 @@ const failure = ref<string | null>(null)
 
 async function proceed(): Promise<void> {
   const place = { ...onboarding.place.value, home: chosen.value }
-  const step = nextStep(place)!
-  if (place.path === 'new' && place.home === 'browser') {
-    starting.value = true
-    failure.value = null
-    await store.replaceLocalWorkbook(newBooksDocument(statementSettingsOf('hand', place.mail, today()), new Date().toISOString()), NEW_BOOKS_TITLE)
-    starting.value = false
-    if (store.state.status === 'error') {
-      failure.value = store.state.error
-      return
-    }
+  if (place.path !== 'new' || place.home !== 'browser') {
+    await onboarding.go({ home: chosen.value, step: nextStep(place)! })
+    return
   }
-  await onboarding.go({ home: chosen.value, step })
+  starting.value = true
+  failure.value = null
+  await store.replaceLocalWorkbook(newBooksDocument(statementSettingsOf('hand', place.mail, today()), new Date().toISOString()), NEW_BOOKS_TITLE)
+  starting.value = false
+  if (store.state.status === 'error') {
+    failure.value = store.state.error
+    return
+  }
+  await onboarding.made({ home: chosen.value })
 }
 </script>
 

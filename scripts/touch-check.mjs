@@ -32,7 +32,8 @@
  * the rows still waiting, a rule edited and switched off on Review's Rules tab, a rule's note changed and the rule deleted from
  * its editor, each undone, in both modes, the Ruleset search on Settings, a
  * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, the first run kept
- * on the fake Drive and in this browser, new books on the fake Drive with statements from mail and their first sync, the statement step asking for Drive read before the Picker,
+ * on the fake Drive and in this browser with Back to the step that made the books and its Start over, the folder step offering to open the books
+ * the fake Drive already holds, new books, a move from this browser and the Loans file alike, new books on the fake Drive with statements from mail and their first sync, the statement step asking for Drive read before the Picker,
  * an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
  * moved there from Settings, This device with the Drive read its folders need asked up front, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
  * and a row edited while filtered and sorted, saved and undone, a row confirmed while another device files the other one, the notice for a file a
@@ -77,6 +78,7 @@ import {
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
+  loansStartOnDriveFlow,
   mailAccessFlow,
   mailFailedFlow,
   mailNothingNewFlow,
@@ -89,12 +91,15 @@ import {
   mailSwitchesOffFlow,
   mailWindowFlow,
   moveFromBrowserFlow,
+  moveOntoDriveFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
   onboardingDriveFlow,
   onboardingDriveReadFlow,
   onboardingMailFlow,
+  onboardingOnDriveFlow,
   onboardingOpenFlow,
+  onboardingStartOverFlow,
   onboardingStatementAccessFlow,
   ownerNetFlow,
   ownerNetUnregisteredFlow,
@@ -1649,6 +1654,10 @@ async function checkWidth(width) {
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
     ['onboarding-bring', 'empty', onboardingBringFlow(TEMPLATE_FILE)],
     ['onboarding-open', 'drive', onboardingOpenFlow, '#/company/start?path=open', 'Kuna'],
+    ['onboarding-start-over', 'empty', onboardingStartOverFlow],
+    ['onboarding-on-drive', 'drive', onboardingOnDriveFlow, '#/company/start?step=folder', 'Kuna'],
+    ['onboarding-move-on-drive', 'browser-beside-drive', moveOntoDriveFlow, '#/settings?tab=device', 'Settings'],
+    ['loans-start-on-drive', 'drive&loans=other-device', loansStartOnDriveFlow, '#/loans/start?step=folder', 'Loans'],
     ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/company/start?step=statement&statements=folder', 'Kuna'],
     ['move-browser', 'browser', moveFromBrowserFlow, '#/settings?tab=device', 'Settings'],
     ['race', 'race', raceFlow, '#/company/review', 'Review'],

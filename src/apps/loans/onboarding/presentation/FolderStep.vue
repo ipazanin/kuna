@@ -6,6 +6,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
+import { BooksAlreadyOnDrive } from '../../../../shared/storage/application/booksAlreadyOnDrive'
 import type { PickedFolder } from '../../../../shared/storage/application/workbookPorts'
 import { folderTrail } from '../../../../shared/text/folderPath'
 import { useLoansBooks } from '../../workbook/application/loansStore'
@@ -17,6 +18,7 @@ import { useLoansStart } from './useLoansStart'
  * The folder the Loans file is saved in: the Picker opens at My Drive, and nothing is made until the
  * person confirms the folder. "Create the file here" is the only action that writes. Each tap asks
  * Google first when the page holds no token, and on a phone the route brings the person back here.
+ * When Drive already holds the Loans file, it offers to find it instead.
  */
 const start = useLoansStart()
 const store = useLoansBooks()
@@ -26,16 +28,25 @@ const picked = ref<PickedFolder | null>(null)
 const picking = ref(false)
 const keeping = ref(false)
 const failure = ref<string | null>(null)
+const alreadyOnDrive = ref<BooksAlreadyOnDrive | null>(null)
 
 const folderLink = computed(() => (picked.value === null ? null : `https://drive.google.com/drive/folders/${encodeURIComponent(picked.value.id)}`))
 
+/** Opening the Loans file on Drive deletes the one kept in this browser, as the home step warns. */
+const dropsBrowserFile = computed(() => store.state.choice?.source === 'browser')
+
 function failed(refused: unknown): void {
-  failure.value = refused instanceof Error ? refused.message : String(refused)
+  if (refused instanceof BooksAlreadyOnDrive) {
+    alreadyOnDrive.value = refused
+  } else {
+    failure.value = refused instanceof Error ? refused.message : String(refused)
+  }
 }
 
 async function choose(): Promise<void> {
   picking.value = true
   failure.value = null
+  alreadyOnDrive.value = null
   try {
     picked.value = (await withGoogleAccess(['drive.file'], () => store.pickBooksFolder())) ?? picked.value
   } catch (refused) {
@@ -51,6 +62,7 @@ async function create(): Promise<void> {
   const before = store.state.choice
   keeping.value = true
   failure.value = null
+  alreadyOnDrive.value = null
   try {
     await withGoogleAccess(['drive.file'], () => store.keepOnDrive(folder.id, newLoansFileContents(store), []))
   } catch (refused) {
@@ -87,9 +99,22 @@ async function create(): Promise<void> {
     </div>
     <p v-else class="text-sm text-toned">Choose the folder the Loans file goes in. The app writes only its file there and the backups folder beside it.</p>
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="That did not work" :description="failure" data-testid="loans-start-failure" />
+    <UAlert
+      v-if="alreadyOnDrive"
+      icon="i-lucide-hard-drive"
+      color="warning"
+      variant="subtle"
+      title="Your Loans file is on Drive already"
+      :description="dropsBrowserFile ? `${alreadyOnDrive.message} Opening it deletes the Loans file in this browser, which exists only here and in the files you exported. Export it first if you want to keep it.` : alreadyOnDrive.message"
+      data-testid="loans-start-on-drive"
+    />
 
     <template #actions>
-      <template v-if="picked">
+      <template v-if="alreadyOnDrive">
+        <UButton label="Choose a folder again" color="neutral" variant="outline" :loading="picking" @click="choose" />
+        <UButton label="Open the Loans file on Drive" icon="i-lucide-folder-open" data-testid="loans-start-open-on-drive" @click="start.go('find')" />
+      </template>
+      <template v-else-if="picked">
         <UButton label="Choose another" color="neutral" variant="outline" :loading="picking" :disabled="keeping" @click="choose" />
         <UButton label="Create the file here" icon="i-lucide-hard-drive-upload" :loading="keeping" data-testid="loans-start-create" @click="create" />
       </template>

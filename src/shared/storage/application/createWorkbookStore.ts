@@ -1,6 +1,7 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
 import { backoff } from '../../google/googleApi'
+import { BooksAlreadyOnDrive } from './booksAlreadyOnDrive'
 import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from './recordWrites'
 import type { RuledChange, WriteReceipt } from './recordWrites'
 import type { UnitOfWork } from './repository'
@@ -76,8 +77,9 @@ export interface WorkbookStorePorts<Books extends BooksRead, Copy extends Workbo
    */
   findDriveFile(lookup: DriveFileLookup): Promise<Copy | null>
   /**
-   * The folder the person picks in the Picker, opened at My Drive, for the books. Throws before the
-   * Picker opens when Drive already holds the file the app marked as its books. Null when cancelled.
+   * The folder the person picks in the Picker, opened at My Drive, for the books. Throws
+   * `BooksAlreadyOnDrive` before the Picker opens when Drive already holds the file the app marked
+   * as its books. Null when cancelled.
    */
   pickBooksFolder(): Promise<PickedFolder | null>
   /** A folder the person picks in the Picker, opened at My Drive, under this title. Null when cancelled. */
@@ -85,12 +87,14 @@ export interface WorkbookStorePorts<Books extends BooksRead, Copy extends Workbo
   /**
    * Creates the app's file in the folder, holding these contents, reads it back and throws unless it
    * holds the same records. The folders named are made beside it first, each one the app made there
-   * before found instead, so a try again makes no second one. Throws, making nothing, when Drive
-   * already holds the file the app marked as its books.
+   * before found instead, so a try again makes no second one. Throws `BooksAlreadyOnDrive`, making
+   * nothing, when Drive already holds the file the app marked as its books.
    */
   createDriveFile(folderId: string, contents: Contents, folders: readonly string[]): Promise<Copy>
   /** Where the Drive file sits and its newest backup, or null while the page holds no token, since asking for one needs a click. */
   driveFilePlace(fileId: string): Promise<DriveFilePlace | null>
+  /** Moves the Drive file to the bin, from which the person can restore it for 30 days. `drive.file` allows it for a file the app made. */
+  trashDriveFile(fileId: string): Promise<void>
   /** Loads whatever the next sync's click needs, so the click is not kept waiting. Never called for a workbook kept in this browser. */
   prepareSync(): void
   /** Whether the page's Google token is still good, so a sync needs no popup. */
@@ -140,10 +144,17 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
    * new file in the folder, and shows that file once it reads back with the same records. Leaving a
    * workbook kept in this browser deletes it. The folders named are made beside the file, as
    * `WorkbookStorePorts.createDriveFile` says. On a failure the previous workbook stays chosen.
+   * Throws `BooksAlreadyOnDrive`, changing nothing, when Drive already holds the app's file.
    */
   keepOnDrive(folderId: string, contents: Contents, folders: readonly string[]): Promise<void>
   /** Where the chosen Drive file sits and its newest backup. Null for a workbook kept in this browser, or while the page holds no token. */
   driveFilePlace(): Promise<DriveFilePlace | null>
+  /**
+   * Trashes the Drive file or deletes the workbook kept in this browser under this id, and chooses
+   * none, as a first run that starts over. Does nothing unless that workbook is the one chosen. On a
+   * failure it stays chosen.
+   */
+  dropWorkbook(workbookId: string): Promise<void>
   /**
    * Makes this the workbook kept in this browser, as an import or a fresh start does, and chooses
    * it. A workbook already kept here is replaced.
@@ -266,6 +277,10 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       }
       state.status = 'ready'
     } catch (failure) {
+      if (failure instanceof BooksAlreadyOnDrive) {
+        state.status = 'ready'
+        throw failure
+      }
       fail(failure)
     }
   }
@@ -399,6 +414,22 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     async driveFilePlace() {
       const choice = state.choice
       return choice?.source === 'drive' ? ports.driveFilePlace(choice.id) : null
+    },
+
+    async dropWorkbook(workbookId) {
+      const choice = state.choice
+      if (choice?.id !== workbookId || state.writing || state.status === 'syncing') {
+        return
+      }
+      await underLocalWork(async () => {
+        await (choice.source === 'drive' ? ports.trashDriveFile(choice.id) : ports.forgetBrowserWorkbook(choice.id))
+        await withCache(choice.id, (cache) => cache.delete())
+        choose(null)
+        state.snapshot = null
+        state.records = null
+        state.workbook = null
+        state.syncedAt = null
+      })
     },
 
     replaceLocalWorkbook(contents, title) {

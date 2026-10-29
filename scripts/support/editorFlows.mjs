@@ -2191,6 +2191,49 @@ async function confirmFolder(page, press, { shoot, inspect }, named) {
   await pressSelector(page, press, '[data-testid="onboarding-create"]')
 }
 
+/** Back from the step after the one that made the books: that step shows them made, saying each of `says`, and offers Continue and Start over. */
+async function backToMade(page, press, step, says) {
+  await pressSelector(page, press, '[data-testid="onboarding-back"]')
+  await onboardingAt(page, step)
+  const made = await page.waitForSelector('[data-testid="onboarding-made"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error(`Back to the ${step} step does not show the books made`)
+  })
+  const said = await made.evaluate((element) => element.textContent ?? '')
+  for (const text of says) if (!said.includes(text)) throw new Error(`the ${step} step says "${said}" of the books made, not ${text}`)
+  if (!(await page.$('[data-testid="onboarding-start-over"]'))) throw new Error(`the ${step} step of the books made offers no Start over`)
+}
+
+/** Start over asks first: its dialog says each of `says`, among them what the books hold now, and Start over drops nothing until it is confirmed. */
+async function startOverAsks(page, press, says) {
+  await pressSelector(page, press, '[data-testid="onboarding-start-over"]')
+  const dialog = await page.waitForSelector('[role="dialog"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Start over did not ask first')
+  })
+  // The dialog grows in, and its controls reach their size once it has.
+  await delay(400)
+  const said = await dialog.evaluate((element) => element.textContent ?? '')
+  for (const text of says) if (!said.includes(text)) throw new Error(`Start over asks "${said}", without ${text}`)
+}
+
+/** Confirms the dialog Start over opened, which drops the books. */
+async function confirmStartOver(page, press) {
+  await pressSelector(page, press, '[data-testid="onboarding-confirm-start-over"]')
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+}
+
+/** The folder step's choice refused since Drive already holds the books: it says so, keeps "trash it in Drive first", and `dropsBrowserBooks` says whether it warns that opening them deletes the books in this browser. */
+async function folderRefusedOnDrive(page, press, dropsBrowserBooks) {
+  await onboardingAt(page, 'folder')
+  await pressSelector(page, press, '[data-testid="onboarding-choose-folder"]')
+  const alert = await page.waitForSelector('[data-testid="onboarding-folder-on-drive"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the folder step does not say Drive already holds the books')
+  })
+  const said = await alert.evaluate((element) => element.textContent ?? '')
+  for (const text of ['Drive already holds kuna-company.json', 'trash it in Drive first']) if (!said.includes(text)) throw new Error(`the folder step says "${said}", not ${text}`)
+  if (said.includes('deletes the books in this browser') !== dropsBrowserBooks) throw new Error(`the folder step says "${said}", which ${dropsBrowserBooks ? 'does not warn' : 'warns'} that the books in this browser are deleted`)
+  if (await page.$('[data-testid="onboarding-folder-failure"]')) throw new Error('the folder step shows the refusal as a failure too')
+}
+
 
 /** The lines Overview's Getting set up card shows, by key. */
 async function setUpLines(page) {
@@ -2221,7 +2264,11 @@ export async function onboardingDriveFlow(page, { press, shoot, inspect }) {
   await onboardingAt(page, 'company')
   await inspect?.('the company step')
   await shoot('onboarding-company')
-  if (await page.$('[data-testid="onboarding-back"]')) throw new Error('the company step goes back to the folder step, which would make the file again')
+  await backToMade(page, press, 'folder', ['Books', 'kuna-company.json'])
+  await inspect?.('the folder step of the books made')
+  await shoot('onboarding-folder-made')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'company')
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
   await onboardingAt(page, 'statement')
   await pressSelector(page, press, '[data-testid="sample-camt"]')
@@ -2356,7 +2403,9 @@ export async function onboardingMailFlow(page, { press, shoot, inspect }) {
 }
 
 /**
- * New books in this browser: no Google at all. The company step names the company, the statement
+ * New books in this browser: no Google at all. Back from the company step shows them made on the
+ * home step, whose Start over asks first, says they cannot be recovered, and deletes them once
+ * confirmed, so they are made again. The company step names the company, the statement
  * step says such books take statements by hand and is skipped, and Getting set up's first line
  * opens Import.
  */
@@ -2364,6 +2413,21 @@ export async function onboardingBrowserFlow(page, { press, shoot, inspect }) {
   await onboardingAt(page, 'welcome')
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
   await onboardingAt(page, 'home')
+  await chooseOption(page, press, 'onboarding-home', 'Only this browser')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'company')
+  await backToMade(page, press, 'home', ['kept in this browser', 'New books'])
+  await inspect?.('the home step of the books made in this browser')
+  await shoot('onboarding-home-made')
+  await startOverAsks(page, press, ['cannot be recovered', 'They hold 0 transactions and'])
+  await inspect?.('Start over asking before it deletes the books in this browser')
+  await shoot('onboarding-start-over-browser')
+  await confirmStartOver(page, press)
+  await page.waitForSelector('[data-testid="onboarding-home"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Start over did not bring back the choice of where the books live')
+  })
+  await onboardingAt(page, 'home')
+  if (await page.$('[data-testid="onboarding-made"]')) throw new Error('the home step still shows the books made after Start over')
   await chooseOption(page, press, 'onboarding-home', 'Only this browser')
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
   await onboardingAt(page, 'company')
@@ -2445,6 +2509,105 @@ export async function onboardingOpenFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="onboarding-find"]')
   await toastMatching(page, /^Your books are already open$/)
   await onboardingAt(page, 'overview')
+}
+
+/**
+ * New books on the fake Drive, then Back from the company step to the folder step, whose Start over
+ * asks first, keeps the file on Keep them and trashes it once confirmed. The folder is chosen again
+ * without a refusal, since the search leaves trashed files out, and a second file is made in its
+ * place. The statement step goes back to the company step. Once a statement is imported, the
+ * browser's back button and Back lead to the folder step again, whose Start over counts the
+ * transactions imported, and Keep them keeps them.
+ */
+export async function onboardingStartOverFlow(page, { press, shoot, inspect }) {
+  await onboardingAt(page, 'welcome')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'home')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await allowGoogle(page, press, { shoot: () => {} })
+  await confirmFolder(page, press, { shoot: () => {} }, 'Books, inside folders the app cannot see')
+  await toastMatching(page, /^Created kuna-company\.json in Books$/)
+  await dismissToasts(page)
+  await onboardingAt(page, 'company')
+  await backToMade(page, press, 'folder', ['Books', 'kuna-company.json'])
+  await startOverAsks(page, press, ['Trash kuna-company.json', 'Drive bin', '30 days', 'They hold 0 transactions and'])
+  await pressSelector(page, press, '[data-testid="onboarding-keep-books"]')
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+  if (!(await page.$('[data-testid="onboarding-made"]'))) throw new Error('Keep them dropped the books')
+  await startOverAsks(page, press, ['Trash kuna-company.json'])
+  await confirmStartOver(page, press)
+  await page.waitForSelector('[data-testid="onboarding-choose-folder"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Start over did not bring back the choice of a folder')
+  })
+  if (await page.$('[data-testid="onboarding-made"]')) throw new Error('the folder step still shows the books made after Start over')
+  await inspect?.('the folder step after Start over')
+  await shoot('onboarding-start-over')
+  await confirmFolder(page, press, { shoot: () => {} }, 'Books, inside folders the app cannot see')
+  await toastMatching(page, /^Created kuna-company\.json in Books$/)
+  await dismissToasts(page)
+  await onboardingAt(page, 'company')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'statement')
+  await pressSelector(page, press, '[data-testid="onboarding-back"]')
+  await onboardingAt(page, 'company')
+  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+  await onboardingAt(page, 'statement')
+  await pressSelector(page, press, '[data-testid="sample-camt"]')
+  await pressButton(page, press, '[data-testid="onboarding-step"] button', 'Add and import')
+  await toastMatching(page, /^Added main and imported \d+ rows$/)
+  await onboardingAt(page, 'overview')
+  await dismissToasts(page)
+  // The browser's back button leads back into onboarding after the books hold work, so Start over has to say so.
+  await page.goBack()
+  await onboardingAt(page, 'statement')
+  await pressSelector(page, press, '[data-testid="onboarding-back"]')
+  await onboardingAt(page, 'company')
+  await backToMade(page, press, 'folder', ['kuna-company.json'])
+  await startOverAsks(page, press, ['Trash kuna-company.json'])
+  const holds = await page.$eval('[data-testid="onboarding-start-over-holds"]', (element) => element.textContent?.trim() ?? '')
+  const transactions = Number(/They hold (\d+) transactions?/.exec(holds)?.[1] ?? 0)
+  if (transactions === 0) throw new Error(`Start over on books with an imported statement says "${holds}"`)
+  await inspect?.('Start over asking before it trashes books with work in them')
+  await shoot('onboarding-start-over-holds')
+  await pressSelector(page, press, '[data-testid="onboarding-keep-books"]')
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+  if (!(await page.$('[data-testid="onboarding-made"]'))) throw new Error('Keep them dropped the books with work in them')
+}
+
+/**
+ * New books on Drive on a device whose books the fake Drive already holds: the folder step refuses a
+ * second file, and opening the books on Drive takes the find step, which finds them open already.
+ */
+export async function onboardingOnDriveFlow(page, { press, shoot, inspect }) {
+  await folderRefusedOnDrive(page, press, false)
+  await inspect?.('the folder step when Drive holds the books')
+  await shoot('onboarding-folder-on-drive')
+  await pressSelector(page, press, '[data-testid="onboarding-open-on-drive"]')
+  await onboardingAt(page, 'find')
+  await pressSelector(page, press, '[data-testid="onboarding-find"]')
+  await toastMatching(page, /^Your books are already open$/)
+  await onboardingAt(page, 'overview')
+}
+
+/**
+ * Settings, This device: books kept in this browser move to Drive, which already holds a file another
+ * device made. The folder step refuses a second file, warns that opening those deletes the books in
+ * this browser, and the find step opens them.
+ */
+export async function moveOntoDriveFlow(page, { press, shoot, inspect }) {
+  await pageSays(page, 'Kept in this browser', true)
+  await pressSelector(page, press, '[data-testid="keep-on-drive"]')
+  await allowGoogle(page, press, { shoot: () => {} })
+  await folderRefusedOnDrive(page, press, true)
+  await inspect?.('the move when Drive holds the books')
+  await shoot('onboarding-move-on-drive')
+  await pressSelector(page, press, '[data-testid="onboarding-open-on-drive"]')
+  await onboardingAt(page, 'find')
+  await pressSelector(page, press, '[data-testid="onboarding-find"]')
+  await toastMatching(page, /^Opened kuna-company\.json$/)
+  await onboardingAt(page, 'overview')
+  await dismissToasts(page)
+  await deviceShowsDriveFile(page)
 }
 
 /**
@@ -2681,6 +2844,25 @@ export async function loansOpenFlow(page, { press, shoot, inspect }) {
   await loansStartAt(page, 'find')
   await inspect?.('the Loans find step')
   await shoot('loans-start-find')
+  await pressSelector(page, press, '[data-testid="loans-start-find"]')
+  await toastMatching(page, /^Opened kuna-loans\.json$/)
+  await loansStartAt(page, 'overview')
+}
+
+/** A new Loans file on Drive on a device that has not chosen the one another device made: the folder step refuses a second file and offers the find step, which opens it. */
+export async function loansStartOnDriveFlow(page, { press, shoot, inspect }) {
+  await loansStartAt(page, 'folder')
+  await pressSelector(page, press, '[data-testid="loans-start-choose-folder"]')
+  const alert = await page.waitForSelector('[data-testid="loans-start-on-drive"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the Loans folder step does not say Drive already holds the Loans file')
+  })
+  const said = await alert.evaluate((element) => element.textContent ?? '')
+  if (!said.includes('Drive already holds kuna-loans.json') || !said.includes('trash it in Drive first')) throw new Error(`the Loans folder step says "${said}"`)
+  if (await page.$('[data-testid="loans-start-failure"]')) throw new Error('the Loans folder step shows the refusal as a failure too')
+  await inspect?.('the Loans folder step when Drive holds the file')
+  await shoot('loans-start-on-drive')
+  await pressSelector(page, press, '[data-testid="loans-start-open-on-drive"]')
+  await loansStartAt(page, 'find')
   await pressSelector(page, press, '[data-testid="loans-start-find"]')
   await toastMatching(page, /^Opened kuna-loans\.json$/)
   await loansStartAt(page, 'overview')
