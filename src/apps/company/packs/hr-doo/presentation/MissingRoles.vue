@@ -17,7 +17,7 @@ defineProps<{
         No category has the role <span class="identifier">{{ entry.role }}</span
         >, so {{ entry.leftOut }}.
       </p>
-      <DrillLink to="/settings?tab=categories" in-prose class="self-start text-highlighted">Add roles on Settings, Categories</DrillLink>
+      <DrillLink to="/company/settings?tab=categories" in-prose class="self-start text-highlighted">Add roles on Settings, Categories</DrillLink>
     </div>
   </div>
 </template>

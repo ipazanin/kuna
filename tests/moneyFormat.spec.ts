@@ -60,4 +60,13 @@ describe('money formatting with another currency and locale', () => {
     expect(formatWholeMoney(4821049)).toBe('$48,210')
     expect(currencyUnitName()).toBe('US dollar')
   })
+
+  it("formats a figure in the format it is given, whatever the page's", () => {
+    setMoneyFormat({ currency: 'USD', locale: 'en-US' })
+
+    expect(formatWholeMoney(4821049, 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('48.210\u00a0€')
+    expect(formatMoney(-98765, 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('−987,65\u00a0€')
+    expect(formatCompactMoney(1240000, 'negative', { currency: 'EUR', locale: 'en-GB' })).toBe('€12.4k')
+    expect(formatWholeMoney(4821049)).toBe('$48,210')
+  })
 })

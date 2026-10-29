@@ -98,7 +98,7 @@ async function create(): Promise<void> {
       color="warning"
       variant="subtle"
       :title="path === 'bring' ? 'Open the file again' : 'There are no books in this browser to move'"
-      :description="path === 'bring' ? 'The page let go of the file on the way to Google. Go back and open it again.' : 'Choose your books on Settings, This device.'"
+      :description="path === 'bring' ? 'The page let go of the file on the way to Google. Go back and open it again.' : 'Choose your books on Settings, Books file.'"
     />
     <template v-else-if="picked">
       <div class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-folder-confirm">

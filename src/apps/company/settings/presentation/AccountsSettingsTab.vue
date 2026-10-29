@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 
-import { LINKED_SETTINGS_TAB } from '../../../../shared/app/appContribution'
+import { LINKED_SETTINGS_TAB } from './settingsTabs'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import { NO_RECORDS, storedOf } from '../../../../shared/storage/domain/recordsRead'
 import { useSettings } from '../application/useSettings'

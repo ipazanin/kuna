@@ -78,7 +78,7 @@ in what a screen reader hears and in its tooltip. No toast says it.
 The token model returns no ID token, so after the first token the app reads the email address once
 from the OpenID Connect userinfo endpoint (`https://openidconnect.googleapis.com/v1/userinfo`, the
 `userinfo_endpoint` of Google's discovery document) and keeps it. It is passed as `login_hint`, so a
-new token comes with no account chooser. "Sign out of Google" on Settings, This device revokes the
+new token comes with no account chooser. "Sign out of Google" on Kuna settings revokes the
 token with `google.accounts.oauth2.revoke` and forgets the email, the granted scopes and the note.
 The needed scopes stay, since the books decide them, not the account.
 
@@ -129,7 +129,6 @@ be read. The run is page state and never stored.
 
 The sync control shows one of these, the first that applies:
 
-- "Find the file" while no file on Drive is chosen.
 - While a sync runs, the step and its place among the steps that are on, such as "Statements 2/3".
   The button takes no tap, and a screen reader hears the step and its line as they change.
 - "Sign in to Google" when Google asked for a sign-in first, and "Allow access" while a step or a
@@ -141,13 +140,13 @@ The sync control shows one of these, the first that applies:
   or a link where the step left one, and "Sync again".
 - Otherwise how long ago the books were read, the oldest read among the files on Drive. The tap syncs.
 
-While no app keeps its file on Drive, the top bar shows the export of each file kept in this browser
+While no app has a file chosen the control is not shown. While no app keeps its file on Drive, the top bar shows the export of each file kept in this browser
 instead. With one app's file on Drive and another's in this browser, it shows the sync with a dot
-while the browser file's export is due, and that file's card on Settings, This device says so too.
+while the browser file's export is due, and that file's card on its app's Settings says so too.
 
 A missing permission shows only there and in its step's line, never in a toast, an Overview line or
 a card. From 1024 px a button beside Sync in the sidebar opens the steps of the last sync too.
-While some app's file is on Drive, Settings, This device has a Sync card with the same steps, the
+While some app's file is on Drive, Kuna settings has a Sync card with the same steps, the
 "Sync as the app opens" switch and "Sign out of Google", since all three act on the whole page.
 
 **Sync as the app opens** is a switch of each device, on by default. Only an off is kept, in
@@ -313,15 +312,43 @@ install, and uses the same offline copy in a normal tab.
 
 `public/icons/` holds the SVG marks and the PNGs drawn from them by `node scripts/generate-icons.mjs`.
 
+## The home and each app's menu
+
+`#/` is Kuna's home, titled All apps. The installed app opens on it, and so does any address no
+screen has. It shows a card per app, in the order `main.ts` installs them, and the whole card is a
+link into the app's first screen. Company's card names the company and leads with the cash on hand
+over every account, with how many rows wait on Review when any do. The Loans card leads with what
+you owe in all, and with what others owe you when they do. Each card shows money in its own app's
+currency and number format, which `MoneyText` takes as `format`, so two apps can differ. An app with
+nothing to show yet has a Set up card that opens its first run. While an app's books are being read
+its card shows a placeholder where the lead figure goes, and when reading them failed it says so and
+links into the app. The app's icon sits on a tile in the app's colour, which the menu and the phone
+top bar use too, and nothing else is tinted. Any app can be set up first, and a
+fresh device opens on the home with every card in Set up and no sync control in the sidebar or the top bar.
+
+Inside an app the sidebar holds that app alone: the Kuna mark and name at the top, which link home
+and read "Kuna, All apps" to a screen reader, then the app's name with its icon on a tile in the
+app's own colour (brass for Company, teal for Loans) and its subtitle, such as the company's name, its menu with counts, its own Settings set apart, and Sync at the foot.
+Below 1024 px the same list is in the drawer behind the top bar's menu button. On the home the
+sidebar has the Kuna mark, Kuna settings and Sync. On a phone the home's top bar shows Kuna and Sync
+with no menu button, and Kuna settings is a button under the cards. There is one Sync, in the same
+place on the home and in every app, and it syncs every app's file on Drive. Each first run starts
+with the same Kuna mark, so a first run left half way goes back to the home. There is no app
+switcher, keyboard shortcut or bottom bar.
+
+The browser tab names the screen and then its app, such as "Overview, Company – Kuna" or "Settings,
+Ruleset, Company – Kuna". The phone top bar shows the screen's title alone, since the drawer names
+the app. The home and the first runs say only "Kuna".
+
 ## Phone layout
 
 Below Tailwind's `sm` breakpoint (640 px) the app switches to a phone layout: a top app bar with the
 menu button, the screen's title and the sync or export control, a navigation drawer that slides in
-from the left, filters in a bottom sheet behind a button that counts them,
+from the left with the app's menu under the link home, filters in a bottom sheet behind a button that counts them,
 transactions as cards, and charts with fewer axis labels. A screen's inner tabs make one row that
 sticks under the top bar, with the Filters button at its right end when the tab has filters, and
 the row counts in the band a link lands below. Transactions, Review, Invoicing, Analysis, Owner and
-a closed or ended year on Year share the phone's width between their tabs. An open year and Settings have five, so their row scrolls inside itself. When the tab labels run past 16 characters together,
+a closed or ended year on Year share the phone's width between their tabs. An open year and the company's Settings have five, so their row scrolls inside itself. When the tab labels run past 16 characters together,
 the Filters button keeps its icon and its count, and the word stays for a screen reader. A tap on a chart shows its tooltip and a
 "View rows" action, and a second tap on the same mark drills. Every control there is at least 44 px
 square, and the installed app keeps clear of the system bars through the safe-area insets. From
@@ -353,19 +380,19 @@ itself. From 1920 px (the `3xl` breakpoint) a pair sets related cards side by si
 beside a column of the cards that sum it up: the Invoices and Plan tabs of Invoicing, the Compare
 tab of Analysis, the Who owes whom tab of Owner, and the bank loan and informal loan screens. The content grows to 160rem beside the sidebar. A screen that is one table,
 one list, one form or a long report keeps a 100rem measure instead, so its rows stay readable:
-Transactions, Year, Review and Settings. The other screens simply widen. The widths are the
+Transactions, Year, Review and every Settings. The other screens simply widen. The widths are the
 `--container-shell`, `--container-measure` and `--breakpoint-3xl` tokens in `tokens.css`.
 `check:visual` fails a `DashboardGrid` that keeps the same number of cards in each row from 768 to
 1440 px, or from 1440 to 1920 px, while they still take more than one row. It also fails cards set
-side by side by a grid that is not a `DashboardGrid`, outside Settings, This device and the gallery.
+side by side by a grid that is not a `DashboardGrid`, outside the gallery.
 
 ## Cards
 
 The design library is `src/shared/ui/` and the tokens in `src/shared/styles/tokens.css`, which
 every app builds from, and the gallery shows it. Templates name colours by Nuxt UI's tones,
 `text-error`, `text-success`, `text-warning`, `text-info` and `text-primary` for the brass accent,
-and text by its role in `app.css`: `type-page-title`, `type-card-title`, `type-figure`, `type-body`,
-`type-label` and `type-caption`. Every ink passes 4.5:1 on the page, a card and a popover in both
+and text by its role in `app.css`: `type-page-title`, `type-card-title`, `type-figure`, `type-figure-secondary`, `type-body`,
+`type-label`, `type-caption` and `type-wordmark`. Every ink passes 4.5:1 on the page, a card and a popover in both
 themes, and so does each tone on its own wash, which `tests/tokenContrast.spec.ts` checks.
 
 Every card on a screen is `AppCard` in `src/shared/ui/`: a raised surface with a header of title,
@@ -666,7 +693,7 @@ while `owner_pay_module` is on, and onboarding never offers the accountant's mai
 pillar II, dependants and the year of birth, are the director's row on the `employees` tab.
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
-Owner earns, Kept). The theme is a choice of this device on Settings, This device, not a workbook setting:
+Owner earns, Kept). The theme is a choice of this device on Kuna settings, not a workbook setting:
 System, the default, follows the device's own setting, also when it changes while the app is open.
 Light or Dark is remembered on this device, and System forgets it.
 
@@ -1532,7 +1559,7 @@ row that numbers the steps of the path. The order of each path is `stepsOf` in
 | Bring my books (xlsx or Kuna file) to Drive  | Welcome, Home, Google, File, Folder, Company                     |
 | Bring my books into this browser             | Welcome, Home, File, Company                                     |
 | Open my books on Drive                       | Welcome, Google, Find                                            |
-| Move the books kept in this browser to Drive | Google, Folder, from Settings, This device                       |
+| Move the books kept in this browser to Drive | Google, Folder, from Settings, Books file                        |
 
 - **Google** asks for one token before any file is opened: the books file always (`drive.file`),
   and what the answer to "How do statements reach the app?" needs. "I import them by hand" is the
@@ -1587,7 +1614,7 @@ row that numbers the steps of the path. The order of each path is `stepsOf` in
   marked with `appProperties`, and opens the Picker, filtered to JSON files, when the search finds
   none. Two marked files are refused, and so is a backup or another app's file picked there.
 
-"Switch data source" on Settings, This device keeps three ways in (`DataSourceChoices` in
+"Switch data source" on Settings, Books file keeps three ways in (`DataSourceChoices` in
 `src/apps/company/data-source/presentation/`): Find the file and Pick another file, "Open a file", whose
 summary keeps the file in this browser or hands it to onboarding's Google and Folder steps, and
 "Start new books", which starts onboarding.
@@ -1602,7 +1629,7 @@ To move the books from the Google Sheet, download the Sheet as xlsx, open it her
 counts per tab with the Sheet's, and keep it on Google Drive. Do not edit the Sheet between the
 download and the move.
 
-Settings, This device names the workbook. For the file on Drive it gives the folder the file sits
+Settings, Books file names the workbook. For the file on Drive it gives the folder the file sits
 in with a link to it, "Open in Drive", the last save the file records, the newest daily backup and
 the last sync. The folder and the backup cost three Drive requests and are asked only while the page
 holds a token, since asking for one needs a click. A file a newer app saved says "A newer
@@ -1634,8 +1661,8 @@ deletes it, so the exported files are its only other copies until it moves to Dr
   workbook. When changes have gone a week or more without an export, the sidebar says so.
 - **Editing.** Every kind a person keeps by hand is edited the same way in both homes, as the
   _Settings screen_ and _Write-back_ describe. A change counts towards the export reminder.
-  Settings, This device keeps what belongs to this device: the data source, Google sign-out, the
-  theme and the privacy notes.
+  Settings, Books file keeps the data source, and Kuna settings keeps what belongs to this device:
+  Google sign-out, the theme and the privacy notes.
 
 Choosing a file on Drive deletes the workbook kept in this browser, once the file has been read.
 SheetJS loads only on the first import or export, as its own chunk.
@@ -1732,31 +1759,39 @@ the rows out whole.
 
 ## Settings screen
 
-The shell's screen at `#/settings`, set apart at the foot of the menu, holds how each app's books and
-this device are set up, and the law behind the figures, one tab each, under an intro sentence the
-shell owns. The company app gives General, Categories and Accounts, the pack adds Ruleset through it,
-and This device holds a card for each app's file, Company books and Loans books, beside the shell's
-Sync card and its Appearance and privacy card. Loans has no tab yet. Each app's parts load with the screen:
+Each app has its own Settings, set apart at the foot of its menu, and Kuna has its own, reached from
+the home.
 
-| Tab         | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| General     | The settings tab as four cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder with its sync switch and the owner-pay module) open, then the mail (the bank's senders and subject, mail since, and what the last mail step found), the company and owner facts with the accountant's mail, its sender and for each of its three kinds a switch, the subject and the folder, a kind switched on without all it needs saying what it lacks and opening the card, and the bucket labels, collapsed, with one Save under them, which writes only what changed. Then the loan switch and the rows the app could not use, which opens itself while there are any |
-| Categories  | The categories tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Accounts    | The accounts tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Ruleset     | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as _Ruleset_ describes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| This device | Company books, where the company's books are kept, with export, import, the move to Drive and the switch. Loans books, where the Loans file is kept, with its export and "Switch storage", or "Set up Loans" before the first run. While some app's file is on Drive, the Sync card with the steps of the last sync, "Sync as the app opens" and "Sign out of Google". Then the theme and privacy notes                                                                                                                                                                                                                                                                                                         |
+The company's Settings at `#/company/settings` holds how its books are set up and the law behind the
+figures, one tab each. Core gives General, Categories and Accounts, the pack adds Ruleset, and Books
+file holds the Company books card. The period filters stay out of its address.
 
-Without a workbook on screen only This device is there. A card with a field in error opens. A link
-that names a fact by its field, such as `#/settings#owner-loan-interest` or
+| Tab        | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| General    | The settings tab as four cards: the workbook (name, currency, number locale, review label, card settlement IBANs, statements folder with its sync switch and the owner-pay module) open, then the mail (the bank's senders and subject, mail since, and what the last mail step found), the company and owner facts with the accountant's mail, its sender and for each of its three kinds a switch, the subject and the folder, a kind switched on without all it needs saying what it lacks and opening the card, and the bucket labels, collapsed, with one Save under them, which writes only what changed. Then the loan switch and the rows the app could not use, which opens itself while there are any |
+| Categories | The categories tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Accounts   | The accounts tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Ruleset    | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as _Ruleset_ describes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Books file | Company books, where the company's books are kept, with export, import, the move to Drive and the switch                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+Without a workbook on screen only Books file is there. A card with a field in error opens. A link
+that names a fact by its field, such as `#/company/settings#owner-loan-interest` or
 `#company-registered` from Year, opens the facts card and lands on the field. The clients tab and
 the billing and invoice terms are on Invoicing, Clients, the rules on Review, Rules, and the assets,
 grants and year-end tabs on the Year screen. Each of those is `FactTabCard` in
 `src/apps/company/settings/presentation/`, a card that edits one tab as this screen does.
 
+The Loans Settings at `#/loans/settings` holds the Loans books card: where the Loans file is kept,
+with its export and "Switch storage".
+
+Kuna settings at `#/settings` is for every app on this device. While some app's file is on Drive it
+has the Sync card with the steps of the last sync, "Sync as the app opens" and "Sign out of Google".
+Then Appearance and privacy, with the theme, the language and the privacy notes.
+
 The tabs are `PageTabs` in `src/shared/ui/`, which any screen with inner tabs uses: the tab is
 `?tab=` in the address and the first tab stays out of it, picking a tab adds a step to the history
 so Back returns to the tab before, and the arrow keys move between tabs without opening them. The
-browser tab reads "Settings, Categories – Kuna". A strip wider than the screen scrolls inside
+browser tab reads "Settings, Categories, Company – Kuna". A strip wider than the screen scrolls inside
 itself, with its open tab brought into view and its cut edges faded, and a phone shares its width
 between four tabs or fewer. What every tab follows, such as the filter bar of Analysis, goes in its
 `above` slot, so a phone still finds the Filters button at the end of the tab row. A bar of one tab
@@ -1831,8 +1866,8 @@ npm run check          # typecheck and unit tests, the import boundaries among t
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the tabs of Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, with statements from a folder, whose confirm names the path and whose company step asks for no folder of the accountant's, and with statements from mail, whose access step names the bank and asks for Gmail read beside the books file alone, whose confirm names the statements folder it makes and whose first sync files the bank's mail there and holds the statement of the account the books lack, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, the statement step asking for Drive read before the Picker, a workbook kept in this browser moved there with the Drive read its folders need asked up front, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on This device and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, the mail step off, then a sender and subject saved on the Mail card and filed by the next sync, the step filing a statement the same sync reads with the list it links to, a second sync filing nothing new and the accountant's mail fields, nothing new, a source that failed and an upload that failed each with 1 problem in the control, Allow access for Gmail read, a save on the Mail card that asks for Gmail read in its own tap and syncs, the accountant's mail switched off, the payroll switched on without a sender with what it lacks in the line and under its switch, Gmail asking to slow down with one plain sentence in its step and on the Mail card, the search after mail another app filed starting a week before the newest file, and Allow access whose Google window closed with the line that says so, Salaries for one and for five made-up employees on each tab, and with five the one problem's build-up and rows, a name on People and a month of Over time, This device for a file a newer app saved, the menu with a heading for Company and Loans in the sidebar and the drawer, the Loans first run with a new file on the fake Drive beside the company's, one in this browser and another device's found by its mark, the empty Loans Overview, and This device with a card for each file, on Drive and in this browser, the sample Loans Overview and both loan pages, the what-if with the subsidy warning and Apply, and a bank loan added with a rate period, an extra payment and a late instalment, a movement added and the loan deleted and brought back with Undo, inputs side by side at one height in every form and every dashboard grid rearranged from 768 to 1440 and to 1920 px, with every Loans dialog and the Company dialogs with fields two to a row opened at each width, screenshots in visual-check/
-npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer, the tabs of Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from This device with the Drive read its folders need, a race kept on both sides, the newer-file notice, the Loans find a tap resumed ending on the Loans Overview, the sample Loans Overview and both loan pages with a plan row opened by a tap, an extra payment entered and undone, 44 px targets, in visual-check/touch/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, the home at every width, with each app in Set up on a fresh device and its figures beside the Overview's, the tabs of the company's Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on Review, a dismissal on Review with restore and undo, a rule changed and deleted from its editor on Review, Rules, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, with statements from a folder, whose confirm names the path and whose company step asks for no folder of the accountant's, and with statements from mail, whose access step names the bank and asks for Gmail read beside the books file alone, whose confirm names the statements folder it makes and whose first sync files the bank's mail there and holds the statement of the account the books lack, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, the statement step asking for Drive read before the Picker, a workbook kept in this browser moved there with the Drive read its folders need asked up front, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on Kuna settings and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, the mail step off, then a sender and subject saved on the Mail card and filed by the next sync, the step filing a statement the same sync reads with the list it links to, a second sync filing nothing new and the accountant's mail fields, nothing new, a source that failed and an upload that failed each with 1 problem in the control, Allow access for Gmail read, a save on the Mail card that asks for Gmail read in its own tap and syncs, the accountant's mail switched off, the payroll switched on without a sender with what it lacks in the line and under its switch, Gmail asking to slow down with one plain sentence in its step and on the Mail card, the search after mail another app filed starting a week before the newest file, and Allow access whose Google window closed with the line that says so, Salaries for one and for five made-up employees on each tab, and with five the one problem's build-up and rows, a name on People and a month of Over time, Settings, Books file for a file a newer app saved, each app's own menu in the sidebar and the drawer under the link home, Kuna settings and the Loans Settings, the Loans first run with a new file on the fake Drive beside the company's, one in this browser and another device's found by its mark, the empty Loans Overview, and the Loans Settings naming the file, on Drive and in this browser, the sample Loans Overview and both loan pages, the what-if with the subsidy warning and Apply, and a bank loan added with a rate period, an extra payment and a late instalment, a movement added and the loan deleted and brought back with Undo, inputs side by side at one height in every form and every dashboard grid rearranged from 768 to 1440 and to 1920 px, with every Loans dialog and the Company dialogs with fields two to a row opened at each width, screenshots in visual-check/
+npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer of one app's menu under the link home, the home's top bar without a menu button and a fresh device's home in Set up, the tabs of the company's Settings with Back, a link to Year's Statements tab alone kept in its year, the Ruleset search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and Review, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from Settings, Books file with the Drive read its folders need, a race kept on both sides, the newer-file notice, the Loans find a tap resumed ending on the Loans Overview, the sample Loans Overview and both loan pages with a plan row opened by a tap, an extra payment entered and undone, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
 npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff. --loans <kuna-loans.json> or --fake-loans sample adds the Loans groups, or gives them alone
@@ -1949,21 +1984,20 @@ when the gallery reaches it.
 
 ### The shell and its apps
 
-The app is a thin shell with apps inside it, today two: the company's books, the home app, and Loans. `src/main.ts` imports
+The app is a thin shell with apps inside it, today two: the company's books and Loans. `src/main.ts` imports
 each app's `app.ts` as the page starts, installs it, then mounts the shell. `src/shell` holds the
-frame, the router, the app registry and the Settings screen. `src/shared` is the kernel every app
+frame, the router, the app registry, the home and Kuna settings. `src/shared` is the kernel every app
 uses: the UI kit, the calendar, money and text helpers, Google, the document storage, and
 `AppContribution` in `src/shared/app/appContribution.ts`, which says what an app gives the shell:
-its name, its screens and menu, its first run, its group of the page's sync, its parts of Settings
-and what it starts as the page opens. The menu shows a heading per app with the app's subtitle under
-it, such as the company's name, and Settings set apart below. A screen of an app other than the
-home app names the app in the browser tab and the phone top bar, such as "Overview, Loans – Kuna".
-On a fresh device the home app's first run takes every address, and otherwise an app's first run
-takes the addresses under it. `src/apps/company` is the company app, and every route of it starts with
-`#/company`: Overview at `#/company`, Transactions at `#/company/transactions`, onboarding at
-`#/company/start`. `#/` opens the home app's first screen, and so does an address no screen has.
-Settings stays the shell's, at `#/settings`. An app imports only its own folder and `src/shared`, so
-the company and Loans never import each other, and `tests/importBoundaries.spec.ts` checks it.
+its name, its screens and menu, its Settings screen, its card on the home, its first run, its group
+of the page's sync and what it starts as the page opens. No app is special. The shell shows the
+menu of the app on screen only, as _The home and each app's menu_ describes. An app's first run
+takes the addresses under it and no others, so the home and Kuna settings stay the shell's.
+`src/apps/company` is the company app, and every route of it starts with `#/company`: Overview at
+`#/company`, Transactions at `#/company/transactions`, Settings at `#/company/settings`, onboarding
+at `#/company/start`. `#/` is the home, and so is an address no screen has. Kuna settings is the
+shell's, at `#/settings`. An app imports only its own folder and `src/shared`, so the company and
+Loans never import each other, and `tests/importBoundaries.spec.ts` checks it.
 
 ### Loans
 
@@ -2033,10 +2067,9 @@ Its first run at `#/loans/start` asks where the file lives: a new file on Google
 folder step like the company's, a new file in this browser, made at once, or the file another device
 made, found by its mark or else picked. A tap that needs Google asks for it in the same tap, and on
 a phone the route brings the person back to the step. A find that leaves for Google names Loans, so
-only Loans picks it up on the way back. The same steps switch the storage from Settings, This device,
+only Loans picks it up on the way back. The same steps switch the storage from the Loans Settings,
 and the file on screen moves along to its new home. Opening another device's file lets go of the
-one kept in this browser. On a fresh device the company's first run comes first, so Loans opens only
-once the company books are set up.
+one kept in this browser. Loans can be set up before the company books, from its card on the home.
 
 "Export" on its card, and in the top bar while no file is on Drive, downloads the file as it is,
 `kuna-loans-export-<yyyy-mm-dd>.json`, a name no daily backup takes. Loans has no import yet. To bring
@@ -2396,7 +2429,7 @@ rate, amount or count, or its first rate for a rule named for a rate, with the t
 rule has more. An info button beside the list explains the marks. Estimate, pending and unconfirmed
 versions are coloured.
 
-A click on a line, or a link to `#/settings?tab=ruleset&rule=<id>`, opens the whole rule in a side
+A click on a line, or a link to `#/company/settings?tab=ruleset&rule=<id>`, opens the whole rule in a side
 panel, a full-height sheet on a phone. The panel holds its value for every version, side by side on
 a wide screen and one under another on a phone. Rates read as percentages with up to two decimals,
 coefficients as factors such as 0.65, money in the app's money format, flags as yes or no, and table

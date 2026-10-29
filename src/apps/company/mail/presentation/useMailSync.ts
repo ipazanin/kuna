@@ -20,7 +20,7 @@ import { gmailMailbox } from '../infrastructure/gmailMailbox'
 import { googleMailFolders } from '../infrastructure/googleMailFolders'
 
 /** Where the step's line links, the mail card on Settings, General, which lists what the last run found. */
-export const MAIL_LIST_LINK = { label: 'See the list', to: '/settings#mail' } as const
+export const MAIL_LIST_LINK = { label: 'See the list', to: '/company/settings#mail' } as const
 
 interface MailSyncState {
   /** What the last mail step of this page found and filed, or null before one ran and after one stopped. */

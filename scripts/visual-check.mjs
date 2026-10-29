@@ -9,15 +9,16 @@
  * side by side in a form, a dialog or a card must have their inputs at the same height, on every
  * screen and in every flow, and every DashboardGrid must rearrange from 768 to 1440 px and again to
  * 1920 px, unless its cards already sit in one row at the wider width. Cards side by side in a grid
- * that is not a DashboardGrid fail, outside Settings, This device and the gallery. A deep
+ * that is not a DashboardGrid fail, outside the gallery. A deep
  * link to a rule on Settings, Ruleset must open that rule in the side panel and bring its line to
  * just below the search bar, marked, and keep it there once slow web fonts swap in. Deep links into
  * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
  * collapses and expands one card.
  *
- * Beyond the screens of the fake workbook on Drive, it renders onboarding's first steps on a first
- * run (`?fake=empty`), each Settings tab and the Year page's editors for a workbook kept in this browser
- * (`?fake=browser`), This device for a file a newer app saved (`?fake=newer-file`), Salaries for one
+ * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
+ * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
+ * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
+ * a file a newer app saved (`?fake=newer-file`), the Loans Settings, Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
  *
@@ -46,7 +47,7 @@
  * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
  * new rows wait on Review and undoes it, then deletes the profile, at 360, 430 and 1440 px. With the
  * file on Drive, from Overview, Sync files the fake statements folder's sample statement with no
- * toast, its step on Settings, This device says so with Undo, which takes it out, Import lists it,
+ * toast, its step on Kuna settings says so with Undo, which takes it out, Import lists it,
  * and a last sync finds nothing new. With a held statement in the folder, the sync control says 1
  * problem and opens its steps, a popover at 1440 and a bottom sheet at 360, whose link opens Import,
  * which says why. A tab Google gave no Drive read token gets Allow access in the sync control, which
@@ -73,7 +74,7 @@
  * on the fake Drive with statements from mail name the bank, make the statements folder beside the
  * books file and file the bank's mail there on the first sync. The statement step asks for Drive
  * read before the Picker when the page lacks it. An xlsx file
- * moves to the fake Drive through its summary, Settings, This device moves a workbook kept in this
+ * moves to the fake Drive through its summary, Settings, Books file moves a workbook kept in this
  * browser there with the Drive read its folders need asked up front, and a row confirmed on Review while another device files the other row keeps both.
  *
  * Run against a preview of the fake build:
@@ -103,6 +104,7 @@ import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
   accessClosedFlow,
   advanceFlow,
+  appMenuFlow,
   assetFlow,
   employeeFlow,
   cardSettlementIbansFlow,
@@ -113,6 +115,7 @@ import {
   companyDialogsFlow,
   dismissFlow,
   heldStatementFlow,
+  homeFlow,
   importCamtFlow,
   importTableFlow,
   invoiceFlow,
@@ -135,7 +138,6 @@ import {
   mailRateLimitedFlow,
   mailSwitchesOffFlow,
   mailWindowFlow,
-  menuGroupsFlow,
   moveFromBrowserFlow,
   moveOntoDriveFlow,
   onboardingBringFlow,
@@ -157,6 +159,7 @@ import {
   reviewSplitFlow,
   rulesEditorFlow,
   scenarioFlow,
+  setUpFlow,
   shareFillFlow,
   splitFlow,
   startingScenariosFlow,
@@ -310,10 +313,11 @@ const SCREENS = [
     collapsedBefore: ['review.rules'],
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
-  { name: 'settings', hash: '#/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
+  { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Set up', 'Kuna settings'], cards: false },
+  { name: 'company-settings', hash: '#/company/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
   {
-    name: 'settings-loan-rate',
-    hash: '#/settings#owner-loan-interest',
+    name: 'company-settings-loan-rate',
+    hash: '#/company/settings#owner-loan-interest',
     title: 'Settings',
     charts: 0,
     shows: "Interest the owner's loans carry",
@@ -321,27 +325,27 @@ const SCREENS = [
     linkedPart: 'owner-loan-interest',
   },
   {
-    name: 'settings-categories',
-    hash: '#/settings?tab=categories',
+    name: 'company-settings-categories',
+    hash: '#/company/settings?tab=categories',
     title: 'Settings',
     charts: 0,
     shows: 'The bucket decides where a row counts',
     collapsedBefore: ['settings.categories'],
     linkedCard: 'settings.categories',
   },
-  { name: 'settings-accounts', hash: '#/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Your bank accounts' },
-  { name: 'settings-ruleset', hash: '#/settings?tab=ruleset', title: 'Settings', charts: 0, shows: ['Watch list', 'Rules by area', 'hr.cit.rate'] },
+  { name: 'company-settings-accounts', hash: '#/company/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Your bank accounts' },
+  { name: 'company-settings-ruleset', hash: '#/company/settings?tab=ruleset', title: 'Settings', charts: 0, shows: ['Watch list', 'Rules by area', 'hr.cit.rate'] },
   {
-    name: 'settings-ruleset-linked',
-    hash: '#/settings?tab=ruleset&rule=hr.contrib.director-floor',
+    name: 'company-settings-ruleset-linked',
+    hash: '#/company/settings?tab=ruleset&rule=hr.contrib.director-floor',
     title: 'Settings',
     charts: 0,
     shows: 'Contribution base floor for an employed',
     linkedRule: 'hr.contrib.director-floor',
   },
   {
-    name: 'settings-device',
-    hash: '#/settings?tab=device',
+    name: 'company-settings-books',
+    hash: '#/company/settings?tab=books',
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="drive-file-place"] a',
@@ -349,13 +353,22 @@ const SCREENS = [
     cards: false,
   },
   {
-    name: 'settings-device-croatian',
-    query: 'lang=hr',
-    hash: '#/settings?tab=device',
-    title: 'Settings',
+    name: 'kuna-settings',
+    hash: '#/settings',
+    title: 'Kuna settings',
     charts: 0,
-    ready: '[data-testid="drive-file-place"] a',
-    shows: ['Jezik preglednika', 'Hrvatski', 'Kad promijenite jezik, aplikacija se ponovno učita.'],
+    ready: '[data-testid="sync-card"]',
+    shows: ['Sync as the app opens', 'Sign out of Google', 'Appearance and privacy'],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-croatian',
+    query: 'lang=hr',
+    hash: '#/settings',
+    title: 'Postavke Kune',
+    charts: 0,
+    ready: '[data-testid="sync-card"]',
+    shows: ['Sinkronizacija, izgled i jezik', 'Jezik preglednika', 'Hrvatski', 'Kad promijenite jezik, aplikacija se ponovno učita.'],
     cards: false,
   },
 ]
@@ -368,22 +381,41 @@ const GALLERY_DONUTS = 2
 
 /** Screens outside the fake workbook on Drive. `query` picks the fake variant, `upload` drops the import file on the page. */
 const SOURCE_SCREENS = [
-  { name: 'welcome', query: 'fake=empty', hash: '#/', title: 'Kuna', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
+  {
+    name: 'home-fresh',
+    query: 'fake=empty',
+    hash: '#/',
+    title: 'All apps',
+    charts: 0,
+    shows: ['Set up', "Your company's books from its bank statements", 'Your loans in a file of their own'],
+    cards: false,
+  },
+  { name: 'home-loans', query: 'loans=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Cash on hand', 'You owe in all'], cards: false },
+  { name: 'welcome', query: 'fake=empty', hash: '#/company/start', title: 'Company', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
   {
     name: 'onboarding-access',
     query: 'fake=empty',
     hash: '#/company/start?step=access&statements=folder',
-    title: 'Kuna',
+    title: 'Company',
     charts: 0,
     shows: ['What the app may do in your Google account', 'From a folder in my Drive', 'Continue to Google'],
     cards: false,
   },
-  { name: 'onboarding-find', query: 'fake=empty', hash: '#/company/start?path=open&step=find', title: 'Kuna', charts: 0, shows: ['Find your books on Drive', 'Pick another file'], cards: false },
-  { name: 'settings-browser', query: 'fake=browser', hash: '#/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
-  { name: 'settings-categories-browser', query: 'fake=browser', hash: '#/settings?tab=categories', title: 'Settings', charts: 0, shows: 'Save categories' },
-  { name: 'settings-accounts-browser', query: 'fake=browser', hash: '#/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
-  { name: 'settings-device-browser', query: 'fake=browser', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: ['Import a file', 'Keep on Google Drive'], cards: false },
-  { name: 'settings-device-newer', query: 'fake=newer-file', hash: '#/settings?tab=device', title: 'Settings', charts: 0, shows: 'A newer version of Kuna saved this file', cards: false },
+  { name: 'onboarding-find', query: 'fake=empty', hash: '#/company/start?path=open&step=find', title: 'Company', charts: 0, shows: ['Find your books on Drive', 'Pick another file'], cards: false },
+  { name: 'company-settings-browser', query: 'fake=browser', hash: '#/company/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
+  { name: 'company-settings-categories-browser', query: 'fake=browser', hash: '#/company/settings?tab=categories', title: 'Settings', charts: 0, shows: 'Save categories' },
+  { name: 'company-settings-accounts-browser', query: 'fake=browser', hash: '#/company/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
+  { name: 'company-settings-books-browser', query: 'fake=browser', hash: '#/company/settings?tab=books', title: 'Settings', charts: 0, shows: ['Import a file', 'Keep on Google Drive'], cards: false },
+  {
+    name: 'company-settings-books-newer',
+    query: 'fake=newer-file',
+    hash: '#/company/settings?tab=books',
+    title: 'Settings',
+    charts: 0,
+    shows: 'A newer version of Kuna saved this file',
+    cards: false,
+  },
+  { name: 'kuna-settings-browser', query: 'fake=browser', hash: '#/settings', title: 'Kuna settings', charts: 0, shows: ['Appearance and privacy', 'Browser language'], cards: false },
   { name: 'year-accountant-browser', query: 'fake=browser', hash: '#/company/year?year=2025', title: 'Year', charts: 1, shows: 'Loans to the owner carry 2.5%' },
   { name: 'year-statements-browser', query: 'fake=browser', hash: '#/company/year?year=2025&tab=statements', title: 'Year', charts: 0, shows: 'Balance paid on', expandedBefore: ['year.tax'] },
   {
@@ -502,29 +534,29 @@ const SOURCE_SCREENS = [
     shows: ['Borrowed in kind', 'Repaid in kind', 'Forgiven', 'He bought a boat battery for me'],
   },
   {
-    name: 'settings-device-two-files',
+    name: 'loans-settings',
     query: 'loans=drive',
-    hash: '#/settings?tab=device',
+    hash: '#/loans/settings',
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="loans-books-card"] [data-testid="drive-file-place"] a',
-    shows: ['Company books', 'Loans books', 'kuna-company.json', 'kuna-loans.json'],
+    shows: ['Loans books', 'kuna-loans.json', 'Switch storage'],
     cards: false,
   },
   {
-    name: 'settings-device-two-files-browser',
+    name: 'loans-settings-browser',
     query: 'fake=browser&loans=browser',
-    hash: '#/settings?tab=device',
+    hash: '#/loans/settings',
     title: 'Settings',
     charts: 0,
-    shows: ['Company books', 'Loans books', 'Fake Loans file', 'Some changes are in no exported file yet'],
+    shows: ['Loans books', 'Fake Loans file', 'Some changes are in no exported file yet'],
     cards: false,
   },
   {
     name: 'import-summary',
     query: 'fake=empty',
     hash: '#/company/start?path=bring&home=browser&step=file',
-    title: 'Kuna',
+    title: 'Company',
     charts: 0,
     shows: ['rows the app could not use', 'records, by tab', 'Keep in this browser'],
     upload: true,
@@ -566,10 +598,7 @@ const SIDEWAYS_SCROLL_ALLOWED = [
 ]
 
 /** The screens whose cards may sit side by side in a grid of their own, each with why. */
-const HAND_BUILT_GRIDS_ALLOWED = [
-  { screen: 'settings-device', reason: 'Settings, This device is a page of settings cards, not a dashboard.' },
-  { screen: 'gallery', reason: 'The gallery sets specimens side by side to compare their states.' },
-]
+const HAND_BUILT_GRIDS_ALLOWED = [{ screen: 'gallery', reason: 'The gallery sets specimens side by side to compare their states.' }]
 
 const failures = []
 /** Every card found wider than its content, allowed or not, listed at the end. */
@@ -855,12 +884,12 @@ const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
 
 /** The editors' flows, each on a fresh load, so the fake file on Drive and the workbook kept in this browser start from their seed. */
 const FLOWS = [
-  { name: 'page-tabs', hash: '#/settings', title: 'Settings', run: pageTabsFlow },
+  { name: 'page-tabs', hash: '#/company/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/company/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
-  { name: 'categories', hash: '#/settings?tab=categories', title: 'Settings', run: categoryFlow },
-  { name: 'categories-filters', hash: '#/settings?tab=categories', title: 'Settings', run: categoryFiltersFlow },
-  { name: 'settings-statements-folder', hash: '#/settings', title: 'Settings', run: statementsFolderFlow },
-  { name: 'settings-card-ibans', hash: '#/settings', title: 'Settings', run: cardSettlementIbansFlow },
+  { name: 'categories', hash: '#/company/settings?tab=categories', title: 'Settings', run: categoryFlow },
+  { name: 'categories-filters', hash: '#/company/settings?tab=categories', title: 'Settings', run: categoryFiltersFlow },
+  { name: 'settings-statements-folder', hash: '#/company/settings', title: 'Settings', run: statementsFolderFlow },
+  { name: 'settings-card-ibans', hash: '#/company/settings', title: 'Settings', run: cardSettlementIbansFlow },
   { name: 'clients-ibans', hash: '#/company/invoicing?tab=clients', title: 'Invoicing', run: clientIbansFlow },
   { name: 'assets', hash: '#/company/year?tab=assets#asset-rows', title: 'Year', run: assetFlow },
   { name: 'employees', hash: '#/company/salaries#employee-rows', title: 'Salaries', run: employeeFlow },
@@ -891,7 +920,7 @@ const FLOWS = [
   { name: 'owner-share', hash: '#/company/transactions?p=all&q=purchase%2C%20laptop', title: 'Transactions', run: ownerShareFlow },
   { name: 'owner-net', hash: '#/company/owner?p=2026', title: 'Owner', run: ownerNetFlow, viewports: ['phone', 'phone-large', 'desktop'], modes: ['browser'] },
   { name: 'owner-net-unregistered', hash: '#/company/owner?p=2026', title: 'Owner', run: ownerNetUnregisteredFlow, viewports: ['phone', 'phone-large', 'desktop'], modes: ['drive'] },
-  { name: 'share-fill', hash: '#/settings?tab=categories', title: 'Settings', run: shareFillFlow },
+  { name: 'share-fill', hash: '#/company/settings?tab=categories', title: 'Settings', run: shareFillFlow },
   { name: 'dismiss', hash: '#/company/review?tab=rules', title: 'Review', run: dismissFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'rules-editor', hash: '#/company/review?tab=rules', title: 'Review', run: rulesEditorFlow },
   { name: 'import-camt', hash: '#/company/transactions?tab=import', title: 'Transactions', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
@@ -913,16 +942,16 @@ const FLOWS = [
   { name: 'mail-window', hash: '#/company', title: 'Overview', run: mailWindowFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
   { name: 'sync-access-closed', hash: '#/company', title: 'Overview', run: accessClosedFlow, modes: ['drive'], queries: { drive: '&fake=google-closed' } },
   { name: 'salaries', hash: '#/company/salaries', title: 'Salaries', run: salariesFlow, modes: ['drive'], queries: { drive: '&fake=five-employees' } },
-  { name: 'onboarding-drive', hash: '#/', title: 'Kuna', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-drive-read', hash: '#/', title: 'Kuna', run: onboardingDriveReadFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-mail', hash: '#/', title: 'Kuna', run: onboardingMailFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-browser', hash: '#/', title: 'Kuna', run: onboardingBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
-  { name: 'onboarding-bring', hash: '#/', title: 'Kuna', run: onboardingBringFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-open', hash: '#/company/start?path=open', title: 'Kuna', run: onboardingOpenFlow, modes: ['drive'] },
-  { name: 'onboarding-start-over', hash: '#/', title: 'Kuna', run: onboardingStartOverFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'onboarding-on-drive', hash: '#/company/start?step=folder', title: 'Kuna', run: onboardingOnDriveFlow, modes: ['drive'] },
-  { name: 'onboarding-move-on-drive', hash: '#/settings?tab=device', title: 'Settings', run: moveOntoDriveFlow, modes: ['browser'], queries: { browser: '&fake=browser-beside-drive' } },
-  { name: 'onboarding-statement-access', hash: '#/company/start?step=statement&statements=folder', title: 'Kuna', run: onboardingStatementAccessFlow, modes: ['drive'] },
+  { name: 'onboarding-drive', hash: '#/company/start', title: 'Company', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-drive-read', hash: '#/company/start', title: 'Company', run: onboardingDriveReadFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-mail', hash: '#/company/start', title: 'Company', run: onboardingMailFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-browser', hash: '#/company/start', title: 'Company', run: onboardingBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
+  { name: 'onboarding-bring', hash: '#/company/start', title: 'Company', run: onboardingBringFlow(IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-open', hash: '#/company/start?path=open', title: 'Company', run: onboardingOpenFlow, modes: ['drive'] },
+  { name: 'onboarding-start-over', hash: '#/company/start', title: 'Company', run: onboardingStartOverFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'onboarding-on-drive', hash: '#/company/start?step=folder', title: 'Company', run: onboardingOnDriveFlow, modes: ['drive'] },
+  { name: 'onboarding-move-on-drive', hash: '#/company/settings?tab=books', title: 'Settings', run: moveOntoDriveFlow, modes: ['browser'], queries: { browser: '&fake=browser-beside-drive' } },
+  { name: 'onboarding-statement-access', hash: '#/company/start?step=statement&statements=folder', title: 'Company', run: onboardingStatementAccessFlow, modes: ['drive'] },
   { name: 'loans-drive', hash: '#/loans', title: 'Loans', run: loansDriveFlow, modes: ['drive'] },
   { name: 'loans-browser', hash: '#/loans', title: 'Loans', run: loansBrowserFlow, modes: ['browser'] },
   { name: 'loans-open', hash: '#/loans', title: 'Loans', run: loansOpenFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
@@ -931,8 +960,11 @@ const FLOWS = [
   { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'dialogs-company', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: companyDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'] },
-  { name: 'menu-groups', hash: '#/loans', title: 'Overview', run: menuGroupsFlow, queries: { drive: '&loans=drive', browser: '&fake=browser&loans=browser' } },
-  { name: 'move-browser', hash: '#/settings?tab=device', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
+  { name: 'app-menu', hash: '#/loans', title: 'Overview', run: appMenuFlow, queries: { drive: '&loans=drive', browser: '&fake=browser&loans=browser' } },
+  { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
+  { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample' } },
+  { name: 'home-set-up', hash: '#/', title: 'All apps', run: setUpFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'move-browser', hash: '#/company/settings?tab=books', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
   { name: 'race', hash: '#/company/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
 ]
 const MODES = [

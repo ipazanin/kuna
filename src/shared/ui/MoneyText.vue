@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import { formatCompactMoney, formatMoney, formatWholeMoney } from '../money/moneyFormat'
-import type { SignDisplay } from '../money/moneyFormat'
+import type { MoneyFormat, SignDisplay } from '../money/moneyFormat'
 
 const props = withDefaults(
   defineProps<{
@@ -15,14 +15,16 @@ const props = withDefaults(
      * not bad news. `outcome` is for a result such as a net, where a negative one is a loss.
      */
     tone?: 'flow' | 'outcome'
+    /** The app's currency and number locale, for a figure shown outside its app, as on the home. Left out, the page's. */
+    format?: MoneyFormat
   }>(),
   { sign: 'negative', precision: 'cents' },
 )
 
 const formatted = computed(() => {
-  if (props.precision === 'whole') return formatWholeMoney(props.cents, props.sign)
-  if (props.precision === 'compact') return formatCompactMoney(props.cents, props.sign)
-  return formatMoney(props.cents, props.sign)
+  if (props.precision === 'whole') return formatWholeMoney(props.cents, props.sign, props.format)
+  if (props.precision === 'compact') return formatCompactMoney(props.cents, props.sign, props.format)
+  return formatMoney(props.cents, props.sign, props.format)
 })
 
 const tone = computed(() => {

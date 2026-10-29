@@ -35,7 +35,7 @@ const props = defineProps<{
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 
-const DEFAULTS = { path: '/settings', query: { tab: 'categories' } }
+const DEFAULTS = { path: '/company/settings', query: { tab: 'categories' } }
 const ESTIMATE = 'Your estimate of private use. The accountant books these costs in full.'
 
 const title = computed(() => names.value.category(props.benefits.category))
@@ -118,7 +118,7 @@ const dialogOpen = ref(false)
         </template>
         <p v-else-if="comparison.state === 'unregistered'" class="note text-sm text-toned">
           The tax a dividend would cost needs <span class="identifier">hr_company_registered</span>, the day the first tax period starts.
-          <DrillLink :to="{ path: '/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
+          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
         </p>
         <p v-else class="note text-sm text-toned">The tax a dividend would cost could not be worked out. {{ comparison.failure }}</p>
         <div class="note flex flex-col items-start gap-1 text-xs">

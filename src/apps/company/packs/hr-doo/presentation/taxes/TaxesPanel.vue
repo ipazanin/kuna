@@ -227,7 +227,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
         <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
         <p>
           <span class="identifier">hr_company_registered</span> is blank, so the tax periods and the schedule of advances are not known.
-          <DrillLink :to="{ path: '/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
+          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
         </p>
       </div>
       <p v-else-if="corporateTax.state === 'failed'" class="px-4 py-4 text-sm text-toned sm:px-5">{{ corporateTax.failure }}</p>

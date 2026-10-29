@@ -23,6 +23,9 @@ import type { DonutPart } from '../../shared/ui/DonutCard.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
 import EmptyState from '../../shared/ui/EmptyState.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
+import AppBrand from '../../shared/ui/AppBrand.vue'
+import AppMark from '../../shared/ui/AppMark.vue'
+import HomeLink from '../../shared/ui/HomeLink.vue'
 import InfoPopover from '../../shared/ui/InfoPopover.vue'
 import KpiTile from '../../shared/ui/KpiTile.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
@@ -108,7 +111,6 @@ const TAX_PARTS: readonly DonutPart[] = [
 
 /** One of each state of the sync control, Allow access also after a closed popup, over a last sync whose statements step filed a statement. */
 const SYNC_CONTROLS: readonly SyncControl[] = [
-  { kind: 'find' },
   { kind: 'ready', syncedAt: '2026-10-16T06:04:00Z' },
   { kind: 'running', label: 'Statements', position: 2, of: 3, line: 'Filing 3 rows' },
   { kind: 'sign-in', failure: null },
@@ -584,7 +586,7 @@ const columns: TableColumn<SampleTransaction>[] = [
       </div>
     </GallerySection>
 
-    <GallerySection id="controls" title="Small controls" description="InfoPopover, ShowAllButton and ColourSwatchPicker.">
+    <GallerySection id="controls" title="Small controls" description="InfoPopover, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
       <DashboardGrid>
         <AppCard title="InfoPopover" subtitle="A definition, or richer content such as a legend.">
           <div class="flex items-center gap-2 px-4 pt-3 pb-4 type-body sm:px-5">
@@ -608,6 +610,29 @@ const columns: TableColumn<SampleTransaction>[] = [
             </li>
           </ul>
           <ShowAllButton v-model:expanded="showAllPayees" :total="PAYEES.length" class="px-4 pt-2 pb-4 sm:px-5" />
+        </AppCard>
+        <AppCard
+          title="HomeLink"
+          subtitle="The Kuna mark and name at the top of every app's menu and first run, which opens the home. Its label follows the name for a screen reader."
+          class="xl:col-span-2 3xl:col-span-1"
+        >
+          <div class="px-4 pt-3 pb-4 sm:px-5">
+            <HomeLink label="All apps" class="max-w-60" />
+          </div>
+        </AppCard>
+        <AppCard title="AppBrand" subtitle="A name beside the Kuna mark, or beside an app's icon on its tile, as in the phone top bar.">
+          <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
+            <AppBrand title="Kuna" />
+            <AppBrand title="Overview" icon="i-lucide-landmark" colour="--app-loans" />
+          </div>
+        </AppCard>
+        <AppCard title="AppMark" subtitle="An app's icon on a tile in its own colour, small in a menu and large on the home card.">
+          <div class="flex items-center gap-3 px-4 pt-3 pb-4 sm:px-5">
+            <AppMark icon="i-lucide-building-2" colour="--app-company" size="large" />
+            <AppMark icon="i-lucide-landmark" colour="--app-loans" size="large" />
+            <AppMark icon="i-lucide-building-2" colour="--app-company" />
+            <AppMark icon="i-lucide-landmark" colour="--app-loans" />
+          </div>
         </AppCard>
       </DashboardGrid>
     </GallerySection>

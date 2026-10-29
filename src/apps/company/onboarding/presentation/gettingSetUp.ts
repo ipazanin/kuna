@@ -23,13 +23,13 @@ export function gettingSetUp(workbook: Workbook): SetUpLine[] {
     lines.push({ key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: { path: '/company/transactions', query: { tab: 'import' } } } })
   }
   if (workbook.settings.statementsSync && workbook.settings.statementsFolder.length === 0) {
-    lines.push({ key: 'statements-folder', text: 'Name the Drive folder your bank statements are filed in, or switch filing on sync off', link: { label: 'Settings', to: '/settings' } })
+    lines.push({ key: 'statements-folder', text: 'Name the Drive folder your bank statements are filed in, or switch filing on sync off', link: { label: 'Settings', to: '/company/settings' } })
   }
   if (categoriesAsNewBooksStart(workbook.categories)) {
     lines.push({
       key: 'categories',
       text: 'Look over the categories, which are still the ones new books start with',
-      link: { label: 'Categories', to: { path: '/settings', query: { tab: 'categories' } } },
+      link: { label: 'Categories', to: { path: '/company/settings', query: { tab: 'categories' } } },
     })
   }
   if (workbook.clients.length > 0 && REQUIRED_ISSUER.some(([field]) => workbook.settings.invoicing[field].trim() === '')) {

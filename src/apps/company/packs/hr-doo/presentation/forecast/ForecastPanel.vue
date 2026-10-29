@@ -33,7 +33,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
       icon="i-lucide-calendar-x"
       title="The forecast needs the day the company was registered"
       description="The tax periods, the advances and the balance due all count from it. Set hr_company_registered, such as 2025-05-12."
-      :actions="[{ label: 'Set it on Settings', to: { path: '/settings', hash: '#company-registered' }, color: 'neutral', variant: 'outline' }]"
+      :actions="[{ label: 'Set it on Settings', to: { path: '/company/settings', hash: '#company-registered' }, color: 'neutral', variant: 'outline' }]"
       data-testid="forecast-unregistered"
     />
     <EmptyState
@@ -41,7 +41,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
       icon="i-lucide-triangle-alert"
       title="The year could not be forecast"
       :description="forecast.failure"
-      :actions="[{ label: 'Open Settings', to: '/settings', color: 'neutral', variant: 'outline' }]"
+      :actions="[{ label: 'Open Settings', to: '/company/settings', color: 'neutral', variant: 'outline' }]"
       tone="error"
     />
     <template v-else-if="view && chart">

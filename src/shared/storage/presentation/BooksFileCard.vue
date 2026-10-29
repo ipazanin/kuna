@@ -12,7 +12,7 @@ import type { WorkbookDocument } from '../infrastructure/documentFormat'
 import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
 
 /**
- * Settings, This device: where an app's file is kept, when it was saved, synced and exported, and a
+ * An app's Settings: where its file is kept, when it was saved, synced and exported, and a
  * link to it on Drive. The app's own buttons go in `actions`, and its notices in the default slot.
  */
 const props = defineProps<{

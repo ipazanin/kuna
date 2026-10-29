@@ -4,6 +4,8 @@ import type { Translation } from '../../shared/text/translation'
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 
 export const en = {
+  menu: 'Kuna settings',
+  description: "Sync, look and language on this device, for every app. Where an app keeps its books is on that app's Settings.",
   language: {
     legend: 'Language',
     browser: 'Browser language',
@@ -12,6 +14,8 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  menu: 'Postavke Kune',
+  description: 'Sinkronizacija, izgled i jezik na ovom uređaju, za sve aplikacije. Gdje aplikacija vodi svoje knjige, piše u postavkama te aplikacije.',
   language: {
     legend: 'Jezik',
     browser: 'Jezik preglednika',

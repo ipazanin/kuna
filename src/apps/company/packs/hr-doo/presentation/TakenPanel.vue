@@ -243,7 +243,7 @@ const taken = computed(() => {
         </template>
         <p v-if="net.unregistered" class="mt-1.5 text-xs text-muted" data-testid="owner-net-unregistered">
           The profit needs <span class="identifier break-all">hr_company_registered</span>.
-          <DrillLink :to="{ path: '/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
+          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
         </p>
         <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">The profit follows the period only.</p>
       </KpiTile>

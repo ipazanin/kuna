@@ -25,7 +25,7 @@ export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate)
       state: 'needs',
       need: 'hr_company_registered',
       why: 'The tax periods and the corporate tax count from the day the company was registered.',
-      action: { label: 'Set it on Settings', to: { path: '/settings', hash: '#company-registered' } },
+      action: { label: 'Set it on Settings', to: { path: '/company/settings', hash: '#company-registered' } },
     }
   }
   const employees = { path: '/company/salaries', hash: '#employee-rows' }

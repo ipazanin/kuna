@@ -5,7 +5,9 @@ import { intlLocale } from '../text/language'
 /**
  * Money and share formatting in the workbook's currency and number locale, with the sign in front.
  * Inputs are integer cents. Negative amounts use a true minus sign so columns of figures stay the
- * same width. The format is reactive, so a chart computed from it redraws when the settings change.
+ * same width. The page's format is that of the app on screen, and is reactive, so a chart computed
+ * from it redraws when the settings change. A figure shown outside its app, as on the home, passes
+ * its app's format instead.
  */
 
 export type SignDisplay = 'negative' | 'always' | 'magnitude'
@@ -41,8 +43,8 @@ export function setMoneyFormat(format: MoneyFormat): void {
   }
 }
 
-function formatters(): Formatters {
-  const { currency, locale } = active.value
+function formatters(format: MoneyFormat = active.value): Formatters {
+  const { currency, locale } = format
   const key = `${locale}|${currency}`
   let found = formattersByKey.get(key)
   if (found === undefined) {
@@ -82,19 +84,20 @@ function withSign(signed: number, magnitudeText: string, sign: SignDisplay): str
   return sign === 'always' ? `+${magnitudeText}` : magnitudeText
 }
 
-export function formatMoney(cents: number, sign: SignDisplay = 'negative'): string {
-  return withSign(cents, formatters().full.format(Math.abs(cents) / 100), sign)
+export function formatMoney(cents: number, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
+  return withSign(cents, formatters(format).full.format(Math.abs(cents) / 100), sign)
 }
 
 /** Whole units, for KPI values and labels where the cents are noise. */
-export function formatWholeMoney(cents: number, sign: SignDisplay = 'negative'): string {
-  return withSign(cents, formatters().whole.format(Math.round(Math.abs(cents) / 100)), sign)
+export function formatWholeMoney(cents: number, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
+  return withSign(cents, formatters(format).whole.format(Math.round(Math.abs(cents) / 100)), sign)
 }
 
 /** €12.4K style, for axis ticks and tight labels. Under a thousand it is whole units, so €907 sits beside €5.6K. */
-export function formatCompactMoney(cents: number, sign: SignDisplay = 'negative'): string {
+export function formatCompactMoney(cents: number, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
   const units = Math.abs(cents) / 100
-  return withSign(cents, units < 1000 ? formatters().whole.format(Math.round(units)) : formatters().compact.format(units), sign)
+  const { whole, compact } = formatters(format)
+  return withSign(cents, units < 1000 ? whole.format(Math.round(units)) : compact.format(units), sign)
 }
 
 export function formatPercent(fraction: number, sign: SignDisplay = 'negative'): string {

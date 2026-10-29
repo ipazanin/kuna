@@ -10,7 +10,7 @@ import SyncStepList from '../../shared/sync/presentation/SyncStepList.vue'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import AppCard from '../../shared/ui/AppCard.vue'
 
-/** Settings, This device: the steps of the last sync of this page, whether this device syncs by itself, and the one Google sign-in every file on Drive goes through. */
+/** Kuna settings: the steps of the last sync of this page, whether this device syncs by itself, and the one Google sign-in every file on Drive goes through. */
 const sync = usePageSync()
 const toast = useToast()
 const signingOut = ref(false)

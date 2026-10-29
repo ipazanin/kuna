@@ -48,7 +48,7 @@ const gate = computed(() => {
     :actions="[
       { label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/company/transactions', query: { tab: 'import' } }) },
       { label: 'Export to Excel', icon: 'i-lucide-download', color: 'neutral', variant: 'outline', onClick: exportNow },
-      { label: 'Open Settings', icon: 'i-lucide-settings', color: 'neutral', variant: 'outline', onClick: () => router.push('/settings') },
+      { label: 'Open Settings', icon: 'i-lucide-settings', color: 'neutral', variant: 'outline', onClick: () => router.push('/company/settings') },
     ]"
   />
   <EmptyState

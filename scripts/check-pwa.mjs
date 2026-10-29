@@ -195,7 +195,9 @@ try {
   )
   console.log(`PASS: manifest, icons, scoped worker, complete precache${browserName === 'chrome' ? ', installable' : ''}`)
 
-  // The first visit: onboarding brings an xlsx file into this browser, which keeps the workbook in IndexedDB.
+  // The first visit opens the home. Its Company card starts onboarding, which brings an xlsx file into this browser, kept in IndexedDB.
+  await waitForTitle(page, 'All apps')
+  await clickStart(page, '[data-testid="home-card"]', 'Company')
   await clickStart(page, '[data-testid="onboarding-path"] label', 'Bring my books')
   await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
   await clickStart(page, '[data-testid="onboarding-home"] label', 'Only this browser')
@@ -237,7 +239,7 @@ try {
   const secondWindow = watch(await context.newPage())
   await secondWindow.goto(appUrl)
   await waitForWorker(secondWindow)
-  await waitForTitle(secondWindow, 'Overview')
+  await waitForTitle(secondWindow, 'All apps')
   const originalCaches = await probe.evaluate(() => caches.keys())
   const originalDocument = await page.evaluate(() => {
     window.pwaCheckDocument = crypto.randomUUID()

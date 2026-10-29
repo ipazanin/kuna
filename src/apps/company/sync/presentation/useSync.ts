@@ -11,7 +11,6 @@ import { mailNeeds, useMailSync } from '../../mail/presentation/useMailSync'
 import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbookStatus.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
-import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 
 /** The Google permissions books on Drive and this device's settings need, by what needs each: the books, each step their settings turn on, and Gmail while invoice drafts are on. */
@@ -27,16 +26,12 @@ function needsOfBooks(workbook: Workbook | null): AccessNeed[] {
 export function companySyncGroup(): AppSyncGroup {
   const store = useWorkbook()
   const writes = useRecordWrites(store)
-  const { findDriveFile } = useFindDriveFile()
   const steps = [useMailSync().step, useStatementSync().step]
   return {
     store,
     steps: () => steps,
     needs: () => needsOfBooks(store.state.workbook),
     undo: writes.undo,
-    async findDriveFile() {
-      await findDriveFile('find')
-    },
     exportControl: LocalWorkbookStatus,
   }
 }

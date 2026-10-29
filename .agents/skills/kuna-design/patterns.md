@@ -32,6 +32,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## Money
 
 - Show money through `MoneyText` or the formatters in `src/shared/money/moneyFormat.ts`. Never `toFixed` or `Intl` in a screen.
+- A screen formats money as its app does. A figure shown outside its app, as on the home, passes its app's `moneyFormat()` to `MoneyText` as `format`.
 - `tone="flow"` for money in and out: green coming in, ink going out. `tone="outcome"` for a result such as a net, where negative is a loss. No tone for a cost.
 - Costs that read positive use `sign="magnitude"`. Changes use `sign="always"`.
 
@@ -56,7 +57,13 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 - `DashboardGrid` has three layouts. `tiles`: two to a row, one row from `lg`, and five or six tiles take three to a row from `lg` and one row from `3xl`. `cards`: one column, two from `xl`, and three from `3xl` when there are three or more. `pair`: side by side from `3xl`.
 - A card that runs across both columns below `3xl` says so itself, such as `xl:col-span-2 3xl:col-span-1`.
-- Cards rearrange as the width grows. The visual check fails a dashboard whose cards keep one arrangement at 768, 1440 and 1920 px, and cards side by side in a grid that is not a `DashboardGrid`, outside Settings, This device and the gallery.
+- Cards rearrange as the width grows. The visual check fails a dashboard whose cards keep one arrangement at 768, 1440 and 1920 px, and cards side by side in a grid that is not a `DashboardGrid`, outside the gallery.
+
+## Navigation
+
+- Inside an app the menu is that app's alone, under `HomeLink`, the Kuna mark that opens the home. Its Settings are a screen of the app, set apart at the foot of its menu.
+- Kuna's home at `#/` has a card per app. Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, theme and language.
+- A first run starts with `HomeLink`, so it can be left for the home.
 
 ## Phone
 

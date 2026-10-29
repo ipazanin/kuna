@@ -36,8 +36,6 @@ const emit = defineEmits<{
   sync: []
   /** Asks Google for what the steps and the settings lack. */
   allow: []
-  /** Finds the books on Drive, since no file is chosen yet. */
-  find: []
 }>()
 
 const phone = usePhoneLayout()
@@ -92,8 +90,6 @@ const failureWords = computed(() => {
 const label = computed(() => {
   const { control } = props
   switch (control.kind) {
-    case 'find':
-      return props.compact ? 'Find file' : 'Find your file'
     case 'running':
       return props.compact ? `${control.label} ${control.position}/${control.of}` : 'Syncing'
     case 'sign-in':
@@ -113,8 +109,6 @@ const name = computed(() => (props.exportReminder === null ? controlName.value :
 const controlName = computed(() => {
   const { control } = props
   switch (control.kind) {
-    case 'find':
-      return 'Find the file on Google Drive that holds your books'
     case 'running':
       return `Syncing, ${control.label}, step ${control.position} of ${control.of}: ${control.line}`
     case 'sign-in':
@@ -131,7 +125,6 @@ const controlName = computed(() => {
 })
 
 const ICONS: Readonly<Record<SyncControl['kind'], string>> = {
-  find: 'i-lucide-hard-drive',
   running: 'i-lucide-refresh-cw',
   'sign-in': 'i-lucide-log-in',
   'allow-access': 'i-lucide-key-round',
@@ -143,8 +136,6 @@ const ICONS: Readonly<Record<SyncControl['kind'], string>> = {
 const statusLine = computed(() => {
   const { control } = props
   switch (control.kind) {
-    case 'find':
-      return 'Find the file on Google Drive that holds your books.'
     case 'running':
       return `${control.label} ${control.position}/${control.of}: ${control.line}`
     case 'sign-in':
@@ -160,9 +151,6 @@ const statusLine = computed(() => {
 
 function tap(): void {
   switch (props.control.kind) {
-    case 'find':
-      emit('find')
-      return
     case 'sign-in':
     case 'allow-access':
       emit('allow')
@@ -210,8 +198,8 @@ function syncAgain(): void {
       :title="compact ? (failureWords ?? undefined) : undefined"
       :loading="control.kind === 'running'"
       :disabled="control.kind === 'running'"
-      :color="control.kind === 'find' ? 'primary' : 'neutral'"
-      :variant="control.kind === 'find' ? 'solid' : 'outline'"
+      color="neutral"
+      variant="outline"
       size="sm"
       :class="{
         'top-bar-action': compact,

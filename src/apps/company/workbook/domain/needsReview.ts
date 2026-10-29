@@ -13,3 +13,8 @@ export function isHumanConfirmed(transaction: Pick<Transaction, 'flaggedBy'>): b
 export function needsReview(transaction: Pick<Transaction, 'flaggedBy' | 'bucket' | 'reviewReasons'>): boolean {
   return transaction.flaggedBy === 'ai' || transaction.bucket === UNCLASSIFIED || (transaction.reviewReasons.length > 0 && !isHumanConfirmed(transaction))
 }
+
+/** How many rows wait in the Review queue, which the menu and the company's card on the home both show. */
+export function reviewCount(transactions: readonly Pick<Transaction, 'flaggedBy' | 'bucket' | 'reviewReasons'>[]): number {
+  return transactions.filter(needsReview).length
+}

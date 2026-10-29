@@ -28,7 +28,6 @@ function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly 
     steps: () => [],
     needs: () => [{ scope: 'drive.file', label: 'Books' }, ...(state.workbook === null ? [] : scopes.map((scope) => ({ scope, label: id })))],
     undo: async () => {},
-    findDriveFile: async () => {},
     exportControl: {},
   }
   const app: FakeApp = { id, name: id[0]!.toUpperCase() + id.slice(1), syncGroup: () => group }
@@ -80,12 +79,10 @@ describe('the scopes the page token carries', () => {
 })
 
 describe('the control over several files', () => {
-  it('shows the oldest read among the files on Drive, and finds a file while none is on Drive', () => {
+  it('shows the oldest read among the files on Drive', () => {
     const company = appOf('company', 'drive', [], '2026-10-28T08:00:00.000Z')
     const loans = appOf('loans', 'drive', [], '2026-10-28T06:30:00.000Z')
-    const kept = appOf('company', 'browser', [])
 
     expect(startPageSync([company.app, loans.app]).control.value).toEqual({ kind: 'ready', syncedAt: '2026-10-28T06:30:00.000Z' })
-    expect(startPageSync([kept.app, appOf('loans', null, []).app]).control.value).toEqual({ kind: 'find' })
   })
 })

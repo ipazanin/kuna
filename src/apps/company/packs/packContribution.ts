@@ -1,11 +1,12 @@
 import type { Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
-import type { AppScreen, AppSettingsTab } from '../../../shared/app/appContribution'
+import type { AppScreen } from '../../../shared/app/appContribution'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { MailSource } from '../mail/application/mailFiling'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
+import type { SettingsTab } from '../settings/presentation/settingsTabs'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
 import type { PackPart } from '../workbook/domain/packPart'
 import type { Workbook } from '../workbook/domain/workbook'
@@ -52,7 +53,7 @@ export interface PackContribution {
   waitingJobs(workbook: Workbook, asOf: CivilDate): readonly WaitingJob[]
   readonly reviewCards: readonly PackReviewCard[]
   /** Tabs of Settings, after Accounts. */
-  readonly settingsTabs: readonly AppSettingsTab[]
+  readonly settingsTabs: readonly SettingsTab[]
   /** Cards on Settings, General, under the settings form. */
   readonly settingsCards: readonly Component[]
   readonly companyFacts: PackCompanyFacts<unknown> | null

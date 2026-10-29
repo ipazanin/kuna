@@ -206,7 +206,7 @@ const summary = computed(() => {
       v-if="workbook === null"
       icon="i-lucide-book-open"
       title="Open a workbook first"
-      description="Statements go into the ledger of the workbook on screen. Choose one on Settings, This device."
+      description="Statements go into the ledger of the workbook on screen. Choose one on Settings, Books file."
     />
 
     <template v-else>

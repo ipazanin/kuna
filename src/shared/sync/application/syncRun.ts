@@ -162,14 +162,12 @@ export function problemsOf(run: SyncRun | null): readonly RunStep[] {
 }
 
 /**
- * What the sync control shows: find the file while none is chosen, the step running with its place
- * among the steps that are on, Sign in to Google when Google asks for that first, Allow access while
+ * What the sync control shows: the step running with its place among the steps that are on, Sign in to Google when Google asks for that first, Allow access while
  * a step or a setting lacks its permission, the problems of the last run, or else ready with the time
  * of the last read. `failure` says why the last tap's ask to Google gave no token, such as a closed
  * popup, or is null.
  */
 export type SyncControl =
-  | { readonly kind: 'find' }
   | { readonly kind: 'running'; readonly label: string; readonly position: number; readonly of: number; readonly line: string }
   | { readonly kind: 'sign-in'; readonly failure: string | null }
   | { readonly kind: 'allow-access'; readonly scopes: readonly GoogleScope[]; readonly labels: readonly string[]; readonly failure: string | null }
@@ -178,8 +176,6 @@ export type SyncControl =
 
 /** How the books on Drive stand in their stores, which read them outside a run too, such as when a file is found. */
 export interface BooksStanding {
-  /** Some app's file on Drive is chosen. */
-  readonly chosen: boolean
   /** Some app's books are being read. */
   readonly reading: boolean
   /** The oldest read among the files on Drive, or null while one has none. */
@@ -222,9 +218,6 @@ export function pageAccessOf(needs: readonly AccessNeed[], granted: readonly Goo
 
 /** `failure` is why the last tap's ask to Google gave no token, or null. */
 export function syncControlOf(run: SyncRun | null, books: BooksStanding, access: PageAccess, failure: string | null): SyncControl {
-  if (!books.chosen) {
-    return { kind: 'find' }
-  }
   if (run !== null && run.finishedAt === null) {
     const counted = stepsOf(run).filter((step) => step.state.kind !== 'off')
     const at = Math.max(

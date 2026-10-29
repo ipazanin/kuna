@@ -18,6 +18,9 @@ const ACCENT = '--accent'
  * primary alert, so text in the accent on its own wash, a primary badge, sits on a card only.
  */
 const WASHED_SURFACES = ['--surface-page', '--surface-raised']
+/** An app's identity colour, which paints its icon on a tile of the same colour at `APP_TILE_WASH` over the page or a card. */
+const APP_COLOURS = ['--app-company', '--app-loans']
+const APP_TILE_WASH = 0.14
 const CHART_INKS = ['--chart-ink', '--chart-ink-secondary', '--chart-ink-muted']
 const SERIES = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5', '--series-6', '--series-7', '--series-8']
 
@@ -54,7 +57,7 @@ function over(colour: string, surface: string, opacity = 1): string {
 /**
  * The pairs that carry text in one theme: every ink and tone on the page, a card and a popover, each
  * tone on the 10% wash of itself that Nuxt UI's subtle badges and alerts lie on, ink on the accent
- * wash of a picked row or tab, the label of a primary button, the chart's ink, and the ink inside a
+ * wash of a picked row or tab, each app's colour on the surfaces as text and on its own tile as a mark, the label of a primary button, the chart's ink, and the ink inside a
  * filled chart mark, which carries icons and large text only.
  */
 function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
@@ -70,6 +73,8 @@ function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
     ...TONES.flatMap((tone) => WASHED_SURFACES.map((surface) => pair(tone, `its wash on ${surface}`, TEXT, over(colour(tone), colour(surface), 0.1)))),
     pair(ACCENT, 'its wash on --surface-raised', TEXT, over(colour(ACCENT), colour('--surface-raised'), 0.1)),
     ...['--ink-strong', '--ink', '--accent-strong'].flatMap((ink) => WASHED_SURFACES.map((surface) => pair(ink, `--accent-wash on ${surface}`, TEXT, over(colour('--accent-wash'), colour(surface))))),
+    ...APP_COLOURS.flatMap((app) => SURFACES.map((surface) => pair(app, surface))),
+    ...APP_COLOURS.flatMap((app) => WASHED_SURFACES.map((surface) => pair(app, `its tile on ${surface}`, MARK, over(colour(app), colour(surface), APP_TILE_WASH)))),
     pair('--accent-ink', '--accent'),
     ...CHART_INKS.flatMap((ink) => ['--chart-surface', '--chart-tooltip'].map((surface) => pair(ink, surface))),
     ...SERIES.map((series) => pair('--chart-on-fill', series, MARK)),

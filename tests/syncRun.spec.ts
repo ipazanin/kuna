@@ -18,7 +18,7 @@ import type { AccessNeed, BooksStanding, PageAccess, StepState, SyncRun } from '
 
 const STARTED = '2026-10-26T07:00:00.000Z'
 const FINISHED = '2026-10-26T07:00:05.000Z'
-const BOOKS_READ: BooksStanding = { chosen: true, reading: false, syncedAt: FINISHED }
+const BOOKS_READ: BooksStanding = { reading: false, syncedAt: FINISHED }
 
 const ENOUGH: PageAccess = { kind: 'enough' }
 
@@ -159,10 +159,8 @@ describe('a run over two apps', () => {
 })
 
 describe('the sync control', () => {
-  it('finds the file while none on Drive is chosen, even with a copy on screen', () => {
-    expect(syncControlOf(null, { chosen: false, reading: false, syncedAt: null }, ENOUGH, null)).toEqual({ kind: 'find' })
-    expect(syncControlOf(null, { chosen: false, reading: false, syncedAt: FINISHED }, ENOUGH, null)).toEqual({ kind: 'find' })
-    expect(syncControlOf(null, { chosen: true, reading: false, syncedAt: null }, ENOUGH, null)).toEqual({ kind: 'ready', syncedAt: null })
+  it('is ready with no read time before the first read', () => {
+    expect(syncControlOf(null, { reading: false, syncedAt: null }, ENOUGH, null)).toEqual({ kind: 'ready', syncedAt: null })
   })
 
   it('names the running step and its place among the steps that are on', () => {
@@ -247,8 +245,7 @@ describe("what the page's Google token lacks", () => {
     expect(syncControlOf(null, BOOKS_READ, ENOUGH, closed)).toEqual({ kind: 'ready', syncedAt: FINISHED })
   })
 
-  it('leaves a running sync and a file not chosen yet as they are', () => {
+  it('leaves a running sync as it is', () => {
     expect(syncControlOf(started(), BOOKS_READ, { kind: 'sign-in' }, null)).toMatchObject({ kind: 'running' })
-    expect(syncControlOf(null, { ...BOOKS_READ, chosen: false }, { kind: 'lacking', needs: NEEDS }, null)).toEqual({ kind: 'find' })
   })
 })

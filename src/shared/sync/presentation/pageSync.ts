@@ -21,8 +21,6 @@ export interface AppSyncGroup {
   needs(): readonly AccessNeed[]
   /** Puts back what a write of this session changed, and says so. */
   undo(write: SessionWrite): Promise<void>
-  /** Opens the app's books on Drive, found by the app's mark or else picked, and says which file opened. */
-  findDriveFile(): Promise<void>
   /** The top bar's export control while the app's file is kept in this browser. It takes `compact`, the narrow form. */
   readonly exportControl: Component
 }
@@ -145,7 +143,6 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
     return syncControlOf(
       run.value,
       {
-        chosen: drive.length > 0,
         reading: groups.some((group) => group.store.state.status === 'syncing'),
         syncedAt: oldestRead(drive.map((group) => group.store.state.syncedAt)),
       },

@@ -13,7 +13,10 @@ let unbind: () => void
 async function routerAt(location: string): Promise<Router> {
   const created = createRouter({
     history: createMemoryHistory(),
-    routes: ['/company', '/company/transactions', '/company/analysis', '/company/invoicing', '/company/owner', '/company/start', '/settings'].map((path) => ({ path, component: SCREEN })),
+    routes: ['/company', '/company/transactions', '/company/analysis', '/company/invoicing', '/company/owner', '/company/start', '/company/settings', '/settings'].map((path) => ({
+      path,
+      component: SCREEN,
+    })),
   })
   await created.push(location)
   await created.isReady()
@@ -57,10 +60,14 @@ describe('filter store', () => {
     expect(useFilters().filters.value.accounts).toEqual(['erste'])
   })
 
-  it('keeps the filters out of the address of Settings and onboarding, and back on the next company screen', async () => {
+  it("keeps the filters out of the address of the company's Settings, Kuna settings and onboarding, and back on the next company screen", async () => {
     await useFilters().setFilters({ ...DEFAULT_FILTERS, accounts: ['erste'] })
 
-    await router.push('/settings?tab=device')
+    await router.push('/company/settings?tab=ruleset&rule=hr.cit.rate')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(router.currentRoute.value.fullPath).toBe('/company/settings?tab=ruleset&rule=hr.cit.rate')
+
+    await router.push('/settings')
     await router.push('/company/start?step=home')
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(router.currentRoute.value.fullPath).toBe('/company/start?step=home')

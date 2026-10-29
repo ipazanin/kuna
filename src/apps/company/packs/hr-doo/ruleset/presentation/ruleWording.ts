@@ -10,7 +10,7 @@ import type { AppliesBy, Confidence, GeneralRule, LegalSource, OpenItem, RuleAre
 
 /** Where a figure links to show the rule it rests on. */
 export function ruleLink(ruleId: RuleId): RouteLocationRaw {
-  return { path: '/settings', query: { tab: 'ruleset', rule: ruleId } }
+  return { path: '/company/settings', query: { tab: 'ruleset', rule: ruleId } }
 }
 
 export const AREA_WORDING: Readonly<Record<RuleArea, { readonly label: string; readonly description: string }>> = {

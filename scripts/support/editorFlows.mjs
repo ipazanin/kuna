@@ -1280,12 +1280,12 @@ async function stepSays(page, scope, step, state, pattern) {
     })
 }
 
-async function openDeviceSettings(page) {
+async function openKunaSettings(page) {
   await page.evaluate(() => {
-    window.location.hash = '#/settings?tab=device'
+    window.location.hash = '#/settings'
   })
   await page.waitForSelector(SYNC_CARD, { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('Settings, This device has no Sync card')
+    throw new Error('Kuna settings has no Sync card')
   })
 }
 
@@ -1293,13 +1293,13 @@ const FILED = /Filed statement \d+, 4 rows/
 
 /**
  * Sync files the sample statement from the fake statements folder and says so in the statements
- * step, not in a toast. Undo in the step's line on Settings, This device takes it out, the card's
+ * step, not in a toast. Undo in the step's line on Kuna settings takes it out, the card's
  * Sync again files it again, and Import lists it. A last sync finds nothing new and says so there.
  */
 export async function statementSyncFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await noToast(page, 'a sync that filed a statement showed a toast')
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
   await page.$eval(SYNC_CARD, (element) => element.scrollIntoView({ block: 'start' }))
   await delay(300)
@@ -1329,7 +1329,7 @@ export async function statementSyncFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await noToast(page, 'a sync that found nothing new showed a toast')
   if (await page.$('[data-testid="statement-folder"]')) throw new Error('the folder card stayed after a sync that found nothing new')
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'statements', 'done', /Nothing new/)
 }
 
@@ -1388,7 +1388,7 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
       throw new Error('the held statement still offers its account after it was filed')
     })
   await page.evaluate(() => {
-    window.location.hash = '#/settings?tab=accounts'
+    window.location.hash = '#/company/settings?tab=accounts'
   })
   await page
     .waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'second'), { timeout: 10_000 })
@@ -1418,7 +1418,7 @@ export async function statementAccessFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
   await noToast(page, 'the sync after Allow access showed a toast')
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
 }
 
@@ -1498,10 +1498,10 @@ export async function mailOffFlow(page, { press, shoot, inspect }) {
   })
   await page.reload({ waitUntil: 'networkidle0' })
   await syncAndSettle(page, press)
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'mail', 'off', /Off in Settings/)
   await page.evaluate(() => {
-    window.location.hash = '#/settings#mail'
+    window.location.hash = '#/company/settings#mail'
   })
   const senders = await page.waitForSelector(`${MAIL_CARD} [data-testid="statements-mail-from"] input`, { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('Settings, General has no mail card open at #mail')
@@ -1544,7 +1544,7 @@ export async function mailFiledFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
   await noToast(page, 'a sync that filed mail showed a toast')
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'mail', 'done', MAIL_FILED)
   await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
   await scrollToTop(page, SYNC_CARD)
@@ -1564,13 +1564,13 @@ export async function mailFiledFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   const again = await mailListShows(page, ALL_SOURCES)
   if (again[0] !== 'Nothing new, already there 3.') throw new Error(`a second sync's bank mail reads "${again[0]}"`)
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   const line = await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 10, 1 unmatched\./)
   if (line.includes('Filed')) throw new Error(`a second sync's mail step says "${line}"`)
   await stepSays(page, SYNC_CARD, 'statements', 'done', /Nothing new/)
 
   await page.evaluate(() => {
-    window.location.hash = '#/settings#accountant-mail'
+    window.location.hash = '#/company/settings#accountant-mail'
   })
   const sender = await page.waitForSelector('[data-testid="accountant-mail-from"] input', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('the facts card has no accountant mail fields at #accountant-mail')
@@ -1617,7 +1617,7 @@ export async function mailUploadFailedFlow(page, { press, shoot, inspect }) {
 export async function mailNothingNewFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 5\./)
   await scrollToTop(page, SYNC_CARD)
   await inspect?.('the mail step with nothing new')
@@ -1653,7 +1653,7 @@ export async function mailAccessFlow(page, { press, shoot, inspect }) {
   await shoot('mail-allow-access')
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'mail', 'done', MAIL_FILED)
 }
 
@@ -1670,7 +1670,7 @@ export async function mailSaveAsksFlow(page, { press, shoot, inspect }) {
   await page.reload({ waitUntil: 'networkidle0' })
   await controlShows(page, 'ready')
   await page.evaluate(() => {
-    window.location.hash = '#/settings#mail'
+    window.location.hash = '#/company/settings#mail'
   })
   const senders = await page.waitForSelector(`${MAIL_CARD} [data-testid="statements-mail-from"] input`, { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('Settings, General has no mail card open at #mail')
@@ -1705,7 +1705,7 @@ async function switchIs(page, testId, checked) {
 /** Opens the facts card on the accountant's mail and scrolls to it. */
 async function openAccountantMail(page) {
   await page.evaluate(() => {
-    window.location.hash = '#/settings#accountant-mail'
+    window.location.hash = '#/company/settings#accountant-mail'
   })
   await page.waitForSelector('[data-testid="accountant-mail-from"] input', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('the facts card has no accountant mail fields at #accountant-mail')
@@ -1721,10 +1721,10 @@ async function openAccountantMail(page) {
 export async function mailSwitchesOffFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
-  await openDeviceSettings(page)
+  await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'mail', 'done', /Filed 2, already there 2, 1 unmatched\./)
   await page.evaluate(() => {
-    window.location.hash = '#/settings#mail'
+    window.location.hash = '#/company/settings#mail'
   })
   await mailListShows(page, ['statements:planned'])
   await openAccountantMail(page)
@@ -1773,7 +1773,7 @@ export async function mailRateLimitedFlow(page, { press, shoot, inspect }) {
   await page.keyboard.press('Escape')
   await delay(300)
   await page.evaluate(() => {
-    window.location.hash = '#/settings#mail'
+    window.location.hash = '#/company/settings#mail'
   })
   const said = await page
     .waitForSelector(`${MAIL_PLAN} [data-testid="mail-stopped"]`, { visible: true, timeout: 10_000 })
@@ -1793,7 +1793,7 @@ export async function mailWindowFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
   await page.evaluate(() => {
-    window.location.hash = '#/settings#mail'
+    window.location.hash = '#/company/settings#mail'
   })
   await mailListShows(page, ALL_SOURCES)
   const windows = await page.$$eval(`${MAIL_PLAN} [data-testid="mail-source-window"]`, (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
@@ -2197,15 +2197,15 @@ async function pressButton(page, press, selector, label) {
 
 const MOVED = /^Moved \d+ records$/
 
-/** Settings, This device names the file on the fake Drive, its folder, and that no backup is made yet, or with `saved` that the save onboarding made today made one. */
-async function deviceShowsDriveFile(page, saved = false) {
+/** Settings, Books file names the file on the fake Drive, its folder, and that no backup is made yet, or with `saved` that the save onboarding made today made one. */
+async function booksShowDriveFile(page, saved = false) {
   await page.evaluate(() => {
-    window.location.hash = '#/settings?tab=device'
+    window.location.hash = '#/company/settings?tab=books'
   })
   await page
     .waitForFunction(() => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === 'Books', { timeout: 10_000 })
     .catch(() => {
-      throw new Error('Settings, This device does not name the Books folder the file sits in')
+      throw new Error('Settings, Books file does not name the Books folder the file sits in')
     })
   await pageSays(page, 'kuna-company.json', true)
   await pageSays(page, 'None yet. The first save of a day makes one.', !saved)
@@ -2360,7 +2360,7 @@ export async function onboardingDriveFlow(page, { press, shoot, inspect }) {
   await inspect?.('Overview getting set up')
   await shoot('onboarding-overview')
   await dismissToasts(page)
-  await deviceShowsDriveFile(page, true)
+  await booksShowDriveFile(page, true)
 }
 
 /**
@@ -2529,7 +2529,7 @@ export async function onboardingBrowserFlow(page, { press, shoot, inspect }) {
     throw new Error('Getting set up did not open Import')
   })
   await page.evaluate(() => {
-    window.location.hash = '#/settings'
+    window.location.hash = '#/company/settings'
   })
   await page
     .waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Example Studio'), { timeout: 10_000 })
@@ -2576,7 +2576,7 @@ export function onboardingBringFlow(path) {
     })
     await shoot('moved')
     // The file already holds every answer of the company step, so Continue writes nothing and makes no backup.
-    await deviceShowsDriveFile(page)
+    await booksShowDriveFile(page)
   }
 }
 
@@ -2673,7 +2673,7 @@ export async function onboardingOnDriveFlow(page, { press, shoot, inspect }) {
 }
 
 /**
- * Settings, This device: books kept in this browser move to Drive, which already holds a file another
+ * Settings, Books file: books kept in this browser move to Drive, which already holds a file another
  * device made. The folder step refuses a second file, warns that opening those deletes the books in
  * this browser, and the find step opens them.
  */
@@ -2690,11 +2690,11 @@ export async function moveOntoDriveFlow(page, { press, shoot, inspect }) {
   await toastMatching(page, /^Opened kuna-company\.json$/)
   await onboardingAt(page, 'overview')
   await dismissToasts(page)
-  await deviceShowsDriveFile(page)
+  await booksShowDriveFile(page)
 }
 
 /**
- * Settings, This device: the books kept in this browser move to a new file on the fake Drive through
+ * Settings, Books file: the books kept in this browser move to a new file on the fake Drive through
  * onboarding's access and folder steps. The access step asks for the Drive read their statements
  * folder needs, so the folder confirm names the full path, and the sync control
  * shows no Allow access once they are there.
@@ -2714,7 +2714,7 @@ export async function moveFromBrowserFlow(page, { press, shoot, inspect }) {
   await onboardingAt(page, 'overview')
   await dismissToasts(page)
   await controlShows(page, 'ready')
-  await deviceShowsDriveFile(page)
+  await booksShowDriveFile(page)
   await inspect?.('this device once moved')
   await shoot('moved-from-browser')
 }
@@ -2866,14 +2866,11 @@ async function loansStartAt(page, step) {
   await delay(250)
 }
 
-/** Settings, This device: a card for each app's file, the Loans card naming where its file is. */
-async function deviceShowsBothFiles(page, loansSays) {
-  await page.evaluate(() => {
-    window.location.hash = '#/settings?tab=device'
-  })
-  await page.waitForSelector('[data-testid="data-source-card"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('Settings, This device has no Company books card')
-  })
+/** The Loans Settings, reached from the Loans menu, naming where the Loans file is. */
+async function loansSettingsShowFile(page, press, loansSays) {
+  await openMenu(page, press)
+  await pressButton(page, press, '[data-testid="nav-apart"] a', 'Settings')
+  await screenTitled(page, 'Settings')
   await page
     .waitForFunction((wanted) => document.querySelector('[data-testid="loans-books-card"]')?.textContent?.includes(wanted) === true, { timeout: 10_000 }, loansSays)
     .catch(() => {
@@ -2883,8 +2880,8 @@ async function deviceShowsBothFiles(page, loansSays) {
 
 /**
  * The Loans first run with the company books on the fake Drive: Loans opens on it, a new file on the
- * fake Drive lands in Books as kuna-loans.json, the Loans Overview says it holds no loans yet, and This
- * device shows a card for each app's file.
+ * fake Drive lands in Books as kuna-loans.json, the Loans Overview says it holds no loans yet, and the
+ * Loans Settings names the file.
  */
 export async function loansDriveFlow(page, { press, shoot, inspect }) {
   await loansStartAt(page, 'home')
@@ -2906,12 +2903,12 @@ export async function loansDriveFlow(page, { press, shoot, inspect }) {
   await inspect?.('the empty Loans Overview')
   await shoot('loans-overview')
   await dismissToasts(page)
-  await deviceShowsBothFiles(page, 'kuna-loans.json')
-  await inspect?.('This device with two files')
-  await shoot('loans-device')
+  await loansSettingsShowFile(page, press, 'kuna-loans.json')
+  await inspect?.('the Loans Settings')
+  await shoot('loans-settings')
 }
 
-/** The Loans first run with the company books in this browser: a new Loans file in this browser, which This device offers to export. */
+/** The Loans first run with the company books in this browser: a new Loans file in this browser, which the Loans Settings offers to export. */
 export async function loansBrowserFlow(page, { press, shoot, inspect }) {
   await loansStartAt(page, 'home')
   await chooseOption(page, press, 'loans-start-home', 'A new file in this browser')
@@ -2920,9 +2917,9 @@ export async function loansBrowserFlow(page, { press, shoot, inspect }) {
   await pageSays(page, 'kept in this browser', true)
   await inspect?.('the empty Loans Overview in this browser')
   await shoot('loans-overview-browser')
-  await deviceShowsBothFiles(page, 'Kept in this browser')
-  await inspect?.('This device with two files in this browser')
-  await shoot('loans-device-browser')
+  await loansSettingsShowFile(page, press, 'Kept in this browser')
+  await inspect?.('the Loans Settings in this browser')
+  await shoot('loans-settings-browser')
 }
 
 /** The Loans first run on a device that has not chosen the Loans file another device made on the fake Drive: Find the file opens it by its mark. */
@@ -2957,37 +2954,170 @@ export async function loansStartOnDriveFlow(page, { press, shoot, inspect }) {
   await loansStartAt(page, 'overview')
 }
 
-/**
- * The menu with two apps, in the sidebar or the phone's drawer: a heading per app, the company's
- * screens under Company, Overview alone under Loans with no line under its heading and marked as the
- * screen on show, and the browser tab naming the app.
- */
-export async function menuGroupsFlow(page, { press, shoot, inspect }) {
-  const drawer = await page.$('[data-testid="open-navigation"]')
-  if (drawer !== null && (await drawer.boundingBox()) !== null) {
-    await press(drawer)
-    await page.waitForSelector('[role="dialog"] [data-testid="nav-group"]', { visible: true, timeout: 10_000 })
-    await delay(300)
+/** Opens the phone's or the tablet's drawer, where the top bar has a menu button. The sidebar needs nothing. */
+async function openMenu(page, press) {
+  const button = await page.$('[data-testid="open-navigation"]')
+  if (button === null || (await button.boundingBox()) === null) return
+  await press(button)
+  await page.waitForSelector('[role="dialog"] [data-testid="nav-apart"]', { visible: true, timeout: 10_000 })
+  await delay(300)
+}
+
+/** The menu in the sidebar or the open drawer, read in the page: the link home, the app's heading, its entries and what is set apart. */
+function menuShown() {
+  const shown = (element) => element.getClientRects().length > 0
+  const scope = document.querySelector('[role="dialog"]') ?? document.querySelector('aside')
+  const home = scope?.querySelector('[data-testid="home-link"]') ?? null
+  const groups = [...(scope?.querySelectorAll('[data-testid="nav-group"]') ?? [])].filter(shown)
+  const group = groups[0] ?? null
+  return {
+    home: home === null ? null : { name: home.textContent?.replace(/\s+/g, ' ').trim() ?? '', tooltip: home.getAttribute('title'), first: scope.querySelector('a') === home },
+    groups: groups.length,
+    name: group?.querySelector('p')?.textContent?.trim() ?? null,
+    tiled: group?.querySelector('[data-testid="app-mark"]') != null,
+    subtitle: group?.querySelectorAll('p')[1]?.textContent?.trim() ?? null,
+    entries: [...(group?.querySelectorAll('a') ?? [])].map((link) => link.textContent?.trim() ?? ''),
+    current: scope?.querySelector('a[aria-current="page"]')?.textContent?.trim() ?? null,
+    apart: [...(scope?.querySelectorAll('[data-testid="nav-apart"] a') ?? [])].map((link) => link.textContent?.trim() ?? ''),
   }
-  const groups = await page.evaluate(() =>
-    [...document.querySelectorAll('[data-testid="nav-group"]')]
-      .filter((group) => group.getClientRects().length > 0)
-      .map((group) => ({
-        name: group.querySelector('p')?.textContent?.trim() ?? '',
-        subtitle: group.querySelectorAll('p')[1]?.textContent?.trim() ?? null,
-        entries: [...group.querySelectorAll('a')].map((link) => link.textContent?.trim() ?? ''),
-        current: group.querySelector('a[aria-current="page"]')?.textContent?.trim() ?? null,
-      })),
-  )
-  const [company, loans] = groups
-  if (groups.length !== 2 || company.name !== 'Company' || loans.name !== 'Loans') throw new Error(`the menu shows ${JSON.stringify(groups.map((group) => group.name))}, not Company and Loans`)
-  if (!company.entries.includes('Overview') || !company.entries.some((entry) => entry.startsWith('Transactions'))) throw new Error(`Company lists ${company.entries.join(', ')}`)
+}
+
+/** Takes the link home from the sidebar or the drawer, to the home with every app. */
+async function goHome(page, press) {
+  await openMenu(page, press)
+  await pressSelector(page, press, '[data-testid="home-link"]')
+  await screenTitled(page, 'All apps')
+}
+
+/** The cards of the home, read in the page: which app, whether it waits to be set up, its text and its lead figure. */
+function homeCards() {
+  return [...document.querySelectorAll('[data-testid="home-card"]')].map((card) => ({
+    app: card.dataset.app,
+    state: card.dataset.state,
+    text: card.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    figure: card.querySelector('dd')?.textContent?.trim() ?? null,
+    colour: card.querySelector('[data-testid="app-mark"]') === null ? null : getComputedStyle(card.querySelector('[data-testid="app-mark"]')).color,
+  }))
+}
+
+/**
+ * Inside an app only its own menu, in the sidebar or the drawer: the Kuna mark first as the link
+ * home, named Kuna, All apps, then Loans with Overview alone and no line under its heading, Settings set
+ * apart, and the browser tab naming the app. The link home shows the home with Kuna settings alone,
+ * and the phone's top bar there has no menu button. From the home, Company shows only its own menu.
+ */
+export async function appMenuFlow(page, { press, shoot, inspect }) {
+  await openMenu(page, press)
+  const loans = await page.evaluate(menuShown)
+  if (loans.home === null || loans.home.name !== 'Kuna, All apps' || loans.home.tooltip !== 'All apps' || !loans.home.first)
+    throw new Error(`the menu does not start with the link home named Kuna, All apps: ${JSON.stringify(loans.home)}`)
+  if (!loans.tiled) throw new Error('the Loans menu heading has no icon tile')
+  if (loans.groups !== 1 || loans.name !== 'Loans') throw new Error(`the Loans menu shows ${loans.groups} groups, the first ${loans.name}`)
   if (loans.subtitle !== null) throw new Error(`Loans shows "${loans.subtitle}" under its heading`)
   if (JSON.stringify(loans.entries) !== JSON.stringify(['Overview']) || loans.current !== 'Overview') throw new Error(`Loans lists ${loans.entries.join(', ')} with ${loans.current} marked`)
-  const title = await page.title()
-  if (title !== 'Overview, Loans – Kuna') throw new Error(`the browser tab says "${title}"`)
-  await inspect?.('the menu with two apps')
-  await shoot('menu-groups')
+  if (JSON.stringify(loans.apart) !== JSON.stringify(['Settings'])) throw new Error(`Loans sets apart ${loans.apart.join(', ')}`)
+  const loansTitle = await page.title()
+  if (loansTitle !== 'Overview, Loans – Kuna') throw new Error(`the browser tab says "${loansTitle}"`)
+  await inspect?.('the Loans menu')
+  await shoot('app-menu-loans')
+
+  await pressSelector(page, press, '[data-testid="home-link"]')
+  await screenTitled(page, 'All apps')
+  const homeTitle = await page.title()
+  if (homeTitle !== 'Kuna') throw new Error(`the browser tab on the home says "${homeTitle}"`)
+  const bar = await page.evaluate(() => ({
+    menuButton: document.querySelector('[data-testid="open-navigation"]') !== null,
+    sidebar: document.querySelector('aside') !== null,
+    topBar: document.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
+    settings: [...document.querySelectorAll('aside [data-testid="nav-apart"] a, [data-testid="home-kuna-settings"]')]
+      .filter((link) => link.getClientRects().length > 0)
+      .map((link) => link.textContent?.trim()),
+  }))
+  if (bar.menuButton) throw new Error('the home has a menu button')
+  if (!bar.sidebar && bar.topBar !== null && bar.topBar !== 'Kuna') throw new Error(`the phone top bar on the home says "${bar.topBar}"`)
+  if (JSON.stringify(bar.settings) !== JSON.stringify(['Kuna settings'])) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of Kuna settings once`)
+  if (bar.sidebar) {
+    const home = await page.evaluate(menuShown)
+    if (home.groups !== 0) throw new Error('the sidebar on the home lists an app')
+  }
+  await inspect?.('the home')
+
+  await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')
+  await screenTitled(page, 'Overview')
+  await openMenu(page, press)
+  const company = await page.evaluate(menuShown)
+  if (company.groups !== 1 || company.name !== 'Company') throw new Error(`the Company menu shows ${company.groups} groups, the first ${company.name}`)
+  if (!company.entries.includes('Overview') || !company.entries.some((entry) => entry.startsWith('Transactions')) || company.entries.some((entry) => entry === 'Settings'))
+    throw new Error(`Company lists ${company.entries.join(', ')}`)
+  if (JSON.stringify(company.apart) !== JSON.stringify(['Settings'])) throw new Error(`Company sets apart ${company.apart.join(', ')}`)
+  const companyTitle = await page.title()
+  if (companyTitle !== 'Overview, Company – Kuna') throw new Error(`the browser tab says "${companyTitle}"`)
+  await inspect?.('the Company menu')
+  await shoot('app-menu-company')
+}
+
+/**
+ * The home with both apps' books: Company's card leads with the cash on hand Overview shows and opens
+ * it, and the Loans card with what you owe in all, which the Loans Overview says too.
+ */
+export async function homeFlow(page, { press, shoot, inspect }) {
+  const cards = await page.evaluate(homeCards)
+  const [company, loans] = cards
+  if (cards.length !== 2 || company.app !== 'company' || loans.app !== 'loans') throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company and Loans`)
+  if (company.state !== 'open' || !company.text.includes('Cash on hand') || !/€/.test(company.figure ?? '')) throw new Error(`the Company card reads "${company.text}"`)
+  if (loans.state !== 'open' || !loans.text.includes('You owe in all') || !/€/.test(loans.figure ?? '')) throw new Error(`the Loans card reads "${loans.text}"`)
+  if (company.colour === null || loans.colour === null || company.colour === loans.colour) throw new Error(`the cards tile their icons in ${company.colour} and ${loans.colour}, not one colour each`)
+  await inspect?.('the home with both apps')
+  await shoot('home')
+
+  await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')
+  await screenTitled(page, 'Overview')
+  const cash = await page
+    .waitForFunction(
+      () =>
+        [...document.querySelectorAll('.kpi-tile')]
+          .find((tile) => tile.textContent?.includes('Cash on hand'))
+          ?.querySelector('.text-figure-lg')
+          ?.textContent?.trim() ?? null,
+      { timeout: 10_000 },
+    )
+    .then((handle) => handle.jsonValue())
+  if (cash !== company.figure) throw new Error(`the Company card says ${company.figure} on hand, the Overview ${cash}`)
+
+  await goHome(page, press)
+  await pressSelector(page, press, '[data-testid="home-card"][data-app="loans"]')
+  await screenTitled(page, 'Overview')
+  const total = await page
+    .waitForFunction(() => document.querySelector('[data-testid="loans-total"]')?.textContent?.replace(/\s+/g, ' ').trim() ?? null, { timeout: 10_000 })
+    .then((handle) => handle.jsonValue())
+  // The card rounds to whole euros, and the Overview's sentence keeps the cents.
+  const euros = (text) => Number(/€[\d,]+(\.\d{2})?/.exec(text)?.[0].replace(/[€,]/g, '') ?? Number.NaN)
+  if (Math.round(euros(total)) !== euros(loans.figure)) throw new Error(`the Loans card says ${loans.figure} owed, the Loans Overview "${total}"`)
+}
+
+/**
+ * A fresh device opens the home with every app in Set up. Loans can be set up first: its card opens
+ * its first run, whose link home comes back, and the Company card opens the company's welcome.
+ */
+export async function setUpFlow(page, { press, shoot, inspect }) {
+  const cards = await page.evaluate(homeCards)
+  if (cards.length !== 2 || cards.some((card) => card.state !== 'set-up' || !card.text.includes('Set up')))
+    throw new Error(`the fresh home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)
+  if (await page.evaluate(() => document.querySelector('[data-testid="sync-status"]') !== null)) throw new Error('the fresh home shows a sync control')
+  await inspect?.('the home on a fresh device')
+  await shoot('home-set-up')
+
+  await pressSelector(page, press, '[data-testid="home-card"][data-app="loans"]')
+  await loansStartAt(page, 'home')
+  await screenTitled(page, 'Loans')
+  await pressSelector(page, press, '[data-testid="home-link"]')
+  await screenTitled(page, 'All apps')
+
+  await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')
+  await onboardingAt(page, 'welcome')
+  await screenTitled(page, 'Company')
+  await inspect?.("the company's welcome from the home")
+  await shoot('home-set-up-company')
 }
 
 async function fill(page, testId, value) {

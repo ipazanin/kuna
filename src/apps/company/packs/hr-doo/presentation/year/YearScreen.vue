@@ -227,14 +227,14 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
             <UIcon name="i-lucide-receipt" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               No category has a <span class="identifier">vat</span> treatment, so no input VAT leaves the costs.
-              <DrillLink to="/settings?tab=categories" in-prose class="text-highlighted">Set it on Settings, Categories</DrillLink>
+              <DrillLink to="/company/settings?tab=categories" in-prose class="text-highlighted">Set it on Settings, Categories</DrillLink>
             </p>
           </div>
           <div v-if="unregistered" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               <span class="identifier">hr_company_registered</span> is blank, so {{ shown.year }} counts as a full tax period and the advances paid in it are not known.
-              <DrillLink :to="{ path: '/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
+              <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
             </p>
           </div>
         </div>

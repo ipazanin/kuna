@@ -46,7 +46,7 @@ function harness(options: {
     ports,
     books,
     states: () => stepsOf(sync.state.run).map((candidate) => [candidate.id, candidate.state.kind]),
-    control: (access: PageAccess = { kind: 'enough' }) => syncControlOf(sync.state.run, { chosen: true, reading: false, syncedAt: AT }, access, sync.state.askFailure),
+    control: (access: PageAccess = { kind: 'enough' }) => syncControlOf(sync.state.run, { reading: false, syncedAt: AT }, access, sync.state.askFailure),
     holdUntil(save: Promise<void>) {
       idle = save
     },

@@ -95,7 +95,11 @@ describe('getting set up', () => {
   it('leaves the statements folder alone for statements by hand, and links each line to its screen', () => {
     expect(gettingSetUp(read(newBooks('hand')).workbook)).toEqual([
       { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: { path: '/company/transactions', query: { tab: 'import' } } } },
-      { key: 'categories', text: 'Look over the categories, which are still the ones new books start with', link: { label: 'Categories', to: { path: '/settings', query: { tab: 'categories' } } } },
+      {
+        key: 'categories',
+        text: 'Look over the categories, which are still the ones new books start with',
+        link: { label: 'Categories', to: { path: '/company/settings', query: { tab: 'categories' } } },
+      },
     ])
   })
 })

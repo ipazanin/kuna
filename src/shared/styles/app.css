@@ -33,9 +33,19 @@
   @apply text-xs text-muted;
 }
 
+/* The name beside a mark in a top bar or a menu. */
+@utility type-wordmark {
+  @apply text-[0.9375rem] font-semibold tracking-tight text-highlighted;
+}
+
 /* The figure a tile or a card leads with. */
 @utility type-figure {
   @apply text-figure-lg font-semibold text-highlighted tabular-nums;
+}
+
+/* The figure beside the leading one on a card. */
+@utility type-figure-secondary {
+  @apply text-base font-semibold text-highlighted tabular-nums;
 }
 
 html {

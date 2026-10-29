@@ -12,7 +12,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import NewerFileNotice from '../../workbook/presentation/NewerFileNotice.vue'
 import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 
-/** Settings, This device: where the company's books are, with the export, the import and the switch to another source. */
+/** Settings, Books file: where the company's books are, with the export, the import and the switch to another source. */
 const store = useWorkbook()
 const { state } = store
 const { exporting, exportNow } = useExport()

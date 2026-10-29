@@ -9,18 +9,20 @@ export interface NavigationEntry {
   readonly count?: number
 }
 
-/** An app's entries under its name, with a line such as the company the books belong to. */
+/** The app on screen: its entries under its name, with a line such as the company the books belong to. */
 export interface NavigationGroup {
-  readonly app: string
   readonly name: string
+  /** The app's icon and the custom property of its colour, which tile its name. */
+  readonly icon: string
+  readonly colour: `--${string}`
   readonly subtitle: string | null
   readonly entries: readonly NavigationEntry[]
 }
 
 export interface Navigation {
-  /** One group per installed app, in install order. */
-  readonly groups: readonly NavigationGroup[]
-  /** The shell's own entries after the apps', such as Settings, set apart by a rule. */
+  /** Null on the home and Kuna's own screens. */
+  readonly group: NavigationGroup | null
+  /** Settings, the app's or Kuna's, set apart below the app's entries. */
   readonly apart: readonly NavigationEntry[]
 }
 </script>
@@ -30,6 +32,10 @@ import { useId } from 'vue'
 import { RouterLink } from 'vue-router'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { plural } from '../../shared/text/translation'
+import AppMark from '../../shared/ui/AppMark.vue'
+import { words } from './words'
+
 defineProps<{
   navigation: Navigation
 }>()
@@ -38,34 +44,36 @@ const id = useId()
 </script>
 
 <template>
-  <nav aria-label="Screens" class="flex flex-col gap-4">
+  <nav :aria-label="words.navigation.label" class="flex flex-col gap-4">
     <div
-      v-for="group in navigation.groups"
-      :key="group.app"
+      v-if="navigation.group !== null"
       role="group"
-      :aria-labelledby="`${id}-${group.app}`"
-      :aria-describedby="group.subtitle ? `${id}-${group.app}-subtitle` : undefined"
+      :aria-labelledby="`${id}-name`"
+      :aria-describedby="navigation.group.subtitle ? `${id}-subtitle` : undefined"
       class="flex flex-col gap-1"
       data-testid="nav-group"
     >
-      <div class="px-3">
-        <p :id="`${id}-${group.app}`" class="nav-heading">{{ group.name }}</p>
-        <p v-if="group.subtitle" :id="`${id}-${group.app}-subtitle`" class="truncate text-xs text-muted">{{ group.subtitle }}</p>
+      <div class="flex items-center gap-2.5 px-3">
+        <AppMark :icon="navigation.group.icon" :colour="navigation.group.colour" />
+        <div class="min-w-0">
+          <p :id="`${id}-name`" class="nav-heading">{{ navigation.group.name }}</p>
+          <p v-if="navigation.group.subtitle" :id="`${id}-subtitle`" class="truncate text-xs text-muted">{{ navigation.group.subtitle }}</p>
+        </div>
       </div>
       <ul class="flex flex-col gap-0.5">
-        <li v-for="entry in group.entries" :key="entry.to">
+        <li v-for="entry in navigation.group.entries" :key="entry.to">
           <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
             <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
             <span>{{ entry.label }}</span>
             <template v-if="entry.count">
               <span class="nav-count figure" aria-hidden="true" data-testid="nav-count">{{ entry.count }}</span>
-              <span class="sr-only">, {{ entry.count }} waiting</span>
+              <span class="sr-only">{{ plural(words.navigation.waiting(entry.count), entry.count) }}</span>
             </template>
           </RouterLink>
         </li>
       </ul>
     </div>
-    <ul class="set-apart flex flex-col gap-0.5">
+    <ul class="flex flex-col gap-0.5" :class="{ 'set-apart': navigation.group !== null }" data-testid="nav-apart">
       <li v-for="entry in navigation.apart" :key="entry.to">
         <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
           <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />

@@ -1,6 +1,7 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
- * with its one-line Sync button and its navigation drawer, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, a chart's tap-then-drill, the filter sheet with a
+ * with its one-line Sync button and its navigation drawer of one app's menu under the link home, the
+ * home's top bar with no menu button and a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown, an xlsx file opened and kept in this browser,
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
@@ -20,7 +21,7 @@
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
  * for a sign-in, the find and the Picker a tap resumes, the Loans find a tap resumes ending on the Loans Overview, and the note to tap again after a file made on Drive,
- * a statement filed on Sync from the fake statements folder with Undo in its step on Settings, This device and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
+ * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
  * a save on the Mail card that asks for Gmail read in its own tap and syncs, Allow access whose Google window closed with why in what a screen reader hears,
@@ -35,7 +36,7 @@
  * on the fake Drive and in this browser with Back to the step that made the books and its Start over, the folder step offering to open the books
  * the fake Drive already holds, new books, a move from this browser and the Loans file alike, new books on the fake Drive with statements from mail and their first sync, the statement step asking for Drive read before the Picker,
  * an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
- * moved there from Settings, This device with the Drive read its folders need asked up front, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
+ * moved there from Settings, Books file with the Drive read its folders need asked up front, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
  * and a row edited while filtered and sorted, saved and undone, a row confirmed while another device files the other one, the notice for a file a
  * newer app saved, and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
@@ -154,9 +155,10 @@ const SCREENS = [
   { name: 'year-pay', hash: '#/company/year?year=2027&tab=pay&p=all', title: 'Year', ready: '[data-testid="scenario-editor"]' },
   { hash: '#/company/owner?tab=owed&p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { hash: '#/company/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
-  { name: 'settings', hash: '#/settings', title: 'Settings', ready: '[data-testid="settings-tabs"]' },
-  { name: 'settings-ruleset', hash: '#/settings?tab=ruleset', title: 'Settings', ready: '[data-testid="rule-row"]' },
-  { name: 'settings-device', hash: '#/settings?tab=device', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
+  { name: 'company-settings', hash: '#/company/settings', title: 'Settings', ready: '[data-testid="settings-tabs"]' },
+  { name: 'company-settings-ruleset', hash: '#/company/settings?tab=ruleset', title: 'Settings', ready: '[data-testid="rule-row"]' },
+  { name: 'company-settings-books', hash: '#/company/settings?tab=books', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
+  { name: 'kuna-settings', hash: '#/settings', title: 'Kuna settings', ready: '[data-testid="sync-card"]', cards: false },
 ]
 
 mkdirSync(OUTPUT_DIR, { recursive: true })
@@ -258,6 +260,20 @@ async function checkWidth(width) {
       (current) => current === 'Overview',
       'the drawer does not mark the current screen',
     )
+    await expect(
+      page.evaluate(() => {
+        const drawer = document.querySelector('[role="dialog"]')
+        return {
+          home:
+            drawer?.querySelector('a') === drawer?.querySelector('[data-testid="home-link"]') &&
+            drawer?.querySelector('[data-testid="home-link"]')?.textContent?.replace(/\s+/g, ' ').trim() === 'Kuna, All apps',
+          groups: [...(drawer?.querySelectorAll('[data-testid="nav-group"] p:first-child') ?? [])].map((heading) => heading.textContent?.trim()),
+          apart: [...(drawer?.querySelectorAll('[data-testid="nav-apart"] a') ?? [])].map((link) => link.textContent?.trim()),
+        }
+      }),
+      (drawer) => drawer.home && JSON.stringify(drawer.groups) === JSON.stringify(['Company']) && JSON.stringify(drawer.apart) === JSON.stringify(['Settings']),
+      "the drawer does not start with the link home and hold Company's menu alone, with its Settings set apart",
+    )
     await inspect(page, `${width}px drawer open`)
     await shoot('drawer-open')
     for (let press = 0; press < 12; press += 1) await page.keyboard.press('Tab')
@@ -285,6 +301,32 @@ async function checkWidth(width) {
       (gap) => gap >= 0,
       'the new screen opened with its heading under the top bar',
     )
+  })
+
+  await step('home-top-bar', async () => {
+    await open(page, '#/company', 'Overview')
+    await openDrawer(page)
+    await (await page.waitForSelector('[role="dialog"] [data-testid="home-link"]')).tap()
+    await waitForTitle(page, 'All apps')
+    await drawerClosed(page)
+    await expect(
+      page.evaluate(() => {
+        const bar = document.querySelector('header')
+        const sync = bar?.querySelector('[data-testid="sync-button"]')?.getBoundingClientRect()
+        return {
+          menu: bar?.querySelector('[data-testid="open-navigation"]') !== null,
+          title: bar?.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
+          syncAtRight: sync !== undefined && sync.right > window.innerWidth - 24 && Math.round(sync.height) === 44,
+          settings: document.querySelector('[data-testid="home-kuna-settings"]')?.getClientRects().length === 1,
+        }
+      }),
+      (bar) => !bar.menu && bar.title === 'Kuna' && bar.syncAtRight && bar.settings,
+      'the home top bar does not hold Kuna and one 44 px Sync button with no menu button, with Kuna settings on the page',
+    )
+    await shoot('home')
+    await (await page.waitForSelector('[data-testid="home-card"][data-app="company"]')).tap()
+    await waitForTitle(page, 'Overview')
+    await expect(topBarTitle(page), (title) => title === 'Overview', 'the Company card did not open Overview with its name in the top bar')
   })
 
   await step('waiting-review', async () => {
@@ -944,10 +986,10 @@ async function checkWidth(width) {
     ['browser', '&fake=browser'],
   ]) {
     for (const [name, hash, title, run, variant] of [
-      ['categories', '#/settings?tab=categories', 'Settings', categoryFlow],
-      ['categories-filters', '#/settings?tab=categories', 'Settings', categoryFiltersFlow],
-      ['settings-statements-folder', '#/settings', 'Settings', statementsFolderFlow],
-      ['settings-card-ibans', '#/settings', 'Settings', cardSettlementIbansFlow],
+      ['categories', '#/company/settings?tab=categories', 'Settings', categoryFlow],
+      ['categories-filters', '#/company/settings?tab=categories', 'Settings', categoryFiltersFlow],
+      ['settings-statements-folder', '#/company/settings', 'Settings', statementsFolderFlow],
+      ['settings-card-ibans', '#/company/settings', 'Settings', cardSettlementIbansFlow],
       ['clients-ibans', '#/company/invoicing?tab=clients', 'Invoicing', clientIbansFlow],
       ['assets', '#/company/year?tab=assets#asset-rows', 'Year', assetFlow],
       ['employees', '#/company/salaries#employee-rows', 'Salaries', employeeFlow],
@@ -962,7 +1004,7 @@ async function checkWidth(width) {
       ['split-review', '#/company/review', 'Review', reviewSplitFlow],
       ['change-category', '#/company/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
       ['owner-share', '#/company/transactions?p=all&q=purchase%2C%20laptop', 'Transactions', ownerShareFlow],
-      ['share-fill', '#/settings?tab=categories', 'Settings', shareFillFlow],
+      ['share-fill', '#/company/settings?tab=categories', 'Settings', shareFillFlow],
       ['dismiss', '#/company/review?tab=rules', 'Review', dismissFlow],
       ['rules-editor', '#/company/review?tab=rules', 'Review', rulesEditorFlow],
       ['import-camt', '#/company/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
@@ -1039,7 +1081,7 @@ async function checkWidth(width) {
   }
 
   await step('ruleset-deep-link', async () => {
-    await open(page, '#/settings?tab=ruleset', 'Settings')
+    await open(page, '#/company/settings?tab=ruleset', 'Settings')
     await page.waitForSelector('[data-testid="rule-row"]')
     const ruleRows = () => page.evaluate(() => document.querySelectorAll('[data-testid="rule-row"]').length)
     const everyRule = await ruleRows()
@@ -1095,7 +1137,7 @@ async function checkWidth(width) {
   })
 
   await step('ruleset-local-rates', async () => {
-    await open(page, '#/settings?tab=ruleset&rule=hr.pit.local-rates', 'Settings')
+    await open(page, '#/company/settings?tab=ruleset&rule=hr.pit.local-rates', 'Settings')
     const card = '[role="dialog"] [data-testid="rule-detail"]'
     const tableCount = () => page.$eval(`${card} [data-testid="table-count"]`, (element) => element.textContent.trim())
     const rowsShown = (text) => Number(text.split(' ')[0])
@@ -1121,7 +1163,7 @@ async function checkWidth(width) {
   })
 
   await step('settings-browser', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=browser#/settings?tab=device`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=browser#/company/settings?tab=books`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
     await waitForText(page, 'button', 'Import a file')
   })
@@ -1130,15 +1172,24 @@ async function checkWidth(width) {
     const shown = () => page.evaluate(() => ({ lang: document.documentElement.lang, text: document.body.innerText }))
     const pick = (choice) => Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), page.tap(`[data-testid="language-choice"] [role="radio"][value="${choice}"]`)])
     try {
-      await open(page, '#/settings?tab=device', 'Settings')
+      await open(page, '#/settings', 'Kuna settings')
       await expect(shown(), (screen) => screen.lang === 'en', 'the app did not open in English')
       await pick('hr')
-      await waitForTitle(page, 'Settings')
-      await expect(shown(), (screen) => screen.lang === 'hr' && /\d{1,2}\. [a-zčćđšž]{3,} \d{4}\./.test(screen.text), 'picking Hrvatski did not load the app again in Croatian, with a Croatian date')
+      await waitForTitle(page, 'Postavke Kune')
       await inspect(page, `${width}px settings in Croatian`)
       await shoot('settings-language-croatian')
+      // Books file names its file's dates, which Croatian writes its own way.
+      await page.evaluate(() => {
+        window.location.hash = '#/company/settings?tab=books'
+      })
+      await page.waitForSelector('[data-testid="data-source-card"]')
+      await expect(shown(), (screen) => screen.lang === 'hr' && /\d{1,2}\. [a-zčćđšž]{3,} \d{4}\./.test(screen.text), 'picking Hrvatski did not load the app again in Croatian, with a Croatian date')
+      await page.evaluate(() => {
+        window.location.hash = '#/settings'
+      })
+      await page.waitForSelector('[data-testid="language-choice"]')
       await pick('browser')
-      await waitForTitle(page, 'Settings')
+      await waitForTitle(page, 'Kuna settings')
       await expect(shown(), (screen) => screen.lang === 'en' && screen.text.includes('Browser language'), 'Browser language did not bring English back')
     } finally {
       // A step that stopped half way must not leave the later steps in Croatian.
@@ -1147,7 +1198,7 @@ async function checkWidth(width) {
   })
 
   await step('settings-tabs', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=browser#/settings`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=browser#/company/settings`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
     await waitForText(page, 'button', 'Save settings')
     await shoot('settings-general')
@@ -1193,7 +1244,7 @@ async function checkWidth(width) {
   })
 
   await step('page-tabs', async () => {
-    await open(page, '#/settings', 'Settings')
+    await open(page, '#/company/settings', 'Settings')
     await pageTabsFlow(page, { press: (handle) => handle.tap(), shoot })
   })
 
@@ -1453,7 +1504,7 @@ async function checkWidth(width) {
         })
 
     await page.goto(`${BASE}?theme=dark&fake=empty#/company/start?step=access`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'Kuna')
+    await waitForTitle(page, 'Company')
     await waitForText(page, '[data-testid="redirect-sign-in-note"]', 'Google may ask about cookies first')
 
     // Allow access on a phone, every box ticked: one token for every scope, and the sync it resumes runs and ends ready, with no message.
@@ -1522,7 +1573,7 @@ async function checkWidth(width) {
 
     // The empty fake Drive holds no file the app marked, and its Picker picks none, so the find the tap resumes leaves onboarding's find step.
     await comeBack('empty', { ...tapAsk, resume: 'find', app: 'company', route: '#/company/start?path=open&step=find' }, tokenOf(everyScope))
-    await waitForTitle(page, 'Kuna')
+    await waitForTitle(page, 'Company')
     await expect(hashOf(page), (hash) => hash === '#/company/start?path=open&step=find', 'the find the tap resumed did not stay on the find step')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address after the find resumed')
 
@@ -1533,7 +1584,7 @@ async function checkWidth(width) {
 
     // Onboarding's access step resumes nothing: the route brings the person back to it, and it says what Google allowed, with no message.
     await comeBack('empty', { ...tapAsk, scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/start?step=access&statements=folder' }, tokenOf(scopeOf('drive.file')))
-    await waitForTitle(page, 'Kuna')
+    await waitForTitle(page, 'Company')
     await expect(hashOf(page), (hash) => hash === '#/company/start?step=access&statements=folder', 'the return did not land on the step the tap left')
     await page
       .waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].map((badge) => badge.textContent?.trim()).join(',') === 'Allowed,Not allowed', { timeout: 10_000 })
@@ -1648,7 +1699,21 @@ async function checkWidth(width) {
 
   await step('open-file-browser', async () => {
     await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'Kuna')
+    await waitForTitle(page, 'All apps')
+    await expect(
+      page.evaluate(() => [...document.querySelectorAll('[data-testid="home-card"]')].map((card) => card.dataset.state)),
+      (states) => JSON.stringify(states) === JSON.stringify(['set-up', 'set-up']),
+      'a fresh device does not open the home with every app in Set up',
+    )
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="sync-status"]') === null),
+      (none) => none,
+      'the top bar of a fresh home shows a sync control',
+    )
+    await inspect(page, `${width}px home on a fresh device`)
+    await shoot('home-set-up')
+    await (await page.waitForSelector('[data-testid="home-card"][data-app="company"]')).tap()
+    await waitForTitle(page, 'Company')
     await inspect(page, `${width}px welcome`)
     await page.goto(`${BASE}?theme=dark&fake=empty#/company/start?path=bring&home=browser&step=file`, { waitUntil: 'networkidle0' })
     const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
@@ -1664,19 +1729,19 @@ async function checkWidth(width) {
     await waitForText(page, 'header [data-testid="local-status"] button', 'Export')
   })
 
-  for (const [name, variant, run, hash = '#/', title = 'Kuna'] of [
+  for (const [name, variant, run, hash = '#/company/start', title = 'Company'] of [
     ['onboarding-drive', 'empty', onboardingDriveFlow],
     ['onboarding-drive-read', 'empty', onboardingDriveReadFlow],
     ['onboarding-mail', 'empty', onboardingMailFlow],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
     ['onboarding-bring', 'empty', onboardingBringFlow(TEMPLATE_FILE)],
-    ['onboarding-open', 'drive', onboardingOpenFlow, '#/company/start?path=open', 'Kuna'],
+    ['onboarding-open', 'drive', onboardingOpenFlow, '#/company/start?path=open'],
     ['onboarding-start-over', 'empty', onboardingStartOverFlow],
-    ['onboarding-on-drive', 'drive', onboardingOnDriveFlow, '#/company/start?step=folder', 'Kuna'],
-    ['onboarding-move-on-drive', 'browser-beside-drive', moveOntoDriveFlow, '#/settings?tab=device', 'Settings'],
+    ['onboarding-on-drive', 'drive', onboardingOnDriveFlow, '#/company/start?step=folder'],
+    ['onboarding-move-on-drive', 'browser-beside-drive', moveOntoDriveFlow, '#/company/settings?tab=books', 'Settings'],
     ['loans-start-on-drive', 'drive&loans=other-device', loansStartOnDriveFlow, '#/loans/start?step=folder', 'Loans'],
-    ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/company/start?step=statement&statements=folder', 'Kuna'],
-    ['move-browser', 'browser', moveFromBrowserFlow, '#/settings?tab=device', 'Settings'],
+    ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/company/start?step=statement&statements=folder'],
+    ['move-browser', 'browser', moveFromBrowserFlow, '#/company/settings?tab=books', 'Settings'],
     ['race', 'race', raceFlow, '#/company/review', 'Review'],
   ]) {
     await step(name, async () => {
@@ -1691,7 +1756,7 @@ async function checkWidth(width) {
   }
 
   await step('newer-file', async () => {
-    await page.goto(`${BASE}?theme=dark&fake=newer-file&load=${Date.now()}#/settings?tab=device`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&fake=newer-file&load=${Date.now()}#/company/settings?tab=books`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
     await waitForText(page, '[data-testid="newer-file-notice"]', 'A newer version of Kuna saved this file')
     await inspect(page, `${width}px newer file`)

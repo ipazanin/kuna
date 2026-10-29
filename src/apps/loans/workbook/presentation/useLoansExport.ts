@@ -11,7 +11,7 @@ export interface LoansExport {
   exportNow(): Promise<void>
 }
 
-/** One export button's behaviour, shared by the top bar and Settings, This device. */
+/** One export button's behaviour, shared by the top bar and the Loans Settings. */
 export function useLoansExport(): LoansExport {
   const store = useLoansBooks()
   const toast = useToast()

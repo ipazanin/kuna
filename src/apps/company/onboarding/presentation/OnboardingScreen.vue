@@ -2,7 +2,10 @@
 import { computed, nextTick, provide, watch } from 'vue'
 import type { Component } from 'vue'
 
+import { words as sharedWords } from '../../../../shared/app/words'
+import HomeLink from '../../../../shared/ui/HomeLink.vue'
 import { STEP_FLOW } from '../../../../shared/ui/StepCard.vue'
+import { words } from '../../words'
 import { makingStep, previousStep } from '../domain/onboardingSteps'
 import type { OnboardingStep } from '../domain/onboardingSteps'
 import AccessStep from './AccessStep.vue'
@@ -62,13 +65,8 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
   <main class="onboarding min-h-dvh">
     <div class="onboarding-column mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-10 pb-16 sm:px-6 sm:pt-16">
       <header class="flex flex-col gap-3">
-        <div class="flex items-center gap-3">
-          <svg viewBox="0 0 32 32" class="size-9 shrink-0" aria-hidden="true">
-            <rect width="32" height="32" rx="7" fill="var(--accent)" />
-            <path d="M8 22h16M10 18v-6M16 18V9M22 18v-4" stroke="var(--accent-ink)" stroke-width="2.5" stroke-linecap="round" />
-          </svg>
-          <h1 data-testid="screen-title" tabindex="-1" class="text-title font-semibold text-highlighted">Kuna</h1>
-        </div>
+        <HomeLink :label="sharedWords.allApps" class="self-start" />
+        <h1 data-testid="screen-title" tabindex="-1" class="text-title font-semibold text-highlighted">{{ words.name }}</h1>
         <p class="max-w-[52ch] text-base text-toned">Company finances from your bank statements, worked out in this browser.</p>
       </header>
 

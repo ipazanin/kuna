@@ -10,9 +10,8 @@ import { informalLoanFigures } from '../../informalLoans/presentation/informalLo
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import BankLoanCard from './BankLoanCard.vue'
 import InformalLoanCard from './InformalLoanCard.vue'
+import { owedTotals } from './owedTotals'
 import { today } from '../../../../shared/calendar/civilDate'
-import { ZERO, negateMoney, sumMoney } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -28,14 +27,7 @@ const bankCards = computed(() => (state.workbook?.bankLoans ?? []).map((book) =>
 const informalCards = computed(() => (state.workbook?.informalLoans ?? []).map((book) => ({ book, figures: informalLoanFigures(book, day) })))
 const empty = computed(() => bankCards.value.length === 0 && informalCards.value.length === 0)
 
-/** What you owe over every loan, and apart from it what others owe you on informal loans. */
-const totals = computed(() => {
-  const owed: Money[] = [...bankCards.value.map((card) => card.figures?.owed ?? ZERO), ...informalCards.value.map((card) => card.figures.owedByYou)]
-  return {
-    owed: sumMoney(owed.filter((amount) => amount > 0)),
-    owedToYou: sumMoney(owed.filter((amount) => amount < 0).map(negateMoney)),
-  }
-})
+const totals = computed(() => owedTotals({ bank: bankCards.value.map((card) => card.figures), informal: informalCards.value.map((card) => card.figures) }))
 
 const addingBank = ref(false)
 const addingInformal = ref(false)
