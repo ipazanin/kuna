@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatDays, formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
@@ -50,7 +50,6 @@ function openRun(mode: InvoiceRunMode): void {
 
 const hasClients = computed(() => (state.workbook?.clients.length ?? 0) > 0)
 
-const decimal = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 })
 
 /** Figures as of the newest booking, whatever a tab's period, client or year says. Each opens the tab that holds it. */
 const tiles = computed(() => {
@@ -89,7 +88,7 @@ const tiles = computed(() => {
     },
     {
       label: 'Days to get paid',
-      value: paid.median === null ? '–' : `${decimal.format(paid.median)} days`,
+      value: paid.median === null ? '–' : `${formatDays(paid.median)} days`,
       caption: paid.median === null ? 'No invoice paid in the last 12 months' : `Median over ${paid.days.length} paid in the last 12 months`,
       definition:
         'The median of the days from an invoice’s issue date to the payment that settled it, over the invoices settled in the last 12 months. The median, because one invoice paid months late moves a mean a long way.',

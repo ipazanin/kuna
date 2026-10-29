@@ -16,6 +16,7 @@ export interface DaysToPaidRow {
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { formatDays } from '../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 
 /** One row per client: every paid invoice as a dot on a shared scale of days, the median marked. */
@@ -34,10 +35,9 @@ function at(days: number): string {
   return `${(days / scaleEnd.value) * 100}%`
 }
 
-const decimal = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 })
 
 function daysText(days: number | null): string {
-  return days === null ? '–' : `${decimal.format(days)} ${days === 1 ? 'day' : 'days'}`
+  return days === null ? '–' : `${formatDays(days)} ${days === 1 ? 'day' : 'days'}`
 }
 </script>
 

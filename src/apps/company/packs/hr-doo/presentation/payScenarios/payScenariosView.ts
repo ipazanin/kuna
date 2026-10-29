@@ -1,11 +1,11 @@
 import type { RouteLocationRaw } from 'vue-router'
 
+import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
-import { dayLabel } from '../../ruleset/presentation/ruleWording'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { payScenarios } from '../../domain/scenarios/payScenarios'
 import type { PayScenarios } from '../../domain/scenarios/payScenarios'

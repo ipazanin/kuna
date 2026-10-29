@@ -9,6 +9,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { amountOf } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -86,11 +87,9 @@ function readItem(row: BillingRowLine): BillingItem | null {
   return recordWithId(store.state.records?.['outgoing-plan'] ?? NO_RECORDS, row.id)?.record ?? null
 }
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
 /** "Monthly Fee for Northwind, 31 Oct 2026", as the dialog and its toasts name the row. */
 function named(row: BillingRowLine): string {
-  return `${row.item} for ${row.clientName}, ${dayFormat.format(new Date(row.date))}`
+  return `${row.item} for ${row.clientName}, ${dayLabel(row.date)}`
 }
 
 async function save(): Promise<void> {

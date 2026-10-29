@@ -1,8 +1,8 @@
 <script lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 
+import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import type { TracedFigure } from '../ruleset/tracedFigure'
-import { dayLabel } from '../ruleset/presentation/ruleWording'
 import type { CitObligationStatus, MatchedCitObligation } from '../domain/cit/matchCitPayments'
 
 /** One corporate tax payment the schedule expects, beside what the bank rows paid on it. */

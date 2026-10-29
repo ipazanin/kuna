@@ -4,6 +4,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import type { Money } from '../../../../shared/money/money'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
@@ -60,12 +61,10 @@ const sections = computed(() =>
 )
 
 const thisYear = String(new Date().getFullYear())
-const dayInYear = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 /** "12 Sept" this year, "12 Sept 2025" before it. */
 function shortDate(row: Pick<ListedRow, 'date'>): string {
-  return (row.date.startsWith(thisYear) ? dayInYear : dayFormat).format(new Date(row.date))
+  return row.date.startsWith(thisYear) ? shortDayLabel(row.date) : dayLabel(row.date)
 }
 
 /** The rows whose description and links are open, by key. A tap on a row opens or closes it. */
@@ -198,7 +197,7 @@ function ownerPartNote(row: ListedRow): string | null {
           </button>
           <div v-if="openRows.has(entry.row.key)" class="card-details" data-testid="transaction-details">
             <p v-if="entry.row.description" class="text-sm text-toned">{{ entry.row.description }}</p>
-            <p class="text-xs text-muted">{{ dayFormat.format(new Date(entry.row.date)) }}, {{ accountOf(entry.row) }}</p>
+            <p class="text-xs text-muted">{{ dayLabel(entry.row.date) }}, {{ accountOf(entry.row) }}</p>
             <div class="flex flex-wrap gap-x-4">
               <DrillLink
                 v-if="entry.row.kind === 'bank'"

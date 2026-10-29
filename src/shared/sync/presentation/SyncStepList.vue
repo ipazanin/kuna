@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { intlLocale } from '../../text/language'
 import DrillLink from '../../ui/DrillLink.vue'
 import type { RunStep, StepState, SyncRun } from '../application/syncRun'
 import { usePageSync } from './pageSync'
@@ -19,7 +20,7 @@ const emit = defineEmits<{
 
 const page = usePageSync()
 
-const stamp = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const stamp = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 const ICONS: Readonly<Record<StepState['kind'], { readonly name: string; readonly tone: string }>> = {
   off: { name: 'i-lucide-circle-off', tone: 'text-dimmed' },

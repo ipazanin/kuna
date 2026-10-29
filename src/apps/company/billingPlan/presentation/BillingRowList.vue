@@ -2,6 +2,7 @@
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { BILLING_STATUS } from './billingView'
@@ -21,11 +22,6 @@ const emit = defineEmits<{
 
 const phone = usePhoneLayout()
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
-function day(date: string): string {
-  return dayFormat.format(new Date(date))
-}
 </script>
 
 <template>
@@ -36,7 +32,7 @@ function day(date: string): string {
           <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
           <div class="min-w-0">
             <p class="truncate text-sm font-medium text-highlighted">{{ row.item }}</p>
-            <p class="figure text-xs text-muted">{{ day(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></p>
+            <p class="figure text-xs text-muted">{{ dayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></p>
             <p v-if="row.description" class="truncate text-xs text-muted">{{ row.description }}</p>
           </div>
         </div>
@@ -52,7 +48,7 @@ function day(date: string): string {
           size="sm"
           class="-me-2"
           :disabled="!editable"
-          :aria-label="`Edit the ${row.item} row of ${day(row.date)}`"
+          :aria-label="`Edit the ${row.item} row of ${dayLabel(row.date)}`"
           data-testid="billing-row-edit"
           @click="emit('edit', row)"
         />
@@ -75,7 +71,7 @@ function day(date: string): string {
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="row.id" data-testid="billing-row">
-          <td class="figure whitespace-nowrap text-toned">{{ day(row.date) }}</td>
+          <td class="figure whitespace-nowrap text-toned">{{ dayLabel(row.date) }}</td>
           <th scope="row" class="cell-wraps text-start font-normal">
             <span class="inline-flex items-center gap-2 text-highlighted">
               <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
@@ -95,7 +91,7 @@ function day(date: string): string {
               variant="ghost"
               size="xs"
               :disabled="!editable"
-              :aria-label="`Edit the ${row.item} row of ${day(row.date)}`"
+              :aria-label="`Edit the ${row.item} row of ${dayLabel(row.date)}`"
               data-testid="billing-row-edit"
               @click="emit('edit', row)"
             />

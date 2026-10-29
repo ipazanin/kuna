@@ -1,5 +1,6 @@
 import type { RouteLocationRaw } from 'vue-router'
 
+import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { expectedInvoices } from '../../../../billingPlan/domain/expectedInvoices'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import { runwayInWords } from '../../../../overview/domain/headline'
@@ -8,11 +9,11 @@ import { yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthKey, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import { negateMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
-import { dayLabel, ruleLink } from '../../ruleset/presentation/ruleWording'
+import { ruleLink } from '../../ruleset/presentation/ruleWording'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { dividendCapacity } from '../../domain/dividend/dividendCapacity'
 import type { InterimCash, PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
@@ -76,8 +77,6 @@ const BASIS_WORDS: readonly (readonly [MonthBasis, string])[] = [
   ['planned', 'planned'],
   ['averaged', 'averaged'],
 ]
-
-const SHORT_MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
 
 /** The forecast of a year as the Year page shows it, or why it could not be made. */
 export type ForecastState =
@@ -354,8 +353,7 @@ function basisCaption(line: ForecastLine): string {
   if (runs.length === 1 && only !== undefined) {
     return `Every month ${only.words}`
   }
-  const short = (month: MonthKey) => SHORT_MONTH.format(new Date(`${month}-01T00:00:00Z`))
-  return runs.map((run) => `${run.first === run.last ? short(run.first) : `${short(run.first)} to ${short(run.last)}`} ${run.words}`).join(', ')
+  return runs.map((run) => `${run.first === run.last ? shortMonthName(run.first) : `${shortMonthName(run.first)} to ${shortMonthName(run.last)}`} ${run.words}`).join(', ')
 }
 
 /** A part of a profit and loss line, with the months a plan row or an average stands in for under it. */

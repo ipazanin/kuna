@@ -2428,7 +2428,8 @@ export function onboardingBringFlow(path) {
       throw new Error('Overview drew no chart from the moved books')
     })
     await shoot('moved')
-    await deviceShowsDriveFile(page, true)
+    // The file already holds every answer of the company step, so Continue writes nothing and makes no backup.
+    await deviceShowsDriveFile(page)
   }
 }
 

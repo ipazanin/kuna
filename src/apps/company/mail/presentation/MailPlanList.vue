@@ -2,6 +2,7 @@
 import { computed, reactive } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { intlLocale } from '../../../../shared/text/language'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { countsLine } from '../domain/mailSource'
 import { mailCounts, notFiledLine } from '../application/mailFiling'
@@ -14,7 +15,7 @@ const props = defineProps<{
   stopped: string | null
 }>()
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+const dayFormat = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', year: 'numeric' })
 
 /** The kinds in the order a person reads them: what failed, what was filed, what needs a look, then what is already there. */
 const ORDER: readonly PlanEntry['kind'][] = ['not-filed', 'filed', 'correction', 'unchecked', 'unmatched', 'already']

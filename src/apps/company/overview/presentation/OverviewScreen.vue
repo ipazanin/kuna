@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 
-import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { monthInYear, monthLabel } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { currencyUnitName, formatDecimal, formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -46,15 +46,7 @@ const names = useDisplayNames()
 
 const EMPHASISED_LINES: readonly ProfitAndLossLine[] = ['net', 'ownerEarns']
 
-const LONG_MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
-const LONG_MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
-/** "September" this year, "December 2025" before it. */
-function monthName(month: MonthKey): string {
-  const date = new Date(`${month}-01`)
-  return (date.getUTCFullYear() === new Date().getFullYear() ? LONG_MONTH : LONG_MONTH_AND_YEAR).format(date)
-}
 
 function runwayText(months: number | null): string {
   return months === null ? 'No costs' : formatDecimal(months)
@@ -114,7 +106,7 @@ const overview = computed(() => {
       said === null
         ? null
         : {
-            month: monthName(said.month),
+            month: monthInYear(said.month, new Date().getFullYear()),
             cameIn: { amount: said.cameIn.amount, to: drillLocation(said.cameIn.drill) },
             wentOut: { amount: said.wentOut.amount, to: drillLocation(said.wentOut.drill) },
             loss: said.loss,
@@ -184,8 +176,8 @@ const overview = computed(() => {
       colour: colours.get(account.account) ?? 'var(--chart-ink)',
       balance: account.balance.amount,
       to: drillLocation(account.balance.drill),
-      asOf: dayFormat.format(new Date(account.asOf)),
-      firstSeen: dayFormat.format(new Date(account.firstSeen)),
+      asOf: dayLabel(account.asOf),
+      firstSeen: dayLabel(account.firstSeen),
       count: account.transactionCount,
       closed: account.closed,
     })),

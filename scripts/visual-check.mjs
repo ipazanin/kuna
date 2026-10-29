@@ -89,7 +89,7 @@ import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructur
 import { tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument.ts'
 import { templateColumnNames } from '../src/apps/company/workbook/infrastructure/workbookTemplate.ts'
 import { installHrDooPack } from './support/installPack.mjs'
-import { chromePath } from './support/browsers.mjs'
+import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
@@ -296,6 +296,16 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="drive-file-place"] a',
     shows: ['kuna-company.json', 'Books', 'None yet. The first save of a day makes one.', 'Open in Drive'],
+    cards: false,
+  },
+  {
+    name: 'settings-device-croatian',
+    query: 'lang=hr',
+    hash: '#/settings?tab=device',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="drive-file-place"] a',
+    shows: ['Jezik preglednika', 'Hrvatski', 'Kad promijenite jezik, aplikacija se ponovno učita.'],
     cards: false,
   },
 ]
@@ -748,7 +758,7 @@ if (unmatched !== null) {
   process.exit(2)
 }
 
-const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars'] })
+const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars', ENGLISH_CHROME_ARG] })
 let checked = 0
 
 for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {

@@ -12,7 +12,7 @@ import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { folderPathOf } from '../../../../shared/text/folderPath'
 import MailSettingsCard from '../../mail/presentation/MailSettingsCard.vue'
-import { settingsErrors } from '../domain/settings'
+import { amountLocaleOf, settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
 import IbanTagsField from './IbanTagsField.vue'
 import { CURRENCY_ITEMS } from './moneyChoices'
@@ -59,7 +59,7 @@ const labelsSummary = computed(() => BUCKETS.map((bucket) => props.settings.buck
 
 const preview = computed(() => {
   if (errors.value.currency !== undefined || errors.value.numberLocale !== undefined) return null
-  const format = new Intl.NumberFormat(draft.value.numberLocale, { style: 'currency', currency: draft.value.currency })
+  const format = new Intl.NumberFormat(amountLocaleOf(draft.value), { style: 'currency', currency: draft.value.currency })
   return `${format.format(1234.56)} and −${format.format(98.7)}`
 })
 
@@ -116,9 +116,9 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
           <UFormField
             label="Number locale"
             :error="errors.numberLocale ?? false"
-            :help="preview ? `Amounts read ${preview}. Dates and text stay in English.` : 'A tag such as en-GB, de-DE or en-US.'"
+            :help="preview ? `Amounts read ${preview}. Blank follows the language, and dates always do.` : 'A tag such as en-GB, de-DE or en-US, or blank to follow the language.'"
           >
-            <UInput :model-value="draft.numberLocale" class="w-full" @update:model-value="update('numberLocale', String($event).trim())" />
+            <UInput :model-value="draft.numberLocale" placeholder="Follow the language" class="w-full" @update:model-value="update('numberLocale', String($event).trim())" />
           </UFormField>
           <UFormField
             label="Review label"

@@ -6,6 +6,7 @@ import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -33,7 +34,6 @@ const emit = defineEmits<{
 }>()
 
 const names = useDisplayNames()
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 const counts = computed(() => {
   const added = props.statement.rows.filter((row) => !row.inLedger && row.verdict !== null).length
@@ -56,10 +56,6 @@ const subtitle = computed(() => {
   return opening === null || closing === null ? where : `${where}, ${formatMoney(opening)} to ${formatMoney(closing)}`
 })
 
-function day(date: string): string {
-  return dayFormat.format(new Date(date))
-}
-
 /** An IBAN in groups of four, as a bank prints it. */
 function grouped(iban: string): string {
   return iban.replace(/(.{4})(?=.)/g, '$1 ')
@@ -80,7 +76,7 @@ function grouped(iban: string): string {
       <div v-if="statement.newAccount" class="flex flex-col gap-3 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-new-account">
         <p class="text-sm text-toned">
           <span class="identifier">{{ grouped(statement.newAccount.iban) }}</span> ({{ statement.newAccount.currency }}) is new. Add it as an account<template v-if="statement.newAccount.opening !== null">
-            from {{ formatMoney(statement.newAccount.opening) }}</template><template v-if="statement.newAccount.date"> on {{ day(statement.newAccount.date) }}</template>?
+            from {{ formatMoney(statement.newAccount.opening) }}</template><template v-if="statement.newAccount.date"> on {{ dayLabel(statement.newAccount.date) }}</template>?
         </p>
         <UFormField label="Account name" :error="accountNameProblem ?? false" help="Lower-case letters, digits and single hyphens. The screens show it until you give the account a label.">
           <UInput :model-value="accountName ?? ''" class="identifier w-48" data-testid="dry-run-account-name" @update:model-value="emit('update:accountName', String($event))" />
@@ -94,11 +90,11 @@ function grouped(iban: string): string {
         <UCheckbox
           v-if="statement.start.opening !== null"
           :model-value="started"
-          :label="`Start ${names.account(statement.start.account)} at ${formatMoney(statement.start.opening)} on ${day(statement.start.date)}`"
+          :label="`Start ${names.account(statement.start.account)} at ${formatMoney(statement.start.opening)} on ${dayLabel(statement.start.date)}`"
           data-testid="dry-run-start-confirm"
           @update:model-value="emit('update:started', $event === true)"
         />
-        <UFormField v-else :label="`Balance of ${names.account(statement.start.account)} before ${day(statement.start.date)}`" help="The file gives no balances, so they are worked out from this one.">
+        <UFormField v-else :label="`Balance of ${names.account(statement.start.account)} before ${dayLabel(statement.start.date)}`" help="The file gives no balances, so they are worked out from this one.">
           <UInput :model-value="typedOpening" inputmode="decimal" placeholder="0.00" class="w-40" data-testid="dry-run-start-opening" @update:model-value="emit('update:typedOpening', String($event))" />
         </UFormField>
       </div>
@@ -109,7 +105,7 @@ function grouped(iban: string): string {
 
       <ul v-if="statement.rows.length" class="@container divide-y divide-default rounded-control border border-default" data-testid="dry-run-rows">
         <li v-for="(row, index) in statement.rows" :key="`${row.reference}-${index}`" class="row" :class="{ 'opacity-60': row.inLedger }" data-testid="dry-run-row">
-          <span class="figure text-xs text-muted">{{ day(row.date) }}</span>
+          <span class="figure text-xs text-muted">{{ dayLabel(row.date) }}</span>
           <span class="min-w-0">
             <span class="block break-words text-sm text-highlighted">{{ row.counterparty || row.description || 'No counterparty' }}</span>
             <span v-if="row.counterparty && row.description" class="block break-words text-xs text-muted">{{ row.description }}</span>

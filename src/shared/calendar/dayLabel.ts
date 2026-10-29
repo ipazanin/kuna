@@ -1,7 +1,8 @@
+import { intlLocale } from '../text/language'
 import type { CivilDate } from './civilDate'
 
-const LONG = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-const SHORT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+const LONG = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+const SHORT = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 /** "20 Nov 2026". */
 export function dayLabel(day: CivilDate): string {

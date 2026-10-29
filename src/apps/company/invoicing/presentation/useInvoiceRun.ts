@@ -186,7 +186,8 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       lines: parsedLines.value,
       total: total.value,
       currency: terms.currency,
-      numberLocale: terms.numberLocale,
+      // A client reads the invoice, so a blank setting keeps the en-GB amounts rather than the language on this screen.
+      numberLocale: terms.numberLocale || 'en-GB',
     }
   })
 

@@ -21,7 +21,7 @@ import { dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
-import { chromePath, firefoxPath } from './support/browsers.mjs'
+import { chromePath, ENGLISH_CHROME_ARG, ENGLISH_FIREFOX_PREFS, firefoxPath } from './support/browsers.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -95,6 +95,7 @@ try {
           executablePath: firefoxPath(),
           headless: true,
           extraPrefsFirefox: {
+            ...ENGLISH_FIREFOX_PREFS,
             'network.proxy.type': 1,
             'network.proxy.http': '127.0.0.1',
             'network.proxy.http_port': 9,
@@ -103,7 +104,7 @@ try {
             'network.proxy.no_proxies_on': '127.0.0.1',
           },
         }
-      : { executablePath: chromePath(), headless: true, args: ['--no-sandbox', `--proxy-server=http://${DEAD_PROXY}`] },
+      : { executablePath: chromePath(), headless: true, args: ['--no-sandbox', `--proxy-server=http://${DEAD_PROXY}`, ENGLISH_CHROME_ARG] },
   )
   console.log(`Checking ${await browser.version()}`)
   const context = await browser.createBrowserContext()

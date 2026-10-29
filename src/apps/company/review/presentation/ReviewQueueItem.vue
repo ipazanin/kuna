@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import type { Verdict } from '../../rules/domain/categorise'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
@@ -33,8 +34,6 @@ const emit = defineEmits<{
 }>()
 
 const names = useDisplayNames()
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 const SIGNAL_LABELS: Readonly<Record<keyof TransactionSignals, string>> = {
   purpose: 'Purpose code',
@@ -87,7 +86,7 @@ function recategorise(category: string | undefined): void {
           <CategoryChip :category="transaction.category" :bucket="transaction.bucket" />
           <UBadge v-for="reason in reasons" :key="reason.label" :label="reason.label" :color="reason.color" variant="subtle" size="sm" />
         </span>
-        <span class="figure shrink-0">{{ dayFormat.format(new Date(transaction.date)) }}, {{ names.account(transaction.account) }}</span>
+        <span class="figure shrink-0">{{ dayLabel(transaction.date) }}, {{ names.account(transaction.account) }}</span>
       </span>
     </button>
 

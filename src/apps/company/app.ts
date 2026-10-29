@@ -7,6 +7,7 @@ import { hrDooPack } from './packs/hr-doo/hrDooPack'
 import { HR_DOO_TABS } from './packs/hr-doo/infrastructure/hrDooTabs'
 import { installPack, shownPack } from './packs/packContribution'
 import { useSettings } from './settings/application/useSettings'
+import { amountLocaleOf } from './settings/domain/settings'
 import { companySyncGroup } from './sync/presentation/useSync'
 import { useWorkbook } from './workbook/application/workbookStore'
 import { needsReview } from './workbook/domain/needsReview'
@@ -55,7 +56,7 @@ export const companyApp: AppContribution = {
   // Review counts every row that waits, whatever the filters, since the queue has no period.
   menuCount: (screen) => (screen.path === '/company/review' ? (state.workbook?.transactions.filter(needsReview).length ?? 0) : null),
   subtitle: () => state.workbook?.settings.companyName || null,
-  moneyFormat: () => ({ currency: settings.value.currency, locale: settings.value.numberLocale }),
+  moneyFormat: () => ({ currency: settings.value.currency, locale: amountLocaleOf(settings.value) }),
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: ONBOARDING_ROUTE,

@@ -41,7 +41,7 @@ import { categorise } from '../src/apps/company/rules/domain/categorise.ts'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage.ts'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts.ts'
 import { accountUses, categoryUses } from '../src/apps/company/settings/application/namedRecordWrites.ts'
-import { unreadSettingKeys } from '../src/apps/company/settings/domain/settings.ts'
+import { amountLocaleOf, unreadSettingKeys } from '../src/apps/company/settings/domain/settings.ts'
 import { categoryTotals } from '../src/apps/company/spending/domain/categoryTotals.ts'
 import { costGroups } from '../src/apps/company/spending/domain/costGroups.ts'
 import { topCounterparties } from '../src/apps/company/spending/domain/topCounterparties.ts'
@@ -144,7 +144,7 @@ const group = (name, figures) => groups.push([name, figures])
 
 if (companyAsked) {
   const { records, workbook: raw } = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, await documentOfInput())
-  setMoneyFormat({ currency: raw.settings.currency, locale: raw.settings.numberLocale })
+  setMoneyFormat({ currency: raw.settings.currency, locale: amountLocaleOf(raw.settings) })
   const booked = presentedWorkbook(raw)
   const cash = withOwnerParts(booked)
   const books = hrDooWorkbook(booked)

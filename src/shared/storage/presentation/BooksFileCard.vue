@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { intlLocale } from '../../text/language'
 import AppCard from '../../ui/AppCard.vue'
 import type { BooksRead, WorkbookStore } from '../application/createWorkbookStore'
 import type { DriveFilePlace } from '../application/workbookPorts'
@@ -21,8 +22,8 @@ const props = defineProps<{
 
 const state = computed(() => props.store.state)
 
-const stamp = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
-const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+const stamp = new Intl.DateTimeFormat(intlLocale, { dateStyle: 'medium', timeStyle: 'short' })
+const day = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', year: 'numeric' })
 
 const meta = computed(() => state.value.snapshot?.meta ?? null)
 const source = computed(() => state.value.choice?.source ?? meta.value?.source ?? null)

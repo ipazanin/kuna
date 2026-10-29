@@ -3,6 +3,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { normaliseIban } from '../../../../shared/text/fold'
+import { intlLocale } from '../../../../shared/text/language'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { SETTING_RECORDS } from '../../workbook/domain/coreKinds'
@@ -37,7 +38,7 @@ export interface Settings {
   readonly companyName: string
   /** An ISO 4217 code with at most two decimals, such as `EUR`. */
   readonly currency: string
-  /** A BCP 47 tag, such as `en-GB`, for grouping and the decimal mark. */
+  /** A BCP 47 tag, such as `en-GB`, for grouping and the decimal mark. Blank follows the language on screen. */
   readonly numberLocale: string
   /** What each bucket is called on screen. The identifiers themselves never change. */
   readonly bucketLabels: Readonly<Record<DefinedBucket, string>>
@@ -135,7 +136,7 @@ export const DEFAULT_SETTINGS: Settings = {
   templateVersion: TEMPLATE_VERSION,
   companyName: '',
   currency: 'EUR',
-  numberLocale: 'en-GB',
+  numberLocale: '',
   bucketLabels: DEFAULT_BUCKET_LABELS,
   ownerPayModule: false,
   reviewLabel: 'human',
@@ -392,7 +393,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'number_locale',
-    note: 'How amounts are written: en-GB gives 1,234.56 and de-DE gives 1.234,56. Dates and text stay in English.',
+    note: 'How amounts are written: en-GB gives 1,234.56 and de-DE gives 1.234,56. Blank follows the language of the app, and dates always do.',
     type: 'text',
     valueOf: (settings) => settings.numberLocale,
     apply: (settings, value) => {
@@ -760,7 +761,13 @@ export function currencyProblem(currency: string): string | null {
   return null
 }
 
+/** The locale amounts are written in: the setting's, or the language's while it is blank. */
+export function amountLocaleOf(settings: Pick<Settings, 'numberLocale'>): string {
+  return settings.numberLocale || intlLocale
+}
+
 function localeProblem(locale: string): string | null {
+  if (locale === '') return null
   try {
     return Intl.NumberFormat.supportedLocalesOf([locale]).length > 0 ? null : `"${locale}" is not a locale this browser knows`
   } catch {

@@ -7,12 +7,12 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { folderPathOf } from '../../../../../shared/text/folderPath'
 import { mailAddressesOf, missingTerms, missingWords } from '../../../mail/domain/mailSource'
 import type { MailTermPiece } from '../../../mail/domain/mailSource'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
 import type { CitReturn, CompanyFacts, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
-import { dayLabel } from '../ruleset/presentation/ruleWording'
 
 /**
  * The company and owner facts of Settings, General, edited in the settings form's draft and saved

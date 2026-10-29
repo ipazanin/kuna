@@ -33,7 +33,7 @@ export const loansApp: AppContribution = {
   menu: () => [OVERVIEW],
   menuCount: () => null,
   subtitle: () => null,
-  // Until Loans has settings of its own, it shows euros in the en-GB format.
+  // Until Loans has settings of its own, it shows euros in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: LOANS_START_ROUTE,

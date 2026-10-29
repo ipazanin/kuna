@@ -4,6 +4,7 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
@@ -34,8 +35,6 @@ const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).m
 function bucketOf(category: string): Bucket {
   return bucketBySlug.value.get(category) ?? UNCLASSIFIED
 }
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 const lists = computed(() => [
   {
@@ -105,7 +104,7 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
             <MoneyText :cents="change.transaction.amount" tone="flow" class="shrink-0 text-sm" />
           </span>
           <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
-            <span class="figure">{{ dayFormat.format(new Date(change.transaction.date)) }}</span>
+            <span class="figure">{{ dayLabel(change.transaction.date) }}</span>
             <span class="verdict-pair">
               <span>{{ list.fromLabel }}</span>
               <CategoryChip :category="change.from" :bucket="bucketOf(change.from)" />

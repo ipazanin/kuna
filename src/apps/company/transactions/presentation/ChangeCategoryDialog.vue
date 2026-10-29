@@ -5,6 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { fileRows } from '../../review/application/fileRows'
@@ -52,7 +53,6 @@ const against = computed(() => {
 })
 
 const settledBy = computed(() => (isHumanConfirmed(props.row) ? `Confirmed by ${props.row.flaggedBy}` : 'Filed by a rule'))
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 async function change(): Promise<void> {
   const workbook = state.workbook
@@ -75,7 +75,7 @@ async function change(): Promise<void> {
   <UModal
     v-model:open="open"
     title="Change the category"
-    :description="`${row.counterparty || 'No counterparty'}, ${dayFormat.format(new Date(row.date))}`"
+    :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`"
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6' }"
   >

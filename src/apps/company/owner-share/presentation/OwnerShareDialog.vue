@@ -5,6 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { subtractMoney, ZERO } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -53,8 +54,6 @@ const defaultInWords = computed(() =>
   categoryDefault.value === null ? `${names.value.category(props.row.category)} has no default share.` : `The default of ${names.value.category(props.row.category)} is ${categoryDefault.value}%.`,
 )
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
 async function save(): Promise<void> {
   const records = state.records
   const saved = share.value
@@ -71,7 +70,7 @@ async function save(): Promise<void> {
   <UModal
     v-model:open="open"
     title="Owner share"
-    :description="`${row.counterparty || 'No counterparty'}, ${dayFormat.format(new Date(row.date))}`"
+    :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`"
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6', content: 'sm:max-w-md' }"
   >

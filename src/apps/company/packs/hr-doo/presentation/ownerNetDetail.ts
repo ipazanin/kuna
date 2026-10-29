@@ -1,10 +1,10 @@
 import type { RouteLocationRaw } from 'vue-router'
 
+import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { monthLabel } from '../../../../../shared/calendar/monthLabel'
 import { addMoney, negateMoney } from '../../../../../shared/money/money'
 import type { DrillTarget } from '../../../filters/domain/drillTarget'
 import type { OwnerNetWithProfit } from '../domain/ownerNetWithProfit'
-import { dayLabel } from '../ruleset/presentation/ruleWording'
 import { RENT_TAX_LABEL } from './packCharts'
 import { ruleChips, watchedIn } from './tracedFigureView'
 import type { FigureDetail } from './tracedFigureView'

@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { launch } from 'puppeteer-core'
 import { preview } from 'vite'
 
-import { chromePath, firefoxPath } from './support/browsers.mjs'
+import { chromePath, ENGLISH_CHROME_ARG, ENGLISH_FIREFOX_PREFS, firefoxPath } from './support/browsers.mjs'
 import { writeForeignWorkbookFiles } from './support/foreignWorkbookFiles.mjs'
 
 const browserName = process.argv.includes('--firefox') ? 'firefox' : 'chrome'
@@ -27,7 +27,9 @@ writeFileSync(brokenFile, new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x
 const server = await preview({ logLevel: 'silent', preview: { host: '127.0.0.1', port: 0 } })
 const appUrl = server.resolvedUrls.local[0]
 const browser = await launch(
-  browserName === 'firefox' ? { browser: 'firefox', executablePath: firefoxPath(), headless: true } : { executablePath: chromePath(), headless: true },
+  browserName === 'firefox'
+    ? { browser: 'firefox', executablePath: firefoxPath(), headless: true, extraPrefsFirefox: ENGLISH_FIREFOX_PREFS }
+    : { executablePath: chromePath(), headless: true, args: [ENGLISH_CHROME_ARG] },
 )
 
 try {

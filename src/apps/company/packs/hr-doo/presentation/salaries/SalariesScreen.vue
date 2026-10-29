@@ -5,9 +5,8 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { firstDayOf, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
-import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { yearOfMonth } from '../../../../../../shared/calendar/monthKey'
+import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import PageHeader from '../../../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../../../../shared/ui/PageTabs.vue'
@@ -100,8 +99,6 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
   return { query: { ...others, year: paydayMonth.slice(0, 4), month: paydayMonth, ...(slug === null ? {} : { employee: slug }) } }
 }
 
-const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
-const monthName = (paid: MonthKey): string => MONTH.format(new Date(firstDayOf(paid)))
 </script>
 
 <template>
@@ -139,7 +136,7 @@ const monthName = (paid: MonthKey): string => MONTH.format(new Date(firstDayOf(p
                 <UButton
                   v-for="option in monthsOfYear"
                   :key="option"
-                  :label="monthName(option)"
+                  :label="shortMonthName(option)"
                   :aria-label="`Paid in ${monthLabel(option)}`"
                   size="sm"
                   color="neutral"

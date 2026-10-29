@@ -1,6 +1,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { fold } from '../../../../../../shared/text/fold'
 import { ACTS } from '../acts'
 import { versionOn } from '../ruleset'
@@ -100,13 +101,6 @@ const APPLIES_BY_WORDING: Readonly<Record<AppliesBy, string>> = {
 
 export function appliesByWording(appliesBy: AppliesBy): string {
   return APPLIES_BY_WORDING[appliesBy]
-}
-
-const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
-/** "18 Oct 2026". */
-export function dayLabel(date: CivilDate): string {
-  return DAY.format(new Date(`${date}T00:00:00Z`))
 }
 
 /** A version's dates in years where they line up with whole years: "2025", "2025 and 2026", "2027 onward", else "1 Mar 2025 to 31 Dec 2026". */

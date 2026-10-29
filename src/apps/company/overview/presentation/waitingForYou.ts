@@ -2,8 +2,8 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { firstDayOf, monthOf, yearOfMonth } from '../../../../shared/calendar/monthKey'
-import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import { monthOf } from '../../../../shared/calendar/monthKey'
+import { monthInYear } from '../../../../shared/calendar/monthLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
 import { planMonthLink } from '../../invoicing/presentation/invoicingLinks'
@@ -24,17 +24,9 @@ export interface WaitingJob {
   readonly link: { readonly label: string; readonly to: RouteLocationRaw }
 }
 
-const LONG_MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
-const LONG_MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-
 /** The singular wording for one, or the count with the plural wording. */
 export function counted(count: number, one: string, many: string): string {
   return count === 1 ? one : `${count} ${many}`
-}
-
-/** "September" in the year of the newest booking, "September 2025" before it. */
-export function monthName(month: MonthKey, asOf: CivilDate): string {
-  return (yearOfMonth(month) === yearOf(asOf) ? LONG_MONTH : LONG_MONTH_AND_YEAR).format(new Date(firstDayOf(month)))
 }
 
 /**
@@ -82,10 +74,10 @@ function invoiceJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
   const clientName = (slug: string): string => workbook.clients.find((client) => client.slug === slug)?.name || slug
   const text =
     due.length > 1
-      ? `${due.length} invoices the billing plan expects are not made yet, the oldest for ${monthName(oldest.month, asOf)}`
+      ? `${due.length} invoices the billing plan expects are not made yet, the oldest for ${monthInYear(oldest.month, yearOf(asOf))}`
       : oldest.month === thisMonth
         ? `This month's invoice for ${clientName(oldest.client)} is not made yet`
-        : `The ${monthName(oldest.month, asOf)} invoice for ${clientName(oldest.client)} is not made yet`
+        : `The ${monthInYear(oldest.month, yearOf(asOf))} invoice for ${clientName(oldest.client)} is not made yet`
   return {
     key: 'invoice',
     text,

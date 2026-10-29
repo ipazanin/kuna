@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_SETTINGS,
   SETTING_DEFINITIONS,
+  amountLocaleOf,
   changedPackSettings,
   parseSettings,
   readPackSettings,
@@ -42,7 +43,12 @@ function settingProblem(key: string, reason: string) {
 describe('parseSettings', () => {
   it('gives the defaults, which are how the app behaved before settings, for an empty tab', () => {
     expect(parseSettings([])).toEqual({ settings: DEFAULT_SETTINGS, problems: [] })
-    expect(DEFAULT_SETTINGS).toMatchObject({ currency: 'EUR', numberLocale: 'en-GB', ownerPayModule: false })
+    expect(DEFAULT_SETTINGS).toMatchObject({ currency: 'EUR', numberLocale: '', ownerPayModule: false })
+  })
+
+  it('writes amounts in the language while number_locale is blank, and in the locale it names once set', () => {
+    expect(amountLocaleOf(parseSettings(rows(['number_locale', undefined])).settings)).toBe('en-GB')
+    expect(amountLocaleOf(parseSettings(rows(['number_locale', 'de-DE'])).settings)).toBe('de-DE')
   })
 
   it('reads every key, whatever the case of the key and the type of the cell', () => {

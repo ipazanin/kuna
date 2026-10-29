@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { chartTokens } from '../../../../../shared/charts/chartTokens'
 import { negateMoney } from '../../../../../shared/money/money'
 import { formatMoney, formatWholeMoney } from '../../../../../shared/money/moneyFormat'
@@ -66,15 +67,9 @@ function editAdvance(id: RecordId): void {
   editingOpen.value = editing.value !== null
 }
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
-function day(date: CivilDate): string {
-  return dayFormat.format(new Date(date))
-}
-
 /** What a loan that is part of a split payment came out of, such as "Part of €60.00 to Paper & Ink on 2 Oct 2025: printer ink". */
 function partOfPayment(whole: Transaction, note: string): string {
-  const paid = `Part of ${formatMoney(negateMoney(whole.amount))} to ${whole.counterparty || 'a payee'} on ${day(whole.date)}`
+  const paid = `Part of ${formatMoney(negateMoney(whole.amount))} to ${whole.counterparty || 'a payee'} on ${dayLabel(whole.date)}`
   return note === '' ? paid : `${paid}: ${note}`
 }
 
@@ -86,7 +81,7 @@ const owed = computed(() => {
   const period = periodInWords(filters.period, window)
   const inPeriod = owedInPeriod(workbook, filters.period, window, props.asOf)
   const balance = inPeriod.net
-  const on = day(inPeriod.on)
+  const on = dayLabel(inPeriod.on)
   const unaccounted = ownerAdvances(workbook.ownerAdvances, transactions, categories).unaccounted
   const months = loanMonths(transactions, categories, chartedMonths(filters.period, window), window)
   const lentInMonths = months.reduce((sum, month) => sum + month.lent.amount, 0)
@@ -122,7 +117,7 @@ const owed = computed(() => {
     otherFilters: filters.accounts.length > 0 || filterChips(filters, { counterparty: String, bucket: String, category: String }).length > 0,
     unaccounted: unaccounted.length,
     openCount: inPeriod.openLoans,
-    oldestOpen: inPeriod.oldestOpenLoan === null ? null : day(inPeriod.oldestOpenLoan),
+    oldestOpen: inPeriod.oldestOpenLoan === null ? null : dayLabel(inPeriod.oldestOpenLoan),
     timeline: loanTimelineChart(months, colours, tokens),
     timelineLegend: [
       { label: LENT_SERIES, colour: colours.lent },
@@ -136,17 +131,17 @@ const owed = computed(() => {
     advances: [...inPeriod.advanceList].reverse().map(
       (line): AdvanceLine => ({
         id: line.advance.id,
-        paidOn: day(line.advance.date),
+        paidOn: dayLabel(line.advance.date),
         description: line.advance.description,
         category: names.value.category(line.advance.category),
         amount: line.advance.amount,
         to: drillLocation(line.drill),
         remaining: line.remaining,
         open: line.status === 'open',
-        repaidOn: line.repaidOn === null ? null : day(line.repaidOn),
+        repaidOn: line.repaidOn === null ? null : dayLabel(line.repaidOn),
         repayments: line.repayments.map((share, shareIndex) => ({
           key: `${share.repaidOn}-${shareIndex}`,
-          date: day(share.repaidOn),
+          date: dayLabel(share.repaidOn),
           applied: share.applied,
           to: drillLocation(share.drill),
         })),
@@ -155,16 +150,16 @@ const owed = computed(() => {
     loans: [...inPeriod.loanList].reverse().map(
       (loan, index): LoanLine => ({
         key: `${loan.lentOn}-${index}`,
-        lentOn: day(loan.lentOn),
+        lentOn: dayLabel(loan.lentOn),
         part: loan.row.split === undefined ? null : partOfPayment(loan.row.split.whole, loan.row.split.note),
         amount: loan.amount,
         remaining: loan.remaining,
         open: loan.status === 'open',
-        repaidOn: loan.repaidOn === null ? null : day(loan.repaidOn),
+        repaidOn: loan.repaidOn === null ? null : dayLabel(loan.repaidOn),
         to: drillLocation(loan.drill),
         repayments: loan.repayments.map((share, shareIndex) => ({
           key: `${share.repaidOn}-${shareIndex}`,
-          date: day(share.repaidOn),
+          date: dayLabel(share.repaidOn),
           applied: share.applied,
           to: drillLocation(share.drill),
         })),

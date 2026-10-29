@@ -2,9 +2,11 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import { yearOf } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { shortDayLabel } from '../../../../../shared/calendar/dayLabel'
+import { monthInYear } from '../../../../../shared/calendar/monthLabel'
 import { sumMoney } from '../../../../../shared/money/money'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
-import { counted, monthName } from '../../../overview/presentation/waitingForYou'
+import { counted } from '../../../overview/presentation/waitingForYou'
 import type { WaitingJob } from '../../../overview/presentation/waitingForYou'
 import { displayNamesOf } from '../../../workbook/domain/displayName'
 import { bookingOfAdvance, ledgerWindowOf } from '../../../workbook/domain/workbook'
@@ -12,8 +14,6 @@ import type { HrDooWorkbook } from '../domain/hrDooPart'
 import { forecastYear } from '../domain/forecast/forecastYear'
 import { ownerAdvances } from '../domain/ownerAdvances'
 import { payrollCadence } from '../domain/payrollCadence'
-
-const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 /** The Taxes tab of Year, at one of its cards. */
 function taxesTab(card: string): RouteLocationRaw {
@@ -53,10 +53,10 @@ function payrollJob(workbook: HrDooWorkbook, asOf: CivilDate): WaitingJob | null
   const name = displayNamesOf(workbook).category(latest.category)
   const text =
     categories.size > 1
-      ? `${missed.length} months of watched taxes have no payment, the latest ${monthName(latest.month, asOf)}`
+      ? `${missed.length} months of watched taxes have no payment, the latest ${monthInYear(latest.month, yearOf(asOf))}`
       : missed.length === 1
-        ? `${name}: no payment landed in ${monthName(latest.month, asOf)}`
-        : `${name}: no payment landed in ${missed.length} months, the latest ${monthName(latest.month, asOf)}`
+        ? `${name}: no payment landed in ${monthInYear(latest.month, yearOf(asOf))}`
+        : `${name}: no payment landed in ${missed.length} months, the latest ${monthInYear(latest.month, yearOf(asOf))}`
   return { key: 'payroll', text, tone: 'negative', link: { label: 'Year, Taxes', to: taxesTab('payroll-cadence') } }
 }
 
@@ -79,6 +79,6 @@ function corporateTaxJob(workbook: HrDooWorkbook, asOf: CivilDate): WaitingJob |
       ? `${counted(overdue.length, 'A corporate tax payment is', 'corporate tax payments are')} overdue, ${owed(overdue)} still owed`
       : next === undefined
         ? null
-        : `${counted(due.length, 'A corporate tax payment falls', 'corporate tax payments fall')} due by ${DAY.format(new Date(next.obligation.dueOn))}, ${owed(due)}`
+        : `${counted(due.length, 'A corporate tax payment falls', 'corporate tax payments fall')} due by ${shortDayLabel(next.obligation.dueOn)}, ${owed(due)}`
   return text === null ? null : { key: 'corporate-tax', text, tone: overdue.length > 0 ? 'negative' : 'warning', link: { label: 'Year, Taxes', to: taxesTab('corporate-tax') } }
 }

@@ -18,6 +18,7 @@ import DrillChartCard from '../../../filters/presentation/DrillChartCard.vue'
 import DrillChartPlot from '../../../filters/presentation/DrillChartPlot.vue'
 import { filterChips } from '../../../filters/domain/filterChips'
 import { useSettings } from '../../../settings/application/useSettings'
+import { amountLocaleOf } from '../../../settings/domain/settings'
 import type { FilteredLedger } from '../../../transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
 import type { TracedRate } from '../domain/cit/citLiability'
@@ -137,7 +138,7 @@ const taken = computed(() => {
   const rentTaxDrawn = takeMonths.some((month) => month.rentTax.amount !== 0)
   const series = ownerPaySeries(pay, moved, loanSlugs, rentTaxDrawn, tokens, categoryName)
   const ring = ownerTakeRing(take, filters.period, series, categoryName)
-  const percent = new Intl.NumberFormat(settings.value.numberLocale, { style: 'percent', maximumFractionDigits: 0 })
+  const percent = new Intl.NumberFormat(amountLocaleOf(settings.value), { style: 'percent', maximumFractionDigits: 0 })
   const withoutLoans = formatWholeMoney(take.withoutLoans.amount)
   const loanNote = loansArePay ? ' Loans to the owner and their repayments stay out, since a loan is not pay.' : ''
   const rentTaxed = take.rentTax.amount !== 0

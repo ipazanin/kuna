@@ -4,6 +4,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { sumMoney } from '../../../../shared/money/money'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
@@ -27,8 +28,6 @@ const props = defineProps<{
 
 const writes = useRecordWrites(useWorkbook())
 const phone = usePhoneLayout()
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 const rows = computed(() => (props.fill.kind === 'rows' ? props.fill.rows : []))
 const total = computed(() => sumMoney(rows.value.map((row) => row.amount)))
@@ -80,7 +79,7 @@ async function write(): Promise<void> {
               <span class="swatch" :style="{ background: colours.get(row.item) ?? 'var(--chart-deemphasis)' }" aria-hidden="true" />
               <span class="min-w-0">
                 <span class="block truncate text-sm text-highlighted">{{ row.item }}</span>
-                <span class="figure block text-xs text-muted">{{ dayFormat.format(new Date(row.date)) }}</span>
+                <span class="figure block text-xs text-muted">{{ dayLabel(row.date) }}</span>
               </span>
               <MoneyText :cents="row.amount" class="text-sm text-toned" />
               <UInput
@@ -88,7 +87,7 @@ async function write(): Promise<void> {
                 size="sm"
                 class="fill-description"
                 placeholder="Description"
-                :aria-label="`Description of the ${row.item} row of ${dayFormat.format(new Date(row.date))}`"
+                :aria-label="`Description of the ${row.item} row of ${dayLabel(row.date)}`"
                 data-testid="fill-description"
                 @update:model-value="edited = { ...edited, [keyOf(row)]: String($event) }"
               />

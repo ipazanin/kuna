@@ -1,5 +1,7 @@
 import { shallowRef } from 'vue'
 
+import { intlLocale } from '../text/language'
+
 /**
  * Money and share formatting in the workbook's currency and number locale, with the sign in front.
  * Inputs are integer cents. Negative amounts use a true minus sign so columns of figures stay the
@@ -15,7 +17,8 @@ export interface MoneyFormat {
   readonly locale: string
 }
 
-export const DEFAULT_MONEY_FORMAT: MoneyFormat = { currency: 'EUR', locale: 'en-GB' }
+/** Euros in the language's own format, until a file says otherwise. */
+export const DEFAULT_MONEY_FORMAT: MoneyFormat = { currency: 'EUR', locale: intlLocale }
 
 const MINUS = '−'
 
@@ -25,6 +28,7 @@ interface Formatters {
   readonly compact: Intl.NumberFormat
   readonly percent: Intl.NumberFormat
   readonly decimal: Intl.NumberFormat
+  readonly days: Intl.NumberFormat
   readonly unitName: string
 }
 
@@ -48,6 +52,7 @@ function formatters(): Formatters {
       compact: new Intl.NumberFormat(locale, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }),
       percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }),
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+      days: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
       unitName: unitNameOf(currency),
     }
     formattersByKey.set(key, found)
@@ -56,13 +61,13 @@ function formatters(): Formatters {
 }
 
 /**
- * The currency's name for running text such as "every euro earned". English keeps the adjective
- * capitalised and the unit in lower case, as in "US dollar" or "Swiss franc".
+ * The currency's name in the language on screen, for running text such as "every euro earned".
+ * English keeps the adjective capitalised and the unit in lower case, as in "US dollar" or "Swiss franc".
  */
 function unitNameOf(currency: string): string {
   let name = currency
   try {
-    name = new Intl.DisplayNames('en', { type: 'currency' }).of(currency) ?? currency
+    name = new Intl.DisplayNames(intlLocale, { type: 'currency' }).of(currency) ?? currency
   } catch {
     return currency
   }
@@ -99,6 +104,11 @@ export function formatPercent(fraction: number, sign: SignDisplay = 'negative'):
 /** A plain number with one decimal, such as a runway of 7.4 months. */
 export function formatDecimal(value: number): string {
   return withSign(value, formatters().decimal.format(Math.abs(value)), 'negative')
+}
+
+/** A number of days with at most one decimal, such as 12 or 7.5. */
+export function formatDays(days: number): string {
+  return formatters().days.format(days)
 }
 
 /** "euro", "US dollar": what one unit of the currency is called in running text. */

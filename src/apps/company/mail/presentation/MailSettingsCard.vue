@@ -5,6 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import type { Settings, SettingsField } from '../../settings/domain/settings'
 import { mailAddressesOf } from '../domain/mailSource'
@@ -32,11 +33,9 @@ const mail = useMailSync()
 const route = useRoute()
 const revealed = computed(() => route.hash === '#mail' || props.errors.statementsMailFrom !== undefined || props.errors.statementsMailSubject !== undefined)
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
 const summary = computed(() => {
   const { statementsMailFrom, mailSince } = props.saved
-  const since = mailSince === null ? 'the start of last year' : dayFormat.format(new Date(mailSince))
+  const since = mailSince === null ? 'the start of last year' : dayLabel(mailSince)
   return statementsMailFrom.length === 0 ? 'Bank mail is not read.' : `Bank mail from ${statementsMailFrom.join(', ')}, since ${since}.`
 })
 

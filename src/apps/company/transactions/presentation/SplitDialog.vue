@@ -5,6 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UModal from '@nuxt/ui/components/Modal.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { ZERO, addMoney, amountOf, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -135,14 +136,13 @@ async function remove(): Promise<void> {
   if (deleted) open.value = false
 }
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 </script>
 
 <template>
   <UModal
     v-model:open="open"
     :title="split === null ? 'Split the payment' : 'Edit the split'"
-    :description="`${row.counterparty || 'No counterparty'}, ${dayFormat.format(new Date(row.date))}, ${names.account(row.account)}. The ledger keeps the row as the bank booked it, and the parts count in its place.`"
+    :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}, ${names.account(row.account)}. The ledger keeps the row as the bank booked it, and the parts count in its place.`"
     :fullscreen="phone"
     :ui="{ header: 'pe-16 sm:pe-6', content: 'sm:max-w-2xl' }"
   >

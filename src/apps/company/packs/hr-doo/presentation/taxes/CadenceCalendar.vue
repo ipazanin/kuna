@@ -17,7 +17,7 @@ import { computed } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { monthKey } from '../../../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { formatCompactMoney, formatWholeMoney } from '../../../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
@@ -39,9 +39,7 @@ const STATES: Readonly<Record<CadenceState, { readonly label: string; readonly i
   'not-yet-due': { label: 'Not due yet', icon: 'i-lucide-clock' },
 }
 
-const MONTH_NAMES = Array.from({ length: 12 }, (_, index) =>
-  new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, index, 1))),
-)
+const MONTH_NAMES = Array.from({ length: 12 }, (_, index) => shortMonthName(monthKey(2026, index + 1)))
 
 const years = computed(() => [...new Set(props.cells.map((cell) => Number(cell.month.slice(0, 4))))])
 const cellByMonth = computed(() => new Map(props.cells.map((cell) => [cell.month, cell])))

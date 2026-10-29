@@ -2,10 +2,12 @@
 import { computed, onBeforeUnmount, watch, watchEffect } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import UApp from '@nuxt/ui/components/App.vue'
+import { en_gb, hr } from '@nuxt/ui/locale'
 
 import { resumedBy } from '../shared/google/googleRedirect'
 import type { RedirectReturn } from '../shared/google/googleRedirect'
 import { setMoneyFormat } from '../shared/money/moneyFormat'
+import { language } from '../shared/text/language'
 import { startPageSync } from '../shared/sync/presentation/pageSync'
 import { firstRunAt, homeApp, installedApps, ownsPath } from './routing/appRegistry'
 import { screenLoading } from './routing/router'
@@ -65,10 +67,12 @@ void router.isReady().then(() =>
 
 /** Toasts rise from the bottom, clear of the gesture bar in the installed app. */
 const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))]' } }
+
+const uiLocale = language === 'hr' ? hr : en_gb
 </script>
 
 <template>
-  <UApp :toaster="toaster">
+  <UApp :toaster="toaster" :locale="uiLocale">
     <RouterView v-if="bare" />
     <AppShell v-else-if="inFirstRun === null" :navigation="navigation">
       <RouterView v-slot="{ Component }">

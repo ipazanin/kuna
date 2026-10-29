@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { BILLING_STATUS } from './billingView'
@@ -16,12 +17,6 @@ const props = defineProps<{
   /** Shows each row's client, when more than one client has rows. */
   showClient: boolean
 }>()
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
-
-function day(date: string): string {
-  return dayFormat.format(new Date(date))
-}
 
 const expanded = ref<ReadonlySet<MonthKey>>(new Set())
 
@@ -73,7 +68,7 @@ function toggle(month: MonthKey): void {
             <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
             <span class="min-w-0">
               <span class="block truncate text-sm text-toned">{{ row.item }}<span v-if="row.description" class="text-muted">, {{ row.description }}</span></span>
-              <span class="figure block text-xs text-muted">{{ day(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></span>
+              <span class="figure block text-xs text-muted">{{ shortDayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></span>
               <span v-if="row.invoices.length > 0 || row.open > 0" class="mt-1 flex flex-wrap gap-1">
                 <span v-for="share in row.invoices" :key="share.key" class="share">
                   <span class="text-muted">{{ share.number }}</span>
@@ -98,7 +93,7 @@ function toggle(month: MonthKey): void {
               <span class="swatch hollow" aria-hidden="true" />
               <span class="min-w-0">
                 <span class="block truncate text-sm text-toned">Invoice {{ line.number }}</span>
-                <span class="figure block text-xs text-muted">Issued {{ day(line.issued) }}, {{ line.clientName }}</span>
+                <span class="figure block text-xs text-muted">Issued {{ shortDayLabel(line.issued) }}, {{ line.clientName }}</span>
               </span>
               <MoneyText :cents="line.amount" class="text-sm text-highlighted" />
             </li>

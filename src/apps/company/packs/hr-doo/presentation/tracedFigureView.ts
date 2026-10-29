@@ -1,9 +1,10 @@
 import type { RouteLocationRaw } from 'vue-router'
 
+import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import type { DrillTarget } from '../../../filters/domain/drillTarget'
 import { RULES } from '../ruleset/ruleset'
 import type { RuleId } from '../ruleset/ruleset'
-import { dayLabel, ruleLink } from '../ruleset/presentation/ruleWording'
+import { ruleLink } from '../ruleset/presentation/ruleWording'
 import { isWatchedConfidence } from '../ruleset/schema'
 import type { RuleCitation, WatchedConfidence } from '../ruleset/schema'
 import type { TracedFigure } from '../ruleset/tracedFigure'

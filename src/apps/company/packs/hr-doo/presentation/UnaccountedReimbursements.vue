@@ -2,7 +2,7 @@
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { addDays } from '../../../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../../filters/application/filterStore'
@@ -23,12 +23,6 @@ const emit = defineEmits<{
 
 const { drillLocation } = useFilters()
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
-function day(date: CivilDate): string {
-  return dayFormat.format(new Date(date))
-}
-
 /** The cost is dated the day before the payment that reimbursed it, for the amount the payment left unaccounted. */
 function addCost(line: UnaccountedReimbursement): void {
   emit('addCost', { date: addDays(line.payment.date, -1), amount: line.amount, description: line.payment.description })
@@ -41,10 +35,10 @@ function addCost(line: UnaccountedReimbursement): void {
       <div class="min-w-0">
         <p class="truncate text-sm text-highlighted">{{ line.payment.description || line.payment.counterparty || 'Reimbursement' }}</p>
         <p class="truncate text-xs text-muted">
-          Paid {{ day(line.payment.date) }}<template v-if="line.amount !== -line.payment.amount">, <MoneyText :cents="line.amount" /> of <MoneyText :cents="-line.payment.amount" /></template>
+          Paid {{ dayLabel(line.payment.date) }}<template v-if="line.amount !== -line.payment.amount">, <MoneyText :cents="line.amount" /> of <MoneyText :cents="-line.payment.amount" /></template>
         </p>
       </div>
-      <DrillLink :to="drillLocation(line.drill)" :label="`Reimbursement of ${day(line.payment.date)}, open the row`" class="text-end">
+      <DrillLink :to="drillLocation(line.drill)" :label="`Reimbursement of ${dayLabel(line.payment.date)}, open the row`" class="text-end">
         <MoneyText :cents="line.amount" class="text-sm font-medium text-highlighted" />
       </DrillLink>
       <UButton
@@ -55,7 +49,7 @@ function addCost(line: UnaccountedReimbursement): void {
         size="sm"
         class="justify-self-end"
         :disabled="!editable"
-        :aria-label="`Add the cost the reimbursement of ${day(line.payment.date)} repaid`"
+        :aria-label="`Add the cost the reimbursement of ${dayLabel(line.payment.date)} repaid`"
         data-testid="add-unaccounted-cost"
         @click="addCost(line)"
       />

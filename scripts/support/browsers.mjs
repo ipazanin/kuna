@@ -28,6 +28,13 @@ const FIREFOX_CANDIDATES = {
   win32: ['C:\\Program Files\\Mozilla Firefox\\firefox.exe'],
 }
 
+/**
+ * The languages every check's browser asks for, so the app opens in English whatever this machine's
+ * languages are. A check that wants Croatian visits with `?lang=hr`.
+ */
+export const ENGLISH_CHROME_ARG = '--accept-lang=en-GB,en'
+export const ENGLISH_FIREFOX_PREFS = { 'intl.accept_languages': 'en-GB, en' }
+
 /** Chrome, Chromium or Edge, from CHROME_PATH or a well-known location. Exits when none is found. */
 export function chromePath() {
   return process.env.CHROME_PATH ?? found(CHROME_CANDIDATES, 'Set CHROME_PATH to your Chrome, Chromium or Edge executable and re-run.')

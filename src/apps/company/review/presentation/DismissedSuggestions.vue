@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import type { Dismissal } from '../../workbook/domain/dismissals'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
@@ -24,8 +25,6 @@ const KIND_LABELS: Readonly<Record<Dismissal['kind'], string>> = {
   'not-covered': 'No rule settles these',
   exception: 'A rule files these otherwise',
 }
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 const bucketBySlug = computed(() => new Map(props.categories.map((category) => [category.slug, category.bucket])))
 
@@ -61,7 +60,7 @@ function rowsOf(entry: DismissedSuggestion<Transaction>): string {
           <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
             <span>{{ KIND_LABELS[entry.dismissal.kind] }}</span>
             <CategoryChip v-if="entry.dismissal.category" :category="entry.dismissal.category" :bucket="bucketBySlug.get(entry.dismissal.category) ?? UNCLASSIFIED" />
-            <span v-if="entry.dismissal.dismissedOn">dismissed on {{ dayFormat.format(new Date(entry.dismissal.dismissedOn)) }}</span>
+            <span v-if="entry.dismissal.dismissedOn">dismissed on {{ dayLabel(entry.dismissal.dismissedOn) }}</span>
           </p>
         </div>
         <UButton

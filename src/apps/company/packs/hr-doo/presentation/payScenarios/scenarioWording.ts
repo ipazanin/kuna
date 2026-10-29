@@ -1,10 +1,10 @@
+import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { DirectorBasis, ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
 import { civilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
-import { dayLabel } from '../../ruleset/presentation/ruleWording'
 import { ruleValue } from '../../ruleset/ruleset'
 import { itemWords } from './payScenariosView'
 

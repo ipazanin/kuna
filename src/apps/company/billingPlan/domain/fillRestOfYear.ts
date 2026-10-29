@@ -2,7 +2,6 @@ import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { firstDayOf, lastDayOf, monthKey, monthOf, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { BillingTerms } from '../../settings/domain/settings'
 import { billingItemOrder } from '../../workbook/domain/billingPlan'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
@@ -14,8 +13,10 @@ export type RestOfYearFill =
   | { readonly kind: 'rows'; readonly rows: readonly BillingItemDraft[] }
   | { readonly kind: 'refused'; readonly reason: string }
 
+// A description becomes the line of an invoice, so its month stays English whatever the language on screen.
 const LONG_NAME = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
 const SHORT_NAME = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
+const MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 /**
  * The rows "Fill the rest of the year" adds for the billing client: the monthly fee and the
@@ -59,7 +60,7 @@ export function fillRestOfYear(plan: readonly BillingItem[], terms: BillingTerms
 
 function descriptionFor(previous: BillingItem | undefined, month: MonthKey): string {
   if (previous === undefined) {
-    return monthLabel(month)
+    return MONTH_AND_YEAR.format(new Date(firstDayOf(month)))
   }
   const from = namesOf(monthOf(previous.date))
   const to = namesOf(month)

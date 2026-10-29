@@ -58,7 +58,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
-import { chromePath } from './support/browsers.mjs'
+import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
@@ -165,7 +165,7 @@ const IMPORT_SAMPLES = await writeImportSamples(OUTPUT_DIR)
 
 const failures = []
 let checked = 0
-const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars'] })
+const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars', ENGLISH_CHROME_ARG] })
 
 try {
   for (const width of WIDTHS.filter(selection.takesWidth)) {
@@ -1116,6 +1116,26 @@ async function checkWidth(width) {
     await page.goto(`${BASE}?theme=dark&fake=browser#/settings?tab=device`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Settings')
     await waitForText(page, 'button', 'Import a file')
+  })
+
+  await step('settings-language', async () => {
+    const shown = () => page.evaluate(() => ({ lang: document.documentElement.lang, text: document.body.innerText }))
+    const pick = (choice) => Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), page.tap(`[data-testid="language-choice"] [role="radio"][value="${choice}"]`)])
+    try {
+      await open(page, '#/settings?tab=device', 'Settings')
+      await expect(shown(), (screen) => screen.lang === 'en', 'the app did not open in English')
+      await pick('hr')
+      await waitForTitle(page, 'Settings')
+      await expect(shown(), (screen) => screen.lang === 'hr' && /\d{1,2}\. [a-zčćđšž]{3,} \d{4}\./.test(screen.text), 'picking Hrvatski did not load the app again in Croatian, with a Croatian date')
+      await inspect(page, `${width}px settings in Croatian`)
+      await shoot('settings-language-croatian')
+      await pick('browser')
+      await waitForTitle(page, 'Settings')
+      await expect(shown(), (screen) => screen.lang === 'en' && screen.text.includes('Browser language'), 'Browser language did not bring English back')
+    } finally {
+      // A step that stopped half way must not leave the later steps in Croatian.
+      await page.evaluate(() => localStorage.removeItem('kuna.language')).catch(() => {})
+    }
   })
 
   await step('settings-tabs', async () => {

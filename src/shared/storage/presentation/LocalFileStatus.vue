@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { intlLocale } from '../../text/language'
 import type { CopyMeta } from '../application/workbookPorts'
 import { exportReminderDue } from '../domain/exportReminder'
 
@@ -22,7 +23,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{ export: [] }>()
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
+const dayFormat = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short' })
 
 const exportedText = computed(() => {
   const exportedAt = props.meta?.lastExportedAt ?? null

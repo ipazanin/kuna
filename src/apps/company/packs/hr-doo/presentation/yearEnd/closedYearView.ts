@@ -1,11 +1,11 @@
 import type { RouteLocationRaw } from 'vue-router'
 
+import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import type { DonutPart } from '../../../../../../shared/ui/DonutCard.vue'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { YearEndFigure } from '../../domain/yearEnd/yearEnd'
-import { dayLabel } from '../../ruleset/presentation/ruleWording'
 import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { AccrualAdjustment } from '../../domain/accrual/accrualAdjustment'

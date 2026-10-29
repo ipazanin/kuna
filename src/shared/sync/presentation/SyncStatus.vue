@@ -7,6 +7,7 @@ import USlideover from '@nuxt/ui/components/Slideover.vue'
 
 import { syncAge } from '../../calendar/syncAge'
 import { usePhoneLayout } from '../../layout/viewport'
+import { intlLocale } from '../../text/language'
 import { listInWords } from '../../text/listInWords'
 import { SCOPE_WORDS } from '../application/syncRun'
 import type { SyncControl, SyncRun } from '../application/syncRun'
@@ -51,9 +52,9 @@ watch(
 )
 const root = useTemplateRef<HTMLElement>('root')
 
-const timeOnly = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' })
-const dayAndTime = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-const fullStamp = new Intl.DateTimeFormat('en-GB', { dateStyle: 'full', timeStyle: 'short' })
+const timeOnly = new Intl.DateTimeFormat(intlLocale, { hour: '2-digit', minute: '2-digit' })
+const dayAndTime = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const fullStamp = new Intl.DateTimeFormat(intlLocale, { dateStyle: 'full', timeStyle: 'short' })
 
 /** The clock the "5 min ago" wording reads, moved on every minute. */
 const now = ref(new Date())

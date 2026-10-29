@@ -2,11 +2,12 @@
 import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
-import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { monthLabel, shortMonthName } from '../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { useFilters } from '../../filters/application/filterStore'
 import { useSettings } from '../../settings/application/useSettings'
@@ -29,15 +30,11 @@ const names = useDisplayNames()
 /** Costs read positive, so a fall in one of them is the good direction. */
 const COST_LINES: readonly ProfitAndLossLine[] = ['operating', 'taxes', 'ownerPay', 'cost']
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
-const MONTH_ONLY = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
-
 /** "Jan – Sept 2026" within a year, "Jun 2025 – Feb 2026" across one. */
 function monthSpan(months: { readonly from: MonthKey; readonly to: MonthKey }): string {
   if (months.from === months.to) return monthLabel(months.from)
   const sameYear = months.from.slice(0, 4) === months.to.slice(0, 4)
-  return `${sameYear ? MONTH_ONLY.format(new Date(`${months.from}-01`)) : monthLabel(months.from)} – ${monthLabel(months.to)}`
+  return `${sameYear ? shortMonthName(months.from) : monthLabel(months.from)} – ${monthLabel(months.to)}`
 }
 
 /** One sentence on what is compared, when the ledger leaves out part of either period. Null when both are whole. */
@@ -61,7 +58,7 @@ function periodLabel(period: ReviewPeriod): string {
     case 'quarter':
       return `Q${period.quarter} ${period.year}`
     case 'custom':
-      return `${dayFormat.format(new Date(period.range.from))} to ${dayFormat.format(new Date(period.range.to))}`
+      return `${dayLabel(period.range.from)} to ${dayLabel(period.range.to)}`
   }
 }
 

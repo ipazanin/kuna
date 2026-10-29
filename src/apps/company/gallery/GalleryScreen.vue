@@ -9,6 +9,7 @@ import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
 import { chartTokens } from '../../../shared/charts/chartTokens'
+import { intlLocale } from '../../../shared/text/language'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../shared/ui/ChartCard.vue'
 import type { ChartPointSelection } from '../../../shared/ui/ChartCard.vue'
@@ -159,7 +160,7 @@ const GALLERY_TABS = [
   { value: 'third', label: 'History' },
 ]
 
-const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
+const dateFormat = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short' })
 
 function sortableHeader(label: string, alignEnd = false) {
   return ({ column }: { column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (descending?: boolean) => void } }) => {

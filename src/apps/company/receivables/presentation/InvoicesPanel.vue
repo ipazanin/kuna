@@ -7,11 +7,12 @@ import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { rangeContains } from '../../../../shared/calendar/dateRange'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { ZERO, addMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { formatWholeMoney } from '../../../../shared/money/moneyFormat'
+import { formatDays, formatWholeMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
@@ -87,12 +88,6 @@ const invoiceDialog = computed(() => {
 const ALL_CLIENTS = 'all'
 const PRESETS = ['l3', 'l12', 'year', 'all'] as const
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-const decimal = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 })
-
-function day(date: CivilDate): string {
-  return dayFormat.format(new Date(date))
-}
 
 const period = computed({
   get: () => filters.value.period,
@@ -146,7 +141,7 @@ const view = computed(() => {
 
   const paymentLine = (prefix: string) => (allocation: { payment: PaymentRow; amount: Money }, index: number): InvoicePaymentLine => ({
     key: `${prefix}-${listedRowKey(allocation.payment.transaction)}-${index}`,
-    date: day(allocation.payment.transaction.date),
+    date: dayLabel(allocation.payment.transaction.date),
     amount: allocation.amount,
     to: drillLocation(allocation.payment.drill),
   })
@@ -162,7 +157,7 @@ const view = computed(() => {
         !open || days < 0
           ? due === null
             ? 'no due date'
-            : `due ${day(due)}`
+            : `due ${dayLabel(due)}`
           : due === null
             ? `${days} ${days === 1 ? 'day' : 'days'} since issue`
             : days === 0
@@ -173,13 +168,13 @@ const view = computed(() => {
         number: invoice.invoice.number,
         client: clientName(entry),
         item: invoice.invoice.item,
-        issued: day(invoice.invoice.issued),
+        issued: dayLabel(invoice.invoice.issued),
         timing,
         late: open && due !== null && days > 0,
         amount: invoice.invoice.amount,
         remaining: invoice.remaining,
         status: invoice.status,
-        received: invoice.received === null ? null : day(invoice.received),
+        received: invoice.received === null ? null : dayLabel(invoice.received),
         payments: invoice.allocations.map(paymentLine('paid')),
         overpayments: invoice.overpayments.map(paymentLine('over')),
       }
@@ -204,7 +199,7 @@ const view = computed(() => {
 
   return {
     hasInvoices: workbook.invoices.length > 0,
-    asOf: day(asOf),
+    asOf: dayLabel(asOf),
     periodText: periodInWords(period.value, window),
     window,
     clientItems: [{ label: 'All clients', value: ALL_CLIENTS }, ...receivables.clients.map((entry) => ({ label: clientName(entry), value: entry.client.slug }))],
@@ -216,14 +211,14 @@ const view = computed(() => {
     ageingHeight: Math.max(140, ageingClients.length * 48 + 56),
     daysRows,
     daysSummary:
-      paid.median === null ? 'No invoice paid in the period' : `Median ${decimal.format(paid.median)} days, mean ${decimal.format(paid.mean ?? 0)} over ${paid.days.length} paid`,
+      paid.median === null ? 'No invoice paid in the period' : `Median ${formatDays(paid.median)} days, mean ${formatDays(paid.mean ?? 0)} over ${paid.days.length} paid`,
     invoices: listed,
     invoicesSummary: `${listed.length} ${listed.length === 1 ? 'invoice' : 'invoices'}, ${formatWholeMoney(outstanding)} outstanding`,
     sums,
     unattributedSummary: `${formatWholeMoney(unattributedTotal)} from ${payers} ${payers === 1 ? 'payer' : 'payers'}`,
     unattributed: unattributed.map((credit) => ({
       key: listedRowKey(credit.transaction),
-      date: day(credit.transaction.date),
+      date: dayLabel(credit.transaction.date),
       counterparty: credit.transaction.counterparty || 'No counterparty',
       amount: credit.transaction.amount,
       to: drillLocation(credit.drill),

@@ -5,6 +5,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { LedgerWindow } from '../../../../../../shared/calendar/ledgerWindow'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
@@ -23,10 +24,10 @@ import type { Period } from '../../../../filters/domain/filterState'
 import { periodInWords } from '../../../../filters/domain/periodInWords'
 import DrillChartCard from '../../../../filters/presentation/DrillChartCard.vue'
 import { useSettings } from '../../../../settings/application/useSettings'
+import { amountLocaleOf } from '../../../../settings/domain/settings'
 import { useDisplayNames } from '../../../../workbook/application/useDisplayNames'
 import { bookingOfAdvance } from '../../../../workbook/domain/workbook'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
-import { dayLabel } from '../../ruleset/presentation/ruleWording'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { effectiveTaxRate } from '../../domain/effectiveTaxRate'
 import { forecastYear } from '../../domain/forecast/forecastYear'
@@ -73,7 +74,7 @@ const taxes = computed(() => {
   )
   const tokenOf = new Map(series.flatMap((entry) => entry.categories.map((category) => [category, entry.token])))
   const unit = settings.value.bucketLabels.taxes
-  const percent = new Intl.NumberFormat(settings.value.numberLocale, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const percent = new Intl.NumberFormat(amountLocaleOf(settings.value), { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
   const words = periodInWords(period, window)
   const parts = byType.types
     .filter((type) => type.total.amount > 0)

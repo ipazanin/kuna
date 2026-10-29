@@ -4,6 +4,8 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { intlLocale } from '../../../../shared/text/language'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
@@ -30,8 +32,7 @@ const emit = defineEmits<{
 
 const SHOWN_ROWS = 3
 
-const timeFormat = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+const timeFormat = new Intl.DateTimeFormat(intlLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 const bucketBySlug = computed(() => new Map(props.categories.map((category) => [category.slug, category.bucket])))
 
@@ -132,7 +133,7 @@ function flaggedByInWords(flaggedBy: string): string {
             <li v-for="verdict in verdictsOf(write.receipt)!.slice(0, SHOWN_ROWS)" :key="verdict.after.id" class="flex flex-col gap-1">
               <span class="flex min-w-0 items-baseline justify-between gap-3 text-xs">
                 <span class="min-w-0 truncate text-toned">{{ verdict.after.counterparty || 'No counterparty' }}</span>
-                <span class="figure shrink-0 text-muted">{{ dayFormat.format(new Date(verdict.after.date)) }}, <MoneyText :cents="verdict.after.amount" tone="flow" /></span>
+                <span class="figure shrink-0 text-muted">{{ dayLabel(verdict.after.date) }}, <MoneyText :cents="verdict.after.amount" tone="flow" /></span>
               </span>
               <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
                 <span class="verdict">

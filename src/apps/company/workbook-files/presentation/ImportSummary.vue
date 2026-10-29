@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { ImportPreview } from '../../workbook/presentation/workbookFiles'
 import ProblemList from './ProblemList.vue'
 
@@ -13,8 +14,6 @@ const props = defineProps<{
   failure: string | null
   failureDetail: string
 }>()
-
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 /** "settings, rules or clients". */
 function inWords(tabs: readonly string[]): string {
@@ -27,7 +26,7 @@ const facts = computed(() => {
   const range = summary.dateRange
   return [
     { label: 'Transactions', value: String(summary.transactionCount) },
-    { label: 'Dates', value: range === null ? 'None yet' : `${dayFormat.format(new Date(range.from))} to ${dayFormat.format(new Date(range.to))}` },
+    { label: 'Dates', value: range === null ? 'None yet' : `${dayLabel(range.from)} to ${dayLabel(range.to)}` },
     { label: summary.accounts.length === 1 ? 'Account' : 'Accounts', value: summary.accounts.length === 0 ? 'None yet' : summary.accounts.join(', ') },
     { label: 'Categories', value: String(summary.categoryCount) },
   ]

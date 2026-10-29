@@ -1,4 +1,6 @@
-const DAY_AND_MONTH = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
+import { intlLocale } from '../text/language'
+
+const DAY_AND_MONTH = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short' })
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE

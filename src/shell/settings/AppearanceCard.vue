@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
+import { chooseLanguage, languageChoice } from '../../shared/text/language'
+import type { LanguageChoice } from '../../shared/text/language'
 import { chooseTheme, themeChoice } from '../../shared/theme/theme'
 import type { ThemeChoice } from '../../shared/theme/theme'
 import AppCard from '../../shared/ui/AppCard.vue'
+import { words } from './words'
 
 const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
 
@@ -11,6 +14,13 @@ const THEME_CHOICES: { label: string; value: ThemeChoice }[] = [
   { label: 'System', value: 'system' },
   { label: 'Light', value: 'light' },
   { label: 'Dark', value: 'dark' },
+]
+
+// Each language is named in itself, so it reads the same whichever language is on screen.
+const LANGUAGE_CHOICES: { label: string; value: LanguageChoice }[] = [
+  { label: words.language.browser, value: 'browser' },
+  { label: 'English', value: 'en' },
+  { label: 'Hrvatski', value: 'hr' },
 ]
 </script>
 
@@ -28,6 +38,15 @@ const THEME_CHOICES: { label: string; value: ThemeChoice }[] = [
         @update:model-value="chooseTheme($event as ThemeChoice)"
       />
       <p class="text-xs text-muted">System follows this device's setting as it changes. Light or Dark is remembered on this device.</p>
+      <URadioGroup
+        :model-value="languageChoice"
+        :items="LANGUAGE_CHOICES"
+        :legend="words.language.legend"
+        variant="table"
+        data-testid="language-choice"
+        @update:model-value="chooseLanguage($event as LanguageChoice)"
+      />
+      <p class="text-xs text-muted">{{ words.language.note }}</p>
       <p class="text-sm text-muted">
         There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices.
         <a :href="privacyPage" class="settings-link inline-target">Read the privacy notes</a>

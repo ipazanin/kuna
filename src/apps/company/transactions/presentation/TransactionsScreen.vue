@@ -10,6 +10,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { downloadFile } from '../../../../shared/files/downloadFile'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { sumMoney } from '../../../../shared/money/money'
@@ -185,8 +186,6 @@ function setOwnerShare(row: ListedRow): void {
   shareOpen.value = true
 }
 
-const dayFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
 function sortableHeader(label: string, alignEnd = false) {
   return ({ column }: { column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (descending?: boolean) => void } }) => {
     const sorted = column.getIsSorted()
@@ -298,9 +297,9 @@ const columns: TableColumn<TableEntry>[] = [
         })
       }
       if (entry.kind !== 'row') {
-        return h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.whole.date)))
+        return h('span', { class: 'figure whitespace-nowrap text-muted' }, dayLabel(entry.whole.date))
       }
-      return isPart(entry) ? '' : h('span', { class: 'figure whitespace-nowrap text-muted' }, dayFormat.format(new Date(entry.row.date)))
+      return isPart(entry) ? '' : h('span', { class: 'figure whitespace-nowrap text-muted' }, dayLabel(entry.row.date))
     },
   },
   {

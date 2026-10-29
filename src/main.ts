@@ -8,9 +8,11 @@ import { askSilentlyOnOpen, takeGoogleRedirect } from './shared/google/googleAut
 import { startServiceWorker } from './shell/pwa/appUpdate'
 import { installApp, installedApps } from './shell/routing/appRegistry'
 import { createAppRouter } from './shell/routing/router'
+import { applyLanguage } from './shared/text/language'
 import { applyInitialTheme } from './shared/theme/theme'
 
 applyInitialTheme()
+applyLanguage()
 
 async function start(): Promise<void> {
   // Each app loads apart from the entry chunk, and is installed before the router lists its screens.

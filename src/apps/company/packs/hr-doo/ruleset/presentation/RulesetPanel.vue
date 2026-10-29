@@ -6,12 +6,14 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
 
 import { today } from '../../../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { useStickyBandPart } from '../../../../../../shared/layout/stickyBand'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { fold } from '../../../../../../shared/text/fold'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import InfoPopover from '../../../../../../shared/ui/InfoPopover.vue'
 import { useSettings } from '../../../../settings/application/useSettings'
+import { amountLocaleOf } from '../../../../settings/domain/settings'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { hrDooWorkbook } from '../../domain/hrDooPart'
 import { findLocalUnit } from '../localUnits'
@@ -21,7 +23,7 @@ import type { GeneralRule, RuleArea } from '../schema'
 import ConfidenceBadge from './ConfidenceBadge.vue'
 import RuleDetail from './RuleDetail.vue'
 import WatchList from './WatchList.vue'
-import { AREA_WORDING, CONFIDENCE_ORDER, CONFIDENCE_WORDING, dayLabel, openItemView, ruleLink, ruleView, termFormat, watchedVersionView } from './ruleWording'
+import { AREA_WORDING, CONFIDENCE_ORDER, CONFIDENCE_WORDING, openItemView, ruleLink, ruleView, termFormat, watchedVersionView } from './ruleWording'
 import type { TableFocus } from './ruleWording'
 
 type AreaChoice = RuleArea | 'all'
@@ -37,7 +39,7 @@ const areas: readonly RuleArea[] = [...new Set(generalRules.map((rule) => rule.a
 const checkedOn = dayLabel(RULESET_CHECKED_ON)
 
 const rules = computed(() => {
-  const format = termFormat(settings.value.numberLocale)
+  const format = termFormat(amountLocaleOf(settings.value))
   const day = today()
   return generalRules.map((rule) => ruleView(rule, format, day))
 })

@@ -11,7 +11,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { installedPack } from '../../packs/packContribution'
 import { setSettings } from '../../settings/application/settingWrites'
 import { currencyProblem, flagText } from '../../settings/domain/settings'
-import { CURRENCY_ITEMS, numberStyleItems } from '../../settings/presentation/moneyChoices'
+import { CURRENCY_ITEMS, FOLLOW_LANGUAGE, numberStyleItems } from '../../settings/presentation/moneyChoices'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import StepCard from './StepCard.vue'
@@ -32,7 +32,7 @@ const held = computed(() => store.state.records?.settings ?? NO_RECORDS)
 
 const name = ref(settings.value?.companyName ?? '')
 const currency = ref(settings.value?.currency ?? 'EUR')
-const numberLocale = ref(settings.value?.numberLocale ?? 'en-GB')
+const numberLocale = ref(settings.value?.numberLocale || FOLLOW_LANGUAGE)
 const packOn = ref(settings.value?.ownerPayModule ? 'yes' : 'no')
 
 const numberStyles = computed(() => numberStyleItems(numberLocale.value))
@@ -49,7 +49,7 @@ async function proceed(): Promise<void> {
   const entries = [
     { key: 'company_name', value: name.value.trim() },
     { key: 'currency', value: currency.value },
-    { key: 'number_locale', value: numberLocale.value },
+    { key: 'number_locale', value: numberLocale.value === FOLLOW_LANGUAGE ? '' : numberLocale.value },
     ...(pack === null ? [] : [{ key: 'owner_pay_module', value: flagText(packOn.value === 'yes') }]),
   ]
   try {
