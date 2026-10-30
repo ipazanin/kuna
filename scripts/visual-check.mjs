@@ -20,7 +20,7 @@
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
  * a file a newer app saved (`?fake=newer-file`), the Loans Settings, the Loans Overview with one loan
- * (`?loans=one-loan`), with a house loan and a car loan (`?loans=house-and-car`) and while its file opens (`?loans=opening`), the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`), Salaries for one
+ * (`?loans=one-loan`), with a house loan and a car loan (`?loans=house-and-car`) and while its file opens (`?loans=opening`), Scenarios on Home loan, on Offers and on a car loan with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`), Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
  *
@@ -131,8 +131,11 @@ import {
   loansEditorFlow,
   loansOpenFlow,
   loansStartOnDriveFlow,
+  loansScenarioEditorFlow,
+  loansScenariosFlow,
   loansWhatIfFlow,
   loansWhatIfFlowIn,
+  loansWhatIfScenarioFlow,
   mailAccessFlow,
   mailFailedFlow,
   mailNothingNewFlow,
@@ -214,6 +217,8 @@ const CARD_SELECTOR = '.rounded-card'
 /** The ids of the sample Loans file's two loans, `?loans=sample`. */
 const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
 const SAMPLE_INFORMAL_LOAN = 'fa4e0000-0000-4000-8000-000000000006'
+/** The car loan of `?loans=house-and-car`, which has no scenarios. */
+const SAMPLE_CAR_LOAN = 'fa4e0000-0000-4000-8000-000000000030'
 
 const SCREENS = [
   { name: 'overview', hash: '#/company', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
@@ -686,6 +691,42 @@ const SOURCE_SCREENS = [
     title: 'From Marko',
     charts: 1,
     shows: ['Dugujete: Marko', 'Posuđeno nakon toga', 'Posuđeno u naravi', 'Vraćeno u naravi', 'Oprošteno', 'Promjene'],
+  },
+  {
+    name: 'loans-scenarios',
+    query: 'loans=sample',
+    hash: '#/loans/scenarios',
+    title: 'Scenarios',
+    charts: 2,
+    shows: ['As it stands', '€150 every month', 'Owed over time', 'Interest from today', 'Against the base', 'Side by side', 'You pay in all', 'Your scenarios for Home loan'],
+    cards: false,
+  },
+  {
+    name: 'loans-scenarios-offers',
+    query: 'loans=sample',
+    hash: '#/loans/scenarios?tab=offers',
+    title: 'Scenarios',
+    charts: 2,
+    shows: ['Jadran Bank offer', 'Coastal Bank offer', 'Interest over the loan', "Kuna's EKS estimate", 'EKS the bank printed', 'Your offers'],
+    cards: false,
+  },
+  {
+    name: 'loans-scenarios-empty',
+    query: 'loans=house-and-car',
+    hash: `#/loans/scenarios?tab=${SAMPLE_CAR_LOAN}`,
+    title: 'Scenarios',
+    charts: 0,
+    shows: ['Only the loan as it stands', 'Try €5,000.00 extra next month'],
+    cards: false,
+  },
+  {
+    name: 'loans-scenarios-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: '#/loans/scenarios',
+    title: 'Scenariji',
+    charts: 2,
+    shows: ['Kako je sada', 'Dug kroz vrijeme', 'U odnosu na polazni', 'Usporedno', 'Ukupno plaćate', 'Vaši scenariji za „Home loan”'],
+    cards: false,
   },
   {
     name: 'loans-settings',
@@ -1186,6 +1227,25 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: '&loans=sample&lang=hr' },
   },
+  {
+    name: 'loans-scenarios-flow',
+    hash: '#/loans/scenarios',
+    title: 'Scenarios',
+    run: loansScenariosFlow,
+    viewports: ['phone', 'phone-large', 'desktop'],
+    modes: ['drive'],
+    queries: { drive: '&loans=sample' },
+  },
+  {
+    name: 'loans-scenario-editor',
+    hash: '#/loans/scenarios',
+    title: 'Scenarios',
+    run: loansScenarioEditorFlow,
+    viewports: ['phone', 'phone-large', 'desktop'],
+    modes: ['drive'],
+    queries: { drive: '&loans=sample' },
+  },
+  { name: 'loans-what-if-scenario', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfScenarioFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'dialogs-loans-croatian', hash: '#/loans', title: 'Pregled', run: loansDialogsFlowIn('hr'), viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
   { name: 'dialogs-company', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: companyDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'] },

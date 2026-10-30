@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -8,7 +8,11 @@ import { subsidyLastCovered } from '../domain/loanFigures'
 import { fractionOf } from '../domain/yearlyRate'
 import { balanceChart } from '../../balances/presentation/balanceChart'
 import { words as balanceWords } from '../../balances/presentation/words'
-import { bankLoanNamed, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
+import { bankLoanNamed, LOANS_OVERVIEW_ROUTE, scenariosLink } from '../../overview/presentation/loanLinks'
+import type { LoanScenario } from '../../scenarios/domain/loanScenario'
+import ScenarioEditor from '../../scenarios/presentation/ScenarioEditor.vue'
+import type { ScenarioDraft } from '../../scenarios/presentation/ScenarioEditor.vue'
+import { scenarioKey } from '../../scenarios/presentation/scenariosView'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import BalanceHero from './BalanceHero.vue'
 import BankLoanDialog from './BankLoanDialog.vue'
@@ -44,6 +48,7 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 /** One bank loan: what is owed and paid back, its balance over time, where its payments go, what an extra payment would do, its plan, and what changes it. */
 const { state } = useLoansBooks()
 const route = useRoute()
+const router = useRouter()
 const day = today()
 
 const book = computed(() => (state.workbook === null ? null : bankLoanNamed(state.workbook, route.query.loan)))
@@ -126,6 +131,19 @@ function changeExtra(key: string): void {
   if (payment !== undefined) openExtra({ date: payment.date, amount: payment.amount, effect: payment.effect, editing: payment })
 }
 
+const scenarioOpen = ref(false)
+const scenarioDraft = ref<ScenarioDraft | null>(null)
+
+function keepAsScenario(draft: ScenarioDraft): void {
+  scenarioDraft.value = draft
+  scenarioOpen.value = true
+}
+
+/** A scenario kept from the what-if opens on Scenarios, picked. */
+async function scenarioSaved(scenario: LoanScenario): Promise<void> {
+  if (book.value !== null) await router.push(scenariosLink(book.value.loan, scenarioKey(scenario)))
+}
+
 function openLate(key: string | null): void {
   editingLate.value = book.value?.lateInstalments.find((late) => late.id === key) ?? null
   lateOpen.value = true
@@ -170,7 +188,7 @@ function openLate(key: string | null): void {
           </ChartCard>
           <PaymentsCard v-if="book.plan !== null" :plan="book.plan" :current-year="yearOf(day)" :estimate-from-year="estimateFrom === null ? null : yearOf(estimateFrom)" :payer="payer" />
         </DashboardGrid>
-        <WhatIfPanel :book="book" :default-date="figures.next?.date ?? day" @apply="openExtra" />
+        <WhatIfPanel :book="book" :default-date="figures.next?.date ?? day" @apply="openExtra" @keep="keepAsScenario" />
         <PlanCard :years="years" :open-year="openYear" :has-subsidy="book.loan.subsidy !== null" />
       </template>
       <DashboardGrid layout="pair">
@@ -227,6 +245,7 @@ function openLate(key: string | null): void {
       <SubsidyDialog v-model:open="subsidyOpen" :book="book" />
       <ExtraPaymentDialog v-model:open="extraOpen" :book="book" :start="extraStart" />
       <LateInstalmentDialog v-model:open="lateOpen" :book="book" :editing="editingLate" :today="day" />
+      <ScenarioEditor v-model:open="scenarioOpen" :draft="scenarioDraft" :mark="null" @saved="scenarioSaved" />
     </template>
     <ScreenSkeleton v-else-if="state.workbook === null && state.status !== 'error'" />
     <template v-else-if="state.workbook !== null">

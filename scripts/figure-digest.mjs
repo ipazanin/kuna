@@ -98,6 +98,9 @@ import { whatIfExtraPayment } from '../src/apps/loans/bankLoans/domain/whatIf.ts
 import { offerEks } from '../src/apps/loans/scenarios/domain/effectiveRate.ts'
 import { moveBreakEven, scenarioOutcome } from '../src/apps/loans/scenarios/domain/scenarioOutcome.ts'
 import { scenarioBaseOf, scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan.ts'
+import { againstBase, scenarioCards, scenarioKey, scenarioRows, scenarioTabs, slotted, tabComparison, workedScenarios } from '../src/apps/loans/scenarios/presentation/scenariosView.ts'
+import { askedSlots, pickedOf, slotCount } from '../src/apps/loans/scenarios/presentation/useScenarioCompare.ts'
+import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate.ts'
 import { bankLoanFigures, bankLoanMonths, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
 import { informalLoanFigures, informalLoanMonths, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
@@ -287,7 +290,8 @@ if (loansAsked) {
  * by its name, the plan or the balances and the figures each screen shows on the day. The what-if
  * tries 1,000.00 extra on the day. The totals are the Overview's figures over every loan. Each scenario
  * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
- * offer's effective rate.
+ * offer's effective rate. The Scenarios screen's tabs each compare their first scenarios against A
+ * with savings earning 3%: the side by side, the cards, the bars and the list.
  */
 function loansGroups(add) {
   const document = options.loans === undefined ? fakeLoansDocument(AT, options['fake-loans']) : decodeDocument(readFileSync(options.loans, 'utf8'))
@@ -319,6 +323,23 @@ function loansGroups(add) {
       return [scenarioOutcome(plan, from), 'refused' in withoutMove ? withoutMove : moveBreakEven(plan, withoutMove), scenario.start.kind === 'offer' ? offerEks(base, changes) : null]
     })
   }
+  add('loans.scenarios', () =>
+    scenarioTabs(workbook, today).map((tab) => {
+      const offers = tab.kind === 'offers'
+      const worked = workedScenarios(tab, today)
+      const picked = pickedOf(
+        askedSlots(
+          null,
+          tab.scenarios.map((book) => scenarioKey(book.scenario)),
+          slotCount(offers),
+        ),
+        offers,
+      )
+      const compared = slotted(worked, picked)
+      const base = picked[0]?.key ?? ''
+      return [tab.value, tabComparison(tab, compared, base, rateOfText('3')), scenarioCards(tab, compared, base, today), againstBase(compared, base), scenarioRows(worked, compared, base)]
+    }),
+  )
   for (const [index, book] of workbook.informalLoans.entries()) {
     const at = `loans.informal-loan-${index + 1}`
     add(`${at}.balances`, () => informalBalances(book.loan, book.movements))

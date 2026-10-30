@@ -5,7 +5,8 @@ import type { Money } from '../../../../shared/money/money'
 export type YearlyRate = number & { readonly __unit: 'millionths' }
 
 const MILLIONTHS_PER_WHOLE = 1_000_000
-const MILLIONTHS_PER_PERCENT = 10_000
+/** One percent, or one percentage point between two rates. */
+export const MILLIONTHS_PER_PERCENT = 10_000
 const MONTHS_PER_YEAR = 12
 
 /** A percent as a bank writes it, such as `3.18` or `3.1825`: up to two whole digits and up to four decimals. */

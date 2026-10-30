@@ -43,6 +43,7 @@ interface Formatters {
   readonly compact: Intl.NumberFormat
   readonly percent: Intl.NumberFormat
   readonly rate: Intl.NumberFormat
+  readonly points: Intl.NumberFormat
   readonly decimal: Intl.NumberFormat
   readonly days: Intl.NumberFormat
   readonly count: Intl.NumberFormat
@@ -71,6 +72,7 @@ function formatters(format: MoneyFormat = active.value): Formatters {
       compact: new Intl.NumberFormat(locale, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }),
       percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }),
       rate: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 4 }),
+      points: new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }),
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
       days: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
       count: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }),
@@ -126,6 +128,11 @@ export function formatPercent(fraction: number, sign: SignDisplay = 'negative'):
 /** An interest rate as a bank writes it, with up to four decimals of a percent, such as 2.99% or 3.1825%. */
 export function formatRate(fraction: number): string {
   return formatters().rate.format(fraction)
+}
+
+/** How far apart two rates are in percentage points, with up to four decimals, such as 0.47. */
+export function formatPoints(points: number): string {
+  return formatters().points.format(points)
 }
 
 /** A plain number with one decimal, such as a runway of 7.4 months. */

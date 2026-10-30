@@ -10,19 +10,17 @@ import { BANK_LOAN_WRITES, RATE_PERIOD_WRITES, newBankLoan, newRatePeriod, remov
 import { typedRate } from '../domain/yearlyRate'
 import { bankLoanLink, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
-import type { BankLoan, InterimInterest } from '../../workbook/domain/bankLoan'
+import type { BankLoan } from '../../workbook/domain/bankLoan'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
-import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import LoanTermsFields, { loanTermsTexts, typedLoanTerms } from './LoanTermsFields.vue'
+import type { LoanTermsTexts } from './LoanTermsFields.vue'
 import RateFields, { rateError } from './RateFields.vue'
 import type { RateTexts } from './RateFields.vue'
 import SubsidyFields, { subsidyTexts, typedSubsidy } from './SubsidyFields.vue'
 import type { SubsidyTexts } from './SubsidyFields.vue'
-import { typedCount } from './typedCount'
 import { words as loansWords } from '../../words'
 import { words } from './words'
 
@@ -37,21 +35,12 @@ const props = defineProps<{
   book: BankLoanBook | null
 }>()
 
-const EXAMPLE_DRAWDOWN = civilDate(2025, 8, 12)
-const EXAMPLE_FIRST_INSTALMENT = civilDate(2025, 9, 20)
-
 const store = useLoansBooks()
 const writes = useRecordWrites(store)
 const router = useRouter()
 
 const name = ref('')
-const lender = ref('')
-const principal = ref('')
-const drawdown = ref('')
-const firstInstalment = ref('')
-const instalments = ref('')
-const interimAmount = ref('')
-const interimDate = ref('')
+const terms = ref<LoanTermsTexts>(loanTermsTexts(null))
 const note = ref('')
 const rate = ref<RateTexts>({ rate: '', rateType: 'fixed', note: '' })
 const subsidised = ref(false)
@@ -62,13 +51,7 @@ watch(open, (opened) => {
   if (!opened) return
   const loan = props.book?.loan ?? null
   name.value = loan?.name ?? ''
-  lender.value = loan?.lender ?? ''
-  principal.value = loan === null ? '' : plainAmount(loan.principal)
-  drawdown.value = loan?.drawdown ?? ''
-  firstInstalment.value = loan?.firstInstalment ?? ''
-  instalments.value = loan === null ? '' : String(loan.instalments)
-  interimAmount.value = loan?.interimInterest ? plainAmount(loan.interimInterest.amount) : ''
-  interimDate.value = loan?.interimInterest?.date ?? ''
+  terms.value = loanTermsTexts(loan)
   note.value = loan?.note ?? ''
   rate.value = { rate: '', rateType: 'fixed', note: '' }
   subsidised.value = false
@@ -76,54 +59,25 @@ watch(open, (opened) => {
   tried.value = false
 })
 
-const typed = computed(() => {
-  const amount = typedAmount(principal.value)
-  const interest = typedAmount(interimAmount.value)
-  return {
-    principal: amount !== null && amount > 0 ? amount : null,
-    drawdown: parseCivilDate(drawdown.value),
-    firstInstalment: parseCivilDate(firstInstalment.value),
-    instalments: typedCount(instalments.value),
-    interimAmount: interest !== null && interest > 0 ? interest : null,
-    interimDate: parseCivilDate(interimDate.value),
-  }
-})
+const typed = computed(() => typedLoanTerms(terms.value))
 
-const interim = computed((): InterimInterest | null | undefined => {
-  const { interimAmount: amount, interimDate: date } = typed.value
-  if (interimAmount.value.trim() === '' && interimDate.value === '') return null
-  return amount === null || date === null ? undefined : { amount, date }
-})
-
-const errors = computed(() => {
-  const { drawdown: drawn, firstInstalment: first, instalments: count } = typed.value
-  return {
-    name: name.value.trim() === '' ? words.loanDialog.nameError : null,
-    principal: typed.value.principal === null ? loansWords.form.anAmount : null,
-    drawdown: drawn === null ? loansWords.form.aDate(EXAMPLE_DRAWDOWN) : null,
-    firstInstalment: first === null ? loansWords.form.aDate(EXAMPLE_FIRST_INSTALMENT) : drawn !== null && first <= drawn ? words.loanDialog.afterDrawdown : null,
-    instalments: count === null ? words.loanDialog.instalmentsError : count > 600 ? words.loanDialog.tooMany : null,
-    interim: interim.value === undefined ? words.loanDialog.interimError : null,
-    rate: props.book === null ? rateError(rate.value) : null,
-    subsidy: props.book === null && subsidised.value && typedSubsidy(subsidy.value, count).subsidy === null ? words.loanDialog.subsidyError : null,
-  }
-})
+const errors = computed(() => ({
+  name: name.value.trim() === '' ? words.loanDialog.nameError : null,
+  ...typed.value.errors,
+  rate: props.book === null ? rateError(rate.value) : null,
+  subsidy: props.book === null && subsidised.value && typedSubsidy(subsidy.value, typed.value.instalments).subsidy === null ? words.loanDialog.subsidyError : null,
+}))
 
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
 /** The loan as the fields give it, or null while a field is wrong. */
 function typedTerms(): Omit<BankLoan, 'id'> | null {
-  const { principal: amount, drawdown: drawn, firstInstalment: first, instalments: count } = typed.value
-  if (!valid.value || amount === null || drawn === null || first === null || count === null || interim.value === undefined) return null
+  const fields = typed.value.terms
+  if (!valid.value || fields === null) return null
   return {
+    ...fields,
     name: name.value,
-    lender: lender.value,
-    principal: amount,
-    drawdown: drawn,
-    firstInstalment: first,
-    instalments: count,
-    interimInterest: interim.value,
-    subsidy: props.book === null ? (subsidised.value ? typedSubsidy(subsidy.value, count).subsidy : null) : props.book.loan.subsidy,
+    subsidy: props.book === null ? (subsidised.value ? typedSubsidy(subsidy.value, fields.instalments).subsidy : null) : props.book.loan.subsidy,
     note: note.value,
   }
 }
@@ -187,27 +141,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.loanDialog.name" :error="(tried && errors.name) || false">
         <UInput v-model="name" :placeholder="words.loanDialog.namePlaceholder" class="w-full" data-testid="bank-loan-name" />
       </UFormField>
-      <UFormField :label="words.loanDialog.lender">
-        <UInput v-model="lender" :placeholder="words.loanDialog.lenderPlaceholder" class="w-full" />
-      </UFormField>
-      <UFormField :label="words.loanDialog.principal" :error="(tried && errors.principal) || false">
-        <UInput v-model="principal" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="bank-loan-principal" />
-      </UFormField>
-      <UFormField :label="words.loanDialog.instalments" :error="(tried && errors.instalments) || false" :help="words.loanDialog.instalmentsHelp">
-        <UInput v-model="instalments" inputmode="numeric" class="w-full" data-testid="bank-loan-instalments" />
-      </UFormField>
-      <UFormField :label="words.loanDialog.drawdown" :error="(tried && errors.drawdown) || false">
-        <UInput v-model="drawdown" type="date" class="w-full" data-testid="bank-loan-drawdown" />
-      </UFormField>
-      <UFormField :label="words.loanDialog.firstInstalment" :error="(tried && errors.firstInstalment) || false" :help="words.loanDialog.firstInstalmentHelp">
-        <UInput v-model="firstInstalment" type="date" class="w-full" data-testid="bank-loan-first-instalment" />
-      </UFormField>
-      <UFormField :label="words.loanDialog.interim" :error="(tried && errors.interim) || false" :help="words.loanDialog.interimHelp">
-        <UInput v-model="interimAmount" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" />
-      </UFormField>
-      <UFormField :label="words.loanDialog.interimDate">
-        <UInput v-model="interimDate" type="date" class="w-full" />
-      </UFormField>
+      <LoanTermsFields v-model="terms" :tried="tried" />
       <template v-if="book === null">
         <p class="text-sm font-medium text-highlighted">{{ words.loanDialog.firstRate }}</p>
         <RateFields v-model="rate" :tried="tried" />

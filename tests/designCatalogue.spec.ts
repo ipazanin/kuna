@@ -1,5 +1,5 @@
 import { globSync, readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const root = join(import.meta.dirname, '..')
@@ -23,7 +23,7 @@ const sources = Object.entries(AREAS).map(([area, pattern]) => ({
   area,
   files: globSync(pattern, { cwd: root })
     .filter((file) => !file.includes('/gallery/'))
-    .map((file) => ({ name: basename(file, '.vue'), text: readFileSync(join(root, file), 'utf8') })),
+    .map((file) => ({ path: file, name: basename(file, '.vue'), text: readFileSync(join(root, file), 'utf8') })),
 }))
 
 interface CatalogueRow {
@@ -54,10 +54,16 @@ function catalogueRows(markdown: string): CatalogueRow[] {
   })
 }
 
-/** How many files of each area render the component, leaving out the component's own file. */
+/** Whether the file imports the shared component, rather than one of its own app's that has the same name. */
+function importsShared(file: { readonly path: string; readonly text: string }, name: string): boolean {
+  const shared = join(root, 'src/shared/ui', `${name}.vue`)
+  return [...file.text.matchAll(new RegExp(`from '([^']*/${name}\\.vue)'`, 'g'))].some((found) => resolve(join(root, dirname(file.path)), found[1]!) === shared)
+}
+
+/** How many files of each area render the shared component, leaving out the component's own file. */
 function usesOf(name: string): Record<string, number> {
   const tag = new RegExp(`<${name}[\\s/>]`)
-  return Object.fromEntries(sources.map(({ area, files }) => [area, files.filter((file) => file.name !== name && tag.test(file.text)).length]))
+  return Object.fromEntries(sources.map(({ area, files }) => [area, files.filter((file) => file.name !== name && tag.test(file.text) && importsShared(file, name)).length]))
 }
 
 const rows = catalogueRows(catalogue)

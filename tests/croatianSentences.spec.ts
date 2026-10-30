@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import type { YearlyRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
 import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import { monthKey } from '../src/shared/calendar/monthKey'
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
+import { civil, euros } from './fixtures/ledger'
 
 /** The sentences Croatian builds from a record's noun, with the language on screen pinned to Croatian. */
 async function croatian(): Promise<typeof import('../src/shared/storage/presentation/words')> {
@@ -97,5 +99,35 @@ describe('full stops in Croatian', () => {
     expect(sentences[0]).toContain('ožujak\u00a02048. Na kraju mjeseca (listopad\u00a02026.) dug iznosi')
     expect(sentences[1]).toMatch(/1\. 5\. 2027\.$/)
     expect(sentences[2]).toMatch(/prazno\.$/)
+  })
+
+  it('ends a scenario sentence on a date with the date’s own full stop', async () => {
+    const view = await inCroatian(() => import('../src/apps/loans/scenarios/presentation/scenariosView'))
+    const comparison = await import('../src/apps/loans/scenarios/presentation/scenarioComparison')
+    const scenarios = await import('../src/apps/loans/scenarios/presentation/words')
+    const { dayLabel } = await import('../src/shared/calendar/dayLabel')
+    const { monthLabel } = await import('../src/shared/calendar/monthLabel')
+    const move = {
+      kind: 'move',
+      on: civil('2027-01-20'),
+      lender: 'Jadranska banka',
+      rate: 29_000 as YearlyRate,
+      rateType: 'fixed',
+      instalments: 240,
+      costs: { upfront: euros(1500), monthly: euros(0), yearly: euros(0) },
+    } as const
+    const sentences = [
+      view.changeSummary(move, { month: monthKey(2030, 1), months: 36 }),
+      comparison.refusalText({ refused: 'rate-shares-day', date: civil('2027-01-20') }),
+      comparison.refusalText({ refused: 'no-first-rate', firstInstalment: civil('2023-04-20') }),
+      scenarios.words.charts.owedEntry('B', '5.000,00 € iduće proljeće', monthLabel(monthKey(2048, 3))),
+      scenarios.words.table.subsidy(dayLabel(civil('2029-03-20')), '1.200,00 €'),
+      scenarios.words.summary.stands(`3,1 % fiksna, zatim 2,9 % fiksna od ${dayLabel(civil('2028-04-20'))}`),
+    ]
+
+    expect(sentences.filter((sentence) => sentence.includes('..'))).toEqual([])
+    expect(sentences[0]).toMatch(/Troškovi se vrate do 31\. 1\. 2030\.$/)
+    expect(sentences[4]).toContain('do 20. 3. 2029. Do prijevremene otplate')
+    expect(sentences[5]).toMatch(/20\. 4\. 2028\.$/)
   })
 })

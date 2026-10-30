@@ -44,6 +44,7 @@ import DialogSpecimens from './DialogSpecimens.vue'
 import FormattingGallery from './FormattingGallery.vue'
 import FoundationsGallery from './FoundationsGallery.vue'
 import GallerySection from './GallerySection.vue'
+import ScenarioSpecimens from './ScenarioSpecimens.vue'
 import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, incomeByMonth } from './sampleCharts'
 import { SAMPLE_TRANSACTIONS } from './sampleTransactions'
 import type { SampleTransaction } from './sampleTransactions'
@@ -77,6 +78,7 @@ const CONTENTS = [
   ['dialog', 'AppDialog'],
   ['step-card', 'StepCard'],
   ['figure-table', 'FigureTable'],
+  ['scenario-comparison', 'ScenarioComparison'],
   ['grouped-table', 'Grouped table'],
   ['controls', 'Small controls'],
   ['sync-status', 'Sync status'],
@@ -391,7 +393,7 @@ const columns: TableColumn<SampleTransaction>[] = [
     <GallerySection
       id="dashboard-grid"
       title="DashboardGrid"
-      description="How a dashboard rearranges with the width. Tiles go two to a row, then one row from lg, five or six three to a row and one row from 3xl. Cards go two to a row from xl and three from 3xl. A pair sets two parts side by side from 3xl."
+      description="How a dashboard rearranges with the width. Tiles go two to a row, then one row from lg, five or six three to a row and one row from 3xl. Cards go two to a row from xl and three from 3xl. A pair sets two parts side by side from 3xl. A row of up to four cards is under ScenarioComparison."
     >
       <h3 class="type-label">Six tiles</h3>
       <DashboardGrid layout="tiles">
@@ -622,6 +624,8 @@ const columns: TableColumn<SampleTransaction>[] = [
         </FigureTable>
       </AppCard>
     </GallerySection>
+
+    <ScenarioSpecimens />
 
     <GallerySection id="grouped-table" title="Grouped table" description="Nuxt UI's table, themed in vite.config.ts, only where grouping or sorting by a column earns it.">
       <div class="flex flex-wrap items-center justify-between gap-3">

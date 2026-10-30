@@ -47,6 +47,28 @@ export interface PickedScenario {
   readonly slot: number
 }
 
+/** How many slots a tab holds after the loan as it stands: three on a loan's tab, four on Offers. */
+export function slotCount(offers: boolean): number {
+  return offers ? MOST_COMPARED : MOST_COMPARED - 1
+}
+
+/** The compared columns the slots give: on a loan's tab the loan as it stands in A and the slots from B, on Offers the slots from A. */
+export function pickedOf(slots: ScenarioSlots, offers: boolean): PickedScenario[] {
+  const first = offers ? 1 : 2
+  const chosen = slots.flatMap((key, index) => (key === null ? [] : [{ key, slot: first + index }]))
+  return offers ? chosen : [{ key: AS_IT_STANDS, slot: 1 }, ...chosen]
+}
+
+/**
+ * The slots the address asks for, or the first scenarios when it asks for none. A `?compare=` left by
+ * another tab names none of this tab's scenarios, so it counts as no ask, while an empty one means
+ * every slot was unpicked.
+ */
+export function askedSlots(text: string | null, available: readonly string[], size: number): ScenarioSlots {
+  const stale = text !== null && text !== '' && !text.split(',').some((key) => available.includes(key))
+  return text === null || stale ? available.slice(0, size) : slotsOf(text, available, size)
+}
+
 export interface ScenarioCompare {
   readonly tab: ComputedRef<string>
   readonly picked: ComputedRef<readonly PickedScenario[]>
@@ -55,7 +77,6 @@ export interface ScenarioCompare {
   readonly savings: ComputedRef<YearlyRate | null>
   toggle(key: string): void
   pickBase(key: string): void
-  pickTab(tab: string): void
   setSavings(text: string): void
 }
 
@@ -63,7 +84,8 @@ export interface ScenarioCompare {
  * The tab, the scenarios compared and their slots, the base and the savings rate, kept in the
  * address as `?tab=`, `?compare=`, `?base=` and `?savings=`, so a reload or a shared link keeps them
  * and nothing is written. A loan's tab holds the loan as it stands in A and three slots after it,
- * the Offers tab four, of which one stays picked. With no `?compare=`, the first scenarios fill the slots.
+ * the Offers tab four, of which one stays picked. With no `?compare=` for the tab, the first
+ * scenarios fill the slots.
  */
 export function useScenarioCompare(tabs: () => readonly string[], scenariosOf: (tab: string) => readonly string[]): ScenarioCompare {
   const route = useRoute()
@@ -75,17 +97,9 @@ export function useScenarioCompare(tabs: () => readonly string[], scenariosOf: (
     return wanted !== null && tabs().includes(wanted) ? wanted : (tabs()[0] ?? OFFERS_TAB)
   })
   const offers = computed(() => tab.value === OFFERS_TAB)
-  const size = computed(() => (offers.value ? MOST_COMPARED : MOST_COMPARED - 1))
-  const slots = computed(() => {
-    const available = scenariosOf(tab.value)
-    const text = asked('compare')
-    return text === null ? available.slice(0, size.value) : slotsOf(text, available, size.value)
-  })
-  const picked = computed(() => {
-    const first = offers.value ? 1 : 2
-    const chosen = slots.value.flatMap((key, index) => (key === null ? [] : [{ key, slot: first + index }]))
-    return offers.value ? chosen : [{ key: AS_IT_STANDS, slot: 1 }, ...chosen]
-  })
+  const size = computed(() => slotCount(offers.value))
+  const slots = computed(() => askedSlots(asked('compare'), scenariosOf(tab.value), size.value))
+  const picked = computed(() => pickedOf(slots.value, offers.value))
   const base = computed(() => {
     const wanted = asked('base')
     return picked.value.find((entry) => entry.key === wanted)?.key ?? picked.value[0]?.key ?? AS_IT_STANDS
@@ -106,7 +120,6 @@ export function useScenarioCompare(tabs: () => readonly string[], scenariosOf: (
       replace({ compare: slotsText(next) })
     },
     pickBase: (key) => replace({ base: key }),
-    pickTab: (next) => replace({ tab: next, compare: undefined, base: undefined }),
     setSavings: (text) => {
       const rate = typedRate(text)
       replace({ savings: rate === null ? undefined : rateText(rate) })

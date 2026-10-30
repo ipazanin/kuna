@@ -1,5 +1,6 @@
 import { language } from '../../text/language'
 import type { EnglishForms, Translation } from '../../text/translation'
+import { withFullStop } from '../../text/withFullStop'
 import type { RecordNoun } from '../domain/recordKind'
 import { agreeing, en as domainEnglish, hr as domainCroatian } from '../domain/words'
 
@@ -8,11 +9,6 @@ import { agreeing, en as domainEnglish, hr as domainCroatian } from '../domain/w
 
 const { named: enNamed, namedFirst: enFirst } = domainEnglish
 const { named: hrNamed, namedFirst: hrFirst } = domainCroatian
-
-/** Reasons that end a Croatian sentence, where a date such as 1. 5. 2024. already ends with the full stop. */
-function withFullStop(reasons: string): string {
-  return reasons.endsWith('.') ? reasons : `${reasons}.`
-}
 
 export const en = {
   nothingWritten: (refusals: string) => `Nothing was written. ${refusals}`,

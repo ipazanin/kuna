@@ -8,10 +8,14 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import { whatIfExtraPayment } from '../domain/whatIf'
 import type { ExtraPaymentOutcome } from '../domain/whatIf'
 import type { ExtraPaymentStart } from './ExtraPaymentDialog.vue'
+import { scenariosLink } from '../../overview/presentation/loanLinks'
+import type { ScenarioDraft } from '../../scenarios/presentation/ScenarioEditor.vue'
+import { words as scenarioWords } from '../../scenarios/presentation/words'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -29,6 +33,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** Turn the tried payment into an extra payment, in its dialog. */
   apply: [start: ExtraPaymentStart]
+  /** Keep the tried payment as a scenario, in the scenario editor. */
+  keep: [draft: ScenarioDraft]
 }>()
 
 const amount = ref('')
@@ -55,10 +61,25 @@ function months(count: number): string {
 function apply(outcome: ExtraPaymentOutcome): void {
   if (typed.value !== null) emit('apply', { ...typed.value, effect: outcome.effect, editing: null })
 }
+
+function keep(outcome: ExtraPaymentOutcome): void {
+  const tried = typed.value
+  if (tried === null) return
+  emit('keep', {
+    name: scenarioWords.whatIf.name(formatMoney(tried.amount), dayLabel(tried.date)),
+    loan: props.book.loan.id,
+    terms: null,
+    changes: [{ kind: 'extra-payment', date: tried.date, amount: tried.amount, effect: outcome.effect }],
+    editing: null,
+  })
+}
 </script>
 
 <template>
   <AppCard :title="words.whatIf.title" :subtitle="words.whatIf.subtitle" data-testid="what-if">
+    <template #actions>
+      <UButton :to="scenariosLink(book.loan)" :label="scenarioWords.whatIf.compare" icon="i-lucide-scale" color="neutral" variant="ghost" size="xs" class="-my-1" data-testid="what-if-compare" />
+    </template>
     <div class="flex flex-col gap-4 px-4 pb-4 sm:px-5">
       <FormGrid>
         <UFormField :label="words.whatIf.amount">
@@ -89,7 +110,10 @@ function apply(outcome: ExtraPaymentOutcome): void {
             <dt class="text-muted">{{ words.whatIf.interestSaved }}</dt>
             <dd class="text-end"><MoneyText :cents="shorter.interestSaved" /></dd>
           </dl>
-          <UButton :label="words.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" class="self-start" data-testid="what-if-apply-shorter" @click="apply(shorter)" />
+          <div class="flex flex-wrap gap-1.5">
+            <UButton :label="words.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" data-testid="what-if-apply-shorter" @click="apply(shorter)" />
+            <UButton :label="scenarioWords.whatIf.saveAsScenario" icon="i-lucide-flask-conical" color="neutral" variant="ghost" size="sm" data-testid="what-if-keep-shorter" @click="keep(shorter)" />
+          </div>
         </section>
         <section class="flex flex-col gap-2 rounded-lg border border-default p-3" :aria-label="words.whatIf.lower">
           <h3 class="text-sm font-medium text-highlighted">{{ words.whatIf.lower }}</h3>
@@ -104,7 +128,10 @@ function apply(outcome: ExtraPaymentOutcome): void {
             <dt class="text-muted">{{ words.whatIf.interestSaved }}</dt>
             <dd class="text-end"><MoneyText :cents="lower.interestSaved" /></dd>
           </dl>
-          <UButton :label="words.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" class="self-start" data-testid="what-if-apply-lower" @click="apply(lower)" />
+          <div class="flex flex-wrap gap-1.5">
+            <UButton :label="words.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" data-testid="what-if-apply-lower" @click="apply(lower)" />
+            <UButton :label="scenarioWords.whatIf.saveAsScenario" icon="i-lucide-flask-conical" color="neutral" variant="ghost" size="sm" data-testid="what-if-keep-lower" @click="keep(lower)" />
+          </div>
         </section>
       </div>
       <p v-else class="text-sm text-muted">{{ words.whatIf.hint }}</p>

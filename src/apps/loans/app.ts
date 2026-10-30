@@ -6,8 +6,9 @@ import { words as bankLoanWords } from './bankLoans/presentation/words'
 import { LOANS_HOME_CARD } from './home/presentation/loansHomeCard'
 import { words as informalLoanWords } from './informalLoans/presentation/words'
 import { LOANS_START_ROUTE } from './onboarding/presentation/useLoansStart'
-import { BANK_LOAN_ROUTE, INFORMAL_LOAN_ROUTE, LOANS_OVERVIEW_ROUTE } from './overview/presentation/loanLinks'
+import { BANK_LOAN_ROUTE, INFORMAL_LOAN_ROUTE, LOANS_OVERVIEW_ROUTE, SCENARIOS_ROUTE } from './overview/presentation/loanLinks'
 import { words as overviewWords } from './overview/presentation/words'
+import { words as scenarioWords } from './scenarios/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
 import { loansSyncGroup } from './sync/presentation/loansSyncGroup'
 import { words } from './words'
@@ -16,6 +17,7 @@ import { LOANS_APP } from './workbook/infrastructure/loansDocument'
 import { useFindLoansFile } from './workbook/presentation/useFindLoansFile'
 
 const OVERVIEW: AppScreen = { path: LOANS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
+const SCENARIOS: AppScreen = { path: SCENARIOS_ROUTE, title: scenarioWords.title, icon: 'i-lucide-scale', component: () => import('./scenarios/presentation/ScenariosScreen.vue') }
 const SETTINGS: AppScreen = { path: '/loans/settings', title: settingsWords.title, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
 
 const { state } = useLoansBooks()
@@ -34,12 +36,13 @@ export const loansApp: AppContribution = {
   },
   screens: [
     OVERVIEW,
+    SCENARIOS,
     { path: BANK_LOAN_ROUTE, title: bankLoanWords.bankLoan, icon: 'i-lucide-landmark', component: () => import('./bankLoans/presentation/BankLoanScreen.vue') },
     { path: INFORMAL_LOAN_ROUTE, title: informalLoanWords.informalLoan, icon: 'i-lucide-handshake', component: () => import('./informalLoans/presentation/InformalLoanScreen.vue') },
     SETTINGS,
     { path: LOANS_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
-  menu: () => [OVERVIEW],
+  menu: () => [OVERVIEW, SCENARIOS],
   settings: SETTINGS,
   menuCount: () => null,
   subtitle: () => null,

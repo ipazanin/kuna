@@ -9,6 +9,7 @@ import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/comp
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
 import { en as bankLoanEnglish, hr as bankLoanCroatian } from '../../src/apps/loans/bankLoans/presentation/words.ts'
 import { en as overviewEnglish, hr as overviewCroatian } from '../../src/apps/loans/overview/presentation/words.ts'
+import { en as scenariosEnglish, hr as scenariosCroatian } from '../../src/apps/loans/scenarios/presentation/words.ts'
 import { en as loansSettingsEnglish, hr as loansSettingsCroatian } from '../../src/apps/loans/settings/presentation/words.ts'
 import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
@@ -30,6 +31,7 @@ const SCREEN_WORDS = {
     companySettings: companySettingsEnglish.title,
     loans: loansEnglish.name,
     overview: overviewEnglish.title,
+    scenarios: scenariosEnglish.title,
     loansSettings: loansSettingsEnglish.title,
     firstRateHelp: bankLoanEnglish.ratePeriodDialog.firstHelp,
     laterRateHelp: bankLoanEnglish.ratePeriodDialog.laterHelp,
@@ -43,6 +45,7 @@ const SCREEN_WORDS = {
     companySettings: companySettingsCroatian.title,
     loans: loansCroatian.name,
     overview: overviewCroatian.title,
+    scenarios: scenariosCroatian.title,
     loansSettings: loansSettingsCroatian.title,
     firstRateHelp: bankLoanCroatian.ratePeriodDialog.firstHelp,
     laterRateHelp: bankLoanCroatian.ratePeriodDialog.laterHelp,
@@ -3106,8 +3109,8 @@ function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
 
 /**
  * Inside an app only its own menu, in the sidebar or the drawer: the quiet Kuna mark first as the link
- * home, named Kuna, All apps, with a line under it, then Loans as a heading larger than Overview, the
- * one entry under it, Settings set apart, and the browser tab naming the app. The link home shows the
+ * home, named Kuna, All apps, with a line under it, then Loans as a heading larger than Overview,
+ * Overview and Scenarios under it, Settings set apart, and the browser tab naming the app. The link home shows the
  * home, whose sidebar lists both apps over Kuna settings, and the phone's top bar there has no menu
  * button. From the home, Company shows only its own menu.
  */
@@ -3122,7 +3125,8 @@ export function appMenuFlowIn(language) {
     if (loans.groups !== 1 || loans.name !== words.loans) throw new Error(`the Loans menu shows ${loans.groups} groups, the first ${loans.name}`)
     headingStandsOut(loans, words.loans)
     if (loans.subtitle !== null) throw new Error(`Loans shows "${loans.subtitle}" under its heading`)
-    if (JSON.stringify(loans.entries) !== JSON.stringify([words.overview]) || loans.current !== words.overview) throw new Error(`Loans lists ${loans.entries.join(', ')} with ${loans.current} marked`)
+    if (JSON.stringify(loans.entries) !== JSON.stringify([words.overview, words.scenarios]) || loans.current !== words.overview)
+      throw new Error(`Loans lists ${loans.entries.join(', ')} with ${loans.current} marked`)
     if (JSON.stringify(loans.apart) !== JSON.stringify([words.loansSettings])) throw new Error(`Loans sets apart ${loans.apart.join(', ')}`)
     const loansTitle = await page.title()
     if (loansTitle !== `${words.overview}, ${words.loans} – Kuna`) throw new Error(`the browser tab says "${loansTitle}"`)
@@ -3428,6 +3432,164 @@ export function loansWhatIfFlowIn(language) {
 
 export const loansWhatIfFlow = loansWhatIfFlowIn('en')
 
+/** The sample Loans file's scenarios of Home loan and its offers, by their bare UUIDs. */
+const SAMPLE_SCENARIOS = {
+  nextSpring: 'fa4e0000-0000-4000-8000-000000000020',
+  everyMonth: 'fa4e0000-0000-4000-8000-000000000021',
+  move: 'fa4e0000-0000-4000-8000-000000000022',
+  coastal: 'fa4e0000-0000-4000-8000-000000000024',
+}
+
+/** The keys of the scenarios Scenarios shows a card for, in their order. */
+function scenarioCards(page) {
+  return page.evaluate(() => [...document.querySelectorAll('[data-testid="scenario-card"]')].map((card) => card.dataset.scenario))
+}
+
+async function cardsAre(page, wanted, failure) {
+  await page
+    .waitForFunction(
+      (keys) => JSON.stringify([...document.querySelectorAll('[data-testid="scenario-card"]')].map((card) => card.dataset.scenario)) === JSON.stringify(keys),
+      { timeout: 10_000 },
+      wanted,
+    )
+    .catch(async () => {
+      throw new Error(`${failure}: the cards are ${JSON.stringify(await scenarioCards(page))}`)
+    })
+}
+
+/** How many figures the total line of Side by side holds, as cells of the table or two by two on a phone. */
+function totalFigures(page) {
+  return page.evaluate(() => document.querySelectorAll('[data-line="total"] td, [data-line="total"] [data-column]').length)
+}
+
+/**
+ * Scenarios with the sample file: A and three scenarios of Home loan side by side, each line with its
+ * four figures. Unpicking C leaves B and D their letters and repicking fills C again. Comparing
+ * against B moves the Base mark. Deleting C takes it off the list and Undo brings it back.
+ */
+export async function loansScenariosFlow(page, { press, shoot, inspect }) {
+  const stands = 'as-it-stands'
+  const { nextSpring, everyMonth, move } = SAMPLE_SCENARIOS
+  await cardsAre(page, [stands, nextSpring, everyMonth, move], 'Scenarios does not compare A with the first three scenarios')
+  const figures = await totalFigures(page)
+  if (figures !== 4) throw new Error(`the total line of Side by side holds ${figures} figures, not 4`)
+  await inspect?.('Scenarios')
+  await shoot('loans-scenarios-flow')
+
+  await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${everyMonth}"]`)
+  await cardsAre(page, [stands, nextSpring, move], 'unpicking C did not take its card away')
+  await elementSays(page, `[data-testid="scenario-card"][data-scenario="${move}"]`, ['D'], 'D lost its letter when C was unpicked')
+  if (!(await page.evaluate(() => window.location.hash.includes(',,')))) throw new Error('the freed slot is not kept in the address')
+  await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${everyMonth}"]`)
+  await cardsAre(page, [stands, nextSpring, everyMonth, move], 'repicking C did not fill its slot')
+
+  await chooseStartingWith(page, press, '[data-testid="scenario-base"]', 'B ·')
+  await elementSays(page, `[data-testid="scenario-card"][data-scenario="${nextSpring}"]`, ['Base'], 'B is not marked the base')
+  await inspect?.('Scenarios against B')
+  await shoot('loans-scenarios-base')
+
+  const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="scenario-row"]').length)
+  const before = await rows()
+  await pressSelector(page, press, `[data-testid="scenario-row"][data-scenario="${everyMonth}"] [data-testid="scenario-delete"]`)
+  await toast(page, 'Scenario deleted')
+  await page
+    .waitForFunction((count) => document.querySelectorAll('[data-testid="scenario-row"]').length === count, { timeout: 10_000 }, before - 1)
+    .catch(() => {
+      throw new Error('Delete left the scenario on the list')
+    })
+  await undo(page, press)
+  await page
+    .waitForFunction((count) => document.querySelectorAll('[data-testid="scenario-row"]').length === count, { timeout: 10_000 }, before)
+    .catch(() => {
+      throw new Error('Undo did not bring the scenario back')
+    })
+  await dismissToasts(page)
+}
+
+/**
+ * A new scenario of Home loan from New scenario: a regular extra payment typed into its block, whose
+ * headline in the dialog's foot changes with the amount, saved and listed, then deleted again.
+ */
+export async function loansScenarioEditorFlow(page, { press, shoot, inspect }) {
+  await pressSelector(page, press, '[data-testid="scenario-new"]')
+  await page.waitForSelector('[data-testid="new-scenario-form"]', { visible: true })
+  await fill(page, 'new-scenario-name', '€200 a month')
+  await pressSelector(page, press, '[data-testid="new-scenario-next"]')
+  await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
+  await pressSelector(page, press, '[data-testid="scenario-add-regular-extra-payment"]')
+  await fill(page, 'scenario-change-amount', '200')
+  const headline = () => page.$eval('[data-testid="scenario-headline"]', (element) => element.textContent?.replace(/\s+/g, ' ').trim() ?? '').catch(() => '')
+  await page
+    .waitForFunction(() => document.querySelector('[data-testid="scenario-headline"]')?.textContent?.includes('less interest'), { timeout: 10_000 })
+    .catch(async () => {
+      throw new Error(`the foot does not give the headline, it says "${await headline()}"`)
+    })
+  const first = await headline()
+  await delay(200)
+  await inspect?.('the scenario editor with a regular extra payment')
+  await shoot('loans-scenario-editor')
+  await fill(page, 'scenario-change-amount', '400')
+  await page
+    .waitForFunction((was) => (document.querySelector('[data-testid="scenario-headline"]')?.textContent ?? '').replace(/\s+/g, ' ').trim() !== was, { timeout: 10_000 }, first)
+    .catch(() => {
+      throw new Error(`the headline stayed "${first}" when the amount doubled`)
+    })
+  await pressSelector(page, press, '[data-testid="scenario-save"]')
+  await toast(page, 'Scenario added')
+  await dialogGone(page, '[data-testid="scenario-editor"]')
+  await elementSays(page, '[data-testid="scenario-list"]', ['€200 a month', 'Not compared'], 'the new scenario is not listed')
+  await dismissToasts(page)
+  const added = await page.evaluate(() => [...document.querySelectorAll('[data-testid="scenario-row"]')].find((row) => row.textContent?.includes('€200 a month'))?.dataset.scenario ?? null)
+  await pressSelector(page, press, `[data-testid="scenario-row"][data-scenario="${added}"] [data-testid="scenario-delete"]`)
+  await toast(page, 'Scenario deleted')
+  await dismissToasts(page)
+}
+
+/** The house-and-car Loans file's Car loan tab on Scenarios, which has no scenarios. */
+export const CAR_LOAN_SCENARIOS = '#/loans/scenarios?tab=fa4e0000-0000-4000-8000-000000000030'
+
+/**
+ * Car loan's tab with no scenarios and no `?compare=`: Try €5,000.00 extra opens the editor on the
+ * payment, and the saved scenario is compared as B beside A rather than left out.
+ */
+export async function loansTryExtraFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-testid="scenarios-empty"]', { visible: true })
+  await pressButton(page, press, '[data-testid="scenarios-empty"] button', 'Try ')
+  await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
+  await pressSelector(page, press, '[data-testid="scenario-save"]')
+  await toast(page, 'Scenario added')
+  await dialogGone(page, '[data-testid="scenario-editor"]')
+  await page
+    .waitForFunction(() => document.querySelectorAll('[data-testid="scenario-card"]').length === 2, { timeout: 10_000 })
+    .catch(async () => {
+      throw new Error(`the tried payment is not compared beside A: the cards are ${JSON.stringify(await scenarioCards(page))}`)
+    })
+  const [first] = await scenarioCards(page)
+  if (first !== 'as-it-stands') throw new Error(`the first card is ${first}, not the loan as it stands`)
+  if (await page.evaluate(() => document.querySelector('[data-testid="scenario-list"]')?.textContent?.includes('Not compared') ?? true)) {
+    throw new Error('the list says the tried payment is not compared')
+  }
+  await inspect?.('the tried payment compared')
+  await shoot('loans-scenarios-tried')
+  await dismissToasts(page)
+}
+
+/** The what-if's Save as scenario keeps the tried payment as a scenario and opens it on Scenarios, picked. */
+export async function loansWhatIfScenarioFlow(page, { press, shoot, inspect }) {
+  await fill(page, 'what-if-amount', '3000')
+  await fill(page, 'what-if-date', '2027-06-20')
+  await pressSelector(page, press, '[data-testid="what-if-keep-shorter"]')
+  await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
+  await elementSays(page, '[data-testid="scenario-outcome"]', ['Paid off', 'Interest left'], 'the editor does not work the tried payment out')
+  await inspect?.('the what-if kept as a scenario')
+  await shoot('loans-what-if-scenario')
+  await pressSelector(page, press, '[data-testid="scenario-save"]')
+  await toast(page, 'Scenario added')
+  await screenTitled(page, 'Scenarios')
+  await elementSays(page, '[data-testid="scenario-card"]', ['€3,000.00 on 20 Jun 2027'], 'the kept scenario is not picked on Scenarios')
+  await dismissToasts(page)
+}
+
 /** Opens a dialog with `opener`, waits for `shown` in it, shoots it under `name` and closes it with Escape. */
 async function lookAtDialog(page, press, shoot, opener, shown, name, says = null) {
   await pressSelector(page, press, opener)
@@ -3491,6 +3653,26 @@ export function loansDialogsFlowIn(language) {
     await openLoanCard(page, press, 'From Marko', words.overview)
     await lookAtDialog(page, press, shoot, '[data-testid="informal-loan-edit"]', '[data-testid="informal-loan-form"]', 'dialog-informal-loan')
     await lookAtDialog(page, press, shoot, '[data-testid="movement-edit"]', '[data-testid="movement-form"]', 'dialog-movement')
+
+    await goTo(page, '#/loans/scenarios', words.scenarios)
+    await lookAtDialog(page, press, shoot, '[data-testid="scenario-new"]', '[data-testid="new-scenario-form"]', 'dialog-new-scenario')
+    await lookAtDialog(
+      page,
+      press,
+      shoot,
+      `[data-testid="scenario-row"][data-scenario="${SAMPLE_SCENARIOS.move}"] [data-testid="scenario-edit"]`,
+      '[data-testid="scenario-editor"]',
+      'dialog-scenario-editor',
+    )
+    await goTo(page, '#/loans/scenarios?tab=offers', words.scenarios)
+    await lookAtDialog(
+      page,
+      press,
+      shoot,
+      `[data-testid="scenario-row"][data-scenario="${SAMPLE_SCENARIOS.coastal}"] [data-testid="scenario-edit"]`,
+      '[data-testid="scenario-editor"]',
+      'dialog-offer-editor',
+    )
   }
 }
 

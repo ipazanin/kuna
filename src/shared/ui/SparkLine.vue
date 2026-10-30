@@ -15,6 +15,9 @@ const props = withDefaults(
     aheadColour?: string
     /** A hairline at zero, for a line that crosses it. */
     zeroLine?: boolean
+    /** A second line on the same scale, drawn under the first, such as what the line is compared against. */
+    against?: readonly number[]
+    againstColour?: string
   }>(),
   { width: 88, height: 28, fill: false, zeroLine: false },
 )
@@ -46,22 +49,22 @@ const drawnWidth = computed(() => (props.fill ? (measured.value ?? props.width) 
 
 const geometry = computed(() => {
   if (props.points.length < 2) return null
-  const lowest = Math.min(...props.points, ...(props.zeroLine ? [0] : []))
-  const highest = Math.max(...props.points, ...(props.zeroLine ? [0] : []))
+  const against = props.against ?? []
+  const lowest = Math.min(...props.points, ...against, ...(props.zeroLine ? [0] : []))
+  const highest = Math.max(...props.points, ...against, ...(props.zeroLine ? [0] : []))
   const span = highest - lowest || 1
-  const stepX = (drawnWidth.value - INSET * 2) / (props.points.length - 1)
+  const stepX = (drawnWidth.value - INSET * 2) / (Math.max(props.points.length, against.length) - 1)
   const yOf = (point: number): number => INSET + (1 - (point - lowest) / span) * (props.height - INSET * 2)
-  const coordinates = props.points.map((point, index) => ({ x: INSET + index * stepX, y: yOf(point) }))
-  const pathOf = (from: number, to: number): string =>
-    coordinates
-      .slice(from, to)
-      .map(({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`)
-      .join(' ')
+  const placed = (points: readonly number[]) => points.map((point, index) => ({ x: INSET + index * stepX, y: yOf(point) }))
+  const coordinates = placed(props.points)
+  const joined = (points: readonly { x: number; y: number }[]): string => points.map(({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const pathOf = (from: number, to: number): string => joined(coordinates.slice(from, to))
   const split = props.aheadFrom === undefined ? coordinates.length - 1 : Math.min(Math.max(props.aheadFrom, 0), coordinates.length - 1)
   return {
     path: pathOf(0, split + 1),
     ahead: split < coordinates.length - 1 ? pathOf(split, coordinates.length) : null,
     dot: coordinates[split],
+    against: against.length < 2 ? null : joined(placed(against)),
     zero: props.zeroLine && lowest < 0 && highest > 0 ? yOf(0) : null,
   }
 })
@@ -70,6 +73,15 @@ const geometry = computed(() => {
 <template>
   <svg v-if="geometry" ref="svg" :width="fill ? '100%' : width" :height="height" :viewBox="`0 0 ${drawnWidth} ${height}`" class="block shrink-0 overflow-visible" aria-hidden="true">
     <line v-if="geometry.zero !== null" x1="0" :x2="drawnWidth" :y1="geometry.zero" :y2="geometry.zero" stroke="var(--chart-axis)" stroke-width="1" />
+    <polyline
+      v-if="geometry.against !== null"
+      :points="geometry.against"
+      fill="none"
+      :stroke="againstColour ?? 'var(--chart-ink-muted)'"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
     <polyline :points="geometry.path" fill="none" :stroke="colour ?? 'var(--chart-ink-muted)'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
     <polyline
       v-if="geometry.ahead !== null"
