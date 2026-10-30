@@ -1,0 +1,267 @@
+import type { InvestmentBook } from '../../workbook/domain/investmentBook'
+import type { SpinOff } from '../../workbook/domain/spinOff'
+import type { Split } from '../../workbook/domain/split'
+import type { Trade } from '../../workbook/domain/trade'
+import type { Transfer, TransferredUnits } from '../../workbook/domain/transfer'
+import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
+import { DECIMAL_ZERO, addDecimal, decimalOfMoney, decimalParts, inEuros, moneyParts, negateDecimal, scaledDecimal, subtractDecimal, sumDecimal, timesDecimal } from '../../../../shared/money/decimal'
+import type { Decimal } from '../../../../shared/money/decimal'
+import { ZERO, addMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
+
+/** Units of an instrument acquired on one day at one cost, which FIFO closes oldest first. */
+export interface Lot {
+  /** The buy's day, or for units received in a spin-off the parent lot's. */
+  readonly opened: CivilDate
+  readonly quantity: Decimal
+  /** In euros, fees included. */
+  readonly cost: Money
+  /** In the instrument's quote currency, fees included. */
+  readonly costInCurrency: Decimal
+  readonly taxFreeFrom: CivilDate
+}
+
+/** The part of a sale that closed one lot. */
+export interface RealisedLine {
+  readonly opened: CivilDate
+  readonly quantity: Decimal
+  readonly cost: Money
+  /** The lot's share of the sale's price × quantity, in euros. */
+  readonly proceeds: Money
+  /** The lot's share of the sale's fees, in euros. */
+  readonly fees: Money
+  readonly gain: Money
+  readonly daysHeld: number
+  readonly taxFree: boolean
+}
+
+export interface ClosedSale {
+  readonly trade: Trade
+  readonly lines: readonly RealisedLine[]
+}
+
+/** One instrument's FIFO queue, kept across every account. */
+export interface InstrumentLots {
+  readonly open: readonly Lot[]
+  readonly sales: readonly ClosedSale[]
+  /** Sales and unit transfers beyond what their account held on their day. They move nothing. */
+  readonly refused: readonly (Trade | Transfer)[]
+  /** The units each account holds, from its trades and transfers. They add up to the open lots. */
+  readonly units: ReadonlyMap<RecordId, Decimal>
+}
+
+export interface SalePart {
+  readonly quantity: Decimal
+  readonly gain: Money
+}
+
+/** A sale's units and gain from lots past two years, and from the rest. */
+export interface SaleTaxSplit {
+  readonly taxFree: SalePart
+  readonly taxable: SalePart
+}
+
+/** The day after the second anniversary of the day a lot was opened. The anniversary of 29 February is 28 February. */
+export function taxFreeFrom(opened: CivilDate): CivilDate {
+  return addDays(dayMonthsLater(opened, 24), 1)
+}
+
+/** What a trade moves in its currency: a buy's quantity × price + fees, a sale's quantity × price − fees. */
+export function tradeTotal(trade: Trade): Decimal {
+  const worth = timesDecimal(trade.quantity, trade.price)
+  const fees = trade.fees ?? DECIMAL_ZERO
+  return trade.side === 'buy' ? addDecimal(worth, fees) : subtractDecimal(worth, fees)
+}
+
+export function taxSplitOf(sale: ClosedSale): SaleTaxSplit {
+  const partOf = (taxFree: boolean): SalePart => {
+    const lines = sale.lines.filter((line) => line.taxFree === taxFree)
+    return { quantity: sumDecimal(lines.map((line) => line.quantity)), gain: sumMoney(lines.map((line) => line.gain)) }
+  }
+  return { taxFree: partOf(true), taxable: partOf(false) }
+}
+
+interface Queue {
+  open: Lot[]
+  readonly sales: ClosedSale[]
+  readonly refused: (Trade | Transfer)[]
+  readonly units: Map<RecordId, Decimal>
+}
+
+interface Step {
+  readonly date: CivilDate
+  readonly rank: number
+  readonly order: number
+  readonly apply: () => void
+}
+
+/**
+ * Every instrument's lots, from its trades, splits and spin-offs and the unit transfers between accounts, walked in
+ * date order. On one day splits come first, then spin-offs, buys, transfers and sales, each in the file's order.
+ */
+export function investmentLots(book: InvestmentBook): ReadonlyMap<RecordId, InstrumentLots> {
+  const queues = new Map<RecordId, Queue>()
+  const queueOf = (instrument: RecordId): Queue => {
+    const known = queues.get(instrument)
+    if (known !== undefined) {
+      return known
+    }
+    const queue: Queue = { open: [], sales: [], refused: [], units: new Map() }
+    queues.set(instrument, queue)
+    return queue
+  }
+  book.instruments.forEach((instrument) => queueOf(instrument.id))
+
+  const steps: Step[] = [
+    ...book.splits.map((split, order) => ({ date: split.date, rank: 0, order, apply: () => applySplit(queueOf(split.instrument), split) })),
+    ...book.spinOffs.map((spinOff, order) => ({ date: spinOff.date, rank: 1, order, apply: () => applySpinOff(queueOf(spinOff.instrument), queueOf(spinOff.received), spinOff) })),
+    ...book.trades.map((trade, order) => ({
+      date: trade.date,
+      rank: trade.side === 'buy' ? 2 : 4,
+      order,
+      apply: () => (trade.side === 'buy' ? applyBuy(queueOf(trade.instrument), trade) : applySale(queueOf(trade.instrument), trade)),
+    })),
+    ...book.transfers.flatMap((transfer, order) => {
+      const moved = transfer.moved
+      return moved.kind === 'units' ? [{ date: transfer.date, rank: 3, order, apply: () => applyTransfer(queueOf(moved.instrument), transfer, moved) }] : []
+    }),
+  ]
+  steps.sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.rank - later.rank || earlier.order - later.order).forEach((step) => step.apply())
+
+  return queues
+}
+
+function applyBuy(queue: Queue, trade: Trade): void {
+  const total = tradeTotal(trade)
+  queue.open.push({ opened: trade.date, quantity: trade.quantity, cost: inEuros(total, trade.rate), costInCurrency: total, taxFreeFrom: taxFreeFrom(trade.date) })
+  moveUnits(queue.units, trade.account, trade.quantity)
+}
+
+/**
+ * Closes the oldest lots first, whichever account bought them. The sale's proceeds and fees, each in euros, are split
+ * across them by quantity. Since the accounts' units add up to the open lots, a sale within its account's units is
+ * within the lots too.
+ */
+function applySale(queue: Queue, trade: Trade): void {
+  if (trade.quantity > unitsOf(queue.units, trade.account)) {
+    queue.refused.push(trade)
+    return
+  }
+  const takes: { readonly lot: Lot; readonly quantity: Decimal }[] = []
+  let left = trade.quantity
+  for (const lot of queue.open) {
+    if (left === DECIMAL_ZERO) {
+      break
+    }
+    const quantity = lot.quantity < left ? lot.quantity : left
+    takes.push({ lot, quantity })
+    left = subtractDecimal(left, quantity)
+  }
+
+  const fees = inEuros(trade.fees ?? DECIMAL_ZERO, trade.rate)
+  const weights = takes.map((take) => take.quantity)
+  const proceeds = moneyParts(addMoney(inEuros(tradeTotal(trade), trade.rate), fees), weights)
+  const feeShares = moneyParts(fees, weights)
+  const kept: Lot[] = []
+  const lines = takes.map(({ lot, quantity }, index): RealisedLine => {
+    const keptQuantity = subtractDecimal(lot.quantity, quantity)
+    const [cost = ZERO, keptCost = ZERO] = moneyParts(lot.cost, [quantity, keptQuantity])
+    const [, keptInCurrency = DECIMAL_ZERO] = decimalParts(lot.costInCurrency, [quantity, keptQuantity])
+    if (keptQuantity > DECIMAL_ZERO) {
+      kept.push({ ...lot, quantity: keptQuantity, cost: keptCost, costInCurrency: keptInCurrency })
+    }
+    const lineProceeds = proceeds[index]!
+    const lineFees = feeShares[index]!
+    return {
+      opened: lot.opened,
+      quantity,
+      cost,
+      proceeds: lineProceeds,
+      fees: lineFees,
+      gain: subtractMoney(subtractMoney(lineProceeds, lineFees), cost),
+      daysHeld: daysBetween(lot.opened, trade.date),
+      taxFree: trade.date >= lot.taxFreeFrom,
+    }
+  })
+  queue.open = [...kept, ...queue.open.slice(takes.length)]
+  queue.sales.push({ trade, lines })
+  moveUnits(queue.units, trade.account, negateDecimal(trade.quantity))
+}
+
+/**
+ * Multiplies the open units by new ÷ old and leaves the cost alone. The total is scaled once and shared out to the lots
+ * and to the accounts in proportion, so a 1-for-3 split of three lots of 100 still adds up to exactly 100.
+ */
+function applySplit(queue: Queue, split: Split): void {
+  const quantities = queue.open.map((lot) => lot.quantity)
+  const scaled = scaledDecimal(sumDecimal(quantities), BigInt(split.newUnits), BigInt(split.oldUnits))
+  const lotQuantities = decimalParts(scaled, quantities)
+  queue.open = queue.open.map((lot, index) => ({ ...lot, quantity: lotQuantities[index]! }))
+  const accounts = [...queue.units]
+  const accountUnits = decimalParts(
+    scaled,
+    accounts.map(([, units]) => units),
+  )
+  accounts.forEach(([account], index) => queue.units.set(account, accountUnits[index]!))
+}
+
+/**
+ * Opens one lot of the received instrument per open parent lot, with the parent lot's day, its share of the units
+ * received and its share of the cost that moves, which leaves the parent lot. Each account holding the parent receives
+ * units in proportion to what it holds. The cost in the quote currency moves as it is, so the received instrument has
+ * to quote in its parent's currency, which reading the book checks.
+ */
+function applySpinOff(parent: Queue, received: Queue, spinOff: SpinOff): void {
+  const lots = parent.open
+  if (lots.length === 0) {
+    return
+  }
+  const quantities = decimalParts(
+    spinOff.quantity,
+    lots.map((lot) => lot.quantity),
+  )
+  const movedCost = inEuros(timesDecimal(decimalOfMoney(sumMoney(lots.map((lot) => lot.cost))), spinOff.costShare), null)
+  const costs = moneyParts(
+    movedCost,
+    lots.map((lot) => BigInt(lot.cost)),
+  )
+  const movedInCurrency = timesDecimal(sumDecimal(lots.map((lot) => lot.costInCurrency)), spinOff.costShare)
+  const inCurrency = decimalParts(
+    movedInCurrency,
+    lots.map((lot) => lot.costInCurrency),
+  )
+
+  const receivedLots = lots
+    .map((lot, index) => ({ opened: lot.opened, quantity: quantities[index]!, cost: costs[index]!, costInCurrency: inCurrency[index]!, taxFreeFrom: lot.taxFreeFrom }))
+    .filter((lot) => lot.quantity > DECIMAL_ZERO)
+  received.open = [...received.open, ...receivedLots].sort((earlier, later) => earlier.opened.localeCompare(later.opened))
+  parent.open = lots.map((lot, index) => ({ ...lot, cost: subtractMoney(lot.cost, costs[index]!), costInCurrency: subtractDecimal(lot.costInCurrency, inCurrency[index]!) }))
+
+  const holders = [...parent.units].filter(([, units]) => units > DECIMAL_ZERO)
+  const shares = decimalParts(
+    spinOff.quantity,
+    holders.map(([, units]) => units),
+  )
+  holders.forEach(([account], index) => moveUnits(received.units, account, shares[index]!))
+}
+
+/** Moves units between accounts and leaves the lots, their days and their costs as they are. */
+function applyTransfer(queue: Queue, transfer: Transfer, moved: TransferredUnits): void {
+  if (moved.quantity > unitsOf(queue.units, transfer.from)) {
+    queue.refused.push(transfer)
+    return
+  }
+  moveUnits(queue.units, transfer.from, negateDecimal(moved.quantity))
+  moveUnits(queue.units, transfer.to, moved.quantity)
+}
+
+function unitsOf(units: ReadonlyMap<RecordId, Decimal>, account: RecordId): Decimal {
+  return units.get(account) ?? DECIMAL_ZERO
+}
+
+function moveUnits(units: Map<RecordId, Decimal>, account: RecordId, change: Decimal): void {
+  units.set(account, addDecimal(unitsOf(units, account), change))
+}
